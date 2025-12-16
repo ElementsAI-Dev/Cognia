@@ -1,0 +1,501 @@
+/**
+ * Artifact Store - manages artifacts, canvas documents, and analysis results
+ */
+
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { nanoid } from 'nanoid';
+import type {
+  Artifact,
+  ArtifactType,
+  ArtifactLanguage,
+  CanvasDocument,
+  CanvasDocumentVersion,
+  CanvasSuggestion,
+  AnalysisResult,
+} from '@/types';
+
+interface ArtifactState {
+  // Artifacts
+  artifacts: Record<string, Artifact>;
+  activeArtifactId: string | null;
+
+  // Canvas
+  canvasDocuments: Record<string, CanvasDocument>;
+  activeCanvasId: string | null;
+  canvasOpen: boolean;
+
+  // Analysis
+  analysisResults: Record<string, AnalysisResult>;
+
+  // Panel state
+  panelOpen: boolean;
+  panelView: 'artifact' | 'canvas' | 'analysis';
+}
+
+interface ArtifactActions {
+  // Artifact actions
+  createArtifact: (params: {
+    sessionId: string;
+    messageId: string;
+    type: ArtifactType;
+    title: string;
+    content: string;
+    language?: ArtifactLanguage;
+  }) => Artifact;
+  updateArtifact: (id: string, updates: Partial<Artifact>) => void;
+  deleteArtifact: (id: string) => void;
+  getArtifact: (id: string) => Artifact | undefined;
+  getSessionArtifacts: (sessionId: string) => Artifact[];
+  setActiveArtifact: (id: string | null) => void;
+
+  // Canvas actions
+  createCanvasDocument: (params: {
+    sessionId: string;
+    title: string;
+    content: string;
+    language: ArtifactLanguage;
+    type: 'code' | 'text';
+  }) => CanvasDocument;
+  updateCanvasDocument: (id: string, updates: Partial<CanvasDocument>) => void;
+  deleteCanvasDocument: (id: string) => void;
+  setActiveCanvas: (id: string | null) => void;
+  openCanvas: () => void;
+  closeCanvas: () => void;
+
+  // Canvas suggestions
+  addSuggestion: (documentId: string, suggestion: Omit<CanvasSuggestion, 'id'>) => void;
+  updateSuggestionStatus: (
+    documentId: string,
+    suggestionId: string,
+    status: CanvasSuggestion['status']
+  ) => void;
+  applySuggestion: (documentId: string, suggestionId: string) => void;
+  clearSuggestions: (documentId: string) => void;
+
+  // Canvas version history
+  saveCanvasVersion: (documentId: string, description?: string, isAutoSave?: boolean) => CanvasDocumentVersion | null;
+  restoreCanvasVersion: (documentId: string, versionId: string) => void;
+  deleteCanvasVersion: (documentId: string, versionId: string) => void;
+  getCanvasVersions: (documentId: string) => CanvasDocumentVersion[];
+  compareVersions: (documentId: string, versionId1: string, versionId2: string) => { v1: string; v2: string } | null;
+
+  // Analysis actions
+  addAnalysisResult: (result: Omit<AnalysisResult, 'id' | 'createdAt'>) => AnalysisResult;
+  getMessageAnalysis: (messageId: string) => AnalysisResult[];
+
+  // Panel actions
+  openPanel: (view?: 'artifact' | 'canvas' | 'analysis') => void;
+  closePanel: () => void;
+  setPanelView: (view: 'artifact' | 'canvas' | 'analysis') => void;
+
+  // Utility
+  clearSessionData: (sessionId: string) => void;
+}
+
+const initialState: ArtifactState = {
+  artifacts: {},
+  activeArtifactId: null,
+  canvasDocuments: {},
+  activeCanvasId: null,
+  canvasOpen: false,
+  analysisResults: {},
+  panelOpen: false,
+  panelView: 'artifact',
+};
+
+export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
+  persist(
+    (set, get) => ({
+      ...initialState,
+
+      // Artifact actions
+      createArtifact: ({ sessionId, messageId, type, title, content, language }) => {
+        const artifact: Artifact = {
+          id: nanoid(),
+          sessionId,
+          messageId,
+          type,
+          title,
+          content,
+          language,
+          version: 1,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        set((state) => ({
+          artifacts: { ...state.artifacts, [artifact.id]: artifact },
+          activeArtifactId: artifact.id,
+          panelOpen: true,
+          panelView: 'artifact',
+        }));
+
+        return artifact;
+      },
+
+      updateArtifact: (id, updates) => {
+        set((state) => {
+          const artifact = state.artifacts[id];
+          if (!artifact) return state;
+
+          const updated = {
+            ...artifact,
+            ...updates,
+            version: artifact.version + 1,
+            updatedAt: new Date(),
+          };
+
+          return {
+            artifacts: { ...state.artifacts, [id]: updated },
+          };
+        });
+      },
+
+      deleteArtifact: (id) => {
+        set((state) => {
+          const { [id]: _removed, ...rest } = state.artifacts;
+          return {
+            artifacts: rest,
+            activeArtifactId:
+              state.activeArtifactId === id ? null : state.activeArtifactId,
+          };
+        });
+      },
+
+      getArtifact: (id) => get().artifacts[id],
+
+      getSessionArtifacts: (sessionId) =>
+        Object.values(get().artifacts)
+          .filter((a) => a.sessionId === sessionId)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+
+      setActiveArtifact: (id) => {
+        set({ activeArtifactId: id });
+        if (id) {
+          set({ panelOpen: true, panelView: 'artifact' });
+        }
+      },
+
+      // Canvas actions
+      createCanvasDocument: ({ sessionId, title, content, language, type }) => {
+        const doc: CanvasDocument = {
+          id: nanoid(),
+          sessionId,
+          title,
+          content,
+          language,
+          type,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          aiSuggestions: [],
+        };
+
+        set((state) => ({
+          canvasDocuments: { ...state.canvasDocuments, [doc.id]: doc },
+          activeCanvasId: doc.id,
+          canvasOpen: true,
+          panelView: 'canvas',
+        }));
+
+        return doc;
+      },
+
+      updateCanvasDocument: (id, updates) => {
+        set((state) => {
+          const doc = state.canvasDocuments[id];
+          if (!doc) return state;
+
+          return {
+            canvasDocuments: {
+              ...state.canvasDocuments,
+              [id]: { ...doc, ...updates, updatedAt: new Date() },
+            },
+          };
+        });
+      },
+
+      deleteCanvasDocument: (id) => {
+        set((state) => {
+          const { [id]: _removed, ...rest } = state.canvasDocuments;
+          return {
+            canvasDocuments: rest,
+            activeCanvasId: state.activeCanvasId === id ? null : state.activeCanvasId,
+          };
+        });
+      },
+
+      setActiveCanvas: (id) => {
+        set({ activeCanvasId: id });
+        if (id) {
+          set({ canvasOpen: true, panelView: 'canvas' });
+        }
+      },
+
+      openCanvas: () => set({ canvasOpen: true, panelView: 'canvas' }),
+      closeCanvas: () => set({ canvasOpen: false }),
+
+      // Canvas suggestions
+      addSuggestion: (documentId, suggestion) => {
+        set((state) => {
+          const doc = state.canvasDocuments[documentId];
+          if (!doc) return state;
+
+          const newSuggestion: CanvasSuggestion = {
+            ...suggestion,
+            id: nanoid(),
+          };
+
+          return {
+            canvasDocuments: {
+              ...state.canvasDocuments,
+              [documentId]: {
+                ...doc,
+                aiSuggestions: [...(doc.aiSuggestions || []), newSuggestion],
+              },
+            },
+          };
+        });
+      },
+
+      updateSuggestionStatus: (documentId, suggestionId, status) => {
+        set((state) => {
+          const doc = state.canvasDocuments[documentId];
+          if (!doc) return state;
+
+          return {
+            canvasDocuments: {
+              ...state.canvasDocuments,
+              [documentId]: {
+                ...doc,
+                aiSuggestions: doc.aiSuggestions?.map((s) =>
+                  s.id === suggestionId ? { ...s, status } : s
+                ),
+              },
+            },
+          };
+        });
+      },
+
+      applySuggestion: (documentId, suggestionId) => {
+        const state = get();
+        const doc = state.canvasDocuments[documentId];
+        if (!doc) return;
+
+        const suggestion = doc.aiSuggestions?.find((s) => s.id === suggestionId);
+        if (!suggestion) return;
+
+        // Apply the suggestion by replacing the text
+        const lines = doc.content.split('\n');
+        const newLines = [
+          ...lines.slice(0, suggestion.range.startLine),
+          suggestion.suggestedText,
+          ...lines.slice(suggestion.range.endLine + 1),
+        ];
+
+        set((state) => ({
+          canvasDocuments: {
+            ...state.canvasDocuments,
+            [documentId]: {
+              ...doc,
+              content: newLines.join('\n'),
+              aiSuggestions: doc.aiSuggestions?.map((s) =>
+                s.id === suggestionId ? { ...s, status: 'accepted' as const } : s
+              ),
+              updatedAt: new Date(),
+            },
+          },
+        }));
+      },
+
+      clearSuggestions: (documentId) => {
+        set((state) => {
+          const doc = state.canvasDocuments[documentId];
+          if (!doc) return state;
+
+          return {
+            canvasDocuments: {
+              ...state.canvasDocuments,
+              [documentId]: { ...doc, aiSuggestions: [] },
+            },
+          };
+        });
+      },
+
+      // Canvas version history
+      saveCanvasVersion: (documentId, description, isAutoSave = false) => {
+        const state = get();
+        const doc = state.canvasDocuments[documentId];
+        if (!doc) return null;
+
+        const version: CanvasDocumentVersion = {
+          id: nanoid(),
+          content: doc.content,
+          title: doc.title,
+          createdAt: new Date(),
+          description,
+          isAutoSave,
+        };
+
+        set((state) => ({
+          canvasDocuments: {
+            ...state.canvasDocuments,
+            [documentId]: {
+              ...doc,
+              versions: [...(doc.versions || []), version],
+              currentVersionId: version.id,
+            },
+          },
+        }));
+
+        return version;
+      },
+
+      restoreCanvasVersion: (documentId, versionId) => {
+        set((state) => {
+          const doc = state.canvasDocuments[documentId];
+          if (!doc || !doc.versions) return state;
+
+          const version = doc.versions.find((v) => v.id === versionId);
+          if (!version) return state;
+
+          // Save current state as a new version before restoring
+          const currentVersion: CanvasDocumentVersion = {
+            id: nanoid(),
+            content: doc.content,
+            title: doc.title,
+            createdAt: new Date(),
+            description: 'Auto-saved before restore',
+            isAutoSave: true,
+          };
+
+          return {
+            canvasDocuments: {
+              ...state.canvasDocuments,
+              [documentId]: {
+                ...doc,
+                content: version.content,
+                title: version.title,
+                updatedAt: new Date(),
+                versions: [...doc.versions, currentVersion],
+                currentVersionId: versionId,
+              },
+            },
+          };
+        });
+      },
+
+      deleteCanvasVersion: (documentId, versionId) => {
+        set((state) => {
+          const doc = state.canvasDocuments[documentId];
+          if (!doc || !doc.versions) return state;
+
+          return {
+            canvasDocuments: {
+              ...state.canvasDocuments,
+              [documentId]: {
+                ...doc,
+                versions: doc.versions.filter((v) => v.id !== versionId),
+              },
+            },
+          };
+        });
+      },
+
+      getCanvasVersions: (documentId) => {
+        const doc = get().canvasDocuments[documentId];
+        if (!doc || !doc.versions) return [];
+        return [...doc.versions].sort(
+          (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+        );
+      },
+
+      compareVersions: (documentId, versionId1, versionId2) => {
+        const doc = get().canvasDocuments[documentId];
+        if (!doc || !doc.versions) return null;
+
+        const v1 = doc.versions.find((v) => v.id === versionId1);
+        const v2 = doc.versions.find((v) => v.id === versionId2);
+
+        if (!v1 || !v2) return null;
+
+        return {
+          v1: v1.content,
+          v2: v2.content,
+        };
+      },
+
+      // Analysis actions
+      addAnalysisResult: (result) => {
+        const newResult: AnalysisResult = {
+          ...result,
+          id: nanoid(),
+          createdAt: new Date(),
+        };
+
+        set((state) => ({
+          analysisResults: { ...state.analysisResults, [newResult.id]: newResult },
+        }));
+
+        return newResult;
+      },
+
+      getMessageAnalysis: (messageId) =>
+        Object.values(get().analysisResults)
+          .filter((r) => r.messageId === messageId)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+
+      // Panel actions
+      openPanel: (view = 'artifact') => set({ panelOpen: true, panelView: view }),
+      closePanel: () => set({ panelOpen: false }),
+      setPanelView: (view) => set({ panelView: view }),
+
+      // Utility
+      clearSessionData: (sessionId) => {
+        set((state) => {
+          const artifacts = Object.fromEntries(
+            Object.entries(state.artifacts).filter(
+              ([, a]) => a.sessionId !== sessionId
+            )
+          );
+          const canvasDocuments = Object.fromEntries(
+            Object.entries(state.canvasDocuments).filter(
+              ([, d]) => d.sessionId !== sessionId
+            )
+          );
+          const analysisResults = Object.fromEntries(
+            Object.entries(state.analysisResults).filter(
+              ([, r]) => r.sessionId !== sessionId
+            )
+          );
+
+          return {
+            artifacts,
+            canvasDocuments,
+            analysisResults,
+            activeArtifactId:
+              state.activeArtifactId &&
+              artifacts[state.activeArtifactId]
+                ? state.activeArtifactId
+                : null,
+            activeCanvasId:
+              state.activeCanvasId &&
+              canvasDocuments[state.activeCanvasId]
+                ? state.activeCanvasId
+                : null,
+          };
+        });
+      },
+    }),
+    {
+      name: 'cognia-artifacts',
+      partialize: (state) => ({
+        artifacts: state.artifacts,
+        canvasDocuments: state.canvasDocuments,
+        analysisResults: state.analysisResults,
+      }),
+    }
+  )
+);
+
+export default useArtifactStore;

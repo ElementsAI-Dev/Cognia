@@ -1,18 +1,18 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "react-quick-starter",
+  "productName": "Cognia",
   "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "identifier": "com.elementsai.cognia",
   "build": {
     "frontendDist": "../out",
-    "devUrl": "http://localhost:3000",
-    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:3001",
+    "beforeDevCommand": "cross-env TAURI=true pnpm dev -p 3001",
     "beforeBuildCommand": "pnpm build"
   },
   "app": {
     "windows": [
       {
-        "title": "react-quick-starter",
+        "title": "Cognia",
         "width": 800,
         "height": 600,
         "resizable": true,

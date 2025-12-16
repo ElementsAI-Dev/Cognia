@@ -1,0 +1,302 @@
+/**
+ * Project Store - manages projects with persistence
+ */
+
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { nanoid } from 'nanoid';
+import type {
+  Project,
+  CreateProjectInput,
+  UpdateProjectInput,
+  KnowledgeFile,
+} from '@/types';
+
+interface ProjectState {
+  // State
+  projects: Project[];
+  activeProjectId: string | null;
+
+  // Actions
+  createProject: (input: CreateProjectInput) => Project;
+  deleteProject: (id: string) => void;
+  updateProject: (id: string, updates: UpdateProjectInput) => void;
+  setActiveProject: (id: string | null) => void;
+  duplicateProject: (id: string) => Project | null;
+
+  // Session management
+  addSessionToProject: (projectId: string, sessionId: string) => void;
+  removeSessionFromProject: (projectId: string, sessionId: string) => void;
+  getProjectForSession: (sessionId: string) => Project | undefined;
+
+  // Knowledge base management
+  addKnowledgeFile: (projectId: string, file: Omit<KnowledgeFile, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  removeKnowledgeFile: (projectId: string, fileId: string) => void;
+  updateKnowledgeFile: (projectId: string, fileId: string, content: string) => void;
+
+  // Bulk operations
+  clearAllProjects: () => void;
+  importProjects: (projects: Project[]) => void;
+
+  // Selectors
+  getProject: (id: string) => Project | undefined;
+  getActiveProject: () => Project | undefined;
+  getProjectsBySessionCount: () => Project[];
+}
+
+const DEFAULT_COLOR = '#3B82F6';
+const DEFAULT_ICON = 'Folder';
+
+export const useProjectStore = create<ProjectState>()(
+  persist(
+    (set, get) => ({
+      projects: [],
+      activeProjectId: null,
+
+      createProject: (input) => {
+        const project: Project = {
+          id: nanoid(),
+          name: input.name,
+          description: input.description,
+          icon: input.icon || DEFAULT_ICON,
+          color: input.color || DEFAULT_COLOR,
+          customInstructions: input.customInstructions,
+          defaultProvider: input.defaultProvider,
+          defaultModel: input.defaultModel,
+          defaultMode: input.defaultMode,
+          knowledgeBase: [],
+          sessionIds: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          lastAccessedAt: new Date(),
+          sessionCount: 0,
+          messageCount: 0,
+        };
+
+        set((state) => ({
+          projects: [project, ...state.projects],
+          activeProjectId: project.id,
+        }));
+
+        return project;
+      },
+
+      deleteProject: (id) =>
+        set((state) => {
+          const newProjects = state.projects.filter((p) => p.id !== id);
+          const newActiveId =
+            state.activeProjectId === id
+              ? null
+              : state.activeProjectId;
+
+          return {
+            projects: newProjects,
+            activeProjectId: newActiveId,
+          };
+        }),
+
+      updateProject: (id, updates) =>
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === id
+              ? {
+                  ...p,
+                  ...updates,
+                  updatedAt: new Date(),
+                }
+              : p
+          ),
+        })),
+
+      setActiveProject: (id) =>
+        set((state) => {
+          // Update lastAccessedAt when setting active project
+          const updatedProjects = id
+            ? state.projects.map((p) =>
+                p.id === id
+                  ? { ...p, lastAccessedAt: new Date() }
+                  : p
+              )
+            : state.projects;
+
+          return {
+            projects: updatedProjects,
+            activeProjectId: id,
+          };
+        }),
+
+      duplicateProject: (id) => {
+        const { projects } = get();
+        const original = projects.find((p) => p.id === id);
+
+        if (!original) return null;
+
+        const duplicate: Project = {
+          ...original,
+          id: nanoid(),
+          name: `${original.name} (copy)`,
+          sessionIds: [], // Don't copy session associations
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          lastAccessedAt: new Date(),
+          sessionCount: 0,
+          messageCount: 0,
+        };
+
+        set((state) => ({
+          projects: [duplicate, ...state.projects],
+          activeProjectId: duplicate.id,
+        }));
+
+        return duplicate;
+      },
+
+      addSessionToProject: (projectId, sessionId) =>
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId && !p.sessionIds.includes(sessionId)
+              ? {
+                  ...p,
+                  sessionIds: [...p.sessionIds, sessionId],
+                  sessionCount: p.sessionCount + 1,
+                  updatedAt: new Date(),
+                }
+              : p
+          ),
+        })),
+
+      removeSessionFromProject: (projectId, sessionId) =>
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  sessionIds: p.sessionIds.filter((id) => id !== sessionId),
+                  sessionCount: Math.max(0, p.sessionCount - 1),
+                  updatedAt: new Date(),
+                }
+              : p
+          ),
+        })),
+
+      getProjectForSession: (sessionId) => {
+        const { projects } = get();
+        return projects.find((p) => p.sessionIds.includes(sessionId));
+      },
+
+      addKnowledgeFile: (projectId, file) =>
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  knowledgeBase: [
+                    ...p.knowledgeBase,
+                    {
+                      ...file,
+                      id: nanoid(),
+                      createdAt: new Date(),
+                      updatedAt: new Date(),
+                    },
+                  ],
+                  updatedAt: new Date(),
+                }
+              : p
+          ),
+        })),
+
+      removeKnowledgeFile: (projectId, fileId) =>
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  knowledgeBase: p.knowledgeBase.filter((f) => f.id !== fileId),
+                  updatedAt: new Date(),
+                }
+              : p
+          ),
+        })),
+
+      updateKnowledgeFile: (projectId, fileId, content) =>
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  knowledgeBase: p.knowledgeBase.map((f) =>
+                    f.id === fileId
+                      ? { ...f, content, size: content.length, updatedAt: new Date() }
+                      : f
+                  ),
+                  updatedAt: new Date(),
+                }
+              : p
+          ),
+        })),
+
+      clearAllProjects: () =>
+        set({
+          projects: [],
+          activeProjectId: null,
+        }),
+
+      importProjects: (projects) =>
+        set((state) => ({
+          projects: [...projects, ...state.projects],
+        })),
+
+      getProject: (id) => {
+        const { projects } = get();
+        return projects.find((p) => p.id === id);
+      },
+
+      getActiveProject: () => {
+        const { projects, activeProjectId } = get();
+        return projects.find((p) => p.id === activeProjectId);
+      },
+
+      getProjectsBySessionCount: () => {
+        const { projects } = get();
+        return [...projects].sort((a, b) => b.sessionCount - a.sessionCount);
+      },
+    }),
+    {
+      name: 'cognia-projects',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        projects: state.projects.map((p) => ({
+          ...p,
+          createdAt: p.createdAt instanceof Date ? p.createdAt.toISOString() : p.createdAt,
+          updatedAt: p.updatedAt instanceof Date ? p.updatedAt.toISOString() : p.updatedAt,
+          lastAccessedAt: p.lastAccessedAt instanceof Date ? p.lastAccessedAt.toISOString() : p.lastAccessedAt,
+          knowledgeBase: p.knowledgeBase.map((f) => ({
+            ...f,
+            createdAt: f.createdAt instanceof Date ? f.createdAt.toISOString() : f.createdAt,
+            updatedAt: f.updatedAt instanceof Date ? f.updatedAt.toISOString() : f.updatedAt,
+          })),
+        })),
+        activeProjectId: state.activeProjectId,
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (state?.projects) {
+          state.projects = state.projects.map((p) => ({
+            ...p,
+            createdAt: new Date(p.createdAt),
+            updatedAt: new Date(p.updatedAt),
+            lastAccessedAt: new Date(p.lastAccessedAt),
+            knowledgeBase: p.knowledgeBase.map((f) => ({
+              ...f,
+              createdAt: new Date(f.createdAt),
+              updatedAt: new Date(f.updatedAt),
+            })),
+          }));
+        }
+      },
+    }
+  )
+);
+
+// Selectors
+export const selectProjects = (state: ProjectState) => state.projects;
+export const selectActiveProjectId = (state: ProjectState) => state.activeProjectId;

@@ -112,11 +112,95 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* Color Theme Presets */
+
+/* Ocean Theme - Teal/Cyan */
+.theme-ocean {
+  --primary: oklch(0.6 0.15 200);
+  --primary-foreground: oklch(0.985 0.002 200);
+  --ring: oklch(0.6 0.15 200);
+  --sidebar-primary: oklch(0.6 0.15 200);
+}
+.dark.theme-ocean,
+.dark .theme-ocean {
+  --primary: oklch(0.7 0.15 200);
+  --primary-foreground: oklch(0.15 0.02 200);
+  --ring: oklch(0.7 0.15 200);
+  --sidebar-primary: oklch(0.7 0.15 200);
+}
+
+/* Forest Theme - Green */
+.theme-forest {
+  --primary: oklch(0.55 0.15 145);
+  --primary-foreground: oklch(0.985 0.002 145);
+  --ring: oklch(0.55 0.15 145);
+  --sidebar-primary: oklch(0.55 0.15 145);
+}
+.dark.theme-forest,
+.dark .theme-forest {
+  --primary: oklch(0.65 0.15 145);
+  --primary-foreground: oklch(0.15 0.02 145);
+  --ring: oklch(0.65 0.15 145);
+  --sidebar-primary: oklch(0.65 0.15 145);
+}
+
+/* Sunset Theme - Orange/Red */
+.theme-sunset {
+  --primary: oklch(0.65 0.2 30);
+  --primary-foreground: oklch(0.985 0.002 30);
+  --ring: oklch(0.65 0.2 30);
+  --sidebar-primary: oklch(0.65 0.2 30);
+}
+.dark.theme-sunset,
+.dark .theme-sunset {
+  --primary: oklch(0.72 0.18 30);
+  --primary-foreground: oklch(0.15 0.02 30);
+  --ring: oklch(0.72 0.18 30);
+  --sidebar-primary: oklch(0.72 0.18 30);
+}
+
+/* Lavender Theme - Purple */
+.theme-lavender {
+  --primary: oklch(0.6 0.15 280);
+  --primary-foreground: oklch(0.985 0.002 280);
+  --ring: oklch(0.6 0.15 280);
+  --sidebar-primary: oklch(0.6 0.15 280);
+}
+.dark.theme-lavender,
+.dark .theme-lavender {
+  --primary: oklch(0.7 0.15 280);
+  --primary-foreground: oklch(0.15 0.02 280);
+  --ring: oklch(0.7 0.15 280);
+  --sidebar-primary: oklch(0.7 0.15 280);
+}
+
+/* Rose Theme - Pink */
+.theme-rose {
+  --primary: oklch(0.65 0.18 350);
+  --primary-foreground: oklch(0.985 0.002 350);
+  --ring: oklch(0.65 0.18 350);
+  --sidebar-primary: oklch(0.65 0.18 350);
+}
+.dark.theme-rose,
+.dark .theme-rose {
+  --primary: oklch(0.72 0.16 350);
+  --primary-foreground: oklch(0.15 0.02 350);
+  --ring: oklch(0.72 0.16 350);
+  --sidebar-primary: oklch(0.72 0.16 350);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    height: 100%;
+    scrollbar-gutter: stable;
+    overflow: hidden;
+  }
   body {
     @apply bg-background text-foreground;
+    overflow: hidden;
+    height: 100%;
   }
 }

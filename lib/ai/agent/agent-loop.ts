@@ -1,0 +1,266 @@
+/**
+ * Agent Loop - Higher-level agent orchestration with planning
+ */
+
+import { executeAgent, type AgentTool } from './agent-executor';
+import { type StopCondition, stepCountIs, anyOf, noToolCalls } from './stop-conditions';
+import type { ProviderName } from '../client';
+
+export interface AgentTask {
+  id: string;
+  description: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  result?: string;
+  error?: string;
+}
+
+export interface AgentLoopConfig {
+  provider: ProviderName;
+  model: string;
+  apiKey: string;
+  baseURL?: string;
+  tools?: Record<string, AgentTool>;
+  maxStepsPerTask?: number;
+  maxTotalSteps?: number;
+  planningEnabled?: boolean;
+  onTaskStart?: (task: AgentTask) => void;
+  onTaskComplete?: (task: AgentTask) => void;
+  onProgress?: (progress: { completed: number; total: number; currentTask?: string }) => void;
+}
+
+export interface AgentLoopResult {
+  success: boolean;
+  tasks: AgentTask[];
+  totalSteps: number;
+  duration: number;
+  finalSummary?: string;
+  error?: string;
+}
+
+/**
+ * Planning prompt to break down complex tasks
+ */
+const PLANNING_PROMPT = `You are a task planning assistant. Break down the following task into smaller, actionable subtasks.
+Each subtask should be:
+1. Specific and actionable
+2. Independent when possible
+3. Ordered logically
+
+Return a numbered list of subtasks, one per line.
+
+Task: `;
+
+/**
+ * Summary prompt to consolidate results
+ */
+const SUMMARY_PROMPT = `Summarize the following task results into a coherent response:
+
+`;
+
+/**
+ * Parse planning response into tasks
+ */
+function parsePlanningResponse(response: string): string[] {
+  const lines = response.split('\n');
+  const tasks: string[] = [];
+
+  for (const line of lines) {
+    // Match numbered items like "1.", "1)", "1:"
+    const match = line.match(/^\s*\d+[.):\s]+(.+)/);
+    if (match) {
+      tasks.push(match[1].trim());
+    } else if (line.trim() && !line.startsWith('#')) {
+      // Also include non-numbered non-empty lines that aren't headers
+      const trimmed = line.trim();
+      if (trimmed.length > 10) {
+        tasks.push(trimmed);
+      }
+    }
+  }
+
+  return tasks;
+}
+
+/**
+ * Execute a complex task with optional planning and multi-step execution
+ */
+export async function executeAgentLoop(
+  task: string,
+  config: AgentLoopConfig
+): Promise<AgentLoopResult> {
+  const {
+    provider,
+    model,
+    apiKey,
+    baseURL,
+    tools = {},
+    maxStepsPerTask = 5,
+    maxTotalSteps = 20,
+    planningEnabled = true,
+    onTaskStart,
+    onTaskComplete,
+    onProgress,
+  } = config;
+
+  const startTime = Date.now();
+  const tasks: AgentTask[] = [];
+  let totalSteps = 0;
+
+  try {
+    // Step 1: Planning (if enabled)
+    let subtasks: string[] = [task];
+
+    if (planningEnabled) {
+      const planningResult = await executeAgent(PLANNING_PROMPT + task, {
+        provider,
+        model,
+        apiKey,
+        baseURL,
+        temperature: 0.3,
+        maxSteps: 1,
+        stopCondition: stepCountIs(1),
+      });
+
+      if (planningResult.success && planningResult.finalResponse) {
+        const parsed = parsePlanningResponse(planningResult.finalResponse);
+        if (parsed.length > 0) {
+          subtasks = parsed;
+        }
+      }
+      totalSteps += planningResult.totalSteps;
+    }
+
+    // Initialize tasks
+    for (let i = 0; i < subtasks.length; i++) {
+      tasks.push({
+        id: `task-${i + 1}`,
+        description: subtasks[i],
+        status: 'pending',
+      });
+    }
+
+    // Step 2: Execute each subtask
+    const results: string[] = [];
+
+    for (let i = 0; i < tasks.length; i++) {
+      const currentTask = tasks[i];
+
+      // Check if we've exceeded max total steps
+      if (totalSteps >= maxTotalSteps) {
+        currentTask.status = 'failed';
+        currentTask.error = 'Maximum total steps exceeded';
+        continue;
+      }
+
+      currentTask.status = 'running';
+      onTaskStart?.(currentTask);
+      onProgress?.({
+        completed: i,
+        total: tasks.length,
+        currentTask: currentTask.description,
+      });
+
+      const stopCondition: StopCondition = anyOf(
+        stepCountIs(maxStepsPerTask),
+        noToolCalls()
+      );
+
+      const taskResult = await executeAgent(currentTask.description, {
+        provider,
+        model,
+        apiKey,
+        baseURL,
+        tools,
+        maxSteps: maxStepsPerTask,
+        stopCondition,
+        systemPrompt: `You are executing a subtask as part of a larger goal. Focus on completing this specific task efficiently.
+        
+Original goal: ${task}
+Current subtask: ${currentTask.description}`,
+      });
+
+      totalSteps += taskResult.totalSteps;
+
+      if (taskResult.success) {
+        currentTask.status = 'completed';
+        currentTask.result = taskResult.finalResponse;
+        results.push(`Task ${i + 1}: ${currentTask.description}\nResult: ${taskResult.finalResponse}`);
+      } else {
+        currentTask.status = 'failed';
+        currentTask.error = taskResult.error;
+      }
+
+      onTaskComplete?.(currentTask);
+    }
+
+    // Step 3: Summarize results
+    let finalSummary: string | undefined;
+
+    if (results.length > 1) {
+      const summaryResult = await executeAgent(
+        SUMMARY_PROMPT + results.join('\n\n'),
+        {
+          provider,
+          model,
+          apiKey,
+          baseURL,
+          temperature: 0.3,
+          maxSteps: 1,
+          stopCondition: stepCountIs(1),
+        }
+      );
+
+      if (summaryResult.success) {
+        finalSummary = summaryResult.finalResponse;
+      }
+      totalSteps += summaryResult.totalSteps;
+    } else if (results.length === 1) {
+      finalSummary = tasks[0].result;
+    }
+
+    onProgress?.({
+      completed: tasks.length,
+      total: tasks.length,
+    });
+
+    const allSucceeded = tasks.every((t) => t.status === 'completed');
+
+    return {
+      success: allSucceeded,
+      tasks,
+      totalSteps,
+      duration: Date.now() - startTime,
+      finalSummary,
+      error: allSucceeded ? undefined : 'Some tasks failed',
+    };
+  } catch (error) {
+    return {
+      success: false,
+      tasks,
+      totalSteps,
+      duration: Date.now() - startTime,
+      error: error instanceof Error ? error.message : 'Agent loop failed',
+    };
+  }
+}
+
+/**
+ * Create a reusable agent loop instance
+ */
+export function createAgentLoop(baseConfig: Omit<AgentLoopConfig, 'provider' | 'model' | 'apiKey'>) {
+  return {
+    execute: async (
+      task: string,
+      providerConfig: { provider: ProviderName; model: string; apiKey: string; baseURL?: string }
+    ) => {
+      return executeAgentLoop(task, {
+        ...baseConfig,
+        ...providerConfig,
+      });
+    },
+    addTool: (name: string, tool: AgentTool) => {
+      baseConfig.tools = baseConfig.tools || {};
+      baseConfig.tools[name] = tool;
+    },
+  };
+}
