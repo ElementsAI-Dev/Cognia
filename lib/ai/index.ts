@@ -13,3 +13,4 @@ export * from './chunking';
 export * from './rag';
 export * from './structured-output';
 export * from './agent';
+export * from './canvas-actions';

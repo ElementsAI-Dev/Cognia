@@ -1,41 +1,26 @@
 /**
- * Tavily Search Integration
- * Web search API for AI-powered research
+ * Tavily Search Provider
+ * AI-optimized search engine with answer generation
  */
 
 import { tavily } from '@tavily/core';
+import type {
+  SearchOptions,
+  SearchResponse,
+  SearchResult,
+} from '@/types/search';
 
-export interface SearchResult {
-  title: string;
-  url: string;
-  content: string;
-  score: number;
-  publishedDate?: string;
-}
-
-export interface SearchOptions {
-  maxResults?: number;
-  searchDepth?: 'basic' | 'advanced';
-  includeAnswer?: boolean;
+export interface TavilySearchOptions extends Omit<SearchOptions, 'includeRawContent'> {
   includeRawContent?: false | 'text' | 'markdown';
-  includeDomains?: string[];
-  excludeDomains?: string[];
-}
-
-export interface SearchResponse {
-  query: string;
-  answer?: string;
-  results: SearchResult[];
-  responseTime: number;
 }
 
 /**
  * Search the web using Tavily API
  */
-export async function searchWeb(
+export async function searchWithTavily(
   query: string,
   apiKey: string,
-  options: SearchOptions = {}
+  options: TavilySearchOptions = {}
 ): Promise<SearchResponse> {
   const {
     maxResults = 5,
@@ -56,7 +41,7 @@ export async function searchWeb(
   try {
     const response = await client.search(query, {
       maxResults,
-      searchDepth,
+      searchDepth: searchDepth === 'deep' ? 'advanced' : searchDepth,
       includeAnswer,
       includeRawContent,
       includeDomains,
@@ -72,6 +57,7 @@ export async function searchWeb(
     }));
 
     return {
+      provider: 'tavily',
       query,
       answer: response.answer,
       results,
@@ -81,8 +67,8 @@ export async function searchWeb(
     console.error('Tavily search error:', error);
     throw new Error(
       error instanceof Error
-        ? `Search failed: ${error.message}`
-        : 'Search failed: Unknown error'
+        ? `Tavily search failed: ${error.message}`
+        : 'Tavily search failed: Unknown error'
     );
   }
 }
@@ -90,11 +76,11 @@ export async function searchWeb(
 /**
  * Get a quick answer from Tavily
  */
-export async function getAnswer(
+export async function getAnswerFromTavily(
   query: string,
   apiKey: string
 ): Promise<string | null> {
-  const response = await searchWeb(query, apiKey, {
+  const response = await searchWithTavily(query, apiKey, {
     maxResults: 3,
     searchDepth: 'basic',
     includeAnswer: true,
@@ -106,7 +92,7 @@ export async function getAnswer(
 /**
  * Extract content from a URL using Tavily
  */
-export async function extractContent(
+export async function extractContentWithTavily(
   url: string,
   apiKey: string
 ): Promise<string> {
@@ -123,8 +109,20 @@ export async function extractContent(
     console.error('Tavily extract error:', error);
     throw new Error(
       error instanceof Error
-        ? `Extract failed: ${error.message}`
-        : 'Extract failed: Unknown error'
+        ? `Tavily extract failed: ${error.message}`
+        : 'Tavily extract failed: Unknown error'
     );
+  }
+}
+
+/**
+ * Test Tavily API connection
+ */
+export async function testTavilyConnection(apiKey: string): Promise<boolean> {
+  try {
+    await searchWithTavily('test', apiKey, { maxResults: 1 });
+    return true;
+  } catch {
+    return false;
   }
 }

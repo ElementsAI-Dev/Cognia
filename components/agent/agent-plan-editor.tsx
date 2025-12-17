@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useAgentStore, useSettingsStore, useSessionStore } from '@/stores';
+import { usePlanExecutor } from '@/hooks';
 import { generateText } from 'ai';
 import { getProviderModel, type ProviderName } from '@/lib/ai/client';
 import type { AgentPlan, PlanStep, PlanStepStatus } from '@/types/agent';
@@ -257,6 +258,9 @@ export function AgentPlanEditor({
 
   const activePlan = getActivePlan();
 
+  // Plan executor hook
+  const { isExecuting: isPlanExecuting, executePlan, stopExecution } = usePlanExecutor();
+
   // Local state
   const [isExpanded, setIsExpanded] = useState(true);
   const [editingStepId, setEditingStepId] = useState<string | null>(null);
@@ -397,24 +401,38 @@ Provide an improved version of this plan:`,
     }
   }, [activePlan, session, providerSettings, updatePlan]);
 
-  const handleApproveAndExecute = useCallback(() => {
+  const handleApproveAndExecute = useCallback(async () => {
     if (!activePlan) return;
     approvePlan(activePlan.id);
     startPlanExecution(activePlan.id);
-    onExecute?.(activePlan);
-  }, [activePlan, approvePlan, startPlanExecution, onExecute]);
+    
+    // Execute the plan using the plan executor
+    await executePlan(activePlan.id, {
+      onStepComplete: (step, result) => {
+        console.log(`Step "${step.title}" completed:`, result);
+      },
+      onPlanComplete: (completedPlan) => {
+        console.log('Plan completed:', completedPlan.title);
+        onExecute?.(completedPlan);
+      },
+      onPlanError: (plan, error) => {
+        console.error(`Plan "${plan.title}" failed:`, error);
+      },
+    });
+  }, [activePlan, approvePlan, startPlanExecution, executePlan, onExecute]);
 
   const handleCancel = useCallback(() => {
     if (!activePlan) return;
+    stopExecution();
     cancelPlanExecution(activePlan.id);
-  }, [activePlan, cancelPlanExecution]);
+  }, [activePlan, stopExecution, cancelPlanExecution]);
 
   // Calculate progress
   const progress = activePlan
     ? (activePlan.completedSteps / activePlan.totalSteps) * 100
     : 0;
 
-  const isExecuting = activePlan?.status === 'executing';
+  const isExecuting = activePlan?.status === 'executing' || isPlanExecuting;
   const isDraft = activePlan?.status === 'draft';
   const canEdit = isDraft && !isRefining;
 

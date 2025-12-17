@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Copy, Check, AlertCircle, Pencil, RotateCcw } from 'lucide-react';
+import { Copy, Check, Pencil, RotateCcw } from 'lucide-react';
 import {
   Conversation,
   ConversationContent,
@@ -21,7 +21,7 @@ import {
   MessageAction,
 } from '@/components/ai-elements/message';
 import { Loader } from '@/components/ai-elements/loader';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ErrorMessage } from './error-message';
 import { ChatHeader } from './chat-header';
 import { type Attachment } from './chat-input';
 import { ChatInputSimple } from './chat-input-simple';
@@ -38,6 +38,7 @@ import {
   getDefaultSuggestions,
   type GeneratedSuggestion,
 } from '@/lib/ai/suggestion-generator';
+import type { SearchResponse } from '@/lib/search/tavily';
 import { useSessionStore, useSettingsStore, usePresetStore } from '@/stores';
 import { useMessages } from '@/hooks';
 import { useAIChat, useAutoRouter, type ProviderName, isVisionModel, buildMultimodalContent, type MultimodalMessage } from '@/lib/ai';
@@ -83,6 +84,8 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
 
@@ -297,10 +300,37 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     }
   }, [inputValue]);
 
+  // Format search results for system prompt
+  const formatSearchResults = useCallback((searchResponse: SearchResponse): string => {
+    const parts: string[] = [
+      '## Web Search Results',
+      `Query: "${searchResponse.query}"`,
+      '',
+    ];
+
+    if (searchResponse.answer) {
+      parts.push(`**Quick Answer:** ${searchResponse.answer}`, '');
+    }
+
+    parts.push('**Sources:**');
+    searchResponse.results.forEach((result, index) => {
+      parts.push(`${index + 1}. [${result.title}](${result.url})`);
+      parts.push(`   ${result.content.slice(0, 200)}...`);
+      parts.push('');
+    });
+
+    parts.push('---');
+    parts.push('Use the above search results to provide an informed, up-to-date response. Cite sources when relevant.');
+
+    return parts.join('\n');
+  }, []);
+
   const handleSendMessage = useCallback(async (content: string, attachments?: Attachment[]) => {
     if (!content.trim() && (!attachments || attachments.length === 0)) return;
 
     setError(null);
+    setRetryCount(0);
+    setLastFailedMessage(null);
 
     // Ensure we have an active session
     let currentSessionId = activeSessionId;
@@ -385,11 +415,71 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
         }));
       }
 
+      // Perform web search if enabled
+      let enhancedSystemPrompt = session?.systemPrompt || '';
+      if (webSearchEnabled) {
+        const tavilyApiKey = providerSettings.tavily?.apiKey;
+        if (tavilyApiKey) {
+          try {
+            const searchRes = await fetch('/api/search', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                query: content,
+                apiKey: tavilyApiKey,
+                options: {
+                  maxResults: 5,
+                  searchDepth: 'basic',
+                  includeAnswer: true,
+                },
+              }),
+            });
+
+            if (searchRes.ok) {
+              const searchResponse: SearchResponse = await searchRes.json();
+              if (searchResponse.results && searchResponse.results.length > 0) {
+                const searchContext = formatSearchResults(searchResponse);
+                enhancedSystemPrompt = enhancedSystemPrompt
+                  ? `${enhancedSystemPrompt}\n\n${searchContext}`
+                  : searchContext;
+              }
+            }
+          } catch (searchError) {
+            console.warn('Web search failed:', searchError);
+          }
+        }
+      }
+
+      // Add thinking mode instructions if enabled
+      if (thinkingEnabled) {
+        const thinkingPrompt = `You are in "Thinking Mode". Before providing your final answer, you must:
+
+1. **Think Step by Step**: Break down the problem into smaller parts
+2. **Consider Multiple Angles**: Look at the question from different perspectives
+3. **Evaluate Options**: If there are multiple approaches, briefly consider each
+4. **Reason Through**: Show your reasoning process clearly
+
+Format your response as:
+<thinking>
+[Your step-by-step reasoning process here]
+</thinking>
+
+<answer>
+[Your final, well-reasoned answer here]
+</answer>
+
+Be thorough in your thinking but concise in your final answer.`;
+
+        enhancedSystemPrompt = enhancedSystemPrompt
+          ? `${enhancedSystemPrompt}\n\n${thinkingPrompt}`
+          : thinkingPrompt;
+      }
+
       // Send to AI
       const response = await aiSendMessage(
         {
           messages: coreMessages,
-          systemPrompt: session?.systemPrompt,
+          systemPrompt: enhancedSystemPrompt || undefined,
           temperature: session?.temperature ?? 0.7,
           maxTokens: session?.maxTokens,
           sessionId: currentSessionId!,
@@ -423,10 +513,11 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       console.error('Chat error:', err);
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
       setError(errorMessage);
+      setLastFailedMessage(content);
     } finally {
       setIsLoading(false);
     }
-  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, appendToMessage, updateMessage, loadSuggestions]);
+  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, appendToMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults]);
 
   const handleStop = useCallback(() => {
     aiStop();
@@ -507,10 +598,21 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       <ChatHeader sessionId={sessionId} />
 
       {error && (
-        <Alert variant="destructive" className="mx-4 mt-2">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <ErrorMessage
+          error={error}
+          onRetry={lastFailedMessage ? () => {
+            setRetryCount((prev) => prev + 1);
+            handleSendMessage(lastFailedMessage);
+          } : undefined}
+          onDismiss={() => {
+            setError(null);
+            setRetryCount(0);
+            setLastFailedMessage(null);
+          }}
+          autoRetry={!!lastFailedMessage}
+          maxRetries={3}
+          retryCount={retryCount}
+        />
       )}
 
       <Conversation>

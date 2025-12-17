@@ -126,6 +126,13 @@ const config: Config = {
 
     // Handle image imports
     "^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$/i": "<rootDir>/__mocks__/fileMock.js",
+
+    // Mock Tauri plugins
+    "^@tauri-apps/plugin-fs$": "<rootDir>/__mocks__/tauri-plugin-fs.js",
+    "^@tauri-apps/plugin-dialog$": "<rootDir>/__mocks__/tauri-plugin-dialog.js",
+
+    // Mock nanoid ESM module
+    "^nanoid$": "<rootDir>/__mocks__/nanoid.js",
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
@@ -233,10 +240,9 @@ const config: Config = {
   // transform: undefined,
 
   // An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
-  // transformIgnorePatterns: [
-  //   "\\\\node_modules\\\\",
-  //   "\\.pnp\\.[^\\\\]+$"
-  // ],
+  transformIgnorePatterns: [
+    "node_modules/(?!(nanoid)/)",
+  ],
 
   // An array of regexp pattern strings that are matched against all modules before the module loader will automatically return a mock for them
   // unmockedModulePathPatterns: undefined,

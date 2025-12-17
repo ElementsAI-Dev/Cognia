@@ -2,7 +2,7 @@
  * useMessages hook - manages message state with IndexedDB persistence
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import { messageRepository } from '@/lib/db';
 import type { UIMessage, MessageRole } from '@/types';
 import { nanoid } from 'nanoid';
@@ -44,6 +44,12 @@ export function useMessages({
   const pendingSaves = useRef<Map<string, UIMessage>>(new Map());
   const saveTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
+  // Use ref for onError to avoid it being a dependency in useEffect
+  const onErrorRef = useRef(onError);
+  useLayoutEffect(() => {
+    onErrorRef.current = onError;
+  });
+
   // Load messages when sessionId changes
   useEffect(() => {
     let cancelled = false;
@@ -64,7 +70,7 @@ export function useMessages({
         }
       } catch (err) {
         console.error('Failed to load messages:', err);
-        onError?.(err instanceof Error ? err : new Error('Failed to load messages'));
+        onErrorRef.current?.(err instanceof Error ? err : new Error('Failed to load messages'));
         // Still set initialized even on error to prevent infinite loading
         if (!cancelled) {
           setIsInitialized(true);
@@ -82,7 +88,7 @@ export function useMessages({
     return () => {
       cancelled = true;
     };
-  }, [sessionId, onError]);
+  }, [sessionId]);
 
   // Reload messages manually
   const reloadMessages = useCallback(async () => {
@@ -94,11 +100,11 @@ export function useMessages({
       setMessages(loadedMessages);
     } catch (err) {
       console.error('Failed to reload messages:', err);
-      onError?.(err instanceof Error ? err : new Error('Failed to reload messages'));
+      onErrorRef.current?.(err instanceof Error ? err : new Error('Failed to reload messages'));
     } finally {
       setIsLoading(false);
     }
-  }, [sessionId, onError]);
+  }, [sessionId]);
 
   // Add a new message
   const addMessage = useCallback(
@@ -265,8 +271,9 @@ export function useMessages({
 
   // Cleanup timeouts on unmount
   useEffect(() => {
+    const timeouts = saveTimeouts.current;
     return () => {
-      saveTimeouts.current.forEach((timeout) => clearTimeout(timeout));
+      timeouts.forEach((timeout) => clearTimeout(timeout));
     };
   }, []);
 

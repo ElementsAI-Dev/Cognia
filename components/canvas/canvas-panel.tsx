@@ -24,7 +24,6 @@ import {
 } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,10 +39,18 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useArtifactStore, useSettingsStore } from '@/stores';
+import { useArtifactStore, useSettingsStore, useSessionStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import { VersionHistoryPanel } from './version-history-panel';
 import type { CanvasAction, CanvasSuggestion } from '@/types';
+import {
+  executeCanvasAction,
+  applyCanvasActionResult,
+  type CanvasActionType,
+} from '@/lib/ai/canvas-actions';
+import type { ProviderName } from '@/lib/ai/client';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 // Dynamically import Monaco to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
@@ -86,11 +93,17 @@ export function CanvasPanel() {
   const saveCanvasVersion = useArtifactStore((state) => state.saveCanvasVersion);
   const theme = useSettingsStore((state) => state.theme);
 
+  const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const defaultProvider = useSettingsStore((state) => state.defaultProvider);
+  const getActiveSession = useSessionStore((state) => state.getActiveSession);
+
   const activeDocument = activeCanvasId ? canvasDocuments[activeCanvasId] : null;
   const [localContent, setLocalContent] = useState('');
   const [selection, setSelection] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionResult, setActionResult] = useState<string | null>(null);
 
   // Auto-save timer ref
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -105,6 +118,7 @@ export function CanvasPanel() {
         setHasUnsavedChanges(false);
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDocument?.id]);
 
   // Cleanup auto-save timer on unmount
@@ -123,11 +137,6 @@ export function CanvasPanel() {
       if (activeCanvasId) {
         updateCanvasDocument(activeCanvasId, { content: newValue });
       }
-
-      // Check if content has significantly changed
-      const hasSignificantChange =
-        Math.abs(newValue.length - lastSavedContentRef.current.length) > 100 ||
-        newValue.split('\n').length !== lastSavedContentRef.current.split('\n').length + 5;
 
       setHasUnsavedChanges(newValue !== lastSavedContentRef.current);
 
@@ -159,13 +168,59 @@ export function CanvasPanel() {
     if (!activeDocument) return;
 
     setIsProcessing(true);
-    // TODO: Implement AI action processing
-    // This would call the AI to process the selected text or full content
-    console.log('Canvas action:', action.type, selection || localContent);
+    setActionError(null);
+    setActionResult(null);
 
-    // Simulate processing
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsProcessing(false);
+    // Get provider and model from session or defaults
+    const session = getActiveSession();
+    const provider = (session?.provider || defaultProvider || 'openai') as ProviderName;
+    const model = session?.model || providerSettings[provider]?.defaultModel || 'gpt-4o-mini';
+    const settings = providerSettings[provider];
+
+    if (!settings?.apiKey && provider !== 'ollama') {
+      setActionError(`No API key configured for ${provider}. Please add your API key in Settings.`);
+      setIsProcessing(false);
+      return;
+    }
+
+    try {
+      const result = await executeCanvasAction(
+        action.type as CanvasActionType,
+        localContent,
+        {
+          provider,
+          model,
+          apiKey: settings?.apiKey || '',
+          baseURL: settings?.baseURL,
+        },
+        {
+          language: activeDocument.language,
+          selection: selection || undefined,
+        }
+      );
+
+      if (result.success && result.result) {
+        // For content-modifying actions, apply the result
+        const contentActions = ['fix', 'improve', 'simplify', 'expand', 'translate', 'format'];
+        if (contentActions.includes(action.type)) {
+          const newContent = applyCanvasActionResult(localContent, result.result, selection || undefined);
+          setLocalContent(newContent);
+          if (activeCanvasId) {
+            updateCanvasDocument(activeCanvasId, { content: newContent });
+            setHasUnsavedChanges(true);
+          }
+        } else {
+          // For review/explain/run actions, show the result
+          setActionResult(result.result);
+        }
+      } else if (!result.success) {
+        setActionError(result.error || 'Action failed');
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const getEditorTheme = () => {
@@ -327,6 +382,14 @@ export function CanvasPanel() {
               </TooltipProvider>
             </div>
 
+            {/* Error display */}
+            {actionError && (
+              <Alert variant="destructive" className="mx-4 mt-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{actionError}</AlertDescription>
+              </Alert>
+            )}
+
             {/* Editor */}
             <div className="flex-1 overflow-hidden">
               <MonacoEditor
@@ -357,6 +420,26 @@ export function CanvasPanel() {
                 }}
               />
             </div>
+
+            {/* Action result panel (for review/explain/run) */}
+            {actionResult && (
+              <div className="border-t max-h-[200px] overflow-auto">
+                <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/50">
+                  <span className="text-sm font-medium">AI Response</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => setActionResult(null)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+                <ScrollArea className="p-4">
+                  <pre className="text-sm whitespace-pre-wrap">{actionResult}</pre>
+                </ScrollArea>
+              </div>
+            )}
 
             {/* Suggestions panel */}
             {activeDocument.aiSuggestions && activeDocument.aiSuggestions.length > 0 && (

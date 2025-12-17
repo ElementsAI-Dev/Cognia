@@ -6,6 +6,11 @@
 import '@testing-library/jest-dom';
 import React from 'react';
 
+// Polyfill structuredClone for fake-indexeddb
+if (typeof structuredClone === 'undefined') {
+  global.structuredClone = <T>(obj: T): T => JSON.parse(JSON.stringify(obj));
+}
+
 // Mock Next.js Image component
 jest.mock('next/image', () => ({
   __esModule: true,

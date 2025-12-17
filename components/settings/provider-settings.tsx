@@ -2,10 +2,24 @@
 
 /**
  * ProviderSettings - Configure AI provider API keys
+ * Enhanced with batch testing, collapsible sections, and default model selection
  */
 
 import { useState, useCallback } from 'react';
-import { Eye, EyeOff, Check, AlertCircle, ExternalLink, Plus, Edit2, Loader2, Clock } from 'lucide-react';
+import {
+  Eye,
+  EyeOff,
+  Check,
+  AlertCircle,
+  ExternalLink,
+  Plus,
+  Edit2,
+  Loader2,
+  Clock,
+  Zap,
+  RefreshCw,
+  Star,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -24,6 +38,8 @@ import {
   AlertTitle,
 } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
 import { PROVIDERS } from '@/types/provider';
 import { CustomProviderDialog } from './custom-provider-dialog';
@@ -55,6 +71,17 @@ export function ProviderSettings() {
   const [testingProviders, setTestingProviders] = useState<Record<string, boolean>>({});
   const [showCustomDialog, setShowCustomDialog] = useState(false);
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
+  const [isBatchTesting, setIsBatchTesting] = useState(false);
+  const [batchTestProgress, setBatchTestProgress] = useState(0);
+
+  const handleSetDefaultModel = (providerId: string, modelId: string) => {
+    updateProviderSettings(providerId, { defaultModel: modelId });
+  };
+
+  // Get count of configured providers
+  const configuredCount = Object.entries(providerSettings).filter(
+    ([id, settings]) => settings?.enabled && (settings?.apiKey || id === 'ollama')
+  ).length;
 
   const toggleShowKey = (providerId: string) => {
     setShowKeys((prev) => ({ ...prev, [providerId]: !prev[providerId] }));
@@ -95,8 +122,98 @@ export function ProviderSettings() {
     }
   }, [providerSettings]);
 
+  // Batch test all configured providers
+  const handleBatchTest = useCallback(async () => {
+    const enabledProviders = Object.entries(providerSettings)
+      .filter(([id, settings]) => settings?.enabled && (settings?.apiKey || id === 'ollama'))
+      .map(([id]) => id);
+
+    if (enabledProviders.length === 0) return;
+
+    setIsBatchTesting(true);
+    setBatchTestProgress(0);
+    setTestResults({});
+
+    for (let i = 0; i < enabledProviders.length; i++) {
+      const providerId = enabledProviders[i];
+      await handleTestConnection(providerId);
+      setBatchTestProgress(((i + 1) / enabledProviders.length) * 100);
+    }
+
+    setIsBatchTesting(false);
+  }, [providerSettings, handleTestConnection]);
+
+  // Count test results
+  const testResultsSummary = {
+    success: Object.values(testResults).filter((r) => r?.success).length,
+    failed: Object.values(testResults).filter((r) => r && !r.success).length,
+    total: Object.values(testResults).filter((r) => r !== null).length,
+  };
+
   return (
     <div className="space-y-6">
+      {/* Header with batch actions */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">{t('title')}</h2>
+          <p className="text-sm text-muted-foreground">
+            {configuredCount} provider{configuredCount !== 1 ? 's' : ''} configured
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleBatchTest}
+            disabled={isBatchTesting || configuredCount === 0}
+          >
+            {isBatchTesting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Testing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Test All Providers
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Batch test progress */}
+      {isBatchTesting && (
+        <div className="space-y-2">
+          <Progress value={batchTestProgress} className="h-2" />
+          <p className="text-xs text-muted-foreground text-center">
+            Testing providers... {Math.round(batchTestProgress)}%
+          </p>
+        </div>
+      )}
+
+      {/* Test results summary */}
+      {testResultsSummary.total > 0 && !isBatchTesting && (
+        <div className="flex items-center gap-4 rounded-lg border p-3 bg-muted/30">
+          <div className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Test Results:</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1 text-sm text-green-600">
+              <Check className="h-4 w-4" />
+              {testResultsSummary.success} passed
+            </span>
+            {testResultsSummary.failed > 0 && (
+              <span className="flex items-center gap-1 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                {testResultsSummary.failed} failed
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       <Alert>
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>{t('securityTitle')}</AlertTitle>
@@ -240,19 +357,37 @@ export function ProviderSettings() {
                 </div>
               )}
 
-              {/* Available models */}
+              {/* Available models with default selection */}
               <div className="space-y-2">
-                <Label>{t('availableModels')}</Label>
+                <div className="flex items-center justify-between">
+                  <Label>{t('availableModels')}</Label>
+                  <span className="text-xs text-muted-foreground">
+                    Click to set default
+                  </span>
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  {provider.models.map((model) => (
-                    <Badge
-                      key={model.id}
-                      variant={isEnabled ? 'secondary' : 'outline'}
-                      className="text-xs"
-                    >
-                      {model.name}
-                    </Badge>
-                  ))}
+                  {provider.models.map((model) => {
+                    const isDefault = settings.defaultModel === model.id || 
+                      (!settings.defaultModel && model.id === provider.defaultModel);
+                    return (
+                      <button
+                        key={model.id}
+                        onClick={() => handleSetDefaultModel(providerId, model.id)}
+                        disabled={!isEnabled}
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors',
+                          isDefault
+                            ? 'bg-primary text-primary-foreground'
+                            : isEnabled
+                              ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                              : 'bg-muted text-muted-foreground'
+                        )}
+                      >
+                        {isDefault && <Star className="h-3 w-3 fill-current" />}
+                        {model.name}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </CardContent>

@@ -10,3 +10,4 @@ export { useNetworkStatus, useApiHealth, type NetworkStatus } from './use-networ
 export { useVectorDB, type UseVectorDBOptions, type UseVectorDBReturn } from './use-vector-db';
 export { useRAG, type UseRAGOptions, type UseRAGReturn } from './use-rag';
 export { useAgent, useConfiguredAgent, type UseAgentOptions, type UseAgentReturn } from './use-agent';
+export { usePlanExecutor, type PlanExecutionOptions, type UsePlanExecutorReturn } from './use-plan-executor';

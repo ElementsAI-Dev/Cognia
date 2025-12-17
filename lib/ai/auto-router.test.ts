@@ -1,0 +1,193 @@
+/**
+ * Tests for Auto Router - Task classification utilities
+ */
+
+import { classifyTask } from './auto-router';
+
+describe('classifyTask', () => {
+  describe('simple tasks', () => {
+    it('classifies greeting as simple', () => {
+      const result = classifyTask('hi');
+      expect(result.complexity).toBe('simple');
+    });
+
+    it('classifies "what is" questions as simple', () => {
+      const result = classifyTask('What is TypeScript?');
+      expect(result.complexity).toBe('simple');
+    });
+
+    it('classifies definition requests as simple', () => {
+      const result = classifyTask('Define machine learning');
+      expect(result.complexity).toBe('simple');
+    });
+
+    it('classifies translation requests as simple', () => {
+      const result = classifyTask('Translate hello to Spanish');
+      expect(result.complexity).toBe('simple');
+    });
+
+    it('classifies summarize requests as simple', () => {
+      const result = classifyTask('Summarize this article');
+      expect(result.complexity).toBe('simple');
+    });
+
+    it('classifies yes/no questions as simple', () => {
+      const result = classifyTask('Is JavaScript a programming language? yes or no');
+      expect(result.complexity).toBe('simple');
+    });
+
+    it('classifies list requests as simple', () => {
+      const result = classifyTask('List the planets');
+      expect(result.complexity).toBe('simple');
+    });
+  });
+
+  describe('complex tasks', () => {
+    it('classifies code writing as complex', () => {
+      const result = classifyTask('Write code for a REST API');
+      expect(result.complexity).toBe('complex');
+    });
+
+    it('classifies implementation requests as complex', () => {
+      const result = classifyTask('Implement a binary search algorithm');
+      expect(result.complexity).toBe('complex');
+    });
+
+    it('classifies debugging requests as complex', () => {
+      const result = classifyTask('Debug this function that throws an error');
+      expect(result.complexity).toBe('complex');
+    });
+
+    it('classifies analysis requests as complex', () => {
+      const result = classifyTask('Analyze the data and provide insights');
+      expect(result.complexity).toBe('complex');
+    });
+
+    it('classifies architecture tasks as complex', () => {
+      const result = classifyTask('Design a system architecture for a chat app');
+      expect(result.complexity).toBe('complex');
+    });
+
+    it('classifies refactoring requests as complex', () => {
+      const result = classifyTask('Refactor this code to use better patterns');
+      expect(result.complexity).toBe('complex');
+    });
+
+    it('classifies detailed explanation requests as complex', () => {
+      const result = classifyTask('Explain in detail how neural networks work');
+      expect(result.complexity).toBe('complex');
+    });
+
+    it('classifies multi-step tasks as complex', () => {
+      const result = classifyTask('Create a step by step guide');
+      expect(result.complexity).toBe('complex');
+    });
+  });
+
+  describe('reasoning detection', () => {
+    it('detects reasoning for "why" questions', () => {
+      const result = classifyTask('Why does this code fail?');
+      expect(result.requiresReasoning).toBe(true);
+    });
+
+    it('detects reasoning for "how does" questions', () => {
+      const result = classifyTask('How does garbage collection work?');
+      expect(result.requiresReasoning).toBe(true);
+    });
+
+    it('detects reasoning for proof requests', () => {
+      const result = classifyTask('Prove that this algorithm is O(n log n)');
+      expect(result.requiresReasoning).toBe(true);
+    });
+
+    it('detects reasoning for calculation requests', () => {
+      const result = classifyTask('Calculate the complexity of this function');
+      expect(result.requiresReasoning).toBe(true);
+    });
+
+    it('detects reasoning for logical problems', () => {
+      const result = classifyTask('Solve this logic puzzle');
+      expect(result.requiresReasoning).toBe(true);
+    });
+
+    it('does not flag simple requests as requiring reasoning', () => {
+      const result = classifyTask('What is React?');
+      expect(result.requiresReasoning).toBe(false);
+    });
+  });
+
+  describe('tool detection', () => {
+    it('detects tool requirements for search', () => {
+      const result = classifyTask('Search for the latest news');
+      expect(result.requiresTools).toBe(true);
+    });
+
+    it('detects tool requirements for browsing', () => {
+      const result = classifyTask('Browse this website');
+      expect(result.requiresTools).toBe(true);
+    });
+
+    it('detects tool requirements for execution', () => {
+      const result = classifyTask('Execute this code');
+      expect(result.requiresTools).toBe(true);
+    });
+
+    it('does not flag general questions as requiring tools', () => {
+      const result = classifyTask('Explain TypeScript generics');
+      expect(result.requiresTools).toBe(false);
+    });
+  });
+
+  describe('vision detection', () => {
+    it('detects vision for image requests', () => {
+      const result = classifyTask('Analyze this image');
+      expect(result.requiresVision).toBe(true);
+    });
+
+    it('detects vision for picture requests', () => {
+      const result = classifyTask('What is in this picture?');
+      expect(result.requiresVision).toBe(true);
+    });
+
+    it('detects vision for screenshot requests', () => {
+      const result = classifyTask('Look at this screenshot');
+      expect(result.requiresVision).toBe(true);
+    });
+
+    it('detects vision for diagram requests', () => {
+      const result = classifyTask('Explain this diagram');
+      expect(result.requiresVision).toBe(true);
+    });
+
+    it('does not flag text-only requests as requiring vision', () => {
+      const result = classifyTask('Write a function');
+      expect(result.requiresVision).toBe(false);
+    });
+  });
+
+  describe('token estimation', () => {
+    it('estimates tokens based on word count', () => {
+      const result = classifyTask('one two three four five');
+      expect(result.estimatedTokens).toBeGreaterThan(0);
+      expect(result.estimatedTokens).toBeLessThan(20);
+    });
+
+    it('handles empty input', () => {
+      const result = classifyTask('');
+      expect(result.estimatedTokens).toBe(0);
+    });
+
+    it('handles long inputs', () => {
+      const longInput = 'word '.repeat(100);
+      const result = classifyTask(longInput);
+      expect(result.estimatedTokens).toBeGreaterThan(100);
+    });
+  });
+
+  describe('moderate tasks', () => {
+    it('classifies medium-length general questions as moderate', () => {
+      const result = classifyTask('How can I improve my coding skills over time?');
+      expect(result.complexity).toBe('moderate');
+    });
+  });
+});

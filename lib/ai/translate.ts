@@ -2,7 +2,8 @@
  * Translation utilities using AI
  */
 
-// Translation utilities - uses direct fetch for simplicity
+import { generateText } from 'ai';
+import { getProviderModel, type ProviderName } from './client';
 
 export interface TranslationResult {
   success: boolean;
@@ -10,6 +11,13 @@ export interface TranslationResult {
   sourceLanguage?: string;
   targetLanguage: string;
   error?: string;
+}
+
+export interface TranslationConfig {
+  provider: ProviderName;
+  model: string;
+  apiKey: string;
+  baseURL?: string;
 }
 
 export const SUPPORTED_LANGUAGES = [
@@ -38,8 +46,7 @@ export type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number]['code'];
 export async function translateText(
   text: string,
   targetLanguage: LanguageCode,
-  _provider = 'openai',
-  model: string = 'gpt-4o-mini'
+  config: TranslationConfig
 ): Promise<TranslationResult> {
   try {
     const targetLangInfo = SUPPORTED_LANGUAGES.find(
@@ -54,48 +61,30 @@ export async function translateText(
       };
     }
 
-    // For now, use a simple fetch-based approach
-    // In production, this would use the AI SDK with proper provider selection
-    const apiKey = localStorage.getItem('openai_api_key');
-    if (!apiKey) {
+    const { provider, model, apiKey, baseURL } = config;
+
+    if (!apiKey && provider !== 'ollama') {
       return {
         success: false,
         targetLanguage,
-        error: 'OpenAI API key not configured',
+        error: `API key not configured for ${provider}`,
       };
     }
+
+    const modelInstance = getProviderModel(provider, model, apiKey, baseURL);
 
     const systemPrompt = `You are a professional translator. Translate the following text to ${targetLangInfo.name} (${targetLangInfo.nativeName}). 
 Only output the translated text, nothing else. Preserve the original formatting, including line breaks and paragraphs.
 If the text is already in the target language, return it as is.`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: text },
-        ],
-        temperature: 0.3,
-        max_tokens: 4096,
-      }),
+    const result = await generateText({
+      model: modelInstance,
+      system: systemPrompt,
+      prompt: text,
+      temperature: 0.3,
     });
 
-    if (!response.ok) {
-      return {
-        success: false,
-        targetLanguage,
-        error: `API error: ${response.status}`,
-      };
-    }
-
-    const data = await response.json();
-    const translatedText = data.choices?.[0]?.message?.content?.trim();
+    const translatedText = result.text.trim();
 
     if (!translatedText) {
       return {
@@ -124,39 +113,23 @@ If the text is already in the target language, return it as is.`;
  */
 export async function detectLanguage(
   text: string,
-  _provider = 'openai',
-  model: string = 'gpt-4o-mini'
+  config: TranslationConfig
 ): Promise<{ code: LanguageCode; confidence: number } | null> {
   try {
-    const apiKey = localStorage.getItem('openai_api_key');
-    if (!apiKey) return null;
+    const { provider, model, apiKey, baseURL } = config;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: 'system',
-            content: `Detect the language of the following text. Respond with only the ISO 639-1 language code (e.g., "en", "zh", "ja", "ko", "es", "fr", "de"). If uncertain, respond with "unknown".`,
-          },
-          { role: 'user', content: text.slice(0, 500) },
-        ],
-        temperature: 0,
-        max_tokens: 10,
-      }),
+    if (!apiKey && provider !== 'ollama') return null;
+
+    const modelInstance = getProviderModel(provider, model, apiKey, baseURL);
+
+    const result = await generateText({
+      model: modelInstance,
+      system: `Detect the language of the following text. Respond with only the ISO 639-1 language code (e.g., "en", "zh", "ja", "ko", "es", "fr", "de"). If uncertain, respond with "unknown".`,
+      prompt: text.slice(0, 500),
+      temperature: 0,
     });
 
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    const detectedCode = data.choices?.[0]?.message?.content
-      ?.trim()
-      .toLowerCase();
+    const detectedCode = result.text.trim().toLowerCase();
 
     if (
       detectedCode &&

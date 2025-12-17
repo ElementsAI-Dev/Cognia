@@ -7,6 +7,8 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 import type { UserProviderSettings } from '@/types/provider';
 import type { ColorThemePreset } from '@/lib/themes';
+import type { SearchProviderType, SearchProviderSettings } from '@/types/search';
+import { DEFAULT_SEARCH_PROVIDER_SETTINGS } from '@/types/search';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'en' | 'zh-CN';
@@ -93,13 +95,24 @@ interface SettingsState {
   sendOnEnter: boolean;
   setSendOnEnter: (enabled: boolean) => void;
 
-  // Search preferences (Tavily)
+  // Search preferences (Legacy Tavily - for backward compatibility)
   tavilyApiKey: string;
   setTavilyApiKey: (key: string) => void;
   searchEnabled: boolean;
   setSearchEnabled: (enabled: boolean) => void;
   searchMaxResults: number;
   setSearchMaxResults: (count: number) => void;
+
+  // Search preferences (Multi-provider)
+  searchProviders: Record<SearchProviderType, SearchProviderSettings>;
+  setSearchProviderSettings: (providerId: SearchProviderType, settings: Partial<SearchProviderSettings>) => void;
+  setSearchProviderApiKey: (providerId: SearchProviderType, apiKey: string) => void;
+  setSearchProviderEnabled: (providerId: SearchProviderType, enabled: boolean) => void;
+  setSearchProviderPriority: (providerId: SearchProviderType, priority: number) => void;
+  defaultSearchProvider: SearchProviderType;
+  setDefaultSearchProvider: (providerId: SearchProviderType) => void;
+  searchFallbackEnabled: boolean;
+  setSearchFallbackEnabled: (enabled: boolean) => void;
 
   // Research preferences
   defaultSearchSources: string[];
@@ -183,10 +196,15 @@ const initialState = {
   streamResponses: true,
   sendOnEnter: true,
 
-  // Search
+  // Search (Legacy)
   tavilyApiKey: '',
   searchEnabled: false,
   searchMaxResults: 5,
+
+  // Search (Multi-provider)
+  searchProviders: { ...DEFAULT_SEARCH_PROVIDER_SETTINGS },
+  defaultSearchProvider: 'tavily' as SearchProviderType,
+  searchFallbackEnabled: true,
 
   // Research
   defaultSearchSources: ['google', 'brave'],
@@ -303,10 +321,54 @@ export const useSettingsStore = create<SettingsState>()(
       setStreamResponses: (streamResponses) => set({ streamResponses }),
       setSendOnEnter: (sendOnEnter) => set({ sendOnEnter }),
 
-      // Search actions
+      // Search actions (Legacy)
       setTavilyApiKey: (tavilyApiKey) => set({ tavilyApiKey }),
       setSearchEnabled: (searchEnabled) => set({ searchEnabled }),
       setSearchMaxResults: (searchMaxResults) => set({ searchMaxResults }),
+
+      // Search actions (Multi-provider)
+      setSearchProviderSettings: (providerId, settings) =>
+        set((state) => ({
+          searchProviders: {
+            ...state.searchProviders,
+            [providerId]: {
+              ...state.searchProviders[providerId],
+              ...settings,
+            },
+          },
+        })),
+      setSearchProviderApiKey: (providerId, apiKey) =>
+        set((state) => ({
+          searchProviders: {
+            ...state.searchProviders,
+            [providerId]: {
+              ...state.searchProviders[providerId],
+              apiKey,
+            },
+          },
+        })),
+      setSearchProviderEnabled: (providerId, enabled) =>
+        set((state) => ({
+          searchProviders: {
+            ...state.searchProviders,
+            [providerId]: {
+              ...state.searchProviders[providerId],
+              enabled,
+            },
+          },
+        })),
+      setSearchProviderPriority: (providerId, priority) =>
+        set((state) => ({
+          searchProviders: {
+            ...state.searchProviders,
+            [providerId]: {
+              ...state.searchProviders[providerId],
+              priority,
+            },
+          },
+        })),
+      setDefaultSearchProvider: (defaultSearchProvider) => set({ defaultSearchProvider }),
+      setSearchFallbackEnabled: (searchFallbackEnabled) => set({ searchFallbackEnabled }),
 
       setDefaultSearchSources: (defaultSearchSources) => set({ defaultSearchSources }),
 
@@ -335,6 +397,9 @@ export const useSettingsStore = create<SettingsState>()(
         tavilyApiKey: state.tavilyApiKey,
         searchEnabled: state.searchEnabled,
         searchMaxResults: state.searchMaxResults,
+        searchProviders: state.searchProviders,
+        defaultSearchProvider: state.defaultSearchProvider,
+        searchFallbackEnabled: state.searchFallbackEnabled,
         defaultSearchSources: state.defaultSearchSources,
       }),
     }
