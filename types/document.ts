@@ -2,7 +2,17 @@
  * Document Management Types
  */
 
-export type DocumentType = 'markdown' | 'code' | 'text' | 'json' | 'unknown';
+export type DocumentType = 
+  | 'markdown'
+  | 'code'
+  | 'text'
+  | 'json'
+  | 'pdf'
+  | 'word'
+  | 'excel'
+  | 'csv'
+  | 'html'
+  | 'unknown';
 
 export interface DocumentMetadata {
   title?: string;
@@ -116,4 +126,122 @@ export interface CodeParseResult {
   classes: CodeClass[];
   comments: string[];
   content: string;
+}
+
+// PDF Parser Types
+export interface PDFParseResult {
+  text: string;
+  pageCount: number;
+  pages: PDFPage[];
+  metadata: PDFMetadata;
+}
+
+export interface PDFPage {
+  pageNumber: number;
+  text: string;
+  width: number;
+  height: number;
+}
+
+export interface PDFMetadata {
+  title?: string;
+  author?: string;
+  subject?: string;
+  keywords?: string;
+  creator?: string;
+  producer?: string;
+  creationDate?: Date;
+  modificationDate?: Date;
+}
+
+// Office Parser Types
+export interface WordParseResult {
+  text: string;
+  html: string;
+  messages: WordMessage[];
+  images: WordImage[];
+}
+
+export interface WordMessage {
+  type: 'warning' | 'error';
+  message: string;
+}
+
+export interface WordImage {
+  contentType: string;
+  base64: string;
+}
+
+export interface ExcelParseResult {
+  text: string;
+  sheets: ExcelSheet[];
+  sheetNames: string[];
+}
+
+export interface ExcelSheet {
+  name: string;
+  data: (string | number | boolean | null)[][];
+  rowCount: number;
+  columnCount: number;
+}
+
+// CSV Parser Types
+export interface CSVParseResult {
+  text: string;
+  data: string[][];
+  headers: string[];
+  rowCount: number;
+  columnCount: number;
+  delimiter: string;
+}
+
+export interface CSVParseOptions {
+  delimiter?: string;
+  hasHeader?: boolean;
+  skipEmptyLines?: boolean;
+  trimValues?: boolean;
+}
+
+// HTML Parser Types
+export interface HTMLParseResult {
+  text: string;
+  title?: string;
+  headings: HTMLHeading[];
+  links: HTMLLink[];
+  images: HTMLImage[];
+  metadata: HTMLMetadata;
+  tables: HTMLTable[];
+}
+
+export interface HTMLHeading {
+  level: number;
+  text: string;
+}
+
+export interface HTMLLink {
+  text: string;
+  href: string;
+  isExternal: boolean;
+}
+
+export interface HTMLImage {
+  src: string;
+  alt: string;
+  title?: string;
+}
+
+export interface HTMLMetadata {
+  title?: string;
+  description?: string;
+  keywords?: string[];
+  author?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+}
+
+export interface HTMLTable {
+  headers: string[];
+  rows: string[][];
+  caption?: string;
 }

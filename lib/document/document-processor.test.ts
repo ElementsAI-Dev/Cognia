@@ -71,8 +71,8 @@ describe('detectDocumentType', () => {
       expect(detectDocumentType('style.scss')).toBe('code');
     });
 
-    it('detects HTML files', () => {
-      expect(detectDocumentType('index.html')).toBe('code');
+    it('detects XML files', () => {
+      expect(detectDocumentType('config.xml')).toBe('code');
     });
 
     it('detects YAML files', () => {
@@ -94,6 +94,56 @@ describe('detectDocumentType', () => {
   describe('text files', () => {
     it('detects .txt files', () => {
       expect(detectDocumentType('notes.txt')).toBe('text');
+    });
+  });
+
+  describe('HTML files', () => {
+    it('detects .html files', () => {
+      expect(detectDocumentType('index.html')).toBe('html');
+    });
+
+    it('detects .htm files', () => {
+      expect(detectDocumentType('page.htm')).toBe('html');
+    });
+
+    it('detects .xhtml files', () => {
+      expect(detectDocumentType('doc.xhtml')).toBe('html');
+    });
+  });
+
+  describe('PDF files', () => {
+    it('detects .pdf files', () => {
+      expect(detectDocumentType('document.pdf')).toBe('pdf');
+    });
+  });
+
+  describe('Word documents', () => {
+    it('detects .docx files', () => {
+      expect(detectDocumentType('document.docx')).toBe('word');
+    });
+
+    it('detects .doc files', () => {
+      expect(detectDocumentType('document.doc')).toBe('word');
+    });
+  });
+
+  describe('Excel files', () => {
+    it('detects .xlsx files', () => {
+      expect(detectDocumentType('spreadsheet.xlsx')).toBe('excel');
+    });
+
+    it('detects .xls files', () => {
+      expect(detectDocumentType('spreadsheet.xls')).toBe('excel');
+    });
+  });
+
+  describe('CSV files', () => {
+    it('detects .csv files', () => {
+      expect(detectDocumentType('data.csv')).toBe('csv');
+    });
+
+    it('detects .tsv files', () => {
+      expect(detectDocumentType('data.tsv')).toBe('csv');
     });
   });
 
@@ -240,6 +290,10 @@ describe('processDocuments', () => {
     expect(results).toHaveLength(0);
   });
 });
+
+// Note: processDocumentAsync tests are in a separate file (document-processor-async.test.ts)
+// to avoid memory issues from loading heavy parser libraries in the same test run.
+// The async processor is tested there with CSV processing tests.
 
 describe('extractSummary', () => {
   it('returns full content when shorter than maxLength', () => {

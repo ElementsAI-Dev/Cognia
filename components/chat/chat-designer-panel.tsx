@@ -34,9 +34,10 @@ export function ChatDesignerPanel({
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleOpenInDesigner = useCallback(() => {
-    // Open in standalone designer page with the current code
-    const encodedCode = encodeURIComponent(code);
-    window.open(`/designer?code=${encodedCode}`, '_blank');
+    // Store code in sessionStorage to avoid URL length limits
+    const designerKey = `designer-code-${Date.now()}`;
+    sessionStorage.setItem(designerKey, code);
+    window.open(`/designer?key=${designerKey}`, '_blank');
   }, [code]);
 
   return (

@@ -230,13 +230,12 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()((set, 
   },
 
   syncCodeFromElements: () => {
-    // TODO: Implement element tree to code conversion
-    // This would regenerate the React/HTML code from the element tree
-    const { elementTree } = get();
+    const { elementTree, code } = get();
     if (!elementTree) return;
     
-    // For now, just mark as not dirty
-    set({ isDirty: false });
+    // Convert element tree back to code
+    const generatedCode = elementTreeToCode(elementTree, code);
+    set({ code: generatedCode, isDirty: false });
   },
 
   parseCodeToElements: (code: string) => {
@@ -309,6 +308,155 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()((set, 
   // Reset
   reset: () => set(initialState),
 }));
+
+// Convert element tree back to React/HTML code
+function elementTreeToCode(element: DesignerElement, originalCode: string): string {
+  // Check if original code is React (contains function/export)
+  const isReact = originalCode.includes('function') && 
+    (originalCode.includes('return') || originalCode.includes('=>'));
+  
+  if (isReact) {
+    // For React code, we need to regenerate the JSX
+    const jsx = elementToJSX(element, 2);
+    
+    // Try to find and replace the return statement content
+    const returnMatch = originalCode.match(/return\s*\(\s*([\s\S]*?)\s*\);?\s*\}$/);
+    if (returnMatch) {
+      const beforeReturn = originalCode.slice(0, originalCode.lastIndexOf('return'));
+      return `${beforeReturn}return (\n${jsx}\n  );\n}`;
+    }
+    
+    // Fallback: generate a simple component
+    return `export default function App() {
+  return (
+${jsx}
+  );
+}`;
+  }
+  
+  // For plain HTML, just convert the element tree
+  return elementToHTML(element, 0);
+}
+
+// Convert a single element to JSX string
+function elementToJSX(element: DesignerElement, indent: number): string {
+  const spaces = '  '.repeat(indent);
+  const tag = element.tagName;
+  
+  // Build attributes string
+  const attrs: string[] = [];
+  
+  // Add className
+  if (element.className) {
+    attrs.push(`className="${element.className}"`);
+  }
+  
+  // Add styles as inline style object
+  if (Object.keys(element.styles).length > 0) {
+    const styleEntries = Object.entries(element.styles)
+      .map(([key, value]) => `${key}: '${value}'`)
+      .join(', ');
+    attrs.push(`style={{ ${styleEntries} }}`);
+  }
+  
+  // Add other attributes
+  for (const [key, value] of Object.entries(element.attributes)) {
+    if (key === 'class') continue; // Already handled as className
+    // Convert some HTML attributes to React equivalents
+    const reactKey = key === 'for' ? 'htmlFor' : key;
+    attrs.push(`${reactKey}="${value}"`);
+  }
+  
+  const attrString = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
+  
+  // Self-closing tags
+  const selfClosing = ['img', 'br', 'hr', 'input', 'meta', 'link'].includes(tag);
+  
+  if (selfClosing && element.children.length === 0 && !element.textContent) {
+    return `${spaces}<${tag}${attrString} />`;
+  }
+  
+  // Opening tag
+  let result = `${spaces}<${tag}${attrString}>`;
+  
+  // Handle text content and children
+  const hasChildren = element.children.length > 0;
+  const hasText = element.textContent && element.textContent.trim();
+  
+  if (hasChildren) {
+    result += '\n';
+    for (const child of element.children) {
+      result += elementToJSX(child, indent + 1) + '\n';
+    }
+    result += `${spaces}</${tag}>`;
+  } else if (hasText) {
+    result += element.textContent + `</${tag}>`;
+  } else {
+    result += `</${tag}>`;
+  }
+  
+  return result;
+}
+
+// Convert a single element to HTML string
+function elementToHTML(element: DesignerElement, indent: number): string {
+  const spaces = '  '.repeat(indent);
+  const tag = element.tagName;
+  
+  // Build attributes string
+  const attrs: string[] = [];
+  
+  // Add class
+  if (element.className) {
+    attrs.push(`class="${element.className}"`);
+  }
+  
+  // Add inline styles
+  if (Object.keys(element.styles).length > 0) {
+    const styleString = Object.entries(element.styles)
+      .map(([key, value]) => {
+        // Convert camelCase to kebab-case
+        const kebabKey = key.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+        return `${kebabKey}: ${value}`;
+      })
+      .join('; ');
+    attrs.push(`style="${styleString}"`);
+  }
+  
+  // Add other attributes
+  for (const [key, value] of Object.entries(element.attributes)) {
+    if (key === 'class') continue;
+    attrs.push(`${key}="${value}"`);
+  }
+  
+  const attrString = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
+  
+  // Self-closing tags
+  const selfClosing = ['img', 'br', 'hr', 'input', 'meta', 'link'].includes(tag);
+  
+  if (selfClosing && element.children.length === 0 && !element.textContent) {
+    return `${spaces}<${tag}${attrString} />`;
+  }
+  
+  let result = `${spaces}<${tag}${attrString}>`;
+  
+  const hasChildren = element.children.length > 0;
+  const hasText = element.textContent && element.textContent.trim();
+  
+  if (hasChildren) {
+    result += '\n';
+    for (const child of element.children) {
+      result += elementToHTML(child, indent + 1) + '\n';
+    }
+    result += `${spaces}</${tag}>`;
+  } else if (hasText) {
+    result += element.textContent + `</${tag}>`;
+  } else {
+    result += `</${tag}>`;
+  }
+  
+  return result;
+}
 
 // Simple HTML parser to element tree
 function parseHTMLToElementTree(html: string): DesignerElement | null {

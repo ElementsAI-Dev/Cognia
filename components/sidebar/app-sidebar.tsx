@@ -5,7 +5,7 @@
  * Provides navigation, session list, search, and settings access
  */
 
-import { Plus, Settings, Moon, Sun, Monitor, MessageSquare, MoreHorizontal, Pencil, Trash2, Copy, Search, X, FolderKanban, Keyboard } from 'lucide-react';
+import { Plus, Settings, Moon, Sun, Monitor, MessageSquare, MoreHorizontal, Pencil, Trash2, Copy, Search, X, FolderKanban, Keyboard, Pin, PinOff } from 'lucide-react';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import {
@@ -143,13 +143,28 @@ export function AppSidebar() {
     setSearchResults([]);
   };
 
-  // Determine which sessions to display
+  // Determine which sessions to display (pinned first)
   const displaySessions = useMemo(() => {
     if (searchQuery.trim()) {
       return searchResults;
     }
-    return sessions.map(session => ({ session, matchType: 'title' as const, snippet: undefined }));
+    // Sort sessions: pinned first, then by updatedAt
+    const sortedSessions = [...sessions].sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return 0;
+    });
+    return sortedSessions.map(session => ({ session, matchType: 'title' as const, snippet: undefined }));
   }, [searchQuery, searchResults, sessions]);
+
+  // Delete all sessions handler
+  const deleteAllSessions = useSessionStore((state) => state.deleteAllSessions);
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
+
+  const handleDeleteAll = () => {
+    deleteAllSessions();
+    setShowDeleteAllConfirm(false);
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -209,8 +224,31 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>
-            {searchQuery ? 'Search Results' : 'Conversations'}
+          <SidebarGroupLabel className="flex items-center justify-between">
+            <span>{searchQuery ? 'Search Results' : 'Conversations'}</span>
+            {!isCollapsed && !searchQuery && sessions.length > 0 && (
+              <DropdownMenu open={showDeleteAllConfirm} onOpenChange={setShowDeleteAllConfirm}>
+                <DropdownMenuTrigger asChild>
+                  <button className="text-muted-foreground hover:text-destructive transition-colors">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <div className="p-2 text-sm">
+                    <p className="font-medium">Delete all conversations?</p>
+                    <p className="text-muted-foreground text-xs mt-1">This action cannot be undone.</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleDeleteAll}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Confirm Delete All
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -305,6 +343,7 @@ function SessionMenuItem({
   const updateSession = useSessionStore((state) => state.updateSession);
   const deleteSession = useSessionStore((state) => state.deleteSession);
   const duplicateSession = useSessionStore((state) => state.duplicateSession);
+  const togglePinSession = useSessionStore((state) => state.togglePinSession);
 
   const handleClick = () => {
     if (!isEditing) {
@@ -359,7 +398,12 @@ function SessionMenuItem({
         tooltip={session.title}
         className={snippet ? 'h-auto py-2' : undefined}
       >
-        <MessageSquare className="h-4 w-4 shrink-0" />
+        <div className="relative shrink-0">
+          <MessageSquare className="h-4 w-4" />
+          {session.pinned && (
+            <Pin className="h-2.5 w-2.5 absolute -top-1 -right-1 text-primary" />
+          )}
+        </div>
         <div className="flex flex-col overflow-hidden">
           {isEditing ? (
             <Input
@@ -395,6 +439,13 @@ function SessionMenuItem({
           </SidebarMenuAction>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="right" align="start" className="w-48">
+          <DropdownMenuItem onClick={() => togglePinSession(session.id)}>
+            {session.pinned ? (
+              <><PinOff className="mr-2 h-4 w-4" />Unpin</>
+            ) : (
+              <><Pin className="mr-2 h-4 w-4" />Pin to top</>
+            )}
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setIsEditing(true)}>
             <Pencil className="mr-2 h-4 w-4" />
             Rename

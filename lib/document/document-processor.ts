@@ -6,7 +6,23 @@ import { parseMarkdown, extractEmbeddableContent as extractMarkdownContent } fro
 import { parseCode, extractCodeEmbeddableContent, detectLanguage } from './parsers/code-parser';
 import { chunkDocument, type ChunkingOptions, type DocumentChunk } from '@/lib/ai/chunking';
 
-export type DocumentType = 'markdown' | 'code' | 'text' | 'json' | 'unknown';
+// Types imported statically, implementations loaded dynamically to reduce bundle size
+import type { PDFParseResult } from './parsers/pdf-parser';
+import type { WordParseResult, ExcelParseResult } from './parsers/office-parser';
+import type { CSVParseResult } from './parsers/csv-parser';
+import type { HTMLParseResult } from './parsers/html-parser';
+
+export type DocumentType = 
+  | 'markdown'
+  | 'code'
+  | 'text'
+  | 'json'
+  | 'pdf'
+  | 'word'
+  | 'excel'
+  | 'csv'
+  | 'html'
+  | 'unknown';
 
 export interface ProcessedDocument {
   id: string;
@@ -16,6 +32,7 @@ export interface ProcessedDocument {
   embeddableContent: string;
   metadata: DocumentMetadata;
   chunks?: DocumentChunk[];
+  parseResult?: PDFParseResult | WordParseResult | ExcelParseResult | CSVParseResult | HTMLParseResult;
 }
 
 export interface DocumentMetadata {
@@ -52,11 +69,21 @@ export function detectDocumentType(filename: string): DocumentType {
     'js', 'jsx', 'ts', 'tsx', 'py', 'rb', 'java', 'kt', 'go', 'rs',
     'cpp', 'c', 'h', 'hpp', 'cs', 'php', 'swift', 'scala', 'r',
     'sh', 'bash', 'zsh', 'ps1', 'vue', 'svelte', 'sql',
-    'yaml', 'yml', 'css', 'scss', 'less', 'html', 'xml',
+    'yaml', 'yml', 'css', 'scss', 'less', 'xml',
   ];
+  const htmlExts = ['html', 'htm', 'xhtml'];
+  const pdfExts = ['pdf'];
+  const wordExts = ['docx', 'doc'];
+  const excelExts = ['xlsx', 'xls'];
+  const csvExts = ['csv', 'tsv'];
 
   if (markdownExts.includes(ext)) return 'markdown';
   if (codeExts.includes(ext)) return 'code';
+  if (htmlExts.includes(ext)) return 'html';
+  if (pdfExts.includes(ext)) return 'pdf';
+  if (wordExts.includes(ext)) return 'word';
+  if (excelExts.includes(ext)) return 'excel';
+  if (csvExts.includes(ext)) return 'csv';
   if (ext === 'json') return 'json';
   if (ext === 'txt') return 'text';
 
@@ -71,7 +98,8 @@ function countWords(text: string): number {
 }
 
 /**
- * Process a document based on its type
+ * Process a text-based document (sync version)
+ * For binary documents (PDF, Word, Excel), use processDocumentAsync
  */
 export function processDocument(
   id: string,
@@ -167,6 +195,174 @@ export function processDocument(
   }
 
   return result;
+}
+
+/**
+ * Process a document asynchronously (supports binary formats)
+ */
+export async function processDocumentAsync(
+  id: string,
+  filename: string,
+  data: string | ArrayBuffer,
+  options: ProcessingOptions = {}
+): Promise<ProcessedDocument> {
+  const opts = { ...DEFAULT_PROCESSING_OPTIONS, ...options };
+  const type = detectDocumentType(filename);
+
+  // For text-based formats, use sync processing
+  if (typeof data === 'string' && !['pdf', 'word', 'excel'].includes(type)) {
+    return processDocument(id, filename, data, options);
+  }
+
+  let content = '';
+  let embeddableContent = '';
+  let metadata: DocumentMetadata = {
+    size: typeof data === 'string' ? data.length : data.byteLength,
+    lineCount: 0,
+    wordCount: 0,
+  };
+  let parseResult: ProcessedDocument['parseResult'];
+
+  switch (type) {
+    case 'pdf': {
+      // Dynamic import to reduce bundle size and memory usage
+      const { parsePDF, extractPDFEmbeddableContent } = await import('./parsers/pdf-parser');
+      const buffer = typeof data === 'string' ? stringToArrayBuffer(data) : data;
+      const parsed = await parsePDF(buffer);
+      content = parsed.text;
+      embeddableContent = opts.extractEmbeddable ? extractPDFEmbeddableContent(parsed) : content;
+      metadata = {
+        ...metadata,
+        title: parsed.metadata.title,
+        lineCount: content.split('\n').length,
+        wordCount: countWords(content),
+        pageCount: parsed.pageCount,
+        author: parsed.metadata.author,
+      };
+      parseResult = parsed;
+      break;
+    }
+
+    case 'word': {
+      // Dynamic import to reduce bundle size and memory usage
+      const { parseWord, extractWordEmbeddableContent } = await import('./parsers/office-parser');
+      const buffer = typeof data === 'string' ? stringToArrayBuffer(data) : data;
+      const parsed = await parseWord(buffer);
+      content = parsed.text;
+      embeddableContent = opts.extractEmbeddable ? extractWordEmbeddableContent(parsed) : content;
+      metadata = {
+        ...metadata,
+        lineCount: content.split('\n').length,
+        wordCount: countWords(content),
+        language: 'word',
+      };
+      parseResult = parsed;
+      break;
+    }
+
+    case 'excel': {
+      // Dynamic import to reduce bundle size and memory usage
+      const { parseExcel, extractExcelEmbeddableContent } = await import('./parsers/office-parser');
+      const buffer = typeof data === 'string' ? stringToArrayBuffer(data) : data;
+      const parsed = await parseExcel(buffer);
+      content = parsed.text;
+      embeddableContent = opts.extractEmbeddable ? extractExcelEmbeddableContent(parsed) : content;
+      metadata = {
+        ...metadata,
+        lineCount: content.split('\n').length,
+        wordCount: countWords(content),
+        language: 'excel',
+        sheetCount: parsed.sheets.length,
+        sheetNames: parsed.sheetNames,
+      };
+      parseResult = parsed;
+      break;
+    }
+
+    case 'csv': {
+      // Dynamic import to reduce bundle size and memory usage
+      const { parseCSV, extractCSVEmbeddableContent } = await import('./parsers/csv-parser');
+      const text = typeof data === 'string' ? data : arrayBufferToString(data);
+      const parsed = parseCSV(text);
+      content = text;
+      embeddableContent = opts.extractEmbeddable ? extractCSVEmbeddableContent(parsed) : content;
+      metadata = {
+        ...metadata,
+        lineCount: parsed.rowCount,
+        wordCount: countWords(content),
+        language: 'csv',
+        rowCount: parsed.rowCount,
+        columnCount: parsed.columnCount,
+        headers: parsed.headers,
+      };
+      parseResult = parsed;
+      break;
+    }
+
+    case 'html': {
+      // Dynamic import to reduce bundle size and memory usage
+      const { parseHTML, extractHTMLEmbeddableContent } = await import('./parsers/html-parser');
+      const text = typeof data === 'string' ? data : arrayBufferToString(data);
+      const parsed = await parseHTML(text);
+      content = text;
+      embeddableContent = opts.extractEmbeddable ? extractHTMLEmbeddableContent(parsed) : parsed.text;
+      metadata = {
+        ...metadata,
+        title: parsed.title,
+        lineCount: content.split('\n').length,
+        wordCount: countWords(parsed.text),
+        language: 'html',
+        linkCount: parsed.links.length,
+        imageCount: parsed.images.length,
+      };
+      parseResult = parsed;
+      break;
+    }
+
+    default: {
+      // Fall back to text processing
+      const text = typeof data === 'string' ? data : arrayBufferToString(data);
+      return processDocument(id, filename, text, options);
+    }
+  }
+
+  const result: ProcessedDocument = {
+    id,
+    filename,
+    type,
+    content,
+    embeddableContent,
+    metadata,
+    parseResult,
+  };
+
+  // Generate chunks if requested
+  if (opts.generateChunks) {
+    const chunkResult = chunkDocument(
+      embeddableContent,
+      opts.chunkingOptions,
+      id
+    );
+    result.chunks = chunkResult.chunks;
+  }
+
+  return result;
+}
+
+/**
+ * Convert string to ArrayBuffer
+ */
+function stringToArrayBuffer(str: string): ArrayBuffer {
+  const encoder = new TextEncoder();
+  return encoder.encode(str).buffer;
+}
+
+/**
+ * Convert ArrayBuffer to string
+ */
+function arrayBufferToString(buffer: ArrayBuffer): string {
+  const decoder = new TextDecoder();
+  return decoder.decode(buffer);
 }
 
 /**

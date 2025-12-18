@@ -7,7 +7,14 @@
  */
 
 import { useState } from 'react';
-import { ChevronDown, Sparkles, Search, Bot, Zap, Brain, Scale, Download, Image as ImageIcon, Wand2 } from 'lucide-react';
+import { ChevronDown, Sparkles, Search as SearchIcon, Bot, Zap, Brain, Scale, Download, Image as ImageIcon } from 'lucide-react';
+import { ConversationSearch } from './conversation-search';
+import { useMessages } from '@/hooks';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -48,7 +55,7 @@ interface ChatHeaderProps {
 const modeIcons: Record<ChatMode, React.ReactNode> = {
   chat: <Sparkles className="h-4 w-4" />,
   agent: <Bot className="h-4 w-4" />,
-  research: <Search className="h-4 w-4" />,
+  research: <SearchIcon className="h-4 w-4" />,
 };
 
 const modeLabels: Record<ChatMode, string> = {
@@ -60,6 +67,7 @@ const modeLabels: Record<ChatMode, string> = {
 export function ChatHeader({ sessionId }: ChatHeaderProps) {
   const [createPresetOpen, setCreatePresetOpen] = useState(false);
   const [managePresetsOpen, setManagePresetsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
@@ -69,6 +77,9 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
   const updateSession = useSessionStore((state) => state.updateSession);
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const selectPreset = usePresetStore((state) => state.selectPreset);
+
+  // Get messages for search
+  const { messages } = useMessages({ sessionId: session?.id || null });
 
   const currentProvider = session?.provider || 'openai';
   const currentModel = session?.model || PROVIDERS[currentProvider]?.defaultModel || 'gpt-4o';
@@ -102,8 +113,12 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
         model: preset.model,
         mode: preset.mode,
         systemPrompt: preset.systemPrompt,
+        builtinPrompts: preset.builtinPrompts,
         temperature: preset.temperature,
         maxTokens: preset.maxTokens,
+        webSearchEnabled: preset.webSearchEnabled,
+        thinkingEnabled: preset.thinkingEnabled,
+        presetId: preset.id,
       });
     }
     selectPreset(preset.id);
@@ -170,6 +185,29 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
               </Button>
             }
           />
+
+          {/* Search button */}
+          {session && messages.length > 0 && (
+            <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <SearchIcon className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 p-0">
+                <ConversationSearch
+                  messages={messages}
+                  onClose={() => setSearchOpen(false)}
+                  onNavigateToMessage={(messageId) => {
+                    // Scroll to message - could be enhanced with ref forwarding
+                    const element = document.getElementById(`message-${messageId}`);
+                    element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setSearchOpen(false);
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
+          )}
 
           {/* Export button */}
           {session && (

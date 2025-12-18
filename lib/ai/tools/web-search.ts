@@ -1,10 +1,63 @@
 /**
  * Web Search Tool - Multi-provider web search for AI agents
+ * Uses API routes to avoid importing server-only modules in client components
  */
 
 import { z } from 'zod';
 import type { SearchProviderType, SearchProviderSettings } from '@/types/search';
-import { searchWithProvider, search } from '@/lib/search/search-service';
+
+interface SearchApiResponse {
+  provider: SearchProviderType;
+  query: string;
+  answer?: string;
+  results: Array<{
+    title: string;
+    url: string;
+    content: string;
+    score: number;
+    publishedDate?: string;
+  }>;
+  responseTime: number;
+  error?: string;
+}
+
+/**
+ * Call search API route (to avoid importing server-only modules)
+ */
+async function callSearchApi(
+  query: string,
+  options: {
+    provider?: SearchProviderType;
+    apiKey?: string;
+    providerSettings?: Record<SearchProviderType, SearchProviderSettings>;
+    maxResults?: number;
+    searchDepth?: string;
+    includeAnswer?: boolean;
+  }
+): Promise<SearchApiResponse> {
+  const response = await fetch('/api/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query,
+      provider: options.provider,
+      apiKey: options.apiKey,
+      providerSettings: options.providerSettings,
+      options: {
+        maxResults: options.maxResults,
+        searchDepth: options.searchDepth,
+        includeAnswer: options.includeAnswer,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Search request failed' }));
+    throw new Error(error.error || 'Search request failed');
+  }
+
+  return response.json();
+}
 
 export const webSearchInputSchema = z.object({
   query: z.string().describe('The search query to find information on the web'),
@@ -61,26 +114,18 @@ export async function executeWebSearch(
     const { apiKey, provider: defaultProvider, providerSettings } = config;
     const targetProvider = input.provider || defaultProvider || 'tavily';
 
-    let response;
-
-    if (apiKey) {
-      response = await searchWithProvider(targetProvider, input.query, apiKey, {
-        maxResults: input.maxResults,
-        searchDepth: input.searchDepth,
-        includeAnswer: true,
-      });
-    } else if (providerSettings) {
-      response = await search(input.query, {
-        maxResults: input.maxResults,
-        searchDepth: input.searchDepth,
-        includeAnswer: true,
-        provider: targetProvider,
-        providerSettings,
-        fallbackEnabled: true,
-      });
-    } else {
+    if (!apiKey && !providerSettings) {
       throw new Error('No API key or provider settings provided');
     }
+
+    const response = await callSearchApi(input.query, {
+      provider: targetProvider,
+      apiKey,
+      providerSettings,
+      maxResults: input.maxResults,
+      searchDepth: input.searchDepth,
+      includeAnswer: true,
+    });
 
     return {
       success: true,

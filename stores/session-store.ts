@@ -25,6 +25,8 @@ interface SessionState {
   updateSession: (id: string, updates: UpdateSessionInput) => void;
   setActiveSession: (id: string | null) => void;
   duplicateSession: (id: string) => Session | null;
+  togglePinSession: (id: string) => void;
+  deleteAllSessions: () => void;
 
   // Branching actions
   createBranch: (sessionId: string, branchPointMessageId: string, name?: string) => ConversationBranch | null;
@@ -117,6 +119,7 @@ export const useSessionStore = create<SessionState>()(
           createdAt: new Date(),
           updatedAt: new Date(),
           messageCount: 0,
+          pinned: false,
         };
 
         set((state) => ({
@@ -126,6 +129,25 @@ export const useSessionStore = create<SessionState>()(
 
         return duplicate;
       },
+
+      togglePinSession: (id) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === id
+              ? {
+                  ...s,
+                  pinned: !s.pinned,
+                  updatedAt: new Date(),
+                }
+              : s
+          ),
+        })),
+
+      deleteAllSessions: () =>
+        set({
+          sessions: [],
+          activeSessionId: null,
+        }),
 
       // Branching actions
       createBranch: (sessionId, branchPointMessageId, name) => {

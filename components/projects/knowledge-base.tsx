@@ -4,7 +4,7 @@
  * KnowledgeBase - manage project knowledge files
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import {
   FileText,
   Code,
@@ -15,6 +15,10 @@ import {
   Search,
   Download,
   Eye,
+  FileSpreadsheet,
+  FileType,
+  Globe,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +47,7 @@ import { Badge } from '@/components/ui/badge';
 import { useProjectStore } from '@/stores';
 import type { KnowledgeFile } from '@/types';
 import { cn } from '@/lib/utils';
+import { processDocumentAsync, detectDocumentType } from '@/lib/document';
 
 interface KnowledgeBaseProps {
   projectId: string;
@@ -54,31 +59,57 @@ const fileTypeIcons: Record<string, React.ComponentType<{ className?: string }>>
   code: Code,
   markdown: FileText,
   json: Code,
+  word: FileType,
+  excel: FileSpreadsheet,
+  csv: FileSpreadsheet,
+  html: Globe,
 };
 
 const fileTypeColors: Record<string, string> = {
-  text: 'bg-gray-100 text-gray-800',
-  pdf: 'bg-red-100 text-red-800',
-  code: 'bg-blue-100 text-blue-800',
-  markdown: 'bg-purple-100 text-purple-800',
-  json: 'bg-green-100 text-green-800',
+  text: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
+  pdf: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  code: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  markdown: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+  json: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  word: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  excel: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
+  csv: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+  html: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
 };
 
-function detectFileType(filename: string, content: string): KnowledgeFile['type'] {
-  const ext = filename.split('.').pop()?.toLowerCase();
+function detectFileType(filename: string, content?: string): KnowledgeFile['type'] {
+  const docType = detectDocumentType(filename);
+  
+  // Map DocumentType to KnowledgeFile type
+  const typeMap: Record<string, KnowledgeFile['type']> = {
+    markdown: 'markdown',
+    code: 'code',
+    text: 'text',
+    json: 'json',
+    pdf: 'pdf',
+    word: 'word',
+    excel: 'excel',
+    csv: 'csv',
+    html: 'html',
+    unknown: 'text',
+  };
 
-  if (ext === 'md' || ext === 'markdown') return 'markdown';
-  if (ext === 'json') return 'json';
-  if (ext === 'pdf') return 'pdf';
-  if (['js', 'ts', 'tsx', 'jsx', 'py', 'rs', 'go', 'java', 'cpp', 'c', 'h'].includes(ext || '')) {
-    return 'code';
+  const mappedType = typeMap[docType];
+  if (mappedType && mappedType !== 'text') return mappedType;
+
+  // Try to detect from content for text files
+  if (content) {
+    if (content.startsWith('{') || content.startsWith('[')) return 'json';
+    if (content.includes('```') || content.startsWith('#')) return 'markdown';
   }
 
-  // Try to detect from content
-  if (content.startsWith('{') || content.startsWith('[')) return 'json';
-  if (content.includes('```') || content.startsWith('#')) return 'markdown';
-
   return 'text';
+}
+
+// Check if file is binary (needs ArrayBuffer processing)
+function isBinaryFile(filename: string): boolean {
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  return ['pdf', 'docx', 'doc', 'xlsx', 'xls'].includes(ext);
 }
 
 function formatFileSize(bytes: number): string {
@@ -94,11 +125,74 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
   const [deleteFileId, setDeleteFileId] = useState<string | null>(null);
   const [newFileName, setNewFileName] = useState('');
   const [newFileContent, setNewFileContent] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const project = useProjectStore((state) => state.getProject(projectId));
   const addKnowledgeFile = useProjectStore((state) => state.addKnowledgeFile);
   const removeKnowledgeFile = useProjectStore((state) => state.removeKnowledgeFile);
+
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+
+    try {
+      for (const file of Array.from(files)) {
+        try {
+          const isBinary = isBinaryFile(file.name);
+          
+          if (isBinary) {
+            // Process binary files (PDF, Word, Excel)
+            const buffer = await file.arrayBuffer();
+            const processed = await processDocumentAsync(
+              `temp-${Date.now()}`,
+              file.name,
+              buffer
+            );
+            
+            addKnowledgeFile(projectId, {
+              name: file.name,
+              type: detectFileType(file.name),
+              content: processed.embeddableContent || processed.content,
+              size: processed.embeddableContent?.length || processed.content.length,
+              mimeType: file.type,
+              originalSize: file.size,
+              pageCount: typeof processed.metadata.pageCount === 'number' ? processed.metadata.pageCount : undefined,
+            });
+          } else {
+            // Process text files
+            const content = await file.text();
+            const processed = await processDocumentAsync(
+              `temp-${Date.now()}`,
+              file.name,
+              content
+            );
+            
+            addKnowledgeFile(projectId, {
+              name: file.name,
+              type: detectFileType(file.name, content),
+              content: processed.embeddableContent || content,
+              size: content.length,
+              mimeType: file.type,
+            });
+          }
+        } catch (fileError) {
+          console.error(`Error processing file ${file.name}:`, fileError);
+          setUploadError(`Failed to process ${file.name}: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`);
+        }
+      }
+    } finally {
+      setIsUploading(false);
+      // Reset input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  }, [projectId, addKnowledgeFile]);
 
   if (!project) return null;
 
@@ -109,30 +203,6 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
           f.content.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : project.knowledgeBase;
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const content = event.target?.result as string;
-        addKnowledgeFile(projectId, {
-          name: file.name,
-          type: detectFileType(file.name, content),
-          content,
-          size: content.length,
-        });
-      };
-      reader.readAsText(file);
-    });
-
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
 
   const handleAddManual = () => {
     if (!newFileName.trim() || !newFileContent.trim()) return;
@@ -177,7 +247,7 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
             ref={fileInputRef}
             type="file"
             multiple
-            accept=".txt,.md,.json,.js,.ts,.tsx,.jsx,.py,.rs,.go,.java,.cpp,.c,.h"
+            accept=".txt,.md,.json,.js,.ts,.tsx,.jsx,.py,.rs,.go,.java,.cpp,.c,.h,.pdf,.docx,.doc,.xlsx,.xls,.csv,.tsv,.html,.htm,.xml,.yaml,.yml,.css,.scss"
             onChange={handleFileUpload}
             className="hidden"
           />
@@ -185,9 +255,14 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
             variant="outline"
             size="sm"
             onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
           >
-            <Upload className="mr-2 h-4 w-4" />
-            Upload
+            {isUploading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Upload className="mr-2 h-4 w-4" />
+            )}
+            {isUploading ? 'Processing...' : 'Upload'}
           </Button>
           <Button size="sm" onClick={() => setShowAddDialog(true)}>
             <Plus className="mr-2 h-4 w-4" />
@@ -195,6 +270,19 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
           </Button>
         </div>
       </div>
+
+      {/* Upload error message */}
+      {uploadError && (
+        <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+          {uploadError}
+          <button
+            onClick={() => setUploadError(null)}
+            className="ml-2 underline hover:no-underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {project.knowledgeBase.length > 0 && (
         <div className="relative">

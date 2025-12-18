@@ -4,17 +4,23 @@
  * Designer Page - Standalone V0-style web page designer
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useSettingsStore } from '@/stores';
+import { generateText } from 'ai';
+import { getProviderModel, type ProviderName } from '@/lib/ai/client';
 import { ReactSandbox } from '@/components/designer';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { DESIGNER_TEMPLATES, AI_SUGGESTIONS, TEMPLATE_CATEGORIES } from '@/lib/designer/templates';
 import {
   Sparkles,
   Send,
   Loader2,
   ArrowLeft,
   Wand2,
+  AlertCircle,
   Layers,
   X,
 } from 'lucide-react';
@@ -29,176 +35,33 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
 
-// Templates
-const TEMPLATES = [
-  {
-    id: 'blank',
-    name: 'Blank',
-    description: 'Start from scratch',
-    category: 'Basic',
-    code: `export default function App() {
-  return (
-    <div className="min-h-screen bg-white p-8">
-      <h1 className="text-2xl font-bold">Hello World</h1>
-    </div>
-  );
-}`,
-  },
-  {
-    id: 'landing',
-    name: 'Landing Page',
-    description: 'Modern landing page',
-    category: 'Marketing',
-    code: `export default function App() {
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="flex items-center justify-between px-6 py-4 max-w-7xl mx-auto">
-        <div className="text-xl font-bold text-gray-900">Logo</div>
-        <div className="flex items-center gap-6">
-          <a href="#" className="text-gray-600 hover:text-gray-900">Features</a>
-          <a href="#" className="text-gray-600 hover:text-gray-900">Pricing</a>
-          <button className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800">
-            Get Started
-          </button>
-        </div>
-      </nav>
-      <section className="max-w-7xl mx-auto px-6 py-24 text-center">
-        <h1 className="text-5xl font-bold text-gray-900 mb-6">
-          Build something amazing
-        </h1>
-        <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-          Create beautiful, responsive websites with our powerful platform.
-        </p>
-        <div className="flex items-center justify-center gap-4">
-          <button className="bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 font-medium">
-            Start Free Trial
-          </button>
-          <button className="border border-gray-300 px-6 py-3 rounded-lg hover:bg-gray-50 font-medium">
-            Watch Demo
-          </button>
-        </div>
-      </section>
-    </div>
-  );
-}`,
-  },
-  {
-    id: 'dashboard',
-    name: 'Dashboard',
-    description: 'Admin dashboard',
-    category: 'Application',
-    code: `export default function App() {
-  const stats = [
-    { label: 'Revenue', value: '$45,231', change: '+20.1%' },
-    { label: 'Users', value: '2,350', change: '+180.1%' },
-    { label: 'Sales', value: '12,234', change: '+19%' },
-  ];
-
-  return (
-    <div className="min-h-screen bg-gray-100">
-      <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r p-4">
-        <div className="text-xl font-bold mb-8">Dashboard</div>
-        <nav className="space-y-2">
-          {['Overview', 'Analytics', 'Reports', 'Settings'].map((item) => (
-            <a key={item} href="#" className="block px-4 py-2 rounded-lg hover:bg-gray-100">
-              {item}
-            </a>
-          ))}
-        </nav>
-      </aside>
-      <main className="ml-64 p-8">
-        <h1 className="text-2xl font-bold mb-8">Overview</h1>
-        <div className="grid grid-cols-3 gap-6">
-          {stats.map((stat, i) => (
-            <div key={i} className="bg-white rounded-xl p-6 shadow-sm">
-              <p className="text-sm text-gray-500">{stat.label}</p>
-              <p className="text-2xl font-bold">{stat.value}</p>
-              <p className="text-sm text-green-600">{stat.change}</p>
-            </div>
-          ))}
-        </div>
-      </main>
-    </div>
-  );
-}`,
-  },
-  {
-    id: 'form',
-    name: 'Contact Form',
-    description: 'Beautiful form',
-    category: 'Components',
-    code: `import { useState } from 'react';
-
-export default function App() {
-  const [formData, setFormData] = useState({ name: '', email: '', message: '' });
-
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg border shadow-sm p-6 max-w-md w-full">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Contact Us</h1>
-        <p className="text-gray-600 mb-6">We'd love to hear from you.</p>
-        <form className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="John Doe"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="john@example.com"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
-            <textarea
-              value={formData.message}
-              onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-              rows={4}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
-              placeholder="Your message..."
-            />
-          </div>
-          <button
-            type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg"
-          >
-            Send Message
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}`,
-  },
-];
-
-const AI_SUGGESTIONS = [
-  'Add a dark mode toggle',
-  'Make it responsive for mobile',
-  'Add animations on scroll',
-  'Change the color scheme to blue',
-  'Add a loading skeleton',
-  'Make the buttons more rounded',
-];
-
 export default function DesignerPage() {
-  const [code, setCode] = useState(TEMPLATES[0].code);
+  const searchParams = useSearchParams();
+  const [code, setCode] = useState(DESIGNER_TEMPLATES[0].code);
   const [showTemplates, setShowTemplates] = useState(true);
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [aiPrompt, setAIPrompt] = useState('');
   const [isAIProcessing, setIsAIProcessing] = useState(false);
+  const [aiError, setAIError] = useState<string | null>(null);
 
-  const handleSelectTemplate = useCallback((template: typeof TEMPLATES[0]) => {
+  const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const defaultProvider = useSettingsStore((state) => state.defaultProvider);
+
+  // Load code from sessionStorage if key parameter is present
+  useEffect(() => {
+    const key = searchParams.get('key');
+    if (key) {
+      const storedCode = sessionStorage.getItem(key);
+      if (storedCode) {
+        setCode(storedCode);
+        setShowTemplates(false);
+        // Clean up after reading
+        sessionStorage.removeItem(key);
+      }
+    }
+  }, [searchParams]);
+
+  const handleSelectTemplate = useCallback((template: typeof DESIGNER_TEMPLATES[0]) => {
     setCode(template.code);
     setShowTemplates(false);
   }, []);
@@ -207,11 +70,46 @@ export default function DesignerPage() {
     if (!aiPrompt.trim()) return;
     
     setIsAIProcessing(true);
-    // Simulate AI processing - in production, this would call the AI API
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsAIProcessing(false);
-    setAIPrompt('');
-  }, [aiPrompt]);
+    setAIError(null);
+
+    const provider = (defaultProvider || 'openai') as ProviderName;
+    const settings = providerSettings[provider];
+    const model = settings?.defaultModel || 'gpt-4o-mini';
+
+    if (!settings?.apiKey && provider !== 'ollama') {
+      setAIError(`No API key configured for ${provider}. Please add your API key in Settings.`);
+      setIsAIProcessing(false);
+      return;
+    }
+
+    try {
+      const modelInstance = getProviderModel(provider, model, settings?.apiKey || '', settings?.baseURL);
+
+      const result = await generateText({
+        model: modelInstance,
+        system: `You are an expert React developer. Modify the following React component based on the user's request.
+Return ONLY the complete modified code, no explanations.
+Preserve the component structure and use Tailwind CSS for styling.
+Make sure the code is valid JSX that can be rendered.`,
+        prompt: `Current code:\n\n${code}\n\nUser request: ${aiPrompt}`,
+        temperature: 0.7,
+      });
+
+      if (result.text) {
+        // Clean up the response - remove markdown code blocks if present
+        let newCode = result.text.trim();
+        if (newCode.startsWith('```')) {
+          newCode = newCode.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '');
+        }
+        setCode(newCode);
+      }
+      setAIPrompt('');
+    } catch (error) {
+      setAIError(error instanceof Error ? error.message : 'AI edit failed');
+    } finally {
+      setIsAIProcessing(false);
+    }
+  }, [aiPrompt, code, defaultProvider, providerSettings]);
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -272,6 +170,12 @@ export default function DesignerPage() {
                   </Badge>
                 ))}
               </div>
+              {aiError && (
+                <div className="flex items-center gap-2 mt-2 text-destructive text-xs">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  <span>{aiError}</span>
+                </div>
+              )}
             </div>
             <div className="flex gap-1">
               <Button
@@ -333,7 +237,7 @@ export default function DesignerPage() {
             <ScrollArea className="flex-1 mt-4">
               <TabsContent value="all" className="mt-0">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {TEMPLATES.map((template) => (
+                  {DESIGNER_TEMPLATES.map((template) => (
                     <button
                       key={template.id}
                       onClick={() => handleSelectTemplate(template)}
@@ -356,10 +260,10 @@ export default function DesignerPage() {
                 </div>
               </TabsContent>
 
-              {['Basic', 'Marketing', 'Application', 'Components'].map((category) => (
+              {TEMPLATE_CATEGORIES.map((category) => (
                 <TabsContent key={category} value={category} className="mt-0">
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {TEMPLATES.filter((t) => t.category === category).map((template) => (
+                    {DESIGNER_TEMPLATES.filter((t) => t.category === category).map((template) => (
                       <button
                         key={template.id}
                         onClick={() => handleSelectTemplate(template)}

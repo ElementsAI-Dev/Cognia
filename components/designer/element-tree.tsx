@@ -70,6 +70,12 @@ export function ElementTree({ className }: ElementTreeProps) {
   const selectElement = useDesignerStore((state) => state.selectElement);
   const hoverElement = useDesignerStore((state) => state.hoverElement);
   const deleteElement = useDesignerStore((state) => state.deleteElement);
+  const syncCodeFromElements = useDesignerStore((state) => state.syncCodeFromElements);
+
+  const handleDeleteElement = useCallback((id: string) => {
+    deleteElement(id);
+    syncCodeFromElements();
+  }, [deleteElement, syncCodeFromElements]);
 
   if (!elementTree) {
     return (
@@ -95,7 +101,7 @@ export function ElementTree({ className }: ElementTreeProps) {
           hoveredId={hoveredElementId}
           onSelect={selectElement}
           onHover={hoverElement}
-          onDelete={deleteElement}
+          onDelete={handleDeleteElement}
         />
       </div>
     </ScrollArea>

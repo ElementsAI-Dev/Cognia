@@ -6,7 +6,7 @@
  * Messages are persisted to IndexedDB via useMessages hook
  */
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Copy, Check, Pencil, RotateCcw } from 'lucide-react';
 import {
   Conversation,
@@ -23,24 +23,28 @@ import {
 import { Loader } from '@/components/ai-elements/loader';
 import { ErrorMessage } from './error-message';
 import { ChatHeader } from './chat-header';
-import { type Attachment } from './chat-input';
-import { ChatInputSimple } from './chat-input-simple';
+import { ChatInput, type Attachment } from './chat-input';
 import { ContextSettingsDialog } from './context-settings-dialog';
 import { WelcomeState } from './welcome-state';
 import { BranchButton } from './branch-selector';
+import { TextPart, ReasoningPart, ToolPart, SourcesPart } from './message-parts';
+import type { MessagePart } from '@/types/message';
 import { PromptOptimizerDialog } from './prompt-optimizer-dialog';
-import { PresetSelector } from './preset-selector';
 import { PresetManagerDialog } from './preset-manager-dialog';
 import { Suggestions, Suggestion } from '@/components/ai-elements/suggestion';
 import { AgentPlanEditor } from '@/components/agent/agent-plan-editor';
+import { ToolTimeline, type ToolExecution } from '@/components/agent/tool-timeline';
+import { ToolApprovalDialog, type ToolApprovalRequest } from '@/components/agent/tool-approval-dialog';
+import { initializeAgentTools } from '@/lib/ai/agent';
 import {
   generateSuggestions,
   getDefaultSuggestions,
   type GeneratedSuggestion,
 } from '@/lib/ai/suggestion-generator';
-import type { SearchResponse } from '@/lib/search/tavily';
-import { useSessionStore, useSettingsStore, usePresetStore } from '@/stores';
-import { useMessages } from '@/hooks';
+import type { SearchResponse, SearchResult } from '@/types/search';
+import { useSessionStore, useSettingsStore, usePresetStore, useMcpStore, useAgentStore, useProjectStore } from '@/stores';
+import { useMessages, useAgent, useProjectContext } from '@/hooks';
+import type { ParsedToolCall, ToolCallResult } from '@/types/mcp';
 import { useAIChat, useAutoRouter, type ProviderName, isVisionModel, buildMultimodalContent, type MultimodalMessage } from '@/lib/ai';
 import { messageRepository } from '@/lib/db';
 import { PROVIDERS } from '@/types/provider';
@@ -59,20 +63,31 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   const session = sessionId ? getSession(sessionId) : getActiveSession();
   const activeSessionId = session?.id || null;
+  const activeBranchId = session?.activeBranchId;
 
-  // Message persistence with IndexedDB
+  // Project context for knowledge base integration
+  const getProject = useProjectStore((state) => state.getProject);
+  const projectContext = useProjectContext(
+    session?.projectId,
+    undefined, // Query will be set dynamically when sending
+    { maxContextLength: 6000, useRelevanceFiltering: true }
+  );
+
+  // Message persistence with IndexedDB (branch-aware)
   const {
     messages,
-    isLoading: isLoadingMessages,
+    isLoading: _isLoadingMessages,
     isInitialized,
     addMessage,
     updateMessage,
     deleteMessagesAfter,
-    clearMessages,
+    clearMessages: _clearMessages,
     appendToMessage,
     createStreamingMessage,
+    copyMessagesForBranch,
   } = useMessages({
     sessionId: activeSessionId,
+    branchId: activeBranchId,
     onError: (err) => setError(err.message),
   });
 
@@ -92,7 +107,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   // New feature states
   const [showPromptOptimizer, setShowPromptOptimizer] = useState(false);
   const [suggestions, setSuggestions] = useState<GeneratedSuggestion[]>([]);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [_isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   // Preset states
   const [showPresetManager, setShowPresetManager] = useState(false);
@@ -104,6 +119,19 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const [contextLimitPercent, setContextLimitPercent] = useState(50);
   const [showMemoryActivation, setShowMemoryActivation] = useState(false);
   const [showTokenUsageMeter, setShowTokenUsageMeter] = useState(true);
+
+  // MCP store for tool execution
+  const mcpCallTool = useMcpStore((state) => state.callTool);
+  const mcpServers = useMcpStore((state) => state.servers);
+  const mcpInitialize = useMcpStore((state) => state.initialize);
+  const mcpIsInitialized = useMcpStore((state) => state.isInitialized);
+
+  // Initialize MCP store
+  useEffect(() => {
+    if (!mcpIsInitialized) {
+      mcpInitialize();
+    }
+  }, [mcpIsInitialized, mcpInitialize]);
 
 
   // Feature toggles from session
@@ -178,6 +206,109 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     },
   });
 
+  // Agent store for plan and tool execution state
+  const _isAgentRunning = useAgentStore((state) => state.isAgentRunning);
+  const agentToolExecutions = useAgentStore((state) => state.toolExecutions);
+  const addToolExecution = useAgentStore((state) => state.addToolExecution);
+  const completeToolExecution = useAgentStore((state) => state.completeToolExecution);
+  const failToolExecution = useAgentStore((state) => state.failToolExecution);
+
+  // Agent tool approval state
+  const [toolApprovalRequest, setToolApprovalRequest] = useState<ToolApprovalRequest | null>(null);
+  const [showToolApproval, setShowToolApproval] = useState(false);
+  const pendingApprovalRef = useRef<{
+    resolve: (approved: boolean) => void;
+    reject: (error: Error) => void;
+  } | null>(null);
+
+  // Initialize agent tools based on available API keys
+  const agentTools = useMemo(() => {
+    const tavilyApiKey = providerSettings.tavily?.apiKey;
+    return initializeAgentTools({
+      tavilyApiKey,
+      enableWebSearch: !!tavilyApiKey,
+      enableCalculator: true,
+      enableRAGSearch: true,
+    });
+  }, [providerSettings.tavily?.apiKey]);
+
+  // Agent hook for multi-step execution
+  const {
+    isRunning: isAgentExecuting,
+    currentStep: _agentCurrentStep,
+    error: _agentError,
+    toolCalls: _agentToolCalls,
+    run: runAgent,
+    stop: stopAgent,
+    reset: _resetAgent,
+  } = useAgent({
+    systemPrompt: session?.systemPrompt || 'You are a helpful AI assistant with access to tools.',
+    maxSteps: 10,
+    temperature: session?.temperature ?? 0.7,
+    tools: agentTools,
+    onStepStart: (step) => {
+      console.log(`Agent step ${step} started`);
+    },
+    onStepComplete: (step, response, toolCalls) => {
+      console.log(`Agent step ${step} completed:`, response, toolCalls);
+    },
+    onToolCall: (toolCall) => {
+      console.log('Tool call:', toolCall);
+      addToolExecution({
+        id: toolCall.id,
+        toolName: toolCall.name,
+        input: toolCall.args,
+        status: 'running',
+        state: 'input-available',
+      });
+    },
+    onToolResult: (toolCall) => {
+      console.log('Tool result:', toolCall);
+      if (toolCall.status === 'completed') {
+        completeToolExecution(toolCall.id, toolCall.result);
+      } else if (toolCall.status === 'error') {
+        failToolExecution(toolCall.id, toolCall.error || 'Tool execution failed');
+      }
+    },
+  });
+
+  // Handle tool approval
+  const handleToolApproval = useCallback(async (toolCallId: string, alwaysAllow?: boolean) => {
+    if (pendingApprovalRef.current) {
+      pendingApprovalRef.current.resolve(true);
+      pendingApprovalRef.current = null;
+    }
+    setShowToolApproval(false);
+    setToolApprovalRequest(null);
+    // TODO: Store alwaysAllow preference if needed
+    console.log('Tool approved:', toolCallId, 'alwaysAllow:', alwaysAllow);
+  }, []);
+
+  const handleToolDeny = useCallback((toolCallId: string) => {
+    if (pendingApprovalRef.current) {
+      pendingApprovalRef.current.resolve(false);
+      pendingApprovalRef.current = null;
+    }
+    setShowToolApproval(false);
+    setToolApprovalRequest(null);
+    console.log('Tool denied:', toolCallId);
+  }, []);
+
+  // Convert agent tool executions to ToolTimeline format
+  const toolTimelineExecutions: ToolExecution[] = useMemo(() => {
+    return agentToolExecutions.map((exec) => ({
+      id: exec.id,
+      toolName: exec.toolName,
+      state: exec.status === 'completed' ? 'output-available' as const :
+             exec.status === 'error' ? 'output-error' as const :
+             exec.status === 'running' ? 'input-available' as const :
+             'input-streaming' as const,
+      startTime: exec.startedAt?.getTime() || Date.now(),
+      endTime: exec.completedAt?.getTime(),
+      error: exec.error,
+    }));
+  }, [agentToolExecutions]);
+
   // Set active session on mount
   useEffect(() => {
     if (sessionId) {
@@ -188,7 +319,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     }
   }, [sessionId, setActiveSession, getSession]);
 
-  const handleNewChat = useCallback(() => {
+  const _handleNewChat = useCallback(() => {
     createSession();
     setError(null);
   }, [createSession]);
@@ -211,7 +342,9 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
         model: preset.model,
         mode: preset.mode,
         systemPrompt: preset.systemPrompt,
+        builtinPrompts: preset.builtinPrompts,
         temperature: preset.temperature,
+        maxTokens: preset.maxTokens,
         webSearchEnabled: preset.webSearchEnabled,
         thinkingEnabled: preset.thinkingEnabled,
         presetId: preset.id,
@@ -240,14 +373,14 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     }
   }, [session, updateSession]);
 
-  // Open preset manager
-  const handleManagePresets = useCallback(() => {
+  // Open preset manager (can be used by child components)
+  const _handleManagePresets = useCallback(() => {
     setEditingPresetId(null);
     setShowPresetManager(true);
   }, []);
 
-  // Create new preset
-  const handleCreatePreset = useCallback(() => {
+  // Create new preset (can be used by child components)
+  const _handleCreatePreset = useCallback(() => {
     setEditingPresetId(null);
     setShowPresetManager(true);
   }, []);
@@ -293,7 +426,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     setShowPromptOptimizer(false);
   }, []);
 
-  // Open prompt optimizer
+  // Open prompt optimizer (passed to ChatInput)
   const handleOpenPromptOptimizer = useCallback(() => {
     if (inputValue.trim()) {
       setShowPromptOptimizer(true);
@@ -313,7 +446,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     }
 
     parts.push('**Sources:**');
-    searchResponse.results.forEach((result, index) => {
+    searchResponse.results.forEach((result: SearchResult, index: number) => {
       parts.push(`${index + 1}. [${result.title}](${result.url})`);
       parts.push(`   ${result.content.slice(0, 200)}...`);
       parts.push('');
@@ -325,7 +458,125 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     return parts.join('\n');
   }, []);
 
-  const handleSendMessage = useCallback(async (content: string, attachments?: Attachment[]) => {
+  // Execute MCP tool calls and return results
+  const executeMcpTools = useCallback(async (toolCalls: ParsedToolCall[]): Promise<string> => {
+    const results: string[] = [];
+    
+    for (const toolCall of toolCalls) {
+      try {
+        // Find the server
+        const server = mcpServers.find(s => s.id === toolCall.serverId);
+        if (!server) {
+          results.push(`❌ Server "${toolCall.serverId}" not found`);
+          continue;
+        }
+        
+        // Check if server is connected
+        if (server.status.type !== 'connected') {
+          results.push(`❌ Server "${toolCall.serverId}" is not connected`);
+          continue;
+        }
+        
+        // Execute the tool
+        console.log(`Executing MCP tool: ${toolCall.serverId}:${toolCall.toolName}`);
+        const result = await mcpCallTool(
+          toolCall.serverId,
+          toolCall.toolName,
+          toolCall.arguments || {}
+        );
+        
+        // Format the result
+        if (result.isError) {
+          results.push(`❌ **${toolCall.mentionText}** error:\n${formatToolResult(result)}`);
+        } else {
+          results.push(`✅ **${toolCall.mentionText}** result:\n${formatToolResult(result)}`);
+        }
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        results.push(`❌ **${toolCall.mentionText}** failed: ${errorMsg}`);
+      }
+    }
+    
+    return results.join('\n\n');
+  }, [mcpServers, mcpCallTool]);
+
+  // Format tool call result for display
+  const formatToolResult = (result: ToolCallResult): string => {
+    return result.content.map(item => {
+      if (item.type === 'text') {
+        return item.text;
+      } else if (item.type === 'image') {
+        return `[Image: ${item.mimeType}]`;
+      } else if (item.type === 'resource') {
+        return item.resource.text || `[Resource: ${item.resource.uri}]`;
+      }
+      return '[Unknown content]';
+    }).join('\n');
+  };
+
+  // Handle Agent mode message sending
+  const handleAgentMessage = useCallback(async (content: string, currentSessionId: string) => {
+    // Add user message to database
+    await addMessage({
+      role: 'user',
+      content,
+    });
+
+    // Create streaming assistant message for agent response
+    const assistantMessage = createStreamingMessage('assistant');
+
+    try {
+      // Run the agent with the user's prompt
+      const agentResult = await runAgent(content);
+
+      if (agentResult.success) {
+        // Format the agent response with tool execution info
+        let formattedResponse = agentResult.finalResponse;
+
+        // Add tool execution summary if there were tool calls
+        if (agentResult.steps.length > 0) {
+          const toolSummary = agentResult.steps
+            .filter(step => step.toolCalls.length > 0)
+            .map(step => {
+              const toolInfo = step.toolCalls.map(tc => 
+                `- **${tc.name}**: ${tc.status === 'completed' ? '✅' : '❌'} ${tc.status}`
+              ).join('\n');
+              return toolInfo;
+            })
+            .join('\n');
+
+          if (toolSummary) {
+            formattedResponse = `${formattedResponse}\n\n---\n**Tools Used:**\n${toolSummary}`;
+          }
+        }
+
+        // Update the assistant message with the final response
+        await updateMessage(assistantMessage.id, { content: formattedResponse });
+
+        // Save to database
+        await messageRepository.create(currentSessionId, {
+          ...assistantMessage,
+          content: formattedResponse,
+          model: currentModel,
+          provider: currentProvider as ProviderName,
+        });
+
+        // Generate suggestions
+        loadSuggestions(content, formattedResponse);
+      } else {
+        // Handle agent error
+        const errorContent = `Agent execution failed: ${agentResult.error || 'Unknown error'}`;
+        await updateMessage(assistantMessage.id, { content: errorContent, error: agentResult.error });
+        setError(agentResult.error || 'Agent execution failed');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Agent execution failed';
+      await updateMessage(assistantMessage.id, { content: `Error: ${errorMessage}`, error: errorMessage });
+      setError(errorMessage);
+    }
+  }, [addMessage, createStreamingMessage, runAgent, updateMessage, currentModel, currentProvider, loadSuggestions]);
+
+  const handleSendMessage = useCallback(async (content: string, attachments?: Attachment[], toolCalls?: ParsedToolCall[]) => {
     if (!content.trim() && (!attachments || attachments.length === 0)) return;
 
     setError(null);
@@ -346,7 +597,28 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       messageContent = content ? `${content}\n\n${attachmentInfo}` : attachmentInfo;
     }
 
+    // Execute MCP tool calls if present
+    let toolResultsContext = '';
+    if (toolCalls && toolCalls.length > 0) {
+      try {
+        toolResultsContext = await executeMcpTools(toolCalls);
+        console.log('Tool execution results:', toolResultsContext);
+      } catch (err) {
+        console.error('Failed to execute MCP tools:', err);
+      }
+    }
+
     setIsLoading(true);
+
+    // Use Agent mode execution if in agent mode
+    if (currentMode === 'agent') {
+      try {
+        await handleAgentMessage(messageContent, currentSessionId);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
 
     try {
       // Add user message to database
@@ -415,8 +687,27 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
         }));
       }
 
+      // Build enhanced system prompt starting with project context if available
+      let enhancedSystemPrompt = '';
+      
+      // Add project knowledge base context if available
+      if (session?.projectId && projectContext?.hasKnowledge) {
+        // Rebuild context with the current query for relevance filtering
+        const project = getProject(session.projectId);
+        if (project) {
+          const { buildProjectContext } = await import('@/lib/document/knowledge-rag');
+          const queryContext = buildProjectContext(project, content, {
+            maxContextLength: 6000,
+            useRelevanceFiltering: true,
+          });
+          enhancedSystemPrompt = queryContext.systemPrompt;
+          console.log(`Using ${queryContext.filesUsed.length} knowledge files:`, queryContext.filesUsed);
+        }
+      } else if (session?.systemPrompt) {
+        enhancedSystemPrompt = session.systemPrompt;
+      }
+
       // Perform web search if enabled
-      let enhancedSystemPrompt = session?.systemPrompt || '';
       if (webSearchEnabled) {
         const tavilyApiKey = providerSettings.tavily?.apiKey;
         if (tavilyApiKey) {
@@ -475,6 +766,14 @@ Be thorough in your thinking but concise in your final answer.`;
           : thinkingPrompt;
       }
 
+      // Add MCP tool results context if available
+      if (toolResultsContext) {
+        const toolContext = `## MCP Tool Results\n\nThe following tools were executed based on user request:\n\n${toolResultsContext}\n\n---\nUse the above tool results to inform your response.`;
+        enhancedSystemPrompt = enhancedSystemPrompt
+          ? `${enhancedSystemPrompt}\n\n${toolContext}`
+          : toolContext;
+      }
+
       // Send to AI
       const response = await aiSendMessage(
         {
@@ -517,13 +816,17 @@ Be thorough in your thinking but concise in your final answer.`;
     } finally {
       setIsLoading(false);
     }
-  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, appendToMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults]);
+  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, appendToMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge]);
 
   const handleStop = useCallback(() => {
     aiStop();
+    // Also stop agent execution if running
+    if (isAgentExecuting) {
+      stopAgent();
+    }
     setIsLoading(false);
     setIsStreaming(false);
-  }, [aiStop]);
+  }, [aiStop, isAgentExecuting, stopAgent]);
 
   // Edit message handlers
   const handleEditMessage = useCallback((messageId: string, content: string) => {
@@ -621,6 +924,20 @@ Be thorough in your thinking but concise in your final answer.`;
             mode={currentMode}
             onSuggestionClick={handleSuggestionClick}
             onModeChange={handleModeChange}
+            onSelectTemplate={(template) => {
+              // Apply template settings to session
+              if (session) {
+                updateSession(session.id, {
+                  systemPrompt: template.systemPrompt,
+                  provider: (template.provider as ProviderName) || session.provider,
+                  model: template.model || session.model,
+                });
+              }
+              // Set initial message if provided
+              if (template.initialMessage) {
+                setInputValue(template.initialMessage);
+              }
+            }}
           />
         ) : (
           <ConversationContent>
@@ -637,6 +954,7 @@ Be thorough in your thinking but concise in your final answer.`;
                 onCancelEdit={handleCancelEdit}
                 onSaveEdit={() => handleSaveEdit(message.id)}
                 onRetry={() => handleRetry(message.id)}
+                onCopyMessagesForBranch={copyMessagesForBranch}
               />
             ))}
             {isLoading && messages[messages.length - 1]?.role === 'user' && (
@@ -673,13 +991,17 @@ Be thorough in your thinking but concise in your final answer.`;
         </div>
       )}
 
-      <ChatInputSimple
+      <ChatInput
         value={inputValue}
         onChange={setInputValue}
-        onSubmit={() => handleSendMessage(inputValue)}
+        onSubmit={(content, attachments, toolCalls) => {
+          handleSendMessage(content, attachments, toolCalls);
+          setInputValue('');
+        }}
         isLoading={isLoading}
         isStreaming={isStreaming}
         onStop={handleStop}
+        onOptimizePrompt={handleOpenPromptOptimizer}
         contextUsagePercent={contextUsagePercent}
         onOpenContextSettings={() => setShowContextSettings(true)}
         webSearchEnabled={webSearchEnabled}
@@ -687,7 +1009,7 @@ Be thorough in your thinking but concise in your final answer.`;
         onWebSearchChange={handleWebSearchChange}
         onThinkingChange={handleThinkingChange}
         modelName={currentModel}
-        modeName={currentMode}
+        modeName={currentMode === 'chat' ? 'Chat' : currentMode === 'agent' ? 'Agent' : 'Research'}
       />
 
       {/* Prompt Optimizer Dialog */}
@@ -722,6 +1044,81 @@ Be thorough in your thinking but concise in your final answer.`;
         onShowTokenUsageMeterChange={setShowTokenUsageMeter}
         modelMaxTokens={modelMaxTokens}
       />
+
+      {/* Agent Tool Approval Dialog */}
+      <ToolApprovalDialog
+        request={toolApprovalRequest}
+        open={showToolApproval}
+        onOpenChange={setShowToolApproval}
+        onApprove={handleToolApproval}
+        onDeny={handleToolDeny}
+      />
+
+      {/* Agent Tool Timeline - shown when agent is executing */}
+      {currentMode === 'agent' && toolTimelineExecutions.length > 0 && (
+        <div className="fixed bottom-24 right-4 z-50 w-80">
+          <ToolTimeline executions={toolTimelineExecutions} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Helper component to render message parts
+interface MessagePartsRendererProps {
+  parts?: MessagePart[];
+  content: string;
+  isError?: boolean;
+}
+
+function MessagePartsRenderer({ parts, content, isError }: MessagePartsRendererProps) {
+  // If no parts, render content directly
+  if (!parts || parts.length === 0) {
+    return (
+      <MessageResponse className={isError ? 'text-destructive' : undefined}>
+        {content}
+      </MessageResponse>
+    );
+  }
+
+  // Render each part based on its type
+  return (
+    <div className="space-y-2">
+      {parts.map((part, index) => {
+        switch (part.type) {
+          case 'text':
+            return (
+              <TextPart
+                key={`text-${index}`}
+                part={part}
+                isError={isError}
+              />
+            );
+          case 'reasoning':
+            return (
+              <ReasoningPart
+                key={`reasoning-${index}`}
+                part={part}
+              />
+            );
+          case 'tool-invocation':
+            return (
+              <ToolPart
+                key={`tool-${part.toolCallId}`}
+                part={part}
+              />
+            );
+          case 'sources':
+            return (
+              <SourcesPart
+                key={`sources-${index}`}
+                part={part}
+              />
+            );
+          default:
+            return null;
+        }
+      })}
     </div>
   );
 }
@@ -738,6 +1135,7 @@ interface ChatMessageItemProps {
   onCancelEdit: () => void;
   onSaveEdit: () => void;
   onRetry: () => void;
+  onCopyMessagesForBranch?: (branchPointMessageId: string, newBranchId: string) => Promise<unknown>;
 }
 
 function ChatMessageItem({
@@ -751,6 +1149,7 @@ function ChatMessageItem({
   onCancelEdit,
   onSaveEdit,
   onRetry,
+  onCopyMessagesForBranch,
 }: ChatMessageItemProps) {
   const [copied, setCopied] = useState(false);
 
@@ -770,7 +1169,7 @@ function ChatMessageItem({
   };
 
   return (
-    <MessageUI from={message.role as "system" | "user" | "assistant"}>
+    <MessageUI id={`message-${message.id}`} from={message.role as "system" | "user" | "assistant"}>
       <MessageContent>
         {isEditing ? (
           <div className="flex flex-col gap-2">
@@ -799,9 +1198,11 @@ function ChatMessageItem({
         ) : message.role === 'user' ? (
           <p className="whitespace-pre-wrap">{message.content}</p>
         ) : (
-          <MessageResponse className={message.error ? 'text-destructive' : undefined}>
-            {message.content}
-          </MessageResponse>
+          <MessagePartsRenderer
+            parts={message.parts}
+            content={message.content}
+            isError={!!message.error}
+          />
         )}
       </MessageContent>
 
@@ -835,6 +1236,7 @@ function ChatMessageItem({
           <BranchButton
             sessionId={sessionId}
             messageId={message.id}
+            onCopyMessages={onCopyMessagesForBranch}
           />
         </MessageActions>
       )}

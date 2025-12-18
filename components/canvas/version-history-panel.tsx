@@ -102,12 +102,25 @@ export function VersionHistoryPanel({
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
+    return date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  // Format date key for grouping (uses local date for consistency)
+  const getDateKey = (date: Date) => {
+    return date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
   };
 
   // Group versions by date
   const groupedVersions = versions.reduce((groups, version) => {
-    const dateKey = version.createdAt.toDateString();
+    const dateKey = getDateKey(version.createdAt);
     if (!groups[dateKey]) {
       groups[dateKey] = [];
     }

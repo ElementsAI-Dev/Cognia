@@ -8,7 +8,7 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { useSettingsStore } from '@/stores';
 import { I18nProvider } from '@/lib/i18n';
 import { THEME_PRESETS, applyThemeColors, removeCustomThemeColors } from '@/lib/themes';
-import type { ColorThemePreset } from '@/lib/themes';
+import type { ColorThemePreset as _ColorThemePreset } from '@/lib/themes';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 interface ProvidersProps {

@@ -5,9 +5,12 @@
  * Combines preview, element tree, style panel, and code editor
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { Loader2, X, Sparkles, Send } from 'lucide-react';
+import { generateText } from 'ai';
+import { getProviderModel, type ProviderName } from '@/lib/ai/client';
+import { useSettingsStore } from '@/stores';
+import { Loader2, X, Sparkles, Send, AlertCircle } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,6 +53,43 @@ export function DesignerPanel({
   const [aiPrompt, setAIPrompt] = useState('');
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [showAIInput, setShowAIInput] = useState(false);
+  const [aiError, setAIError] = useState<string | null>(null);
+
+  // Settings for built-in AI
+  const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const defaultProvider = useSettingsStore((state) => state.defaultProvider);
+
+  // Built-in AI request handler
+  const builtInAIRequest = useCallback(async (prompt: string, currentCode: string): Promise<string> => {
+    const provider = (defaultProvider || 'openai') as ProviderName;
+    const settings = providerSettings[provider];
+    const model = settings?.defaultModel || 'gpt-4o-mini';
+
+    if (!settings?.apiKey && provider !== 'ollama') {
+      throw new Error(`No API key configured for ${provider}. Please add your API key in Settings.`);
+    }
+
+    const modelInstance = getProviderModel(provider, model, settings?.apiKey || '', settings?.baseURL);
+
+    const result = await generateText({
+      model: modelInstance,
+      system: `You are an expert React developer. Modify the following React component based on the user's request.
+Return ONLY the complete modified code, no explanations.
+Preserve the component structure and use Tailwind CSS for styling.
+Make sure the code is valid JSX that can be rendered.`,
+      prompt: `Current code:\n\n${currentCode}\n\nUser request: ${prompt}`,
+      temperature: 0.7,
+    });
+
+    if (result.text) {
+      let newCode = result.text.trim();
+      if (newCode.startsWith('```')) {
+        newCode = newCode.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '');
+      }
+      return newCode;
+    }
+    throw new Error('No response from AI');
+  }, [defaultProvider, providerSettings]);
 
   const mode = useDesignerStore((state) => state.mode);
   const code = useDesignerStore((state) => state.code);
@@ -58,13 +98,17 @@ export function DesignerPanel({
   const showStylePanel = useDesignerStore((state) => state.showStylePanel);
   const parseCodeToElements = useDesignerStore((state) => state.parseCodeToElements);
 
+  // Track if we've initialized to prevent re-initialization loops
+  const initializedRef = useRef(false);
+
   // Initialize code when panel opens
-  useState(() => {
-    if (initialCode && !code) {
+  useEffect(() => {
+    if (initialCode && !initializedRef.current) {
+      initializedRef.current = true;
       setCode(initialCode);
       parseCodeToElements(initialCode);
     }
-  });
+  }, [initialCode, setCode, parseCodeToElements]);
 
   const handleCodeChange = useCallback(
     (value: string | undefined) => {
@@ -80,11 +124,13 @@ export function DesignerPanel({
   }, []);
 
   const handleAISubmit = useCallback(async () => {
-    if (!aiPrompt.trim() || !onAIRequest) return;
+    if (!aiPrompt.trim()) return;
 
     setIsAIProcessing(true);
+    setAIError(null);
     try {
-      const newCode = await onAIRequest(aiPrompt, code);
+      const aiHandler = onAIRequest || builtInAIRequest;
+      const newCode = await aiHandler(aiPrompt, code);
       setCode(newCode);
       parseCodeToElements(newCode);
       onCodeChange?.(newCode);
@@ -92,10 +138,11 @@ export function DesignerPanel({
       setShowAIInput(false);
     } catch (error) {
       console.error('AI edit failed:', error);
+      setAIError(error instanceof Error ? error.message : 'AI edit failed');
     } finally {
       setIsAIProcessing(false);
     }
-  }, [aiPrompt, code, onAIRequest, setCode, parseCodeToElements, onCodeChange]);
+  }, [aiPrompt, code, onAIRequest, builtInAIRequest, setCode, parseCodeToElements, onCodeChange]);
 
   const handleExport = useCallback(() => {
     const blob = new Blob([code], { type: 'text/plain' });
@@ -143,11 +190,17 @@ export function DesignerPanel({
                 <Send className="h-4 w-4" />
               )}
             </Button>
+            {aiError && (
+              <div className="flex items-center gap-1 text-destructive text-xs">
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span className="max-w-[200px] truncate">{aiError}</span>
+              </div>
+            )}
             <Button
               size="sm"
               variant="ghost"
               className="h-8"
-              onClick={() => setShowAIInput(false)}
+              onClick={() => { setShowAIInput(false); setAIError(null); }}
             >
               <X className="h-4 w-4" />
             </Button>

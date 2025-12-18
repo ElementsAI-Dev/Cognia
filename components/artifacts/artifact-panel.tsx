@@ -5,7 +5,8 @@
  * Similar to Claude's artifact panel
  */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import {
   Copy,
   Download,
@@ -15,7 +16,24 @@ import {
   Image as ImageIcon,
   BarChart,
   Pencil,
+  Save,
+  X,
+  GitBranch,
+  Calculator,
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+// Dynamically import Monaco to avoid SSR issues
+const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full items-center justify-center">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  ),
+});
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -29,7 +47,7 @@ import {
   ArtifactClose,
 } from '@/components/ai-elements/artifact';
 import { CodeBlock } from '@/components/ai-elements/code-block';
-import { useArtifactStore } from '@/stores';
+import { useArtifactStore, useSettingsStore } from '@/stores';
 import { V0Designer } from '@/components/designer';
 import type { BundledLanguage } from 'shiki';
 import type { Artifact as ArtifactType, ArtifactType as ArtType } from '@/types';
@@ -63,10 +81,10 @@ const typeIcons: Record<ArtType, React.ReactNode> = {
   document: <FileText className="h-4 w-4" />,
   svg: <ImageIcon className="h-4 w-4" />,
   html: <Code className="h-4 w-4" />,
-  react: <Code className="h-4 w-4" />,
-  mermaid: <BarChart className="h-4 w-4" />,
+  react: <Sparkles className="h-4 w-4" />,
+  mermaid: <GitBranch className="h-4 w-4" />,
   chart: <BarChart className="h-4 w-4" />,
-  math: <FileText className="h-4 w-4" />,
+  math: <Calculator className="h-4 w-4" />,
 };
 
 export function ArtifactPanel() {
@@ -75,10 +93,77 @@ export function ArtifactPanel() {
   const closePanel = useArtifactStore((state) => state.closePanel);
   const activeArtifactId = useArtifactStore((state) => state.activeArtifactId);
   const artifacts = useArtifactStore((state) => state.artifacts);
+  const updateArtifact = useArtifactStore((state) => state.updateArtifact);
   const activeArtifact = activeArtifactId ? artifacts[activeArtifactId] : null;
-  const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
+  
+  const theme = useSettingsStore((state) => state.theme);
+  
+  const [viewMode, setViewMode] = useState<'code' | 'preview' | 'edit'>('code');
   const [copied, setCopied] = useState(false);
   const [designerOpen, setDesignerOpen] = useState(false);
+  const [editContent, setEditContent] = useState('');
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Initialize edit content when switching to edit mode
+  const handleEditMode = useCallback(() => {
+    if (activeArtifact) {
+      setEditContent(activeArtifact.content);
+      setHasChanges(false);
+      setViewMode('edit');
+    }
+  }, [activeArtifact]);
+
+  const handleSaveEdit = useCallback(() => {
+    if (activeArtifact && hasChanges) {
+      updateArtifact(activeArtifact.id, { content: editContent });
+      setHasChanges(false);
+      setViewMode('code');
+    }
+  }, [activeArtifact, editContent, hasChanges, updateArtifact]);
+
+  const handleCancelEdit = useCallback(() => {
+    setViewMode('code');
+    setHasChanges(false);
+  }, []);
+
+  const handleEditorChange = useCallback((value: string | undefined) => {
+    setEditContent(value || '');
+    setHasChanges(value !== activeArtifact?.content);
+  }, [activeArtifact?.content]);
+
+  const getEditorTheme = () => {
+    if (theme === 'dark') return 'vs-dark';
+    if (theme === 'light') return 'light';
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'vs-dark'
+        : 'light';
+    }
+    return 'light';
+  };
+
+  const getEditorLanguage = () => {
+    if (!activeArtifact) return 'plaintext';
+    const languageMap: Record<string, string> = {
+      javascript: 'javascript',
+      typescript: 'typescript',
+      python: 'python',
+      html: 'html',
+      css: 'css',
+      json: 'json',
+      markdown: 'markdown',
+      jsx: 'javascript',
+      tsx: 'typescript',
+      sql: 'sql',
+      bash: 'shell',
+      yaml: 'yaml',
+      xml: 'xml',
+      svg: 'xml',
+      mermaid: 'markdown',
+      latex: 'latex',
+    };
+    return languageMap[activeArtifact.language || ''] || 'plaintext';
+  };
 
   const handleCopy = async () => {
     if (activeArtifact) {
@@ -104,7 +189,16 @@ export function ArtifactPanel() {
 
   const canPreview = activeArtifact?.type === 'html' ||
                      activeArtifact?.type === 'react' ||
-                     activeArtifact?.type === 'svg';
+                     activeArtifact?.type === 'svg' ||
+                     activeArtifact?.type === 'mermaid' ||
+                     activeArtifact?.type === 'chart' ||
+                     activeArtifact?.type === 'math' ||
+                     activeArtifact?.type === 'document';
+  
+  // Designer is only available for HTML/React/SVG
+  const canDesign = activeArtifact?.type === 'html' ||
+                    activeArtifact?.type === 'react' ||
+                    activeArtifact?.type === 'svg';
 
   return (
     <Sheet open={panelOpen && panelView === 'artifact'} onOpenChange={(open) => !open && closePanel()}>
@@ -122,43 +216,84 @@ export function ArtifactPanel() {
                 </div>
               </div>
               <ArtifactActions>
-                {canPreview && (
-                  <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'code' | 'preview')}>
-                    <TabsList className="h-8">
-                      <TabsTrigger value="code" className="text-xs px-2">Code</TabsTrigger>
-                      <TabsTrigger value="preview" className="text-xs px-2">Preview</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                )}
-                <ArtifactAction
-                  tooltip={copied ? 'Copied!' : 'Copy'}
-                  icon={Copy}
-                  onClick={handleCopy}
-                />
-                <ArtifactAction
-                  tooltip="Download"
-                  icon={Download}
-                  onClick={handleDownload}
-                />
-                {canPreview && (
+                {viewMode === 'edit' ? (
                   <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleCancelEdit}
+                      className="h-8 px-2 text-xs"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleSaveEdit}
+                      disabled={!hasChanges}
+                      className="h-8 px-2 text-xs"
+                    >
+                      <Save className="h-4 w-4 mr-1" />
+                      Save
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'code' | 'preview')}>
+                      <TabsList className="h-8">
+                        <TabsTrigger value="code" className="text-xs px-2">Code</TabsTrigger>
+                        {canPreview && (
+                          <TabsTrigger value="preview" className="text-xs px-2">Preview</TabsTrigger>
+                        )}
+                      </TabsList>
+                    </Tabs>
                     <ArtifactAction
-                      tooltip="Open in Designer"
+                      tooltip="Edit"
                       icon={Pencil}
-                      onClick={() => setDesignerOpen(true)}
+                      onClick={handleEditMode}
                     />
                     <ArtifactAction
-                      tooltip="Open in new tab"
-                      icon={ExternalLink}
-                      onClick={() => openInNewTab(activeArtifact)}
+                      tooltip={copied ? 'Copied!' : 'Copy'}
+                      icon={Copy}
+                      onClick={handleCopy}
                     />
+                    <ArtifactAction
+                      tooltip="Download"
+                      icon={Download}
+                      onClick={handleDownload}
+                    />
+                    {canDesign && (
+                      <ArtifactAction
+                        tooltip="Open in Designer"
+                        icon={ExternalLink}
+                        onClick={() => setDesignerOpen(true)}
+                      />
+                    )}
                   </>
                 )}
                 <ArtifactClose onClick={closePanel} />
               </ArtifactActions>
             </ArtifactHeader>
             <ArtifactContent className="p-0 flex-1 overflow-hidden">
-              {viewMode === 'code' || !canPreview ? (
+              {viewMode === 'edit' ? (
+                <MonacoEditor
+                  height="100%"
+                  language={getEditorLanguage()}
+                  theme={getEditorTheme()}
+                  value={editContent}
+                  onChange={handleEditorChange}
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 14,
+                    lineNumbers: 'on',
+                    scrollBeyondLastLine: false,
+                    wordWrap: 'on',
+                    automaticLayout: true,
+                    tabSize: 2,
+                    padding: { top: 16, bottom: 16 },
+                  }}
+                />
+              ) : viewMode === 'code' || !canPreview ? (
                 <ScrollArea className="h-full">
                   <div className="p-4">
                     <CodeBlock
@@ -179,7 +314,7 @@ export function ArtifactPanel() {
         )}
 
         {/* Designer Panel */}
-        {activeArtifact && canPreview && (
+        {activeArtifact && canDesign && (
           <ArtifactDesignerWrapper
             artifact={activeArtifact}
             open={designerOpen}
@@ -205,7 +340,7 @@ function getExtension(artifact: ArtifactType): string {
   return extensions[artifact.type] || 'txt';
 }
 
-function openInNewTab(artifact: ArtifactType) {
+function _openInNewTab(artifact: ArtifactType) {
   if (artifact.type === 'html' || artifact.type === 'svg') {
     const blob = new Blob([artifact.content], { type: 'text/html' });
     const url = URL.createObjectURL(blob);

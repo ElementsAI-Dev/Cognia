@@ -130,6 +130,54 @@ export function CanvasPanel() {
     };
   }, []);
 
+  // Keyboard shortcuts handler
+  useEffect(() => {
+    if (!panelOpen || panelView !== 'canvas' || !activeDocument) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Cmd/Ctrl key
+      const isMod = e.metaKey || e.ctrlKey;
+      if (!isMod || isProcessing) return;
+
+      // Map keys to action types
+      const keyActionMap: Record<string, string> = {
+        'r': 'review',
+        'f': 'fix',
+        'i': 'improve',
+        'e': 'explain',
+        's': 'simplify',
+        'x': 'expand',
+      };
+
+      const actionType = keyActionMap[e.key.toLowerCase()];
+      if (actionType) {
+        const action = canvasActions.find(a => a.type === actionType);
+        if (action) {
+          e.preventDefault();
+          // Trigger the action via a custom event to avoid circular deps
+          const event = new CustomEvent('canvas-action', { detail: action });
+          window.dispatchEvent(event);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [panelOpen, panelView, isProcessing, activeDocument]);
+
+  // Listen for canvas-action custom events
+  useEffect(() => {
+    const handleCanvasAction = (e: Event) => {
+      const action = (e as CustomEvent).detail;
+      if (action && !isProcessing) {
+        handleAction(action);
+      }
+    };
+
+    window.addEventListener('canvas-action', handleCanvasAction);
+    return () => window.removeEventListener('canvas-action', handleCanvasAction);
+  }, [isProcessing]);
+
   const handleEditorChange = useCallback(
     (value: string | undefined) => {
       const newValue = value || '';

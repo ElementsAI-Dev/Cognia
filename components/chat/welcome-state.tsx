@@ -4,7 +4,7 @@
  * WelcomeState - mode-specific welcome pages for Chat, Agent, and Research modes
  */
 
-import { useTranslations } from 'next-intl';
+// Note: useTranslations can be used for i18n in the future
 import {
   Sparkles,
   Bot,
@@ -20,9 +20,13 @@ import {
   TrendingUp,
   Lightbulb,
   Database,
-  Image,
+  ImageIcon,
   Languages,
+  LayoutTemplate,
 } from 'lucide-react';
+import { TemplateSelector } from './template-selector';
+import { Button } from '@/components/ui/button';
+import type { ChatTemplate } from '@/types/template';
 import { cn } from '@/lib/utils';
 import type { ChatMode } from '@/types';
 
@@ -30,6 +34,7 @@ interface WelcomeStateProps {
   mode: ChatMode;
   onSuggestionClick?: (suggestion: string) => void;
   onModeChange?: (mode: ChatMode) => void;
+  onSelectTemplate?: (template: ChatTemplate) => void;
 }
 
 interface SuggestionCard {
@@ -80,7 +85,7 @@ const agentSuggestions: SuggestionCard[] = [
     prompt: 'Analyze this dataset and provide insights...',
   },
   {
-    icon: <Image className="h-5 w-5" aria-hidden="true" />,
+    icon: <ImageIcon className="h-5 w-5" aria-hidden="true" />,
     title: 'Image Tasks',
     description: 'Process and analyze images',
     prompt: 'Analyze this image and describe...',
@@ -184,7 +189,7 @@ function FeatureBadge({ feature }: { feature: string }) {
   );
 }
 
-export function WelcomeState({ mode, onSuggestionClick, onModeChange }: WelcomeStateProps) {
+export function WelcomeState({ mode, onSuggestionClick, onModeChange, onSelectTemplate }: WelcomeStateProps) {
   const config = modeConfig[mode];
 
   return (
@@ -192,7 +197,7 @@ export function WelcomeState({ mode, onSuggestionClick, onModeChange }: WelcomeS
       <div className="w-full max-w-3xl space-y-8">
         {/* Header with gradient background */}
         <div className={cn(
-          'flex flex-col items-center space-y-4 rounded-2xl bg-gradient-to-br p-8',
+          'flex flex-col items-center space-y-4 rounded-2xl bg-linear-to-br p-8',
           config.gradient
         )}>
           <div className="text-primary">
@@ -209,8 +214,24 @@ export function WelcomeState({ mode, onSuggestionClick, onModeChange }: WelcomeS
           </div>
         </div>
 
-        {/* Mode switcher */}
-        <div className="flex justify-center gap-2">
+        {/* Mode switcher and Template button */}
+        <div className="flex justify-center items-center gap-2 flex-wrap">
+          {/* Template Selector */}
+          <TemplateSelector
+            trigger={
+              <Button variant="outline" size="sm" className="gap-2">
+                <LayoutTemplate className="h-4 w-4" />
+                <span>Templates</span>
+              </Button>
+            }
+            onSelectTemplate={(template) => {
+              onSelectTemplate?.(template);
+              if (template.suggestedQuestions?.[0]) {
+                onSuggestionClick?.(template.suggestedQuestions[0]);
+              }
+            }}
+          />
+          <div className="h-6 w-px bg-border mx-1" />
           {(Object.keys(modeConfig) as ChatMode[]).map((m) => (
             <button
               key={m}

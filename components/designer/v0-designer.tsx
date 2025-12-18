@@ -6,6 +6,9 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { generateText } from 'ai';
+import { getProviderModel, type ProviderName } from '@/lib/ai/client';
+import { useSettingsStore } from '@/stores';
 import {
   X,
   Sparkles,
@@ -391,6 +394,43 @@ export function V0Designer({
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [aiError, setAIError] = useState<string | null>(null);
+
+  // Settings for built-in AI
+  const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const defaultProvider = useSettingsStore((state) => state.defaultProvider);
+
+  // Built-in AI request handler
+  const builtInAIRequest = useCallback(async (prompt: string, currentCode: string): Promise<string> => {
+    const provider = (defaultProvider || 'openai') as ProviderName;
+    const settings = providerSettings[provider];
+    const model = settings?.defaultModel || 'gpt-4o-mini';
+
+    if (!settings?.apiKey && provider !== 'ollama') {
+      throw new Error(`No API key configured for ${provider}. Please add your API key in Settings.`);
+    }
+
+    const modelInstance = getProviderModel(provider, model, settings?.apiKey || '', settings?.baseURL);
+
+    const result = await generateText({
+      model: modelInstance,
+      system: `You are an expert React developer. Modify the following React component based on the user's request.
+Return ONLY the complete modified code, no explanations.
+Preserve the component structure and use Tailwind CSS for styling.
+Make sure the code is valid JSX that can be rendered.`,
+      prompt: `Current code:\n\n${currentCode}\n\nUser request: ${prompt}`,
+      temperature: 0.7,
+    });
+
+    if (result.text) {
+      let newCode = result.text.trim();
+      if (newCode.startsWith('```')) {
+        newCode = newCode.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '');
+      }
+      return newCode;
+    }
+    throw new Error('No response from AI');
+  }, [defaultProvider, providerSettings]);
 
   // Initialize with code
   useEffect(() => {
@@ -424,23 +464,26 @@ export function V0Designer({
     onCodeChange?.(template.code);
   }, [addToHistory, onCodeChange]);
 
-  // Handle AI edit
+  // Handle AI edit - uses provided handler or built-in
   const handleAIEdit = useCallback(async () => {
-    if (!aiPrompt.trim() || !onAIRequest) return;
+    if (!aiPrompt.trim()) return;
 
     setIsAIProcessing(true);
+    setAIError(null);
     try {
-      const newCode = await onAIRequest(aiPrompt, code);
+      const aiHandler = onAIRequest || builtInAIRequest;
+      const newCode = await aiHandler(aiPrompt, code);
       setCode(newCode);
       addToHistory(newCode);
       onCodeChange?.(newCode);
       setAIPrompt('');
     } catch (error) {
       console.error('AI edit failed:', error);
+      setAIError(error instanceof Error ? error.message : 'AI edit failed');
     } finally {
       setIsAIProcessing(false);
     }
-  }, [aiPrompt, code, onAIRequest, addToHistory, onCodeChange]);
+  }, [aiPrompt, code, onAIRequest, builtInAIRequest, addToHistory, onCodeChange]);
 
   // Undo/Redo
   const handleUndo = useCallback(() => {
@@ -585,10 +628,15 @@ export function V0Designer({
                         </Badge>
                       ))}
                     </div>
+                    {aiError && (
+                      <div className="flex items-center gap-2 mt-2 text-destructive text-sm">
+                        <span>{aiError}</span>
+                      </div>
+                    )}
                   </div>
                   <Button
                     onClick={handleAIEdit}
-                    disabled={!aiPrompt.trim() || isAIProcessing || !onAIRequest}
+                    disabled={!aiPrompt.trim() || isAIProcessing}
                     className="h-10"
                   >
                     {isAIProcessing ? (
@@ -612,7 +660,7 @@ export function V0Designer({
               onCodeChange={handleCodeChange}
               showFileExplorer={false}
               showConsole={false}
-              onAIEdit={onAIRequest}
+              onAIEdit={() => setShowAIPanel(true)}
             />
           </div>
         </TooltipProvider>

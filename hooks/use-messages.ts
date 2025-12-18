@@ -9,6 +9,7 @@ import { nanoid } from 'nanoid';
 
 interface UseMessagesOptions {
   sessionId: string | null;
+  branchId?: string | null; // null/undefined for main branch
   onError?: (error: Error) => void;
 }
 
@@ -30,10 +31,14 @@ interface UseMessagesReturn {
 
   // Bulk operations
   reloadMessages: () => Promise<void>;
+
+  // Branch operations
+  copyMessagesForBranch: (branchPointMessageId: string, newBranchId: string) => Promise<UIMessage[]>;
 }
 
 export function useMessages({
   sessionId,
+  branchId,
   onError,
 }: UseMessagesOptions): UseMessagesReturn {
   const [messages, setMessages] = useState<UIMessage[]>([]);
@@ -50,7 +55,7 @@ export function useMessages({
     onErrorRef.current = onError;
   });
 
-  // Load messages when sessionId changes
+  // Load messages when sessionId or branchId changes
   useEffect(() => {
     let cancelled = false;
 
@@ -63,7 +68,11 @@ export function useMessages({
 
       setIsLoading(true);
       try {
-        const loadedMessages = await messageRepository.getBySessionId(sessionId);
+        // Load messages filtered by branch
+        const loadedMessages = await messageRepository.getBySessionIdAndBranch(
+          sessionId,
+          branchId
+        );
         if (!cancelled) {
           setMessages(loadedMessages);
           setIsInitialized(true);
@@ -88,7 +97,7 @@ export function useMessages({
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [sessionId, branchId]);
 
   // Reload messages manually
   const reloadMessages = useCallback(async () => {
@@ -96,7 +105,10 @@ export function useMessages({
 
     setIsLoading(true);
     try {
-      const loadedMessages = await messageRepository.getBySessionId(sessionId);
+      const loadedMessages = await messageRepository.getBySessionIdAndBranch(
+        sessionId,
+        branchId
+      );
       setMessages(loadedMessages);
     } catch (err) {
       console.error('Failed to reload messages:', err);
@@ -104,7 +116,7 @@ export function useMessages({
     } finally {
       setIsLoading(false);
     }
-  }, [sessionId]);
+  }, [sessionId, branchId]);
 
   // Add a new message
   const addMessage = useCallback(
@@ -116,15 +128,20 @@ export function useMessages({
       const newMessage: UIMessage = {
         ...message,
         id: nanoid(),
+        branchId: branchId ?? undefined,
         createdAt: new Date(),
       };
 
       // Update local state immediately
       setMessages((prev) => [...prev, newMessage]);
 
-      // Persist to database
+      // Persist to database with branch support
       try {
-        await messageRepository.create(sessionId, newMessage);
+        await messageRepository.createWithBranch(
+          sessionId,
+          branchId ?? undefined,
+          newMessage
+        );
       } catch (err) {
         console.error('Failed to save message:', err);
         // Revert on error
@@ -134,7 +151,7 @@ export function useMessages({
 
       return newMessage;
     },
-    [sessionId]
+    [sessionId, branchId]
   );
 
   // Update an existing message
@@ -259,6 +276,7 @@ export function useMessages({
         id: nanoid(),
         role,
         content: '',
+        branchId: branchId ?? undefined,
         createdAt: new Date(),
       };
 
@@ -266,7 +284,30 @@ export function useMessages({
 
       return newMessage;
     },
-    []
+    [branchId]
+  );
+
+  // Copy messages up to a branch point for creating a new branch
+  const copyMessagesForBranch = useCallback(
+    async (branchPointMessageId: string, newBranchId: string): Promise<UIMessage[]> => {
+      if (!sessionId) {
+        throw new Error('No session ID provided');
+      }
+
+      try {
+        const copiedMessages = await messageRepository.copyMessagesForBranch(
+          sessionId,
+          branchPointMessageId,
+          newBranchId,
+          branchId // Current branch as source
+        );
+        return copiedMessages;
+      } catch (err) {
+        console.error('Failed to copy messages for branch:', err);
+        throw err;
+      }
+    },
+    [sessionId, branchId]
   );
 
   // Cleanup timeouts on unmount
@@ -289,6 +330,7 @@ export function useMessages({
     appendToMessage,
     createStreamingMessage,
     reloadMessages,
+    copyMessagesForBranch,
   };
 }
 

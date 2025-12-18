@@ -57,6 +57,7 @@ export function StylePanel({ className }: StylePanelProps) {
   const selectedElementId = useDesignerStore((state) => state.selectedElementId);
   const elementMap = useDesignerStore((state) => state.elementMap);
   const updateElementStyle = useDesignerStore((state) => state.updateElementStyle);
+  const syncCodeFromElements = useDesignerStore((state) => state.syncCodeFromElements);
 
   const selectedElement = selectedElementId ? elementMap[selectedElementId] : null;
 
@@ -64,8 +65,10 @@ export function StylePanel({ className }: StylePanelProps) {
     (key: string, value: string) => {
       if (!selectedElementId) return;
       updateElementStyle(selectedElementId, { [key]: value });
+      // Sync the changes back to code
+      syncCodeFromElements();
     },
-    [selectedElementId, updateElementStyle]
+    [selectedElementId, updateElementStyle, syncCodeFromElements]
   );
 
   if (!selectedElement) {

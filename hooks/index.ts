@@ -11,3 +11,19 @@ export { useVectorDB, type UseVectorDBOptions, type UseVectorDBReturn } from './
 export { useRAG, type UseRAGOptions, type UseRAGReturn } from './use-rag';
 export { useAgent, useConfiguredAgent, type UseAgentOptions, type UseAgentReturn } from './use-agent';
 export { usePlanExecutor, type PlanExecutionOptions, type UsePlanExecutorReturn } from './use-plan-executor';
+export { useMention, type UseMentionOptions, type UseMentionReturn } from './use-mention';
+export {
+  useProjectContext,
+  useKnowledgeSearch,
+  useKnowledgeStats,
+  useBuildContext,
+  formatKnowledgeForDisplay,
+  type ProjectContextResult,
+  type UseProjectContextOptions,
+} from './use-project-context';
+export {
+  useArtifactDetection,
+  detectArtifactType,
+  mapToArtifactLanguage,
+  type DetectedArtifact,
+} from './use-artifact-detection';

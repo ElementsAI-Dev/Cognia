@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react';
-import { X, Info, Eye, Gauge } from 'lucide-react';
+import { Info, Eye, Gauge } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
@@ -16,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
 
 interface ContextSettingsDialogProps {
   open: boolean;

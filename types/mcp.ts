@@ -217,6 +217,192 @@ export function createDefaultServerConfig(): McpServerConfig {
   };
 }
 
+// ============================================================================
+// Mention System Types
+// ============================================================================
+
+/** Types of mentions available in chat */
+export type MentionType = 'tool' | 'resource' | 'prompt' | 'server';
+
+/** Base mention item */
+export interface BaseMentionItem {
+  /** Unique identifier for the mention */
+  id: string;
+  /** Display label */
+  label: string;
+  /** Description */
+  description?: string;
+  /** Type of mention */
+  type: MentionType;
+  /** Server ID this mention belongs to */
+  serverId: string;
+  /** Server display name */
+  serverName: string;
+}
+
+/** Tool mention */
+export interface ToolMentionItem extends BaseMentionItem {
+  type: 'tool';
+  /** Tool definition */
+  tool: McpTool;
+}
+
+/** Resource mention */
+export interface ResourceMentionItem extends BaseMentionItem {
+  type: 'resource';
+  /** Resource definition */
+  resource: McpResource;
+}
+
+/** Prompt mention */
+export interface PromptMentionItem extends BaseMentionItem {
+  type: 'prompt';
+  /** Prompt definition */
+  prompt: McpPrompt;
+}
+
+/** Server mention (to select all tools from a server) */
+export interface ServerMentionItem extends BaseMentionItem {
+  type: 'server';
+  /** Number of tools available */
+  toolCount: number;
+}
+
+/** Union type for all mention items */
+export type MentionItem = ToolMentionItem | ResourceMentionItem | PromptMentionItem | ServerMentionItem;
+
+/** Selected mention in the input */
+export interface SelectedMention {
+  /** The mention item */
+  item: MentionItem;
+  /** Start position in text */
+  startIndex: number;
+  /** End position in text */
+  endIndex: number;
+  /** Display text (e.g., @server:tool_name) */
+  displayText: string;
+}
+
+/** Mention state for the input */
+export interface MentionState {
+  /** Whether the mention popover is open */
+  isOpen: boolean;
+  /** Current search query (text after @) */
+  query: string;
+  /** Cursor position where @ was typed */
+  triggerPosition: number;
+  /** Selected mentions in the current input */
+  selectedMentions: SelectedMention[];
+}
+
+/** Tool call request parsed from message */
+export interface ParsedToolCall {
+  /** Server ID */
+  serverId: string;
+  /** Tool name */
+  toolName: string;
+  /** Arguments (parsed from message context) */
+  arguments?: Record<string, unknown>;
+  /** Original mention text */
+  mentionText: string;
+}
+
+/** Helper to create a tool mention item */
+export function createToolMention(
+  serverId: string,
+  serverName: string,
+  tool: McpTool
+): ToolMentionItem {
+  return {
+    id: `${serverId}:${tool.name}`,
+    label: tool.name,
+    description: tool.description,
+    type: 'tool',
+    serverId,
+    serverName,
+    tool,
+  };
+}
+
+/** Helper to create a resource mention item */
+export function createResourceMention(
+  serverId: string,
+  serverName: string,
+  resource: McpResource
+): ResourceMentionItem {
+  return {
+    id: `${serverId}:resource:${resource.uri}`,
+    label: resource.name,
+    description: resource.description,
+    type: 'resource',
+    serverId,
+    serverName,
+    resource,
+  };
+}
+
+/** Helper to create a prompt mention item */
+export function createPromptMention(
+  serverId: string,
+  serverName: string,
+  prompt: McpPrompt
+): PromptMentionItem {
+  return {
+    id: `${serverId}:prompt:${prompt.name}`,
+    label: prompt.name,
+    description: prompt.description,
+    type: 'prompt',
+    serverId,
+    serverName,
+    prompt,
+  };
+}
+
+/** Helper to create a server mention item */
+export function createServerMention(
+  serverId: string,
+  serverName: string,
+  toolCount: number
+): ServerMentionItem {
+  return {
+    id: `server:${serverId}`,
+    label: serverName,
+    description: `${toolCount} tools available`,
+    type: 'server',
+    serverId,
+    serverName,
+    toolCount,
+  };
+}
+
+/** Parse mention text to extract server and tool info */
+export function parseMentionText(text: string): { serverId?: string; name?: string; type?: MentionType } | null {
+  // Format: @server:tool_name or @server:resource:uri or @server:prompt:name
+  const match = text.match(/^@([^:]+):(?:(resource|prompt):)?(.+)$/);
+  if (!match) return null;
+  
+  const [, serverId, typeStr, name] = match;
+  let type: MentionType = 'tool';
+  if (typeStr === 'resource') type = 'resource';
+  else if (typeStr === 'prompt') type = 'prompt';
+  
+  return { serverId, name, type };
+}
+
+/** Format mention for display */
+export function formatMentionDisplay(item: MentionItem): string {
+  switch (item.type) {
+    case 'tool':
+      return `@${item.serverId}:${item.tool.name}`;
+    case 'resource':
+      return `@${item.serverId}:resource:${item.resource.uri}`;
+    case 'prompt':
+      return `@${item.serverId}:prompt:${item.prompt.name}`;
+    case 'server':
+      return `@${item.serverId}`;
+  }
+}
+
 /** Common MCP server templates for quick installation */
 export const MCP_SERVER_TEMPLATES: Array<{
   id: string;

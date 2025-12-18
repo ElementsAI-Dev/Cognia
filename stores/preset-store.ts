@@ -88,8 +88,11 @@ export const usePresetStore = create<PresetState>()(
           model: input.model,
           mode: input.mode || 'chat',
           systemPrompt: input.systemPrompt,
+          builtinPrompts: input.builtinPrompts,
           temperature: input.temperature ?? 0.7,
           maxTokens: input.maxTokens,
+          webSearchEnabled: input.webSearchEnabled,
+          thinkingEnabled: input.thinkingEnabled,
           isDefault: false,
           usageCount: 0,
           createdAt: now,
@@ -140,8 +143,11 @@ export const usePresetStore = create<PresetState>()(
           model: original.model,
           mode: original.mode,
           systemPrompt: original.systemPrompt,
+          builtinPrompts: original.builtinPrompts,
           temperature: original.temperature,
           maxTokens: original.maxTokens,
+          webSearchEnabled: original.webSearchEnabled,
+          thinkingEnabled: original.thinkingEnabled,
         });
       },
 

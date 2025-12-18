@@ -32,6 +32,7 @@ export interface Session {
 
   // Session settings
   systemPrompt?: string;
+  builtinPrompts?: Array<{ id: string; name: string; content: string; description?: string }>;
   temperature?: number;
   maxTokens?: number;
 
@@ -57,6 +58,9 @@ export interface Session {
   // Metadata
   messageCount?: number;
   lastMessagePreview?: string;
+
+  // Pin status
+  pinned?: boolean;
 }
 
 export interface SessionWithMessages extends Session {
@@ -78,6 +82,7 @@ export interface UpdateSessionInput {
   model?: string;
   mode?: ChatMode;
   systemPrompt?: string;
+  builtinPrompts?: Array<{ id: string; name: string; content: string; description?: string }>;
   temperature?: number;
   maxTokens?: number;
   projectId?: string;

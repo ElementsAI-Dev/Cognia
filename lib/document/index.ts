@@ -4,3 +4,4 @@
 
 export * from './document-processor';
 export * from './parsers';
+export * from './knowledge-rag';

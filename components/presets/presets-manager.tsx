@@ -4,8 +4,8 @@
  * PresetsManager - full page/dialog for managing all presets
  */
 
-import { useState } from 'react';
-import { Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Plus, RefreshCw, Trash2, Download, Upload, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -18,10 +18,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { PresetCard } from './preset-card';
 import { CreatePresetDialog } from './create-preset-dialog';
-import { usePresetStore } from '@/stores';
-import type { Preset } from '@/types/preset';
+import { usePresetStore, useSettingsStore } from '@/stores';
+import type { Preset, CreatePresetInput } from '@/types/preset';
+import { nanoid } from 'nanoid';
 
 interface PresetsManagerProps {
   onSelectPreset?: (preset: Preset) => void;
@@ -33,6 +41,9 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
   const [editPreset, setEditPreset] = useState<Preset | null>(null);
   const [deletePreset, setDeletePreset] = useState<Preset | null>(null);
   const [showResetDialog, setShowResetDialog] = useState(false);
+  const [aiDescription, setAiDescription] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const presets = usePresetStore((state) => state.presets);
   const selectedPresetId = usePresetStore((state) => state.selectedPresetId);
@@ -43,6 +54,8 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
   const setDefaultPreset = usePresetStore((state) => state.setDefaultPreset);
   const resetToDefaults = usePresetStore((state) => state.resetToDefaults);
   const searchPresets = usePresetStore((state) => state.searchPresets);
+  const createPreset = usePresetStore((state) => state.createPreset);
+  const providerSettings = useSettingsStore((state) => state.providerSettings);
 
   const filteredPresets = search ? searchPresets(search) : presets;
 
@@ -78,8 +91,171 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
     setEditPreset(null);
   };
 
+  // Export presets to JSON file
+  const handleExport = () => {
+    const exportData = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      presets: presets.map(p => ({
+        name: p.name,
+        description: p.description,
+        icon: p.icon,
+        color: p.color,
+        provider: p.provider,
+        model: p.model,
+        mode: p.mode,
+        systemPrompt: p.systemPrompt,
+        builtinPrompts: p.builtinPrompts,
+        temperature: p.temperature,
+        maxTokens: p.maxTokens,
+        webSearchEnabled: p.webSearchEnabled,
+        thinkingEnabled: p.thinkingEnabled,
+      })),
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cognia-presets-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Import presets from JSON file
+  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        if (data.presets && Array.isArray(data.presets)) {
+          let imported = 0;
+          data.presets.forEach((p: CreatePresetInput) => {
+            if (p.name && p.provider && p.model) {
+              createPreset({
+                name: p.name,
+                description: p.description,
+                icon: p.icon,
+                color: p.color,
+                provider: p.provider,
+                model: p.model,
+                mode: p.mode,
+                systemPrompt: p.systemPrompt,
+                builtinPrompts: p.builtinPrompts,
+                temperature: p.temperature,
+                maxTokens: p.maxTokens,
+                webSearchEnabled: p.webSearchEnabled,
+                thinkingEnabled: p.thinkingEnabled,
+              });
+              imported++;
+            }
+          });
+          alert(`Successfully imported ${imported} presets.`);
+        } else {
+          alert('Invalid preset file format.');
+        }
+      } catch {
+        alert('Failed to parse preset file.');
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // AI Generate preset
+  const handleAIGenerate = async () => {
+    if (!aiDescription.trim()) return;
+    
+    const settings = providerSettings['openai'] || Object.values(providerSettings).find(s => s?.apiKey);
+    if (!settings?.apiKey) {
+      alert('Please configure an API key in settings first.');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const response = await fetch('/api/generate-preset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: aiDescription,
+          provider: 'openai',
+          apiKey: settings.apiKey,
+          baseURL: settings.baseURL,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const preset = data.preset;
+        
+        createPreset({
+          name: preset.name || 'AI Generated Preset',
+          description: preset.description,
+          icon: preset.icon || '✨',
+          color: preset.color || '#6366f1',
+          provider: 'auto',
+          model: 'gpt-4o',
+          mode: preset.mode || 'chat',
+          systemPrompt: preset.systemPrompt,
+          builtinPrompts: preset.builtinPrompts?.map((p: { name: string; content: string; description?: string }) => ({
+            id: nanoid(),
+            name: p.name,
+            content: p.content,
+            description: p.description || '',
+          })),
+          temperature: preset.temperature ?? 0.7,
+          webSearchEnabled: preset.webSearchEnabled,
+          thinkingEnabled: preset.thinkingEnabled,
+        });
+        setAiDescription('');
+      }
+    } catch (error) {
+      console.error('Failed to generate preset:', error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* AI Generate Section */}
+      <div className="p-3 rounded-lg border bg-gradient-to-r from-purple-500/5 to-blue-500/5">
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles className="h-4 w-4 text-purple-500" />
+          <span className="text-sm font-medium">AI Generate Preset</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            placeholder="Describe your ideal preset... e.g., 'A coding assistant for Python'"
+            value={aiDescription}
+            onChange={(e) => setAiDescription(e.target.value)}
+            className="flex-1"
+            onKeyDown={(e) => e.key === 'Enter' && handleAIGenerate()}
+          />
+          <Button
+            onClick={handleAIGenerate}
+            disabled={!aiDescription.trim() || isGenerating}
+            className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+          >
+            {isGenerating ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1">
@@ -90,6 +266,35 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
           />
         </div>
         <div className="flex gap-2">
+          {/* Import/Export dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExport}>
+                <Download className="mr-2 h-4 w-4" />
+                Export Presets
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                <Upload className="mr-2 h-4 w-4" />
+                Import Presets
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          {/* Hidden file input for import */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImport}
+            className="hidden"
+          />
+
           <Button
             variant="outline"
             size="sm"

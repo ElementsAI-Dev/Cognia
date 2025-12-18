@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * ArtifactPreview - Live preview for HTML, React, SVG, and other content
+ * ArtifactPreview - Live preview for HTML, React, SVG, Mermaid, Chart, Math, and Markdown
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -9,6 +9,12 @@ import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Artifact } from '@/types';
+import {
+  MermaidRenderer,
+  ChartRenderer,
+  MathRenderer,
+  MarkdownRenderer,
+} from './artifact-renderers';
 
 interface ArtifactPreviewProps {
   artifact: Artifact;
@@ -20,11 +26,16 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
   const [error, setError] = useState<string | null>(null);
   const [key, setKey] = useState(0);
 
+  // Check if this type needs iframe rendering
+  const needsIframe = ['html', 'svg', 'react'].includes(artifact.type);
+
   useEffect(() => {
+    if (!needsIframe) return;
+    
     setError(null);
     doRenderPreview();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [artifact.content, artifact.type, key]);
+  }, [artifact.content, artifact.type, key, needsIframe]);
 
   const doRenderPreview = () => {
     if (!iframeRef.current) return;
@@ -56,6 +67,44 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
     setKey((k) => k + 1);
   };
 
+  // Render specialized components for non-iframe types
+  if (artifact.type === 'mermaid') {
+    return (
+      <div className={cn('h-full w-full overflow-auto bg-background', className)}>
+        <MermaidRenderer content={artifact.content} className="min-h-full" />
+      </div>
+    );
+  }
+
+  if (artifact.type === 'chart') {
+    return (
+      <div className={cn('h-full w-full overflow-auto bg-background p-4', className)}>
+        <ChartRenderer
+          content={artifact.content}
+          chartType={artifact.metadata?.chartType}
+          className="min-h-[300px]"
+        />
+      </div>
+    );
+  }
+
+  if (artifact.type === 'math') {
+    return (
+      <div className={cn('h-full w-full overflow-auto bg-background', className)}>
+        <MathRenderer content={artifact.content} className="min-h-full" />
+      </div>
+    );
+  }
+
+  if (artifact.type === 'document') {
+    return (
+      <div className={cn('h-full w-full overflow-auto bg-background', className)}>
+        <MarkdownRenderer content={artifact.content} className="min-h-full" />
+      </div>
+    );
+  }
+
+  // Default: iframe-based rendering for HTML, SVG, React
   return (
     <div className={cn('relative h-full w-full', className)}>
       {error && (

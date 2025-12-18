@@ -42,7 +42,24 @@ import {
   SEARCH_PROVIDERS,
   validateApiKey,
 } from '@/types/search';
-import { testProviderConnection } from '@/lib/search/search-service';
+
+/**
+ * Test provider connection via API route (to avoid importing server-only modules)
+ */
+async function testProviderConnection(provider: SearchProviderType, apiKey: string): Promise<boolean> {
+  try {
+    const response = await fetch('/api/search/test-connection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, apiKey }),
+    });
+    if (!response.ok) return false;
+    const data = await response.json();
+    return data.success === true;
+  } catch {
+    return false;
+  }
+}
 
 interface ProviderTestState {
   testing: boolean;

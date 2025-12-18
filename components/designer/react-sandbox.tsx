@@ -268,7 +268,7 @@ interface ReactSandboxProps {
   showFileExplorer?: boolean;
   showConsole?: boolean;
   readOnly?: boolean;
-  onAIEdit?: (prompt: string, code: string) => Promise<string>;
+  onAIEdit?: () => void;
 }
 
 export function ReactSandbox({
@@ -435,7 +435,7 @@ interface SandboxToolbarProps {
   isFileExplorerOpen: boolean;
   setIsFileExplorerOpen: (open: boolean) => void;
   onCodeChange?: (code: string) => void;
-  onAIEdit?: (prompt: string, code: string) => Promise<string>;
+  onAIEdit?: () => void;
 }
 
 function SandboxToolbar({
@@ -604,7 +604,7 @@ root.render(<App />);`,
         {onAIEdit && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="default" size="sm" className="h-7 gap-1.5">
+              <Button variant="default" size="sm" className="h-7 gap-1.5" onClick={onAIEdit}>
                 <Sparkles className="h-3.5 w-3.5" />
                 <span className="text-xs">AI Edit</span>
               </Button>

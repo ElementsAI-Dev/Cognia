@@ -8,7 +8,6 @@ import { useState } from 'react';
 import {
   GitBranch,
   ChevronDown,
-  Plus,
   Trash2,
   Pencil,
   Check,
@@ -38,6 +37,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useSessionStore } from '@/stores';
 import { cn } from '@/lib/utils';
+import { messageRepository } from '@/lib/db';
 import type { ConversationBranch } from '@/types';
 
 interface BranchSelectorProps {
@@ -89,8 +89,15 @@ export function BranchSelector({
     setEditName('');
   };
 
-  const handleDeleteBranch = () => {
+  const handleDeleteBranch = async () => {
     if (branchToDelete) {
+      // Delete all messages in this branch from the database
+      try {
+        await messageRepository.deleteByBranchId(sessionId, branchToDelete.id);
+      } catch (err) {
+        console.error('Failed to delete branch messages:', err);
+      }
+      // Delete the branch from session store
       deleteBranch(sessionId, branchToDelete.id);
       setBranchToDelete(null);
       setDeleteDialogOpen(false);
@@ -263,19 +270,35 @@ interface BranchButtonProps {
   sessionId: string;
   messageId: string;
   onBranchCreated?: (branchId: string) => void;
+  onCopyMessages?: (branchPointMessageId: string, newBranchId: string) => Promise<unknown>;
 }
 
 export function BranchButton({
   sessionId,
   messageId,
   onBranchCreated,
+  onCopyMessages,
 }: BranchButtonProps) {
+  const [isCreating, setIsCreating] = useState(false);
   const createBranch = useSessionStore((state) => state.createBranch);
 
-  const handleCreateBranch = () => {
-    const branch = createBranch(sessionId, messageId);
-    if (branch) {
-      onBranchCreated?.(branch.id);
+  const handleCreateBranch = async () => {
+    if (isCreating) return;
+    
+    setIsCreating(true);
+    try {
+      const branch = createBranch(sessionId, messageId);
+      if (branch) {
+        // Copy messages up to the branch point to the new branch
+        if (onCopyMessages) {
+          await onCopyMessages(messageId, branch.id);
+        }
+        onBranchCreated?.(branch.id);
+      }
+    } catch (err) {
+      console.error('Failed to create branch:', err);
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -285,9 +308,10 @@ export function BranchButton({
       size="sm"
       className="h-7 gap-1.5 text-xs"
       onClick={handleCreateBranch}
+      disabled={isCreating}
     >
       <GitBranch className="h-3.5 w-3.5" />
-      Branch
+      {isCreating ? 'Creating...' : 'Branch'}
     </Button>
   );
 }

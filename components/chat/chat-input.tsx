@@ -1,11 +1,19 @@
 'use client';
 
 /**
- * ChatInput - Enhanced message input with voice, attachments, and drag-drop
+ * ChatInput - Enhanced message input with voice, attachments, drag-drop, and MCP tool mentions
+ * 
+ * Features:
+ * - @ mention support for MCP tools, resources, and prompts
+ * - Voice input (speech recognition)
+ * - File attachments with drag-drop and paste
+ * - Recent files popover
+ * - Prompt optimizer
+ * - Keyboard navigation
  */
 
 import { useRef, useCallback, useState, useEffect, useMemo } from 'react';
-import { Send, Paperclip, Square, Loader2, Mic, X, FileIcon, ImageIcon, Archive, Wand2 } from 'lucide-react';
+import { Send, Paperclip, Square, Loader2, Mic, X, FileIcon, ImageIcon, Archive, Wand2, Zap, Globe, Brain, Settings2, ChevronDown } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { Button } from '@/components/ui/button';
 // TooltipProvider is now at app level in providers.tsx
@@ -16,12 +24,61 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Progress } from '@/components/ui/progress';
 import { useSettingsStore, useRecentFilesStore } from '@/stores';
 import { RecentFilesPopover } from './recent-files-popover';
+import { MentionPopover } from './mention-popover';
 import type { RecentFile } from '@/stores/recent-files-store';
+import type { MentionItem, SelectedMention, ParsedToolCall } from '@/types/mcp';
+import { useMention } from '@/hooks';
 import { cn } from '@/lib/utils';
 import { nanoid } from 'nanoid';
+
+// Helper to get caret coordinates in textarea for mention popover positioning
+function getCaretCoordinates(textarea: HTMLTextAreaElement): DOMRect | null {
+  const { selectionStart } = textarea;
+  if (selectionStart === null) return null;
+  
+  const mirror = document.createElement('div');
+  const computed = window.getComputedStyle(textarea);
+  
+  const styles = [
+    'fontFamily', 'fontSize', 'fontWeight', 'fontStyle',
+    'letterSpacing', 'textTransform', 'wordSpacing', 'textIndent',
+    'whiteSpace', 'wordWrap', 'lineHeight', 'padding', 'border', 'boxSizing'
+  ] as const;
+  
+  mirror.style.position = 'absolute';
+  mirror.style.visibility = 'hidden';
+  mirror.style.overflow = 'hidden';
+  mirror.style.width = computed.width;
+  
+  styles.forEach((style) => {
+    (mirror.style as unknown as Record<string, string>)[style] = computed.getPropertyValue(
+      style.replace(/([A-Z])/g, '-$1').toLowerCase()
+    );
+  });
+  
+  const textBeforeCursor = textarea.value.substring(0, selectionStart);
+  mirror.textContent = textBeforeCursor;
+  
+  const marker = document.createElement('span');
+  marker.textContent = '|';
+  mirror.appendChild(marker);
+  
+  document.body.appendChild(mirror);
+  
+  const textareaRect = textarea.getBoundingClientRect();
+  const markerRect = marker.getBoundingClientRect();
+  
+  document.body.removeChild(mirror);
+  
+  return new DOMRect(
+    textareaRect.left + markerRect.left - mirror.getBoundingClientRect().left,
+    textareaRect.top + markerRect.top - mirror.getBoundingClientRect().top,
+    0,
+    parseInt(computed.lineHeight) || parseInt(computed.fontSize) * 1.2
+  );
+}
 
 // Attachment type
 export interface Attachment {
@@ -95,7 +152,7 @@ declare global {
 interface ChatInputProps {
   value: string;
   onChange: (value: string) => void;
-  onSubmit: (content: string, attachments?: Attachment[]) => void;
+  onSubmit: (content: string, attachments?: Attachment[], toolCalls?: ParsedToolCall[]) => void;
   isLoading?: boolean;
   isStreaming?: boolean;
   onStop?: () => void;
@@ -103,6 +160,19 @@ interface ChatInputProps {
   uploadSettings?: UploadSettings;
   onOptimizePrompt?: () => void;
   showRecentFiles?: boolean;
+  onMentionsChange?: (mentions: SelectedMention[]) => void;
+  // Context and mode settings
+  contextUsagePercent?: number;
+  onOpenContextSettings?: () => void;
+  webSearchEnabled?: boolean;
+  thinkingEnabled?: boolean;
+  onWebSearchChange?: (enabled: boolean) => void;
+  onThinkingChange?: (enabled: boolean) => void;
+  modelName?: string;
+  modeName?: string;
+  // Mode and model selection (controlled by parent)
+  onModeClick?: () => void;
+  onModelClick?: () => void;
 }
 
 function formatFileSize(bytes: number): string {
@@ -149,13 +219,41 @@ export function ChatInput({
   uploadSettings = DEFAULT_UPLOAD_SETTINGS,
   onOptimizePrompt,
   showRecentFiles = true,
+  onMentionsChange,
+  contextUsagePercent = 0,
+  onOpenContextSettings,
+  webSearchEnabled = false,
+  thinkingEnabled = false,
+  onWebSearchChange,
+  onThinkingChange,
+  modelName = 'GPT-4o',
+  modeName = 'Chat',
+  onModeClick,
+  onModelClick,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
+  const inputContainerRef = useRef<HTMLDivElement>(null);
   const sendOnEnter = useSettingsStore((state) => state.sendOnEnter);
   const addRecentFile = useRecentFilesStore((state) => state.addFile);
   const allRecentFiles = useRecentFilesStore((state) => state.recentFiles);
+  
+  // Mention popover positioning
+  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
+  
+  // MCP Mention system
+  const {
+    mentionState,
+    groupedMentions,
+    handleTextChange,
+    selectMention,
+    closeMention,
+    parseToolCalls,
+    isMcpAvailable,
+  } = useMention({
+    onMentionsChange,
+  });
   
   // Memoize recent files to avoid unnecessary re-renders
   const recentFiles = useMemo(() => 
@@ -183,6 +281,57 @@ export function ChatInput({
 
   const isProcessing = isLoading || isStreaming;
   const canSend = (value.trim().length > 0 || attachments.length > 0) && !isProcessing && !disabled;
+
+  // Handle input change with mention detection
+  const handleInputChange = useCallback((newValue: string) => {
+    onChange(newValue);
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const pos = textarea.selectionStart || 0;
+      handleTextChange(newValue, pos);
+    }
+  }, [onChange, handleTextChange]);
+
+  // Handle cursor position changes for mention popover
+  const handleSelectionChange = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const pos = textarea.selectionStart || 0;
+      handleTextChange(value, pos);
+      
+      if (mentionState.isOpen) {
+        const rect = getCaretCoordinates(textarea);
+        setAnchorRect(rect);
+      }
+    }
+  }, [value, handleTextChange, mentionState.isOpen]);
+
+  // Handle mention selection from popover
+  const handleMentionSelect = useCallback((item: MentionItem) => {
+    const { newText, newCursorPosition } = selectMention(item);
+    onChange(newText);
+    
+    requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      if (textarea) {
+        textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+        textarea.focus();
+      }
+    });
+  }, [selectMention, onChange]);
+
+  // Track selection changes for mention popover positioning
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.addEventListener('click', handleSelectionChange);
+      textarea.addEventListener('keyup', handleSelectionChange);
+      return () => {
+        textarea.removeEventListener('click', handleSelectionChange);
+        textarea.removeEventListener('keyup', handleSelectionChange);
+      };
+    }
+  }, [handleSelectionChange]);
 
   // Store refs for speech recognition callbacks
   const valueRef = useRef(value);
@@ -402,14 +551,24 @@ export function ChatInput({
 
   const handleSubmit = useCallback(() => {
     if (!canSend) return;
-    onSubmit(value, attachments.length > 0 ? attachments : undefined);
+    // Parse tool calls from the message
+    const toolCalls = parseToolCalls(value);
+    onSubmit(value, attachments.length > 0 ? attachments : undefined, toolCalls.length > 0 ? toolCalls : undefined);
     onChange('');
     setAttachments([]);
     textareaRef.current?.focus();
-  }, [canSend, value, attachments, onSubmit, onChange]);
+  }, [canSend, value, attachments, onSubmit, onChange, parseToolCalls]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && sendOnEnter) {
+    // If mention popover is open, let it handle navigation keys
+    if (mentionState.isOpen) {
+      if (['ArrowUp', 'ArrowDown', 'Enter', 'Tab', 'Escape'].includes(e.key)) {
+        // These are handled by MentionPopover
+        return;
+      }
+    }
+    
+    if (e.key === 'Enter' && !e.shiftKey && sendOnEnter && !mentionState.isOpen) {
       e.preventDefault();
       handleSubmit();
     }
@@ -440,6 +599,7 @@ export function ChatInput({
         if (a.url) URL.revokeObjectURL(a.url);
       });
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup only on unmount
   }, []);
 
   return (
@@ -518,7 +678,17 @@ export function ChatInput({
             </div>
           )}
 
-          <div className="flex items-end gap-2 rounded-2xl border border-input bg-background p-2 shadow-sm focus-within:ring-2 focus-within:ring-ring/20">
+          <div ref={inputContainerRef} className="relative flex items-end gap-2 rounded-2xl border border-input bg-background p-2 shadow-sm focus-within:ring-2 focus-within:ring-ring/20">
+            {/* Mention Popover */}
+            <MentionPopover
+              open={mentionState.isOpen}
+              onClose={closeMention}
+              onSelect={handleMentionSelect}
+              groupedMentions={groupedMentions}
+              query={mentionState.query}
+              anchorRect={anchorRect}
+              containerRef={inputContainerRef}
+            />
             {/* Attachment button */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -613,14 +783,45 @@ export function ChatInput({
               </Tooltip>
             )}
 
+            {/* MCP Tools button */}
+            {isMcpAvailable && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0 text-primary"
+                    disabled={isProcessing || disabled}
+                    onClick={() => {
+                      const textarea = textareaRef.current;
+                      if (textarea) {
+                        const pos = textarea.selectionStart || value.length;
+                        const newValue = value.slice(0, pos) + '@' + value.slice(pos);
+                        handleInputChange(newValue);
+                        requestAnimationFrame(() => {
+                          textarea.setSelectionRange(pos + 1, pos + 1);
+                          textarea.focus();
+                        });
+                      }
+                    }}
+                  >
+                    <Zap className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Use MCP Tools (type @)
+                </TooltipContent>
+              </Tooltip>
+            )}
+
             {/* Textarea */}
             <TextareaAutosize
               ref={textareaRef}
               value={value}
-              onChange={(e) => onChange(e.target.value)}
+              onChange={(e) => handleInputChange(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
-              placeholder={isListening ? 'Listening...' : 'Type a message...'}
+              placeholder={isListening ? 'Listening...' : (isMcpAvailable ? 'Type @ to mention tools...' : 'Type a message...')}
               className={cn(
                 'flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground',
                 'max-h-[200px] min-h-[24px] py-1'
@@ -670,13 +871,127 @@ export function ChatInput({
             )}
           </div>
 
+          {/* Bottom toolbar with mode/model selectors and feature toggles */}
+          <div className="mt-2 flex items-center justify-between px-1">
+            {/* Left side - Mode and Model selector */}
+            <div className="flex items-center gap-1">
+              {/* Mode selector */}
+              {onModeClick && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground hover:text-foreground"
+                      onClick={onModeClick}
+                    >
+                      <span className="text-base">{modeName === 'Agent' ? '🤖' : modeName === 'Research' ? '🔍' : '💬'}</span>
+                      <span>{modeName}</span>
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Switch Mode</TooltipContent>
+                </Tooltip>
+              )}
+
+              {/* Model selector */}
+              {onModelClick && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground hover:text-foreground"
+                      onClick={onModelClick}
+                    >
+                      <span className="font-medium">⚡</span>
+                      <span className="max-w-[100px] truncate">{modelName}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Change Model</TooltipContent>
+                </Tooltip>
+              )}
+
+              {/* Divider */}
+              <div className="mx-1 h-4 w-px bg-border" />
+
+              {/* Web Search toggle */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      'h-7 w-7',
+                      webSearchEnabled && 'bg-primary/10 text-primary'
+                    )}
+                    onClick={() => onWebSearchChange?.(!webSearchEnabled)}
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Web Search</TooltipContent>
+              </Tooltip>
+
+              {/* Thinking Mode toggle */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      'h-7 w-7',
+                      thinkingEnabled && 'bg-purple-500/10 text-purple-500'
+                    )}
+                    onClick={() => onThinkingChange?.(!thinkingEnabled)}
+                  >
+                    <Brain className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Extended Thinking</TooltipContent>
+              </Tooltip>
+
+              {/* Context Settings */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={onOpenContextSettings}
+                  >
+                    <Settings2 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Context Settings</TooltipContent>
+              </Tooltip>
+            </div>
+
+            {/* Right side - Context usage */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onOpenContextSettings}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                title="Context window usage"
+              >
+                {contextUsagePercent}%
+              </button>
+            </div>
+          </div>
+
           {/* Helper text */}
-          <p className="mt-2 text-center text-xs text-muted-foreground">
+          <p className="mt-1 text-center text-xs text-muted-foreground">
             {sendOnEnter
               ? 'Press Enter to send, Shift+Enter for new line'
               : 'Click send button to send message'}
             {' • '}
             <span>Drag & drop or paste files</span>
+            {isMcpAvailable && (
+              <>
+                {' • '}
+                <span className="text-primary">Type @ for MCP tools</span>
+              </>
+            )}
           </p>
         </div>
 

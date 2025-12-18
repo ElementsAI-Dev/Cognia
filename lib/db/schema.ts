@@ -25,6 +25,7 @@ export interface DBSession {
 export interface DBMessage {
   id: string;
   sessionId: string;
+  branchId?: string; // null/undefined means main branch
   role: string;
   content: string;
   parts?: string; // JSON serialized MessagePart[]
@@ -70,6 +71,14 @@ class CogniaDB extends Dexie {
     this.version(1).stores({
       sessions: 'id, title, provider, createdAt, updatedAt',
       messages: 'id, sessionId, role, createdAt, [sessionId+createdAt]',
+      documents: 'id, name, type, createdAt',
+      mcpServers: 'id, name, url, connected',
+    });
+
+    // Version 2: Add branchId support for messages
+    this.version(2).stores({
+      sessions: 'id, title, provider, createdAt, updatedAt',
+      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
       documents: 'id, name, type, createdAt',
       mcpServers: 'id, name, url, connected',
     });
