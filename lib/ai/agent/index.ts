@@ -44,7 +44,6 @@ export {
   createCalculatorTool,
   createWebSearchTool,
   createRAGSearchTool,
-  createFileReadTool,
   createCodeExecutionTool,
   getToolDescriptions,
   type AgentToolsConfig,

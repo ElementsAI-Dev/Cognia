@@ -7,7 +7,7 @@
  */
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { Copy, Check, Pencil, RotateCcw } from 'lucide-react';
+import { Copy, Check, Pencil, RotateCcw, Languages, Bookmark, BookmarkCheck, Volume2, VolumeX, Share2 } from 'lucide-react';
 import {
   Conversation,
   ConversationContent,
@@ -41,6 +41,7 @@ import {
   getDefaultSuggestions,
   type GeneratedSuggestion,
 } from '@/lib/ai/suggestion-generator';
+import { translateText } from '@/lib/ai/translate';
 import type { SearchResponse, SearchResult } from '@/types/search';
 import { useSessionStore, useSettingsStore, usePresetStore, useMcpStore, useAgentStore, useProjectStore } from '@/stores';
 import { useMessages, useAgent, useProjectContext } from '@/hooks';
@@ -866,6 +867,43 @@ Be thorough in your thinking but concise in your final answer.`;
     }
   }, [editContent, deleteMessagesAfter, updateMessage, messages, handleSendMessage]);
 
+  // Translate message content
+  const handleTranslateMessage = useCallback(async (_messageId: string, content: string) => {
+    const settings = providerSettings[currentProvider as keyof typeof providerSettings];
+    if (!settings?.apiKey) {
+      setError('No API key configured for translation');
+      return;
+    }
+
+    try {
+      // Auto-detect: translate to English if not English, otherwise to Chinese
+      const targetLang = /[\u4e00-\u9fa5]/.test(content) ? 'en' : 'zh';
+      
+      const result = await translateText(content, targetLang, {
+        provider: currentProvider as ProviderName,
+        model: currentModel,
+        apiKey: settings.apiKey,
+        baseURL: settings.baseURL,
+      });
+
+      if (result.success && result.translatedText) {
+        // Create a new assistant message with the translation
+        const translationMessage: UIMessage = {
+          id: `translation-${Date.now()}`,
+          role: 'assistant',
+          content: `**Translation (${result.sourceLanguage || 'auto'} → ${result.targetLanguage}):**\n\n${result.translatedText}`,
+          createdAt: new Date(),
+        };
+        await addMessage(translationMessage);
+      } else if (result.error) {
+        setError(result.error);
+      }
+    } catch (err) {
+      console.error('Translation failed:', err);
+      setError(err instanceof Error ? err.message : 'Translation failed');
+    }
+  }, [providerSettings, currentProvider, currentModel, addMessage]);
+
   // Retry last assistant message
   const handleRetry = useCallback(async (messageId: string) => {
     const messageIndex = messages.findIndex(m => m.id === messageId);
@@ -897,7 +935,7 @@ Be thorough in your thinking but concise in your final answer.`;
   // The UI will show even while messages are loading
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col bg-background">
       <ChatHeader sessionId={sessionId} />
 
       {error && (
@@ -955,12 +993,16 @@ Be thorough in your thinking but concise in your final answer.`;
                 onSaveEdit={() => handleSaveEdit(message.id)}
                 onRetry={() => handleRetry(message.id)}
                 onCopyMessagesForBranch={copyMessagesForBranch}
+                onTranslate={handleTranslateMessage}
               />
             ))}
             {isLoading && messages[messages.length - 1]?.role === 'user' && (
               <MessageUI from="assistant">
                 <MessageContent>
-                  <Loader size={20} />
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader size={18} />
+                    <span className="text-sm animate-pulse">Thinking...</span>
+                  </div>
                 </MessageContent>
               </MessageUI>
             )}
@@ -971,23 +1013,28 @@ Be thorough in your thinking but concise in your final answer.`;
 
       {/* Suggestions after AI response */}
       {!isLoading && !isStreaming && suggestions.length > 0 && messages.length > 0 && (
-        <div className="px-4 pb-2">
+        <div className="px-4 pb-3 mx-auto w-full max-w-4xl animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
           <Suggestions>
             {suggestions.map((suggestion, index) => (
               <Suggestion
                 key={index}
                 suggestion={suggestion.text}
                 onClick={handleSuggestionClick}
+                className="animate-in fade-in-0 duration-300"
+                style={{ animationDelay: `${index * 50}ms` }}
               />
             ))}
           </Suggestions>
         </div>
       )}
 
-      {/* Agent Plan Editor for agent mode */}
+      {/* Agent Plan Editor for agent mode - enhanced visibility */}
       {currentMode === 'agent' && activeSessionId && (
-        <div className="px-4 pb-2">
-          <AgentPlanEditor sessionId={activeSessionId} />
+        <div className="px-4 pb-3 mx-auto w-full max-w-4xl animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+          <div className="relative">
+            <div className="absolute -left-2 top-0 bottom-0 w-1 bg-linear-to-b from-green-500 via-emerald-500 to-teal-500 rounded-full" />
+            <AgentPlanEditor sessionId={activeSessionId} />
+          </div>
         </div>
       )}
 
@@ -1010,6 +1057,18 @@ Be thorough in your thinking but concise in your final answer.`;
         onThinkingChange={handleThinkingChange}
         modelName={currentModel}
         modeName={currentMode === 'chat' ? 'Chat' : currentMode === 'agent' ? 'Agent' : 'Research'}
+        onModeClick={() => {
+          // Cycle through modes: chat -> agent -> research -> chat
+          const modes: ChatMode[] = ['chat', 'agent', 'research'];
+          const currentIndex = modes.indexOf(currentMode);
+          const nextMode = modes[(currentIndex + 1) % modes.length];
+          handleModeChange(nextMode);
+        }}
+        onModelClick={() => {
+          // Open model selector in header by scrolling to top and focusing
+          const header = document.querySelector('header');
+          header?.scrollIntoView({ behavior: 'smooth' });
+        }}
       />
 
       {/* Prompt Optimizer Dialog */}
@@ -1136,6 +1195,7 @@ interface ChatMessageItemProps {
   onSaveEdit: () => void;
   onRetry: () => void;
   onCopyMessagesForBranch?: (branchPointMessageId: string, newBranchId: string) => Promise<unknown>;
+  onTranslate?: (messageId: string, content: string) => void;
 }
 
 function ChatMessageItem({
@@ -1150,13 +1210,62 @@ function ChatMessageItem({
   onSaveEdit,
   onRetry,
   onCopyMessagesForBranch,
+  onTranslate,
 }: ChatMessageItemProps) {
   const [copied, setCopied] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(message.isBookmarked || false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(message.content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleTranslate = () => {
+    if (onTranslate && !isTranslating) {
+      setIsTranslating(true);
+      onTranslate(message.id, message.content);
+      setTimeout(() => setIsTranslating(false), 1000);
+    }
+  };
+
+  const handleBookmark = async () => {
+    const newBookmarked = !isBookmarked;
+    setIsBookmarked(newBookmarked);
+    // Update in database
+    await messageRepository.update(message.id, { isBookmarked: newBookmarked });
+  };
+
+  const handleSpeak = () => {
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    } else {
+      const utterance = new SpeechSynthesisUtterance(message.content);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+      window.speechSynthesis.speak(utterance);
+      setIsSpeaking(true);
+    }
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Shared Message',
+          text: message.content,
+        });
+      } catch {
+        // User cancelled or share failed, copy to clipboard instead
+        await handleCopy();
+      }
+    } else {
+      // Fallback to copy
+      await handleCopy();
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -1229,6 +1338,31 @@ function ChatMessageItem({
                 onClick={handleCopy}
               >
                 {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              </MessageAction>
+              <MessageAction
+                tooltip={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
+                onClick={handleBookmark}
+              >
+                {isBookmarked ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
+              </MessageAction>
+              <MessageAction
+                tooltip={isSpeaking ? 'Stop speaking' : 'Read aloud'}
+                onClick={handleSpeak}
+              >
+                {isSpeaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              </MessageAction>
+              <MessageAction
+                tooltip="Share"
+                onClick={handleShare}
+              >
+                <Share2 className="h-4 w-4" />
+              </MessageAction>
+              <MessageAction
+                tooltip="Translate"
+                onClick={handleTranslate}
+                disabled={isTranslating}
+              >
+                <Languages className="h-4 w-4" />
               </MessageAction>
             </>
           )}

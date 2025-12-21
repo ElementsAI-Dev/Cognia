@@ -30,7 +30,7 @@ export type MessageProps = HTMLAttributes<HTMLDivElement> & {
 export const Message = ({ className, from, ...props }: MessageProps) => (
   <div
     className={cn(
-      "group flex w-full max-w-[95%] flex-col gap-2",
+      "group flex w-full max-w-[90%] flex-col gap-2 animate-in fade-in-0 slide-in-from-bottom-3 duration-300 ease-out",
       from === "user" ? "is-user ml-auto justify-end" : "is-assistant",
       className
     )}
@@ -47,9 +47,9 @@ export const MessageContent = ({
 }: MessageContentProps) => (
   <div
     className={cn(
-      "is-user:dark flex w-fit max-w-full min-w-0 flex-col gap-2 overflow-hidden text-sm",
-      "group-[.is-user]:ml-auto group-[.is-user]:rounded-lg group-[.is-user]:bg-secondary group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-foreground",
-      "group-[.is-assistant]:text-foreground",
+      "flex w-fit max-w-full min-w-0 flex-col gap-2 overflow-hidden text-sm transition-all duration-200",
+      "group-[.is-user]:ml-auto group-[.is-user]:rounded-2xl group-[.is-user]:rounded-br-md group-[.is-user]:bg-primary group-[.is-user]:text-primary-foreground group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:shadow-sm",
+      "group-[.is-assistant]:text-foreground group-[.is-assistant]:bg-muted/30 group-[.is-assistant]:rounded-2xl group-[.is-assistant]:rounded-bl-md group-[.is-assistant]:px-4 group-[.is-assistant]:py-3",
       className
     )}
     {...props}
@@ -65,7 +65,13 @@ export const MessageActions = ({
   children,
   ...props
 }: MessageActionsProps) => (
-  <div className={cn("flex items-center gap-1", className)} {...props}>
+  <div 
+    className={cn(
+      "flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+      className
+    )} 
+    {...props}
+  >
     {children}
   </div>
 );
@@ -84,7 +90,13 @@ export const MessageAction = ({
   ...props
 }: MessageActionProps) => {
   const button = (
-    <Button size={size} type="button" variant={variant} {...props}>
+    <Button 
+      size={size} 
+      type="button" 
+      variant={variant} 
+      className="hover:bg-accent/80 transition-colors duration-150"
+      {...props}
+    >
       {children}
       <span className="sr-only">{label || tooltip}</span>
     </Button>
@@ -313,7 +325,7 @@ export const MessageResponse = memo(
   ({ className, ...props }: MessageResponseProps) => (
     <Streamdown
       className={cn(
-        "size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+        "size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 leading-relaxed",
         className
       )}
       {...props}

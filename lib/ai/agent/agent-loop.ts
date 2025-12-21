@@ -3,7 +3,6 @@
  */
 
 import { executeAgent, type AgentTool } from './agent-executor';
-import { type StopCondition, stepCountIs, anyOf, noToolCalls } from './stop-conditions';
 import type { ProviderName } from '../client';
 
 export interface AgentTask {
@@ -118,7 +117,6 @@ export async function executeAgentLoop(
         baseURL,
         temperature: 0.3,
         maxSteps: 1,
-        stopCondition: stepCountIs(1),
       });
 
       if (planningResult.success && planningResult.finalResponse) {
@@ -160,11 +158,6 @@ export async function executeAgentLoop(
         currentTask: currentTask.description,
       });
 
-      const stopCondition: StopCondition = anyOf(
-        stepCountIs(maxStepsPerTask),
-        noToolCalls()
-      );
-
       const taskResult = await executeAgent(currentTask.description, {
         provider,
         model,
@@ -172,7 +165,6 @@ export async function executeAgentLoop(
         baseURL,
         tools,
         maxSteps: maxStepsPerTask,
-        stopCondition,
         systemPrompt: `You are executing a subtask as part of a larger goal. Focus on completing this specific task efficiently.
         
 Original goal: ${task}
@@ -206,7 +198,6 @@ Current subtask: ${currentTask.description}`,
           baseURL,
           temperature: 0.3,
           maxSteps: 1,
-          stopCondition: stepCountIs(1),
         }
       );
 

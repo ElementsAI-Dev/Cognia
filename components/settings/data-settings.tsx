@@ -4,7 +4,7 @@
  * DataSettings - Manage local data, export/import
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Download,
   Upload,
@@ -13,6 +13,9 @@ import {
   FileJson,
   Database,
   HardDrive,
+  FileArchive,
+  MessageSquare,
+  FileCode,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,14 +41,37 @@ import {
 } from '@/components/ui/alert';
 import { useSessionStore, useSettingsStore, useArtifactStore } from '@/stores';
 import { db } from '@/lib/db';
+import { BatchExportDialog } from '@/components/export';
+
+// Helper to format bytes
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 
 export function DataSettings() {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [storageInfo, setStorageInfo] = useState<{ used: number; quota: number } | null>(null);
 
   const sessions = useSessionStore((state) => state.sessions);
   const clearAllSessions = useSessionStore((state) => state.clearAllSessions);
+
+  // Get storage estimate on mount
+  useEffect(() => {
+    if (navigator.storage?.estimate) {
+      navigator.storage.estimate().then((estimate) => {
+        setStorageInfo({
+          used: estimate.usage || 0,
+          quota: estimate.quota || 0,
+        });
+      });
+    }
+  }, []);
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -176,22 +202,54 @@ export function DataSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-lg border p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Sessions</span>
+              </div>
               <div className="text-2xl font-bold">{sessions.length}</div>
-              <div className="text-sm text-muted-foreground">Chat Sessions</div>
             </div>
             <div className="rounded-lg border p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <FileCode className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Artifacts</span>
+              </div>
               <div className="text-2xl font-bold">
                 {Object.keys(useArtifactStore.getState().artifacts).length}
               </div>
-              <div className="text-sm text-muted-foreground">Artifacts</div>
             </div>
             <div className="rounded-lg border p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <HardDrive className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">LocalStorage</span>
+              </div>
               <div className="text-2xl font-bold">{getStorageEstimate()}</div>
-              <div className="text-sm text-muted-foreground">LocalStorage Used</div>
+            </div>
+            <div className="rounded-lg border p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Database className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">IndexedDB</span>
+              </div>
+              <div className="text-2xl font-bold">
+                {storageInfo ? formatBytes(storageInfo.used) : 'N/A'}
+              </div>
             </div>
           </div>
+          {storageInfo && (
+            <div className="mt-4">
+              <div className="flex justify-between text-sm text-muted-foreground mb-1">
+                <span>Storage Usage</span>
+                <span>{formatBytes(storageInfo.used)} / {formatBytes(storageInfo.quota)}</span>
+              </div>
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary transition-all"
+                  style={{ width: `${Math.min((storageInfo.used / storageInfo.quota) * 100, 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -225,6 +283,15 @@ export function DataSettings() {
                 />
               </label>
             </Button>
+
+            <BatchExportDialog
+              trigger={
+                <Button variant="outline">
+                  <FileArchive className="mr-2 h-4 w-4" />
+                  Batch Export Sessions
+                </Button>
+              }
+            />
           </div>
 
           <Alert>

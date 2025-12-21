@@ -1,12 +1,18 @@
 /**
  * Agent Executor - Execute multi-step agent tasks with tool calling
- * Simplified implementation that works with AI SDK 5.x
+ * 
+ * Features:
+ * - AI SDK native tool calling with generateText
+ * - Multiple stop conditions (stepCount, hasToolCall, noToolCalls, custom)
+ * - prepareStep callback for dynamic step configuration
+ * - onStepFinish for observability
+ * - Tool approval workflow
+ * - Comprehensive error handling
  */
 
-import { generateText } from 'ai';
+import { generateText, stepCountIs } from 'ai';
 import { z } from 'zod';
 import { getProviderModel, type ProviderName } from '../client';
-import { type StopCondition, defaultStopCondition } from './stop-conditions';
 
 export interface ToolCall {
   id: string;
@@ -37,6 +43,18 @@ export interface AgentTool {
   requiresApproval?: boolean;
 }
 
+export type StopCondition = 
+  | { type: 'stepCount'; count: number }
+  | { type: 'hasToolCall'; toolName: string }
+  | { type: 'noToolCalls' }
+  | { type: 'custom'; check: (state: AgentExecutionState) => boolean };
+
+export interface PrepareStepResult {
+  temperature?: number;
+  systemPrompt?: string;
+  additionalContext?: string;
+}
+
 export interface AgentConfig {
   provider: ProviderName;
   model: string;
@@ -45,14 +63,16 @@ export interface AgentConfig {
   systemPrompt?: string;
   temperature?: number;
   maxSteps?: number;
+  stopConditions?: StopCondition[];
   tools?: Record<string, AgentTool>;
-  stopCondition?: StopCondition;
   onStepStart?: (step: number) => void;
   onStepComplete?: (step: number, response: string, toolCalls: ToolCall[]) => void;
   onToolCall?: (toolCall: ToolCall) => void;
   onToolResult?: (toolCall: ToolCall) => void;
   onError?: (error: Error) => void;
   requireApproval?: (toolCall: ToolCall) => Promise<boolean>;
+  prepareStep?: (step: number, state: AgentExecutionState) => PrepareStepResult | Promise<PrepareStepResult>;
+  onFinish?: (result: AgentResult) => void;
 }
 
 export interface AgentResult {
@@ -61,6 +81,7 @@ export interface AgentResult {
   steps: AgentStep[];
   totalSteps: number;
   duration: number;
+  toolResults?: Array<{ toolCallId: string; toolName: string; result: unknown }>;
   error?: string;
 }
 
@@ -69,45 +90,103 @@ export interface AgentStep {
   response: string;
   toolCalls: ToolCall[];
   timestamp: Date;
+  finishReason?: 'stop' | 'tool-calls' | 'length' | 'content-filter' | 'error' | 'other';
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
 }
 
 /**
- * Build tool description for system prompt
+ * Create an AI SDK compatible tool object from an AgentTool definition
+ * This builds the tool object manually to avoid complex type issues with the tool() helper
  */
-function buildToolsDescription(tools: Record<string, AgentTool>): string {
-  if (Object.keys(tools).length === 0) return '';
-
-  const toolDescriptions = Object.entries(tools).map(([name, tool]) => {
-    return `- ${name}: ${tool.description}`;
-  }).join('\n');
-
-  return `\n\nYou have access to the following tools:\n${toolDescriptions}\n\nTo use a tool, respond with a JSON object in this format:\n{"tool": "tool_name", "args": {...}}\n\nIf you don't need to use a tool, respond normally.`;
-}
-
-/**
- * Parse tool call from response
- */
-function parseToolCall(response: string): { tool: string; args: Record<string, unknown> } | null {
-  try {
-    // Try to find JSON in the response
-    const jsonMatch = response.match(/\{[\s\S]*"tool"[\s\S]*\}/);
-    if (!jsonMatch) return null;
-
-    const parsed = JSON.parse(jsonMatch[0]);
-    if (parsed.tool && typeof parsed.tool === 'string') {
-      return {
-        tool: parsed.tool,
-        args: parsed.args || {},
+function createSDKTool(
+  name: string,
+  agentTool: AgentTool,
+  toolCallTracker: Map<string, ToolCall>,
+  onToolCall?: (toolCall: ToolCall) => void,
+  onToolResult?: (toolCall: ToolCall) => void,
+  requireApproval?: (toolCall: ToolCall) => Promise<boolean>
+) {
+  return {
+    description: agentTool.description,
+    parameters: agentTool.parameters,
+    execute: async (args: z.infer<typeof agentTool.parameters>) => {
+      const toolCallId = `tool-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const toolCall: ToolCall = {
+        id: toolCallId,
+        name,
+        args: args as Record<string, unknown>,
+        status: 'pending',
+        startedAt: new Date(),
       };
-    }
-    return null;
-  } catch {
-    return null;
-  }
+
+      toolCallTracker.set(toolCallId, toolCall);
+      onToolCall?.(toolCall);
+
+      // Check if approval is required
+      if (agentTool.requiresApproval && requireApproval) {
+        const approved = await requireApproval(toolCall);
+        if (!approved) {
+          toolCall.status = 'error';
+          toolCall.error = 'Tool call rejected by user';
+          toolCall.completedAt = new Date();
+          onToolResult?.(toolCall);
+          throw new Error('Tool call rejected by user');
+        }
+      }
+
+      toolCall.status = 'running';
+
+      try {
+        const result = await agentTool.execute(args as Record<string, unknown>);
+        toolCall.status = 'completed';
+        toolCall.result = result;
+        toolCall.completedAt = new Date();
+        onToolResult?.(toolCall);
+        return result;
+      } catch (error) {
+        toolCall.status = 'error';
+        toolCall.error = error instanceof Error ? error.message : 'Tool execution failed';
+        toolCall.completedAt = new Date();
+        onToolResult?.(toolCall);
+        throw error;
+      }
+    },
+  };
 }
 
 /**
- * Execute an agent task with multi-step tool calling
+ * Convert AgentTool record to AI SDK tools format
+ */
+function convertToAISDKTools(
+  tools: Record<string, AgentTool>,
+  toolCallTracker: Map<string, ToolCall>,
+  onToolCall?: (toolCall: ToolCall) => void,
+  onToolResult?: (toolCall: ToolCall) => void,
+  requireApproval?: (toolCall: ToolCall) => Promise<boolean>
+) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sdkTools: Record<string, any> = {};
+
+  for (const [name, agentTool] of Object.entries(tools)) {
+    sdkTools[name] = createSDKTool(
+      name,
+      agentTool,
+      toolCallTracker,
+      onToolCall,
+      onToolResult,
+      requireApproval
+    );
+  }
+
+  return sdkTools;
+}
+
+/**
+ * Execute an agent task with multi-step tool calling using AI SDK native tools
  */
 export async function executeAgent(
   prompt: string,
@@ -121,160 +200,199 @@ export async function executeAgent(
     systemPrompt = '',
     temperature = 0.7,
     maxSteps = 10,
+    stopConditions = [],
     tools = {},
-    stopCondition = defaultStopCondition(maxSteps),
     onStepStart,
     onStepComplete,
     onToolCall,
     onToolResult,
     onError,
     requireApproval,
+    prepareStep: prepareStepCallback,
+    onFinish,
   } = config;
 
   const modelInstance = getProviderModel(provider, model, apiKey, baseURL);
   const startTime = new Date();
   const steps: AgentStep[] = [];
+  const toolCallTracker = new Map<string, ToolCall>();
 
-  // Build enhanced system prompt with tool descriptions
-  const enhancedSystemPrompt = systemPrompt + buildToolsDescription(tools);
+  // Track step count for callbacks
+  let stepCount = 0;
+  let currentTemperature = temperature;
+  let currentSystemPrompt = systemPrompt;
 
-  // Initialize state
-  const state: AgentExecutionState = {
-    stepCount: 0,
+  // Build execution state for callbacks and stop conditions
+  const getExecutionState = (): AgentExecutionState => ({
+    stepCount,
     startTime,
-    lastToolCalls: [],
-    conversationHistory: [{ role: 'user', content: prompt }],
+    lastResponse: steps.length > 0 ? steps[steps.length - 1].response : undefined,
+    lastToolCalls: steps.length > 0 ? steps[steps.length - 1].toolCalls : [],
+    conversationHistory: steps.map(s => ({ role: 'assistant', content: s.response })),
     isRunning: true,
+  });
+
+  // Check if any stop condition is met
+  const checkStopConditions = (): boolean => {
+    const state = getExecutionState();
+    
+    for (const condition of stopConditions) {
+      switch (condition.type) {
+        case 'stepCount':
+          if (stepCount >= condition.count) return true;
+          break;
+        case 'hasToolCall':
+          if (state.lastToolCalls.some(tc => tc.name === condition.toolName)) return true;
+          break;
+        case 'noToolCalls':
+          if (stepCount > 0 && state.lastToolCalls.length === 0) return true;
+          break;
+        case 'custom':
+          if (condition.check(state)) return true;
+          break;
+      }
+    }
+    return false;
   };
 
+  // Convert AgentTools to AI SDK format
+  const sdkTools = Object.keys(tools).length > 0
+    ? convertToAISDKTools(
+        tools,
+        toolCallTracker,
+        onToolCall,
+        onToolResult,
+        requireApproval
+      )
+    : undefined;
+
   try {
-    while (state.isRunning && !stopCondition(state)) {
-      state.stepCount++;
-      onStepStart?.(state.stepCount);
+    // Use AI SDK native multi-step execution with stopWhen
+    const result = await generateText({
+      model: modelInstance,
+      prompt,
+      system: currentSystemPrompt || undefined,
+      temperature: currentTemperature,
+      tools: sdkTools,
+      stopWhen: stepCountIs(maxSteps),
+      prepareStep: async () => {
+        stepCount++;
+        onStepStart?.(stepCount);
 
-      // Build messages for this step
-      const messages = state.conversationHistory.map((msg) => ({
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content,
-      }));
+        // Check custom stop conditions
+        if (stepCount > 1 && checkStopConditions()) {
+          // Return signal to stop (AI SDK will handle this)
+          return { stop: true };
+        }
 
-      // Generate response
-      const result = await generateText({
-        model: modelInstance,
-        messages,
-        system: enhancedSystemPrompt,
-        temperature,
-      });
+        // Call prepareStep callback if provided
+        if (prepareStepCallback) {
+          const state = getExecutionState();
+          const stepConfig = await prepareStepCallback(stepCount, state);
+          
+          if (stepConfig.temperature !== undefined) {
+            currentTemperature = stepConfig.temperature;
+          }
+          if (stepConfig.systemPrompt !== undefined) {
+            currentSystemPrompt = stepConfig.systemPrompt;
+          }
+          
+          return {
+            temperature: currentTemperature,
+            system: currentSystemPrompt,
+          };
+        }
 
-      state.lastResponse = result.text;
-      state.lastToolCalls = [];
-
-      // Check if response contains a tool call
-      const toolCallParsed = parseToolCall(result.text);
-
-      if (toolCallParsed && tools[toolCallParsed.tool]) {
-        const toolDef = tools[toolCallParsed.tool];
-        const toolCall: ToolCall = {
-          id: `tool-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          name: toolCallParsed.tool,
-          args: toolCallParsed.args,
-          status: 'pending',
-        };
-
-        state.lastToolCalls.push(toolCall);
-        onToolCall?.(toolCall);
-
-        // Check if approval is required
-        if (toolDef.requiresApproval && requireApproval) {
-          const approved = await requireApproval(toolCall);
-          if (!approved) {
-            toolCall.status = 'error';
-            toolCall.error = 'Tool call rejected by user';
-            state.conversationHistory.push({
-              role: 'assistant',
-              content: result.text,
-            });
-            state.conversationHistory.push({
-              role: 'user',
-              content: `Tool call rejected. Please try a different approach.`,
-            });
-            continue;
+        return {};
+      },
+      onStepFinish: (event) => {
+        // Use AI SDK's event data for accurate step-to-tool-call mapping
+        const stepToolCalls: ToolCall[] = [];
+        
+        // Map tool calls from the event to our ToolCall format
+        if (event.toolCalls && event.toolCalls.length > 0) {
+          for (const tc of event.toolCalls) {
+            // Get args from the tool call (handle different AI SDK versions)
+            const tcArgs = 'args' in tc ? tc.args : {};
+            
+            // Find the tracked tool call by matching name and args
+            const trackedCall = Array.from(toolCallTracker.values()).find(
+              (tracked) => 
+                tracked.name === tc.toolName && 
+                JSON.stringify(tracked.args) === JSON.stringify(tcArgs)
+            );
+            
+            if (trackedCall) {
+              stepToolCalls.push(trackedCall);
+            } else {
+              // Create a new entry if not found (shouldn't happen normally)
+              stepToolCalls.push({
+                id: tc.toolCallId,
+                name: tc.toolName,
+                args: (tcArgs || {}) as Record<string, unknown>,
+                status: 'completed',
+                startedAt: new Date(),
+                completedAt: new Date(),
+              });
+            }
           }
         }
 
-        // Execute tool
-        toolCall.status = 'running';
-        toolCall.startedAt = new Date();
-
-        try {
-          const toolResult = await toolDef.execute(toolCallParsed.args);
-          toolCall.status = 'completed';
-          toolCall.result = toolResult;
-          toolCall.completedAt = new Date();
-
-          // Add to conversation
-          state.conversationHistory.push({
-            role: 'assistant',
-            content: result.text,
-          });
-          state.conversationHistory.push({
-            role: 'user',
-            content: `Tool result for ${toolCallParsed.tool}:\n${JSON.stringify(toolResult, null, 2)}`,
-          });
-        } catch (error) {
-          toolCall.status = 'error';
-          toolCall.error = error instanceof Error ? error.message : 'Tool execution failed';
-          toolCall.completedAt = new Date();
-
-          state.conversationHistory.push({
-            role: 'assistant',
-            content: result.text,
-          });
-          state.conversationHistory.push({
-            role: 'user',
-            content: `Tool error for ${toolCallParsed.tool}: ${toolCall.error}`,
-          });
+        // Extract usage info if available (handle different AI SDK versions)
+        let usage: AgentStep['usage'] | undefined;
+        if (event.usage) {
+          const u = event.usage as Record<string, unknown>;
+          usage = {
+            promptTokens: (u.promptTokens ?? u.prompt_tokens ?? 0) as number,
+            completionTokens: (u.completionTokens ?? u.completion_tokens ?? 0) as number,
+            totalTokens: (u.totalTokens ?? u.total_tokens ?? 0) as number,
+          };
         }
 
-        onToolResult?.(toolCall);
-      } else {
-        // No tool call, add response and potentially finish
-        state.conversationHistory.push({
-          role: 'assistant',
-          content: result.text,
+        steps.push({
+          stepNumber: stepCount,
+          response: event.text || '',
+          toolCalls: stepToolCalls,
+          timestamp: new Date(),
+          finishReason: event.finishReason as AgentStep['finishReason'],
+          usage,
         });
 
-        // If no tool calls, we're likely done
-        if (result.text && !toolCallParsed) {
-          state.isRunning = false;
-        }
-      }
-
-      // Record step
-      steps.push({
-        stepNumber: state.stepCount,
-        response: result.text,
-        toolCalls: [...state.lastToolCalls],
-        timestamp: new Date(),
-      });
-
-      onStepComplete?.(state.stepCount, result.text, state.lastToolCalls);
-
-      // Check stop condition
-      if (stopCondition(state)) {
-        state.isRunning = false;
-      }
-    }
+        onStepComplete?.(stepCount, event.text || '', stepToolCalls);
+      },
+    });
 
     const duration = Date.now() - startTime.getTime();
 
-    return {
+    // Extract tool results from steps
+    const allToolResults: Array<{ toolCallId: string; toolName: string; result: unknown }> = [];
+    if (result.steps) {
+      for (const step of result.steps) {
+        if (step.toolResults) {
+          for (const tr of step.toolResults) {
+            allToolResults.push({
+              toolCallId: tr.toolCallId,
+              toolName: tr.toolName,
+              result: 'result' in tr ? tr.result : undefined,
+            });
+          }
+        }
+      }
+    }
+
+    const agentResult: AgentResult = {
       success: true,
-      finalResponse: state.lastResponse || '',
+      finalResponse: result.text,
       steps,
-      totalSteps: state.stepCount,
+      totalSteps: stepCount,
       duration,
+      toolResults: allToolResults.length > 0 ? allToolResults : undefined,
     };
+
+    // Call onFinish callback
+    onFinish?.(agentResult);
+
+    return agentResult;
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Agent execution failed');
     onError?.(err);
@@ -283,7 +401,7 @@ export async function executeAgent(
       success: false,
       finalResponse: '',
       steps,
-      totalSteps: state.stepCount,
+      totalSteps: stepCount,
       duration: Date.now() - startTime.getTime(),
       error: err.message,
     };
@@ -313,5 +431,22 @@ export function createAgent(config: Omit<AgentConfig, 'provider' | 'model' | 'ap
         delete config.tools[name];
       }
     },
+    addStopCondition: (condition: StopCondition) => {
+      config.stopConditions = config.stopConditions || [];
+      config.stopConditions.push(condition);
+    },
+    clearStopConditions: () => {
+      config.stopConditions = [];
+    },
   };
 }
+
+/**
+ * Helper to create common stop conditions
+ */
+export const stopConditions = {
+  afterSteps: (count: number): StopCondition => ({ type: 'stepCount', count }),
+  whenToolCalled: (toolName: string): StopCondition => ({ type: 'hasToolCall', toolName }),
+  whenNoToolsCalled: (): StopCondition => ({ type: 'noToolCalls' }),
+  custom: (check: (state: AgentExecutionState) => boolean): StopCondition => ({ type: 'custom', check }),
+};

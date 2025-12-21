@@ -27,3 +27,54 @@ export {
   mapToArtifactLanguage,
   type DetectedArtifact,
 } from './use-artifact-detection';
+export {
+  useStructuredOutput,
+  type UseStructuredOutputOptions,
+  type UseStructuredOutputReturn,
+} from './use-structured-output';
+export {
+  useTranslate,
+  type UseTranslateOptions,
+  type UseTranslateReturn,
+  type LanguageDetectionResult,
+  SUPPORTED_LANGUAGES,
+} from './use-translate';
+export {
+  useImageGeneration,
+  type UseImageGenerationOptions,
+  type UseImageGenerationReturn,
+} from './use-image-generation';
+export {
+  useDesigner,
+  type UseDesignerOptions,
+  type UseDesignerReturn,
+} from './use-designer';
+export {
+  useCopy,
+  getCopyHistory,
+  addToCopyHistory,
+  clearCopyHistory,
+  type CopyFormat,
+  type UseCopyOptions,
+  type UseCopyReturn,
+  type CopyHistoryItem,
+} from './use-copy';
+export {
+  useNative,
+  type UseNativeOptions,
+  type UseNativeReturn,
+} from './use-native';
+export {
+  useGlobalShortcuts,
+  type GlobalShortcutAction,
+  type UseGlobalShortcutsOptions,
+  type UseGlobalShortcutsReturn,
+} from './use-global-shortcuts';
+export {
+  useWindow,
+  type UseWindowReturn,
+} from './use-window';
+export {
+  useNotification,
+  type UseNotificationReturn,
+} from './use-notification';

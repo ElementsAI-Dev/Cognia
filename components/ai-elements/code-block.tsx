@@ -1,8 +1,10 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, PanelRightOpen, Download } from "lucide-react";
+import { useArtifactStore } from "@/stores";
 import {
   type ComponentProps,
   createContext,
@@ -18,6 +20,8 @@ type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
   code: string;
   language: BundledLanguage;
   showLineNumbers?: boolean;
+  showCanvasButton?: boolean;
+  title?: string;
 };
 
 type CodeBlockContextType = {
@@ -76,6 +80,8 @@ export const CodeBlock = ({
   code,
   language,
   showLineNumbers = false,
+  showCanvasButton = true,
+  title,
   className,
   children,
   ...props
@@ -83,6 +89,9 @@ export const CodeBlock = ({
   const [html, setHtml] = useState<string>("");
   const [darkHtml, setDarkHtml] = useState<string>("");
   const mounted = useRef(false);
+  
+  const createCanvasDocument = useArtifactStore((state) => state.createCanvasDocument);
+  const openPanel = useArtifactStore((state) => state.openPanel);
 
   useEffect(() => {
     highlightCode(code, language, showLineNumbers).then(([light, dark]) => {
@@ -98,6 +107,44 @@ export const CodeBlock = ({
     };
   }, [code, language, showLineNumbers]);
 
+  const handleOpenInCanvas = () => {
+    createCanvasDocument({
+      title: title || `Code - ${language}`,
+      content: code,
+      type: 'code',
+      language: language as import('@/types').ArtifactLanguage,
+    });
+    openPanel('canvas');
+  };
+
+  const handleDownload = () => {
+    const extensionMap: Record<string, string> = {
+      javascript: 'js',
+      typescript: 'ts',
+      python: 'py',
+      html: 'html',
+      css: 'css',
+      json: 'json',
+      markdown: 'md',
+      jsx: 'jsx',
+      tsx: 'tsx',
+      sql: 'sql',
+      bash: 'sh',
+      yaml: 'yaml',
+      xml: 'xml',
+    };
+    const ext = extensionMap[language] || 'txt';
+    const blob = new Blob([code], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `code.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <CodeBlockContext.Provider value={{ code }}>
       <div
@@ -107,6 +154,13 @@ export const CodeBlock = ({
         )}
         {...props}
       >
+        {/* Language badge header */}
+        <div className="flex items-center justify-between px-3 py-1.5 border-b bg-muted/30">
+          <Badge variant="secondary" className="text-xs font-mono">
+            {language}
+          </Badge>
+          {title && <span className="text-xs text-muted-foreground truncate ml-2">{title}</span>}
+        </div>
         <div className="relative">
           <div
             className="overflow-auto dark:hidden [&>pre]:m-0 [&>pre]:bg-background! [&>pre]:p-4 [&>pre]:text-foreground! [&>pre]:text-sm [&_code]:font-mono [&_code]:text-sm"
@@ -118,11 +172,29 @@ export const CodeBlock = ({
             // biome-ignore lint/security/noDangerouslySetInnerHtml: "this is needed."
             dangerouslySetInnerHTML={{ __html: darkHtml }}
           />
-          {children && (
-            <div className="absolute top-2 right-2 flex items-center gap-2">
-              {children}
-            </div>
-          )}
+          <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {showCanvasButton && (
+              <Button
+                className="shrink-0"
+                onClick={handleOpenInCanvas}
+                size="icon"
+                variant="ghost"
+                title="Open in Canvas"
+              >
+                <PanelRightOpen size={14} />
+              </Button>
+            )}
+            <Button
+              className="shrink-0"
+              onClick={handleDownload}
+              size="icon"
+              variant="ghost"
+              title="Download"
+            >
+              <Download size={14} />
+            </Button>
+            {children}
+          </div>
         </div>
       </div>
     </CodeBlockContext.Provider>
@@ -170,6 +242,7 @@ export const CodeBlockCopyButton = ({
       onClick={copyToClipboard}
       size="icon"
       variant="ghost"
+      title="Copy code"
       {...props}
     >
       {children ?? <Icon size={14} />}

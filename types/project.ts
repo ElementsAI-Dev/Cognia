@@ -28,6 +28,13 @@ export interface Project {
   defaultModel?: string;
   defaultMode?: 'chat' | 'agent' | 'research';
 
+  // Tags for organization
+  tags?: string[];
+
+  // Archive status
+  isArchived?: boolean;
+  archivedAt?: Date;
+
   // Knowledge base
   knowledgeBase: KnowledgeFile[];
 
@@ -53,6 +60,7 @@ export interface CreateProjectInput {
   defaultProvider?: string;
   defaultModel?: string;
   defaultMode?: 'chat' | 'agent' | 'research';
+  tags?: string[];
 }
 
 export interface UpdateProjectInput {
@@ -64,6 +72,8 @@ export interface UpdateProjectInput {
   defaultProvider?: string;
   defaultModel?: string;
   defaultMode?: 'chat' | 'agent' | 'research';
+  tags?: string[];
+  isArchived?: boolean;
 }
 
 // Project colors for visual distinction
@@ -97,4 +107,30 @@ export const PROJECT_ICONS = [
   'Star',
   'Target',
   'Zap',
+];
+
+// Predefined tag colors
+export const TAG_COLORS = [
+  { name: 'Gray', value: '#6B7280', bg: '#F3F4F6' },
+  { name: 'Red', value: '#EF4444', bg: '#FEE2E2' },
+  { name: 'Orange', value: '#F97316', bg: '#FFEDD5' },
+  { name: 'Yellow', value: '#EAB308', bg: '#FEF9C3' },
+  { name: 'Green', value: '#22C55E', bg: '#DCFCE7' },
+  { name: 'Blue', value: '#3B82F6', bg: '#DBEAFE' },
+  { name: 'Purple', value: '#8B5CF6', bg: '#EDE9FE' },
+  { name: 'Pink', value: '#EC4899', bg: '#FCE7F3' },
+];
+
+// Common project tags
+export const SUGGESTED_TAGS = [
+  'work',
+  'personal',
+  'learning',
+  'research',
+  'development',
+  'writing',
+  'design',
+  'important',
+  'urgent',
+  'archived',
 ];

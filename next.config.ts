@@ -12,6 +12,21 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  // Mark Tauri plugins as external for server - they only work in Tauri runtime
+  serverExternalPackages: [
+    '@tauri-apps/plugin-fs',
+    '@tauri-apps/plugin-dialog', 
+    '@tauri-apps/plugin-shell',
+    '@tauri-apps/api',
+  ],
+  // Turbopack config - alias Tauri plugins to stubs for browser/SSR builds
+  turbopack: {
+    resolveAlias: {
+      '@tauri-apps/plugin-fs': './lib/tauri-stubs.ts',
+      '@tauri-apps/plugin-dialog': './lib/tauri-stubs.ts',
+      '@tauri-apps/plugin-shell': './lib/tauri-stubs.ts',
+    },
+  },
   // Remove assetPrefix entirely - it's not needed for Tauri development
   // and causes CORS issues when ports don't match
   // Enable CORS for development (only works when not in export mode)

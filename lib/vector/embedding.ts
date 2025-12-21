@@ -1,14 +1,16 @@
 /**
  * Embedding Service - Generate embeddings using AI SDK
- * Supports multiple providers: OpenAI, Google, Cohere
+ * Supports providers: OpenAI, Google
  */
 
-import { embed, embedMany, cosineSimilarity } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import {
+  generateEmbedding as generateAiEmbedding,
+  generateEmbeddings as generateAiEmbeddings,
+  cosineSimilarity as cosineSimilarityAi,
+} from '@/lib/ai/embedding';
 import type { ProviderName } from '@/types/provider';
 
-export type EmbeddingProvider = 'openai' | 'google' | 'cohere';
+export type EmbeddingProvider = 'openai' | 'google' | 'cohere' | 'mistral';
 
 export interface EmbeddingModelConfig {
   provider: EmbeddingProvider;
@@ -32,6 +34,11 @@ export const DEFAULT_EMBEDDING_MODELS: Record<EmbeddingProvider, EmbeddingModelC
     model: 'embed-english-v3.0',
     dimensions: 1024,
   },
+  mistral: {
+    provider: 'mistral',
+    model: 'mistral-embed',
+    dimensions: 1024,
+  },
 };
 
 export interface EmbeddingResult {
@@ -47,24 +54,6 @@ export interface BatchEmbeddingResult {
 }
 
 /**
- * Get embedding model instance based on provider
- */
-function getEmbeddingModel(
-  provider: EmbeddingProvider,
-  model: string,
-  apiKey: string
-) {
-  switch (provider) {
-    case 'openai':
-      return createOpenAI({ apiKey }).embedding(model);
-    case 'google':
-      return createGoogleGenerativeAI({ apiKey }).textEmbeddingModel(model);
-    default:
-      throw new Error(`Unsupported embedding provider: ${provider}`);
-  }
-}
-
-/**
  * Generate embedding for a single text
  */
 export async function generateEmbedding(
@@ -72,11 +61,11 @@ export async function generateEmbedding(
   config: EmbeddingModelConfig,
   apiKey: string
 ): Promise<EmbeddingResult> {
-  const model = getEmbeddingModel(config.provider, config.model, apiKey);
-  
-  const result = await embed({
-    model,
-    value: text,
+  const result = await generateAiEmbedding(text, {
+    provider: config.provider,
+    model: config.model,
+    apiKey,
+    dimensions: config.dimensions,
   });
 
   return {
@@ -94,11 +83,11 @@ export async function generateEmbeddings(
   config: EmbeddingModelConfig,
   apiKey: string
 ): Promise<BatchEmbeddingResult> {
-  const model = getEmbeddingModel(config.provider, config.model, apiKey);
-  
-  const result = await embedMany({
-    model,
-    values: texts,
+  const result = await generateAiEmbeddings(texts, {
+    provider: config.provider,
+    model: config.model,
+    apiKey,
+    dimensions: config.dimensions,
   });
 
   return {
@@ -112,7 +101,7 @@ export async function generateEmbeddings(
  * Calculate cosine similarity between two embeddings
  */
 export function calculateSimilarity(a: number[], b: number[]): number {
-  return cosineSimilarity(a, b);
+  return cosineSimilarityAi(a, b);
 }
 
 /**
@@ -145,7 +134,8 @@ export function getEmbeddingApiKey(
   const providerMap: Record<EmbeddingProvider, ProviderName> = {
     openai: 'openai',
     google: 'google',
-    cohere: 'openai', // Cohere uses its own key, fallback to openai for now
+    cohere: 'cohere',
+    mistral: 'mistral',
   };
 
   const mappedProvider = providerMap[provider];

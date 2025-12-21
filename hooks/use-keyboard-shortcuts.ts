@@ -6,7 +6,7 @@
 
 import { useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSessionStore, useUIStore } from '@/stores';
+import { useSessionStore, useUIStore, useArtifactStore } from '@/stores';
 
 export interface KeyboardShortcut {
   key: string;
@@ -55,6 +55,8 @@ interface UseKeyboardShortcutsOptions {
   onOpenSettings?: () => void;
   onOpenProjects?: () => void;
   onStopGeneration?: () => void;
+  onToggleCanvas?: () => void;
+  onToggleArtifact?: () => void;
   enabled?: boolean;
 }
 
@@ -65,11 +67,17 @@ export function useKeyboardShortcuts({
   onOpenSettings,
   onOpenProjects,
   onStopGeneration,
+  onToggleCanvas,
+  onToggleArtifact,
   enabled = true,
 }: UseKeyboardShortcutsOptions = {}) {
   const router = useRouter();
   const createSession = useSessionStore((state) => state.createSession);
   const setCommandPaletteOpen = useUIStore((state) => state.setCommandPaletteOpen);
+  const setKeyboardShortcutsOpen = useUIStore((state) => state.setKeyboardShortcutsOpen);
+  const panelOpen = useArtifactStore((state) => state.panelOpen);
+  const openPanel = useArtifactStore((state) => state.openPanel);
+  const closePanel = useArtifactStore((state) => state.closePanel);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -142,9 +150,46 @@ export function useKeyboardShortcuts({
         return;
       }
 
+      // ? - Open keyboard shortcuts help (only when not in input field)
+      if (e.key === '?' && !isInputField) {
+        e.preventDefault();
+        setKeyboardShortcutsOpen(true);
+        return;
+      }
+
+      // Ctrl/Cmd + . - Toggle Canvas panel
+      if ((e.ctrlKey || e.metaKey) && e.key === '.') {
+        e.preventDefault();
+        if (onToggleCanvas) {
+          onToggleCanvas();
+        } else {
+          if (panelOpen) {
+            closePanel();
+          } else {
+            openPanel('canvas');
+          }
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + ; - Toggle Artifact panel
+      if ((e.ctrlKey || e.metaKey) && e.key === ';') {
+        e.preventDefault();
+        if (onToggleArtifact) {
+          onToggleArtifact();
+        } else {
+          if (panelOpen) {
+            closePanel();
+          } else {
+            openPanel('artifact');
+          }
+        }
+        return;
+      }
+
       // Ctrl/Cmd + Enter - Submit (handled by individual components)
     },
-    [enabled, createSession, router, setCommandPaletteOpen, onNewChat, onFocusInput, onToggleSidebar, onOpenSettings, onOpenProjects, onStopGeneration]
+    [enabled, createSession, router, setCommandPaletteOpen, setKeyboardShortcutsOpen, onNewChat, onFocusInput, onToggleSidebar, onOpenSettings, onOpenProjects, onStopGeneration, onToggleCanvas, onToggleArtifact, panelOpen, openPanel, closePanel]
   );
 
   useEffect(() => {
@@ -205,11 +250,31 @@ export function useKeyboardShortcuts({
       action: () => onStopGeneration?.(),
     },
     {
+      key: '?',
+      description: 'Show keyboard shortcuts',
+      category: 'system',
+      action: () => setKeyboardShortcutsOpen(true),
+    },
+    {
       key: 'Enter',
       ctrl: true,
       description: 'Send message',
       category: 'chat',
       action: () => {},
+    },
+    {
+      key: '.',
+      ctrl: true,
+      description: 'Toggle Canvas panel',
+      category: 'navigation',
+      action: () => panelOpen ? closePanel() : openPanel('canvas'),
+    },
+    {
+      key: ';',
+      ctrl: true,
+      description: 'Toggle Artifact panel',
+      category: 'navigation',
+      action: () => panelOpen ? closePanel() : openPanel('artifact'),
     },
   ];
 

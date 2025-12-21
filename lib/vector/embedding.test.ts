@@ -33,8 +33,15 @@ describe('DEFAULT_EMBEDDING_MODELS', () => {
     expect(DEFAULT_EMBEDDING_MODELS.cohere.dimensions).toBe(1024);
   });
 
+  it('has Mistral model config', () => {
+    expect(DEFAULT_EMBEDDING_MODELS.mistral).toBeDefined();
+    expect(DEFAULT_EMBEDDING_MODELS.mistral.provider).toBe('mistral');
+    expect(DEFAULT_EMBEDDING_MODELS.mistral.model).toBe('mistral-embed');
+    expect(DEFAULT_EMBEDDING_MODELS.mistral.dimensions).toBe(1024);
+  });
+
   it('all configs have required properties', () => {
-    const providers: EmbeddingProvider[] = ['openai', 'google', 'cohere'];
+    const providers: EmbeddingProvider[] = ['openai', 'google', 'cohere', 'mistral'];
     
     providers.forEach((provider) => {
       const config = DEFAULT_EMBEDDING_MODELS[provider];

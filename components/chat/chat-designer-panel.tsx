@@ -3,12 +3,14 @@
 /**
  * ChatDesignerPanel - Integrated designer panel for chat interface
  * Shows live preview when in web-design agent mode
+ * Enhanced with AI editing capabilities
  */
 
 import { useState, useCallback } from 'react';
-import { X, Maximize2, Minimize2, ExternalLink } from 'lucide-react';
+import { X, Maximize2, Minimize2, ExternalLink, Sparkles, Send, Loader2, ChevronUp, FileCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Tooltip,
   TooltipContent,
@@ -17,12 +19,15 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { ReactSandbox } from '@/components/designer';
+import { useSettingsStore, useArtifactStore } from '@/stores';
+import { executeDesignerAIEdit, getDesignerAIConfig, AI_SUGGESTIONS } from '@/lib/designer';
 
 interface ChatDesignerPanelProps {
   code: string;
   onCodeChange?: (code: string) => void;
   onClose?: () => void;
   className?: string;
+  showAIPanel?: boolean;
 }
 
 export function ChatDesignerPanel({
@@ -30,8 +35,33 @@ export function ChatDesignerPanel({
   onCodeChange,
   onClose,
   className,
+  showAIPanel: initialShowAI = false,
 }: ChatDesignerPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showAIPanel, setShowAIPanel] = useState(initialShowAI);
+  const [aiPrompt, setAIPrompt] = useState('');
+  const [isAIProcessing, setIsAIProcessing] = useState(false);
+  const [aiError, setAIError] = useState<string | null>(null);
+
+  // Settings for AI
+  const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const defaultProvider = useSettingsStore((state) => state.defaultProvider);
+
+  // Canvas integration
+  const createCanvasDocument = useArtifactStore((state) => state.createCanvasDocument);
+  const setActiveCanvas = useArtifactStore((state) => state.setActiveCanvas);
+  const openPanel = useArtifactStore((state) => state.openPanel);
+
+  const handleOpenInCanvas = useCallback(() => {
+    const docId = createCanvasDocument({
+      title: 'Chat Design Code',
+      content: code,
+      language: 'jsx',
+      type: 'code',
+    });
+    setActiveCanvas(docId);
+    openPanel('canvas');
+  }, [code, createCanvasDocument, setActiveCanvas, openPanel]);
 
   const handleOpenInDesigner = useCallback(() => {
     // Store code in sessionStorage to avoid URL length limits
@@ -39,6 +69,29 @@ export function ChatDesignerPanel({
     sessionStorage.setItem(designerKey, code);
     window.open(`/designer?key=${designerKey}`, '_blank');
   }, [code]);
+
+  const handleAIEdit = useCallback(async () => {
+    if (!aiPrompt.trim() || !onCodeChange) return;
+
+    setIsAIProcessing(true);
+    setAIError(null);
+    try {
+      const config = getDesignerAIConfig(defaultProvider, providerSettings);
+      const result = await executeDesignerAIEdit(aiPrompt, code, config);
+      
+      if (result.success && result.code) {
+        onCodeChange(result.code);
+        setAIPrompt('');
+        setShowAIPanel(false);
+      } else {
+        setAIError(result.error || 'AI edit failed');
+      }
+    } catch (error) {
+      setAIError(error instanceof Error ? error.message : 'AI edit failed');
+    } finally {
+      setIsAIProcessing(false);
+    }
+  }, [aiPrompt, code, defaultProvider, providerSettings, onCodeChange]);
 
   return (
     <TooltipProvider>
@@ -57,6 +110,35 @@ export function ChatDesignerPanel({
             </Badge>
           </div>
           <div className="flex items-center gap-1">
+            {/* AI Edit Toggle */}
+            {onCodeChange && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={showAIPanel ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => setShowAIPanel(!showAIPanel)}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>AI Edit</TooltipContent>
+              </Tooltip>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={handleOpenInCanvas}
+                >
+                  <FileCode className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Edit in Canvas</TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -68,7 +150,7 @@ export function ChatDesignerPanel({
                   <ExternalLink className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Open in Designer</TooltipContent>
+              <TooltipContent>Open Full Designer</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -104,6 +186,61 @@ export function ChatDesignerPanel({
             )}
           </div>
         </div>
+
+        {/* AI Panel */}
+        {showAIPanel && (
+          <div className="border-b bg-muted/30 p-3">
+            <div className="flex items-start gap-2">
+              <div className="flex-1">
+                <Textarea
+                  value={aiPrompt}
+                  onChange={(e) => setAIPrompt(e.target.value)}
+                  placeholder="Describe what you want to change..."
+                  className="min-h-[60px] resize-none text-sm"
+                  disabled={isAIProcessing}
+                />
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {AI_SUGGESTIONS.slice(0, 3).map((suggestion) => (
+                    <Badge
+                      key={suggestion}
+                      variant="outline"
+                      className="cursor-pointer hover:bg-muted text-xs"
+                      onClick={() => setAIPrompt(suggestion)}
+                    >
+                      {suggestion}
+                    </Badge>
+                  ))}
+                </div>
+                {aiError && (
+                  <p className="text-xs text-destructive mt-2">{aiError}</p>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <Button
+                  size="sm"
+                  onClick={handleAIEdit}
+                  disabled={!aiPrompt.trim() || isAIProcessing}
+                >
+                  {isAIProcessing ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      <Send className="h-3.5 w-3.5 mr-1" />
+                      Edit
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAIPanel(false)}
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Sandbox */}
         <div className="flex-1 overflow-hidden">

@@ -11,6 +11,13 @@ if (typeof structuredClone === 'undefined') {
   global.structuredClone = <T>(obj: T): T => JSON.parse(JSON.stringify(obj));
 }
 
+// Polyfill TransformStream for eventsource-parser
+if (typeof TransformStream === 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const polyfill = require('web-streams-polyfill');
+  global.TransformStream = polyfill.TransformStream;
+}
+
 // Mock Next.js Image component
 jest.mock('next/image', () => ({
   __esModule: true,

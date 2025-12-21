@@ -5,7 +5,7 @@
  * Provides navigation, session list, search, and settings access
  */
 
-import { Plus, Settings, Moon, Sun, Monitor, MessageSquare, MoreHorizontal, Pencil, Trash2, Copy, Search, X, FolderKanban, Keyboard, Pin, PinOff } from 'lucide-react';
+import { Plus, Settings, Moon, Sun, Monitor, MessageSquare, MoreHorizontal, Pencil, Trash2, Copy, Search, X, FolderKanban, Keyboard, Pin, PinOff, Wand2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import {
@@ -143,19 +143,60 @@ export function AppSidebar() {
     setSearchResults([]);
   };
 
-  // Determine which sessions to display (pinned first)
-  const displaySessions = useMemo(() => {
+  // Group sessions by time period
+  const groupedSessions = useMemo(() => {
     if (searchQuery.trim()) {
-      return searchResults;
+      return { search: searchResults };
     }
-    // Sort sessions: pinned first, then by updatedAt
-    const sortedSessions = [...sessions].sort((a, b) => {
-      if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
-      return 0;
-    });
-    return sortedSessions.map(session => ({ session, matchType: 'title' as const, snippet: undefined }));
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const groups: Record<string, SearchResult[]> = {
+      pinned: [],
+      today: [],
+      yesterday: [],
+      lastWeek: [],
+      older: [],
+    };
+
+    for (const session of sessions) {
+      const result = { session, matchType: 'title' as const, snippet: undefined };
+      const updatedAt = new Date(session.updatedAt);
+
+      if (session.pinned) {
+        groups.pinned.push(result);
+      } else if (updatedAt >= today) {
+        groups.today.push(result);
+      } else if (updatedAt >= yesterday) {
+        groups.yesterday.push(result);
+      } else if (updatedAt >= lastWeek) {
+        groups.lastWeek.push(result);
+      } else {
+        groups.older.push(result);
+      }
+    }
+
+    return groups;
   }, [searchQuery, searchResults, sessions]);
+
+  // Collapsed state for each group
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  const toggleGroup = (group: string) => {
+    setCollapsedGroups(prev => ({ ...prev, [group]: !prev[group] }));
+  };
+
+  const groupLabels: Record<string, string> = {
+    pinned: 'Pinned',
+    today: 'Today',
+    yesterday: 'Yesterday',
+    lastWeek: 'Last 7 Days',
+    older: 'Older',
+    search: 'Search Results',
+  };
 
   // Delete all sessions handler
   const deleteAllSessions = useSessionStore((state) => state.deleteAllSessions);
@@ -223,73 +264,138 @@ export function AppSidebar() {
       <SidebarSeparator />
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className="flex items-center justify-between">
-            <span>{searchQuery ? 'Search Results' : 'Conversations'}</span>
-            {!isCollapsed && !searchQuery && sessions.length > 0 && (
-              <DropdownMenu open={showDeleteAllConfirm} onOpenChange={setShowDeleteAllConfirm}>
-                <DropdownMenuTrigger asChild>
-                  <button className="text-muted-foreground hover:text-destructive transition-colors">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <div className="p-2 text-sm">
-                    <p className="font-medium">Delete all conversations?</p>
-                    <p className="text-muted-foreground text-xs mt-1">This action cannot be undone.</p>
-                  </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleDeleteAll}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Confirm Delete All
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {displaySessions.length === 0 ? (
-                <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                  {!isCollapsed && (
-                    <>
-                      <p>{searchQuery ? 'No matching conversations' : 'No conversations yet'}</p>
-                      {!searchQuery && <p className="mt-1 text-xs">Start a new chat to begin</p>}
-                    </>
-                  )}
+        {/* Header with delete all button */}
+        {!isCollapsed && !searchQuery && sessions.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-2">
+            <span className="text-xs font-medium text-muted-foreground">Conversations</span>
+            <DropdownMenu open={showDeleteAllConfirm} onOpenChange={setShowDeleteAllConfirm}>
+              <DropdownMenuTrigger asChild>
+                <button className="text-muted-foreground hover:text-destructive transition-colors">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="p-2 text-sm">
+                  <p className="font-medium">Delete all conversations?</p>
+                  <p className="text-muted-foreground text-xs mt-1">This action cannot be undone.</p>
                 </div>
-              ) : (
-                displaySessions.map((result) => (
-                  <SessionMenuItem
-                    key={result.session.id}
-                    session={result.session}
-                    isActive={result.session.id === activeSessionId}
-                    snippet={result.snippet}
-                    matchType={result.matchType}
-                    searchQuery={searchQuery}
-                  />
-                ))
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleDeleteAll}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Confirm Delete All
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
+        {/* Empty state - enhanced */}
+        {sessions.length === 0 && !searchQuery && (
+          <div className="px-4 py-8 text-center animate-in fade-in-0 duration-300">
+            {!isCollapsed && (
+              <div className="flex flex-col items-center gap-3">
+                <div className="p-3 rounded-full bg-muted/50">
+                  <MessageSquare className="h-6 w-6 text-muted-foreground/50" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">No conversations yet</p>
+                  <p className="mt-1 text-xs text-muted-foreground/70">Start a new chat to begin</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Grouped sessions */}
+        {Object.entries(groupedSessions).map(([groupKey, groupSessions]) => {
+          if (groupSessions.length === 0) return null;
+          const isCollapsedGroup = collapsedGroups[groupKey];
+
+          return (
+            <SidebarGroup key={groupKey}>
+              <SidebarGroupLabel 
+                className="flex items-center justify-between cursor-pointer hover:bg-accent/50 rounded-md transition-colors"
+                onClick={() => toggleGroup(groupKey)}
+              >
+                <span className="flex items-center gap-1">
+                  {isCollapsedGroup ? (
+                    <ChevronRight className="h-3 w-3" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3" />
+                  )}
+                  {groupLabels[groupKey]}
+                </span>
+                <span className="text-xs text-muted-foreground">{groupSessions.length}</span>
+              </SidebarGroupLabel>
+              {!isCollapsedGroup && (
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {groupSessions.map((result) => (
+                      <SessionMenuItem
+                        key={result.session.id}
+                        session={result.session}
+                        isActive={result.session.id === activeSessionId}
+                        snippet={result.snippet}
+                        matchType={result.matchType}
+                        searchQuery={searchQuery}
+                      />
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
               )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+            </SidebarGroup>
+          );
+        })}
       </SidebarContent>
 
       <SidebarSeparator />
 
       <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Projects">
-              <Link href="/projects">
-                <FolderKanban className="h-4 w-4" />
-                <span>Projects</span>
+        {/* Quick access buttons - highlighted */}
+        {!isCollapsed && (
+          <div className="px-2 pb-2">
+            <div className="flex gap-2">
+              <Link href="/projects" className="flex-1">
+                <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:border-accent">
+                  <FolderKanban className="h-4 w-4 text-blue-500" />
+                  <span>Projects</span>
+                </div>
               </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+              <Link href="/designer" className="flex-1">
+                <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:border-accent">
+                  <Wand2 className="h-4 w-4 text-purple-500" />
+                  <span>Designer</span>
+                </div>
+              </Link>
+            </div>
+          </div>
+        )}
+
+        <SidebarMenu>
+          {/* Collapsed state: show Projects and Designer as menu items */}
+          {isCollapsed && (
+            <>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Projects">
+                  <Link href="/projects">
+                    <FolderKanban className="h-4 w-4 text-blue-500" />
+                    <span>Projects</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Designer">
+                  <Link href="/designer">
+                    <Wand2 className="h-4 w-4 text-purple-500" />
+                    <span>Designer</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </>
+          )}
           <SidebarMenuItem>
             <KeyboardShortcutsDialog
               trigger={

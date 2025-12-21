@@ -4,7 +4,7 @@
 
 export type ProviderType = 'cloud' | 'local';
 
-export type ProviderName = 'openai' | 'anthropic' | 'google' | 'deepseek' | 'groq' | 'mistral' | 'ollama' | 'auto';
+export type ProviderName = 'openai' | 'anthropic' | 'google' | 'deepseek' | 'groq' | 'mistral' | 'xai' | 'togetherai' | 'openrouter' | 'cohere' | 'fireworks' | 'cerebras' | 'sambanova' | 'ollama' | 'auto';
 
 export interface ModelConfig {
   id: string;
@@ -27,6 +27,36 @@ export interface ProviderConfig {
   baseURLRequired: boolean;
   models: ModelConfig[];
   defaultModel: string;
+  // OAuth support
+  supportsOAuth?: boolean;
+  oauthConfig?: OAuthConfig;
+  // Provider metadata
+  description?: string;
+  website?: string;
+  dashboardUrl?: string;
+  docsUrl?: string;
+  category?: 'flagship' | 'aggregator' | 'specialized' | 'local' | 'enterprise';
+}
+
+// OAuth configuration for providers that support it
+export interface OAuthConfig {
+  authorizationUrl: string;
+  tokenUrl: string;
+  clientId?: string;
+  scope?: string;
+  pkceRequired?: boolean;
+  callbackPath: string;
+}
+
+// API Key rotation strategies
+export type ApiKeyRotationStrategy = 'round-robin' | 'random' | 'least-used';
+
+// API Key usage statistics
+export interface ApiKeyUsageStats {
+  usageCount: number;
+  lastUsed: number;
+  errorCount: number;
+  lastError?: string;
 }
 
 export interface UserProviderSettings {
@@ -35,6 +65,21 @@ export interface UserProviderSettings {
   baseURL?: string;
   defaultModel: string;
   enabled: boolean;
+  // Multi-API Key support
+  apiKeys?: string[];
+  apiKeyRotationEnabled?: boolean;
+  apiKeyRotationStrategy?: ApiKeyRotationStrategy;
+  apiKeyUsageStats?: Record<string, ApiKeyUsageStats>;
+  currentKeyIndex?: number;
+  // OAuth state
+  oauthConnected?: boolean;
+  oauthExpiresAt?: number;
+  // Health monitoring
+  lastHealthCheck?: number;
+  healthStatus?: 'healthy' | 'degraded' | 'error' | 'unknown';
+  quotaUsed?: number;
+  quotaLimit?: number;
+  rateLimitRemaining?: number;
 }
 
 export interface CustomProviderSettings {
@@ -284,6 +329,312 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
         supportsTools: true,
         supportsVision: false,
         supportsStreaming: true,
+      },
+    ],
+  },
+  xai: {
+    id: 'xai',
+    name: 'xAI (Grok)',
+    type: 'cloud',
+    apiKeyRequired: true,
+    baseURLRequired: false,
+    defaultModel: 'grok-3',
+    models: [
+      {
+        id: 'grok-3',
+        name: 'Grok 3',
+        contextLength: 131072,
+        supportsTools: true,
+        supportsVision: true,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 3, completionPer1M: 15 },
+      },
+      {
+        id: 'grok-3-mini',
+        name: 'Grok 3 Mini',
+        contextLength: 131072,
+        supportsTools: true,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 0.3, completionPer1M: 0.5 },
+      },
+    ],
+  },
+  togetherai: {
+    id: 'togetherai',
+    name: 'Together AI',
+    type: 'cloud',
+    apiKeyRequired: true,
+    baseURLRequired: false,
+    defaultModel: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+    category: 'specialized',
+    description: 'Fast inference for open source models',
+    website: 'https://together.ai',
+    dashboardUrl: 'https://api.together.xyz/settings/api-keys',
+    docsUrl: 'https://docs.together.ai',
+    models: [
+      {
+        id: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+        name: 'Llama 3.3 70B Turbo',
+        contextLength: 131072,
+        supportsTools: true,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 0.88, completionPer1M: 0.88 },
+      },
+      {
+        id: 'Qwen/Qwen2.5-72B-Instruct-Turbo',
+        name: 'Qwen 2.5 72B Turbo',
+        contextLength: 32768,
+        supportsTools: true,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 1.2, completionPer1M: 1.2 },
+      },
+      {
+        id: 'deepseek-ai/DeepSeek-V3',
+        name: 'DeepSeek V3',
+        contextLength: 65536,
+        supportsTools: true,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 0.5, completionPer1M: 0.5 },
+      },
+    ],
+  },
+  openrouter: {
+    id: 'openrouter',
+    name: 'OpenRouter',
+    type: 'cloud',
+    apiKeyRequired: true,
+    baseURLRequired: false,
+    defaultModel: 'anthropic/claude-sonnet-4',
+    category: 'aggregator',
+    description: 'Access 200+ models through one API with OAuth login',
+    website: 'https://openrouter.ai',
+    dashboardUrl: 'https://openrouter.ai/keys',
+    docsUrl: 'https://openrouter.ai/docs',
+    supportsOAuth: true,
+    oauthConfig: {
+      authorizationUrl: 'https://openrouter.ai/auth',
+      tokenUrl: 'https://openrouter.ai/api/v1/auth/keys',
+      pkceRequired: true,
+      callbackPath: '/api/oauth/openrouter/callback',
+      scope: 'openid profile',
+    },
+    models: [
+      {
+        id: 'anthropic/claude-sonnet-4',
+        name: 'Claude Sonnet 4',
+        contextLength: 200000,
+        supportsTools: true,
+        supportsVision: true,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 3, completionPer1M: 15 },
+      },
+      {
+        id: 'openai/gpt-4o',
+        name: 'GPT-4o',
+        contextLength: 128000,
+        supportsTools: true,
+        supportsVision: true,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 2.5, completionPer1M: 10 },
+      },
+      {
+        id: 'google/gemini-2.0-flash-exp:free',
+        name: 'Gemini 2.0 Flash (Free)',
+        contextLength: 1000000,
+        supportsTools: true,
+        supportsVision: true,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 0, completionPer1M: 0 },
+      },
+      {
+        id: 'meta-llama/llama-3.3-70b-instruct',
+        name: 'Llama 3.3 70B',
+        contextLength: 131072,
+        supportsTools: true,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 0.4, completionPer1M: 0.4 },
+      },
+      {
+        id: 'deepseek/deepseek-chat',
+        name: 'DeepSeek Chat',
+        contextLength: 64000,
+        supportsTools: true,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 0.14, completionPer1M: 0.28 },
+      },
+      {
+        id: 'qwen/qwen-2.5-72b-instruct',
+        name: 'Qwen 2.5 72B',
+        contextLength: 131072,
+        supportsTools: true,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 0.35, completionPer1M: 0.4 },
+      },
+    ],
+  },
+  cohere: {
+    id: 'cohere',
+    name: 'Cohere',
+    type: 'cloud',
+    apiKeyRequired: true,
+    baseURLRequired: false,
+    defaultModel: 'command-r-plus',
+    category: 'enterprise',
+    description: 'Enterprise AI with RAG and embeddings',
+    website: 'https://cohere.com',
+    dashboardUrl: 'https://dashboard.cohere.com/api-keys',
+    docsUrl: 'https://docs.cohere.com',
+    models: [
+      {
+        id: 'command-r-plus',
+        name: 'Command R+',
+        contextLength: 128000,
+        supportsTools: true,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 2.5, completionPer1M: 10 },
+      },
+      {
+        id: 'command-r',
+        name: 'Command R',
+        contextLength: 128000,
+        supportsTools: true,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 0.15, completionPer1M: 0.6 },
+      },
+      {
+        id: 'command-a-03-2025',
+        name: 'Command A',
+        contextLength: 256000,
+        supportsTools: true,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 2.5, completionPer1M: 10 },
+      },
+    ],
+  },
+  fireworks: {
+    id: 'fireworks',
+    name: 'Fireworks AI',
+    type: 'cloud',
+    apiKeyRequired: true,
+    baseURLRequired: false,
+    defaultModel: 'accounts/fireworks/models/llama-v3p3-70b-instruct',
+    category: 'specialized',
+    description: 'Ultra-fast inference with compound AI',
+    website: 'https://fireworks.ai',
+    dashboardUrl: 'https://fireworks.ai/account/api-keys',
+    docsUrl: 'https://docs.fireworks.ai',
+    models: [
+      {
+        id: 'accounts/fireworks/models/llama-v3p3-70b-instruct',
+        name: 'Llama 3.3 70B',
+        contextLength: 131072,
+        supportsTools: true,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 0.9, completionPer1M: 0.9 },
+      },
+      {
+        id: 'accounts/fireworks/models/qwen2p5-72b-instruct',
+        name: 'Qwen 2.5 72B',
+        contextLength: 32768,
+        supportsTools: true,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 0.9, completionPer1M: 0.9 },
+      },
+      {
+        id: 'accounts/fireworks/models/deepseek-v3',
+        name: 'DeepSeek V3',
+        contextLength: 65536,
+        supportsTools: true,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 0.9, completionPer1M: 0.9 },
+      },
+    ],
+  },
+  cerebras: {
+    id: 'cerebras',
+    name: 'Cerebras',
+    type: 'cloud',
+    apiKeyRequired: true,
+    baseURLRequired: false,
+    defaultModel: 'llama-3.3-70b',
+    category: 'specialized',
+    description: 'Fastest inference with custom AI chips',
+    website: 'https://cerebras.ai',
+    dashboardUrl: 'https://cloud.cerebras.ai/platform',
+    docsUrl: 'https://inference-docs.cerebras.ai',
+    models: [
+      {
+        id: 'llama-3.3-70b',
+        name: 'Llama 3.3 70B',
+        contextLength: 8192,
+        supportsTools: false,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 0.85, completionPer1M: 1.2 },
+      },
+      {
+        id: 'llama-3.1-8b',
+        name: 'Llama 3.1 8B',
+        contextLength: 8192,
+        supportsTools: false,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 0.1, completionPer1M: 0.1 },
+      },
+    ],
+  },
+  sambanova: {
+    id: 'sambanova',
+    name: 'SambaNova',
+    type: 'cloud',
+    apiKeyRequired: true,
+    baseURLRequired: false,
+    defaultModel: 'Meta-Llama-3.3-70B-Instruct',
+    category: 'specialized',
+    description: 'Enterprise AI with custom hardware',
+    website: 'https://sambanova.ai',
+    dashboardUrl: 'https://cloud.sambanova.ai/apis',
+    docsUrl: 'https://docs.sambanova.ai',
+    models: [
+      {
+        id: 'Meta-Llama-3.3-70B-Instruct',
+        name: 'Llama 3.3 70B',
+        contextLength: 8192,
+        supportsTools: true,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 0, completionPer1M: 0 }, // Free tier available
+      },
+      {
+        id: 'DeepSeek-R1-Distill-Llama-70B',
+        name: 'DeepSeek R1 Distill 70B',
+        contextLength: 8192,
+        supportsTools: false,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 0, completionPer1M: 0 },
+      },
+      {
+        id: 'Qwen2.5-72B-Instruct',
+        name: 'Qwen 2.5 72B',
+        contextLength: 8192,
+        supportsTools: true,
+        supportsVision: false,
+        supportsStreaming: true,
+        pricing: { promptPer1M: 0, completionPer1M: 0 },
       },
     ],
   },

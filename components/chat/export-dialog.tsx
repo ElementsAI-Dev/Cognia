@@ -2,10 +2,20 @@
 
 /**
  * Export Dialog - export conversation to various formats
+ * Enhanced with animated HTML export, rich markdown, and more options
  */
 
 import { useState } from 'react';
-import { Download, FileJson, FileText, Code2, Loader2, FileType } from 'lucide-react';
+import {
+  Download,
+  FileJson,
+  FileText,
+  Code2,
+  Loader2,
+  FileType,
+  Play,
+  ChevronDown,
+} from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -17,13 +27,22 @@ import {
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Badge } from '@/components/ui/badge';
 import { messageRepository } from '@/lib/db';
 import {
   exportToMarkdown,
-  exportToJSON,
   exportToHTML,
   exportToPDF,
   exportToPlainText,
+  exportToRichMarkdown,
+  exportToRichJSON,
+  exportToAnimatedHTML,
   downloadFile,
   generateFilename,
   type ExportData,
@@ -35,25 +54,32 @@ interface ExportDialogProps {
   trigger?: React.ReactNode;
 }
 
-type ExportFormat = 'markdown' | 'json' | 'html' | 'pdf' | 'text';
+type ExportFormat = 'markdown' | 'json' | 'html' | 'animated-html' | 'pdf' | 'text';
 
-const FORMAT_OPTIONS: { value: ExportFormat; label: string; description: string; icon: React.ReactNode }[] = [
+const FORMAT_OPTIONS: { value: ExportFormat; label: string; description: string; icon: React.ReactNode; badge?: string }[] = [
+  {
+    value: 'animated-html',
+    label: 'Animated HTML',
+    description: 'Interactive replay with typing animation (GPT-style)',
+    icon: <Play className="h-5 w-5" />,
+    badge: 'NEW',
+  },
   {
     value: 'markdown',
-    label: 'Markdown',
-    description: 'Plain text with formatting, great for documentation',
+    label: 'Rich Markdown',
+    description: 'Full formatting with reasoning, tools, and attachments',
     icon: <FileText className="h-5 w-5" />,
   },
   {
     value: 'json',
     label: 'JSON',
-    description: 'Structured data, can be re-imported later',
+    description: 'Complete data export, can be re-imported later',
     icon: <FileJson className="h-5 w-5" />,
   },
   {
     value: 'html',
-    label: 'HTML',
-    description: 'Standalone web page with styling',
+    label: 'Static HTML',
+    description: 'Simple web page with styling',
     icon: <Code2 className="h-5 w-5" />,
   },
   {
@@ -72,8 +98,10 @@ const FORMAT_OPTIONS: { value: ExportFormat; label: string; description: string;
 
 export function ExportDialog({ session, trigger }: ExportDialogProps) {
   const [open, setOpen] = useState(false);
-  const [format, setFormat] = useState<ExportFormat>('markdown');
+  const [format, setFormat] = useState<ExportFormat>('animated-html');
   const [isExporting, setIsExporting] = useState(false);
+  const [includeMetadata, setIncludeMetadata] = useState(true);
+  const [showOptions, setShowOptions] = useState(false);
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -81,11 +109,12 @@ export function ExportDialog({ session, trigger }: ExportDialogProps) {
     try {
       // Load messages from database
       const messages = await messageRepository.getBySessionId(session.id);
+      const exportedAt = new Date();
 
       const exportData: ExportData = {
         session,
         messages,
-        exportedAt: new Date(),
+        exportedAt,
       };
 
       // Handle PDF separately as it uses print dialog
@@ -100,13 +129,38 @@ export function ExportDialog({ session, trigger }: ExportDialogProps) {
       let mimeType: string;
 
       switch (format) {
+        case 'animated-html':
+          content = exportToAnimatedHTML({
+            session,
+            messages,
+            exportedAt,
+            options: {
+              theme: 'system',
+              showControls: true,
+              showTimestamps: true,
+              autoPlay: false,
+            },
+          });
+          extension = 'html';
+          mimeType = 'text/html';
+          break;
         case 'markdown':
-          content = exportToMarkdown(exportData);
+          content = exportToRichMarkdown({
+            session,
+            messages,
+            exportedAt,
+            includeMetadata,
+            includeAttachments: true,
+          });
           extension = 'md';
           mimeType = 'text/markdown';
           break;
         case 'json':
-          content = exportToJSON(exportData);
+          content = exportToRichJSON({
+            session,
+            messages,
+            exportedAt,
+          });
           extension = 'json';
           mimeType = 'application/json';
           break;
@@ -155,7 +209,7 @@ export function ExportDialog({ session, trigger }: ExportDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
+        <div className="py-4 space-y-4">
           <RadioGroup
             value={format}
             onValueChange={(value) => setFormat(value as ExportFormat)}
@@ -179,6 +233,11 @@ export function ExportDialog({ session, trigger }: ExportDialogProps) {
                   >
                     {option.icon}
                     <span className="font-medium">{option.label}</span>
+                    {option.badge && (
+                      <Badge variant="secondary" className="text-xs">
+                        {option.badge}
+                      </Badge>
+                    )}
                   </Label>
                   <p className="text-sm text-muted-foreground mt-1">
                     {option.description}
@@ -187,6 +246,35 @@ export function ExportDialog({ session, trigger }: ExportDialogProps) {
               </div>
             ))}
           </RadioGroup>
+
+          {/* Advanced Options */}
+          {(format === 'markdown' || format === 'json') && (
+            <Collapsible open={showOptions} onOpenChange={setShowOptions}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="w-full justify-between">
+                  <span className="flex items-center gap-2">
+                    <ChevronDown className={`h-4 w-4 transition-transform ${showOptions ? 'rotate-180' : ''}`} />
+                    Advanced Options
+                  </span>
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2 space-y-3">
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <Label htmlFor="include-metadata">Include Metadata</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Session info, model settings, timestamps
+                    </p>
+                  </div>
+                  <Switch
+                    id="include-metadata"
+                    checked={includeMetadata}
+                    onCheckedChange={setIncludeMetadata}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
         </div>
 
         <div className="flex justify-end gap-2">

@@ -1,8 +1,12 @@
 /**
  * Suggestion Generator - AI-powered follow-up suggestions
+ * 
+ * Uses AI SDK generateObject for structured output
+ * Provides reliable suggestion generation with schema validation
  */
 
-import { generateText } from 'ai';
+import { generateObject } from 'ai';
+import { z } from 'zod';
 import { getProviderModel, type ProviderName } from './client';
 
 export interface SuggestionGeneratorOptions {
@@ -12,11 +16,26 @@ export interface SuggestionGeneratorOptions {
   baseURL?: string;
   maxSuggestions?: number;
   context?: string;
+  temperature?: number;
 }
+
+// Zod schema for structured suggestion output
+const suggestionCategorySchema = z.enum(['follow-up', 'clarification', 'exploration', 'action']);
+
+const suggestionSchema = z.object({
+  text: z.string().describe('The suggestion text, concise and actionable'),
+  category: suggestionCategorySchema.describe('The type of suggestion'),
+});
+
+const suggestionsArraySchema = z.object({
+  suggestions: z.array(suggestionSchema).describe('Array of follow-up suggestions'),
+});
+
+export type SuggestionCategory = z.infer<typeof suggestionCategorySchema>;
 
 export interface GeneratedSuggestion {
   text: string;
-  category?: 'follow-up' | 'clarification' | 'exploration' | 'action';
+  category?: SuggestionCategory;
 }
 
 export interface SuggestionResult {
@@ -26,26 +45,17 @@ export interface SuggestionResult {
 }
 
 const SUGGESTION_SYSTEM_PROMPT = `You are a helpful assistant that generates follow-up suggestions based on a conversation.
-Given the conversation context, generate 3-5 short, actionable follow-up prompts that the user might want to ask next.
+Given the conversation context, generate short, actionable follow-up prompts that the user might want to ask next.
 
 Rules:
 - Each suggestion should be concise (under 60 characters if possible)
 - Suggestions should be diverse and cover different aspects
 - Include a mix of: follow-up questions, clarifications, deeper explorations, and action items
-- Make suggestions natural and conversational
-- Output as a JSON array of objects with "text" and "category" fields
-- Categories: "follow-up", "clarification", "exploration", "action"
-
-Example output:
-[
-  {"text": "Can you explain that in more detail?", "category": "clarification"},
-  {"text": "What are the alternatives?", "category": "exploration"},
-  {"text": "Show me an example", "category": "follow-up"},
-  {"text": "Help me implement this", "category": "action"}
-]`;
+- Make suggestions natural and conversational`;
 
 /**
  * Generate follow-up suggestions based on conversation context
+ * Uses AI SDK generateObject for reliable structured output
  */
 export async function generateSuggestions(
   lastUserMessage: string,
@@ -59,63 +69,42 @@ export async function generateSuggestions(
     baseURL,
     maxSuggestions = 4,
     context,
+    temperature = 0.8,
   } = options;
 
   try {
     const modelInstance = getProviderModel(provider, model, apiKey, baseURL);
 
     const conversationContext = context
-      ? 'Previous context: ' + context + '\n\n'
+      ? `Previous context: ${context}\n\n`
       : '';
 
-    const prompt = conversationContext + 'User: ' + lastUserMessage + '\n\nAssistant: ' + lastAssistantMessage + '\n\nGenerate ' + maxSuggestions + ' follow-up suggestions:';
+    const prompt = `${conversationContext}User: ${lastUserMessage}\n\nAssistant: ${lastAssistantMessage}\n\nGenerate ${maxSuggestions} diverse follow-up suggestions for the user.`;
 
-    const result = await generateText({
+    // Use generateObject for structured output
+    const result = await generateObject({
       model: modelInstance,
+      schema: suggestionsArraySchema,
       system: SUGGESTION_SYSTEM_PROMPT,
       prompt,
-      temperature: 0.8,
+      temperature,
     });
 
-    // Parse the JSON response
-    const jsonMatch = result.text.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]) as GeneratedSuggestion[];
-      const suggestions = parsed
-        .slice(0, maxSuggestions)
-        .filter((s) => s.text && typeof s.text === 'string');
-
-      return {
-        success: true,
-        suggestions,
-      };
-    }
-
-    // Fallback: try to extract suggestions from plain text
-    const lines = result.text.split('\n').filter((line) => line.trim());
-    const suggestions: GeneratedSuggestion[] = lines
+    const suggestions = result.object.suggestions
       .slice(0, maxSuggestions)
-      .map((line) => ({
-        text: line.replace(/^[-*\d.)\s]+/, '').trim(),
-        category: 'follow-up' as const,
-      }))
-      .filter((s) => s.text.length > 0 && s.text.length < 100);
-
-    if (suggestions.length > 0) {
-      return {
-        success: true,
-        suggestions,
-      };
-    }
+      .filter((s) => s.text && s.text.length > 0);
 
     return {
-      success: false,
-      error: 'Failed to parse suggestions',
+      success: true,
+      suggestions,
     };
   } catch (error) {
+    // Fallback to default suggestions on error
+    console.warn('Suggestion generation failed:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to generate suggestions',
+      suggestions: getDefaultSuggestions(extractTopic(lastUserMessage)),
     };
   }
 }

@@ -34,6 +34,17 @@ interface ProjectState {
   removeKnowledgeFile: (projectId: string, fileId: string) => void;
   updateKnowledgeFile: (projectId: string, fileId: string, content: string) => void;
 
+  // Tag management
+  addTag: (projectId: string, tag: string) => void;
+  removeTag: (projectId: string, tag: string) => void;
+  setTags: (projectId: string, tags: string[]) => void;
+
+  // Archive management
+  archiveProject: (id: string) => void;
+  unarchiveProject: (id: string) => void;
+  getArchivedProjects: () => Project[];
+  getActiveProjects: () => Project[];
+
   // Bulk operations
   clearAllProjects: () => void;
   importProjects: (projects: Project[]) => void;
@@ -42,6 +53,8 @@ interface ProjectState {
   getProject: (id: string) => Project | undefined;
   getActiveProject: () => Project | undefined;
   getProjectsBySessionCount: () => Project[];
+  getProjectsByTag: (tag: string) => Project[];
+  getAllTags: () => string[];
 }
 
 const DEFAULT_COLOR = '#3B82F6';
@@ -64,6 +77,8 @@ export const useProjectStore = create<ProjectState>()(
           defaultProvider: input.defaultProvider,
           defaultModel: input.defaultModel,
           defaultMode: input.defaultMode,
+          tags: input.tags || [],
+          isArchived: false,
           knowledgeBase: [],
           sessionIds: [],
           createdAt: new Date(),
@@ -235,6 +250,85 @@ export const useProjectStore = create<ProjectState>()(
           ),
         })),
 
+      // Tag management
+      addTag: (projectId, tag) =>
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId && !p.tags?.includes(tag)
+              ? {
+                  ...p,
+                  tags: [...(p.tags || []), tag],
+                  updatedAt: new Date(),
+                }
+              : p
+          ),
+        })),
+
+      removeTag: (projectId, tag) =>
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  tags: (p.tags || []).filter((t) => t !== tag),
+                  updatedAt: new Date(),
+                }
+              : p
+          ),
+        })),
+
+      setTags: (projectId, tags) =>
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  tags,
+                  updatedAt: new Date(),
+                }
+              : p
+          ),
+        })),
+
+      // Archive management
+      archiveProject: (id) =>
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === id
+              ? {
+                  ...p,
+                  isArchived: true,
+                  archivedAt: new Date(),
+                  updatedAt: new Date(),
+                }
+              : p
+          ),
+        })),
+
+      unarchiveProject: (id) =>
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === id
+              ? {
+                  ...p,
+                  isArchived: false,
+                  archivedAt: undefined,
+                  updatedAt: new Date(),
+                }
+              : p
+          ),
+        })),
+
+      getArchivedProjects: () => {
+        const { projects } = get();
+        return projects.filter((p) => p.isArchived);
+      },
+
+      getActiveProjects: () => {
+        const { projects } = get();
+        return projects.filter((p) => !p.isArchived);
+      },
+
       clearAllProjects: () =>
         set({
           projects: [],
@@ -259,6 +353,22 @@ export const useProjectStore = create<ProjectState>()(
       getProjectsBySessionCount: () => {
         const { projects } = get();
         return [...projects].sort((a, b) => b.sessionCount - a.sessionCount);
+      },
+
+      getProjectsByTag: (tag) => {
+        const { projects } = get();
+        return projects.filter((p) => p.tags?.includes(tag));
+      },
+
+      getAllTags: () => {
+        const { projects } = get();
+        const tagSet = new Set<string>();
+        for (const project of projects) {
+          for (const tag of project.tags || []) {
+            tagSet.add(tag);
+          }
+        }
+        return Array.from(tagSet).sort();
       },
     }),
     {

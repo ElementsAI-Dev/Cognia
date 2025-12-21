@@ -10,6 +10,11 @@ import {
   exists,
   deleteFile,
   createDirectory,
+  copyFile,
+  renameFile,
+  getFileInfo,
+  searchFiles,
+  appendTextFile,
   isInTauri,
 } from '@/lib/file/file-operations';
 
@@ -48,12 +53,60 @@ export const directoryCreateInputSchema = z.object({
     .describe('Whether to create parent directories'),
 });
 
+export const fileCopyInputSchema = z.object({
+  source: z.string().describe('The absolute path to the source file'),
+  destination: z.string().describe('The absolute path to the destination file'),
+});
+
+export const fileRenameInputSchema = z.object({
+  oldPath: z.string().describe('The current absolute path of the file'),
+  newPath: z.string().describe('The new absolute path for the file'),
+});
+
+export const fileInfoInputSchema = z.object({
+  path: z.string().describe('The absolute path to the file or directory'),
+});
+
+export const fileSearchInputSchema = z.object({
+  directory: z.string().describe('The absolute path to the directory to search'),
+  pattern: z
+    .string()
+    .optional()
+    .describe('Search pattern to match file names (case-insensitive)'),
+  extensions: z
+    .array(z.string())
+    .optional()
+    .describe('File extensions to filter by (e.g., ["txt", "md", "json"])'),
+  recursive: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Whether to search subdirectories'),
+  maxResults: z
+    .number()
+    .min(1)
+    .max(500)
+    .optional()
+    .default(50)
+    .describe('Maximum number of results to return'),
+});
+
+export const fileAppendInputSchema = z.object({
+  path: z.string().describe('The absolute path to the file to append to'),
+  content: z.string().describe('The content to append to the file'),
+});
+
 export type FileReadInput = z.infer<typeof fileReadInputSchema>;
 export type FileWriteInput = z.infer<typeof fileWriteInputSchema>;
 export type FileListInput = z.infer<typeof fileListInputSchema>;
 export type FileExistsInput = z.infer<typeof fileExistsInputSchema>;
 export type FileDeleteInput = z.infer<typeof fileDeleteInputSchema>;
 export type DirectoryCreateInput = z.infer<typeof directoryCreateInputSchema>;
+export type FileCopyInput = z.infer<typeof fileCopyInputSchema>;
+export type FileRenameInput = z.infer<typeof fileRenameInputSchema>;
+export type FileInfoInput = z.infer<typeof fileInfoInputSchema>;
+export type FileSearchInput = z.infer<typeof fileSearchInputSchema>;
+export type FileAppendInput = z.infer<typeof fileAppendInputSchema>;
 
 export interface FileToolResult {
   success: boolean;
@@ -254,6 +307,182 @@ export async function executeDirectoryCreate(
 }
 
 /**
+ * Execute file copy operation
+ */
+export async function executeFileCopy(
+  input: FileCopyInput
+): Promise<FileToolResult> {
+  if (!isInTauri()) {
+    return {
+      success: false,
+      error: 'File operations are only available in the desktop app',
+    };
+  }
+
+  const result = await copyFile(input.source, input.destination);
+  
+  if (result.success) {
+    return {
+      success: true,
+      data: {
+        copied: true,
+        source: input.source,
+        destination: input.destination,
+      },
+    };
+  }
+  
+  return {
+    success: false,
+    error: result.error,
+  };
+}
+
+/**
+ * Execute file rename/move operation
+ */
+export async function executeFileRename(
+  input: FileRenameInput
+): Promise<FileToolResult> {
+  if (!isInTauri()) {
+    return {
+      success: false,
+      error: 'File operations are only available in the desktop app',
+    };
+  }
+
+  const result = await renameFile(input.oldPath, input.newPath);
+  
+  if (result.success) {
+    return {
+      success: true,
+      data: {
+        renamed: true,
+        oldPath: input.oldPath,
+        newPath: input.newPath,
+      },
+    };
+  }
+  
+  return {
+    success: false,
+    error: result.error,
+  };
+}
+
+/**
+ * Execute file info operation
+ */
+export async function executeFileInfo(
+  input: FileInfoInput
+): Promise<FileToolResult> {
+  if (!isInTauri()) {
+    return {
+      success: false,
+      error: 'File operations are only available in the desktop app',
+    };
+  }
+
+  const result = await getFileInfo(input.path);
+  
+  if (result.success && result.info) {
+    return {
+      success: true,
+      data: {
+        name: result.info.name,
+        path: result.info.path,
+        isDirectory: result.info.isDirectory,
+        size: result.info.size,
+        mimeType: result.info.mimeType,
+        extension: result.info.extension,
+        modifiedAt: result.info.modifiedAt?.toISOString(),
+        createdAt: result.info.createdAt?.toISOString(),
+      },
+    };
+  }
+  
+  return {
+    success: false,
+    error: result.error,
+  };
+}
+
+/**
+ * Execute file search operation
+ */
+export async function executeFileSearch(
+  input: FileSearchInput
+): Promise<FileToolResult> {
+  if (!isInTauri()) {
+    return {
+      success: false,
+      error: 'File operations are only available in the desktop app',
+    };
+  }
+
+  const result = await searchFiles(input.directory, {
+    pattern: input.pattern,
+    extensions: input.extensions,
+    recursive: input.recursive,
+    maxResults: input.maxResults,
+  });
+  
+  if (result.success && result.files) {
+    return {
+      success: true,
+      data: {
+        files: result.files.map((f) => ({
+          name: f.name,
+          path: f.path,
+          size: f.size,
+          extension: f.extension,
+          modifiedAt: f.modifiedAt?.toISOString(),
+        })),
+        totalFound: result.files.length,
+        directory: input.directory,
+      },
+    };
+  }
+  
+  return {
+    success: false,
+    error: result.error,
+  };
+}
+
+/**
+ * Execute file append operation
+ */
+export async function executeFileAppend(
+  input: FileAppendInput
+): Promise<FileToolResult> {
+  if (!isInTauri()) {
+    return {
+      success: false,
+      error: 'File operations are only available in the desktop app',
+    };
+  }
+
+  const result = await appendTextFile(input.path, input.content);
+  
+  if (result.success) {
+    return {
+      success: true,
+      data: {
+        appended: true,
+        path: result.path,
+        bytesWritten: result.bytesWritten,
+      },
+    };
+  }
+  
+  return {
+    success: false,
+    error: result.error,
+  };
+}
+
+/**
  * File tool definitions for AI agents
  */
 export const fileTools = {
@@ -305,6 +534,46 @@ export const fileTools = {
     description: 'Create a new directory on the local file system.',
     parameters: directoryCreateInputSchema,
     execute: executeDirectoryCreate,
+    requiresApproval: true,
+    category: 'file' as const,
+  },
+  file_copy: {
+    name: 'file_copy',
+    description: 'Copy a file from one location to another on the local file system.',
+    parameters: fileCopyInputSchema,
+    execute: executeFileCopy,
+    requiresApproval: true,
+    category: 'file' as const,
+  },
+  file_rename: {
+    name: 'file_rename',
+    description: 'Rename or move a file to a new location on the local file system.',
+    parameters: fileRenameInputSchema,
+    execute: executeFileRename,
+    requiresApproval: true,
+    category: 'file' as const,
+  },
+  file_info: {
+    name: 'file_info',
+    description: 'Get detailed information about a file or directory, including size, type, and modification time.',
+    parameters: fileInfoInputSchema,
+    execute: executeFileInfo,
+    requiresApproval: false,
+    category: 'file' as const,
+  },
+  file_search: {
+    name: 'file_search',
+    description: 'Search for files in a directory by name pattern or file extension. Can search recursively.',
+    parameters: fileSearchInputSchema,
+    execute: executeFileSearch,
+    requiresApproval: false,
+    category: 'file' as const,
+  },
+  file_append: {
+    name: 'file_append',
+    description: 'Append content to the end of an existing file. Creates the file if it does not exist.',
+    parameters: fileAppendInputSchema,
+    execute: executeFileAppend,
     requiresApproval: true,
     category: 'file' as const,
   },

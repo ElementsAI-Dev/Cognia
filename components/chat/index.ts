@@ -31,6 +31,7 @@ export { PresetManagerDialog } from './preset-manager-dialog';
 export { ExportDialog } from './export-dialog';
 export { TemplateSelector } from './template-selector';
 export { ConversationSearch } from './conversation-search';
+export { BatchCopyDialog } from './batch-copy-dialog';
 
 // Utilities
 export { RecentFilesPopover } from './recent-files-popover';

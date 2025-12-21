@@ -49,6 +49,10 @@ interface UIState {
   // Input focus
   inputFocused: boolean;
   setInputFocused: (focused: boolean) => void;
+
+  // Keyboard shortcuts dialog
+  keyboardShortcutsOpen: boolean;
+  setKeyboardShortcutsOpen: (open: boolean) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -86,6 +90,10 @@ export const useUIStore = create<UIState>((set) => ({
   // Input focus
   inputFocused: false,
   setInputFocused: (inputFocused) => set({ inputFocused }),
+
+  // Keyboard shortcuts dialog
+  keyboardShortcutsOpen: false,
+  setKeyboardShortcutsOpen: (keyboardShortcutsOpen) => set({ keyboardShortcutsOpen }),
 }));
 
 // Selectors

@@ -48,7 +48,9 @@ import {
 } from '@/components/ai-elements/artifact';
 import { CodeBlock } from '@/components/ai-elements/code-block';
 import { useArtifactStore, useSettingsStore } from '@/stores';
+import { FileCode } from 'lucide-react';
 import { V0Designer } from '@/components/designer';
+import { Palette } from 'lucide-react';
 import type { BundledLanguage } from 'shiki';
 import type { Artifact as ArtifactType, ArtifactType as ArtType } from '@/types';
 import { ArtifactPreview } from './artifact-preview';
@@ -103,6 +105,25 @@ export function ArtifactPanel() {
   const [designerOpen, setDesignerOpen] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
+
+  // Canvas integration
+  const createCanvasDocument = useArtifactStore((state) => state.createCanvasDocument);
+  const setActiveCanvas = useArtifactStore((state) => state.setActiveCanvas);
+  const openPanel = useArtifactStore((state) => state.openPanel);
+
+  // Open artifact in Canvas for detailed editing
+  const handleOpenInCanvas = useCallback(() => {
+    if (activeArtifact) {
+      const docId = createCanvasDocument({
+        title: activeArtifact.title,
+        content: activeArtifact.content,
+        language: activeArtifact.language || 'javascript',
+        type: 'code',
+      });
+      setActiveCanvas(docId);
+      openPanel('canvas');
+    }
+  }, [activeArtifact, createCanvasDocument, setActiveCanvas, openPanel]);
 
   // Initialize edit content when switching to edit mode
   const handleEditMode = useCallback(() => {
@@ -262,12 +283,28 @@ export function ArtifactPanel() {
                       icon={Download}
                       onClick={handleDownload}
                     />
+                    <ArtifactAction
+                      tooltip="Edit in Canvas"
+                      icon={FileCode}
+                      onClick={handleOpenInCanvas}
+                    />
                     {canDesign && (
-                      <ArtifactAction
-                        tooltip="Open in Designer"
-                        icon={ExternalLink}
-                        onClick={() => setDesignerOpen(true)}
-                      />
+                      <>
+                        <ArtifactAction
+                          tooltip="Preview in Designer"
+                          icon={Palette}
+                          onClick={() => setDesignerOpen(true)}
+                        />
+                        <ArtifactAction
+                          tooltip="Open Full Designer"
+                          icon={ExternalLink}
+                          onClick={() => {
+                            const key = `designer-code-${Date.now()}`;
+                            sessionStorage.setItem(key, activeArtifact.content);
+                            window.open(`/designer?key=${key}`, '_blank');
+                          }}
+                        />
+                      </>
                     )}
                   </>
                 )}

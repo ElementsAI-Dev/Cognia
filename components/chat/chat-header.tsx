@@ -7,7 +7,25 @@
  */
 
 import { useState } from 'react';
-import { ChevronDown, Sparkles, Search as SearchIcon, Bot, Zap, Brain, Scale, Download, Image as ImageIcon } from 'lucide-react';
+import { 
+  ChevronDown, 
+  Sparkles, 
+  Search as SearchIcon, 
+  Bot, 
+  Zap, 
+  Brain, 
+  Scale, 
+  Download, 
+  Image as ImageIcon, 
+  Wand2,
+  Copy,
+  CopyCheck,
+  Trash2,
+  PanelRight,
+  MoreHorizontal,
+  Pin,
+  PinOff,
+} from 'lucide-react';
 import { ConversationSearch } from './conversation-search';
 import { useMessages } from '@/hooks';
 import {
@@ -15,6 +33,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { BatchCopyDialog } from './batch-copy-dialog';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -33,9 +52,11 @@ import {
 } from '@/components/ui/tooltip';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { useSessionStore, useSettingsStore, usePresetStore } from '@/stores';
+import { useSessionStore, useSettingsStore, usePresetStore, useArtifactStore, useChatStore, useProjectStore } from '@/stores';
+import { toast } from '@/components/ui/toaster';
 import { PROVIDERS, getModelConfig } from '@/types/provider';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 import { ExportDialog } from './export-dialog';
 import { ImageGenerationDialog } from './image-generation-dialog';
 import { BranchSelector } from './branch-selector';
@@ -68,6 +89,16 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
   const [createPresetOpen, setCreatePresetOpen] = useState(false);
   const [managePresetsOpen, setManagePresetsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [batchCopyOpen, setBatchCopyOpen] = useState(false);
+
+  // Artifact panel state
+  const openPanel = useArtifactStore((state) => state.openPanel);
+  const panelOpen = useArtifactStore((state) => state.panelOpen);
+  const closePanel = useArtifactStore((state) => state.closePanel);
+
+  // Chat messages
+  const chatMessages = useChatStore((state) => state.messages);
+  const clearMessages = useChatStore((state) => state.clearMessages);
 
   const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
@@ -77,6 +108,10 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
   const updateSession = useSessionStore((state) => state.updateSession);
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const selectPreset = usePresetStore((state) => state.selectPreset);
+  
+  // Project context
+  const getProject = useProjectStore((state) => state.getProject);
+  const linkedProject = session?.projectId ? getProject(session.projectId) : null;
 
   // Get messages for search
   const { messages } = useMessages({ sessionId: session?.id || null });
@@ -124,9 +159,34 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
     selectPreset(preset.id);
   };
 
+  const handleCopyChat = async () => {
+    if (chatMessages.length > 0) {
+      const text = chatMessages
+        .map(m => `${m.role}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`)
+        .join('\n\n');
+      await navigator.clipboard.writeText(text);
+      toast.success('Chat copied to clipboard');
+    }
+  };
+
+  const handleClearChat = () => {
+    if (chatMessages.length > 0) {
+      clearMessages();
+      toast.success('Chat cleared');
+    }
+  };
+
+  const handleTogglePin = () => {
+    if (session) {
+      updateSession(session.id, { pinned: !session.pinned } as Parameters<typeof updateSession>[1]);
+      toast.success(session.pinned ? 'Unpinned' : 'Pinned');
+    }
+  };
+
+
   return (
     <>
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border/50 px-4 bg-background/95 backdrop-blur-sm">
         <div className="flex items-center gap-2">
           {/* Sidebar trigger - works on both mobile and desktop */}
           <SidebarTrigger className="-ml-1" />
@@ -135,7 +195,7 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
           {/* Mode selector */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-2">
+              <Button variant="ghost" size="sm" className="gap-2 hover:bg-accent/80 transition-colors">
                 {modeIcons[currentMode]}
                 <span className="hidden sm:inline">{modeLabels[currentMode]}</span>
                 <ChevronDown className="h-3 w-3 opacity-50" />
@@ -173,10 +233,43 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
               compact
             />
           )}
+
+          {/* Project context indicator */}
+          {linkedProject && (
+            <>
+              <Separator orientation="vertical" className="h-4" />
+              <Link href="/projects" className="group">
+                <Badge 
+                  variant="outline" 
+                  className="gap-1.5 px-2 py-1 bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors cursor-pointer"
+                >
+                  <span 
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: linkedProject.color || '#3b82f6' }}
+                  />
+                  <span className="max-w-[80px] truncate text-xs font-medium">
+                    {linkedProject.name}
+                  </span>
+                </Badge>
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Model selector */}
         <div className="flex items-center gap-2">
+          {/* Designer button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                <Link href="/designer">
+                  <Wand2 className="h-4 w-4" />
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Designer</TooltipContent>
+          </Tooltip>
+
           {/* Image Generation button */}
           <ImageGenerationDialog
             trigger={
@@ -209,21 +302,99 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
             </Popover>
           )}
 
-          {/* Export button */}
+          {/* Panel toggle with dropdown for Canvas/Artifact selection */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant={panelOpen ? 'secondary' : 'ghost'} 
+                size="sm" 
+                className="h-8 gap-1.5 px-2"
+              >
+                <PanelRight className="h-4 w-4" />
+                <ChevronDown className="h-3 w-3 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Side Panel</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => openPanel('canvas')}>
+                <PanelRight className="mr-2 h-4 w-4" />
+                <div className="flex-1">
+                  <span>Canvas</span>
+                  <p className="text-xs text-muted-foreground">Edit with AI assistance</p>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openPanel('artifact')}>
+                <Sparkles className="mr-2 h-4 w-4" />
+                <div className="flex-1">
+                  <span>Artifacts</span>
+                  <p className="text-xs text-muted-foreground">View generated content</p>
+                </div>
+              </DropdownMenuItem>
+              {panelOpen && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={closePanel} className="text-muted-foreground">
+                    Close Panel
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* More actions dropdown */}
           {session && (
-            <ExportDialog
-              session={session}
-              trigger={
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Download className="h-4 w-4" />
+                  <MoreHorizontal className="h-4 w-4" />
                 </Button>
-              }
-            />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleTogglePin}>
+                  {session.pinned ? (
+                    <><PinOff className="mr-2 h-4 w-4" /> Unpin</>  
+                  ) : (
+                    <><Pin className="mr-2 h-4 w-4" /> Pin</>  
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleCopyChat} disabled={chatMessages.length === 0}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy Chat
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => setBatchCopyOpen(true)} 
+                  disabled={messages.length === 0}
+                >
+                  <CopyCheck className="mr-2 h-4 w-4" />
+                  Select & Copy
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <ExportDialog
+                  session={session}
+                  trigger={
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Export
+                    </DropdownMenuItem>
+                  }
+                />
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={handleClearChat} 
+                  disabled={chatMessages.length === 0}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Clear Chat
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
+              <Button variant="outline" size="sm" className="gap-2 border-border/50 hover:border-border transition-colors">
                 {isAutoMode && <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />}
                 <span className="max-w-[120px] truncate sm:max-w-[200px]">
                   {isAutoMode ? 'Auto' : (modelConfig?.name || currentModel)}
@@ -369,6 +540,13 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
         }} />
       </DialogContent>
     </Dialog>
+
+    {/* Batch Copy Dialog */}
+    <BatchCopyDialog
+      open={batchCopyOpen}
+      onOpenChange={setBatchCopyOpen}
+      messages={messages}
+    />
     </>
   );
 }

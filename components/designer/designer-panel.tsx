@@ -7,9 +7,8 @@
 
 import { useCallback, useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { generateText } from 'ai';
-import { getProviderModel, type ProviderName } from '@/lib/ai/client';
-import { useSettingsStore } from '@/stores';
+import { useSettingsStore, useArtifactStore } from '@/stores';
+import { executeDesignerAIEdit, getDesignerAIConfig } from '@/lib/designer';
 import { Loader2, X, Sparkles, Send, AlertCircle } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -59,36 +58,20 @@ export function DesignerPanel({
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const defaultProvider = useSettingsStore((state) => state.defaultProvider);
 
-  // Built-in AI request handler
+  // Canvas integration
+  const createCanvasDocument = useArtifactStore((state) => state.createCanvasDocument);
+  const setActiveCanvas = useArtifactStore((state) => state.setActiveCanvas);
+  const openArtifactPanel = useArtifactStore((state) => state.openPanel);
+
+  // Built-in AI request handler using shared module
   const builtInAIRequest = useCallback(async (prompt: string, currentCode: string): Promise<string> => {
-    const provider = (defaultProvider || 'openai') as ProviderName;
-    const settings = providerSettings[provider];
-    const model = settings?.defaultModel || 'gpt-4o-mini';
-
-    if (!settings?.apiKey && provider !== 'ollama') {
-      throw new Error(`No API key configured for ${provider}. Please add your API key in Settings.`);
+    const config = getDesignerAIConfig(defaultProvider, providerSettings);
+    const result = await executeDesignerAIEdit(prompt, currentCode, config);
+    
+    if (result.success && result.code) {
+      return result.code;
     }
-
-    const modelInstance = getProviderModel(provider, model, settings?.apiKey || '', settings?.baseURL);
-
-    const result = await generateText({
-      model: modelInstance,
-      system: `You are an expert React developer. Modify the following React component based on the user's request.
-Return ONLY the complete modified code, no explanations.
-Preserve the component structure and use Tailwind CSS for styling.
-Make sure the code is valid JSX that can be rendered.`,
-      prompt: `Current code:\n\n${currentCode}\n\nUser request: ${prompt}`,
-      temperature: 0.7,
-    });
-
-    if (result.text) {
-      let newCode = result.text.trim();
-      if (newCode.startsWith('```')) {
-        newCode = newCode.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '');
-      }
-      return newCode;
-    }
-    throw new Error('No response from AI');
+    throw new Error(result.error || 'AI edit failed');
   }, [defaultProvider, providerSettings]);
 
   const mode = useDesignerStore((state) => state.mode);
@@ -122,6 +105,19 @@ Make sure the code is valid JSX that can be rendered.`,
   const handleAIEdit = useCallback(() => {
     setShowAIInput(true);
   }, []);
+
+  // Open code in Canvas for detailed editing
+  const handleOpenInCanvas = useCallback(() => {
+    const docId = createCanvasDocument({
+      title: 'Designer Code',
+      content: code,
+      language: 'jsx',
+      type: 'code',
+    });
+    setActiveCanvas(docId);
+    openArtifactPanel('canvas');
+    onOpenChange(false);
+  }, [code, createCanvasDocument, setActiveCanvas, openArtifactPanel, onOpenChange]);
 
   const handleAISubmit = useCallback(async () => {
     if (!aiPrompt.trim()) return;
@@ -163,7 +159,7 @@ Make sure the code is valid JSX that can be rendered.`,
         className="w-full sm:w-[90vw] sm:max-w-[1400px] p-0 flex flex-col"
       >
         {/* Toolbar */}
-        <DesignerToolbar onAIEdit={handleAIEdit} onExport={handleExport} />
+        <DesignerToolbar onAIEdit={handleAIEdit} onExport={handleExport} onOpenInCanvas={handleOpenInCanvas} />
 
         {/* AI Input Bar */}
         {showAIInput && (

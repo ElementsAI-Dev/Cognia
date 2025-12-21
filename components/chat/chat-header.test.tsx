@@ -32,6 +32,28 @@ jest.mock('@/stores', () => ({
     };
     return selector(state);
   },
+  useArtifactStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      openPanel: jest.fn(),
+      panelOpen: false,
+      closePanel: jest.fn(),
+    };
+    return selector(state);
+  },
+  useChatStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      messages: [],
+      clearMessages: jest.fn(),
+    };
+    return selector(state);
+  },
+  useProjectStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      getProject: jest.fn(() => null),
+      projects: [],
+    };
+    return selector(state);
+  },
 }));
 
 // Mock UI components
@@ -119,7 +141,8 @@ describe('ChatHeader', () => {
 
   it('displays current mode', () => {
     render(<ChatHeader />);
-    expect(screen.getByText('Chat')).toBeInTheDocument();
+    // Multiple "Chat" elements exist, just verify at least one is present
+    expect(screen.getAllByText('Chat').length).toBeGreaterThan(0);
   });
 
   it('renders preset selector', () => {

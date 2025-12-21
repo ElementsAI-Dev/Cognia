@@ -24,6 +24,7 @@ import {
   Copy,
   Layers,
   PanelRight,
+  FileCode,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
@@ -48,9 +49,10 @@ interface DesignerToolbarProps {
   className?: string;
   onAIEdit?: () => void;
   onExport?: () => void;
+  onOpenInCanvas?: () => void;
 }
 
-export function DesignerToolbar({ className, onAIEdit, onExport }: DesignerToolbarProps) {
+export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas }: DesignerToolbarProps) {
   const mode = useDesignerStore((state) => state.mode);
   const setMode = useDesignerStore((state) => state.setMode);
   const viewport = useDesignerStore((state) => state.viewport);
@@ -277,6 +279,24 @@ export function DesignerToolbar({ className, onAIEdit, onExport }: DesignerToolb
           </TooltipTrigger>
           <TooltipContent>Edit with AI</TooltipContent>
         </Tooltip>
+
+        {/* Canvas button */}
+        {onOpenInCanvas && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1.5"
+                onClick={onOpenInCanvas}
+              >
+                <FileCode className="h-3.5 w-3.5" />
+                <span className="text-xs">Edit Code</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Open in Canvas for detailed editing</TooltipContent>
+          </Tooltip>
+        )}
 
         {/* More actions */}
         <DropdownMenu>

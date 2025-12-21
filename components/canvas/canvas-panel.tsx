@@ -21,6 +21,8 @@ import {
   Loader2,
   History,
   Save,
+  Palette,
+  ExternalLink,
 } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -51,6 +53,7 @@ import {
 import type { ProviderName } from '@/lib/ai/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
+import { V0Designer } from '@/components/designer';
 
 // Dynamically import Monaco to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
@@ -104,6 +107,29 @@ export function CanvasPanel() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionResult, setActionResult] = useState<string | null>(null);
+  const [designerOpen, setDesignerOpen] = useState(false);
+
+  // Check if current document can be opened in Designer
+  const canOpenInDesigner = activeDocument && 
+    ['jsx', 'tsx', 'html', 'javascript', 'typescript'].includes(activeDocument.language);
+
+  // Handle Designer code changes
+  const handleDesignerCodeChange = useCallback((newCode: string) => {
+    setLocalContent(newCode);
+    if (activeCanvasId) {
+      updateCanvasDocument(activeCanvasId, { content: newCode });
+    }
+    setHasUnsavedChanges(newCode !== lastSavedContentRef.current);
+  }, [activeCanvasId, updateCanvasDocument]);
+
+  // Open in full Designer page
+  const handleOpenInFullDesigner = useCallback(() => {
+    if (activeDocument) {
+      const key = `designer-canvas-${Date.now()}`;
+      sessionStorage.setItem(key, localContent);
+      window.open(`/designer?key=${key}`, '_blank');
+    }
+  }, [activeDocument, localContent]);
 
   // Auto-save timer ref
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -357,6 +383,39 @@ export function CanvasPanel() {
                   }
                 />
 
+                {/* Designer Buttons - More prominent for web code */}
+                {canOpenInDesigner && (
+                  <div className="flex items-center border rounded-md ml-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 rounded-r-none gap-1.5 px-2.5"
+                          onClick={() => setDesignerOpen(true)}
+                        >
+                          <Palette className="h-4 w-4" />
+                          <span className="text-xs">Preview</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Open in Designer with live preview</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-l-none border-l"
+                          onClick={handleOpenInFullDesigner}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Open in Full Designer (new window)</TooltipContent>
+                    </Tooltip>
+                  </div>
+                )}
+
                 <Button variant="ghost" size="icon" onClick={closePanel}>
                   <X className="h-4 w-4" />
                 </Button>
@@ -501,6 +560,20 @@ export function CanvasPanel() {
           <div className="flex h-full items-center justify-center text-muted-foreground">
             <p>No document open</p>
           </div>
+        )}
+
+        {/* V0 Designer Panel */}
+        {activeDocument && canOpenInDesigner && (
+          <V0Designer
+            open={designerOpen}
+            onOpenChange={setDesignerOpen}
+            initialCode={localContent}
+            onCodeChange={handleDesignerCodeChange}
+            onSave={(code) => {
+              handleDesignerCodeChange(code);
+              setDesignerOpen(false);
+            }}
+          />
         )}
       </SheetContent>
     </Sheet>

@@ -42,6 +42,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TagInput } from '@/components/ui/tag-input';
 import { PROJECT_COLORS, PROJECT_ICONS, type Project, type CreateProjectInput } from '@/types';
 import { PROVIDERS } from '@/types/provider';
 import { cn } from '@/lib/utils';
@@ -85,6 +86,7 @@ export function CreateProjectDialog({
   const [defaultProvider, setDefaultProvider] = useState('');
   const [defaultModel, setDefaultModel] = useState('');
   const [defaultMode, setDefaultMode] = useState<'chat' | 'agent' | 'research' | ''>('');
+  const [tags, setTags] = useState<string[]>([]);
 
   const isEdit = !!editProject;
 
@@ -100,6 +102,7 @@ export function CreateProjectDialog({
         setDefaultProvider(editProject.defaultProvider || '');
         setDefaultModel(editProject.defaultModel || '');
         setDefaultMode((editProject.defaultMode as 'chat' | 'agent' | 'research') || '');
+        setTags(editProject.tags || []);
       } else {
         // Reset form
         setName('');
@@ -110,6 +113,7 @@ export function CreateProjectDialog({
         setDefaultProvider('');
         setDefaultModel('');
         setDefaultMode('');
+        setTags([]);
       }
     });
   }, [editProject, open]);
@@ -126,6 +130,7 @@ export function CreateProjectDialog({
       defaultProvider: defaultProvider || undefined,
       defaultModel: defaultModel || undefined,
       defaultMode: defaultMode || undefined,
+      tags: tags.length > 0 ? tags : undefined,
     });
 
     onOpenChange(false);
@@ -186,6 +191,19 @@ export function CreateProjectDialog({
               />
               <p className="text-xs text-muted-foreground">
                 These instructions will be added to every conversation in this project.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <TagInput
+                value={tags}
+                onChange={setTags}
+                placeholder="Add tags to organize..."
+                maxTags={5}
+              />
+              <p className="text-xs text-muted-foreground">
+                Tags help you filter and organize projects.
               </p>
             </div>
           </TabsContent>

@@ -4,10 +4,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createAnthropic } from '@ai-sdk/anthropic';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateText } from 'ai';
+import { 
+  getProviderModelFromConfig, 
+  isValidProvider,
+  type ProviderName 
+} from '@/lib/ai/client';
 
 const OPTIMIZE_PROMPT = `You are an expert prompt engineer. Your task is to optimize and enhance the given system prompt to make it more effective, clear, and comprehensive.
 
@@ -42,26 +44,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let aiModel;
-    const defaultModel = model || getDefaultModel(provider);
+    // Validate provider
+    const validProvider = isValidProvider(provider) ? provider as ProviderName : 'openai';
 
-    switch (provider) {
-      case 'openai':
-        const openai = createOpenAI({ apiKey, baseURL });
-        aiModel = openai(defaultModel);
-        break;
-      case 'anthropic':
-        const anthropic = createAnthropic({ apiKey, baseURL });
-        aiModel = anthropic(defaultModel);
-        break;
-      case 'google':
-        const google = createGoogleGenerativeAI({ apiKey, baseURL });
-        aiModel = google(defaultModel);
-        break;
-      default:
-        const defaultOpenai = createOpenAI({ apiKey, baseURL });
-        aiModel = defaultOpenai('gpt-4o-mini');
-    }
+    // Use unified client to get model
+    const { model: aiModel } = getProviderModelFromConfig({
+      provider: validProvider,
+      model,
+      apiKey,
+      baseURL,
+    });
 
     const result = await generateText({
       model: aiModel,
@@ -79,18 +71,5 @@ export async function POST(request: NextRequest) {
       { error: error instanceof Error ? error.message : 'Failed to optimize prompt' },
       { status: 500 }
     );
-  }
-}
-
-function getDefaultModel(provider: string): string {
-  switch (provider) {
-    case 'openai':
-      return 'gpt-4o-mini';
-    case 'anthropic':
-      return 'claude-3-5-haiku-latest';
-    case 'google':
-      return 'gemini-2.0-flash-exp';
-    default:
-      return 'gpt-4o-mini';
   }
 }

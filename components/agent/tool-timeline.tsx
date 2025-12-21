@@ -4,9 +4,11 @@
  * ToolTimeline - Visual timeline of tool executions
  */
 
-import { Clock, CheckCircle, XCircle, Loader2, AlertTriangle } from 'lucide-react';
+import { useState } from 'react';
+import { Clock, CheckCircle, XCircle, Loader2, AlertTriangle, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ToolState } from '@/types/message';
+import { Button } from '@/components/ui/button';
 
 export interface ToolExecution {
   id: string;
@@ -74,6 +76,8 @@ function formatToolName(name: string): string {
 }
 
 export function ToolTimeline({ executions, className }: ToolTimelineProps) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  
   if (executions.length === 0) {
     return null;
   }
@@ -86,17 +90,63 @@ export function ToolTimeline({ executions, className }: ToolTimelineProps) {
     return acc;
   }, 0);
 
-  return (
-    <div className={cn('space-y-4 rounded-lg border p-4', className)}>
-      {/* Header */}
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">Tool Executions</span>
-        <span className="text-muted-foreground">
-          {executions.length} tool{executions.length !== 1 ? 's' : ''} • Total: {formatDuration(totalDuration)}
-        </span>
-      </div>
+  // Check if any tool is currently running
+  const hasRunningTool = executions.some(
+    (exec) => exec.state === 'input-streaming' || exec.state === 'input-available'
+  );
 
-      {/* Timeline */}
+  // Count completed and failed tools
+  const completedCount = executions.filter((e) => e.state === 'output-available').length;
+  const failedCount = executions.filter((e) => e.state === 'output-error' || e.state === 'output-denied').length;
+
+  return (
+    <div className={cn(
+      'space-y-4 rounded-2xl border border-border/50 bg-card/95 backdrop-blur-md p-4 shadow-lg',
+      'animate-in fade-in-0 slide-in-from-right-4 duration-300',
+      hasRunningTool && 'border-blue-500/30 shadow-blue-500/10',
+      className
+    )}>
+      {/* Header - clickable to collapse/expand */}
+      <button 
+        className="flex w-full items-center justify-between text-sm hover:opacity-80 transition-opacity"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+      >
+        <div className="flex items-center gap-2">
+          {hasRunningTool ? (
+            <Zap className="h-4 w-4 text-blue-500 animate-pulse" />
+          ) : (
+            <div className={cn(
+              "h-2 w-2 rounded-full",
+              failedCount > 0 ? "bg-red-500" : "bg-green-500"
+            )} />
+          )}
+          <span className="font-semibold">Tool Executions</span>
+          {hasRunningTool && (
+            <span className="text-xs text-blue-500 animate-pulse">Running...</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-full">
+            {completedCount > 0 && (
+              <span className="flex items-center gap-1 text-green-600">
+                <CheckCircle className="h-3 w-3" /> {completedCount}
+              </span>
+            )}
+            {failedCount > 0 && (
+              <span className="flex items-center gap-1 text-red-500 ml-1">
+                <XCircle className="h-3 w-3" /> {failedCount}
+              </span>
+            )}
+            <span className="ml-1">{formatDuration(totalDuration)}</span>
+          </div>
+          <Button variant="ghost" size="icon" className="h-6 w-6">
+            {isCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+          </Button>
+        </div>
+      </button>
+
+      {/* Timeline - collapsible */}
+      {!isCollapsed && (
       <div className="relative space-y-0">
         {executions.map((execution, index) => {
           const config = stateConfig[execution.state];
@@ -110,18 +160,22 @@ export function ToolTimeline({ executions, className }: ToolTimelineProps) {
             execution.state === 'input-available';
 
           return (
-            <div key={execution.id} className="relative flex gap-4">
+            <div 
+              key={execution.id} 
+              className="relative flex gap-4 animate-in fade-in-0 slide-in-from-left-2 duration-300"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
               {/* Timeline connector */}
               <div className="flex flex-col items-center">
                 <div
                   className={cn(
-                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2',
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border-2 transition-all duration-300',
                     execution.state === 'output-available'
-                      ? 'border-green-200 bg-green-50'
+                      ? 'border-green-300 bg-green-50 dark:bg-green-950/50 dark:border-green-700'
                       : execution.state === 'output-error' ||
                           execution.state === 'output-denied'
-                        ? 'border-red-200 bg-red-50'
-                        : 'border-blue-200 bg-blue-50'
+                        ? 'border-red-300 bg-red-50 dark:bg-red-950/50 dark:border-red-700'
+                        : 'border-blue-300 bg-blue-50 dark:bg-blue-950/50 dark:border-blue-700'
                   )}
                 >
                   <Icon
@@ -133,26 +187,26 @@ export function ToolTimeline({ executions, className }: ToolTimelineProps) {
                   />
                 </div>
                 {!isLast && (
-                  <div className="h-full w-0.5 bg-border" />
+                  <div className="h-full w-0.5 bg-linear-to-b from-border to-transparent" />
                 )}
               </div>
 
               {/* Content */}
               <div className={cn('flex-1 pb-6', isLast && 'pb-0')}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-medium text-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm truncate">
                       {formatToolName(execution.toolName)}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {config.label}
                       {execution.error && (
-                        <span className="text-destructive"> - {execution.error}</span>
+                        <span className="text-destructive block truncate"> {execution.error}</span>
                       )}
                     </p>
                   </div>
                   {duration !== null && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded shrink-0">
                       {formatDuration(duration)}
                     </span>
                   )}
@@ -160,16 +214,16 @@ export function ToolTimeline({ executions, className }: ToolTimelineProps) {
 
                 {/* Progress bar for completed executions */}
                 {duration !== null && totalDuration > 0 && (
-                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-muted/50">
                     <div
                       className={cn(
-                        'h-full rounded-full transition-all',
+                        'h-full rounded-full transition-all duration-500 ease-out',
                         execution.state === 'output-available'
-                          ? 'bg-green-500'
+                          ? 'bg-linear-to-r from-green-400 to-green-500'
                           : execution.state === 'output-error' ||
                               execution.state === 'output-denied'
-                            ? 'bg-red-500'
-                            : 'bg-blue-500'
+                            ? 'bg-linear-to-r from-red-400 to-red-500'
+                            : 'bg-linear-to-r from-blue-400 to-blue-500'
                       )}
                       style={{
                         width: `${Math.min((duration / totalDuration) * 100, 100)}%`,
@@ -182,6 +236,7 @@ export function ToolTimeline({ executions, className }: ToolTimelineProps) {
           );
         })}
       </div>
+      )}
     </div>
   );
 }

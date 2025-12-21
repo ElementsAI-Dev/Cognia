@@ -23,10 +23,10 @@ jest.mock('@/components/ai-elements/tool', () => ({
   ),
   ToolOutput: ({ output, errorText }: { output?: unknown; errorText?: string }) => (
     <div data-testid="tool-output">
-      {output && <span>{JSON.stringify(output)}</span>}
+      {output != null && <span>{JSON.stringify(output)}</span>}
       {errorText && <span data-testid="tool-error">{errorText}</span>}
     </div>
-  ) as React.ReactNode,
+  ),
 }));
 
 describe('ToolCallCard', () => {

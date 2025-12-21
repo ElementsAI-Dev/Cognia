@@ -4,6 +4,7 @@
  * SessionList - displays list of chat sessions
  */
 
+import { MessageSquare } from 'lucide-react';
 import { useSessionStore } from '@/stores';
 import { SessionItem } from './session-item';
 
@@ -17,12 +18,17 @@ export function SessionList({ collapsed = false }: SessionListProps) {
 
   if (sessions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-4 text-center text-sm text-muted-foreground">
+      <div className="flex flex-col items-center justify-center p-4 text-center animate-in fade-in-0 duration-300">
         {!collapsed && (
-          <>
-            <p>No conversations yet</p>
-            <p className="mt-1 text-xs">Start a new chat to begin</p>
-          </>
+          <div className="flex flex-col items-center gap-3">
+            <div className="p-3 rounded-full bg-muted/50">
+              <MessageSquare className="h-6 w-6 text-muted-foreground/50" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">No conversations yet</p>
+              <p className="mt-1 text-xs text-muted-foreground/70">Start a new chat to begin</p>
+            </div>
+          </div>
         )}
       </div>
     );

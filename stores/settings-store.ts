@@ -5,13 +5,23 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
-import type { UserProviderSettings } from '@/types/provider';
+import type { UserProviderSettings, ApiKeyRotationStrategy } from '@/types/provider';
+import {
+  getNextApiKey,
+  recordApiKeySuccess,
+  recordApiKeyError,
+  getDefaultUsageStats,
+} from '@/lib/ai/api-key-rotation';
 import type { ColorThemePreset } from '@/lib/themes';
 import type { SearchProviderType, SearchProviderSettings } from '@/types/search';
 import { DEFAULT_SEARCH_PROVIDER_SETTINGS } from '@/types/search';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'en' | 'zh-CN';
+
+// Response display settings types
+export type CodeTheme = 'github-dark' | 'github-light' | 'monokai' | 'dracula' | 'nord' | 'one-dark';
+export type FontFamily = 'system' | 'inter' | 'roboto' | 'fira-code' | 'jetbrains-mono';
 
 // Custom theme interface
 export interface CustomTheme {
@@ -72,6 +82,15 @@ interface SettingsState {
   updateProviderSettings: (providerId: string, settings: Partial<UserProviderSettings>) => void;
   getProviderSettings: (providerId: string) => UserProviderSettings | undefined;
 
+  // Multi-API Key management
+  addApiKey: (providerId: string, apiKey: string) => void;
+  removeApiKey: (providerId: string, apiKeyIndex: number) => void;
+  setApiKeyRotation: (providerId: string, enabled: boolean, strategy?: ApiKeyRotationStrategy) => void;
+  getActiveApiKey: (providerId: string) => string | undefined;
+  rotateToNextApiKey: (providerId: string) => string | undefined;
+  recordApiKeyUsage: (providerId: string, apiKey: string, success: boolean, errorMessage?: string) => void;
+  resetApiKeyStats: (providerId: string, apiKey: string) => void;
+
   // Custom providers
   customProviders: Record<string, CustomProviderSettings>;
   addCustomProvider: (provider: Omit<CustomProviderSettings, 'isCustom'>) => string;
@@ -95,6 +114,20 @@ interface SettingsState {
   sendOnEnter: boolean;
   setSendOnEnter: (enabled: boolean) => void;
 
+  // Chat behavior settings
+  defaultTemperature: number;
+  setDefaultTemperature: (temp: number) => void;
+  defaultMaxTokens: number;
+  setDefaultMaxTokens: (tokens: number) => void;
+  contextLength: number;
+  setContextLength: (length: number) => void;
+  autoTitleGeneration: boolean;
+  setAutoTitleGeneration: (enabled: boolean) => void;
+  showModelInChat: boolean;
+  setShowModelInChat: (show: boolean) => void;
+  enableMarkdownRendering: boolean;
+  setEnableMarkdownRendering: (enabled: boolean) => void;
+
   // Search preferences (Legacy Tavily - for backward compatibility)
   tavilyApiKey: string;
   setTavilyApiKey: (key: string) => void;
@@ -117,6 +150,44 @@ interface SettingsState {
   // Research preferences
   defaultSearchSources: string[];
   setDefaultSearchSources: (sources: string[]) => void;
+
+  // Tool settings
+  enableFileTools: boolean;
+  setEnableFileTools: (enabled: boolean) => void;
+  enableDocumentTools: boolean;
+  setEnableDocumentTools: (enabled: boolean) => void;
+  enableCodeExecution: boolean;
+  setEnableCodeExecution: (enabled: boolean) => void;
+  enableWebSearch: boolean;
+  setEnableWebSearch: (enabled: boolean) => void;
+  enableRAGSearch: boolean;
+  setEnableRAGSearch: (enabled: boolean) => void;
+  enableCalculator: boolean;
+  setEnableCalculator: (enabled: boolean) => void;
+
+  // Response display settings
+  codeTheme: CodeTheme;
+  setCodeTheme: (theme: CodeTheme) => void;
+  codeFontFamily: FontFamily;
+  setCodeFontFamily: (font: FontFamily) => void;
+  codeFontSize: number;
+  setCodeFontSize: (size: number) => void;
+  showLineNumbers: boolean;
+  setShowLineNumbers: (show: boolean) => void;
+  enableSyntaxHighlight: boolean;
+  setEnableSyntaxHighlight: (enable: boolean) => void;
+  lineHeight: number;
+  setLineHeight: (height: number) => void;
+  enableMathRendering: boolean;
+  setEnableMathRendering: (enable: boolean) => void;
+  enableMermaidDiagrams: boolean;
+  setEnableMermaidDiagrams: (enable: boolean) => void;
+  compactMode: boolean;
+  setCompactMode: (compact: boolean) => void;
+  showTimestamps: boolean;
+  setShowTimestamps: (show: boolean) => void;
+  showTokenCount: boolean;
+  setShowTokenCount: (show: boolean) => void;
 
   // Reset
   resetSettings: () => void;
@@ -159,6 +230,48 @@ const defaultProviderSettings: Record<string, UserProviderSettings> = {
     defaultModel: 'mistral-large-latest',
     enabled: false,
   },
+  xai: {
+    providerId: 'xai',
+    apiKey: '',
+    defaultModel: 'grok-3',
+    enabled: false,
+  },
+  togetherai: {
+    providerId: 'togetherai',
+    apiKey: '',
+    defaultModel: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+    enabled: false,
+  },
+  openrouter: {
+    providerId: 'openrouter',
+    apiKey: '',
+    defaultModel: 'anthropic/claude-sonnet-4',
+    enabled: false,
+  },
+  cohere: {
+    providerId: 'cohere',
+    apiKey: '',
+    defaultModel: 'command-r-plus',
+    enabled: false,
+  },
+  fireworks: {
+    providerId: 'fireworks',
+    apiKey: '',
+    defaultModel: 'accounts/fireworks/models/llama-v3p3-70b-instruct',
+    enabled: false,
+  },
+  cerebras: {
+    providerId: 'cerebras',
+    apiKey: '',
+    defaultModel: 'llama-3.3-70b',
+    enabled: false,
+  },
+  sambanova: {
+    providerId: 'sambanova',
+    apiKey: '',
+    defaultModel: 'Meta-Llama-3.3-70B-Instruct',
+    enabled: false,
+  },
   ollama: {
     providerId: 'ollama',
     baseURL: 'http://localhost:11434',
@@ -196,6 +309,14 @@ const initialState = {
   streamResponses: true,
   sendOnEnter: true,
 
+  // Chat behavior
+  defaultTemperature: 0.7,
+  defaultMaxTokens: 4096,
+  contextLength: 10,
+  autoTitleGeneration: true,
+  showModelInChat: true,
+  enableMarkdownRendering: true,
+
   // Search (Legacy)
   tavilyApiKey: '',
   searchEnabled: false,
@@ -208,6 +329,27 @@ const initialState = {
 
   // Research
   defaultSearchSources: ['google', 'brave'],
+
+  // Tool settings
+  enableFileTools: false,
+  enableDocumentTools: true,
+  enableCodeExecution: false,
+  enableWebSearch: true,
+  enableRAGSearch: true,
+  enableCalculator: true,
+
+  // Response display
+  codeTheme: 'github-dark' as CodeTheme,
+  codeFontFamily: 'system' as FontFamily,
+  codeFontSize: 14,
+  showLineNumbers: true,
+  enableSyntaxHighlight: true,
+  lineHeight: 1.6,
+  enableMathRendering: true,
+  enableMermaidDiagrams: true,
+  compactMode: false,
+  showTimestamps: false,
+  showTokenCount: true,
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -276,6 +418,169 @@ export const useSettingsStore = create<SettingsState>()(
         return providerSettings[providerId] || customProviders[providerId];
       },
 
+      // Multi-API Key management actions
+      addApiKey: (providerId, apiKey) =>
+        set((state) => {
+          const settings = state.providerSettings[providerId];
+          if (!settings) return state;
+
+          const currentKeys = settings.apiKeys || [];
+          // Don't add duplicates
+          if (currentKeys.includes(apiKey)) return state;
+
+          const newKeys = [...currentKeys, apiKey];
+          const newStats = {
+            ...(settings.apiKeyUsageStats || {}),
+            [apiKey]: getDefaultUsageStats(),
+          };
+
+          return {
+            providerSettings: {
+              ...state.providerSettings,
+              [providerId]: {
+                ...settings,
+                apiKeys: newKeys,
+                apiKeyUsageStats: newStats,
+                // If this is the first key, also set it as the primary apiKey
+                apiKey: settings.apiKey || apiKey,
+              },
+            },
+          };
+        }),
+
+      removeApiKey: (providerId, apiKeyIndex) =>
+        set((state) => {
+          const settings = state.providerSettings[providerId];
+          if (!settings || !settings.apiKeys) return state;
+
+          const keyToRemove = settings.apiKeys[apiKeyIndex];
+          const newKeys = settings.apiKeys.filter((_, i) => i !== apiKeyIndex);
+          const { [keyToRemove]: _removed, ...remainingStats } = settings.apiKeyUsageStats || {};
+
+          // Adjust currentKeyIndex if needed
+          let newIndex = settings.currentKeyIndex || 0;
+          if (newIndex >= newKeys.length) {
+            newIndex = Math.max(0, newKeys.length - 1);
+          }
+
+          return {
+            providerSettings: {
+              ...state.providerSettings,
+              [providerId]: {
+                ...settings,
+                apiKeys: newKeys,
+                apiKeyUsageStats: remainingStats,
+                currentKeyIndex: newIndex,
+                // Update primary apiKey if the removed key was the primary
+                apiKey: settings.apiKey === keyToRemove ? (newKeys[0] || '') : settings.apiKey,
+              },
+            },
+          };
+        }),
+
+      setApiKeyRotation: (providerId, enabled, strategy = 'round-robin') =>
+        set((state) => {
+          const settings = state.providerSettings[providerId];
+          if (!settings) return state;
+
+          return {
+            providerSettings: {
+              ...state.providerSettings,
+              [providerId]: {
+                ...settings,
+                apiKeyRotationEnabled: enabled,
+                apiKeyRotationStrategy: strategy,
+                currentKeyIndex: 0,
+              },
+            },
+          };
+        }),
+
+      getActiveApiKey: (providerId) => {
+        const { providerSettings } = get();
+        const settings = providerSettings[providerId];
+        if (!settings) return undefined;
+
+        // If rotation is not enabled or no multiple keys, use primary key
+        if (!settings.apiKeyRotationEnabled || !settings.apiKeys || settings.apiKeys.length <= 1) {
+          return settings.apiKey;
+        }
+
+        // Return current key from rotation
+        const index = settings.currentKeyIndex || 0;
+        return settings.apiKeys[index] || settings.apiKey;
+      },
+
+      rotateToNextApiKey: (providerId) => {
+        const state = get();
+        const settings = state.providerSettings[providerId];
+        if (!settings || !settings.apiKeyRotationEnabled || !settings.apiKeys || settings.apiKeys.length <= 1) {
+          return settings?.apiKey;
+        }
+
+        const result = getNextApiKey(
+          settings.apiKeys,
+          settings.apiKeyRotationStrategy || 'round-robin',
+          settings.currentKeyIndex || 0,
+          settings.apiKeyUsageStats || {}
+        );
+
+        set((s) => ({
+          providerSettings: {
+            ...s.providerSettings,
+            [providerId]: {
+              ...s.providerSettings[providerId],
+              currentKeyIndex: result.index,
+            },
+          },
+        }));
+
+        return result.apiKey;
+      },
+
+      recordApiKeyUsage: (providerId, apiKey, success, errorMessage) =>
+        set((state) => {
+          const settings = state.providerSettings[providerId];
+          if (!settings) return state;
+
+          const currentStats = settings.apiKeyUsageStats?.[apiKey];
+          const newStats = success
+            ? recordApiKeySuccess(currentStats)
+            : recordApiKeyError(currentStats, errorMessage);
+
+          return {
+            providerSettings: {
+              ...state.providerSettings,
+              [providerId]: {
+                ...settings,
+                apiKeyUsageStats: {
+                  ...(settings.apiKeyUsageStats || {}),
+                  [apiKey]: newStats,
+                },
+              },
+            },
+          };
+        }),
+
+      resetApiKeyStats: (providerId, apiKey) =>
+        set((state) => {
+          const settings = state.providerSettings[providerId];
+          if (!settings) return state;
+
+          return {
+            providerSettings: {
+              ...state.providerSettings,
+              [providerId]: {
+                ...settings,
+                apiKeyUsageStats: {
+                  ...(settings.apiKeyUsageStats || {}),
+                  [apiKey]: getDefaultUsageStats(),
+                },
+              },
+            },
+          };
+        }),
+
       // Custom provider actions
       addCustomProvider: (provider) => {
         const id = `custom-${nanoid()}`;
@@ -320,6 +625,14 @@ export const useSettingsStore = create<SettingsState>()(
       setStreamingEnabled: (streamingEnabled) => set({ streamingEnabled }),
       setStreamResponses: (streamResponses) => set({ streamResponses }),
       setSendOnEnter: (sendOnEnter) => set({ sendOnEnter }),
+
+      // Chat behavior actions
+      setDefaultTemperature: (defaultTemperature) => set({ defaultTemperature }),
+      setDefaultMaxTokens: (defaultMaxTokens) => set({ defaultMaxTokens }),
+      setContextLength: (contextLength) => set({ contextLength }),
+      setAutoTitleGeneration: (autoTitleGeneration) => set({ autoTitleGeneration }),
+      setShowModelInChat: (showModelInChat) => set({ showModelInChat }),
+      setEnableMarkdownRendering: (enableMarkdownRendering) => set({ enableMarkdownRendering }),
 
       // Search actions (Legacy)
       setTavilyApiKey: (tavilyApiKey) => set({ tavilyApiKey }),
@@ -372,6 +685,27 @@ export const useSettingsStore = create<SettingsState>()(
 
       setDefaultSearchSources: (defaultSearchSources) => set({ defaultSearchSources }),
 
+      // Tool settings actions
+      setEnableFileTools: (enableFileTools) => set({ enableFileTools }),
+      setEnableDocumentTools: (enableDocumentTools) => set({ enableDocumentTools }),
+      setEnableCodeExecution: (enableCodeExecution) => set({ enableCodeExecution }),
+      setEnableWebSearch: (enableWebSearch) => set({ enableWebSearch }),
+      setEnableRAGSearch: (enableRAGSearch) => set({ enableRAGSearch }),
+      setEnableCalculator: (enableCalculator) => set({ enableCalculator }),
+
+      // Response display actions
+      setCodeTheme: (codeTheme) => set({ codeTheme }),
+      setCodeFontFamily: (codeFontFamily) => set({ codeFontFamily }),
+      setCodeFontSize: (codeFontSize) => set({ codeFontSize }),
+      setShowLineNumbers: (showLineNumbers) => set({ showLineNumbers }),
+      setEnableSyntaxHighlight: (enableSyntaxHighlight) => set({ enableSyntaxHighlight }),
+      setLineHeight: (lineHeight) => set({ lineHeight }),
+      setEnableMathRendering: (enableMathRendering) => set({ enableMathRendering }),
+      setEnableMermaidDiagrams: (enableMermaidDiagrams) => set({ enableMermaidDiagrams }),
+      setCompactMode: (compactMode) => set({ compactMode }),
+      setShowTimestamps: (showTimestamps) => set({ showTimestamps }),
+      setShowTokenCount: (showTokenCount) => set({ showTokenCount }),
+
       resetSettings: () => set(initialState),
     }),
     {
@@ -394,6 +728,13 @@ export const useSettingsStore = create<SettingsState>()(
         streamingEnabled: state.streamingEnabled,
         streamResponses: state.streamResponses,
         sendOnEnter: state.sendOnEnter,
+        // Chat behavior
+        defaultTemperature: state.defaultTemperature,
+        defaultMaxTokens: state.defaultMaxTokens,
+        contextLength: state.contextLength,
+        autoTitleGeneration: state.autoTitleGeneration,
+        showModelInChat: state.showModelInChat,
+        enableMarkdownRendering: state.enableMarkdownRendering,
         tavilyApiKey: state.tavilyApiKey,
         searchEnabled: state.searchEnabled,
         searchMaxResults: state.searchMaxResults,
@@ -401,6 +742,25 @@ export const useSettingsStore = create<SettingsState>()(
         defaultSearchProvider: state.defaultSearchProvider,
         searchFallbackEnabled: state.searchFallbackEnabled,
         defaultSearchSources: state.defaultSearchSources,
+        // Tool settings
+        enableFileTools: state.enableFileTools,
+        enableDocumentTools: state.enableDocumentTools,
+        enableCodeExecution: state.enableCodeExecution,
+        enableWebSearch: state.enableWebSearch,
+        enableRAGSearch: state.enableRAGSearch,
+        enableCalculator: state.enableCalculator,
+        // Response display
+        codeTheme: state.codeTheme,
+        codeFontFamily: state.codeFontFamily,
+        codeFontSize: state.codeFontSize,
+        showLineNumbers: state.showLineNumbers,
+        enableSyntaxHighlight: state.enableSyntaxHighlight,
+        lineHeight: state.lineHeight,
+        enableMathRendering: state.enableMathRendering,
+        enableMermaidDiagrams: state.enableMermaidDiagrams,
+        compactMode: state.compactMode,
+        showTimestamps: state.showTimestamps,
+        showTokenCount: state.showTokenCount,
       }),
     }
   )

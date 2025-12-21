@@ -81,17 +81,65 @@ const LoaderIcon = ({ size = 16 }: LoaderIconProps) => (
 
 export type LoaderProps = HTMLAttributes<HTMLDivElement> & {
   size?: number;
+  variant?: 'spin' | 'pulse' | 'dots';
 };
 
-export const Loader = ({ className, size = 16, ...props }: LoaderProps) => (
-  <div
-    className={cn(
-      "inline-flex animate-spin items-center justify-center",
-      className
-    )}
-    style={{ willChange: 'transform' }}
-    {...props}
-  >
-    <LoaderIcon size={size} />
-  </div>
-);
+const DotsLoader = ({ size = 16 }: { size?: number }) => {
+  const dotSize = Math.max(4, size / 4);
+  return (
+    <div className="flex items-center gap-1">
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="rounded-full bg-current animate-pulse"
+          style={{
+            width: dotSize,
+            height: dotSize,
+            animationDelay: `${i * 150}ms`,
+            animationDuration: '600ms',
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+export const Loader = ({ className, size = 16, variant = 'spin', ...props }: LoaderProps) => {
+  if (variant === 'dots') {
+    return (
+      <div
+        className={cn("inline-flex items-center justify-center text-muted-foreground", className)}
+        {...props}
+      >
+        <DotsLoader size={size} />
+      </div>
+    );
+  }
+
+  if (variant === 'pulse') {
+    return (
+      <div
+        className={cn(
+          "inline-flex items-center justify-center animate-pulse",
+          className
+        )}
+        {...props}
+      >
+        <LoaderIcon size={size} />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "inline-flex animate-spin items-center justify-center",
+        className
+      )}
+      style={{ willChange: 'transform', animationDuration: '800ms' }}
+      {...props}
+    >
+      <LoaderIcon size={size} />
+    </div>
+  );
+};

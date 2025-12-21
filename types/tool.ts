@@ -33,8 +33,24 @@ export type BuiltInToolName =
   | 'web_search'
   | 'web_browser'
   | 'code_executor'
+  | 'calculator'
+  | 'rag_search'
+  // File tools
   | 'file_read'
-  | 'file_write';
+  | 'file_write'
+  | 'file_list'
+  | 'file_exists'
+  | 'file_delete'
+  | 'file_copy'
+  | 'file_rename'
+  | 'file_info'
+  | 'file_search'
+  | 'file_append'
+  | 'directory_create'
+  // Document tools
+  | 'document_summarize'
+  | 'document_chunk'
+  | 'document_analyze';
 
 // MCP Tool extension
 export interface MCPTool extends Omit<ToolDefinition, 'execute'> {

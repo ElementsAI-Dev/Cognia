@@ -1,26 +1,56 @@
 /**
  * Agent Tools - Initialize and manage tools for agent execution
+ * Uses the global tool registry as the authoritative source for tool definitions
  */
 
 import { z } from 'zod';
 import type { AgentTool } from './agent-executor';
 import {
+  getGlobalToolRegistry,
+  type ToolDefinition,
   executeWebSearch,
   webSearchInputSchema,
   executeCalculator,
   calculatorInputSchema,
+  executeRAGSearch,
+  ragSearchInputSchema,
+  type RAGSearchInput,
 } from '../tools';
+import type { RAGConfig } from '../rag';
 
 export interface AgentToolsConfig {
   tavilyApiKey?: string;
   enableWebSearch?: boolean;
   enableCalculator?: boolean;
   enableRAGSearch?: boolean;
+  enableFileTools?: boolean;
+  enableDocumentTools?: boolean;
+  enableCodeExecution?: boolean;
+  enableDesigner?: boolean;
+  ragConfig?: RAGConfig;
   customTools?: Record<string, AgentTool>;
 }
 
 /**
- * Create calculator tool for agent
+ * Convert a ToolDefinition from registry to AgentTool format
+ */
+function convertToAgentTool(
+  toolDef: ToolDefinition,
+  config: Record<string, unknown>
+): AgentTool {
+  const executeFn = toolDef.create(config);
+  
+  return {
+    name: toolDef.name,
+    description: toolDef.description,
+    parameters: toolDef.parameters,
+    execute: async (args) => executeFn(args),
+    requiresApproval: toolDef.requiresApproval ?? false,
+  };
+}
+
+/**
+ * Create calculator tool for agent (from registry)
  */
 export function createCalculatorTool(): AgentTool {
   return {
@@ -52,49 +82,62 @@ export function createWebSearchTool(apiKey: string): AgentTool {
 }
 
 /**
- * Create RAG search tool for agent
- * Note: RAG search requires ChromaDB configuration which should be set up separately
+ * Create RAG search tool for agent (uses real implementation from registry)
  */
-export function createRAGSearchTool(): AgentTool {
+export function createRAGSearchTool(ragConfig?: RAGConfig): AgentTool {
   return {
-    name: 'knowledge_search',
-    description: 'Search through uploaded documents and knowledge base for relevant information. Requires a collection name to search.',
-    parameters: z.object({
-      query: z.string().describe('The search query'),
-      collectionName: z.string().optional().describe('The collection name to search (optional)'),
-    }),
+    name: 'rag_search',
+    description: 'Search through uploaded documents and knowledge base for relevant information using semantic similarity.',
+    parameters: ragSearchInputSchema,
     execute: async (args) => {
-      // RAG search requires ChromaDB to be configured
-      // This is a simplified implementation that returns a placeholder
-      return {
-        success: false,
-        error: 'RAG search requires ChromaDB configuration. Please set up vector database first.',
-        query: args.query,
-      };
+      const input = args as RAGSearchInput;
+      if (!ragConfig) {
+        return {
+          success: false,
+          error: 'RAG search requires configuration. Please set up vector database first.',
+          query: input.query,
+        };
+      }
+      return executeRAGSearch(input, ragConfig);
     },
     requiresApproval: false,
   };
 }
 
 /**
- * Create file read tool for agent
+ * Create designer tool for agent - opens the web designer with generated code
  */
-export function createFileReadTool(): AgentTool {
+export function createDesignerTool(): AgentTool {
   return {
-    name: 'file_read',
-    description: 'Read content from a file. Provide the file path to read.',
+    name: 'open_designer',
+    description: 'Open the web designer with React/HTML code for visual editing and preview. Use this when you have generated UI code that the user wants to see or edit visually.',
     parameters: z.object({
-      path: z.string().describe('The file path to read'),
+      code: z.string().describe('React component code to open in the designer'),
+      description: z.string().optional().describe('Brief description of what the code does'),
     }),
     execute: async (args) => {
-      // This is a placeholder - actual implementation would use Tauri or browser APIs
-      return {
-        success: false,
-        error: 'File reading is not available in this context',
-        path: args.path,
-      };
+      try {
+        const { code, description } = args as { code: string; description?: string };
+        
+        // Store code in a format that can be picked up by the UI
+        const designerKey = `designer-agent-${Date.now()}`;
+        
+        return {
+          success: true,
+          action: 'open_designer',
+          designerKey,
+          code,
+          description: description || 'Generated UI component',
+          message: 'Designer ready. The UI component has been prepared for visual editing.',
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to prepare designer',
+        };
+      }
     },
-    requiresApproval: true,
+    requiresApproval: false,
   };
 }
 
@@ -130,28 +173,90 @@ export function createCodeExecutionTool(): AgentTool {
 }
 
 /**
+ * Get tools from registry by names
+ */
+export function getToolsFromRegistry(
+  toolNames: string[],
+  config: Record<string, unknown>
+): Record<string, AgentTool> {
+  const registry = getGlobalToolRegistry();
+  const tools: Record<string, AgentTool> = {};
+
+  for (const name of toolNames) {
+    const toolDef = registry.get(name);
+    if (toolDef) {
+      tools[name] = convertToAgentTool(toolDef, config);
+    }
+  }
+
+  return tools;
+}
+
+/**
  * Initialize all agent tools based on configuration
+ * Uses registry as the authoritative source where available
  */
 export function initializeAgentTools(config: AgentToolsConfig = {}): Record<string, AgentTool> {
   const tools: Record<string, AgentTool> = {};
+  const registryConfig: Record<string, unknown> = {
+    apiKey: config.tavilyApiKey,
+    ragConfig: config.ragConfig,
+  };
 
-  // Always include calculator
+  // Calculator (always included unless explicitly disabled)
   if (config.enableCalculator !== false) {
     tools.calculator = createCalculatorTool();
   }
 
-  // Include web search if API key is provided
+  // Web search (requires API key)
   if (config.enableWebSearch !== false && config.tavilyApiKey) {
     tools.web_search = createWebSearchTool(config.tavilyApiKey);
   }
 
-  // Include RAG search
+  // RAG search (uses real implementation)
   if (config.enableRAGSearch !== false) {
-    tools.knowledge_search = createRAGSearchTool();
+    tools.rag_search = createRAGSearchTool(config.ragConfig);
   }
 
-  // Include code execution (requires approval)
-  tools.execute_code = createCodeExecutionTool();
+  // Code execution (requires approval)
+  if (config.enableCodeExecution !== false) {
+    tools.execute_code = createCodeExecutionTool();
+  }
+
+  // Designer tool for UI generation
+  if (config.enableDesigner !== false) {
+    tools.open_designer = createDesignerTool();
+  }
+
+  // File tools from registry (all require approval for write/delete)
+  if (config.enableFileTools) {
+    const fileTools = getToolsFromRegistry(
+      [
+        'file_read',
+        'file_write',
+        'file_list',
+        'file_exists',
+        'file_delete',
+        'directory_create',
+        'file_copy',
+        'file_rename',
+        'file_info',
+        'file_search',
+        'file_append',
+      ],
+      registryConfig
+    );
+    Object.assign(tools, fileTools);
+  }
+
+  // Document tools from registry
+  if (config.enableDocumentTools) {
+    const docTools = getToolsFromRegistry(
+      ['document_summarize', 'document_chunk', 'document_analyze'],
+      registryConfig
+    );
+    Object.assign(tools, docTools);
+  }
 
   // Add custom tools
   if (config.customTools) {

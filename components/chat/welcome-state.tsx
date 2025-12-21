@@ -23,7 +23,11 @@ import {
   ImageIcon,
   Languages,
   LayoutTemplate,
+  ArrowRight,
+  Wand2,
+  FolderKanban,
 } from 'lucide-react';
+import Link from 'next/link';
 import { TemplateSelector } from './template-selector';
 import { Button } from '@/components/ui/button';
 import type { ChatTemplate } from '@/types/template';
@@ -162,28 +166,40 @@ const modeConfig: Record<ChatMode, {
 function SuggestionCardComponent({
   suggestion,
   onClick,
+  index = 0,
 }: {
   suggestion: SuggestionCard;
   onClick?: () => void;
+  index?: number;
 }) {
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-start gap-2 rounded-lg border border-border bg-card p-4 text-left transition-all hover:bg-accent hover:shadow-md"
+      className="group flex flex-col items-start gap-3 rounded-2xl border border-border/50 bg-card/50 p-5 text-left transition-all duration-200 hover:bg-accent hover:border-accent hover:shadow-lg hover:-translate-y-0.5 animate-in fade-in-0 slide-in-from-bottom-4"
+      style={{ animationDelay: `${index * 75}ms`, animationFillMode: 'backwards' }}
     >
-      <div className="flex items-center gap-2 text-primary">
-        {suggestion.icon}
-        <span className="font-medium">{suggestion.title}</span>
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+          {suggestion.icon}
+        </div>
+        <span className="font-semibold">{suggestion.title}</span>
       </div>
-      <p className="text-sm text-muted-foreground">{suggestion.description}</p>
+      <p className="text-sm text-muted-foreground leading-relaxed">{suggestion.description}</p>
+      <div className="flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+        <span>Try it</span>
+        <ArrowRight className="h-3 w-3" />
+      </div>
     </button>
   );
 }
 
-function FeatureBadge({ feature }: { feature: string }) {
+function FeatureBadge({ feature, index = 0 }: { feature: string; index?: number }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-      <Zap className="mr-1 h-3 w-3" />
+    <span 
+      className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary animate-in fade-in-0 zoom-in-95"
+      style={{ animationDelay: `${300 + index * 50}ms`, animationFillMode: 'backwards' }}
+    >
+      <Zap className="mr-1.5 h-3 w-3" />
       {feature}
     </span>
   );
@@ -197,29 +213,31 @@ export function WelcomeState({ mode, onSuggestionClick, onModeChange, onSelectTe
       <div className="w-full max-w-3xl space-y-8">
         {/* Header with gradient background */}
         <div className={cn(
-          'flex flex-col items-center space-y-4 rounded-2xl bg-linear-to-br p-8',
+          'flex flex-col items-center space-y-5 rounded-3xl bg-linear-to-br p-10 animate-in fade-in-0 slide-in-from-bottom-4 duration-500',
           config.gradient
         )}>
-          <div className="text-primary">
+          <div className="text-primary animate-in zoom-in-50 duration-500" style={{ animationDelay: '100ms' }}>
             {config.icon}
           </div>
-          <h1 className="text-2xl font-bold">{config.title}</h1>
-          <p className="max-w-lg text-center text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight animate-in fade-in-0 slide-in-from-bottom-2 duration-500" style={{ animationDelay: '150ms' }}>
+            {config.title}
+          </h1>
+          <p className="max-w-lg text-center text-muted-foreground leading-relaxed animate-in fade-in-0 duration-500" style={{ animationDelay: '200ms' }}>
             {config.description}
           </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            {config.features.map((feature) => (
-              <FeatureBadge key={feature} feature={feature} />
+          <div className="flex flex-wrap justify-center gap-2 pt-2">
+            {config.features.map((feature, index) => (
+              <FeatureBadge key={feature} feature={feature} index={index} />
             ))}
           </div>
         </div>
 
         {/* Mode switcher and Template button */}
-        <div className="flex justify-center items-center gap-2 flex-wrap">
+        <div className="flex justify-center items-center gap-2 flex-wrap animate-in fade-in-0 slide-in-from-bottom-2 duration-500" style={{ animationDelay: '400ms' }}>
           {/* Template Selector */}
           <TemplateSelector
             trigger={
-              <Button variant="outline" size="sm" className="gap-2">
+              <Button variant="outline" size="sm" className="gap-2 rounded-full hover:bg-accent transition-colors">
                 <LayoutTemplate className="h-4 w-4" />
                 <span>Templates</span>
               </Button>
@@ -231,16 +249,16 @@ export function WelcomeState({ mode, onSuggestionClick, onModeChange, onSelectTe
               }
             }}
           />
-          <div className="h-6 w-px bg-border mx-1" />
+          <div className="h-6 w-px bg-border/50 mx-2" />
           {(Object.keys(modeConfig) as ChatMode[]).map((m) => (
             <button
               key={m}
               onClick={() => onModeChange?.(m)}
               className={cn(
-                'flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all',
+                'flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200',
                 m === mode
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted hover:bg-accent'
+                  ? 'bg-primary text-primary-foreground shadow-md'
+                  : 'bg-muted/50 hover:bg-accent hover:shadow-sm'
               )}
             >
               {m === 'chat' && <Sparkles className="h-4 w-4" />}
@@ -251,9 +269,39 @@ export function WelcomeState({ mode, onSuggestionClick, onModeChange, onSelectTe
           ))}
         </div>
 
+        {/* Quick Access - Designer & Projects */}
+        <div className="animate-in fade-in-0 duration-500" style={{ animationDelay: '450ms' }}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Link href="/designer" className="group">
+              <div className="flex items-center gap-4 rounded-2xl border border-border/50 bg-card/50 p-4 transition-all duration-200 hover:bg-accent hover:border-purple-500/30 hover:shadow-lg hover:-translate-y-0.5">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 transition-colors group-hover:bg-purple-500 group-hover:text-white">
+                  <Wand2 className="h-6 w-6" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold">Designer</h3>
+                  <p className="text-sm text-muted-foreground">Build UI components with AI</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </Link>
+            <Link href="/projects" className="group">
+              <div className="flex items-center gap-4 rounded-2xl border border-border/50 bg-card/50 p-4 transition-all duration-200 hover:bg-accent hover:border-blue-500/30 hover:shadow-lg hover:-translate-y-0.5">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500 transition-colors group-hover:bg-blue-500 group-hover:text-white">
+                  <FolderKanban className="h-6 w-6" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold">Projects</h3>
+                  <p className="text-sm text-muted-foreground">Manage knowledge & contexts</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </Link>
+          </div>
+        </div>
+
         {/* Suggestions grid */}
-        <div>
-          <h2 className="mb-4 text-center text-sm font-medium text-muted-foreground">
+        <div className="animate-in fade-in-0 duration-500" style={{ animationDelay: '550ms' }}>
+          <h2 className="mb-5 text-center text-sm font-medium text-muted-foreground">
             Try these prompts to get started
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -261,6 +309,7 @@ export function WelcomeState({ mode, onSuggestionClick, onModeChange, onSelectTe
               <SuggestionCardComponent
                 key={index}
                 suggestion={suggestion}
+                index={index}
                 onClick={() => onSuggestionClick?.(suggestion.prompt)}
               />
             ))}

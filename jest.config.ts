@@ -92,7 +92,10 @@ const config: Config = {
   // globals: {},
 
   // The maximum amount of workers used to run your tests. Can be specified as % or a number. E.g. maxWorkers: 10% will use 10% of your CPU amount + 1 as the maximum worker number. maxWorkers: 2 will use a maximum of 2 workers.
-  // maxWorkers: "50%",
+  maxWorkers: 2,
+
+  // Increase memory for workers
+  workerIdleMemoryLimit: "512MB",
 
   // An array of directory names to be searched recursively up from the requiring module's location
   // moduleDirectories: [
@@ -133,6 +136,27 @@ const config: Config = {
 
     // Mock nanoid ESM module
     "^nanoid$": "<rootDir>/__mocks__/nanoid.js",
+    
+    // Mock use-stick-to-bottom ESM module
+    "^use-stick-to-bottom$": "<rootDir>/__mocks__/use-stick-to-bottom.js",
+    
+    // Mock streamdown ESM module
+    "^streamdown$": "<rootDir>/__mocks__/streamdown.js",
+    
+    // Mock shiki syntax highlighter ESM module
+    "^shiki$": "<rootDir>/__mocks__/shiki.js",
+    
+    // Mock next-intl and use-intl ESM modules
+    "^next-intl$": "<rootDir>/__mocks__/next-intl.js",
+    "^next-intl/(.*)$": "<rootDir>/__mocks__/next-intl.js",
+    "^use-intl$": "<rootDir>/__mocks__/use-intl.js",
+    "^use-intl/(.*)$": "<rootDir>/__mocks__/use-intl.js",
+    
+    // Mock react-resizable-panels ESM module
+    "^react-resizable-panels$": "<rootDir>/__mocks__/react-resizable-panels.js",
+    
+    // Mock @codesandbox/sandpack-react ESM module
+    "^@codesandbox/sandpack-react$": "<rootDir>/__mocks__/@codesandbox/sandpack-react.js",
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
@@ -241,7 +265,7 @@ const config: Config = {
 
   // An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
   transformIgnorePatterns: [
-    "node_modules/(?!(nanoid|cheerio|htmlparser2|dom-serializer|domelementtype|domhandler|domutils|entities|css-select|css-what|boolbase|nth-check|parse5|parse5-htmlparser2-tree-adapter)/)",
+    "node_modules/(?!(nanoid|cheerio|htmlparser2|dom-serializer|domelementtype|domhandler|domutils|entities|css-select|css-what|boolbase|nth-check|parse5|parse5-htmlparser2-tree-adapter|react-markdown|remark-parse|remark-rehype|unified|unist-util-visit|unist-util-is|bail|trough|vfile|vfile-message|mdast-util-from-markdown|mdast-util-to-hast|micromark|decode-named-character-reference|character-entities|property-information|hast-util-whitespace|space-separated-tokens|comma-separated-tokens|ccount|escape-string-regexp|markdown-table|zwitch|longest-streak|devlop|unist-util-position|unist-util-stringify-position|html-url-attributes|trim-lines|hast-util-to-jsx-runtime|estree-util-is-identifier-name|hast-util-raw|eventsource-parser|recharts|d3-shape|d3-path|internmap|delaunator|robust-predicates|use-stick-to-bottom|streamdown)/)",
   ],
 
   // An array of regexp pattern strings that are matched against all modules before the module loader will automatically return a mock for them

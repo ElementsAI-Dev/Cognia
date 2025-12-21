@@ -51,12 +51,12 @@ interface ArtifactActions {
 
   // Canvas actions
   createCanvasDocument: (params: {
-    sessionId: string;
+    sessionId?: string;
     title: string;
     content: string;
     language: ArtifactLanguage;
     type: 'code' | 'text';
-  }) => CanvasDocument;
+  }) => string;
   updateCanvasDocument: (id: string, updates: Partial<CanvasDocument>) => void;
   deleteCanvasDocument: (id: string) => void;
   setActiveCanvas: (id: string | null) => void;
@@ -181,7 +181,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
       createCanvasDocument: ({ sessionId, title, content, language, type }) => {
         const doc: CanvasDocument = {
           id: nanoid(),
-          sessionId,
+          sessionId: sessionId || 'standalone',
           title,
           content,
           language,
@@ -198,7 +198,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
           panelView: 'canvas',
         }));
 
-        return doc;
+        return doc.id;
       },
 
       updateCanvasDocument: (id, updates) => {

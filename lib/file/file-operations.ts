@@ -481,6 +481,179 @@ function getMimeType(path: string): string {
 }
 
 /**
+ * Get detailed file information
+ */
+export async function getFileInfo(path: string): Promise<{
+  success: boolean;
+  info?: FileInfo & {
+    mimeType: string;
+  };
+  error?: string;
+}> {
+  if (!isTauri) {
+    return {
+      success: false,
+      error: 'File operations require Tauri desktop environment',
+    };
+  }
+
+  try {
+    const { stat } = await import('@tauri-apps/plugin-fs');
+    const fileStats = await stat(path);
+    const filename = path.split('/').pop() || path.split('\\').pop() || path;
+    const isDir = fileStats.isDirectory;
+    
+    return {
+      success: true,
+      info: {
+        name: filename,
+        path,
+        isDirectory: isDir,
+        size: fileStats.size,
+        modifiedAt: fileStats.mtime ? new Date(fileStats.mtime) : undefined,
+        createdAt: fileStats.birthtime ? new Date(fileStats.birthtime) : undefined,
+        extension: isDir ? undefined : getExtension(filename),
+        mimeType: isDir ? 'inode/directory' : getMimeType(path),
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get file info',
+    };
+  }
+}
+
+/**
+ * Search for files in a directory
+ */
+export async function searchFiles(
+  directory: string,
+  options?: {
+    pattern?: string;
+    extensions?: string[];
+    recursive?: boolean;
+    maxResults?: number;
+  }
+): Promise<{
+  success: boolean;
+  files?: FileInfo[];
+  error?: string;
+}> {
+  if (!isTauri) {
+    return {
+      success: false,
+      error: 'File operations require Tauri desktop environment',
+    };
+  }
+
+  try {
+    const { readDir, stat } = await import('@tauri-apps/plugin-fs');
+    const results: FileInfo[] = [];
+    const maxResults = options?.maxResults ?? 100;
+    const pattern = options?.pattern?.toLowerCase();
+    const extensions = options?.extensions?.map((e) => e.toLowerCase().replace(/^\./, ''));
+
+    async function searchDir(dirPath: string, depth: number = 0): Promise<void> {
+      if (results.length >= maxResults) return;
+      if (!options?.recursive && depth > 0) return;
+
+      try {
+        const entries = await readDir(dirPath);
+        
+        for (const entry of entries) {
+          if (results.length >= maxResults) break;
+          
+          const fullPath = `${dirPath}/${entry.name}`;
+          
+          if (entry.isDirectory) {
+            if (options?.recursive) {
+              await searchDir(fullPath, depth + 1);
+            }
+          } else {
+            const ext = getExtension(entry.name);
+            const nameMatches = !pattern || entry.name.toLowerCase().includes(pattern);
+            const extMatches = !extensions || (ext && extensions.includes(ext));
+            
+            if (nameMatches && extMatches) {
+              try {
+                const fileStats = await stat(fullPath);
+                results.push({
+                  name: entry.name,
+                  path: fullPath,
+                  isDirectory: false,
+                  size: fileStats.size,
+                  modifiedAt: fileStats.mtime ? new Date(fileStats.mtime) : undefined,
+                  extension: ext,
+                });
+              } catch {
+                // Skip files we can't stat
+              }
+            }
+          }
+        }
+      } catch {
+        // Skip directories we can't read
+      }
+    }
+
+    await searchDir(directory);
+    
+    return {
+      success: true,
+      files: results.sort((a, b) => a.name.localeCompare(b.name)),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to search files',
+    };
+  }
+}
+
+/**
+ * Append content to a text file
+ */
+export async function appendTextFile(
+  path: string,
+  content: string
+): Promise<FileWriteResult> {
+  if (!isTauri) {
+    return {
+      success: false,
+      error: 'File operations require Tauri desktop environment',
+      path,
+    };
+  }
+
+  try {
+    const { readTextFile: tauriReadTextFile, writeTextFile: tauriWriteTextFile } = await import('@tauri-apps/plugin-fs');
+    
+    let existingContent = '';
+    try {
+      existingContent = await tauriReadTextFile(path);
+    } catch {
+      // File doesn't exist, will be created
+    }
+    
+    const newContent = existingContent + content;
+    await tauriWriteTextFile(path, newContent);
+    
+    return {
+      success: true,
+      path,
+      bytesWritten: new Blob([content]).size,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to append to file',
+      path,
+    };
+  }
+}
+
+/**
  * Check if running in Tauri environment
  */
 export function isInTauri(): boolean {

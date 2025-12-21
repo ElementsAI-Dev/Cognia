@@ -4,6 +4,11 @@
 
 import type { UIMessage, Session } from '@/types';
 
+// Re-export enhanced modules
+export * from './rich-markdown';
+export * from './animated-html';
+export * from './batch-export';
+
 export interface ExportData {
   session: Session;
   messages: UIMessage[];

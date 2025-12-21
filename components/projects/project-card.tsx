@@ -27,6 +27,9 @@ import {
   Copy,
   MessageSquare,
   FileText,
+  Archive,
+  ArchiveRestore,
+  Tag,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -58,6 +61,8 @@ interface ProjectCardProps {
   onEdit: (project: Project) => void;
   onDelete: (projectId: string) => void;
   onDuplicate: (projectId: string) => void;
+  onArchive?: (projectId: string) => void;
+  onUnarchive?: (projectId: string) => void;
 }
 
 const iconMap: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
@@ -85,6 +90,8 @@ export function ProjectCard({
   onEdit,
   onDelete,
   onDuplicate,
+  onArchive,
+  onUnarchive,
 }: ProjectCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
@@ -156,6 +163,31 @@ export function ProjectCard({
                   <Copy className="mr-2 h-4 w-4" />
                   Duplicate
                 </DropdownMenuItem>
+                {project.isArchived ? (
+                  onUnarchive && (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUnarchive(project.id);
+                      }}
+                    >
+                      <ArchiveRestore className="mr-2 h-4 w-4" />
+                      Unarchive
+                    </DropdownMenuItem>
+                  )
+                ) : (
+                  onArchive && (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onArchive(project.id);
+                      }}
+                    >
+                      <Archive className="mr-2 h-4 w-4" />
+                      Archive
+                    </DropdownMenuItem>
+                  )
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={(e) => {
@@ -182,8 +214,30 @@ export function ProjectCard({
               <span>{project.knowledgeBase.length} files</span>
             </div>
           </div>
+          {/* Tags */}
+          {project.tags && project.tags.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {project.tags.slice(0, 3).map((tag) => (
+                <Badge key={tag} variant="outline" className="text-xs gap-1">
+                  <Tag className="h-2.5 w-2.5" />
+                  {tag}
+                </Badge>
+              ))}
+              {project.tags.length > 3 && (
+                <Badge variant="outline" className="text-xs">
+                  +{project.tags.length - 3}
+                </Badge>
+              )}
+            </div>
+          )}
           <div className="mt-3 flex items-center justify-between">
             <div className="flex gap-1">
+              {project.isArchived && (
+                <Badge variant="secondary" className="text-xs gap-1">
+                  <Archive className="h-2.5 w-2.5" />
+                  Archived
+                </Badge>
+              )}
               {project.customInstructions && (
                 <Badge variant="secondary" className="text-xs">
                   Instructions

@@ -606,7 +606,7 @@ export function ChatInput({
     <div
       ref={dropZoneRef}
       className={cn(
-        'border-t border-border bg-background p-4 transition-colors',
+        'border-t border-border/50 bg-background/95 backdrop-blur-sm p-4 transition-all duration-200',
         isDragging && 'bg-accent/50 border-primary'
       )}
       onDragEnter={handleDragEnter}
@@ -616,9 +616,11 @@ export function ChatInput({
     >
       {/* Drag overlay */}
       {isDragging && (
-        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-2 text-primary">
-            <Paperclip className="h-12 w-12" />
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-md animate-in fade-in-0 duration-200">
+          <div className="flex flex-col items-center gap-3 text-primary animate-in zoom-in-95 duration-200">
+            <div className="rounded-full bg-primary/10 p-4">
+              <Paperclip className="h-10 w-10" />
+            </div>
             <span className="text-lg font-medium">Drop files here</span>
           </div>
         </div>
@@ -627,11 +629,11 @@ export function ChatInput({
       <div className="relative mx-auto max-w-3xl">
           {/* Attachments preview */}
           {attachments.length > 0 && (
-            <div className="mb-2 flex flex-wrap gap-2">
+            <div className="mb-3 flex flex-wrap gap-2 animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
               {attachments.map((attachment) => (
                 <div
                   key={attachment.id}
-                  className="group relative flex items-center gap-2 rounded-lg border bg-card px-3 py-2 cursor-pointer hover:bg-accent"
+                  className="group relative flex items-center gap-2 rounded-xl border border-border/50 bg-muted/50 px-3 py-2 cursor-pointer hover:bg-accent hover:border-accent transition-all duration-150"
                   onClick={() => setPreviewAttachment(attachment)}
                 >
                   {attachment.type === 'image' ? (
@@ -656,7 +658,7 @@ export function ChatInput({
                       e.stopPropagation();
                       removeAttachment(attachment.id);
                     }}
-                    className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 opacity-0 transition-opacity group-hover:opacity-100"
+                    className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 opacity-0 transition-all duration-150 group-hover:opacity-100 hover:scale-110"
                   >
                     <X className="h-3 w-3 text-destructive-foreground" />
                   </button>
@@ -667,18 +669,18 @@ export function ChatInput({
 
           {/* Upload error */}
           {uploadError && (
-            <div className="mb-2 rounded-lg bg-destructive/10 p-2 text-sm text-destructive">
+            <div className="mb-3 rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive animate-in fade-in-0 slide-in-from-top-2 duration-200">
               {uploadError}
               <button
                 onClick={() => setUploadError(null)}
-                className="ml-2 underline"
+                className="ml-2 underline hover:no-underline transition-all"
               >
                 Dismiss
               </button>
             </div>
           )}
 
-          <div ref={inputContainerRef} className="relative flex items-end gap-2 rounded-2xl border border-input bg-background p-2 shadow-sm focus-within:ring-2 focus-within:ring-ring/20">
+          <div ref={inputContainerRef} className="relative flex items-end gap-2 rounded-2xl border border-input/50 bg-card p-2 shadow-md focus-within:shadow-lg focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-ring/10 transition-all duration-200">
             {/* Mention Popover */}
             <MentionPopover
               open={mentionState.isOpen}
@@ -695,7 +697,7 @@ export function ChatInput({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 flex-shrink-0"
+                  className="h-8 w-8 shrink-0"
                   disabled={isProcessing || disabled}
                   onClick={openFileDialog}
                 >
@@ -837,7 +839,7 @@ export function ChatInput({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 flex-shrink-0"
+                    className="h-8 w-8 shrink-0"
                     onClick={handleStop}
                   >
                     {isStreaming ? (
@@ -857,7 +859,7 @@ export function ChatInput({
                   <Button
                     variant="default"
                     size="icon"
-                    className="h-8 w-8 flex-shrink-0"
+                    className="h-8 w-8 shrink-0"
                     disabled={!canSend}
                     onClick={handleSubmit}
                   >
@@ -915,40 +917,48 @@ export function ChatInput({
               {/* Divider */}
               <div className="mx-1 h-4 w-px bg-border" />
 
-              {/* Web Search toggle */}
+              {/* Web Search toggle - enhanced with label */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
-                    size="icon"
+                    size="sm"
                     className={cn(
-                      'h-7 w-7',
-                      webSearchEnabled && 'bg-primary/10 text-primary'
+                      'h-7 gap-1.5 px-2 text-xs font-normal',
+                      webSearchEnabled 
+                        ? 'bg-primary/10 text-primary hover:bg-primary/20' 
+                        : 'text-muted-foreground hover:text-foreground'
                     )}
                     onClick={() => onWebSearchChange?.(!webSearchEnabled)}
                   >
                     <Globe className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Search</span>
+                    {webSearchEnabled && <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Web Search</TooltipContent>
+                <TooltipContent>Toggle Web Search</TooltipContent>
               </Tooltip>
 
-              {/* Thinking Mode toggle */}
+              {/* Thinking Mode toggle - enhanced with label */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
-                    size="icon"
+                    size="sm"
                     className={cn(
-                      'h-7 w-7',
-                      thinkingEnabled && 'bg-purple-500/10 text-purple-500'
+                      'h-7 gap-1.5 px-2 text-xs font-normal',
+                      thinkingEnabled 
+                        ? 'bg-purple-500/10 text-purple-500 hover:bg-purple-500/20' 
+                        : 'text-muted-foreground hover:text-foreground'
                     )}
                     onClick={() => onThinkingChange?.(!thinkingEnabled)}
                   >
                     <Brain className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Think</span>
+                    {thinkingEnabled && <span className="h-1.5 w-1.5 rounded-full bg-purple-500 animate-pulse" />}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Extended Thinking</TooltipContent>
+                <TooltipContent>Extended Thinking Mode</TooltipContent>
               </Tooltip>
 
               {/* Context Settings */}
@@ -967,20 +977,37 @@ export function ChatInput({
               </Tooltip>
             </div>
 
-            {/* Right side - Context usage */}
+            {/* Right side - Context usage with progress bar */}
             <div className="flex items-center gap-2">
               <button
                 onClick={onOpenContextSettings}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors group"
                 title="Context window usage"
               >
-                {contextUsagePercent}%
+                <div className="flex items-center gap-1.5">
+                  <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className={cn(
+                        "h-full rounded-full transition-all duration-300",
+                        contextUsagePercent < 50 ? "bg-green-500" :
+                        contextUsagePercent < 80 ? "bg-yellow-500" : "bg-red-500"
+                      )}
+                      style={{ width: `${Math.min(100, contextUsagePercent)}%` }}
+                    />
+                  </div>
+                  <span className={cn(
+                    "tabular-nums",
+                    contextUsagePercent >= 80 && "text-red-500 font-medium"
+                  )}>
+                    {contextUsagePercent}%
+                  </span>
+                </div>
               </button>
             </div>
           </div>
 
           {/* Helper text */}
-          <p className="mt-1 text-center text-xs text-muted-foreground">
+          <p className="mt-2 text-center text-xs text-muted-foreground/70">
             {sendOnEnter
               ? 'Press Enter to send, Shift+Enter for new line'
               : 'Click send button to send message'}
@@ -989,7 +1016,7 @@ export function ChatInput({
             {isMcpAvailable && (
               <>
                 {' • '}
-                <span className="text-primary">Type @ for MCP tools</span>
+                <span className="text-primary/80">Type @ for MCP tools</span>
               </>
             )}
           </p>

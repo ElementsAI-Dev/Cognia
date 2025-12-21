@@ -260,6 +260,25 @@ export function Badge({ className, variant = "default", ...props }) {
 
 type ViewMode = 'editor' | 'preview' | 'split';
 type ViewportSize = 'mobile' | 'tablet' | 'desktop' | 'full';
+type FrameworkType = 'react' | 'vue' | 'html';
+
+// Vue default template
+const DEFAULT_VUE_CODE = `<script setup>
+import { ref } from 'vue'
+const message = ref('Hello Vue!')
+</script>
+
+<template>
+  <div class="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg border shadow-sm p-6 max-w-md w-full">
+      <h1 class="text-2xl font-semibold text-gray-900 mb-3">{{ message }}</h1>
+      <p class="text-gray-600 mb-4 text-sm">Start editing to see your changes live.</p>
+      <button class="w-full bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium py-2.5 px-4 rounded-md transition-colors">
+        Get Started
+      </button>
+    </div>
+  </div>
+</template>`;
 
 interface ReactSandboxProps {
   code?: string;
@@ -269,31 +288,45 @@ interface ReactSandboxProps {
   showConsole?: boolean;
   readOnly?: boolean;
   onAIEdit?: () => void;
+  framework?: FrameworkType;
 }
 
 export function ReactSandbox({
-  code = DEFAULT_APP_CODE,
+  code,
   onCodeChange,
   className,
   showFileExplorer = false,
   showConsole = false,
   readOnly = false,
   onAIEdit,
+  framework = 'react',
 }: ReactSandboxProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('split');
   const [viewport, setViewport] = useState<ViewportSize>('desktop');
   const [isConsoleOpen, setIsConsoleOpen] = useState(showConsole);
   const [isFileExplorerOpen, setIsFileExplorerOpen] = useState(showFileExplorer);
 
-  // Build files object with components
-  const files = useMemo(() => ({
-    '/App.js': { code, active: true },
+  // Get default code based on framework
+  const defaultCode = framework === 'vue' ? DEFAULT_VUE_CODE : DEFAULT_APP_CODE;
+  const actualCode = code ?? defaultCode;
+
+  // Build files object based on framework
+  const vueFiles = useMemo(() => ({
+    '/src/App.vue': { code: actualCode, active: true },
+  }), [actualCode]);
+
+  const reactFiles = useMemo(() => ({
+    '/App.js': { code: actualCode, active: true },
     '/utils.js': { code: UTILS_CODE, hidden: true },
     '/Button.js': { code: BUTTON_COMPONENT, hidden: true },
     '/Card.js': { code: CARD_COMPONENT, hidden: true },
     '/Input.js': { code: INPUT_COMPONENT, hidden: true },
     '/Badge.js': { code: BADGE_COMPONENT, hidden: true },
-  }), [code]);
+  }), [actualCode]);
+
+  // Get template based on framework
+  const sandpackTemplate = framework === 'vue' ? 'vue' : 'react';
+  const files = framework === 'vue' ? vueFiles : reactFiles;
 
   const viewportStyles = useMemo(() => {
     switch (viewport) {
@@ -311,7 +344,7 @@ export function ReactSandbox({
   return (
     <div className={cn('flex flex-col h-full bg-background', className)}>
       <SandpackProvider
-        template="react"
+        template={sandpackTemplate}
         theme={customTheme}
         files={files}
         customSetup={{

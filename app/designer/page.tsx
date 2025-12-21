@@ -6,14 +6,20 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useSettingsStore } from '@/stores';
-import { generateText } from 'ai';
-import { getProviderModel, type ProviderName } from '@/lib/ai/client';
+import { useSettingsStore, useArtifactStore } from '@/stores';
 import { ReactSandbox } from '@/components/designer';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { DESIGNER_TEMPLATES, AI_SUGGESTIONS, TEMPLATE_CATEGORIES } from '@/lib/designer/templates';
+import {
+  DESIGNER_TEMPLATES,
+  AI_SUGGESTIONS,
+  TEMPLATE_CATEGORIES,
+  FRAMEWORK_OPTIONS,
+  executeDesignerAIEdit,
+  getDesignerAIConfig,
+  type FrameworkType,
+} from '@/lib/designer';
 import {
   Sparkles,
   Send,
@@ -23,6 +29,12 @@ import {
   AlertCircle,
   Layers,
   X,
+  Undo2,
+  Redo2,
+  Download,
+  Copy,
+  Check,
+  FileCode,
 } from 'lucide-react';
 import {
   Dialog,
@@ -43,9 +55,84 @@ export default function DesignerPage() {
   const [aiPrompt, setAIPrompt] = useState('');
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [aiError, setAIError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [framework, setFramework] = useState<FrameworkType>('react');
+  
+  // History for undo/redo
+  const [history, setHistory] = useState<string[]>([DESIGNER_TEMPLATES[0].code]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
+  // Filter templates by selected framework
+  const filteredTemplates = DESIGNER_TEMPLATES.filter(t => t.framework === framework);
 
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const defaultProvider = useSettingsStore((state) => state.defaultProvider);
+
+  // Canvas integration
+  const createCanvasDocument = useArtifactStore((state) => state.createCanvasDocument);
+  const setActiveCanvas = useArtifactStore((state) => state.setActiveCanvas);
+  const openPanel = useArtifactStore((state) => state.openPanel);
+
+  // Open current code in Canvas for detailed editing
+  const handleOpenInCanvas = useCallback(() => {
+    const language = framework === 'vue' ? 'jsx' : (framework === 'html' ? 'html' : 'jsx');
+    const docId = createCanvasDocument({
+      title: 'Designer Code',
+      content: code,
+      language: language as 'jsx' | 'html',
+      type: 'code',
+    });
+    setActiveCanvas(docId);
+    openPanel('canvas');
+  }, [code, framework, createCanvasDocument, setActiveCanvas, openPanel]);
+
+  // Add to history helper
+  const addToHistory = useCallback((newCode: string) => {
+    setHistory(prev => {
+      const newHistory = prev.slice(0, historyIndex + 1);
+      newHistory.push(newCode);
+      return newHistory.slice(-50); // Keep last 50 entries
+    });
+    setHistoryIndex(prev => Math.min(prev + 1, 49));
+  }, [historyIndex]);
+
+  // Undo handler
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setCode(history[newIndex]);
+    }
+  }, [history, historyIndex]);
+
+  // Redo handler
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setCode(history[newIndex]);
+    }
+  }, [history, historyIndex]);
+
+  // Copy code handler
+  const handleCopyCode = useCallback(async () => {
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [code]);
+
+  // Download code handler
+  const handleDownload = useCallback(() => {
+    const blob = new Blob([code], { type: 'text/javascript' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'component.jsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [code]);
 
   // Load code from sessionStorage if key parameter is present
   useEffect(() => {
@@ -62,8 +149,15 @@ export default function DesignerPage() {
   }, [searchParams]);
 
   const handleSelectTemplate = useCallback((template: typeof DESIGNER_TEMPLATES[0]) => {
+    addToHistory(template.code);
     setCode(template.code);
     setShowTemplates(false);
+  }, [addToHistory]);
+
+  // Handle code change from editor
+  const handleCodeChange = useCallback((newCode: string) => {
+    setCode(newCode);
+    // Debounce history updates for manual edits
   }, []);
 
   const handleAIEdit = useCallback(async () => {
@@ -72,44 +166,23 @@ export default function DesignerPage() {
     setIsAIProcessing(true);
     setAIError(null);
 
-    const provider = (defaultProvider || 'openai') as ProviderName;
-    const settings = providerSettings[provider];
-    const model = settings?.defaultModel || 'gpt-4o-mini';
-
-    if (!settings?.apiKey && provider !== 'ollama') {
-      setAIError(`No API key configured for ${provider}. Please add your API key in Settings.`);
-      setIsAIProcessing(false);
-      return;
-    }
-
     try {
-      const modelInstance = getProviderModel(provider, model, settings?.apiKey || '', settings?.baseURL);
+      const config = getDesignerAIConfig(defaultProvider, providerSettings);
+      const result = await executeDesignerAIEdit(aiPrompt, code, config);
 
-      const result = await generateText({
-        model: modelInstance,
-        system: `You are an expert React developer. Modify the following React component based on the user's request.
-Return ONLY the complete modified code, no explanations.
-Preserve the component structure and use Tailwind CSS for styling.
-Make sure the code is valid JSX that can be rendered.`,
-        prompt: `Current code:\n\n${code}\n\nUser request: ${aiPrompt}`,
-        temperature: 0.7,
-      });
-
-      if (result.text) {
-        // Clean up the response - remove markdown code blocks if present
-        let newCode = result.text.trim();
-        if (newCode.startsWith('```')) {
-          newCode = newCode.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '');
-        }
-        setCode(newCode);
+      if (result.success && result.code) {
+        addToHistory(result.code);
+        setCode(result.code);
+        setAIPrompt('');
+      } else {
+        setAIError(result.error || 'AI edit failed');
       }
-      setAIPrompt('');
     } catch (error) {
       setAIError(error instanceof Error ? error.message : 'AI edit failed');
     } finally {
       setIsAIProcessing(false);
     }
-  }, [aiPrompt, code, defaultProvider, providerSettings]);
+  }, [aiPrompt, code, defaultProvider, providerSettings, addToHistory]);
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -131,12 +204,63 @@ Make sure the code is valid JSX that can be rendered.`,
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Undo/Redo */}
+          <div className="flex items-center border rounded-md">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-r-none"
+              onClick={handleUndo}
+              disabled={historyIndex <= 0}
+            >
+              <Undo2 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-l-none border-l"
+              onClick={handleRedo}
+              disabled={historyIndex >= history.length - 1}
+            >
+              <Redo2 className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Copy/Download */}
+          <div className="flex items-center border rounded-md">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-r-none"
+              onClick={handleCopyCode}
+            >
+              {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-l-none border-l"
+              onClick={handleDownload}
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          </div>
+
           <Button variant="outline" size="sm" onClick={() => setShowTemplates(true)}>
             <Layers className="h-4 w-4 mr-2" />
             Templates
           </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleOpenInCanvas}
+            title="Open in Canvas for detailed code editing with Monaco Editor"
+          >
+            <FileCode className="h-4 w-4 mr-2" />
+            Edit Code
+          </Button>
           <Button
-            variant={showAIPanel ? 'secondary' : 'outline'}
+            variant={showAIPanel ? 'default' : 'outline'}
             size="sm"
             onClick={() => setShowAIPanel(!showAIPanel)}
           >
@@ -209,9 +333,10 @@ Make sure the code is valid JSX that can be rendered.`,
       <div className="flex-1 overflow-hidden">
         <ReactSandbox
           code={code}
-          onCodeChange={setCode}
+          onCodeChange={handleCodeChange}
           showFileExplorer={false}
           showConsole={false}
+          framework={framework}
         />
       </div>
 
@@ -225,19 +350,34 @@ Make sure the code is valid JSX that can be rendered.`,
             </DialogDescription>
           </DialogHeader>
 
+          {/* Framework selector */}
+          <div className="flex gap-2 mb-4">
+            {FRAMEWORK_OPTIONS.map((opt) => (
+              <Button
+                key={opt.value}
+                variant={framework === opt.value ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFramework(opt.value)}
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </div>
+
           <Tabs defaultValue="all" className="flex-1 overflow-hidden flex flex-col">
-            <TabsList>
+            <TabsList className="flex-wrap h-auto gap-1">
               <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="Basic">Basic</TabsTrigger>
-              <TabsTrigger value="Marketing">Marketing</TabsTrigger>
-              <TabsTrigger value="Application">Application</TabsTrigger>
-              <TabsTrigger value="Components">Components</TabsTrigger>
+              {TEMPLATE_CATEGORIES.map((category) => (
+                <TabsTrigger key={category} value={category}>
+                  {category}
+                </TabsTrigger>
+              ))}
             </TabsList>
 
             <ScrollArea className="flex-1 mt-4">
               <TabsContent value="all" className="mt-0">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {DESIGNER_TEMPLATES.map((template) => (
+                  {filteredTemplates.map((template) => (
                     <button
                       key={template.id}
                       onClick={() => handleSelectTemplate(template)}
@@ -263,7 +403,7 @@ Make sure the code is valid JSX that can be rendered.`,
               {TEMPLATE_CATEGORIES.map((category) => (
                 <TabsContent key={category} value={category} className="mt-0">
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {DESIGNER_TEMPLATES.filter((t) => t.category === category).map((template) => (
+                    {filteredTemplates.filter((t) => t.category === category).map((template) => (
                       <button
                         key={template.id}
                         onClick={() => handleSelectTemplate(template)}

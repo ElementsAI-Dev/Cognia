@@ -43,9 +43,47 @@ export interface DBDocument {
   name: string;
   type: string;
   content: string;
+  embeddableContent?: string;
   embedding?: number[];
   metadata?: string; // JSON serialized
+  projectId?: string;
+  collectionId?: string;
+  isIndexed?: boolean;
+  version?: number;
   createdAt: Date;
+  updatedAt?: Date;
+}
+
+export interface DBProject {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  customInstructions?: string;
+  defaultProvider?: string;
+  defaultModel?: string;
+  defaultMode?: string;
+  sessionIds?: string; // JSON serialized string[]
+  sessionCount: number;
+  messageCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+  lastAccessedAt: Date;
+}
+
+export interface DBKnowledgeFile {
+  id: string;
+  projectId: string;
+  name: string;
+  type: string;
+  content: string;
+  size: number;
+  mimeType?: string;
+  originalSize?: number;
+  pageCount?: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface DBMCPServer {
@@ -64,6 +102,8 @@ class CogniaDB extends Dexie {
   messages!: EntityTable<DBMessage, 'id'>;
   documents!: EntityTable<DBDocument, 'id'>;
   mcpServers!: EntityTable<DBMCPServer, 'id'>;
+  projects!: EntityTable<DBProject, 'id'>;
+  knowledgeFiles!: EntityTable<DBKnowledgeFile, 'id'>;
 
   constructor() {
     super('CogniaDB');
@@ -81,6 +121,16 @@ class CogniaDB extends Dexie {
       messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
       documents: 'id, name, type, createdAt',
       mcpServers: 'id, name, url, connected',
+    });
+
+    // Version 3: Add projects, knowledgeFiles tables and enhance documents
+    this.version(3).stores({
+      sessions: 'id, title, provider, projectId, createdAt, updatedAt',
+      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
+      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
+      mcpServers: 'id, name, url, connected',
+      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
+      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
     });
   }
 }

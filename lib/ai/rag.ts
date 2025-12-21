@@ -1,6 +1,11 @@
 /**
  * RAG (Retrieval Augmented Generation) Service
- * Combines vector search with AI generation for context-aware responses
+ * 
+ * Features:
+ * - Batch document indexing with progress callbacks
+ * - Incremental updates (add/update/delete documents)
+ * - Context retrieval with relevance scoring
+ * - Configurable chunking strategies
  */
 
 import { chunkDocument, type ChunkingOptions, type DocumentChunk } from './chunking';
@@ -47,6 +52,22 @@ export interface IndexingResult {
   chunksCreated: number;
   success: boolean;
   error?: string;
+}
+
+export interface BatchIndexingProgress {
+  totalDocuments: number;
+  processedDocuments: number;
+  currentDocument?: string;
+  successCount: number;
+  errorCount: number;
+  percentage: number;
+}
+
+export interface BatchIndexingOptions {
+  onProgress?: (progress: BatchIndexingProgress) => void;
+  onDocumentComplete?: (result: IndexingResult) => void;
+  batchSize?: number;
+  continueOnError?: boolean;
 }
 
 /**
@@ -111,19 +132,117 @@ export async function indexDocument(
 }
 
 /**
- * Index multiple documents
+ * Index multiple documents with progress tracking
  */
 export async function indexDocuments(
   collectionName: string,
   documents: RAGDocument[],
-  config: RAGConfig
+  config: RAGConfig,
+  options?: BatchIndexingOptions
 ): Promise<IndexingResult[]> {
   const results: IndexingResult[] = [];
+  const { onProgress, onDocumentComplete, continueOnError = true } = options || {};
+  
+  let successCount = 0;
+  let errorCount = 0;
 
-  for (const doc of documents) {
+  for (let i = 0; i < documents.length; i++) {
+    const doc = documents[i];
+    
+    // Report progress
+    onProgress?.({
+      totalDocuments: documents.length,
+      processedDocuments: i,
+      currentDocument: doc.id,
+      successCount,
+      errorCount,
+      percentage: Math.round((i / documents.length) * 100),
+    });
+
     const result = await indexDocument(collectionName, doc, config);
     results.push(result);
+    
+    if (result.success) {
+      successCount++;
+    } else {
+      errorCount++;
+      if (!continueOnError) {
+        break;
+      }
+    }
+    
+    onDocumentComplete?.(result);
   }
+
+  // Final progress update
+  onProgress?.({
+    totalDocuments: documents.length,
+    processedDocuments: documents.length,
+    successCount,
+    errorCount,
+    percentage: 100,
+  });
+
+  return results;
+}
+
+/**
+ * Index documents in parallel batches for better performance
+ */
+export async function indexDocumentsBatched(
+  collectionName: string,
+  documents: RAGDocument[],
+  config: RAGConfig,
+  options?: BatchIndexingOptions
+): Promise<IndexingResult[]> {
+  const { batchSize = 10, onProgress, onDocumentComplete, continueOnError = true } = options || {};
+  const results: IndexingResult[] = [];
+  
+  let successCount = 0;
+  let errorCount = 0;
+
+  for (let i = 0; i < documents.length; i += batchSize) {
+    const batch = documents.slice(i, i + batchSize);
+    
+    // Report progress
+    onProgress?.({
+      totalDocuments: documents.length,
+      processedDocuments: i,
+      currentDocument: `batch ${Math.floor(i / batchSize) + 1}`,
+      successCount,
+      errorCount,
+      percentage: Math.round((i / documents.length) * 100),
+    });
+
+    // Process batch in parallel
+    const batchResults = await Promise.all(
+      batch.map(doc => indexDocument(collectionName, doc, config))
+    );
+
+    for (const result of batchResults) {
+      results.push(result);
+      if (result.success) {
+        successCount++;
+      } else {
+        errorCount++;
+      }
+      onDocumentComplete?.(result);
+    }
+
+    // Check if we should stop on error
+    if (!continueOnError && errorCount > 0) {
+      break;
+    }
+  }
+
+  // Final progress update
+  onProgress?.({
+    totalDocuments: documents.length,
+    processedDocuments: documents.length,
+    successCount,
+    errorCount,
+    percentage: 100,
+  });
 
   return results;
 }

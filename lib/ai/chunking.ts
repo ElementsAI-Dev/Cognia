@@ -1,9 +1,18 @@
 /**
  * Document Chunking - Split documents into smaller chunks for embedding
- * Supports multiple chunking strategies
+ * 
+ * Strategies:
+ * - fixed: Split by character count with word boundary respect
+ * - sentence: Split by sentences, grouped to target size
+ * - paragraph: Split by paragraphs, grouped to target size
+ * - semantic: AI-powered splitting based on content boundaries
+ * - heading: Split by markdown/document headings
  */
 
-export type ChunkingStrategy = 'fixed' | 'sentence' | 'paragraph' | 'semantic';
+import { generateText } from 'ai';
+import type { LanguageModel } from 'ai';
+
+export type ChunkingStrategy = 'fixed' | 'sentence' | 'paragraph' | 'semantic' | 'heading';
 
 export interface ChunkingOptions {
   strategy: ChunkingStrategy;
@@ -11,6 +20,7 @@ export interface ChunkingOptions {
   chunkOverlap: number;
   minChunkSize?: number;
   maxChunkSize?: number;
+  model?: LanguageModel; // For semantic chunking
 }
 
 export interface DocumentChunk {
@@ -155,6 +165,105 @@ function sentenceChunking(
 }
 
 /**
+ * Split text into chunks by headings (markdown style)
+ */
+function headingChunking(
+  text: string,
+  chunkSize: number,
+  overlap: number
+): { content: string; start: number; end: number }[] {
+  // Match markdown headings (# ## ### etc.) or underlined headings
+  const headingRegex = /^(#{1,6}\s+.+|.+\n[=-]+)$/gm;
+  const sections: { text: string; start: number; end: number; heading?: string }[] = [];
+  
+  let match;
+  const matches: { index: number; heading: string }[] = [];
+  
+  while ((match = headingRegex.exec(text)) !== null) {
+    matches.push({ index: match.index, heading: match[0] });
+  }
+  
+  // Split by headings
+  for (let i = 0; i < matches.length; i++) {
+    const current = matches[i];
+    const next = matches[i + 1];
+    
+    // Add content before first heading
+    if (i === 0 && current.index > 0) {
+      const beforeContent = text.slice(0, current.index).trim();
+      if (beforeContent) {
+        sections.push({
+          text: beforeContent,
+          start: 0,
+          end: current.index,
+        });
+      }
+    }
+    
+    const sectionEnd = next ? next.index : text.length;
+    const sectionContent = text.slice(current.index, sectionEnd).trim();
+    
+    if (sectionContent) {
+      sections.push({
+        text: sectionContent,
+        start: current.index,
+        end: sectionEnd,
+        heading: current.heading,
+      });
+    }
+    
+  }
+  
+  // If no headings found, fall back to paragraph chunking
+  if (sections.length === 0) {
+    return paragraphChunking(text, chunkSize, overlap);
+  }
+  
+  // Group sections into chunks respecting chunkSize
+  const chunks: { content: string; start: number; end: number }[] = [];
+  let currentChunk = '';
+  let chunkStart = 0;
+  let chunkEnd = 0;
+  
+  for (const section of sections) {
+    // If adding this section exceeds chunk size, save current chunk
+    if (currentChunk.length + section.text.length > chunkSize && currentChunk.length > 0) {
+      chunks.push({
+        content: currentChunk.trim(),
+        start: chunkStart,
+        end: chunkEnd,
+      });
+      
+      // Start new chunk (with overlap from previous content if small enough)
+      if (currentChunk.length <= overlap) {
+        // Keep entire previous chunk as overlap
+        chunkStart = chunkStart; // Keep same start for overlap
+      } else {
+        currentChunk = '';
+        chunkStart = section.start;
+      }
+    }
+    
+    if (!currentChunk) {
+      chunkStart = section.start;
+    }
+    currentChunk += (currentChunk ? '\n\n' : '') + section.text;
+    chunkEnd = section.end;
+  }
+  
+  // Add final chunk
+  if (currentChunk.trim()) {
+    chunks.push({
+      content: currentChunk.trim(),
+      start: chunkStart,
+      end: chunkEnd,
+    });
+  }
+  
+  return chunks;
+}
+
+/**
  * Split text into chunks by paragraphs
  */
 function paragraphChunking(
@@ -266,9 +375,12 @@ export function chunkDocument(
       rawChunks = paragraphChunking(cleanedText, opts.chunkSize, opts.chunkOverlap);
       break;
     case 'semantic':
-      // Semantic chunking falls back to sentence for now
-      // Could be enhanced with AI-based splitting
-      rawChunks = sentenceChunking(cleanedText, opts.chunkSize, opts.chunkOverlap);
+      // Semantic chunking uses heading-based as a heuristic
+      // For true AI-powered semantic chunking, use chunkDocumentSemantic
+      rawChunks = headingChunking(cleanedText, opts.chunkSize, opts.chunkOverlap);
+      break;
+    case 'heading':
+      rawChunks = headingChunking(cleanedText, opts.chunkSize, opts.chunkOverlap);
       break;
     case 'fixed':
     default:
@@ -368,4 +480,138 @@ export function getChunkStats(chunks: DocumentChunk[]): {
     maxLength: Math.max(...lengths),
     totalLength,
   };
+}
+
+/**
+ * AI-powered semantic chunking using language model to identify split points
+ * This provides true semantic chunking based on content meaning
+ */
+export async function chunkDocumentSemantic(
+  text: string,
+  model: LanguageModel,
+  options: {
+    targetChunkSize?: number;
+    documentId?: string;
+  } = {}
+): Promise<ChunkingResult> {
+  const { targetChunkSize = 1000, documentId } = options;
+  const cleanedText = text.replace(/\r\n/g, '\n').trim();
+  
+  if (!cleanedText || cleanedText.length <= targetChunkSize) {
+    // Text is small enough, return as single chunk
+    return {
+      chunks: cleanedText ? [{
+        id: documentId ? `${documentId}-chunk-0` : `chunk-0-${Date.now()}`,
+        content: cleanedText,
+        index: 0,
+        startOffset: 0,
+        endOffset: cleanedText.length,
+      }] : [],
+      totalChunks: cleanedText ? 1 : 0,
+      originalLength: cleanedText.length,
+      strategy: 'semantic',
+    };
+  }
+
+  try {
+    // Use AI to identify natural break points in the text
+    const prompt = `Analyze the following text and identify the best positions to split it into semantic chunks of approximately ${targetChunkSize} characters each. Each chunk should contain a complete thought or topic.
+
+Return ONLY a JSON array of character positions (numbers) where the text should be split. The positions should be at natural break points (end of paragraphs, sections, or logical divisions).
+
+Example output format: [500, 1200, 1800]
+
+Text to analyze:
+${cleanedText.slice(0, 8000)}${cleanedText.length > 8000 ? '\n...[truncated]' : ''}`;
+
+    const result = await generateText({
+      model,
+      prompt,
+      temperature: 0.1,
+    });
+
+    // Parse the split points from AI response
+    const jsonMatch = result.text.match(/\[[\d,\s]+\]/);
+    let splitPoints: number[] = [];
+    
+    if (jsonMatch) {
+      try {
+        splitPoints = JSON.parse(jsonMatch[0]);
+        // Validate and filter split points
+        splitPoints = splitPoints
+          .filter((p) => typeof p === 'number' && p > 0 && p < cleanedText.length)
+          .sort((a, b) => a - b);
+      } catch {
+        // If parsing fails, fall back to heading chunking
+      }
+    }
+
+    // If AI couldn't find good split points, fall back to heading chunking
+    if (splitPoints.length === 0) {
+      return chunkDocument(cleanedText, { strategy: 'heading', chunkSize: targetChunkSize, chunkOverlap: 100 }, documentId);
+    }
+
+    // Create chunks based on split points
+    const chunks: DocumentChunk[] = [];
+    let lastPos = 0;
+    
+    for (let i = 0; i <= splitPoints.length; i++) {
+      const endPos = i < splitPoints.length ? splitPoints[i] : cleanedText.length;
+      const content = cleanedText.slice(lastPos, endPos).trim();
+      
+      if (content) {
+        chunks.push({
+          id: documentId ? `${documentId}-chunk-${chunks.length}` : `chunk-${chunks.length}-${Date.now()}`,
+          content,
+          index: chunks.length,
+          startOffset: lastPos,
+          endOffset: endPos,
+          metadata: { semantic: true },
+        });
+      }
+      
+      lastPos = endPos;
+    }
+
+    return {
+      chunks,
+      totalChunks: chunks.length,
+      originalLength: cleanedText.length,
+      strategy: 'semantic',
+    };
+  } catch (error) {
+    // If AI fails, fall back to heading chunking
+    console.warn('Semantic chunking failed, falling back to heading strategy:', error);
+    return chunkDocument(cleanedText, { strategy: 'heading', chunkSize: targetChunkSize, chunkOverlap: 100 }, documentId);
+  }
+}
+
+/**
+ * Smart chunking that automatically selects the best strategy based on content
+ */
+export function chunkDocumentSmart(
+  text: string,
+  options: Partial<ChunkingOptions> = {},
+  documentId?: string
+): ChunkingResult {
+  const cleanedText = text.replace(/\r\n/g, '\n').trim();
+  
+  // Detect document type and select appropriate strategy
+  const hasMarkdownHeadings = /^#{1,6}\s+/m.test(cleanedText);
+  const hasParagraphs = /\n\s*\n/.test(cleanedText);
+  const avgSentenceLength = cleanedText.length / (cleanedText.split(/[.!?]+/).length || 1);
+  
+  let strategy: ChunkingStrategy;
+  
+  if (hasMarkdownHeadings) {
+    strategy = 'heading';
+  } else if (hasParagraphs && avgSentenceLength > 50) {
+    strategy = 'paragraph';
+  } else if (avgSentenceLength > 30) {
+    strategy = 'sentence';
+  } else {
+    strategy = 'fixed';
+  }
+  
+  return chunkDocument(cleanedText, { ...options, strategy }, documentId);
 }

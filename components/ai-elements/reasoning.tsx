@@ -101,7 +101,10 @@ export const Reasoning = memo(
         value={{ isStreaming, isOpen, setIsOpen, duration }}
       >
         <Collapsible
-          className={cn("not-prose mb-4", className)}
+          className={cn(
+            "not-prose mb-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-300",
+            className
+          )}
           onOpenChange={handleOpenChange}
           open={isOpen}
           {...props}
@@ -134,18 +137,24 @@ export const ReasoningTrigger = memo(
     return (
       <CollapsibleTrigger
         className={cn(
-          "flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground",
+          "group flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground",
+          "px-3 py-2 rounded-xl bg-muted/30 hover:bg-muted/50",
           className
         )}
         {...props}
       >
         {children ?? (
           <>
-            <BrainIcon className="size-4" />
+            <div className={cn(
+              "flex h-6 w-6 items-center justify-center rounded-lg transition-colors",
+              isStreaming ? "bg-primary/20 text-primary" : "bg-muted"
+            )}>
+              <BrainIcon className="size-3.5" />
+            </div>
             {getThinkingMessage(isStreaming, duration)}
             <ChevronDownIcon
               className={cn(
-                "size-4 transition-transform",
+                "size-4 ml-auto transition-transform duration-200",
                 isOpen ? "rotate-180" : "rotate-0"
               )}
             />
@@ -166,13 +175,15 @@ export const ReasoningContent = memo(
   ({ className, children, ...props }: ReasoningContentProps) => (
     <CollapsibleContent
       className={cn(
-        "mt-4 text-sm",
-        "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-muted-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
+        "mt-3 text-sm",
+        "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-muted-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in duration-200",
         className
       )}
       {...props}
     >
-      <Streamdown {...props}>{children}</Streamdown>
+      <div className="rounded-xl border border-border/30 bg-muted/20 p-4">
+        <Streamdown {...props}>{children}</Streamdown>
+      </div>
     </CollapsibleContent>
   )
 );

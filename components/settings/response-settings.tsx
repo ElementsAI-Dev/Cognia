@@ -2,9 +2,9 @@
 
 /**
  * ResponseSettings - Configure AI response formatting options
+ * All settings are persisted to the settings store
  */
 
-import { useState } from 'react';
 import { Type, Code, Palette, Eye } from 'lucide-react';
 import {
   Card,
@@ -23,10 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-// import { useSettingsStore } from '@/stores'; // Reserved for future persistence
-
-export type CodeTheme = 'github-dark' | 'github-light' | 'monokai' | 'dracula' | 'nord' | 'one-dark';
-export type FontFamily = 'system' | 'inter' | 'roboto' | 'fira-code' | 'jetbrains-mono';
+import { useSettingsStore, type CodeTheme, type FontFamily } from '@/stores';
 
 const CODE_THEMES: { value: CodeTheme; label: string }[] = [
   { value: 'github-dark', label: 'GitHub Dark' },
@@ -46,18 +43,29 @@ const FONT_FAMILIES: { value: FontFamily; label: string }[] = [
 ];
 
 export function ResponseSettings() {
-  // Local state for settings (would be persisted to store in real implementation)
-  const [codeTheme, setCodeTheme] = useState<CodeTheme>('github-dark');
-  const [fontFamily, setFontFamily] = useState<FontFamily>('system');
-  const [fontSize, setFontSize] = useState(14);
-  const [lineHeight, setLineHeight] = useState(1.6);
-  const [showLineNumbers, setShowLineNumbers] = useState(true);
-  const [enableSyntaxHighlight, setEnableSyntaxHighlight] = useState(true);
-  const [enableMathRendering, setEnableMathRendering] = useState(true);
-  const [enableMermaidDiagrams, setEnableMermaidDiagrams] = useState(true);
-  const [compactMode, setCompactMode] = useState(false);
-  const [showTimestamps, setShowTimestamps] = useState(false);
-  const [showTokenCount, setShowTokenCount] = useState(true);
+  // All settings are now persisted to the store
+  const codeTheme = useSettingsStore((state) => state.codeTheme);
+  const setCodeTheme = useSettingsStore((state) => state.setCodeTheme);
+  const codeFontFamily = useSettingsStore((state) => state.codeFontFamily);
+  const setCodeFontFamily = useSettingsStore((state) => state.setCodeFontFamily);
+  const codeFontSize = useSettingsStore((state) => state.codeFontSize);
+  const setCodeFontSize = useSettingsStore((state) => state.setCodeFontSize);
+  const lineHeight = useSettingsStore((state) => state.lineHeight);
+  const setLineHeight = useSettingsStore((state) => state.setLineHeight);
+  const showLineNumbers = useSettingsStore((state) => state.showLineNumbers);
+  const setShowLineNumbers = useSettingsStore((state) => state.setShowLineNumbers);
+  const enableSyntaxHighlight = useSettingsStore((state) => state.enableSyntaxHighlight);
+  const setEnableSyntaxHighlight = useSettingsStore((state) => state.setEnableSyntaxHighlight);
+  const enableMathRendering = useSettingsStore((state) => state.enableMathRendering);
+  const setEnableMathRendering = useSettingsStore((state) => state.setEnableMathRendering);
+  const enableMermaidDiagrams = useSettingsStore((state) => state.enableMermaidDiagrams);
+  const setEnableMermaidDiagrams = useSettingsStore((state) => state.setEnableMermaidDiagrams);
+  const compactMode = useSettingsStore((state) => state.compactMode);
+  const setCompactMode = useSettingsStore((state) => state.setCompactMode);
+  const showTimestamps = useSettingsStore((state) => state.showTimestamps);
+  const setShowTimestamps = useSettingsStore((state) => state.setShowTimestamps);
+  const showTokenCount = useSettingsStore((state) => state.showTokenCount);
+  const setShowTokenCount = useSettingsStore((state) => state.setShowTokenCount);
 
   return (
     <div className="space-y-6">
@@ -92,7 +100,7 @@ export function ResponseSettings() {
 
             <div className="space-y-2">
               <Label>Font Family</Label>
-              <Select value={fontFamily} onValueChange={(v) => setFontFamily(v as FontFamily)}>
+              <Select value={codeFontFamily} onValueChange={(v) => setCodeFontFamily(v as FontFamily)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -110,11 +118,11 @@ export function ResponseSettings() {
           <div className="space-y-4">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Font Size: {fontSize}px</Label>
+                <Label>Font Size: {codeFontSize}px</Label>
               </div>
               <Slider
-                value={[fontSize]}
-                onValueChange={([v]) => setFontSize(v)}
+                value={[codeFontSize]}
+                onValueChange={([v]) => setCodeFontSize(v)}
                 min={10}
                 max={20}
                 step={1}
@@ -275,7 +283,7 @@ export function ResponseSettings() {
           <div
             className="p-4 rounded-lg border bg-muted/30"
             style={{
-              fontFamily: fontFamily === 'system' ? 'inherit' : fontFamily,
+              fontFamily: codeFontFamily === 'system' ? 'inherit' : codeFontFamily,
               lineHeight: lineHeight,
             }}
           >
@@ -284,7 +292,7 @@ export function ResponseSettings() {
             </p>
             <pre
               className="p-3 rounded bg-zinc-900 text-zinc-100 overflow-x-auto"
-              style={{ fontSize: `${fontSize}px` }}
+              style={{ fontSize: `${codeFontSize}px` }}
             >
               <code>
 {`function greet(name: string) {

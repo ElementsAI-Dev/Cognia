@@ -1,11 +1,13 @@
 /**
  * Knowledge Base - RAG Integration
  * Utilities to convert knowledge files to RAG-compatible format and build context
+ * Enhanced with local vector storage support
  */
 
 import type { KnowledgeFile, Project } from '@/types';
 import type { RAGDocument } from '@/lib/ai/rag';
 import { chunkDocument, type ChunkingOptions, type DocumentChunk } from '@/lib/ai/chunking';
+import { projectRepository } from '@/lib/db/repositories/project-repository';
 
 /**
  * Convert a KnowledgeFile to RAGDocument format
@@ -352,5 +354,228 @@ export function getKnowledgeBaseStats(files: KnowledgeFile[]): {
     byType,
     averageSize: files.length > 0 ? Math.round(totalSize / files.length) : 0,
     estimatedTokens: Math.ceil(totalSize / 4), // Rough estimate: 4 chars per token
+  };
+}
+
+// ============================================================================
+// Local Storage Integration
+// ============================================================================
+
+/**
+ * Load knowledge files from database for a project
+ */
+export async function loadProjectKnowledge(projectId: string): Promise<KnowledgeFile[]> {
+  return projectRepository.getKnowledgeFiles(projectId);
+}
+
+/**
+ * Save a knowledge file to a project in the database
+ */
+export async function saveKnowledgeFile(
+  projectId: string,
+  file: Omit<KnowledgeFile, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<KnowledgeFile> {
+  return projectRepository.addKnowledgeFile(projectId, {
+    name: file.name,
+    type: file.type,
+    content: file.content,
+    size: file.size,
+    mimeType: file.mimeType,
+    originalSize: file.originalSize,
+    pageCount: file.pageCount,
+  });
+}
+
+/**
+ * Delete a knowledge file from the database
+ */
+export async function deleteKnowledgeFile(fileId: string): Promise<void> {
+  return projectRepository.deleteKnowledgeFile(fileId);
+}
+
+/**
+ * Build context for a project with database-backed knowledge
+ */
+export async function buildProjectContextFromDB(
+  projectId: string,
+  query?: string,
+  options: {
+    maxContextLength?: number;
+    useRelevanceFiltering?: boolean;
+  } = {}
+): Promise<{
+  systemPrompt: string;
+  knowledgeContext: string;
+  filesUsed: string[];
+}> {
+  const project = await projectRepository.getById(projectId);
+  if (!project) {
+    return {
+      systemPrompt: 'You are a helpful AI assistant.',
+      knowledgeContext: '',
+      filesUsed: [],
+    };
+  }
+
+  return buildProjectContext(project, query, options);
+}
+
+/**
+ * Sync knowledge files between in-memory project and database
+ */
+export async function syncKnowledgeBase(
+  projectId: string,
+  files: KnowledgeFile[]
+): Promise<void> {
+  // Get existing files from DB
+  const existingFiles = await projectRepository.getKnowledgeFiles(projectId);
+  const existingIds = new Set(existingFiles.map((f) => f.id));
+  const newIds = new Set(files.map((f) => f.id));
+
+  // Delete files that are no longer in the list
+  for (const existing of existingFiles) {
+    if (!newIds.has(existing.id)) {
+      await projectRepository.deleteKnowledgeFile(existing.id);
+    }
+  }
+
+  // Add new files
+  for (const file of files) {
+    if (!existingIds.has(file.id)) {
+      await projectRepository.addKnowledgeFile(projectId, {
+        name: file.name,
+        type: file.type,
+        content: file.content,
+        size: file.size,
+        mimeType: file.mimeType,
+        originalSize: file.originalSize,
+        pageCount: file.pageCount,
+      });
+    }
+  }
+}
+
+/**
+ * Get knowledge base statistics from database
+ */
+export async function getProjectKnowledgeStats(projectId: string): Promise<{
+  totalFiles: number;
+  totalSize: number;
+  byType: Record<string, number>;
+}> {
+  const files = await projectRepository.getKnowledgeFiles(projectId);
+  const stats = getKnowledgeBaseStats(files);
+  
+  return {
+    totalFiles: stats.totalFiles,
+    totalSize: stats.totalSize,
+    byType: stats.byType,
+  };
+}
+
+// ============================================================================
+// Vector Search Integration
+// ============================================================================
+
+export interface VectorSearchConfig {
+  provider: 'openai' | 'google';
+  model: string;
+  apiKey: string;
+}
+
+/**
+ * Search knowledge base using vector similarity
+ * Falls back to keyword search if embedding fails
+ */
+export async function searchKnowledgeBaseVector(
+  files: KnowledgeFile[],
+  query: string,
+  config: VectorSearchConfig,
+  options: {
+    topK?: number;
+    threshold?: number;
+  } = {}
+): Promise<KnowledgeFile[]> {
+  const { topK = 5, threshold = 0.5 } = options;
+
+  try {
+    // Generate query embedding
+    const { generateEmbedding, findMostSimilar } = await import('@/lib/vector/embedding');
+    
+    const queryResult = await generateEmbedding(
+      query,
+      { provider: config.provider, model: config.model },
+      config.apiKey
+    );
+
+    // Generate embeddings for all files (or use cached if available)
+    const fileEmbeddings: { id: string; embedding: number[] }[] = [];
+    
+    for (const file of files) {
+      const embeddingResult = await generateEmbedding(
+        file.content.slice(0, 8000), // Limit content length
+        { provider: config.provider, model: config.model },
+        config.apiKey
+      );
+      fileEmbeddings.push({ id: file.id, embedding: embeddingResult.embedding });
+    }
+
+    // Find most similar
+    const similar = findMostSimilar(queryResult.embedding, fileEmbeddings, topK, threshold);
+    
+    // Return matching files in order
+    const resultFiles: KnowledgeFile[] = [];
+    for (const match of similar) {
+      const file = files.find((f) => f.id === match.id);
+      if (file) {
+        resultFiles.push(file);
+      }
+    }
+
+    return resultFiles;
+  } catch (error) {
+    // Fall back to keyword search
+    console.warn('Vector search failed, falling back to keyword search:', error);
+    return getRelevantKnowledge(files, query, topK);
+  }
+}
+
+/**
+ * Build RAG context with vector search
+ */
+export async function buildRAGContextWithVectors(
+  files: KnowledgeFile[],
+  query: string,
+  config: VectorSearchConfig,
+  options: {
+    maxContextLength?: number;
+    topK?: number;
+  } = {}
+): Promise<{
+  context: string;
+  filesUsed: KnowledgeFile[];
+  method: 'vector' | 'keyword';
+}> {
+  const { maxContextLength = 6000, topK = 5 } = options;
+
+  let relevantFiles: KnowledgeFile[];
+  let method: 'vector' | 'keyword' = 'vector';
+
+  try {
+    relevantFiles = await searchKnowledgeBaseVector(files, query, config, { topK });
+  } catch {
+    relevantFiles = getRelevantKnowledge(files, query, topK);
+    method = 'keyword';
+  }
+
+  const context = buildKnowledgeContext(relevantFiles, {
+    maxLength: maxContextLength,
+    includeMetadata: true,
+  });
+
+  return {
+    context,
+    filesUsed: relevantFiles,
+    method,
   };
 }

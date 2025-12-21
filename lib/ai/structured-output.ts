@@ -1,6 +1,11 @@
 /**
  * Structured Output - Generate structured data using AI SDK
- * Uses generateObject and streamObject APIs
+ * 
+ * Features:
+ * - generateObject for complete structured responses
+ * - streamObject for streaming partial updates
+ * - Pre-defined schemas for common use cases
+ * - Progress tracking for streaming operations
  */
 
 import { generateObject as aiGenerateObject, streamObject as aiStreamObject } from 'ai';
@@ -30,12 +35,21 @@ export interface GenerateArrayOptions<T extends z.ZodType> {
   config: StructuredOutputConfig;
 }
 
+export interface StreamProgress {
+  fieldsCompleted: number;
+  totalFields: number;
+  percentage: number;
+  currentField?: string;
+}
+
 export interface StreamObjectOptions<T extends z.ZodType> {
   schema: T;
   prompt: string;
   systemPrompt?: string;
   config: StructuredOutputConfig;
-  onPartial?: (partial: Partial<z.infer<T>>) => void;
+  onPartial?: (partial: Partial<z.infer<T>>, progress: StreamProgress) => void;
+  onComplete?: (result: z.infer<T>) => void;
+  onError?: (error: Error) => void;
 }
 
 /**
@@ -99,12 +113,38 @@ export async function generateStructuredArray<T extends z.ZodType>(
 }
 
 /**
- * Stream a structured object with partial updates
+ * Count non-undefined fields in an object for progress tracking
+ */
+function countDefinedFields(obj: unknown, depth: number = 0): number {
+  if (depth > 10 || obj === null || obj === undefined) return 0;
+  if (typeof obj !== 'object') return 1;
+  if (Array.isArray(obj)) return obj.length > 0 ? 1 : 0;
+  
+  let count = 0;
+  for (const value of Object.values(obj)) {
+    if (value !== undefined) {
+      count += countDefinedFields(value, depth + 1);
+    }
+  }
+  return count;
+}
+
+/**
+ * Get the last defined field name for progress tracking
+ */
+function getLastDefinedField(obj: unknown): string | undefined {
+  if (typeof obj !== 'object' || obj === null) return undefined;
+  const entries = Object.entries(obj).filter(([, v]) => v !== undefined);
+  return entries.length > 0 ? entries[entries.length - 1][0] : undefined;
+}
+
+/**
+ * Stream a structured object with partial updates and progress tracking
  */
 export async function streamStructuredObject<T extends z.ZodType>(
   options: StreamObjectOptions<T>
 ): Promise<z.infer<T>> {
-  const { schema, prompt, systemPrompt, config, onPartial } = options;
+  const { schema, prompt, systemPrompt, config, onPartial, onComplete, onError } = options;
 
   const model = getProviderModel(
     config.provider,
@@ -113,24 +153,41 @@ export async function streamStructuredObject<T extends z.ZodType>(
     config.baseURL
   );
 
-  const result = aiStreamObject({
-    model,
-    schema,
-    prompt,
-    system: systemPrompt,
-    temperature: config.temperature ?? 0.7,
-    maxTokens: config.maxTokens,
-  });
+  // Estimate total fields from schema shape
+  const schemaShape = schema instanceof z.ZodObject ? Object.keys(schema.shape).length : 5;
 
-  // Handle partial updates if callback provided
-  if (onPartial) {
-    for await (const partial of result.partialObjectStream) {
-      onPartial(partial as Partial<z.infer<T>>);
+  try {
+    const result = aiStreamObject({
+      model,
+      schema,
+      prompt,
+      system: systemPrompt,
+      temperature: config.temperature ?? 0.7,
+      maxTokens: config.maxTokens,
+    });
+
+    // Handle partial updates if callback provided
+    if (onPartial) {
+      for await (const partial of result.partialObjectStream) {
+        const fieldsCompleted = countDefinedFields(partial);
+        const progress: StreamProgress = {
+          fieldsCompleted,
+          totalFields: Math.max(schemaShape, fieldsCompleted),
+          percentage: Math.min(100, Math.round((fieldsCompleted / schemaShape) * 100)),
+          currentField: getLastDefinedField(partial),
+        };
+        onPartial(partial as Partial<z.infer<T>>, progress);
+      }
     }
-  }
 
-  const finalResult = await result.object;
-  return finalResult as z.infer<T>;
+    const finalResult = await result.object;
+    onComplete?.(finalResult as z.infer<T>);
+    return finalResult as z.infer<T>;
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error('Stream failed');
+    onError?.(err);
+    throw err;
+  }
 }
 
 /**

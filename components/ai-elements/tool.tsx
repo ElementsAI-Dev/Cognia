@@ -24,7 +24,12 @@ export type ToolProps = ComponentProps<typeof Collapsible>;
 
 export const Tool = ({ className, ...props }: ToolProps) => (
   <Collapsible
-    className={cn("not-prose mb-4 w-full rounded-md border", className)}
+    className={cn(
+      "not-prose mb-4 w-full rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm shadow-sm",
+      "transition-all duration-200 hover:shadow-md hover:border-border",
+      "animate-in fade-in-0 slide-in-from-bottom-2 duration-300",
+      className
+    )}
     {...props}
   />
 );
@@ -76,19 +81,21 @@ export const ToolHeader = ({
 }: ToolHeaderProps) => (
   <CollapsibleTrigger
     className={cn(
-      "flex w-full items-center justify-between gap-4 p-3",
+      "group flex w-full items-center justify-between gap-4 p-3 rounded-t-xl transition-colors hover:bg-accent/50",
       className
     )}
     {...props}
   >
-    <div className="flex items-center gap-2">
-      <WrenchIcon className="size-4 text-muted-foreground" />
+    <div className="flex items-center gap-3">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <WrenchIcon className="size-4" />
+      </div>
       <span className="font-medium text-sm">
         {title ?? type.split("-").slice(1).join("-")}
       </span>
       {getStatusBadge(state)}
     </div>
-    <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+    <ChevronDownIcon className="size-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
   </CollapsibleTrigger>
 );
 
@@ -97,7 +104,8 @@ export type ToolContentProps = ComponentProps<typeof CollapsibleContent>;
 export const ToolContent = ({ className, ...props }: ToolContentProps) => (
   <CollapsibleContent
     className={cn(
-      "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-popover-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
+      "border-t border-border/30",
+      "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-popover-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in duration-200",
       className
     )}
     {...props}
@@ -110,10 +118,12 @@ export type ToolInputProps = ComponentProps<"div"> & {
 
 export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
   <div className={cn("space-y-2 overflow-hidden p-4", className)} {...props}>
-    <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+    <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wider flex items-center gap-2">
+      <span className="h-px flex-1 bg-border/50" />
       Parameters
+      <span className="h-px flex-1 bg-border/50" />
     </h4>
-    <div className="rounded-md bg-muted/50">
+    <div className="rounded-lg bg-muted/30 border border-border/30 overflow-hidden">
       <CodeBlock code={JSON.stringify(input, null, 2)} language="json" />
     </div>
   </div>
@@ -146,18 +156,20 @@ export const ToolOutput = ({
 
   return (
     <div className={cn("space-y-2 p-4", className)} {...props}>
-      <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+      <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wider flex items-center gap-2">
+        <span className="h-px flex-1 bg-border/50" />
         {errorText ? "Error" : "Result"}
+        <span className="h-px flex-1 bg-border/50" />
       </h4>
       <div
         className={cn(
-          "overflow-x-auto rounded-md text-xs [&_table]:w-full",
+          "overflow-x-auto rounded-lg text-xs [&_table]:w-full border border-border/30",
           errorText
-            ? "bg-destructive/10 text-destructive"
-            : "bg-muted/50 text-foreground"
+            ? "bg-destructive/10 text-destructive border-destructive/30"
+            : "bg-muted/30 text-foreground"
         )}
       >
-        {errorText && <div>{errorText}</div>}
+        {errorText && <div className="p-3">{errorText}</div>}
         {Output}
       </div>
     </div>

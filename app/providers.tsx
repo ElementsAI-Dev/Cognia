@@ -10,6 +10,9 @@ import { I18nProvider } from '@/lib/i18n';
 import { THEME_PRESETS, applyThemeColors, removeCustomThemeColors } from '@/lib/themes';
 import type { ColorThemePreset as _ColorThemePreset } from '@/lib/themes';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { CommandPalette } from '@/components/layout/command-palette';
+import { Toaster } from '@/components/ui/toaster';
+import { KeyboardShortcutsDialog } from '@/components/layout/keyboard-shortcuts-dialog';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -129,6 +132,9 @@ export function Providers({ children }: ProvidersProps) {
       <ThemeProvider>
         <TooltipProvider delayDuration={0}>
           {children}
+          <CommandPalette />
+          <Toaster />
+          <KeyboardShortcutsDialog />
         </TooltipProvider>
       </ThemeProvider>
     </I18nProvider>

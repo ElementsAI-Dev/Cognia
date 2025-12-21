@@ -27,6 +27,12 @@ import {
   Star,
   Target,
   Zap,
+  Calendar,
+  Clock,
+  Archive,
+  ArchiveRestore,
+  Tag,
+  History,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +50,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { KnowledgeBase } from './knowledge-base';
 import { CreateProjectDialog } from './create-project-dialog';
-import { useProjectStore, useSessionStore } from '@/stores';
+import { ProjectActivity } from './project-activity';
+import { useProjectStore, useSessionStore, useProjectActivityStore } from '@/stores';
 import type { CreateProjectInput } from '@/types';
 
 interface ProjectDetailProps {
@@ -85,17 +92,27 @@ export function ProjectDetail({
   const project = useProjectStore((state) => state.getProject(projectId));
   const updateProject = useProjectStore((state) => state.updateProject);
   const deleteProject = useProjectStore((state) => state.deleteProject);
+  const archiveProject = useProjectStore((state) => state.archiveProject);
+  const unarchiveProject = useProjectStore((state) => state.unarchiveProject);
   const removeSessionFromProject = useProjectStore(
     (state) => state.removeSessionFromProject
   );
 
   const sessions = useSessionStore((state) => state.sessions);
   const _deleteSession = useSessionStore((state) => state.deleteSession);
+  
+  // Get project activities - must be called before any conditional returns
+  const getActivitiesForProject = useProjectActivityStore((state) => state.getActivitiesForProject);
 
   const projectSessions = useMemo(() => {
     if (!project) return [];
     return sessions.filter((s) => project.sessionIds.includes(s.id));
   }, [project, sessions]);
+  
+  // Get activities for this project (memoized to avoid unnecessary rerenders)
+  const projectActivities = useMemo(() => {
+    return getActivitiesForProject(projectId);
+  }, [getActivitiesForProject, projectId]);
 
   if (!project) {
     return (
@@ -163,19 +180,112 @@ export function ProjectDetail({
               <span>{project.knowledgeBase.length} files</span>
               <span>Created {formatDate(project.createdAt)}</span>
             </div>
+            {/* Tags */}
+            {project.tags && project.tags.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {project.tags.map((tag) => (
+                  <Badge key={tag} variant="outline" className="text-xs gap-1">
+                    <Tag className="h-2.5 w-2.5" />
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {/* Archive Badge */}
+            {project.isArchived && (
+              <Badge variant="secondary" className="mt-2 gap-1">
+                <Archive className="h-3 w-3" />
+                Archived
+              </Badge>
+            )}
           </div>
         </div>
         <div className="flex gap-2">
+          <ProjectActivity
+            projectId={projectId}
+            activities={projectActivities}
+            trigger={
+              <Button variant="outline" size="sm">
+                <History className="mr-2 h-4 w-4" />
+                Activity
+              </Button>
+            }
+          />
+          {project.isArchived ? (
+            <Button variant="outline" onClick={() => unarchiveProject(projectId)}>
+              <ArchiveRestore className="mr-2 h-4 w-4" />
+              Unarchive
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={() => archiveProject(projectId)}>
+              <Archive className="mr-2 h-4 w-4" />
+              Archive
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setShowEditDialog(true)}>
             <Settings className="mr-2 h-4 w-4" />
             Settings
           </Button>
-          {onNewChat && (
+          {onNewChat && !project.isArchived && (
             <Button onClick={() => onNewChat(projectId)}>
               <Plus className="mr-2 h-4 w-4" />
               New Chat
             </Button>
           )}
+        </div>
+      </div>
+
+      {/* Quick Stats - Enhanced Dashboard */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/20 animate-in fade-in-0 slide-in-from-bottom-2 duration-300" style={{ animationDelay: '0ms' }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <MessageSquare className="h-4 w-4 text-blue-500" />
+              </div>
+            </div>
+            <span className="text-2xl font-bold">{projectSessions.length}</span>
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">Chat Sessions</p>
+          <div className="mt-2 h-1 w-full bg-muted rounded-full overflow-hidden">
+            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(projectSessions.length * 10, 100)}%` }} />
+          </div>
+        </div>
+        <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/20 animate-in fade-in-0 slide-in-from-bottom-2 duration-300" style={{ animationDelay: '50ms' }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="p-2 rounded-lg bg-green-500/10">
+                <FileText className="h-4 w-4 text-green-500" />
+              </div>
+            </div>
+            <span className="text-2xl font-bold">{project.knowledgeBase.length}</span>
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">Knowledge Files</p>
+          <div className="mt-2 h-1 w-full bg-muted rounded-full overflow-hidden">
+            <div className="h-full bg-green-500 rounded-full" style={{ width: `${Math.min(project.knowledgeBase.length * 10, 100)}%` }} />
+          </div>
+        </div>
+        <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/20 animate-in fade-in-0 slide-in-from-bottom-2 duration-300" style={{ animationDelay: '100ms' }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="p-2 rounded-lg bg-purple-500/10">
+                <Calendar className="h-4 w-4 text-purple-500" />
+              </div>
+            </div>
+          </div>
+          <p className="mt-2 text-sm font-medium">{formatDate(project.createdAt)}</p>
+          <p className="text-xs text-muted-foreground">Created</p>
+        </div>
+        <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/20 animate-in fade-in-0 slide-in-from-bottom-2 duration-300" style={{ animationDelay: '150ms' }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="p-2 rounded-lg bg-orange-500/10">
+                <Clock className="h-4 w-4 text-orange-500" />
+              </div>
+            </div>
+          </div>
+          <p className="mt-2 text-sm font-medium">{formatDate(project.updatedAt)}</p>
+          <p className="text-xs text-muted-foreground">Last Updated</p>
         </div>
       </div>
 

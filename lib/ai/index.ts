@@ -1,16 +1,56 @@
 /**
  * AI module exports
+ * 
+ * This module provides unified AI functionality using Vercel AI SDK:
+ * - Multi-provider client support (OpenAI, Anthropic, Google, etc.)
+ * - Provider registry for intelligent routing
+ * - Middleware for caching, retry, reasoning extraction
+ * - Structured output generation
+ * - RAG (Retrieval Augmented Generation)
+ * - Agent execution with tool calling
+ * - Image generation and processing
  */
 
+// Core client and provider management
 export * from './client';
+export * from './provider-registry';
+export * from './middleware';
+
+// Chat and generation
 export * from './use-ai-chat';
 export * from './auto-router';
-export * from './image-utils';
-export * from './image-generation';
-export * from './api-test';
+export * from './structured-output';
 export * from './translate';
+export * from './prompt-optimizer';
+export * from './suggestion-generator';
+export * from './canvas-actions';
+
+// RAG and embeddings
+export * from './embedding';
 export * from './chunking';
 export * from './rag';
-export * from './structured-output';
+
+// Image processing
+// Note: image-utils exports isVisionModel and buildMultimodalContent which also exist in client
+// We prefer the image-utils versions as they have more complete implementations
+export {
+  fileToBase64,
+  urlToBase64,
+  extractBase64,
+  isImageFile,
+  isVisionModel,
+  resizeImageIfNeeded,
+  buildMultimodalContent,
+  type ImageContent,
+  type TextContent,
+  type MessageContent,
+} from './image-utils';
+export * from './image-generation';
+
+// Agent system
 export * from './agent';
-export * from './canvas-actions';
+
+// Utilities
+export * from './api-test';
+export * from './api-key-rotation';
+export * from './oauth';

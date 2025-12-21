@@ -4,11 +4,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createAnthropic } from '@ai-sdk/anthropic';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateObject } from 'ai';
 import { z } from 'zod';
+import { 
+  getProviderModelFromConfig, 
+  isValidProvider,
+  type ProviderName 
+} from '@/lib/ai/client';
 
 const EnhancedPromptsSchema = z.object({
   prompts: z.array(z.object({
@@ -63,25 +65,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let aiModel;
-
-    switch (provider) {
-      case 'openai':
-        const openai = createOpenAI({ apiKey, baseURL });
-        aiModel = openai('gpt-4o-mini');
-        break;
-      case 'anthropic':
-        const anthropic = createAnthropic({ apiKey, baseURL });
-        aiModel = anthropic('claude-3-5-haiku-latest');
-        break;
-      case 'google':
-        const google = createGoogleGenerativeAI({ apiKey, baseURL });
-        aiModel = google('gemini-2.0-flash-exp');
-        break;
-      default:
-        const defaultOpenai = createOpenAI({ apiKey, baseURL });
-        aiModel = defaultOpenai('gpt-4o-mini');
-    }
+    // Validate provider and use unified client
+    const validProvider = isValidProvider(provider) ? provider as ProviderName : 'openai';
+    const { model: aiModel } = getProviderModelFromConfig({
+      provider: validProvider,
+      apiKey,
+      baseURL,
+    });
 
     let userPrompt: string;
 

@@ -2,16 +2,41 @@
 
 /**
  * useAIChat - hook for AI chat functionality
- * Provides streaming and non-streaming chat capabilities
- * Automatically injects memory into system prompts
- * Supports multimodal (vision) content
- * Tracks token usage and costs
+ * 
+ * Features:
+ * - Streaming and non-streaming chat capabilities
+ * - Automatic memory injection into system prompts
+ * - Multimodal (vision) content support
+ * - Token usage and cost tracking
+ * - onFinish/onStepFinish callbacks for observability
+ * - Reasoning extraction support for thinking models
+ * - API key rotation support
  */
 
 import { useCallback, useRef } from 'react';
 import { generateText, streamText, type CoreMessage, type ImagePart, type TextPart } from 'ai';
 import { getProviderModel, type ProviderName } from './client';
 import { useSettingsStore, useMemoryStore, useUsageStore } from '@/stores';
+import { getNextApiKey } from './api-key-rotation';
+
+export interface ChatUsageInfo {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+export interface ChatFinishResult {
+  text: string;
+  usage?: ChatUsageInfo;
+  finishReason?: string;
+  reasoning?: string;
+}
+
+export interface ChatStepResult {
+  stepType: 'initial' | 'continue';
+  text: string;
+  usage?: ChatUsageInfo;
+}
 
 interface UseAIChatOptions {
   provider: ProviderName;
@@ -19,6 +44,10 @@ interface UseAIChatOptions {
   onStreamStart?: () => void;
   onStreamEnd?: () => void;
   onError?: (error: Error) => void;
+  onFinish?: (result: ChatFinishResult) => void;
+  onStepFinish?: (step: ChatStepResult) => void;
+  extractReasoning?: boolean;
+  reasoningTagName?: string;
 }
 
 // Multimodal content types
@@ -48,6 +77,8 @@ interface SendMessageOptions {
   maxTokens?: number;
   sessionId?: string;
   messageId?: string;
+  tools?: Record<string, unknown>;
+  toolChoice?: 'auto' | 'none' | 'required' | { type: 'tool'; toolName: string };
 }
 
 export function useAIChat({
@@ -56,8 +87,13 @@ export function useAIChat({
   onStreamStart,
   onStreamEnd,
   onError,
+  onFinish,
+  onStepFinish,
+  extractReasoning = false,
+  reasoningTagName = 'think',
 }: UseAIChatOptions) {
   const abortControllerRef = useRef<AbortController | null>(null);
+  const reasoningRef = useRef<string>('');
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const streamingEnabled = useSettingsStore((state) => state.streamResponses);
 
@@ -95,10 +131,32 @@ export function useAIChat({
         throw new Error(`Provider ${provider} is disabled. Please enable it in Settings.`);
       }
 
+      // Get API key with rotation support
+      let activeApiKey = settings?.apiKey || '';
+      if (
+        settings?.apiKeyRotationEnabled &&
+        settings?.apiKeys &&
+        settings.apiKeys.length > 1
+      ) {
+        // Use rotation to get the next API key
+        const rotationResult = getNextApiKey(
+          settings.apiKeys,
+          settings.apiKeyRotationStrategy || 'round-robin',
+          settings.currentKeyIndex || 0,
+          settings.apiKeyUsageStats || {}
+        );
+        activeApiKey = rotationResult.apiKey;
+        
+        // Update the current key index in the store
+        useSettingsStore.getState().updateProviderSettings(provider, {
+          currentKeyIndex: rotationResult.index,
+        });
+      }
+
       const modelInstance = getProviderModel(
         provider,
         model,
-        settings?.apiKey || '',
+        activeApiKey,
         settings?.baseURL
       );
 
@@ -187,70 +245,176 @@ export function useAIChat({
         ...(maxTokens && { maxTokens }),
       };
 
-      // Helper function to record usage
+      // Helper function to extract and normalize usage info
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const recordUsage = (usage: any) => {
+      const normalizeUsage = (usage: any): ChatUsageInfo | undefined => {
+        if (!usage) return undefined;
+        const promptTokens = usage.promptTokens ?? usage.inputTokens ?? 0;
+        const completionTokens = usage.completionTokens ?? usage.outputTokens ?? 0;
+        return {
+          promptTokens,
+          completionTokens,
+          totalTokens: promptTokens + completionTokens,
+        };
+      };
+
+      // Helper function to record usage
+      const recordUsage = (usage: ChatUsageInfo | undefined) => {
         if (sessionId && messageId && usage) {
-          const promptTokens = usage.promptTokens ?? usage.inputTokens ?? 0;
-          const completionTokens = usage.completionTokens ?? usage.outputTokens ?? 0;
           addUsageRecord({
             sessionId,
             messageId,
             provider,
             model,
             tokens: {
-              prompt: promptTokens,
-              completion: completionTokens,
-              total: promptTokens + completionTokens,
+              prompt: usage.promptTokens,
+              completion: usage.completionTokens,
+              total: usage.totalTokens,
             },
           });
+        }
+      };
+
+      // Helper to extract reasoning from text (for models that use <think> tags)
+      const extractReasoningFromText = (text: string): { content: string; reasoning: string } => {
+        if (!extractReasoning) return { content: text, reasoning: '' };
+        
+        const openTag = `<${reasoningTagName}>`;
+        const closeTag = `</${reasoningTagName}>`;
+        const startIdx = text.indexOf(openTag);
+        const endIdx = text.indexOf(closeTag);
+        
+        if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+          const reasoning = text.slice(startIdx + openTag.length, endIdx).trim();
+          const content = (text.slice(0, startIdx) + text.slice(endIdx + closeTag.length)).trim();
+          return { content, reasoning };
+        }
+        
+        return { content: text, reasoning: '' };
+      };
+
+      // Helper to record API key usage for rotation tracking
+      const recordApiKeyUsage = (success: boolean, errorMessage?: string) => {
+        if (settings?.apiKeyRotationEnabled && settings?.apiKeys && settings.apiKeys.length > 1) {
+          useSettingsStore.getState().recordApiKeyUsage(provider, activeApiKey, success, errorMessage);
         }
       };
 
       try {
         if (streamingEnabled && onChunk) {
           onStreamStart?.();
+          reasoningRef.current = '';
 
           const result = await streamText(commonOptions);
 
           let fullText = '';
+          let inReasoningBlock = false;
+          const openTag = `<${reasoningTagName}>`;
+          const closeTag = `</${reasoningTagName}>`;
+
           for await (const chunk of result.textStream) {
             fullText += chunk;
-            onChunk(chunk);
+            
+            // Track reasoning blocks during streaming
+            if (extractReasoning) {
+              if (fullText.includes(openTag) && !fullText.includes(closeTag)) {
+                inReasoningBlock = true;
+              }
+              if (fullText.includes(closeTag)) {
+                inReasoningBlock = false;
+              }
+            }
+            
+            // Only send visible content chunks (exclude reasoning)
+            if (!inReasoningBlock || !extractReasoning) {
+              onChunk(chunk);
+            }
           }
+
+          // Extract reasoning from final text
+          const { content: finalContent, reasoning } = extractReasoningFromText(fullText);
+          reasoningRef.current = reasoning;
 
           // Record usage after streaming completes
-          const usage = await result.usage;
-          if (usage) {
-            recordUsage(usage);
-          }
+          const rawUsage = await result.usage;
+          const usage = normalizeUsage(rawUsage);
+          recordUsage(usage);
+
+          // Call onStepFinish for streaming completion
+          onStepFinish?.({
+            stepType: 'initial',
+            text: finalContent,
+            usage,
+          });
+
+          // Call onFinish callback
+          const finishReason = await result.finishReason;
+          onFinish?.({
+            text: finalContent,
+            usage,
+            finishReason,
+            reasoning,
+          });
+
+          // Record successful API key usage
+          recordApiKeyUsage(true);
 
           onStreamEnd?.();
-          return fullText;
+          return extractReasoning ? finalContent : fullText;
         } else {
           const result = await generateText(commonOptions);
 
-          // Record usage for non-streaming
-          if (result.usage) {
-            recordUsage(result.usage);
-          }
+          // Extract reasoning from result
+          const { content: finalContent, reasoning } = extractReasoningFromText(result.text);
+          reasoningRef.current = reasoning;
 
-          return result.text;
+          // Record usage for non-streaming
+          const usage = normalizeUsage(result.usage);
+          recordUsage(usage);
+
+          // Call onStepFinish
+          onStepFinish?.({
+            stepType: 'initial',
+            text: finalContent,
+            usage,
+          });
+
+          // Call onFinish callback
+          onFinish?.({
+            text: finalContent,
+            usage,
+            finishReason: result.finishReason,
+            reasoning,
+          });
+
+          // Record successful API key usage
+          recordApiKeyUsage(true);
+
+          return extractReasoning ? finalContent : result.text;
         }
       } catch (error) {
         if ((error as Error).name === 'AbortError') {
           return '';
         }
+        
+        // Record failed API key usage
+        recordApiKeyUsage(false, (error as Error).message);
+        
         onError?.(error as Error);
         throw error;
       }
     },
-    [provider, model, providerSettings, streamingEnabled, onStreamStart, onStreamEnd, onError, getMemoriesForPrompt, detectMemoryFromText, createMemory, memorySettings, customInstructions, customInstructionsEnabled, aboutUser, responsePreferences, addUsageRecord]
+    [provider, model, providerSettings, streamingEnabled, onStreamStart, onStreamEnd, onError, onFinish, onStepFinish, extractReasoning, reasoningTagName, getMemoriesForPrompt, detectMemoryFromText, createMemory, memorySettings, customInstructions, customInstructionsEnabled, aboutUser, responsePreferences, addUsageRecord]
   );
+
+  // Get the last extracted reasoning
+  const getLastReasoning = useCallback(() => {
+    return reasoningRef.current;
+  }, []);
 
   const stop = useCallback(() => {
     abortControllerRef.current?.abort();
   }, []);
 
-  return { sendMessage, stop };
+  return { sendMessage, stop, getLastReasoning };
 }

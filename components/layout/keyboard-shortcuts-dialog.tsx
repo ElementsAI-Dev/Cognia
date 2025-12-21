@@ -4,7 +4,6 @@
  * KeyboardShortcutsDialog - shows available keyboard shortcuts
  */
 
-import { useState } from 'react';
 import { Keyboard } from 'lucide-react';
 import {
   Dialog,
@@ -17,6 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useKeyboardShortcuts, formatShortcut } from '@/hooks/use-keyboard-shortcuts';
+import { useUIStore } from '@/stores';
 
 interface KeyboardShortcutsDialogProps {
   trigger?: React.ReactNode;
@@ -37,7 +37,8 @@ const categoryColors: Record<string, string> = {
 };
 
 export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProps) {
-  const [open, setOpen] = useState(false);
+  const open = useUIStore((state) => state.keyboardShortcutsOpen);
+  const setOpen = useUIStore((state) => state.setKeyboardShortcutsOpen);
   const { shortcuts } = useKeyboardShortcuts({ enabled: false });
 
   // Group shortcuts by category

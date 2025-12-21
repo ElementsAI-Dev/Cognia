@@ -18,12 +18,6 @@ import {
   type ToolCall,
   type AgentLoopResult,
 } from '@/lib/ai/agent';
-import {
-  stepCountIs,
-  noToolCalls,
-  anyOf,
-  type StopCondition,
-} from '@/lib/ai/agent/stop-conditions';
 
 export interface UseAgentOptions {
   systemPrompt?: string;
@@ -95,14 +89,11 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
 
   // Build agent config
   const buildConfig = useCallback((): Omit<AgentConfig, 'provider' | 'model' | 'apiKey'> => {
-    const stopCondition: StopCondition = anyOf(stepCountIs(maxSteps), noToolCalls());
-
     return {
       systemPrompt,
       temperature,
       maxSteps,
       tools: registeredTools,
-      stopCondition,
       onStepStart: (step) => {
         setCurrentStep(step);
         onStepStart?.(step);

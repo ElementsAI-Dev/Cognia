@@ -5,12 +5,22 @@
  */
 
 import { useState, useMemo } from 'react';
-import { Plus, Search, FolderOpen } from 'lucide-react';
+import { Plus, Search, FolderOpen, FolderPlus, MessageSquare, TrendingUp, Download, Sparkles, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ProjectCard } from './project-card';
 import { CreateProjectDialog } from './create-project-dialog';
-import { useProjectStore } from '@/stores';
+import { ImportExportDialog } from './import-export-dialog';
+import { ProjectTemplatesDialog } from './project-templates';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useProjectStore, useSessionStore } from '@/stores';
 import type { Project, CreateProjectInput } from '@/types';
 
 interface ProjectListProps {
@@ -20,6 +30,9 @@ interface ProjectListProps {
 export function ProjectList({ onProjectSelect }: ProjectListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showImportExport, setShowImportExport] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   const projects = useProjectStore((state) => state.projects);
@@ -29,17 +42,44 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
   const deleteProject = useProjectStore((state) => state.deleteProject);
   const duplicateProject = useProjectStore((state) => state.duplicateProject);
   const setActiveProject = useProjectStore((state) => state.setActiveProject);
+  const archiveProject = useProjectStore((state) => state.archiveProject);
+  const unarchiveProject = useProjectStore((state) => state.unarchiveProject);
+  
+  const sessions = useSessionStore((state) => state.sessions);
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const totalProjects = projects.length;
+    const totalSessions = sessions.filter(s => s.projectId).length;
+    const now = Date.now();
+    const recentProjects = projects.filter(p => {
+      const dayAgo = now - 24 * 60 * 60 * 1000;
+      return new Date(p.updatedAt).getTime() > dayAgo;
+    }).length;
+    
+    return { totalProjects, totalSessions, recentProjects };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects.length, sessions.length]);
 
   const filteredProjects = useMemo(() => {
-    if (!searchQuery.trim()) return projects;
-
-    const query = searchQuery.toLowerCase();
-    return projects.filter(
-      (p) =>
-        p.name.toLowerCase().includes(query) ||
-        p.description?.toLowerCase().includes(query)
+    // First filter by archive status
+    let filtered = projects.filter((p) => 
+      showArchived ? p.isArchived : !p.isArchived
     );
-  }, [projects, searchQuery]);
+
+    // Then filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query) ||
+          p.description?.toLowerCase().includes(query) ||
+          p.tags?.some((t) => t.toLowerCase().includes(query))
+      );
+    }
+
+    return filtered;
+  }, [projects, searchQuery, showArchived]);
 
   const handleCreate = (input: CreateProjectInput) => {
     createProject(input);
@@ -67,15 +107,91 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Projects</h2>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Project
-        </Button>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-semibold">Projects</h2>
+          {showArchived && (
+            <Badge variant="secondary">Archived</Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowArchived(!showArchived)}
+          >
+            <Archive className="h-4 w-4 mr-2" />
+            {showArchived ? 'Active' : 'Archived'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowImportExport(true)}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Import/Export
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                New Project
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setShowCreateDialog(true)}>
+                <FolderPlus className="h-4 w-4 mr-2" />
+                Blank Project
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowTemplates(true)}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                From Template
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
+
+      {/* Statistics Cards */}
+      {projects.length > 0 && (
+        <div className="grid grid-cols-3 gap-4">
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10">
+                <FolderOpen className="h-5 w-5 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.totalProjects}</p>
+                <p className="text-xs text-muted-foreground">Total Projects</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10">
+                <MessageSquare className="h-5 w-5 text-green-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.totalSessions}</p>
+                <p className="text-xs text-muted-foreground">Conversations</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10">
+                <TrendingUp className="h-5 w-5 text-purple-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.recentProjects}</p>
+                <p className="text-xs text-muted-foreground">Active Today</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative">
@@ -100,31 +216,32 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
               onEdit={setEditingProject}
               onDelete={handleDelete}
               onDuplicate={handleDuplicate}
+              onArchive={archiveProject}
+              onUnarchive={unarchiveProject}
             />
           ))}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <FolderOpen className="h-12 w-12 text-muted-foreground/50" />
-          <h3 className="mt-4 font-medium">
-            {searchQuery ? 'No projects found' : 'No projects yet'}
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {searchQuery
-              ? 'Try a different search term'
-              : 'Create your first project to organize conversations'}
-          </p>
-          {!searchQuery && (
-            <Button
-              variant="outline"
-              className="mt-4"
-              onClick={() => setShowCreateDialog(true)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Create Project
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          icon={searchQuery ? Search : FolderOpen}
+          title={searchQuery ? 'No projects found' : 'No projects yet'}
+          description={
+            searchQuery
+              ? 'Try a different search term or create a new project'
+              : 'Create your first project to organize conversations and knowledge'
+          }
+          actions={
+            searchQuery
+              ? undefined
+              : [
+                  {
+                    label: 'Create Project',
+                    onClick: () => setShowCreateDialog(true),
+                    icon: FolderPlus,
+                  },
+                ]
+          }
+        />
       )}
 
       {/* Create Dialog */}
@@ -140,6 +257,21 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
         onOpenChange={(open) => !open && setEditingProject(null)}
         onSubmit={handleEdit}
         editProject={editingProject}
+      />
+
+      {/* Import/Export Dialog */}
+      <ImportExportDialog
+        open={showImportExport}
+        onOpenChange={setShowImportExport}
+      />
+
+      {/* Templates Dialog */}
+      <ProjectTemplatesDialog
+        open={showTemplates}
+        onOpenChange={setShowTemplates}
+        onProjectCreated={(projectId) => {
+          onProjectSelect?.(projectId);
+        }}
       />
     </div>
   );

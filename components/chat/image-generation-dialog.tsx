@@ -106,6 +106,10 @@ export function ImageGenerationDialog({
 
   const handleDownload = async (image: GeneratedImage, index: number) => {
     try {
+      if (!image.url) {
+        console.error('No URL available for download');
+        return;
+      }
       const blob = await downloadImageAsBlob(image.url);
       const filename = `generated-image-${Date.now()}-${index + 1}.png`;
       saveImageToFile(blob, filename);

@@ -24,6 +24,14 @@ log = "0.4"
 tauri = { version = "2.9.0", features = [] }
 tauri-plugin-log = "2"
 tauri-plugin-shell = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+tauri-plugin-os = "2"
+tauri-plugin-clipboard-manager = "2"
 
 # MCP support dependencies
 tokio = { version = "1", features = ["full", "process", "sync", "io-util"] }

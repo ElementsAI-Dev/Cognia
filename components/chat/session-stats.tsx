@@ -1,0 +1,245 @@
+'use client';
+
+/**
+ * SessionStats - Display statistics for the current session
+ */
+
+import { useMemo, useState, useEffect } from 'react';
+import {
+  MessageSquare,
+  Clock,
+  FileText,
+  Zap,
+  TrendingUp,
+  Calendar,
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
+import type { UIMessage } from '@/types';
+
+interface SessionStatsProps {
+  messages: UIMessage[];
+  sessionCreatedAt?: Date;
+  className?: string;
+  compact?: boolean;
+}
+
+interface StatItem {
+  label: string;
+  value: string | number;
+  icon: React.ReactNode;
+  tooltip?: string;
+}
+
+function formatDuration(sessionCreatedAt: Date | undefined): string {
+  if (!sessionCreatedAt) return '';
+  const diffMs = Date.now() - sessionCreatedAt.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 60) {
+    return `${diffMins}m`;
+  }
+  const hours = Math.floor(diffMins / 60);
+  const mins = diffMins % 60;
+  return `${hours}h ${mins}m`;
+}
+
+export function SessionStats({
+  messages,
+  sessionCreatedAt,
+  className,
+  compact = false,
+}: SessionStatsProps) {
+  // Duration is calculated via state + effect to avoid impure Date.now() in render
+  const [duration, setDuration] = useState(() => formatDuration(sessionCreatedAt));
+
+  useEffect(() => {
+    if (!sessionCreatedAt) return;
+    const interval = setInterval(() => {
+      setDuration(formatDuration(sessionCreatedAt));
+    }, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, [sessionCreatedAt]);
+
+  const stats = useMemo(() => {
+    const userMessages = messages.filter((m) => m.role === 'user');
+    const assistantMessages = messages.filter((m) => m.role === 'assistant');
+    
+    // Calculate total characters
+    const totalChars = messages.reduce((acc, m) => acc + m.content.length, 0);
+    
+    // Calculate average response length
+    const avgResponseLength = assistantMessages.length > 0
+      ? Math.round(assistantMessages.reduce((acc, m) => acc + m.content.length, 0) / assistantMessages.length)
+      : 0;
+
+    // Estimate tokens (rough: 1 token ≈ 4 chars)
+    const estimatedTokens = Math.round(totalChars / 4);
+
+    // Count code blocks
+    const codeBlocks = messages.reduce((acc, m) => {
+      const matches = m.content.match(/```/g);
+      return acc + (matches ? Math.floor(matches.length / 2) : 0);
+    }, 0);
+
+    return {
+      totalMessages: messages.length,
+      userMessages: userMessages.length,
+      assistantMessages: assistantMessages.length,
+      estimatedTokens,
+      avgResponseLength,
+      codeBlocks,
+    };
+  }, [messages]);
+
+  const statItems: StatItem[] = [
+    {
+      label: 'Messages',
+      value: stats.totalMessages,
+      icon: <MessageSquare className="h-3.5 w-3.5" />,
+      tooltip: `${stats.userMessages} from you, ${stats.assistantMessages} from AI`,
+    },
+    {
+      label: 'Tokens',
+      value: stats.estimatedTokens > 1000 
+        ? `${(stats.estimatedTokens / 1000).toFixed(1)}k` 
+        : stats.estimatedTokens,
+      icon: <Zap className="h-3.5 w-3.5" />,
+      tooltip: 'Estimated token usage',
+    },
+    {
+      label: 'Avg Length',
+      value: stats.avgResponseLength > 1000 
+        ? `${(stats.avgResponseLength / 1000).toFixed(1)}k` 
+        : stats.avgResponseLength,
+      icon: <TrendingUp className="h-3.5 w-3.5" />,
+      tooltip: 'Average AI response length (chars)',
+    },
+    {
+      label: 'Code',
+      value: stats.codeBlocks,
+      icon: <FileText className="h-3.5 w-3.5" />,
+      tooltip: 'Code blocks in conversation',
+    },
+  ];
+
+  if (duration) {
+    statItems.push({
+      label: 'Duration',
+      value: duration,
+      icon: <Clock className="h-3.5 w-3.5" />,
+      tooltip: 'Session duration',
+    });
+  }
+
+  if (compact) {
+    return (
+      <TooltipProvider>
+        <div className={cn('flex items-center gap-2', className)}>
+          {statItems.slice(0, 3).map((stat) => (
+            <Tooltip key={stat.label}>
+              <TooltipTrigger asChild>
+                <Badge variant="secondary" className="gap-1 text-xs font-normal">
+                  {stat.icon}
+                  {stat.value}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{stat.label}: {stat.tooltip || stat.value}</p>
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+      </TooltipProvider>
+    );
+  }
+
+  return (
+    <TooltipProvider>
+      <div className={cn('flex flex-wrap items-center gap-3', className)}>
+        {statItems.map((stat) => (
+          <Tooltip key={stat.label}>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                {stat.icon}
+                <span className="font-medium">{stat.value}</span>
+                <span className="hidden sm:inline">{stat.label}</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{stat.tooltip || `${stat.label}: ${stat.value}`}</p>
+            </TooltipContent>
+          </Tooltip>
+        ))}
+      </div>
+    </TooltipProvider>
+  );
+}
+
+export function SessionStatsCard({
+  messages,
+  sessionCreatedAt,
+  className,
+}: SessionStatsProps) {
+  const stats = useMemo(() => {
+    const userMessages = messages.filter((m) => m.role === 'user');
+    const assistantMessages = messages.filter((m) => m.role === 'assistant');
+    const totalChars = messages.reduce((acc, m) => acc + m.content.length, 0);
+    const estimatedTokens = Math.round(totalChars / 4);
+
+    return {
+      totalMessages: messages.length,
+      userMessages: userMessages.length,
+      assistantMessages: assistantMessages.length,
+      estimatedTokens,
+      createdAt: sessionCreatedAt,
+    };
+  }, [messages, sessionCreatedAt]);
+
+  return (
+    <div className={cn('rounded-lg border bg-card p-4', className)}>
+      <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+        <TrendingUp className="h-4 w-4" />
+        Session Statistics
+      </h3>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <MessageSquare className="h-3.5 w-3.5" />
+            <span className="text-xs">Messages</span>
+          </div>
+          <p className="text-lg font-semibold">{stats.totalMessages}</p>
+          <p className="text-xs text-muted-foreground">
+            {stats.userMessages} you · {stats.assistantMessages} AI
+          </p>
+        </div>
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Zap className="h-3.5 w-3.5" />
+            <span className="text-xs">Est. Tokens</span>
+          </div>
+          <p className="text-lg font-semibold">
+            {stats.estimatedTokens > 1000 
+              ? `${(stats.estimatedTokens / 1000).toFixed(1)}k` 
+              : stats.estimatedTokens}
+          </p>
+        </div>
+        {stats.createdAt && (
+          <div className="col-span-2 pt-2 border-t">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>Started {stats.createdAt.toLocaleDateString()}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default SessionStats;
