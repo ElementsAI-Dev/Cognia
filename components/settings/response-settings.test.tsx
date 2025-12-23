@@ -123,9 +123,9 @@ describe('ResponseSettings', () => {
     expect(screen.getByText('Syntax Highlight')).toBeInTheDocument();
   });
 
-  it('displays LaTeX Math switch', () => {
+  it('displays LaTeX switch', () => {
     render(<ResponseSettings />);
-    expect(screen.getByText('LaTeX Math')).toBeInTheDocument();
+    expect(screen.getByText('LaTeX')).toBeInTheDocument();
   });
 
   it('displays Mermaid switch', () => {

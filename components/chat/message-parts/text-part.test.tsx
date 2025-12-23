@@ -13,6 +13,26 @@ jest.mock('@/components/ai-elements/message', () => ({
   ),
 }));
 
+// Mock EnhancedMarkdown to avoid react-markdown ESM issues
+jest.mock('@/components/chat/enhanced-markdown', () => ({
+  EnhancedMarkdown: ({ content, className }: { content: string; className?: string }) => (
+    <div data-testid="message-response" className={className}>{content}</div>
+  ),
+}));
+
+// Mock settings store
+jest.mock('@/stores/settings-store', () => ({
+  useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      enableMathRendering: false,
+      enableMermaidDiagrams: false,
+      enableVegaLiteCharts: false,
+      showLineNumbers: true,
+    };
+    return selector(state);
+  },
+}));
+
 describe('TextPart', () => {
   it('renders without crashing', () => {
     const part: TextPartType = { type: 'text', content: 'Hello world' };
