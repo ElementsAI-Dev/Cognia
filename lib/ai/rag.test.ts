@@ -47,15 +47,13 @@ jest.mock('@/lib/vector/embedding', () => ({
   ),
 }));
 
-const mockCollection = {
-  name: 'test-collection',
-  add: jest.fn(),
-  query: jest.fn(),
-};
-
 jest.mock('@/lib/vector/chroma-client', () => ({
   getChromaClient: jest.fn(() => ({})),
-  getOrCreateCollection: jest.fn().mockResolvedValue(mockCollection),
+  getOrCreateCollection: jest.fn().mockResolvedValue({
+    name: 'test-collection',
+    add: jest.fn(),
+    query: jest.fn(),
+  }),
   addDocuments: jest.fn().mockResolvedValue(undefined),
   queryCollection: jest.fn().mockResolvedValue([
     {

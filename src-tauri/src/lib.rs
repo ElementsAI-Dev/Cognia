@@ -1,4 +1,4 @@
-//! Cognia Tauri application library
+﻿//! Cognia Tauri application library
 //!
 //! This is the main entry point for the Tauri desktop application.
 
@@ -15,8 +15,8 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_global_shortcut::init())
-        .plugin(tauri_plugin_updater::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -70,6 +70,10 @@ pub fn run() {
             commands::mcp::mcp_install_npm_package,
             commands::mcp::mcp_install_pip_package,
             commands::mcp::mcp_check_command_exists,
+            commands::mcp::mcp_ping_server,
+            commands::mcp::mcp_set_log_level,
+            commands::mcp::mcp_subscribe_resource,
+            commands::mcp::mcp_unsubscribe_resource,
             // API testing commands
             commands::api::test_openai_connection,
             commands::api::test_anthropic_connection,
@@ -88,3 +92,4 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+

@@ -50,8 +50,9 @@ function evaluateExpression(expr: string): number {
     // Replace ^ with ** for exponentiation
     .replace(/\^/g, '**');
 
-  // Validate - only allow safe characters
-  const safePattern = /^[0-9+\-*/().%Math\s,]+$/;
+  // Validate - only allow safe characters (numbers, operators, Math functions)
+  // Allow: digits, operators, parentheses, Math object methods, and common constants
+  const safePattern = /^[0-9+\-*/().%\s,Mathsqrtincoabflerundlog.PIEL*]+$/;
   if (!safePattern.test(sanitized)) {
     throw new Error('Invalid characters in expression');
   }

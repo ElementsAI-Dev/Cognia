@@ -3,11 +3,9 @@
 //! Communicates with MCP servers via subprocess stdin/stdout
 
 use async_trait::async_trait;
-use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 use tokio::sync::Mutex as TokioMutex;
@@ -51,6 +49,7 @@ impl StdioTransport {
         // On Windows, prevent window from showing
         #[cfg(windows)]
         {
+            #[allow(unused_imports)]
             use std::os::windows::process::CommandExt;
             cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
         }
@@ -113,14 +112,14 @@ impl Transport for StdioTransport {
         stdin
             .write_all(message.as_bytes())
             .await
-            .map_err(|e| McpError::IoError(e))?;
+            .map_err(McpError::IoError)?;
 
         stdin
             .write_all(b"\n")
             .await
-            .map_err(|e| McpError::IoError(e))?;
+            .map_err(McpError::IoError)?;
 
-        stdin.flush().await.map_err(|e| McpError::IoError(e))?;
+        stdin.flush().await.map_err(McpError::IoError)?;
 
         log::trace!("Sent message: {}", message);
 
@@ -138,7 +137,7 @@ impl Transport for StdioTransport {
         let bytes_read = stdout
             .read_line(&mut line)
             .await
-            .map_err(|e| McpError::IoError(e))?;
+            .map_err(McpError::IoError)?;
 
         if bytes_read == 0 {
             // EOF - process closed stdout

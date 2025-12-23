@@ -66,15 +66,15 @@ export function CustomInstructionsSettings() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Enable/Disable Toggle */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-lg">Custom Instructions</CardTitle>
-              <CardDescription>
-                Customize how AI responds to you across all conversations
+              <CardTitle className="text-base">Custom Instructions</CardTitle>
+              <CardDescription className="text-xs">
+                Customize how AI responds across all conversations
               </CardDescription>
             </div>
             <Switch
@@ -87,103 +87,91 @@ export function CustomInstructionsSettings() {
 
       {customInstructionsEnabled && (
         <>
-          {/* About User */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <CardTitle className="text-base">About You</CardTitle>
-                  <CardDescription>
-                    What would you like the AI to know about you?
-                  </CardDescription>
+          {/* About User & Response Preferences in grid */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm">About You</CardTitle>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs text-xs">
+                        Share context about yourself for more relevant responses.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p>
-                        Share your occupation, interests, expertise level, or any
-                        context that helps the AI provide more relevant responses.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                value={localAboutUser}
-                onChange={(e) => handleAboutUserChange(e.target.value)}
-                placeholder="e.g., I'm a software developer working primarily with React and TypeScript. I prefer concise explanations with code examples."
-                rows={4}
-                maxLength={1500}
-              />
-              <p className="mt-1 text-xs text-muted-foreground text-right">
-                {localAboutUser.length}/1500
-              </p>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <Textarea
+                  value={localAboutUser}
+                  onChange={(e) => handleAboutUserChange(e.target.value)}
+                  placeholder="e.g., I'm a React developer who prefers concise explanations..."
+                  rows={3}
+                  maxLength={1500}
+                  className="text-xs"
+                />
+                <p className="mt-1 text-[10px] text-muted-foreground text-right">
+                  {localAboutUser.length}/1500
+                </p>
+              </CardContent>
+            </Card>
 
-          {/* Response Preferences */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <CardTitle className="text-base">Response Preferences</CardTitle>
-                  <CardDescription>
-                    How would you like the AI to respond?
-                  </CardDescription>
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm">Response Style</CardTitle>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs text-xs">
+                        Specify preferred format, detail level, or style.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p>
-                        Specify your preferred response style, format, level of
-                        detail, or any special requirements.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                value={localResponsePrefs}
-                onChange={(e) => handleResponsePrefsChange(e.target.value)}
-                placeholder="e.g., Be direct and concise. Use bullet points for lists. Include code examples when relevant. Avoid unnecessary caveats."
-                rows={4}
-                maxLength={1500}
-              />
-              <p className="mt-1 text-xs text-muted-foreground text-right">
-                {localResponsePrefs.length}/1500
-              </p>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <Textarea
+                  value={localResponsePrefs}
+                  onChange={(e) => handleResponsePrefsChange(e.target.value)}
+                  placeholder="e.g., Be direct. Use bullet points. Include code examples."
+                  rows={3}
+                  maxLength={1500}
+                  className="text-xs"
+                />
+                <p className="mt-1 text-[10px] text-muted-foreground text-right">
+                  {localResponsePrefs.length}/1500
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Advanced Custom Instructions */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Advanced Instructions</CardTitle>
-              <CardDescription>
-                Additional system-level instructions (combined with the above)
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Advanced Instructions</CardTitle>
+              <CardDescription className="text-xs">
+                Additional system-level instructions
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <Textarea
                 value={localCustomInstructions}
                 onChange={(e) => handleCustomInstructionsChange(e.target.value)}
-                placeholder="Enter any additional instructions for the AI..."
-                rows={6}
+                placeholder="Enter additional instructions for the AI..."
+                rows={4}
                 maxLength={2000}
+                className="text-xs"
               />
-              <p className="mt-1 text-xs text-muted-foreground text-right">
+              <p className="mt-1 text-[10px] text-muted-foreground text-right">
                 {localCustomInstructions.length}/2000
               </p>
             </CardContent>
@@ -192,10 +180,10 @@ export function CustomInstructionsSettings() {
           {/* Save/Reset Buttons */}
           {hasChanges && (
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={handleReset}>
-                Discard Changes
+              <Button variant="outline" size="sm" onClick={handleReset}>
+                Discard
               </Button>
-              <Button onClick={handleSave}>Save Changes</Button>
+              <Button size="sm" onClick={handleSave}>Save</Button>
             </div>
           )}
         </>
@@ -204,18 +192,15 @@ export function CustomInstructionsSettings() {
       {/* Preview */}
       {customInstructionsEnabled && (localAboutUser || localResponsePrefs || localCustomInstructions) && (
         <Card className="border-dashed">
-          <CardHeader>
-            <CardTitle className="text-sm">Preview</CardTitle>
-            <CardDescription>
-              This is how your instructions will appear to the AI
-            </CardDescription>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs">Preview</CardTitle>
           </CardHeader>
-          <CardContent>
-            <pre className="whitespace-pre-wrap text-sm bg-muted p-3 rounded-md max-h-48 overflow-auto">
+          <CardContent className="pt-0">
+            <pre className="whitespace-pre-wrap text-[10px] bg-muted p-2 rounded-md max-h-32 overflow-auto">
               {[
-                localAboutUser && `[About the user]\n${localAboutUser}`,
-                localResponsePrefs && `\n[Response preferences]\n${localResponsePrefs}`,
-                localCustomInstructions && `\n[Additional instructions]\n${localCustomInstructions}`,
+                localAboutUser && `[User]: ${localAboutUser}`,
+                localResponsePrefs && `[Style]: ${localResponsePrefs}`,
+                localCustomInstructions && `[Extra]: ${localCustomInstructions}`,
               ]
                 .filter(Boolean)
                 .join('\n')}

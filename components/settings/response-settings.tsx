@@ -60,6 +60,8 @@ export function ResponseSettings() {
   const setEnableMathRendering = useSettingsStore((state) => state.setEnableMathRendering);
   const enableMermaidDiagrams = useSettingsStore((state) => state.enableMermaidDiagrams);
   const setEnableMermaidDiagrams = useSettingsStore((state) => state.setEnableMermaidDiagrams);
+  const enableVegaLiteCharts = useSettingsStore((state) => state.enableVegaLiteCharts);
+  const setEnableVegaLiteCharts = useSettingsStore((state) => state.setEnableVegaLiteCharts);
   const compactMode = useSettingsStore((state) => state.compactMode);
   const setCompactMode = useSettingsStore((state) => state.setCompactMode);
   const showTimestamps = useSettingsStore((state) => state.showTimestamps);
@@ -68,45 +70,44 @@ export function ResponseSettings() {
   const setShowTokenCount = useSettingsStore((state) => state.setShowTokenCount);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Code Display Settings */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Code className="h-5 w-5" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Code className="h-4 w-4" />
             Code Display
           </CardTitle>
-          <CardDescription>
-            Customize how code blocks are displayed in AI responses
+          <CardDescription className="text-xs">
+            Customize code block appearance
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Code Theme</Label>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Theme</Label>
               <Select value={codeTheme} onValueChange={(v) => setCodeTheme(v as CodeTheme)}>
-                <SelectTrigger>
+                <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {CODE_THEMES.map((theme) => (
-                    <SelectItem key={theme.value} value={theme.value}>
+                    <SelectItem key={theme.value} value={theme.value} className="text-xs">
                       {theme.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-2">
-              <Label>Font Family</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Font</Label>
               <Select value={codeFontFamily} onValueChange={(v) => setCodeFontFamily(v as FontFamily)}>
-                <SelectTrigger>
+                <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {FONT_FAMILIES.map((font) => (
-                    <SelectItem key={font.value} value={font.value}>
+                    <SelectItem key={font.value} value={font.value} className="text-xs">
                       {font.label}
                     </SelectItem>
                   ))}
@@ -115,41 +116,30 @@ export function ResponseSettings() {
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Font Size: {codeFontSize}px</Label>
-              </div>
-              <Slider
-                value={[codeFontSize]}
-                onValueChange={([v]) => setCodeFontSize(v)}
-                min={10}
-                max={20}
-                step={1}
-              />
-            </div>
-
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="line-numbers">Show Line Numbers</Label>
-                <p className="text-sm text-muted-foreground">
-                  Display line numbers in code blocks
-                </p>
-              </div>
+              <Label className="text-sm">Font Size: {codeFontSize}px</Label>
+            </div>
+            <Slider
+              value={[codeFontSize]}
+              onValueChange={([v]) => setCodeFontSize(v)}
+              min={10}
+              max={20}
+              step={1}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-center justify-between rounded-md border px-3 py-2">
+              <Label htmlFor="line-numbers" className="text-xs">Line Numbers</Label>
               <Switch
                 id="line-numbers"
                 checked={showLineNumbers}
                 onCheckedChange={setShowLineNumbers}
               />
             </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="syntax-highlight">Syntax Highlighting</Label>
-                <p className="text-sm text-muted-foreground">
-                  Enable syntax highlighting for code
-                </p>
-              </div>
+            <div className="flex items-center justify-between rounded-md border px-3 py-2">
+              <Label htmlFor="syntax-highlight" className="text-xs">Syntax Highlight</Label>
               <Switch
                 id="syntax-highlight"
                 checked={enableSyntaxHighlight}
@@ -162,19 +152,19 @@ export function ResponseSettings() {
 
       {/* Text Display Settings */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Type className="h-5 w-5" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Type className="h-4 w-4" />
             Text Display
           </CardTitle>
-          <CardDescription>
-            Customize text rendering in AI responses
+          <CardDescription className="text-xs">
+            Customize text rendering
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Line Height: {lineHeight.toFixed(1)}</Label>
+              <Label className="text-sm">Line Height: {lineHeight.toFixed(1)}</Label>
             </div>
             <Slider
               value={[lineHeight * 10]}
@@ -185,128 +175,99 @@ export function ResponseSettings() {
             />
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
-              <Label htmlFor="math-rendering">Math Rendering (LaTeX)</Label>
-              <p className="text-sm text-muted-foreground">
-                Render mathematical formulas using LaTeX
-              </p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="flex items-center justify-between rounded-md border px-3 py-2">
+              <Label htmlFor="math-rendering" className="text-xs">LaTeX</Label>
+              <Switch
+                id="math-rendering"
+                checked={enableMathRendering}
+                onCheckedChange={setEnableMathRendering}
+              />
             </div>
-            <Switch
-              id="math-rendering"
-              checked={enableMathRendering}
-              onCheckedChange={setEnableMathRendering}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label htmlFor="mermaid-diagrams">Mermaid Diagrams</Label>
-              <p className="text-sm text-muted-foreground">
-                Render Mermaid diagrams in responses
-              </p>
+            <div className="flex items-center justify-between rounded-md border px-3 py-2">
+              <Label htmlFor="mermaid-diagrams" className="text-xs">Mermaid</Label>
+              <Switch
+                id="mermaid-diagrams"
+                checked={enableMermaidDiagrams}
+                onCheckedChange={setEnableMermaidDiagrams}
+              />
             </div>
-            <Switch
-              id="mermaid-diagrams"
-              checked={enableMermaidDiagrams}
-              onCheckedChange={setEnableMermaidDiagrams}
-            />
+            <div className="flex items-center justify-between rounded-md border px-3 py-2">
+              <Label htmlFor="vegalite-charts" className="text-xs">VegaLite</Label>
+              <Switch
+                id="vegalite-charts"
+                checked={enableVegaLiteCharts}
+                onCheckedChange={setEnableVegaLiteCharts}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Layout Settings */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Eye className="h-5 w-5" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Eye className="h-4 w-4" />
             Layout Options
           </CardTitle>
-          <CardDescription>
-            Customize the chat interface layout
+          <CardDescription className="text-xs">
+            Customize chat interface
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label htmlFor="compact-mode">Compact Mode</Label>
-              <p className="text-sm text-muted-foreground">
-                Reduce spacing between messages
-              </p>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="flex flex-col items-center gap-2 rounded-md border px-2 py-3">
+              <Switch
+                id="compact-mode"
+                checked={compactMode}
+                onCheckedChange={setCompactMode}
+              />
+              <Label htmlFor="compact-mode" className="text-[10px] text-center">Compact</Label>
             </div>
-            <Switch
-              id="compact-mode"
-              checked={compactMode}
-              onCheckedChange={setCompactMode}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label htmlFor="show-timestamps">Show Timestamps</Label>
-              <p className="text-sm text-muted-foreground">
-                Display message timestamps
-              </p>
+            <div className="flex flex-col items-center gap-2 rounded-md border px-2 py-3">
+              <Switch
+                id="show-timestamps"
+                checked={showTimestamps}
+                onCheckedChange={setShowTimestamps}
+              />
+              <Label htmlFor="show-timestamps" className="text-[10px] text-center">Timestamps</Label>
             </div>
-            <Switch
-              id="show-timestamps"
-              checked={showTimestamps}
-              onCheckedChange={setShowTimestamps}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label htmlFor="show-tokens">Show Token Count</Label>
-              <p className="text-sm text-muted-foreground">
-                Display token usage for each message
-              </p>
+            <div className="flex flex-col items-center gap-2 rounded-md border px-2 py-3">
+              <Switch
+                id="show-tokens"
+                checked={showTokenCount}
+                onCheckedChange={setShowTokenCount}
+              />
+              <Label htmlFor="show-tokens" className="text-[10px] text-center">Tokens</Label>
             </div>
-            <Switch
-              id="show-tokens"
-              checked={showTokenCount}
-              onCheckedChange={setShowTokenCount}
-            />
           </div>
         </CardContent>
       </Card>
 
       {/* Preview */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Palette className="h-5 w-5" />
+      <Card className="border-dashed">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Palette className="h-3.5 w-3.5" />
             Preview
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div
-            className="p-4 rounded-lg border bg-muted/30"
+            className="p-3 rounded-lg border bg-muted/30 text-sm"
             style={{
               fontFamily: codeFontFamily === 'system' ? 'inherit' : codeFontFamily,
               lineHeight: lineHeight,
             }}
           >
-            <p className="mb-4">
-              This is a preview of how AI responses will appear with your current settings.
-            </p>
+            <p className="mb-2 text-xs">Sample AI response:</p>
             <pre
-              className="p-3 rounded bg-zinc-900 text-zinc-100 overflow-x-auto"
+              className="p-2 rounded bg-zinc-900 text-zinc-100 overflow-x-auto"
               style={{ fontSize: `${codeFontSize}px` }}
             >
-              <code>
-{`function greet(name: string) {
-  console.log(\`Hello, \${name}!\`);
-}
-
-greet("World");`}
-              </code>
+              <code>{`const greet = (n) => console.log(\`Hi \${n}!\`);`}</code>
             </pre>
-            {enableMathRendering && (
-              <p className="mt-4 text-sm text-muted-foreground">
-                Math example: E = mc²
-              </p>
-            )}
           </div>
         </CardContent>
       </Card>

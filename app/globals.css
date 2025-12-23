@@ -204,3 +204,31 @@
     height: 100%;
   }
 }
+
+/* Enhanced Markdown - Mermaid, KaTeX, VegaLite */
+.enhanced-markdown .katex-display {
+  overflow-x: auto;
+  padding: 0.5rem 0;
+}
+
+.enhanced-markdown .katex {
+  font-size: 1.1em;
+}
+
+.katex-block {
+  display: block;
+  text-align: center;
+}
+
+.dark .enhanced-markdown svg[id^="mermaid"] {
+  filter: invert(0.85) hue-rotate(180deg);
+}
+
+.enhanced-markdown .vega-embed {
+  width: 100%;
+}
+
+.enhanced-markdown pre code {
+  display: block;
+  overflow-x: auto;
+}

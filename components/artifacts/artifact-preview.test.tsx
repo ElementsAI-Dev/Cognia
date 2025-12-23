@@ -3,8 +3,46 @@
  */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { ArtifactPreview } from './artifact-preview';
 import type { Artifact } from '@/types';
+
+jest.mock('recharts', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const ReactModule = require('react');
+  const Mock = ({ children }: { children?: React.ReactNode }) => ReactModule.createElement('div', null, children);
+  const Null = () => null;
+
+  return {
+    ResponsiveContainer: Mock,
+    LineChart: Mock,
+    BarChart: Mock,
+    PieChart: Mock,
+    AreaChart: Mock,
+    ScatterChart: Mock,
+    RadarChart: Mock,
+    Line: Null,
+    Bar: Null,
+    Pie: Null,
+    Area: Null,
+    Scatter: Null,
+    Radar: Null,
+    PolarGrid: Null,
+    PolarAngleAxis: Null,
+    PolarRadiusAxis: Null,
+    XAxis: Null,
+    YAxis: Null,
+    CartesianGrid: Null,
+    Tooltip: Null,
+    Legend: Null,
+    Cell: Null,
+  };
+});
+
+jest.mock('./artifact-renderers', () => ({
+  MermaidRenderer: () => null,
+  ChartRenderer: () => null,
+  MathRenderer: () => null,
+  MarkdownRenderer: () => null,
+}));
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
@@ -12,6 +50,9 @@ jest.mock('@/components/ui/button', () => ({
     <button onClick={onClick} {...props}>{children}</button>
   ),
 }));
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { ArtifactPreview } = require('./artifact-preview');
 
 describe('ArtifactPreview', () => {
   const mockHtmlArtifact: Artifact = {

@@ -18,6 +18,7 @@ export {
   type CustomProviderSettings,
   type CodeTheme,
   type FontFamily,
+  type MessageBubbleStyle,
 } from './settings-store';
 export { useUIStore, selectSidebarOpen, selectActiveModal, selectCommandPaletteOpen, type ModalType } from './ui-store';
 export {

@@ -17,6 +17,8 @@ const mockTemplates: ChatTemplate[] = [
     isBuiltIn: true,
     systemPrompt: 'You are a helpful coding assistant.',
     suggestedQuestions: ['Help me debug', 'Write a function'],
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
   },
   {
     id: 'template-2',
@@ -26,6 +28,8 @@ const mockTemplates: ChatTemplate[] = [
     category: 'writing' as TemplateCategory,
     isBuiltIn: true,
     suggestedQuestions: ['Improve this text'],
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
   },
   {
     id: 'template-3',
@@ -34,6 +38,8 @@ const mockTemplates: ChatTemplate[] = [
     icon: '⭐',
     category: 'general' as TemplateCategory,
     isBuiltIn: false,
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
   },
 ];
 
@@ -109,7 +115,7 @@ jest.mock('@/components/ui/badge', () => ({
 }));
 
 jest.mock('@/components/ui/tabs', () => ({
-  Tabs: ({ children, value, onValueChange }: { 
+  Tabs: ({ children, value, onValueChange: _onValueChange }: { 
     children: React.ReactNode; 
     value?: string;
     onValueChange?: (value: string) => void;

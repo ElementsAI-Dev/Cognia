@@ -1,4 +1,4 @@
-/**
+﻿/**
  * MCP (Model Context Protocol) TypeScript types
  *
  * These types mirror the Rust types in src-tauri/src/mcp/types.rs
@@ -472,3 +472,104 @@ export const MCP_SERVER_TEMPLATES: Array<{
     envKeys: ['SLACK_BOT_TOKEN', 'SLACK_TEAM_ID'],
   },
 ];
+
+// ============================================================================
+// Notification and Progress Types (matching Rust types)
+// ============================================================================
+
+/** Progress notification params */
+export interface ProgressNotification {
+  progressToken: string;
+  progress: number;
+  total?: number;
+  message?: string;
+}
+
+/** Log message notification */
+export interface LogMessageNotification {
+  level: LogLevel;
+  message: string;
+  logger?: string;
+  data?: unknown;
+}
+
+/** Log level */
+export type LogLevel = 'debug' | 'info' | 'notice' | 'warning' | 'error' | 'critical' | 'alert' | 'emergency';
+
+/** Resource list changed notification */
+export interface ResourceListChanged { readonly _tag?: 'ResourceListChanged' }
+
+/** Resource updated notification */
+export interface ResourceUpdatedNotification {
+  uri: string;
+}
+
+/** Tools list changed notification */
+export interface ToolsListChanged { readonly _tag?: 'ToolsListChanged' }
+
+/** Prompts list changed notification */
+export interface PromptsListChanged { readonly _tag?: 'PromptsListChanged' }
+
+/** Cancelled notification */
+export interface CancelledNotification {
+  requestId: unknown;
+  reason?: string;
+}
+
+/** MCP notification payload */
+export type McpNotification =
+  | { type: 'progress'; data: ProgressNotification }
+  | { type: 'logMessage'; data: LogMessageNotification }
+  | { type: 'resourceListChanged'; data: ResourceListChanged }
+  | { type: 'resourceUpdated'; data: ResourceUpdatedNotification }
+  | { type: 'toolsListChanged'; data: ToolsListChanged }
+  | { type: 'promptsListChanged'; data: PromptsListChanged }
+  | { type: 'cancelled'; data: CancelledNotification }
+  | { type: 'unknown'; method: string; params?: unknown };
+
+/** Tool call progress event */
+export interface ToolCallProgress {
+  serverId: string;
+  toolName: string;
+  callId: string;
+  state: ToolCallState;
+  progress?: number;
+  message?: string;
+  error?: string;
+  startedAt: number;
+  endedAt?: number;
+}
+
+/** Tool call state */
+export type ToolCallState = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+/** Reconnection configuration */
+export interface ReconnectConfig {
+  enabled: boolean;
+  maxAttempts: number;
+  initialDelayMs: number;
+  maxDelayMs: number;
+  backoffMultiplier: number;
+}
+
+/** Server health status */
+export interface ServerHealth {
+  serverId: string;
+  isHealthy: boolean;
+  lastPingAt?: number;
+  pingLatencyMs?: number;
+  failedPings: number;
+}
+
+/** MCP notification event payload (from Tauri) */
+export interface McpNotificationEvent {
+  serverId: string;
+  notification: McpNotification;
+}
+
+/** Log message event payload (from Tauri) */
+export interface McpLogMessageEvent {
+  serverId: string;
+  message: LogMessageNotification;
+}
+

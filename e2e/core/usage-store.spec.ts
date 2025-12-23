@@ -60,6 +60,7 @@ test.describe('Usage Store - Record Management', () => {
       return {
         recordCount: records.length,
         totalTokens,
+        totalCost,
         hasCost: records[0].cost > 0,
         hasCreatedAt: !!records[0].createdAt,
       };

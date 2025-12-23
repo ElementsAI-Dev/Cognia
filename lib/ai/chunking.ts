@@ -9,7 +9,6 @@
  * - heading: Split by markdown/document headings
  */
 
-import { generateText } from 'ai';
 import type { LanguageModel } from 'ai';
 
 export type ChunkingStrategy = 'fixed' | 'sentence' | 'paragraph' | 'semantic' | 'heading';
@@ -43,7 +42,7 @@ const DEFAULT_OPTIONS: ChunkingOptions = {
   strategy: 'fixed',
   chunkSize: 1000,
   chunkOverlap: 200,
-  minChunkSize: 100,
+  minChunkSize: 0,
   maxChunkSize: 2000,
 };
 
@@ -76,8 +75,10 @@ function fixedSizeChunking(
       end: chunkEnd,
     });
 
-    start = chunkEnd - overlap;
-    if (start >= text.length) break;
+    // If we reached the end, do not apply overlap again (prevents infinite loop)
+    if (chunkEnd >= text.length) break;
+
+    start = Math.max(0, chunkEnd - overlap);
   }
 
   return chunks;
@@ -352,6 +353,23 @@ export function chunkDocument(
   documentId?: string
 ): ChunkingResult {
   const opts = { ...DEFAULT_OPTIONS, ...options };
+
+  const normalizedChunkSize =
+    typeof options.chunkSize === 'number' && options.chunkSize > 0
+      ? options.chunkSize
+      : DEFAULT_OPTIONS.chunkSize;
+
+  // If the caller didn't specify overlap, pick a proportional default.
+  // This prevents pathological cases where a small chunkSize inherits the global default overlap.
+  const rawOverlap =
+    typeof options.chunkOverlap === 'number'
+      ? options.chunkOverlap
+      : Math.min(DEFAULT_OPTIONS.chunkOverlap, Math.floor(normalizedChunkSize * 0.2));
+
+  const normalizedOverlap = Math.min(
+    Math.max(0, rawOverlap),
+    Math.max(0, normalizedChunkSize - 1)
+  );
   
   // Clean text
   const cleanedText = text.replace(/\r\n/g, '\n').trim();
@@ -369,22 +387,22 @@ export function chunkDocument(
 
   switch (opts.strategy) {
     case 'sentence':
-      rawChunks = sentenceChunking(cleanedText, opts.chunkSize, opts.chunkOverlap);
+      rawChunks = sentenceChunking(cleanedText, normalizedChunkSize, normalizedOverlap);
       break;
     case 'paragraph':
-      rawChunks = paragraphChunking(cleanedText, opts.chunkSize, opts.chunkOverlap);
+      rawChunks = paragraphChunking(cleanedText, normalizedChunkSize, normalizedOverlap);
       break;
     case 'semantic':
       // Semantic chunking uses heading-based as a heuristic
       // For true AI-powered semantic chunking, use chunkDocumentSemantic
-      rawChunks = headingChunking(cleanedText, opts.chunkSize, opts.chunkOverlap);
+      rawChunks = headingChunking(cleanedText, normalizedChunkSize, normalizedOverlap);
       break;
     case 'heading':
-      rawChunks = headingChunking(cleanedText, opts.chunkSize, opts.chunkOverlap);
+      rawChunks = headingChunking(cleanedText, normalizedChunkSize, normalizedOverlap);
       break;
     case 'fixed':
     default:
-      rawChunks = fixedSizeChunking(cleanedText, opts.chunkSize, opts.chunkOverlap);
+      rawChunks = fixedSizeChunking(cleanedText, normalizedChunkSize, normalizedOverlap);
       break;
   }
 
@@ -514,6 +532,8 @@ export async function chunkDocumentSemantic(
   }
 
   try {
+    const { generateText } = await import('ai');
+
     // Use AI to identify natural break points in the text
     const prompt = `Analyze the following text and identify the best positions to split it into semantic chunks of approximately ${targetChunkSize} characters each. Each chunk should contain a complete thought or topic.
 

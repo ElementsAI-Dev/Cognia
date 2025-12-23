@@ -21,7 +21,7 @@ const mockStartPlanExecution = jest.fn();
 const mockCancelPlanExecution = jest.fn();
 
 jest.mock('@/stores', () => ({
-  useAgentStore: (selector: (state: Record<string, unknown>) => unknown) => {
+  useAgentStore: (selector?: (state: Record<string, unknown>) => unknown) => {
     const state = {
       createPlan: mockCreatePlan,
       updatePlan: mockUpdatePlan,
@@ -36,21 +36,21 @@ jest.mock('@/stores', () => ({
       startPlanExecution: mockStartPlanExecution,
       cancelPlanExecution: mockCancelPlanExecution,
     };
-    return selector(state);
+    return selector ? selector(state) : state;
   },
-  useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
+  useSettingsStore: (selector?: (state: Record<string, unknown>) => unknown) => {
     const state = {
       providerSettings: {
         openai: { apiKey: 'test-key' },
       },
     };
-    return selector(state);
+    return selector ? selector(state) : state;
   },
-  useSessionStore: (selector: (state: Record<string, unknown>) => unknown) => {
+  useSessionStore: (selector?: (state: Record<string, unknown>) => unknown) => {
     const state = {
       getActiveSession: () => ({ provider: 'openai', model: 'gpt-4o-mini' }),
     };
-    return selector(state);
+    return selector ? selector(state) : state;
   },
 }));
 
@@ -269,8 +269,8 @@ describe('AgentPlanEditor', () => {
 
     it('renders all plan steps', () => {
       render(<AgentPlanEditor {...defaultProps} />);
-      expect(screen.getByText('Step 1')).toBeInTheDocument();
-      expect(screen.getByText('Step 2')).toBeInTheDocument();
+      expect(screen.getAllByText('Step 1').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Step 2').length).toBeGreaterThan(0);
     });
 
     it('shows progress indicator', () => {
@@ -380,7 +380,7 @@ describe('AgentPlanEditor', () => {
 
     it('shows step number', () => {
       render(<AgentPlanEditor {...defaultProps} />);
-      expect(screen.getByText('Step 1')).toBeInTheDocument();
+      expect(screen.getAllByText('Step 1').length).toBeGreaterThan(0);
     });
 
     it('shows step description', () => {

@@ -22,6 +22,7 @@ export type Language = 'en' | 'zh-CN';
 // Response display settings types
 export type CodeTheme = 'github-dark' | 'github-light' | 'monokai' | 'dracula' | 'nord' | 'one-dark';
 export type FontFamily = 'system' | 'inter' | 'roboto' | 'fira-code' | 'jetbrains-mono';
+export type MessageBubbleStyle = 'default' | 'minimal' | 'bordered' | 'gradient';
 
 // Custom theme interface
 export interface CustomTheme {
@@ -182,12 +183,33 @@ interface SettingsState {
   setEnableMathRendering: (enable: boolean) => void;
   enableMermaidDiagrams: boolean;
   setEnableMermaidDiagrams: (enable: boolean) => void;
+  enableVegaLiteCharts: boolean;
+  setEnableVegaLiteCharts: (enable: boolean) => void;
   compactMode: boolean;
   setCompactMode: (compact: boolean) => void;
   showTimestamps: boolean;
   setShowTimestamps: (show: boolean) => void;
   showTokenCount: boolean;
   setShowTokenCount: (show: boolean) => void;
+
+  // Appearance enhancements
+  uiFontSize: number;
+  setUIFontSize: (size: number) => void;
+  messageBubbleStyle: MessageBubbleStyle;
+  setMessageBubbleStyle: (style: MessageBubbleStyle) => void;
+
+  // Advanced chat parameters
+  defaultTopP: number;
+  setDefaultTopP: (value: number) => void;
+  defaultFrequencyPenalty: number;
+  setDefaultFrequencyPenalty: (value: number) => void;
+  defaultPresencePenalty: number;
+  setDefaultPresencePenalty: (value: number) => void;
+
+  // Keyboard shortcut customization
+  customShortcuts: Record<string, string>;
+  setCustomShortcut: (id: string, keys: string) => void;
+  resetShortcuts: () => void;
 
   // Reset
   resetSettings: () => void;
@@ -347,9 +369,22 @@ const initialState = {
   lineHeight: 1.6,
   enableMathRendering: true,
   enableMermaidDiagrams: true,
+  enableVegaLiteCharts: true,
   compactMode: false,
   showTimestamps: false,
   showTokenCount: true,
+
+  // Appearance enhancements
+  uiFontSize: 14,
+  messageBubbleStyle: 'default' as MessageBubbleStyle,
+
+  // Advanced chat parameters
+  defaultTopP: 1.0,
+  defaultFrequencyPenalty: 0,
+  defaultPresencePenalty: 0,
+
+  // Keyboard shortcut customization
+  customShortcuts: {} as Record<string, string>,
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -702,9 +737,26 @@ export const useSettingsStore = create<SettingsState>()(
       setLineHeight: (lineHeight) => set({ lineHeight }),
       setEnableMathRendering: (enableMathRendering) => set({ enableMathRendering }),
       setEnableMermaidDiagrams: (enableMermaidDiagrams) => set({ enableMermaidDiagrams }),
+      setEnableVegaLiteCharts: (enableVegaLiteCharts) => set({ enableVegaLiteCharts }),
       setCompactMode: (compactMode) => set({ compactMode }),
       setShowTimestamps: (showTimestamps) => set({ showTimestamps }),
       setShowTokenCount: (showTokenCount) => set({ showTokenCount }),
+
+      // Appearance enhancement actions
+      setUIFontSize: (uiFontSize) => set({ uiFontSize: Math.min(20, Math.max(12, uiFontSize)) }),
+      setMessageBubbleStyle: (messageBubbleStyle) => set({ messageBubbleStyle }),
+
+      // Advanced chat parameter actions
+      setDefaultTopP: (defaultTopP) => set({ defaultTopP: Math.min(1, Math.max(0, defaultTopP)) }),
+      setDefaultFrequencyPenalty: (defaultFrequencyPenalty) => set({ defaultFrequencyPenalty: Math.min(2, Math.max(-2, defaultFrequencyPenalty)) }),
+      setDefaultPresencePenalty: (defaultPresencePenalty) => set({ defaultPresencePenalty: Math.min(2, Math.max(-2, defaultPresencePenalty)) }),
+
+      // Keyboard shortcut actions
+      setCustomShortcut: (id, keys) =>
+        set((state) => ({
+          customShortcuts: { ...state.customShortcuts, [id]: keys },
+        })),
+      resetShortcuts: () => set({ customShortcuts: {} }),
 
       resetSettings: () => set(initialState),
     }),
@@ -758,9 +810,19 @@ export const useSettingsStore = create<SettingsState>()(
         lineHeight: state.lineHeight,
         enableMathRendering: state.enableMathRendering,
         enableMermaidDiagrams: state.enableMermaidDiagrams,
+        enableVegaLiteCharts: state.enableVegaLiteCharts,
         compactMode: state.compactMode,
         showTimestamps: state.showTimestamps,
         showTokenCount: state.showTokenCount,
+        // Appearance enhancements
+        uiFontSize: state.uiFontSize,
+        messageBubbleStyle: state.messageBubbleStyle,
+        // Advanced chat parameters
+        defaultTopP: state.defaultTopP,
+        defaultFrequencyPenalty: state.defaultFrequencyPenalty,
+        defaultPresencePenalty: state.defaultPresencePenalty,
+        // Keyboard shortcuts
+        customShortcuts: state.customShortcuts,
       }),
     }
   )

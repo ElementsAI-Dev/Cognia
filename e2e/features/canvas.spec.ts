@@ -41,50 +41,47 @@ test.describe('Canvas Panel', () => {
 
   test('should manage canvas content', async ({ page }) => {
     const result = await page.evaluate(() => {
-      interface CanvasContent {
-        id: string;
-        type: 'code' | 'text' | 'markdown';
-        content: string;
-        language?: string;
-      }
-
-      let canvasContent: CanvasContent | null = null;
-
-      const setContent = (content: CanvasContent) => {
-        canvasContent = content;
-      };
-
-      const clearContent = () => {
-        canvasContent = null;
-      };
-
-      const updateContent = (newContent: string) => {
-        if (canvasContent) {
-          canvasContent.content = newContent;
+      // Test canvas content management logic
+      const canvasStore = {
+        content: null as { id: string; type: string; content: string; language?: string } | null,
+        setContent(data: { id: string; type: string; content: string; language?: string }) {
+          this.content = data;
+        },
+        updateContent(newContent: string) {
+          if (this.content) {
+            this.content = { ...this.content, content: newContent };
+          }
+        },
+        clearContent() {
+          this.content = null;
+        },
+        getSnapshot() {
+          return this.content ? { ...this.content } : null;
         }
       };
 
-      setContent({
+      canvasStore.setContent({
         id: 'canvas-1',
         type: 'code',
         content: 'const x = 1;',
         language: 'typescript',
       });
+      const afterSet = canvasStore.getSnapshot();
 
-      const afterSet = canvasContent ? { ...canvasContent } : null;
+      canvasStore.updateContent('const x = 2;\nconst y = 3;');
+      const afterUpdate = canvasStore.getSnapshot();
 
-      updateContent('const x = 2;\nconst y = 3;');
-      const afterUpdate = canvasContent ? { ...canvasContent } : null;
-
-      clearContent();
-      const afterClear = canvasContent;
+      canvasStore.clearContent();
+      const afterClear = canvasStore.getSnapshot();
 
       return { afterSet, afterUpdate, afterClear };
     });
 
-    expect(result.afterSet.type).toBe('code');
-    expect(result.afterSet.content).toBe('const x = 1;');
-    expect(result.afterUpdate.content).toContain('const y = 3');
+    expect(result.afterSet).not.toBeNull();
+    expect(result.afterSet?.type).toBe('code');
+    expect(result.afterSet?.content).toBe('const x = 1;');
+    expect(result.afterUpdate).not.toBeNull();
+    expect(result.afterUpdate?.content).toContain('const y = 3');
     expect(result.afterClear).toBeNull();
   });
 

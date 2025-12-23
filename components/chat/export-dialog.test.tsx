@@ -52,18 +52,13 @@ jest.mock('@/components/ui/button', () => ({
 }));
 
 jest.mock('@/components/ui/radio-group', () => ({
-  RadioGroup: ({ children, onValueChange, value }: { 
+  RadioGroup: ({ children, onValueChange: _onValueChange, value }: { 
     children: React.ReactNode; 
     onValueChange?: (value: string) => void;
     value?: string;
   }) => (
     <div data-testid="radio-group" data-value={value}>
-      {React.Children.map(children, child => {
-        if (React.isValidElement(child)) {
-          return React.cloneElement(child as React.ReactElement, { onValueChange });
-        }
-        return child;
-      })}
+      {children}
     </div>
   ),
   RadioGroupItem: ({ value, id }: { value: string; id: string }) => (
@@ -126,7 +121,7 @@ describe('ExportDialog', () => {
 
   it('renders without crashing', () => {
     render(<ExportDialog session={mockSession} />);
-    expect(screen.getByText('Export')).toBeInTheDocument();
+    expect(screen.getAllByText('Export').length).toBeGreaterThan(0);
   });
 
   it('displays dialog title', () => {

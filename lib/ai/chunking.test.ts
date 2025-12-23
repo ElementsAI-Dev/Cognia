@@ -10,6 +10,10 @@ import {
   type DocumentChunk,
 } from './chunking';
 
+jest.mock('ai', () => ({
+  generateText: jest.fn(),
+}));
+
 describe('chunkDocument', () => {
   describe('fixed strategy', () => {
     it('chunks text using fixed-size strategy by default', () => {

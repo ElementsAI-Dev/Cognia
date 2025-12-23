@@ -1,4 +1,4 @@
-/**
+﻿/**
  * MCP Store - Zustand state management for MCP servers
  */
 
@@ -12,6 +12,9 @@ import type {
   ToolCallResult,
   ResourceContent,
   PromptContent,
+  LogLevel,
+  McpNotificationEvent,
+  ToolCallProgress,
 } from '@/types/mcp';
 
 interface McpState {
@@ -42,6 +45,8 @@ interface McpState {
   ) => Promise<PromptContent>;
   getAllTools: () => Promise<Array<{ serverId: string; tool: McpTool }>>;
   reloadConfig: () => Promise<void>;
+  pingServer: (serverId: string) => Promise<number>;
+  setLogLevel: (serverId: string, level: LogLevel) => Promise<void>;
   clearError: () => void;
 
   // Internal
@@ -53,6 +58,8 @@ interface McpState {
 // Store event listener cleanup functions
 let unlistenServerUpdate: UnlistenFn | null = null;
 let unlistenServersChanged: UnlistenFn | null = null;
+let unlistenNotification: UnlistenFn | null = null;
+let unlistenToolProgress: UnlistenFn | null = null;
 
 export const useMcpStore = create<McpState>((set, get) => ({
   servers: [],
@@ -76,6 +83,20 @@ export const useMcpStore = create<McpState>((set, get) => ({
         'mcp:servers-changed',
         (event) => {
           get()._setServers(event.payload);
+        }
+      );
+
+      unlistenNotification = await listen<McpNotificationEvent>(
+        'mcp:notification',
+        (event) => {
+          console.log('MCP notification:', event.payload);
+        }
+      );
+
+      unlistenToolProgress = await listen<ToolCallProgress>(
+        'mcp:tool-call-progress',
+        (event) => {
+          console.log('Tool call progress:', event.payload);
         }
       );
 
@@ -185,6 +206,14 @@ export const useMcpStore = create<McpState>((set, get) => ({
     }
   },
 
+  pingServer: async (serverId) => {
+    return invoke<number>('mcp_ping_server', { serverId });
+  },
+
+  setLogLevel: async (serverId, level) => {
+    return invoke('mcp_set_log_level', { serverId, level });
+  },
+
   clearError: () => {
     set({ error: null });
   },
@@ -207,6 +236,14 @@ export const useMcpStore = create<McpState>((set, get) => ({
     if (unlistenServersChanged) {
       unlistenServersChanged();
       unlistenServersChanged = null;
+    }
+    if (unlistenNotification) {
+      unlistenNotification();
+      unlistenNotification = null;
+    }
+    if (unlistenToolProgress) {
+      unlistenToolProgress();
+      unlistenToolProgress = null;
     }
     set({ isInitialized: false });
   },

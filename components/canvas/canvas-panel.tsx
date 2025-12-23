@@ -191,19 +191,6 @@ export function CanvasPanel() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [panelOpen, panelView, isProcessing, activeDocument]);
 
-  // Listen for canvas-action custom events
-  useEffect(() => {
-    const handleCanvasAction = (e: Event) => {
-      const action = (e as CustomEvent).detail;
-      if (action && !isProcessing) {
-        handleAction(action);
-      }
-    };
-
-    window.addEventListener('canvas-action', handleCanvasAction);
-    return () => window.removeEventListener('canvas-action', handleCanvasAction);
-  }, [isProcessing]);
-
   const handleEditorChange = useCallback(
     (value: string | undefined) => {
       const newValue = value || '';
@@ -238,7 +225,7 @@ export function CanvasPanel() {
     }
   }, [activeCanvasId, hasUnsavedChanges, saveCanvasVersion, localContent]);
 
-  const handleAction = async (action: CanvasAction) => {
+  const handleAction = useCallback(async (action: CanvasAction) => {
     if (!activeDocument) return;
 
     setIsProcessing(true);
@@ -295,7 +282,20 @@ export function CanvasPanel() {
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [activeDocument, getActiveSession, defaultProvider, providerSettings, localContent, selection, activeCanvasId, updateCanvasDocument]);
+
+  // Listen for canvas-action custom events
+  useEffect(() => {
+    const handleCanvasAction = (e: Event) => {
+      const action = (e as CustomEvent).detail;
+      if (action && !isProcessing) {
+        handleAction(action);
+      }
+    };
+
+    window.addEventListener('canvas-action', handleCanvasAction);
+    return () => window.removeEventListener('canvas-action', handleCanvasAction);
+  }, [isProcessing, handleAction]);
 
   const getEditorTheme = () => {
     if (theme === 'dark') return 'vs-dark';

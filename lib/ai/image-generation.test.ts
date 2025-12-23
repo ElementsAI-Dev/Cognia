@@ -39,26 +39,20 @@ const mockAppendChild = jest.fn();
 const mockRemoveChild = jest.fn();
 const mockClick = jest.fn();
 
-Object.defineProperty(global, 'URL', {
-  value: {
-    createObjectURL: mockCreateObjectURL,
-    revokeObjectURL: mockRevokeObjectURL,
-  },
-});
+// Mock URL methods
+global.URL.createObjectURL = mockCreateObjectURL;
+global.URL.revokeObjectURL = mockRevokeObjectURL;
 
-Object.defineProperty(global, 'document', {
-  value: {
-    createElement: jest.fn(() => ({
-      href: '',
-      download: '',
-      click: mockClick,
-    })),
-    body: {
-      appendChild: mockAppendChild,
-      removeChild: mockRemoveChild,
-    },
-  },
-});
+// Mock document methods using spyOn
+const mockAnchorElement = {
+  href: '',
+  download: '',
+  click: mockClick,
+  style: {},
+};
+jest.spyOn(document, 'createElement').mockReturnValue(mockAnchorElement as unknown as HTMLElement);
+jest.spyOn(document.body, 'appendChild').mockImplementation(mockAppendChild);
+jest.spyOn(document.body, 'removeChild').mockImplementation(mockRemoveChild);
 
 describe('generateImage', () => {
   beforeEach(() => {
@@ -96,12 +90,13 @@ describe('generateImage', () => {
 
     const result = await generateImage('test-api-key', options);
 
+    // dall-e-2 validates size to 1024x1024 and quality to standard
     expect(mockGenerate).toHaveBeenCalledWith({
       model: 'dall-e-2',
       prompt: 'A beautiful sunset',
-      size: '1024x1792',
-      quality: 'hd',
-      style: 'natural',
+      size: '1024x1024', // validated from 1024x1792
+      quality: 'standard', // validated from hd
+      style: undefined, // style only for dall-e-3
       n: 1,
       response_format: 'url',
     });

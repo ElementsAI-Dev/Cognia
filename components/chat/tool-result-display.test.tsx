@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import {
   ToolResultDisplay,
   ToolMentionInline,
@@ -143,6 +143,12 @@ describe('ToolResultDisplay', () => {
     fireEvent.click(copyButton);
     
     expect(mockWriteText).toHaveBeenCalledWith('Operation completed successfully');
+    
+    // Wait for the async state update after clipboard write
+    await waitFor(() => {
+      // The copy operation is complete
+      expect(mockWriteText).toHaveBeenCalled();
+    });
   });
 
   it('applies custom className', () => {

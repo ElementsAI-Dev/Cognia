@@ -75,6 +75,10 @@ jest.mock('@/components/ui/alert', () => ({
 }));
 
 describe('DataSettings', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('renders without crashing', () => {
     render(<DataSettings />);
     expect(screen.getAllByTestId('card').length).toBeGreaterThan(0);
@@ -85,32 +89,32 @@ describe('DataSettings', () => {
     expect(screen.getByText('Storage')).toBeInTheDocument();
   });
 
-  it('displays export data section', () => {
+  it('displays Export & Import section', () => {
     render(<DataSettings />);
-    expect(screen.getByText('Export Data')).toBeInTheDocument();
+    expect(screen.getByText('Export & Import')).toBeInTheDocument();
   });
 
-  it('displays import data section', () => {
-    render(<DataSettings />);
-    expect(screen.getByText('Import Data')).toBeInTheDocument();
-  });
-
-  it('displays danger zone section', () => {
+  it('displays Danger Zone section', () => {
     render(<DataSettings />);
     expect(screen.getByText('Danger Zone')).toBeInTheDocument();
   });
 
-  it('displays export section', () => {
+  it('displays Export button', () => {
     render(<DataSettings />);
-    expect(screen.getByText('Export Data')).toBeInTheDocument();
+    expect(screen.getByText('Export')).toBeInTheDocument();
   });
 
-  it('displays import section', () => {
+  it('displays Import button', () => {
     render(<DataSettings />);
-    expect(screen.getByText('Import Data')).toBeInTheDocument();
+    expect(screen.getByText('Import')).toBeInTheDocument();
   });
 
-  it('displays delete button', () => {
+  it('displays Batch Export button', () => {
+    render(<DataSettings />);
+    expect(screen.getByText('Batch Export')).toBeInTheDocument();
+  });
+
+  it('displays Delete All Data button', () => {
     render(<DataSettings />);
     expect(screen.getByText('Delete All Data')).toBeInTheDocument();
   });
@@ -118,5 +122,30 @@ describe('DataSettings', () => {
   it('displays batch export dialog', () => {
     render(<DataSettings />);
     expect(screen.getByTestId('batch-export-dialog')).toBeInTheDocument();
+  });
+
+  it('displays Data Privacy alert', () => {
+    render(<DataSettings />);
+    expect(screen.getByText('Data Privacy')).toBeInTheDocument();
+  });
+
+  it('displays sessions count', () => {
+    render(<DataSettings />);
+    expect(screen.getByText('Sessions')).toBeInTheDocument();
+  });
+
+  it('displays artifacts count', () => {
+    render(<DataSettings />);
+    expect(screen.getByText('Artifacts')).toBeInTheDocument();
+  });
+
+  it('displays localStorage info', () => {
+    render(<DataSettings />);
+    expect(screen.getByText('LocalStorage')).toBeInTheDocument();
+  });
+
+  it('displays IndexedDB info', () => {
+    render(<DataSettings />);
+    expect(screen.getByText('IndexedDB')).toBeInTheDocument();
   });
 });

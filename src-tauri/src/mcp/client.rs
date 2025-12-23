@@ -1,4 +1,4 @@
-//! MCP Client implementation
+﻿//! MCP Client implementation
 //!
 //! High-level client for communicating with MCP servers
 
@@ -314,7 +314,16 @@ impl McpClient {
         Ok(response)
     }
 
-    /// Send a ping to check connection
+    /// Set log level on the server
+    pub async fn set_log_level(&self, level: crate::mcp::types::LogLevel) -> McpResult<()> {
+        let params = serde_json::json!({
+            "level": level
+        });
+        self.send_request(methods::LOGGING_SET_LEVEL, Some(params)).await?;
+        Ok(())
+    }
+
+        /// Send a ping to check connection
     pub async fn ping(&self) -> McpResult<()> {
         self.send_request(methods::PING, None).await?;
         Ok(())
@@ -347,5 +356,55 @@ impl Drop for McpClient {
     fn drop(&mut self) {
         // Note: async drop is not supported, so we can't properly clean up here
         // The transport should handle cleanup in its own Drop impl
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mcp::protocol::jsonrpc::methods;
+
+    // ============================================================================
+    // JSON-RPC Method Constants Tests
+    // ============================================================================
+
+    #[test]
+    fn test_jsonrpc_method_constants() {
+        // Verify all method constants are properly defined
+        assert_eq!(methods::INITIALIZE, "initialize");
+        assert_eq!(methods::PING, "ping");
+        assert_eq!(methods::TOOLS_LIST, "tools/list");
+        assert_eq!(methods::TOOLS_CALL, "tools/call");
+        assert_eq!(methods::RESOURCES_LIST, "resources/list");
+        assert_eq!(methods::RESOURCES_READ, "resources/read");
+        assert_eq!(methods::RESOURCES_SUBSCRIBE, "resources/subscribe");
+        assert_eq!(methods::RESOURCES_UNSUBSCRIBE, "resources/unsubscribe");
+        assert_eq!(methods::PROMPTS_LIST, "prompts/list");
+        assert_eq!(methods::PROMPTS_GET, "prompts/get");
+        assert_eq!(methods::LOGGING_SET_LEVEL, "logging/setLevel");
+    }
+
+    // ============================================================================
+    // ClientInfo Tests
+    // ============================================================================
+
+    #[test]
+    fn test_client_info_default() {
+        let info = ClientInfo::default();
+        assert_eq!(info.name, "Cognia");
+        assert!(!info.version.is_empty());
+    }
+
+    #[test]
+    fn test_client_info_serialization() {
+        let info = ClientInfo {
+            name: "TestClient".to_string(),
+            version: "1.0.0".to_string(),
+        };
+
+        let json = serde_json::to_value(&info).unwrap();
+        assert_eq!(json["name"], "TestClient");
+        assert_eq!(json["version"], "1.0.0");
     }
 }

@@ -22,7 +22,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
   Alert,
@@ -66,7 +65,7 @@ export function ToolSettings() {
       id: 'file',
       name: 'File Operations',
       description: 'Read, write, copy, move, and search files on your local system',
-      icon: <FolderOpen className="h-5 w-5" />,
+      icon: <FolderOpen className="h-4 w-4" />,
       enabled: enableFileTools,
       setEnabled: setEnableFileTools,
       requiresApproval: true,
@@ -88,7 +87,7 @@ export function ToolSettings() {
       id: 'document',
       name: 'Document Processing',
       description: 'Analyze, summarize, and chunk documents for processing',
-      icon: <FileText className="h-5 w-5" />,
+      icon: <FileText className="h-4 w-4" />,
       enabled: enableDocumentTools,
       setEnabled: setEnableDocumentTools,
       tools: [
@@ -101,7 +100,7 @@ export function ToolSettings() {
       id: 'search',
       name: 'Web Search',
       description: 'Search the internet for current information',
-      icon: <Search className="h-5 w-5" />,
+      icon: <Search className="h-4 w-4" />,
       enabled: enableWebSearch,
       setEnabled: setEnableWebSearch,
       tools: [
@@ -112,7 +111,7 @@ export function ToolSettings() {
       id: 'rag',
       name: 'Knowledge Base Search',
       description: 'Search your uploaded documents using semantic similarity',
-      icon: <Database className="h-5 w-5" />,
+      icon: <Database className="h-4 w-4" />,
       enabled: enableRAGSearch,
       setEnabled: setEnableRAGSearch,
       tools: [
@@ -123,7 +122,7 @@ export function ToolSettings() {
       id: 'calculator',
       name: 'Calculator',
       description: 'Perform mathematical calculations and unit conversions',
-      icon: <Calculator className="h-5 w-5" />,
+      icon: <Calculator className="h-4 w-4" />,
       enabled: enableCalculator,
       setEnabled: setEnableCalculator,
       tools: [
@@ -134,7 +133,7 @@ export function ToolSettings() {
       id: 'code',
       name: 'Code Execution',
       description: 'Execute JavaScript code in a sandboxed environment',
-      icon: <Code className="h-5 w-5" />,
+      icon: <Code className="h-4 w-4" />,
       enabled: enableCodeExecution,
       setEnabled: setEnableCodeExecution,
       requiresApproval: true,
@@ -145,72 +144,69 @@ export function ToolSettings() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Info Alert */}
-      <Alert>
-        <Shield className="h-4 w-4" />
-        <AlertTitle>Tool Permissions</AlertTitle>
-        <AlertDescription>
-          Tools marked with a warning badge require your approval before execution.
-          This protects your system from unintended changes.
+      <Alert className="py-2">
+        <Shield className="h-3.5 w-3.5" />
+        <AlertTitle className="text-sm">Tool Permissions</AlertTitle>
+        <AlertDescription className="text-xs">
+          Tools with ⚠️ require approval before execution.
         </AlertDescription>
       </Alert>
 
-      {/* Tool Categories */}
-      {toolCategories.map((category) => (
-        <Card key={category.id}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {category.icon}
-                <CardTitle className="text-lg">{category.name}</CardTitle>
-                {category.requiresApproval && (
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
-                )}
+      {/* Tool Categories - Compact Grid */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {toolCategories.map((category) => (
+          <Card key={category.id} className={!category.enabled ? 'opacity-60' : ''}>
+            <CardHeader className="pb-2 pt-3 px-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {category.icon}
+                  <CardTitle className="text-sm">{category.name}</CardTitle>
+                  {category.requiresApproval && (
+                    <AlertTriangle className="h-3 w-3 text-amber-500" />
+                  )}
+                </div>
+                <Switch
+                  checked={category.enabled}
+                  onCheckedChange={category.setEnabled}
+                />
               </div>
-              <Switch
-                checked={category.enabled}
-                onCheckedChange={category.setEnabled}
-              />
-            </div>
-            <CardDescription>{category.description}</CardDescription>
-          </CardHeader>
-          {category.enabled && (
-            <CardContent>
-              <div className="grid gap-2">
-                {category.tools.map((tool) => (
-                  <div
-                    key={tool.name}
-                    className="flex items-center justify-between rounded-lg border p-3"
-                  >
-                    <div className="space-y-0.5">
-                      <Label className="font-mono text-sm">{tool.name}</Label>
-                      <p className="text-xs text-muted-foreground">
-                        {tool.description}
-                      </p>
-                    </div>
-                    {tool.requiresApproval && (
-                      <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
-                        <AlertTriangle className="h-3 w-3" />
-                        Requires approval
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          )}
-        </Card>
-      ))}
+              <CardDescription className="text-[10px] leading-tight">
+                {category.description}
+              </CardDescription>
+            </CardHeader>
+            {category.enabled && (
+              <CardContent className="pt-0 px-4 pb-3">
+                <div className="flex flex-wrap gap-1">
+                  {category.tools.map((tool) => (
+                    <span
+                      key={tool.name}
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-mono ${
+                        tool.requiresApproval
+                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                          : 'bg-muted text-muted-foreground'
+                      }`}
+                      title={tool.description}
+                    >
+                      {tool.name}
+                      {tool.requiresApproval && <AlertTriangle className="h-2.5 w-2.5" />}
+                    </span>
+                  ))}
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        ))}
+      </div>
 
       {/* Desktop App Notice for File Tools */}
       {enableFileTools && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Desktop App Required</AlertTitle>
-          <AlertDescription>
-            File operations are only available in the Tauri desktop application.
-            In the web version, file tools will return an error.
+        <Alert variant="destructive" className="py-2">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          <AlertTitle className="text-sm">Desktop App Required</AlertTitle>
+          <AlertDescription className="text-xs">
+            File tools only work in the Tauri desktop app.
           </AlertDescription>
         </Alert>
       )}

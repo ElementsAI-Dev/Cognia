@@ -12,6 +12,24 @@ import {
   estimateTokenCount,
 } from './document-processor';
 
+jest.mock('@/lib/ai/chunking', () => ({
+  chunkDocument: jest.fn((content: string) => {
+    const chunks = content.length > 100
+      ? [
+          { id: 'chunk-0', content: 'chunk-0', index: 0, startOffset: 0, endOffset: 7 },
+          { id: 'chunk-1', content: 'chunk-1', index: 1, startOffset: 7, endOffset: 14 },
+        ]
+      : [{ id: 'chunk-0', content: 'chunk-0', index: 0, startOffset: 0, endOffset: 7 }];
+
+    return {
+      chunks,
+      totalChunks: chunks.length,
+      originalLength: content.length,
+      strategy: 'fixed',
+    };
+  }),
+}));
+
 describe('detectDocumentType', () => {
   describe('markdown files', () => {
     it('detects .md files', () => {

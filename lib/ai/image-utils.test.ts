@@ -51,10 +51,8 @@ describe('extractBase64', () => {
 
   it('handles empty base64 data', () => {
     const dataUrl = 'data:image/png;base64,';
-    const result = extractBase64(dataUrl);
-    
-    expect(result.mimeType).toBe('image/png');
-    expect(result.data).toBe('');
+    // Empty base64 data is invalid and should throw
+    expect(() => extractBase64(dataUrl)).toThrow('Invalid data URL');
   });
 });
 

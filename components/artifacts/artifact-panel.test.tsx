@@ -27,6 +27,15 @@ jest.mock('@/stores', () => ({
         },
       },
       updateArtifact: mockUpdateArtifact,
+      createCanvasDocument: jest.fn(),
+      setActiveCanvas: jest.fn(),
+      openPanel: jest.fn(),
+    };
+    return selector(state);
+  },
+  useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      theme: 'light',
     };
     return selector(state);
   },

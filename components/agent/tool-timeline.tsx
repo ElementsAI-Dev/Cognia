@@ -8,7 +8,6 @@ import { useState } from 'react';
 import { Clock, CheckCircle, XCircle, Loader2, AlertTriangle, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ToolState } from '@/types/message';
-import { Button } from '@/components/ui/button';
 
 export interface ToolExecution {
   id: string;
@@ -139,9 +138,9 @@ export function ToolTimeline({ executions, className }: ToolTimelineProps) {
             )}
             <span className="ml-1">{formatDuration(totalDuration)}</span>
           </div>
-          <Button variant="ghost" size="icon" className="h-6 w-6">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-accent">
             {isCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-          </Button>
+          </span>
         </div>
       </button>
 

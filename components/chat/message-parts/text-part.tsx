@@ -1,10 +1,13 @@
 'use client';
 
 /**
- * TextPart - Renders text content with markdown support
+ * TextPart - Renders text content with enhanced markdown support
+ * Supports: Mermaid diagrams, LaTeX math, VegaLite charts
  */
 
-import { MessageResponse } from '@/components/ai-elements/message';
+import { useSettingsStore } from '@/stores/settings-store';
+import { EnhancedMarkdown } from '@/components/chat/enhanced-markdown';
+import { cn } from '@/lib/utils';
 import type { TextPart as TextPartType } from '@/types/message';
 
 interface TextPartProps {
@@ -13,9 +16,19 @@ interface TextPartProps {
 }
 
 export function TextPart({ part, isError }: TextPartProps) {
+  const enableMathRendering = useSettingsStore((state) => state.enableMathRendering);
+  const enableMermaidDiagrams = useSettingsStore((state) => state.enableMermaidDiagrams);
+  const enableVegaLiteCharts = useSettingsStore((state) => state.enableVegaLiteCharts);
+  const showLineNumbers = useSettingsStore((state) => state.showLineNumbers);
+
   return (
-    <MessageResponse className={isError ? 'text-destructive' : undefined}>
-      {part.content}
-    </MessageResponse>
+    <EnhancedMarkdown
+      content={part.content}
+      className={cn(isError && 'text-destructive')}
+      enableMath={enableMathRendering}
+      enableMermaid={enableMermaidDiagrams}
+      enableVegaLite={enableVegaLiteCharts}
+      showLineNumbers={showLineNumbers}
+    />
   );
 }

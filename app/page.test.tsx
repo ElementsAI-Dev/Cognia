@@ -1,87 +1,132 @@
-import { render, screen } from "@testing-library/react";
-import Home from "./page";
+/**
+ * @jest-environment jsdom
+ */
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import Home from './page';
 
-describe("Home Page", () => {
-  it("renders the Next.js logo", () => {
+// Mock stores
+jest.mock('@/stores', () => ({
+  useSessionStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      sessions: [],
+      activeSessionId: null,
+      createSession: jest.fn(),
+      setActiveSession: jest.fn(),
+    };
+    return selector(state);
+  },
+  useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      providerSettings: {},
+      sidebarOpen: true,
+    };
+    return selector(state);
+  },
+  useChatStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      messages: [],
+      isLoading: false,
+    };
+    return selector(state);
+  },
+  useProjectStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      projects: [],
+      activeProjectId: null,
+    };
+    return selector(state);
+  },
+  usePresetStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      presets: [],
+      activePreset: null,
+    };
+    return selector(state);
+  },
+  useUIStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      sidebarOpen: true,
+    };
+    return selector(state);
+  },
+  useArtifactStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      panelOpen: false,
+    };
+    return selector(state);
+  },
+  useAgentStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      isExecuting: false,
+    };
+    return selector(state);
+  },
+}));
+
+// Mock UI components that use context
+jest.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TooltipContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+jest.mock('@/components/ui/sidebar', () => ({
+  SidebarProvider: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="sidebar-provider">{children}</div>
+  ),
+  SidebarInset: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="sidebar-inset">{children}</div>
+  ),
+  Sidebar: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SidebarContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SidebarHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SidebarFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SidebarTrigger: () => <button>Toggle</button>,
+  SidebarGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SidebarGroupContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SidebarGroupLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SidebarMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SidebarMenuItem: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SidebarMenuButton: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
+  useSidebar: () => ({ open: true, setOpen: jest.fn() }),
+}));
+
+jest.mock('@/components/sidebar', () => ({
+  AppSidebar: () => <div data-testid="app-sidebar">Sidebar</div>,
+}));
+
+jest.mock('@/components/chat', () => ({
+  ChatContainer: () => <div data-testid="chat-container">Chat</div>,
+}));
+
+describe('Home Page', () => {
+  it('renders without crashing', () => {
     render(<Home />);
-    const logo = screen.getByAltText("Next.js logo");
-    expect(logo).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-provider')).toBeInTheDocument();
   });
 
-  it("renders the main heading", () => {
+  it('renders the sidebar', () => {
     render(<Home />);
-    const heading = screen.getByRole("heading", {
-      name: /to get started, edit the page\.tsx file/i,
-    });
-    expect(heading).toBeInTheDocument();
+    expect(screen.getByTestId('app-sidebar')).toBeInTheDocument();
   });
 
-  it("renders the description text", () => {
+  it('renders the chat container', () => {
     render(<Home />);
-    const description = screen.getByText(/looking for a starting point/i);
-    expect(description).toBeInTheDocument();
+    expect(screen.getByTestId('chat-container')).toBeInTheDocument();
   });
 
-  it("renders the Templates link", () => {
+  it('renders the sidebar inset', () => {
     render(<Home />);
-    const templatesLink = screen.getByRole("link", { name: /templates/i });
-    expect(templatesLink).toBeInTheDocument();
-    expect(templatesLink).toHaveAttribute(
-      "href",
-      expect.stringContaining("vercel.com/templates")
-    );
+    expect(screen.getByTestId('sidebar-inset')).toBeInTheDocument();
   });
 
-  it("renders the Learning link", () => {
-    render(<Home />);
-    const learningLink = screen.getByRole("link", { name: /learning/i });
-    expect(learningLink).toBeInTheDocument();
-    expect(learningLink).toHaveAttribute(
-      "href",
-      expect.stringContaining("nextjs.org/learn")
-    );
-  });
-
-  it("renders the Deploy Now button", () => {
-    render(<Home />);
-    const deployButton = screen.getByRole("link", { name: /deploy now/i });
-    expect(deployButton).toBeInTheDocument();
-    expect(deployButton).toHaveAttribute(
-      "href",
-      expect.stringContaining("vercel.com/new")
-    );
-    expect(deployButton).toHaveAttribute("target", "_blank");
-    expect(deployButton).toHaveAttribute("rel", "noopener noreferrer");
-  });
-
-  it("renders the Documentation button", () => {
-    render(<Home />);
-    const docsButton = screen.getByRole("link", { name: /documentation/i });
-    expect(docsButton).toBeInTheDocument();
-    expect(docsButton).toHaveAttribute(
-      "href",
-      expect.stringContaining("nextjs.org/docs")
-    );
-    expect(docsButton).toHaveAttribute("target", "_blank");
-    expect(docsButton).toHaveAttribute("rel", "noopener noreferrer");
-  });
-
-  it("renders the Vercel logomark", () => {
-    render(<Home />);
-    const vercelLogo = screen.getByAltText("Vercel logomark");
-    expect(vercelLogo).toBeInTheDocument();
-  });
-
-  it("has correct layout structure", () => {
+  it('has correct component hierarchy', () => {
     const { container } = render(<Home />);
-    const main = container.querySelector("main");
-    expect(main).toBeInTheDocument();
-    expect(main).toHaveClass("flex", "min-h-screen");
-  });
-
-  it("applies dark mode classes", () => {
-    const { container } = render(<Home />);
-    const wrapper = container.firstChild as HTMLElement;
-    expect(wrapper).toHaveClass("dark:bg-black");
+    const sidebarProvider = container.querySelector('[data-testid="sidebar-provider"]');
+    expect(sidebarProvider).toBeInTheDocument();
+    expect(sidebarProvider).toContainElement(screen.getByTestId('app-sidebar'));
+    expect(sidebarProvider).toContainElement(screen.getByTestId('sidebar-inset'));
   });
 });

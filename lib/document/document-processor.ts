@@ -410,6 +410,9 @@ export function extractSummary(content: string, maxLength: number = 200): string
  * Get file extension from filename
  */
 export function getFileExtension(filename: string): string {
+  // Dotfiles like ".gitignore" should be treated as having no extension
+  if (filename.startsWith('.') && filename.indexOf('.', 1) === -1) return '';
+
   const parts = filename.split('.');
   return parts.length > 1 ? parts.pop()!.toLowerCase() : '';
 }

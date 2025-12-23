@@ -143,7 +143,10 @@ describe('projectRepository', () => {
       await projectRepository.touch(created.id);
 
       const updated = await projectRepository.getById(created.id);
-      expect(updated?.lastAccessedAt.getTime()).toBeGreaterThan(originalAccess.getTime());
+      const updatedTime = updated?.lastAccessedAt instanceof Date 
+        ? updated.lastAccessedAt.getTime() 
+        : new Date(updated?.lastAccessedAt || 0).getTime();
+      expect(updatedTime).toBeGreaterThan(originalAccess.getTime());
     });
   });
 

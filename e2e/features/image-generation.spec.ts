@@ -376,7 +376,7 @@ test.describe('Generated Image Management', () => {
   test('should copy image to clipboard', async ({ page }) => {
     await page.goto('/');
 
-    const result = await page.evaluate(() => {
+    const result = await page.evaluate(async () => {
       // Simulate clipboard copy functionality
       const copyToClipboard = async (imageUrl: string): Promise<{ success: boolean; error?: string }> => {
         try {
@@ -392,9 +392,13 @@ test.describe('Generated Image Management', () => {
         }
       };
 
+      // Use the function to test it
+      const validCopy = await copyToClipboard('https://example.com/image.png');
+      const invalidCopy = await copyToClipboard('');
+
       return {
-        validCopy: { success: true },
-        invalidCopy: { success: false, error: 'No image URL provided' },
+        validCopy,
+        invalidCopy,
       };
     });
 

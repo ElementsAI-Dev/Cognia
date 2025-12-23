@@ -25,7 +25,7 @@ jest.mock('@/components/ai-elements/reasoning', () => ({
 
 describe('ReasoningPart', () => {
   it('renders without crashing', () => {
-    const part: ReasoningPartType = { type: 'reasoning', content: 'Thinking...' };
+    const part: ReasoningPartType = { type: 'reasoning', content: 'Thinking...', isStreaming: false };
     render(<ReasoningPart part={part} />);
     expect(screen.getByTestId('reasoning')).toBeInTheDocument();
   });
@@ -33,14 +33,15 @@ describe('ReasoningPart', () => {
   it('displays reasoning content', () => {
     const part: ReasoningPartType = { 
       type: 'reasoning', 
-      content: 'Let me think about this problem step by step.' 
+      content: 'Let me think about this problem step by step.',
+      isStreaming: false
     };
     render(<ReasoningPart part={part} />);
     expect(screen.getByText('Let me think about this problem step by step.')).toBeInTheDocument();
   });
 
   it('renders reasoning trigger', () => {
-    const part: ReasoningPartType = { type: 'reasoning', content: 'Thinking...' };
+    const part: ReasoningPartType = { type: 'reasoning', content: 'Thinking...', isStreaming: false };
     render(<ReasoningPart part={part} />);
     expect(screen.getByTestId('reasoning-trigger')).toBeInTheDocument();
   });
@@ -54,7 +55,7 @@ describe('ReasoningPart', () => {
   });
 
   it('passes duration prop correctly', () => {
-    const part: ReasoningPartType = { type: 'reasoning', content: 'Done', duration: 5000 };
+    const part: ReasoningPartType = { type: 'reasoning', content: 'Done', duration: 5000, isStreaming: false };
     render(<ReasoningPart part={part} />);
     
     const reasoning = screen.getByTestId('reasoning');
@@ -62,20 +63,20 @@ describe('ReasoningPart', () => {
   });
 
   it('handles empty content', () => {
-    const part: ReasoningPartType = { type: 'reasoning', content: '' };
+    const part: ReasoningPartType = { type: 'reasoning', content: '', isStreaming: false };
     render(<ReasoningPart part={part} />);
     expect(screen.getByTestId('reasoning')).toBeInTheDocument();
   });
 
   it('handles long reasoning content', () => {
     const longContent = 'Step 1: Analyze the problem.\n'.repeat(50);
-    const part: ReasoningPartType = { type: 'reasoning', content: longContent };
+    const part: ReasoningPartType = { type: 'reasoning', content: longContent, isStreaming: false };
     render(<ReasoningPart part={part} />);
     expect(screen.getByTestId('reasoning-content')).toBeInTheDocument();
   });
 
   it('renders without isStreaming when not provided', () => {
-    const part: ReasoningPartType = { type: 'reasoning', content: 'Thinking' };
+    const part: ReasoningPartType = { type: 'reasoning', content: 'Thinking', isStreaming: false };
     render(<ReasoningPart part={part} />);
     
     const reasoning = screen.getByTestId('reasoning');

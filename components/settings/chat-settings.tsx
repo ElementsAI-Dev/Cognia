@@ -5,7 +5,7 @@
  * All settings are persisted to the settings store
  */
 
-import { MessageSquare, Thermometer, Hash, History, Sparkles } from 'lucide-react';
+import { MessageSquare, Thermometer, Hash, History, Sparkles, SlidersHorizontal } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -32,6 +32,12 @@ export function ChatSettings() {
   const setDefaultTemperature = useSettingsStore((state) => state.setDefaultTemperature);
   const defaultMaxTokens = useSettingsStore((state) => state.defaultMaxTokens);
   const setDefaultMaxTokens = useSettingsStore((state) => state.setDefaultMaxTokens);
+  const defaultTopP = useSettingsStore((state) => state.defaultTopP);
+  const setDefaultTopP = useSettingsStore((state) => state.setDefaultTopP);
+  const defaultFrequencyPenalty = useSettingsStore((state) => state.defaultFrequencyPenalty);
+  const setDefaultFrequencyPenalty = useSettingsStore((state) => state.setDefaultFrequencyPenalty);
+  const defaultPresencePenalty = useSettingsStore((state) => state.defaultPresencePenalty);
+  const setDefaultPresencePenalty = useSettingsStore((state) => state.setDefaultPresencePenalty);
   const contextLength = useSettingsStore((state) => state.contextLength);
   const setContextLength = useSettingsStore((state) => state.setContextLength);
   const autoTitleGeneration = useSettingsStore((state) => state.autoTitleGeneration);
@@ -52,15 +58,15 @@ export function ChatSettings() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Default Provider */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Sparkles className="h-4 w-4" />
             Default Provider
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-xs">
             Select the default AI provider for new conversations
           </CardDescription>
         </CardHeader>
@@ -92,21 +98,21 @@ export function ChatSettings() {
 
       {/* Generation Parameters */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Thermometer className="h-5 w-5" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Thermometer className="h-4 w-4" />
             Generation Parameters
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-xs">
             Control AI response behavior and creativity
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4">
           {/* Temperature */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Temperature: {defaultTemperature.toFixed(1)}</Label>
-              <span className="text-xs text-muted-foreground">
+              <Label className="text-sm">Temperature: {defaultTemperature.toFixed(1)}</Label>
+              <span className="text-[10px] text-muted-foreground">
                 {defaultTemperature <= 0.3 ? 'Precise' : defaultTemperature <= 0.7 ? 'Balanced' : 'Creative'}
               </span>
             </div>
@@ -117,15 +123,12 @@ export function ChatSettings() {
               max={20}
               step={1}
             />
-            <p className="text-xs text-muted-foreground">
-              Lower values make responses more focused and deterministic. Higher values increase creativity and variety.
-            </p>
           </div>
 
           {/* Max Tokens */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Max Response Length: {defaultMaxTokens.toLocaleString()} tokens</Label>
+              <Label className="text-sm">Max Tokens: {defaultMaxTokens.toLocaleString()}</Label>
             </div>
             <Slider
               value={[defaultMaxTokens]}
@@ -134,8 +137,79 @@ export function ChatSettings() {
               max={16384}
               step={256}
             />
-            <p className="text-xs text-muted-foreground">
-              Maximum number of tokens in the AI response. Higher values allow longer responses but may increase cost.
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Advanced Parameters */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <SlidersHorizontal className="h-4 w-4" />
+            Advanced Parameters
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Fine-tune sampling and repetition control
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Top P */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Top P: {defaultTopP.toFixed(2)}</Label>
+              <span className="text-[10px] text-muted-foreground">
+                {defaultTopP >= 0.95 ? 'Default' : defaultTopP >= 0.7 ? 'Focused' : 'Very Focused'}
+              </span>
+            </div>
+            <Slider
+              value={[defaultTopP * 100]}
+              onValueChange={([v]) => setDefaultTopP(v / 100)}
+              min={0}
+              max={100}
+              step={5}
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Nucleus sampling: lower values make output more focused by considering fewer tokens.
+            </p>
+          </div>
+
+          {/* Frequency Penalty */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Frequency Penalty: {defaultFrequencyPenalty.toFixed(1)}</Label>
+              <span className="text-[10px] text-muted-foreground">
+                {defaultFrequencyPenalty === 0 ? 'Off' : defaultFrequencyPenalty > 0 ? 'Reduce Repetition' : 'Encourage Repetition'}
+              </span>
+            </div>
+            <Slider
+              value={[(defaultFrequencyPenalty + 2) * 25]}
+              onValueChange={([v]) => setDefaultFrequencyPenalty((v / 25) - 2)}
+              min={0}
+              max={100}
+              step={5}
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Penalize tokens based on frequency. Positive values reduce word repetition.
+            </p>
+          </div>
+
+          {/* Presence Penalty */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Presence Penalty: {defaultPresencePenalty.toFixed(1)}</Label>
+              <span className="text-[10px] text-muted-foreground">
+                {defaultPresencePenalty === 0 ? 'Off' : defaultPresencePenalty > 0 ? 'New Topics' : 'Stay on Topic'}
+              </span>
+            </div>
+            <Slider
+              value={[(defaultPresencePenalty + 2) * 25]}
+              onValueChange={([v]) => setDefaultPresencePenalty((v / 25) - 2)}
+              min={0}
+              max={100}
+              step={5}
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Encourage exploring new topics. Positive values promote variety in responses.
             </p>
           </div>
         </CardContent>
@@ -143,20 +217,20 @@ export function ChatSettings() {
 
       {/* Context & History */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <History className="h-5 w-5" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <History className="h-4 w-4" />
             Context & History
           </CardTitle>
-          <CardDescription>
-            Configure how much conversation history to include
+          <CardDescription className="text-xs">
+            Configure conversation history settings
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4">
           {/* Context Length */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Context Messages: {contextLength}</Label>
+              <Label className="text-sm">Context Messages: {contextLength}</Label>
             </div>
             <Slider
               value={[contextLength]}
@@ -165,17 +239,14 @@ export function ChatSettings() {
               max={50}
               step={2}
             />
-            <p className="text-xs text-muted-foreground">
-              Number of previous messages to include as context. More context improves continuity but uses more tokens.
-            </p>
           </div>
 
           {/* Auto Title Generation */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between py-1">
             <div className="space-y-0.5">
-              <Label htmlFor="auto-title">Auto-generate Titles</Label>
-              <p className="text-sm text-muted-foreground">
-                Automatically generate conversation titles from the first message
+              <Label htmlFor="auto-title" className="text-sm">Auto-generate Titles</Label>
+              <p className="text-xs text-muted-foreground">
+                Generate titles from the first message
               </p>
             </div>
             <Switch
@@ -189,21 +260,21 @@ export function ChatSettings() {
 
       {/* Display Options */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <MessageSquare className="h-4 w-4" />
             Display Options
           </CardTitle>
-          <CardDescription>
-            Customize how messages are displayed in chat
+          <CardDescription className="text-xs">
+            Customize message display in chat
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between py-1">
             <div className="space-y-0.5">
-              <Label htmlFor="show-model">Show Model Name</Label>
-              <p className="text-sm text-muted-foreground">
-                Display which AI model generated each response
+              <Label htmlFor="show-model" className="text-sm">Show Model Name</Label>
+              <p className="text-xs text-muted-foreground">
+                Display which model generated responses
               </p>
             </div>
             <Switch
@@ -213,11 +284,11 @@ export function ChatSettings() {
             />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between py-1">
             <div className="space-y-0.5">
-              <Label htmlFor="markdown-render">Markdown Rendering</Label>
-              <p className="text-sm text-muted-foreground">
-                Render markdown formatting in AI responses
+              <Label htmlFor="markdown-render" className="text-sm">Markdown Rendering</Label>
+              <p className="text-xs text-muted-foreground">
+                Render markdown in AI responses
               </p>
             </div>
             <Switch
@@ -231,24 +302,15 @@ export function ChatSettings() {
 
       {/* Token Usage Info */}
       <Card className="border-dashed">
-        <CardHeader>
+        <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <Hash className="h-4 w-4" />
-            About Tokens
+            <Hash className="h-3.5 w-3.5" />
+            Token Estimation
           </CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>
-            <strong>Tokens</strong> are pieces of text that AI models process. On average:
-          </p>
-          <ul className="list-disc list-inside space-y-1 ml-2">
-            <li>1 token ≈ 4 characters in English</li>
-            <li>1 token ≈ ¾ of a word</li>
-            <li>100 tokens ≈ 75 words</li>
-          </ul>
-          <p className="mt-2">
-            Your settings will use approximately <strong>{(contextLength * 500 + defaultMaxTokens).toLocaleString()}</strong> tokens per message (context + response).
-          </p>
+        <CardContent className="text-xs text-muted-foreground space-y-1">
+          <p>Approx. <strong>{(contextLength * 500 + defaultMaxTokens).toLocaleString()}</strong> tokens per message</p>
+          <p className="text-[10px]">1 token ≈ 4 chars • 100 tokens ≈ 75 words</p>
         </CardContent>
       </Card>
     </div>

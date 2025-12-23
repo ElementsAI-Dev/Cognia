@@ -4,97 +4,68 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a React + Tauri desktop application starter built with:
+Cognia is an AI chat application with multi-provider support, built with:
 
-- **Frontend**: Next.js 16 with React 19, TypeScript, and Tailwind CSS v4
+- **Frontend**: Next.js 16 with React 19.2, TypeScript, and Tailwind CSS v4
 - **Desktop Framework**: Tauri 2.9 for cross-platform desktop app capabilities
 - **UI Components**: shadcn/ui with Radix UI primitives and Lucide icons
-- **State Management**: Zustand for client-side state
-- **Styling**: Tailwind CSS with CSS variables and dark mode support
+- **State Management**: Zustand stores + Dexie for IndexedDB persistence
+- **AI Integration**: Vercel AI SDK with multiple providers (OpenAI, Anthropic, Google, etc.)
 
 ## Development Commands
 
-### Frontend Development
-
 ```bash
-# Start Next.js development server
-pnpm dev
-# or
-npm run dev
+# Frontend
+pnpm dev              # Start Next.js dev server
+pnpm build            # Production build
+pnpm start            # Serve production build
+pnpm lint             # Run ESLint (use --fix to auto-fix)
 
-# Build for production
-pnpm build
-# or
-npm run build
+# Testing
+pnpm test             # Run Jest unit tests
+pnpm test:watch       # Jest watch mode
+pnpm test:coverage    # Jest with coverage
+pnpm test:e2e         # Run Playwright e2e tests
+pnpm test:e2e:ui      # Playwright UI mode
+pnpm test:e2e:headed  # Playwright headed browser
 
-# Start production server
-pnpm start
-# or
-npm run start
-
-# Lint code
-pnpm lint
-# or
-npm run lint
-```
-
-### Tauri Desktop App Development
-
-```bash
-# Run Tauri development mode (starts both frontend dev server and Tauri app)
-pnpm tauri dev
-
-# Build Tauri desktop application
-pnpm tauri build
-
-# More Tauri commands
-pnpm tauri --help
+# Desktop
+pnpm tauri dev        # Run Tauri dev mode
+pnpm tauri build      # Build desktop binaries
 ```
 
 ## Architecture
 
-### Frontend Structure
+### Project Structure
 
-- `app/` - Next.js App Router pages and layout
-  - `layout.tsx` - Root layout with Geist fonts and global styles
-  - `page.tsx` - Main landing page
-  - `globals.css` - Global Tailwind styles and CSS variables
-- `components/` - Reusable React components
-  - `ui/` - shadcn/ui components (Button, etc.)
-- `lib/` - Utility functions and configurations
-  - `utils.ts` - Tailwind utility function (`cn`) for class merging
-- `components.json` - shadcn/ui configuration with path aliases
-
-### Tauri Integration
-
-- `src-tauri/` - Rust backend for desktop functionality
-  - `tauri.conf.json` - Tauri configuration (window settings, build commands)
-  - `src/main.rs` - Main Rust application entry point
-  - `src/lib.rs` - Rust library code
-  - `Cargo.toml` - Rust dependencies
-- **Build Configuration**: Tauri builds the Next.js app to `out/` directory and bundles it
-- **Development**: Tauri runs `pnpm dev` for frontend and serves at `http://localhost:3000`
+- `app/` — Next.js App Router: `(chat)/`, `settings/`, `designer/`, `projects/`, `api/`
+- `components/` — Feature-based:
+  - `ui/` — shadcn/Radix components
+  - `chat/`, `sidebar/`, `settings/`, `artifacts/`, `canvas/`, `designer/`, `projects/`, `presets/`, `agent/`, `ai-elements/`, `export/`, `layout/`, `providers/`
+- `lib/` — Domain utilities: `ai/`, `db/`, `document/`, `export/`, `file/`, `i18n/`, `native/`, `search/`, `themes/`, `vector/`
+- `hooks/` — Custom hooks: `use-agent.ts`, `use-messages.ts`, `use-rag.ts`, `use-vector-db.ts`, etc.
+- `stores/` — Zustand stores: `settings-store.ts`, `session-store.ts`, `project-store.ts`, etc.
+- `types/` — TypeScript definitions: `provider.ts`, `message.ts`, `artifact.ts`, etc.
+- `e2e/` — Playwright tests: `ai/`, `core/`, `features/`, `ui/`
+- `__mocks__/` — Jest mocks for external dependencies
+- `src-tauri/` — Rust backend for desktop
 
 ### Key Technologies
 
-- **Next.js 16** with App Router for React 19 applications
-- **Tailwind CSS v4** with PostCSS for styling
-- **shadcn/ui** component library built on Radix UI primitives
-- **Zustand** for lightweight state management
-- **Tauri 2.9** for building cross-platform desktop apps
-- **TypeScript** throughout the stack
+- **Next.js 16** with App Router for React 19.2
+- **Tailwind CSS v4** with PostCSS
+- **AI SDK** (`ai`, `@ai-sdk/*`) for LLM integration
+- **Zustand** for state + **Dexie** for IndexedDB
+- **Tauri 2.9** for desktop apps
+- **Jest** + **Playwright** for testing
 
-### Path Aliases (configured in components.json)
+### Path Aliases
 
-- `@/components` → `components/`
-- `@/lib` → `lib/`
-- `@/utils` → `lib/utils.ts`
-- `@/ui` → `components/ui`
-- `@/hooks` → `hooks/`
+- `@/components`, `@/lib`, `@/hooks`, `@/stores`, `@/types`
 
 ## Development Notes
 
-- The app uses pnpm as the preferred package manager (see pnpm-lock.yaml)
-- Tauri configuration is set to build the frontend to `out/` directory (not `.next`)
-- The project supports both web and desktop deployment from the same codebase
-- shadcn/ui is configured with "new-york" style and CSS variables for theming
+- Uses pnpm as package manager
+- Tauri builds to `out/` directory
+- Supports both web and desktop deployment
+- Conventional Commits enforced via commitlint + Husky

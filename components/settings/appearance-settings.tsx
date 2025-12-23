@@ -4,12 +4,13 @@
  * AppearanceSettings - Configure theme, language, and UI preferences
  */
 
-import { Moon, Sun, Monitor, Check, Palette, Globe, Plus } from 'lucide-react';
+import { Moon, Sun, Monitor, Check, Palette, Globe, Plus, Type, MessageCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 import {
   Card,
   CardContent,
@@ -24,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useSettingsStore, type Theme, type Language } from '@/stores';
+import { useSettingsStore, type Theme, type Language, type MessageBubbleStyle } from '@/stores';
 import { THEME_PRESETS, type ColorThemePreset } from '@/lib/themes';
 import { localeNames, localeFlags, type Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -63,6 +64,10 @@ export function AppearanceSettings() {
   const setSendOnEnter = useSettingsStore((state) => state.setSendOnEnter);
   const streamResponses = useSettingsStore((state) => state.streamResponses);
   const setStreamResponses = useSettingsStore((state) => state.setStreamResponses);
+  const uiFontSize = useSettingsStore((state) => state.uiFontSize);
+  const setUIFontSize = useSettingsStore((state) => state.setUIFontSize);
+  const messageBubbleStyle = useSettingsStore((state) => state.messageBubbleStyle);
+  const setMessageBubbleStyle = useSettingsStore((state) => state.setMessageBubbleStyle);
 
   const [showThemeEditor, setShowThemeEditor] = useState(false);
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
@@ -242,16 +247,98 @@ export function AppearanceSettings() {
         </CardContent>
       </Card>
 
+      {/* UI Font Size */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Type className="h-4 w-4" />
+            <CardTitle className="text-base">UI Font Size</CardTitle>
+          </div>
+          <CardDescription className="text-xs">
+            Adjust the base font size for the interface
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Font Size: {uiFontSize}px</Label>
+              <span className="text-xs text-muted-foreground">
+                {uiFontSize <= 13 ? 'Compact' : uiFontSize <= 15 ? 'Default' : 'Large'}
+              </span>
+            </div>
+            <Slider
+              value={[uiFontSize]}
+              onValueChange={([v]) => setUIFontSize(v)}
+              min={12}
+              max={20}
+              step={1}
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>12px</span>
+              <span>16px</span>
+              <span>20px</span>
+            </div>
+          </div>
+          <div
+            className="p-3 rounded-lg border bg-muted/30"
+            style={{ fontSize: `${uiFontSize}px` }}
+          >
+            <p className="font-medium">Preview Text</p>
+            <p className="text-muted-foreground">This is how text will appear in the interface.</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Message Bubble Style */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="h-4 w-4" />
+            <CardTitle className="text-base">Message Style</CardTitle>
+          </div>
+          <CardDescription className="text-xs">
+            Choose how chat messages are displayed
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              { value: 'default', label: 'Default', desc: 'Standard bubbles' },
+              { value: 'minimal', label: 'Minimal', desc: 'Clean, no borders' },
+              { value: 'bordered', label: 'Bordered', desc: 'With outlines' },
+              { value: 'gradient', label: 'Gradient', desc: 'Subtle gradients' },
+            ].map((style) => (
+              <button
+                key={style.value}
+                onClick={() => setMessageBubbleStyle(style.value as MessageBubbleStyle)}
+                className={cn(
+                  'flex flex-col items-center gap-1 rounded-lg border-2 p-3 transition-colors text-center',
+                  messageBubbleStyle === style.value
+                    ? 'border-primary bg-primary/5'
+                    : 'border-transparent bg-muted hover:bg-muted/80'
+                )}
+              >
+                {messageBubbleStyle === style.value && (
+                  <Check className="h-3 w-3 text-primary absolute top-1 right-1" />
+                )}
+                <span className="text-xs font-medium">{style.label}</span>
+                <span className="text-[10px] text-muted-foreground">{style.desc}</span>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* UI Preferences */}
       <Card>
-        <CardHeader>
-          <CardTitle>{t('interfacePreferences')}</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">{t('interfacePreferences')}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between py-1">
             <div className="space-y-0.5">
-              <Label htmlFor="sidebar-collapsed">{t('collapseSidebar')}</Label>
-              <p className="text-sm text-muted-foreground">
+              <Label htmlFor="sidebar-collapsed" className="text-sm">{t('collapseSidebar')}</Label>
+              <p className="text-xs text-muted-foreground">
                 {t('collapseSidebarDescription')}
               </p>
             </div>
@@ -262,10 +349,10 @@ export function AppearanceSettings() {
             />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between py-1">
             <div className="space-y-0.5">
-              <Label htmlFor="send-on-enter">{t('sendOnEnter')}</Label>
-              <p className="text-sm text-muted-foreground">
+              <Label htmlFor="send-on-enter" className="text-sm">{t('sendOnEnter')}</Label>
+              <p className="text-xs text-muted-foreground">
                 {t('sendOnEnterDescription')}
               </p>
             </div>
@@ -276,10 +363,10 @@ export function AppearanceSettings() {
             />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between py-1">
             <div className="space-y-0.5">
-              <Label htmlFor="stream-responses">{t('streamResponses')}</Label>
-              <p className="text-sm text-muted-foreground">
+              <Label htmlFor="stream-responses" className="text-sm">{t('streamResponses')}</Label>
+              <p className="text-xs text-muted-foreground">
                 {t('streamResponsesDescription')}
               </p>
             </div>

@@ -478,6 +478,9 @@ test.describe('Response Settings', () => {
         return delays[streamingSettings.typingSpeed];
       };
 
+      // Use both functions
+      setStreaming(false);
+      setStreaming(true);
       setTypingSpeed('fast');
 
       return {

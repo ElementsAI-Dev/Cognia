@@ -22,11 +22,13 @@ export function AppShell({ children, sidebar }: AppShellProps) {
   const sidebarCollapsed = useSettingsStore((state) => state.sidebarCollapsed);
   const setSidebarCollapsed = useSettingsStore((state) => state.setSidebarCollapsed);
 
-  // Clone sidebar element with collapsed prop
+  // Clone sidebar element with collapsed prop (only for React components, not DOM elements)
   const sidebarWithProps = sidebar
-    ? React.cloneElement(sidebar as React.ReactElement<{ collapsed?: boolean }>, {
-        collapsed: sidebarCollapsed,
-      })
+    ? React.isValidElement(sidebar) && typeof sidebar.type !== 'string'
+      ? React.cloneElement(sidebar as React.ReactElement<{ collapsed?: boolean }>, {
+          collapsed: sidebarCollapsed,
+        })
+      : sidebar
     : null;
 
   return (

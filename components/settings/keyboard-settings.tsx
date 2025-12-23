@@ -2,9 +2,11 @@
 
 /**
  * KeyboardSettings - Configure and view keyboard shortcuts
+ * Enhanced with customization capabilities
  */
 
-import { Keyboard } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { Keyboard, Edit2, RotateCcw, Check, X, AlertCircle } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -13,11 +15,25 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Alert,
+  AlertDescription,
+} from '@/components/ui/alert';
 import {
   useKeyboardShortcuts,
   formatShortcut,
   type KeyboardShortcut,
 } from '@/hooks/use-keyboard-shortcuts';
+import { useSettingsStore } from '@/stores';
 
 const CATEGORY_LABELS: Record<KeyboardShortcut['category'], string> = {
   navigation: 'Navigation',
@@ -33,8 +49,149 @@ const CATEGORY_COLORS: Record<KeyboardShortcut['category'], string> = {
   system: 'bg-orange-500',
 };
 
+interface ShortcutEditDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  shortcut: KeyboardShortcut | null;
+  onSave: (keys: string) => void;
+}
+
+function ShortcutEditDialogContent({ shortcut, onSave, onClose }: { shortcut: KeyboardShortcut; onSave: (keys: string) => void; onClose: () => void }) {
+  const [capturedKeys, setCapturedKeys] = useState<string>('');
+  const [isCapturing, setIsCapturing] = useState(true);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!isCapturing) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const parts: string[] = [];
+    if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
+    if (e.altKey) parts.push('Alt');
+    if (e.shiftKey) parts.push('Shift');
+
+    // Skip if only modifier keys are pressed
+    if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+
+    parts.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
+    setCapturedKeys(parts.join('+'));
+    setIsCapturing(false);
+  }, [isCapturing]);
+
+  useEffect(() => {
+    if (isCapturing) {
+      window.addEventListener('keydown', handleKeyDown, true);
+      return () => window.removeEventListener('keydown', handleKeyDown, true);
+    }
+  }, [isCapturing, handleKeyDown]);
+
+  const handleSave = () => {
+    if (capturedKeys) {
+      onSave(capturedKeys);
+      onClose();
+    }
+  };
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Edit Shortcut</DialogTitle>
+        <DialogDescription>
+          Press the key combination you want to use for &quot;{shortcut.description}&quot;
+        </DialogDescription>
+      </DialogHeader>
+      <div className="py-6">
+        <div
+          className={`flex items-center justify-center h-20 rounded-lg border-2 border-dashed transition-colors ${
+            isCapturing ? 'border-primary bg-primary/5' : 'border-muted'
+          }`}
+          onClick={() => setIsCapturing(true)}
+        >
+          {capturedKeys ? (
+            <kbd className="px-4 py-2 text-lg font-mono bg-background border rounded-lg shadow">
+              {capturedKeys}
+            </kbd>
+          ) : (
+            <span className="text-muted-foreground">
+              {isCapturing ? 'Press keys...' : 'Click to capture'}
+            </span>
+          )}
+        </div>
+        {capturedKeys && (
+          <p className="text-center text-sm text-muted-foreground mt-2">
+            Press another combination to change, or click Save
+          </p>
+        )}
+      </div>
+      <DialogFooter className="gap-2">
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button onClick={handleSave} disabled={!capturedKeys}>
+          <Check className="h-4 w-4 mr-2" />
+          Save
+        </Button>
+      </DialogFooter>
+    </>
+  );
+}
+
+function ShortcutEditDialog({ open, onOpenChange, shortcut, onSave }: ShortcutEditDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        {shortcut && (
+          <ShortcutEditDialogContent
+            key={shortcut.description}
+            shortcut={shortcut}
+            onSave={onSave}
+            onClose={() => onOpenChange(false)}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function KeyboardSettings() {
   const { shortcuts } = useKeyboardShortcuts({ enabled: false });
+  const customShortcuts = useSettingsStore((state) => state.customShortcuts);
+  const setCustomShortcut = useSettingsStore((state) => state.setCustomShortcut);
+  const resetShortcuts = useSettingsStore((state) => state.resetShortcuts);
+
+  const [editingShortcut, setEditingShortcut] = useState<KeyboardShortcut | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  const hasCustomShortcuts = Object.keys(customShortcuts).length > 0;
+
+  // Get display shortcut (custom or default)
+  const getDisplayShortcut = (shortcut: KeyboardShortcut, index: number): string => {
+    const shortcutId = `${shortcut.category}-${index}`;
+    if (customShortcuts[shortcutId]) {
+      return customShortcuts[shortcutId];
+    }
+    return formatShortcut(shortcut);
+  };
+
+  const handleEditShortcut = (shortcut: KeyboardShortcut, _index: number) => {
+    setEditingShortcut({ ...shortcut, action: () => {} });
+  };
+
+  const handleSaveShortcut = (keys: string) => {
+    if (editingShortcut) {
+      const shortcutIndex = shortcuts.findIndex(s => s.description === editingShortcut.description);
+      if (shortcutIndex !== -1) {
+        const shortcutId = `${editingShortcut.category}-${shortcutIndex}`;
+        setCustomShortcut(shortcutId, keys);
+      }
+    }
+    setEditingShortcut(null);
+  };
+
+  const handleResetShortcuts = () => {
+    resetShortcuts();
+    setShowResetConfirm(false);
+  };
 
   // Group shortcuts by category
   const groupedShortcuts = shortcuts.reduce(
@@ -49,40 +206,90 @@ export function KeyboardSettings() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Header with reset button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-medium">Keyboard Shortcuts</h3>
+          <p className="text-sm text-muted-foreground">
+            Customize shortcuts to match your workflow
+          </p>
+        </div>
+        {hasCustomShortcuts && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowResetConfirm(true)}
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Reset All
+          </Button>
+        )}
+      </div>
+
+      {hasCustomShortcuts && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            You have {Object.keys(customShortcuts).length} custom shortcut(s) configured.
+            Custom shortcuts are highlighted with a colored border.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Keyboard className="h-5 w-5" />
-            Keyboard Shortcuts
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Keyboard className="h-4 w-4" />
+            All Shortcuts
           </CardTitle>
-          <CardDescription>
-            Use keyboard shortcuts to navigate and interact faster
+          <CardDescription className="text-xs">
+            Click the edit button to customize any shortcut
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4">
           {Object.entries(groupedShortcuts).map(([category, categoryShortcuts]) => (
-            <div key={category} className="space-y-3">
+            <div key={category} className="space-y-2">
               <div className="flex items-center gap-2">
                 <Badge
                   variant="secondary"
-                  className={`${CATEGORY_COLORS[category as KeyboardShortcut['category']]} text-white`}
+                  className={`${CATEGORY_COLORS[category as KeyboardShortcut['category']]} text-white text-[10px]`}
                 >
                   {CATEGORY_LABELS[category as KeyboardShortcut['category']]}
                 </Badge>
               </div>
-              <div className="grid gap-2">
-                {categoryShortcuts.map((shortcut, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50"
-                  >
-                    <span className="text-sm">{shortcut.description}</span>
-                    <kbd className="px-2 py-1 text-xs font-mono bg-background border rounded shadow-sm">
-                      {formatShortcut(shortcut)}
-                    </kbd>
-                  </div>
-                ))}
+              <div className="grid gap-1">
+                {categoryShortcuts.map((shortcut, index) => {
+                  const globalIndex = shortcuts.findIndex(s => s.description === shortcut.description);
+                  const shortcutId = `${category}-${globalIndex}`;
+                  const isCustom = !!customShortcuts[shortcutId];
+                  
+                  return (
+                    <div
+                      key={index}
+                      className={`flex items-center justify-between py-1.5 px-2.5 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors group ${
+                        isCustom ? 'ring-1 ring-primary/50' : ''
+                      }`}
+                    >
+                      <span className="text-xs">{shortcut.description}</span>
+                      <div className="flex items-center gap-1.5">
+                        <kbd className={`px-1.5 py-0.5 text-[10px] font-mono bg-background border rounded shadow-sm ${
+                          isCustom ? 'border-primary text-primary' : ''
+                        }`}>
+                          {getDisplayShortcut(shortcut, globalIndex)}
+                        </kbd>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleEditShortcut(shortcut, globalIndex)}
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -90,16 +297,46 @@ export function KeyboardSettings() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Tips</CardTitle>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Tips</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>• Press <kbd className="px-1 py-0.5 text-xs font-mono bg-muted border rounded">/</kbd> anywhere to focus the chat input</p>
-          <p>• Use <kbd className="px-1 py-0.5 text-xs font-mono bg-muted border rounded">Ctrl+K</kbd> to open the command palette for quick actions</p>
-          <p>• Press <kbd className="px-1 py-0.5 text-xs font-mono bg-muted border rounded">Esc</kbd> to stop AI generation</p>
-          <p>• Hold <kbd className="px-1 py-0.5 text-xs font-mono bg-muted border rounded">Shift+Enter</kbd> for multi-line input</p>
+        <CardContent className="space-y-1.5 text-xs text-muted-foreground">
+          <p>• Press <kbd className="px-1 py-0.5 text-[10px] font-mono bg-muted border rounded">/</kbd> anywhere to focus the chat input</p>
+          <p>• Use <kbd className="px-1 py-0.5 text-[10px] font-mono bg-muted border rounded">Ctrl+K</kbd> to open the command palette</p>
+          <p>• Press <kbd className="px-1 py-0.5 text-[10px] font-mono bg-muted border rounded">Esc</kbd> to stop AI generation</p>
+          <p>• Hold <kbd className="px-1 py-0.5 text-[10px] font-mono bg-muted border rounded">Shift+Enter</kbd> for multi-line input</p>
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <ShortcutEditDialog
+        open={!!editingShortcut}
+        onOpenChange={(open) => !open && setEditingShortcut(null)}
+        shortcut={editingShortcut}
+        onSave={handleSaveShortcut}
+      />
+
+      {/* Reset Confirmation Dialog */}
+      <Dialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset All Shortcuts?</DialogTitle>
+            <DialogDescription>
+              This will restore all keyboard shortcuts to their default values.
+              Your custom shortcuts will be removed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowResetConfirm(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleResetShortcuts}>
+              <X className="h-4 w-4 mr-2" />
+              Reset All
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

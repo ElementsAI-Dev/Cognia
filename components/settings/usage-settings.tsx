@@ -14,7 +14,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import {
   AlertDialog,
@@ -77,86 +77,60 @@ export function UsageSettings() {
   const maxDailyTokens = Math.max(...dailyUsage.map((d) => d.tokens), 1);
 
   return (
-    <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total Tokens</CardDescription>
-            <CardTitle className="text-2xl">
-              {formatTokens(totalUsage.tokens)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <TrendingUp className="mr-1 h-3 w-3" />
-              {totalUsage.requests} requests
-            </div>
-          </CardContent>
+    <div className="space-y-4">
+      {/* Summary Cards - Compact */}
+      <div className="grid gap-2 grid-cols-3">
+        <Card className="p-3">
+          <div className="text-[10px] text-muted-foreground uppercase">Tokens</div>
+          <div className="text-lg font-bold">{formatTokens(totalUsage.tokens)}</div>
+          <div className="flex items-center text-[10px] text-muted-foreground">
+            <TrendingUp className="mr-1 h-2.5 w-2.5" />
+            {totalUsage.requests} req
+          </div>
         </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Estimated Cost</CardDescription>
-            <CardTitle className="text-2xl">
-              {formatCost(totalUsage.cost)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <Coins className="mr-1 h-3 w-3" />
-              Based on API pricing
-            </div>
-          </CardContent>
+        <Card className="p-3">
+          <div className="text-[10px] text-muted-foreground uppercase">Cost</div>
+          <div className="text-lg font-bold">{formatCost(totalUsage.cost)}</div>
+          <div className="flex items-center text-[10px] text-muted-foreground">
+            <Coins className="mr-1 h-2.5 w-2.5" />
+            Estimated
+          </div>
         </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Active Since</CardDescription>
-            <CardTitle className="text-2xl">
-              {records.length > 0
-                ? new Date(records[0].createdAt).toLocaleDateString()
-                : 'N/A'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <Clock className="mr-1 h-3 w-3" />
-              {records.length} total records
-            </div>
-          </CardContent>
+        <Card className="p-3">
+          <div className="text-[10px] text-muted-foreground uppercase">Since</div>
+          <div className="text-lg font-bold">
+            {records.length > 0
+              ? new Date(records[0].createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+              : 'N/A'}
+          </div>
+          <div className="flex items-center text-[10px] text-muted-foreground">
+            <Clock className="mr-1 h-2.5 w-2.5" />
+            {records.length} records
+          </div>
         </Card>
       </div>
 
       {/* Usage by Provider */}
       {providerUsage.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Usage by Provider</CardTitle>
-            <CardDescription>
-              Token usage breakdown by AI provider
-            </CardDescription>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">By Provider</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-2">
             {providerUsage.map((provider) => (
-              <div key={provider.provider} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium capitalize">
-                      {provider.provider}
-                    </span>
-                    <Badge variant="secondary" className="text-xs">
-                      {provider.requests} requests
+              <div key={provider.provider} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-medium capitalize">{provider.provider}</span>
+                    <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                      {provider.requests}
                     </Badge>
                   </div>
-                  <div className="text-sm text-muted-foreground">
+                  <span className="text-muted-foreground">
                     {formatTokens(provider.tokens)} • {formatCost(provider.cost)}
-                  </div>
+                  </span>
                 </div>
-                <Progress
-                  value={(provider.tokens / maxProviderTokens) * 100}
-                  className="h-2"
-                />
+                <Progress value={(provider.tokens / maxProviderTokens) * 100} className="h-1.5" />
               </div>
             ))}
           </CardContent>
@@ -165,12 +139,11 @@ export function UsageSettings() {
 
       {/* Daily Usage Chart */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Daily Usage (Last 7 Days)</CardTitle>
-          <CardDescription>Token usage over the past week</CardDescription>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Last 7 Days</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-end gap-2 h-32">
+          <div className="flex items-end gap-1.5 h-20">
             {dailyUsage.map((day) => (
               <div
                 key={day.date}
@@ -204,16 +177,11 @@ export function UsageSettings() {
       <Collapsible open={showDetails} onOpenChange={setShowDetails}>
         <Card>
           <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-accent/50 rounded-t-lg transition-colors">
+            <CardHeader className="cursor-pointer hover:bg-accent/50 rounded-t-lg transition-colors py-3">
               <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-base">Recent Activity</CardTitle>
-                  <CardDescription>
-                    Last 10 API requests
-                  </CardDescription>
-                </div>
+                <CardTitle className="text-sm">Recent Activity</CardTitle>
                 <ChevronDown
-                  className={`h-5 w-5 text-muted-foreground transition-transform ${
+                  className={`h-4 w-4 text-muted-foreground transition-transform ${
                     showDetails ? 'rotate-180' : ''
                   }`}
                 />
@@ -255,17 +223,18 @@ export function UsageSettings() {
 
       {/* Actions */}
       <div className="flex gap-2">
-        <Button variant="outline" onClick={handleExportUsage}>
-          <Download className="mr-2 h-4 w-4" />
-          Export Usage
+        <Button size="sm" variant="outline" onClick={handleExportUsage}>
+          <Download className="mr-1.5 h-3.5 w-3.5" />
+          Export
         </Button>
         <Button
+          size="sm"
           variant="destructive"
           onClick={() => setShowClearDialog(true)}
           disabled={records.length === 0}
         >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Clear Records
+          <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+          Clear
         </Button>
       </div>
 

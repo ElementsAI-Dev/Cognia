@@ -74,6 +74,13 @@ jest.mock('@/stores', () => ({
     };
     return selector(state);
   },
+  useProjectActivityStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      getActivitiesForProject: () => [],
+      addActivity: jest.fn(),
+    };
+    return selector(state);
+  },
 }));
 
 // Mock child components

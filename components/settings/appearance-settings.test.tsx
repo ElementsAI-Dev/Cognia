@@ -37,6 +37,10 @@ jest.mock('@/stores', () => ({
       setSendOnEnter: mockSetSendOnEnter,
       streamResponses: true,
       setStreamResponses: mockSetStreamResponses,
+      uiFontSize: 14,
+      setUIFontSize: jest.fn(),
+      messageBubbleStyle: 'modern',
+      setMessageBubbleStyle: jest.fn(),
     };
     return selector(state);
   },
@@ -65,6 +69,17 @@ jest.mock('@/components/ui/button', () => ({
   ),
 }));
 
+jest.mock('@/components/ui/slider', () => ({
+  Slider: ({ value, onValueChange }: { value?: number[]; onValueChange?: (v: number[]) => void }) => (
+    <input
+      type="range"
+      data-testid="slider"
+      value={value?.[0] || 0}
+      onChange={(e) => onValueChange?.([Number(e.target.value)])}
+    />
+  ),
+}));
+
 jest.mock('@/components/ui/card', () => ({
   Card: ({ children }: { children: React.ReactNode }) => <div data-testid="card">{children}</div>,
   CardContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -86,7 +101,14 @@ jest.mock('@/components/ui/select', () => ({
 }));
 
 jest.mock('@/lib/themes', () => ({
-  THEME_PRESETS: {},
+  THEME_PRESETS: {
+    default: { name: 'Default', colors: {} },
+    ocean: { name: 'Ocean', colors: {} },
+    forest: { name: 'Forest', colors: {} },
+    sunset: { name: 'Sunset', colors: {} },
+    lavender: { name: 'Lavender', colors: {} },
+    rose: { name: 'Rose', colors: {} },
+  },
 }));
 
 jest.mock('@/lib/i18n', () => ({

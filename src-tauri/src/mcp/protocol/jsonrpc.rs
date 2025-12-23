@@ -1,4 +1,4 @@
-//! JSON-RPC 2.0 protocol implementation for MCP
+﻿//! JSON-RPC 2.0 protocol implementation for MCP
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

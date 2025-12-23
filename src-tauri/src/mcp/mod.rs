@@ -6,6 +6,8 @@
 //! - Server lifecycle management
 //! - Configuration persistence
 
+#![allow(dead_code)]
+
 pub mod client;
 pub mod config;
 pub mod error;
@@ -14,8 +16,4 @@ pub mod protocol;
 pub mod transport;
 pub mod types;
 
-pub use client::McpClient;
-pub use config::McpConfigManager;
-pub use error::McpError;
 pub use manager::McpManager;
-pub use types::*;

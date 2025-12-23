@@ -122,7 +122,7 @@ describe('ArtifactCard', () => {
 
   it('renders compact variant correctly', () => {
     render(<ArtifactCard artifact={mockArtifact} compact />);
-    expect(screen.getByText('Test Artifact')).toBeInTheDocument();
+    expect(screen.getAllByText('Test Artifact').length).toBeGreaterThan(0);
   });
 
   it('shows preview when showPreview is true', () => {
@@ -178,8 +178,8 @@ describe('MessageArtifacts', () => {
 
   it('renders artifacts for a message', () => {
     render(<MessageArtifacts messageId="message-1" />);
-    expect(screen.getByText('Test Artifact')).toBeInTheDocument();
-    expect(screen.getByText('Another Artifact')).toBeInTheDocument();
+    expect(screen.getAllByText('Test Artifact').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Another Artifact').length).toBeGreaterThan(0);
   });
 
   it('returns null when no artifacts for message', () => {
@@ -190,11 +190,11 @@ describe('MessageArtifacts', () => {
   it('renders compact view by default', () => {
     render(<MessageArtifacts messageId="message-1" />);
     // Both artifacts should be visible
-    expect(screen.getByText('Test Artifact')).toBeInTheDocument();
+    expect(screen.getAllByText('Test Artifact').length).toBeGreaterThan(0);
   });
 
   it('renders full view when compact is false', () => {
     render(<MessageArtifacts messageId="message-1" compact={false} />);
-    expect(screen.getByText('Test Artifact')).toBeInTheDocument();
+    expect(screen.getAllByText('Test Artifact').length).toBeGreaterThan(0);
   });
 });

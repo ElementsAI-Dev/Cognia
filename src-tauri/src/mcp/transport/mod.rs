@@ -8,7 +8,6 @@ pub mod stdio;
 use async_trait::async_trait;
 
 use crate::mcp::error::McpResult;
-use crate::mcp::protocol::JsonRpcMessage;
 
 /// Transport trait for MCP communication
 #[async_trait]
@@ -28,6 +27,7 @@ pub trait Transport: Send + Sync {
 
 /// Transport type enum for configuration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum TransportType {
     Stdio,
     Sse,

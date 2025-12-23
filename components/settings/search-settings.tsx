@@ -151,42 +151,41 @@ export function SearchSettings() {
   const providerIds = Object.keys(SEARCH_PROVIDERS) as SearchProviderType[];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Global Search Settings */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            <CardTitle>{t('title')}</CardTitle>
+            <Search className="h-4 w-4" />
+            <CardTitle className="text-base">{t('title')}</CardTitle>
           </div>
-          <CardDescription>{t('description')}</CardDescription>
+          <CardDescription className="text-xs">{t('description')}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Enable Search */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>{t('enableSearch')}</Label>
-              <p className="text-sm text-muted-foreground">
-                {t('enableSearchDescription')}
-              </p>
+        <CardContent className="space-y-4">
+          {/* Enable Search & Fallback in grid */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-center justify-between rounded-md border px-3 py-2">
+              <Label className="text-xs">{t('enableSearch')}</Label>
+              <Switch
+                checked={searchEnabled}
+                onCheckedChange={setSearchEnabled}
+                disabled={enabledCount === 0}
+              />
             </div>
-            <Switch
-              checked={searchEnabled}
-              onCheckedChange={setSearchEnabled}
-              disabled={enabledCount === 0}
-            />
+            <div className="flex items-center justify-between rounded-md border px-3 py-2">
+              <Label className="text-xs">{t('fallbackEnabled') || 'Fallback'}</Label>
+              <Switch
+                checked={searchFallbackEnabled}
+                onCheckedChange={setSearchFallbackEnabled}
+                disabled={!searchEnabled}
+              />
+            </div>
           </div>
 
           {/* Max Results */}
-          <div className="space-y-4">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>{t('maxResults')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('maxResultsDescription')}
-                </p>
-              </div>
-              <span className="text-sm font-medium">{searchMaxResults}</span>
+              <Label className="text-sm">{t('maxResults')}: {searchMaxResults}</Label>
             </div>
             <Slider
               value={[searchMaxResults]}
@@ -197,36 +196,21 @@ export function SearchSettings() {
               disabled={!searchEnabled}
             />
           </div>
-
-          {/* Fallback */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>{t('fallbackEnabled') || 'Auto-fallback'}</Label>
-              <p className="text-sm text-muted-foreground">
-                {t('fallbackDescription') || 'Automatically try next provider if primary fails'}
-              </p>
-            </div>
-            <Switch
-              checked={searchFallbackEnabled}
-              onCheckedChange={setSearchFallbackEnabled}
-              disabled={!searchEnabled}
-            />
-          </div>
         </CardContent>
       </Card>
 
       {/* Search Providers */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
             {t('providers') || 'Search Providers'}
-            <Badge variant="secondary">{enabledCount} {t('enabled') || 'enabled'}</Badge>
+            <Badge variant="secondary" className="text-[10px]">{enabledCount} {t('enabled') || 'enabled'}</Badge>
           </CardTitle>
-          <CardDescription>
-            {t('providersDescription') || 'Configure API keys for different search providers'}
+          <CardDescription className="text-xs">
+            {t('providersDescription') || 'Configure API keys for search providers'}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
           {providerIds.map((providerId) => {
             const config = SEARCH_PROVIDERS[providerId];
             const settings = searchProviders[providerId];
@@ -243,24 +227,24 @@ export function SearchSettings() {
               >
                 <div className="border rounded-lg">
                   <CollapsibleTrigger asChild>
-                    <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50">
-                      <div className="flex items-center gap-3">
-                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50">
+                      <div className="flex items-center gap-2">
+                        <GripVertical className="h-3 w-3 text-muted-foreground" />
                         <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{config.name}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-medium">{config.name}</span>
                             {settings?.enabled && settings?.apiKey && (
-                              <Badge variant="default" className="text-xs">
+                              <Badge variant="default" className="text-[10px] px-1 py-0">
                                 {t('active') || 'Active'}
                               </Badge>
                             )}
                             {config.features.aiAnswer && (
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-[10px] px-1 py-0">
                                 AI
                               </Badge>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-[10px] text-muted-foreground line-clamp-1">
                             {config.description}
                           </p>
                         </div>
@@ -282,10 +266,10 @@ export function SearchSettings() {
                   </CollapsibleTrigger>
 
                   <CollapsibleContent>
-                    <div className="px-4 pb-4 space-y-4 border-t pt-4">
+                    <div className="px-3 pb-3 space-y-3 border-t pt-3">
                       {/* API Key */}
-                      <div className="space-y-2">
-                        <Label htmlFor={`${providerId}-key`}>API Key</Label>
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`${providerId}-key`} className="text-xs">API Key</Label>
                         <div className="flex gap-2">
                           <div className="relative flex-1">
                             <Input
@@ -355,7 +339,7 @@ export function SearchSettings() {
                       </div>
 
                       {/* Features */}
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-1">
                         {config.features.aiAnswer && (
                           <Badge variant="secondary">AI Answer</Badge>
                         )}

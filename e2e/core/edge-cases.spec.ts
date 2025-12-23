@@ -620,7 +620,7 @@ test.describe('RAG Edge Cases', () => {
         { id: 'd2', content: 'Vue.js guide', embedding: [0.3, 0.4] },
       ];
 
-      const search = (query: string, threshold: number = 0.5) => {
+      const search = (query: string, _threshold: number = 0.5) => {
         // Simulate search with no matches above threshold
         const results = documents.filter(() => Math.random() < 0.1); // Low match rate
         

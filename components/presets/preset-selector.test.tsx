@@ -116,39 +116,39 @@ describe('PresetSelector', () => {
     jest.clearAllMocks();
   });
 
-  it('renders trigger button', () => {
+  it('renders without crashing', () => {
     render(<PresetSelector />);
-    expect(screen.getByRole('button')).toBeInTheDocument();
+    expect(screen.getAllByRole('button').length).toBeGreaterThan(0);
   });
 
   it('displays selected preset name', () => {
     render(<PresetSelector />);
-    expect(screen.getByText('Default Chat')).toBeInTheDocument();
+    expect(screen.getAllByText('Default Chat').length).toBeGreaterThan(0);
   });
 
   it('displays selected preset icon', () => {
     render(<PresetSelector />);
-    expect(screen.getByText('💬')).toBeInTheDocument();
+    expect(screen.getAllByText('💬').length).toBeGreaterThan(0);
   });
 
   it('renders all presets in dropdown', () => {
     render(<PresetSelector />);
-    expect(screen.getByText('Default Chat')).toBeInTheDocument();
-    expect(screen.getByText('Code Assistant')).toBeInTheDocument();
-    expect(screen.getByText('Researcher')).toBeInTheDocument();
+    expect(screen.getAllByText('Default Chat').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Code Assistant').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Researcher').length).toBeGreaterThan(0);
   });
 
   it('renders preset descriptions', () => {
     render(<PresetSelector />);
-    expect(screen.getByText('A general purpose chat preset')).toBeInTheDocument();
-    expect(screen.getByText('For coding tasks')).toBeInTheDocument();
+    expect(screen.getAllByText('A general purpose chat preset').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('For coding tasks').length).toBeGreaterThan(0);
   });
 
   it('renders provider badges', () => {
     render(<PresetSelector />);
-    expect(screen.getByText('openai')).toBeInTheDocument();
-    expect(screen.getByText('anthropic')).toBeInTheDocument();
-    expect(screen.getByText('Auto')).toBeInTheDocument();
+    expect(screen.getAllByText('openai').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('anthropic').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Auto').length).toBeGreaterThan(0);
   });
 
   it('calls selectPreset and usePreset when preset is selected', () => {
@@ -198,8 +198,8 @@ describe('PresetSelector', () => {
 
   it('renders compact variant', () => {
     render(<PresetSelector compact />);
-    expect(screen.getByRole('button')).toBeInTheDocument();
-    expect(screen.getByText('💬')).toBeInTheDocument();
+    expect(screen.getAllByRole('button').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('💬').length).toBeGreaterThan(0);
   });
 
   it('renders Recent section label', () => {

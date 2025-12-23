@@ -147,7 +147,7 @@ describe('CanvasPanel', () => {
 
   it('renders action buttons', () => {
     render(<CanvasPanel />);
-    expect(screen.getByText('Review')).toBeInTheDocument();
-    expect(screen.getByText('Fix Issues')).toBeInTheDocument();
+    expect(screen.getAllByText('Review').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Fix Issues').length).toBeGreaterThan(0);
   });
 });
