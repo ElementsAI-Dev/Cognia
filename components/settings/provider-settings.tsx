@@ -5,7 +5,7 @@
  * Enhanced with batch testing, collapsible sections, multi-key rotation, and default model selection
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   Eye,
   EyeOff,
@@ -68,6 +68,7 @@ import { CustomProviderDialog } from './custom-provider-dialog';
 import { OAuthLoginButton } from './oauth-login-button';
 import { ProviderImportExport } from './provider-import-export';
 import { ProviderHealthStatus } from './provider-health-status';
+import { OllamaModelManager } from './ollama-model-manager';
 import { testProviderConnection, type ApiTestResult } from '@/lib/ai/api-test';
 import { maskApiKey } from '@/lib/ai/api-key-rotation';
 
@@ -131,15 +132,32 @@ function getCategoryIcon(category?: string) {
 }
 
 // Provider categories for filtering
-type ProviderCategory = 'all' | 'flagship' | 'aggregator' | 'specialized' | 'local' | 'enterprise';
+type ProviderCategory = 'all' | 'flagship' | 'aggregator' | 'specialized' | 'local';
 
-const _CATEGORY_LABELS: Record<ProviderCategory, string> = {
-  all: 'All Providers',
-  flagship: 'Flagship',
-  aggregator: 'Aggregators',
-  specialized: 'Specialized',
-  local: 'Local',
-  enterprise: 'Enterprise',
+const CATEGORY_CONFIG: Record<ProviderCategory, { label: string; icon: React.ReactNode; description: string }> = {
+  all: { label: 'All', icon: null, description: 'All providers' },
+  flagship: { label: 'Flagship', icon: <Sparkles className="h-3 w-3" />, description: 'OpenAI, Anthropic, Google, xAI' },
+  aggregator: { label: 'Aggregator', icon: <Globe className="h-3 w-3" />, description: 'OpenRouter, Together AI' },
+  specialized: { label: 'Fast', icon: <Zap className="h-3 w-3" />, description: 'Groq, Cerebras, DeepSeek' },
+  local: { label: 'Local', icon: <Server className="h-3 w-3" />, description: 'Ollama' },
+};
+
+// Map provider IDs to categories
+const PROVIDER_CATEGORIES: Record<string, ProviderCategory> = {
+  openai: 'flagship',
+  anthropic: 'flagship',
+  google: 'flagship',
+  xai: 'flagship',
+  openrouter: 'aggregator',
+  togetherai: 'aggregator',
+  groq: 'specialized',
+  cerebras: 'specialized',
+  deepseek: 'specialized',
+  fireworks: 'specialized',
+  mistral: 'specialized',
+  cohere: 'specialized',
+  sambanova: 'specialized',
+  ollama: 'local',
 };
 
 export function ProviderSettings() {
@@ -164,6 +182,8 @@ export function ProviderSettings() {
   const [batchTestProgress, setBatchTestProgress] = useState(0);
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
   const [newApiKeys, setNewApiKeys] = useState<Record<string, string>>({});
+  const [categoryFilter, setCategoryFilter] = useState<ProviderCategory>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const toggleExpanded = useCallback((providerId: string) => {
     setExpandedProviders((prev) => ({ ...prev, [providerId]: !prev[providerId] }));
@@ -266,6 +286,27 @@ export function ProviderSettings() {
     total: Object.values(testResults).filter((r) => r !== null).length,
   };
 
+  // Filter providers by category and search
+  const filteredProviders = useMemo(() => {
+    return Object.entries(PROVIDERS).filter(([providerId, provider]) => {
+      // Category filter
+      if (categoryFilter !== 'all') {
+        const providerCategory = PROVIDER_CATEGORIES[providerId];
+        if (providerCategory !== categoryFilter) return false;
+      }
+      // Search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const matchesName = provider.name.toLowerCase().includes(query);
+        const matchesModel = provider.models.some(m => 
+          m.name.toLowerCase().includes(query) || m.id.toLowerCase().includes(query)
+        );
+        if (!matchesName && !matchesModel) return false;
+      }
+      return true;
+    });
+  }, [categoryFilter, searchQuery]);
+
   return (
     <div className="space-y-6">
       {/* Header with batch actions */}
@@ -339,8 +380,50 @@ export function ProviderSettings() {
         </AlertDescription>
       </Alert>
 
+      {/* Category Filter Tabs and Search */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 max-sm:gap-1.5 max-sm:-mx-1 max-sm:px-1">
+          {(Object.keys(CATEGORY_CONFIG) as ProviderCategory[]).map((cat) => {
+            const config = CATEGORY_CONFIG[cat];
+            const count = cat === 'all' 
+              ? Object.keys(PROVIDERS).length 
+              : Object.keys(PROVIDERS).filter(id => PROVIDER_CATEGORIES[id] === cat).length;
+            return (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(cat)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap',
+                  'max-sm:px-3 max-sm:py-2 max-sm:text-sm',
+                  categoryFilter === cat
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted'
+                )}
+              >
+                {config.icon}
+                {config.label}
+                <span className="ml-1 opacity-70">({count})</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="relative w-full sm:w-48">
+          <Input
+            placeholder="Search providers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-8 text-sm pl-8 max-sm:h-10 max-sm:text-base"
+          />
+          <Cpu className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        </div>
+      </div>
+
       {/* Built-in Providers */}
-      {Object.entries(PROVIDERS).map(([providerId, provider]) => {
+      {filteredProviders.length === 0 ? (
+        <div className="text-center py-8 text-sm text-muted-foreground">
+          No providers found matching your filters.
+        </div>
+      ) : filteredProviders.map(([providerId, provider]) => {
         const settings = providerSettings[providerId] || {};
         const isEnabled = settings.enabled !== false;
         const apiKey = settings.apiKey || '';
@@ -360,29 +443,29 @@ export function ProviderSettings() {
           >
             <Card>
               <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col gap-1">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                          {provider.name}
+                <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors active:bg-muted/50 max-sm:px-3 max-sm:py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <CardTitle className="flex items-center gap-2 text-base max-sm:text-sm max-sm:flex-wrap">
+                          <span className="truncate">{provider.name}</span>
                           {providerId === 'ollama' && (
-                            <Badge variant="secondary" className="text-xs">{t('local')}</Badge>
+                            <Badge variant="secondary" className="text-xs shrink-0">{t('local')}</Badge>
                           )}
                           {isEnabled && apiKey && (
-                            <Badge variant="default" className="text-xs">
+                            <Badge variant="default" className="text-xs shrink-0 max-sm:hidden">
                               <Check className="h-3 w-3 mr-1" />
                               {tc('configured') || 'Configured'}
                             </Badge>
                           )}
                           {apiKeys.length > 1 && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-xs shrink-0 max-sm:hidden">
                               <RotateCcw className="h-3 w-3 mr-1" />
                               {apiKeys.length} keys
                             </Badge>
                           )}
                         </CardTitle>
-                        <CardDescription className="text-xs flex items-center gap-2">
+                        <CardDescription className="text-xs flex items-center gap-2 max-sm:hidden">
                           <span className="text-muted-foreground">
                             {getCategoryIcon(provider.category)}
                           </span>
@@ -394,13 +477,21 @@ export function ProviderSettings() {
                             </Badge>
                           )}
                         </CardDescription>
+                        {/* Mobile: Show configured status as icon */}
+                        {isEnabled && apiKey && (
+                          <div className="hidden max-sm:flex items-center gap-1 text-xs text-green-600">
+                            <Check className="h-3 w-3" />
+                            <span>Configured</span>
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <Switch
                         checked={isEnabled}
                         onCheckedChange={(checked) => handleToggleProvider(providerId, checked)}
                         onClick={(e) => e.stopPropagation()}
+                        className="max-sm:scale-110"
                       />
                       {isExpanded ? (
                         <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -415,28 +506,70 @@ export function ProviderSettings() {
               <CollapsibleContent>
                 <CardContent className="space-y-4 pt-0">
                   {providerId === 'ollama' ? (
-                    <div className="space-y-2">
-                      <Label htmlFor={`${providerId}-url`}>{t('ollamaURL')}</Label>
-                      <Input
-                        id={`${providerId}-url`}
-                        placeholder="http://localhost:11434"
-                        value={settings.baseURL || 'http://localhost:11434'}
-                        onChange={(e) =>
-                          updateProviderSettings(providerId, { baseURL: e.target.value })
-                        }
-                        disabled={!isEnabled}
-                      />
-                      <p className="text-sm text-muted-foreground">
-                        {t('ollamaHint')}{' '}
-                        <a
-                          href="https://ollama.ai"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline inline-flex items-center gap-1"
-                        >
-                          {tc('learnMore')} <ExternalLink className="h-3 w-3" />
-                        </a>
-                      </p>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor={`${providerId}-url`}>{t('ollamaURL')}</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id={`${providerId}-url`}
+                            placeholder="http://localhost:11434"
+                            value={settings.baseURL || 'http://localhost:11434'}
+                            onChange={(e) =>
+                              updateProviderSettings(providerId, { baseURL: e.target.value })
+                            }
+                            disabled={!isEnabled}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleTestConnection(providerId)}
+                            disabled={!isEnabled || testingProviders[providerId]}
+                          >
+                            {testingProviders[providerId] ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              t('test')
+                            )}
+                          </Button>
+                        </div>
+                        {testResult?.success && (
+                          <div className="flex items-center gap-1 text-sm text-green-600">
+                            <Check className="h-4 w-4" />
+                            <span>{testResult.message}</span>
+                            {testResult.latency_ms && (
+                              <span className="ml-2 flex items-center gap-1 text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                {testResult.latency_ms}ms
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {testResult && !testResult.success && (
+                          <p className="flex items-center gap-1 text-sm text-destructive">
+                            <AlertCircle className="h-4 w-4" /> {testResult.message}
+                          </p>
+                        )}
+                        <p className="text-sm text-muted-foreground">
+                          {t('ollamaHint')}{' '}
+                          <a
+                            href="https://ollama.ai"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline inline-flex items-center gap-1"
+                          >
+                            {tc('learnMore')} <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </p>
+                      </div>
+
+                      {/* Ollama Model Manager */}
+                      {isEnabled && (
+                        <OllamaModelManager
+                          baseUrl={settings.baseURL || 'http://localhost:11434'}
+                          selectedModel={settings.defaultModel}
+                          onModelSelect={(modelName: string) => handleSetDefaultModel(providerId, modelName)}
+                        />
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-4">

@@ -21,3 +21,4 @@ export { ProviderImportExport } from './provider-import-export';
 export { ProviderHealthStatus } from './provider-health-status';
 export { ToolSettings } from './tool-settings';
 export { DesktopSettings } from './desktop-settings';
+export { OllamaModelManager } from './ollama-model-manager';

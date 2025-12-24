@@ -27,6 +27,8 @@ import { ChatInput, type Attachment } from './chat-input';
 import { ContextSettingsDialog } from './context-settings-dialog';
 import { WelcomeState } from './welcome-state';
 import { BranchButton } from './branch-selector';
+import { TextSelectionPopover } from './text-selection-popover';
+import { QuotedContent } from './quoted-content';
 import { TextPart, ReasoningPart, ToolPart, SourcesPart } from './message-parts';
 import type { MessagePart } from '@/types/message';
 import { PromptOptimizerDialog } from './prompt-optimizer-dialog';
@@ -43,7 +45,7 @@ import {
 } from '@/lib/ai/suggestion-generator';
 import { translateText } from '@/lib/ai/translate';
 import type { SearchResponse, SearchResult } from '@/types/search';
-import { useSessionStore, useSettingsStore, usePresetStore, useMcpStore, useAgentStore, useProjectStore } from '@/stores';
+import { useSessionStore, useSettingsStore, usePresetStore, useMcpStore, useAgentStore, useProjectStore, useQuoteStore } from '@/stores';
 import { useMessages, useAgent, useProjectContext } from '@/hooks';
 import type { ParsedToolCall, ToolCallResult } from '@/types/mcp';
 import { useAIChat, useAutoRouter, type ProviderName, isVisionModel, buildMultimodalContent, type MultimodalMessage } from '@/lib/ai';
@@ -73,6 +75,10 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     undefined, // Query will be set dynamically when sending
     { maxContextLength: 6000, useRelevanceFiltering: true }
   );
+
+  // Quote store for text selection and referencing
+  const getFormattedQuotes = useQuoteStore((state) => state.getFormattedQuotes);
+  const clearQuotes = useQuoteStore((state) => state.clearQuotes);
 
   // Message persistence with IndexedDB (branch-aware)
   const {
@@ -591,11 +597,19 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       currentSessionId = newSession.id;
     }
 
-    // Build message content with attachments info
+    // Build message content with quotes and attachments
     let messageContent = content;
+    
+    // Prepend quoted content if any
+    const formattedQuotes = getFormattedQuotes();
+    if (formattedQuotes) {
+      messageContent = `${formattedQuotes}\n\n${content}`;
+      clearQuotes(); // Clear quotes after including them
+    }
+    
     if (attachments && attachments.length > 0) {
       const attachmentInfo = attachments.map(a => `[Attached: ${a.name}]`).join(' ');
-      messageContent = content ? `${content}\n\n${attachmentInfo}` : attachmentInfo;
+      messageContent = messageContent ? `${messageContent}\n\n${attachmentInfo}` : attachmentInfo;
     }
 
     // Execute MCP tool calls if present
@@ -817,7 +831,7 @@ Be thorough in your thinking but concise in your final answer.`;
     } finally {
       setIsLoading(false);
     }
-  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, appendToMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge]);
+  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, appendToMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes]);
 
   const handleStop = useCallback(() => {
     aiStop();
@@ -1038,6 +1052,9 @@ Be thorough in your thinking but concise in your final answer.`;
         </div>
       )}
 
+      {/* Quoted content display */}
+      <QuotedContent />
+
       <ChatInput
         value={inputValue}
         onChange={setInputValue}
@@ -1216,6 +1233,7 @@ function ChatMessageItem({
   const [isTranslating, setIsTranslating] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(message.isBookmarked || false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const messageContentRef = useRef<HTMLDivElement>(null);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(message.content);
@@ -1304,14 +1322,24 @@ function ChatMessageItem({
               </button>
             </div>
           </div>
-        ) : message.role === 'user' ? (
-          <p className="whitespace-pre-wrap">{message.content}</p>
         ) : (
-          <MessagePartsRenderer
-            parts={message.parts}
-            content={message.content}
-            isError={!!message.error}
-          />
+          <div ref={messageContentRef}>
+            {message.role === 'user' ? (
+              <p className="whitespace-pre-wrap">{message.content}</p>
+            ) : (
+              <MessagePartsRenderer
+                parts={message.parts}
+                content={message.content}
+                isError={!!message.error}
+              />
+            )}
+            {/* Text selection popover for quoting */}
+            <TextSelectionPopover
+              containerRef={messageContentRef}
+              messageId={message.id}
+              messageRole={message.role as 'user' | 'assistant'}
+            />
+          </div>
         )}
       </MessageContent>
 

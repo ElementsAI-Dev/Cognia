@@ -14,11 +14,13 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createCohere } from '@ai-sdk/cohere';
 import { createMistral } from '@ai-sdk/mistral';
 import type { ProviderName } from '@/types/provider';
+import { generateOllamaEmbedding } from './ollama';
 
 export interface EmbeddingConfig {
   provider: ProviderName;
   model?: string;
   apiKey: string;
+  baseURL?: string; // For Ollama and custom providers
   dimensions?: number;
   cache?: EmbeddingCache;
 }
@@ -112,6 +114,7 @@ export const defaultEmbeddingModels: Partial<Record<ProviderName, string>> = {
   google: 'text-embedding-004',
   cohere: 'embed-english-v3.0',
   mistral: 'mistral-embed',
+  ollama: 'nomic-embed-text',
 };
 
 /**
@@ -167,6 +170,24 @@ export async function generateEmbedding(
     }
   }
 
+  let embedding: number[];
+
+  // Handle Ollama separately - uses different API
+  if (config.provider === 'ollama') {
+    const baseURL = config.baseURL || 'http://localhost:11434';
+    const modelId = config.model || defaultEmbeddingModels.ollama || 'nomic-embed-text';
+    embedding = await generateOllamaEmbedding(baseURL, modelId, text);
+    
+    // Store in cache
+    if (config.cache) {
+      const cacheKey = getCacheKey(text, config);
+      config.cache.set(cacheKey, embedding);
+    }
+
+    return { embedding, usage: undefined };
+  }
+
+  // Standard AI SDK providers
   const model = getEmbeddingModel(config);
 
   const result = await embed({
@@ -174,14 +195,16 @@ export async function generateEmbedding(
     value: text,
   });
 
+  embedding = result.embedding;
+
   // Store in cache
   if (config.cache) {
     const cacheKey = getCacheKey(text, config);
-    config.cache.set(cacheKey, result.embedding);
+    config.cache.set(cacheKey, embedding);
   }
 
   return {
-    embedding: result.embedding,
+    embedding,
     usage: result.usage ? { tokens: result.usage.tokens } : undefined,
   };
 }
@@ -219,7 +242,28 @@ export async function generateEmbeddings(
     };
   }
 
-  // Generate embeddings for uncached texts
+  // Handle Ollama separately - generate embeddings one by one
+  if (config.provider === 'ollama') {
+    const baseURL = config.baseURL || 'http://localhost:11434';
+    const modelId = config.model || defaultEmbeddingModels.ollama || 'nomic-embed-text';
+
+    for (const { index, text } of textsToEmbed) {
+      const embedding = await generateOllamaEmbedding(baseURL, modelId, text);
+      results[index] = embedding;
+
+      if (config.cache) {
+        const cacheKey = getCacheKey(text, config);
+        config.cache.set(cacheKey, embedding);
+      }
+    }
+
+    return {
+      embeddings: results as number[][],
+      usage: undefined,
+    };
+  }
+
+  // Generate embeddings for uncached texts using AI SDK
   const model = getEmbeddingModel(config);
   const result = await embedMany({
     model,

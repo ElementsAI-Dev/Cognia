@@ -44,3 +44,4 @@ export {
   type CodeParseResult,
 } from './document';
 export * from './structured-output';
+export * from './ollama';

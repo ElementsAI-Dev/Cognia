@@ -6,7 +6,7 @@
  */
 
 import { useSettingsStore } from '@/stores/settings-store';
-import { EnhancedMarkdown } from '@/components/chat/enhanced-markdown';
+import { MarkdownRenderer } from '@/components/chat/markdown-renderer';
 import { cn } from '@/lib/utils';
 import type { TextPart as TextPartType } from '@/types/message';
 
@@ -22,7 +22,7 @@ export function TextPart({ part, isError }: TextPartProps) {
   const showLineNumbers = useSettingsStore((state) => state.showLineNumbers);
 
   return (
-    <EnhancedMarkdown
+    <MarkdownRenderer
       content={part.content}
       className={cn(isError && 'text-destructive')}
       enableMath={enableMathRendering}

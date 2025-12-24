@@ -88,6 +88,16 @@ pub fn run() {
             commands::clipboard::read_clipboard_text,
             commands::clipboard::write_clipboard_text,
             commands::clipboard::clipboard_has_image,
+            // Ollama commands
+            commands::ollama::ollama_get_status,
+            commands::ollama::ollama_list_models,
+            commands::ollama::ollama_show_model,
+            commands::ollama::ollama_pull_model,
+            commands::ollama::ollama_delete_model,
+            commands::ollama::ollama_list_running,
+            commands::ollama::ollama_copy_model,
+            commands::ollama::ollama_generate_embedding,
+            commands::ollama::ollama_stop_model,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

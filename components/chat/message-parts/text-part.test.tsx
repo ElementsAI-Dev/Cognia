@@ -13,9 +13,9 @@ jest.mock('@/components/ai-elements/message', () => ({
   ),
 }));
 
-// Mock EnhancedMarkdown to avoid react-markdown ESM issues
-jest.mock('@/components/chat/enhanced-markdown', () => ({
-  EnhancedMarkdown: ({ content, className }: { content: string; className?: string }) => (
+// Mock MarkdownRenderer to avoid react-markdown ESM issues
+jest.mock('@/components/chat/markdown-renderer', () => ({
+  MarkdownRenderer: ({ content, className }: { content: string; className?: string }) => (
     <div data-testid="message-response" className={className}>{content}</div>
   ),
 }));

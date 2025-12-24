@@ -12,9 +12,6 @@ import {
   Sparkles, 
   Search as SearchIcon, 
   Bot, 
-  Zap, 
-  Brain, 
-  Scale, 
   Download, 
   Image as ImageIcon, 
   Wand2,
@@ -52,7 +49,7 @@ import {
 } from '@/components/ui/tooltip';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { useSessionStore, useSettingsStore, usePresetStore, useArtifactStore, useChatStore, useProjectStore } from '@/stores';
+import { useSessionStore, usePresetStore, useArtifactStore, useChatStore, useProjectStore } from '@/stores';
 import { toast } from '@/components/ui/toaster';
 import { PROVIDERS, getModelConfig } from '@/types/provider';
 import { cn } from '@/lib/utils';
@@ -60,6 +57,7 @@ import Link from 'next/link';
 import { ExportDialog } from './export-dialog';
 import { ImageGenerationDialog } from './image-generation-dialog';
 import { BranchSelector } from './branch-selector';
+import { ModelPickerDialog } from './model-picker-dialog';
 import { PresetSelector, CreatePresetDialog, PresetsManager } from '@/components/presets';
 import {
   Dialog,
@@ -90,6 +88,7 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
   const [managePresetsOpen, setManagePresetsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [batchCopyOpen, setBatchCopyOpen] = useState(false);
+  const [modelPickerOpen, setModelPickerOpen] = useState(false);
 
   // Artifact panel state
   const openPanel = useArtifactStore((state) => state.openPanel);
@@ -106,7 +105,6 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
     ? sessions.find(s => s.id === sessionId) 
     : sessions.find(s => s.id === activeSessionId);
   const updateSession = useSessionStore((state) => state.updateSession);
-  const providerSettings = useSettingsStore((state) => state.providerSettings);
   const selectPreset = usePresetStore((state) => state.selectPreset);
   
   // Project context
@@ -392,132 +390,19 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
             </DropdownMenu>
           )}
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2 border-border/50 hover:border-border transition-colors">
-                {isAutoMode && <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />}
-                <span className="max-w-[120px] truncate sm:max-w-[200px]">
-                  {isAutoMode ? 'Auto' : (modelConfig?.name || currentModel)}
-                </span>
-                <ChevronDown className="h-3 w-3 opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-72">
-              {/* Auto Mode Option */}
-              <div className={cn(
-                'rounded-md p-2 mb-2',
-                isAutoMode ? 'bg-primary/10 border border-primary/20' : 'hover:bg-accent'
-              )}>
-                <button
-                  onClick={handleAutoModeToggle}
-                  className="w-full text-left"
-                >
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-primary" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">Auto Mode</span>
-                        {isAutoMode && (
-                          <Badge variant="default" className="text-xs">Active</Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Intelligent model selection based on task complexity
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-1 rounded bg-green-500/10 px-2 py-1 text-xs text-green-600">
-                          <Zap className="h-3 w-3" />
-                          Fast
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Quick queries, translations</p>
-                        <p className="text-xs text-muted-foreground">GPT-4o Mini, Gemini Flash, Haiku</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-1 rounded bg-blue-500/10 px-2 py-1 text-xs text-blue-600">
-                          <Scale className="h-3 w-3" />
-                          Balanced
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>General tasks</p>
-                        <p className="text-xs text-muted-foreground">GPT-4o, Claude Sonnet, Gemini Pro</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-1 rounded bg-purple-500/10 px-2 py-1 text-xs text-purple-600">
-                          <Brain className="h-3 w-3" />
-                          Powerful
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Complex reasoning, coding</p>
-                        <p className="text-xs text-muted-foreground">Claude Opus, o1, DeepSeek Reasoner</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                </button>
-              </div>
-              <DropdownMenuSeparator />
-            {Object.entries(PROVIDERS).map(([providerId, provider]) => {
-              const settings = providerSettings[providerId];
-              const isEnabled = settings?.enabled !== false;
-
-              return (
-                <div key={providerId}>
-                  <DropdownMenuLabel className="flex items-center justify-between">
-                    {provider.name}
-                    {!isEnabled && (
-                      <Badge variant="secondary" className="text-xs">
-                        Disabled
-                      </Badge>
-                    )}
-                  </DropdownMenuLabel>
-                  {provider.models.map((model) => (
-                    <DropdownMenuItem
-                      key={model.id}
-                      onClick={() => handleModelChange(providerId, model.id)}
-                      disabled={!isEnabled}
-                      className={cn(
-                        currentProvider === providerId &&
-                          currentModel === model.id &&
-                          'bg-accent'
-                      )}
-                    >
-                      <div className="flex flex-1 flex-col">
-                        <span>{model.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {model.contextLength.toLocaleString()} tokens
-                        </span>
-                      </div>
-                      <div className="flex gap-1">
-                        {model.supportsTools && (
-                          <Badge variant="outline" className="text-xs">
-                            Tools
-                          </Badge>
-                        )}
-                        {model.supportsVision && (
-                          <Badge variant="outline" className="text-xs">
-                            Vision
-                          </Badge>
-                        )}
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                </div>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          {/* Model Selector Button */}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2 border-border/50 hover:border-border transition-colors"
+            onClick={() => setModelPickerOpen(true)}
+          >
+            {isAutoMode && <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />}
+            <span className="max-w-[120px] truncate sm:max-w-[200px]">
+              {isAutoMode ? 'Auto' : (modelConfig?.name || currentModel)}
+            </span>
+            <ChevronDown className="h-3 w-3 opacity-50" />
+          </Button>
       </div>
     </header>
 
@@ -546,6 +431,17 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
       open={batchCopyOpen}
       onOpenChange={setBatchCopyOpen}
       messages={messages}
+    />
+
+    {/* Model Picker Dialog */}
+    <ModelPickerDialog
+      open={modelPickerOpen}
+      onOpenChange={setModelPickerOpen}
+      currentProvider={currentProvider}
+      currentModel={currentModel}
+      isAutoMode={isAutoMode}
+      onModelSelect={handleModelChange}
+      onAutoModeToggle={handleAutoModeToggle}
     />
     </>
   );

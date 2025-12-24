@@ -175,16 +175,28 @@ interface SettingsState {
   setCodeFontSize: (size: number) => void;
   showLineNumbers: boolean;
   setShowLineNumbers: (show: boolean) => void;
+  codeWordWrap: boolean;
+  setCodeWordWrap: (wrap: boolean) => void;
   enableSyntaxHighlight: boolean;
   setEnableSyntaxHighlight: (enable: boolean) => void;
   lineHeight: number;
   setLineHeight: (height: number) => void;
   enableMathRendering: boolean;
   setEnableMathRendering: (enable: boolean) => void;
+  mathFontScale: number;
+  setMathFontScale: (scale: number) => void;
+  mathDisplayAlignment: 'center' | 'left';
+  setMathDisplayAlignment: (align: 'center' | 'left') => void;
+  mathShowCopyButton: boolean;
+  setMathShowCopyButton: (show: boolean) => void;
   enableMermaidDiagrams: boolean;
   setEnableMermaidDiagrams: (enable: boolean) => void;
+  mermaidTheme: 'default' | 'dark' | 'forest' | 'neutral';
+  setMermaidTheme: (theme: 'default' | 'dark' | 'forest' | 'neutral') => void;
   enableVegaLiteCharts: boolean;
   setEnableVegaLiteCharts: (enable: boolean) => void;
+  vegaLiteTheme: 'default' | 'dark' | 'excel' | 'fivethirtyeight';
+  setVegaLiteTheme: (theme: 'default' | 'dark' | 'excel' | 'fivethirtyeight') => void;
   compactMode: boolean;
   setCompactMode: (compact: boolean) => void;
   showTimestamps: boolean;
@@ -365,11 +377,17 @@ const initialState = {
   codeFontFamily: 'system' as FontFamily,
   codeFontSize: 14,
   showLineNumbers: true,
+  codeWordWrap: false,
   enableSyntaxHighlight: true,
   lineHeight: 1.6,
   enableMathRendering: true,
+  mathFontScale: 1.0,
+  mathDisplayAlignment: 'center' as 'center' | 'left',
+  mathShowCopyButton: true,
   enableMermaidDiagrams: true,
+  mermaidTheme: 'default' as 'default' | 'dark' | 'forest' | 'neutral',
   enableVegaLiteCharts: true,
+  vegaLiteTheme: 'default' as 'default' | 'dark' | 'excel' | 'fivethirtyeight',
   compactMode: false,
   showTimestamps: false,
   showTokenCount: true,
@@ -733,11 +751,17 @@ export const useSettingsStore = create<SettingsState>()(
       setCodeFontFamily: (codeFontFamily) => set({ codeFontFamily }),
       setCodeFontSize: (codeFontSize) => set({ codeFontSize }),
       setShowLineNumbers: (showLineNumbers) => set({ showLineNumbers }),
+      setCodeWordWrap: (codeWordWrap) => set({ codeWordWrap }),
       setEnableSyntaxHighlight: (enableSyntaxHighlight) => set({ enableSyntaxHighlight }),
       setLineHeight: (lineHeight) => set({ lineHeight }),
       setEnableMathRendering: (enableMathRendering) => set({ enableMathRendering }),
+      setMathFontScale: (mathFontScale) => set({ mathFontScale }),
+      setMathDisplayAlignment: (mathDisplayAlignment) => set({ mathDisplayAlignment }),
+      setMathShowCopyButton: (mathShowCopyButton) => set({ mathShowCopyButton }),
       setEnableMermaidDiagrams: (enableMermaidDiagrams) => set({ enableMermaidDiagrams }),
+      setMermaidTheme: (mermaidTheme) => set({ mermaidTheme }),
       setEnableVegaLiteCharts: (enableVegaLiteCharts) => set({ enableVegaLiteCharts }),
+      setVegaLiteTheme: (vegaLiteTheme) => set({ vegaLiteTheme }),
       setCompactMode: (compactMode) => set({ compactMode }),
       setShowTimestamps: (showTimestamps) => set({ showTimestamps }),
       setShowTokenCount: (showTokenCount) => set({ showTokenCount }),
@@ -806,11 +830,17 @@ export const useSettingsStore = create<SettingsState>()(
         codeFontFamily: state.codeFontFamily,
         codeFontSize: state.codeFontSize,
         showLineNumbers: state.showLineNumbers,
+        codeWordWrap: state.codeWordWrap,
         enableSyntaxHighlight: state.enableSyntaxHighlight,
         lineHeight: state.lineHeight,
         enableMathRendering: state.enableMathRendering,
+        mathFontScale: state.mathFontScale,
+        mathDisplayAlignment: state.mathDisplayAlignment,
+        mathShowCopyButton: state.mathShowCopyButton,
         enableMermaidDiagrams: state.enableMermaidDiagrams,
+        mermaidTheme: state.mermaidTheme,
         enableVegaLiteCharts: state.enableVegaLiteCharts,
+        vegaLiteTheme: state.vegaLiteTheme,
         compactMode: state.compactMode,
         showTimestamps: state.showTimestamps,
         showTokenCount: state.showTokenCount,

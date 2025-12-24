@@ -32,6 +32,7 @@ export { ExportDialog } from './export-dialog';
 export { TemplateSelector } from './template-selector';
 export { ConversationSearch } from './conversation-search';
 export { BatchCopyDialog } from './batch-copy-dialog';
+export { ModelPickerDialog } from './model-picker-dialog';
 
 // Utilities
 export { RecentFilesPopover } from './recent-files-popover';
@@ -41,3 +42,7 @@ export { ToolResultDisplay, ToolMentionInline, ToolExecutionStatus } from './too
 
 // Message parts (for rendering different message content types)
 export { TextPart, ReasoningPart, ToolPart, SourcesPart } from './message-parts';
+
+// Quote/Selection components
+export { TextSelectionPopover } from './text-selection-popover';
+export { QuotedContent } from './quoted-content';

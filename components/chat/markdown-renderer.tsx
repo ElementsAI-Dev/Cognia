@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * EnhancedMarkdown - Markdown renderer with support for Mermaid, LaTeX, VegaLite
+ * MarkdownRenderer - Markdown renderer with support for Mermaid, LaTeX, VegaLite
  */
 
 import { memo, useMemo } from 'react';
@@ -16,7 +16,7 @@ import { VegaLiteBlock } from './renderers/vegalite-block';
 import { CodeBlock } from './renderers/code-block';
 import 'katex/dist/katex.min.css';
 
-interface EnhancedMarkdownProps {
+interface MarkdownRendererProps {
   content: string;
   className?: string;
   enableMermaid?: boolean;
@@ -25,14 +25,14 @@ interface EnhancedMarkdownProps {
   showLineNumbers?: boolean;
 }
 
-export const EnhancedMarkdown = memo(function EnhancedMarkdown({
+export const MarkdownRenderer = memo(function MarkdownRenderer({
   content,
   className,
   enableMermaid = true,
   enableMath = true,
   enableVegaLite = true,
   showLineNumbers = true,
-}: EnhancedMarkdownProps) {
+}: MarkdownRendererProps) {
   const remarkPlugins = useMemo(() => {
     const plugins: Parameters<typeof ReactMarkdown>[0]['remarkPlugins'] = [remarkGfm];
     if (enableMath) {
@@ -50,7 +50,7 @@ export const EnhancedMarkdown = memo(function EnhancedMarkdown({
   }, [enableMath]);
 
   return (
-    <div className={cn('enhanced-markdown prose prose-sm dark:prose-invert max-w-none', className)}>
+    <div className={cn('markdown-renderer prose prose-sm dark:prose-invert max-w-none', className)}>
       <ReactMarkdown
         remarkPlugins={remarkPlugins}
         rehypePlugins={rehypePlugins}

@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * Enhanced Markdown Rendering E2E Tests
+ * Markdown Renderer E2E Tests
  * Tests Mermaid diagrams, LaTeX math, and VegaLite chart rendering in chat messages
  */
-test.describe('Enhanced Markdown Rendering', () => {
+test.describe('Markdown Renderer', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');

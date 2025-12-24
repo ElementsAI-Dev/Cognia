@@ -5,7 +5,10 @@
  * All settings are persisted to the settings store
  */
 
-import { Type, Code, Palette, Eye } from 'lucide-react';
+import { useMemo } from 'react';
+import { Type, Code, Palette, Eye, Calculator } from 'lucide-react';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import {
   Card,
   CardContent,
@@ -42,6 +45,36 @@ const FONT_FAMILIES: { value: FontFamily; label: string }[] = [
   { value: 'jetbrains-mono', label: 'JetBrains Mono' },
 ];
 
+/**
+ * MathPreview - Live preview of math rendering with current settings
+ */
+function MathPreview({ scale, alignment }: { scale: number; alignment: 'center' | 'left' }) {
+  const sampleMath = useMemo(() => {
+    try {
+      return katex.renderToString('E = mc^2 \\quad \\text{and} \\quad \\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}', {
+        displayMode: true,
+        throwOnError: false,
+      });
+    } catch {
+      return '<span>Preview unavailable</span>';
+    }
+  }, []);
+
+  return (
+    <div className="p-3 rounded-lg border bg-muted/30">
+      <p className="text-xs text-muted-foreground mb-2">Preview:</p>
+      <div
+        className="overflow-x-auto py-1"
+        style={{
+          fontSize: `${scale}em`,
+          textAlign: alignment,
+        }}
+        dangerouslySetInnerHTML={{ __html: sampleMath }}
+      />
+    </div>
+  );
+}
+
 export function ResponseSettings() {
   // All settings are now persisted to the store
   const codeTheme = useSettingsStore((state) => state.codeTheme);
@@ -54,14 +87,26 @@ export function ResponseSettings() {
   const setLineHeight = useSettingsStore((state) => state.setLineHeight);
   const showLineNumbers = useSettingsStore((state) => state.showLineNumbers);
   const setShowLineNumbers = useSettingsStore((state) => state.setShowLineNumbers);
+  const codeWordWrap = useSettingsStore((state) => state.codeWordWrap);
+  const setCodeWordWrap = useSettingsStore((state) => state.setCodeWordWrap);
   const enableSyntaxHighlight = useSettingsStore((state) => state.enableSyntaxHighlight);
   const setEnableSyntaxHighlight = useSettingsStore((state) => state.setEnableSyntaxHighlight);
   const enableMathRendering = useSettingsStore((state) => state.enableMathRendering);
   const setEnableMathRendering = useSettingsStore((state) => state.setEnableMathRendering);
+  const mathFontScale = useSettingsStore((state) => state.mathFontScale);
+  const setMathFontScale = useSettingsStore((state) => state.setMathFontScale);
+  const mathDisplayAlignment = useSettingsStore((state) => state.mathDisplayAlignment);
+  const setMathDisplayAlignment = useSettingsStore((state) => state.setMathDisplayAlignment);
+  const mathShowCopyButton = useSettingsStore((state) => state.mathShowCopyButton);
+  const setMathShowCopyButton = useSettingsStore((state) => state.setMathShowCopyButton);
   const enableMermaidDiagrams = useSettingsStore((state) => state.enableMermaidDiagrams);
   const setEnableMermaidDiagrams = useSettingsStore((state) => state.setEnableMermaidDiagrams);
+  const mermaidTheme = useSettingsStore((state) => state.mermaidTheme);
+  const setMermaidTheme = useSettingsStore((state) => state.setMermaidTheme);
   const enableVegaLiteCharts = useSettingsStore((state) => state.enableVegaLiteCharts);
   const setEnableVegaLiteCharts = useSettingsStore((state) => state.setEnableVegaLiteCharts);
+  const vegaLiteTheme = useSettingsStore((state) => state.vegaLiteTheme);
+  const setVegaLiteTheme = useSettingsStore((state) => state.setVegaLiteTheme);
   const compactMode = useSettingsStore((state) => state.compactMode);
   const setCompactMode = useSettingsStore((state) => state.setCompactMode);
   const showTimestamps = useSettingsStore((state) => state.showTimestamps);
@@ -146,6 +191,14 @@ export function ResponseSettings() {
                 onCheckedChange={setEnableSyntaxHighlight}
               />
             </div>
+            <div className="flex items-center justify-between rounded-md border px-3 py-2">
+              <Label htmlFor="code-word-wrap" className="text-xs">Word Wrap</Label>
+              <Switch
+                id="code-word-wrap"
+                checked={codeWordWrap}
+                onCheckedChange={setCodeWordWrap}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -199,6 +252,119 @@ export function ResponseSettings() {
                 checked={enableVegaLiteCharts}
                 onCheckedChange={setEnableVegaLiteCharts}
               />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Math Display Settings */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Calculator className="h-4 w-4" />
+            Math Display
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Customize LaTeX math rendering
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Font Scale: {mathFontScale.toFixed(1)}x</Label>
+            </div>
+            <Slider
+              value={[mathFontScale * 10]}
+              onValueChange={([v]) => setMathFontScale(v / 10)}
+              min={8}
+              max={20}
+              step={1}
+              disabled={!enableMathRendering}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Alignment</Label>
+            <Select 
+              value={mathDisplayAlignment} 
+              onValueChange={(v) => setMathDisplayAlignment(v as 'center' | 'left')}
+              disabled={!enableMathRendering}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="center" className="text-xs">Center</SelectItem>
+                <SelectItem value="left" className="text-xs">Left</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center justify-between rounded-md border px-3 py-2">
+            <Label htmlFor="math-copy-button" className="text-xs">Show Copy Button</Label>
+            <Switch
+              id="math-copy-button"
+              checked={mathShowCopyButton}
+              onCheckedChange={setMathShowCopyButton}
+              disabled={!enableMathRendering}
+            />
+          </div>
+
+          {/* Math Preview */}
+          {enableMathRendering && (
+            <MathPreview scale={mathFontScale} alignment={mathDisplayAlignment} />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Diagram Settings */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Palette className="h-4 w-4" />
+            Diagram Settings
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Customize Mermaid and VegaLite rendering
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Mermaid Theme</Label>
+              <Select 
+                value={mermaidTheme} 
+                onValueChange={(v) => setMermaidTheme(v as 'default' | 'dark' | 'forest' | 'neutral')}
+                disabled={!enableMermaidDiagrams}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default" className="text-xs">Default</SelectItem>
+                  <SelectItem value="dark" className="text-xs">Dark</SelectItem>
+                  <SelectItem value="forest" className="text-xs">Forest</SelectItem>
+                  <SelectItem value="neutral" className="text-xs">Neutral</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">VegaLite Theme</Label>
+              <Select 
+                value={vegaLiteTheme} 
+                onValueChange={(v) => setVegaLiteTheme(v as 'default' | 'dark' | 'excel' | 'fivethirtyeight')}
+                disabled={!enableVegaLiteCharts}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default" className="text-xs">Default</SelectItem>
+                  <SelectItem value="dark" className="text-xs">Dark</SelectItem>
+                  <SelectItem value="excel" className="text-xs">Excel</SelectItem>
+                  <SelectItem value="fivethirtyeight" className="text-xs">FiveThirtyEight</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>

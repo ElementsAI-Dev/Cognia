@@ -35,60 +35,60 @@ jest.mock('./renderers/code-block', () => ({
 jest.mock('katex/dist/katex.min.css', () => ({}));
 
 // Import after mocks
-import { EnhancedMarkdown } from './enhanced-markdown';
+import { MarkdownRenderer } from './markdown-renderer';
 
-describe('EnhancedMarkdown', () => {
+describe('MarkdownRenderer', () => {
   it('renders content through ReactMarkdown', () => {
-    render(<EnhancedMarkdown content="Hello world" />);
+    render(<MarkdownRenderer content="Hello world" />);
     expect(screen.getByTestId('react-markdown')).toBeInTheDocument();
   });
 
   it('passes content to ReactMarkdown', () => {
-    render(<EnhancedMarkdown content="Test content" />);
+    render(<MarkdownRenderer content="Test content" />);
     expect(screen.getByText('Test content')).toBeInTheDocument();
   });
 
   it('applies custom className', () => {
     const { container } = render(
-      <EnhancedMarkdown content="test" className="custom-md" />
+      <MarkdownRenderer content="test" className="custom-md" />
     );
     expect(container.querySelector('.custom-md')).toBeInTheDocument();
   });
 
-  it('has enhanced-markdown class for styling', () => {
-    const { container } = render(<EnhancedMarkdown content="test" />);
-    expect(container.querySelector('.enhanced-markdown')).toBeInTheDocument();
+  it('has markdown-renderer class for styling', () => {
+    const { container } = render(<MarkdownRenderer content="test" />);
+    expect(container.querySelector('.markdown-renderer')).toBeInTheDocument();
   });
 
   it('renders with default props', () => {
-    const { container } = render(<EnhancedMarkdown content="test" />);
+    const { container } = render(<MarkdownRenderer content="test" />);
     expect(container.firstChild).toBeInTheDocument();
   });
 
   it('accepts enableMermaid prop', () => {
     const { container } = render(
-      <EnhancedMarkdown content="test" enableMermaid={false} />
+      <MarkdownRenderer content="test" enableMermaid={false} />
     );
     expect(container.firstChild).toBeInTheDocument();
   });
 
   it('accepts enableMath prop', () => {
     const { container } = render(
-      <EnhancedMarkdown content="test" enableMath={false} />
+      <MarkdownRenderer content="test" enableMath={false} />
     );
     expect(container.firstChild).toBeInTheDocument();
   });
 
   it('accepts enableVegaLite prop', () => {
     const { container } = render(
-      <EnhancedMarkdown content="test" enableVegaLite={false} />
+      <MarkdownRenderer content="test" enableVegaLite={false} />
     );
     expect(container.firstChild).toBeInTheDocument();
   });
 
   it('accepts showLineNumbers prop', () => {
     const { container } = render(
-      <EnhancedMarkdown content="test" showLineNumbers={true} />
+      <MarkdownRenderer content="test" showLineNumbers={true} />
     );
     expect(container.firstChild).toBeInTheDocument();
   });

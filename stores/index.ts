@@ -53,3 +53,4 @@ export {
   type NativeState,
   type NativeActions,
 } from './native-store';
+export { useQuoteStore, selectQuotedTexts, selectHasQuotes, type QuotedText } from './quote-store';

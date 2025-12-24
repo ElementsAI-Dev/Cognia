@@ -205,30 +205,304 @@
   }
 }
 
-/* Enhanced Markdown - Mermaid, KaTeX, VegaLite */
-.enhanced-markdown .katex-display {
+/* Markdown Renderer - Mermaid, KaTeX, VegaLite */
+.markdown-renderer .katex-display {
   overflow-x: auto;
   padding: 0.5rem 0;
+  margin: 0.5rem 0;
 }
 
-.enhanced-markdown .katex {
+.markdown-renderer .katex {
   font-size: 1.1em;
 }
 
+/* KaTeX Block Styles */
 .katex-block {
   display: block;
   text-align: center;
+  position: relative;
 }
 
-.dark .enhanced-markdown svg[id^="mermaid"] {
+.katex-block .katex-display {
+  margin: 0;
+}
+
+/* KaTeX Inline Styles */
+.katex-inline {
+  display: inline-flex;
+  align-items: baseline;
+  vertical-align: baseline;
+}
+
+.katex-inline .katex {
+  font-size: 1em;
+}
+
+/* Dark mode adjustments for KaTeX */
+.dark .katex {
+  color: hsl(var(--foreground));
+}
+
+.dark .katex .mord,
+.dark .katex .mbin,
+.dark .katex .mrel,
+.dark .katex .mopen,
+.dark .katex .mclose,
+.dark .katex .mpunct,
+.dark .katex .minner {
+  color: inherit;
+}
+
+/* KaTeX fraction line in dark mode */
+.dark .katex .frac-line {
+  border-color: hsl(var(--foreground));
+}
+
+/* KaTeX sqrt line in dark mode */
+.dark .katex .sqrt-line {
+  stroke: hsl(var(--foreground));
+}
+
+/* KaTeX error styling */
+.katex-error {
+  color: hsl(var(--destructive));
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+/* Math block hover effects */
+.katex-block:hover {
+  background-color: hsl(var(--muted) / 0.3);
+  border-radius: 0.5rem;
+}
+
+/* Smooth transitions */
+.katex-block,
+.katex-inline {
+  transition: background-color 0.2s ease;
+}
+
+/* Focus visible for accessibility */
+.katex-inline:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+/* Print styles for math */
+@media print {
+  .katex-block,
+  .katex-inline {
+    break-inside: avoid;
+  }
+  
+  .katex {
+    font-size: 1em !important;
+  }
+}
+
+/* Mermaid Diagram Styles */
+.mermaid-block {
+  position: relative;
+  border-radius: 0.5rem;
+}
+
+.mermaid-block svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Dark mode Mermaid adjustments */
+.dark .markdown-renderer svg[id^="mermaid"] {
   filter: invert(0.85) hue-rotate(180deg);
 }
 
-.enhanced-markdown .vega-embed {
+.dark .mermaid-block svg {
+  filter: none; /* Use native dark theme instead */
+}
+
+/* Mermaid hover effects */
+.mermaid-block:hover {
+  background-color: hsl(var(--muted) / 0.2);
+}
+
+/* VegaLite Chart Styles */
+.markdown-renderer .vega-embed {
   width: 100%;
 }
 
-.enhanced-markdown pre code {
+.vegalite-block {
+  position: relative;
+  border-radius: 0.5rem;
+}
+
+.vegalite-block canvas,
+.vegalite-block svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* VegaLite hover effects */
+.vegalite-block:hover {
+  background-color: hsl(var(--muted) / 0.2);
+}
+
+/* Dark mode VegaLite adjustments */
+.dark .vegalite-block .vega-embed {
+  background: transparent;
+}
+
+/* Diagram action buttons container */
+.diagram-actions {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  background: hsl(var(--background) / 0.8);
+  backdrop-filter: blur(4px);
+  border-radius: 0.5rem;
+  padding: 0.125rem;
+}
+
+.group:hover .diagram-actions {
+  opacity: 1;
+}
+
+/* Print styles for diagrams */
+@media print {
+  .mermaid-block,
+  .vegalite-block {
+    break-inside: avoid;
+  }
+  
+  .diagram-actions {
+    display: none !important;
+  }
+}
+
+/* Focus styles for accessibility */
+.mermaid-block:focus-visible,
+.vegalite-block:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Code Block Styles */
+.markdown-renderer pre code {
   display: block;
   overflow-x: auto;
+}
+
+.code-block {
+  position: relative;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.code-block pre {
+  margin: 0;
+  tab-size: 2;
+}
+
+.code-block code {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+/* Line numbers styling */
+.code-block .line-number {
+  user-select: none;
+  color: hsl(var(--muted-foreground));
+  opacity: 0.6;
+  text-align: right;
+  padding-right: 1rem;
+  border-right: 1px solid hsl(var(--border));
+}
+
+/* Highlighted lines */
+.code-block .line-highlighted {
+  background-color: hsl(var(--primary) / 0.1);
+  display: block;
+  margin: 0 -1rem;
+  padding: 0 1rem;
+}
+
+/* Code block hover effects */
+.code-block:hover {
+  box-shadow: 0 0 0 1px hsl(var(--border));
+}
+
+/* Word wrap mode */
+.code-block.word-wrap pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Code block header */
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background-color: hsl(var(--muted) / 0.8);
+  border-bottom: 1px solid hsl(var(--border));
+  font-size: 0.75rem;
+}
+
+.code-block-header .language-label {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-weight: 500;
+}
+
+/* Dark mode code block adjustments */
+.dark .code-block {
+  background-color: hsl(var(--muted) / 0.3);
+}
+
+.dark .code-block pre {
+  background-color: transparent;
+}
+
+/* Print styles for code blocks */
+@media print {
+  .code-block {
+    break-inside: avoid;
+    border: 1px solid #ccc;
+  }
+  
+  .code-block-header .actions {
+    display: none !important;
+  }
+  
+  .code-block pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+}
+
+/* Focus styles for accessibility */
+.code-block:focus-within {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Scrollbar styling for code blocks */
+.code-block pre::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.code-block pre::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.code-block pre::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+.code-block pre::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.5);
 }
