@@ -5,8 +5,9 @@
  * Provides navigation, session list, search, and settings access
  */
 
-import { Plus, Settings, Moon, Sun, Monitor, MessageSquare, MoreHorizontal, Pencil, Trash2, Copy, Search, X, FolderKanban, Keyboard, Pin, PinOff, Wand2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Settings, Moon, Sun, Monitor, MessageSquare, MoreHorizontal, Pencil, Trash2, Copy, Search, X, FolderKanban, Keyboard, Pin, PinOff, Wand2, ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import {
   Sidebar,
@@ -44,6 +45,8 @@ interface SearchResult {
 }
 
 export function AppSidebar() {
+  const t = useTranslations('sidebar');
+  const tPlaceholders = useTranslations('placeholders');
   const { state } = useSidebar();
   const isCollapsed = state === 'collapsed';
 
@@ -190,12 +193,12 @@ export function AppSidebar() {
   };
 
   const groupLabels: Record<string, string> = {
-    pinned: 'Pinned',
-    today: 'Today',
-    yesterday: 'Yesterday',
-    lastWeek: 'Last 7 Days',
-    older: 'Older',
-    search: 'Search Results',
+    pinned: t('pinned'),
+    today: t('today'),
+    yesterday: t('yesterday'),
+    lastWeek: t('lastWeek'),
+    older: t('older'),
+    search: t('searchResults'),
   };
 
   // Delete all sessions handler
@@ -215,14 +218,14 @@ export function AppSidebar() {
             <SidebarMenuButton
               size="lg"
               onClick={handleNewChat}
-              tooltip="New Chat"
+              tooltip={t('newChat')}
             >
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <Plus className="size-4" />
               </div>
               <div className="flex flex-col gap-0.5 leading-none">
-                <span className="font-semibold">New Chat</span>
-                <span className="text-xs text-muted-foreground">Start conversation</span>
+                <span className="font-semibold">{t('newChat')}</span>
+                <span className="text-xs text-muted-foreground">{t('startConversation')}</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -235,7 +238,7 @@ export function AppSidebar() {
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Search conversations..."
+                placeholder={tPlaceholders('searchConversations')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="h-9 pl-8 pr-8 text-sm"
@@ -250,11 +253,11 @@ export function AppSidebar() {
               )}
             </div>
             {isSearching && (
-              <p className="mt-1 text-xs text-muted-foreground">Searching...</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t('searching')}</p>
             )}
             {searchQuery && !isSearching && (
               <p className="mt-1 text-xs text-muted-foreground">
-                {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
+                {t('resultsCount', { count: searchResults.length })}
               </p>
             )}
           </div>
@@ -267,7 +270,7 @@ export function AppSidebar() {
         {/* Header with delete all button */}
         {!isCollapsed && !searchQuery && sessions.length > 0 && (
           <div className="flex items-center justify-between px-4 py-2">
-            <span className="text-xs font-medium text-muted-foreground">Conversations</span>
+            <span className="text-xs font-medium text-muted-foreground">{t('conversations')}</span>
             <DropdownMenu open={showDeleteAllConfirm} onOpenChange={setShowDeleteAllConfirm}>
               <DropdownMenuTrigger asChild>
                 <button className="text-muted-foreground hover:text-destructive transition-colors">
@@ -276,8 +279,8 @@ export function AppSidebar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <div className="p-2 text-sm">
-                  <p className="font-medium">Delete all conversations?</p>
-                  <p className="text-muted-foreground text-xs mt-1">This action cannot be undone.</p>
+                  <p className="font-medium">{t('deleteAllConfirm')}</p>
+                  <p className="text-muted-foreground text-xs mt-1">{t('cannotUndo')}</p>
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -285,7 +288,7 @@ export function AppSidebar() {
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Confirm Delete All
+                  {t('confirmDeleteAll')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -301,8 +304,8 @@ export function AppSidebar() {
                   <MessageSquare className="h-6 w-6 text-muted-foreground/50" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">No conversations yet</p>
-                  <p className="mt-1 text-xs text-muted-foreground/70">Start a new chat to begin</p>
+                  <p className="text-sm font-medium text-muted-foreground">{t('noConversations')}</p>
+                  <p className="mt-1 text-xs text-muted-foreground/70">{t('startNewChat')}</p>
                 </div>
               </div>
             )}
@@ -356,30 +359,36 @@ export function AppSidebar() {
       <SidebarFooter>
         {/* Quick access buttons - highlighted */}
         {!isCollapsed && (
-          <div className="px-2 pb-2">
+          <div className="px-2 pb-2 space-y-2">
             <div className="flex gap-2">
               <Link href="/projects" className="flex-1">
                 <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:border-accent">
                   <FolderKanban className="h-4 w-4 text-blue-500" />
-                  <span>Projects</span>
+                  <span>{t('projects')}</span>
                 </div>
               </Link>
               <Link href="/designer" className="flex-1">
                 <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:border-accent">
                   <Wand2 className="h-4 w-4 text-purple-500" />
-                  <span>Designer</span>
+                  <span>{t('designer')}</span>
                 </div>
               </Link>
             </div>
+            <Link href="/skills" className="block">
+              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:border-accent">
+                <Sparkles className="h-4 w-4 text-amber-500" />
+                <span>{t('skills')}</span>
+              </div>
+            </Link>
           </div>
         )}
 
         <SidebarMenu>
-          {/* Collapsed state: show Projects and Designer as menu items */}
+          {/* Collapsed state: show Projects, Designer, and Skills as menu items */}
           {isCollapsed && (
             <>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Projects">
+                <SidebarMenuButton asChild tooltip={t('projects')}>
                   <Link href="/projects">
                     <FolderKanban className="h-4 w-4 text-blue-500" />
                     <span>Projects</span>
@@ -387,10 +396,18 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Designer">
+                <SidebarMenuButton asChild tooltip={t('designer')}>
                   <Link href="/designer">
                     <Wand2 className="h-4 w-4 text-purple-500" />
                     <span>Designer</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip={t('skills')}>
+                  <Link href="/skills">
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                    <span>Skills</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -399,24 +416,24 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <KeyboardShortcutsDialog
               trigger={
-                <SidebarMenuButton tooltip="Keyboard Shortcuts">
+                <SidebarMenuButton tooltip={t('keyboardShortcuts')}>
                   <Keyboard className="h-4 w-4" />
-                  <span>Shortcuts</span>
+                  <span>{t('shortcuts')}</span>
                 </SidebarMenuButton>
               }
             />
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={cycleTheme} tooltip={`Theme: ${theme}`}>
+            <SidebarMenuButton onClick={cycleTheme} tooltip={t('theme')}>
               {getThemeIcon()}
-              <span>Theme: {theme}</span>
+              <span>{t('themeLabel', { theme })}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Settings">
+            <SidebarMenuButton asChild tooltip={t('settings')}>
               <Link href="/settings">
                 <Settings className="h-4 w-4" />
-                <span>Settings</span>
+                <span>{t('settings')}</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -442,6 +459,7 @@ function SessionMenuItem({
   matchType,
   searchQuery,
 }: SessionMenuItemProps) {
+  const t = useTranslations('sidebar');
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(session.title);
 
@@ -547,18 +565,18 @@ function SessionMenuItem({
         <DropdownMenuContent side="right" align="start" className="w-48">
           <DropdownMenuItem onClick={() => togglePinSession(session.id)}>
             {session.pinned ? (
-              <><PinOff className="mr-2 h-4 w-4" />Unpin</>
+              <><PinOff className="mr-2 h-4 w-4" />{t('unpin')}</>
             ) : (
-              <><Pin className="mr-2 h-4 w-4" />Pin to top</>
+              <><Pin className="mr-2 h-4 w-4" />{t('pinToTop')}</>
             )}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setIsEditing(true)}>
             <Pencil className="mr-2 h-4 w-4" />
-            Rename
+            {t('rename')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => duplicateSession(session.id)}>
             <Copy className="mr-2 h-4 w-4" />
-            Duplicate
+            {t('duplicate')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -566,7 +584,7 @@ function SessionMenuItem({
             className="text-destructive focus:text-destructive"
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            Delete
+            {t('delete')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

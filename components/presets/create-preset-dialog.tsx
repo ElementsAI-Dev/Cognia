@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -57,6 +58,10 @@ export function CreatePresetDialog({
   editPreset,
   onSuccess,
 }: CreatePresetDialogProps) {
+  const t = useTranslations('presets');
+  const tCommon = useTranslations('common');
+  const tChat = useTranslations('chat');
+  const tPlaceholders = useTranslations('placeholders');
   const createPreset = usePresetStore((state) => state.createPreset);
   const updatePreset = usePresetStore((state) => state.updatePreset);
   const providerSettings = useSettingsStore((state) => state.providerSettings);
@@ -359,12 +364,12 @@ export function CreatePresetDialog({
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>
-            {editPreset ? 'Edit Preset' : 'Create New Preset'}
+            {editPreset ? t('editPreset') : t('createPreset')}
           </DialogTitle>
           <DialogDescription>
             {editPreset
-              ? 'Update your preset configuration.'
-              : 'Create a custom preset with your preferred settings.'}
+              ? t('editPresetDesc')
+              : t('createPresetDesc')}
           </DialogDescription>
         </DialogHeader>
 
@@ -373,11 +378,11 @@ export function CreatePresetDialog({
           <div className="p-3 rounded-lg border bg-gradient-to-r from-purple-500/5 to-blue-500/5">
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="h-4 w-4 text-purple-500" />
-              <span className="text-sm font-medium">AI Generate Preset</span>
+              <span className="text-sm font-medium">{t('aiGenerate')}</span>
             </div>
             <div className="flex items-center gap-2">
               <Input
-                placeholder="Describe your ideal preset... e.g., 'A coding assistant for Python'"
+                placeholder={tPlaceholders('describePreset')}
                 value={aiDescription}
                 onChange={(e) => setAiDescription(e.target.value)}
                 className="flex-1"
@@ -401,37 +406,37 @@ export function CreatePresetDialog({
         <ScrollArea className="flex-1 pr-2">
           <Tabs defaultValue="basic" className="mt-4">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic">Basic</TabsTrigger>
-              <TabsTrigger value="model">Model</TabsTrigger>
-              <TabsTrigger value="prompt">Prompt</TabsTrigger>
-              <TabsTrigger value="quick">Quick Prompts</TabsTrigger>
+              <TabsTrigger value="basic">{t('tabBasic')}</TabsTrigger>
+              <TabsTrigger value="model">{t('tabModel')}</TabsTrigger>
+              <TabsTrigger value="prompt">{t('tabPrompt')}</TabsTrigger>
+              <TabsTrigger value="quick">{t('tabQuickPrompts')}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basic" className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name">{t('presetName')}</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="My Custom Preset"
+                  placeholder={tPlaceholders('enterPresetName')}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">{t('description')}</Label>
                 <Textarea
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe what this preset is for..."
+                  placeholder={tPlaceholders('enterPresetDescription')}
                   rows={2}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Icon</Label>
+                  <Label>{t('icon')}</Label>
                   <div className="flex flex-wrap gap-1 p-2 border rounded-md max-h-24 overflow-y-auto">
                     {PRESET_ICONS.map((emoji) => (
                       <button
@@ -450,7 +455,7 @@ export function CreatePresetDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Color</Label>
+                  <Label>{t('color')}</Label>
                   <div className="flex flex-wrap gap-1 p-2 border rounded-md max-h-24 overflow-y-auto">
                     {PRESET_COLORS.map((c) => (
                       <button
@@ -471,28 +476,28 @@ export function CreatePresetDialog({
 
             <TabsContent value="model" className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label>Mode</Label>
+                <Label>{t('mode')}</Label>
                 <Select value={mode} onValueChange={(v) => setMode(v as 'chat' | 'agent' | 'research')}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="chat">Chat</SelectItem>
-                    <SelectItem value="agent">Agent</SelectItem>
-                    <SelectItem value="research">Research</SelectItem>
+                    <SelectItem value="chat">{tChat('modeChat')}</SelectItem>
+                    <SelectItem value="agent">{tChat('modeAgent')}</SelectItem>
+                    <SelectItem value="research">{tChat('modeResearch')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Provider</Label>
+                  <Label>{t('provider')}</Label>
                   <Select value={provider} onValueChange={(v) => setProvider(v as ProviderName | 'auto')}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="auto">Auto</SelectItem>
+                      <SelectItem value="auto">{tChat('autoMode')}</SelectItem>
                       {enabledProviders.map((p) => (
                         <SelectItem key={p} value={p}>
                           {PROVIDERS[p]?.name || p}
@@ -503,7 +508,7 @@ export function CreatePresetDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Model</Label>
+                  <Label>{t('model')}</Label>
                   <Select value={model} onValueChange={setModel}>
                     <SelectTrigger>
                       <SelectValue />
@@ -520,7 +525,7 @@ export function CreatePresetDialog({
               </div>
 
               <div className="space-y-2">
-                <Label>Temperature: {temperature.toFixed(1)}</Label>
+                <Label>{t('temperature')}: {temperature.toFixed(1)}</Label>
                 <Slider
                   value={[temperature]}
                   onValueChange={([v]) => setTemperature(v)}
@@ -530,12 +535,12 @@ export function CreatePresetDialog({
                   className="w-full"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Lower = more focused, Higher = more creative
+                  {t('temperatureHint')}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="maxTokens">Max Tokens (optional)</Label>
+                <Label htmlFor="maxTokens">{t('maxTokensOptional')}</Label>
                 <Input
                   id="maxTokens"
                   type="number"
@@ -543,7 +548,7 @@ export function CreatePresetDialog({
                   onChange={(e) =>
                     setMaxTokens(e.target.value ? parseInt(e.target.value) : undefined)
                   }
-                  placeholder="Leave empty for model default"
+                  placeholder={t('maxTokensPlaceholder')}
                 />
               </div>
 
@@ -553,10 +558,10 @@ export function CreatePresetDialog({
                   <div className="space-y-0.5">
                     <Label className="flex items-center gap-2">
                       <Globe className="h-4 w-4" />
-                      Web Search
+                      {t('webSearch')}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Enable web search for this preset
+                      {t('webSearchHint')}
                     </p>
                   </div>
                   <Switch
@@ -569,10 +574,10 @@ export function CreatePresetDialog({
                   <div className="space-y-0.5">
                     <Label className="flex items-center gap-2">
                       <Brain className="h-4 w-4" />
-                      Thinking Mode
+                      {t('thinkingMode')}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Enable extended thinking/reasoning
+                      {t('thinkingModeHint')}
                     </p>
                   </div>
                   <Switch
@@ -586,7 +591,7 @@ export function CreatePresetDialog({
             <TabsContent value="prompt" className="space-y-4 pt-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="systemPrompt">System Prompt</Label>
+                  <Label htmlFor="systemPrompt">{t('systemPrompt')}</Label>
                   <Button
                     variant="outline"
                     size="sm"
@@ -598,18 +603,18 @@ export function CreatePresetDialog({
                     ) : (
                       <Wand2 className="h-4 w-4 mr-2" />
                     )}
-                    AI Optimize
+                    {t('optimizePrompt')}
                   </Button>
                 </div>
                 <Textarea
                   id="systemPrompt"
                   value={systemPrompt}
                   onChange={(e) => setSystemPrompt(e.target.value)}
-                  placeholder="You are a helpful assistant..."
+                  placeholder={tPlaceholders('enterSystemPrompt')}
                   className="min-h-[200px] resize-none"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Define how the AI should behave when using this preset.
+                  {t('systemPromptHint')}
                 </p>
               </div>
             </TabsContent>
@@ -617,9 +622,9 @@ export function CreatePresetDialog({
             <TabsContent value="quick" className="space-y-4 pt-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-medium">Built-in Quick Prompts</h3>
+                  <h3 className="text-sm font-medium">{t('builtinPrompts')}</h3>
                   <p className="text-xs text-muted-foreground">
-                    Add shortcuts for common prompts
+                    {t('builtinPromptsHint')}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -634,11 +639,11 @@ export function CreatePresetDialog({
                     ) : (
                       <Sparkles className="h-4 w-4 mr-2" />
                     )}
-                    AI Generate
+                    {t('generatePrompts')}
                   </Button>
                   <Button variant="outline" size="sm" onClick={handleAddBuiltinPrompt}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add
+                    {t('addPrompt')}
                   </Button>
                 </div>
               </div>
@@ -655,7 +660,7 @@ export function CreatePresetDialog({
                         onChange={(e) =>
                           handleUpdateBuiltinPrompt(prompt.id, { name: e.target.value })
                         }
-                        placeholder="Prompt name"
+                        placeholder={tPlaceholders('promptName')}
                         className="flex-1"
                       />
                       <Button
@@ -672,7 +677,7 @@ export function CreatePresetDialog({
                       onChange={(e) =>
                         handleUpdateBuiltinPrompt(prompt.id, { content: e.target.value })
                       }
-                      placeholder="Prompt content..."
+                      placeholder={tPlaceholders('promptContent')}
                       className="min-h-[80px] resize-none"
                     />
                   </div>
@@ -680,7 +685,7 @@ export function CreatePresetDialog({
 
                 {builtinPrompts.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-8">
-                    No quick prompts. Add one to include shortcuts with this preset.
+                    {t('noQuickPrompts')}
                   </p>
                 )}
               </div>
@@ -690,7 +695,7 @@ export function CreatePresetDialog({
 
         {/* Preview */}
         <div className="mt-4 p-3 border rounded-lg bg-muted/50">
-          <p className="text-xs text-muted-foreground mb-2">Preview</p>
+          <p className="text-xs text-muted-foreground mb-2">{t('preview')}</p>
           <div className="flex items-center gap-2">
             <span
               className="flex h-8 w-8 items-center justify-center rounded-lg text-lg"
@@ -712,10 +717,10 @@ export function CreatePresetDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tCommon('cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={!name.trim()}>
-            {editPreset ? 'Save Changes' : 'Create Preset'}
+            {editPreset ? tCommon('save') : t('createPreset')}
           </Button>
         </DialogFooter>
       </DialogContent>

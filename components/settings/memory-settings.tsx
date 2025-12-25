@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Brain, Plus, Trash2, Edit2, Check, X, Search } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -43,13 +44,6 @@ import {
 import { useMemoryStore } from '@/stores';
 import type { Memory, MemoryType, CreateMemoryInput } from '@/types';
 
-const MEMORY_TYPE_LABELS: Record<MemoryType, string> = {
-  preference: 'Preference',
-  fact: 'Fact',
-  instruction: 'Instruction',
-  context: 'Context',
-};
-
 const MEMORY_TYPE_COLORS: Record<MemoryType, string> = {
   preference: 'bg-blue-500',
   fact: 'bg-green-500',
@@ -58,6 +52,8 @@ const MEMORY_TYPE_COLORS: Record<MemoryType, string> = {
 };
 
 export function MemorySettings() {
+  const t = useTranslations('memory');
+  const tCommon = useTranslations('common');
   const {
     memories,
     settings,
@@ -122,18 +118,18 @@ export function MemorySettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Brain className="h-5 w-5" />
-            Memory Settings
+            {t('title')}
           </CardTitle>
           <CardDescription>
-            Configure how Claude remembers information across conversations
+            {t('description')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <Label htmlFor="memory-enabled">Enable Memory</Label>
+              <Label htmlFor="memory-enabled">{t('enableMemory')}</Label>
               <p className="text-sm text-muted-foreground">
-                Allow AI to remember information across conversations
+                {t('enableMemoryDesc')}
               </p>
             </div>
             <Switch
@@ -145,9 +141,9 @@ export function MemorySettings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <Label htmlFor="auto-infer">Auto-detect memories</Label>
+              <Label htmlFor="auto-infer">{t('autoDetect')}</Label>
               <p className="text-sm text-muted-foreground">
-                Automatically extract preferences and facts from conversations
+                {t('autoDetectDesc')}
               </p>
             </div>
             <Switch
@@ -160,9 +156,9 @@ export function MemorySettings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <Label htmlFor="inject-prompt">Include in system prompt</Label>
+              <Label htmlFor="inject-prompt">{t('injectPrompt')}</Label>
               <p className="text-sm text-muted-foreground">
-                Inject memories into the AI system prompt
+                {t('injectPromptDesc')}
               </p>
             </div>
             <Switch
@@ -182,9 +178,9 @@ export function MemorySettings() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Stored Memories</CardTitle>
+              <CardTitle>{t('storedMemories')}</CardTitle>
               <CardDescription>
-                {memories.length} memories stored
+                {t('memoriesCount', { count: memories.length })}
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -192,19 +188,19 @@ export function MemorySettings() {
                 <DialogTrigger asChild>
                   <Button size="sm">
                     <Plus className="h-4 w-4 mr-1" />
-                    Add Memory
+                    {t('addMemory')}
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Add New Memory</DialogTitle>
+                    <DialogTitle>{t('addMemory')}</DialogTitle>
                     <DialogDescription>
-                      Add something for the AI to remember about you
+                      {t('addMemoryHint')}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                      <Label>Type</Label>
+                      <Label>{t('type')}</Label>
                       <Select
                         value={newMemory.type}
                         onValueChange={(type: MemoryType) =>
@@ -215,18 +211,18 @@ export function MemorySettings() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {Object.entries(MEMORY_TYPE_LABELS).map(([value, label]) => (
+                          {(['preference', 'fact', 'instruction', 'context'] as MemoryType[]).map((value) => (
                             <SelectItem key={value} value={value}>
-                              {label}
+                              {t(value)}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Content</Label>
+                      <Label>{t('content')}</Label>
                       <Textarea
-                        placeholder="e.g., I prefer concise responses with code examples"
+                        placeholder={t('contentPlaceholder')}
                         value={newMemory.content}
                         onChange={(e) =>
                           setNewMemory((prev) => ({ ...prev, content: e.target.value }))
@@ -235,9 +231,9 @@ export function MemorySettings() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Category (optional)</Label>
+                      <Label>{t('category')}</Label>
                       <Input
-                        placeholder="e.g., coding, writing, general"
+                        placeholder={t('categoryPlaceholder')}
                         value={newMemory.category || ''}
                         onChange={(e) =>
                           setNewMemory((prev) => ({ ...prev, category: e.target.value }))
@@ -247,10 +243,10 @@ export function MemorySettings() {
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                      Cancel
+                      {tCommon('cancel')}
                     </Button>
                     <Button onClick={handleCreateMemory} disabled={!newMemory.content.trim()}>
-                      Save Memory
+                      {tCommon('save')}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -261,21 +257,20 @@ export function MemorySettings() {
                   <AlertDialogTrigger asChild>
                     <Button size="sm" variant="destructive">
                       <Trash2 className="h-4 w-4 mr-1" />
-                      Clear All
+                      {t('clearAll')}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Clear all memories?</AlertDialogTitle>
+                      <AlertDialogTitle>{t('clearAll')}?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This will permanently delete all stored memories. This action cannot
-                        be undone.
+                        {t('clearConfirm')}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
                       <AlertDialogAction onClick={clearAllMemories}>
-                        Clear All
+                        {t('clearAll')}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -289,7 +284,7 @@ export function MemorySettings() {
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search memories..."
+              placeholder={t('searchMemories')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -300,7 +295,7 @@ export function MemorySettings() {
           <div className="space-y-3">
             {filteredMemories.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                {searchQuery ? 'No matching memories found' : 'No memories stored yet'}
+                {t('noMemories')}
               </div>
             ) : (
               filteredMemories.map((memory) => (
@@ -315,6 +310,7 @@ export function MemorySettings() {
                   onUpdateEditing={setEditingMemory}
                   onToggle={(enabled) => updateMemory(memory.id, { enabled })}
                   onDelete={() => deleteMemory(memory.id)}
+                  t={t}
                 />
               ))
             )}
@@ -335,6 +331,7 @@ interface MemoryItemProps {
   onUpdateEditing: (memory: Memory | null) => void;
   onToggle: (enabled: boolean) => void;
   onDelete: () => void;
+  t: (key: string, values?: Record<string, string | number | Date>) => string;
 }
 
 function MemoryItem({
@@ -347,6 +344,7 @@ function MemoryItem({
   onUpdateEditing,
   onToggle,
   onDelete,
+  t,
 }: MemoryItemProps) {
   if (isEditing && editingMemory) {
     return (
@@ -361,9 +359,9 @@ function MemoryItem({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {Object.entries(MEMORY_TYPE_LABELS).map(([value, label]) => (
+            {(['preference', 'fact', 'instruction', 'context'] as MemoryType[]).map((value) => (
               <SelectItem key={value} value={value}>
-                {label}
+                {t(value)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -400,7 +398,7 @@ function MemoryItem({
               variant="secondary"
               className={`${MEMORY_TYPE_COLORS[memory.type]} text-white text-xs`}
             >
-              {MEMORY_TYPE_LABELS[memory.type]}
+              {t(memory.type)}
             </Badge>
             {memory.category && (
               <Badge variant="outline" className="text-xs">
@@ -408,12 +406,12 @@ function MemoryItem({
               </Badge>
             )}
             <span className="text-xs text-muted-foreground">
-              {memory.source === 'inferred' ? '(auto-detected)' : ''}
+              {memory.source === 'inferred' ? t('autoDetected') : ''}
             </span>
           </div>
           <p className="text-sm">{memory.content}</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Used {memory.useCount} times • Created{' '}
+            {t('usedTimes', { count: memory.useCount })} • {t('created')}{' '}
             {memory.createdAt.toLocaleDateString()}
           </p>
         </div>

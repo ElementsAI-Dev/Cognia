@@ -8,6 +8,9 @@ import type { UIMessage, Session } from '@/types';
 export * from './rich-markdown';
 export * from './animated-html';
 export * from './batch-export';
+export * from './excel-export';
+export * from './word-export';
+export * from './google-sheets-export';
 
 export interface ExportData {
   session: Session;

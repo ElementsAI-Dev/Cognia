@@ -1,0 +1,289 @@
+/**
+ * Tests for Preset Store
+ */
+
+import { act } from '@testing-library/react';
+import { usePresetStore, selectPresets, selectSelectedPresetId } from './preset-store';
+
+describe('usePresetStore', () => {
+  beforeEach(() => {
+    usePresetStore.setState({
+      presets: [],
+      selectedPresetId: null,
+      isInitialized: false,
+    });
+  });
+
+  describe('initial state', () => {
+    it('has correct initial state', () => {
+      const state = usePresetStore.getState();
+      expect(state.presets).toEqual([]);
+      expect(state.selectedPresetId).toBeNull();
+      expect(state.isInitialized).toBe(false);
+    });
+  });
+
+  describe('createPreset', () => {
+    it('should create preset with required fields', () => {
+      let preset;
+      act(() => {
+        preset = usePresetStore.getState().createPreset({
+          name: 'Test Preset',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+      });
+
+      const state = usePresetStore.getState();
+      expect(state.presets).toHaveLength(1);
+      expect(preset!.name).toBe('Test Preset');
+      expect(preset!.provider).toBe('openai');
+      expect(preset!.model).toBe('gpt-4');
+      expect(preset!.usageCount).toBe(0);
+      expect(preset!.isDefault).toBe(false);
+    });
+
+    it('should create preset with all options', () => {
+      let preset;
+      act(() => {
+        preset = usePresetStore.getState().createPreset({
+          name: 'Full Preset',
+          description: 'A test preset',
+          icon: '🤖',
+          color: '#FF0000',
+          provider: 'anthropic',
+          model: 'claude-3',
+          mode: 'agent',
+          systemPrompt: 'You are helpful',
+          temperature: 0.5,
+          maxTokens: 2000,
+          webSearchEnabled: true,
+          thinkingEnabled: true,
+        });
+      });
+
+      expect(preset!.description).toBe('A test preset');
+      expect(preset!.icon).toBe('🤖');
+      expect(preset!.systemPrompt).toBe('You are helpful');
+      expect(preset!.temperature).toBe(0.5);
+      expect(preset!.webSearchEnabled).toBe(true);
+    });
+  });
+
+  describe('updatePreset', () => {
+    it('should update preset', () => {
+      let preset;
+      act(() => {
+        preset = usePresetStore.getState().createPreset({
+          name: 'Original',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+      });
+
+      act(() => {
+        usePresetStore.getState().updatePreset(preset!.id, { name: 'Updated' });
+      });
+
+      expect(usePresetStore.getState().presets[0].name).toBe('Updated');
+    });
+  });
+
+  describe('deletePreset', () => {
+    it('should delete preset', () => {
+      let preset;
+      act(() => {
+        preset = usePresetStore.getState().createPreset({
+          name: 'To Delete',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+      });
+
+      act(() => {
+        usePresetStore.getState().deletePreset(preset!.id);
+      });
+
+      expect(usePresetStore.getState().presets).toHaveLength(0);
+    });
+
+    it('should clear selectedPresetId if deleted', () => {
+      let preset;
+      act(() => {
+        preset = usePresetStore.getState().createPreset({
+          name: 'Selected',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+        usePresetStore.getState().selectPreset(preset!.id);
+      });
+
+      act(() => {
+        usePresetStore.getState().deletePreset(preset!.id);
+      });
+
+      expect(usePresetStore.getState().selectedPresetId).toBeNull();
+    });
+  });
+
+  describe('duplicatePreset', () => {
+    it('should duplicate preset', () => {
+      let original;
+      act(() => {
+        original = usePresetStore.getState().createPreset({
+          name: 'Original',
+          provider: 'anthropic',
+          model: 'claude-3',
+          systemPrompt: 'Test',
+        });
+      });
+
+      let duplicate;
+      act(() => {
+        duplicate = usePresetStore.getState().duplicatePreset(original!.id);
+      });
+
+      expect(duplicate).not.toBeNull();
+      expect(duplicate!.name).toBe('Original (Copy)');
+      expect(duplicate!.provider).toBe('anthropic');
+      expect(duplicate!.systemPrompt).toBe('Test');
+    });
+
+    it('should return null for non-existent preset', () => {
+      const duplicate = usePresetStore.getState().duplicatePreset('non-existent');
+      expect(duplicate).toBeNull();
+    });
+  });
+
+  describe('selectPreset', () => {
+    it('should select preset', () => {
+      let preset;
+      act(() => {
+        preset = usePresetStore.getState().createPreset({
+          name: 'Test',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+      });
+
+      act(() => {
+        usePresetStore.getState().selectPreset(preset!.id);
+      });
+
+      expect(usePresetStore.getState().selectedPresetId).toBe(preset!.id);
+    });
+  });
+
+  describe('usePreset', () => {
+    it('should increment usage count', () => {
+      let preset;
+      act(() => {
+        preset = usePresetStore.getState().createPreset({
+          name: 'Test',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+      });
+
+      act(() => {
+        usePresetStore.getState().usePreset(preset!.id);
+      });
+
+      expect(usePresetStore.getState().presets[0].usageCount).toBe(1);
+      expect(usePresetStore.getState().presets[0].lastUsedAt).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('setDefaultPreset', () => {
+    it('should set default preset', () => {
+      let preset1, preset2;
+      act(() => {
+        preset1 = usePresetStore.getState().createPreset({
+          name: 'First',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+        preset2 = usePresetStore.getState().createPreset({
+          name: 'Second',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+      });
+
+      act(() => {
+        usePresetStore.getState().setDefaultPreset(preset2!.id);
+      });
+
+      const presets = usePresetStore.getState().presets;
+      expect(presets.find(p => p.id === preset1!.id)?.isDefault).toBe(false);
+      expect(presets.find(p => p.id === preset2!.id)?.isDefault).toBe(true);
+    });
+  });
+
+  describe('selectors', () => {
+    beforeEach(() => {
+      act(() => {
+        const p1 = usePresetStore.getState().createPreset({
+          name: 'Recent',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+        usePresetStore.getState().createPreset({
+          name: 'Most Used',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+
+        // Use presets to set lastUsedAt and usageCount
+        usePresetStore.getState().usePreset(p1.id);
+        const p2Id = usePresetStore.getState().presets[1].id;
+        usePresetStore.getState().usePreset(p2Id);
+        usePresetStore.getState().usePreset(p2Id);
+      });
+    });
+
+    it('should get preset by id', () => {
+      const id = usePresetStore.getState().presets[0].id;
+      expect(usePresetStore.getState().getPreset(id)).toBeDefined();
+      expect(usePresetStore.getState().getPreset('non-existent')).toBeUndefined();
+    });
+
+    it('should get default preset', () => {
+      const id = usePresetStore.getState().presets[0].id;
+      act(() => {
+        usePresetStore.getState().setDefaultPreset(id);
+      });
+
+      expect(usePresetStore.getState().getDefaultPreset()?.id).toBe(id);
+    });
+
+    it('should get recent presets', () => {
+      const recent = usePresetStore.getState().getRecentPresets();
+      expect(recent).toHaveLength(2);
+    });
+
+    it('should get most used presets', () => {
+      const mostUsed = usePresetStore.getState().getMostUsedPresets();
+      expect(mostUsed[0].name).toBe('Most Used');
+    });
+
+    it('should search presets', () => {
+      const results = usePresetStore.getState().searchPresets('Recent');
+      expect(results).toHaveLength(1);
+      expect(results[0].name).toBe('Recent');
+    });
+
+    it('should use selectPresets selector', () => {
+      expect(selectPresets(usePresetStore.getState())).toHaveLength(2);
+    });
+
+    it('should use selectSelectedPresetId selector', () => {
+      const id = usePresetStore.getState().presets[0].id;
+      act(() => {
+        usePresetStore.getState().selectPreset(id);
+      });
+
+      expect(selectSelectedPresetId(usePresetStore.getState())).toBe(id);
+    });
+  });
+});

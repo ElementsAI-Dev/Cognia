@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from 'next-intl';
 import { Badge } from "@/components/ui/badge";
 import {
   Carousel,
@@ -197,6 +198,7 @@ export const InlineCitationCarouselPrev = ({
   className,
   ...props
 }: InlineCitationCarouselPrevProps) => {
+  const t = useTranslations('common');
   const api = useCarouselApi();
 
   const handleClick = useCallback(() => {
@@ -207,7 +209,7 @@ export const InlineCitationCarouselPrev = ({
 
   return (
     <button
-      aria-label="Previous"
+      aria-label={t('previous')}
       className={cn("shrink-0", className)}
       onClick={handleClick}
       type="button"
@@ -224,6 +226,7 @@ export const InlineCitationCarouselNext = ({
   className,
   ...props
 }: InlineCitationCarouselNextProps) => {
+  const t = useTranslations('common');
   const api = useCarouselApi();
 
   const handleClick = useCallback(() => {
@@ -234,7 +237,7 @@ export const InlineCitationCarouselNext = ({
 
   return (
     <button
-      aria-label="Next"
+      aria-label={t('next')}
       className={cn("shrink-0", className)}
       onClick={handleClick}
       type="button"

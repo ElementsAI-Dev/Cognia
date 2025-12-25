@@ -78,3 +78,22 @@ export {
   useNotification,
   type UseNotificationReturn,
 } from './use-notification';
+export {
+  useWorkflow,
+  type UseWorkflowOptions,
+  type UseWorkflowReturn,
+} from './use-workflow';
+export {
+  useSkills,
+  useSkillSystemPrompt,
+  useAutoMatchSkills,
+  useSkillTokenBudget,
+  type UseSkillsOptions,
+  type UseSkillsReturn,
+} from './use-skills';
+export {
+  useLearningMode,
+  useLearningSystemPrompt,
+  useIsLearningMode,
+  type UseLearningModeReturn,
+} from './use-learning-mode';

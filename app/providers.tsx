@@ -4,7 +4,7 @@
  * App Providers - wraps the app with necessary context providers
  */
 
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState, useCallback, useMemo } from 'react';
 import { useSettingsStore } from '@/stores';
 import { I18nProvider } from '@/lib/i18n';
 import { THEME_PRESETS, applyThemeColors, removeCustomThemeColors } from '@/lib/themes';
@@ -13,6 +13,8 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { CommandPalette } from '@/components/layout/command-palette';
 import { Toaster } from '@/components/ui/toaster';
 import { KeyboardShortcutsDialog } from '@/components/layout/keyboard-shortcuts-dialog';
+import { SetupWizard } from '@/components/settings/setup-wizard';
+import { SkillProvider } from '@/components/providers/skill-provider';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -21,6 +23,60 @@ interface ProvidersProps {
 // Use useLayoutEffect on client, useEffect on server
 const useIsomorphicLayoutEffect =
   typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
+/**
+ * OnboardingProvider - Shows setup wizard for first-time users
+ */
+function OnboardingProvider({ children }: { children: React.ReactNode }) {
+  const hasCompletedOnboarding = useSettingsStore((state) => state.hasCompletedOnboarding);
+  const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const [showWizard, setShowWizard] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Check if user needs onboarding
+  const needsOnboarding = useMemo(() => {
+    if (hasCompletedOnboarding) return false;
+    
+    // Check if at least one provider has a valid API key configured
+    const hasConfiguredProvider = Object.entries(providerSettings).some(
+      ([id, settings]) => settings?.enabled && (settings?.apiKey || id === 'ollama')
+    );
+    
+    return !hasConfiguredProvider;
+  }, [hasCompletedOnboarding, providerSettings]);
+
+  useIsomorphicLayoutEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Show wizard after mount if needed
+  useEffect(() => {
+    if (mounted && needsOnboarding) {
+      // Small delay to ensure smooth initial render
+      const timer = setTimeout(() => setShowWizard(true), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [mounted, needsOnboarding]);
+
+  const handleWizardComplete = useCallback(() => {
+    setShowWizard(false);
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
+
+  return (
+    <>
+      {children}
+      <SetupWizard
+        open={showWizard}
+        onOpenChange={setShowWizard}
+        onComplete={handleWizardComplete}
+      />
+    </>
+  );
+}
 
 function ThemeProvider({ children }: { children: React.ReactNode }) {
   const theme = useSettingsStore((state) => state.theme);
@@ -131,7 +187,11 @@ export function Providers({ children }: ProvidersProps) {
     <I18nProvider>
       <ThemeProvider>
         <TooltipProvider delayDuration={0}>
-          {children}
+          <SkillProvider loadBuiltinSkills={true}>
+            <OnboardingProvider>
+              {children}
+            </OnboardingProvider>
+          </SkillProvider>
           <CommandPalette />
           <Toaster />
           <KeyboardShortcutsDialog />

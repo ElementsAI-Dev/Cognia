@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronDown, Plus, Star, Clock, TrendingUp, Search, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,6 +35,7 @@ export function PresetSelector({
   onManage,
   compact = false,
 }: PresetSelectorProps) {
+  const t = useTranslations('presetSelector');
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
 
@@ -84,7 +86,7 @@ export function PresetSelector({
             <div className="flex items-center gap-2 truncate">
               <span>{selectedPreset?.icon || '💬'}</span>
               <span className="truncate">
-                {selectedPreset?.name || 'Select preset'}
+                {selectedPreset?.name || t('selectPreset')}
               </span>
               {selectedPreset?.isDefault && (
                 <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
@@ -99,7 +101,7 @@ export function PresetSelector({
           <div className="relative">
             <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search presets..."
+              placeholder={t('searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8 h-8"
@@ -112,7 +114,7 @@ export function PresetSelector({
           <DropdownMenuGroup>
             {filteredPresets.length === 0 ? (
               <p className="px-2 py-4 text-center text-sm text-muted-foreground">
-                No presets found
+                {t('noPresetsFound')}
               </p>
             ) : (
               filteredPresets.map((preset) => (
@@ -132,7 +134,7 @@ export function PresetSelector({
               <>
                 <DropdownMenuLabel className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Clock className="h-3 w-3" />
-                  Recent
+                  {t('recent')}
                 </DropdownMenuLabel>
                 <DropdownMenuGroup>
                   {recentPresets.map((preset) => (
@@ -153,7 +155,7 @@ export function PresetSelector({
               <>
                 <DropdownMenuLabel className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <TrendingUp className="h-3 w-3" />
-                  Popular
+                  {t('popular')}
                 </DropdownMenuLabel>
                 <DropdownMenuGroup>
                   {popularPresets
@@ -173,7 +175,7 @@ export function PresetSelector({
 
             {/* All presets */}
             <DropdownMenuLabel className="text-xs text-muted-foreground">
-              All Presets
+              {t('allPresets')}
             </DropdownMenuLabel>
             <DropdownMenuGroup className="max-h-48 overflow-y-auto">
               {presets.map((preset) => (
@@ -192,11 +194,11 @@ export function PresetSelector({
         <DropdownMenuGroup>
           <DropdownMenuItem onClick={() => { setOpen(false); onCreateNew?.(); }}>
             <Plus className="mr-2 h-4 w-4" />
-            Create new preset
+            {t('createNew')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => { setOpen(false); onManage?.(); }}>
             <Settings2 className="mr-2 h-4 w-4" />
-            Manage presets
+            {t('manage')}
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
@@ -212,6 +214,7 @@ interface PresetMenuItemProps {
 }
 
 function PresetMenuItem({ preset, isSelected, onSelect }: PresetMenuItemProps) {
+  const t = useTranslations('presetSelector');
   return (
     <DropdownMenuItem
       onClick={onSelect}
@@ -238,7 +241,7 @@ function PresetMenuItem({ preset, isSelected, onSelect }: PresetMenuItemProps) {
           )}
         </div>
         <Badge variant="outline" className="text-xs shrink-0">
-          {preset.provider === 'auto' ? 'Auto' : preset.provider}
+          {preset.provider === 'auto' ? t('auto') : preset.provider}
         </Badge>
       </div>
     </DropdownMenuItem>

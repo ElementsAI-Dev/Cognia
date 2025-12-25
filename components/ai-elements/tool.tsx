@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from 'next-intl';
 import { Badge } from "@/components/ui/badge";
 import {
   Collapsible,
@@ -41,36 +42,37 @@ export type ToolHeaderProps = {
   className?: string;
 };
 
-const getStatusBadge = (status: ToolUIPart["state"]) => {
-  const labels: Record<ToolUIPart["state"], string> = {
-    "input-streaming": "Pending",
-    "input-available": "Running",
-    // @ts-expect-error state only available in AI SDK v6
-    "approval-requested": "Awaiting Approval",
-    "approval-responded": "Responded",
-    "output-available": "Completed",
-    "output-error": "Error",
-    "output-denied": "Denied",
-  };
+const statusIcons: Record<ToolUIPart["state"], ReactNode> = {
+  "input-streaming": <CircleIcon className="size-4" />,
+  "input-available": <ClockIcon className="size-4 animate-pulse" />,
+  // @ts-expect-error state only available in AI SDK v6
+  "approval-requested": <ClockIcon className="size-4 text-yellow-600" />,
+  "approval-responded": <CheckCircleIcon className="size-4 text-blue-600" />,
+  "output-available": <CheckCircleIcon className="size-4 text-green-600" />,
+  "output-error": <XCircleIcon className="size-4 text-red-600" />,
+  "output-denied": <XCircleIcon className="size-4 text-orange-600" />,
+};
 
-  const icons: Record<ToolUIPart["state"], ReactNode> = {
-    "input-streaming": <CircleIcon className="size-4" />,
-    "input-available": <ClockIcon className="size-4 animate-pulse" />,
-    // @ts-expect-error state only available in AI SDK v6
-    "approval-requested": <ClockIcon className="size-4 text-yellow-600" />,
-    "approval-responded": <CheckCircleIcon className="size-4 text-blue-600" />,
-    "output-available": <CheckCircleIcon className="size-4 text-green-600" />,
-    "output-error": <XCircleIcon className="size-4 text-red-600" />,
-    "output-denied": <XCircleIcon className="size-4 text-orange-600" />,
-  };
+const statusLabelKeys: Record<ToolUIPart["state"], string> = {
+  "input-streaming": "pending",
+  "input-available": "running",
+  // @ts-expect-error state only available in AI SDK v6
+  "approval-requested": "awaitingApproval",
+  "approval-responded": "responded",
+  "output-available": "completed",
+  "output-error": "error",
+  "output-denied": "denied",
+};
 
+function StatusBadge({ status }: { status: ToolUIPart["state"] }) {
+  const t = useTranslations('toolStatus');
   return (
     <Badge className="gap-1.5 rounded-full text-xs" variant="secondary">
-      {icons[status]}
-      {labels[status]}
+      {statusIcons[status]}
+      {t(statusLabelKeys[status])}
     </Badge>
   );
-};
+}
 
 export const ToolHeader = ({
   className,
@@ -93,7 +95,7 @@ export const ToolHeader = ({
       <span className="font-medium text-sm">
         {title ?? type.split("-").slice(1).join("-")}
       </span>
-      {getStatusBadge(state)}
+      <StatusBadge status={state} />
     </div>
     <ChevronDownIcon className="size-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
   </CollapsibleTrigger>
@@ -116,30 +118,35 @@ export type ToolInputProps = ComponentProps<"div"> & {
   input: ToolUIPart["input"];
 };
 
-export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
-  <div className={cn("space-y-2 overflow-hidden p-4", className)} {...props}>
-    <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wider flex items-center gap-2">
-      <span className="h-px flex-1 bg-border/50" />
-      Parameters
-      <span className="h-px flex-1 bg-border/50" />
-    </h4>
-    <div className="rounded-lg bg-muted/30 border border-border/30 overflow-hidden">
-      <CodeBlock code={JSON.stringify(input, null, 2)} language="json" />
+export function ToolInput({ className, input, ...props }: ToolInputProps) {
+  const t = useTranslations('toolStatus');
+  return (
+    <div className={cn("space-y-2 overflow-hidden p-4", className)} {...props}>
+      <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wider flex items-center gap-2">
+        <span className="h-px flex-1 bg-border/50" />
+        {t('parameters')}
+        <span className="h-px flex-1 bg-border/50" />
+      </h4>
+      <div className="rounded-lg bg-muted/30 border border-border/30 overflow-hidden">
+        <CodeBlock code={JSON.stringify(input, null, 2)} language="json" />
+      </div>
     </div>
-  </div>
-);
+  );
+}
 
 export type ToolOutputProps = ComponentProps<"div"> & {
   output: ToolUIPart["output"];
   errorText: ToolUIPart["errorText"];
 };
 
-export const ToolOutput = ({
+export function ToolOutput({
   className,
   output,
   errorText,
   ...props
-}: ToolOutputProps) => {
+}: ToolOutputProps) {
+  const t = useTranslations('toolStatus');
+  
   if (!(output || errorText)) {
     return null;
   }
@@ -158,7 +165,7 @@ export const ToolOutput = ({
     <div className={cn("space-y-2 p-4", className)} {...props}>
       <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wider flex items-center gap-2">
         <span className="h-px flex-1 bg-border/50" />
-        {errorText ? "Error" : "Result"}
+        {errorText ? t('error') : t('result')}
         <span className="h-px flex-1 bg-border/50" />
       </h4>
       <div
@@ -174,4 +181,4 @@ export const ToolOutput = ({
       </div>
     </div>
   );
-};
+}

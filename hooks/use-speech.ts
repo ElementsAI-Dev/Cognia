@@ -1,31 +1,53 @@
 'use client';
 
 /**
- * useSpeech - hook for text-to-speech and speech-to-text functionality
+ * useSpeech - Enhanced hook for text-to-speech and speech-to-text functionality
+ * 
+ * Features:
+ * - Browser native Speech Recognition API
+ * - OpenAI Whisper API support (via audio recording)
+ * - Settings store integration
+ * - Audio recording with MediaRecorder
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useSettingsStore } from '@/stores';
+import type { SpeechLanguageCode, SpeechProvider, SpeechError } from '@/types/speech';
+import { getSpeechError } from '@/types/speech';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SpeechRecognitionInstance = any;
 
 export interface UseSpeechOptions {
-  language?: string;
+  language?: SpeechLanguageCode;
+  provider?: SpeechProvider;
   continuous?: boolean;
   interimResults?: boolean;
+  autoSend?: boolean;
   onResult?: (transcript: string, isFinal: boolean) => void;
-  onError?: (error: string) => void;
+  onError?: (error: SpeechError) => void;
+  onAutoSend?: (transcript: string) => void;
+  // Use settings from store (default: true)
+  useSettings?: boolean;
 }
 
 export interface UseSpeechReturn {
   // Speech-to-Text
   isListening: boolean;
+  isRecording: boolean; // For Whisper API mode
   transcript: string;
   interimTranscript: string;
   startListening: () => void;
   stopListening: () => void;
   resetTranscript: () => void;
   sttSupported: boolean;
+  currentProvider: SpeechProvider;
+  currentLanguage: SpeechLanguageCode;
+  error: SpeechError | null;
+  
+  // Audio recording (for Whisper)
+  audioBlob: Blob | null;
+  recordingDuration: number;
 
   // Text-to-Speech
   isSpeaking: boolean;
@@ -47,18 +69,37 @@ export interface SpeakOptions {
 
 export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
   const {
-    language = 'zh-CN',
-    continuous = true,
-    interimResults = true,
+    useSettings = true,
     onResult,
     onError,
+    onAutoSend,
   } = options;
+
+  // Get settings from store
+  const speechSettings = useSettingsStore((state) => state.speechSettings);
+  
+  // Merge options with settings
+  const language = options.language ?? (useSettings ? speechSettings.sttLanguage : 'zh-CN');
+  const provider = options.provider ?? (useSettings ? speechSettings.sttProvider : 'system');
+  const continuous = options.continuous ?? (useSettings ? speechSettings.sttContinuous : true);
+  const interimResults = options.interimResults ?? (useSettings ? speechSettings.sttInterimResults : true);
+  const autoSend = options.autoSend ?? (useSettings ? speechSettings.sttAutoSend : false);
 
   // STT state
   const [isListening, setIsListening] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
+  const [error, setError] = useState<SpeechError | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance>(null);
+  
+  // Audio recording state (for Whisper API)
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingStartTimeRef = useRef<number>(0);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // TTS state
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -66,16 +107,22 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   // Check support
-  const sttSupported =
+  const browserSttSupported =
     typeof window !== 'undefined' &&
     ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+  
+  const mediaRecorderSupported =
+    typeof window !== 'undefined' && 'MediaRecorder' in window;
+  
+  // STT is supported if browser API works OR we can record for Whisper
+  const sttSupported = browserSttSupported || (provider === 'openai' && mediaRecorderSupported);
 
   const ttsSupported =
     typeof window !== 'undefined' && 'speechSynthesis' in window;
 
-  // Initialize STT
+  // Initialize browser STT (only for system provider)
   useEffect(() => {
-    if (!sttSupported) return;
+    if (!browserSttSupported || provider !== 'system') return;
 
     const SpeechRecognitionAPI =
       window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -85,8 +132,18 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
     recognition.interimResults = interimResults;
     recognition.lang = language;
 
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
+    recognition.onstart = () => {
+      setIsListening(true);
+      setError(null);
+    };
+    
+    recognition.onend = () => {
+      setIsListening(false);
+      // Auto-send if enabled and we have a transcript
+      if (autoSend && transcript.trim()) {
+        onAutoSend?.(transcript);
+      }
+    };
 
     recognition.onresult = (event) => {
       let finalTranscript = '';
@@ -117,7 +174,9 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
     recognition.onerror = (event) => {
       console.error('Speech recognition error:', event.error);
       setIsListening(false);
-      onError?.(event.error);
+      const speechError = getSpeechError(event.error as Parameters<typeof getSpeechError>[0]);
+      setError(speechError);
+      onError?.(speechError);
     };
 
     recognitionRef.current = recognition;
@@ -125,7 +184,7 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
     return () => {
       recognition.stop();
     };
-  }, [sttSupported, language, continuous, interimResults, onResult, onError]);
+  }, [browserSttSupported, provider, language, continuous, interimResults, autoSend, transcript, onResult, onError, onAutoSend]);
 
   // Initialize TTS voices
   useEffect(() => {
@@ -144,25 +203,113 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
     };
   }, [ttsSupported]);
 
+  // Start audio recording for Whisper API
+  const startRecording = useCallback(async () => {
+    if (!mediaRecorderSupported) return;
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus',
+      });
+      
+      audioChunksRef.current = [];
+      recordingStartTimeRef.current = Date.now();
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setAudioBlob(blob);
+        setIsRecording(false);
+        
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+        
+        // Clear timer
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+      };
+      
+      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorder.start(100); // Collect data every 100ms
+      setIsRecording(true);
+      setError(null);
+      
+      // Start duration timer
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(Date.now() - recordingStartTimeRef.current);
+      }, 100);
+      
+    } catch (err) {
+      console.error('Failed to start recording:', err);
+      const speechError = getSpeechError('audio-capture');
+      setError(speechError);
+      onError?.(speechError);
+    }
+  }, [mediaRecorderSupported, onError]);
+  
+  // Stop audio recording
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+  }, []);
+
   // STT methods
   const startListening = useCallback(() => {
-    if (!recognitionRef.current || isListening) return;
-
-    try {
-      recognitionRef.current.start();
-    } catch (error) {
-      console.error('Failed to start speech recognition:', error);
+    setError(null);
+    
+    if (provider === 'openai') {
+      // Use audio recording for Whisper
+      startRecording();
+    } else {
+      // Use browser Speech Recognition
+      if (!recognitionRef.current || isListening) return;
+      try {
+        recognitionRef.current.start();
+      } catch (err) {
+        console.error('Failed to start speech recognition:', err);
+        const speechError = getSpeechError('aborted');
+        setError(speechError);
+        onError?.(speechError);
+      }
     }
-  }, [isListening]);
+  }, [provider, isListening, startRecording, onError]);
 
   const stopListening = useCallback(() => {
-    if (!recognitionRef.current) return;
-    recognitionRef.current.stop();
-  }, []);
+    if (provider === 'openai') {
+      stopRecording();
+    } else {
+      if (!recognitionRef.current) return;
+      recognitionRef.current.stop();
+    }
+  }, [provider, stopRecording]);
 
   const resetTranscript = useCallback(() => {
     setTranscript('');
     setInterimTranscript('');
+    setAudioBlob(null);
+    setRecordingDuration(0);
+    setError(null);
+  }, []);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    };
   }, []);
 
   // TTS methods
@@ -220,13 +367,21 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
 
   return {
     // STT
-    isListening,
+    isListening: isListening || isRecording,
+    isRecording,
     transcript,
     interimTranscript,
     startListening,
     stopListening,
     resetTranscript,
     sttSupported,
+    currentProvider: provider,
+    currentLanguage: language,
+    error,
+    
+    // Audio recording
+    audioBlob,
+    recordingDuration,
 
     // TTS
     isSpeaking,

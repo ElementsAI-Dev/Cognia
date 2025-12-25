@@ -5,6 +5,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { Search, Sparkles, Eye, MessageSquare, Settings2, ArrowRight } from 'lucide-react';
 import {
   Dialog,
@@ -32,6 +33,7 @@ export function TemplateSelector({
   trigger,
   onSelectTemplate,
 }: TemplateSelectorProps) {
+  const t = useTranslations('templates');
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<TemplateCategory | 'all'>('all');
@@ -67,7 +69,7 @@ export function TemplateSelector({
         {trigger || (
           <Button variant="outline" size="sm">
             <Sparkles className="h-4 w-4 mr-2" />
-            Templates
+            {t('title')}
           </Button>
         )}
       </DialogTrigger>
@@ -75,10 +77,10 @@ export function TemplateSelector({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            Chat Templates
+            {t('title')}
           </DialogTitle>
           <DialogDescription>
-            Choose a template to start a new conversation with pre-configured settings
+            {t('description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -89,7 +91,7 @@ export function TemplateSelector({
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search templates..."
+                placeholder={t('search')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -103,7 +105,7 @@ export function TemplateSelector({
               className="flex-1 flex flex-col min-h-0"
             >
               <TabsList className="w-full justify-start overflow-x-auto flex-nowrap shrink-0">
-                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="all">{t('all')}</TabsTrigger>
                 {categories.map((cat) => (
                   <TabsTrigger key={cat} value={cat}>
                     {TEMPLATE_CATEGORY_LABELS[cat]}
@@ -121,11 +123,13 @@ export function TemplateSelector({
                         onSelect={() => handleSelect(template)}
                         onPreview={() => setPreviewTemplate(template)}
                         isSelected={previewTemplate?.id === template.id}
+                        builtInLabel={t('builtIn')}
+                        useTemplateLabel={t('useTemplate')}
                       />
                     ))}
                     {filteredTemplates.length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
-                        No templates found
+                        {t('noTemplates')}
                       </div>
                     )}
                   </div>
@@ -137,7 +141,14 @@ export function TemplateSelector({
           {/* Right side - Preview panel */}
           <div className="w-80 shrink-0 border-l hidden md:block">
             <ScrollArea className="h-[450px]">
-              <TemplatePreview template={previewTemplate} />
+              <TemplatePreview 
+                template={previewTemplate}
+                selectToPreviewLabel={t('selectToPreview')}
+                systemPromptLabel={t('systemPrompt')}
+                suggestedPromptsLabel={t('suggestedPrompts')}
+                providerLabel={t('provider')}
+                modelLabel={t('model')}
+              />
             </ScrollArea>
           </div>
         </div>
@@ -151,9 +162,11 @@ interface TemplateCardProps {
   onSelect: () => void;
   onPreview: () => void;
   isSelected: boolean;
+  builtInLabel: string;
+  useTemplateLabel: string;
 }
 
-function TemplateCard({ template, onSelect, onPreview, isSelected }: TemplateCardProps) {
+function TemplateCard({ template, onSelect, onPreview, isSelected, builtInLabel, useTemplateLabel }: TemplateCardProps) {
   return (
     <button
       onClick={onPreview}
@@ -169,7 +182,7 @@ function TemplateCard({ template, onSelect, onPreview, isSelected }: TemplateCar
         </div>
         {template.isBuiltIn && (
           <Badge variant="outline" className="text-xs shrink-0">
-            Built-in
+            {builtInLabel}
           </Badge>
         )}
       </div>
@@ -197,7 +210,7 @@ function TemplateCard({ template, onSelect, onPreview, isSelected }: TemplateCar
             onSelect();
           }}
         >
-          Use Template
+          {useTemplateLabel}
           <ArrowRight className="h-4 w-4" />
         </Button>
       )}
@@ -205,12 +218,28 @@ function TemplateCard({ template, onSelect, onPreview, isSelected }: TemplateCar
   );
 }
 
-function TemplatePreview({ template }: { template: ChatTemplate | null }) {
+interface TemplatePreviewProps {
+  template: ChatTemplate | null;
+  selectToPreviewLabel: string;
+  systemPromptLabel: string;
+  suggestedPromptsLabel: string;
+  providerLabel: string;
+  modelLabel: string;
+}
+
+function TemplatePreview({ 
+  template, 
+  selectToPreviewLabel,
+  systemPromptLabel,
+  suggestedPromptsLabel,
+  providerLabel,
+  modelLabel,
+}: TemplatePreviewProps) {
   if (!template) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-6">
         <Eye className="h-12 w-12 mb-4 opacity-50" />
-        <p className="text-center">Select a template to preview its details</p>
+        <p className="text-center">{selectToPreviewLabel}</p>
       </div>
     );
   }
@@ -231,7 +260,7 @@ function TemplatePreview({ template }: { template: ChatTemplate | null }) {
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Settings2 className="h-4 w-4" />
-            System Prompt
+            {systemPromptLabel}
           </div>
           <div className="p-3 rounded-lg bg-muted/50 text-sm max-h-32 overflow-y-auto">
             <p className="whitespace-pre-wrap text-muted-foreground">{template.systemPrompt}</p>
@@ -243,7 +272,7 @@ function TemplatePreview({ template }: { template: ChatTemplate | null }) {
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm font-medium">
             <MessageSquare className="h-4 w-4" />
-            Suggested Prompts
+            {suggestedPromptsLabel}
           </div>
           <div className="space-y-2">
             {template.suggestedQuestions.map((q, i) => (
@@ -261,10 +290,10 @@ function TemplatePreview({ template }: { template: ChatTemplate | null }) {
       {(template.provider || template.model) && (
         <div className="flex gap-2 flex-wrap">
           {template.provider && (
-            <Badge variant="outline">Provider: {template.provider}</Badge>
+            <Badge variant="outline">{providerLabel}: {template.provider}</Badge>
           )}
           {template.model && (
-            <Badge variant="outline">Model: {template.model}</Badge>
+            <Badge variant="outline">{modelLabel}: {template.model}</Badge>
           )}
         </div>
       )}

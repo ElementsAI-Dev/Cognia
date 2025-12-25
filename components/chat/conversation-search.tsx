@@ -5,6 +5,7 @@
  */
 
 import { useState, useMemo, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { Search, X, ChevronUp, ChevronDown, Bookmark } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,7 @@ export function ConversationSearch({
   onClose,
   className,
 }: ConversationSearchProps) {
+  const t = useTranslations('chat');
   const [query, setQuery] = useState('');
   const [currentResultIndex, setCurrentResultIndex] = useState(0);
   const [showBookmarkedOnly, setShowBookmarkedOnly] = useState(false);
@@ -116,7 +118,7 @@ export function ConversationSearch({
             setQuery(e.target.value);
             setCurrentResultIndex(0);
           }}
-          placeholder="Search in conversation..."
+          placeholder={t('searchInConversation')}
           className="border-0 focus-visible:ring-0 h-8"
           autoFocus
         />
@@ -125,7 +127,7 @@ export function ConversationSearch({
           size="icon"
           className="h-8 w-8 shrink-0"
           onClick={() => setShowBookmarkedOnly(!showBookmarkedOnly)}
-          title="Show bookmarked only"
+          title={t('showBookmarkedOnly')}
         >
           <Bookmark className={cn('h-4 w-4', showBookmarkedOnly && 'fill-current')} />
         </Button>

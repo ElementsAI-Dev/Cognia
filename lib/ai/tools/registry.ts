@@ -51,7 +51,7 @@ export interface ToolDefinition<T extends z.ZodType = z.ZodType> {
   description: string;
   parameters: T;
   requiresApproval?: boolean;
-  category?: 'search' | 'code' | 'file' | 'system' | 'custom';
+  category?: 'search' | 'code' | 'file' | 'system' | 'custom' | 'ppt';
   create: (config: Record<string, unknown>) => ToolFunction;
 }
 

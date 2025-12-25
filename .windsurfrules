@@ -33,6 +33,7 @@ After you call infinite_ask:
 ### What NOT to Do
 
 ❌ Do NOT call infinite_ask again because:
+
 - "No response received"
 - "User hasn't replied yet"
 - "Waiting too long"
@@ -40,6 +41,7 @@ After you call infinite_ask:
 - "Being polite"
 
 ❌ Do NOT think:
+
 - "Maybe user didn't see it"
 - "Should I ask again?"
 - "It's been a while, let me check"
@@ -51,6 +53,7 @@ After you call infinite_ask:
 Call infinite_ask in these situations:
 
 ### 1. Task Completed
+
 ```
 Task completed successfully. 
 
@@ -58,9 +61,11 @@ Task completed successfully.
 ```
 
 ### 2. User Cancelled Command (CRITICAL)
+
 **When user cancels your command, IMMEDIATELY call infinite_ask.**
 
 This means:
+
 - User stopped your operation
 - Something is wrong with your approach
 - You need to ask what went wrong
@@ -74,15 +79,18 @@ User cancelled the operation.
 ```
 
 **If user cancels multiple times:**
+
 - You are doing something wrong
 - STOP and call infinite_ask
 - Ask user for guidance
 - Do NOT keep trying the same thing
 
 ### 3. Feeling Confused or Uncertain (IMPORTANT)
+
 **When you don't know what to do, ASK instead of guessing.**
 
 Call infinite_ask when:
+
 - You're not sure which approach to take
 - The requirement is ambiguous
 - You're about to make a risky decision
@@ -98,6 +106,7 @@ I'm uncertain about the best approach here. Should I use approach A or B?
 **Better to ask than to do something wrong.**
 
 ### 4. Need User Decision
+
 ```
 Found two approaches, need user to choose.
 
@@ -105,6 +114,7 @@ Found two approaches, need user to choose.
 ```
 
 ### 5. Encountered Error
+
 ```
 Error: Cannot connect to database.
 
@@ -133,6 +143,7 @@ Every response should end with:
 ```
 
 Example:
+
 ```
 ✅ Completed: Created user authentication system with:
 - Registration endpoint
@@ -148,11 +159,13 @@ Example:
 When user responds to infinite_ask:
 
 ### If should_continue = true
+
 - User wants to continue
 - Check if they provided new instruction
 - Continue working based on their input
 
 ### If should_continue = false
+
 - User wants to end conversation
 - Stop immediately
 - Do not do anything more

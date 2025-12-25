@@ -15,6 +15,8 @@ import {
 import type { ColorThemePreset } from '@/lib/themes';
 import type { SearchProviderType, SearchProviderSettings } from '@/types/search';
 import { DEFAULT_SEARCH_PROVIDER_SETTINGS } from '@/types/search';
+import type { SpeechSettings, SpeechLanguageCode, SpeechProvider } from '@/types/speech';
+import { DEFAULT_SPEECH_SETTINGS } from '@/types/speech';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'en' | 'zh-CN';
@@ -223,6 +225,23 @@ interface SettingsState {
   setCustomShortcut: (id: string, keys: string) => void;
   resetShortcuts: () => void;
 
+  // Speech settings
+  speechSettings: SpeechSettings;
+  setSpeechSettings: (settings: Partial<SpeechSettings>) => void;
+  setSttEnabled: (enabled: boolean) => void;
+  setSttLanguage: (language: SpeechLanguageCode) => void;
+  setSttProvider: (provider: SpeechProvider) => void;
+  setSttContinuous: (continuous: boolean) => void;
+  setSttAutoSend: (autoSend: boolean) => void;
+  setTtsEnabled: (enabled: boolean) => void;
+  setTtsVoice: (voice: string) => void;
+  setTtsRate: (rate: number) => void;
+  setTtsAutoPlay: (autoPlay: boolean) => void;
+
+  // Onboarding
+  hasCompletedOnboarding: boolean;
+  setOnboardingCompleted: (completed: boolean) => void;
+
   // Reset
   resetSettings: () => void;
 }
@@ -403,6 +422,12 @@ const initialState = {
 
   // Keyboard shortcut customization
   customShortcuts: {} as Record<string, string>,
+
+  // Speech settings
+  speechSettings: { ...DEFAULT_SPEECH_SETTINGS },
+
+  // Onboarding
+  hasCompletedOnboarding: false,
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -782,6 +807,51 @@ export const useSettingsStore = create<SettingsState>()(
         })),
       resetShortcuts: () => set({ customShortcuts: {} }),
 
+      // Speech settings actions
+      setSpeechSettings: (settings) =>
+        set((state) => ({
+          speechSettings: { ...state.speechSettings, ...settings },
+        })),
+      setSttEnabled: (sttEnabled) =>
+        set((state) => ({
+          speechSettings: { ...state.speechSettings, sttEnabled },
+        })),
+      setSttLanguage: (sttLanguage) =>
+        set((state) => ({
+          speechSettings: { ...state.speechSettings, sttLanguage },
+        })),
+      setSttProvider: (sttProvider) =>
+        set((state) => ({
+          speechSettings: { ...state.speechSettings, sttProvider },
+        })),
+      setSttContinuous: (sttContinuous) =>
+        set((state) => ({
+          speechSettings: { ...state.speechSettings, sttContinuous },
+        })),
+      setSttAutoSend: (sttAutoSend) =>
+        set((state) => ({
+          speechSettings: { ...state.speechSettings, sttAutoSend },
+        })),
+      setTtsEnabled: (ttsEnabled) =>
+        set((state) => ({
+          speechSettings: { ...state.speechSettings, ttsEnabled },
+        })),
+      setTtsVoice: (ttsVoice) =>
+        set((state) => ({
+          speechSettings: { ...state.speechSettings, ttsVoice },
+        })),
+      setTtsRate: (ttsRate) =>
+        set((state) => ({
+          speechSettings: { ...state.speechSettings, ttsRate: Math.min(10, Math.max(0.1, ttsRate)) },
+        })),
+      setTtsAutoPlay: (ttsAutoPlay) =>
+        set((state) => ({
+          speechSettings: { ...state.speechSettings, ttsAutoPlay },
+        })),
+
+      // Onboarding actions
+      setOnboardingCompleted: (hasCompletedOnboarding) => set({ hasCompletedOnboarding }),
+
       resetSettings: () => set(initialState),
     }),
     {
@@ -853,6 +923,10 @@ export const useSettingsStore = create<SettingsState>()(
         defaultPresencePenalty: state.defaultPresencePenalty,
         // Keyboard shortcuts
         customShortcuts: state.customShortcuts,
+        // Speech settings
+        speechSettings: state.speechSettings,
+        // Onboarding
+        hasCompletedOnboarding: state.hasCompletedOnboarding,
       }),
     }
   )

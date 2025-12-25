@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from 'next-intl';
 import { Button } from "@/components/ui/button";
 import {
   HoverCard,
@@ -61,6 +62,7 @@ export const Context = ({
 );
 
 const ContextIcon = () => {
+  const t = useTranslations('accessibility');
   const { usedTokens, maxTokens } = useContextValue();
   const circumference = 2 * Math.PI * ICON_RADIUS;
   const usedPercent = usedTokens / maxTokens;
@@ -68,7 +70,7 @@ const ContextIcon = () => {
 
   return (
     <svg
-      aria-label="Model context usage"
+      aria-label={t('contextUsage')}
       height="20"
       role="img"
       style={{ color: "currentcolor" }}

@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Bot,
   Layout,
@@ -73,6 +74,8 @@ export function AgentModeSelector({
   disabled,
   className,
 }: AgentModeSelectorProps) {
+  const t = useTranslations('agentMode');
+  const tCommon = useTranslations('common');
   const [showCustomDialog, setShowCustomDialog] = useState(false);
   const [customName, setCustomName] = useState('');
   const [customDescription, setCustomDescription] = useState('');
@@ -118,7 +121,7 @@ export function AgentModeSelector({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-64">
           <div className="px-2 py-1.5">
-            <p className="text-xs font-medium text-muted-foreground">Agent Mode</p>
+            <p className="text-xs font-medium text-muted-foreground">{t('title')}</p>
           </div>
           <ScrollArea className="max-h-[300px]">
             {BUILT_IN_AGENT_MODES.map((mode) => {
@@ -145,7 +148,7 @@ export function AgentModeSelector({
                     </p>
                     {mode.previewEnabled && (
                       <Badge variant="secondary" className="mt-1 text-[10px]">
-                        Live Preview
+                        {t('livePreview')}
                       </Badge>
                     )}
                   </div>
@@ -161,7 +164,7 @@ export function AgentModeSelector({
                 className="gap-2"
               >
                 <Plus className="h-4 w-4" />
-                Create Custom Mode
+                {t('createCustomMode')}
               </DropdownMenuItem>
             </>
           )}
@@ -172,47 +175,47 @@ export function AgentModeSelector({
       <Dialog open={showCustomDialog} onOpenChange={setShowCustomDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Create Custom Agent Mode</DialogTitle>
+            <DialogTitle>{t('createCustomMode')}</DialogTitle>
             <DialogDescription>
-              Define a custom agent mode with specific behavior
+              {t('createCustomModeDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">{t('name')}</Label>
               <Input
                 id="name"
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
-                placeholder="My Custom Agent"
+                placeholder={t('namePlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{t('description')}</Label>
               <Input
                 id="description"
                 value={customDescription}
                 onChange={(e) => setCustomDescription(e.target.value)}
-                placeholder="What does this agent do?"
+                placeholder={t('descriptionPlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="prompt">System Prompt</Label>
+              <Label htmlFor="prompt">{t('systemPrompt')}</Label>
               <Textarea
                 id="prompt"
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
-                placeholder="You are a helpful assistant that..."
+                placeholder={t('systemPromptPlaceholder')}
                 className="min-h-[120px]"
               />
             </div>
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setShowCustomDialog(false)}>
-              Cancel
+              {tCommon('cancel')}
             </Button>
             <Button onClick={handleCreateCustomMode} disabled={!customName.trim()}>
-              Create
+              {t('create')}
             </Button>
           </div>
         </DialogContent>

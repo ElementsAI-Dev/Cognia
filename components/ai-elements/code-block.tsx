@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from 'next-intl';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -86,6 +87,7 @@ export const CodeBlock = ({
   children,
   ...props
 }: CodeBlockProps) => {
+  const t = useTranslations('renderer');
   const [html, setHtml] = useState<string>("");
   const [darkHtml, setDarkHtml] = useState<string>("");
   const mounted = useRef(false);
@@ -179,7 +181,7 @@ export const CodeBlock = ({
                 onClick={handleOpenInCanvas}
                 size="icon"
                 variant="ghost"
-                title="Open in Canvas"
+                title={t('openInCanvas')}
               >
                 <PanelRightOpen size={14} />
               </Button>
@@ -189,7 +191,7 @@ export const CodeBlock = ({
               onClick={handleDownload}
               size="icon"
               variant="ghost"
-              title="Download"
+              title={t('downloadCode')}
             >
               <Download size={14} />
             </Button>
@@ -215,6 +217,7 @@ export const CodeBlockCopyButton = ({
   className,
   ...props
 }: CodeBlockCopyButtonProps) => {
+  const t = useTranslations('renderer');
   const [isCopied, setIsCopied] = useState(false);
   const { code } = useContext(CodeBlockContext);
 
@@ -242,7 +245,7 @@ export const CodeBlockCopyButton = ({
       onClick={copyToClipboard}
       size="icon"
       variant="ghost"
-      title="Copy code"
+      title={t('copyCode')}
       {...props}
     >
       {children ?? <Icon size={14} />}

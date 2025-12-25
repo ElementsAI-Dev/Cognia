@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { Copy, Quote, Search, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -30,6 +31,7 @@ export function TextSelectionPopover({
   messageRole,
   onSearch,
 }: TextSelectionPopoverProps) {
+  const tToasts = useTranslations('toasts');
   const [selection, setSelection] = useState<SelectionState>({ text: '', rect: null });
   const [copied, setCopied] = useState(false);
   const [quoted, setQuoted] = useState(false);
@@ -100,10 +102,10 @@ export function TextSelectionPopover({
     try {
       await navigator.clipboard.writeText(selection.text);
       setCopied(true);
-      toast.success('Copied to clipboard');
+      toast.success(tToasts('copied'));
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Failed to copy');
+      toast.error(tToasts('copyFailed'));
     }
   };
 
@@ -114,7 +116,7 @@ export function TextSelectionPopover({
       messageRole,
     });
     setQuoted(true);
-    toast.success('Added to quote');
+    toast.success(tToasts('addedToQuote'));
     setTimeout(() => {
       setSelection({ text: '', rect: null });
       window.getSelection()?.removeAllRanges();

@@ -11,6 +11,7 @@
  */
 
 import { useMemo, useState, useRef, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { 
   AlertCircle, 
   Copy, 
@@ -54,12 +55,14 @@ interface MathBlockProps {
 }
 
 export function MathBlock({ content, className, scale = 1 }: MathBlockProps) {
+  const t = useTranslations('renderer');
+  const tToasts = useTranslations('toasts');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSource, setShowSource] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const mathRef = useRef<HTMLDivElement>(null);
   const fullscreenMathRef = useRef<HTMLDivElement>(null);
-  const { copy, isCopying } = useCopy({ toastMessage: 'LaTeX copied to clipboard' });
+  const { copy, isCopying } = useCopy({ toastMessage: tToasts('latexCopied') });
 
   const cleanContent = useMemo(() => {
     return content
@@ -104,13 +107,13 @@ export function MathBlock({ content, className, scale = 1 }: MathBlockProps) {
         backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
         padding: 20,
       });
-      toast.success(`Exported as ${format.toUpperCase()}`);
+      toast.success(tToasts('exported', { format: format.toUpperCase() }));
     } catch (err) {
-      toast.error(`Failed to export: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.error(tToasts('exportFailed', { error: err instanceof Error ? err.message : 'Unknown error' }));
     } finally {
       setIsExporting(false);
     }
-  }, [cleanContent, isFullscreen]);
+  }, [cleanContent, isFullscreen, tToasts]);
 
   const handleRetry = useCallback(() => {
     // Force re-render by toggling a state
@@ -122,12 +125,12 @@ export function MathBlock({ content, className, scale = 1 }: MathBlockProps) {
       <div 
         className={cn('flex flex-col gap-2 p-4 rounded-lg bg-destructive/10 border border-destructive/20', className)}
         role="alert"
-        aria-label="LaTeX rendering error"
+        aria-label={t('latexError')}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-destructive">
             <AlertCircle className="h-4 w-4" aria-hidden="true" />
-            <span className="text-sm font-medium">LaTeX Error</span>
+            <span className="text-sm font-medium">{t('latexError')}</span>
           </div>
           <div className="flex items-center gap-1">
             <Tooltip>
@@ -137,12 +140,12 @@ export function MathBlock({ content, className, scale = 1 }: MathBlockProps) {
                   size="icon"
                   className="h-7 w-7"
                   onClick={handleRetry}
-                  aria-label="Retry rendering"
+                  aria-label={t('retry')}
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Retry</TooltipContent>
+              <TooltipContent>{t('retry')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -152,12 +155,12 @@ export function MathBlock({ content, className, scale = 1 }: MathBlockProps) {
                   className="h-7 w-7"
                   onClick={handleCopy}
                   disabled={isCopying}
-                  aria-label="Copy LaTeX source"
+                  aria-label={t('copyLatex')}
                 >
                   {isCopying ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Copy source</TooltipContent>
+              <TooltipContent>{t('copyLatex')}</TooltipContent>
             </Tooltip>
           </div>
         </div>
@@ -176,7 +179,7 @@ export function MathBlock({ content, className, scale = 1 }: MathBlockProps) {
       <div 
         className={cn('group relative my-4 rounded-lg', className)}
         role="math"
-        aria-label="Mathematical expression"
+        aria-label={t('mathExpression')}
       >
         {/* Action buttons */}
         <div className="absolute top-0 right-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-background/80 backdrop-blur-sm rounded-lg p-0.5">
@@ -187,13 +190,13 @@ export function MathBlock({ content, className, scale = 1 }: MathBlockProps) {
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => setShowSource(!showSource)}
-                aria-label={showSource ? 'Hide source' : 'Show source'}
+                aria-label={showSource ? t('hideSpec') : t('showSpec')}
                 aria-pressed={showSource}
               >
                 <Code2 className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{showSource ? 'Hide source' : 'Show source'}</TooltipContent>
+            <TooltipContent>{showSource ? t('hideSpec') : t('showSpec')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -204,12 +207,12 @@ export function MathBlock({ content, className, scale = 1 }: MathBlockProps) {
                 className="h-7 w-7"
                 onClick={handleCopy}
                 disabled={isCopying}
-                aria-label="Copy LaTeX"
+                aria-label={t('copyLatex')}
               >
                 {isCopying ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Copy LaTeX</TooltipContent>
+            <TooltipContent>{t('copyLatex')}</TooltipContent>
           </Tooltip>
 
           <DropdownMenu>
@@ -221,22 +224,22 @@ export function MathBlock({ content, className, scale = 1 }: MathBlockProps) {
                     size="icon"
                     className="h-7 w-7"
                     disabled={isExporting}
-                    aria-label="Export options"
+                    aria-label={t('exportOptions')}
                   >
                     <Download className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
-              <TooltipContent>Export</TooltipContent>
+              <TooltipContent>{t('exportOptions')}</TooltipContent>
             </Tooltip>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => handleExport('png')}>
                 <ImageIcon className="h-4 w-4 mr-2" aria-hidden="true" />
-                Export as PNG
+                {t('exportPng')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExport('svg')}>
                 <FileCode className="h-4 w-4 mr-2" />
-                Export as SVG
+                {t('exportSvg')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -248,12 +251,12 @@ export function MathBlock({ content, className, scale = 1 }: MathBlockProps) {
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => setIsFullscreen(true)}
-                aria-label="View fullscreen"
+                aria-label={t('viewFullscreen')}
               >
                 <Maximize2 className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Fullscreen</TooltipContent>
+            <TooltipContent>{t('viewFullscreen')}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -278,7 +281,7 @@ export function MathBlock({ content, className, scale = 1 }: MathBlockProps) {
         <DialogContent className="max-w-[90vw] max-h-[90vh] overflow-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span>Mathematical Expression</span>
+              <span>{t('mathExpression')}</span>
               <div className="flex items-center gap-1 ml-auto">
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -288,12 +291,12 @@ export function MathBlock({ content, className, scale = 1 }: MathBlockProps) {
                       className="h-7 w-7"
                       onClick={handleCopy}
                       disabled={isCopying}
-                      aria-label="Copy LaTeX"
+                      aria-label={t('copyLatex')}
                     >
                       {isCopying ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Copy LaTeX</TooltipContent>
+                  <TooltipContent>{t('copyLatex')}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -303,12 +306,12 @@ export function MathBlock({ content, className, scale = 1 }: MathBlockProps) {
                       className="h-7 w-7"
                       onClick={() => handleExport('png')}
                       disabled={isExporting}
-                      aria-label="Export as PNG"
+                      aria-label={t('exportPng')}
                     >
                       <ImageIcon className="h-3.5 w-3.5" aria-hidden="true" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Export PNG</TooltipContent>
+                  <TooltipContent>{t('exportPng')}</TooltipContent>
                 </Tooltip>
               </div>
             </DialogTitle>
@@ -326,7 +329,7 @@ export function MathBlock({ content, className, scale = 1 }: MathBlockProps) {
             <details className="group">
               <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2">
                 <Code2 className="h-4 w-4" />
-                <span>View LaTeX Source</span>
+                <span>{t('copyLatex')}</span>
               </summary>
               <pre className="mt-2 p-4 rounded-lg bg-muted text-sm overflow-auto font-mono">
                 <code>{cleanContent}</code>

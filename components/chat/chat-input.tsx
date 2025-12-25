@@ -13,6 +13,7 @@
  */
 
 import { useRef, useCallback, useState, useEffect, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { Send, Paperclip, Square, Loader2, Mic, X, FileIcon, ImageIcon, Archive, Wand2, Zap, Globe, Brain, Settings2, ChevronDown } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { Button } from '@/components/ui/button';
@@ -29,8 +30,10 @@ import { RecentFilesPopover } from './recent-files-popover';
 import { MentionPopover } from './mention-popover';
 import type { RecentFile } from '@/stores/recent-files-store';
 import type { MentionItem, SelectedMention, ParsedToolCall } from '@/types/mcp';
-import { useMention } from '@/hooks';
+import { useMention, useSpeech } from '@/hooks';
 import { cn } from '@/lib/utils';
+import { transcribeViaApi, formatDuration } from '@/lib/ai/speech-api';
+import { getLanguageFlag } from '@/types/speech';
 import { nanoid } from 'nanoid';
 
 // Helper to get caret coordinates in textarea for mention popover positioning
@@ -173,6 +176,7 @@ interface ChatInputProps {
   // Mode and model selection (controlled by parent)
   onModeClick?: () => void;
   onModelClick?: () => void;
+  onWorkflowClick?: () => void;
 }
 
 function formatFileSize(bytes: number): string {
@@ -231,6 +235,8 @@ export function ChatInput({
   onModeClick,
   onModelClick,
 }: ChatInputProps) {
+  const t = useTranslations('chatInput');
+  const tPlaceholders = useTranslations('placeholders');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -268,13 +274,40 @@ export function ChatInput({
   const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // Voice input state
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  // Check speech support synchronously during initial render (not in effect)
-  const [speechSupported] = useState(() => 
-    typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
-  );
+  // Voice input with enhanced speech hook
+  const {
+    isListening,
+    isRecording,
+    transcript: _speechTranscript,
+    interimTranscript: _interimTranscript,
+    startListening,
+    stopListening,
+    resetTranscript,
+    sttSupported: speechSupported,
+    currentProvider: speechProvider,
+    currentLanguage: speechLanguage,
+    error: _speechError,
+    audioBlob,
+    recordingDuration,
+  } = useSpeech({
+    onResult: (text, isFinal) => {
+      if (isFinal && text.trim()) {
+        const currentValue = valueRef.current;
+        onChangeRef.current(currentValue + (currentValue ? ' ' : '') + text);
+      }
+    },
+    onAutoSend: (text) => {
+      if (text.trim() && canSend) {
+        onSubmit(text, attachments.length > 0 ? attachments : undefined, parseToolCalls(text).length > 0 ? parseToolCalls(text) : undefined);
+        onChange('');
+        setAttachments([]);
+        resetTranscript();
+      }
+    },
+  });
+  
+  // State for Whisper transcription loading
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   // Preview state
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
@@ -343,45 +376,33 @@ export function ChatInput({
     onChangeRef.current = onChange;
   }, [value, onChange]);
 
-  // Initialize speech recognition - only once on mount
+  // Handle Whisper transcription when audio blob is available
   useEffect(() => {
-    if (!speechSupported) return;
+    if (!audioBlob || speechProvider !== 'openai') return;
     
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const speechRecognition = new SpeechRecognition();
-
-    speechRecognition.continuous = true;
-    speechRecognition.interimResults = true;
-    speechRecognition.lang = 'zh-CN'; // Can be configured
-
-    speechRecognition.onstart = () => setIsListening(true);
-    speechRecognition.onend = () => setIsListening(false);
-
-    speechRecognition.onresult = (event) => {
-      let finalTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          finalTranscript += result[0]?.transcript ?? '';
+    const transcribe = async () => {
+      setIsTranscribing(true);
+      try {
+        const result = await transcribeViaApi(audioBlob, {
+          language: speechLanguage,
+        });
+        
+        if (result.success && result.text) {
+          const currentValue = valueRef.current;
+          onChangeRef.current(currentValue + (currentValue ? ' ' : '') + result.text);
+        } else if (result.error) {
+          console.error('Transcription error:', result.error);
         }
+      } catch (err) {
+        console.error('Failed to transcribe:', err);
+      } finally {
+        setIsTranscribing(false);
+        resetTranscript();
       }
-      if (finalTranscript) {
-        const currentValue = valueRef.current;
-        onChangeRef.current(currentValue + (currentValue ? ' ' : '') + finalTranscript);
-      }
     };
-
-    speechRecognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
-      setIsListening(false);
-    };
-
-    recognitionRef.current = speechRecognition;
-
-    return () => {
-      speechRecognition.stop();
-    };
-  }, [speechSupported]);
+    
+    transcribe();
+  }, [audioBlob, speechProvider, speechLanguage, resetTranscript]);
 
   // Validate file
   const validateFile = useCallback((file: File): string | null => {
@@ -579,14 +600,12 @@ export function ChatInput({
   };
 
   const toggleVoice = useCallback(() => {
-    const recognition = recognitionRef.current;
-    if (!recognition) return;
-    if (isListening) {
-      recognition.stop();
+    if (isListening || isRecording) {
+      stopListening();
     } else {
-      recognition.start();
+      startListening();
     }
-  }, [isListening]);
+  }, [isListening, isRecording, startListening, stopListening]);
 
   const openFileDialog = useCallback(() => {
     fileInputRef.current?.click();
@@ -621,7 +640,7 @@ export function ChatInput({
             <div className="rounded-full bg-primary/10 p-4">
               <Paperclip className="h-10 w-10" />
             </div>
-            <span className="text-lg font-medium">Drop files here</span>
+            <span className="text-lg font-medium">{t('dropFilesHere')}</span>
           </div>
         </div>
       )}
@@ -675,7 +694,7 @@ export function ChatInput({
                 onClick={() => setUploadError(null)}
                 className="ml-2 underline hover:no-underline transition-all"
               >
-                Dismiss
+                {t('dismiss')}
               </button>
             </div>
           )}
@@ -705,7 +724,7 @@ export function ChatInput({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                Attach file ({attachments.length}/{uploadSettings.maxFiles})
+                {t('attachFile', { current: attachments.length, max: uploadSettings.maxFiles })}
               </TooltipContent>
             </Tooltip>
 
@@ -750,17 +769,34 @@ export function ChatInput({
                     variant="ghost"
                     size="icon"
                     className={cn(
-                      'h-8 w-8 shrink-0 transition-colors',
-                      isListening && 'bg-red-500/20 text-red-500 animate-pulse'
+                      'h-8 w-8 shrink-0 transition-colors relative',
+                      (isListening || isRecording) && 'bg-red-500/20 text-red-500 animate-pulse',
+                      isTranscribing && 'bg-blue-500/20 text-blue-500'
                     )}
-                    disabled={isProcessing || disabled}
+                    disabled={isProcessing || disabled || isTranscribing}
                     onClick={toggleVoice}
                   >
                     <Mic className="h-4 w-4" />
+                    {/* Recording duration indicator */}
+                    {isRecording && recordingDuration > 0 && (
+                      <span className="absolute -top-1 -right-1 text-[10px] bg-red-500 text-white rounded-full px-1 min-w-[20px] text-center">
+                        {formatDuration(recordingDuration)}
+                      </span>
+                    )}
+                    {/* Language indicator */}
+                    {(isListening || isRecording) && (
+                      <span className="absolute -bottom-1 -right-1 text-[10px]">
+                        {getLanguageFlag(speechLanguage)}
+                      </span>
+                    )}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {isListening ? 'Stop listening' : 'Voice input'}
+                  {isTranscribing 
+                    ? t('processing')
+                    : isListening || isRecording 
+                    ? t('stopListening') 
+                    : t('voiceInput')}
                 </TooltipContent>
               </Tooltip>
             )}
@@ -780,7 +816,7 @@ export function ChatInput({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  Optimize prompt
+                  {t('optimizePrompt')}
                 </TooltipContent>
               </Tooltip>
             )}
@@ -811,7 +847,7 @@ export function ChatInput({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  Use MCP Tools (type @)
+                  {t('useMcpTools')}
                 </TooltipContent>
               </Tooltip>
             )}
@@ -823,7 +859,7 @@ export function ChatInput({
               onChange={(e) => handleInputChange(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
-              placeholder={isListening ? 'Listening...' : (isMcpAvailable ? 'Type @ to mention tools...' : 'Type a message...')}
+              placeholder={isListening ? tPlaceholders('listening') : (isMcpAvailable ? tPlaceholders('typeToMention') : tPlaceholders('typeMessage'))}
               className={cn(
                 'flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground',
                 'max-h-[200px] min-h-[24px] py-1'
@@ -850,7 +886,7 @@ export function ChatInput({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {isStreaming ? 'Stop generating' : 'Processing...'}
+                  {isStreaming ? t('stopGenerating') : t('processing')}
                 </TooltipContent>
               </Tooltip>
             ) : (
@@ -867,7 +903,7 @@ export function ChatInput({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  Send message {sendOnEnter && '(Enter)'}
+                  {t('sendMessage')} {sendOnEnter && '(Enter)'}
                 </TooltipContent>
               </Tooltip>
             )}
@@ -892,7 +928,7 @@ export function ChatInput({
                       <ChevronDown className="h-3 w-3" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Switch Mode</TooltipContent>
+                  <TooltipContent>{t('switchMode')}</TooltipContent>
                 </Tooltip>
               )}
 
@@ -910,7 +946,7 @@ export function ChatInput({
                       <span className="max-w-[100px] truncate">{modelName}</span>
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Change Model</TooltipContent>
+                  <TooltipContent>{t('changeModel')}</TooltipContent>
                 </Tooltip>
               )}
 
@@ -932,11 +968,11 @@ export function ChatInput({
                     onClick={() => onWebSearchChange?.(!webSearchEnabled)}
                   >
                     <Globe className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Search</span>
+                    <span className="hidden sm:inline">{t('search')}</span>
                     {webSearchEnabled && <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Toggle Web Search</TooltipContent>
+                <TooltipContent>{t('toggleWebSearch')}</TooltipContent>
               </Tooltip>
 
               {/* Thinking Mode toggle - enhanced with label */}
@@ -954,11 +990,11 @@ export function ChatInput({
                     onClick={() => onThinkingChange?.(!thinkingEnabled)}
                   >
                     <Brain className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Think</span>
+                    <span className="hidden sm:inline">{t('think')}</span>
                     {thinkingEnabled && <span className="h-1.5 w-1.5 rounded-full bg-purple-500 animate-pulse" />}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Extended Thinking Mode</TooltipContent>
+                <TooltipContent>{t('extendedThinking')}</TooltipContent>
               </Tooltip>
 
               {/* Context Settings */}
@@ -973,7 +1009,7 @@ export function ChatInput({
                     <Settings2 className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Context Settings</TooltipContent>
+                <TooltipContent>{t('contextSettings')}</TooltipContent>
               </Tooltip>
             </div>
 
@@ -982,7 +1018,7 @@ export function ChatInput({
               <button
                 onClick={onOpenContextSettings}
                 className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors group"
-                title="Context window usage"
+                title={t('contextWindowUsage')}
               >
                 <div className="flex items-center gap-1.5">
                   <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -1009,14 +1045,14 @@ export function ChatInput({
           {/* Helper text */}
           <p className="mt-2 text-center text-xs text-muted-foreground/70">
             {sendOnEnter
-              ? 'Press Enter to send, Shift+Enter for new line'
-              : 'Click send button to send message'}
+              ? t('enterToSend')
+              : t('clickToSend')}
             {' • '}
-            <span>Drag & drop or paste files</span>
+            <span>{t('dragDropFiles')}</span>
             {isMcpAvailable && (
               <>
                 {' • '}
-                <span className="text-primary/80">Type @ for MCP tools</span>
+                <span className="text-primary/80">{t('typeAtForMcp')}</span>
               </>
             )}
           </p>

@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useRef, useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -60,6 +61,7 @@ const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088fe', '#00C49F'
  * Mermaid Diagram Renderer
  */
 export function MermaidRenderer({ content, className }: RendererProps) {
+  const t = useTranslations('renderer');
   const containerRef = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +110,7 @@ export function MermaidRenderer({ content, className }: RendererProps) {
   if (isLoading) {
     return (
       <div className={cn('flex items-center justify-center p-8', className)}>
-        <div className="animate-pulse text-muted-foreground">Loading diagram...</div>
+        <div className="animate-pulse text-muted-foreground">{t('loadingDiagram')}</div>
       </div>
     );
   }
@@ -135,6 +137,7 @@ export function MermaidRenderer({ content, className }: RendererProps) {
  * Chart Renderer using Recharts
  */
 export function ChartRenderer({ content, chartType = 'line', chartData, className }: ChartRendererProps) {
+  const t = useTranslations('renderer');
   const [data, setData] = useState<ChartDataPoint[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [detectedType, setDetectedType] = useState<string>(chartType);
@@ -177,7 +180,7 @@ export function ChartRenderer({ content, chartType = 'line', chartData, classNam
   if (data.length === 0) {
     return (
       <div className={cn('flex items-center justify-center p-8 text-muted-foreground', className)}>
-        No data to display
+        {t('noData')}
       </div>
     );
   }

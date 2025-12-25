@@ -6,6 +6,7 @@
  */
 
 import { useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Layout,
   Move,
@@ -54,6 +55,7 @@ interface StylePanelProps {
 }
 
 export function StylePanel({ className }: StylePanelProps) {
+  const t = useTranslations('designer');
   const selectedElementId = useDesignerStore((state) => state.selectedElementId);
   const elementMap = useDesignerStore((state) => state.elementMap);
   const updateElementStyle = useDesignerStore((state) => state.updateElementStyle);
@@ -77,9 +79,9 @@ export function StylePanel({ className }: StylePanelProps) {
         <div className="rounded-full bg-muted p-4 mb-4">
           <Crosshair className="h-6 w-6 text-muted-foreground" />
         </div>
-        <p className="text-sm font-medium">No element selected</p>
+        <p className="text-sm font-medium">{t('noElement')}</p>
         <p className="text-xs text-muted-foreground mt-1">
-          Click on an element in the preview to edit its styles
+          {t('noElementHint')}
         </p>
       </div>
     );
@@ -143,7 +145,7 @@ export function StylePanel({ className }: StylePanelProps) {
         {/* Custom CSS */}
         <div className="px-4 py-4 border-t">
           <Label className="text-xs font-medium text-muted-foreground mb-2 block">
-            Custom CSS
+            {t('customCss')}
           </Label>
           <Textarea
             className="h-24 text-xs font-mono resize-none"

@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { 
   X, Quote, Trash2, ChevronUp, ChevronDown, 
   GripVertical, Copy, Pencil, Check, ChevronRight,
@@ -32,6 +33,8 @@ interface QuotedContentProps {
 }
 
 export function QuotedContent({ className }: QuotedContentProps) {
+  const t = useTranslations('quotedContent');
+  const tToasts = useTranslations('toasts');
   const quotedTexts = useQuoteStore((state) => state.quotedTexts);
   const removeQuote = useQuoteStore((state) => state.removeQuote);
   const clearQuotes = useQuoteStore((state) => state.clearQuotes);
@@ -87,20 +90,20 @@ export function QuotedContent({ className }: QuotedContentProps) {
   const handleExport = async (format: ExportFormat, selectedOnly: boolean = false) => {
     const content = selectedOnly ? exportSelected(format) : exportQuotes(format);
     if (!content) {
-      toast.error('No quotes to export');
+      toast.error(tToasts('noQuotesToExport'));
       return;
     }
     await navigator.clipboard.writeText(content);
-    toast.success(`Exported as ${format.toUpperCase()}`);
+    toast.success(tToasts('exported', { format: format.toUpperCase() }));
   };
 
   const handleMerge = () => {
     if (selectedIds.size < 2) {
-      toast.error('Select at least 2 quotes to merge');
+      toast.error(tToasts('selectAtLeast2'));
       return;
     }
     mergeSelected();
-    toast.success('Quotes merged');
+    toast.success(tToasts('quotesMerged'));
   };
 
   const allCollapsed = quotedTexts.every(q => q.isCollapsed);
@@ -124,9 +127,9 @@ export function QuotedContent({ className }: QuotedContentProps) {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Quote className="h-3.5 w-3.5" />
             <span>
-              Quoted ({quotedTexts.length}/{maxQuotes})
+              {t('quoted', { count: quotedTexts.length, max: maxQuotes })}
               {isSelectionMode && selectedCount > 0 && (
-                <span className="ml-1 text-primary">• {selectedCount} selected</span>
+                <span className="ml-1 text-primary">• {t('selected', { count: selectedCount })}</span>
               )}
             </span>
           </div>
@@ -145,7 +148,7 @@ export function QuotedContent({ className }: QuotedContentProps) {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {isSelectionMode ? 'Exit selection' : 'Select mode'}
+                  {isSelectionMode ? t('exitSelection') : t('selectMode')}
                 </TooltipContent>
               </Tooltip>
             )}
@@ -165,7 +168,7 @@ export function QuotedContent({ className }: QuotedContentProps) {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    {allSelected ? 'Deselect all' : 'Select all'}
+                    {allSelected ? t('deselectAll') : t('selectAll')}
                   </TooltipContent>
                 </Tooltip>
 
@@ -181,7 +184,7 @@ export function QuotedContent({ className }: QuotedContentProps) {
                         <Merge className="h-3 w-3" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Merge selected</TooltipContent>
+                    <TooltipContent>{t('mergeSelected')}</TooltipContent>
                   </Tooltip>
                 )}
 
@@ -197,7 +200,7 @@ export function QuotedContent({ className }: QuotedContentProps) {
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Delete selected</TooltipContent>
+                    <TooltipContent>{t('deleteSelected')}</TooltipContent>
                   </Tooltip>
                 )}
               </>
@@ -213,20 +216,20 @@ export function QuotedContent({ className }: QuotedContentProps) {
                     </Button>
                   </DropdownMenuTrigger>
                 </TooltipTrigger>
-                <TooltipContent>Export</TooltipContent>
+                <TooltipContent>{t('export')}</TooltipContent>
               </Tooltip>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => handleExport('markdown', isSelectionMode && selectedCount > 0)}>
                   <FileCode className="h-4 w-4 mr-2" />
-                  Export as Markdown
+                  {t('exportMarkdown')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExport('text', isSelectionMode && selectedCount > 0)}>
                   <FileText className="h-4 w-4 mr-2" />
-                  Export as Text
+                  {t('exportText')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExport('json', isSelectionMode && selectedCount > 0)}>
                   <FileJson className="h-4 w-4 mr-2" />
-                  Export as JSON
+                  {t('exportJson')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -241,11 +244,11 @@ export function QuotedContent({ className }: QuotedContentProps) {
                     </Button>
                   </DropdownMenuTrigger>
                 </TooltipTrigger>
-                <TooltipContent>Keyboard shortcuts</TooltipContent>
+                <TooltipContent>{t('keyboardShortcuts')}</TooltipContent>
               </Tooltip>
               <DropdownMenuContent align="end" className="w-64">
                 <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                  Keyboard Shortcuts
+                  {t('keyboardShortcuts')}
                 </div>
                 {shortcuts.map((shortcut, i) => (
                   <div key={i} className="flex items-center justify-between px-2 py-1.5 text-sm">
@@ -276,7 +279,7 @@ export function QuotedContent({ className }: QuotedContentProps) {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {allCollapsed ? 'Expand all' : 'Collapse all'}
+                  {allCollapsed ? t('expandAll') : t('collapseAll')}
                 </TooltipContent>
               </Tooltip>
             )}
@@ -290,7 +293,7 @@ export function QuotedContent({ className }: QuotedContentProps) {
                 onClick={clearQuotes}
               >
                 <Trash2 className="h-3 w-3 mr-1" />
-                Clear all
+                {t('clearAll')}
               </Button>
             )}
           </div>
@@ -366,6 +369,7 @@ function QuoteItem({
   onDragOver,
   onDragEnd,
 }: QuoteItemProps) {
+  const tToasts = useTranslations('toasts');
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(quote.content);
 
@@ -377,7 +381,7 @@ function QuoteItem({
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(quote.content);
-    toast.success('Copied to clipboard');
+    toast.success(tToasts('copied'));
   };
 
   const handleSaveEdit = () => {

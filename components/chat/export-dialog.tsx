@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Download,
   FileJson,
@@ -56,47 +57,49 @@ interface ExportDialogProps {
 
 type ExportFormat = 'markdown' | 'json' | 'html' | 'animated-html' | 'pdf' | 'text';
 
-const FORMAT_OPTIONS: { value: ExportFormat; label: string; description: string; icon: React.ReactNode; badge?: string }[] = [
+const FORMAT_OPTIONS: { value: ExportFormat; labelKey: string; descKey: string; icon: React.ReactNode; badgeKey?: string }[] = [
   {
     value: 'animated-html',
-    label: 'Animated HTML',
-    description: 'Interactive replay with typing animation (GPT-style)',
+    labelKey: 'animatedHtml',
+    descKey: 'animatedHtmlDesc',
     icon: <Play className="h-5 w-5" />,
-    badge: 'NEW',
+    badgeKey: 'new',
   },
   {
     value: 'markdown',
-    label: 'Rich Markdown',
-    description: 'Full formatting with reasoning, tools, and attachments',
+    labelKey: 'richMarkdown',
+    descKey: 'richMarkdownDesc',
     icon: <FileText className="h-5 w-5" />,
   },
   {
     value: 'json',
-    label: 'JSON',
-    description: 'Complete data export, can be re-imported later',
+    labelKey: 'json',
+    descKey: 'jsonDesc',
     icon: <FileJson className="h-5 w-5" />,
   },
   {
     value: 'html',
-    label: 'Static HTML',
-    description: 'Simple web page with styling',
+    labelKey: 'staticHtml',
+    descKey: 'staticHtmlDesc',
     icon: <Code2 className="h-5 w-5" />,
   },
   {
     value: 'pdf',
-    label: 'PDF',
-    description: 'Print-ready document format',
+    labelKey: 'pdf',
+    descKey: 'pdfDesc',
     icon: <FileType className="h-5 w-5" />,
   },
   {
     value: 'text',
-    label: 'Plain Text',
-    description: 'Simple text without formatting',
+    labelKey: 'plainText',
+    descKey: 'plainTextDesc',
     icon: <FileText className="h-5 w-5" />,
   },
 ];
 
 export function ExportDialog({ session, trigger }: ExportDialogProps) {
+  const t = useTranslations('export');
+  const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
   const [format, setFormat] = useState<ExportFormat>('animated-html');
   const [isExporting, setIsExporting] = useState(false);
@@ -197,15 +200,15 @@ export function ExportDialog({ session, trigger }: ExportDialogProps) {
         {trigger || (
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
-            Export
+            {t('exportNow')}
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Export Conversation</DialogTitle>
+          <DialogTitle>{t('title')}</DialogTitle>
           <DialogDescription>
-            Export &ldquo;{session.title}&rdquo; to your preferred format
+            {t('description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -232,15 +235,15 @@ export function ExportDialog({ session, trigger }: ExportDialogProps) {
                     className="flex items-center gap-2 cursor-pointer"
                   >
                     {option.icon}
-                    <span className="font-medium">{option.label}</span>
-                    {option.badge && (
+                    <span className="font-medium">{t(option.labelKey)}</span>
+                    {option.badgeKey && (
                       <Badge variant="secondary" className="text-xs">
-                        {option.badge}
+                        {t(option.badgeKey)}
                       </Badge>
                     )}
                   </Label>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {option.description}
+                    {t(option.descKey)}
                   </p>
                 </div>
               </div>
@@ -254,14 +257,14 @@ export function ExportDialog({ session, trigger }: ExportDialogProps) {
                 <Button variant="ghost" size="sm" className="w-full justify-between">
                   <span className="flex items-center gap-2">
                     <ChevronDown className={`h-4 w-4 transition-transform ${showOptions ? 'rotate-180' : ''}`} />
-                    Advanced Options
+                    {t('advancedOptions')}
                   </span>
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-2 space-y-3">
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <div>
-                    <Label htmlFor="include-metadata">Include Metadata</Label>
+                    <Label htmlFor="include-metadata">{t('includeMetadata')}</Label>
                     <p className="text-xs text-muted-foreground">
                       Session info, model settings, timestamps
                     </p>
@@ -279,18 +282,18 @@ export function ExportDialog({ session, trigger }: ExportDialogProps) {
 
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
+            {tCommon('cancel')}
           </Button>
           <Button onClick={handleExport} disabled={isExporting}>
             {isExporting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Exporting...
+                {t('exporting')}
               </>
             ) : (
               <>
                 <Download className="h-4 w-4 mr-2" />
-                Export
+                {t('exportNow')}
               </>
             )}
           </Button>

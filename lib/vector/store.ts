@@ -4,8 +4,9 @@
  */
 
 import type { EmbeddingModelConfig } from './embedding';
+import { generateEmbedding, generateEmbeddings } from './embedding';
 
-export type VectorStoreProvider = 'chroma' | 'pinecone' | 'qdrant';
+export type VectorStoreProvider = 'chroma' | 'pinecone' | 'qdrant' | 'native';
 
 export interface VectorDocument {
   id: string;
@@ -36,6 +37,8 @@ export interface VectorStoreConfig {
   qdrantUrl?: string;
   qdrantApiKey?: string;
   qdrantCollectionName?: string;
+  // Native (Tauri) local store
+  native?: Record<string, never>;
 }
 
 export interface VectorCollectionInfo {
@@ -43,12 +46,44 @@ export interface VectorCollectionInfo {
   documentCount: number;
   dimension?: number;
   metadata?: Record<string, unknown>;
+  createdAt?: number;
+  updatedAt?: number;
+  description?: string;
+  embeddingModel?: string;
+  embeddingProvider?: string;
+}
+
+export interface CollectionExport {
+  meta: VectorCollectionInfo;
+  points: Array<{
+    id: string;
+    vector: number[];
+    payload?: Record<string, unknown>;
+  }>;
+}
+
+export interface CollectionImport {
+  meta: VectorCollectionInfo;
+  points: Array<{
+    id: string;
+    vector: number[];
+    payload?: Record<string, unknown>;
+  }>;
+}
+
+export interface PayloadFilter {
+  key: string;
+  value: unknown;
+  operation: 'equals' | 'contains' | 'greater_than' | 'less_than';
 }
 
 export interface SearchOptions {
   topK?: number;
   threshold?: number;
   filter?: Record<string, unknown>;
+  offset?: number;
+  limit?: number;
+  filters?: PayloadFilter[];
 }
 
 /**
@@ -73,14 +108,229 @@ export interface IVectorStore {
   
   createCollection(
     name: string,
-    options?: { dimension?: number; metadata?: Record<string, unknown> }
+    options?: { 
+      dimension?: number; 
+      metadata?: Record<string, unknown>;
+      description?: string;
+      embeddingModel?: string;
+      embeddingProvider?: string;
+    }
   ): Promise<void>;
   
   deleteCollection(name: string): Promise<void>;
   
+  renameCollection?(oldName: string, newName: string): Promise<void>;
+  
+  truncateCollection?(name: string): Promise<void>;
+  
+  exportCollection?(name: string): Promise<CollectionExport>;
+  
+  importCollection?(data: CollectionImport, overwrite?: boolean): Promise<void>;
+  
   listCollections(): Promise<VectorCollectionInfo[]>;
   
   getCollectionInfo(name: string): Promise<VectorCollectionInfo>;
+}
+
+/**
+ * Native (Tauri) Vector Store implementation
+ * Backed by local JSON persistence via Tauri commands.
+ */
+export class NativeVectorStore implements IVectorStore {
+  readonly provider: VectorStoreProvider = 'native';
+  private config: VectorStoreConfig;
+
+  constructor(config: VectorStoreConfig) {
+    this.config = config;
+  }
+
+  private isInTauri(): boolean {
+    return typeof window !== 'undefined' && '__TAURI__' in window;
+  }
+
+  private async invoke<T>(cmd: string, payload?: Record<string, unknown>): Promise<T> {
+    if (!this.isInTauri()) {
+      throw new Error('Native vector store is only available in Tauri environment');
+    }
+    const { invoke } = await import('@tauri-apps/api/core');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return invoke<T>(cmd, payload as any);
+  }
+
+  private async ensureEmbeddings(documents: VectorDocument[]): Promise<number[][]> {
+    const needsEmbedding = documents.some((doc) => !doc.embedding);
+    if (!needsEmbedding) {
+      return documents.map((d) => d.embedding!) as number[][];
+    }
+    const texts = documents.filter((d) => !d.embedding).map((d) => d.content);
+    const result = await generateEmbeddings(texts, this.config.embeddingConfig, this.config.embeddingApiKey);
+    let idx = 0;
+    return documents.map((d) => (d.embedding ? d.embedding : result.embeddings[idx++]));
+  }
+
+  async addDocuments(collectionName: string, documents: VectorDocument[]): Promise<void> {
+    const embeddings = await this.ensureEmbeddings(documents);
+    await this.invoke('vector_upsert_points', {
+      collection: collectionName,
+      points: documents.map((doc, i) => ({
+        id: doc.id,
+        vector: embeddings[i],
+        payload: { content: doc.content, ...doc.metadata },
+      })),
+    });
+  }
+
+  async updateDocuments(collectionName: string, documents: VectorDocument[]): Promise<void> {
+    // Upsert semantics
+    await this.addDocuments(collectionName, documents);
+  }
+
+  async deleteDocuments(collectionName: string, ids: string[]): Promise<void> {
+    await this.invoke('vector_delete_points', { collection: collectionName, ids });
+  }
+
+  async searchDocuments(
+    collectionName: string,
+    query: string,
+    options: SearchOptions = {}
+  ): Promise<VectorSearchResult[]> {
+    const { topK = 5, threshold, offset, limit, filters } = options;
+    const queryEmbedding = await generateEmbedding(query, this.config.embeddingConfig, this.config.embeddingApiKey);
+    
+    const searchPayload = {
+      collection: collectionName,
+      vector: queryEmbedding.embedding,
+      top_k: topK,
+      score_threshold: threshold,
+      offset,
+      limit,
+      filters: filters?.map(f => ({
+        key: f.key,
+        value: f.value,
+        operation: f.operation,
+      })),
+    };
+    
+    const results = await this.invoke<{ id: string; score: number; payload?: Record<string, unknown> }[]>(
+      'vector_search_points',
+      { payload: searchPayload }
+    );
+
+    return (results || []).map((r) => ({
+      id: r.id,
+      content: (r.payload?.content as string) || '',
+      metadata: r.payload,
+      score: r.score,
+    }));
+  }
+
+  async getDocuments(collectionName: string, ids: string[]): Promise<VectorDocument[]> {
+    const results = await this.invoke<
+      { id: string; vector: number[]; payload?: Record<string, unknown> }[]
+    >('vector_get_points', { collection: collectionName, ids });
+    return (results || []).map((p) => ({
+      id: p.id,
+      content: (p.payload?.content as string) || '',
+      metadata: p.payload,
+      embedding: p.vector,
+    }));
+  }
+
+  async createCollection(
+    name: string,
+    options?: { 
+      dimension?: number; 
+      metadata?: Record<string, unknown>;
+      description?: string;
+      embeddingModel?: string;
+      embeddingProvider?: string;
+    }
+  ): Promise<void> {
+    const dimension = options?.dimension || this.config.embeddingConfig.dimensions || 1536;
+    await this.invoke('vector_create_collection', {
+      payload: { 
+        name, 
+        dimension, 
+        metadata: options?.metadata,
+        description: options?.description,
+        embedding_model: options?.embeddingModel || this.config.embeddingConfig.model,
+        embedding_provider: options?.embeddingProvider || this.config.embeddingConfig.provider,
+      },
+    });
+  }
+
+  async deleteCollection(name: string): Promise<void> {
+    await this.invoke('vector_delete_collection', { name });
+  }
+
+  async renameCollection(oldName: string, newName: string): Promise<void> {
+    await this.invoke('vector_rename_collection', { old_name: oldName, new_name: newName });
+  }
+
+  async truncateCollection(name: string): Promise<void> {
+    await this.invoke('vector_truncate_collection', { name });
+  }
+
+  async exportCollection(name: string): Promise<CollectionExport> {
+    return await this.invoke('vector_export_collection', { name });
+  }
+
+  async importCollection(data: CollectionImport, overwrite?: boolean): Promise<void> {
+    await this.invoke('vector_import_collection', { 
+      import_data: data,
+      overwrite: overwrite || false 
+    });
+  }
+
+  async listCollections(): Promise<VectorCollectionInfo[]> {
+    const list = await this.invoke<{
+      name: string;
+      dimension: number;
+      metadata?: Record<string, unknown>;
+      document_count?: number;
+      created_at?: number;
+      updated_at?: number;
+      description?: string;
+      embedding_model?: string;
+      embedding_provider?: string;
+    }[]>('vector_list_collections');
+    return (list || []).map((c) => ({
+      name: c.name,
+      documentCount: c.document_count ?? 0,
+      dimension: c.dimension,
+      metadata: c.metadata,
+      createdAt: c.created_at,
+      updatedAt: c.updated_at,
+      description: c.description,
+      embeddingModel: c.embedding_model,
+      embeddingProvider: c.embedding_provider,
+    }));
+  }
+
+  async getCollectionInfo(name: string): Promise<VectorCollectionInfo> {
+    const info = await this.invoke<{
+      name: string;
+      dimension: number;
+      metadata?: Record<string, unknown>;
+      document_count?: number;
+      created_at?: number;
+      updated_at?: number;
+      description?: string;
+      embedding_model?: string;
+      embedding_provider?: string;
+    }>('vector_get_collection', { name });
+    return {
+      name: info.name,
+      documentCount: info.document_count ?? 0,
+      dimension: info.dimension,
+      metadata: info.metadata,
+      createdAt: info.created_at,
+      updatedAt: info.updated_at,
+      description: info.description,
+      embeddingModel: info.embedding_model,
+      embeddingProvider: info.embedding_provider,
+    };
+  }
 }
 
 /**
@@ -593,6 +843,8 @@ export function createVectorStore(config: VectorStoreConfig): IVectorStore {
         throw new Error('Qdrant URL is required');
       }
       return new QdrantVectorStore(config);
+    case 'native':
+      return new NativeVectorStore(config);
     default:
       throw new Error(`Unsupported vector store provider: ${config.provider}`);
   }
@@ -602,5 +854,5 @@ export function createVectorStore(config: VectorStoreConfig): IVectorStore {
  * Get supported vector store providers
  */
 export function getSupportedVectorStoreProviders(): VectorStoreProvider[] {
-  return ['chroma', 'pinecone', 'qdrant'];
+  return ['chroma', 'pinecone', 'qdrant', 'native'];
 }

@@ -213,8 +213,8 @@ test.describe('Math Renderer', () => {
         };
       });
 
-      expect(result.simple).toBe('E__mc2');
-      expect(result.complex).toBe('fracab__sqrtx');
+      expect(result.simple).toBe('E_mc2');
+      expect(result.complex).toBe('fracab_sqrtx');
       expect(result.empty).toBe('math_expression');
       expect(result.special).toBe('math_expression');
     });

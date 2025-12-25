@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import {
   Copy,
@@ -90,6 +91,8 @@ const typeIcons: Record<ArtType, React.ReactNode> = {
 };
 
 export function ArtifactPanel() {
+  const t = useTranslations('artifacts');
+  const tCommon = useTranslations('common');
   const panelOpen = useArtifactStore((state) => state.panelOpen);
   const panelView = useArtifactStore((state) => state.panelView);
   const closePanel = useArtifactStore((state) => state.closePanel);
@@ -246,7 +249,7 @@ export function ArtifactPanel() {
                       className="h-8 px-2 text-xs"
                     >
                       <X className="h-4 w-4 mr-1" />
-                      Cancel
+                      {tCommon('cancel')}
                     </Button>
                     <Button
                       size="sm"
@@ -255,48 +258,48 @@ export function ArtifactPanel() {
                       className="h-8 px-2 text-xs"
                     >
                       <Save className="h-4 w-4 mr-1" />
-                      Save
+                      {tCommon('save')}
                     </Button>
                   </>
                 ) : (
                   <>
                     <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'code' | 'preview')}>
                       <TabsList className="h-8">
-                        <TabsTrigger value="code" className="text-xs px-2">Code</TabsTrigger>
+                        <TabsTrigger value="code" className="text-xs px-2">{t('code')}</TabsTrigger>
                         {canPreview && (
-                          <TabsTrigger value="preview" className="text-xs px-2">Preview</TabsTrigger>
+                          <TabsTrigger value="preview" className="text-xs px-2">{t('preview')}</TabsTrigger>
                         )}
                       </TabsList>
                     </Tabs>
                     <ArtifactAction
-                      tooltip="Edit"
+                      tooltip={tCommon('edit')}
                       icon={Pencil}
                       onClick={handleEditMode}
                     />
                     <ArtifactAction
-                      tooltip={copied ? 'Copied!' : 'Copy'}
+                      tooltip={copied ? tCommon('copied') : tCommon('copy')}
                       icon={Copy}
                       onClick={handleCopy}
                     />
                     <ArtifactAction
-                      tooltip="Download"
+                      tooltip={t('download')}
                       icon={Download}
                       onClick={handleDownload}
                     />
                     <ArtifactAction
-                      tooltip="Edit in Canvas"
+                      tooltip={t('editInCanvas')}
                       icon={FileCode}
                       onClick={handleOpenInCanvas}
                     />
                     {canDesign && (
                       <>
                         <ArtifactAction
-                          tooltip="Preview in Designer"
+                          tooltip={t('previewInDesigner')}
                           icon={Palette}
                           onClick={() => setDesignerOpen(true)}
                         />
                         <ArtifactAction
-                          tooltip="Open Full Designer"
+                          tooltip={t('openFullDesigner')}
                           icon={ExternalLink}
                           onClick={() => {
                             const key = `designer-code-${Date.now()}`;
@@ -346,7 +349,7 @@ export function ArtifactPanel() {
           </Artifact>
         ) : (
           <div className="flex h-full items-center justify-center text-muted-foreground">
-            <p>No artifact selected</p>
+            <p>{t('noArtifact')}</p>
           </div>
         )}
 

@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import {
   CommandDialog,
@@ -49,6 +50,7 @@ interface CommandPaletteProps {
 }
 
 export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
+  const t = useTranslations('commandPalette');
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
@@ -153,10 +155,10 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
   const handleClearChat = useCallback(() => {
     if (activeSessionId && messages.length > 0) {
       clearMessages();
-      toast.success('Chat cleared');
+      toast.success(t('chatCleared'));
     }
     handleOpenChange(false);
-  }, [activeSessionId, messages.length, clearMessages, handleOpenChange]);
+  }, [activeSessionId, messages.length, clearMessages, handleOpenChange, t]);
 
   // Copy chat to clipboard
   const handleCopyChat = useCallback(async () => {
@@ -165,10 +167,10 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
         .map(m => `${m.role}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`)
         .join('\n\n');
       await navigator.clipboard.writeText(text);
-      toast.success('Chat copied to clipboard');
+      toast.success(t('chatCopied'));
     }
     handleOpenChange(false);
-  }, [messages, handleOpenChange]);
+  }, [messages, handleOpenChange, t]);
 
   // Recent sessions (last 5)
   const recentSessions = useMemo(() => {
@@ -179,33 +181,33 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
 
   return (
     <CommandDialog open={open} onOpenChange={handleOpenChange}>
-      <CommandInput placeholder="Type a command or search..." />
+      <CommandInput placeholder={t('placeholder')} />
       <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
+        <CommandEmpty>{t('noResults')}</CommandEmpty>
 
         {/* Quick Actions */}
-        <CommandGroup heading="Quick Actions">
+        <CommandGroup heading={t('quickActions')}>
           <CommandItem onSelect={handleNewChat}>
             <Plus className="mr-2 h-4 w-4" />
-            <span>New Chat</span>
+            <span>{t('newChat')}</span>
             <CommandShortcut>⌘N</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={() => handleNavigate('/designer')}>
             <Wand2 className="mr-2 h-4 w-4 text-purple-500" />
-            <span>Open Designer</span>
+            <span>{t('openDesigner')}</span>
           </CommandItem>
           <CommandItem onSelect={() => handleNavigate('/projects')}>
             <FolderKanban className="mr-2 h-4 w-4 text-blue-500" />
-            <span>View Projects</span>
+            <span>{t('viewProjects')}</span>
           </CommandItem>
           <CommandItem onSelect={() => handleNavigate('/settings')}>
             <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
+            <span>{t('settings')}</span>
             <CommandShortcut>⌘,</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={handleToggleSidebar}>
             <LayoutGrid className="mr-2 h-4 w-4" />
-            <span>Toggle Sidebar</span>
+            <span>{t('toggleSidebar')}</span>
             <CommandShortcut>⌘B</CommandShortcut>
           </CommandItem>
         </CommandGroup>
@@ -213,33 +215,33 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
         <CommandSeparator />
 
         {/* Chat Modes */}
-        <CommandGroup heading="Switch Mode">
+        <CommandGroup heading={t('switchMode')}>
           <CommandItem onSelect={() => handleModeChange('chat')}>
             <Sparkles className="mr-2 h-4 w-4" />
-            <span>Chat Mode</span>
+            <span>{t('chatMode')}</span>
           </CommandItem>
           <CommandItem onSelect={() => handleModeChange('agent')}>
             <Bot className="mr-2 h-4 w-4" />
-            <span>Agent Mode</span>
+            <span>{t('agentMode')}</span>
           </CommandItem>
           <CommandItem onSelect={() => handleModeChange('research')}>
             <Search className="mr-2 h-4 w-4" />
-            <span>Research Mode</span>
+            <span>{t('researchMode')}</span>
           </CommandItem>
         </CommandGroup>
 
         <CommandSeparator />
 
         {/* Panels */}
-        <CommandGroup heading="Panels">
+        <CommandGroup heading={t('panels')}>
           <CommandItem onSelect={handleToggleCanvas}>
             <PanelRight className="mr-2 h-4 w-4" />
-            <span>Toggle Canvas</span>
+            <span>{t('toggleCanvas')}</span>
             <CommandShortcut>⌘.</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={handleToggleArtifact}>
             <Zap className="mr-2 h-4 w-4" />
-            <span>Toggle Artifacts</span>
+            <span>{t('toggleArtifacts')}</span>
             <CommandShortcut>⌘;</CommandShortcut>
           </CommandItem>
         </CommandGroup>
@@ -249,7 +251,7 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
         {/* Recent Sessions */}
         {recentSessions.length > 0 && (
           <>
-            <CommandGroup heading="Recent Conversations">
+            <CommandGroup heading={t('recentConversations')}>
               {recentSessions.map((session) => (
                 <CommandItem
                   key={session.id}
@@ -258,7 +260,7 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
                   <MessageSquare className="mr-2 h-4 w-4" />
                   <span className="truncate">{session.title}</span>
                   {session.id === activeSessionId && (
-                    <span className="ml-auto text-xs text-muted-foreground">Active</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{t('active')}</span>
                   )}
                 </CommandItem>
               ))}
@@ -268,20 +270,20 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
         )}
 
         {/* Theme */}
-        <CommandGroup heading="Theme">
+        <CommandGroup heading={t('theme')}>
           <CommandItem onSelect={() => handleThemeChange('light')}>
             <Sun className="mr-2 h-4 w-4" />
-            <span>Light Theme</span>
+            <span>{t('lightTheme')}</span>
             {theme === 'light' && <span className="ml-auto text-xs">✓</span>}
           </CommandItem>
           <CommandItem onSelect={() => handleThemeChange('dark')}>
             <Moon className="mr-2 h-4 w-4" />
-            <span>Dark Theme</span>
+            <span>{t('darkTheme')}</span>
             {theme === 'dark' && <span className="ml-auto text-xs">✓</span>}
           </CommandItem>
           <CommandItem onSelect={() => handleThemeChange('system')}>
             <Monitor className="mr-2 h-4 w-4" />
-            <span>System Theme</span>
+            <span>{t('systemTheme')}</span>
             {theme === 'system' && <span className="ml-auto text-xs">✓</span>}
           </CommandItem>
         </CommandGroup>
@@ -289,22 +291,22 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
         <CommandSeparator />
 
         {/* Tools */}
-        <CommandGroup heading="Tools">
+        <CommandGroup heading={t('tools')}>
           <CommandItem onSelect={() => { openModal('export'); handleOpenChange(false); }}>
             <Download className="mr-2 h-4 w-4" />
-            <span>Export Conversation</span>
+            <span>{t('exportConversation')}</span>
           </CommandItem>
           <CommandItem onSelect={() => { openModal('import'); handleOpenChange(false); }}>
             <Upload className="mr-2 h-4 w-4" />
-            <span>Import Data</span>
+            <span>{t('importData')}</span>
           </CommandItem>
           <CommandItem onSelect={() => handleNavigate('/settings?tab=providers')}>
             <Code className="mr-2 h-4 w-4" />
-            <span>API Keys</span>
+            <span>{t('apiKeys')}</span>
           </CommandItem>
           <CommandItem onSelect={() => handleNavigate('/settings?tab=mcp')}>
             <FileText className="mr-2 h-4 w-4" />
-            <span>MCP Servers</span>
+            <span>{t('mcpServers')}</span>
           </CommandItem>
         </CommandGroup>
 
@@ -313,14 +315,14 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
         {/* Current Chat Actions */}
         {activeSessionId && (
           <>
-            <CommandGroup heading="Current Chat">
+            <CommandGroup heading={t('currentChat')}>
               <CommandItem onSelect={handleCopyChat}>
                 <Copy className="mr-2 h-4 w-4" />
-                <span>Copy Chat</span>
+                <span>{t('copyChat')}</span>
               </CommandItem>
               <CommandItem onSelect={handleClearChat}>
                 <Trash2 className="mr-2 h-4 w-4 text-destructive" />
-                <span>Clear Chat</span>
+                <span>{t('clearChat')}</span>
               </CommandItem>
             </CommandGroup>
             <CommandSeparator />
@@ -330,10 +332,10 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
         <CommandSeparator />
 
         {/* Help */}
-        <CommandGroup heading="Help">
+        <CommandGroup heading={t('help')}>
           <CommandItem onSelect={() => { openModal('mcp-servers'); handleOpenChange(false); }}>
             <Keyboard className="mr-2 h-4 w-4" />
-            <span>Keyboard Shortcuts</span>
+            <span>{t('keyboardShortcuts')}</span>
             <CommandShortcut>?</CommandShortcut>
           </CommandItem>
         </CommandGroup>

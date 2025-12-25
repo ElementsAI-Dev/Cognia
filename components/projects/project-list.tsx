@@ -5,6 +5,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { Plus, Search, FolderOpen, FolderPlus, MessageSquare, TrendingUp, Download, Sparkles, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,7 @@ interface ProjectListProps {
 }
 
 export function ProjectList({ onProjectSelect }: ProjectListProps) {
+  const tPlaceholders = useTranslations('placeholders');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showImportExport, setShowImportExport] = useState(false);
@@ -199,7 +201,7 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
         <Input
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search projects..."
+          placeholder={tPlaceholders('searchProjects')}
           className="pl-10"
         />
       </div>

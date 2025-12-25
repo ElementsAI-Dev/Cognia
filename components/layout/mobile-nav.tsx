@@ -4,6 +4,7 @@
  * MobileNav - mobile navigation with sheet sidebar
  */
 
+import { useTranslations } from 'next-intl';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
@@ -14,6 +15,7 @@ interface MobileNavProps {
 }
 
 export function MobileNav({ children }: MobileNavProps) {
+  const t = useTranslations('accessibility');
   const mobileNavOpen = useUIStore((state) => state.mobileNavOpen);
   const setMobileNavOpen = useUIStore((state) => state.setMobileNavOpen);
 
@@ -24,7 +26,7 @@ export function MobileNav({ children }: MobileNavProps) {
           variant="ghost"
           size="icon"
           className="md:hidden"
-          aria-label="Open menu"
+          aria-label={t('openMenu')}
         >
           <Menu className="h-5 w-5" />
         </Button>

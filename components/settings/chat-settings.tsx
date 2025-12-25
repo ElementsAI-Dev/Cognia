@@ -6,6 +6,7 @@
  */
 
 import { MessageSquare, Thermometer, Hash, History, Sparkles, SlidersHorizontal } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import {
   Card,
   CardContent,
@@ -27,6 +28,8 @@ import { useSettingsStore } from '@/stores';
 import { PROVIDERS } from '@/types/provider';
 
 export function ChatSettings() {
+  const t = useTranslations('chatSettings');
+
   // Chat behavior settings from store
   const defaultTemperature = useSettingsStore((state) => state.defaultTemperature);
   const setDefaultTemperature = useSettingsStore((state) => state.setDefaultTemperature);
@@ -64,16 +67,16 @@ export function ChatSettings() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Sparkles className="h-4 w-4" />
-            Default Provider
+            {t('defaultProvider')}
           </CardTitle>
           <CardDescription className="text-xs">
-            Select the default AI provider for new conversations
+            {t('defaultProviderDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Select value={defaultProvider} onValueChange={setDefaultProvider}>
             <SelectTrigger className="w-full sm:w-[250px]">
-              <SelectValue placeholder="Select provider" />
+              <SelectValue placeholder={t('selectProvider')} />
             </SelectTrigger>
             <SelectContent>
               {enabledProviders.map(([id, provider]) => (
@@ -83,14 +86,14 @@ export function ChatSettings() {
               ))}
               {enabledProviders.length === 0 && (
                 <SelectItem value="openai" disabled>
-                  No providers configured
+                  {t('noProviders')}
                 </SelectItem>
               )}
             </SelectContent>
           </Select>
           {enabledProviders.length === 0 && (
             <p className="text-sm text-muted-foreground mt-2">
-              Configure at least one provider in the Providers section first.
+              {t('configureProviderHint')}
             </p>
           )}
         </CardContent>
@@ -101,19 +104,19 @@ export function ChatSettings() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Thermometer className="h-4 w-4" />
-            Generation Parameters
+            {t('generationParams')}
           </CardTitle>
           <CardDescription className="text-xs">
-            Control AI response behavior and creativity
+            {t('generationParamsDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Temperature */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm">Temperature: {defaultTemperature.toFixed(1)}</Label>
+              <Label className="text-sm">{t('temperature')}: {defaultTemperature.toFixed(1)}</Label>
               <span className="text-[10px] text-muted-foreground">
-                {defaultTemperature <= 0.3 ? 'Precise' : defaultTemperature <= 0.7 ? 'Balanced' : 'Creative'}
+                {defaultTemperature <= 0.3 ? t('precise') : defaultTemperature <= 0.7 ? t('balanced') : t('creative')}
               </span>
             </div>
             <Slider
@@ -128,7 +131,7 @@ export function ChatSettings() {
           {/* Max Tokens */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm">Max Tokens: {defaultMaxTokens.toLocaleString()}</Label>
+              <Label className="text-sm">{t('maxTokens')}: {defaultMaxTokens.toLocaleString()}</Label>
             </div>
             <Slider
               value={[defaultMaxTokens]}
@@ -146,19 +149,19 @@ export function ChatSettings() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <SlidersHorizontal className="h-4 w-4" />
-            Advanced Parameters
+            {t('advancedParams')}
           </CardTitle>
           <CardDescription className="text-xs">
-            Fine-tune sampling and repetition control
+            {t('advancedParamsDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Top P */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm">Top P: {defaultTopP.toFixed(2)}</Label>
+              <Label className="text-sm">{t('topP')}: {defaultTopP.toFixed(2)}</Label>
               <span className="text-[10px] text-muted-foreground">
-                {defaultTopP >= 0.95 ? 'Default' : defaultTopP >= 0.7 ? 'Focused' : 'Very Focused'}
+                {defaultTopP >= 0.95 ? t('default') : defaultTopP >= 0.7 ? t('focused') : t('veryFocused')}
               </span>
             </div>
             <Slider
@@ -169,16 +172,16 @@ export function ChatSettings() {
               step={5}
             />
             <p className="text-[10px] text-muted-foreground">
-              Nucleus sampling: lower values make output more focused by considering fewer tokens.
+              {t('topPHint')}
             </p>
           </div>
 
           {/* Frequency Penalty */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm">Frequency Penalty: {defaultFrequencyPenalty.toFixed(1)}</Label>
+              <Label className="text-sm">{t('frequencyPenalty')}: {defaultFrequencyPenalty.toFixed(1)}</Label>
               <span className="text-[10px] text-muted-foreground">
-                {defaultFrequencyPenalty === 0 ? 'Off' : defaultFrequencyPenalty > 0 ? 'Reduce Repetition' : 'Encourage Repetition'}
+                {defaultFrequencyPenalty === 0 ? t('off') : defaultFrequencyPenalty > 0 ? t('reduceRepetition') : t('encourageRepetition')}
               </span>
             </div>
             <Slider
@@ -189,16 +192,16 @@ export function ChatSettings() {
               step={5}
             />
             <p className="text-[10px] text-muted-foreground">
-              Penalize tokens based on frequency. Positive values reduce word repetition.
+              {t('frequencyPenaltyHint')}
             </p>
           </div>
 
           {/* Presence Penalty */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm">Presence Penalty: {defaultPresencePenalty.toFixed(1)}</Label>
+              <Label className="text-sm">{t('presencePenalty')}: {defaultPresencePenalty.toFixed(1)}</Label>
               <span className="text-[10px] text-muted-foreground">
-                {defaultPresencePenalty === 0 ? 'Off' : defaultPresencePenalty > 0 ? 'New Topics' : 'Stay on Topic'}
+                {defaultPresencePenalty === 0 ? t('off') : defaultPresencePenalty > 0 ? t('newTopics') : t('stayOnTopic')}
               </span>
             </div>
             <Slider
@@ -209,7 +212,7 @@ export function ChatSettings() {
               step={5}
             />
             <p className="text-[10px] text-muted-foreground">
-              Encourage exploring new topics. Positive values promote variety in responses.
+              {t('presencePenaltyHint')}
             </p>
           </div>
         </CardContent>
@@ -220,17 +223,17 @@ export function ChatSettings() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <History className="h-4 w-4" />
-            Context & History
+            {t('contextHistory')}
           </CardTitle>
           <CardDescription className="text-xs">
-            Configure conversation history settings
+            {t('contextHistoryDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Context Length */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm">Context Messages: {contextLength}</Label>
+              <Label className="text-sm">{t('contextMessages')}: {contextLength}</Label>
             </div>
             <Slider
               value={[contextLength]}
@@ -244,9 +247,9 @@ export function ChatSettings() {
           {/* Auto Title Generation */}
           <div className="flex items-center justify-between py-1">
             <div className="space-y-0.5">
-              <Label htmlFor="auto-title" className="text-sm">Auto-generate Titles</Label>
+              <Label htmlFor="auto-title" className="text-sm">{t('autoGenerateTitles')}</Label>
               <p className="text-xs text-muted-foreground">
-                Generate titles from the first message
+                {t('autoGenerateTitlesDesc')}
               </p>
             </div>
             <Switch
@@ -263,18 +266,18 @@ export function ChatSettings() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <MessageSquare className="h-4 w-4" />
-            Display Options
+            {t('displayOptions')}
           </CardTitle>
           <CardDescription className="text-xs">
-            Customize message display in chat
+            {t('displayOptionsDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between py-1">
             <div className="space-y-0.5">
-              <Label htmlFor="show-model" className="text-sm">Show Model Name</Label>
+              <Label htmlFor="show-model" className="text-sm">{t('showModelName')}</Label>
               <p className="text-xs text-muted-foreground">
-                Display which model generated responses
+                {t('showModelNameDesc')}
               </p>
             </div>
             <Switch
@@ -286,9 +289,9 @@ export function ChatSettings() {
 
           <div className="flex items-center justify-between py-1">
             <div className="space-y-0.5">
-              <Label htmlFor="markdown-render" className="text-sm">Markdown Rendering</Label>
+              <Label htmlFor="markdown-render" className="text-sm">{t('markdownRendering')}</Label>
               <p className="text-xs text-muted-foreground">
-                Render markdown in AI responses
+                {t('markdownRenderingDesc')}
               </p>
             </div>
             <Switch
@@ -305,12 +308,12 @@ export function ChatSettings() {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Hash className="h-3.5 w-3.5" />
-            Token Estimation
+            {t('tokenEstimation')}
           </CardTitle>
         </CardHeader>
         <CardContent className="text-xs text-muted-foreground space-y-1">
-          <p>Approx. <strong>{(contextLength * 500 + defaultMaxTokens).toLocaleString()}</strong> tokens per message</p>
-          <p className="text-[10px]">1 token ≈ 4 chars • 100 tokens ≈ 75 words</p>
+          <p>{t('approxTokens', { count: (contextLength * 500 + defaultMaxTokens).toLocaleString() })}</p>
+          <p className="text-[10px]">{t('tokenHint')}</p>
         </CardContent>
       </Card>
     </div>

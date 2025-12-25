@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -110,6 +111,8 @@ export function PromptOptimizerDialog({
   initialPrompt,
   onApply,
 }: PromptOptimizerDialogProps) {
+  const t = useTranslations('promptOptimizer');
+  const tCommon = useTranslations('common');
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const getActiveSession = useSessionStore((state) => state.getActiveSession);
   const session = getActiveSession();
@@ -220,31 +223,31 @@ export function PromptOptimizerDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wand2 className="h-5 w-5 text-primary" />
-            Prompt Optimizer
+            {t('title')}
           </DialogTitle>
           <DialogDescription>
-            Enhance your prompt using AI to get better responses
+            {t('description')}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="style" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="style">Style</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="style">{t('style')}</TabsTrigger>
+            <TabsTrigger value="settings">{tCommon('settings')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="style" className="space-y-4 mt-4">
             {/* Original Prompt */}
             <div className="space-y-2">
-              <Label>Original Prompt</Label>
+              <Label>{t('originalPrompt')}</Label>
               <div className="rounded-lg border bg-muted/50 p-3 text-sm">
-                {initialPrompt || <span className="text-muted-foreground italic">No prompt provided</span>}
+                {initialPrompt || <span className="text-muted-foreground italic">{t('noPrompt')}</span>}
               </div>
             </div>
 
             {/* Style Selection */}
             <div className="space-y-2">
-              <Label>Optimization Style</Label>
+              <Label>{t('optimizationStyle')}</Label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {STYLE_OPTIONS.map((option) => (
                   <button
@@ -273,11 +276,11 @@ export function PromptOptimizerDialog({
             {/* Custom Prompt Input */}
             {style === 'custom' && (
               <div className="space-y-2">
-                <Label>Custom Instructions</Label>
+                <Label>{t('customInstructions')}</Label>
                 <Textarea
                   value={customPrompt}
                   onChange={(e) => setCustomPrompt(e.target.value)}
-                  placeholder="Enter your custom optimization instructions..."
+                  placeholder={t('customPlaceholder')}
                   className="min-h-[100px]"
                 />
               </div>
@@ -292,7 +295,7 @@ export function PromptOptimizerDialog({
                   onCheckedChange={setPreserveIntent}
                 />
                 <Label htmlFor="preserve-intent" className="text-sm">
-                  Preserve intent
+                  {t('preserveIntent')}
                 </Label>
               </div>
               <div className="flex items-center gap-2">
@@ -302,7 +305,7 @@ export function PromptOptimizerDialog({
                   onCheckedChange={setEnhanceClarity}
                 />
                 <Label htmlFor="enhance-clarity" className="text-sm">
-                  Enhance clarity
+                  {t('enhanceClarity')}
                 </Label>
               </div>
               <div className="flex items-center gap-2">
@@ -312,7 +315,7 @@ export function PromptOptimizerDialog({
                   onCheckedChange={setAddContext}
                 />
                 <Label htmlFor="add-context" className="text-sm">
-                  Add context
+                  {t('addContext')}
                 </Label>
               </div>
             </div>
@@ -328,14 +331,14 @@ export function PromptOptimizerDialog({
                   onCheckedChange={setUseSessionModel}
                 />
                 <Label htmlFor="use-session-model">
-                  Use current session model ({session?.model || 'default'})
+                  {t('useSessionModel')} ({session?.model || 'default'})
                 </Label>
               </div>
 
               {!useSessionModel && (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Provider</Label>
+                    <Label>{t('provider')}</Label>
                     <Select
                       value={selectedProvider}
                       onValueChange={(value) => {
@@ -360,7 +363,7 @@ export function PromptOptimizerDialog({
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Model</Label>
+                    <Label>{t('model')}</Label>
                     <Select value={selectedModel} onValueChange={setSelectedModel}>
                       <SelectTrigger>
                         <SelectValue />
@@ -384,7 +387,7 @@ export function PromptOptimizerDialog({
         {result && (
           <div className="space-y-3 rounded-lg border bg-card p-4">
             <div className="flex items-center justify-between">
-              <Label className="text-primary">Optimized Prompt</Label>
+              <Label className="text-primary">{t('optimizedPrompt')}</Label>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" onClick={handleCopy}>
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -418,12 +421,12 @@ export function PromptOptimizerDialog({
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tCommon('cancel')}
           </Button>
           {result ? (
             <Button onClick={handleApply} className="gap-2">
               <ArrowRight className="h-4 w-4" />
-              Apply Optimized Prompt
+              {t('apply')}
             </Button>
           ) : (
             <Button
@@ -434,12 +437,12 @@ export function PromptOptimizerDialog({
               {isOptimizing ? (
                 <>
                   <Loader size={16} />
-                  Optimizing...
+                  {t('optimizing')}
                 </>
               ) : (
                 <>
                   <Wand2 className="h-4 w-4" />
-                  Optimize
+                  {t('optimize')}
                 </>
               )}
             </Button>

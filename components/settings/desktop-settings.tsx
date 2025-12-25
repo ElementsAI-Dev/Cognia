@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Monitor,
   Bell,
@@ -44,6 +45,7 @@ import {
 import { openInBrowser } from '@/lib/native/system';
 
 export function DesktopSettings() {
+  const t = useTranslations('desktopSettings');
   const [isDesktop, setIsDesktopState] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
@@ -76,18 +78,17 @@ export function DesktopSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Monitor className="h-5 w-5" />
-            Desktop Settings
+            {t('title')}
           </CardTitle>
           <CardDescription>
-            These settings are only available in the desktop app
+            {t('notAvailable')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
             <Monitor className="h-12 w-12 mb-4 opacity-50" />
             <p className="text-sm">
-              Download the desktop app to access native features like system
-              notifications, global shortcuts, and automatic updates.
+              {t('downloadHint')}
             </p>
             <Button
               variant="outline"
@@ -95,7 +96,7 @@ export function DesktopSettings() {
               onClick={() => openInBrowser('https://github.com/your-repo/releases')}
             >
               <Download className="h-4 w-4 mr-2" />
-              Download Desktop App
+              {t('downloadApp')}
             </Button>
           </div>
         </CardContent>
@@ -132,16 +133,16 @@ export function DesktopSettings() {
     setNotificationPermission(granted);
     if (granted) {
       await sendNotification({
-        title: 'Notifications Enabled',
-        body: 'You will now receive desktop notifications.',
+        title: t('notificationsEnabled'),
+        body: t('notificationsEnabledBody'),
       });
     }
   };
 
   const handleTestNotification = async () => {
     await sendNotification({
-      title: 'Test Notification',
-      body: 'This is a test notification from Cognia.',
+      title: t('testNotification'),
+      body: t('testNotificationBody'),
     });
   };
 
@@ -152,17 +153,17 @@ export function DesktopSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Info className="h-5 w-5" />
-            System Information
+            {t('systemInfo')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Platform</span>
-            <Badge variant="secondary">{platform || 'Unknown'}</Badge>
+            <span className="text-sm text-muted-foreground">{t('platform')}</span>
+            <Badge variant="secondary">{platform || t('unknown')}</Badge>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">App Version</span>
-            <Badge variant="outline">{appVersion || 'Unknown'}</Badge>
+            <span className="text-sm text-muted-foreground">{t('appVersion')}</span>
+            <Badge variant="outline">{appVersion || t('unknown')}</Badge>
           </div>
         </CardContent>
       </Card>
@@ -172,10 +173,10 @@ export function DesktopSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Monitor className="h-5 w-5" />
-            Window Controls
+            {t('windowControls')}
           </CardTitle>
           <CardDescription>
-            Control window behavior and appearance
+            {t('windowControlsDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -183,10 +184,10 @@ export function DesktopSettings() {
             <div className="space-y-0.5">
               <Label className="flex items-center gap-2">
                 <Pin className="h-4 w-4" />
-                Always on Top
+                {t('alwaysOnTop')}
               </Label>
               <p className="text-sm text-muted-foreground">
-                Keep window above other windows
+                {t('alwaysOnTopDesc')}
               </p>
             </div>
             <Switch
@@ -199,10 +200,10 @@ export function DesktopSettings() {
             <div className="space-y-0.5">
               <Label className="flex items-center gap-2">
                 <Maximize className="h-4 w-4" />
-                Fullscreen Mode
+                {t('fullscreenMode')}
               </Label>
               <p className="text-sm text-muted-foreground">
-                Enter or exit fullscreen mode
+                {t('fullscreenModeDesc')}
               </p>
             </div>
             <Switch
@@ -218,10 +219,10 @@ export function DesktopSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bell className="h-5 w-5" />
-            Notifications
+            {t('notifications')}
           </CardTitle>
           <CardDescription>
-            Configure desktop notification settings
+            {t('notificationsDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -229,19 +230,19 @@ export function DesktopSettings() {
             <div className="flex flex-col items-center py-4 text-center">
               <Bell className="h-8 w-8 mb-2 text-muted-foreground" />
               <p className="text-sm text-muted-foreground mb-3">
-                Enable notifications to receive alerts
+                {t('enableNotificationsHint')}
               </p>
               <Button onClick={handleRequestNotificationPermission}>
-                Enable Notifications
+                {t('enableNotifications')}
               </Button>
             </div>
           ) : (
             <>
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>Enable Notifications</Label>
+                  <Label>{t('enableNotifications')}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Receive desktop notifications for important events
+                    {t('enableNotificationsDesc')}
                   </p>
                 </div>
                 <Switch
@@ -256,7 +257,7 @@ export function DesktopSettings() {
                 onClick={handleTestNotification}
                 disabled={!notificationsEnabled}
               >
-                Send Test Notification
+                {t('sendTestNotification')}
               </Button>
             </>
           )}
@@ -268,17 +269,17 @@ export function DesktopSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Download className="h-5 w-5" />
-            Updates
+            {t('updates')}
           </CardTitle>
           <CardDescription>
-            Check for and install app updates
+            {t('updatesDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {isDownloading ? (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span>Downloading update...</span>
+                <span>{t('downloadingUpdate')}</span>
                 <span>{downloadProgress}%</span>
               </div>
               <Progress value={downloadProgress} />
@@ -287,7 +288,7 @@ export function DesktopSettings() {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Badge variant="default" className="bg-green-500">
-                  Update Available
+                  {t('updateAvailable')}
                 </Badge>
                 <span className="text-sm font-medium">
                   v{updateInfo.version}
@@ -300,7 +301,7 @@ export function DesktopSettings() {
               )}
               <Button onClick={handleInstallUpdate}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Install Update
+                {t('installUpdate')}
               </Button>
             </div>
           ) : (
@@ -308,11 +309,11 @@ export function DesktopSettings() {
               <div className="space-y-0.5">
                 <p className="text-sm">
                   {updateInfo === null
-                    ? 'Check for available updates'
-                    : 'You are on the latest version'}
+                    ? t('checkForUpdates')
+                    : t('latestVersion')}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Current: v{appVersion}
+                  {t('currentVersion', { version: appVersion || '' })}
                 </p>
               </div>
               <Button
@@ -325,7 +326,7 @@ export function DesktopSettings() {
                 ) : (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2" />
-                    Check for Updates
+                    {t('checkForUpdates')}
                   </>
                 )}
               </Button>
@@ -337,7 +338,7 @@ export function DesktopSettings() {
       {/* Links */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Resources</CardTitle>
+          <CardTitle className="text-base">{t('resources')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <Button
@@ -346,7 +347,7 @@ export function DesktopSettings() {
             onClick={() => openInBrowser('https://github.com/your-repo')}
           >
             <ExternalLink className="h-4 w-4 mr-2" />
-            View on GitHub
+            {t('viewOnGitHub')}
           </Button>
           <Button
             variant="ghost"
@@ -354,7 +355,7 @@ export function DesktopSettings() {
             onClick={() => openInBrowser('https://github.com/your-repo/issues')}
           >
             <ExternalLink className="h-4 w-4 mr-2" />
-            Report an Issue
+            {t('reportIssue')}
           </Button>
         </CardContent>
       </Card>

@@ -6,6 +6,7 @@
  */
 
 import { useState, useMemo, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Search,
   Sparkles,
@@ -133,6 +134,8 @@ export function ModelPickerDialog({
   onModelSelect,
   onAutoModeToggle,
 }: ModelPickerDialogProps) {
+  const t = useTranslations('modelPicker');
+  const tChat = useTranslations('chat');
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<ProviderCategory>('all');
@@ -223,14 +226,14 @@ export function ModelPickerDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden sm:max-w-lg max-sm:h-dvh max-sm:max-h-dvh max-sm:w-full max-sm:max-w-full max-sm:rounded-none max-sm:border-0">
-        <DialogTitle className="sr-only">Select Model</DialogTitle>
+        <DialogTitle className="sr-only">{t('title')}</DialogTitle>
         
         <Command className="rounded-lg border-0" shouldFilter={false}>
           {/* Search Input */}
           <div className="flex items-center border-b px-3 max-sm:px-4">
             <Search className="h-4 w-4 shrink-0 text-muted-foreground max-sm:h-5 max-sm:w-5" />
             <CommandInput
-              placeholder="Search models..."
+              placeholder={t('searchPlaceholder')}
               value={search}
               onValueChange={setSearch}
               className="h-11 border-0 focus:ring-0 max-sm:h-14 max-sm:text-base"
@@ -270,7 +273,7 @@ export function ModelPickerDialog({
 
           <CommandList className="max-h-[400px] overflow-y-auto max-sm:max-h-[calc(100dvh-130px)]">
             <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
-              No models found. Check your API keys in Settings.
+              {t('noModels')}. {t('configureProviders')}
             </CommandEmpty>
 
             {/* Auto Mode Toggle */}
@@ -294,15 +297,15 @@ export function ModelPickerDialog({
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm max-sm:text-base">Auto Mode</span>
+                          <span className="font-medium text-sm max-sm:text-base">{tChat('autoMode')}</span>
                           {isAutoMode && (
                             <Badge variant="default" className="text-[10px] px-1.5 py-0">
-                              Active
+                              {t('recentModels')}
                             </Badge>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground max-sm:text-sm">
-                          Automatically select the best model for each task
+                          {tChat('autoModeDescription')}
                         </p>
                       </div>
                     </div>
@@ -321,7 +324,7 @@ export function ModelPickerDialog({
             {/* Recent Models */}
             {availableRecentModels.length > 0 && !search && (
               <>
-                <CommandGroup heading="Recent">
+                <CommandGroup heading={t('recentModels')}>
                   {availableRecentModels.slice(0, 3).map((recent) => {
                     const provider = PROVIDERS[recent.provider];
                     const model = provider?.models.find((m) => m.id === recent.model);
@@ -395,7 +398,7 @@ export function ModelPickerDialog({
                                 <Wrench className="h-3 w-3 text-muted-foreground" />
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent>Supports Tools</TooltipContent>
+                            <TooltipContent>{t('tools')}</TooltipContent>
                           </Tooltip>
                         )}
                         {model.supportsVision && (
@@ -405,7 +408,7 @@ export function ModelPickerDialog({
                                 <Eye className="h-3 w-3 text-muted-foreground" />
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent>Supports Vision</TooltipContent>
+                            <TooltipContent>{t('vision')}</TooltipContent>
                           </Tooltip>
                         )}
                         {isSelected && <Check className="h-4 w-4 text-primary ml-1" />}

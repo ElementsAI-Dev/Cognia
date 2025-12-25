@@ -7,6 +7,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { 
   ChevronDown, 
   Sparkles, 
@@ -22,6 +23,7 @@ import {
   MoreHorizontal,
   Pin,
   PinOff,
+  GraduationCap,
 } from 'lucide-react';
 import { ConversationSearch } from './conversation-search';
 import { useMessages } from '@/hooks';
@@ -59,6 +61,7 @@ import { ImageGenerationDialog } from './image-generation-dialog';
 import { BranchSelector } from './branch-selector';
 import { ModelPickerDialog } from './model-picker-dialog';
 import { PresetSelector, CreatePresetDialog, PresetsManager } from '@/components/presets';
+import { ActiveSkillsIndicator } from '@/components/skills';
 import {
   Dialog,
   DialogContent,
@@ -75,15 +78,12 @@ const modeIcons: Record<ChatMode, React.ReactNode> = {
   chat: <Sparkles className="h-4 w-4" />,
   agent: <Bot className="h-4 w-4" />,
   research: <SearchIcon className="h-4 w-4" />,
+  learning: <GraduationCap className="h-4 w-4" />,
 };
 
-const modeLabels: Record<ChatMode, string> = {
-  chat: 'Chat',
-  agent: 'Agent',
-  research: 'Research',
-};
 
 export function ChatHeader({ sessionId }: ChatHeaderProps) {
+  const t = useTranslations('chatHeader');
   const [createPresetOpen, setCreatePresetOpen] = useState(false);
   const [managePresetsOpen, setManagePresetsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -157,27 +157,29 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
     selectPreset(preset.id);
   };
 
+  const tToasts = useTranslations('toasts');
+
   const handleCopyChat = async () => {
     if (chatMessages.length > 0) {
       const text = chatMessages
         .map(m => `${m.role}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`)
         .join('\n\n');
       await navigator.clipboard.writeText(text);
-      toast.success('Chat copied to clipboard');
+      toast.success(tToasts('chatCopied'));
     }
   };
 
   const handleClearChat = () => {
     if (chatMessages.length > 0) {
       clearMessages();
-      toast.success('Chat cleared');
+      toast.success(tToasts('chatCleared'));
     }
   };
 
   const handleTogglePin = () => {
     if (session) {
       updateSession(session.id, { pinned: !session.pinned } as Parameters<typeof updateSession>[1]);
-      toast.success(session.pinned ? 'Unpinned' : 'Pinned');
+      toast.success(session.pinned ? tToasts('unpinned') : tToasts('pinned'));
     }
   };
 
@@ -195,21 +197,21 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-2 hover:bg-accent/80 transition-colors">
                 {modeIcons[currentMode]}
-                <span className="hidden sm:inline">{modeLabels[currentMode]}</span>
+                <span className="hidden sm:inline">{t(`mode.${currentMode}`)}</span>
                 <ChevronDown className="h-3 w-3 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              <DropdownMenuLabel>Chat Mode</DropdownMenuLabel>
+              <DropdownMenuLabel>{t('chatMode')}</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {(Object.keys(modeLabels) as ChatMode[]).map((mode) => (
+              {(['chat', 'agent', 'research', 'learning'] as ChatMode[]).map((mode) => (
                 <DropdownMenuItem
                   key={mode}
                   onClick={() => handleModeChange(mode)}
                   className={cn(currentMode === mode && 'bg-accent')}
                 >
                   {modeIcons[mode]}
-                  <span className="ml-2">{modeLabels[mode]}</span>
+                  <span className="ml-2">{t(`mode.${mode}`)}</span>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -252,6 +254,12 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
               </Link>
             </>
           )}
+
+          {/* Active skills indicator */}
+          <Separator orientation="vertical" className="h-4" />
+          <Link href="/skills">
+            <ActiveSkillsIndicator />
+          </Link>
         </div>
 
         {/* Model selector */}
@@ -265,7 +273,7 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
                 </Link>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Designer</TooltipContent>
+            <TooltipContent>{t('designer')}</TooltipContent>
           </Tooltip>
 
           {/* Image Generation button */}
@@ -313,27 +321,27 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Side Panel</DropdownMenuLabel>
+              <DropdownMenuLabel>{t('sidePanel')}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => openPanel('canvas')}>
                 <PanelRight className="mr-2 h-4 w-4" />
                 <div className="flex-1">
-                  <span>Canvas</span>
-                  <p className="text-xs text-muted-foreground">Edit with AI assistance</p>
+                  <span>{t('canvas')}</span>
+                  <p className="text-xs text-muted-foreground">{t('canvasDesc')}</p>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => openPanel('artifact')}>
                 <Sparkles className="mr-2 h-4 w-4" />
                 <div className="flex-1">
-                  <span>Artifacts</span>
-                  <p className="text-xs text-muted-foreground">View generated content</p>
+                  <span>{t('artifacts')}</span>
+                  <p className="text-xs text-muted-foreground">{t('artifactsDesc')}</p>
                 </div>
               </DropdownMenuItem>
               {panelOpen && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={closePanel} className="text-muted-foreground">
-                    Close Panel
+                    {t('closePanel')}
                   </DropdownMenuItem>
                 </>
               )}
@@ -351,21 +359,21 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleTogglePin}>
                   {session.pinned ? (
-                    <><PinOff className="mr-2 h-4 w-4" /> Unpin</>  
+                    <><PinOff className="mr-2 h-4 w-4" /> {t('unpin')}</>  
                   ) : (
-                    <><Pin className="mr-2 h-4 w-4" /> Pin</>  
+                    <><Pin className="mr-2 h-4 w-4" /> {t('pin')}</>  
                   )}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleCopyChat} disabled={chatMessages.length === 0}>
                   <Copy className="mr-2 h-4 w-4" />
-                  Copy Chat
+                  {t('copyChat')}
                 </DropdownMenuItem>
                 <DropdownMenuItem 
                   onClick={() => setBatchCopyOpen(true)} 
                   disabled={messages.length === 0}
                 >
                   <CopyCheck className="mr-2 h-4 w-4" />
-                  Select & Copy
+                  {t('selectCopy')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <ExportDialog
@@ -373,7 +381,7 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
                   trigger={
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                       <Download className="mr-2 h-4 w-4" />
-                      Export
+                      {t('export')}
                     </DropdownMenuItem>
                   }
                 />
@@ -384,7 +392,7 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Clear Chat
+                  {t('clearChat')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -399,7 +407,7 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
           >
             {isAutoMode && <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />}
             <span className="max-w-[120px] truncate sm:max-w-[200px]">
-              {isAutoMode ? 'Auto' : (modelConfig?.name || currentModel)}
+              {isAutoMode ? t('auto') : (modelConfig?.name || currentModel)}
             </span>
             <ChevronDown className="h-3 w-3 opacity-50" />
           </Button>
@@ -417,7 +425,7 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
     <Dialog open={managePresetsOpen} onOpenChange={setManagePresetsOpen}>
       <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Manage Presets</DialogTitle>
+          <DialogTitle>{t('managePresets')}</DialogTitle>
         </DialogHeader>
         <PresetsManager onSelectPreset={(preset) => {
           handlePresetSelect(preset);

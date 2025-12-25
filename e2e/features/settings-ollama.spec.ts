@@ -67,7 +67,7 @@ test.describe('Ollama Configuration', () => {
 
     expect(result.withTrailingSlash).toBe('http://localhost:11434');
     expect(result.withV1Suffix).toBe('http://localhost:11434');
-    expect(result.withBothSlashAndV1).toBe('http://localhost:11434/v1');
+    expect(result.withBothSlashAndV1).toBe('http://localhost:11434');
     expect(result.clean).toBe('http://localhost:11434');
   });
 });

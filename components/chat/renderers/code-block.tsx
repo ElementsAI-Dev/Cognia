@@ -13,6 +13,7 @@
  */
 
 import { useState, memo, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { 
   Copy, 
   Check, 
@@ -53,11 +54,13 @@ export const CodeBlock = memo(function CodeBlock({
   highlightLines = [],
   filename,
 }: CodeBlockProps) {
+  const t = useTranslations('renderer');
+  const tToasts = useTranslations('toasts');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [wordWrap, setWordWrap] = useState(false);
   const [localShowLineNumbers, setLocalShowLineNumbers] = useState(showLineNumbers);
   const codeRef = useRef<HTMLPreElement>(null);
-  const { copy, isCopying } = useCopy({ toastMessage: 'Code copied' });
+  const { copy, isCopying } = useCopy({ toastMessage: tToasts('codeCopied') });
 
   const lines = code.split('\n');
 
@@ -185,7 +188,7 @@ export const CodeBlock = memo(function CodeBlock({
                   className="h-6 w-6"
                   onClick={handleCopy}
                   disabled={isCopying}
-                  aria-label="Copy code"
+                  aria-label={t('copyCode')}
                 >
                   {isCopying ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                 </Button>
@@ -200,7 +203,7 @@ export const CodeBlock = memo(function CodeBlock({
                   size="icon"
                   className="h-6 w-6"
                   onClick={handleDownload}
-                  aria-label="Download code"
+                  aria-label={t('downloadCode')}
                 >
                   <Download className="h-3 w-3" />
                 </Button>
@@ -215,7 +218,7 @@ export const CodeBlock = memo(function CodeBlock({
                   size="icon"
                   className="h-6 w-6"
                   onClick={() => setIsFullscreen(true)}
-                  aria-label="View fullscreen"
+                  aria-label={t('viewFullscreen')}
                 >
                   <Maximize2 className="h-3 w-3" />
                 </Button>
@@ -273,7 +276,7 @@ export const CodeBlock = memo(function CodeBlock({
                       className="h-7 w-7"
                       onClick={handleCopy}
                       disabled={isCopying}
-                      aria-label="Copy code"
+                      aria-label={t('copyCode')}
                     >
                       {isCopying ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
@@ -287,7 +290,7 @@ export const CodeBlock = memo(function CodeBlock({
                       size="icon"
                       className="h-7 w-7"
                       onClick={handleDownload}
-                      aria-label="Download code"
+                      aria-label={t('downloadCode')}
                     >
                       <Download className="h-3.5 w-3.5" />
                     </Button>

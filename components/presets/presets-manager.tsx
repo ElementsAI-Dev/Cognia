@@ -5,6 +5,7 @@
  */
 
 import { useState, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { Plus, RefreshCw, Trash2, Download, Upload, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +37,8 @@ interface PresetsManagerProps {
 }
 
 export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
+  const t = useTranslations('presets');
+  const tCommon = useTranslations('common');
   const [search, setSearch] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editPreset, setEditPreset] = useState<Preset | null>(null);
@@ -232,7 +235,7 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
       <div className="p-3 rounded-lg border bg-gradient-to-r from-purple-500/5 to-blue-500/5">
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="h-4 w-4 text-purple-500" />
-          <span className="text-sm font-medium">AI Generate Preset</span>
+          <span className="text-sm font-medium">{t('aiGenerate')}</span>
         </div>
         <div className="flex items-center gap-2">
           <Input
@@ -260,7 +263,7 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1">
           <Input
-            placeholder="Search presets..."
+            placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -276,12 +279,12 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={handleExport}>
                 <Download className="mr-2 h-4 w-4" />
-                Export Presets
+                {t('export')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
                 <Upload className="mr-2 h-4 w-4" />
-                Import Presets
+                {t('import')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -301,11 +304,11 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
             onClick={() => setShowResetDialog(true)}
           >
             <RefreshCw className="mr-2 h-4 w-4" />
-            Reset
+            {t('reset')}
           </Button>
           <Button onClick={() => setCreateDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            New Preset
+            {t('newPreset')}
           </Button>
         </div>
       </div>
@@ -314,12 +317,12 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
       {filteredPresets.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <p className="text-muted-foreground mb-4">
-            {search ? 'No presets found' : 'No presets yet'}
+            {search ? t('noResults') : t('noPresets')}
           </p>
           {!search && (
             <Button onClick={() => setCreateDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              Create your first preset
+              {t('createFirst')}
             </Button>
           )}
         </div>
@@ -354,20 +357,19 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Preset</AlertDialogTitle>
+            <AlertDialogTitle>{t('deletePreset')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete &quot;{deletePreset?.name}&quot;? This
-              action cannot be undone.
+              {t('deleteConfirm', { name: deletePreset?.name || '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Delete
+              {tCommon('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -377,20 +379,19 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
       <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reset to Default Presets</AlertDialogTitle>
+            <AlertDialogTitle>{t('resetTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete all your custom presets and restore the default
-              presets. Are you sure you want to continue?
+              {t('resetConfirm')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleReset}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               <RefreshCw className="mr-2 h-4 w-4" />
-              Reset All
+              {t('resetAll')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

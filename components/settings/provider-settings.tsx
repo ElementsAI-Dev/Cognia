@@ -163,6 +163,7 @@ const PROVIDER_CATEGORIES: Record<string, ProviderCategory> = {
 export function ProviderSettings() {
   const t = useTranslations('providers');
   const tc = useTranslations('common');
+  const tPlaceholders = useTranslations('placeholders');
 
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const updateProviderSettings = useSettingsStore((state) => state.updateProviderSettings);
@@ -409,7 +410,7 @@ export function ProviderSettings() {
         </div>
         <div className="relative w-full sm:w-48">
           <Input
-            placeholder="Search providers..."
+            placeholder={tPlaceholders('searchProviders')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-8 text-sm pl-8 max-sm:h-10 max-sm:text-base"
@@ -754,7 +755,7 @@ export function ProviderSettings() {
                         {/* Add New Key */}
                         <div className="flex gap-2">
                           <Input
-                            placeholder="Add additional API key..."
+                            placeholder={tPlaceholders('addApiKey')}
                             value={newApiKeys[providerId] || ''}
                             onChange={(e) =>
                               setNewApiKeys((prev) => ({ ...prev, [providerId]: e.target.value }))

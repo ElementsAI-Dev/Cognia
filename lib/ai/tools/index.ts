@@ -44,3 +44,20 @@ export {
   type FileAppendInput,
   type FileToolResult,
 } from './file-tool';
+export {
+  pptTools,
+  executePPTOutline,
+  executePPTSlideContent,
+  executePPTFinalize,
+  executePPTExport,
+  registerPPTTools,
+  pptOutlineInputSchema,
+  pptSlideContentInputSchema,
+  pptFinalizeInputSchema,
+  pptExportInputSchema,
+  type PPTOutlineInput,
+  type PPTSlideContentInput,
+  type PPTFinalizeInput,
+  type PPTExportInput,
+  type PPTToolResult,
+} from './ppt-tool';

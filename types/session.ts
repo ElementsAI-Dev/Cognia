@@ -7,7 +7,7 @@ import type { ProviderName } from './provider';
 
 export type { ProviderName };
 
-export type ChatMode = 'chat' | 'agent' | 'research';
+export type ChatMode = 'chat' | 'agent' | 'research' | 'learning';
 
 export interface ConversationBranch {
   id: string;

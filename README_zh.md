@@ -1,224 +1,897 @@
-# React Quick Starter
+# Cognia
 
-一个现代化的全栈启动模板，结合了用于 Web 应用的 **Next.js 16** 和 **React 19**，以及用于跨平台桌面应用的 **Tauri 2.9**。使用 TypeScript、Tailwind CSS v4 和 shadcn/ui 组件构建。
+Cognia 是一款现代化的 AI 原生聊天与创作应用，支持多种 AI 模型和服务商。项目采用 Next.js 16 和 React 19.2 构建前端，通过 Tauri 2.9 实现跨平台桌面应用。同一代码库可同时部署为 Web 应用和桌面原生应用。
+
+技术栈包括：Tailwind CSS v4、shadcn/ui、Zustand 状态管理、Dexie 持久化存储，以及 Vercel AI SDK v5 对接 OpenAI、Anthropic、Google、Mistral、Groq、DeepSeek、Ollama 等主流 AI 服务商。
 
 [English Documentation](./README.md)
 
-## 特性
+## 目录
 
-- ⚡️ **Next.js 16** 配合 App Router 和 React 19
-- 🖥️ **Tauri 2.9** 用于原生桌面应用（Windows、macOS、Linux）
-- 🎨 **Tailwind CSS v4** 支持 CSS 变量和暗色模式
-- 🧩 **shadcn/ui** 组件库，基于 Radix UI 原语
-- 📦 **Zustand** 轻量级状态管理
-- 🔤 **Geist 字体** 通过 next/font 优化
-- 🎯 **TypeScript** 提供类型安全
-- 🎭 **Lucide Icons** 精美的图标库
-- 📱 双重部署：从同一代码库部署 Web 应用或桌面应用
+- [核心特性](#核心特性)
+- [技术架构](#技术架构)
+- [前置要求](#前置要求)
+- [快速开始](#快速开始)
+- [开发指南](#开发指南)
+- [项目结构](#项目结构)
+- [核心功能](#核心功能)
+  - [AI 模型集成](#ai-模型集成)
+  - [工件系统](#工件系统)
+  - [画布编辑器](#画布编辑器)
+  - [MCP 支持](#mcp-支持)
+  - [数据持久化](#数据持久化)
+  - [项目管理](#项目管理)
+- [配置说明](#配置说明)
+- [生产构建](#生产构建)
+- [部署指南](#部署指南)
+- [测试策略](#测试策略)
+- [故障排除](#故障排除)
+- [资源链接](#资源链接)
+
+## 核心特性
+
+### AI 能力
+
+- **多模型支持**：集成 7 家主流 AI 服务商（OpenAI、Anthropic、Google、Mistral、Groq、DeepSeek、Ollama）
+- **智能路由**：自动根据任务复杂度选择最优模型（快速/平衡/强力三档）
+- **流式响应**：实时显示 AI 生成内容
+- **多模态支持**：视觉模型支持图像分析
+- **图像生成**：集成 DALL-E 文生图功能
+- **工具调用**：支持 Function Calling 和 MCP 工具调用
+
+### 聊天体验
+
+- **多种对话模式**：聊天模式、代理模式、研究模式
+- **对话分支**：从任意节点创建分支探索不同对话路径
+- **消息管理**：编辑消息、重试响应、删除对话
+- **语音输入**：集成 Web Speech API 语音转文字
+- **文件上传**：支持拖拽上传和剪贴板粘贴图片
+- **会话搜索**：全文搜索历史对话内容
+- **记忆系统**：跨会话持久化 AI 记忆
+- **自定义指令**：全局和会话级自定义指令
+
+### 内容创作
+
+- **工件系统**：AI 可生成代码、文档、图表、数学公式等独立内容
+- **画布编辑器**：Monaco 编辑器集成 AI 建议和代码转换
+- **版本历史**：画布文档自动保存和版本恢复
+- **多格式预览**：支持 HTML、React、SVG、Mermaid、图表等预览
+
+### 数据管理
+
+- **项目组织**：将对话组织到项目中，支持知识库
+- **导出功能**：导出为 PDF、Markdown、JSON、HTML 等格式
+- **预设管理**：保存和加载聊天配置预设
+- **使用统计**：Token 计数和成本估算
+
+### 桌面能力
+
+- **MCP 集成**：完整支持 Model Context Protocol，扩展 AI 能力
+- **原生功能**：文件系统访问、系统对话框、剪贴板等
+- **离线运行**：静态导出支持离线使用
+
+## 技术架构
+
+### 技术栈
+
+#### 前端框架
+
+- Next.js 16（App Router）
+- React 19.2
+- TypeScript 5
+
+#### UI 组件
+
+- Tailwind CSS v4（PostCSS）
+- shadcn/ui + Radix UI（50+ 组件）
+- Lucide 图标库
+- Monaco 编辑器（代码编辑）
+- Shiki 语法高亮（30+ 语言）
+
+#### 状态管理
+
+- Zustand v5（客户端状态）
+- Dexie（IndexedDB 持久化）
+- localStorage 持久化中间件
+
+#### AI 集成
+
+- Vercel AI SDK v5
+- 7 家服务商支持
+- 流式响应处理
+- 工具调用支持
+
+#### 桌面应用
+
+- Tauri 2.9（跨平台）
+- Rust 后端
+- 原生能力封装
+
+#### 可视化
+
+- Recharts（数据图表）
+- Xyflow（流程图）
+- KaTeX（数学公式）
+- Mermaid（图表）
+
+#### 测试
+
+- Jest（单元测试）
+- React Testing Library
+- Playwright（端到端测试）
+
+### 架构原则
+
+- **静态优先**：生产环境使用静态导出，无服务器依赖
+- **客户端主导**：状态管理和数据持久化均在客户端完成
+- **渐进增强**：Web 端可通过 Tauri 增强为桌面应用
+- **类型安全**：全面使用 TypeScript 类型系统
+- **组件化**：功能模块化和 UI 组件复用
 
 ## 前置要求
 
-在开始之前，请确保已安装以下内容：
+### Web 开发
 
-### Web 开发所需
+- **Node.js** 20.x 或更高版本
+- **pnpm** 8.x 或更高版本（推荐）
 
-- **Node.js** 20.x 或更高版本（[下载](https://nodejs.org/)）
-- **pnpm** 8.x 或更高版本（推荐）或 npm/yarn
+```bash
+# 安装 pnpm
+npm install -g pnpm
+```
 
-  ```bash
-  npm install -g pnpm
-  ```
+### 桌面开发（额外要求）
 
-### 桌面开发所需（额外要求）
+- **Rust** 1.70 或更高版本
 
-- **Rust** 1.70 或更高版本（[安装](https://www.rust-lang.org/tools/install)）
+```bash
+# 验证安装
+rustc --version
+cargo --version
+```
 
-  ```bash
-  # 验证安装
-  rustc --version
-  cargo --version
-  ```
+- **系统依赖**
+  - Windows：Microsoft Visual Studio C++ 构建工具
+  - macOS：Xcode 命令行工具（`xcode-select --install`）
+  - Linux：参见 [Tauri 前置要求](https://tauri.app/v1/guides/getting-started/prerequisites)
 
-- **系统依赖**（因操作系统而异）：
-  - **Windows**：Microsoft Visual Studio C++ 生成工具
-  - **macOS**：Xcode 命令行工具
-  - **Linux**：参见 [Tauri 前置要求](https://tauri.app/v1/guides/getting-started/prerequisites)
+## 快速开始
 
-## 安装
+### 1. 克隆仓库
 
-1. **克隆仓库**
+```bash
+git clone https://github.com/your-username/cognia.git
+cd cognia
+```
 
-   ```bash
-   git clone <your-repo-url>
-   cd react-quick-starter
-   ```
+### 2. 安装依赖
 
-2. **安装依赖**
+```bash
+pnpm install
+```
 
-   ```bash
-   pnpm install
-   # 或
-   npm install
-   # 或
-   yarn install
-   ```
+### 3. 配置环境变量
 
-3. **验证安装**
+创建 `.env.local` 文件并添加必要的 API 密钥：
 
-   ```bash
-   # 检查 Next.js 是否就绪
-   pnpm dev
-   
-   # 检查 Tauri 是否就绪（可选，用于桌面开发）
-   pnpm tauri info
-   ```
+```env
+# OpenAI（可选）
+OPENAI_API_KEY=sk-your-openai-key
 
-## 开发
+# Anthropic（可选）
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-key
 
-### Web 应用开发
+# Google Gemini（可选）
+GOOGLE_API_KEY=your-google-api-key
 
-#### 启动开发服务器
+# DeepSeek（可选）
+DEEPSEEK_API_KEY=sk-your-deepseek-key
+
+# Groq（可选）
+GROQ_API_KEY=gsk-your-groq-key
+```
+
+### 4. 启动开发服务器
+
+#### Web 应用
 
 ```bash
 pnpm dev
-# 或
-npm run dev
 ```
 
-这将在 [http://localhost:3000](http://localhost:3000) 启动 Next.js 开发服务器。当您编辑文件时，页面会自动重新加载。
+访问：<http://localhost:3000>
 
-#### 关键开发文件
-
-- `app/page.tsx` - 主着陆页
-- `app/layout.tsx` - 根布局及全局配置
-- `app/globals.css` - 全局样式和 Tailwind 配置
-- `components/ui/` - 可复用的 UI 组件（shadcn/ui）
-- `lib/utils.ts` - 工具函数
-
-### 桌面应用开发
-
-#### 启动 Tauri 开发模式
+#### 桌面应用
 
 ```bash
 pnpm tauri dev
 ```
 
-此命令将：
+### 5. 验证安装
 
-1. 启动 Next.js 开发服务器
-2. 启动 Tauri 桌面应用
-3. 为前端和 Rust 代码启用热重载
+- 检查 Next.js：访问开发服务器
+- 检查 Tauri：运行 `pnpm tauri info`
+- 运行测试：`pnpm test`
 
-#### Tauri 开发文件
+## 开发指南
 
-- `src-tauri/src/main.rs` - Rust 应用主入口点
-- `src-tauri/src/lib.rs` - Rust 库代码
-- `src-tauri/tauri.conf.json` - Tauri 配置
-- `src-tauri/Cargo.toml` - Rust 依赖
-
-## 可用脚本
-
-### 前端脚本
-
-| 命令 | 描述 |
-|------|------|
-| `pnpm dev` | 在 3000 端口启动 Next.js 开发服务器 |
-| `pnpm build` | 构建生产环境的 Next.js 应用（输出到 `out/` 目录） |
-| `pnpm start` | 启动 Next.js 生产服务器（在 `pnpm build` 之后） |
-| `pnpm lint` | 运行 ESLint 检查代码质量 |
-| `pnpm lint --fix` | 自动修复 ESLint 问题 |
-
-### Tauri（桌面）脚本
-
-| 命令 | 描述 |
-|------|------|
-| `pnpm tauri dev` | 启动 Tauri 开发模式，支持热重载 |
-| `pnpm tauri build` | 构建生产环境的桌面应用 |
-| `pnpm tauri info` | 显示 Tauri 环境信息 |
-| `pnpm tauri icon` | 从源图像生成应用图标 |
-| `pnpm tauri --help` | 显示所有可用的 Tauri 命令 |
-
-### 添加 UI 组件（shadcn/ui）
+### 可用脚本
 
 ```bash
-# 添加新组件（例如 Card）
-pnpm dlx shadcn@latest add card
+# 开发
+pnpm dev              # 启动 Next.js 开发服务器（localhost:3000）
+pnpm tauri dev        # 启动 Tauri 桌面开发模式
 
-# 添加多个组件
-pnpm dlx shadcn@latest add button card dialog
+# 构建
+pnpm build            # 构建生产版本（静态导出到 out/）
+pnpm start            # 启动生产服务（需先运行 pnpm build）
+pnpm tauri build      # 构建桌面应用安装包
+
+# 代码质量
+pnpm lint             # 运行 ESLint 检查
+pnpm lint:fix         # 自动修复 ESLint 问题
+
+# 测试
+pnpm test             # 运行 Jest 单元测试
+pnpm test:watch       # Jest 监视模式
+pnpm test:coverage    # Jest 测试覆盖率
+pnpm test:e2e         # 运行 Playwright 端到端测试
+pnpm test:e2e:ui      # Playwright UI 模式
+pnpm test:e2e:headed  # Playwright 有头浏览器模式
 ```
+
+### 添加 UI 组件
+
+使用 shadcn CLI 添加 Radix UI 组件：
+
+```bash
+pnpm dlx shadcn@latest add <component-name>
+```
+
+示例：
+
+```bash
+pnpm dlx shadcn@latest add button
+pnpm dlx shadcn@latest add dialog
+pnpm dlx shadcn@latest add dropdown-menu
+```
+
+### 创建新 Store
+
+Zustand stores 位于 `/stores/` 目录：
+
+```typescript
+// stores/example-store.ts
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+interface ExampleState {
+  data: string;
+  setData: (data: string) => void;
+}
+
+export const useExampleStore = create<ExampleState>()(
+  persist(
+    (set) => ({
+      data: '',
+      setData: (data) => set({ data }),
+    }),
+    {
+      name: 'cognia-example', // localStorage key
+    }
+  )
+);
+```
+
+### 添加新功能模块
+
+1. 在 `/components/` 创建功能组件
+2. 在 `/types/` 添加类型定义
+3. 在 `/stores/` 创建状态管理
+4. 在 `/hooks/` 创建自定义 Hook（如需要）
+5. 在 `/lib/` 添加工具函数（如需要）
 
 ## 项目结构
 
-```
-react-quick-starter/
-├── app/                      # Next.js App Router
-│   ├── layout.tsx           # 根布局，包含字体和元数据
-│   ├── page.tsx             # 主着陆页
-│   ├── globals.css          # 全局样式和 Tailwind 配置
-│   └── favicon.ico          # 应用图标
-├── components/              # React 组件
-│   └── ui/                  # shadcn/ui 组件（Button 等）
-├── lib/                     # 工具函数
-│   └── utils.ts            # 辅助函数（cn 等）
-├── public/                  # 静态资源（图片、SVG）
-├── src-tauri/              # Tauri 桌面应用
+```text
+cognia/
+├── app/                          # Next.js App Router
+│   ├── (chat)/                   # 聊天界面路由组
+│   │   └── page.tsx              # 主聊天界面
+│   ├── settings/                 # 设置页面
+│   │   └── page.tsx              # 设置主页面（7 个标签页）
+│   ├── projects/                 # 项目管理页面
+│   │   └── page.tsx              # 项目列表和详情
+│   ├── designer/                 # 设计器页面
+│   ├── api/                      # API 路由（开发时使用）
+│   ├── skills/                   # 技能路由
+│   ├── page.tsx                  # 应用主页
+│   ├── layout.tsx                # 根布局和全局配置
+│   ├── providers.tsx             # 客户端 Provider 包装器
+│   └── globals.css               # 全局样式和 Tailwind 配置
+│
+├── components/                   # React 组件
+│   ├── ai-elements/              # AI 专用组件库（30+ 组件）
+│   │   ├── message.tsx           # 消息渲染
+│   │   ├── code-block.tsx        # 代码块显示
+│   │   ├── reasoning.tsx         # 推理过程可视化
+│   │   ├── artifact.tsx          # 工件卡片
+│   │   ├── plan.tsx              # 计划显示
+│   │   └── ...                   # 更多 AI 组件
+│   ├── artifacts/                # 工件系统
+│   │   ├── artifact-panel.tsx    # 工件面板
+│   │   ├── artifact-preview.tsx  # 工件预览
+│   │   └── artifact-renderers.tsx # 各类型工件渲染器
+│   ├── canvas/                   # 画布编辑器
+│   │   ├── canvas-panel.tsx      # Monaco 编辑器面板
+│   │   ├── version-history-panel.tsx # 版本历史面板
+│   │   └── index.ts
+│   ├── agent/                    # 代理模式组件
+│   │   ├── agent-mode-selector.tsx
+│   │   ├── agent-plan-editor.tsx
+│   │   ├── agent-steps.tsx       # 执行步骤可视化
+│   │   └── workflow-selector.tsx
+│   ├── chat/                     # 聊天界面组件
+│   │   ├── chat-container.tsx    # 主容器和编排器
+│   │   ├── chat-input.tsx        # 输入框（语音+文件）
+│   │   ├── chat-header.tsx       # 模式/模型/预设选择器
+│   │   ├── welcome-state.tsx     # 模式特定欢迎页
+│   │   ├── branch-selector.tsx   # 对话分支选择器
+│   │   ├── export-dialog.tsx     # 导出对话框
+│   │   ├── image-generation-dialog.tsx # 图像生成对话框
+│   │   ├── context-settings-dialog.tsx  # 上下文设置
+│   │   ├── preset-manager-dialog.tsx    # 预设管理
+│   │   ├── model-picker-dialog.tsx      # 模型选择
+│   │   ├── mention-popover.tsx   # 提及功能
+│   │   ├── markdown-renderer.tsx # Markdown 渲染
+│   │   └── renderers/            # 专用渲染器
+│   │       ├── code-block.tsx
+│   │       ├── math-block.tsx
+│   │       ├── mermaid-block.tsx
+│   │       ├── vegalite-block.tsx
+│   │       └── enhanced-table.tsx
+│   ├── projects/                 # 项目管理组件
+│   │   ├── project-list.tsx      # 项目列表
+│   │   ├── project-card.tsx      # 项目卡片
+│   │   ├── create-project-dialog.tsx
+│   │   ├── knowledge-base.tsx    # 知识库管理
+│   │   ├── project-templates.tsx # 项目模板
+│   │   └── import-export-dialog.tsx
+│   ├── presets/                  # 预设系统
+│   │   ├── preset-selector.tsx   # 快速预设选择
+│   │   ├── preset-card.tsx       # 预设卡片
+│   │   ├── create-preset-dialog.tsx
+│   │   └── presets-manager.tsx
+│   ├── settings/                 # 设置页面组件
+│   │   ├── provider-settings.tsx # 服务商配置
+│   │   ├── custom-instructions-settings.tsx # 自定义指令
+│   │   ├── memory-settings.tsx   # 记忆管理
+│   │   ├── usage-settings.tsx    # 使用统计
+│   │   ├── keyboard-settings.tsx # 快捷键设置
+│   │   ├── speech-settings.tsx   # 语音设置
+│   │   ├── data-settings.tsx     # 数据管理
+│   │   ├── mcp-settings.tsx      # MCP 服务器管理
+│   │   ├── mcp-server-dialog.tsx # MCP 服务器对话框
+│   │   ├── mcp-install-wizard.tsx # MCP 快速安装向导
+│   │   └── setup-wizard.tsx      # 首次设置向导
+│   ├── export/                   # 导出功能
+│   │   ├── document-export-dialog.tsx
+│   │   └── index.ts
+│   ├── layout/                   # 布局组件
+│   │   ├── command-palette.tsx   # 命令面板
+│   │   ├── keyboard-shortcuts-dialog.tsx
+│   │   └── mobile-nav.tsx
+│   ├── sidebar/                  # 侧边栏组件
+│   │   └── app-sidebar.tsx
+│   ├── learning/                 # 学习模式组件
+│   ├── skills/                   # 技能组件
+│   ├── providers/                # Provider 组件
+│   │   ├── skill-provider.tsx
+│   │   └── index.ts
+│   └── ui/                       # shadcn/ui 基础组件（50+）
+│       ├── button.tsx
+│       ├── dialog.tsx
+│       ├── dropdown-menu.tsx
+│       └── ...
+│
+├── hooks/                        # 自定义 React Hooks
+│   ├── use-agent.ts              # 代理模式 Hook
+│   ├── use-messages.ts           # 消息持久化
+│   ├── use-session-search.ts     # 会话搜索
+│   ├── use-keyboard-shortcuts.ts # 全局快捷键
+│   ├── use-rag.ts                # RAG 检索
+│   ├── use-vector-db.ts          # 向量数据库
+│   ├── use-speech.ts             # 语音输入
+│   ├── use-learning-mode.ts      # 学习模式
+│   ├── use-workflow.ts           # 工作流
+│   ├── use-skills.ts             # 技能系统
+│   ├── use-structured-output.ts  # 结构化输出
+│   ├── use-translate.ts          # 翻译
+│   ├── use-global-shortcuts.test.ts
+│   └── index.ts
+│
+├── lib/                          # 工具库
+│   ├── ai/                       # AI 集成
+│   │   ├── client.ts             # 服务商客户端创建
+│   │   ├── use-ai-chat.ts        # 聊天 Hook（含使用跟踪）
+│   │   ├── auto-router.ts        # 智能模型路由
+│   │   ├── image-utils.ts        # 视觉支持工具
+│   │   ├── image-generation.ts   # DALL-E 集成
+│   │   ├── speech-api.ts         # 语音 API
+│   │   ├── agent-tools.ts        # 代理工具
+│   │   ├── tools/                # 工具定义
+│   │   ├── workflows/            # 工作流定义
+│   │   └── index.ts
+│   ├── db/                       # 数据库
+│   │   ├── index.ts              # Dexie 设置
+│   │   └── message-repository.ts # 消息持久化
+│   ├── document/                 # 文档处理
+│   │   └── table-extractor.ts    # 表格提取
+│   ├── export/                   # 导出功能
+│   │   ├── pdf-export.ts         # PDF 导出
+│   │   ├── markdown-export.ts    # Markdown 导出
+│   │   ├── json-export.ts        # JSON 导出
+│   │   ├── html-export.ts        # HTML 导出
+│   │   ├── word-export.ts        # Word 导出
+│   │   ├── excel-export.ts       # Excel 导出
+│   │   └── google-sheets-export.ts # Google Sheets 导出
+│   ├── file/                     # 文件工具
+│   ├── i18n/                     # 国际化
+│   │   └── messages/
+│   │       ├── en.json
+│   │       └── zh-CN.json
+│   ├── learning/                 # 学习模式
+│   ├── native/                   # Tauri 原生调用
+│   ├── search/                   # 搜索工具
+│   ├── skills/                   # 技能系统
+│   ├── themes/                   # 主题配置
+│   ├── vector/                   # 向量数据库集成
+│   │   ├── store.ts
+│   │   └── index.ts
+│   └── utils.ts                  # 通用工具（cn 等）
+│
+├── stores/                       # Zustand 状态管理
+│   ├── artifact-store.ts         # 工件、画布、版本历史
+│   ├── settings-store.ts         # 用户设置和服务商配置
+│   ├── session-store.ts          # 会话和分支
+│   ├── agent-store.ts            # 代理执行跟踪
+│   ├── memory-store.ts           # 跨会话记忆
+│   ├── project-store.ts          # 项目管理
+│   ├── preset-store.ts           # 预设管理
+│   ├── usage-store.ts            # Token 和成本跟踪
+│   ├── mcp-store.ts              # MCP 服务器管理
+│   ├── workflow-store.ts         # 工作流管理
+│   ├── learning-store.ts         # 学习模式状态
+│   └── index.ts                  # Store 导出
+│
+├── types/                        # TypeScript 类型定义
+│   ├── artifact.ts               # 工件类型（8 种类型、17+ 语言）
+│   ├── session.ts                # 会话和分支类型
+│   ├── message.ts                # 消息类型（含分支支持）
+│   ├── provider.ts               # 服务商配置
+│   ├── memory.ts                 # 记忆类型
+│   ├── project.ts                # 项目类型
+│   ├── preset.ts                 # 预设类型
+│   ├── usage.ts                  # 使用跟踪类型
+│   ├── mcp.ts                    # MCP 类型
+│   ├── agent-mode.ts             # 代理模式类型
+│   ├── learning.ts               # 学习模式类型
+│   ├── skill.ts                  # 技能类型
+│   ├── speech.ts                 # 语音类型
+│   ├── workflow.ts               # 工作流类型
+│   └── index.ts
+│
+├── e2e/                          # Playwright 端到端测试
+│   ├── ai/                       # AI 功能测试
+│   ├── core/                     # 核心功能测试
+│   ├── features/                 # 特性测试
+│   │   ├── math-renderer.spec.ts
+│   │   ├── settings-ollama.spec.ts
+│   │   ├── projects-knowledge-base.spec.ts
+│   │   ├── learning-mode.spec.ts
+│   │   ├── ppt-enhanced.spec.ts
+│   │   ├── ppt.spec.ts
+│   │   └── skills-enhanced.spec.ts
+│   └── ui/                       # UI 测试
+│
+├── src-tauri/                    # Tauri Rust 后端
 │   ├── src/
-│   │   ├── main.rs         # Rust 主入口点
-│   │   └── lib.rs          # Rust 库代码
-│   ├── icons/              # 桌面应用图标
-│   ├── tauri.conf.json     # Tauri 配置
-│   └── Cargo.toml          # Rust 依赖
-├── components.json          # shadcn/ui 配置
-├── next.config.ts          # Next.js 配置
-├── tailwind.config.ts      # Tailwind CSS 配置
-├── tsconfig.json           # TypeScript 配置
-├── eslint.config.mjs       # ESLint 配置
-└── package.json            # Node.js 依赖和脚本
+│   │   ├── main.rs               # Rust 入口点
+│   │   ├── lib.rs                # 库代码
+│   │   ├── commands/             # Tauri 命令
+│   │   │   ├── mod.rs
+│   │   │   └── vector.rs         # 向量数据库命令
+│   │   └── mcp/                  # MCP 实现
+│   │       ├── mod.rs
+│   │       ├── manager.rs        # 服务器生命周期管理
+│   │       ├── client.rs         # MCP 客户端
+│   │       ├── config.rs         # 配置管理
+│   │       ├── transport/        # 传输层
+│   │       └── protocol/         # 协议实现
+│   ├── tauri.conf.json           # Tauri 配置
+│   ├── Cargo.toml                # Rust 依赖
+│   └── capabilities/             # 权限配置
+│
+├── llmdoc/                       # 项目文档
+│   ├── index.md                  # 文档索引
+│   └── feature/                  # 功能文档
+│       ├── phase-2-overview.md
+│       ├── enhanced-features.md
+│       ├── mcp-system.md
+│       └── ...
+│
+├── public/                       # 静态资源
+├── __mocks__/                    # Jest Mocks
+├── .github/                      # GitHub 配置
+├── components.json               # shadcn/ui 配置
+├── next.config.ts                # Next.js 配置
+├── tailwind.config.ts            # Tailwind 配置
+├── tsconfig.json                 # TypeScript 配置
+├── jest.config.ts                # Jest 配置
+├── playwright.config.ts          # Playwright 配置
+├── package.json                  # 依赖和脚本
+├── pnpm-lock.yaml                # pnpm 锁文件
+├── CLAUDE.md                     # Claude AI 指令
+├── CHANGELOG.md                  # 变更日志
+└── README_zh.md                  # 中文文档
 ```
 
-## 配置
+## 核心功能
 
-### 环境变量
+### AI 模型集成
 
-在根目录创建 `.env.local` 文件以配置特定环境的变量：
+#### 支持的服务商
 
-```env
-# 示例环境变量
-NEXT_PUBLIC_API_URL=https://api.example.com
-NEXT_PUBLIC_APP_NAME=React Quick Starter
+Cognia 通过 Vercel AI SDK v5 集成以下服务商：
 
-# 私有变量（不会暴露给浏览器）
-DATABASE_URL=postgresql://...
-API_SECRET_KEY=your-secret-key
+| 服务商 | 模型示例 | 特性 |
+| ------- | -------- | ---- |
+| OpenAI | GPT-4o, GPT-4o-mini, o1, o1-mini | 视觉、工具调用、流式 |
+| Anthropic | Claude 4 Sonnet/Opus, Claude 3.5 Haiku | 长上下文、视觉 |
+| Google | Gemini 2.0 Flash, Gemini 1.5 Pro/Flash | 视觉、长上下文 |
+| Mistral | Mistral Large, Mistral Small | 高性能 |
+| DeepSeek | deepseek-chat, deepseek-coder | 代码优化 |
+| Groq | Llama 3.3, Mixtral | 低延迟 |
+| Ollama | 本地模型 | 离线、隐私 |
+
+#### 智能自动路由
+
+`lib/ai/auto-router.ts` 实现三层智能路由：
+
+```typescript
+// 快速档：简单查询
+- Groq Llama 3.3 (70 tokens/M)
+- Gemini Flash
+- GPT-4o Mini
+- Claude Haiku
+
+// 平衡档：常规任务
+- Gemini 1.5 Pro
+- GPT-4o
+- Claude Sonnet
+
+// 强力档：复杂推理
+- Claude Opus
+- OpenAI o1
+- DeepSeek Reasoner
 ```
 
-**重要提示**：
+#### 流式响应
 
-- 只有以 `NEXT_PUBLIC_` 为前缀的变量会暴露给浏览器
-- 切勿将 `.env.local` 提交到版本控制
-- 使用 `.env.example` 记录所需的变量
+所有服务商支持流式响应，实时显示 AI 生成内容：
 
-### Tauri 配置
+```typescript
+const { messages, handleSubmit, isLoading } = useAIChat({
+  api: '/api/chat',
+  stream: true,
+  onFinish: (message) => {
+    // 记录使用统计
+    addUsageRecord({ ... });
+  }
+});
+```
 
-编辑 `src-tauri/tauri.conf.json` 以自定义您的桌面应用：
+### 工件系统
+
+工件系统允许 AI 生成独立的、可预览的内容片段。
+
+#### 支持的工件类型
+
+```typescript
+type ArtifactType =
+  | 'code'        // 代码片段（17+ 语言）
+  | 'document'    // 文本文档
+  | 'svg'         // SVG 矢量图
+  | 'html'        // HTML 页面
+  | 'react'       // React 组件
+  | 'mermaid'     // Mermaid 图表
+  | 'chart'       // 数据图表（Recharts）
+  | 'math';       // 数学公式（KaTeX）
+```
+
+#### 工件存储
+
+工件持久化到 localStorage（key: `cognia-artifacts`）：
+
+```typescript
+interface Artifact {
+  id: string;
+  sessionId: string;
+  messageId: string;
+  type: ArtifactType;
+  title: string;
+  content: string;
+  language?: string;
+  createdAt: Date;
+}
+```
+
+#### 使用示例
+
+```typescript
+import { useArtifactStore } from '@/stores/artifact-store';
+
+// 创建工件
+const { createArtifact } = useArtifactStore();
+createArtifact({
+  sessionId: 'session-123',
+  messageId: 'msg-456',
+  type: 'code',
+  title: '快速排序算法',
+  content: 'function quickSort(arr) { ... }',
+  language: 'typescript'
+});
+
+// 工件面板自动打开并显示工件
+```
+
+### 画布编辑器
+
+基于 Monaco 编辑器的代码编辑器，支持 AI 建议和版本历史。
+
+#### 核心功能
+
+- **Monaco 编辑器**：VS Code 同款编辑器
+- **语法高亮**：Shiki 支持 30+ 语言
+- **AI 建议**：AI 可添加改进建议
+- **代码转换**：重构、优化、解释等操作
+- **版本历史**：自动保存和手动版本点
+- **差异对比**：版本间对比
+
+#### 画布操作
+
+```typescript
+// 添加 AI 建议
+useArtifactStore().addSuggestion(documentId, {
+  type: 'fix', // fix | improve | refactor | explain
+  range: { startLine: 10, endLine: 15 },
+  originalText: 'const x = 1;',
+  suggestedText: 'const x: number = 1;',
+  explanation: '添加类型注解',
+  status: 'pending'
+});
+
+// 保存版本
+saveCanvasVersion(documentId, '优化性能', false);
+
+// 恢复版本
+restoreCanvasVersion(documentId, versionId);
+```
+
+### MCP 支持
+
+完整实现 Model Context Protocol，可扩展 AI 能力。
+
+#### MCP 架构
+
+```text
+Frontend (React)
+  ↓ Tauri IPC
+Rust Backend (Tauri)
+  ↓ stdio/SSE
+MCP Servers (External)
+```
+
+#### Rust 后端
+
+位置：`src-tauri/src/mcp/`
+
+- `manager.rs` - 服务器生命周期管理
+- `client.rs` - JSON-RPC 2.0 协议实现
+- `transport/stdio.rs` - stdio 传输
+- `transport/sse.rs` - SSE 传输
+- `protocol/tools.rs` - 工具协议
+- `protocol/resources.rs` - 资源协议
+- `protocol/prompts.rs` - 提示协议
+
+#### 前端 Store
+
+位置：`stores/mcp-store.ts`
+
+```typescript
+interface McpState {
+  servers: McpServerState[];
+  initialize: () => Promise<void>;
+  addServer: (id: string, config: McpServerConfig) => Promise<void>;
+  connectServer: (id: string) => Promise<void>;
+  callTool: (serverId: string, toolName: string, args: Record<string, unknown>) => Promise<ToolCallResult>;
+  // ...
+}
+```
+
+#### 支持的服务器模板
+
+内置快速安装模板：
+
+1. **Filesystem** - 本地文件操作
+2. **GitHub** - GitHub API 访问
+3. **PostgreSQL** - 数据库查询
+4. **SQLite** - 数据库查询
+5. **Brave Search** - 网页搜索
+6. **Memory** - 持久化记忆
+7. **Puppeteer** - 浏览器自动化
+8. **Slack** - Slack 集成
+
+#### 配置文件
+
+位置：`{app_data}/mcp_servers.json`
 
 ```json
 {
-  "productName": "react-quick-starter",    // 应用名称
-  "version": "0.1.0",                      // 应用版本
-  "identifier": "com.tauri.dev",          // 唯一应用标识符
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/dir"],
+      "env": {},
+      "connectionType": "stdio"
+    }
+  }
+}
+```
+
+### 数据持久化
+
+#### IndexedDB（Dexie）
+
+消息和附件持久化到 IndexedDB：
+
+```typescript
+// lib/db/message-repository.ts
+export const messageRepository = {
+  async create(sessionId: string, message: CreateMessageInput): Promise<UIMessage>;
+  async update(id: string, updates: Partial<UIMessage>): Promise<void>;
+  async delete(id: string): Promise<void>;
+  async findBySession(sessionId: string): Promise<UIMessage[]>;
+};
+```
+
+#### Zustand + localStorage
+
+所有 stores 使用 persist 中间件自动保存到 localStorage：
+
+```typescript
+export const useSettingsStore = create<SettingsState>()(
+  persist(
+    (set) => ({ ... }),
+    { name: 'cognia-settings' }
+  )
+);
+```
+
+#### 存储 Keys
+
+| Store | localStorage Key |
+| ----- | ---------------- |
+| settings | `cognia-settings` |
+| sessions | `cognia-sessions` |
+| artifacts | `cognia-artifacts` |
+| memory | `cognia-memory` |
+| projects | `cognia-projects` |
+| usage | `cognia-usage` |
+| presets | `cognia-presets` |
+| mcp | `cognia-mcp` |
+
+### 项目管理
+
+#### 项目数据结构
+
+```typescript
+interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  customInstructions?: string;
+  defaultProvider?: string;
+  defaultModel?: string;
+  knowledgeBase: KnowledgeFile[];
+  sessionIds: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+#### 知识库
+
+每个项目可关联知识库文件：
+
+```typescript
+interface KnowledgeFile {
+  id: string;
+  name: string;
+  type: 'text' | 'file' | 'url';
+  content: string;
+  size?: number;
+  addedAt: Date;
+}
+```
+
+#### 项目操作示例
+
+```typescript
+import { useProjectStore } from '@/stores/project-store';
+
+// 创建项目
+createProject({ name: '新项目', description: '...' });
+
+// 添加知识库文件
+addKnowledgeFile(projectId, { name: 'doc.txt', content: '...' });
+
+// 添加会话到项目
+addSessionToProject(projectId, sessionId);
+```
+
+## 配置说明
+
+### 环境变量
+
+创建 `.env.local` 文件：
+
+```env
+# 仅服务器端可访问（构建时）
+DATABASE_URL=postgresql://...
+API_SECRET_KEY=your-secret-key
+
+# 客户端可访问（以 NEXT_PUBLIC_ 开头）
+NEXT_PUBLIC_APP_NAME=Cognia
+NEXT_PUBLIC_API_URL=https://api.example.com
+
+# AI 服务商密钥
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GOOGLE_API_KEY=...
+DEEPSEEK_API_KEY=sk-...
+GROQ_API_KEY=gsk_...
+MISTRAL_API_KEY=...
+```
+
+**安全提示**：
+
+- 切勿提交 `.env.local` 到版本控制
+- 仅添加使用的服务商密钥
+- 密钥存储在浏览器 localStorage，不加密
+
+### Tauri 配置
+
+编辑 `src-tauri/tauri.conf.json`：
+
+```json
+{
+  "productName": "Cognia",
+  "version": "1.0.0",
+  "identifier": "com.cognia.app",
   "build": {
-    "frontendDist": "../out",              // Next.js 构建输出
-    "devUrl": "http://localhost:3000"      // 开发服务器 URL
+    "frontendDist": "../out",
+    "devUrl": "http://localhost:3000"
   },
   "app": {
     "windows": [{
-      "title": "react-quick-starter",      // 窗口标题
-      "width": 800,                        // 默认宽度
-      "height": 600,                       // 默认高度
-      "resizable": true,                   // 允许调整大小
-      "fullscreen": false                  // 全屏启动
+      "title": "Cognia",
+      "width": 1280,
+      "height": 800,
+      "resizable": true,
+      "fullscreen": false
     }]
   }
 }
@@ -226,45 +899,58 @@ API_SECRET_KEY=your-secret-key
 
 ### 路径别名
 
-在 `components.json` 和 `tsconfig.json` 中配置：
+在 `tsconfig.json` 中配置：
 
-```typescript
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./*"],
+      "@/components/*": ["./components/*"],
+      "@/lib/*": ["./lib/*"],
+      "@/hooks/*": ["./hooks/*"],
+      "@/stores/*": ["./stores/*"],
+      "@/types/*": ["./types/*"],
+      "@/ui/*": ["./components/ui/*"]
+    }
+  }
+}
 ```
 
-可用别名：
+### Tailwind CSS
 
-- `@/components` → `components/`
-- `@/lib` → `lib/`
-- `@/ui` → `components/ui/`
-- `@/hooks` → `hooks/`
-- `@/utils` → `lib/utils.ts`
+使用 Tailwind v4 和 CSS 变量主题化：
 
-### Tailwind CSS 配置
+```css
+/* app/globals.css */
+@theme inline {
+  --color-primary: *;
+  --color-secondary: *;
+  --radius: 0.5rem;
+}
 
-项目使用 Tailwind CSS v4，具有以下特性：
-
-- 使用 CSS 变量进行主题化（在 `app/globals.css` 中定义）
-- 通过 `class` 策略支持暗色模式
-- 使用 CSS 变量的自定义调色板
-- shadcn/ui 样式系统
+.dark {
+  --color-background: oklch(0.1 0 0);
+  --color-foreground: oklch(0.95 0 0);
+}
+```
 
 ## 生产构建
 
-### 构建 Web 应用
+### Web 应用构建
 
 ```bash
 # 构建静态导出
 pnpm build
 
 # 输出目录：out/
-# 将 out/ 目录部署到任何静态托管服务
+# 优化内容：HTML、CSS、JS、字体、图片
+
+# 预览生产构建
+pnpm start
 ```
 
-构建会在 `out/` 目录中创建一个静态导出，已针对生产环境进行优化。
-
-### 构建桌面应用
+### 桌面应用构建
 
 ```bash
 # 为当前平台构建
@@ -274,138 +960,134 @@ pnpm tauri build
 # - Windows: src-tauri/target/release/bundle/msi/
 # - macOS: src-tauri/target/release/bundle/dmg/
 # - Linux: src-tauri/target/release/bundle/appimage/
+
+# 构建选项
+pnpm tauri build --target x86_64-pc-windows-msvc  # 特定目标
+pnpm tauri build --debug                           # 调试符号
+pnpm tauri build --bundles none                    # 不打包
 ```
 
-构建选项：
-
-```bash
-# 为特定目标构建
-pnpm tauri build --target x86_64-pc-windows-msvc
-
-# 使用调试符号构建
-pnpm tauri build --debug
-
-# 不打包构建
-pnpm tauri build --bundles none
-```
-
-## 部署
+## 部署指南
 
 ### Web 部署
 
-#### Vercel（推荐）
+`out/` 目录可部署到任何静态托管服务：
 
-1. 将代码推送到 GitHub/GitLab/Bitbucket
-2. 在 [Vercel](https://vercel.com/new) 上导入项目
-3. Vercel 会自动检测 Next.js 并部署
+#### Vercel
+
+```bash
+# 安装 Vercel CLI
+npm i -g vercel
+
+# 部署
+vercel --prod
+```
 
 #### Netlify
 
 ```bash
-# 构建命令
-pnpm build
+# 安装 Netlify CLI
+npm i -g netlify-cli
 
-# 发布目录
-out
+# 部署
+netlify deploy --prod --dir=out
 ```
 
-#### 静态托管（Nginx、Apache 等）
+#### 静态 CDN
 
-1. 构建项目：`pnpm build`
-2. 将 `out/` 目录上传到您的服务器
-3. 配置服务器以提供静态文件
+直接上传 `out/` 目录到：
 
-### 桌面部署
+- AWS S3 + CloudFront
+- Azure Static Web Apps
+- GitHub Pages
+- Cloudflare Pages
 
-#### Windows
+### 桌面应用分发
 
-- 分发 `src-tauri/target/release/bundle/msi/` 中的 `.msi` 安装程序
-- 用户运行安装程序以安装应用
+构建产物位置：
 
-#### macOS
+- Windows：`.msi` / `.exe`
+- macOS：`.dmg` / `.app`
+- Linux：`.AppImage` / `.deb`
 
-- 分发 `src-tauri/target/release/bundle/dmg/` 中的 `.dmg` 文件
-- 用户将应用拖到应用程序文件夹
-- **注意**：对于 App Store 之外的分发，您需要使用 Apple 开发者证书对应用进行签名
+分发渠道：
 
-#### Linux
+- GitHub Releases
+- 官网下载
+- 应用商店（Windows Store、Mac App Store）
 
-- 分发 `src-tauri/target/release/bundle/appimage/` 中的 `.AppImage`
-- 用户使其可执行并运行：`chmod +x app.AppImage && ./app.AppImage`
-- 替代格式：`.deb`（Debian/Ubuntu）、`.rpm`（Fedora/RHEL）
+## 测试策略
 
-#### 代码签名（生产环境推荐）
+### 单元测试（Jest）
 
-- **Windows**：使用代码签名证书
-- **macOS**：需要 Apple 开发者账户和证书
-- **Linux**：可选，但建议用于分发
+```bash
+# 运行所有测试
+pnpm test
 
-详细说明请参见 [Tauri 分发指南](https://tauri.app/v1/guides/distribution/)。
+# 监视模式
+pnpm test:watch
 
-## 开发工作流
+# 覆盖率报告
+pnpm test:coverage
+```
 
-### 典型开发周期
+覆盖率要求：
 
-1. **启动开发服务器**
+- 语句覆盖率：70%
+- 分支覆盖率：60%
+- 函数覆盖率：60%
 
-   ```bash
-   pnpm dev  # 用于 Web 开发
-   # 或
-   pnpm tauri dev  # 用于桌面开发
-   ```
+### 端到端测试（Playwright）
 
-2. **进行更改**
-   - 编辑 `app/`、`components/` 或 `lib/` 中的文件
-   - 更改会在浏览器/桌面应用中自动重新加载
+```bash
+# 运行所有 E2E 测试
+pnpm test:e2e
 
-3. **添加新组件**
+# UI 模式
+pnpm test:e2e:ui
 
-   ```bash
-   pnpm dlx shadcn@latest add [component-name]
-   ```
+# 有头浏览器
+pnpm test:e2e:headed
+```
 
-4. **检查代码**
+测试组织：
 
-   ```bash
-   pnpm lint
-   ```
+- `e2e/ai/` - AI 功能测试
+- `e2e/core/` - 核心功能测试
+- `e2e/features/` - 特性测试
+- `e2e/ui/` - UI 测试
 
-5. **构建和测试**
+### Lint 检查
 
-   ```bash
-   pnpm build  # 测试 Web 构建
-   pnpm tauri build  # 测试桌面构建
-   ```
+```bash
+# 运行 ESLint
+pnpm lint
 
-### 最佳实践
-
-- **代码风格**：遵循 ESLint 规则（`pnpm lint`）
-- **提交**：使用约定式提交（feat:、fix:、docs: 等）
-- **组件**：保持组件小而可复用
-- **状态**：使用 Zustand 管理全局状态，使用 React hooks 管理局部状态
-- **样式**：使用 Tailwind 工具类，尽可能避免自定义 CSS
-- **类型**：利用 TypeScript 实现类型安全
+# 自动修复
+pnpm lint:fix
+```
 
 ## 故障排除
 
-### 常见问题
+### 端口被占用
 
-**端口 3000 已被占用**
+#### Windows
 
 ```bash
-# 终止使用端口 3000 的进程
-# Windows
 netstat -ano | findstr :3000
 taskkill /PID <PID> /F
+```
 
-# macOS/Linux
+#### macOS/Linux
+
+```bash
 lsof -ti:3000 | xargs kill -9
 ```
 
-**Tauri 构建失败**
+### Tauri 构建失败
 
 ```bash
-# 检查 Tauri 环境
+# 检查环境
 pnpm tauri info
 
 # 更新 Rust
@@ -416,7 +1098,7 @@ cd src-tauri
 cargo clean
 ```
 
-**模块未找到错误**
+### 模块未找到
 
 ```bash
 # 清除 Next.js 缓存
@@ -427,49 +1109,139 @@ rm -rf node_modules pnpm-lock.yaml
 pnpm install
 ```
 
-## 了解更多
+### Ollama 连接失败
 
-### Next.js 资源
+1. 确保 Ollama 服务运行：`ollama serve`
+2. 验证端口：`curl http://localhost:11434`
+3. 检查防火墙设置
+4. 确认模型已下载：`ollama list`
 
-- [Next.js 文档](https://nextjs.org/docs) - 了解 Next.js 功能和 API
-- [学习 Next.js](https://nextjs.org/learn) - 交互式 Next.js 教程
-- [Next.js GitHub](https://github.com/vercel/next.js) - Next.js 仓库
+### MCP 服务器启动失败
 
-### Tauri 资源
+1. 检查命令路径：`which <command>`
+2. 验证环境变量配置
+3. 查看服务器日志
+4. 手动测试命令：`npx @modelcontextprotocol/server-filesystem --help`
 
-- [Tauri 文档](https://tauri.app/) - Tauri 官方文档
-- [Tauri API 参考](https://tauri.app/v1/api/js/) - JavaScript API 参考
-- [Tauri GitHub](https://github.com/tauri-apps/tauri) - Tauri 仓库
+## 资源链接
 
-### UI 和样式
+### 官方文档
 
-- [shadcn/ui](https://ui.shadcn.com/) - 组件库文档
-- [Tailwind CSS](https://tailwindcss.com/docs) - Tailwind CSS 文档
-- [Radix UI](https://www.radix-ui.com/) - Radix UI 原语
+- [Next.js 文档](https://nextjs.org/docs)
+- [React 文档](https://react.dev)
+- [Tauri 文档](https://tauri.app/)
+- [Vercel AI SDK](https://sdk.vercel.ai)
+- [Zustand 文档](https://zustand-demo.pmnd.rs/)
+- [Tailwind CSS](https://tailwindcss.com/docs)
+- [shadcn/ui](https://ui.shadcn.com/)
 
-### 状态管理
+### 相关技术
 
-- [Zustand](https://zustand-demo.pmnd.rs/) - Zustand 文档
+- [Radix UI](https://www.radix-ui.com/)
+- [Lucide 图标](https://lucide.dev/)
+- [Monaco 编辑器](https://microsoft.github.io/monaco-editor/)
+- [Dexie.js](https://dexie.org/)
+- [Playwright](https://playwright.dev/)
+- [Jest](https://jestjs.io/)
+
+### 项目文档
+
+- [llmdoc/index.md](llmdoc/index.md) - 项目文档索引
+- [CLAUDE.md](CLAUDE.md) - Claude AI 指令
+- [CHANGELOG.md](CHANGELOG.md) - 变更日志
+
+## 开发工作流
+
+### 典型开发流程
+
+1. 启动开发服务器
+
+   ```bash
+   pnpm dev        # Web 开发
+   pnpm tauri dev  # 桌面开发
+   ```
+
+2. 在 `app/`、`components/`、`lib/`、`stores/`、`hooks/` 中开发
+
+3. 添加 UI 组件（如需要）
+
+   ```bash
+   pnpm dlx shadcn@latest add <component>
+   ```
+
+4. 代码检查
+
+   ```bash
+   pnpm lint
+   pnpm lint:fix
+   ```
+
+5. 运行测试
+
+   ```bash
+   pnpm test
+   pnpm test:e2e
+   ```
+
+6. 构建验证
+
+   ```bash
+   pnpm build
+   pnpm tauri build
+   ```
+
+### 代码规范
+
+- **TypeScript**：使用严格模式
+- **组件**：函数组件 + Hooks
+- **样式**：Tailwind CSS + cn() 工具
+- **状态**：Zustand stores + persist
+- **类型**：使用 `/types/` 中的类型定义
+- **导入**：使用路径别名（@/components、@/lib 等）
+
+### Git 工作流
+
+```bash
+# 创建功能分支
+git checkout -b feature/amazing-feature
+
+# 提交更改（使用约定式提交）
+git commit -m 'feat: add amazing feature'
+
+# 推送分支
+git push origin feature/amazing-feature
+
+# 创建 Pull Request
+```
+
+## 许可证
+
+本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
 
 ## 贡献
 
 欢迎贡献！请遵循以下步骤：
 
-1. Fork 仓库
-2. 创建功能分支（`git checkout -b feature/amazing-feature`）
-3. 提交更改（`git commit -m 'feat: add amazing feature'`）
-4. 推送到分支（`git push origin feature/amazing-feature`）
-5. 打开 Pull Request
+1. Fork 本仓库
+2. 创建功能分支
+3. 提交更改（使用约定式提交）
+4. 推送到分支
+5. 创建 Pull Request
 
-## 许可证
+### 约定式提交规范
 
-本项目是开源的，采用 [MIT 许可证](LICENSE)。
+```text
+feat: 新功能
+fix: 修复 Bug
+docs: 文档更新
+style: 代码格式（不影响功能）
+refactor: 重构
+test: 测试相关
+chore: 构建/工具相关
+```
 
-## 支持
+---
 
-如果您遇到任何问题或有疑问：
+**最后更新**：2025 年 12 月 25 日
 
-- 查看[故障排除](#故障排除)部分
-- 查阅 [Next.js 文档](https://nextjs.org/docs)
-- 查阅 [Tauri 文档](https://tauri.app/)
-- 在 GitHub 上提出 issue
+**维护者**：Cognia 开发团队

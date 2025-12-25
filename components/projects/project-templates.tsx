@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Sparkles,
   Code,
@@ -162,6 +163,7 @@ export function ProjectTemplatesDialog({
   onOpenChange,
   onProjectCreated,
 }: ProjectTemplatesDialogProps) {
+  const tToasts = useTranslations('toasts');
   const [selectedCategory, setSelectedCategory] = useState<ProjectTemplate['category'] | 'all'>('all');
   const [isCreating, setIsCreating] = useState(false);
 
@@ -185,11 +187,11 @@ export function ProjectTemplatesDialog({
       };
 
       const project = createProject(input);
-      toast.success(`Project "${project.name}" created`);
+      toast.success(tToasts('projectCreated', { name: project.name }));
       onOpenChange(false);
       onProjectCreated?.(project.id);
     } catch (_error) {
-      toast.error('Failed to create project');
+      toast.error(tToasts('projectCreateFailed'));
     } finally {
       setIsCreating(false);
     }

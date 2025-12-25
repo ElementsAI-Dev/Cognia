@@ -8,6 +8,7 @@ import type { EmbeddingModelConfig, EmbeddingProvider } from '@/lib/vector/embed
 import { DEFAULT_EMBEDDING_MODELS } from '@/lib/vector/embedding';
 
 export type VectorDBMode = 'embedded' | 'server';
+export type VectorDBProvider = 'chroma' | 'native';
 
 export interface VectorCollection {
   id: string;
@@ -31,6 +32,7 @@ export interface VectorDocument {
 }
 
 export interface VectorSettings {
+  provider: VectorDBProvider;
   mode: VectorDBMode;
   serverUrl: string;
   embeddingProvider: EmbeddingProvider;
@@ -41,6 +43,7 @@ export interface VectorSettings {
 }
 
 const DEFAULT_SETTINGS: VectorSettings = {
+  provider: 'chroma',
   mode: 'embedded',
   serverUrl: 'http://localhost:8000',
   embeddingProvider: 'openai',

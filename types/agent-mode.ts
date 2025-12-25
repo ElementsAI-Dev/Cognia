@@ -4,13 +4,15 @@
  */
 
 export type AgentModeType = 
-  | 'general'      // General purpose agent
-  | 'web-design'   // Web page designer mode
-  | 'code-gen'     // Code generation mode
-  | 'data-analysis'// Data analysis mode
-  | 'writing'      // Writing assistant mode
-  | 'research'     // Research assistant mode
-  | 'custom';      // Custom user-defined mode
+  | 'general'        // General purpose agent
+  | 'web-design'     // Web page designer mode
+  | 'code-gen'       // Code generation mode
+  | 'data-analysis'  // Data analysis mode
+  | 'writing'        // Writing assistant mode
+  | 'research'       // Research assistant mode
+  | 'ppt-generation' // PPT/Presentation generation mode
+  | 'workflow'       // Workflow execution mode
+  | 'custom';        // Custom user-defined mode
 
 export interface AgentModeConfig {
   id: string;
@@ -116,6 +118,46 @@ Always wrap your code in a single App component that can be rendered directly.`,
 3. Summarize complex topics
 4. Provide citations when possible`,
     tools: ['web_search'],
+    outputFormat: 'markdown',
+    previewEnabled: false,
+  },
+  {
+    id: 'ppt-generation',
+    type: 'ppt-generation',
+    name: 'Presentation Generator',
+    description: 'Create professional presentations and slides',
+    icon: 'Presentation',
+    systemPrompt: `You are a presentation design expert. When creating presentations:
+1. Analyze the topic and target audience
+2. Create a clear, logical structure
+3. Design visually appealing slides
+4. Use concise, impactful content
+5. Include speaker notes when helpful
+
+Follow best practices for presentation design:
+- One main idea per slide
+- Use bullet points sparingly
+- Include visual elements
+- Maintain consistent styling
+- End with a clear call to action`,
+    tools: ['ppt_outline', 'ppt_slide_content', 'ppt_finalize', 'ppt_export'],
+    outputFormat: 'markdown',
+    previewEnabled: true,
+  },
+  {
+    id: 'workflow',
+    type: 'workflow',
+    name: 'Workflow Executor',
+    description: 'Execute multi-step workflows and automations',
+    icon: 'Workflow',
+    systemPrompt: `You are a workflow execution agent. You can:
+1. Plan and break down complex tasks
+2. Execute multi-step workflows
+3. Use various tools to accomplish goals
+4. Report progress and results
+
+Always provide clear status updates and handle errors gracefully.`,
+    tools: ['calculator', 'web_search', 'rag_search', 'execute_code'],
     outputFormat: 'markdown',
     previewEnabled: false,
   },

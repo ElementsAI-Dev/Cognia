@@ -5,6 +5,7 @@
  */
 
 import { useState, useRef, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   FileText,
   Code,
@@ -119,6 +120,8 @@ function formatFileSize(bytes: number): string {
 }
 
 export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
+  const t = useTranslations('knowledgeBase');
+  const tCommon = useTranslations('common');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [viewingFile, setViewingFile] = useState<KnowledgeFile | null>(null);
@@ -241,7 +244,7 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Knowledge Base</h3>
+        <h3 className="font-semibold">{t('title')}</h3>
         <div className="flex gap-2">
           <input
             ref={fileInputRef}
@@ -262,11 +265,11 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
             ) : (
               <Upload className="mr-2 h-4 w-4" />
             )}
-            {isUploading ? 'Processing...' : 'Upload'}
+            {isUploading ? t('processing') : t('upload')}
           </Button>
           <Button size="sm" onClick={() => setShowAddDialog(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Add
+            {tCommon('add')}
           </Button>
         </div>
       </div>
@@ -279,7 +282,7 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
             onClick={() => setUploadError(null)}
             className="ml-2 underline hover:no-underline"
           >
-            Dismiss
+            {t('dismiss')}
           </button>
         </div>
       )}
@@ -290,7 +293,7 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search files..."
+            placeholder={t('searchPlaceholder')}
             className="pl-10"
           />
         </div>
@@ -359,12 +362,10 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-8 text-center">
           <FileText className="h-10 w-10 text-muted-foreground/50" />
           <p className="mt-2 font-medium">
-            {searchQuery ? 'No files found' : 'No knowledge files yet'}
+            {searchQuery ? t('noResults') : t('noFiles')}
           </p>
           <p className="text-sm text-muted-foreground">
-            {searchQuery
-              ? 'Try a different search'
-              : 'Upload files or add content to build your knowledge base'}
+            {searchQuery ? t('tryDifferent') : t('uploadHint')}
           </p>
         </div>
       )}
@@ -373,42 +374,41 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Knowledge File</DialogTitle>
+            <DialogTitle>{t('addFile')}</DialogTitle>
             <DialogDescription>
-              Add text content that will be available as context for conversations in
-              this project.
+              {t('addFileDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="filename">File Name</Label>
+              <Label htmlFor="filename">{t('fileName')}</Label>
               <Input
                 id="filename"
                 value={newFileName}
                 onChange={(e) => setNewFileName(e.target.value)}
-                placeholder="knowledge.md"
+                placeholder={t('fileNamePlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="content">Content</Label>
+              <Label htmlFor="content">{t('content')}</Label>
               <Textarea
                 id="content"
                 value={newFileContent}
                 onChange={(e) => setNewFileContent(e.target.value)}
-                placeholder="Enter your knowledge content here..."
+                placeholder={t('contentPlaceholder')}
                 rows={10}
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-              Cancel
+              {tCommon('cancel')}
             </Button>
             <Button
               onClick={handleAddManual}
               disabled={!newFileName.trim() || !newFileContent.trim()}
             >
-              Add File
+              {t('addFile')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -435,12 +435,12 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
           </ScrollArea>
           <DialogFooter>
             <Button variant="outline" onClick={() => setViewingFile(null)}>
-              Close
+              {tCommon('close')}
             </Button>
             {viewingFile && (
               <Button onClick={() => handleDownload(viewingFile)}>
                 <Download className="mr-2 h-4 w-4" />
-                Download
+                {t('download')}
               </Button>
             )}
           </DialogFooter>
@@ -451,19 +451,18 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
       <AlertDialog open={!!deleteFileId} onOpenChange={() => setDeleteFileId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete File</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteFile')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this file from the knowledge base? This
-              action cannot be undone.
+              {t('deleteConfirm')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              {tCommon('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

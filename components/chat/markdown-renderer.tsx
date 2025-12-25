@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils';
 import { MermaidBlock } from './renderers/mermaid-block';
 import { VegaLiteBlock } from './renderers/vegalite-block';
 import { CodeBlock } from './renderers/code-block';
+// EnhancedTable is exported for direct use when advanced table features are needed
+export { EnhancedTable } from './renderers/enhanced-table';
 import 'katex/dist/katex.min.css';
 
 interface MarkdownRendererProps {

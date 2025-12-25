@@ -16,6 +16,12 @@ test.describe('Chat Interface', () => {
   });
 
   test('should allow typing in chat input', async ({ page }) => {
+    // Close welcome dialog if present
+    const closeButton = page.locator('button:has-text("Skip for now"), button[aria-label="Close"]').first();
+    if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await closeButton.click();
+    }
+    
     const chatInput = page.locator('textarea').first();
     await expect(chatInput).toBeVisible({ timeout: 15000 });
     

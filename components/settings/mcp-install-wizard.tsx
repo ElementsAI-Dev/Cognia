@@ -7,6 +7,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Loader2, Check, AlertCircle, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +39,8 @@ interface McpInstallWizardProps {
 type WizardStep = 'select' | 'configure' | 'installing' | 'done';
 
 export function McpInstallWizard({ open, onOpenChange }: McpInstallWizardProps) {
+  const t = useTranslations('mcpInstall');
+  const tCommon = useTranslations('common');
   const { addServer, connectServer } = useMcpStore();
 
   const [step, setStep] = useState<WizardStep>('select');
@@ -127,18 +130,16 @@ export function McpInstallWizard({ open, onOpenChange }: McpInstallWizardProps) 
       <DialogContent className="sm:max-w-[600px] max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>
-            {step === 'select' && 'Quick Install MCP Server'}
-            {step === 'configure' && `Configure ${template?.name}`}
-            {step === 'installing' && 'Installing...'}
-            {step === 'done' && 'Installation Complete'}
+            {step === 'select' && t('quickInstall')}
+            {step === 'configure' && t('configure', { name: template?.name })}
+            {step === 'installing' && t('installing')}
+            {step === 'done' && t('installComplete')}
           </DialogTitle>
           <DialogDescription>
-            {step === 'select' &&
-              'Choose from popular MCP servers to quickly add to your setup.'}
-            {step === 'configure' &&
-              'Configure the server settings before installation.'}
-            {step === 'installing' && 'Setting up your MCP server...'}
-            {step === 'done' && 'Your MCP server has been added successfully.'}
+            {step === 'select' && t('quickInstallDesc')}
+            {step === 'configure' && t('configureDesc')}
+            {step === 'installing' && t('settingUp')}
+            {step === 'done' && t('addedSuccessfully')}
           </DialogDescription>
         </DialogHeader>
 
@@ -178,7 +179,7 @@ export function McpInstallWizard({ open, onOpenChange }: McpInstallWizardProps) 
             )}
 
             <div className="space-y-2">
-              <Label>Command</Label>
+              <Label>{t('command')}</Label>
               <code className="block bg-muted p-2 rounded text-sm">
                 {template.command} {template.args.join(' ')}
               </code>
@@ -187,7 +188,7 @@ export function McpInstallWizard({ open, onOpenChange }: McpInstallWizardProps) 
             {/* Environment Variables */}
             {template.envKeys && template.envKeys.length > 0 && (
               <div className="space-y-3">
-                <Label>Required Environment Variables</Label>
+                <Label>{t('requiredEnvVars')}</Label>
                 {template.envKeys.map((key) => (
                   <div key={key} className="space-y-1">
                     <Label htmlFor={key} className="text-xs font-mono">
@@ -200,7 +201,7 @@ export function McpInstallWizard({ open, onOpenChange }: McpInstallWizardProps) 
                       onChange={(e) =>
                         setEnvValues({ ...envValues, [key]: e.target.value })
                       }
-                      placeholder={`Enter ${key}...`}
+                      placeholder={t('enterEnvVar', { key })}
                     />
                   </div>
                 ))}
@@ -209,15 +210,15 @@ export function McpInstallWizard({ open, onOpenChange }: McpInstallWizardProps) 
 
             {/* Custom Arguments */}
             <div className="space-y-2">
-              <Label htmlFor="custom-args">Additional Arguments (optional)</Label>
+              <Label htmlFor="custom-args">{t('additionalArgs')}</Label>
               <Input
                 id="custom-args"
                 value={customArgs}
                 onChange={(e) => setCustomArgs(e.target.value)}
-                placeholder="e.g., /path/to/directory"
+                placeholder={t('additionalArgsPlaceholder')}
               />
               <p className="text-xs text-muted-foreground">
-                Space-separated additional arguments to pass to the server
+                {t('additionalArgsHint')}
               </p>
             </div>
           </div>
@@ -228,7 +229,7 @@ export function McpInstallWizard({ open, onOpenChange }: McpInstallWizardProps) 
           <div className="flex flex-col items-center justify-center py-12">
             <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
             <p className="text-sm text-muted-foreground">
-              Setting up {template?.name}...
+              {t('settingUpServer', { name: template?.name })}
             </p>
           </div>
         )}
@@ -240,11 +241,11 @@ export function McpInstallWizard({ open, onOpenChange }: McpInstallWizardProps) 
               <Check className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
             <p className="text-sm font-medium mb-2">
-              {template?.name} has been added!
+              {t('serverAdded', { name: template?.name })}
             </p>
             <p className="text-xs text-muted-foreground text-center">
-              The server has been configured and is ready to use.
-              {installSuccess && ' It has been automatically connected.'}
+              {t('serverReady')}
+              {installSuccess && ` ${t('autoConnected')}`}
             </p>
           </div>
         )}
@@ -252,18 +253,18 @@ export function McpInstallWizard({ open, onOpenChange }: McpInstallWizardProps) 
         <DialogFooter>
           {step === 'select' && (
             <Button variant="outline" onClick={handleClose}>
-              Cancel
+              {tCommon('cancel')}
             </Button>
           )}
           {step === 'configure' && (
             <>
               <Button variant="outline" onClick={() => setStep('select')}>
-                Back
+                {tCommon('back')}
               </Button>
-              <Button onClick={handleInstall}>Install</Button>
+              <Button onClick={handleInstall}>{t('install')}</Button>
             </>
           )}
-          {step === 'done' && <Button onClick={handleClose}>Done</Button>}
+          {step === 'done' && <Button onClick={handleClose}>{t('done')}</Button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

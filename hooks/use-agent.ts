@@ -5,9 +5,10 @@
  * Provides easy access to agent functionality with tool calling
  */
 
-import { useCallback, useState, useRef } from 'react';
-import { useSettingsStore } from '@/stores';
+import { useCallback, useState, useRef, useMemo } from 'react';
+import { useSettingsStore, useSkillStore } from '@/stores';
 import type { ProviderName } from '@/types/provider';
+import type { Skill } from '@/types/skill';
 import {
   executeAgent,
   executeAgentLoop,
@@ -18,6 +19,7 @@ import {
   type ToolCall,
   type AgentLoopResult,
 } from '@/lib/ai/agent';
+import { buildMultiSkillSystemPrompt, createSkillTools } from '@/lib/skills/executor';
 
 export interface UseAgentOptions {
   systemPrompt?: string;
@@ -25,6 +27,7 @@ export interface UseAgentOptions {
   temperature?: number;
   tools?: Record<string, AgentTool>;
   enablePlanning?: boolean;
+  enableSkills?: boolean;
   onStepStart?: (step: number) => void;
   onStepComplete?: (step: number, response: string, toolCalls: ToolCall[]) => void;
   onToolCall?: (toolCall: ToolCall) => void;
@@ -61,11 +64,41 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     temperature = 0.7,
     tools: initialTools = {},
     enablePlanning = false,
+    enableSkills = true,
     onStepStart,
     onStepComplete,
     onToolCall,
     onToolResult,
   } = options;
+
+  // Get active skills from store
+  const activeSkillIds = useSkillStore((state) => state.activeSkillIds);
+  const skills = useSkillStore((state) => state.skills);
+  const activeSkills = useMemo(() => 
+    activeSkillIds.map(id => skills[id]).filter((s): s is Skill => s !== undefined),
+    [activeSkillIds, skills]
+  );
+
+  // Build skills system prompt using the optimized utility function
+  const skillsSystemPrompt = useMemo(() => {
+    if (!enableSkills || activeSkills.length === 0) return '';
+    return buildMultiSkillSystemPrompt(activeSkills, {
+      maxContentLength: 8000,
+      includeResources: true,
+    });
+  }, [enableSkills, activeSkills]);
+
+  // Create skill tools for agent to use
+  const skillTools = useMemo(() => {
+    if (!enableSkills || activeSkills.length === 0) return {};
+    return createSkillTools(activeSkills);
+  }, [enableSkills, activeSkills]);
+
+  // Combine system prompt with skills
+  const effectiveSystemPrompt = useMemo(() => {
+    if (!skillsSystemPrompt) return systemPrompt;
+    return `${skillsSystemPrompt}\n\n---\n\n${systemPrompt}`;
+  }, [systemPrompt, skillsSystemPrompt]);
 
   const [isRunning, setIsRunning] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -87,13 +120,19 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     return settings?.apiKey || '';
   }, [defaultProvider, providerSettings]);
 
+  // Merge skill tools with registered tools
+  const allTools = useMemo(() => ({
+    ...skillTools,
+    ...registeredTools,
+  }), [skillTools, registeredTools]);
+
   // Build agent config
   const buildConfig = useCallback((): Omit<AgentConfig, 'provider' | 'model' | 'apiKey'> => {
     return {
-      systemPrompt,
+      systemPrompt: effectiveSystemPrompt,
       temperature,
       maxSteps,
-      tools: registeredTools,
+      tools: allTools,
       onStepStart: (step) => {
         setCurrentStep(step);
         onStepStart?.(step);
@@ -116,10 +155,10 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
       },
     };
   }, [
-    systemPrompt,
+    effectiveSystemPrompt,
     temperature,
     maxSteps,
-    registeredTools,
+    allTools,
     onStepStart,
     onStepComplete,
     onToolCall,

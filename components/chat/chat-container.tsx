@@ -37,6 +37,12 @@ import { Suggestions, Suggestion } from '@/components/ai-elements/suggestion';
 import { AgentPlanEditor } from '@/components/agent/agent-plan-editor';
 import { ToolTimeline, type ToolExecution } from '@/components/agent/tool-timeline';
 import { ToolApprovalDialog, type ToolApprovalRequest } from '@/components/agent/tool-approval-dialog';
+import { WorkflowSelector } from '@/components/agent/workflow-selector';
+import { PPTPreview } from '@/components/ai-elements/ppt-preview';
+import { SkillSuggestions } from '@/components/skills';
+import { useSkillStore } from '@/stores/skill-store';
+import { buildProgressiveSkillsPrompt } from '@/lib/skills/executor';
+import { useWorkflowStore } from '@/stores/workflow-store';
 import { initializeAgentTools } from '@/lib/ai/agent';
 import {
   generateSuggestions,
@@ -45,7 +51,7 @@ import {
 } from '@/lib/ai/suggestion-generator';
 import { translateText } from '@/lib/ai/translate';
 import type { SearchResponse, SearchResult } from '@/types/search';
-import { useSessionStore, useSettingsStore, usePresetStore, useMcpStore, useAgentStore, useProjectStore, useQuoteStore } from '@/stores';
+import { useSessionStore, useSettingsStore, usePresetStore, useMcpStore, useAgentStore, useProjectStore, useQuoteStore, useLearningStore } from '@/stores';
 import { useMessages, useAgent, useProjectContext } from '@/hooks';
 import type { ParsedToolCall, ToolCallResult } from '@/types/mcp';
 import { useAIChat, useAutoRouter, type ProviderName, isVisionModel, buildMultimodalContent, type MultimodalMessage } from '@/lib/ai';
@@ -79,6 +85,12 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   // Quote store for text selection and referencing
   const getFormattedQuotes = useQuoteStore((state) => state.getFormattedQuotes);
   const clearQuotes = useQuoteStore((state) => state.clearQuotes);
+
+  // Skill store for active skills injection
+  const getActiveSkills = useSkillStore((state) => state.getActiveSkills);
+
+  // Learning store for Socratic method learning mode
+  const learningStore = useLearningStore();
 
   // Message persistence with IndexedDB (branch-aware)
   const {
@@ -120,6 +132,13 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const [showPresetManager, setShowPresetManager] = useState(false);
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
   const trackPresetUsage = usePresetStore((state) => state.usePreset);
+
+  // Workflow states
+  const [showWorkflowSelector, setShowWorkflowSelector] = useState(false);
+  const [showPPTPreview, setShowPPTPreview] = useState(false);
+  const workflowPresentations = useWorkflowStore((state) => state.presentations);
+  const activePresentationId = useWorkflowStore((state) => state.activePresentationId);
+  const activePresentation = activePresentationId ? workflowPresentations[activePresentationId] : null;
 
   // Context settings states
   const [showContextSettings, setShowContextSettings] = useState(false);
@@ -789,6 +808,32 @@ Be thorough in your thinking but concise in your final answer.`;
           : toolContext;
       }
 
+      // Add active skills to context using Progressive Disclosure
+      const activeSkills = getActiveSkills();
+      if (activeSkills.length > 0) {
+        const { prompt: skillsPrompt, level, tokenEstimate } = buildProgressiveSkillsPrompt(
+          activeSkills,
+          4000 // Token budget for skills
+        );
+        if (skillsPrompt) {
+          console.log(`Injecting ${activeSkills.length} skills (level: ${level}, ~${tokenEstimate} tokens)`);
+          enhancedSystemPrompt = enhancedSystemPrompt
+            ? `${enhancedSystemPrompt}\n\n${skillsPrompt}`
+            : skillsPrompt;
+        }
+      }
+
+      // Add learning mode system prompt if in learning mode
+      if (currentMode === 'learning') {
+        const { buildLearningSystemPrompt } = await import('@/lib/learning');
+        const learningSession = learningStore.getLearningSessionByChat(currentSessionId!);
+        const learningPrompt = buildLearningSystemPrompt(learningSession);
+        if (learningPrompt) {
+          console.log('Injecting learning mode (Socratic Method) system prompt');
+          enhancedSystemPrompt = learningPrompt + (enhancedSystemPrompt ? `\n\n${enhancedSystemPrompt}` : '');
+        }
+      }
+
       // Send to AI
       const response = await aiSendMessage(
         {
@@ -831,7 +876,7 @@ Be thorough in your thinking but concise in your final answer.`;
     } finally {
       setIsLoading(false);
     }
-  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, appendToMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes]);
+  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, appendToMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes, getActiveSkills, learningStore]);
 
   const handleStop = useCallback(() => {
     aiStop();
@@ -1055,6 +1100,16 @@ Be thorough in your thinking but concise in your final answer.`;
       {/* Quoted content display */}
       <QuotedContent />
 
+      {/* Skill suggestions based on input */}
+      {inputValue.length >= 3 && (
+        <div className="px-4 pb-2 mx-auto w-full max-w-4xl">
+          <SkillSuggestions
+            query={inputValue}
+            showActiveSkills={true}
+          />
+        </div>
+      )}
+
       <ChatInput
         value={inputValue}
         onChange={setInputValue}
@@ -1086,6 +1141,7 @@ Be thorough in your thinking but concise in your final answer.`;
           const header = document.querySelector('header');
           header?.scrollIntoView({ behavior: 'smooth' });
         }}
+        onWorkflowClick={() => setShowWorkflowSelector(true)}
       />
 
       {/* Prompt Optimizer Dialog */}
@@ -1134,6 +1190,27 @@ Be thorough in your thinking but concise in your final answer.`;
       {currentMode === 'agent' && toolTimelineExecutions.length > 0 && (
         <div className="fixed bottom-24 right-4 z-50 w-80">
           <ToolTimeline executions={toolTimelineExecutions} />
+        </div>
+      )}
+
+      {/* Workflow Selector Dialog */}
+      <WorkflowSelector
+        open={showWorkflowSelector}
+        onOpenChange={setShowWorkflowSelector}
+      />
+
+      {/* PPT Preview - shown when a presentation is generated */}
+      {activePresentation && showPPTPreview && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="relative w-full max-w-5xl max-h-[90vh] overflow-auto rounded-lg border bg-background shadow-lg">
+            <button
+              onClick={() => setShowPPTPreview(false)}
+              className="absolute top-2 right-2 z-10 p-2 rounded-full bg-background/80 hover:bg-background border shadow-sm"
+            >
+              ✕
+            </button>
+            <PPTPreview presentation={activePresentation} />
+          </div>
         </div>
       )}
     </div>

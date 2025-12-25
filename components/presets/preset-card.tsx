@@ -5,6 +5,7 @@
  */
 
 import { MoreHorizontal, Star, Copy, Trash2, Pencil, Check } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -36,14 +37,17 @@ export function PresetCard({
   onDelete,
   onSetDefault,
 }: PresetCardProps) {
+  const t = useTranslations('presets');
+  const tChat = useTranslations('chat');
+
   const getModeLabel = (mode: string) => {
     switch (mode) {
       case 'chat':
-        return 'Chat';
+        return tChat('modeChat');
       case 'agent':
-        return 'Agent';
+        return tChat('modeAgent');
       case 'research':
-        return 'Research';
+        return tChat('modeResearch');
       default:
         return mode;
     }
@@ -91,16 +95,16 @@ export function PresetCard({
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit?.(); }}>
                 <Pencil className="mr-2 h-4 w-4" />
-                Edit
+                {t('editPreset')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDuplicate?.(); }}>
                 <Copy className="mr-2 h-4 w-4" />
-                Duplicate
+                {t('duplicatePreset')}
               </DropdownMenuItem>
               {!preset.isDefault && (
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onSetDefault?.(); }}>
                   <Star className="mr-2 h-4 w-4" />
-                  Set as default
+                  {t('setDefault')}
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
@@ -109,7 +113,7 @@ export function PresetCard({
                 onClick={(e) => { e.stopPropagation(); onDelete?.(); }}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Delete
+                {t('deletePreset')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -118,7 +122,7 @@ export function PresetCard({
       <CardContent className="pt-0">
         <div className="flex flex-wrap gap-1.5">
           <Badge variant="outline" className="text-xs">
-            {preset.provider === 'auto' ? 'Auto' : preset.provider}
+            {preset.provider === 'auto' ? tChat('autoMode') : preset.provider}
           </Badge>
           <Badge variant="outline" className="text-xs">
             {getModeLabel(preset.mode)}
@@ -131,7 +135,7 @@ export function PresetCard({
         </div>
         {preset.usageCount > 0 && (
           <p className="mt-2 text-xs text-muted-foreground">
-            Used {preset.usageCount} times
+            {t('usedTimes', { count: preset.usageCount })}
           </p>
         )}
       </CardContent>

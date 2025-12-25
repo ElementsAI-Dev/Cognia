@@ -70,6 +70,13 @@ test.describe('Knowledge Base Management', () => {
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
 
+    // Close welcome dialog if present
+    const closeButton = page.locator('button:has-text("Skip for now"), button[aria-label="Close"]').first();
+    if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await closeButton.click();
+      await page.waitForTimeout(300);
+    }
+
     // Navigate to project detail
     const projectCard = page.locator('text=Knowledge Base Test').first();
     if (await projectCard.isVisible()) {

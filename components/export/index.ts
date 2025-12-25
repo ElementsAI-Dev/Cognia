@@ -4,3 +4,4 @@
 
 export { AnimatedExportDialog } from './animated-export-dialog';
 export { BatchExportDialog } from './batch-export-dialog';
+export { DocumentExportDialog } from './document-export-dialog';

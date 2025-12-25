@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Plan,
   PlanHeader,
@@ -92,6 +93,7 @@ function StepItem({
   onMoveDown,
   disabled,
 }: StepItemProps) {
+  const t = useTranslations('agent');
   const [editTitle, setEditTitle] = useState(step.title);
   const [editDescription, setEditDescription] = useState(step.description || '');
 
@@ -157,24 +159,24 @@ function StepItem({
             <Input
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
-              placeholder="Step title"
+              placeholder={t('stepTitle')}
               className="h-8"
               autoFocus
             />
             <Textarea
               value={editDescription}
               onChange={(e) => setEditDescription(e.target.value)}
-              placeholder="Description (optional)"
+              placeholder={t('stepDescription')}
               className="min-h-[60px] resize-none"
             />
             <div className="flex gap-2">
               <Button size="sm" onClick={handleSave}>
                 <Check className="h-3 w-3 mr-1" />
-                Save
+                {t('completed')}
               </Button>
               <Button size="sm" variant="ghost" onClick={onCancel}>
                 <X className="h-3 w-3 mr-1" />
-                Cancel
+                {t('cancel')}
               </Button>
             </div>
           </div>
@@ -182,7 +184,7 @@ function StepItem({
           <>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">
-                Step {step.order + 1}
+                {t('step')} {step.order + 1}
               </span>
               <span className="font-medium">{step.title}</span>
             </div>
@@ -201,7 +203,7 @@ function StepItem({
             )}
             {step.actualDuration && (
               <p className="mt-1 text-xs text-muted-foreground">
-                Completed in {step.actualDuration.toFixed(1)}s
+                {t('completedIn', { seconds: step.actualDuration.toFixed(1) })}
               </p>
             )}
           </>
@@ -219,11 +221,11 @@ function StepItem({
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={onEdit}>
               <Edit2 className="h-4 w-4 mr-2" />
-              Edit
+              {t('editPlan')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onDelete} className="text-destructive">
               <Trash2 className="h-4 w-4 mr-2" />
-              Delete
+              {t('deletePlan')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -237,6 +239,8 @@ export function AgentPlanEditor({
   onExecute,
   className,
 }: AgentPlanEditorProps) {
+  const t = useTranslations('agent');
+  const tCommon = useTranslations('common');
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const getActiveSession = useSessionStore((state) => state.getActiveSession);
   const session = getActiveSession();
@@ -442,14 +446,14 @@ Provide an improved version of this plan:`,
         <div className="flex flex-col items-center gap-4 py-8 text-center">
           <ListChecks className="h-12 w-12 text-muted-foreground" />
           <div>
-            <h3 className="font-semibold">No Active Plan</h3>
+            <h3 className="font-semibold">{t('noPlan')}</h3>
             <p className="text-sm text-muted-foreground">
-              Create a plan to organize your agent tasks
+              {t('createPlanHint')}
             </p>
           </div>
           <Button onClick={() => setShowCreateDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Create Plan
+            {t('createPlan')}
           </Button>
         </div>
 
@@ -457,35 +461,35 @@ Provide an improved version of this plan:`,
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Plan</DialogTitle>
+              <DialogTitle>{t('createPlan')}</DialogTitle>
               <DialogDescription>
-                Create a plan to organize and execute agent tasks
+                {t('createPlanHint')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Title</label>
+                <label className="text-sm font-medium">{t('planTitle')}</label>
                 <Input
                   value={newPlanTitle}
                   onChange={(e) => setNewPlanTitle(e.target.value)}
-                  placeholder="Plan title"
+                  placeholder={t('planTitle')}
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Description (optional)</label>
+                <label className="text-sm font-medium">{t('planDescription')}</label>
                 <Textarea
                   value={newPlanDescription}
                   onChange={(e) => setNewPlanDescription(e.target.value)}
-                  placeholder="Describe what this plan will accomplish"
+                  placeholder={t('planDescription')}
                 />
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                Cancel
+                {tCommon('cancel')}
               </Button>
               <Button onClick={handleCreatePlan} disabled={!newPlanTitle.trim()}>
-                Create Plan
+                {t('createPlan')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -585,20 +589,20 @@ Provide an improved version of this plan:`,
                   <Input
                     value={newStepTitle}
                     onChange={(e) => setNewStepTitle(e.target.value)}
-                    placeholder="Step title"
+                    placeholder={t('stepTitle')}
                     className="h-8"
                     autoFocus
                   />
                   <Textarea
                     value={newStepDescription}
                     onChange={(e) => setNewStepDescription(e.target.value)}
-                    placeholder="Description (optional)"
+                    placeholder={t('stepDescription')}
                     className="min-h-[60px] resize-none"
                   />
                   <div className="flex gap-2">
                     <Button size="sm" onClick={handleAddStep} disabled={!newStepTitle.trim()}>
                       <Plus className="h-3 w-3 mr-1" />
-                      Add Step
+                      {t('addStep')}
                     </Button>
                     <Button
                       size="sm"
@@ -609,7 +613,7 @@ Provide an improved version of this plan:`,
                         setNewStepDescription('');
                       }}
                     >
-                      Cancel
+                      {tCommon('cancel')}
                     </Button>
                   </div>
                 </div>
@@ -620,7 +624,7 @@ Provide an improved version of this plan:`,
                   onClick={() => setShowNewStepInput(true)}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Step
+                  {t('addStep')}
                 </Button>
               )}
             </>
@@ -633,13 +637,13 @@ Provide an improved version of this plan:`,
           {isDraft && activePlan.steps.length > 0 && (
             <Button onClick={handleApproveAndExecute} className="gap-2">
               <Play className="h-4 w-4" />
-              Execute Plan
+              {t('execute')}
             </Button>
           )}
           {isExecuting && (
             <Button variant="destructive" onClick={handleCancel} className="gap-2">
               <X className="h-4 w-4" />
-              Cancel
+              {t('cancel')}
             </Button>
           )}
         </div>
@@ -652,7 +656,7 @@ Provide an improved version of this plan:`,
           }}
         >
           <Trash2 className="h-4 w-4 mr-1" />
-          Delete Plan
+          {t('deletePlan')}
         </Button>
       </PlanFooter>
     </Plan>

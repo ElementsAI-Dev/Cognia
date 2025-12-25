@@ -48,3 +48,6 @@ parking_lot = "0.12"
 arboard = "3"
 png = "0.17"
 base64 = "0.22"
+
+[dev-dependencies]
+tempfile = "3.8"

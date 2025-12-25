@@ -4,7 +4,7 @@
  * WelcomeState - mode-specific welcome pages for Chat, Agent, and Research modes
  */
 
-// Note: useTranslations can be used for i18n in the future
+import { useTranslations } from 'next-intl';
 import {
   Sparkles,
   Bot,
@@ -26,6 +26,9 @@ import {
   ArrowRight,
   Wand2,
   FolderKanban,
+  GraduationCap,
+  HelpCircle,
+  Target,
 } from 'lucide-react';
 import Link from 'next/link';
 import { TemplateSelector } from './template-selector';
@@ -48,129 +51,77 @@ interface SuggestionCard {
   prompt: string;
 }
 
-const chatSuggestions: SuggestionCard[] = [
-  {
-    icon: <MessageSquare className="h-5 w-5" />,
-    title: 'Conversation',
-    description: 'Have a natural conversation',
-    prompt: 'Let\'s have a conversation about something interesting.',
-  },
-  {
-    icon: <Code className="h-5 w-5" />,
-    title: 'Code Help',
-    description: 'Get programming assistance',
-    prompt: 'Help me write a function that...',
-  },
-  {
-    icon: <FileText className="h-5 w-5" />,
-    title: 'Writing',
-    description: 'Draft emails, articles, or content',
-    prompt: 'Help me write a professional email about...',
-  },
-  {
-    icon: <Languages className="h-5 w-5" />,
-    title: 'Translation',
-    description: 'Translate text between languages',
-    prompt: 'Translate the following text to...',
-  },
-];
-
-const agentSuggestions: SuggestionCard[] = [
-  {
-    icon: <Wrench className="h-5 w-5" />,
-    title: 'Build Project',
-    description: 'Create a complete application',
-    prompt: 'Build a React component that...',
-  },
-  {
-    icon: <Database className="h-5 w-5" />,
-    title: 'Data Analysis',
-    description: 'Analyze and transform data',
-    prompt: 'Analyze this dataset and provide insights...',
-  },
-  {
-    icon: <ImageIcon className="h-5 w-5" aria-hidden="true" />,
-    title: 'Image Tasks',
-    description: 'Process and analyze images',
-    prompt: 'Analyze this image and describe...',
-  },
-  {
-    icon: <Brain className="h-5 w-5" />,
-    title: 'Complex Task',
-    description: 'Multi-step problem solving',
-    prompt: 'Help me solve this complex problem step by step...',
-  },
-];
-
-const researchSuggestions: SuggestionCard[] = [
-  {
-    icon: <Globe className="h-5 w-5" />,
-    title: 'Web Research',
-    description: 'Search and summarize web content',
-    prompt: 'Research the latest developments in...',
-  },
-  {
-    icon: <TrendingUp className="h-5 w-5" />,
-    title: 'Market Analysis',
-    description: 'Analyze market trends and data',
-    prompt: 'Analyze the current market trends for...',
-  },
-  {
-    icon: <BookOpen className="h-5 w-5" />,
-    title: 'Literature Review',
-    description: 'Summarize academic papers',
-    prompt: 'Summarize the key findings about...',
-  },
-  {
-    icon: <Lightbulb className="h-5 w-5" />,
-    title: 'Fact Check',
-    description: 'Verify claims and find sources',
-    prompt: 'Fact check the following claim...',
-  },
-];
-
-const modeConfig: Record<ChatMode, {
+interface SuggestionKey {
   icon: React.ReactNode;
-  title: string;
-  description: string;
-  suggestions: SuggestionCard[];
-  gradient: string;
-  features: string[];
-}> = {
-  chat: {
-    icon: <Sparkles className="h-12 w-12" />,
-    title: 'Chat Mode',
-    description: 'Have natural conversations with AI. Perfect for quick questions, brainstorming, and everyday assistance.',
-    suggestions: chatSuggestions,
-    gradient: 'from-blue-500/10 to-purple-500/10',
-    features: ['Fast responses', 'Multiple languages', 'Context aware', 'Creative writing'],
-  },
-  agent: {
-    icon: <Bot className="h-12 w-12" />,
-    title: 'Agent Mode',
-    description: 'AI agent with tool access for complex tasks. Execute code, analyze data, and build applications.',
-    suggestions: agentSuggestions,
-    gradient: 'from-green-500/10 to-emerald-500/10',
-    features: ['Code execution', 'File operations', 'Data analysis', 'Multi-step tasks'],
-  },
-  research: {
-    icon: <Search className="h-12 w-12" />,
-    title: 'Research Mode',
-    description: 'Deep web research with source citations. Search, analyze, and synthesize information from the web.',
-    suggestions: researchSuggestions,
-    gradient: 'from-orange-500/10 to-amber-500/10',
-    features: ['Web search', 'Source citations', 'Fact checking', 'Report generation'],
-  },
+  key: string;
+}
+
+const chatSuggestionKeys: SuggestionKey[] = [
+  { icon: <MessageSquare className="h-5 w-5" />, key: 'conversation' },
+  { icon: <Code className="h-5 w-5" />, key: 'codeHelp' },
+  { icon: <FileText className="h-5 w-5" />, key: 'writing' },
+  { icon: <Languages className="h-5 w-5" />, key: 'translation' },
+];
+
+const agentSuggestionKeys: SuggestionKey[] = [
+  { icon: <Wrench className="h-5 w-5" />, key: 'buildProject' },
+  { icon: <Database className="h-5 w-5" />, key: 'dataAnalysis' },
+  { icon: <ImageIcon className="h-5 w-5" aria-hidden="true" />, key: 'imageTasks' },
+  { icon: <Brain className="h-5 w-5" />, key: 'complexTask' },
+];
+
+const researchSuggestionKeys: SuggestionKey[] = [
+  { icon: <Globe className="h-5 w-5" />, key: 'webResearch' },
+  { icon: <TrendingUp className="h-5 w-5" />, key: 'marketAnalysis' },
+  { icon: <BookOpen className="h-5 w-5" />, key: 'literatureReview' },
+  { icon: <Lightbulb className="h-5 w-5" />, key: 'factCheck' },
+];
+
+const learningSuggestionKeys: SuggestionKey[] = [
+  { icon: <HelpCircle className="h-5 w-5" />, key: 'conceptExplore' },
+  { icon: <Target className="h-5 w-5" />, key: 'problemSolving' },
+  { icon: <Brain className="h-5 w-5" />, key: 'deepUnderstanding' },
+  { icon: <BookOpen className="h-5 w-5" />, key: 'skillMastery' },
+];
+
+const featureKeys: Record<ChatMode, string[]> = {
+  chat: ['fast', 'languages', 'context', 'creative'],
+  agent: ['code', 'file', 'data', 'multi'],
+  research: ['search', 'citations', 'factCheck', 'report'],
+  learning: ['socratic', 'stepByStep', 'noDirectAnswers', 'discovery'],
+};
+
+const suggestionKeyMap: Record<ChatMode, SuggestionKey[]> = {
+  chat: chatSuggestionKeys,
+  agent: agentSuggestionKeys,
+  research: researchSuggestionKeys,
+  learning: learningSuggestionKeys,
+};
+
+const modeIcons: Record<ChatMode, React.ReactNode> = {
+  chat: <Sparkles className="h-12 w-12" />,
+  agent: <Bot className="h-12 w-12" />,
+  research: <Search className="h-12 w-12" />,
+  learning: <GraduationCap className="h-12 w-12" />,
+};
+
+const modeGradients: Record<ChatMode, string> = {
+  chat: 'from-blue-500/10 to-purple-500/10',
+  agent: 'from-green-500/10 to-emerald-500/10',
+  research: 'from-orange-500/10 to-amber-500/10',
+  learning: 'from-violet-500/10 to-pink-500/10',
 };
 
 function SuggestionCardComponent({
   suggestion,
   onClick,
   index = 0,
+  tryItLabel,
 }: {
   suggestion: SuggestionCard;
   onClick?: () => void;
   index?: number;
+  tryItLabel: string;
 }) {
   return (
     <button
@@ -186,7 +137,7 @@ function SuggestionCardComponent({
       </div>
       <p className="text-sm text-muted-foreground leading-relaxed">{suggestion.description}</p>
       <div className="flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-        <span>Try it</span>
+        <span>{tryItLabel}</span>
         <ArrowRight className="h-3 w-3" />
       </div>
     </button>
@@ -206,7 +157,16 @@ function FeatureBadge({ feature, index = 0 }: { feature: string; index?: number 
 }
 
 export function WelcomeState({ mode, onSuggestionClick, onModeChange, onSelectTemplate }: WelcomeStateProps) {
-  const config = modeConfig[mode];
+  const t = useTranslations('welcome');
+  const tChat = useTranslations('chat');
+  
+  const features = featureKeys[mode].map(key => t(`modes.${mode}.features.${key}`));
+  const suggestions: SuggestionCard[] = suggestionKeyMap[mode].map(({ icon, key }) => ({
+    icon,
+    title: t(`suggestions.${mode}.${key}.title`),
+    description: t(`suggestions.${mode}.${key}.description`),
+    prompt: t(`suggestions.${mode}.${key}.prompt`),
+  }));
 
   return (
     <div className="flex h-full flex-col items-center justify-center px-4 py-8">
@@ -214,20 +174,20 @@ export function WelcomeState({ mode, onSuggestionClick, onModeChange, onSelectTe
         {/* Header with gradient background */}
         <div className={cn(
           'flex flex-col items-center space-y-5 rounded-3xl bg-linear-to-br p-10 animate-in fade-in-0 slide-in-from-bottom-4 duration-500',
-          config.gradient
+          modeGradients[mode]
         )}>
           <div className="text-primary animate-in zoom-in-50 duration-500" style={{ animationDelay: '100ms' }}>
-            {config.icon}
+            {modeIcons[mode]}
           </div>
           <h1 className="text-3xl font-bold tracking-tight animate-in fade-in-0 slide-in-from-bottom-2 duration-500" style={{ animationDelay: '150ms' }}>
-            {config.title}
+            {t(`modes.${mode}.title`)}
           </h1>
           <p className="max-w-lg text-center text-muted-foreground leading-relaxed animate-in fade-in-0 duration-500" style={{ animationDelay: '200ms' }}>
-            {config.description}
+            {t(`modes.${mode}.description`)}
           </p>
           <div className="flex flex-wrap justify-center gap-2 pt-2">
-            {config.features.map((feature, index) => (
-              <FeatureBadge key={feature} feature={feature} index={index} />
+            {features.map((feature, index) => (
+              <FeatureBadge key={index} feature={feature} index={index} />
             ))}
           </div>
         </div>
@@ -239,7 +199,7 @@ export function WelcomeState({ mode, onSuggestionClick, onModeChange, onSelectTe
             trigger={
               <Button variant="outline" size="sm" className="gap-2 rounded-full hover:bg-accent transition-colors">
                 <LayoutTemplate className="h-4 w-4" />
-                <span>Templates</span>
+                <span>{t('templates')}</span>
               </Button>
             }
             onSelectTemplate={(template) => {
@@ -250,7 +210,7 @@ export function WelcomeState({ mode, onSuggestionClick, onModeChange, onSelectTe
             }}
           />
           <div className="h-6 w-px bg-border/50 mx-2" />
-          {(Object.keys(modeConfig) as ChatMode[]).map((m) => (
+          {(['chat', 'agent', 'research', 'learning'] as ChatMode[]).map((m) => (
             <button
               key={m}
               onClick={() => onModeChange?.(m)}
@@ -264,7 +224,8 @@ export function WelcomeState({ mode, onSuggestionClick, onModeChange, onSelectTe
               {m === 'chat' && <Sparkles className="h-4 w-4" />}
               {m === 'agent' && <Bot className="h-4 w-4" />}
               {m === 'research' && <Search className="h-4 w-4" />}
-              <span className="capitalize">{m}</span>
+              {m === 'learning' && <GraduationCap className="h-4 w-4" />}
+              <span className="capitalize">{m === 'chat' ? tChat('modeChat') : m === 'agent' ? tChat('modeAgent') : m === 'research' ? tChat('modeResearch') : tChat('modeLearning')}</span>
             </button>
           ))}
         </div>
@@ -278,8 +239,8 @@ export function WelcomeState({ mode, onSuggestionClick, onModeChange, onSelectTe
                   <Wand2 className="h-6 w-6" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold">Designer</h3>
-                  <p className="text-sm text-muted-foreground">Build UI components with AI</p>
+                  <h3 className="font-semibold">{t('designer')}</h3>
+                  <p className="text-sm text-muted-foreground">{t('designerDesc')}</p>
                 </div>
                 <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
@@ -290,8 +251,8 @@ export function WelcomeState({ mode, onSuggestionClick, onModeChange, onSelectTe
                   <FolderKanban className="h-6 w-6" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold">Projects</h3>
-                  <p className="text-sm text-muted-foreground">Manage knowledge & contexts</p>
+                  <h3 className="font-semibold">{t('projects')}</h3>
+                  <p className="text-sm text-muted-foreground">{t('projectsDesc')}</p>
                 </div>
                 <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
@@ -302,15 +263,16 @@ export function WelcomeState({ mode, onSuggestionClick, onModeChange, onSelectTe
         {/* Suggestions grid */}
         <div className="animate-in fade-in-0 duration-500" style={{ animationDelay: '550ms' }}>
           <h2 className="mb-5 text-center text-sm font-medium text-muted-foreground">
-            Try these prompts to get started
+            {t('tryPrompts')}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            {config.suggestions.map((suggestion, index) => (
+            {suggestions.map((suggestion, index) => (
               <SuggestionCardComponent
                 key={index}
                 suggestion={suggestion}
                 index={index}
                 onClick={() => onSuggestionClick?.(suggestion.prompt)}
+                tryItLabel={t('tryIt')}
               />
             ))}
           </div>

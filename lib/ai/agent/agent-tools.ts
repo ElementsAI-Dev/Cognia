@@ -17,6 +17,12 @@ import {
   type RAGSearchInput,
 } from '../tools';
 import type { RAGConfig } from '../rag';
+import type { Skill } from '@/types/skill';
+import {
+  createSkillTools,
+  buildSkillSystemPrompt,
+  buildMultiSkillSystemPrompt,
+} from '@/lib/skills';
 
 export interface AgentToolsConfig {
   tavilyApiKey?: string;
@@ -27,8 +33,10 @@ export interface AgentToolsConfig {
   enableDocumentTools?: boolean;
   enableCodeExecution?: boolean;
   enableDesigner?: boolean;
+  enableSkills?: boolean;
   ragConfig?: RAGConfig;
   customTools?: Record<string, AgentTool>;
+  activeSkills?: Skill[];
 }
 
 /**
@@ -258,6 +266,12 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
     Object.assign(tools, docTools);
   }
 
+  // Skills - convert active skills to tools
+  if (config.enableSkills !== false && config.activeSkills && config.activeSkills.length > 0) {
+    const skillTools = createSkillTools(config.activeSkills);
+    Object.assign(tools, skillTools);
+  }
+
   // Add custom tools
   if (config.customTools) {
     Object.assign(tools, config.customTools);
@@ -279,6 +293,44 @@ export function getToolDescriptions(tools: Record<string, AgentTool>): Array<{
     description: tool.description,
     requiresApproval: tool.requiresApproval ?? false,
   }));
+}
+
+/**
+ * Get system prompt enhancement from active skills
+ * This should be prepended to the agent's system prompt
+ */
+export function getSkillsSystemPrompt(activeSkills: Skill[]): string {
+  if (!activeSkills || activeSkills.length === 0) {
+    return '';
+  }
+  
+  if (activeSkills.length === 1) {
+    return buildSkillSystemPrompt(activeSkills[0]);
+  }
+  
+  return buildMultiSkillSystemPrompt(activeSkills);
+}
+
+/**
+ * Initialize agent tools with skills from store
+ * Convenience function that integrates with skill store
+ */
+export function initializeAgentToolsWithSkills(
+  config: Omit<AgentToolsConfig, 'activeSkills'>,
+  activeSkills: Skill[]
+): {
+  tools: Record<string, AgentTool>;
+  skillsSystemPrompt: string;
+} {
+  const tools = initializeAgentTools({
+    ...config,
+    activeSkills,
+    enableSkills: true,
+  });
+  
+  const skillsSystemPrompt = getSkillsSystemPrompt(activeSkills);
+  
+  return { tools, skillsSystemPrompt };
 }
 
 export default initializeAgentTools;

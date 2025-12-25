@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Plus, X, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,6 +50,8 @@ export function McpServerDialog({
   editingServer,
   onClose,
 }: McpServerDialogProps) {
+  const t = useTranslations('mcp');
+  const tCommon = useTranslations('common');
   const { addServer, updateServer } = useMcpStore();
 
   const [name, setName] = useState('');
@@ -165,28 +168,28 @@ export function McpServerDialog({
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {editingServer ? 'Edit MCP Server' : 'Add MCP Server'}
+            {editingServer ? t('editServer') : t('addServer')}
           </DialogTitle>
           <DialogDescription>
-            Configure the MCP server connection settings.
+            {t('configureSettings')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {/* Server Name */}
           <div className="space-y-2">
-            <Label htmlFor="server-name">Server Name</Label>
+            <Label htmlFor="server-name">{t('serverName')}</Label>
             <Input
               id="server-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., My Filesystem Server"
+              placeholder={t('serverNamePlaceholder')}
             />
           </div>
 
           {/* Connection Type */}
           <div className="space-y-2">
-            <Label>Connection Type</Label>
+            <Label>{t('connectionType')}</Label>
             <Select
               value={connectionType}
               onValueChange={(value: McpConnectionType) =>
@@ -197,8 +200,8 @@ export function McpServerDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="stdio">stdio (Subprocess)</SelectItem>
-                <SelectItem value="sse">SSE (HTTP Server)</SelectItem>
+                <SelectItem value="stdio">{t('stdio')}</SelectItem>
+                <SelectItem value="sse">{t('sse')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -207,23 +210,23 @@ export function McpServerDialog({
             <>
               {/* Command */}
               <div className="space-y-2">
-                <Label htmlFor="command">Command</Label>
+                <Label htmlFor="command">{t('command')}</Label>
                 <Input
                   id="command"
                   value={command}
                   onChange={(e) => setCommand(e.target.value)}
-                  placeholder="npx, node, python, etc."
+                  placeholder={t('commandPlaceholder')}
                 />
               </div>
 
               {/* Arguments */}
               <div className="space-y-2">
-                <Label>Arguments</Label>
+                <Label>{t('arguments')}</Label>
                 <div className="flex gap-2">
                   <Input
                     value={newArg}
                     onChange={(e) => setNewArg(e.target.value)}
-                    placeholder="Add argument..."
+                    placeholder={t('addArgument')}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -261,30 +264,30 @@ export function McpServerDialog({
           ) : (
             /* SSE URL */
             <div className="space-y-2">
-              <Label htmlFor="sse-url">Server URL</Label>
+              <Label htmlFor="sse-url">{t('serverUrl')}</Label>
               <Input
                 id="sse-url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="http://localhost:8080/sse"
+                placeholder={t('serverUrlPlaceholder')}
               />
             </div>
           )}
 
           {/* Environment Variables */}
           <div className="space-y-2">
-            <Label>Environment Variables</Label>
+            <Label>{t('envVariables')}</Label>
             <div className="flex gap-2">
               <Input
                 value={newEnvKey}
                 onChange={(e) => setNewEnvKey(e.target.value)}
-                placeholder="KEY"
+                placeholder={t('envKeyPlaceholder')}
                 className="w-1/3 font-mono"
               />
               <Input
                 value={newEnvValue}
                 onChange={(e) => setNewEnvValue(e.target.value)}
-                placeholder="value"
+                placeholder={t('envValuePlaceholder')}
                 type="password"
                 className="flex-1"
               />
@@ -344,9 +347,9 @@ export function McpServerDialog({
           {/* Options */}
           <div className="flex items-center justify-between pt-2">
             <div className="space-y-0.5">
-              <Label htmlFor="enabled">Enabled</Label>
+              <Label htmlFor="enabled">{t('enabled')}</Label>
               <p className="text-xs text-muted-foreground">
-                Allow this server to be connected
+                {t('enabledHint')}
               </p>
             </div>
             <Switch
@@ -357,9 +360,9 @@ export function McpServerDialog({
           </div>
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="auto-start">Auto Start</Label>
+              <Label htmlFor="auto-start">{t('autoStart')}</Label>
               <p className="text-xs text-muted-foreground">
-                Connect automatically when app starts
+                {t('autoStartHint')}
               </p>
             </div>
             <Switch
@@ -372,10 +375,10 @@ export function McpServerDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {tCommon('cancel')}
           </Button>
           <Button onClick={handleSave} disabled={!isValid || saving}>
-            {saving ? 'Saving...' : editingServer ? 'Save' : 'Add'}
+            {saving ? tCommon('loading') : editingServer ? tCommon('save') : tCommon('add')}
           </Button>
         </DialogFooter>
       </DialogContent>

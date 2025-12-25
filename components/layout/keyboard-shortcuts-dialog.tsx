@@ -5,6 +5,7 @@
  */
 
 import { Keyboard } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -22,11 +23,11 @@ interface KeyboardShortcutsDialogProps {
   trigger?: React.ReactNode;
 }
 
-const categoryLabels: Record<string, string> = {
-  navigation: 'Navigation',
-  chat: 'Chat',
-  editing: 'Editing',
-  system: 'System',
+const categoryLabelKeys: Record<string, string> = {
+  navigation: 'navigation',
+  chat: 'chat',
+  editing: 'editing',
+  system: 'system',
 };
 
 const categoryColors: Record<string, string> = {
@@ -37,6 +38,7 @@ const categoryColors: Record<string, string> = {
 };
 
 export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProps) {
+  const t = useTranslations('keyboardShortcuts');
   const open = useUIStore((state) => state.keyboardShortcutsOpen);
   const setOpen = useUIStore((state) => state.setKeyboardShortcutsOpen);
   const { shortcuts } = useKeyboardShortcuts({ enabled: false });
@@ -59,7 +61,7 @@ export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProp
         {trigger || (
           <Button variant="outline" size="sm">
             <Keyboard className="mr-2 h-4 w-4" />
-            Shortcuts
+            {t('title')}
           </Button>
         )}
       </DialogTrigger>
@@ -67,10 +69,10 @@ export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProp
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Keyboard className="h-5 w-5" />
-            Keyboard Shortcuts
+            {t('title')}
           </DialogTitle>
           <DialogDescription>
-            Use these shortcuts to navigate and work faster.
+            {t('description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -79,7 +81,7 @@ export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProp
             <div key={category}>
               <h3 className="flex items-center gap-2 text-sm font-semibold mb-3">
                 <Badge variant="secondary" className={categoryColors[category]}>
-                  {categoryLabels[category]}
+                  {t(categoryLabelKeys[category])}
                 </Badge>
               </h3>
               <div className="space-y-2">
@@ -109,11 +111,11 @@ export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProp
 
         <div className="mt-4 rounded-lg bg-muted p-3 text-sm">
           <p className="text-muted-foreground">
-            <strong>Tip:</strong> Press{' '}
+            <strong>{t('tip')}</strong> Press{' '}
             <kbd className="mx-1 rounded border bg-background px-1.5 py-0.5 font-mono text-xs">
-              {navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl'}+K
+              {typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl'}+K
             </kbd>{' '}
-            to open the command palette for quick actions.
+            {t('commandPaletteHint')}
           </p>
         </div>
       </DialogContent>

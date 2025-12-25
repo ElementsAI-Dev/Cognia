@@ -5,6 +5,7 @@
  */
 
 import { useState, useMemo, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Copy,
   CheckSquare,
@@ -43,6 +44,8 @@ export function BatchCopyDialog({
   onOpenChange,
   messages,
 }: BatchCopyDialogProps) {
+  const t = useTranslations('batchCopy');
+  const tCommon = useTranslations('common');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [format, setFormat] = useState<CopyFormat>('text');
   const [roleFilter, setRoleFilter] = useState<MessageRole>('all');
@@ -113,19 +116,19 @@ export function BatchCopyDialog({
   const handleCopy = useCallback(async () => {
     const selectedMessages = messages.filter((m) => selectedIds.has(m.id));
     if (selectedMessages.length === 0) {
-      toast.error('Please select at least one message');
+      toast.error(t('selectAtLeastOne'));
       return;
     }
 
     const content = formatMessages(selectedMessages, format);
     const result = await copy(content, {
-      toastMessage: `Copied ${selectedMessages.length} messages to clipboard`,
+      toastMessage: t('copiedMessages', { count: selectedMessages.length }),
     });
 
     if (result.success) {
       onOpenChange(false);
     }
-  }, [messages, selectedIds, format, formatMessages, copy, onOpenChange]);
+  }, [messages, selectedIds, format, formatMessages, copy, onOpenChange, t]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -133,17 +136,17 @@ export function BatchCopyDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Copy className="h-5 w-5" />
-            Batch Copy Messages
+            {t('title')}
           </DialogTitle>
           <DialogDescription>
-            Select messages to copy to clipboard
+            {t('description')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Role filter */}
           <div className="flex items-center gap-4">
-            <Label className="text-sm text-muted-foreground">Filter:</Label>
+            <Label className="text-sm text-muted-foreground">{t('filter')}:</Label>
             <div className="flex gap-2">
               {(['all', 'user', 'assistant'] as MessageRole[]).map((role) => (
                 <Badge
@@ -152,7 +155,7 @@ export function BatchCopyDialog({
                   className="cursor-pointer"
                   onClick={() => setRoleFilter(role)}
                 >
-                  {role === 'all' ? 'All' : role === 'user' ? 'You' : 'Assistant'}
+                  {role === 'all' ? t('all') : role === 'user' ? t('user') : t('assistant')}
                 </Badge>
               ))}
             </div>
@@ -167,12 +170,12 @@ export function BatchCopyDialog({
               {selectedIds.size === filteredMessages.length ? (
                 <>
                   <Square className="h-4 w-4 mr-2" />
-                  Deselect All
+                  {t('deselectAll')}
                 </>
               ) : (
                 <>
                   <CheckSquare className="h-4 w-4 mr-2" />
-                  Select All
+                  {t('selectAll')}
                 </>
               )}
             </Button>
@@ -194,7 +197,7 @@ export function BatchCopyDialog({
 
           {/* Format selection */}
           <div className="space-y-2">
-            <Label className="text-sm">Output Format:</Label>
+            <Label className="text-sm">{t('outputFormat')}:</Label>
             <RadioGroup
               value={format}
               onValueChange={(v) => setFormat(v as CopyFormat)}
@@ -204,21 +207,21 @@ export function BatchCopyDialog({
                 <RadioGroupItem value="text" id="text" />
                 <Label htmlFor="text" className="flex items-center gap-1 cursor-pointer">
                   <FileText className="h-4 w-4" />
-                  Plain Text
+                  {t('plainText')}
                 </Label>
               </div>
               <div className="flex items-center gap-2">
                 <RadioGroupItem value="markdown" id="markdown" />
                 <Label htmlFor="markdown" className="flex items-center gap-1 cursor-pointer">
                   <FileText className="h-4 w-4" />
-                  Markdown
+                  {t('markdown')}
                 </Label>
               </div>
               <div className="flex items-center gap-2">
                 <RadioGroupItem value="json" id="json" />
                 <Label htmlFor="json" className="flex items-center gap-1 cursor-pointer">
                   <FileJson className="h-4 w-4" />
-                  JSON
+                  {t('json')}
                 </Label>
               </div>
             </RadioGroup>
@@ -227,7 +230,7 @@ export function BatchCopyDialog({
           {/* Actions */}
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tCommon('cancel')}
             </Button>
             <Button
               onClick={handleCopy}
@@ -238,7 +241,7 @@ export function BatchCopyDialog({
               ) : (
                 <Copy className="h-4 w-4 mr-2" />
               )}
-              Copy {selectedIds.size} Messages
+              {t('copyMessages', { count: selectedIds.size })}
             </Button>
           </div>
         </div>

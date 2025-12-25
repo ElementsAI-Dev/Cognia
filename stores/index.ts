@@ -54,3 +54,30 @@ export {
   type NativeActions,
 } from './native-store';
 export { useQuoteStore, selectQuotedTexts, selectHasQuotes, type QuotedText } from './quote-store';
+export {
+  useWorkflowStore,
+  selectActiveExecution,
+  selectExecutionProgress,
+  selectIsExecuting,
+  selectActivePresentation,
+} from './workflow-store';
+export {
+  useSkillStore,
+  selectAllSkills,
+  selectActiveSkills,
+  selectEnabledSkills,
+  selectSkillById,
+  selectSkillsByCategory,
+  selectIsLoading as selectSkillsLoading,
+  selectError as selectSkillsError,
+} from './skill-store';
+export {
+  useLearningStore,
+  selectLearningSession,
+  selectActiveLearningSes,
+  selectLearningConfig,
+  selectLearningProgress,
+  selectCurrentPhase,
+  selectSubQuestions,
+  selectLearningGoals,
+} from './learning-store';

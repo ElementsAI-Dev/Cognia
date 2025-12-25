@@ -7,6 +7,8 @@ mod mcp;
 
 use mcp::McpManager;
 use tauri::Manager;
+use commands::vector::VectorStoreState;
+use std::sync::Arc;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -35,6 +37,14 @@ pub fn run() {
                 .path()
                 .app_data_dir()
                 .expect("Failed to get app data directory");
+
+            // Initialize vector store state (local JSON persistence)
+            let vector_path = app_data_dir.join("vector_store.json");
+            let vector_state = Arc::new(
+                VectorStoreState::new(vector_path)
+                    .expect("Failed to initialize vector store state"),
+            );
+            app.manage(vector_state);
 
             // Initialize MCP Manager
             let mcp_manager = McpManager::new(app.handle().clone(), app_data_dir);
@@ -98,6 +108,19 @@ pub fn run() {
             commands::ollama::ollama_copy_model,
             commands::ollama::ollama_generate_embedding,
             commands::ollama::ollama_stop_model,
+            // Vector (local) commands
+            commands::vector::vector_create_collection,
+            commands::vector::vector_delete_collection,
+            commands::vector::vector_rename_collection,
+            commands::vector::vector_truncate_collection,
+            commands::vector::vector_export_collection,
+            commands::vector::vector_import_collection,
+            commands::vector::vector_list_collections,
+            commands::vector::vector_get_collection,
+            commands::vector::vector_upsert_points,
+            commands::vector::vector_delete_points,
+            commands::vector::vector_get_points,
+            commands::vector::vector_search_points,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

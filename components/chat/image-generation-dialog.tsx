@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Image as ImageIcon,
   Loader2,
@@ -58,6 +59,7 @@ export function ImageGenerationDialog({
   trigger,
   onImageGenerated,
 }: ImageGenerationDialogProps) {
+  const t = useTranslations('imageGeneration');
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -129,7 +131,7 @@ export function ImageGenerationDialog({
         {trigger || (
           <Button variant="outline" size="sm">
             <ImageIcon className="mr-2 h-4 w-4" />
-            Generate Image
+            {t('title')}
           </Button>
         )}
       </DialogTrigger>
@@ -137,17 +139,17 @@ export function ImageGenerationDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            Image Generation
+            {t('title')}
           </DialogTitle>
           <DialogDescription>
-            Create images using DALL-E. Describe what you want to see.
+            {t('description')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Prompt input */}
           <div className="space-y-2">
-            <Label htmlFor="prompt">Prompt</Label>
+            <Label htmlFor="prompt">{t('prompt')}</Label>
             <Textarea
               id="prompt"
               value={prompt}
@@ -163,13 +165,13 @@ export function ImageGenerationDialog({
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm" className="w-full justify-start">
                 <Settings2 className="mr-2 h-4 w-4" />
-                {showAdvanced ? 'Hide' : 'Show'} Advanced Options
+                {showAdvanced ? t('hideAdvanced') : t('showAdvanced')}
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-4 pt-2">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Model</Label>
+                  <Label>{t('model')}</Label>
                   <Select
                     value={model}
                     onValueChange={(v) => setModel(v as typeof model)}
@@ -186,7 +188,7 @@ export function ImageGenerationDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Size</Label>
+                  <Label>{t('size')}</Label>
                   <Select
                     value={size}
                     onValueChange={(v) => setSize(v as ImageSize)}
@@ -204,7 +206,7 @@ export function ImageGenerationDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Quality</Label>
+                  <Label>{t('quality')}</Label>
                   <Select
                     value={quality}
                     onValueChange={(v) => setQuality(v as ImageQuality)}
@@ -221,7 +223,7 @@ export function ImageGenerationDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Style</Label>
+                  <Label>{t('style')}</Label>
                   <Select
                     value={style}
                     onValueChange={(v) => setStyle(v as ImageStyle)}
@@ -257,12 +259,12 @@ export function ImageGenerationDialog({
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
+                  {t('generating')}
                 </>
               ) : (
                 <>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Generate
+                  {t('generate')}
                 </>
               )}
             </Button>
@@ -273,7 +275,7 @@ export function ImageGenerationDialog({
                 disabled={isGenerating}
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
-                Regenerate
+                {t('regenerate')}
               </Button>
             )}
           </div>
@@ -281,7 +283,7 @@ export function ImageGenerationDialog({
           {/* Generated images */}
           {generatedImages.length > 0 && (
             <div className="space-y-3">
-              <Label>Generated Images</Label>
+              <Label>{t('generatedImages')}</Label>
               <ScrollArea className="h-[300px]">
                 <div className="grid gap-4">
                   {generatedImages.map((image, index) => (
@@ -304,7 +306,7 @@ export function ImageGenerationDialog({
                       </div>
                       {image.revisedPrompt && (
                         <p className="text-xs text-muted-foreground">
-                          <strong>Revised prompt:</strong> {image.revisedPrompt}
+                          <strong>{t('revisedPrompt')}:</strong> {image.revisedPrompt}
                         </p>
                       )}
                     </div>

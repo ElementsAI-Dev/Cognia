@@ -26,7 +26,7 @@ export interface Project {
   customInstructions?: string;
   defaultProvider?: string;
   defaultModel?: string;
-  defaultMode?: 'chat' | 'agent' | 'research';
+  defaultMode?: 'chat' | 'agent' | 'research' | 'learning';
 
   // Tags for organization
   tags?: string[];
@@ -59,7 +59,7 @@ export interface CreateProjectInput {
   customInstructions?: string;
   defaultProvider?: string;
   defaultModel?: string;
-  defaultMode?: 'chat' | 'agent' | 'research';
+  defaultMode?: 'chat' | 'agent' | 'research' | 'learning';
   tags?: string[];
 }
 
@@ -71,7 +71,7 @@ export interface UpdateProjectInput {
   customInstructions?: string;
   defaultProvider?: string;
   defaultModel?: string;
-  defaultMode?: 'chat' | 'agent' | 'research';
+  defaultMode?: 'chat' | 'agent' | 'research' | 'learning';
   tags?: string[];
   isArchived?: boolean;
 }

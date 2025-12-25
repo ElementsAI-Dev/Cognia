@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,6 +18,7 @@ interface DesignerPreviewProps {
 }
 
 export function DesignerPreview({ className }: DesignerPreviewProps) {
+  const t = useTranslations('designer');
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -123,7 +125,7 @@ export function DesignerPreview({ className }: DesignerPreviewProps) {
           ref={iframeRef}
           className="h-full w-full border-0"
           sandbox="allow-scripts allow-same-origin"
-          title="Design Preview"
+          title={t('preview')}
         />
         
         {/* Loading overlay */}

@@ -6,6 +6,7 @@
  */
 
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { Type, Code, Palette, Eye, Calculator } from 'lucide-react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
@@ -76,6 +77,8 @@ function MathPreview({ scale, alignment }: { scale: number; alignment: 'center' 
 }
 
 export function ResponseSettings() {
+  const t = useTranslations('responseSettings');
+
   // All settings are now persisted to the store
   const codeTheme = useSettingsStore((state) => state.codeTheme);
   const setCodeTheme = useSettingsStore((state) => state.setCodeTheme);
@@ -121,16 +124,16 @@ export function ResponseSettings() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Code className="h-4 w-4" />
-            Code Display
+            {t('codeDisplay')}
           </CardTitle>
           <CardDescription className="text-xs">
-            Customize code block appearance
+            {t('codeDisplayDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-xs">Theme</Label>
+              <Label className="text-xs">{t('theme')}</Label>
               <Select value={codeTheme} onValueChange={(v) => setCodeTheme(v as CodeTheme)}>
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
@@ -145,7 +148,7 @@ export function ResponseSettings() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Font</Label>
+              <Label className="text-xs">{t('font')}</Label>
               <Select value={codeFontFamily} onValueChange={(v) => setCodeFontFamily(v as FontFamily)}>
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
@@ -163,7 +166,7 @@ export function ResponseSettings() {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm">Font Size: {codeFontSize}px</Label>
+              <Label className="text-sm">{t('fontSize')}: {codeFontSize}px</Label>
             </div>
             <Slider
               value={[codeFontSize]}
@@ -176,7 +179,7 @@ export function ResponseSettings() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex items-center justify-between rounded-md border px-3 py-2">
-              <Label htmlFor="line-numbers" className="text-xs">Line Numbers</Label>
+              <Label htmlFor="line-numbers" className="text-xs">{t('lineNumbers')}</Label>
               <Switch
                 id="line-numbers"
                 checked={showLineNumbers}
@@ -184,7 +187,7 @@ export function ResponseSettings() {
               />
             </div>
             <div className="flex items-center justify-between rounded-md border px-3 py-2">
-              <Label htmlFor="syntax-highlight" className="text-xs">Syntax Highlight</Label>
+              <Label htmlFor="syntax-highlight" className="text-xs">{t('syntaxHighlight')}</Label>
               <Switch
                 id="syntax-highlight"
                 checked={enableSyntaxHighlight}
@@ -192,7 +195,7 @@ export function ResponseSettings() {
               />
             </div>
             <div className="flex items-center justify-between rounded-md border px-3 py-2">
-              <Label htmlFor="code-word-wrap" className="text-xs">Word Wrap</Label>
+              <Label htmlFor="code-word-wrap" className="text-xs">{t('wordWrap')}</Label>
               <Switch
                 id="code-word-wrap"
                 checked={codeWordWrap}
@@ -208,16 +211,16 @@ export function ResponseSettings() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Type className="h-4 w-4" />
-            Text Display
+            {t('textDisplay')}
           </CardTitle>
           <CardDescription className="text-xs">
-            Customize text rendering
+            {t('textDisplayDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm">Line Height: {lineHeight.toFixed(1)}</Label>
+              <Label className="text-sm">{t('lineHeight')}: {lineHeight.toFixed(1)}</Label>
             </div>
             <Slider
               value={[lineHeight * 10]}
@@ -262,16 +265,16 @@ export function ResponseSettings() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Calculator className="h-4 w-4" />
-            Math Display
+            {t('mathDisplay')}
           </CardTitle>
           <CardDescription className="text-xs">
-            Customize LaTeX math rendering
+            {t('mathDisplayDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm">Font Scale: {mathFontScale.toFixed(1)}x</Label>
+              <Label className="text-sm">{t('fontScale')}: {mathFontScale.toFixed(1)}x</Label>
             </div>
             <Slider
               value={[mathFontScale * 10]}
@@ -284,7 +287,7 @@ export function ResponseSettings() {
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs">Alignment</Label>
+            <Label className="text-xs">{t('alignment')}</Label>
             <Select 
               value={mathDisplayAlignment} 
               onValueChange={(v) => setMathDisplayAlignment(v as 'center' | 'left')}
@@ -294,14 +297,14 @@ export function ResponseSettings() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="center" className="text-xs">Center</SelectItem>
-                <SelectItem value="left" className="text-xs">Left</SelectItem>
+                <SelectItem value="center" className="text-xs">{t('center')}</SelectItem>
+                <SelectItem value="left" className="text-xs">{t('left')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="flex items-center justify-between rounded-md border px-3 py-2">
-            <Label htmlFor="math-copy-button" className="text-xs">Show Copy Button</Label>
+            <Label htmlFor="math-copy-button" className="text-xs">{t('showCopyButton')}</Label>
             <Switch
               id="math-copy-button"
               checked={mathShowCopyButton}
@@ -322,16 +325,16 @@ export function ResponseSettings() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Palette className="h-4 w-4" />
-            Diagram Settings
+            {t('diagramSettings')}
           </CardTitle>
           <CardDescription className="text-xs">
-            Customize Mermaid and VegaLite rendering
+            {t('diagramSettingsDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-xs">Mermaid Theme</Label>
+              <Label className="text-xs">{t('mermaidTheme')}</Label>
               <Select 
                 value={mermaidTheme} 
                 onValueChange={(v) => setMermaidTheme(v as 'default' | 'dark' | 'forest' | 'neutral')}
@@ -349,7 +352,7 @@ export function ResponseSettings() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">VegaLite Theme</Label>
+              <Label className="text-xs">{t('vegaLiteTheme')}</Label>
               <Select 
                 value={vegaLiteTheme} 
                 onValueChange={(v) => setVegaLiteTheme(v as 'default' | 'dark' | 'excel' | 'fivethirtyeight')}
@@ -375,10 +378,10 @@ export function ResponseSettings() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Eye className="h-4 w-4" />
-            Layout Options
+            {t('layoutOptions')}
           </CardTitle>
           <CardDescription className="text-xs">
-            Customize chat interface
+            {t('layoutOptionsDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -389,7 +392,7 @@ export function ResponseSettings() {
                 checked={compactMode}
                 onCheckedChange={setCompactMode}
               />
-              <Label htmlFor="compact-mode" className="text-[10px] text-center">Compact</Label>
+              <Label htmlFor="compact-mode" className="text-[10px] text-center">{t('compact')}</Label>
             </div>
             <div className="flex flex-col items-center gap-2 rounded-md border px-2 py-3">
               <Switch
@@ -397,7 +400,7 @@ export function ResponseSettings() {
                 checked={showTimestamps}
                 onCheckedChange={setShowTimestamps}
               />
-              <Label htmlFor="show-timestamps" className="text-[10px] text-center">Timestamps</Label>
+              <Label htmlFor="show-timestamps" className="text-[10px] text-center">{t('timestamps')}</Label>
             </div>
             <div className="flex flex-col items-center gap-2 rounded-md border px-2 py-3">
               <Switch
@@ -405,7 +408,7 @@ export function ResponseSettings() {
                 checked={showTokenCount}
                 onCheckedChange={setShowTokenCount}
               />
-              <Label htmlFor="show-tokens" className="text-[10px] text-center">Tokens</Label>
+              <Label htmlFor="show-tokens" className="text-[10px] text-center">{t('tokens')}</Label>
             </div>
           </div>
         </CardContent>
@@ -416,7 +419,7 @@ export function ResponseSettings() {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Palette className="h-3.5 w-3.5" />
-            Preview
+            {t('preview')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -427,7 +430,7 @@ export function ResponseSettings() {
               lineHeight: lineHeight,
             }}
           >
-            <p className="mb-2 text-xs">Sample AI response:</p>
+            <p className="mb-2 text-xs">{t('sampleResponse')}</p>
             <pre
               className="p-2 rounded bg-zinc-900 text-zinc-100 overflow-x-auto"
               style={{ fontSize: `${codeFontSize}px` }}

@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -70,6 +71,8 @@ export function PresetManagerDialog({
   editPresetId,
   onPresetSelect,
 }: PresetManagerDialogProps) {
+  const t = useTranslations('presetManager');
+  const tPlaceholders = useTranslations('placeholders');
   const presets = usePresetStore((state) => state.presets);
   const createPreset = usePresetStore((state) => state.createPreset);
   const updatePreset = usePresetStore((state) => state.updatePreset);
@@ -352,22 +355,22 @@ export function PresetManagerDialog({
           <DialogTitle>
             {activeTab === 'edit'
               ? editingPreset?.id
-                ? 'Edit Preset'
-                : 'Create Preset'
-              : 'Manage Presets'}
+                ? t('editPreset')
+                : t('createPreset')
+              : t('managePresets')}
           </DialogTitle>
           <DialogDescription>
             {activeTab === 'edit'
-              ? 'Configure your preset settings, system prompt, and built-in prompts.'
-              : 'Create and manage your chat presets for quick access.'}
+              ? t('editDescription')
+              : t('manageDescription')}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)} className="flex-1 flex flex-col overflow-hidden">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="list">All Presets</TabsTrigger>
+            <TabsTrigger value="list">{t('allPresets')}</TabsTrigger>
             <TabsTrigger value="edit" disabled={!editingPreset}>
-              {editingPreset?.id ? 'Edit' : 'Create'}
+              {editingPreset?.id ? t('edit') : t('create')}
             </TabsTrigger>
           </TabsList>
 
@@ -377,11 +380,11 @@ export function PresetManagerDialog({
             <div className="mb-4 p-3 rounded-lg border bg-gradient-to-r from-purple-500/5 to-blue-500/5">
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="h-4 w-4 text-purple-500" />
-                <span className="text-sm font-medium">AI Generate Preset</span>
+                <span className="text-sm font-medium">{t('aiGeneratePreset')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Input
-                  placeholder="Describe your ideal preset... e.g., 'A coding assistant for Python'"
+                  placeholder={tPlaceholders('describePreset')}
                   value={aiDescription}
                   onChange={(e) => setAiDescription(e.target.value)}
                   className="flex-1"
@@ -403,14 +406,14 @@ export function PresetManagerDialog({
 
             <div className="flex items-center gap-2 mb-4">
               <Input
-                placeholder="Search presets..."
+                placeholder={tPlaceholders('searchPresets')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1"
               />
               <Button onClick={handleCreateNew}>
                 <Plus className="h-4 w-4 mr-2" />
-                New
+                {t('new')}
               </Button>
             </div>
 
@@ -431,7 +434,7 @@ export function PresetManagerDialog({
                 ))}
                 {filteredPresets.length === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
-                    No presets found. Create one to get started.
+                    {t('noPresetsFound')}
                   </div>
                 )}
               </div>
@@ -467,11 +470,11 @@ export function PresetManagerDialog({
                 setActiveTab('list');
               }}
             >
-              Cancel
+              {t('cancel')}
             </Button>
             <Button onClick={handleSave} disabled={!editingPreset?.name}>
               <Save className="h-4 w-4 mr-2" />
-              Save Preset
+              {t('savePreset')}
             </Button>
           </DialogFooter>
         )}
@@ -596,27 +599,29 @@ function PresetEditForm({
   onAIGeneratePrompts,
   isGeneratingPrompts,
 }: PresetEditFormProps) {
+  const t = useTranslations('presetManager');
+  const tPlaceholders = useTranslations('placeholders');
   const providers = Object.entries(PROVIDERS);
 
   return (
     <div className="space-y-6 pb-4">
       {/* Basic Info */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium">Basic Information</h3>
+        <h3 className="text-sm font-medium">{t('basicInfo')}</h3>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
+            <Label htmlFor="name">{t('name')}</Label>
             <Input
               id="name"
               value={preset.name || ''}
               onChange={(e) => onChange({ ...preset, name: e.target.value })}
-              placeholder="My Preset"
+              placeholder={tPlaceholders('enterPresetName')}
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Icon & Color</Label>
+            <Label>{t('iconColor')}</Label>
             <div className="flex items-center gap-2">
               <Select
                 value={preset.icon || '💬'}
@@ -656,23 +661,23 @@ function PresetEditForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="description">Description</Label>
+          <Label htmlFor="description">{t('description')}</Label>
           <Input
             id="description"
             value={preset.description || ''}
             onChange={(e) => onChange({ ...preset, description: e.target.value })}
-            placeholder="A brief description of this preset"
+            placeholder={tPlaceholders('enterPresetDescription')}
           />
         </div>
       </div>
 
       {/* Model Configuration */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium">Model Configuration</h3>
+        <h3 className="text-sm font-medium">{t('modelConfig')}</h3>
 
         <div className="grid grid-cols-3 gap-4">
           <div className="space-y-2">
-            <Label>Provider</Label>
+            <Label>{t('provider')}</Label>
             <Select
               value={preset.provider || 'auto'}
               onValueChange={(v) => onChange({ ...preset, provider: v as Preset['provider'] })}
@@ -681,7 +686,7 @@ function PresetEditForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="auto">Auto</SelectItem>
+                <SelectItem value="auto">{t('auto')}</SelectItem>
                 {providers.map(([id, provider]) => (
                   <SelectItem key={id} value={id}>
                     {provider.name}
@@ -692,7 +697,7 @@ function PresetEditForm({
           </div>
 
           <div className="space-y-2">
-            <Label>Model</Label>
+            <Label>{t('model')}</Label>
             <Input
               value={preset.model || ''}
               onChange={(e) => onChange({ ...preset, model: e.target.value })}
@@ -701,7 +706,7 @@ function PresetEditForm({
           </div>
 
           <div className="space-y-2">
-            <Label>Mode</Label>
+            <Label>{t('mode')}</Label>
             <Select
               value={preset.mode || 'chat'}
               onValueChange={(v) => onChange({ ...preset, mode: v as ChatMode })}
@@ -710,16 +715,16 @@ function PresetEditForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="chat">Chat</SelectItem>
-                <SelectItem value="agent">Agent</SelectItem>
-                <SelectItem value="research">Research</SelectItem>
+                <SelectItem value="chat">{t('modeChat')}</SelectItem>
+                <SelectItem value="agent">{t('modeAgent')}</SelectItem>
+                <SelectItem value="research">{t('modeResearch')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label>Temperature: {preset.temperature?.toFixed(1) || '0.7'}</Label>
+          <Label>{t('temperature')}: {preset.temperature?.toFixed(1) || '0.7'}</Label>
           <Slider
             value={[preset.temperature ?? 0.7]}
             onValueChange={([v]) => onChange({ ...preset, temperature: v })}
@@ -732,16 +737,16 @@ function PresetEditForm({
 
       {/* Feature Toggles */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium">Features</h3>
+        <h3 className="text-sm font-medium">{t('features')}</h3>
 
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
             <Label className="flex items-center gap-2">
               <Globe className="h-4 w-4" />
-              Web Search
+              {t('webSearch')}
             </Label>
             <p className="text-xs text-muted-foreground">
-              Enable web search for this preset
+              {t('webSearchDesc')}
             </p>
           </div>
           <Switch
@@ -754,10 +759,10 @@ function PresetEditForm({
           <div className="space-y-0.5">
             <Label className="flex items-center gap-2">
               <Brain className="h-4 w-4" />
-              Thinking Mode
+              {t('thinkingMode')}
             </Label>
             <p className="text-xs text-muted-foreground">
-              Enable extended thinking/reasoning
+              {t('thinkingModeDesc')}
             </p>
           </div>
           <Switch
@@ -770,7 +775,7 @@ function PresetEditForm({
       {/* System Prompt */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">System Prompt</h3>
+          <h3 className="text-sm font-medium">{t('systemPrompt')}</h3>
           <Button
             variant="outline"
             size="sm"
@@ -782,14 +787,14 @@ function PresetEditForm({
             ) : (
               <Wand2 className="h-4 w-4 mr-2" />
             )}
-            AI Optimize
+            {t('aiOptimize')}
           </Button>
         </div>
 
         <Textarea
           value={preset.systemPrompt || ''}
           onChange={(e) => onChange({ ...preset, systemPrompt: e.target.value })}
-          placeholder="You are a helpful assistant..."
+          placeholder={tPlaceholders('enterSystemPrompt')}
           className="min-h-[120px] resize-none"
         />
       </div>
@@ -797,7 +802,7 @@ function PresetEditForm({
       {/* Built-in Prompts */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Built-in Prompts</h3>
+          <h3 className="text-sm font-medium">{t('builtinPrompts')}</h3>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -810,11 +815,11 @@ function PresetEditForm({
               ) : (
                 <Sparkles className="h-4 w-4 mr-2" />
               )}
-              AI Generate
+              {t('aiGenerate')}
             </Button>
             <Button variant="outline" size="sm" onClick={onAddBuiltinPrompt}>
               <Plus className="h-4 w-4 mr-2" />
-              Add
+              {t('add')}
             </Button>
           </div>
         </div>
@@ -831,7 +836,7 @@ function PresetEditForm({
                   onChange={(e) =>
                     onUpdateBuiltinPrompt(prompt.id, { name: e.target.value })
                   }
-                  placeholder="Prompt name"
+                  placeholder={tPlaceholders('promptName')}
                   className="flex-1"
                 />
                 <Button
@@ -848,7 +853,7 @@ function PresetEditForm({
                 onChange={(e) =>
                   onUpdateBuiltinPrompt(prompt.id, { content: e.target.value })
                 }
-                placeholder="Prompt content..."
+                placeholder={tPlaceholders('promptContent')}
                 className="min-h-[80px] resize-none"
               />
             </div>
@@ -856,7 +861,7 @@ function PresetEditForm({
 
           {(!preset.builtinPrompts || preset.builtinPrompts.length === 0) && (
             <p className="text-sm text-muted-foreground text-center py-4">
-              No built-in prompts. Add one to include quick-access prompts with this preset.
+              {t('noBuiltinPrompts')}
             </p>
           )}
         </div>

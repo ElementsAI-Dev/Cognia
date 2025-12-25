@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { 
   AlertCircle, 
   Copy, 
@@ -52,6 +53,8 @@ interface MermaidBlockProps {
 }
 
 export function MermaidBlock({ content, className }: MermaidBlockProps) {
+  const t = useTranslations('renderer');
+  const tToasts = useTranslations('toasts');
   const containerRef = useRef<HTMLDivElement>(null);
   const fullscreenRef = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string>('');
@@ -60,7 +63,7 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSource, setShowSource] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const { copy, isCopying } = useCopy({ toastMessage: 'Mermaid code copied' });
+  const { copy, isCopying } = useCopy({ toastMessage: tToasts('mermaidCopied') });
 
   const renderMermaid = useCallback(async () => {
     try {
@@ -122,13 +125,13 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
         backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
         padding: 20,
       });
-      toast.success(`Exported as ${format.toUpperCase()}`);
+      toast.success(tToasts('exported', { format: format.toUpperCase() }));
     } catch (err) {
-      toast.error(`Failed to export: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.error(tToasts('exportFailed', { error: err instanceof Error ? err.message : 'Unknown error' }));
     } finally {
       setIsExporting(false);
     }
-  }, [content, isFullscreen]);
+  }, [content, isFullscreen, tToasts]);
 
   const handleRetry = useCallback(() => {
     renderMermaid();
@@ -139,11 +142,11 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
       <div 
         className={cn('flex items-center justify-center p-6 rounded-lg bg-muted/30 border', className)}
         role="status"
-        aria-label="Loading diagram"
+        aria-label={t('loadingDiagram')}
       >
         <div className="flex items-center gap-2 text-muted-foreground">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" aria-hidden="true" />
-          <span className="text-sm">Rendering diagram...</span>
+          <span className="text-sm">{t('renderingDiagram')}</span>
         </div>
       </div>
     );
@@ -154,12 +157,12 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
       <div 
         className={cn('flex flex-col gap-2 p-4 rounded-lg bg-destructive/10 border border-destructive/20', className)}
         role="alert"
-        aria-label="Mermaid rendering error"
+        aria-label={t('mermaidError')}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-destructive">
             <AlertCircle className="h-4 w-4" aria-hidden="true" />
-            <span className="text-sm font-medium">Mermaid Error</span>
+            <span className="text-sm font-medium">{t('mermaidError')}</span>
           </div>
           <div className="flex items-center gap-1">
             <Tooltip>
@@ -169,12 +172,12 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
                   size="icon"
                   className="h-7 w-7"
                   onClick={handleRetry}
-                  aria-label="Retry rendering"
+                  aria-label={t('retry')}
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Retry</TooltipContent>
+              <TooltipContent>{t('retry')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -184,12 +187,12 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
                   className="h-7 w-7"
                   onClick={handleCopy}
                   disabled={isCopying}
-                  aria-label="Copy source code"
+                  aria-label={t('copySource')}
                 >
                   {isCopying ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Copy source</TooltipContent>
+              <TooltipContent>{t('copySource')}</TooltipContent>
             </Tooltip>
           </div>
         </div>
@@ -206,7 +209,7 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
       <div 
         className={cn('group relative rounded-lg border bg-card overflow-hidden my-4', className)}
         role="figure"
-        aria-label="Mermaid diagram"
+        aria-label={t('mermaidDiagram')}
       >
         {/* Action buttons */}
         <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-background/80 backdrop-blur-sm rounded-lg p-0.5">
@@ -217,13 +220,13 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => setShowSource(!showSource)}
-                aria-label={showSource ? 'Hide source' : 'Show source'}
+                aria-label={showSource ? t('hideSpec') : t('showSpec')}
                 aria-pressed={showSource}
               >
                 <Code2 className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{showSource ? 'Hide source' : 'Show source'}</TooltipContent>
+            <TooltipContent>{showSource ? t('hideSpec') : t('showSpec')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -234,12 +237,12 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
                 className="h-7 w-7"
                 onClick={handleCopy}
                 disabled={isCopying}
-                aria-label="Copy source code"
+                aria-label={t('copySource')}
               >
                 {isCopying ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Copy source</TooltipContent>
+            <TooltipContent>{t('copySource')}</TooltipContent>
           </Tooltip>
 
           <DropdownMenu>
@@ -251,22 +254,22 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
                     size="icon"
                     className="h-7 w-7"
                     disabled={isExporting}
-                    aria-label="Export options"
+                    aria-label={t('exportOptions')}
                   >
                     <Download className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
-              <TooltipContent>Export</TooltipContent>
+              <TooltipContent>{t('exportOptions')}</TooltipContent>
             </Tooltip>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => handleExport('png')}>
                 <ImageIcon className="h-4 w-4 mr-2" />
-                Export as PNG
+                {t('exportPng')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExport('svg')}>
                 <FileCode className="h-4 w-4 mr-2" />
-                Export as SVG
+                {t('exportSvg')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -278,12 +281,12 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => setIsFullscreen(true)}
-                aria-label="View fullscreen"
+                aria-label={t('viewFullscreen')}
               >
                 <Maximize2 className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Fullscreen</TooltipContent>
+            <TooltipContent>{t('viewFullscreen')}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -307,7 +310,7 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
         <DialogContent className="max-w-[90vw] max-h-[90vh] overflow-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span>Mermaid Diagram</span>
+              <span>{t('mermaidDiagram')}</span>
               <div className="flex items-center gap-1 ml-auto">
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -317,7 +320,7 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
                       className="h-7 w-7"
                       onClick={handleCopy}
                       disabled={isCopying}
-                      aria-label="Copy source code"
+                      aria-label={t('copySource')}
                     >
                       {isCopying ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
@@ -332,7 +335,7 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
                       className="h-7 w-7"
                       onClick={() => handleExport('png')}
                       disabled={isExporting}
-                      aria-label="Export as PNG"
+                      aria-label={t('exportPNG')}
                     >
                       <ImageIcon className="h-3.5 w-3.5" />
                     </Button>

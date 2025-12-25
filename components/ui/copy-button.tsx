@@ -5,6 +5,7 @@
  */
 
 import { useState, forwardRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { Check, Copy, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -207,6 +208,7 @@ export interface InlineCopyButtonProps {
 }
 
 export function InlineCopyButton({ content, className }: InlineCopyButtonProps) {
+  const t = useTranslations('common');
   const [isCopied, setIsCopied] = useState(false);
   const { copy } = useCopy({ showToast: false });
 
@@ -227,7 +229,7 @@ export function InlineCopyButton({ content, className }: InlineCopyButtonProps) 
         'transition-colors',
         className
       )}
-      aria-label="Copy"
+      aria-label={t('copy')}
     >
       {isCopied ? (
         <Check className="h-3.5 w-3.5 text-green-500" />

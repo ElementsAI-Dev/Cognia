@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   History,
   Clock,
@@ -59,6 +60,8 @@ export function VersionHistoryPanel({
   documentId,
   trigger,
 }: VersionHistoryPanelProps) {
+  const t = useTranslations('canvas');
+  const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveDescription, setSaveDescription] = useState('');
@@ -135,7 +138,7 @@ export function VersionHistoryPanel({
           {trigger || (
             <Button variant="ghost" size="sm" className="gap-2">
               <History className="h-4 w-4" />
-              <span className="hidden sm:inline">History</span>
+              <span className="hidden sm:inline">{t('history')}</span>
             </Button>
           )}
         </SheetTrigger>
@@ -143,7 +146,7 @@ export function VersionHistoryPanel({
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <History className="h-5 w-5" />
-              Version History
+              {t('versionHistory')}
             </SheetTitle>
           </SheetHeader>
 
@@ -155,7 +158,7 @@ export function VersionHistoryPanel({
               variant="outline"
             >
               <Save className="mr-2 h-4 w-4" />
-              Save Current Version
+              {t('saveVersion')}
             </Button>
 
             {/* Version list */}
@@ -164,10 +167,10 @@ export function VersionHistoryPanel({
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <History className="h-12 w-12 text-muted-foreground/50" />
                   <p className="mt-4 text-sm text-muted-foreground">
-                    No versions saved yet
+                    {t('noVersions')}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Save a version to track changes
+                    {t('noVersionsHint')}
                   </p>
                 </div>
               ) : (
@@ -204,12 +207,12 @@ export function VersionHistoryPanel({
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Save Version</DialogTitle>
+            <DialogTitle>{t('saveVersion')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">
-                Description (optional)
+                {t('descriptionOptional')}
               </label>
               <Input
                 value={saveDescription}
@@ -219,10 +222,10 @@ export function VersionHistoryPanel({
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
-                Cancel
+                {tCommon('cancel')}
               </Button>
               <Button onClick={handleSaveVersion}>
-                Save Version
+                {t('saveVersion')}
               </Button>
             </div>
           </div>
@@ -235,7 +238,7 @@ export function VersionHistoryPanel({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="h-5 w-5" />
-              Version Preview
+              {t('versionPreview')}
               {previewVersion?.description && (
                 <Badge variant="secondary" className="ml-2">
                   {previewVersion.description}
@@ -250,7 +253,7 @@ export function VersionHistoryPanel({
           </ScrollArea>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setPreviewVersion(null)}>
-              Close
+              {tCommon('close')}
             </Button>
             <Button onClick={() => {
               if (previewVersion) {
@@ -259,7 +262,7 @@ export function VersionHistoryPanel({
               }
             }}>
               <RotateCcw className="mr-2 h-4 w-4" />
-              Restore This Version
+              {t('restoreVersion')}
             </Button>
           </div>
         </DialogContent>
@@ -269,20 +272,19 @@ export function VersionHistoryPanel({
       <AlertDialog open={!!deleteVersion} onOpenChange={() => setDeleteVersion(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Version</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteVersion')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this version? This action cannot be
-              undone.
+              {t('deleteVersionConfirm')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteVersion}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Delete
+              {tCommon('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

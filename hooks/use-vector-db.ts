@@ -5,24 +5,26 @@
  * Provides easy access to ChromaDB functionality
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useVectorStore } from '@/stores';
 import { useSettingsStore } from '@/stores';
 import {
-  getChromaClient,
-  getOrCreateCollection,
-  addDocuments,
-  queryCollection,
-  deleteDocuments,
-  listCollections,
-  type ChromaConfig,
-  type DocumentChunk,
-  type SearchResult,
-} from '@/lib/vector/chroma-client';
+  createVectorStore,
+  type IVectorStore,
+  type SearchOptions,
+  type VectorDocument,
+  type VectorSearchResult,
+  type VectorStoreConfig,
+  type VectorCollectionInfo,
+  type PayloadFilter,
+  type CollectionExport,
+  type CollectionImport,
+} from '@/lib/vector';
 import {
   generateEmbedding,
   generateEmbeddings,
   type EmbeddingModelConfig,
+  type EmbeddingProvider,
 } from '@/lib/vector/embedding';
 
 export interface UseVectorDBOptions {
@@ -37,9 +39,14 @@ export interface UseVectorDBReturn {
   isInitialized: boolean;
 
   // Collection operations
-  createCollection: (name: string, description?: string) => Promise<void>;
+  createCollection: (name: string, options?: { description?: string; embeddingModel?: string; embeddingProvider?: string }) => Promise<void>;
   deleteCollection: (name: string) => Promise<void>;
-  listAllCollections: () => Promise<{ name: string; count: number }[]>;
+  renameCollection: (oldName: string, newName: string) => Promise<void>;
+  truncateCollection: (name: string) => Promise<void>;
+  exportCollection: (name: string) => Promise<CollectionExport>;
+  importCollection: (data: CollectionImport, overwrite?: boolean) => Promise<void>;
+  listAllCollections: () => Promise<VectorCollectionInfo[]>;
+  getCollectionInfo: (name: string) => Promise<VectorCollectionInfo>;
 
   // Document operations
   addDocument: (content: string, metadata?: Record<string, string | number | boolean>) => Promise<string>;
@@ -47,8 +54,11 @@ export interface UseVectorDBReturn {
   removeDocuments: (ids: string[]) => Promise<void>;
 
   // Search
-  search: (query: string, topK?: number) => Promise<SearchResult[]>;
-  searchWithThreshold: (query: string, threshold: number, topK?: number) => Promise<SearchResult[]>;
+  search: (query: string, topK?: number) => Promise<VectorSearchResult[]>;
+  searchWithThreshold: (query: string, threshold: number, topK?: number) => Promise<VectorSearchResult[]>;
+  searchWithOptions: (query: string, options?: SearchOptions) => Promise<VectorSearchResult[]>;
+  searchWithFilters: (query: string, filters: PayloadFilter[], options?: Omit<SearchOptions, 'filters'>) => Promise<VectorSearchResult[]>;
+  peek: (topK?: number) => Promise<VectorSearchResult[]>;
 
   // Embedding
   embed: (text: string) => Promise<number[]>;
@@ -73,7 +83,9 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
   const getApiKey = useCallback((): string => {
     const openaiKey = providerSettings.openai?.apiKey;
     const googleKey = providerSettings.google?.apiKey;
-    return openaiKey || googleKey || '';
+    const mistralKey = providerSettings.mistral?.apiKey;
+    const cohereKey = providerSettings.cohere?.apiKey;
+    return openaiKey || googleKey || mistralKey || cohereKey || '';
   }, [providerSettings]);
 
   // Get embedding config
@@ -81,29 +93,44 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
     return vectorStore.getEmbeddingConfig();
   }, [vectorStore]);
 
-  // Get ChromaDB config
-  const getChromaConfig = useCallback((): ChromaConfig => {
+  // Build vector store config
+  const getVectorStoreConfig = useCallback((): VectorStoreConfig => {
     const settings = vectorStore.settings;
     return {
-      mode: settings.mode,
-      serverUrl: settings.serverUrl,
+      provider: settings.provider === 'native' ? 'native' : 'chroma',
       embeddingConfig: getEmbeddingConfig(),
-      apiKey: getApiKey(),
+      embeddingApiKey: getApiKey(),
+      chromaMode: settings.mode,
+      chromaServerUrl: settings.serverUrl,
+      native: {},
     };
   }, [vectorStore.settings, getEmbeddingConfig, getApiKey]);
 
+  const store: IVectorStore | null = useMemo(() => {
+    try {
+      return createVectorStore(getVectorStoreConfig());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create vector store');
+      return null;
+    }
+  }, [getVectorStoreConfig]);
+
   // Create collection
-  const createCollection = useCallback(async (name: string, description?: string) => {
+  const createCollection = useCallback(async (name: string, options?: { description?: string; embeddingModel?: string; embeddingProvider?: string }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const client = getChromaClient(getChromaConfig());
-      await getOrCreateCollection(client, name);
+      if (!store) throw new Error('Vector store not available');
+      await store.createCollection(name, {
+        description: options?.description,
+        embeddingModel: options?.embeddingModel || getEmbeddingConfig().model,
+        embeddingProvider: options?.embeddingProvider || getEmbeddingConfig().provider,
+      });
       vectorStore.addCollection({
         name,
-        description,
-        embeddingModel: getEmbeddingConfig().model,
-        embeddingProvider: getEmbeddingConfig().provider,
+        description: options?.description,
+        embeddingModel: options?.embeddingModel || getEmbeddingConfig().model,
+        embeddingProvider: (options?.embeddingProvider || getEmbeddingConfig().provider) as EmbeddingProvider,
       });
       setIsInitialized(true);
     } catch (err) {
@@ -112,15 +139,15 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
     } finally {
       setIsLoading(false);
     }
-  }, [getChromaConfig, getEmbeddingConfig, vectorStore]);
+  }, [getEmbeddingConfig, store, vectorStore]);
 
   // Delete collection
   const deleteCollectionFn = useCallback(async (name: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      const client = getChromaClient(getChromaConfig());
-      await client.deleteCollection({ name });
+      if (!store) throw new Error('Vector store not available');
+      await store.deleteCollection(name);
       const collection = vectorStore.collections.find(c => c.name === name);
       if (collection) {
         vectorStore.deleteCollection(collection.id);
@@ -131,22 +158,97 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
     } finally {
       setIsLoading(false);
     }
-  }, [getChromaConfig, vectorStore]);
+  }, [store, vectorStore]);
 
-  // List all collections
-  const listAllCollections = useCallback(async () => {
+  // Rename collection
+  const renameCollection = useCallback(async (oldName: string, newName: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      const client = getChromaClient(getChromaConfig());
-      return await listCollections(client);
+      if (!store || !store.renameCollection) throw new Error('Vector store does not support renaming');
+      await store.renameCollection(oldName, newName);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to rename collection');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [store]);
+
+  // Truncate collection
+  const truncateCollection = useCallback(async (name: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (!store || !store.truncateCollection) throw new Error('Vector store does not support truncating');
+      await store.truncateCollection(name);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to truncate collection');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [store]);
+
+  // Export collection
+  const exportCollection = useCallback(async (name: string): Promise<CollectionExport> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (!store || !store.exportCollection) throw new Error('Vector store does not support exporting');
+      return await store.exportCollection(name);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export collection');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [store]);
+
+  // Import collection
+  const importCollection = useCallback(async (data: CollectionImport, overwrite?: boolean) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (!store || !store.importCollection) throw new Error('Vector store does not support importing');
+      await store.importCollection(data, overwrite);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to import collection');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [store]);
+
+  // Get collection info
+  const getCollectionInfo = useCallback(async (name: string): Promise<VectorCollectionInfo> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (!store) throw new Error('Vector store not available');
+      return await store.getCollectionInfo(name);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to get collection info');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [store]);
+
+  // List all collections
+  const listAllCollections = useCallback(async (): Promise<VectorCollectionInfo[]> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (!store) throw new Error('Vector store not available');
+      return await store.listCollections();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to list collections');
       throw err;
     } finally {
       setIsLoading(false);
     }
-  }, [getChromaConfig]);
+  }, [store]);
 
   // Add single document
   const addDocument = useCallback(async (
@@ -156,18 +258,16 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
     setIsLoading(true);
     setError(null);
     try {
-      const config = getChromaConfig();
-      const client = getChromaClient(config);
-      const collection = await getOrCreateCollection(client, collectionName);
-
       const docId = `doc-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const doc: DocumentChunk = {
+      const doc: VectorDocument = {
         id: docId,
         content,
         metadata,
       };
 
-      await addDocuments(collection, [doc], config);
+      if (!store) throw new Error('Vector store not available');
+      await store.createCollection(collectionName);
+      await store.addDocuments(collectionName, [doc]);
 
       vectorStore.addDocuments(collectionName, [{
         content,
@@ -181,7 +281,7 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
     } finally {
       setIsLoading(false);
     }
-  }, [collectionName, getChromaConfig, vectorStore]);
+  }, [collectionName, store, vectorStore]);
 
   // Add batch of documents
   const addDocumentBatch = useCallback(async (
@@ -190,17 +290,15 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
     setIsLoading(true);
     setError(null);
     try {
-      const config = getChromaConfig();
-      const client = getChromaClient(config);
-      const collection = await getOrCreateCollection(client, collectionName);
-
-      const docs: DocumentChunk[] = documents.map((doc, index) => ({
+      const docs: VectorDocument[] = documents.map((doc, index) => ({
         id: `doc-${Date.now()}-${index}-${Math.random().toString(36).slice(2)}`,
         content: doc.content,
         metadata: doc.metadata,
       }));
 
-      await addDocuments(collection, docs, config);
+      if (!store) throw new Error('Vector store not available');
+      await store.createCollection(collectionName);
+      await store.addDocuments(collectionName, docs);
 
       vectorStore.addDocuments(collectionName, documents.map(d => ({
         content: d.content,
@@ -214,51 +312,78 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
     } finally {
       setIsLoading(false);
     }
-  }, [collectionName, getChromaConfig, vectorStore]);
+  }, [collectionName, store, vectorStore]);
 
   // Remove documents
   const removeDocuments = useCallback(async (ids: string[]) => {
     setIsLoading(true);
     setError(null);
     try {
-      const config = getChromaConfig();
-      const client = getChromaClient(config);
-      const collection = await getOrCreateCollection(client, collectionName);
-      await deleteDocuments(collection, ids);
+      if (!store) throw new Error('Vector store not available');
+      await store.deleteDocuments(collectionName, ids);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to remove documents');
       throw err;
     } finally {
       setIsLoading(false);
     }
-  }, [collectionName, getChromaConfig]);
+  }, [collectionName, store]);
 
   // Search
-  const search = useCallback(async (query: string, topK: number = 5): Promise<SearchResult[]> => {
+  const search = useCallback(async (query: string, topK: number = 5): Promise<VectorSearchResult[]> => {
     setIsLoading(true);
     setError(null);
     try {
-      const config = getChromaConfig();
-      const client = getChromaClient(config);
-      const collection = await getOrCreateCollection(client, collectionName);
-      return await queryCollection(collection, query, config, { nResults: topK });
+      if (!store) throw new Error('Vector store not available');
+      await store.createCollection(collectionName);
+      const opts: SearchOptions = { topK };
+      return await store.searchDocuments(collectionName, query, opts);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed');
       throw err;
     } finally {
       setIsLoading(false);
     }
-  }, [collectionName, getChromaConfig]);
+  }, [collectionName, store]);
+
+  const searchWithOptions = useCallback(async (query: string, options: SearchOptions = {}): Promise<VectorSearchResult[]> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (!store) throw new Error('Vector store not available');
+      await store.createCollection(collectionName);
+      return await store.searchDocuments(collectionName, query, options);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Search failed');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [collectionName, store]);
 
   // Search with threshold
   const searchWithThreshold = useCallback(async (
     query: string,
     threshold: number,
     topK: number = 10
-  ): Promise<SearchResult[]> => {
+  ): Promise<VectorSearchResult[]> => {
     const results = await search(query, topK);
-    return results.filter(r => r.similarity >= threshold);
+    return results.filter(r => r.score >= threshold);
   }, [search]);
+
+  // Search with filters
+  const searchWithFilters = useCallback(async (
+    query: string, 
+    filters: PayloadFilter[], 
+    options: Omit<SearchOptions, 'filters'> = {}
+  ): Promise<VectorSearchResult[]> => {
+    const combinedOptions: SearchOptions = { ...options, filters };
+    return searchWithOptions(query, combinedOptions);
+  }, [searchWithOptions]);
+
+  const peek = useCallback(async (topK: number = 10): Promise<VectorSearchResult[]> => {
+    return searchWithOptions('', { topK });
+  }, [searchWithOptions]);
 
   // Embed single text
   const embed = useCallback(async (text: string): Promise<number[]> => {
@@ -293,24 +418,22 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
   // Get document count
   const getDocumentCount = useCallback(async (): Promise<number> => {
     try {
-      const config = getChromaConfig();
-      const client = getChromaClient(config);
-      const collection = await getOrCreateCollection(client, collectionName);
-      return await collection.count();
+      if (!store) throw new Error('Vector store not available');
+      const info = await store.getCollectionInfo(collectionName);
+      return info.documentCount;
     } catch {
       return 0;
     }
-  }, [collectionName, getChromaConfig]);
+  }, [collectionName, store]);
 
   // Clear collection
   const clearCollection = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const config = getChromaConfig();
-      const client = getChromaClient(config);
-      await client.deleteCollection({ name: collectionName });
-      await getOrCreateCollection(client, collectionName);
+      if (!store) throw new Error('Vector store not available');
+      await store.deleteCollection(collectionName);
+      await store.createCollection(collectionName);
       const collection = vectorStore.collections.find(c => c.name === collectionName);
       if (collection) {
         vectorStore.clearDocuments(collection.id);
@@ -321,7 +444,7 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
     } finally {
       setIsLoading(false);
     }
-  }, [collectionName, getChromaConfig, vectorStore]);
+  }, [collectionName, store, vectorStore]);
 
   // Auto-initialize if needed
   if (autoInitialize && !isInitialized && !isLoading && !error) {
@@ -336,12 +459,20 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
     isInitialized,
     createCollection,
     deleteCollection: deleteCollectionFn,
+    renameCollection,
+    truncateCollection,
+    exportCollection,
+    importCollection,
     listAllCollections,
+    getCollectionInfo,
     addDocument,
     addDocumentBatch,
     removeDocuments,
     search,
     searchWithThreshold,
+    searchWithOptions,
+    searchWithFilters,
+    peek,
     embed,
     embedBatch,
     getDocumentCount,

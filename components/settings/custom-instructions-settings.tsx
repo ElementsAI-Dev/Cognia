@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { User, MessageSquare, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,6 +21,8 @@ import {
 import { useSettingsStore } from '@/stores';
 
 export function CustomInstructionsSettings() {
+  const t = useTranslations('customInstructions');
+  const tCommon = useTranslations('common');
   const customInstructions = useSettingsStore((state) => state.customInstructions);
   const customInstructionsEnabled = useSettingsStore((state) => state.customInstructionsEnabled);
   const aboutUser = useSettingsStore((state) => state.aboutUser);
@@ -72,9 +75,9 @@ export function CustomInstructionsSettings() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-base">Custom Instructions</CardTitle>
+              <CardTitle className="text-base">{t('title')}</CardTitle>
               <CardDescription className="text-xs">
-                Customize how AI responds across all conversations
+                {t('description')}
               </CardDescription>
             </div>
             <Switch
@@ -93,14 +96,14 @@ export function CustomInstructionsSettings() {
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-sm">About You</CardTitle>
+                  <CardTitle className="text-sm">{t('aboutYou')}</CardTitle>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Info className="h-3 w-3 text-muted-foreground cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs text-xs">
-                        Share context about yourself for more relevant responses.
+                        {t('aboutYouHint')}
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -110,7 +113,7 @@ export function CustomInstructionsSettings() {
                 <Textarea
                   value={localAboutUser}
                   onChange={(e) => handleAboutUserChange(e.target.value)}
-                  placeholder="e.g., I'm a React developer who prefers concise explanations..."
+                  placeholder={t('aboutYouPlaceholder')}
                   rows={3}
                   maxLength={1500}
                   className="text-xs"
@@ -125,14 +128,14 @@ export function CustomInstructionsSettings() {
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                   <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-sm">Response Style</CardTitle>
+                  <CardTitle className="text-sm">{t('responseStyle')}</CardTitle>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Info className="h-3 w-3 text-muted-foreground cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs text-xs">
-                        Specify preferred format, detail level, or style.
+                        {t('responseStyleHint')}
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -142,7 +145,7 @@ export function CustomInstructionsSettings() {
                 <Textarea
                   value={localResponsePrefs}
                   onChange={(e) => handleResponsePrefsChange(e.target.value)}
-                  placeholder="e.g., Be direct. Use bullet points. Include code examples."
+                  placeholder={t('responseStylePlaceholder')}
                   rows={3}
                   maxLength={1500}
                   className="text-xs"
@@ -157,16 +160,16 @@ export function CustomInstructionsSettings() {
           {/* Advanced Custom Instructions */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Advanced Instructions</CardTitle>
+              <CardTitle className="text-sm">{t('advancedInstructions')}</CardTitle>
               <CardDescription className="text-xs">
-                Additional system-level instructions
+                {t('advancedInstructionsHint')}
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
               <Textarea
                 value={localCustomInstructions}
                 onChange={(e) => handleCustomInstructionsChange(e.target.value)}
-                placeholder="Enter additional instructions for the AI..."
+                placeholder={t('advancedPlaceholder')}
                 rows={4}
                 maxLength={2000}
                 className="text-xs"
@@ -181,9 +184,9 @@ export function CustomInstructionsSettings() {
           {hasChanges && (
             <div className="flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={handleReset}>
-                Discard
+                {t('discard')}
               </Button>
-              <Button size="sm" onClick={handleSave}>Save</Button>
+              <Button size="sm" onClick={handleSave}>{tCommon('save')}</Button>
             </div>
           )}
         </>
@@ -193,7 +196,7 @@ export function CustomInstructionsSettings() {
       {customInstructionsEnabled && (localAboutUser || localResponsePrefs || localCustomInstructions) && (
         <Card className="border-dashed">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs">Preview</CardTitle>
+            <CardTitle className="text-xs">{t('preview')}</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <pre className="whitespace-pre-wrap text-[10px] bg-muted p-2 rounded-md max-h-32 overflow-auto">

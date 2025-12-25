@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Keyboard, Edit2, RotateCcw, Check, X, AlertCircle } from 'lucide-react';
 import {
   Card,
@@ -35,12 +36,6 @@ import {
 } from '@/hooks/use-keyboard-shortcuts';
 import { useSettingsStore } from '@/stores';
 
-const CATEGORY_LABELS: Record<KeyboardShortcut['category'], string> = {
-  navigation: 'Navigation',
-  chat: 'Chat',
-  editing: 'Editing',
-  system: 'System',
-};
 
 const CATEGORY_COLORS: Record<KeyboardShortcut['category'], string> = {
   navigation: 'bg-blue-500',
@@ -154,6 +149,8 @@ function ShortcutEditDialog({ open, onOpenChange, shortcut, onSave }: ShortcutEd
 }
 
 export function KeyboardSettings() {
+  const t = useTranslations('keyboardSettings');
+  const tCommon = useTranslations('common');
   const { shortcuts } = useKeyboardShortcuts({ enabled: false });
   const customShortcuts = useSettingsStore((state) => state.customShortcuts);
   const setCustomShortcut = useSettingsStore((state) => state.setCustomShortcut);
@@ -210,9 +207,9 @@ export function KeyboardSettings() {
       {/* Header with reset button */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-medium">Keyboard Shortcuts</h3>
+          <h3 className="text-lg font-medium">{t('title')}</h3>
           <p className="text-sm text-muted-foreground">
-            Customize shortcuts to match your workflow
+            {t('description')}
           </p>
         </div>
         {hasCustomShortcuts && (
@@ -222,7 +219,7 @@ export function KeyboardSettings() {
             onClick={() => setShowResetConfirm(true)}
           >
             <RotateCcw className="h-4 w-4 mr-2" />
-            Reset All
+            {t('resetAll')}
           </Button>
         )}
       </div>
@@ -231,8 +228,7 @@ export function KeyboardSettings() {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            You have {Object.keys(customShortcuts).length} custom shortcut(s) configured.
-            Custom shortcuts are highlighted with a colored border.
+            {t('customShortcutsAlert', { count: Object.keys(customShortcuts).length })}
           </AlertDescription>
         </Alert>
       )}
@@ -241,10 +237,10 @@ export function KeyboardSettings() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Keyboard className="h-4 w-4" />
-            All Shortcuts
+            {t('allShortcuts')}
           </CardTitle>
           <CardDescription className="text-xs">
-            Click the edit button to customize any shortcut
+            {t('allShortcutsDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -255,7 +251,7 @@ export function KeyboardSettings() {
                   variant="secondary"
                   className={`${CATEGORY_COLORS[category as KeyboardShortcut['category']]} text-white text-[10px]`}
                 >
-                  {CATEGORY_LABELS[category as KeyboardShortcut['category']]}
+                  {t(`categories.${category}`)}
                 </Badge>
               </div>
               <div className="grid gap-1">
@@ -298,13 +294,13 @@ export function KeyboardSettings() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Tips</CardTitle>
+          <CardTitle className="text-sm">{t('tips')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-1.5 text-xs text-muted-foreground">
-          <p>• Press <kbd className="px-1 py-0.5 text-[10px] font-mono bg-muted border rounded">/</kbd> anywhere to focus the chat input</p>
-          <p>• Use <kbd className="px-1 py-0.5 text-[10px] font-mono bg-muted border rounded">Ctrl+K</kbd> to open the command palette</p>
-          <p>• Press <kbd className="px-1 py-0.5 text-[10px] font-mono bg-muted border rounded">Esc</kbd> to stop AI generation</p>
-          <p>• Hold <kbd className="px-1 py-0.5 text-[10px] font-mono bg-muted border rounded">Shift+Enter</kbd> for multi-line input</p>
+          <p>• {t('tip1')}</p>
+          <p>• {t('tip2')}</p>
+          <p>• {t('tip3')}</p>
+          <p>• {t('tip4')}</p>
         </CardContent>
       </Card>
 
@@ -320,19 +316,18 @@ export function KeyboardSettings() {
       <Dialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reset All Shortcuts?</DialogTitle>
+            <DialogTitle>{t('resetConfirmTitle')}</DialogTitle>
             <DialogDescription>
-              This will restore all keyboard shortcuts to their default values.
-              Your custom shortcuts will be removed.
+              {t('resetConfirmDesc')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowResetConfirm(false)}>
-              Cancel
+              {tCommon('cancel')}
             </Button>
             <Button variant="destructive" onClick={handleResetShortcuts}>
               <X className="h-4 w-4 mr-2" />
-              Reset All
+              {t('resetAll')}
             </Button>
           </DialogFooter>
         </DialogContent>

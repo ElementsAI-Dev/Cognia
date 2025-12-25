@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Folder,
   Code,
@@ -78,6 +79,9 @@ export function CreateProjectDialog({
   onSubmit,
   editProject,
 }: CreateProjectDialogProps) {
+  const t = useTranslations('projects');
+  const tCommon = useTranslations('common');
+  const tPlaceholders = useTranslations('placeholders');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [icon, setIcon] = useState('Folder');
@@ -143,67 +147,65 @@ export function CreateProjectDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Project' : 'Create New Project'}</DialogTitle>
+          <DialogTitle>{isEdit ? t('editProject') : t('createProject')}</DialogTitle>
           <DialogDescription>
-            {isEdit
-              ? 'Update your project settings and preferences.'
-              : 'Create a new project to organize your conversations and knowledge.'}
+            {isEdit ? t('editProjectDesc') : t('createProjectDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="basic">Basic Info</TabsTrigger>
-            <TabsTrigger value="appearance">Appearance</TabsTrigger>
-            <TabsTrigger value="defaults">Defaults</TabsTrigger>
+            <TabsTrigger value="basic">{t('basicInfo')}</TabsTrigger>
+            <TabsTrigger value="appearance">{t('appearance')}</TabsTrigger>
+            <TabsTrigger value="defaults">{t('defaults')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic" className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Project Name *</Label>
+              <Label htmlFor="name">{t('projectName')} *</Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="My Project"
+                placeholder={t('projectNamePlaceholder')}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{t('description')}</Label>
               <Textarea
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="What is this project about?"
+                placeholder={t('descriptionPlaceholder')}
                 rows={3}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="instructions">Custom Instructions</Label>
+              <Label htmlFor="instructions">{t('customInstructions')}</Label>
               <Textarea
                 id="instructions"
                 value={customInstructions}
                 onChange={(e) => setCustomInstructions(e.target.value)}
-                placeholder="Special instructions for AI when working on this project..."
+                placeholder={t('customInstructionsPlaceholder')}
                 rows={4}
               />
               <p className="text-xs text-muted-foreground">
-                These instructions will be added to every conversation in this project.
+                {t('customInstructionsHint')}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label>Tags</Label>
+              <Label>{t('tags')}</Label>
               <TagInput
                 value={tags}
                 onChange={setTags}
-                placeholder="Add tags to organize..."
+                placeholder={t('tagsPlaceholder')}
                 maxTags={5}
               />
               <p className="text-xs text-muted-foreground">
-                Tags help you filter and organize projects.
+                {t('tagsHint')}
               </p>
             </div>
           </TabsContent>
@@ -225,7 +227,7 @@ export function CreateProjectDialog({
             </div>
 
             <div className="space-y-2">
-              <Label>Icon</Label>
+              <Label>{t('icon')}</Label>
               <div className="grid grid-cols-5 gap-2">
                 {PROJECT_ICONS.map((iconName) => {
                   const IconComp = iconMap[iconName] || Folder;
@@ -249,7 +251,7 @@ export function CreateProjectDialog({
             </div>
 
             <div className="space-y-2">
-              <Label>Color</Label>
+              <Label>{t('color')}</Label>
               <div className="grid grid-cols-5 gap-2">
                 {PROJECT_COLORS.map((c) => (
                   <button
@@ -275,17 +277,17 @@ export function CreateProjectDialog({
 
           <TabsContent value="defaults" className="space-y-4 pt-4">
             <p className="text-sm text-muted-foreground">
-              Set default values for new conversations in this project.
+              {t('defaultsDesc')}
             </p>
 
             <div className="space-y-2">
-              <Label htmlFor="provider">Default Provider</Label>
+              <Label htmlFor="provider">{t('defaultProvider')}</Label>
               <Select value={defaultProvider} onValueChange={setDefaultProvider}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Use global default" />
+                  <SelectValue placeholder={tPlaceholders('useGlobalDefault')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Use global default</SelectItem>
+                  <SelectItem value="">{tPlaceholders('useGlobalDefault')}</SelectItem>
                   {Object.entries(PROVIDERS).map(([id, provider]) => (
                     <SelectItem key={id} value={id}>
                       {provider.name}
@@ -297,13 +299,13 @@ export function CreateProjectDialog({
 
             {selectedProvider && (
               <div className="space-y-2">
-                <Label htmlFor="model">Default Model</Label>
+                <Label htmlFor="model">{t('defaultModel')}</Label>
                 <Select value={defaultModel} onValueChange={setDefaultModel}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Use provider default" />
+                    <SelectValue placeholder={tPlaceholders('useProviderDefault')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Use provider default</SelectItem>
+                    <SelectItem value="">{tPlaceholders('useProviderDefault')}</SelectItem>
                     {selectedProvider.models.map((model) => (
                       <SelectItem key={model.id} value={model.id}>
                         {model.name}
@@ -315,16 +317,16 @@ export function CreateProjectDialog({
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="mode">Default Mode</Label>
+              <Label htmlFor="mode">{t('defaultMode')}</Label>
               <Select value={defaultMode} onValueChange={(v) => setDefaultMode(v as typeof defaultMode)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Use global default" />
+                  <SelectValue placeholder={tPlaceholders('useGlobalDefault')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Use global default</SelectItem>
-                  <SelectItem value="chat">Chat</SelectItem>
-                  <SelectItem value="agent">Agent</SelectItem>
-                  <SelectItem value="research">Research</SelectItem>
+                  <SelectItem value="">{tPlaceholders('useGlobalDefault')}</SelectItem>
+                  <SelectItem value="chat">{tCommon('chat')}</SelectItem>
+                  <SelectItem value="agent">{tCommon('agent')}</SelectItem>
+                  <SelectItem value="research">{tCommon('research')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -333,10 +335,10 @@ export function CreateProjectDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tCommon('cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={!name.trim()}>
-            {isEdit ? 'Save Changes' : 'Create Project'}
+            {isEdit ? tCommon('save') : t('createProject')}
           </Button>
         </DialogFooter>
       </DialogContent>

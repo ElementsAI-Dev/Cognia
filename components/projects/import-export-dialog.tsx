@@ -5,6 +5,7 @@
  */
 
 import { useState, useRef, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Download,
   Upload,
@@ -50,6 +51,7 @@ export function ImportExportDialog({
   onOpenChange,
   initialTab = 'export',
 }: ImportExportDialogProps) {
+  const tToasts = useTranslations('toasts');
   const [activeTab, setActiveTab] = useState<'import' | 'export'>(initialTab);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -82,7 +84,7 @@ export function ImportExportDialog({
 
   const handleExportJSON = useCallback(async () => {
     if (selectedProjects.length === 0) {
-      toast.error('Please select at least one project to export');
+      toast.error(tToasts('selectProjectsToExport'));
       return;
     }
 
@@ -95,13 +97,13 @@ export function ImportExportDialog({
         const content = exportProjectToJSON(projectsToExport[0]);
         const filename = `${projectsToExport[0].name.replace(/[^a-z0-9]/gi, '-')}.json`;
         downloadFile(content, filename);
-        toast.success('Project exported successfully');
+        toast.success(tToasts('projectExported'));
       } else {
         // Multiple projects - export as ZIP
         const result = await exportProjectsToZip(projectsToExport);
         if (result.success && result.blob) {
           downloadFile(result.blob, result.filename);
-          toast.success(`${projectsToExport.length} projects exported successfully`);
+          toast.success(tToasts('projectsExported', { count: projectsToExport.length }));
         } else {
           toast.error(result.error || 'Export failed');
         }
@@ -117,7 +119,7 @@ export function ImportExportDialog({
 
   const handleExportZip = useCallback(async () => {
     if (selectedProjects.length === 0) {
-      toast.error('Please select at least one project to export');
+      toast.error(tToasts('selectProjectsToExport'));
       return;
     }
 
@@ -128,7 +130,7 @@ export function ImportExportDialog({
 
       if (result.success && result.blob) {
         downloadFile(result.blob, result.filename);
-        toast.success(`${projectsToExport.length} projects exported as ZIP`);
+        toast.success(tToasts('projectsExportedZip', { count: projectsToExport.length }));
         onOpenChange(false);
       } else {
         toast.error(result.error || 'Export failed');
@@ -167,7 +169,7 @@ export function ImportExportDialog({
           });
           
           setImportResults({ success: 1, failed: 0, errors: [] });
-          toast.success('Project imported successfully');
+          toast.success(tToasts('projectImported'));
         } else {
           setImportResults({ success: 0, failed: 1, errors: [result.error || 'Unknown error'] });
           toast.error(result.error || 'Import failed');
@@ -183,17 +185,17 @@ export function ImportExportDialog({
             failed: result.errors.length,
             errors: result.errors,
           });
-          toast.success(`${result.projects.length} projects imported successfully`);
+          toast.success(tToasts('projectsImported', { count: result.projects.length }));
         } else {
           setImportResults({
             success: 0,
             failed: result.errors.length || 1,
             errors: result.errors.length > 0 ? result.errors : ['No valid projects found in ZIP file'],
           });
-          toast.error('Import failed');
+          toast.error(tToasts('importFailed'));
         }
       } else {
-        toast.error('Please select a .json or .zip file');
+        toast.error(tToasts('invalidFileType'));
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Import failed';
@@ -221,7 +223,7 @@ export function ImportExportDialog({
           input.dispatchEvent(new Event('change', { bubbles: true }));
         }
       } else {
-        toast.error('Please drop a .json or .zip file');
+        toast.error(tToasts('invalidFileType'));
       }
     },
     []

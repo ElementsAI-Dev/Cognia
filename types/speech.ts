@@ -1,0 +1,194 @@
+/**
+ * Speech Types - Type definitions for voice input/output functionality
+ */
+
+// Supported speech recognition languages
+export const SPEECH_LANGUAGES = [
+  { code: 'zh-CN', name: '中文 (简体)', flag: '🇨🇳' },
+  { code: 'zh-TW', name: '中文 (繁體)', flag: '🇹🇼' },
+  { code: 'en-US', name: 'English (US)', flag: '🇺🇸' },
+  { code: 'en-GB', name: 'English (UK)', flag: '🇬🇧' },
+  { code: 'ja-JP', name: '日本語', flag: '🇯🇵' },
+  { code: 'ko-KR', name: '한국어', flag: '🇰🇷' },
+  { code: 'es-ES', name: 'Español', flag: '🇪🇸' },
+  { code: 'fr-FR', name: 'Français', flag: '🇫🇷' },
+  { code: 'de-DE', name: 'Deutsch', flag: '🇩🇪' },
+  { code: 'it-IT', name: 'Italiano', flag: '🇮🇹' },
+  { code: 'pt-BR', name: 'Português (Brasil)', flag: '🇧🇷' },
+  { code: 'ru-RU', name: 'Русский', flag: '🇷🇺' },
+  { code: 'ar-SA', name: 'العربية', flag: '🇸🇦' },
+  { code: 'hi-IN', name: 'हिन्दी', flag: '🇮🇳' },
+] as const;
+
+export type SpeechLanguageCode = typeof SPEECH_LANGUAGES[number]['code'];
+
+// Speech recognition provider types
+export type SpeechProvider = 'system' | 'openai';
+
+// Speech recognition settings interface
+export interface SpeechSettings {
+  // STT (Speech-to-Text) settings
+  sttEnabled: boolean;
+  sttLanguage: SpeechLanguageCode;
+  sttProvider: SpeechProvider;
+  sttContinuous: boolean;
+  sttInterimResults: boolean;
+  sttAutoSend: boolean;
+  sttAutoStopSilence: number; // milliseconds of silence before auto-stop (0 = disabled)
+  
+  // TTS (Text-to-Speech) settings
+  ttsEnabled: boolean;
+  ttsVoice: string;
+  ttsRate: number; // 0.1 - 10
+  ttsPitch: number; // 0 - 2
+  ttsVolume: number; // 0 - 1
+  ttsAutoPlay: boolean; // Auto-play AI responses
+}
+
+// Default speech settings
+export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = {
+  // STT defaults
+  sttEnabled: true,
+  sttLanguage: 'zh-CN',
+  sttProvider: 'system',
+  sttContinuous: true,
+  sttInterimResults: true,
+  sttAutoSend: false,
+  sttAutoStopSilence: 3000,
+  
+  // TTS defaults
+  ttsEnabled: false,
+  ttsVoice: '',
+  ttsRate: 1.0,
+  ttsPitch: 1.0,
+  ttsVolume: 1.0,
+  ttsAutoPlay: false,
+};
+
+// Speech recognition result
+export interface SpeechRecognitionResult {
+  transcript: string;
+  isFinal: boolean;
+  confidence: number;
+}
+
+// Speech API request/response types
+export interface WhisperTranscriptionRequest {
+  audio: Blob;
+  language?: string;
+  prompt?: string;
+  temperature?: number;
+}
+
+export interface WhisperTranscriptionResponse {
+  text: string;
+  language?: string;
+  duration?: number;
+  segments?: WhisperSegment[];
+}
+
+export interface WhisperSegment {
+  id: number;
+  start: number;
+  end: number;
+  text: string;
+}
+
+// Audio recording state
+export interface AudioRecordingState {
+  isRecording: boolean;
+  isPaused: boolean;
+  duration: number; // milliseconds
+  audioLevel: number; // 0-1 normalized volume level
+}
+
+// Speech recognition error types
+export type SpeechErrorType =
+  | 'not-supported'
+  | 'no-speech'
+  | 'audio-capture'
+  | 'not-allowed'
+  | 'network'
+  | 'aborted'
+  | 'language-not-supported'
+  | 'service-not-allowed'
+  | 'api-error';
+
+export interface SpeechError {
+  type: SpeechErrorType;
+  message: string;
+  recoverable: boolean;
+}
+
+// Speech error messages
+export const SPEECH_ERROR_MESSAGES: Record<SpeechErrorType, { message: string; recoverable: boolean }> = {
+  'not-supported': {
+    message: 'Speech recognition is not supported in this browser.',
+    recoverable: false,
+  },
+  'no-speech': {
+    message: 'No speech was detected. Please try again.',
+    recoverable: true,
+  },
+  'audio-capture': {
+    message: 'No microphone was found or microphone access was denied.',
+    recoverable: false,
+  },
+  'not-allowed': {
+    message: 'Microphone permission was denied. Please allow microphone access.',
+    recoverable: false,
+  },
+  'network': {
+    message: 'Network error occurred during speech recognition.',
+    recoverable: true,
+  },
+  'aborted': {
+    message: 'Speech recognition was aborted.',
+    recoverable: true,
+  },
+  'language-not-supported': {
+    message: 'The selected language is not supported.',
+    recoverable: false,
+  },
+  'service-not-allowed': {
+    message: 'Speech recognition service is not allowed.',
+    recoverable: false,
+  },
+  'api-error': {
+    message: 'Speech API error occurred.',
+    recoverable: true,
+  },
+};
+
+// Helper function to get error details
+export function getSpeechError(type: SpeechErrorType): SpeechError {
+  const errorInfo = SPEECH_ERROR_MESSAGES[type];
+  return {
+    type,
+    ...errorInfo,
+  };
+}
+
+// Helper function to check if speech recognition is supported
+export function isSpeechRecognitionSupported(): boolean {
+  if (typeof window === 'undefined') return false;
+  return 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
+}
+
+// Helper function to check if speech synthesis is supported
+export function isSpeechSynthesisSupported(): boolean {
+  if (typeof window === 'undefined') return false;
+  return 'speechSynthesis' in window;
+}
+
+// Helper function to get language name by code
+export function getLanguageName(code: SpeechLanguageCode): string {
+  const lang = SPEECH_LANGUAGES.find((l) => l.code === code);
+  return lang?.name || code;
+}
+
+// Helper function to get language flag by code
+export function getLanguageFlag(code: SpeechLanguageCode): string {
+  const lang = SPEECH_LANGUAGES.find((l) => l.code === code);
+  return lang?.flag || '🌐';
+}

@@ -9,13 +9,13 @@ import { useState, useMemo } from 'react';
 import {
   ArrowLeft,
   Cpu,
+  Database,
   Puzzle,
   FileText,
   Brain,
   BarChart3,
   Palette,
   Search,
-  Database,
   ChevronRight,
   MessageSquare,
   Keyboard,
@@ -26,6 +26,7 @@ import {
   RotateCcw,
   Download,
   Upload,
+  Mic,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -62,7 +63,9 @@ import { KeyboardSettings } from '@/components/settings/keyboard-settings';
 import { ChatSettings } from '@/components/settings/chat-settings';
 import { ToolSettings } from '@/components/settings/tool-settings';
 import { DesktopSettings } from '@/components/settings/desktop-settings';
+import { SpeechSettings } from '@/components/settings/speech-settings';
 import { QuickSettingsCard } from '@/components/settings/quick-settings-card';
+import { VectorSettings } from '@/components/settings/vector-settings';
 
 type SettingsSection = 
   | 'providers'
@@ -75,8 +78,10 @@ type SettingsSection =
   | 'appearance'
   | 'response'
   | 'keyboard'
+  | 'speech'
   | 'search'
   | 'data'
+  | 'vector'
   | 'desktop';
 
 type SettingsGroup = 'ai' | 'interface' | 'data' | 'system';
@@ -227,6 +232,13 @@ export default function SettingsPage() {
       group: 'interface',
     },
     {
+      id: 'speech',
+      label: 'Speech',
+      icon: <Mic className="h-4 w-4" />,
+      description: 'Voice input and text-to-speech',
+      group: 'interface',
+    },
+    {
       id: 'usage',
       label: 'Usage',
       icon: <BarChart3 className="h-4 w-4" />,
@@ -238,6 +250,13 @@ export default function SettingsPage() {
       label: t('tabData'),
       icon: <Database className="h-4 w-4" />,
       description: 'Data management and export',
+      group: 'data',
+    },
+    {
+      id: 'vector',
+      label: 'Vector DB',
+      icon: <Database className="h-4 w-4" />,
+      description: 'Vector database provider and collections',
       group: 'data',
     },
     ...(isDesktop ? [{
@@ -274,10 +293,14 @@ export default function SettingsPage() {
         return <ResponseSettings />;
       case 'keyboard':
         return <KeyboardSettings />;
+      case 'speech':
+        return <SpeechSettings />;
       case 'search':
         return <SearchSettings />;
       case 'data':
         return <DataSettings />;
+      case 'vector':
+        return <VectorSettings />;
       case 'tools':
         return <ToolSettings />;
       case 'desktop':

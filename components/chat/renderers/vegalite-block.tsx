@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { 
   AlertCircle, 
   Copy, 
@@ -52,6 +53,8 @@ interface VegaLiteBlockProps {
 }
 
 export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
+  const t = useTranslations('renderer');
+  const tToasts = useTranslations('toasts');
   const containerRef = useRef<HTMLDivElement>(null);
   const fullscreenRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +62,7 @@ export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSource, setShowSource] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const { copy, isCopying } = useCopy({ toastMessage: 'VegaLite spec copied' });
+  const { copy, isCopying } = useCopy({ toastMessage: tToasts('vegaLiteCopied') });
 
   const renderChart = useCallback(async (container: HTMLDivElement | null, spec: object) => {
     if (!container) return;
@@ -142,13 +145,13 @@ export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
         backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
         padding: 20,
       });
-      toast.success(`Exported as ${format.toUpperCase()}`);
+      toast.success(tToasts('exported', { format: format.toUpperCase() }));
     } catch (err) {
-      toast.error(`Failed to export: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.error(tToasts('exportFailed', { error: err instanceof Error ? err.message : 'Unknown error' }));
     } finally {
       setIsExporting(false);
     }
-  }, [content, isFullscreen]);
+  }, [content, isFullscreen, tToasts]);
 
   const handleRetry = useCallback(() => {
     doRender();
@@ -168,11 +171,11 @@ export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
       <div 
         className={cn('flex items-center justify-center p-6 rounded-lg bg-muted/30 border', className)}
         role="status"
-        aria-label="Loading chart"
+        aria-label={t('loadingChart')}
       >
         <div className="flex items-center gap-2 text-muted-foreground">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" aria-hidden="true" />
-          <span className="text-sm">Rendering chart...</span>
+          <span className="text-sm">{t('renderingChart')}</span>
         </div>
       </div>
     );
@@ -183,12 +186,12 @@ export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
       <div 
         className={cn('flex flex-col gap-2 p-4 rounded-lg bg-destructive/10 border border-destructive/20', className)}
         role="alert"
-        aria-label="VegaLite rendering error"
+        aria-label={t('vegaLiteError')}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-destructive">
             <AlertCircle className="h-4 w-4" aria-hidden="true" />
-            <span className="text-sm font-medium">VegaLite Error</span>
+            <span className="text-sm font-medium">{t('vegaLiteError')}</span>
           </div>
           <div className="flex items-center gap-1">
             <Tooltip>
@@ -198,12 +201,12 @@ export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
                   size="icon"
                   className="h-7 w-7"
                   onClick={handleRetry}
-                  aria-label="Retry rendering"
+                  aria-label={t('retry')}
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Retry</TooltipContent>
+              <TooltipContent>{t('retry')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -213,12 +216,12 @@ export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
                   className="h-7 w-7"
                   onClick={handleCopy}
                   disabled={isCopying}
-                  aria-label="Copy spec"
+                  aria-label={t('copySpec')}
                 >
                   {isCopying ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Copy spec</TooltipContent>
+              <TooltipContent>{t('copySpec')}</TooltipContent>
             </Tooltip>
           </div>
         </div>
@@ -235,7 +238,7 @@ export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
       <div 
         className={cn('group relative rounded-lg border bg-card overflow-hidden my-4', className)}
         role="figure"
-        aria-label="VegaLite chart"
+        aria-label={t('vegaLiteChart')}
       >
         {/* Action buttons */}
         <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-background/80 backdrop-blur-sm rounded-lg p-0.5">
@@ -246,13 +249,13 @@ export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => setShowSource(!showSource)}
-                aria-label={showSource ? 'Hide spec' : 'Show spec'}
+                aria-label={showSource ? t('hideSpec') : t('showSpec')}
                 aria-pressed={showSource}
               >
                 <Code2 className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{showSource ? 'Hide spec' : 'Show spec'}</TooltipContent>
+            <TooltipContent>{showSource ? t('hideSpec') : t('showSpec')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -263,12 +266,12 @@ export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
                 className="h-7 w-7"
                 onClick={handleCopy}
                 disabled={isCopying}
-                aria-label="Copy spec"
+                aria-label={t('copySpec')}
               >
                 {isCopying ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Copy spec</TooltipContent>
+            <TooltipContent>{t('copySpec')}</TooltipContent>
           </Tooltip>
 
           <DropdownMenu>
@@ -280,22 +283,22 @@ export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
                     size="icon"
                     className="h-7 w-7"
                     disabled={isExporting}
-                    aria-label="Export options"
+                    aria-label={t('exportOptions')}
                   >
                     <Download className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
-              <TooltipContent>Export</TooltipContent>
+              <TooltipContent>{t('exportOptions')}</TooltipContent>
             </Tooltip>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => handleExport('png')}>
                 <ImageIcon className="h-4 w-4 mr-2" />
-                Export as PNG
+                {t('exportPng')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExport('svg')}>
                 <FileCode className="h-4 w-4 mr-2" />
-                Export as SVG
+                {t('exportSvg')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -307,12 +310,12 @@ export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => setIsFullscreen(true)}
-                aria-label="View fullscreen"
+                aria-label={t('viewFullscreen')}
               >
                 <Maximize2 className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Fullscreen</TooltipContent>
+            <TooltipContent>{t('viewFullscreen')}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -335,7 +338,7 @@ export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
         <DialogContent className="max-w-[90vw] max-h-[90vh] overflow-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span>VegaLite Chart</span>
+              <span>{t('vegaLiteChart')}</span>
               <div className="flex items-center gap-1 ml-auto">
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -345,12 +348,12 @@ export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
                       className="h-7 w-7"
                       onClick={handleCopy}
                       disabled={isCopying}
-                      aria-label="Copy spec"
+                      aria-label={t('copySpec')}
                     >
                       {isCopying ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Copy spec</TooltipContent>
+                  <TooltipContent>{t('copySpec')}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -360,12 +363,12 @@ export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
                       className="h-7 w-7"
                       onClick={() => handleExport('png')}
                       disabled={isExporting}
-                      aria-label="Export as PNG"
+                      aria-label={t('exportPng')}
                     >
                       <ImageIcon className="h-3.5 w-3.5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Export PNG</TooltipContent>
+                  <TooltipContent>{t('exportPng')}</TooltipContent>
                 </Tooltip>
               </div>
             </DialogTitle>
@@ -382,7 +385,7 @@ export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
             <details className="group">
               <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2">
                 <Code2 className="h-4 w-4" />
-                <span>View Spec JSON</span>
+                <span>{t('showSpec')}</span>
               </summary>
               <pre className="mt-2 p-4 rounded-lg bg-muted text-sm overflow-auto font-mono max-h-60">
                 <code>{formattedContent}</code>

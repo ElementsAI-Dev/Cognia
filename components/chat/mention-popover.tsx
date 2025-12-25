@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Command,
   CommandEmpty,
@@ -234,6 +235,7 @@ interface MentionBadgeProps {
 }
 
 export function MentionBadge({ item, onRemove }: MentionBadgeProps) {
+  const t = useTranslations('accessibility');
   return (
     <span
       className={cn(
@@ -248,7 +250,7 @@ export function MentionBadge({ item, onRemove }: MentionBadgeProps) {
         <button
           onClick={onRemove}
           className="ml-1 hover:text-destructive"
-          aria-label="Remove mention"
+          aria-label={t('removeMention')}
         >
           ×
         </button>

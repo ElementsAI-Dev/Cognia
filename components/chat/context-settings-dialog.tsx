@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Info, Eye, Gauge } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -53,6 +54,7 @@ export function ContextSettingsDialog({
   onShowTokenUsageMeterChange,
   modelMaxTokens = 200000,
 }: ContextSettingsDialogProps) {
+  const t = useTranslations('contextSettings');
   const [encoderType, setEncoderType] = useState<EncoderType>('tiktoken');
 
   const usagePercent = totalTokens > 0 ? Math.round((usedTokens / totalTokens) * 100) : 0;
@@ -63,16 +65,16 @@ export function ContextSettingsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">Context Settings</DialogTitle>
+          <DialogTitle className="text-lg font-semibold">{t('title')}</DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Control dialogue context and memory activation
+            {t('description')}
           </p>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
           {/* Word Encoder */}
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">Word Encoder</h4>
+            <h4 className="text-sm font-medium">{t('wordEncoder')}</h4>
             <div className="flex gap-2">
               <Button
                 variant={encoderType === 'tiktoken' ? 'secondary' : 'outline'}
@@ -92,9 +94,7 @@ export function ContextSettingsDialog({
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              {encoderType === 'tiktoken'
-                ? 'Uses Web Worker for accurate calculation, slightly slower but exact'
-                : 'Fast regex-based estimation, less accurate but instant'}
+              {encoderType === 'tiktoken' ? t('tiktokenDesc') : t('regexDesc')}
             </p>
           </div>
 
@@ -102,16 +102,16 @@ export function ContextSettingsDialog({
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Gauge className="h-4 w-4 text-muted-foreground" />
-              <h4 className="text-sm font-medium">Context Length</h4>
+              <h4 className="text-sm font-medium">{t('contextLength')}</h4>
             </div>
             <p className="text-xs text-muted-foreground">
-              Control the number of tokens included in each request (estimated)
+              {t('contextLengthDesc')}
             </p>
 
             {/* Context Usage */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Context Usage</span>
+                <span className="text-muted-foreground">{t('contextUsage')}</span>
                 <span className="font-medium">{usagePercent}%</span>
               </div>
               <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -125,7 +125,7 @@ export function ContextSettingsDialog({
             {/* Token Limit Slider */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Token Limit</span>
+                <span className="text-muted-foreground">{t('tokenLimit')}</span>
                 <span className="font-medium">
                   {tokenLimit.toLocaleString()} / {modelMaxTokens.toLocaleString()}
                 </span>
@@ -139,7 +139,7 @@ export function ContextSettingsDialog({
                 className="w-full"
               />
               <p className="text-xs text-muted-foreground">
-                Percentage of the model&apos;s context window used
+                {t('tokenLimitDesc')}
               </p>
             </div>
           </div>
@@ -148,7 +148,7 @@ export function ContextSettingsDialog({
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Info className="h-4 w-4 text-muted-foreground" />
-              <h4 className="text-sm font-medium">Token</h4>
+              <h4 className="text-sm font-medium">{t('token')}</h4>
               <span className="ml-auto text-sm font-medium">{usagePercent}%</span>
             </div>
 
@@ -167,18 +167,18 @@ export function ContextSettingsDialog({
 
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{usedTokens.toLocaleString()} / {totalTokens.toLocaleString()} tokens</span>
-                <span>{remainingTokens.toLocaleString()} Remaining</span>
+                <span>{t('remaining', { count: remainingTokens.toLocaleString() })}</span>
               </div>
 
               <div className="flex items-center gap-4 text-xs">
                 <div className="flex items-center gap-1.5">
                   <div className="h-2 w-2 rounded-full bg-purple-500" />
-                  <span className="text-muted-foreground">System</span>
+                  <span className="text-muted-foreground">{t('system')}</span>
                   <span className="font-medium">{systemTokens.toLocaleString()}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="h-2 w-2 rounded-full bg-primary" />
-                  <span className="text-muted-foreground">Context</span>
+                  <span className="text-muted-foreground">{t('context')}</span>
                   <span className="font-medium">{contextTokens.toLocaleString()}</span>
                 </div>
               </div>
@@ -192,9 +192,9 @@ export function ContextSettingsDialog({
               <div className="flex items-center gap-2">
                 <Eye className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm font-medium">Show Memory Activation</p>
+                  <p className="text-sm font-medium">{t('showMemoryActivation')}</p>
                   <p className="text-xs text-muted-foreground">
-                    Highlight events in the activation context
+                    {t('memoryActivationDesc')}
                   </p>
                 </div>
               </div>
@@ -209,9 +209,9 @@ export function ContextSettingsDialog({
               <div className="flex items-center gap-2">
                 <Gauge className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm font-medium">Show Token Usage Meter</p>
+                  <p className="text-sm font-medium">{t('showTokenUsage')}</p>
                   <p className="text-xs text-muted-foreground">
-                    Show context capacity usage in the bottom right corner
+                    {t('tokenUsageDesc')}
                   </p>
                 </div>
               </div>
@@ -226,12 +226,12 @@ export function ContextSettingsDialog({
           <div className="space-y-2 pt-2 border-t">
             <div className="flex items-center gap-2">
               <Info className="h-4 w-4 text-muted-foreground" />
-              <h4 className="text-sm font-medium">Current Statistics</h4>
+              <h4 className="text-sm font-medium">{t('currentStats')}</h4>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Events</span>
+              <span className="text-muted-foreground">{t('events')}</span>
               <span className="font-medium">6/6</span>
-              <span className="text-muted-foreground">Active Tokens</span>
+              <span className="text-muted-foreground">{t('activeTokens')}</span>
               <span className="font-medium">{usedTokens.toLocaleString()}</span>
             </div>
           </div>
