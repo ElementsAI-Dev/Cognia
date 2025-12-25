@@ -47,7 +47,7 @@ mod tests {
             embedding_provider: Some("openai".to_string()),
         };
 
-        let result = vector_create_collection(state.clone().into(), payload);
+        let result = create_collection_impl(&state, payload);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), true);
 
@@ -75,11 +75,11 @@ mod tests {
         };
 
         // Create first collection
-        let result1 = vector_create_collection(tauri::State::from(state.clone()), payload.clone());
+        let result1 = create_collection_impl(&state, payload.clone());
         assert!(result1.is_ok());
 
         // Try to create duplicate with same dimension - should succeed
-        let result2 = vector_create_collection(tauri::State::from(state.clone()), payload);
+        let result2 = create_collection_impl(&state, payload);
         assert!(result2.is_ok());
 
         // Try to create duplicate with different dimension - should fail
@@ -91,7 +91,7 @@ mod tests {
             embedding_model: None,
             embedding_provider: None,
         };
-        let result3 = vector_create_collection(tauri::State::from(state.clone()), payload_different);
+        let result3 = create_collection_impl(&state, payload_different);
         assert!(result3.is_err());
         assert!(result3.unwrap_err().contains("different dimension"));
     }
@@ -109,7 +109,7 @@ mod tests {
             embedding_model: None,
             embedding_provider: None,
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+        create_collection_impl(&state, payload).unwrap();
 
         // Verify it exists
         {
@@ -118,7 +118,7 @@ mod tests {
         }
 
         // Delete it
-        let result = vector_delete_collection(tauri::State::from(state.clone()), "to_delete".to_string());
+        let result = delete_collection_impl(&state, "to_delete".to_string());
         assert!(result.is_ok());
 
         // Verify it's gone
@@ -140,11 +140,11 @@ mod tests {
             embedding_model: Some("test-model".to_string()),
             embedding_provider: Some("test-provider".to_string()),
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+        create_collection_impl(&state, payload).unwrap();
 
         // Rename it
-        let result = vector_rename_collection(
-            tauri::State::from(state.clone()), 
+        let result = rename_collection_impl(
+            &state, 
             "old_name".to_string(), 
             "new_name".to_string()
         );
@@ -167,8 +167,8 @@ mod tests {
         let state = create_test_state();
         
         // Try to rename non-existent collection
-        let result1 = vector_rename_collection(
-            tauri::State::from(state.clone()), 
+        let result1 = rename_collection_impl(
+            &state, 
             "nonexistent".to_string(), 
             "new_name".to_string()
         );
@@ -192,12 +192,12 @@ mod tests {
             embedding_model: None,
             embedding_provider: None,
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload1).unwrap();
-        vector_create_collection(tauri::State::from(state.clone()), payload2).unwrap();
+        create_collection_impl(&state, payload1).unwrap();
+        create_collection_impl(&state, payload2).unwrap();
 
         // Try to rename to existing name
-        let result2 = vector_rename_collection(
-            tauri::State::from(state.clone()), 
+        let result2 = rename_collection_impl(
+            &state, 
             "collection1".to_string(), 
             "collection2".to_string()
         );
@@ -218,7 +218,7 @@ mod tests {
             embedding_model: None,
             embedding_provider: None,
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+        create_collection_impl(&state, payload).unwrap();
 
         // Add some points
         let points = vec![
@@ -233,7 +233,7 @@ mod tests {
                 payload: Some(json!({"test": "data2"})),
             },
         ];
-        vector_upsert_points(tauri::State::from(state.clone()), "to_truncate".to_string(), points).unwrap();
+        upsert_points_impl(&state, "to_truncate".to_string(), points).unwrap();
 
         // Verify points exist
         {
@@ -243,7 +243,7 @@ mod tests {
         }
 
         // Truncate collection
-        let result = vector_truncate_collection(tauri::State::from(state.clone()), "to_truncate".to_string());
+        let result = truncate_collection_impl(&state, "to_truncate".to_string());
         assert!(result.is_ok());
 
         // Verify collection is empty but still exists
@@ -257,7 +257,7 @@ mod tests {
     fn test_truncate_nonexistent_collection() {
         let state = create_test_state();
         
-        let result = vector_truncate_collection(tauri::State::from(state.clone()), "nonexistent".to_string());
+        let result = truncate_collection_impl(&state, "nonexistent".to_string());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("not found"));
     }
@@ -267,7 +267,7 @@ mod tests {
         let state = create_test_state();
         
         // Test empty list
-        let result = vector_list_collections(tauri::State::from(state.clone()));
+        let result = list_collections_impl(&state);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().len(), 0);
 
@@ -292,11 +292,11 @@ mod tests {
         ];
 
         for payload in payloads {
-            vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+            create_collection_impl(&state, payload).unwrap();
         }
 
         // List collections
-        let result = vector_list_collections(tauri::State::from(state.clone()));
+        let result = list_collections_impl(&state);
         assert!(result.is_ok());
         let collections = result.unwrap();
         assert_eq!(collections.len(), 2);
@@ -321,7 +321,7 @@ mod tests {
         let state = create_test_state();
         
         // Test non-existent collection
-        let result = vector_get_collection(tauri::State::from(state.clone()), "nonexistent".to_string());
+        let result = get_collection_impl(&state, "nonexistent".to_string());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("not found"));
 
@@ -334,10 +334,10 @@ mod tests {
             embedding_model: Some("test-model".to_string()),
             embedding_provider: Some("test-provider".to_string()),
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+        create_collection_impl(&state, payload).unwrap();
 
         // Get the collection
-        let result = vector_get_collection(tauri::State::from(state.clone()), "test_get".to_string());
+        let result = get_collection_impl(&state, "test_get".to_string());
         assert!(result.is_ok());
         let collection = result.unwrap();
 
@@ -391,7 +391,7 @@ mod tests {
             embedding_model: None,
             embedding_provider: None,
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+        create_collection_impl(&state, payload).unwrap();
 
         // Add points
         let points = vec![
@@ -407,7 +407,7 @@ mod tests {
             },
         ];
 
-        let result = vector_upsert_points(tauri::State::from(state.clone()), "test_upsert".to_string(), points);
+        let result = upsert_points_impl(&state, "test_upsert".to_string(), points);
         assert!(result.is_ok());
 
         // Verify points were added and document count updated
@@ -434,7 +434,7 @@ mod tests {
             embedding_model: None,
             embedding_provider: None,
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+        create_collection_impl(&state, payload).unwrap();
 
         // Try to add point with wrong dimension
         let points = vec![
@@ -445,7 +445,7 @@ mod tests {
             },
         ];
 
-        let result = vector_upsert_points(tauri::State::from(state.clone()), "test_dim".to_string(), points);
+        let result = upsert_points_impl(&state, "test_dim".to_string(), points);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("dimension mismatch"));
     }
@@ -463,7 +463,7 @@ mod tests {
             embedding_model: None,
             embedding_provider: None,
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+        create_collection_impl(&state, payload).unwrap();
 
         let initial_points = vec![
             UpsertPoint {
@@ -472,7 +472,7 @@ mod tests {
                 payload: Some(json!({"version": 1})),
             },
         ];
-        vector_upsert_points(tauri::State::from(state.clone()), "test_update".to_string(), initial_points).unwrap();
+        upsert_points_impl(&state, "test_update".to_string(), initial_points).unwrap();
 
         // Update the same point
         let updated_points = vec![
@@ -482,7 +482,7 @@ mod tests {
                 payload: Some(json!({"version": 2})),
             },
         ];
-        vector_upsert_points(tauri::State::from(state.clone()), "test_update".to_string(), updated_points).unwrap();
+        upsert_points_impl(&state, "test_update".to_string(), updated_points).unwrap();
 
         // Verify update (should still be 1 point, not 2)
         let data = state.data.lock();
@@ -507,7 +507,7 @@ mod tests {
             embedding_model: None,
             embedding_provider: None,
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+        create_collection_impl(&state, payload).unwrap();
 
         let points = vec![
             UpsertPoint {
@@ -521,10 +521,10 @@ mod tests {
                 payload: None,
             },
         ];
-        vector_upsert_points(tauri::State::from(state.clone()), "test_delete".to_string(), points).unwrap();
+        upsert_points_impl(&state, "test_delete".to_string(), points).unwrap();
 
         // Delete one point
-        let result = vector_delete_points(tauri::State::from(state.clone()), "test_delete".to_string(), vec!["delete_me".to_string()]);
+        let result = delete_points_impl(&state, "test_delete".to_string(), vec!["delete_me".to_string()]);
         assert!(result.is_ok());
 
         // Verify deletion and document count update
@@ -547,7 +547,7 @@ mod tests {
             embedding_model: None,
             embedding_provider: None,
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+        create_collection_impl(&state, payload).unwrap();
 
         let points = vec![
             UpsertPoint {
@@ -561,10 +561,10 @@ mod tests {
                 payload: Some(json!({"data": "test2"})),
             },
         ];
-        vector_upsert_points(tauri::State::from(state.clone()), "test_get_points".to_string(), points).unwrap();
+        upsert_points_impl(&state, "test_get_points".to_string(), points).unwrap();
 
         // Get specific points
-        let result = vector_get_points(tauri::State::from(state.clone()), "test_get_points".to_string(), vec!["point1".to_string()]);
+        let result = get_points_impl(&state, "test_get_points".to_string(), vec!["point1".to_string()]);
         assert!(result.is_ok());
         let retrieved = result.unwrap();
         assert_eq!(retrieved.len(), 1);
@@ -585,7 +585,7 @@ mod tests {
             embedding_model: None,
             embedding_provider: None,
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+        create_collection_impl(&state, payload).unwrap();
 
         let points = vec![
             UpsertPoint {
@@ -599,7 +599,7 @@ mod tests {
                 payload: Some(json!({"category": "B"})),
             },
         ];
-        vector_upsert_points(tauri::State::from(state.clone()), "test_search".to_string(), points).unwrap();
+        upsert_points_impl(&state, "test_search".to_string(), points).unwrap();
 
         // Search with query vector [1.0, 0.0]
         let search_payload = SearchPayload {
@@ -612,7 +612,7 @@ mod tests {
             filters: None,
         };
 
-        let result = vector_search_points(tauri::State::from(state.clone()), search_payload);
+        let result = search_points_impl(&state, search_payload);
         assert!(result.is_ok());
         let results = result.unwrap();
         assert_eq!(results.len(), 2);
@@ -636,7 +636,7 @@ mod tests {
             embedding_model: None,
             embedding_provider: None,
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+        create_collection_impl(&state, payload).unwrap();
 
         let points = vec![
             UpsertPoint {
@@ -650,7 +650,7 @@ mod tests {
                 payload: None,
             },
         ];
-        vector_upsert_points(tauri::State::from(state.clone()), "test_threshold".to_string(), points).unwrap();
+        upsert_points_impl(&state, "test_threshold".to_string(), points).unwrap();
 
         // Search with high threshold (should only return exact match)
         let search_payload = SearchPayload {
@@ -663,7 +663,7 @@ mod tests {
             filters: None,
         };
 
-        let result = vector_search_points(tauri::State::from(state.clone()), search_payload);
+        let result = search_points_impl(&state, search_payload);
         assert!(result.is_ok());
         let results = result.unwrap();
         assert_eq!(results.len(), 1); // Should filter out low similarity result
@@ -683,7 +683,7 @@ mod tests {
             embedding_model: None,
             embedding_provider: None,
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+        create_collection_impl(&state, payload).unwrap();
 
         let points = vec![
             UpsertPoint {
@@ -717,7 +717,7 @@ mod tests {
                 })),
             },
         ];
-        vector_upsert_points(tauri::State::from(state.clone()), "test_filters".to_string(), points).unwrap();
+        upsert_points_impl(&state, "test_filters".to_string(), points).unwrap();
 
         // Test equals filter
         let equals_filter = vec![PayloadFilter {
@@ -736,7 +736,7 @@ mod tests {
             filters: Some(equals_filter),
         };
 
-        let result = vector_search_points(tauri::State::from(state.clone()), search_payload);
+        let result = search_points_impl(&state, search_payload);
         assert!(result.is_ok());
         let results = result.unwrap();
         assert_eq!(results.len(), 2); // Should only return science docs
@@ -761,7 +761,7 @@ mod tests {
             filters: Some(contains_filter),
         };
 
-        let result = vector_search_points(tauri::State::from(state.clone()), search_payload);
+        let result = search_points_impl(&state, search_payload);
         assert!(result.is_ok());
         let results = result.unwrap();
         assert_eq!(results.len(), 1); // Should only return doc with "Research" in title
@@ -784,7 +784,7 @@ mod tests {
             filters: Some(gt_filter),
         };
 
-        let result = vector_search_points(tauri::State::from(state.clone()), search_payload);
+        let result = search_points_impl(&state, search_payload);
         assert!(result.is_ok());
         let results = result.unwrap();
         assert_eq!(results.len(), 2); // doc1 (95) and doc3 (92)
@@ -813,7 +813,7 @@ mod tests {
             filters: Some(multiple_filters),
         };
 
-        let result = vector_search_points(tauri::State::from(state.clone()), search_payload);
+        let result = search_points_impl(&state, search_payload);
         assert!(result.is_ok());
         let results = result.unwrap();
         assert_eq!(results.len(), 1); // Only doc1 matches both filters
@@ -833,7 +833,7 @@ mod tests {
             embedding_model: None,
             embedding_provider: None,
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+        create_collection_impl(&state, payload).unwrap();
 
         // Add 5 points with decreasing similarity to [1.0]
         let points: Vec<UpsertPoint> = (0..5).map(|i| {
@@ -843,7 +843,7 @@ mod tests {
                 payload: Some(json!({"index": i})),
             }
         }).collect();
-        vector_upsert_points(tauri::State::from(state.clone()), "test_pagination".to_string(), points).unwrap();
+        upsert_points_impl(&state, "test_pagination".to_string(), points).unwrap();
 
         // Test offset/limit pagination
         let search_payload = SearchPayload {
@@ -856,7 +856,7 @@ mod tests {
             filters: None,
         };
 
-        let result = vector_search_points(tauri::State::from(state.clone()), search_payload);
+        let result = search_points_impl(&state, search_payload);
         assert!(result.is_ok());
         let results = result.unwrap();
         assert_eq!(results.len(), 2); // Should return exactly 2 results
@@ -874,7 +874,7 @@ mod tests {
             filters: None,
         };
 
-        let result = vector_search_points(tauri::State::from(state.clone()), search_payload);
+        let result = search_points_impl(&state, search_payload);
         assert!(result.is_ok());
         let results = result.unwrap();
         assert_eq!(results.len(), 0); // Should return empty results
@@ -941,7 +941,7 @@ mod tests {
             filters: None,
         };
 
-        let result = vector_search_points(tauri::State::from(state.clone()), search_payload);
+        let result = search_points_impl(&state, search_payload);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("not found"));
     }
@@ -959,7 +959,7 @@ mod tests {
             embedding_model: Some("test-model".to_string()),
             embedding_provider: Some("test-provider".to_string()),
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+        create_collection_impl(&state, payload).unwrap();
 
         // Add some points
         let points = vec![
@@ -974,10 +974,10 @@ mod tests {
                 payload: Some(json!({"type": "article", "score": 92})),
             },
         ];
-        vector_upsert_points(tauri::State::from(state.clone()), "test_export".to_string(), points).unwrap();
+        upsert_points_impl(&state, "test_export".to_string(), points).unwrap();
 
         // Export the collection
-        let result = vector_export_collection(tauri::State::from(state.clone()), "test_export".to_string());
+        let result = export_collection_impl(&state, "test_export".to_string());
         assert!(result.is_ok());
         let exported = result.unwrap();
 
@@ -1006,7 +1006,7 @@ mod tests {
     fn test_export_nonexistent_collection() {
         let state = create_test_state();
         
-        let result = vector_export_collection(tauri::State::from(state.clone()), "nonexistent".to_string());
+        let result = export_collection_impl(&state, "nonexistent".to_string());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("not found"));
     }
@@ -1024,10 +1024,10 @@ mod tests {
             embedding_model: None,
             embedding_provider: None,
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+        create_collection_impl(&state, payload).unwrap();
 
         // Export empty collection
-        let result = vector_export_collection(tauri::State::from(state.clone()), "empty_export".to_string());
+        let result = export_collection_impl(&state, "empty_export".to_string());
         assert!(result.is_ok());
         let exported = result.unwrap();
         
@@ -1068,7 +1068,7 @@ mod tests {
         };
 
         // Import collection
-        let result = vector_import_collection(tauri::State::from(state.clone()), import_data, Some(false));
+        let result = import_collection_impl(&state, import_data, Some(false));
         assert!(result.is_ok());
 
         // Verify collection was imported
@@ -1104,7 +1104,7 @@ mod tests {
             embedding_model: Some("original-model".to_string()),
             embedding_provider: Some("original-provider".to_string()),
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+        create_collection_impl(&state, payload).unwrap();
 
         // Add original points
         let original_points = vec![
@@ -1114,7 +1114,7 @@ mod tests {
                 payload: Some(json!({"original": true})),
             },
         ];
-        vector_upsert_points(tauri::State::from(state.clone()), "existing_collection".to_string(), original_points).unwrap();
+        upsert_points_impl(&state, "existing_collection".to_string(), original_points).unwrap();
 
         // Try import without overwrite - should fail
         let import_data = CollectionImport {
@@ -1138,12 +1138,12 @@ mod tests {
             ],
         };
 
-        let result = vector_import_collection(tauri::State::from(state.clone()), import_data.clone(), Some(false));
+        let result = import_collection_impl(&state, import_data.clone(), Some(false));
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("already exists"));
 
         // Import with overwrite - should succeed
-        let result = vector_import_collection(tauri::State::from(state.clone()), import_data, Some(true));
+        let result = import_collection_impl(&state, import_data, Some(true));
         assert!(result.is_ok());
 
         // Verify collection was overwritten
@@ -1181,7 +1181,7 @@ mod tests {
             points: vec![],
         };
 
-        let result = vector_import_collection(tauri::State::from(state.clone()), import_data, None);
+        let result = import_collection_impl(&state, import_data, None);
         assert!(result.is_ok());
 
         // Verify timestamps
@@ -1215,7 +1215,7 @@ mod tests {
             points: vec![],
         };
 
-        let result = vector_import_collection(tauri::State::from(state.clone()), import_data, None);
+        let result = import_collection_impl(&state, import_data, None);
         assert!(result.is_ok());
 
         // Verify empty collection was imported correctly
@@ -1242,7 +1242,7 @@ mod tests {
             embedding_model: Some("roundtrip-model".to_string()),
             embedding_provider: Some("roundtrip-provider".to_string()),
         };
-        vector_create_collection(tauri::State::from(state.clone()), payload).unwrap();
+        create_collection_impl(&state, payload).unwrap();
 
         // Add complex points
         let points = vec![
@@ -1272,15 +1272,15 @@ mod tests {
                 })),
             },
         ];
-        vector_upsert_points(tauri::State::from(state.clone()), "roundtrip_test".to_string(), points).unwrap();
+        upsert_points_impl(&state, "roundtrip_test".to_string(), points).unwrap();
 
         // Export the collection
-        let export_result = vector_export_collection(tauri::State::from(state.clone()), "roundtrip_test".to_string());
+        let export_result = export_collection_impl(&state, "roundtrip_test".to_string());
         assert!(export_result.is_ok());
         let exported_data = export_result.unwrap();
 
         // Delete original collection
-        vector_delete_collection(tauri::State::from(state.clone()), "roundtrip_test".to_string()).unwrap();
+        delete_collection_impl(&state, "roundtrip_test".to_string()).unwrap();
 
         // Verify deletion
         {
@@ -1289,7 +1289,7 @@ mod tests {
         }
 
         // Import the exported data
-        let import_result = vector_import_collection(tauri::State::from(state.clone()), CollectionImport {
+        let import_result = import_collection_impl(&state, CollectionImport {
             meta: exported_data.meta,
             points: exported_data.points,
         }, None);
