@@ -119,6 +119,14 @@ pub struct CreateCollectionPayload {
     pub embedding_provider: Option<String>,
 }
 
+#[tauri::command]
+pub fn vector_create_collection(
+    state: tauri::State<Arc<VectorStoreState>>,
+    payload: CreateCollectionPayload,
+) -> Result<bool, String> {
+    create_collection_impl(&state, payload)
+}
+
 pub fn create_collection_impl(
     state: &VectorStoreState,
     payload: CreateCollectionPayload,
@@ -150,14 +158,6 @@ pub fn create_collection_impl(
     Ok(true)
 }
 
-#[tauri::command]
-pub fn vector_create_collection(
-    state: tauri::State<Arc<VectorStoreState>>,
-    payload: CreateCollectionPayload,
-) -> Result<bool, String> {
-    create_collection_impl(&state, payload)
-}
-
 pub fn delete_collection_impl(
     state: &VectorStoreState,
     name: String,
@@ -180,6 +180,14 @@ pub fn vector_delete_collection(
 #[tauri::command]
 pub fn vector_rename_collection(
     state: tauri::State<Arc<VectorStoreState>>,
+    old_name: String,
+    new_name: String,
+) -> Result<bool, String> {
+    rename_collection_impl(&state, old_name, new_name)
+}
+
+pub fn rename_collection_impl(
+    state: &VectorStoreState,
     old_name: String,
     new_name: String,
 ) -> Result<bool, String> {
@@ -345,6 +353,14 @@ pub fn vector_upsert_points(
     collection: String,
     points: Vec<UpsertPoint>,
 ) -> Result<bool, String> {
+    upsert_points_impl(&state, collection, points)
+}
+
+pub fn upsert_points_impl(
+    state: &VectorStoreState,
+    collection: String,
+    points: Vec<UpsertPoint>,
+) -> Result<bool, String> {
     let mut data = state.data.lock();
     
     // Check collection exists and get dimension
@@ -399,6 +415,14 @@ pub fn vector_upsert_points(
 #[tauri::command]
 pub fn vector_delete_points(
     state: tauri::State<Arc<VectorStoreState>>,
+    collection: String,
+    ids: Vec<String>,
+) -> Result<bool, String> {
+    delete_points_impl(&state, collection, ids)
+}
+
+pub fn delete_points_impl(
+    state: &VectorStoreState,
     collection: String,
     ids: Vec<String>,
 ) -> Result<bool, String> {
@@ -516,6 +540,13 @@ fn apply_payload_filters(point: &PointRecord, filters: &[PayloadFilter]) -> bool
 #[tauri::command]
 pub fn vector_search_points(
     state: tauri::State<Arc<VectorStoreState>>,
+    payload: SearchPayload,
+) -> Result<Vec<SearchResult>, String> {
+    search_points_impl(&state, payload)
+}
+
+pub fn search_points_impl(
+    state: &VectorStoreState,
     payload: SearchPayload,
 ) -> Result<Vec<SearchResult>, String> {
     let data = state.data.lock();
