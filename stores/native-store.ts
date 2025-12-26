@@ -106,6 +106,27 @@ const defaultShortcuts: ShortcutConfig[] = [
     enabled: true,
     action: 'TOGGLE_FULLSCREEN',
   },
+  {
+    id: 'selection-trigger',
+    name: 'Trigger Selection Toolbar',
+    shortcut: 'CommandOrControl+Shift+S',
+    enabled: true,
+    action: 'SELECTION_TRIGGER',
+  },
+  {
+    id: 'selection-translate',
+    name: 'Quick Translate Selection',
+    shortcut: 'CommandOrControl+Shift+T',
+    enabled: true,
+    action: 'SELECTION_TRANSLATE',
+  },
+  {
+    id: 'selection-explain',
+    name: 'Quick Explain Selection',
+    shortcut: 'CommandOrControl+Shift+E',
+    enabled: true,
+    action: 'SELECTION_EXPLAIN',
+  },
 ];
 
 const initialState: NativeState = {

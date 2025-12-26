@@ -6,13 +6,16 @@
  */
 
 import { useCallback, useState, useRef, useMemo } from 'react';
-import { useSettingsStore, useSkillStore } from '@/stores';
+import { useSettingsStore, useSkillStore, useMcpStore, useVectorStore } from '@/stores';
 import type { ProviderName } from '@/types/provider';
 import type { Skill } from '@/types/skill';
 import {
   executeAgent,
   executeAgentLoop,
   createAgent,
+  createMcpToolsFromStore,
+  createRAGSearchTool,
+  buildRAGConfigFromSettings,
   type AgentConfig,
   type AgentResult,
   type AgentTool,
@@ -20,6 +23,8 @@ import {
   type AgentLoopResult,
 } from '@/lib/ai/agent';
 import { buildMultiSkillSystemPrompt, createSkillTools } from '@/lib/skills/executor';
+import { useBackgroundAgentStore } from '@/stores/background-agent-store';
+import type { BackgroundAgent } from '@/types/background-agent';
 
 export interface UseAgentOptions {
   systemPrompt?: string;
@@ -28,6 +33,9 @@ export interface UseAgentOptions {
   tools?: Record<string, AgentTool>;
   enablePlanning?: boolean;
   enableSkills?: boolean;
+  enableMcpTools?: boolean;
+  enableRAG?: boolean;
+  mcpRequireApproval?: boolean;
   onStepStart?: (step: number) => void;
   onStepComplete?: (step: number, response: string, toolCalls: ToolCall[]) => void;
   onToolCall?: (toolCall: ToolCall) => void;
@@ -45,6 +53,7 @@ export interface UseAgentReturn {
   // Execution
   run: (prompt: string) => Promise<AgentResult>;
   runWithPlanning: (task: string) => Promise<AgentLoopResult>;
+  runInBackground: (name: string, task: string) => BackgroundAgent;
   stop: () => void;
 
   // Tool management
@@ -65,11 +74,20 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     tools: initialTools = {},
     enablePlanning = false,
     enableSkills = true,
+    enableMcpTools = true,
+    enableRAG = true,
+    mcpRequireApproval = false,
     onStepStart,
     onStepComplete,
     onToolCall,
     onToolResult,
   } = options;
+
+  // Get provider settings first (needed for RAG config)
+  const defaultProviderRaw = useSettingsStore((state) => state.defaultProvider);
+  const defaultProvider = defaultProviderRaw as ProviderName;
+  const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const defaultModel = providerSettings[defaultProvider]?.defaultModel || 'gpt-4o';
 
   // Get active skills from store
   const activeSkillIds = useSkillStore((state) => state.activeSkillIds);
@@ -78,6 +96,13 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     activeSkillIds.map(id => skills[id]).filter((s): s is Skill => s !== undefined),
     [activeSkillIds, skills]
   );
+
+  // Get MCP servers and tools from store
+  const mcpServers = useMcpStore((state) => state.servers);
+  const mcpCallTool = useMcpStore((state) => state.callTool);
+
+  // Get vector store settings for RAG
+  const vectorSettings = useVectorStore((state) => state.settings);
 
   // Build skills system prompt using the optimized utility function
   const skillsSystemPrompt = useMemo(() => {
@@ -94,6 +119,23 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     return createSkillTools(activeSkills);
   }, [enableSkills, activeSkills]);
 
+  // Create MCP tools for agent to use
+  const mcpTools = useMemo(() => {
+    if (!enableMcpTools || mcpServers.length === 0) return {};
+    return createMcpToolsFromStore(mcpServers, mcpCallTool, {
+      requireApproval: mcpRequireApproval,
+    });
+  }, [enableMcpTools, mcpServers, mcpCallTool, mcpRequireApproval]);
+
+  // Build RAG config from vector store settings
+  const ragConfig = useMemo(() => {
+    if (!enableRAG) return undefined;
+    // Get API key for embedding provider
+    const embeddingApiKey = providerSettings[vectorSettings.embeddingProvider as keyof typeof providerSettings]?.apiKey || '';
+    if (!embeddingApiKey) return undefined;
+    return buildRAGConfigFromSettings(vectorSettings, embeddingApiKey);
+  }, [enableRAG, vectorSettings, providerSettings]);
+
   // Combine system prompt with skills
   const effectiveSystemPrompt = useMemo(() => {
     if (!skillsSystemPrompt) return systemPrompt;
@@ -109,22 +151,25 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
 
   const abortRef = useRef(false);
 
-  const defaultProviderRaw = useSettingsStore((state) => state.defaultProvider);
-  const defaultProvider = defaultProviderRaw as ProviderName;
-  const providerSettings = useSettingsStore((state) => state.providerSettings);
-  const defaultModel = providerSettings[defaultProvider]?.defaultModel || 'gpt-4o';
-
   // Get API key for current provider
   const getApiKey = useCallback((): string => {
     const settings = providerSettings[defaultProvider];
     return settings?.apiKey || '';
   }, [defaultProvider, providerSettings]);
 
-  // Merge skill tools with registered tools
+  // Create RAG search tool if config is available
+  const ragTools = useMemo((): Record<string, AgentTool> => {
+    if (!ragConfig) return {};
+    return { rag_search: createRAGSearchTool(ragConfig) };
+  }, [ragConfig]);
+
+  // Merge skill tools, MCP tools, RAG tools, and registered tools
   const allTools = useMemo(() => ({
     ...skillTools,
+    ...mcpTools,
+    ...ragTools,
     ...registeredTools,
-  }), [skillTools, registeredTools]);
+  }), [skillTools, mcpTools, ragTools, registeredTools]);
 
   // Build agent config
   const buildConfig = useCallback((): Omit<AgentConfig, 'provider' | 'model' | 'apiKey'> => {
@@ -261,6 +306,37 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     currentStep,
   ]);
 
+  // Background agent store
+  const createBackgroundAgent = useBackgroundAgentStore((state) => state.createAgent);
+  const openBackgroundPanel = useBackgroundAgentStore((state) => state.openPanel);
+
+  // Run in background
+  const runInBackground = useCallback((name: string, task: string): BackgroundAgent => {
+    const agent = createBackgroundAgent({
+      sessionId: '', // Will be set by the caller or use current session
+      name,
+      task,
+      config: {
+        provider: defaultProvider,
+        model: defaultModel,
+        maxSteps: maxSteps,
+        timeout: 300000, // 5 minutes default
+        notifyOnComplete: true,
+        notifyOnError: true,
+        autoRetry: true,
+        maxRetries: 2,
+        persistState: true,
+        runInBackground: true,
+      },
+      priority: 5,
+    });
+
+    // Open the background panel to show the new agent
+    openBackgroundPanel();
+
+    return agent;
+  }, [createBackgroundAgent, openBackgroundPanel, defaultProvider, defaultModel, maxSteps]);
+
   // Stop execution
   const stop = useCallback(() => {
     abortRef.current = true;
@@ -315,6 +391,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     toolCalls,
     run,
     runWithPlanning,
+    runInBackground,
     stop,
     registerTool,
     unregisterTool,

@@ -5,6 +5,7 @@
 export { ProviderSettings } from './provider-settings';
 export { ChatSettings } from './chat-settings';
 export { AppearanceSettings } from './appearance-settings';
+export { UICustomizationSettings } from './ui-customization-settings';
 export { DataSettings } from './data-settings';
 export { SearchSettings } from './search-settings';
 export { MemorySettings } from './memory-settings';

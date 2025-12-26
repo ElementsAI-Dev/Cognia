@@ -81,3 +81,19 @@ export {
   selectSubQuestions,
   selectLearningGoals,
 } from './learning-store';
+export {
+  useSubAgentStore,
+  selectSubAgents,
+  selectGroups,
+  selectActiveParentId,
+  selectSubAgentCount,
+  selectActiveSubAgentCount,
+  selectCompletedSubAgentCount,
+} from './sub-agent-store';
+export {
+  useBackgroundAgentStore,
+  selectAgents,
+  selectQueue,
+  selectIsPanelOpen,
+  selectSelectedAgentId,
+} from './background-agent-store';

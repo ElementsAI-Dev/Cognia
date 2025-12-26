@@ -25,9 +25,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useSettingsStore, useRecentFilesStore } from '@/stores';
+import { useSettingsStore, useRecentFilesStore, usePresetStore, useSessionStore } from '@/stores';
 import { RecentFilesPopover } from './recent-files-popover';
 import { MentionPopover } from './mention-popover';
+import { PresetQuickPrompts } from '@/components/presets/preset-quick-prompts';
 import type { RecentFile } from '@/stores/recent-files-store';
 import type { MentionItem, SelectedMention, ParsedToolCall } from '@/types/mcp';
 import { useMention, useSpeech } from '@/hooks';
@@ -1011,6 +1012,14 @@ export function ChatInput({
                 </TooltipTrigger>
                 <TooltipContent>{t('contextSettings')}</TooltipContent>
               </Tooltip>
+
+              {/* Preset Quick Prompts */}
+              <PresetQuickPromptsWrapper
+                onSelectPrompt={(content) => {
+                  onChange(value ? `${value}\n${content}` : content);
+                }}
+                disabled={isProcessing || disabled}
+              />
             </div>
 
             {/* Right side - Context usage with progress bar */}
@@ -1084,6 +1093,39 @@ export function ChatInput({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// Wrapper component for PresetQuickPrompts that gets prompts from current preset
+function PresetQuickPromptsWrapper({
+  onSelectPrompt,
+  disabled,
+}: {
+  onSelectPrompt: (content: string) => void;
+  disabled?: boolean;
+}) {
+  const activeSessionId = useSessionStore((state) => state.activeSessionId);
+  const sessions = useSessionStore((state) => state.sessions);
+  const presets = usePresetStore((state) => state.presets);
+  
+  // Get current session's preset
+  const currentSession = activeSessionId ? sessions.find(s => s.id === activeSessionId) : null;
+  const presetId = currentSession?.presetId;
+  const currentPreset = presetId ? presets.find(p => p.id === presetId) : null;
+  
+  // Get builtin prompts from preset
+  const prompts = currentPreset?.builtinPrompts || [];
+  
+  if (prompts.length === 0) {
+    return null;
+  }
+  
+  return (
+    <PresetQuickPrompts
+      prompts={prompts}
+      onSelectPrompt={onSelectPrompt}
+      disabled={disabled}
+    />
   );
 }
 

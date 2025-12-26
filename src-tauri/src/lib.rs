@@ -4,8 +4,11 @@
 
 mod commands;
 mod mcp;
+mod selection;
+mod tray;
 
 use mcp::McpManager;
+use selection::SelectionManager;
 use tauri::Manager;
 use commands::vector::VectorStoreState;
 use std::sync::Arc;
@@ -30,6 +33,11 @@ pub fn run() {
                         .level(log::LevelFilter::Info)
                         .build(),
                 )?;
+            }
+
+            // Initialize system tray
+            if let Err(e) = tray::create_tray(app.handle()) {
+                log::error!("Failed to create system tray: {}", e);
             }
 
             // Get app data directory for MCP config storage
@@ -61,7 +69,38 @@ pub fn run() {
                 }
             });
 
+            // Initialize Selection Manager
+            let selection_manager = SelectionManager::new(app.handle().clone());
+            app.manage(selection_manager);
+
+            // Start selection detection if enabled
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let manager = handle.state::<SelectionManager>();
+                if let Err(e) = manager.start().await {
+                    log::error!("Failed to start selection manager: {}", e);
+                }
+            });
+
+            // Setup splash screen and main window
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                // Simulate setup tasks
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+                // Close splash screen and show main window
+                if let Some(splash) = app_handle.get_webview_window("splashscreen") {
+                    let _ = splash.close();
+                }
+                if let Some(main) = app_handle.get_webview_window("main") {
+                    let _ = main.show();
+                }
+            });
+
             Ok(())
+        })
+        .on_menu_event(|app, event| {
+            tray::handle_tray_menu_event(app, event.id.0.to_string());
         })
         .invoke_handler(tauri::generate_handler![
             // MCP commands
@@ -124,6 +163,17 @@ pub fn run() {
             commands::vector::vector_search_points,
             commands::vector::vector_scroll_points,
             commands::vector::vector_stats,
+            // Selection toolbar commands
+            commands::selection::selection_start,
+            commands::selection::selection_stop,
+            commands::selection::selection_get_text,
+            commands::selection::selection_show_toolbar,
+            commands::selection::selection_hide_toolbar,
+            commands::selection::selection_is_toolbar_visible,
+            commands::selection::selection_get_toolbar_text,
+            commands::selection::selection_update_config,
+            commands::selection::selection_get_config,
+            commands::selection::selection_trigger,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

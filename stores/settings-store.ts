@@ -12,7 +12,8 @@ import {
   recordApiKeyError,
   getDefaultUsageStats,
 } from '@/lib/ai/api-key-rotation';
-import type { ColorThemePreset } from '@/lib/themes';
+import type { ColorThemePreset, UICustomization, BorderRadiusSize, SpacingSize, ShadowIntensity } from '@/lib/themes';
+import { DEFAULT_UI_CUSTOMIZATION } from '@/lib/themes';
 import type { SearchProviderType, SearchProviderSettings } from '@/types/search';
 import { DEFAULT_SEARCH_PROVIDER_SETTINGS } from '@/types/search';
 import type { SpeechSettings, SpeechLanguageCode, SpeechProvider } from '@/types/speech';
@@ -64,6 +65,18 @@ interface SettingsState {
   updateCustomTheme: (id: string, theme: Partial<CustomTheme>) => void;
   deleteCustomTheme: (id: string) => void;
   setActiveCustomTheme: (id: string | null) => void;
+
+  // UI Customization
+  uiCustomization: UICustomization;
+  setUICustomization: (customization: Partial<UICustomization>) => void;
+  setBorderRadius: (size: BorderRadiusSize) => void;
+  setSpacing: (size: SpacingSize) => void;
+  setShadowIntensity: (intensity: ShadowIntensity) => void;
+  setEnableAnimations: (enabled: boolean) => void;
+  setEnableBlur: (enabled: boolean) => void;
+  setSidebarWidth: (width: number) => void;
+  setChatMaxWidth: (width: number) => void;
+  resetUICustomization: () => void;
 
   // Language
   language: Language;
@@ -339,6 +352,7 @@ const initialState = {
   colorTheme: 'default' as ColorThemePreset,
   customThemes: [] as CustomTheme[],
   activeCustomThemeId: null as string | null,
+  uiCustomization: DEFAULT_UI_CUSTOMIZATION,
 
   // Language
   language: 'en' as Language,
@@ -460,6 +474,42 @@ export const useSettingsStore = create<SettingsState>()(
           activeCustomThemeId: state.activeCustomThemeId === id ? null : state.activeCustomThemeId,
         })),
       setActiveCustomTheme: (activeCustomThemeId) => set({ activeCustomThemeId }),
+
+      // UI Customization actions
+      setUICustomization: (customization) =>
+        set((state) => ({
+          uiCustomization: { ...state.uiCustomization, ...customization },
+        })),
+      setBorderRadius: (borderRadius) =>
+        set((state) => ({
+          uiCustomization: { ...state.uiCustomization, borderRadius },
+        })),
+      setSpacing: (spacing) =>
+        set((state) => ({
+          uiCustomization: { ...state.uiCustomization, spacing },
+        })),
+      setShadowIntensity: (shadowIntensity) =>
+        set((state) => ({
+          uiCustomization: { ...state.uiCustomization, shadowIntensity },
+        })),
+      setEnableAnimations: (enableAnimations) =>
+        set((state) => ({
+          uiCustomization: { ...state.uiCustomization, enableAnimations },
+        })),
+      setEnableBlur: (enableBlur) =>
+        set((state) => ({
+          uiCustomization: { ...state.uiCustomization, enableBlur },
+        })),
+      setSidebarWidth: (sidebarWidth) =>
+        set((state) => ({
+          uiCustomization: { ...state.uiCustomization, sidebarWidth },
+        })),
+      setChatMaxWidth: (chatMaxWidth) =>
+        set((state) => ({
+          uiCustomization: { ...state.uiCustomization, chatMaxWidth },
+        })),
+      resetUICustomization: () =>
+        set({ uiCustomization: DEFAULT_UI_CUSTOMIZATION }),
 
       // Language actions
       setLanguage: (language) => set({ language }),
@@ -862,6 +912,7 @@ export const useSettingsStore = create<SettingsState>()(
         colorTheme: state.colorTheme,
         customThemes: state.customThemes,
         activeCustomThemeId: state.activeCustomThemeId,
+        uiCustomization: state.uiCustomization,
         language: state.language,
         customInstructions: state.customInstructions,
         customInstructionsEnabled: state.customInstructionsEnabled,

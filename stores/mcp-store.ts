@@ -106,7 +106,8 @@ export const useMcpStore = create<McpState>((set, get) => ({
       set({ isInitialized: true });
     } catch (error) {
       console.error('Failed to initialize MCP store:', error);
-      set({ error: String(error) });
+      // Set isInitialized to true even on error to prevent infinite retry loop in browser environment
+      set({ error: String(error), isInitialized: true });
     }
   },
 

@@ -7,7 +7,6 @@
 import { useCallback, useRef, useEffect } from 'react';
 import {
   ReactFlow,
-  Controls,
   MiniMap,
   Background,
   BackgroundVariant,
@@ -18,6 +17,8 @@ import {
   type EdgeChange,
   type Node,
 } from '@xyflow/react';
+import { Controls } from '@/components/ai-elements/controls';
+import { Panel } from '@/components/ai-elements/panel';
 import '@xyflow/react/dist/style.css';
 
 import { cn } from '@/lib/utils';
@@ -224,7 +225,13 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
             className="bg-background"
             proOptions={{ hideAttribution: true }}
           >
-            <Controls className="bg-background border rounded-lg shadow-sm" />
+            <Controls />
+            {/* Workflow info panel */}
+            <Panel position="top-left">
+              <div className="text-xs text-muted-foreground px-2 py-1">
+                {currentWorkflow.name} · {currentWorkflow.nodes.length} nodes
+              </div>
+            </Panel>
             {showMinimap && (
               <MiniMap
                 className="bg-background border rounded-lg shadow-sm"

@@ -37,25 +37,38 @@ export {
   peekCollection,
 } from './chroma-client';
 
-// Pinecone client
-export {
-  type PineconeConfig,
-  type PineconeDocument,
-  type PineconeSearchResult,
-  type PineconeIndexInfo,
-  getPineconeClient,
-  resetPineconeClient,
-  getPineconeIndex,
-  listPineconeIndexes,
-  createPineconeIndex,
-  deletePineconeIndex,
-  upsertDocuments as upsertPineconeDocuments,
-  queryPinecone,
-  deleteDocuments as deletePineconeDocuments,
-  deleteAllDocuments as deleteAllPineconeDocuments,
-  fetchDocuments as fetchPineconeDocuments,
-  getIndexStats,
-} from './pinecone-client';
+// Pinecone types - defined inline to avoid importing the module which has Node.js dependencies
+// For Pinecone client functions, import directly from './pinecone-client' on server-side only
+export interface PineconeConfig {
+  apiKey: string;
+  indexName: string;
+  namespace?: string;
+}
+
+export interface PineconeDocument {
+  id: string;
+  content: string;
+  metadata?: Record<string, string | number | boolean | string[]>;
+  embedding?: number[];
+}
+
+export interface PineconeSearchResult {
+  id: string;
+  content: string;
+  metadata?: Record<string, string | number | boolean | string[]>;
+  score: number;
+}
+
+export interface PineconeIndexInfo {
+  name: string;
+  dimension: number;
+  metric: string;
+  host: string;
+  status: {
+    ready: boolean;
+    state: string;
+  };
+}
 
 // Qdrant client
 export {
@@ -97,7 +110,6 @@ export {
   type IVectorStore,
   NativeVectorStore,
   ChromaVectorStore,
-  PineconeVectorStore,
   QdrantVectorStore,
   createVectorStore,
   getSupportedVectorStoreProviders,

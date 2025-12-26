@@ -24,6 +24,7 @@ import {
   Pin,
   PinOff,
   GraduationCap,
+  ExternalLink,
 } from 'lucide-react';
 import { ConversationSearch } from './conversation-search';
 import { useMessages } from '@/hooks';
@@ -58,10 +59,25 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { ExportDialog } from './export-dialog';
 import { ImageGenerationDialog } from './image-generation-dialog';
+import { AnimatedExportDialog, DocumentExportDialog } from '@/components/export';
+import { 
+  OpenIn, 
+  OpenInTrigger, 
+  OpenInContent, 
+  OpenInLabel, 
+  OpenInSeparator,
+  OpenInChatGPT, 
+  OpenInClaude, 
+  OpenInScira,
+  OpenInv0,
+  OpenInCursor,
+} from '@/components/ai-elements/open-in-chat';
 import { BranchSelector } from './branch-selector';
 import { ModelPickerDialog } from './model-picker-dialog';
+import { SessionStats } from './session-stats';
 import { PresetSelector, CreatePresetDialog, PresetsManager } from '@/components/presets';
 import { ActiveSkillsIndicator } from '@/components/skills';
+import { BackgroundAgentIndicator } from '@/components/agent';
 import {
   Dialog,
   DialogContent,
@@ -260,10 +276,25 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
           <Link href="/skills">
             <ActiveSkillsIndicator />
           </Link>
+
+          {/* Session stats - compact view */}
+          {session && messages.length > 0 && (
+            <>
+              <Separator orientation="vertical" className="h-4" />
+              <SessionStats
+                messages={messages}
+                sessionCreatedAt={session.createdAt}
+                compact
+              />
+            </>
+          )}
         </div>
 
         {/* Model selector */}
         <div className="flex items-center gap-2">
+          {/* Background Agent Indicator */}
+          <BackgroundAgentIndicator />
+
           {/* Designer button */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -385,6 +416,24 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
                     </DropdownMenuItem>
                   }
                 />
+                <AnimatedExportDialog
+                  session={session}
+                  trigger={
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                      <Download className="mr-2 h-4 w-4" />
+                      {t('exportAnimated') || 'Export Animated'}
+                    </DropdownMenuItem>
+                  }
+                />
+                <DocumentExportDialog
+                  session={session}
+                  trigger={
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                      <Download className="mr-2 h-4 w-4" />
+                      {t('exportDocument') || 'Export Document'}
+                    </DropdownMenuItem>
+                  }
+                />
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
                   onClick={handleClearChat} 
@@ -394,6 +443,27 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
                   <Trash2 className="mr-2 h-4 w-4" />
                   {t('clearChat')}
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {/* Open in external AI chat services */}
+                {messages.length > 0 && (
+                  <OpenIn query={messages.map(m => `${m.role}: ${m.content}`).join('\n\n')}>
+                    <OpenInTrigger>
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        {t('openInOtherAI') || 'Open in Other AI'}
+                      </DropdownMenuItem>
+                    </OpenInTrigger>
+                    <OpenInContent>
+                      <OpenInLabel>Open conversation in...</OpenInLabel>
+                      <OpenInSeparator />
+                      <OpenInChatGPT />
+                      <OpenInClaude />
+                      <OpenInScira />
+                      <OpenInv0 />
+                      <OpenInCursor />
+                    </OpenInContent>
+                  </OpenIn>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}

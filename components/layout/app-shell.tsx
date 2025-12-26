@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { NetworkStatusIndicator, OfflineBanner } from '@/components/ui/network-status-indicator';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -32,7 +33,11 @@ export function AppShell({ children, sidebar }: AppShellProps) {
     : null;
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
+    <>
+      {/* Offline Banner - shown when user is offline */}
+      <OfflineBanner />
+      
+      <div className="flex h-screen w-full overflow-hidden bg-background">
       {/* Desktop Sidebar - always rendered, width controlled by state */}
       {sidebar && (
         <aside
@@ -83,7 +88,13 @@ export function AppShell({ children, sidebar }: AppShellProps) {
       <main className="flex flex-1 flex-col overflow-hidden">
         {children}
       </main>
+
+      {/* Network Status Indicator - fixed position at bottom right */}
+      <div className="fixed bottom-4 right-4 z-40">
+        <NetworkStatusIndicator showLabel />
+      </div>
     </div>
+    </>
   );
 }
 

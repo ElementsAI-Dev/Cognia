@@ -334,3 +334,103 @@ export function removeCustomThemeColors(): void {
   ];
   varNames.forEach(name => root.style.removeProperty(name));
 }
+
+/**
+ * UI Customization options
+ */
+export type BorderRadiusSize = 'none' | 'sm' | 'md' | 'lg' | 'xl' | 'full';
+export type SpacingSize = 'compact' | 'comfortable' | 'spacious';
+export type ShadowIntensity = 'none' | 'subtle' | 'medium' | 'strong';
+
+export interface UICustomization {
+  borderRadius: BorderRadiusSize;
+  spacing: SpacingSize;
+  shadowIntensity: ShadowIntensity;
+  enableAnimations: boolean;
+  enableBlur: boolean;
+  sidebarWidth: number; // in pixels
+  chatMaxWidth: number; // in pixels, 0 for full width
+}
+
+export const DEFAULT_UI_CUSTOMIZATION: UICustomization = {
+  borderRadius: 'md',
+  spacing: 'comfortable',
+  shadowIntensity: 'subtle',
+  enableAnimations: true,
+  enableBlur: true,
+  sidebarWidth: 280,
+  chatMaxWidth: 900,
+};
+
+export const BORDER_RADIUS_VALUES: Record<BorderRadiusSize, string> = {
+  none: '0',
+  sm: '0.25rem',
+  md: '0.5rem',
+  lg: '0.75rem',
+  xl: '1rem',
+  full: '9999px',
+};
+
+export const SPACING_VALUES: Record<SpacingSize, { base: string; gap: string }> = {
+  compact: { base: '0.5rem', gap: '0.25rem' },
+  comfortable: { base: '1rem', gap: '0.5rem' },
+  spacious: { base: '1.5rem', gap: '0.75rem' },
+};
+
+export const SHADOW_VALUES: Record<ShadowIntensity, string> = {
+  none: 'none',
+  subtle: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+  medium: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+  strong: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+};
+
+/**
+ * Apply UI customization to document
+ */
+export function applyUICustomization(customization: UICustomization): void {
+  const root = document.documentElement;
+  
+  // Border radius
+  root.style.setProperty('--radius', BORDER_RADIUS_VALUES[customization.borderRadius]);
+  
+  // Spacing
+  const spacing = SPACING_VALUES[customization.spacing];
+  root.style.setProperty('--spacing-base', spacing.base);
+  root.style.setProperty('--spacing-gap', spacing.gap);
+  
+  // Shadow
+  root.style.setProperty('--shadow-card', SHADOW_VALUES[customization.shadowIntensity]);
+  
+  // Sidebar width
+  root.style.setProperty('--sidebar-width', `${customization.sidebarWidth}px`);
+  
+  // Chat max width
+  root.style.setProperty('--chat-max-width', customization.chatMaxWidth > 0 ? `${customization.chatMaxWidth}px` : '100%');
+  
+  // Animations
+  if (!customization.enableAnimations) {
+    root.style.setProperty('--animation-duration', '0s');
+  } else {
+    root.style.removeProperty('--animation-duration');
+  }
+  
+  // Blur effects
+  if (!customization.enableBlur) {
+    root.style.setProperty('--blur-amount', '0');
+  } else {
+    root.style.removeProperty('--blur-amount');
+  }
+}
+
+/**
+ * Remove UI customization
+ */
+export function removeUICustomization(): void {
+  const root = document.documentElement;
+  const varNames = [
+    '--radius', '--spacing-base', '--spacing-gap',
+    '--shadow-card', '--sidebar-width', '--chat-max-width',
+    '--animation-duration', '--blur-amount',
+  ];
+  varNames.forEach(name => root.style.removeProperty(name));
+}

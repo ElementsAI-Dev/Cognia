@@ -23,6 +23,8 @@ import {
   buildSkillSystemPrompt,
   buildMultiSkillSystemPrompt,
 } from '@/lib/skills';
+import type { McpServerState, ToolCallResult } from '@/types/mcp';
+import { createMcpToolsFromStore } from './mcp-tools';
 
 export interface AgentToolsConfig {
   tavilyApiKey?: string;
@@ -34,9 +36,16 @@ export interface AgentToolsConfig {
   enableCodeExecution?: boolean;
   enableDesigner?: boolean;
   enableSkills?: boolean;
+  enableMcpTools?: boolean;
   ragConfig?: RAGConfig;
   customTools?: Record<string, AgentTool>;
   activeSkills?: Skill[];
+  /** MCP servers for tool integration */
+  mcpServers?: McpServerState[];
+  /** MCP tool call function */
+  mcpCallTool?: (serverId: string, toolName: string, args: Record<string, unknown>) => Promise<ToolCallResult>;
+  /** Whether MCP tools require approval */
+  mcpRequireApproval?: boolean;
 }
 
 /**
@@ -90,7 +99,36 @@ export function createWebSearchTool(apiKey: string): AgentTool {
 }
 
 /**
+ * Build RAG config from vector store settings
+ */
+export function buildRAGConfigFromSettings(
+  vectorSettings: {
+    mode: 'embedded' | 'server';
+    serverUrl: string;
+    embeddingProvider: string;
+    embeddingModel: string;
+  },
+  apiKey: string
+): RAGConfig {
+  return {
+    chromaConfig: {
+      mode: vectorSettings.mode,
+      serverUrl: vectorSettings.serverUrl,
+      embeddingConfig: {
+        provider: vectorSettings.embeddingProvider as 'openai' | 'google' | 'cohere' | 'mistral',
+        model: vectorSettings.embeddingModel,
+      },
+      apiKey,
+    },
+    topK: 5,
+    similarityThreshold: 0.5,
+    maxContextLength: 4000,
+  };
+}
+
+/**
  * Create RAG search tool for agent (uses real implementation from registry)
+ * Enhanced version that can auto-configure from settings
  */
 export function createRAGSearchTool(ragConfig?: RAGConfig): AgentTool {
   return {
@@ -270,6 +308,16 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
   if (config.enableSkills !== false && config.activeSkills && config.activeSkills.length > 0) {
     const skillTools = createSkillTools(config.activeSkills);
     Object.assign(tools, skillTools);
+  }
+
+  // MCP tools - convert MCP server tools to agent tools
+  if (config.enableMcpTools !== false && config.mcpServers && config.mcpCallTool) {
+    const mcpTools = createMcpToolsFromStore(
+      config.mcpServers,
+      config.mcpCallTool,
+      { requireApproval: config.mcpRequireApproval }
+    );
+    Object.assign(tools, mcpTools);
   }
 
   // Add custom tools

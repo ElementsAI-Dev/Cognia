@@ -97,3 +97,21 @@ export {
   useIsLearningMode,
   type UseLearningModeReturn,
 } from './use-learning-mode';
+export {
+  useSubAgent,
+  type UseSubAgentOptions,
+  type UseSubAgentReturn,
+} from './use-sub-agent';
+export {
+  useBackgroundAgent,
+  type UseBackgroundAgentOptions,
+  type UseBackgroundAgentReturn,
+} from './use-background-agent';
+export {
+  useUnifiedTools,
+  type UseUnifiedToolsOptions,
+  type UseUnifiedToolsReturn,
+} from './use-unified-tools';
+export {
+  useSelectionToolbar,
+} from './use-selection-toolbar';

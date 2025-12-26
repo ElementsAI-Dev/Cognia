@@ -11,7 +11,8 @@
       "Bash(gh pr list:*)",
       "Bash(cat:*)",
       "Bash(npx tsc:*)",
-      "Bash(pnpm test:*)"
+      "Bash(pnpm test:*)",
+      "Bash(pnpm exec tsc:*)"
     ]
   }
 }

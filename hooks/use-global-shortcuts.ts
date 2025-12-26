@@ -23,7 +23,10 @@ export type GlobalShortcutAction =
   | 'SEARCH'
   | 'TOGGLE_FULLSCREEN'
   | 'FOCUS_APP'
-  | 'TOGGLE_ALWAYS_ON_TOP';
+  | 'TOGGLE_ALWAYS_ON_TOP'
+  | 'SELECTION_TRIGGER'
+  | 'SELECTION_TRANSLATE'
+  | 'SELECTION_EXPLAIN';
 
 export interface UseGlobalShortcutsOptions {
   onNewChat?: () => void;
@@ -33,6 +36,9 @@ export interface UseGlobalShortcutsOptions {
   onToggleFullscreen?: () => void;
   onFocusApp?: () => void;
   onToggleAlwaysOnTop?: () => void;
+  onSelectionTrigger?: () => void;
+  onSelectionTranslate?: () => void;
+  onSelectionExplain?: () => void;
   enabled?: boolean;
 }
 
@@ -74,6 +80,12 @@ export function useGlobalShortcuts(
           return options.onFocusApp;
         case 'TOGGLE_ALWAYS_ON_TOP':
           return options.onToggleAlwaysOnTop;
+        case 'SELECTION_TRIGGER':
+          return options.onSelectionTrigger;
+        case 'SELECTION_TRANSLATE':
+          return options.onSelectionTranslate;
+        case 'SELECTION_EXPLAIN':
+          return options.onSelectionExplain;
         default:
           return undefined;
       }

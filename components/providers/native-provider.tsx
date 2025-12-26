@@ -57,13 +57,9 @@ export function NativeProvider({
     };
 
     initNative();
-  }, [
-    setIsDesktop,
-    setSystemInfo,
-    setNotificationPermission,
-    setUpdateAvailable,
-    checkUpdatesOnMount,
-  ]);
+    // Only run once on mount - store actions are stable references
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkUpdatesOnMount]);
 
   return <>{children}</>;
 }

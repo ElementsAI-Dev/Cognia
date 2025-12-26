@@ -48,3 +48,5 @@ export * from './ollama';
 export * from './workflow';
 export * from './skill';
 export * from './learning';
+export * from './sub-agent';
+export * from './background-agent';

@@ -61,3 +61,22 @@ export {
   type PPTExportInput,
   type PPTToolResult,
 } from './ppt-tool';
+
+// Unified Tool Registry
+export {
+  UnifiedToolRegistry,
+  getUnifiedToolRegistry,
+  setUnifiedToolRegistry,
+  registerBuiltinTools,
+  registerSkillTools,
+  registerMcpTools,
+  registerCustomTools,
+  inferToolCategory,
+  type ToolSource,
+  type ToolCategory,
+  type ToolMetadata,
+  type ToolRegistrationMetadata,
+  type RegisteredTool,
+  type ToolRegistryConfig,
+  type ToolFilterOptions,
+} from './unified-registry';

@@ -27,6 +27,7 @@ import {
   Download,
   Upload,
   Mic,
+  MousePointer2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -66,6 +67,7 @@ import { DesktopSettings } from '@/components/settings/desktop-settings';
 import { SpeechSettings } from '@/components/settings/speech-settings';
 import { QuickSettingsCard } from '@/components/settings/quick-settings-card';
 import { VectorSettings } from '@/components/settings/vector-settings';
+import { SelectionToolbarSettings } from '@/components/selection-toolbar/settings-panel';
 
 type SettingsSection = 
   | 'providers'
@@ -82,7 +84,8 @@ type SettingsSection =
   | 'search'
   | 'data'
   | 'vector'
-  | 'desktop';
+  | 'desktop'
+  | 'selection';
 
 type SettingsGroup = 'ai' | 'interface' | 'data' | 'system';
 
@@ -259,13 +262,22 @@ export default function SettingsPage() {
       description: 'Vector database provider and collections',
       group: 'data',
     },
-    ...(isDesktop ? [{
-      id: 'desktop' as const,
-      label: 'Desktop',
-      icon: <Monitor className="h-4 w-4" />,
-      description: 'Desktop app settings',
-      group: 'system' as const,
-    }] : []),
+    ...(isDesktop ? [
+      {
+        id: 'desktop' as const,
+        label: 'Desktop',
+        icon: <Monitor className="h-4 w-4" />,
+        description: 'Desktop app settings',
+        group: 'system' as const,
+      },
+      {
+        id: 'selection' as const,
+        label: 'Selection Toolbar',
+        icon: <MousePointer2 className="h-4 w-4" />,
+        description: 'AI-powered text selection actions',
+        group: 'system' as const,
+      },
+    ] : []),
   ], [t, isDesktop]);
 
   const renderContent = () => {
@@ -305,6 +317,8 @@ export default function SettingsPage() {
         return <ToolSettings />;
       case 'desktop':
         return <DesktopSettings />;
+      case 'selection':
+        return <SelectionToolbarSettings />;
       default:
         return <ProviderSettings />;
     }

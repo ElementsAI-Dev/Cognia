@@ -30,6 +30,8 @@ import { BranchButton } from './branch-selector';
 import { TextSelectionPopover } from './text-selection-popover';
 import { QuotedContent } from './quoted-content';
 import { TextPart, ReasoningPart, ToolPart, SourcesPart } from './message-parts';
+import { MessageReactions } from './message-reactions';
+import type { EmojiReaction } from '@/types/message';
 import type { MessagePart } from '@/types/message';
 import { PromptOptimizerDialog } from './prompt-optimizer-dialog';
 import { PresetManagerDialog } from './preset-manager-dialog';
@@ -40,6 +42,7 @@ import { ToolApprovalDialog, type ToolApprovalRequest } from '@/components/agent
 import { WorkflowSelector } from '@/components/agent/workflow-selector';
 import { PPTPreview } from '@/components/ai-elements/ppt-preview';
 import { SkillSuggestions } from '@/components/skills';
+import { LearningModePanel, LearningStartDialog } from '@/components/learning';
 import { useSkillStore } from '@/stores/skill-store';
 import { buildProgressiveSkillsPrompt } from '@/lib/skills/executor';
 import { useWorkflowStore } from '@/stores/workflow-store';
@@ -136,6 +139,10 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   // Workflow states
   const [showWorkflowSelector, setShowWorkflowSelector] = useState(false);
   const [showPPTPreview, setShowPPTPreview] = useState(false);
+
+  // Learning mode states
+  const [showLearningPanel, setShowLearningPanel] = useState(false);
+  const [showLearningStartDialog, setShowLearningStartDialog] = useState(false);
   const workflowPresentations = useWorkflowStore((state) => state.presentations);
   const activePresentationId = useWorkflowStore((state) => state.activePresentationId);
   const activePresentation = activePresentationId ? workflowPresentations[activePresentationId] : null;
@@ -152,12 +159,13 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const mcpInitialize = useMcpStore((state) => state.initialize);
   const mcpIsInitialized = useMcpStore((state) => state.isInitialized);
 
-  // Initialize MCP store
+  // Initialize MCP store - only run once on mount
   useEffect(() => {
     if (!mcpIsInitialized) {
       mcpInitialize();
     }
-  }, [mcpIsInitialized, mcpInitialize]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   // Feature toggles from session
@@ -356,7 +364,17 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     } else {
       createSession({ mode });
     }
-  }, [session, updateSession, createSession]);
+    // Show learning start dialog when switching to learning mode
+    if (mode === 'learning') {
+      const activeSessionId = session?.id;
+      const hasLearningSession = activeSessionId ? learningStore.getLearningSessionByChat(activeSessionId) : null;
+      if (!hasLearningSession) {
+        setShowLearningStartDialog(true);
+      } else {
+        setShowLearningPanel(true);
+      }
+    }
+  }, [session, updateSession, createSession, learningStore]);
 
   // Handle preset selection
   const handleSelectPreset = useCallback((preset: import('@/types/preset').Preset) => {
@@ -1213,6 +1231,39 @@ Be thorough in your thinking but concise in your final answer.`;
           </div>
         </div>
       )}
+
+      {/* Learning Mode Panel - shown when in learning mode */}
+      {currentMode === 'learning' && showLearningPanel && (
+        <div className="fixed right-4 top-20 z-40 w-80 max-h-[calc(100vh-6rem)] overflow-auto">
+          <LearningModePanel
+            onClose={() => setShowLearningPanel(false)}
+            className="shadow-lg"
+          />
+        </div>
+      )}
+
+      {/* Learning Mode Start Dialog */}
+      <LearningStartDialog
+        open={showLearningStartDialog}
+        onOpenChange={setShowLearningStartDialog}
+        onStart={() => {
+          setShowLearningPanel(true);
+        }}
+      />
+
+      {/* Learning Mode Toggle Button - shown when in learning mode */}
+      {currentMode === 'learning' && !showLearningPanel && (
+        <button
+          onClick={() => setShowLearningPanel(true)}
+          className="fixed right-4 top-20 z-40 p-3 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
+          title="Open Learning Panel"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+            <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
@@ -1310,7 +1361,35 @@ function ChatMessageItem({
   const [isTranslating, setIsTranslating] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(message.isBookmarked || false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [reactions, setReactions] = useState<EmojiReaction[]>(message.reactions || []);
   const messageContentRef = useRef<HTMLDivElement>(null);
+
+  const handleReaction = async (emoji: string) => {
+    setReactions(prev => {
+      const existing = prev.find(r => r.emoji === emoji);
+      if (existing) {
+        if (existing.reacted) {
+          // Remove reaction
+          if (existing.count === 1) {
+            return prev.filter(r => r.emoji !== emoji);
+          }
+          return prev.map(r => 
+            r.emoji === emoji ? { ...r, count: r.count - 1, reacted: false } : r
+          );
+        } else {
+          // Add reaction
+          return prev.map(r => 
+            r.emoji === emoji ? { ...r, count: r.count + 1, reacted: true } : r
+          );
+        }
+      } else {
+        // New reaction
+        return [...prev, { emoji, count: 1, reacted: true }];
+      }
+    });
+    // Persist to database
+    await messageRepository.update(message.id, { reactions });
+  };
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(message.content);
@@ -1416,6 +1495,15 @@ function ChatMessageItem({
               messageId={message.id}
               messageRole={message.role as 'user' | 'assistant'}
             />
+            {/* Message reactions */}
+            {message.role === 'assistant' && !message.error && (
+              <div className="mt-2">
+                <MessageReactions
+                  reactions={reactions}
+                  onReact={handleReaction}
+                />
+              </div>
+            )}
           </div>
         )}
       </MessageContent>

@@ -13,15 +13,10 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-
-export interface Reaction {
-  emoji: string;
-  count: number;
-  reacted: boolean;
-}
+import type { EmojiReaction } from '@/types/message';
 
 interface MessageReactionsProps {
-  reactions: Reaction[];
+  reactions: EmojiReaction[];
   onReact: (emoji: string) => void;
   className?: string;
 }

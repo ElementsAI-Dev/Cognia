@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon, PanelRightOpen, Download } from "lucide-react";
 import { useArtifactStore } from "@/stores";
+import { ArtifactCreateButton } from "@/components/artifacts/artifact-create-button";
 import {
   type ComponentProps,
   createContext,
@@ -195,6 +196,13 @@ export const CodeBlock = ({
             >
               <Download size={14} />
             </Button>
+            <ArtifactCreateButton
+              content={code}
+              language={language}
+              title={title}
+              variant="icon"
+              className="shrink-0"
+            />
             {children}
           </div>
         </div>

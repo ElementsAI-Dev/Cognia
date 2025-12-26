@@ -80,6 +80,12 @@ export interface Source {
 
 export type MessageReaction = 'like' | 'dislike';
 
+export interface EmojiReaction {
+  emoji: string;
+  count: number;
+  reacted: boolean;
+}
+
 export interface MessageEdit {
   content: string;
   editedAt: Date;
@@ -118,6 +124,7 @@ export interface UIMessage {
 
   // Reactions
   reaction?: MessageReaction;
+  reactions?: EmojiReaction[];
 
   // Translation
   translatedContent?: string;

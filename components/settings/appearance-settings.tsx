@@ -30,6 +30,7 @@ import { THEME_PRESETS, type ColorThemePreset } from '@/lib/themes';
 import { localeNames, localeFlags, type Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { ThemeEditor } from './theme-editor';
+import { UICustomizationSettings } from './ui-customization-settings';
 
 const themeOptions: { value: Theme; labelKey: string; icon: React.ReactNode }[] = [
   { value: 'light', labelKey: 'themeLight', icon: <Sun className="h-4 w-4" /> },
@@ -378,6 +379,9 @@ export function AppearanceSettings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* UI Customization */}
+      <UICustomizationSettings />
 
       {/* Theme Editor Dialog */}
       <ThemeEditor

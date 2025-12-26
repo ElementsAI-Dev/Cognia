@@ -134,4 +134,7 @@ export function AgentStepsPanel() {
   );
 }
 
+// Export AgentStep type for use in other components
+export type { AgentStep };
+
 export default AgentSteps;

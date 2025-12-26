@@ -1,0 +1,96 @@
+{
+  "targetDirectories": [
+    "components/chat",
+    "components/settings",
+    "components/sidebar",
+    "components/projects",
+    "components/export",
+    "components/agent",
+    "components/presets",
+    "components/workflow-editor",
+    "components/canvas",
+    "components/designer",
+    "components/learning",
+    "components/artifacts",
+    "app"
+  ],
+  "excludePatterns": [
+    "node_modules",
+    "dist",
+    "build",
+    ".next",
+    "out",
+    "coverage",
+    "__tests__",
+    "*.test.ts",
+    "*.test.tsx",
+    "*.spec.ts",
+    "*.spec.tsx"
+  ],
+  "extractionRules": {
+    "includeStrings": [
+      "JSXText",
+      "StringLiteral in JSX",
+      "TemplateLiteral in JSX"
+    ],
+    "excludePatterns": [
+      "^console\\.",
+      "^debugger",
+      "^//",
+      "^/\\*",
+      "^import\\s",
+      "^export\\s",
+      "^from\\s",
+      "^require\\(",
+      "\\.(css|scss|less|sass|json|md|txt|html)$",
+      "^__[A-Z_]+__$",  // React internals like __DEV__, __IS_BROWSER__
+      "^data-[a-z-]+",   // data attributes
+      "^aria-[a-z-]+",   // aria attributes (unless they're user-facing labels)
+      "^className$",
+      "^id$",
+      "^key$",
+      "^ref$",
+      "^type$"
+    ],
+    "minLength": 2,
+    "maxLength": 200,
+    "excludeTechnicalStrings": true,
+    "excludeDebugStrings": true,
+    "excludeLogStrings": true
+  },
+  "namespaceMapping": {
+    "components/chat": "chat",
+    "components/settings": "settings",
+    "components/sidebar": "sidebar",
+    "components/projects": "projects",
+    "components/export": "export",
+    "components/agent": "agent",
+    "components/presets": "presets",
+    "components/workflow-editor": "workflowEditor",
+    "components/canvas": "canvas",
+    "components/designer": "designer",
+    "components/learning": "learningMode",
+    "components/artifacts": "artifacts",
+    "app/(chat)": "chat",
+    "app/settings": "settings",
+    "app/projects": "projects",
+    "app/workflows": "workflowEditor"
+  },
+  "keyGenerationRules": {
+    "format": "camelCase",
+    "maxKeyLength": 50,
+    "prefixWithNamespace": false,
+    "removeSpecialChars": true,
+    "preserveNumbers": true,
+    "conflictResolution": "suffix-number"
+  },
+  "outputFormats": {
+    "json": true,
+    "csv": true,
+    "markdown": true
+  },
+  "existingTranslations": {
+    "enPath": "lib/i18n/messages/en.json",
+    "zhCNPath": "lib/i18n/messages/zh-CN.json"
+  }
+}
