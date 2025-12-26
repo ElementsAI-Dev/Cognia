@@ -140,8 +140,10 @@ export function ModelPickerDialog({
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<ProviderCategory>('all');
   
-  // Load recent models - computed fresh each render when dialog is open
-  const recentModels = open ? getRecentModels() : [];
+  // Load recent models - memoized to avoid dependency issues
+  const recentModels = useMemo(() => {
+    return open ? getRecentModels() : [];
+  }, [open]);
 
   // Get enabled providers only
   const enabledProviders = useMemo(() => {

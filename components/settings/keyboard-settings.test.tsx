@@ -5,6 +5,21 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { KeyboardSettings } from './keyboard-settings';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      title: 'Keyboard Shortcuts',
+      description: 'View and customize keyboard shortcuts',
+      chat: 'Chat',
+      navigation: 'Navigation',
+      editing: 'Editing',
+      system: 'System',
+    };
+    return translations[key] || key;
+  },
+}));
+
 // Mock hooks
 jest.mock('@/hooks/use-keyboard-shortcuts', () => ({
   useKeyboardShortcuts: () => ({
@@ -61,22 +76,23 @@ describe('KeyboardSettings', () => {
 
   it('displays Chat category', () => {
     render(<KeyboardSettings />);
-    expect(screen.getByText('Chat')).toBeInTheDocument();
+    // Component renders translation key with categories prefix
+    expect(screen.getByText('categories.chat')).toBeInTheDocument();
   });
 
   it('displays Navigation category', () => {
     render(<KeyboardSettings />);
-    expect(screen.getByText('Navigation')).toBeInTheDocument();
+    expect(screen.getByText('categories.navigation')).toBeInTheDocument();
   });
 
   it('displays Editing category', () => {
     render(<KeyboardSettings />);
-    expect(screen.getByText('Editing')).toBeInTheDocument();
+    expect(screen.getByText('categories.editing')).toBeInTheDocument();
   });
 
   it('displays System category', () => {
     render(<KeyboardSettings />);
-    expect(screen.getByText('System')).toBeInTheDocument();
+    expect(screen.getByText('categories.system')).toBeInTheDocument();
   });
 
   it('displays shortcut descriptions', () => {

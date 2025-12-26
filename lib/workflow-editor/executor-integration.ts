@@ -1,0 +1,202 @@
+/**
+ * Workflow Editor Executor Integration
+ * Connects the visual workflow editor with the existing workflow executor
+ */
+
+import { visualToDefinition } from './converter';
+import {
+  executeWorkflow,
+  createWorkflowExecution,
+  pauseWorkflow,
+  resumeWorkflow,
+  cancelWorkflow,
+  getGlobalWorkflowRegistry,
+  type WorkflowExecutorConfig,
+  type WorkflowExecutorCallbacks,
+  type WorkflowExecutorResult,
+} from '@/lib/ai/workflows';
+import type { VisualWorkflow } from '@/types/workflow-editor';
+import type { WorkflowExecution, WorkflowDefinition } from '@/types/workflow';
+
+// Store for active executions
+const activeExecutions = new Map<string, WorkflowExecution>();
+
+/**
+ * Execute a visual workflow
+ */
+export async function executeVisualWorkflow(
+  workflow: VisualWorkflow,
+  input: Record<string, unknown>,
+  config: WorkflowExecutorConfig,
+  callbacks?: WorkflowExecutorCallbacks
+): Promise<WorkflowExecutorResult> {
+  // Convert visual workflow to executable definition
+  const definition = visualToDefinition(workflow);
+
+  // Register the workflow
+  const registry = getGlobalWorkflowRegistry();
+  registry.register(definition);
+
+  // Create a session ID for this execution
+  const sessionId = `visual-${workflow.id}-${Date.now()}`;
+
+  try {
+    // Execute the workflow using the correct signature
+    const result = await executeWorkflow(
+      definition.id,
+      sessionId,
+      input,
+      config,
+      callbacks
+    );
+
+    // Store the execution for pause/resume/cancel
+    activeExecutions.set(result.execution.id, result.execution);
+
+    return result;
+  } catch (error) {
+    throw error;
+  }
+}
+
+/**
+ * Create a workflow execution for a visual workflow
+ */
+export function createVisualWorkflowExecution(
+  workflow: VisualWorkflow,
+  input: Record<string, unknown> = {}
+): WorkflowExecution {
+  const definition = visualToDefinition(workflow);
+  return createWorkflowExecution(definition, `visual-${workflow.id}`, input, {});
+}
+
+/**
+ * Get the workflow definition from a visual workflow
+ */
+export function getWorkflowDefinition(workflow: VisualWorkflow): WorkflowDefinition {
+  return visualToDefinition(workflow);
+}
+
+/**
+ * Pause a running workflow execution
+ */
+export function pauseVisualWorkflow(executionId: string): void {
+  const execution = activeExecutions.get(executionId);
+  if (execution) {
+    pauseWorkflow(execution);
+  }
+}
+
+/**
+ * Resume a paused workflow execution
+ */
+export function resumeVisualWorkflow(executionId: string): void {
+  const execution = activeExecutions.get(executionId);
+  if (execution) {
+    resumeWorkflow(execution);
+  }
+}
+
+/**
+ * Cancel a running workflow execution
+ */
+export function cancelVisualWorkflow(executionId: string): void {
+  const execution = activeExecutions.get(executionId);
+  if (execution) {
+    cancelWorkflow(execution);
+  }
+}
+
+/**
+ * Validate a visual workflow before execution
+ */
+export function validateVisualWorkflow(workflow: VisualWorkflow): {
+  isValid: boolean;
+  errors: Array<{ nodeId?: string; message: string; severity: 'error' | 'warning' }>;
+} {
+  const errors: Array<{ nodeId?: string; message: string; severity: 'error' | 'warning' }> = [];
+
+  // Check for start node
+  const startNodes = workflow.nodes.filter((n) => n.type === 'start');
+  if (startNodes.length === 0) {
+    errors.push({ message: 'Workflow must have a start node', severity: 'error' });
+  } else if (startNodes.length > 1) {
+    errors.push({ message: 'Workflow can only have one start node', severity: 'error' });
+  }
+
+  // Check for end node
+  const endNodes = workflow.nodes.filter((n) => n.type === 'end');
+  if (endNodes.length === 0) {
+    errors.push({ message: 'Workflow must have an end node', severity: 'error' });
+  } else if (endNodes.length > 1) {
+    errors.push({ message: 'Workflow can only have one end node', severity: 'error' });
+  }
+
+  // Check for disconnected nodes
+  const connectedNodes = new Set<string>();
+  workflow.edges.forEach((edge) => {
+    connectedNodes.add(edge.source);
+    connectedNodes.add(edge.target);
+  });
+
+  workflow.nodes.forEach((node) => {
+    if (!connectedNodes.has(node.id) && workflow.nodes.length > 1) {
+      errors.push({
+        nodeId: node.id,
+        message: `Node "${node.data.label}" is not connected to the workflow`,
+        severity: 'warning',
+      });
+    }
+  });
+
+  // Check for unconfigured nodes
+  workflow.nodes.forEach((node) => {
+    if (!node.data.isConfigured && node.type !== 'start' && node.type !== 'end') {
+      errors.push({
+        nodeId: node.id,
+        message: `Node "${node.data.label}" is not fully configured`,
+        severity: 'warning',
+      });
+    }
+  });
+
+  // Check for cycles (simple check)
+  const visited = new Set<string>();
+  const recursionStack = new Set<string>();
+
+  function hasCycle(nodeId: string): boolean {
+    if (recursionStack.has(nodeId)) return true;
+    if (visited.has(nodeId)) return false;
+
+    visited.add(nodeId);
+    recursionStack.add(nodeId);
+
+    const outgoingEdges = workflow.edges.filter((e) => e.source === nodeId);
+    for (const edge of outgoingEdges) {
+      if (hasCycle(edge.target)) return true;
+    }
+
+    recursionStack.delete(nodeId);
+    return false;
+  }
+
+  if (startNodes.length > 0 && hasCycle(startNodes[0].id)) {
+    errors.push({ message: 'Workflow contains a cycle', severity: 'error' });
+  }
+
+  return {
+    isValid: !errors.some((e) => e.severity === 'error'),
+    errors,
+  };
+}
+
+// Named exports for all functions
+export const executorIntegration = {
+  executeVisualWorkflow,
+  createVisualWorkflowExecution,
+  getWorkflowDefinition,
+  pauseVisualWorkflow,
+  resumeVisualWorkflow,
+  cancelVisualWorkflow,
+  validateVisualWorkflow,
+};

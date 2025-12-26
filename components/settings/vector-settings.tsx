@@ -122,6 +122,9 @@ export function VectorSettings() {
                 value={settings.chunkSize}
                 onChange={(e) => updateSettings({ chunkSize: Number(e.target.value) || 0 })}
               />
+              <p className="text-xs text-muted-foreground">
+                Characters per chunk (recommended: 500-2000)
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Chunk overlap</Label>
@@ -131,6 +134,9 @@ export function VectorSettings() {
                 value={settings.chunkOverlap}
                 onChange={(e) => updateSettings({ chunkOverlap: Number(e.target.value) || 0 })}
               />
+              <p className="text-xs text-muted-foreground">
+                Overlap between chunks (recommended: 10-20% of chunk size)
+              </p>
             </div>
           </div>
 

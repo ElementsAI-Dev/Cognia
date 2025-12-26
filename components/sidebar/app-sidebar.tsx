@@ -5,7 +5,7 @@
  * Provides navigation, session list, search, and settings access
  */
 
-import { Plus, Settings, Moon, Sun, Monitor, MessageSquare, MoreHorizontal, Pencil, Trash2, Copy, Search, X, FolderKanban, Keyboard, Pin, PinOff, Wand2, ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
+import { Plus, Settings, Moon, Sun, Monitor, MessageSquare, MoreHorizontal, Pencil, Trash2, Copy, Search, X, FolderKanban, Keyboard, Pin, PinOff, Wand2, ChevronDown, ChevronRight, Sparkles, Workflow } from 'lucide-react';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
@@ -374,12 +374,20 @@ export function AppSidebar() {
                 </div>
               </Link>
             </div>
-            <Link href="/skills" className="block">
-              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:border-accent">
-                <Sparkles className="h-4 w-4 text-amber-500" />
-                <span>{t('skills')}</span>
-              </div>
-            </Link>
+            <div className="flex gap-2">
+              <Link href="/skills" className="flex-1">
+                <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:border-accent">
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                  <span>{t('skills')}</span>
+                </div>
+              </Link>
+              <Link href="/workflows" className="flex-1">
+                <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:border-accent">
+                  <Workflow className="h-4 w-4 text-green-500" />
+                  <span>{t('workflows')}</span>
+                </div>
+              </Link>
+            </div>
           </div>
         )}
 
@@ -408,6 +416,14 @@ export function AppSidebar() {
                   <Link href="/skills">
                     <Sparkles className="h-4 w-4 text-amber-500" />
                     <span>Skills</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip={t('workflows')}>
+                  <Link href="/workflows">
+                    <Workflow className="h-4 w-4 text-green-500" />
+                    <span>Workflows</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

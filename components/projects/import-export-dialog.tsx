@@ -115,7 +115,7 @@ export function ImportExportDialog({
     } finally {
       setIsProcessing(false);
     }
-  }, [selectedProjects, projects, onOpenChange]);
+  }, [selectedProjects, projects, onOpenChange, tToasts]);
 
   const handleExportZip = useCallback(async () => {
     if (selectedProjects.length === 0) {
@@ -140,7 +140,7 @@ export function ImportExportDialog({
     } finally {
       setIsProcessing(false);
     }
-  }, [selectedProjects, projects, onOpenChange]);
+  }, [selectedProjects, projects, onOpenChange, tToasts]);
 
   const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -208,7 +208,7 @@ export function ImportExportDialog({
         fileInputRef.current.value = '';
       }
     }
-  }, [createProject, importProjects]);
+  }, [createProject, importProjects, tToasts]);
 
   const handleDrop = useCallback(
     (event: React.DragEvent) => {
@@ -226,7 +226,7 @@ export function ImportExportDialog({
         toast.error(tToasts('invalidFileType'));
       }
     },
-    []
+    [tToasts]
   );
 
   return (

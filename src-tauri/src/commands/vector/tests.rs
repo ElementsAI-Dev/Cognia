@@ -610,17 +610,18 @@ mod tests {
             offset: None,
             limit: None,
             filters: None,
+            filter_mode: None,
         };
 
         let result = search_points_impl(&state, search_payload);
         assert!(result.is_ok());
-        let results = result.unwrap();
-        assert_eq!(results.len(), 2);
+        let response = result.unwrap();
+        assert_eq!(response.results.len(), 2);
         
         // Results should be ordered by score (highest first)
-        assert_eq!(results[0].id, "point1"); // Should have higher similarity
-        assert!(results[0].score > results[1].score);
-        assert_eq!(results[1].id, "point2");
+        assert_eq!(response.results[0].id, "point1"); // Should have higher similarity
+        assert!(response.results[0].score > response.results[1].score);
+        assert_eq!(response.results[1].id, "point2");
     }
 
     #[test]
@@ -661,13 +662,14 @@ mod tests {
             offset: None,
             limit: None,
             filters: None,
+            filter_mode: None,
         };
 
         let result = search_points_impl(&state, search_payload);
         assert!(result.is_ok());
-        let results = result.unwrap();
-        assert_eq!(results.len(), 1); // Should filter out low similarity result
-        assert_eq!(results[0].id, "high_sim");
+        let response = result.unwrap();
+        assert_eq!(response.results.len(), 1); // Should filter out low similarity result
+        assert_eq!(response.results[0].id, "high_sim");
     }
 
     #[test]
@@ -734,14 +736,15 @@ mod tests {
             offset: None,
             limit: None,
             filters: Some(equals_filter),
+            filter_mode: None,
         };
 
         let result = search_points_impl(&state, search_payload);
         assert!(result.is_ok());
-        let results = result.unwrap();
-        assert_eq!(results.len(), 2); // Should only return science docs
-        for result in &results {
-            assert!(result.id == "doc1" || result.id == "doc3");
+        let response = result.unwrap();
+        assert_eq!(response.results.len(), 2); // Should only return science docs
+        for r in &response.results {
+            assert!(r.id == "doc1" || r.id == "doc3");
         }
 
         // Test contains filter
@@ -759,13 +762,14 @@ mod tests {
             offset: None,
             limit: None,
             filters: Some(contains_filter),
+            filter_mode: None,
         };
 
         let result = search_points_impl(&state, search_payload);
         assert!(result.is_ok());
-        let results = result.unwrap();
-        assert_eq!(results.len(), 1); // Should only return doc with "Research" in title
-        assert_eq!(results[0].id, "doc1");
+        let response = result.unwrap();
+        assert_eq!(response.results.len(), 1); // Should only return doc with "Research" in title
+        assert_eq!(response.results[0].id, "doc1");
 
         // Test greater_than filter
         let gt_filter = vec![PayloadFilter {
@@ -782,12 +786,13 @@ mod tests {
             offset: None,
             limit: None,
             filters: Some(gt_filter),
+            filter_mode: None,
         };
 
         let result = search_points_impl(&state, search_payload);
         assert!(result.is_ok());
-        let results = result.unwrap();
-        assert_eq!(results.len(), 2); // doc1 (95) and doc3 (92)
+        let response = result.unwrap();
+        assert_eq!(response.results.len(), 2); // doc1 (95) and doc3 (92)
         
         // Test multiple filters (AND logic)
         let multiple_filters = vec![
@@ -811,13 +816,14 @@ mod tests {
             offset: None,
             limit: None,
             filters: Some(multiple_filters),
+            filter_mode: None,
         };
 
         let result = search_points_impl(&state, search_payload);
         assert!(result.is_ok());
-        let results = result.unwrap();
-        assert_eq!(results.len(), 1); // Only doc1 matches both filters
-        assert_eq!(results[0].id, "doc1");
+        let response = result.unwrap();
+        assert_eq!(response.results.len(), 1); // Only doc1 matches both filters
+        assert_eq!(response.results[0].id, "doc1");
     }
 
     #[test]
@@ -854,14 +860,15 @@ mod tests {
             offset: Some(1), // Skip first result
             limit: Some(2), // Take next 2
             filters: None,
+            filter_mode: None,
         };
 
         let result = search_points_impl(&state, search_payload);
         assert!(result.is_ok());
-        let results = result.unwrap();
-        assert_eq!(results.len(), 2); // Should return exactly 2 results
-        assert_eq!(results[0].id, "point1"); // Second highest similarity
-        assert_eq!(results[1].id, "point2"); // Third highest similarity
+        let response = result.unwrap();
+        assert_eq!(response.results.len(), 2); // Should return exactly 2 results
+        assert_eq!(response.results[0].id, "point1"); // Second highest similarity
+        assert_eq!(response.results[1].id, "point2"); // Third highest similarity
 
         // Test offset beyond results
         let search_payload = SearchPayload {
@@ -872,12 +879,13 @@ mod tests {
             offset: Some(10), // Beyond available results
             limit: Some(5),
             filters: None,
+            filter_mode: None,
         };
 
         let result = search_points_impl(&state, search_payload);
         assert!(result.is_ok());
-        let results = result.unwrap();
-        assert_eq!(results.len(), 0); // Should return empty results
+        let response = result.unwrap();
+        assert_eq!(response.results.len(), 0); // Should return empty results
     }
 
     #[test]
@@ -939,6 +947,7 @@ mod tests {
             offset: None,
             limit: None,
             filters: None,
+            filter_mode: None,
         };
 
         let result = search_points_impl(&state, search_payload);
@@ -1320,5 +1329,467 @@ mod tests {
         assert_eq!(point2.vector, vec![1.0, 0.0, -1.0]);
         assert_eq!(point2.payload.as_ref().unwrap()["unicode"], "测试 🚀 émojis");
         assert_eq!(point2.payload.as_ref().unwrap()["special_chars"], "\"quotes\" & <tags> & 'apostrophes'");
+    }
+
+    // ============ Tests for new commands ============
+
+    #[test]
+    fn test_delete_all_points() {
+        let state = create_test_state();
+        
+        // Create collection
+        let payload = CreateCollectionPayload {
+            name: "delete_all_test".to_string(),
+            dimension: 3,
+            metadata: None,
+            description: None,
+            embedding_model: None,
+            embedding_provider: None,
+        };
+        create_collection_impl(&state, payload).unwrap();
+
+        // Add some points
+        let points = vec![
+            UpsertPoint {
+                id: "p1".to_string(),
+                vector: vec![1.0, 0.0, 0.0],
+                payload: Some(json!({"content": "test1"})),
+            },
+            UpsertPoint {
+                id: "p2".to_string(),
+                vector: vec![0.0, 1.0, 0.0],
+                payload: Some(json!({"content": "test2"})),
+            },
+            UpsertPoint {
+                id: "p3".to_string(),
+                vector: vec![0.0, 0.0, 1.0],
+                payload: Some(json!({"content": "test3"})),
+            },
+        ];
+        upsert_points_impl(&state, "delete_all_test".to_string(), points).unwrap();
+
+        // Verify points exist
+        {
+            let data = state.data.lock();
+            assert_eq!(data.points["delete_all_test"].len(), 3);
+        }
+
+        // Delete all points
+        let result = delete_all_points_impl(&state, "delete_all_test".to_string());
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 3); // Should return count of deleted points
+
+        // Verify points are deleted but collection still exists
+        let data = state.data.lock();
+        assert!(data.collections.contains_key("delete_all_test"));
+        assert_eq!(data.points["delete_all_test"].len(), 0);
+        assert_eq!(data.collections["delete_all_test"].document_count, 0);
+    }
+
+    #[test]
+    fn test_delete_all_points_nonexistent_collection() {
+        let state = create_test_state();
+        
+        let result = delete_all_points_impl(&state, "nonexistent".to_string());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Collection not found"));
+    }
+
+    #[test]
+    fn test_stats() {
+        let state = create_test_state();
+        
+        // Create two collections with different point counts
+        let payload1 = CreateCollectionPayload {
+            name: "stats_test1".to_string(),
+            dimension: 3,
+            metadata: None,
+            description: None,
+            embedding_model: None,
+            embedding_provider: None,
+        };
+        create_collection_impl(&state, payload1).unwrap();
+
+        let payload2 = CreateCollectionPayload {
+            name: "stats_test2".to_string(),
+            dimension: 3,
+            metadata: None,
+            description: None,
+            embedding_model: None,
+            embedding_provider: None,
+        };
+        create_collection_impl(&state, payload2).unwrap();
+
+        // Add points to first collection
+        let points1 = vec![
+            UpsertPoint {
+                id: "p1".to_string(),
+                vector: vec![1.0, 0.0, 0.0],
+                payload: None,
+            },
+            UpsertPoint {
+                id: "p2".to_string(),
+                vector: vec![0.0, 1.0, 0.0],
+                payload: None,
+            },
+        ];
+        upsert_points_impl(&state, "stats_test1".to_string(), points1).unwrap();
+
+        // Add points to second collection
+        let points2 = vec![
+            UpsertPoint {
+                id: "p3".to_string(),
+                vector: vec![0.0, 0.0, 1.0],
+                payload: None,
+            },
+        ];
+        upsert_points_impl(&state, "stats_test2".to_string(), points2).unwrap();
+
+        // Get stats
+        let result = stats_impl(&state);
+        assert!(result.is_ok());
+        let stats = result.unwrap();
+        
+        assert_eq!(stats.collection_count, 2);
+        assert_eq!(stats.total_points, 3);
+        assert!(!stats.storage_path.is_empty());
+    }
+
+    #[test]
+    fn test_scroll_points() {
+        let state = create_test_state();
+        
+        // Create collection
+        let payload = CreateCollectionPayload {
+            name: "scroll_test".to_string(),
+            dimension: 3,
+            metadata: None,
+            description: None,
+            embedding_model: None,
+            embedding_provider: None,
+        };
+        create_collection_impl(&state, payload).unwrap();
+
+        // Add 10 points
+        let points: Vec<UpsertPoint> = (0..10).map(|i| UpsertPoint {
+            id: format!("p{}", i),
+            vector: vec![i as f64, 0.0, 0.0],
+            payload: Some(json!({"index": i})),
+        }).collect();
+        upsert_points_impl(&state, "scroll_test".to_string(), points).unwrap();
+
+        // Scroll first page
+        let result1 = scroll_points_impl(&state, ScrollPayload {
+            collection: "scroll_test".to_string(),
+            offset: Some(0),
+            limit: Some(3),
+            filters: None,
+            filter_mode: None,
+        });
+        assert!(result1.is_ok());
+        let response1 = result1.unwrap();
+        assert_eq!(response1.points.len(), 3);
+        assert_eq!(response1.total, 10);
+        assert_eq!(response1.offset, 0);
+        assert_eq!(response1.limit, 3);
+        assert!(response1.has_more);
+
+        // Scroll second page
+        let result2 = scroll_points_impl(&state, ScrollPayload {
+            collection: "scroll_test".to_string(),
+            offset: Some(3),
+            limit: Some(3),
+            filters: None,
+            filter_mode: None,
+        });
+        assert!(result2.is_ok());
+        let response2 = result2.unwrap();
+        assert_eq!(response2.points.len(), 3);
+        assert!(response2.has_more);
+
+        // Scroll last page
+        let result3 = scroll_points_impl(&state, ScrollPayload {
+            collection: "scroll_test".to_string(),
+            offset: Some(9),
+            limit: Some(3),
+            filters: None,
+            filter_mode: None,
+        });
+        assert!(result3.is_ok());
+        let response3 = result3.unwrap();
+        assert_eq!(response3.points.len(), 1);
+        assert!(!response3.has_more);
+    }
+
+    #[test]
+    fn test_search_response_with_total() {
+        let state = create_test_state();
+        
+        // Create collection
+        let payload = CreateCollectionPayload {
+            name: "search_total_test".to_string(),
+            dimension: 3,
+            metadata: None,
+            description: None,
+            embedding_model: None,
+            embedding_provider: None,
+        };
+        create_collection_impl(&state, payload).unwrap();
+
+        // Add points
+        let points: Vec<UpsertPoint> = (0..5).map(|i| UpsertPoint {
+            id: format!("p{}", i),
+            vector: vec![1.0, 0.0, 0.0],
+            payload: Some(json!({"content": format!("test{}", i)})),
+        }).collect();
+        upsert_points_impl(&state, "search_total_test".to_string(), points).unwrap();
+
+        // Search with pagination
+        let result = search_points_impl(&state, SearchPayload {
+            collection: "search_total_test".to_string(),
+            vector: vec![1.0, 0.0, 0.0],
+            top_k: Some(10),
+            score_threshold: None,
+            offset: Some(0),
+            limit: Some(2),
+            filters: None,
+            filter_mode: None,
+        });
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        
+        assert_eq!(response.results.len(), 2);
+        assert_eq!(response.total, 5);
+        assert_eq!(response.offset, 0);
+        assert_eq!(response.limit, 2);
+    }
+
+    #[test]
+    fn test_filter_or_mode() {
+        let state = create_test_state();
+        
+        // Create collection
+        let payload = CreateCollectionPayload {
+            name: "filter_or_test".to_string(),
+            dimension: 3,
+            metadata: None,
+            description: None,
+            embedding_model: None,
+            embedding_provider: None,
+        };
+        create_collection_impl(&state, payload).unwrap();
+
+        // Add points with different types
+        let points = vec![
+            UpsertPoint {
+                id: "p1".to_string(),
+                vector: vec![1.0, 0.0, 0.0],
+                payload: Some(json!({"type": "A", "value": 10})),
+            },
+            UpsertPoint {
+                id: "p2".to_string(),
+                vector: vec![1.0, 0.0, 0.0],
+                payload: Some(json!({"type": "B", "value": 20})),
+            },
+            UpsertPoint {
+                id: "p3".to_string(),
+                vector: vec![1.0, 0.0, 0.0],
+                payload: Some(json!({"type": "C", "value": 30})),
+            },
+        ];
+        upsert_points_impl(&state, "filter_or_test".to_string(), points).unwrap();
+
+        // Search with OR filter (type=A OR type=B)
+        let result = search_points_impl(&state, SearchPayload {
+            collection: "filter_or_test".to_string(),
+            vector: vec![1.0, 0.0, 0.0],
+            top_k: Some(10),
+            score_threshold: None,
+            offset: None,
+            limit: None,
+            filters: Some(vec![
+                PayloadFilter {
+                    key: "type".to_string(),
+                    value: json!("A"),
+                    operation: "equals".to_string(),
+                },
+                PayloadFilter {
+                    key: "type".to_string(),
+                    value: json!("B"),
+                    operation: "equals".to_string(),
+                },
+            ]),
+            filter_mode: Some("or".to_string()),
+        });
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        
+        assert_eq!(response.total, 2);
+        let ids: Vec<&str> = response.results.iter().map(|r| r.id.as_str()).collect();
+        assert!(ids.contains(&"p1"));
+        assert!(ids.contains(&"p2"));
+        assert!(!ids.contains(&"p3"));
+    }
+
+    #[test]
+    fn test_extended_filter_operations() {
+        let state = create_test_state();
+        
+        // Create collection
+        let payload = CreateCollectionPayload {
+            name: "extended_filter_test".to_string(),
+            dimension: 3,
+            metadata: None,
+            description: None,
+            embedding_model: None,
+            embedding_provider: None,
+        };
+        create_collection_impl(&state, payload).unwrap();
+
+        // Add points with various payload types
+        let points = vec![
+            UpsertPoint {
+                id: "p1".to_string(),
+                vector: vec![1.0, 0.0, 0.0],
+                payload: Some(json!({"name": "hello world", "tags": ["a", "b"], "value": 10})),
+            },
+            UpsertPoint {
+                id: "p2".to_string(),
+                vector: vec![1.0, 0.0, 0.0],
+                payload: Some(json!({"name": "goodbye", "tags": ["c", "d"], "value": 20})),
+            },
+            UpsertPoint {
+                id: "p3".to_string(),
+                vector: vec![1.0, 0.0, 0.0],
+                payload: Some(json!({"name": "hello there", "tags": ["a", "c"], "value": 30})),
+            },
+        ];
+        upsert_points_impl(&state, "extended_filter_test".to_string(), points).unwrap();
+
+        // Test starts_with
+        let result1 = search_points_impl(&state, SearchPayload {
+            collection: "extended_filter_test".to_string(),
+            vector: vec![1.0, 0.0, 0.0],
+            top_k: Some(10),
+            score_threshold: None,
+            offset: None,
+            limit: None,
+            filters: Some(vec![PayloadFilter {
+                key: "name".to_string(),
+                value: json!("hello"),
+                operation: "starts_with".to_string(),
+            }]),
+            filter_mode: None,
+        });
+        assert!(result1.is_ok());
+        assert_eq!(result1.unwrap().total, 2);
+
+        // Test array contains
+        let result2 = search_points_impl(&state, SearchPayload {
+            collection: "extended_filter_test".to_string(),
+            vector: vec![1.0, 0.0, 0.0],
+            top_k: Some(10),
+            score_threshold: None,
+            offset: None,
+            limit: None,
+            filters: Some(vec![PayloadFilter {
+                key: "tags".to_string(),
+                value: json!("a"),
+                operation: "contains".to_string(),
+            }]),
+            filter_mode: None,
+        });
+        assert!(result2.is_ok());
+        assert_eq!(result2.unwrap().total, 2);
+
+        // Test greater_than_or_equals
+        let result3 = search_points_impl(&state, SearchPayload {
+            collection: "extended_filter_test".to_string(),
+            vector: vec![1.0, 0.0, 0.0],
+            top_k: Some(10),
+            score_threshold: None,
+            offset: None,
+            limit: None,
+            filters: Some(vec![PayloadFilter {
+                key: "value".to_string(),
+                value: json!(20),
+                operation: "greater_than_or_equals".to_string(),
+            }]),
+            filter_mode: None,
+        });
+        assert!(result3.is_ok());
+        assert_eq!(result3.unwrap().total, 2);
+
+        // Test in operator
+        let result4 = search_points_impl(&state, SearchPayload {
+            collection: "extended_filter_test".to_string(),
+            vector: vec![1.0, 0.0, 0.0],
+            top_k: Some(10),
+            score_threshold: None,
+            offset: None,
+            limit: None,
+            filters: Some(vec![PayloadFilter {
+                key: "value".to_string(),
+                value: json!([10, 30]),
+                operation: "in".to_string(),
+            }]),
+            filter_mode: None,
+        });
+        assert!(result4.is_ok());
+        assert_eq!(result4.unwrap().total, 2);
+    }
+
+    #[test]
+    fn test_vector_validation_nan() {
+        let state = create_test_state();
+        
+        // Create collection
+        let payload = CreateCollectionPayload {
+            name: "nan_test".to_string(),
+            dimension: 3,
+            metadata: None,
+            description: None,
+            embedding_model: None,
+            embedding_provider: None,
+        };
+        create_collection_impl(&state, payload).unwrap();
+
+        // Try to add point with NaN
+        let points = vec![UpsertPoint {
+            id: "nan_point".to_string(),
+            vector: vec![1.0, f64::NAN, 0.0],
+            payload: None,
+        }];
+        let result = upsert_points_impl(&state, "nan_test".to_string(), points);
+        
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("NaN"));
+    }
+
+    #[test]
+    fn test_vector_validation_infinity() {
+        let state = create_test_state();
+        
+        // Create collection
+        let payload = CreateCollectionPayload {
+            name: "inf_test".to_string(),
+            dimension: 3,
+            metadata: None,
+            description: None,
+            embedding_model: None,
+            embedding_provider: None,
+        };
+        create_collection_impl(&state, payload).unwrap();
+
+        // Try to add point with Infinity
+        let points = vec![UpsertPoint {
+            id: "inf_point".to_string(),
+            vector: vec![1.0, f64::INFINITY, 0.0],
+            payload: None,
+        }];
+        let result = upsert_points_impl(&state, "inf_test".to_string(), points);
+        
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Infinity"));
     }
 }

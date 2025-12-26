@@ -71,10 +71,26 @@ export interface CollectionImport {
   }>;
 }
 
+export type FilterOperation = 
+  | 'equals' 
+  | 'not_equals' 
+  | 'contains' 
+  | 'not_contains' 
+  | 'greater_than' 
+  | 'greater_than_or_equals' 
+  | 'less_than' 
+  | 'less_than_or_equals'
+  | 'is_null'
+  | 'is_not_null'
+  | 'starts_with'
+  | 'ends_with'
+  | 'in'
+  | 'not_in';
+
 export interface PayloadFilter {
   key: string;
   value: unknown;
-  operation: 'equals' | 'contains' | 'greater_than' | 'less_than';
+  operation: FilterOperation;
 }
 
 export interface SearchOptions {
@@ -84,6 +100,36 @@ export interface SearchOptions {
   offset?: number;
   limit?: number;
   filters?: PayloadFilter[];
+  filterMode?: 'and' | 'or';
+}
+
+export interface SearchResponse {
+  results: VectorSearchResult[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+export interface ScrollOptions {
+  offset?: number;
+  limit?: number;
+  filters?: PayloadFilter[];
+  filterMode?: 'and' | 'or';
+}
+
+export interface ScrollResponse {
+  documents: VectorDocument[];
+  total: number;
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+}
+
+export interface VectorStats {
+  collectionCount: number;
+  totalPoints: number;
+  storagePath: string;
+  storageSizeBytes: number;
 }
 
 /**
@@ -98,11 +144,24 @@ export interface IVectorStore {
   
   deleteDocuments(collectionName: string, ids: string[]): Promise<void>;
   
+  deleteAllDocuments?(collectionName: string): Promise<number>;
+  
   searchDocuments(
     collectionName: string,
     query: string,
     options?: SearchOptions
   ): Promise<VectorSearchResult[]>;
+  
+  searchDocumentsWithTotal?(
+    collectionName: string,
+    query: string,
+    options?: SearchOptions
+  ): Promise<SearchResponse>;
+  
+  scrollDocuments?(
+    collectionName: string,
+    options?: ScrollOptions
+  ): Promise<ScrollResponse>;
   
   getDocuments(collectionName: string, ids: string[]): Promise<VectorDocument[]>;
   
@@ -130,6 +189,8 @@ export interface IVectorStore {
   listCollections(): Promise<VectorCollectionInfo[]>;
   
   getCollectionInfo(name: string): Promise<VectorCollectionInfo>;
+  
+  getStats?(): Promise<VectorStats>;
 }
 
 /**
@@ -189,12 +250,25 @@ export class NativeVectorStore implements IVectorStore {
     await this.invoke('vector_delete_points', { collection: collectionName, ids });
   }
 
+  async deleteAllDocuments(collectionName: string): Promise<number> {
+    return await this.invoke<number>('vector_delete_all_points', { collection: collectionName });
+  }
+
   async searchDocuments(
     collectionName: string,
     query: string,
     options: SearchOptions = {}
   ): Promise<VectorSearchResult[]> {
-    const { topK = 5, threshold, offset, limit, filters } = options;
+    const response = await this.searchDocumentsWithTotal(collectionName, query, options);
+    return response.results;
+  }
+
+  async searchDocumentsWithTotal(
+    collectionName: string,
+    query: string,
+    options: SearchOptions = {}
+  ): Promise<SearchResponse> {
+    const { topK = 5, threshold, offset, limit, filters, filterMode } = options;
     const queryEmbedding = await generateEmbedding(query, this.config.embeddingConfig, this.config.embeddingApiKey);
     
     const searchPayload = {
@@ -209,19 +283,88 @@ export class NativeVectorStore implements IVectorStore {
         value: f.value,
         operation: f.operation,
       })),
+      filter_mode: filterMode,
     };
     
-    const results = await this.invoke<{ id: string; score: number; payload?: Record<string, unknown> }[]>(
-      'vector_search_points',
-      { payload: searchPayload }
-    );
+    const response = await this.invoke<
+      | { id: string; score: number; payload?: Record<string, unknown> }[]
+      | {
+          results: { id: string; score: number; payload?: Record<string, unknown> }[];
+          total: number;
+          offset: number;
+          limit: number;
+        }
+      | null
+    >('vector_search_points', { payload: searchPayload });
 
-    return (results || []).map((r) => ({
-      id: r.id,
-      content: (r.payload?.content as string) || '',
-      metadata: r.payload,
-      score: r.score,
-    }));
+    // Handle null response
+    if (!response) {
+      return { results: [], total: 0, offset: 0, limit: 0 };
+    }
+
+    // Handle array response (legacy format)
+    if (Array.isArray(response)) {
+      const results = response.map((r) => ({
+        id: r.id,
+        content: (r.payload?.content as string) || '',
+        metadata: r.payload,
+        score: r.score,
+      }));
+      return { results, total: results.length, offset: 0, limit: results.length };
+    }
+
+    // Handle object response (new format)
+    return {
+      results: (response.results || []).map((r) => ({
+        id: r.id,
+        content: (r.payload?.content as string) || '',
+        metadata: r.payload,
+        score: r.score,
+      })),
+      total: response.total ?? 0,
+      offset: response.offset ?? 0,
+      limit: response.limit ?? 0,
+    };
+  }
+
+  async scrollDocuments(
+    collectionName: string,
+    options: ScrollOptions = {}
+  ): Promise<ScrollResponse> {
+    const { offset, limit, filters, filterMode } = options;
+    
+    const response = await this.invoke<{
+      points: { id: string; vector: number[]; payload?: Record<string, unknown> }[];
+      total: number;
+      offset: number;
+      limit: number;
+      has_more: boolean;
+    }>('vector_scroll_points', {
+      payload: {
+        collection: collectionName,
+        offset,
+        limit,
+        filters: filters?.map(f => ({
+          key: f.key,
+          value: f.value,
+          operation: f.operation,
+        })),
+        filter_mode: filterMode,
+      },
+    });
+
+    return {
+      documents: (response.points || []).map((p) => ({
+        id: p.id,
+        content: (p.payload?.content as string) || '',
+        metadata: p.payload,
+        embedding: p.vector,
+      })),
+      total: response.total,
+      offset: response.offset,
+      limit: response.limit,
+      hasMore: response.has_more,
+    };
   }
 
   async getDocuments(collectionName: string, ids: string[]): Promise<VectorDocument[]> {
@@ -329,6 +472,21 @@ export class NativeVectorStore implements IVectorStore {
       description: info.description,
       embeddingModel: info.embedding_model,
       embeddingProvider: info.embedding_provider,
+    };
+  }
+
+  async getStats(): Promise<VectorStats> {
+    const stats = await this.invoke<{
+      collection_count: number;
+      total_points: number;
+      storage_path: string;
+      storage_size_bytes: number;
+    }>('vector_stats');
+    return {
+      collectionCount: stats.collection_count,
+      totalPoints: stats.total_points,
+      storagePath: stats.storage_path,
+      storageSizeBytes: stats.storage_size_bytes,
     };
   }
 }

@@ -1,8 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(pnpm list:*)",
+      "Bash(pnpm add:*)",
+      "Skill(tr:updateDoc)",
+      "Skill(tr:updateDoc:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm build:*)",
+      "Bash(node:*)",
+      "Bash(gh pr list:*)",
+      "Bash(cat:*)",
+      "Bash(npx tsc:*)",
+      "Bash(pnpm test:*)"
     ]
   }
 }

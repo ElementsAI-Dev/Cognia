@@ -10,6 +10,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { cn } from '@/lib/utils';
 import { MermaidBlock } from './renderers/mermaid-block';
 import { VegaLiteBlock } from './renderers/vegalite-block';
@@ -17,6 +18,56 @@ import { CodeBlock } from './renderers/code-block';
 // EnhancedTable is exported for direct use when advanced table features are needed
 export { EnhancedTable } from './renderers/enhanced-table';
 import 'katex/dist/katex.min.css';
+
+/**
+ * Custom sanitization schema for HTML in markdown
+ * Extends default schema to allow additional safe elements and attributes
+ * while blocking dangerous content like scripts, event handlers, and unsafe protocols
+ */
+const sanitizeSchema = {
+  ...defaultSchema,
+  // Allow additional safe HTML elements
+  tagNames: [
+    ...defaultSchema.tagNames,
+    'div', 'span', 'summary', 'details', 'figure', 'figcaption', 'sup', 'sub'
+  ],
+  // Allow additional safe attributes
+  attributes: {
+    ...defaultSchema.attributes,
+    // Allow common styling attributes
+    '*': [
+      ...(defaultSchema.attributes['*'] || []),
+      'className', 'class', 'style'
+    ],
+    // Allow specific attributes for links
+    a: [
+      ...(defaultSchema.attributes.a || []),
+      'className', 'class'
+    ],
+    // Allow specific attributes for images
+    img: [
+      ...(defaultSchema.attributes.img || []),
+      'className', 'class', 'loading'
+    ],
+    // Allow table-specific attributes
+    th: [
+      ...(defaultSchema.attributes.th || []),
+      'className', 'class', 'rowSpan', 'colSpan'
+    ],
+    td: [
+      ...(defaultSchema.attributes.th || []),
+      'className', 'class', 'rowSpan', 'colSpan'
+    ]
+  },
+  // Explicitly forbid dangerous protocols (javascript:, data:, etc.)
+  protocols: {
+    ...defaultSchema.protocols,
+    // Only allow safe protocols for href
+    href: ['http', 'https', 'mailto'],
+    // Only allow safe protocols for src
+    src: ['http', 'https', 'data:image']
+  }
+};
 
 interface MarkdownRendererProps {
   content: string;
@@ -44,7 +95,10 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
   }, [enableMath]);
 
   const rehypePlugins = useMemo(() => {
-    const plugins: Parameters<typeof ReactMarkdown>[0]['rehypePlugins'] = [rehypeRaw];
+    const plugins: Parameters<typeof ReactMarkdown>[0]['rehypePlugins'] = [
+      rehypeRaw,
+      [rehypeSanitize, sanitizeSchema] // Sanitize HTML to prevent XSS
+    ];
     if (enableMath) {
       plugins.push(rehypeKatex);
     }

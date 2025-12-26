@@ -5,6 +5,50 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { DesktopSettings } from './desktop-settings';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string, params?: Record<string, string>) => {
+    const translations: Record<string, string> = {
+      title: 'Desktop Settings',
+      notAvailable: 'These settings are only available in the desktop app',
+      downloadHint: 'Download the desktop app to access these features',
+      downloadApp: 'Download Desktop App',
+      systemInfo: 'System Info',
+      platform: 'Platform',
+      appVersion: 'App Version',
+      unknown: 'Unknown',
+      windowControls: 'Window Controls',
+      windowControlsDesc: 'Control window behavior',
+      alwaysOnTop: 'Always on Top',
+      alwaysOnTopDesc: 'Keep window above other windows',
+      fullscreenMode: 'Fullscreen Mode',
+      fullscreenModeDesc: 'Toggle fullscreen mode',
+      notifications: 'Notifications',
+      notificationsDesc: 'Configure notification settings',
+      enableNotificationsHint: 'Enable notifications to receive alerts',
+      enableNotifications: 'Enable Notifications',
+      enableNotificationsDesc: 'Receive notifications from the app',
+      notificationsEnabled: 'Notifications Enabled',
+      notificationsEnabledBody: 'You will now receive notifications',
+      testNotification: 'Test Notification',
+      testNotificationBody: 'This is a test notification',
+      sendTestNotification: 'Send Test Notification',
+      updates: 'Updates',
+      updatesDesc: 'Check for app updates',
+      downloadingUpdate: 'Downloading update...',
+      updateAvailable: 'Update Available',
+      installUpdate: 'Install Update',
+      checkForUpdates: 'Check for Updates',
+      latestVersion: 'You have the latest version',
+      currentVersion: `Current version: ${params?.version || ''}`,
+      resources: 'Resources',
+      viewOnGitHub: 'View on GitHub',
+      reportIssue: 'Report Issue',
+    };
+    return translations[key] || key;
+  },
+}));
+
 // Mock native utils
 jest.mock('@/lib/native/utils', () => ({
   isTauri: () => false,

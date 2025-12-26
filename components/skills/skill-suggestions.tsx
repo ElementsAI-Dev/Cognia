@@ -278,8 +278,8 @@ export function ActiveSkillsIndicator({
   className,
 }: ActiveSkillsIndicatorProps) {
   const t = useTranslations('skills');
-  const { skills, getActiveSkills } = useSkillStore();
-  const activeSkills = useMemo(() => getActiveSkills(), [getActiveSkills, skills]);
+  const { getActiveSkills } = useSkillStore();
+  const activeSkills = useMemo(() => getActiveSkills(), [getActiveSkills]);
 
   if (activeSkills.length === 0) {
     return null;

@@ -19,7 +19,6 @@ import type {
   PPTGenerationOptions,
   PPTEnhancedOutlineItem,
   PPTEnhancedSlide,
-  PPTMaterial,
   PPTMaterialAnalysis,
   PPTEnhancedGenerationOptions,
   PPTImageStyle,

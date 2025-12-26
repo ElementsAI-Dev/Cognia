@@ -96,6 +96,36 @@ export interface DBMCPServer {
   updatedAt: Date;
 }
 
+export interface DBWorkflow {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  icon?: string;
+  tags?: string; // JSON serialized string[]
+  nodes: string; // JSON serialized WorkflowNode[]
+  edges: string; // JSON serialized WorkflowEdge[]
+  settings?: string; // JSON serialized WorkflowSettings
+  viewport?: string; // JSON serialized Viewport
+  version: number;
+  isTemplate?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface DBWorkflowExecution {
+  id: string;
+  workflowId: string;
+  status: string;
+  input?: string; // JSON serialized Record<string, unknown>
+  output?: string; // JSON serialized Record<string, unknown>
+  nodeStates?: string; // JSON serialized Record<string, NodeExecutionState>
+  logs?: string; // JSON serialized ExecutionLog[]
+  error?: string;
+  startedAt: Date;
+  completedAt?: Date;
+}
+
 // Database class
 class CogniaDB extends Dexie {
   sessions!: EntityTable<DBSession, 'id'>;
@@ -104,6 +134,8 @@ class CogniaDB extends Dexie {
   mcpServers!: EntityTable<DBMCPServer, 'id'>;
   projects!: EntityTable<DBProject, 'id'>;
   knowledgeFiles!: EntityTable<DBKnowledgeFile, 'id'>;
+  workflows!: EntityTable<DBWorkflow, 'id'>;
+  workflowExecutions!: EntityTable<DBWorkflowExecution, 'id'>;
 
   constructor() {
     super('CogniaDB');
@@ -131,6 +163,18 @@ class CogniaDB extends Dexie {
       mcpServers: 'id, name, url, connected',
       projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
       knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
+    });
+
+    // Version 4: Add workflows and workflowExecutions tables
+    this.version(4).stores({
+      sessions: 'id, title, provider, projectId, createdAt, updatedAt',
+      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
+      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
+      mcpServers: 'id, name, url, connected',
+      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
+      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
+      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
+      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
     });
   }
 }

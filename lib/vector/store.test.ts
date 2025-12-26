@@ -23,6 +23,7 @@ jest.mock('@tauri-apps/api/core', () => ({
 Object.defineProperty(window, '__TAURI__', {
   value: {},
   writable: true,
+  configurable: true, // Allow deletion
 });
 
 // Extend Window interface for TypeScript
@@ -118,15 +119,14 @@ describe('NativeVectorStore', () => {
       const originalTauri = window.__TAURI__;
       
       // Completely remove __TAURI__ property
-      if ('__TAURI__' in window) {
-        delete (window as unknown as Record<string, unknown>).__TAURI__;
-      }
+      delete (window as unknown as Record<string, unknown>).__TAURI__;
+      
+      // Verify __TAURI__ is actually removed
+      expect('__TAURI__' in window).toBe(false);
 
       const store = new NativeVectorStore(mockConfig);
       
-      await expect(async () => {
-        await store.createCollection('test');
-      }).rejects.toThrow('Native vector store is only available in Tauri environment');
+      await expect(store.createCollection('test')).rejects.toThrow('Native vector store is only available in Tauri environment');
 
       // Restore for other tests
       if (originalTauri !== undefined) {

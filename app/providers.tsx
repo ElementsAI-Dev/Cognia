@@ -2,6 +2,19 @@
 
 /**
  * App Providers - wraps the app with necessary context providers
+ *
+ * Provider Hierarchy (from outermost to innermost):
+ * 1. ErrorBoundaryProvider - Catches React errors
+ * 2. LoggerProvider - Centralized logging
+ * 3. CacheProvider - Performance optimization
+ * 4. AudioProvider - Voice/audio features
+ * 5. ProviderProvider - Unified AI provider state
+ * 6. I18nProvider - Internationalization
+ * 7. ThemeProvider - Theme management
+ * 8. TooltipProvider - UI tooltips
+ * 9. SkillProvider - Built-in skills
+ * 10. NativeProvider - Desktop functionality
+ * 11. OnboardingProvider - Setup wizard
  */
 
 import { useEffect, useLayoutEffect, useState, useCallback, useMemo } from 'react';
@@ -14,7 +27,15 @@ import { CommandPalette } from '@/components/layout/command-palette';
 import { Toaster } from '@/components/ui/toaster';
 import { KeyboardShortcutsDialog } from '@/components/layout/keyboard-shortcuts-dialog';
 import { SetupWizard } from '@/components/settings/setup-wizard';
-import { SkillProvider } from '@/components/providers/skill-provider';
+import {
+  ErrorBoundaryProvider,
+  LoggerProvider,
+  CacheProvider,
+  AudioProvider,
+  ProviderProvider,
+  SkillProvider,
+  NativeProvider,
+} from '@/components/providers';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -36,12 +57,12 @@ function OnboardingProvider({ children }: { children: React.ReactNode }) {
   // Check if user needs onboarding
   const needsOnboarding = useMemo(() => {
     if (hasCompletedOnboarding) return false;
-    
+
     // Check if at least one provider has a valid API key configured
     const hasConfiguredProvider = Object.entries(providerSettings).some(
       ([id, settings]) => settings?.enabled && (settings?.apiKey || id === 'ollama')
     );
-    
+
     return !hasConfiguredProvider;
   }, [hasCompletedOnboarding, providerSettings]);
 
@@ -182,22 +203,63 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * Main Providers component
+ *
+ * Wraps the application with all necessary context providers in the correct order.
+ * Each provider handles a specific concern and provides functionality to the app.
+ */
 export function Providers({ children }: ProvidersProps) {
   return (
-    <I18nProvider>
-      <ThemeProvider>
-        <TooltipProvider delayDuration={0}>
-          <SkillProvider loadBuiltinSkills={true}>
-            <OnboardingProvider>
-              {children}
-            </OnboardingProvider>
-          </SkillProvider>
-          <CommandPalette />
-          <Toaster />
-          <KeyboardShortcutsDialog />
-        </TooltipProvider>
-      </ThemeProvider>
-    </I18nProvider>
+    <ErrorBoundaryProvider
+      maxRetries={3}
+      showDetails={process.env.NODE_ENV === 'development'}
+    >
+      <LoggerProvider
+        config={{
+          minLevel: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+          enableConsole: true,
+          enableStorage: true,
+          enableRemote: false,
+          maxStorageEntries: 1000,
+          includeStackTrace: process.env.NODE_ENV === 'development',
+        }}
+      >
+        <CacheProvider
+          config={{
+            defaultTTL: 5 * 60 * 1000, // 5 minutes
+            maxSize: 1000,
+            persistToStorage: true,
+            storageKey: 'cognia-cache',
+            cleanupInterval: 60 * 1000, // 1 minute
+          }}
+        >
+          <AudioProvider>
+            <ProviderProvider
+              enableHealthChecks={true}
+              healthCheckInterval={5 * 60 * 1000} // 5 minutes
+            >
+              <I18nProvider>
+                <ThemeProvider>
+                  <TooltipProvider delayDuration={0}>
+                    <SkillProvider loadBuiltinSkills={true}>
+                      <NativeProvider checkUpdatesOnMount={true}>
+                        <OnboardingProvider>
+                          {children}
+                        </OnboardingProvider>
+                      </NativeProvider>
+                    </SkillProvider>
+                    <CommandPalette />
+                    <Toaster />
+                    <KeyboardShortcutsDialog />
+                  </TooltipProvider>
+                </ThemeProvider>
+              </I18nProvider>
+            </ProviderProvider>
+          </AudioProvider>
+        </CacheProvider>
+      </LoggerProvider>
+    </ErrorBoundaryProvider>
   );
 }
 

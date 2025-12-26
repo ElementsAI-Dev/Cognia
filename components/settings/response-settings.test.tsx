@@ -5,6 +5,28 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ResponseSettings } from './response-settings';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      title: 'Response Settings',
+      description: 'Configure how responses are displayed',
+      codeTheme: 'Code Theme',
+      codeFontFamily: 'Code Font',
+      codeFontSize: 'Font Size',
+      lineHeight: 'Line Height',
+      showLineNumbers: 'Show Line Numbers',
+      enableSyntaxHighlight: 'Syntax Highlighting',
+      enableMathRendering: 'Math Rendering',
+      enableMermaidDiagrams: 'Mermaid Diagrams',
+      compactMode: 'Compact Mode',
+      showTimestamps: 'Show Timestamps',
+      showTokenCount: 'Show Token Count',
+    };
+    return translations[key] || key;
+  },
+}));
+
 // Mock stores
 jest.mock('@/stores', () => ({
   useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
@@ -31,6 +53,20 @@ jest.mock('@/stores', () => ({
       setShowTimestamps: jest.fn(),
       showTokenCount: false,
       setShowTokenCount: jest.fn(),
+      mathFontScale: 1.0,
+      setMathFontScale: jest.fn(),
+      mathDisplayAlignment: 'center',
+      setMathDisplayAlignment: jest.fn(),
+      mathShowCopyButton: false,
+      setMathShowCopyButton: jest.fn(),
+      enableVegaLiteCharts: false,
+      setEnableVegaLiteCharts: jest.fn(),
+      mermaidTheme: 'default',
+      setMermaidTheme: jest.fn(),
+      vegaLiteTheme: 'default',
+      setVegaLiteTheme: jest.fn(),
+      codeWordWrap: false,
+      setCodeWordWrap: jest.fn(),
     };
     return selector(state);
   },
@@ -85,46 +121,50 @@ describe('ResponseSettings', () => {
 
   it('displays Code Display section', () => {
     render(<ResponseSettings />);
-    expect(screen.getByText('Code Display')).toBeInTheDocument();
+    // Component renders translation keys
+    expect(screen.getByText('codeDisplay')).toBeInTheDocument();
   });
 
   it('displays Text Display section', () => {
     render(<ResponseSettings />);
-    expect(screen.getByText('Text Display')).toBeInTheDocument();
+    expect(screen.getByText('textDisplay')).toBeInTheDocument();
   });
 
   it('displays Layout Options section', () => {
     render(<ResponseSettings />);
-    expect(screen.getByText('Layout Options')).toBeInTheDocument();
+    expect(screen.getByText('layoutOptions')).toBeInTheDocument();
   });
 
   it('displays Preview section', () => {
     render(<ResponseSettings />);
-    expect(screen.getByText('Preview')).toBeInTheDocument();
+    // Preview card has translation key 'preview'
+    expect(screen.getByText('preview')).toBeInTheDocument();
   });
 
   it('displays Theme selector', () => {
     render(<ResponseSettings />);
-    expect(screen.getByText('Theme')).toBeInTheDocument();
+    // Component renders translation keys
+    expect(screen.getByText('theme')).toBeInTheDocument();
   });
 
   it('displays Font selector', () => {
     render(<ResponseSettings />);
-    expect(screen.getByText('Font')).toBeInTheDocument();
+    expect(screen.getByText('font')).toBeInTheDocument();
   });
 
   it('displays Line Numbers switch', () => {
     render(<ResponseSettings />);
-    expect(screen.getByText('Line Numbers')).toBeInTheDocument();
+    expect(screen.getByText('lineNumbers')).toBeInTheDocument();
   });
 
   it('displays Syntax Highlight switch', () => {
     render(<ResponseSettings />);
-    expect(screen.getByText('Syntax Highlight')).toBeInTheDocument();
+    expect(screen.getByText('syntaxHighlight')).toBeInTheDocument();
   });
 
   it('displays LaTeX switch', () => {
     render(<ResponseSettings />);
+    // Component uses hardcoded label
     expect(screen.getByText('LaTeX')).toBeInTheDocument();
   });
 
@@ -135,16 +175,16 @@ describe('ResponseSettings', () => {
 
   it('displays Compact switch', () => {
     render(<ResponseSettings />);
-    expect(screen.getByText('Compact')).toBeInTheDocument();
+    expect(screen.getByText('compact')).toBeInTheDocument();
   });
 
   it('displays Timestamps switch', () => {
     render(<ResponseSettings />);
-    expect(screen.getByText('Timestamps')).toBeInTheDocument();
+    expect(screen.getByText('timestamps')).toBeInTheDocument();
   });
 
   it('displays Tokens switch', () => {
     render(<ResponseSettings />);
-    expect(screen.getByText('Tokens')).toBeInTheDocument();
+    expect(screen.getByText('tokens')).toBeInTheDocument();
   });
 });

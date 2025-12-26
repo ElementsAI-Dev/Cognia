@@ -119,8 +119,11 @@ pub fn run() {
             commands::vector::vector_get_collection,
             commands::vector::vector_upsert_points,
             commands::vector::vector_delete_points,
+            commands::vector::vector_delete_all_points,
             commands::vector::vector_get_points,
             commands::vector::vector_search_points,
+            commands::vector::vector_scroll_points,
+            commands::vector::vector_stats,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

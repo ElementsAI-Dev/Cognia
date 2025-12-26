@@ -12,10 +12,14 @@ import {
   createVectorStore,
   type IVectorStore,
   type SearchOptions,
+  type SearchResponse,
+  type ScrollOptions,
+  type ScrollResponse,
   type VectorDocument,
   type VectorSearchResult,
   type VectorStoreConfig,
   type VectorCollectionInfo,
+  type VectorStats,
   type PayloadFilter,
   type CollectionExport,
   type CollectionImport,
@@ -47,17 +51,21 @@ export interface UseVectorDBReturn {
   importCollection: (data: CollectionImport, overwrite?: boolean) => Promise<void>;
   listAllCollections: () => Promise<VectorCollectionInfo[]>;
   getCollectionInfo: (name: string) => Promise<VectorCollectionInfo>;
+  getStats: () => Promise<VectorStats | null>;
 
   // Document operations
   addDocument: (content: string, metadata?: Record<string, string | number | boolean>) => Promise<string>;
   addDocumentBatch: (documents: { content: string; metadata?: Record<string, string | number | boolean> }[]) => Promise<string[]>;
   removeDocuments: (ids: string[]) => Promise<void>;
+  removeAllDocuments: () => Promise<number>;
 
   // Search
   search: (query: string, topK?: number) => Promise<VectorSearchResult[]>;
   searchWithThreshold: (query: string, threshold: number, topK?: number) => Promise<VectorSearchResult[]>;
   searchWithOptions: (query: string, options?: SearchOptions) => Promise<VectorSearchResult[]>;
+  searchWithTotal: (query: string, options?: SearchOptions) => Promise<SearchResponse>;
   searchWithFilters: (query: string, filters: PayloadFilter[], options?: Omit<SearchOptions, 'filters'>) => Promise<VectorSearchResult[]>;
+  scrollDocuments: (options?: ScrollOptions) => Promise<ScrollResponse>;
   peek: (topK?: number) => Promise<VectorSearchResult[]>;
 
   // Embedding
@@ -446,6 +454,91 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
     }
   }, [collectionName, store, vectorStore]);
 
+  // Remove all documents (keeps collection)
+  const removeAllDocuments = useCallback(async (): Promise<number> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (!store) throw new Error('Vector store not available');
+      if (!store.deleteAllDocuments) {
+        throw new Error('Vector store does not support deleteAllDocuments');
+      }
+      const count = await store.deleteAllDocuments(collectionName);
+      const collection = vectorStore.collections.find(c => c.name === collectionName);
+      if (collection) {
+        vectorStore.clearDocuments(collection.id);
+      }
+      return count;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove all documents');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [collectionName, store, vectorStore]);
+
+  // Get stats
+  const getStats = useCallback(async (): Promise<VectorStats | null> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (!store) throw new Error('Vector store not available');
+      if (!store.getStats) {
+        return null;
+      }
+      return await store.getStats();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to get stats');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [store]);
+
+  // Search with total count
+  const searchWithTotal = useCallback(async (query: string, options: SearchOptions = {}): Promise<SearchResponse> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (!store) throw new Error('Vector store not available');
+      await store.createCollection(collectionName);
+      if (!store.searchDocumentsWithTotal) {
+        // Fallback: use regular search
+        const results = await store.searchDocuments(collectionName, query, options);
+        return {
+          results,
+          total: results.length,
+          offset: options.offset || 0,
+          limit: options.limit || options.topK || 5,
+        };
+      }
+      return await store.searchDocumentsWithTotal(collectionName, query, options);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Search failed');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [collectionName, store]);
+
+  // Scroll documents
+  const scrollDocuments = useCallback(async (options: ScrollOptions = {}): Promise<ScrollResponse> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (!store) throw new Error('Vector store not available');
+      if (!store.scrollDocuments) {
+        throw new Error('Vector store does not support scrollDocuments');
+      }
+      return await store.scrollDocuments(collectionName, options);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Scroll failed');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [collectionName, store]);
+
   // Auto-initialize if needed
   if (autoInitialize && !isInitialized && !isLoading && !error) {
     createCollection(collectionName).catch(() => {
@@ -465,13 +558,17 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
     importCollection,
     listAllCollections,
     getCollectionInfo,
+    getStats,
     addDocument,
     addDocumentBatch,
     removeDocuments,
+    removeAllDocuments,
     search,
     searchWithThreshold,
     searchWithOptions,
+    searchWithTotal,
     searchWithFilters,
+    scrollDocuments,
     peek,
     embed,
     embedBatch,

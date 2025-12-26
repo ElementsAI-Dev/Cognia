@@ -8,11 +8,12 @@ The tech stack includes: Tailwind CSS v4, shadcn/ui, Zustand state management, D
 
 ## Table of Contents
 
-- [Features](#features)
-- [Architecture](#architecture)
-- [Prerequisites](#prerequisites)
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Tech Stack](#tech-stack)
 - [Quick Start](#quick-start)
-- [Development Guide](#development-guide)
+- [Documentation](#documentation)
+- [Development Workflow](#development-workflow)
 - [Project Structure](#project-structure)
 - [Core Features](#core-features)
   - [AI Model Integration](#ai-model-integration)
@@ -26,9 +27,17 @@ The tech stack includes: Tailwind CSS v4, shadcn/ui, Zustand state management, D
 - [Deployment Guide](#deployment-guide)
 - [Testing Strategy](#testing-strategy)
 - [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
 - [Resources](#resources)
 
-## Features
+## Overview
+
+Cognia is a modern AI-native chat and creation application supporting multiple AI model providers. Built with Next.js 16 and React 19.2 on the frontend, Tauri 2.9 enables cross-platform desktop apps from a single codebase for both web and native deployment.
+
+Cognia provides an intelligent chat interface with advanced features like artifacts generation, canvas editing, conversation branching, MCP integration, and comprehensive data management.
+
+## Key Features
 
 ### AI Capabilities
 
@@ -70,63 +79,139 @@ The tech stack includes: Tailwind CSS v4, shadcn/ui, Zustand state management, D
 - **Native Features**: File system access, system dialogs, clipboard, and more
 - **Offline Operation**: Static export supports offline usage
 
-## Architecture
+## Tech Stack
 
-### Tech Stack
+| Category | Technology | Purpose |
+|----------|-----------|---------|
+| **Frontend Framework** | Next.js 16 (App Router) | React framework with SSR/SSG |
+| | React 19.2 | UI library |
+| | TypeScript 5 | Type safety |
+| **UI Components** | Tailwind CSS v4 | Utility-first CSS |
+| | shadcn/ui + Radix UI | Component library |
+| | Lucide Icons | Icon set |
+| | Monaco Editor | Code editor |
+| | Shiki | Syntax highlighting |
+| **State Management** | Zustand v5 | Client state |
+| | Dexie | IndexedDB wrapper |
+| | localStorage | Persistence |
+| **AI Integration** | Vercel AI SDK v5 | LLM integration |
+| | 7 Providers | Multi-model support |
+| **Desktop** | Tauri 2.9 | Cross-platform apps |
+| | Rust | Native backend |
+| **Visualization** | Recharts | Data charts |
+| | Xyflow | Flow diagrams |
+| | KaTeX | Math formulas |
+| | Mermaid | Diagrams |
+| **Testing** | Jest | Unit testing |
+| | Playwright | E2E testing |
 
-#### Frontend Framework
+## Documentation
 
-- Next.js 16 (App Router)
-- React 19.2
-- TypeScript 5
+Comprehensive documentation is available in the `docs/` directory:
 
-#### UI Components
+### API Documentation
 
-- Tailwind CSS v4 (PostCSS)
-- shadcn/ui + Radix UI (50+ components)
-- Lucide icon library
-- Monaco editor (code editing)
-- Shiki syntax highlighting (30+ languages)
+- **[Component API Reference](docs/api/components.md)** - Complete component catalog with props, usage examples, and features
+  - Chat components (ChatContainer, ChatInput, ChatHeader, WelcomeState)
+  - AI elements (Message, CodeBlock, Reasoning, Artifact)
+  - Artifacts components (ArtifactPanel, CanvasPanel, VersionHistoryPanel)
+  - Settings components (ProviderSettings, McpSettings)
+  - Project components (ProjectList, KnowledgeBase)
+  - UI components (shadcn/radix base components)
 
-#### State Management
+- **[Utilities Reference](docs/api/utilities.md)** - Utility functions and helper libraries
+  - AI integration (client creation, chat hook, auto-router)
+  - Export functions (Markdown, PDF, JSON, HTML, Word, Excel)
+  - Common utilities (cn(), file handling, search, themes)
 
-- Zustand v5 (client state)
-- Dexie (IndexedDB persistence)
-- localStorage persistence middleware
+### Feature Documentation
 
-#### AI Integration
+- **[Configuration Guide](docs/features/configuration.md)** - Complete configuration reference
+  - Environment variables
+  - Provider settings
+  - Appearance customization
+  - Keyboard shortcuts
+  - Speech settings
+  - Data management
+  - Tauri configuration
 
-- Vercel AI SDK v5
-- 7 provider support
-- Streaming response handling
-- Tool calling support
+- **[AI Integration](docs/features/ai-integration.md)** - AI SDK integration details
+- **[Artifacts System](docs/features/artifacts-system.md)** - Artifact generation and management
+- **[Chat Features](docs/features/chat-features.md)** - Chat modes, branching, search
+- **[Projects Management](docs/features/projects-management.md)** - Project organization
+- **[MCP Guide](docs/features/mcp-guide.md)** - Model Context Protocol support
+- **[Advanced Features](docs/features/advanced-features.md)** - Memory, presets, usage tracking
 
-#### Desktop Application
+### Architecture Documentation
 
-- Tauri 2.9 (cross-platform)
-- Rust backend
-- Native capability wrappers
+- **[Overview](docs/architecture/overview.md)** - System architecture overview
+- **[Tech Stack](docs/architecture/tech-stack.md)** - Detailed technology breakdown
+- **[Data Flow](docs/architecture/data-flow.md)** - Data flow diagrams
+- **[MCP Architecture](docs/architecture/mcp-architecture.md)** - MCP system architecture
 
-#### Visualization
+### Development Documentation
 
-- Recharts (data charts)
-- Xyflow (flow diagrams)
-- KaTeX (math formulas)
-- Mermaid (diagrams)
+- **[Getting Started](docs/development/getting-started.md)** - Development setup guide
+- **[Project Structure](docs/development/project-structure.md)** - Directory structure explanation
+- **[Coding Standards](docs/development/coding-standards.md)** - Code style and conventions
+- **[Testing](docs/development/testing.md)** - Testing strategies and guidelines
+- **[Building](docs/development/building.md)** - Build and deployment procedures
+- **[Contributing](docs/development/contributing.md)** - Contribution guidelines
 
-#### Testing
+### Legacy Documentation
 
-- Jest (unit testing)
-- React Testing Library
-- Playwright (end-to-end testing)
+The `llmdoc/` directory contains additional feature documentation:
+- **[Documentation Index](llmdoc/index.md)** - Master documentation index
+- Feature docs for all major systems
 
-### Architecture Principles
+## Development Workflow
 
-- **Static-First**: Production uses static export with no server dependencies
-- **Client-Led**: State management and data persistence handled entirely on the client
-- **Progressive Enhancement**: Web can be enhanced to desktop via Tauri
-- **Type Safety**: Comprehensive TypeScript type system
-- **Component-Based**: Feature modularity and UI component reusability
+### Typical Development Flow
+
+1. Start development server
+
+   ```bash
+   pnpm dev        # Web development
+   pnpm tauri dev  # Desktop development
+   ```
+
+2. Develop in `app/`, `components/`, `lib/`, `stores/`, `hooks/`
+
+3. Add UI components (if needed)
+
+   ```bash
+   pnpm dlx shadcn@latest add <component>
+   ```
+
+4. Code checks
+
+   ```bash
+   pnpm lint
+   pnpm lint:fix
+   ```
+
+5. Run tests
+
+   ```bash
+   pnpm test
+   pnpm test:e2e
+   ```
+
+6. Build verification
+
+   ```bash
+   pnpm build
+   pnpm tauri build
+   ```
+
+### Code Standards
+
+- **TypeScript**: Use strict mode
+- **Components**: Functional components + Hooks
+- **Styling**: Tailwind CSS + cn() utility
+- **State**: Zustand stores + persist
+- **Types**: Use type definitions from `/types/`
+- **Imports**: Use path aliases (@/components, @/lib, etc.)
 
 ## Prerequisites
 
@@ -844,27 +929,33 @@ addSessionToProject(projectId, sessionId);
 
 ## Configuration
 
-### Environment Variables
+For comprehensive configuration details, see the **[Configuration Guide](docs/features/configuration.md)**.
 
-Create a `.env.local` file:
+### Quick Setup
+
+1. **Environment Variables** - Create a `.env.local` file with API keys:
 
 ```env
-# Server-side only (build time)
-DATABASE_URL=postgresql://...
-API_SECRET_KEY=your-secret-key
-
-# Client-accessible (prefixed with NEXT_PUBLIC_)
-NEXT_PUBLIC_APP_NAME=Cognia
-NEXT_PUBLIC_API_URL=https://api.example.com
-
-# AI provider keys
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-GOOGLE_API_KEY=...
-DEEPSEEK_API_KEY=sk-...
-GROQ_API_KEY=gsk_...
-MISTRAL_API_KEY=...
+# AI provider keys (optional - can also be set in UI)
+OPENAI_API_KEY=sk-your-key
+ANTHROPIC_API_KEY=sk-ant-your-key
+GOOGLE_API_KEY=your-key
 ```
+
+2. **Provider Settings** - Configure AI providers in Settings > Providers
+3. **Appearance** - Customize theme and fonts in Settings > Appearance
+4. **Keyboard Shortcuts** - Customize shortcuts in Settings > Keyboard
+5. **Data Management** - Import/export data in Settings > Data
+
+For complete configuration options, including:
+- Provider setup and testing
+- Theme customization
+- Keyboard shortcuts
+- Speech settings
+- MCP configuration
+- Tauri desktop settings
+
+See the **[Configuration Guide](docs/features/configuration.md)**.
 
 **Security Notes**:
 
@@ -1146,77 +1237,10 @@ pnpm install
 
 ### Project Documentation
 
-- [llmdoc/index.md](llmdoc/index.md) - Project documentation index
-- [CLAUDE.md](CLAUDE.md) - Claude AI instructions
-- [CHANGELOG.md](CHANGELOG.md) - Changelog
-
-## Development Workflow
-
-### Typical Development Flow
-
-1. Start development server
-
-   ```bash
-   pnpm dev        # Web development
-   pnpm tauri dev  # Desktop development
-   ```
-
-2. Develop in `app/`, `components/`, `lib/`, `stores/`, `hooks/`
-
-3. Add UI components (if needed)
-
-   ```bash
-   pnpm dlx shadcn@latest add <component>
-   ```
-
-4. Code checks
-
-   ```bash
-   pnpm lint
-   pnpm lint:fix
-   ```
-
-5. Run tests
-
-   ```bash
-   pnpm test
-   pnpm test:e2e
-   ```
-
-6. Build verification
-
-   ```bash
-   pnpm build
-   pnpm tauri build
-   ```
-
-### Code Standards
-
-- **TypeScript**: Use strict mode
-- **Components**: Functional components + Hooks
-- **Styling**: Tailwind CSS + cn() utility
-- **State**: Zustand stores + persist
-- **Types**: Use type definitions from `/types/`
-- **Imports**: Use path aliases (@/components, @/lib, etc.)
-
-### Git Workflow
-
-```bash
-# Create feature branch
-git checkout -b feature/amazing-feature
-
-# Commit changes (use conventional commits)
-git commit -m 'feat: add amazing feature'
-
-# Push branch
-git push origin feature/amazing-feature
-
-# Create Pull Request
-```
-
-## License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) file for details.
+- **[Documentation Index](docs/README.md)** - Main documentation portal
+- **[llmdoc/index.md](llmdoc/index.md)** - Legacy documentation index
+- **[CLAUDE.md](CLAUDE.md)** - Claude AI instructions
+- **[CHANGELOG.md](CHANGELOG.md)** - Changelog
 
 ## Contributing
 
@@ -1227,6 +1251,8 @@ Contributions are welcome! Please follow these steps:
 3. Commit your changes (using conventional commits)
 4. Push to the branch
 5. Create a Pull Request
+
+For detailed guidelines, see **[Contributing Guide](docs/development/contributing.md)**.
 
 ### Conventional Commit Specification
 
@@ -1239,6 +1265,10 @@ refactor: Refactoring
 test: Testing related
 chore: Build/tooling related
 ```
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) file for details.
 
 ---
 
