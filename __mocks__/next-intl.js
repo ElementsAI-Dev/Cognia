@@ -1,6 +1,33 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 // Mock for next-intl ESM module
 const React = require('react');
+const fs = require('fs');
+const path = require('path');
+
+// Load English translations
+let messages = {};
+try {
+  const messagesPath = path.join(__dirname, '..', 'lib', 'i18n', 'messages', 'en.json');
+  if (fs.existsSync(messagesPath)) {
+    messages = JSON.parse(fs.readFileSync(messagesPath, 'utf-8'));
+  }
+} catch {
+  // Fallback to empty messages if file not found
+}
+
+// Helper to get nested value from object
+const getNestedValue = (obj, keyPath) => {
+  const keys = keyPath.split('.');
+  let value = obj;
+  for (const key of keys) {
+    if (value && typeof value === 'object' && key in value) {
+      value = value[key];
+    } else {
+      return null;
+    }
+  }
+  return typeof value === 'string' ? value : null;
+};
 
 const useFormatter = () => ({
   dateTime: jest.fn((date) => date?.toString() || ''),
@@ -8,9 +35,44 @@ const useFormatter = () => ({
   relativeTime: jest.fn(() => 'just now'),
 });
 
-const useTranslations = () => (key) => key;
+// useTranslations returns a function that looks up translations
+const useTranslations = (namespace) => {
+  const t = (key, params) => {
+    // Try to find the translation
+    const fullKey = namespace ? `${namespace}.${key}` : key;
+    let value = getNestedValue(messages, fullKey);
+    
+    // If not found with namespace, try just the key
+    if (!value) {
+      value = getNestedValue(messages, key);
+    }
+    
+    // If still not found, return the key
+    if (!value) {
+      return key;
+    }
+    
+    // Handle interpolation like {count}, {name}, etc.
+    if (params && typeof value === 'string') {
+      return value.replace(/\{(\w+)\}/g, (match, paramName) => {
+        return params[paramName] !== undefined ? String(params[paramName]) : match;
+      });
+    }
+    
+    return value;
+  };
+  
+  // Add raw method for accessing nested keys
+  t.raw = (key) => {
+    const fullKey = namespace ? `${namespace}.${key}` : key;
+    return getNestedValue(messages, fullKey) || key;
+  };
+  
+  return t;
+};
+
 const useLocale = () => 'en';
-const useMessages = () => ({});
+const useMessages = () => messages;
 const useNow = () => new Date();
 const useTimeZone = () => 'UTC';
 
