@@ -32,7 +32,7 @@ export function SkillProvider({
   onInitialized,
 }: SkillProviderProps) {
   const initialized = useRef(false);
-  const { importBuiltinSkills, createSkill, skills } = useSkillStore();
+  const { importBuiltinSkills, createSkill } = useSkillStore();
 
   useEffect(() => {
     // Only initialize once
@@ -40,8 +40,9 @@ export function SkillProvider({
     initialized.current = true;
 
     const initializeSkills = async () => {
-      // Check if skills are already loaded
-      const existingSkillCount = Object.keys(skills).length;
+      // Get current skills count from store directly to avoid dependency issues
+      const currentSkills = useSkillStore.getState().skills;
+      const existingSkillCount = Object.keys(currentSkills).length;
       
       // Load built-in skills if enabled and none exist
       if (loadBuiltinSkills && existingSkillCount === 0) {
@@ -62,7 +63,8 @@ export function SkillProvider({
     };
 
     initializeSkills();
-  }, [loadBuiltinSkills, customSkills, importBuiltinSkills, createSkill, skills, onInitialized]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadBuiltinSkills]);
 
   return <>{children}</>;
 }
@@ -96,7 +98,9 @@ export function useInitializeSkills(options: {
         reset();
       }
 
-      const existingSkillCount = Object.keys(skills).length;
+      // Get current skills from store directly to avoid dependency issues
+      const currentSkills = useSkillStore.getState().skills;
+      const existingSkillCount = Object.keys(currentSkills).length;
       
       if (loadBuiltinSkills && (existingSkillCount === 0 || forceReload)) {
         const builtinSkills = getAllBuiltinSkills();
@@ -113,7 +117,8 @@ export function useInitializeSkills(options: {
     };
 
     initialize();
-  }, [loadBuiltinSkills, customSkills, forceReload, importBuiltinSkills, createSkill, skills, reset]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadBuiltinSkills, forceReload]);
 
   return {
     isInitialized,

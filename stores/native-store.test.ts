@@ -22,7 +22,8 @@ describe('useNativeStore', () => {
       expect(state.isFullscreen).toBe(false);
       expect(state.isMaximized).toBe(false);
       expect(state.updateAvailable).toBe(false);
-      expect(state.shortcuts).toHaveLength(5);
+      // Default shortcuts include selection helpers; keep expectation in sync with store defaults
+      expect(state.shortcuts).toHaveLength(8);
       expect(state.shortcutsEnabled).toBe(true);
     });
   });

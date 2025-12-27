@@ -42,17 +42,18 @@ interface DesignerState {
   // Panel states
   showElementTree: boolean;
   showStylePanel: boolean;
+  showHistoryPanel: boolean;
   activeStyleCategory: string;
 }
 
 interface DesignerActions {
   // Mode
   setMode: (mode: DesignerMode) => void;
-  
+
   // Selection
   selectElement: (id: string | null) => void;
   hoverElement: (id: string | null) => void;
-  
+
   // Element tree
   setElementTree: (tree: DesignerElement | null) => void;
   updateElement: (id: string, updates: Partial<DesignerElement>) => void;
@@ -60,6 +61,11 @@ interface DesignerActions {
   updateElementAttribute: (id: string, key: string, value: string) => void;
   updateElementText: (id: string, text: string) => void;
   deleteElement: (id: string) => void;
+
+  // Drag-drop operations
+  insertElement: (parentId: string | null, element: DesignerElement, index?: number) => void;
+  moveElement: (elementId: string, newParentId: string | null, index?: number) => void;
+  duplicateElement: (elementId: string) => string | null;
   
   // Viewport
   setViewport: (viewport: ViewportSize) => void;
@@ -82,6 +88,7 @@ interface DesignerActions {
   // Panel states
   toggleElementTree: () => void;
   toggleStylePanel: () => void;
+  toggleHistoryPanel: () => void;
   setActiveStyleCategory: (category: string) => void;
   
   // Reset
@@ -104,6 +111,7 @@ const initialState: DesignerState = {
   aiEditPrompt: '',
   showElementTree: true,
   showStylePanel: true,
+  showHistoryPanel: false,
   activeStyleCategory: 'layout',
 };
 
@@ -145,12 +153,92 @@ function deleteElementFromTree(
 ): DesignerElement | null {
   if (!tree) return null;
   if (tree.id === id) return null;
-  
+
   return {
     ...tree,
     children: tree.children
       .map((child) => deleteElementFromTree(child, id))
       .filter((child): child is DesignerElement => child !== null),
+  };
+}
+
+// Helper to insert element as child of parent at index
+function insertElementInTree(
+  tree: DesignerElement | null,
+  parentId: string | null,
+  element: DesignerElement,
+  index?: number
+): DesignerElement | null {
+  if (!tree) {
+    // If no tree exists, the new element becomes the root
+    if (parentId === null) {
+      return element;
+    }
+    return null;
+  }
+
+  // If inserting at root level and tree exists, wrap both in a container
+  if (parentId === null) {
+    return {
+      id: nanoid(),
+      tagName: 'div',
+      className: '',
+      attributes: {},
+      styles: {},
+      children: [tree, element],
+      parentId: null,
+    };
+  }
+
+  if (tree.id === parentId) {
+    const newChildren = [...tree.children];
+    const insertIndex = index !== undefined ? Math.min(index, newChildren.length) : newChildren.length;
+    newChildren.splice(insertIndex, 0, { ...element, parentId });
+    return { ...tree, children: newChildren };
+  }
+
+  return {
+    ...tree,
+    children: tree.children.map((child) =>
+      insertElementInTree(child, parentId, element, index)!
+    ).filter(Boolean),
+  };
+}
+
+// Helper to find element by id
+function findElementInTree(tree: DesignerElement | null, id: string): DesignerElement | null {
+  if (!tree) return null;
+  if (tree.id === id) return tree;
+
+  for (const child of tree.children) {
+    const found = findElementInTree(child, id);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+// Helper to find parent of element
+function findParentInTree(tree: DesignerElement | null, id: string): DesignerElement | null {
+  if (!tree) return null;
+
+  for (const child of tree.children) {
+    if (child.id === id) return tree;
+    const found = findParentInTree(child, id);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+// Helper to deep clone element with new IDs
+function cloneElementWithNewIds(element: DesignerElement, newParentId: string | null): DesignerElement {
+  const newId = nanoid();
+  return {
+    ...element,
+    id: newId,
+    parentId: newParentId,
+    children: element.children.map((child) => cloneElementWithNewIds(child, newId)),
   };
 }
 
@@ -171,10 +259,21 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()((set, 
   },
 
   updateElement: (id, updates) => {
-    const { elementTree } = get();
+    const { elementTree, code: previousCode, syncCodeFromElements, addHistoryEntry } = get();
     const newTree = updateElementInTree(elementTree, id, updates);
     const elementMap = buildElementMap(newTree);
     set({ elementTree: newTree, elementMap, isDirty: true });
+    // Sync code and add history entry
+    syncCodeFromElements();
+    const { code: newCode } = get();
+    if (previousCode !== newCode) {
+      // Determine action type based on what was updated
+      let action = 'Element updated';
+      if ('styles' in updates) action = 'Style changed';
+      else if ('textContent' in updates) action = 'Text changed';
+      else if ('attributes' in updates) action = 'Attribute changed';
+      addHistoryEntry(action, previousCode, newCode);
+    }
   },
 
   updateElementStyle: (id, styles) => {
@@ -203,7 +302,7 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()((set, 
   },
 
   deleteElement: (id) => {
-    const { elementTree, selectedElementId } = get();
+    const { elementTree, selectedElementId, code: previousCode, syncCodeFromElements, addHistoryEntry } = get();
     const newTree = deleteElementFromTree(elementTree, id);
     const elementMap = buildElementMap(newTree);
     set({
@@ -212,6 +311,113 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()((set, 
       isDirty: true,
       selectedElementId: selectedElementId === id ? null : selectedElementId,
     });
+    // Sync code and add history entry
+    syncCodeFromElements();
+    const { code: newCode } = get();
+    if (previousCode !== newCode) {
+      addHistoryEntry('Element deleted', previousCode, newCode);
+    }
+  },
+
+  // Drag-drop operations
+  insertElement: (parentId, element, index) => {
+    const { elementTree, code: previousCode, syncCodeFromElements, addHistoryEntry } = get();
+    const newTree = insertElementInTree(elementTree, parentId, element, index);
+    const elementMap = buildElementMap(newTree);
+    set({
+      elementTree: newTree,
+      elementMap,
+      isDirty: true,
+      selectedElementId: element.id,
+    });
+    // Sync code and add history entry
+    syncCodeFromElements();
+    const { code: newCode } = get();
+    if (previousCode !== newCode) {
+      addHistoryEntry('Element inserted', previousCode, newCode);
+    }
+  },
+
+  moveElement: (elementId, newParentId, index) => {
+    const { elementTree, code: previousCode, syncCodeFromElements, addHistoryEntry } = get();
+    if (!elementTree) return;
+
+    // Find the element to move
+    const element = findElementInTree(elementTree, elementId);
+    if (!element) return;
+
+    // Prevent moving to self or descendant
+    const isDescendant = (parentId: string | null): boolean => {
+      if (parentId === null) return false;
+      if (parentId === elementId) return true;
+      const parent = findElementInTree(elementTree, parentId);
+      return parent ? isDescendant(parent.parentId) : false;
+    };
+
+    if (newParentId && isDescendant(newParentId)) return;
+
+    // Remove from old position
+    const treeAfterRemove = deleteElementFromTree(elementTree, elementId);
+
+    // Insert at new position
+    const elementWithNewParent = { ...element, parentId: newParentId };
+    const newTree = insertElementInTree(treeAfterRemove, newParentId, elementWithNewParent, index);
+    const elementMap = buildElementMap(newTree);
+
+    set({
+      elementTree: newTree,
+      elementMap,
+      isDirty: true,
+    });
+    // Sync code and add history entry
+    syncCodeFromElements();
+    const { code: newCode } = get();
+    if (previousCode !== newCode) {
+      addHistoryEntry('Element moved', previousCode, newCode);
+    }
+  },
+
+  duplicateElement: (elementId) => {
+    const { elementTree, code: previousCode, syncCodeFromElements, addHistoryEntry } = get();
+    if (!elementTree) return null;
+
+    // Find the element and its parent
+    const element = findElementInTree(elementTree, elementId);
+    if (!element) return null;
+
+    const parent = findParentInTree(elementTree, elementId);
+    const parentId = parent?.id ?? null;
+
+    // Find the index of the original element
+    let insertIndex: number | undefined;
+    if (parent) {
+      const originalIndex = parent.children.findIndex((c) => c.id === elementId);
+      if (originalIndex !== -1) {
+        insertIndex = originalIndex + 1;
+      }
+    }
+
+    // Clone with new IDs
+    const cloned = cloneElementWithNewIds(element, parentId);
+
+    // Insert the clone directly (without calling insertElement to avoid double history)
+    const newTree = insertElementInTree(elementTree, parentId, cloned, insertIndex);
+    const elementMap = buildElementMap(newTree);
+    set({
+      elementTree: newTree,
+      elementMap,
+      isDirty: true,
+      selectedElementId: cloned.id,
+    });
+
+    // Sync code and add history entry
+    syncCodeFromElements();
+    const { code: newCode } = get();
+    if (previousCode !== newCode) {
+      addHistoryEntry('Element duplicated', previousCode, newCode);
+    }
+
+    return cloned.id;
   },
 
   // Viewport
@@ -303,6 +509,7 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()((set, 
   // Panel states
   toggleElementTree: () => set((state) => ({ showElementTree: !state.showElementTree })),
   toggleStylePanel: () => set((state) => ({ showStylePanel: !state.showStylePanel })),
+  toggleHistoryPanel: () => set((state) => ({ showHistoryPanel: !state.showHistoryPanel })),
   setActiveStyleCategory: (category) => set({ activeStyleCategory: category }),
 
   // Reset

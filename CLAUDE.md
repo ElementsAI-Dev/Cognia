@@ -4,27 +4,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Cognia is an AI chat application with multi-provider support, built with:
+Cognia is an AI-native chat and creation application with multi-provider support, built as a hybrid web/desktop application:
 
 - **Frontend**: Next.js 16 with React 19.2, TypeScript, and Tailwind CSS v4
-- **Desktop Framework**: Tauri 2.9 for cross-platform desktop app capabilities
+- **Desktop Framework**: Tauri 2.9 for cross-platform desktop apps
 - **UI Components**: shadcn/ui with Radix UI primitives and Lucide icons
 - **State Management**: Zustand stores + Dexie for IndexedDB persistence
-- **AI Integration**: Vercel AI SDK with multiple providers (OpenAI, Anthropic, Google, DeepSeek, Groq, Mistral, Ollama)
+- **AI Integration**: Vercel AI SDK with 14+ providers (OpenAI, Anthropic, Google, DeepSeek, Groq, Mistral, Ollama, xAI, Together AI, OpenRouter, Cohere, Fireworks, Cerebras, SambaNova)
+- **Agent System**: Autonomous agent execution with tool calling, planning, sub-agent orchestration
+- **MCP Support**: Full Model Context Protocol support for extended capabilities
+- **Native Tools**: Desktop-only features (selection, awareness, context, screenshot) on Windows/macOS/Linux
 
 ## Development Commands
 
 ```bash
 # Frontend
-pnpm dev              # Start Next.js dev server
+pnpm dev              # Start Next.js dev server (localhost:3000)
 pnpm build            # Production build (static export to out/)
 pnpm start            # Serve production build
 pnpm lint             # Run ESLint (use --fix to auto-fix)
 
-# Testing
+# Testing - Unit
 pnpm test             # Run Jest unit tests
 pnpm test:watch       # Jest watch mode
-pnpm test:coverage    # Jest with coverage
+pnpm test:coverage    # Jest with coverage (55%+ lines, 50%+ branches)
+
+# Testing - E2E
 pnpm test:e2e         # Run Playwright e2e tests
 pnpm test:e2e:ui      # Playwright UI mode
 pnpm test:e2e:headed  # Playwright headed browser
@@ -35,6 +40,9 @@ pnpm tauri build      # Build desktop binaries
 
 # Adding shadcn components
 pnpm dlx shadcn@latest add <component>
+
+# Type checking
+pnpm exec tsc --noEmit  # TypeScript strict mode check
 ```
 
 ## Architecture
@@ -44,36 +52,34 @@ pnpm dlx shadcn@latest add <component>
 Cognia is a hybrid web/desktop application that:
 1. Runs as a Next.js app during development (`pnpm dev`)
 2. Builds to static HTML for Tauri desktop distribution (`pnpm build`)
-3. Uses Tauri's Rust backend for native capabilities (MCP process management, file system access)
+3. Uses Tauri's Rust backend for native capabilities (MCP process management, file system access, clipboard, screenshots, system monitoring)
 
-**Key constraint**: Production builds use `output: "export"` for static site generation, which means no server-side API routes can be used in deployed desktop apps.
+**Key constraint**: Production builds use `output: "export"` for static site generation (`next.config.ts`). No server-side API routes can be used in deployed desktop apps—Tauri loads static files from `out/`.
+
+**Native Tools**: Desktop-only features including smart text selection, system monitoring, context awareness, and screenshot capture with OCR. See [llmdoc/feature/native-tools-overview.md](llmdoc/feature/native-tools-overview.md) for details.
 
 ### Project Structure
 
-- `app/` — Next.js App Router: `(chat)/`, `settings/`, `designer/`, `projects/`, `api/`
+- `app/` — Next.js App Router: `(chat)/`, `settings/`, `designer/`, `projects/`, `native-tools/`, `image-studio/`, `api/`
 - `components/` — Feature-based:
-  - `ui/` — shadcn/Radix components
-  - `chat/`, `sidebar/`, `settings/`, `artifacts/`, `canvas/`, `designer/`, `projects/`, `presets/`, `agent/`, `ai-elements/`, `export/`, `layout/`, `providers/`
-- `lib/` — Domain utilities: `ai/`, `db/`, `document/`, `export/`, `file/`, `i18n/`, `native/`, `search/`, `themes/`, `vector/`
-- `hooks/` — Custom hooks: `use-agent.ts`, `use-messages.ts`, `use-rag.ts`, `use-vector-db.ts`, etc.
-- `stores/` — Zustand stores: `settings-store.ts`, `session-store.ts`, `project-store.ts`, `artifact-store.ts`, `memory-store.ts`, `usage-store.ts`, `preset-store.ts`, `mcp-store.ts`
-- `types/` — TypeScript definitions: `provider.ts`, `message.ts`, `artifact.ts`, `session.ts`, `memory.ts`, `project.ts`, `preset.ts`, `usage.ts`, `mcp.ts`
-- `e2e/` — Playwright tests: `ai/`, `core/`, `features/`, `ui/`
-- `__mocks__/` — Jest mocks for external dependencies
-- `src-tauri/` — Rust backend for desktop
-
-### Key Technologies
-
-- **Next.js 16** with App Router for React 19.2
-- **Tailwind CSS v4** with PostCSS
-- **AI SDK** (`ai`, `@ai-sdk/*`) for LLM integration
-- **Zustand** for state + **Dexie** for IndexedDB
-- **Tauri 2.9** for desktop apps
-- **Jest** + **Playwright** for testing
+  - `ui/` — shadcn/Radix components (50+)
+  - `chat/`, `sidebar/`, `settings/`, `artifacts/`, `canvas/`, `designer/`, `projects/`, `presets/`
+  - `agent/` — Agent mode components (workflow selector, plan editor, execution steps)
+  - `ai-elements/` — 30+ AI-specific components (message, code block, reasoning, artifact, plan)
+  - `native/` — Native feature UI: clipboard, screenshot, focus tracking, context awareness
+  - `export/`, `layout/`, `providers/`, `skills/`, `learning/`
+- `lib/` — Domain utilities:
+  - `ai/` — AI integration (client, chat, auto-router, image, agent tools, workflows)
+  - `db/`, `document/`, `export/`, `file/`, `i18n/`, `search/`, `themes/`, `vector/`
+  - `native/` — Tauri native API bindings
+- `hooks/` — Custom hooks: agent, messages, awareness, context, screenshot, selection, workflow, skills
+- `stores/` — Zustand stores: settings, session, artifact, agent, memory, project, usage, preset, mcp, selection, workflow, learning
+- `types/` — TypeScript definitions: provider, message, artifact, session, memory, project, preset, usage, mcp, agent, workflow, learning, skill
+- `src-tauri/` — Rust backend: `awareness/`, `context/`, `screenshot/`, `selection/`, `mcp/`, `commands/`
 
 ### Path Aliases
 
-- `@/components`, `@/lib`, `@/hooks`, `@/stores`, `@/types`
+- `@/components`, `@/lib`, `@/hooks`, `@/stores`, `@/types`, `@/ui` (→ `components/ui`)
 
 ## Store Architecture
 
@@ -90,37 +96,71 @@ All Zustand stores use localStorage persistence with the `persist` middleware:
 | `usage-store.ts` | `cognia-usage` | Token and cost tracking |
 | `preset-store.ts` | `cognia-presets` | Chat configuration presets |
 | `mcp-store.ts` | `cognia-mcp` | MCP server management (state only, config in Rust) |
+| `selection-store.ts` | `cognia-selection` | Selection toolbar state, selection history (desktop only) |
+| `workflow-store.ts` | `cognia-workflows` | Workflow definitions and execution |
+| `learning-store.ts` | `cognia-learning` | Learning mode state |
+
+**Note**: Native tools features (selection, awareness, context, screenshot) are only available in Tauri desktop builds.
 
 ## AI Integration
 
-### Supported Providers
+### Supported Providers (14 total)
 
 - OpenAI (`@ai-sdk/openai`): GPT-4o, GPT-4o Mini, o1, o1 Mini
 - Anthropic (`@ai-sdk/anthropic`): Claude 4 Sonnet/Opus, Claude 3.5 Haiku
 - Google (`@ai-sdk/google`): Gemini 2.0 Flash, Gemini 1.5 Pro/Flash
 - Mistral (`@ai-sdk/mistral`): Mistral Large, Mistral Small
-- DeepSeek: OpenAI-compatible API
+- DeepSeek: OpenAI-compatible API (deepseek-chat, deepseek-coder)
 - Groq: OpenAI-compatible API (Llama 3.3, Mixtral)
+- xAI: OpenAI-compatible API (Grok)
+- Together AI: OpenAI-compatible API
+- OpenRouter: Multi-provider routing
+- Cohere, Fireworks, Cerebras, SambaNova
 - Ollama: Self-hosted models at `http://localhost:11434`
 
 ### Auto-Router
 
-The auto-router (`lib/ai/auto-router.ts`) automatically selects models based on task complexity:
+The auto-router (`lib/ai/auto-router.ts`) supports two routing modes:
+- **Rule-based**: Fast pattern matching for simple/complex detection
+- **LLM-based**: Uses small models (Groq Llama 3.1, GPT-4o Mini, Gemini Flash) for accurate classification
+
+Three-tier intelligent routing:
 - **Fast tier**: Simple queries (Groq Llama 3.3, Gemini Flash, GPT-4o Mini, Haiku)
 - **Balanced tier**: General tasks (Gemini 1.5 Pro, GPT-4o, Claude Sonnet)
 - **Powerful tier**: Complex reasoning (Claude Opus, o1, DeepSeek Reasoner)
 
 ### Key Files
 
-- `lib/ai/client.ts` — Provider client creation
+- `lib/ai/client.ts` — Provider client creation with API key rotation
 - `lib/ai/use-ai-chat.ts` — Custom chat hook with streaming
 - `lib/ai/auto-router.ts` — Intelligent model selection
 - `lib/ai/image-utils.ts` — Vision support utilities
 - `lib/ai/image-generation.ts` — DALL-E integration
 
-## MCP (Model Context Protocol)
+## Agent System
 
-Cognia has comprehensive MCP support split between Rust backend and React frontend:
+### Three-Tier Architecture
+
+1. **Application Layer**: React hooks (`useAgent`, `useBackgroundAgent`), UI panels, settings
+2. **Orchestration Layer**: Agent loop, planning, sub-agent coordination, background queue management
+3. **Execution Layer**: AgentExecutor with AI SDK `generateText`, unified tool system
+
+### Tool Integration
+
+- **Built-in Tools**: File operations, search, web access
+- **MCP Tools**: Full Model Context Protocol integration
+- **Skills**: Custom skill execution framework
+- **RAG**: Retrieval-augmented generation from knowledge bases
+
+### Key Files
+
+- `lib/ai/agent/agent-executor.ts` — Core execution with tool calling
+- `lib/ai/agent/agent-loop.ts` — Multi-step execution loop
+- `lib/ai/agent/agent-orchestrator.ts` — Sub-agent coordination
+- `lib/ai/agent/background-agent-manager.ts` — Queue and persistence
+- `hooks/use-agent.ts` — React hook for agent mode
+
+## MCP (Model Context Protocol)
 
 ### Rust Backend (`src-tauri/src/mcp/`)
 - `manager.rs` — Server lifecycle management
@@ -131,25 +171,64 @@ Cognia has comprehensive MCP support split between Rust backend and React fronte
 
 ### Frontend
 - `stores/mcp-store.ts` — Zustand store for MCP state
+- `lib/ai/agent/mcp-tools.ts` — MCP tool integration for agents
 - `components/settings/mcp-settings.tsx` — MCP management UI
 - `components/settings/mcp-server-dialog.tsx` — Add/edit server dialog
 - `components/settings/mcp-install-wizard.tsx` — Quick install wizard
+
+### Server Templates
+
+Built-in quick install templates: Filesystem, GitHub, PostgreSQL, SQLite, Brave Search, Memory, Puppeteer, Slack.
+
+## Native Tools (Desktop Only)
+
+### Features
+
+- **Selection System**: 12 expansion modes, AI-powered actions (explain, translate, summarize), selection history with search, clipboard history with pinning
+- **Awareness System**: Real-time system monitoring (CPU, memory, disk, battery, network), activity tracking (12 types), smart suggestions, focus tracking
+- **Context System**: Window/app/file/browser/editor detection with 500ms caching
+- **Screenshot System**: Multi-mode capture (fullscreen, window, region) with OCR and searchable history
+
+### Platform Support
+
+- **Windows**: Full support (Windows OCR, battery monitoring, browser/editor context)
+- **macOS**: Partial support (basic OCR, limited battery monitoring, no browser/editor context)
+- **Linux**: Partial support (basic OCR, no battery monitoring, no browser/editor context)
+
+### Key Files
+
+- Rust: `src-tauri/src/awareness/`, `src-tauri/src/context/`, `src-tauri/src/screenshot/`, `src-tauri/src/selection/`
+- Frontend: `lib/native/`, `hooks/use-*.ts`, `stores/selection-store.ts`, `components/native/`
 
 ## Component Patterns
 
 ### Adding UI Components
 
 ```bash
-# Use shadcn CLI for Radix UI base components
 pnpm dlx shadcn@latest add <component>
 ```
 
 ### Creating New Stores
 
-1. Create in `/stores/` directory
-2. Use Zustand with persist middleware
-3. Export store as default or named export
-4. Use `useStore()` hook in components
+```typescript
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+interface ExampleState {
+  data: string;
+  setData: (data: string) => void;
+}
+
+export const useExampleStore = create<ExampleState>()(
+  persist(
+    (set) => ({
+      data: '',
+      setData: (data) => set({ data }),
+    }),
+    { name: 'cognia-example' } // localStorage key
+  )
+);
+```
 
 ### Styling
 
@@ -171,18 +250,18 @@ pnpm dlx shadcn@latest add <component>
 - MCP server environment variables stored in plaintext config file
 - MCP servers run with full system access — only install trusted servers
 
-### Testing Coverage
+### Testing Coverage Exclusions
 
 Excluded from coverage (require external services/runtime):
-- `lib/search/` — External search APIs
-- `lib/vector/` — Vector DB clients
+- `lib/search/` — External search APIs (Tavily)
+- `lib/vector/` — Vector DB clients (Pinecone, Qdrant, ChromaDB)
 - `lib/native/` — Tauri runtime
 - `lib/project/import-export.ts` — File system operations
 
 ## Development Notes
 
-- Uses pnpm as package manager
-- Tauri builds to `out/` directory
-- Supports both web and desktop deployment
-- Conventional Commits enforced via commitlint + Husky
-- Monaco Editor dynamically imported with SSR disabled
+- Package manager: pnpm (required)
+- Static export: `out/` directory for Tauri builds
+- Conventional commits: Enforced via commitlint + Husky
+- Monaco Editor: Dynamically imported with SSR disabled
+- Rust toolchain: v1.77.2+ required for Tauri builds

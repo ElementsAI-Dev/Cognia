@@ -342,7 +342,7 @@ export default function DesignerPage() {
 
       {/* Templates Dialog */}
       <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Choose a Template</DialogTitle>
             <DialogDescription>
@@ -351,7 +351,7 @@ export default function DesignerPage() {
           </DialogHeader>
 
           {/* Framework selector */}
-          <div className="flex gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-4">
             {FRAMEWORK_OPTIONS.map((opt) => (
               <Button
                 key={opt.value}
@@ -365,7 +365,7 @@ export default function DesignerPage() {
           </div>
 
           <Tabs defaultValue="all" className="flex-1 overflow-hidden flex flex-col">
-            <TabsList className="flex-wrap h-auto gap-1">
+            <TabsList className="flex-wrap h-auto gap-1 p-1">
               <TabsTrigger value="all">All</TabsTrigger>
               {TEMPLATE_CATEGORIES.map((category) => (
                 <TabsTrigger key={category} value={category}>
@@ -375,24 +375,24 @@ export default function DesignerPage() {
             </TabsList>
 
             <ScrollArea className="flex-1 mt-4">
-              <TabsContent value="all" className="mt-0">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <TabsContent value="all" className="mt-0 px-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredTemplates.map((template) => (
                     <button
                       key={template.id}
                       onClick={() => handleSelectTemplate(template)}
-                      className="group text-left rounded-md border p-3 hover:border-foreground/20 hover:bg-muted/50 transition-colors"
+                      className="group text-left rounded-lg border bg-card p-4 hover:border-primary/50 hover:shadow-md transition-all duration-200"
                     >
-                      <div className="aspect-video bg-muted rounded mb-2 flex items-center justify-center">
-                        <Layers className="h-6 w-6 opacity-20" />
+                      <div className="aspect-video bg-muted rounded-md mb-3 flex items-center justify-center overflow-hidden">
+                        <Layers className="h-8 w-8 text-muted-foreground/30" />
                       </div>
-                      <h3 className="text-sm font-medium">
+                      <h3 className="font-medium group-hover:text-primary transition-colors">
                         {template.name}
                       </h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                         {template.description}
                       </p>
-                      <Badge variant="outline" className="mt-2 text-xs">
+                      <Badge variant="secondary" className="mt-3">
                         {template.category}
                       </Badge>
                     </button>
@@ -401,24 +401,24 @@ export default function DesignerPage() {
               </TabsContent>
 
               {TEMPLATE_CATEGORIES.map((category) => (
-                <TabsContent key={category} value={category} className="mt-0">
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <TabsContent key={category} value={category} className="mt-0 px-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredTemplates.filter((t) => t.category === category).map((template) => (
                       <button
                         key={template.id}
                         onClick={() => handleSelectTemplate(template)}
-                        className="group text-left rounded-md border p-3 hover:border-foreground/20 hover:bg-muted/50 transition-colors"
+                        className="group text-left rounded-lg border bg-card p-4 hover:border-primary/50 hover:shadow-md transition-all duration-200"
                       >
-                        <div className="aspect-video bg-muted rounded mb-2 flex items-center justify-center">
-                          <Layers className="h-6 w-6 opacity-20" />
+                        <div className="aspect-video bg-muted rounded-md mb-3 flex items-center justify-center overflow-hidden">
+                          <Layers className="h-8 w-8 text-muted-foreground/30" />
                         </div>
-                        <h3 className="text-sm font-medium">
+                        <h3 className="font-medium group-hover:text-primary transition-colors">
                           {template.name}
                         </h3>
-                        <p className="text-xs text-muted-foreground mt-0.5">
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                           {template.description}
                         </p>
-                        <Badge variant="outline" className="mt-2 text-xs">
+                        <Badge variant="secondary" className="mt-3">
                           {template.category}
                         </Badge>
                       </button>

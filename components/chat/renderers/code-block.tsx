@@ -21,7 +21,9 @@ import {
   Maximize2, 
   WrapText,
   Hash,
+  PanelRight,
 } from 'lucide-react';
+import { useArtifactStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,6 +48,9 @@ interface CodeBlockProps {
   filename?: string;
 }
 
+// Languages that can be opened in Canvas for live preview
+const WEB_LANGUAGES = ['html', 'jsx', 'tsx', 'javascript', 'typescript', 'css', 'svg', 'react'];
+
 export const CodeBlock = memo(function CodeBlock({ 
   code, 
   language, 
@@ -61,6 +66,14 @@ export const CodeBlock = memo(function CodeBlock({
   const [localShowLineNumbers, setLocalShowLineNumbers] = useState(showLineNumbers);
   const codeRef = useRef<HTMLPreElement>(null);
   const { copy, isCopying } = useCopy({ toastMessage: tToasts('codeCopied') });
+
+  // Canvas integration
+  const createCanvasDocument = useArtifactStore((state) => state.createCanvasDocument);
+  const setActiveCanvas = useArtifactStore((state) => state.setActiveCanvas);
+  const openPanel = useArtifactStore((state) => state.openPanel);
+
+  // Check if this is a web language that can be opened in Canvas
+  const canOpenInCanvas = language && WEB_LANGUAGES.includes(language.toLowerCase());
 
   const lines = code.split('\n');
 
@@ -81,6 +94,17 @@ export const CodeBlock = memo(function CodeBlock({
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }, [code, language, filename]);
+
+  const handleOpenInCanvas = useCallback(() => {
+    const docId = createCanvasDocument({
+      title: filename || `${language || 'code'} snippet`,
+      content: code,
+      language: (language || 'javascript') as 'javascript' | 'typescript' | 'python' | 'html' | 'css' | 'json' | 'markdown' | 'jsx' | 'tsx' | 'sql' | 'bash' | 'yaml' | 'xml',
+      type: 'code',
+    });
+    setActiveCanvas(docId);
+    openPanel('canvas');
+  }, [code, language, filename, createCanvasDocument, setActiveCanvas, openPanel]);
 
   const isHighlighted = useCallback((lineNumber: number) => {
     return highlightLines.includes(lineNumber);
@@ -225,6 +249,23 @@ export const CodeBlock = memo(function CodeBlock({
               </TooltipTrigger>
               <TooltipContent>Fullscreen</TooltipContent>
             </Tooltip>
+
+            {canOpenInCanvas && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={handleOpenInCanvas}
+                    aria-label="Open in Canvas"
+                  >
+                    <PanelRight className="h-3 w-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Open in Canvas</TooltipContent>
+              </Tooltip>
+            )}
           </div>
         </div>
 

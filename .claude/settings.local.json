@@ -12,7 +12,9 @@
       "Bash(cat:*)",
       "Bash(npx tsc:*)",
       "Bash(pnpm test:*)",
-      "Bash(pnpm exec tsc:*)"
+      "Bash(pnpm exec tsc:*)",
+      "Bash(ls:*)",
+      "Bash(wc:*)"
     ]
   }
 }

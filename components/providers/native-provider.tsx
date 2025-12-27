@@ -21,34 +21,28 @@ export function NativeProvider({
   children,
   checkUpdatesOnMount = true,
 }: NativeProviderProps) {
-  const {
-    setSystemInfo,
-    setIsDesktop,
-    setNotificationPermission,
-    setUpdateAvailable,
-  } = useNativeStore();
-
   useEffect(() => {
     const initNative = async () => {
+      const store = useNativeStore.getState();
       const inTauri = isTauri();
-      setIsDesktop(inTauri);
+      store.setIsDesktop(inTauri);
 
       if (!inTauri) return;
 
       // Get system info
       const info = await getSystemInfo();
-      setSystemInfo(info.platform, info.appVersion);
+      store.setSystemInfo(info.platform, info.appVersion);
 
       // Check notification permission
       const hasNotifPerm = await isNotificationPermissionGranted();
-      setNotificationPermission(hasNotifPerm);
+      store.setNotificationPermission(hasNotifPerm);
 
       // Check for updates if enabled
       if (checkUpdatesOnMount) {
         try {
           const updateInfo = await checkForUpdates();
           if (updateInfo.available) {
-            setUpdateAvailable(true, updateInfo.version);
+            store.setUpdateAvailable(true, updateInfo.version);
           }
         } catch (error) {
           console.warn('Failed to check for updates:', error);
@@ -57,8 +51,6 @@ export function NativeProvider({
     };
 
     initNative();
-    // Only run once on mount - store actions are stable references
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkUpdatesOnMount]);
 
   return <>{children}</>;

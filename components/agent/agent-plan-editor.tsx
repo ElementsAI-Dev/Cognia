@@ -10,7 +10,6 @@ import {
   Plan,
   PlanHeader,
   PlanTitle,
-  PlanDescription,
   PlanContent,
   PlanFooter,
   PlanTrigger,
@@ -265,8 +264,8 @@ export function AgentPlanEditor({
   // Plan executor hook
   const { isExecuting: isPlanExecuting, executePlan, stopExecution } = usePlanExecutor();
 
-  // Local state
-  const [isExpanded, setIsExpanded] = useState(true);
+  // Local state - collapsed by default
+  const [isExpanded, setIsExpanded] = useState(false);
   const [editingStepId, setEditingStepId] = useState<string | null>(null);
   const [isRefining, setIsRefining] = useState(false);
   const [showNewStepInput, setShowNewStepInput] = useState(false);
@@ -442,17 +441,14 @@ Provide an improved version of this plan:`,
 
   if (!activePlan) {
     return (
-      <div className={cn('rounded-lg border bg-card p-4', className)}>
-        <div className="flex flex-col items-center gap-4 py-8 text-center">
-          <ListChecks className="h-12 w-12 text-muted-foreground" />
-          <div>
-            <h3 className="font-semibold">{t('noPlan')}</h3>
-            <p className="text-sm text-muted-foreground">
-              {t('createPlanHint')}
-            </p>
+      <div className={cn('rounded-lg border bg-card/50 backdrop-blur-sm', className)}>
+        <div className="flex items-center justify-between gap-3 px-3 py-2">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <ListChecks className="h-4 w-4" />
+            <span className="text-sm">{t('noPlan')}</span>
           </div>
-          <Button onClick={() => setShowCreateDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button size="sm" variant="outline" onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-3 w-3 mr-1" />
             {t('createPlan')}
           </Button>
         </div>
@@ -502,12 +498,13 @@ Provide an improved version of this plan:`,
     <Plan
       defaultOpen={isExpanded}
       onOpenChange={setIsExpanded}
-      className={cn('bg-card', className)}
+      className={cn('bg-card/50 backdrop-blur-sm', className)}
     >
-      <PlanHeader>
-        <div className="flex-1">
+      <PlanHeader className="py-2 px-3">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <PlanTitle>{activePlan.title}</PlanTitle>
+            <ListChecks className="h-4 w-4 text-muted-foreground shrink-0" />
+            <PlanTitle className="text-sm truncate">{activePlan.title}</PlanTitle>
             <Badge
               variant={
                 activePlan.status === 'executing'
@@ -518,49 +515,45 @@ Provide an improved version of this plan:`,
                       ? 'destructive'
                       : 'outline'
               }
+              className="text-xs"
             >
               {activePlan.status}
             </Badge>
+            {activePlan.totalSteps > 0 && (
+              <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                {activePlan.completedSteps}/{activePlan.totalSteps}
+              </span>
+            )}
           </div>
-          {activePlan.description && (
-            <PlanDescription>{activePlan.description}</PlanDescription>
-          )}
           {activePlan.totalSteps > 0 && (
-            <div className="mt-2 space-y-1">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Progress</span>
-                <span>
-                  {activePlan.completedSteps} / {activePlan.totalSteps} steps
-                </span>
-              </div>
-              <Progress value={progress} className="h-1.5" />
-            </div>
+            <Progress value={progress} className="h-1 mt-1.5" />
           )}
         </div>
-        <PlanAction>
-          <div className="flex items-center gap-1">
+        <PlanAction className="ml-2">
+          <div className="flex items-center gap-0.5">
             {canEdit && (
               <Button
                 variant="ghost"
                 size="icon"
+                className="h-7 w-7"
                 onClick={handleRefinePlan}
                 disabled={isRefining || activePlan.steps.length === 0}
                 title="Refine with AI"
               >
                 {isRefining ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <Wand2 className="h-4 w-4" />
+                  <Wand2 className="h-3.5 w-3.5" />
                 )}
               </Button>
             )}
-            <PlanTrigger />
+            <PlanTrigger className="h-7 w-7" />
           </div>
         </PlanAction>
       </PlanHeader>
 
-      <PlanContent>
-        <div className="space-y-2">
+      <PlanContent className="px-3 py-2">
+        <div className="space-y-1.5">
           {/* Steps list */}
           {activePlan.steps.map((step, index) => (
             <StepItem

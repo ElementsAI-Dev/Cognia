@@ -5,7 +5,7 @@
  * Shows parent agent, sub-agents, and their execution states
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   ChevronDown,
   ChevronRight,
@@ -18,6 +18,10 @@ import {
   Bot,
   GitBranch,
   Zap,
+  Play,
+  RotateCcw,
+  Plus,
+  StopCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -29,7 +33,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import type { SubAgent, SubAgentStatus } from '@/types/sub-agent';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { useSubAgent } from '@/hooks';
+import type { SubAgent, SubAgentStatus, SubAgentExecutionMode } from '@/types/sub-agent';
 import type { BackgroundAgent, BackgroundAgentStep } from '@/types/background-agent';
 
 interface AgentFlowVisualizerProps {
@@ -199,12 +209,55 @@ export function AgentFlowVisualizer({
 }: AgentFlowVisualizerProps) {
   const [showSteps, setShowSteps] = useState(true);
   const [showSubAgents, setShowSubAgents] = useState(true);
+  const [executionMode, setExecutionMode] = useState<SubAgentExecutionMode>('sequential');
+
+  // Use sub-agent hook for managing sub-agents
+  const {
+    subAgents: managedSubAgents,
+    activeSubAgents,
+    isExecuting,
+    progress: subAgentProgress,
+    executeOne,
+    executeAll,
+    cancelAll,
+    clearCompleted,
+    createSubAgent,
+  } = useSubAgent({ parentAgentId: agent.id });
+
+  // Use managed sub-agents if available, otherwise fall back to agent.subAgents
+  const displaySubAgents = managedSubAgents.length > 0 ? managedSubAgents : agent.subAgents;
+
+  // Handlers for sub-agent operations
+  const handleExecuteAll = useCallback(async () => {
+    try {
+      await executeAll(executionMode);
+    } catch (error) {
+      console.error('Failed to execute sub-agents:', error);
+    }
+  }, [executeAll, executionMode]);
+
+  const handleExecuteOne = useCallback(async (subAgentId: string) => {
+    try {
+      await executeOne(subAgentId);
+    } catch (error) {
+      console.error('Failed to execute sub-agent:', error);
+    }
+  }, [executeOne]);
+
+  const handleCancelAll = useCallback(() => {
+    cancelAll();
+  }, [cancelAll]);
+
+  const handleClearCompleted = useCallback(() => {
+    clearCompleted();
+  }, [clearCompleted]);
 
   const parentConfig = statusConfig[agent.status] || statusConfig.pending;
   const ParentIcon = parentConfig.icon;
 
-  const completedSubAgents = agent.subAgents.filter(sa => sa.status === 'completed').length;
-  const totalSubAgents = agent.subAgents.length;
+  const completedSubAgents = displaySubAgents.filter(sa => sa.status === 'completed').length;
+  const totalSubAgents = displaySubAgents.length;
+  const pendingSubAgents = displaySubAgents.filter(sa => sa.status === 'pending' || sa.status === 'queued').length;
 
   return (
     <div className={cn('space-y-4', className)}>
@@ -330,25 +383,112 @@ export function AgentFlowVisualizer({
       )}
 
       {/* Sub-Agents */}
-      {agent.subAgents.length > 0 && (
+      {(displaySubAgents.length > 0 || agent.subAgents.length > 0) && (
         <Collapsible open={showSubAgents} onOpenChange={setShowSubAgents}>
           <CollapsibleTrigger asChild>
             <Button variant="ghost" className="w-full justify-between">
               <span className="flex items-center gap-2">
                 <GitBranch className="h-4 w-4" />
                 Sub-Agents ({completedSubAgents}/{totalSubAgents})
+                {isExecuting && (
+                  <Badge variant="secondary" className="text-[10px] ml-1">
+                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    Running
+                  </Badge>
+                )}
               </span>
               {showSubAgents ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
+            {/* Sub-Agent Controller UI */}
+            <div className="flex items-center justify-between gap-2 p-2 border-b">
+              <div className="flex items-center gap-2">
+                {/* Execution Mode Selector */}
+                <select
+                  value={executionMode}
+                  onChange={(e) => setExecutionMode(e.target.value as SubAgentExecutionMode)}
+                  className="text-xs px-2 py-1 rounded border bg-background"
+                  disabled={isExecuting}
+                >
+                  <option value="sequential">Sequential</option>
+                  <option value="parallel">Parallel</option>
+                </select>
+
+                {/* Execute All Button */}
+                {pendingSubAgents > 0 && !isExecuting && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1"
+                        onClick={handleExecuteAll}
+                      >
+                        <Play className="h-3 w-3" />
+                        <span className="text-xs">Run All</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Execute all pending sub-agents ({executionMode})</TooltipContent>
+                  </Tooltip>
+                )}
+
+                {/* Cancel All Button */}
+                {isExecuting && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="h-7 gap-1"
+                        onClick={handleCancelAll}
+                      >
+                        <StopCircle className="h-3 w-3" />
+                        <span className="text-xs">Cancel</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Cancel all running sub-agents</TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Clear Completed Button */}
+                {completedSubAgents > 0 && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 gap-1"
+                        onClick={handleClearCompleted}
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        <span className="text-xs">Clear Done</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Clear completed sub-agents</TooltipContent>
+                  </Tooltip>
+                )}
+
+                {/* Progress indicator when executing */}
+                {isExecuting && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Progress value={subAgentProgress} className="w-16 h-1" />
+                    <span>{Math.round(subAgentProgress)}%</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Sub-Agent List */}
             <div className="space-y-3 p-2">
-              {agent.subAgents.map((subAgent, _index) => (
+              {displaySubAgents.map((subAgent, _index) => (
                 <SubAgentNode
                   key={subAgent.id}
                   subAgent={subAgent}
                   onClick={() => onSubAgentClick?.(subAgent)}
-                  isLast={_index === agent.subAgents.length - 1}
+                  isLast={_index === displaySubAgents.length - 1}
                 />
               ))}
             </div>

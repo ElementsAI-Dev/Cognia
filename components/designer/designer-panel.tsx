@@ -23,6 +23,7 @@ import { DesignerToolbar } from './designer-toolbar';
 import { DesignerPreview } from './designer-preview';
 import { ElementTree } from './element-tree';
 import { StylePanel } from './style-panel';
+import { VersionHistoryPanel } from './version-history-panel';
 
 // Dynamically import Monaco to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
@@ -79,7 +80,12 @@ export function DesignerPanel({
   const setCode = useDesignerStore((state) => state.setCode);
   const showElementTree = useDesignerStore((state) => state.showElementTree);
   const showStylePanel = useDesignerStore((state) => state.showStylePanel);
+  const showHistoryPanel = useDesignerStore((state) => state.showHistoryPanel);
   const parseCodeToElements = useDesignerStore((state) => state.parseCodeToElements);
+  const undo = useDesignerStore((state) => state.undo);
+  const redo = useDesignerStore((state) => state.redo);
+  const history = useDesignerStore((state) => state.history);
+  const historyIndex = useDesignerStore((state) => state.historyIndex);
 
   // Track if we've initialized to prevent re-initialization loops
   const initializedRef = useRef(false);
@@ -92,6 +98,43 @@ export function DesignerPanel({
       parseCodeToElements(initialCode);
     }
   }, [initialCode, setCode, parseCodeToElements]);
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    if (!open) return;
+
+    const canUndo = historyIndex >= 0;
+    const canRedo = historyIndex < history.length - 1;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if we're in an input/textarea (except Monaco which handles its own undo)
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      // Ctrl+Z or Cmd+Z for undo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        if (canUndo) {
+          e.preventDefault();
+          undo();
+        }
+        return;
+      }
+
+      // Ctrl+Y or Cmd+Y or Ctrl+Shift+Z for redo
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        if (canRedo) {
+          e.preventDefault();
+          redo();
+        }
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, undo, redo, history.length, historyIndex]);
 
   const handleCodeChange = useCallback(
     (value: string | undefined) => {
@@ -258,6 +301,16 @@ export function DesignerPanel({
                       </div>
                       <StylePanel className="flex-1" />
                     </div>
+                  </ResizablePanel>
+                </>
+              )}
+
+              {/* Version History Panel */}
+              {showHistoryPanel && (
+                <>
+                  <ResizableHandle withHandle />
+                  <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+                    <VersionHistoryPanel className="h-full border-l" />
                   </ResizablePanel>
                 </>
               )}

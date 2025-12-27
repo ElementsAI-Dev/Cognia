@@ -25,6 +25,7 @@ import {
   Layers,
   PanelRight,
   FileCode,
+  History,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
@@ -65,8 +66,10 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas 
   const historyIndex = useDesignerStore((state) => state.historyIndex);
   const showElementTree = useDesignerStore((state) => state.showElementTree);
   const showStylePanel = useDesignerStore((state) => state.showStylePanel);
+  const showHistoryPanel = useDesignerStore((state) => state.showHistoryPanel);
   const toggleElementTree = useDesignerStore((state) => state.toggleElementTree);
   const toggleStylePanel = useDesignerStore((state) => state.toggleStylePanel);
+  const toggleHistoryPanel = useDesignerStore((state) => state.toggleHistoryPanel);
   const code = useDesignerStore((state) => state.code);
   const reset = useDesignerStore((state) => state.reset);
 
@@ -259,6 +262,20 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas 
               </Button>
             </TooltipTrigger>
             <TooltipContent>Style Panel</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={showHistoryPanel ? 'secondary' : 'ghost'}
+                size="icon"
+                className="h-7 w-7"
+                onClick={toggleHistoryPanel}
+              >
+                <History className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Version History</TooltipContent>
           </Tooltip>
         </div>
 

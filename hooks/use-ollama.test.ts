@@ -53,12 +53,17 @@ describe('useOllama', () => {
   });
 
   describe('initialization', () => {
-    it('should initialize with loading state', () => {
+    it('should initialize with loading state', async () => {
       const { result } = renderHook(() => useOllama());
 
       expect(result.current.isLoading).toBe(true);
       expect(result.current.models).toEqual([]);
       expect(result.current.status).toBe(null);
+
+      // Allow async effect to settle to avoid act warnings
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
     });
 
     it('should fetch status and models on mount', async () => {

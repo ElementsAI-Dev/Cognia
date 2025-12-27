@@ -487,12 +487,10 @@ pub fn delete_points_impl(
     ids: Vec<String>,
 ) -> Result<bool, String> {
     let mut data = state.data.lock();
-    let mut deleted_count = 0;
-    
     if let Some(points) = data.points.get_mut(&collection) {
         let original_len = points.len();
         points.retain(|p| !ids.contains(&p.id));
-        deleted_count = original_len - points.len();
+        let deleted_count = original_len - points.len();
         
         // Update document count and timestamp in collection metadata
         if deleted_count > 0 {

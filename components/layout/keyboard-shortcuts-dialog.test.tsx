@@ -5,7 +5,41 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { KeyboardShortcutsDialog } from './keyboard-shortcuts-dialog';
 
-// Mock hooks
+// Mock translations
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const map: Record<string, Record<string, string>> = {
+      keyboardShortcuts: {
+        title: 'Keyboard Shortcuts',
+        description: 'Use these shortcuts to work faster.',
+        navigation: 'Navigation',
+        chat: 'Chat',
+        editing: 'Editing',
+        system: 'System',
+        tip: 'Tip:',
+        commandPaletteHint: 'to open the command palette for quick actions.',
+      },
+    };
+    const [ns, k] = key.includes('.') ? key.split('.') : ['keyboardShortcuts', key];
+    return map[ns]?.[k] ?? key;
+  },
+}));
+
+// Mock UI store
+jest.mock('@/stores', () => ({
+  useUIStore: <T,>(
+    selector: (state: {
+      keyboardShortcutsOpen: boolean;
+      setKeyboardShortcutsOpen: jest.Mock;
+    }) => T
+  ) =>
+    selector({
+      keyboardShortcutsOpen: true,
+      setKeyboardShortcutsOpen: jest.fn(),
+    }),
+}));
+
+// Mock shortcuts hook
 jest.mock('@/hooks/use-keyboard-shortcuts', () => ({
   useKeyboardShortcuts: () => ({
     shortcuts: [
@@ -14,8 +48,20 @@ jest.mock('@/hooks/use-keyboard-shortcuts', () => ({
       { key: '/', ctrl: true, description: 'Search', category: 'navigation' },
     ],
   }),
-  formatShortcut: ({ key, ctrl }: { key: string; ctrl?: boolean }) => 
-    `${ctrl ? 'Ctrl+' : ''}${key.toUpperCase()}`,
+  formatShortcut: ({
+    key,
+    ctrl,
+    shift,
+    alt,
+    meta,
+  }: {
+    key: string;
+    ctrl?: boolean;
+    shift?: boolean;
+    alt?: boolean;
+    meta?: boolean;
+  }) =>
+    `${ctrl ? 'Ctrl+' : ''}${alt ? 'Alt+' : ''}${shift ? 'Shift+' : ''}${meta ? 'Meta+' : ''}${key.toUpperCase()}`,
 }));
 
 // Mock UI components
@@ -60,7 +106,7 @@ describe('KeyboardShortcutsDialog', () => {
 
   it('renders default trigger button', () => {
     render(<KeyboardShortcutsDialog />);
-    expect(screen.getByText('Shortcuts')).toBeInTheDocument();
+    expect(screen.getByText('Keyboard Shortcuts')).toBeInTheDocument();
   });
 
   it('renders custom trigger when provided', () => {
@@ -74,12 +120,12 @@ describe('KeyboardShortcutsDialog', () => {
 
   it('displays dialog title', () => {
     render(<KeyboardShortcutsDialog />);
-    expect(screen.getByText('Keyboard Shortcuts')).toBeInTheDocument();
+    expect(screen.getByTestId('dialog-title')).toHaveTextContent('Keyboard Shortcuts');
   });
 
   it('displays dialog description', () => {
     render(<KeyboardShortcutsDialog />);
-    expect(screen.getByText(/Use these shortcuts/)).toBeInTheDocument();
+    expect(screen.getByTestId('dialog-description')).toHaveTextContent(/Use these shortcuts/);
   });
 
   it('displays shortcuts grouped by category', () => {

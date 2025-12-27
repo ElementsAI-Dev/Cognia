@@ -18,6 +18,8 @@ import type { SearchProviderType, SearchProviderSettings } from '@/types/search'
 import { DEFAULT_SEARCH_PROVIDER_SETTINGS } from '@/types/search';
 import type { SpeechSettings, SpeechLanguageCode, SpeechProvider } from '@/types/speech';
 import { DEFAULT_SPEECH_SETTINGS } from '@/types/speech';
+import type { CompressionSettings, CompressionStrategy, CompressionTrigger, CompressionModelConfig } from '@/types/compression';
+import { DEFAULT_COMPRESSION_SETTINGS } from '@/types/compression';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'en' | 'zh-CN';
@@ -251,6 +253,21 @@ interface SettingsState {
   setTtsRate: (rate: number) => void;
   setTtsAutoPlay: (autoPlay: boolean) => void;
 
+  // Compression settings
+  compressionSettings: CompressionSettings;
+  setCompressionSettings: (settings: Partial<CompressionSettings>) => void;
+  setCompressionEnabled: (enabled: boolean) => void;
+  setCompressionStrategy: (strategy: CompressionStrategy) => void;
+  setCompressionTrigger: (trigger: CompressionTrigger) => void;
+  setCompressionTokenThreshold: (threshold: number) => void;
+  setCompressionMessageThreshold: (threshold: number) => void;
+  setCompressionPreserveRecent: (count: number) => void;
+  setCompressionPreserveSystem: (preserve: boolean) => void;
+  setCompressionRatio: (ratio: number) => void;
+  setCompressionModel: (config: Partial<CompressionModelConfig>) => void;
+  setCompressionNotification: (show: boolean) => void;
+  setCompressionUndo: (enable: boolean) => void;
+
   // Onboarding
   hasCompletedOnboarding: boolean;
   setOnboardingCompleted: (completed: boolean) => void;
@@ -439,6 +456,9 @@ const initialState = {
 
   // Speech settings
   speechSettings: { ...DEFAULT_SPEECH_SETTINGS },
+
+  // Compression settings
+  compressionSettings: { ...DEFAULT_COMPRESSION_SETTINGS },
 
   // Onboarding
   hasCompletedOnboarding: false,
@@ -899,6 +919,71 @@ export const useSettingsStore = create<SettingsState>()(
           speechSettings: { ...state.speechSettings, ttsAutoPlay },
         })),
 
+      // Compression settings actions
+      setCompressionSettings: (settings) =>
+        set((state) => ({
+          compressionSettings: { ...state.compressionSettings, ...settings },
+        })),
+      setCompressionEnabled: (enabled) =>
+        set((state) => ({
+          compressionSettings: { ...state.compressionSettings, enabled },
+        })),
+      setCompressionStrategy: (strategy) =>
+        set((state) => ({
+          compressionSettings: { ...state.compressionSettings, strategy },
+        })),
+      setCompressionTrigger: (trigger) =>
+        set((state) => ({
+          compressionSettings: { ...state.compressionSettings, trigger },
+        })),
+      setCompressionTokenThreshold: (tokenThreshold) =>
+        set((state) => ({
+          compressionSettings: {
+            ...state.compressionSettings,
+            tokenThreshold: Math.min(100, Math.max(10, tokenThreshold))
+          },
+        })),
+      setCompressionMessageThreshold: (messageCountThreshold) =>
+        set((state) => ({
+          compressionSettings: {
+            ...state.compressionSettings,
+            messageCountThreshold: Math.min(200, Math.max(5, messageCountThreshold))
+          },
+        })),
+      setCompressionPreserveRecent: (preserveRecentMessages) =>
+        set((state) => ({
+          compressionSettings: {
+            ...state.compressionSettings,
+            preserveRecentMessages: Math.min(50, Math.max(1, preserveRecentMessages))
+          },
+        })),
+      setCompressionPreserveSystem: (preserveSystemMessages) =>
+        set((state) => ({
+          compressionSettings: { ...state.compressionSettings, preserveSystemMessages },
+        })),
+      setCompressionRatio: (compressionRatio) =>
+        set((state) => ({
+          compressionSettings: {
+            ...state.compressionSettings,
+            compressionRatio: Math.min(0.9, Math.max(0.1, compressionRatio))
+          },
+        })),
+      setCompressionModel: (modelConfig) =>
+        set((state) => ({
+          compressionSettings: {
+            ...state.compressionSettings,
+            compressionModel: { ...state.compressionSettings.compressionModel, ...modelConfig }
+          },
+        })),
+      setCompressionNotification: (showCompressionNotification) =>
+        set((state) => ({
+          compressionSettings: { ...state.compressionSettings, showCompressionNotification },
+        })),
+      setCompressionUndo: (enableUndo) =>
+        set((state) => ({
+          compressionSettings: { ...state.compressionSettings, enableUndo },
+        })),
+
       // Onboarding actions
       setOnboardingCompleted: (hasCompletedOnboarding) => set({ hasCompletedOnboarding }),
 
@@ -976,6 +1061,8 @@ export const useSettingsStore = create<SettingsState>()(
         customShortcuts: state.customShortcuts,
         // Speech settings
         speechSettings: state.speechSettings,
+        // Compression settings
+        compressionSettings: state.compressionSettings,
         // Onboarding
         hasCompletedOnboarding: state.hasCompletedOnboarding,
       }),
@@ -990,3 +1077,5 @@ export const selectLanguage = (state: SettingsState) => state.language;
 export const selectDefaultProvider = (state: SettingsState) => state.defaultProvider;
 export const selectSidebarCollapsed = (state: SettingsState) => state.sidebarCollapsed;
 export const selectSearchEnabled = (state: SettingsState) => state.searchEnabled;
+export const selectCompressionSettings = (state: SettingsState) => state.compressionSettings;
+export const selectCompressionEnabled = (state: SettingsState) => state.compressionSettings.enabled;

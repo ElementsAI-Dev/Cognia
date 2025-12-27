@@ -188,6 +188,9 @@ importers:
       embla-carousel-react:
         specifier: ^8.6.0
         version: 8.6.0(react@19.2.3)
+      js-tiktoken:
+        specifier: ^1.0.21
+        version: 1.0.21
       jszip:
         specifier: ^3.10.1
         version: 3.10.1

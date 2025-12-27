@@ -166,54 +166,61 @@ export function SkillSuggestions({
   }
 
   return (
-    <div className={cn('border rounded-lg bg-background/95 backdrop-blur', className)}>
+    <div className={cn(
+      'border rounded-lg bg-background/95 backdrop-blur shadow-lg',
+      'animate-in fade-in-0 slide-in-from-bottom-2 duration-200',
+      className
+    )}>
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b">
+      <div className="flex items-center justify-between px-3 py-1.5 border-b">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-amber-500" />
-          <span className="text-sm font-medium">{t('suggestedSkills')}</span>
-          <Badge variant="secondary" className="text-xs">
+          <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+          <span className="text-xs font-medium">{t('suggestedSkills')}</span>
+          <Badge variant="secondary" className="text-xs h-5 px-1.5">
             {suggestedSkills.length}
           </Badge>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-5 w-5"
             onClick={() => setIsExpanded(!isExpanded)}
           >
             {isExpanded ? (
-              <ChevronUp className="h-3.5 w-3.5" />
+              <ChevronUp className="h-3 w-3" />
             ) : (
-              <ChevronDown className="h-3.5 w-3.5" />
+              <ChevronDown className="h-3 w-3" />
             )}
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-5 w-5"
             onClick={handleDismiss}
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-3 w-3" />
           </Button>
         </div>
       </div>
 
-      {/* Suggestions */}
-      {isExpanded && (
-        <div className="p-2 space-y-1">
+      {/* Suggestions with smooth expand/collapse */}
+      <div className={cn(
+        'overflow-hidden transition-all duration-200 ease-out',
+        isExpanded ? 'max-h-[300px] opacity-100' : 'max-h-0 opacity-0'
+      )}>
+        <div className="p-1.5 space-y-0.5">
           {suggestedSkills.map((skill) => (
             <div
               key={skill.id}
-              className="flex items-center justify-between gap-2 p-2 rounded-md hover:bg-accent/50 transition-colors"
+              className="flex items-center justify-between gap-2 p-1.5 rounded-md hover:bg-accent/50 transition-colors"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <div className="shrink-0 text-muted-foreground">
                   {CATEGORY_ICONS[skill.category]}
                 </div>
                 <div className="min-w-0">
-                  <div className="font-medium text-sm truncate">
+                  <div className="font-medium text-xs truncate">
                     {skill.metadata.name}
                   </div>
                   <div className="text-xs text-muted-foreground truncate">
@@ -224,7 +231,7 @@ export function SkillSuggestions({
               <Button
                 size="sm"
                 variant="secondary"
-                className="h-7 text-xs shrink-0"
+                className="h-6 text-xs shrink-0 px-2"
                 onClick={() => handleActivate(skill)}
               >
                 <Zap className="h-3 w-3 mr-1" />
@@ -236,23 +243,23 @@ export function SkillSuggestions({
           {/* Active skills section */}
           {showActiveSkills && activeSkills.length > 0 && (
             <>
-              <div className="pt-2 mt-2 border-t">
-                <div className="flex items-center gap-2 px-2 pb-1">
-                  <Check className="h-3.5 w-3.5 text-green-500" />
+              <div className="pt-1.5 mt-1 border-t">
+                <div className="flex items-center gap-2 px-1.5 pb-1">
+                  <Check className="h-3 w-3 text-green-500" />
                   <span className="text-xs font-medium text-muted-foreground">
                     {t('currentlyActive')}
                   </span>
                 </div>
-                <div className="flex flex-wrap gap-1 px-2">
+                <div className="flex flex-wrap gap-1 px-1.5">
                   {activeSkills.map((skill) => (
                     <Badge
                       key={skill.id}
                       variant="default"
-                      className="text-xs cursor-pointer hover:bg-destructive"
+                      className="text-xs cursor-pointer hover:bg-destructive h-5"
                       onClick={() => handleDeactivate(skill)}
                     >
                       {skill.metadata.name}
-                      <X className="h-3 w-3 ml-1" />
+                      <X className="h-2.5 w-2.5 ml-1" />
                     </Badge>
                   ))}
                 </div>
@@ -260,7 +267,7 @@ export function SkillSuggestions({
             </>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

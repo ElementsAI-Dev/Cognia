@@ -75,9 +75,10 @@ export function useMention(options: UseMentionOptions = {}): UseMentionReturn {
   // Initialize MCP store if needed
   useEffect(() => {
     if (!isInitialized) {
-      initialize();
+      useMcpStore.getState().initialize();
     }
-  }, [isInitialized, initialize]);
+   
+  }, [isInitialized]);
   
   // Build all available mention items from connected servers
   const allMentions = useMemo<MentionItem[]>(() => {

@@ -5,7 +5,7 @@
  * All settings are persisted to the settings store
  */
 
-import { MessageSquare, Thermometer, Hash, History, Sparkles, SlidersHorizontal } from 'lucide-react';
+import { MessageSquare, Thermometer, Hash, History, Sparkles, SlidersHorizontal, Shrink } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import {
   Card,
@@ -26,9 +26,11 @@ import {
 } from '@/components/ui/select';
 import { useSettingsStore } from '@/stores';
 import { PROVIDERS } from '@/types/provider';
+import type { CompressionStrategy, CompressionTrigger } from '@/types/compression';
 
 export function ChatSettings() {
   const t = useTranslations('chatSettings');
+  const tContext = useTranslations('contextSettings');
 
   // Chat behavior settings from store
   const defaultTemperature = useSettingsStore((state) => state.defaultTemperature);
@@ -49,7 +51,16 @@ export function ChatSettings() {
   const setShowModelInChat = useSettingsStore((state) => state.setShowModelInChat);
   const enableMarkdownRendering = useSettingsStore((state) => state.enableMarkdownRendering);
   const setEnableMarkdownRendering = useSettingsStore((state) => state.setEnableMarkdownRendering);
-  
+
+  // Compression settings
+  const compressionSettings = useSettingsStore((state) => state.compressionSettings);
+  const setCompressionEnabled = useSettingsStore((state) => state.setCompressionEnabled);
+  const setCompressionStrategy = useSettingsStore((state) => state.setCompressionStrategy);
+  const setCompressionTrigger = useSettingsStore((state) => state.setCompressionTrigger);
+  const setCompressionTokenThreshold = useSettingsStore((state) => state.setCompressionTokenThreshold);
+  const setCompressionMessageThreshold = useSettingsStore((state) => state.setCompressionMessageThreshold);
+  const setCompressionPreserveRecent = useSettingsStore((state) => state.setCompressionPreserveRecent);
+
   // Default provider
   const defaultProvider = useSettingsStore((state) => state.defaultProvider);
   const setDefaultProvider = useSettingsStore((state) => state.setDefaultProvider);
@@ -258,6 +269,140 @@ export function ChatSettings() {
               onCheckedChange={setAutoTitleGeneration}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Compression Settings */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Shrink className="h-4 w-4" />
+            {tContext('compressionSettings')}
+          </CardTitle>
+          <CardDescription className="text-xs">
+            {tContext('strategyDesc.hybrid')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Enable Compression */}
+          <div className="flex items-center justify-between py-1">
+            <div className="space-y-0.5">
+              <Label htmlFor="enable-compression" className="text-sm">{tContext('enableCompression')}</Label>
+              <p className="text-xs text-muted-foreground">
+                {tContext('strategyDesc.summary')}
+              </p>
+            </div>
+            <Switch
+              id="enable-compression"
+              checked={compressionSettings.enabled}
+              onCheckedChange={setCompressionEnabled}
+            />
+          </div>
+
+          {compressionSettings.enabled && (
+            <>
+              {/* Compression Strategy */}
+              <div className="space-y-2">
+                <Label className="text-sm">{tContext('compressionStrategy')}</Label>
+                <Select
+                  value={compressionSettings.strategy}
+                  onValueChange={(value) => setCompressionStrategy(value as CompressionStrategy)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(['summary', 'sliding-window', 'selective', 'hybrid'] as CompressionStrategy[]).map((strategy) => (
+                      <SelectItem key={strategy} value={strategy}>
+                        {tContext(`strategy.${strategy}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">
+                  {tContext(`strategyDesc.${compressionSettings.strategy}`)}
+                </p>
+              </div>
+
+              {/* Compression Trigger */}
+              <div className="space-y-2">
+                <Label className="text-sm">{tContext('compressionTrigger')}</Label>
+                <Select
+                  value={compressionSettings.trigger}
+                  onValueChange={(value) => setCompressionTrigger(value as CompressionTrigger)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(['manual', 'token-threshold', 'message-count'] as CompressionTrigger[]).map((trigger) => (
+                      <SelectItem key={trigger} value={trigger}>
+                        {tContext(`trigger.${trigger}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Token Threshold (conditional) */}
+              {compressionSettings.trigger === 'token-threshold' && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">{tContext('tokenThreshold')}</Label>
+                    <span className="text-sm font-mono">{compressionSettings.tokenThreshold}%</span>
+                  </div>
+                  <Slider
+                    value={[compressionSettings.tokenThreshold]}
+                    onValueChange={([v]) => setCompressionTokenThreshold(v)}
+                    min={50}
+                    max={95}
+                    step={5}
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    {tContext('tokenThresholdDesc')}
+                  </p>
+                </div>
+              )}
+
+              {/* Message Threshold (conditional) */}
+              {compressionSettings.trigger === 'message-count' && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">{tContext('messageThreshold')}</Label>
+                    <span className="text-sm font-mono">{compressionSettings.messageCountThreshold}</span>
+                  </div>
+                  <Slider
+                    value={[compressionSettings.messageCountThreshold]}
+                    onValueChange={([v]) => setCompressionMessageThreshold(v)}
+                    min={10}
+                    max={100}
+                    step={5}
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    {tContext('messageThresholdDesc')}
+                  </p>
+                </div>
+              )}
+
+              {/* Preserve Recent Messages */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">{tContext('preserveRecent')}</Label>
+                  <span className="text-sm font-mono">{compressionSettings.preserveRecentMessages}</span>
+                </div>
+                <Slider
+                  value={[compressionSettings.preserveRecentMessages]}
+                  onValueChange={([v]) => setCompressionPreserveRecent(v)}
+                  min={2}
+                  max={20}
+                  step={1}
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  {tContext('preserveRecentDesc')}
+                </p>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

@@ -119,10 +119,10 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
   const vectorSettings = useVectorStore((state) => state.settings);
 
   // Get active skills
-  const activeSkills = useMemo(() => 
-    activeSkillIds.map(id => skills[id]).filter((s): s is Skill => s !== undefined),
-    [activeSkillIds, skills]
-  );
+  const activeSkills = useMemo(() => {
+    const ids = Array.isArray(activeSkillIds) ? activeSkillIds : [];
+    return ids.map(id => skills[id]).filter((s): s is Skill => s !== undefined);
+  }, [activeSkillIds, skills]);
 
   // Sync built-in tools
   const syncBuiltinTools = useCallback(() => {

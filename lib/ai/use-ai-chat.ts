@@ -2,7 +2,7 @@
 
 /**
  * useAIChat - hook for AI chat functionality
- * 
+ *
  * Features:
  * - Streaming and non-streaming chat capabilities
  * - Automatic memory injection into system prompts
@@ -11,13 +11,20 @@
  * - onFinish/onStepFinish callbacks for observability
  * - Reasoning extraction support for thinking models
  * - API key rotation support
+ * - Context compression for managing long conversations
  */
 
 import { useCallback, useRef } from 'react';
 import { generateText, streamText, type CoreMessage, type ImagePart, type TextPart } from 'ai';
 import { getProviderModel, type ProviderName } from './client';
-import { useSettingsStore, useMemoryStore, useUsageStore } from '@/stores';
+import { useSettingsStore, useMemoryStore, useUsageStore, useSessionStore } from '@/stores';
 import { getNextApiKey } from './api-key-rotation';
+import {
+  filterMessagesForContext,
+  mergeCompressionSettings,
+  calculateContextState,
+} from './compression';
+import type { UIMessage } from '@/types/message';
 
 export interface ChatUsageInfo {
   promptTokens: number;
@@ -75,6 +82,9 @@ interface SendMessageOptions {
   systemPrompt?: string;
   temperature?: number;
   maxTokens?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
   sessionId?: string;
   messageId?: string;
   tools?: Record<string, unknown>;
@@ -96,6 +106,10 @@ export function useAIChat({
   const reasoningRef = useRef<string>('');
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const streamingEnabled = useSettingsStore((state) => state.streamResponses);
+
+  // Compression settings
+  const compressionSettings = useSettingsStore((state) => state.compressionSettings);
+  const getSession = useSessionStore((state) => state.getSession);
 
   // Memory settings
   const getMemoriesForPrompt = useMemoryStore((state) => state.getMemoriesForPrompt);
@@ -162,7 +176,7 @@ export function useAIChat({
 
       abortControllerRef.current = new AbortController();
 
-      const { messages, systemPrompt, temperature = 0.7, maxTokens, sessionId, messageId } = options;
+      const { messages, systemPrompt, temperature = 0.7, maxTokens, topP, frequencyPenalty, presencePenalty, sessionId, messageId } = options;
 
       // Auto-detect memories from user messages
       if (memorySettings.enabled && memorySettings.autoInfer) {
@@ -207,8 +221,57 @@ export function useAIChat({
       // Only set system prompt if there's content
       const finalSystemPrompt = enhancedSystemPrompt.trim() || undefined;
 
+      // Apply context compression if enabled
+      // Get session compression overrides if available
+      const session = sessionId ? getSession(sessionId) : undefined;
+      const effectiveCompressionSettings = mergeCompressionSettings(
+        compressionSettings,
+        session?.compressionOverrides
+      );
+
+      // Filter messages based on compression settings
+      // Convert MultimodalMessage to UIMessage format for filtering
+      const messagesAsUIMessage: UIMessage[] = messages.map((msg, idx) => ({
+        id: `temp-${idx}`,
+        role: msg.role,
+        content: typeof msg.content === 'string' ? msg.content : msg.content.map(p => p.type === 'text' ? p.text : '[image]').join(' '),
+        createdAt: new Date(),
+      }));
+
+      // Calculate max tokens for context (use model's max or default)
+      const modelMaxTokens = maxTokens || 100000;
+
+      // Apply compression filtering
+      const filteredUIMessages = filterMessagesForContext(
+        messagesAsUIMessage,
+        effectiveCompressionSettings,
+        modelMaxTokens,
+        provider,
+        model
+      );
+
+      // Log compression activity if messages were filtered
+      if (filteredUIMessages.length < messages.length) {
+        console.log(`[Compression] Filtered ${messages.length - filteredUIMessages.length} messages (${messages.length} → ${filteredUIMessages.length})`);
+      }
+
+      // Map back to original messages (preserve multimodal content)
+      const filteredMessageIds = new Set(filteredUIMessages.map(m => m.id));
+      const filteredMessages = messages.filter((_, idx) => filteredMessageIds.has(`temp-${idx}`));
+
+      // Also include any summary messages that were created during compression
+      const summaryMessages: MultimodalMessage[] = filteredUIMessages
+        .filter(m => m.compressionState?.isSummary)
+        .map(m => ({
+          role: 'system' as const,
+          content: m.content,
+        }));
+
+      // Combine summary messages with filtered original messages
+      const finalMessages = [...summaryMessages, ...filteredMessages];
+
       // Convert MultimodalMessage to CoreMessage format
-      const convertedMessages: CoreMessage[] = messages.map((msg) => {
+      const convertedMessages: CoreMessage[] = finalMessages.map((msg) => {
         if (typeof msg.content === 'string') {
           return {
             role: msg.role,
@@ -243,6 +306,9 @@ export function useAIChat({
         temperature,
         abortSignal: abortControllerRef.current.signal,
         ...(maxTokens && { maxTokens }),
+        ...(topP !== undefined && { topP }),
+        ...(frequencyPenalty !== undefined && { frequencyPenalty }),
+        ...(presencePenalty !== undefined && { presencePenalty }),
       };
 
       // Helper function to extract and normalize usage info
@@ -404,7 +470,7 @@ export function useAIChat({
         throw error;
       }
     },
-    [provider, model, providerSettings, streamingEnabled, onStreamStart, onStreamEnd, onError, onFinish, onStepFinish, extractReasoning, reasoningTagName, getMemoriesForPrompt, detectMemoryFromText, createMemory, memorySettings, customInstructions, customInstructionsEnabled, aboutUser, responsePreferences, addUsageRecord]
+    [provider, model, providerSettings, streamingEnabled, onStreamStart, onStreamEnd, onError, onFinish, onStepFinish, extractReasoning, reasoningTagName, getMemoriesForPrompt, detectMemoryFromText, createMemory, memorySettings, customInstructions, customInstructionsEnabled, aboutUser, responsePreferences, addUsageRecord, compressionSettings, getSession]
   );
 
   // Get the last extracted reasoning

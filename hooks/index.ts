@@ -115,3 +115,36 @@ export {
 export {
   useSelectionToolbar,
 } from './use-selection-toolbar';
+export {
+  useTokenCount,
+  calculateTokenBreakdown,
+  estimateTokens,
+  estimateTokensFast,
+  estimateTokensForClaude,
+  countTokens,
+  countTokensTiktoken,
+  countChatMessageTokens,
+  countConversationTokens,
+  getEncodingForModel,
+  getTokenCountMethod,
+  getContextUtilization,
+  formatTokenCount,
+  type TokenBreakdown,
+  type TokenCountOptions,
+  type TokenCountMethod,
+} from './use-token-count';
+export {
+  useResizeObserver,
+  useLayoutRecalculation,
+  useMonacoLayoutSync,
+  usePreviewRefreshTrigger,
+  type Size,
+  type ResizeObserverOptions,
+} from './use-resize-observer';
+export {
+  useDesignerDragDrop,
+  type DragItemType,
+  type DragData,
+  type DropPosition,
+  type UseDesignerDragDropReturn,
+} from './use-designer-drag-drop';

@@ -506,7 +506,7 @@ export function CanvasPanel() {
                 value={localContent}
                 onChange={handleEditorChange}
                 options={{
-                  minimap: { enabled: false },
+                  minimap: { enabled: true, scale: 1 },
                   fontSize: 14,
                   lineNumbers: 'on',
                   scrollBeyondLastLine: false,

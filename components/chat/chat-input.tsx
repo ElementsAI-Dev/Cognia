@@ -14,7 +14,7 @@
 
 import { useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { Send, Paperclip, Square, Loader2, Mic, X, FileIcon, ImageIcon, Archive, Wand2, Zap, Globe, Brain, Settings2, ChevronDown } from 'lucide-react';
+import { Send, Paperclip, Square, Loader2, Mic, X, FileIcon, ImageIcon, Archive, Wand2, Zap, Globe, Brain, Settings2 } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { Button } from '@/components/ui/button';
 // TooltipProvider is now at app level in providers.tsx
@@ -168,15 +168,16 @@ interface ChatInputProps {
   // Context and mode settings
   contextUsagePercent?: number;
   onOpenContextSettings?: () => void;
+  onOpenAISettings?: () => void;
   webSearchEnabled?: boolean;
   thinkingEnabled?: boolean;
   onWebSearchChange?: (enabled: boolean) => void;
   onThinkingChange?: (enabled: boolean) => void;
   modelName?: string;
   modeName?: string;
-  // Mode and model selection (controlled by parent)
-  onModeClick?: () => void;
+  // Model selection (controlled by parent)
   onModelClick?: () => void;
+  onModeClick?: () => void;
   onWorkflowClick?: () => void;
 }
 
@@ -227,14 +228,15 @@ export function ChatInput({
   onMentionsChange,
   contextUsagePercent = 0,
   onOpenContextSettings,
+  onOpenAISettings,
   webSearchEnabled = false,
   thinkingEnabled = false,
   onWebSearchChange,
   onThinkingChange,
   modelName = 'GPT-4o',
-  modeName = 'Chat',
-  onModeClick,
+  modeName: _modeName,
   onModelClick,
+  onModeClick: _onModeClick,
 }: ChatInputProps) {
   const t = useTranslations('chatInput');
   const tPlaceholders = useTranslations('placeholders');
@@ -910,29 +912,10 @@ export function ChatInput({
             )}
           </div>
 
-          {/* Bottom toolbar with mode/model selectors and feature toggles */}
+          {/* Bottom toolbar with feature toggles */}
           <div className="mt-2 flex items-center justify-between px-1">
-            {/* Left side - Mode and Model selector */}
+            {/* Left side - Feature toggles */}
             <div className="flex items-center gap-1">
-              {/* Mode selector */}
-              {onModeClick && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground hover:text-foreground"
-                      onClick={onModeClick}
-                    >
-                      <span className="text-base">{modeName === 'Agent' ? '🤖' : modeName === 'Research' ? '🔍' : '💬'}</span>
-                      <span>{modeName}</span>
-                      <ChevronDown className="h-3 w-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('switchMode')}</TooltipContent>
-                </Tooltip>
-              )}
-
               {/* Model selector */}
               {onModelClick && (
                 <Tooltip>
@@ -998,19 +981,19 @@ export function ChatInput({
                 <TooltipContent>{t('extendedThinking')}</TooltipContent>
               </Tooltip>
 
-              {/* Context Settings */}
+              {/* AI Settings */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7"
-                    onClick={onOpenContextSettings}
+                    onClick={onOpenAISettings}
                   >
                     <Settings2 className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{t('contextSettings')}</TooltipContent>
+                <TooltipContent>{t('aiSettings')}</TooltipContent>
               </Tooltip>
 
               {/* Preset Quick Prompts */}

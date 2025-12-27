@@ -50,3 +50,4 @@ export * from './skill';
 export * from './learning';
 export * from './sub-agent';
 export * from './background-agent';
+export * from './compression';

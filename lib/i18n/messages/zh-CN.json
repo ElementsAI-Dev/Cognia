@@ -129,6 +129,7 @@
     },
     "chatMode": "聊天模式",
     "designer": "设计器",
+    "imageStudio": "图像工作室",
     "sidePanel": "侧边面板",
     "canvas": "画布",
     "canvasDesc": "AI 辅助编辑",
@@ -142,7 +143,10 @@
     "export": "导出",
     "clearChat": "清空对话",
     "auto": "自动",
-    "managePresets": "管理预设"
+    "managePresets": "管理预设",
+    "exportAnimated": "导出动画",
+    "exportDocument": "导出文档",
+    "openInOtherAI": "在其他AI中打开"
   },
   "chatInput": {
     "dropFilesHere": "拖放文件到这里",
@@ -162,11 +166,32 @@
     "think": "思考",
     "extendedThinking": "扩展思考模式",
     "contextSettings": "上下文设置",
+    "aiSettings": "AI 设置",
     "contextWindowUsage": "上下文窗口使用量",
     "enterToSend": "按 Enter 发送，Shift+Enter 换行",
     "clickToSend": "点击发送按钮发送消息",
     "dragDropFiles": "拖放或粘贴文件",
     "typeAtForMcp": "输入 @ 使用 MCP 工具"
+  },
+  "aiSettings": {
+    "title": "AI 消息设置",
+    "description": "配置此对话的 AI 生成参数",
+    "temperature": "温度",
+    "temperatureDesc": "控制随机性。较低的值更加精确，较高的值更加有创意。",
+    "precise": "精确",
+    "balanced": "平衡",
+    "creative": "创意",
+    "maxTokens": "最大令牌数",
+    "maxTokensDesc": "响应中的最大令牌数量。",
+    "topP": "Top P（核采样）",
+    "topPTooltip": "核采样参数",
+    "topPDesc": "温度的替代方案。考虑具有 top_p 概率质量的令牌。",
+    "frequencyPenalty": "频率惩罚",
+    "frequencyPenaltyDesc": "通过根据频率惩罚令牌来减少重复。正值减少重复。",
+    "presencePenalty": "存在惩罚",
+    "presencePenaltyDesc": "通过惩罚已出现的令牌来鼓励新话题。正值增加多样性。",
+    "resetDefaults": "重置为默认",
+    "done": "完成"
   },
   "sidebar": {
     "newChat": "新对话",
@@ -202,7 +227,8 @@
     "shortcuts": "快捷键",
     "unpin": "取消置顶",
     "pinToTop": "置顶",
-    "workflows": "工作流"
+    "workflows": "工作流",
+    "nativeTools": "原生工具"
   },
   "settings": {
     "title": "设置",
@@ -588,6 +614,7 @@
     "plainTextDesc": "无格式的简单文本",
     "new": "新",
     "includeMetadata": "包含元数据",
+    "includeMetadataDesc": "添加对话元数据，如时间戳和模型信息",
     "advancedOptions": "高级选项",
     "exporting": "导出中...",
     "exportNow": "导出",
@@ -1092,7 +1119,46 @@
     "showTokenUsageMeter": "显示令牌使用量",
     "currentStats": "当前统计",
     "events": "事件",
-    "activeTokens": "活动令牌"
+    "activeTokens": "活动令牌",
+    "statusHealthy": "健康",
+    "statusWarning": "警告",
+    "statusDanger": "接近上限",
+    "used": "已用",
+    "limit": "上限",
+    "messages": "条消息",
+    "optimize": "优化",
+    "clear": "清空",
+    "advancedSettings": "高级设置",
+    "done": "完成",
+    "compressionSettings": "压缩设置",
+    "enableCompression": "启用压缩",
+    "compressionStrategy": "策略",
+    "compressionTrigger": "触发方式",
+    "strategy": {
+      "summary": "摘要",
+      "sliding-window": "滑动窗口",
+      "selective": "选择性",
+      "hybrid": "混合"
+    },
+    "strategyDesc": {
+      "summary": "使用 AI 总结较旧的消息",
+      "sliding-window": "仅保留最近的消息",
+      "selective": "保留重要消息并总结其他消息",
+      "hybrid": "滑动窗口 + 摘要的组合"
+    },
+    "trigger": {
+      "manual": "手动",
+      "token-threshold": "令牌阈值",
+      "message-count": "消息数量"
+    },
+    "tokenThreshold": "令牌阈值",
+    "tokenThresholdDesc": "当令牌使用率超过此百分比时压缩",
+    "messageThreshold": "消息阈值",
+    "messageThresholdDesc": "当消息数量超过此数值时压缩",
+    "preserveRecent": "保留最近消息",
+    "preserveRecentDesc": "保留不压缩的最近消息数量",
+    "compressNow": "立即压缩",
+    "compressing": "压缩中..."
   },
   "batchCopy": {
     "title": "批量复制消息",

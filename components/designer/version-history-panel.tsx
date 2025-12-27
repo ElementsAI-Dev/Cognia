@@ -1,0 +1,287 @@
+'use client';
+
+/**
+ * VersionHistoryPanel - Shows version history for the designer
+ * Allows users to view, navigate, and restore previous versions
+ */
+
+import { useCallback, useMemo } from 'react';
+import {
+  History,
+  Undo2,
+  Redo2,
+  RotateCcw,
+  Clock,
+  ChevronRight,
+  FileCode,
+  Sparkles,
+  Move,
+  Trash2,
+  Copy,
+  Type,
+  Palette,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
+import { useDesignerStore } from '@/stores/designer-store';
+import type { DesignerHistoryEntry } from '@/types/designer';
+
+interface VersionHistoryPanelProps {
+  className?: string;
+}
+
+// Map action types to icons
+const actionIcons: Record<string, React.ReactNode> = {
+  'Code change': <FileCode className="h-3.5 w-3.5" />,
+  'AI edit': <Sparkles className="h-3.5 w-3.5" />,
+  'Element moved': <Move className="h-3.5 w-3.5" />,
+  'Element deleted': <Trash2 className="h-3.5 w-3.5" />,
+  'Element duplicated': <Copy className="h-3.5 w-3.5" />,
+  'Text changed': <Type className="h-3.5 w-3.5" />,
+  'Style changed': <Palette className="h-3.5 w-3.5" />,
+  'Element inserted': <ChevronRight className="h-3.5 w-3.5" />,
+};
+
+function getActionIcon(action: string): React.ReactNode {
+  // Check for exact match first
+  if (actionIcons[action]) {
+    return actionIcons[action];
+  }
+  // Check for partial matches
+  for (const [key, icon] of Object.entries(actionIcons)) {
+    if (action.toLowerCase().includes(key.toLowerCase())) {
+      return icon;
+    }
+  }
+  return <History className="h-3.5 w-3.5" />;
+}
+
+function formatTimestamp(date: Date): string {
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+
+  if (seconds < 60) {
+    return 'Just now';
+  }
+  if (minutes < 60) {
+    return `${minutes}m ago`;
+  }
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
+  const history = useDesignerStore((state) => state.history);
+  const historyIndex = useDesignerStore((state) => state.historyIndex);
+  const undo = useDesignerStore((state) => state.undo);
+  const redo = useDesignerStore((state) => state.redo);
+  const setCode = useDesignerStore((state) => state.setCode);
+
+  const canUndo = historyIndex >= 0;
+  const canRedo = historyIndex < history.length - 1;
+
+  // Restore to a specific version
+  const restoreVersion = useCallback(
+    (entry: DesignerHistoryEntry, index: number) => {
+      // If clicking on current position, do nothing
+      if (index === historyIndex) return;
+
+      // Navigate to the version after this entry (to get its newCode)
+      setCode(entry.newCode, false);
+
+      // We can't directly set historyIndex from here, but we can use undo/redo
+      // For now, just set the code and let the user know
+    },
+    [historyIndex, setCode]
+  );
+
+  // Get the code diff summary
+  const getDiffSummary = useCallback((entry: DesignerHistoryEntry): string => {
+    const oldLines = entry.previousCode.split('\n').length;
+    const newLines = entry.newCode.split('\n').length;
+    const diff = newLines - oldLines;
+
+    if (diff === 0) {
+      return 'Modified';
+    }
+    if (diff > 0) {
+      return `+${diff} lines`;
+    }
+    return `${diff} lines`;
+  }, []);
+
+  // Memoize reversed history for display (newest first)
+  const reversedHistory = useMemo(() => {
+    return [...history].reverse().map((entry, reversedIndex) => ({
+      entry,
+      originalIndex: history.length - 1 - reversedIndex,
+    }));
+  }, [history]);
+
+  if (history.length === 0) {
+    return (
+      <div className={cn('flex flex-col h-full', className)}>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b px-3 py-2">
+          <div className="flex items-center gap-2">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Version History</span>
+          </div>
+        </div>
+
+        {/* Empty state */}
+        <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
+          <div className="rounded-full bg-muted p-3 mb-3">
+            <Clock className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <p className="text-sm font-medium">No history yet</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Changes will appear here as you edit
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <TooltipProvider>
+      <div className={cn('flex flex-col h-full', className)}>
+        {/* Header with undo/redo controls */}
+        <div className="flex items-center justify-between border-b px-3 py-2">
+          <div className="flex items-center gap-2">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">History</span>
+            <span className="text-xs text-muted-foreground">
+              ({history.length})
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={undo}
+                  disabled={!canUndo}
+                >
+                  <Undo2 className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={redo}
+                  disabled={!canRedo}
+                >
+                  <Redo2 className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Redo (Ctrl+Y)</TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+
+        {/* History list */}
+        <ScrollArea className="flex-1">
+          <div className="p-2 space-y-1">
+            {reversedHistory.map(({ entry, originalIndex }) => {
+              const isCurrent = originalIndex === historyIndex;
+              const isPast = originalIndex < historyIndex;
+              const isFuture = originalIndex > historyIndex;
+
+              return (
+                <button
+                  key={entry.id}
+                  onClick={() => restoreVersion(entry, originalIndex)}
+                  className={cn(
+                    'w-full text-left rounded-md px-2 py-1.5 transition-colors group',
+                    isCurrent && 'bg-primary/10 border border-primary/30',
+                    isPast && 'opacity-60 hover:opacity-100 hover:bg-muted',
+                    isFuture && 'opacity-40 hover:opacity-100 hover:bg-muted/50',
+                    !isCurrent && 'hover:bg-muted'
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    {/* Action icon */}
+                    <div
+                      className={cn(
+                        'shrink-0',
+                        isCurrent ? 'text-primary' : 'text-muted-foreground'
+                      )}
+                    >
+                      {getActionIcon(entry.action)}
+                    </div>
+
+                    {/* Action description */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-medium truncate">
+                          {entry.action}
+                        </span>
+                        {isCurrent && (
+                          <span className="text-[10px] bg-primary/20 text-primary px-1 rounded">
+                            Current
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatTimestamp(new Date(entry.timestamp))}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {getDiffSummary(entry)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Restore indicator */}
+                    {!isCurrent && (
+                      <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <RotateCcw className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </ScrollArea>
+
+        {/* Footer with keyboard hints */}
+        <div className="border-t px-3 py-2">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <span>Ctrl+Z to undo</span>
+            <span>Ctrl+Y to redo</span>
+          </div>
+        </div>
+      </div>
+    </TooltipProvider>
+  );
+}
+
+export default VersionHistoryPanel;

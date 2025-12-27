@@ -48,8 +48,12 @@ jest.mock('@/lib/ai', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children, open }: { children: React.ReactNode; open: boolean }) => 
-    open ? <div data-testid="dialog">{children}</div> : null,
+  // Always render children to mimic Radix behavior where triggers render even when closed
+  Dialog: ({ children, open }: { children: React.ReactNode; open: boolean }) => (
+    <div data-testid="dialog" data-open={open}>
+      {children}
+    </div>
+  ),
   DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,

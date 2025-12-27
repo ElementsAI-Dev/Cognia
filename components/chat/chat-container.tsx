@@ -25,6 +25,8 @@ import { ErrorMessage } from './error-message';
 import { ChatHeader } from './chat-header';
 import { ChatInput, type Attachment } from './chat-input';
 import { ContextSettingsDialog } from './context-settings-dialog';
+import { AISettingsDialog, type AISettings } from './ai-settings-dialog';
+import { ModelPickerDialog } from './model-picker-dialog';
 import { WelcomeState } from './welcome-state';
 import { BranchButton } from './branch-selector';
 import { TextSelectionPopover } from './text-selection-popover';
@@ -36,10 +38,14 @@ import type { MessagePart } from '@/types/message';
 import { PromptOptimizerDialog } from './prompt-optimizer-dialog';
 import { PresetManagerDialog } from './preset-manager-dialog';
 import { Suggestions, Suggestion } from '@/components/ai-elements/suggestion';
-import { AgentPlanEditor } from '@/components/agent/agent-plan-editor';
-import { ToolTimeline, type ToolExecution } from '@/components/agent/tool-timeline';
-import { ToolApprovalDialog, type ToolApprovalRequest } from '@/components/agent/tool-approval-dialog';
-import { WorkflowSelector } from '@/components/agent/workflow-selector';
+import {
+  AgentPlanEditor,
+  ToolTimeline,
+  ToolApprovalDialog,
+  WorkflowSelector,
+  type ToolExecution,
+  type ToolApprovalRequest,
+} from '@/components/agent';
 import { PPTPreview } from '@/components/ai-elements/ppt-preview';
 import { SkillSuggestions } from '@/components/skills';
 import { LearningModePanel, LearningStartDialog } from '@/components/learning';
@@ -55,12 +61,13 @@ import {
 import { translateText } from '@/lib/ai/translate';
 import type { SearchResponse, SearchResult } from '@/types/search';
 import { useSessionStore, useSettingsStore, usePresetStore, useMcpStore, useAgentStore, useProjectStore, useQuoteStore, useLearningStore } from '@/stores';
-import { useMessages, useAgent, useProjectContext } from '@/hooks';
+import { useMessages, useAgent, useProjectContext, calculateTokenBreakdown } from '@/hooks';
 import type { ParsedToolCall, ToolCallResult } from '@/types/mcp';
 import { useAIChat, useAutoRouter, type ProviderName, isVisionModel, buildMultimodalContent, type MultimodalMessage } from '@/lib/ai';
 import { messageRepository } from '@/lib/db';
 import { PROVIDERS } from '@/types/provider';
 import type { ChatMode, UIMessage } from '@/types';
+import type { AgentModeConfig } from '@/types/agent-mode';
 
 interface ChatContainerProps {
   sessionId?: string;
@@ -69,11 +76,20 @@ interface ChatContainerProps {
 export function ChatContainer({ sessionId }: ChatContainerProps) {
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
   const getSession = useSessionStore((state) => state.getSession);
-  const getActiveSession = useSessionStore((state) => state.getActiveSession);
+  const _getActiveSession = useSessionStore((state) => state.getActiveSession);
   const createSession = useSessionStore((state) => state.createSession);
   const updateSession = useSessionStore((state) => state.updateSession);
+  // Subscribe to sessions and activeSessionId to trigger re-renders when they change
+  const sessions = useSessionStore((state) => state.sessions);
+  const storeActiveSessionId = useSessionStore((state) => state.activeSessionId);
 
-  const session = sessionId ? getSession(sessionId) : getActiveSession();
+  const session = useMemo(() => {
+    if (sessionId) {
+      return sessions.find(s => s.id === sessionId);
+    }
+    return sessions.find(s => s.id === storeActiveSessionId);
+  }, [sessionId, sessions, storeActiveSessionId]);
+  
   const activeSessionId = session?.id || null;
   const activeBranchId = session?.activeBranchId;
 
@@ -93,7 +109,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const getActiveSkills = useSkillStore((state) => state.getActiveSkills);
 
   // Learning store for Socratic method learning mode
-  const learningStore = useLearningStore();
+  const getLearningSessionByChat = useLearningStore((state) => state.getLearningSessionByChat);
 
   // Message persistence with IndexedDB (branch-aware)
   const {
@@ -153,6 +169,12 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const [showMemoryActivation, setShowMemoryActivation] = useState(false);
   const [showTokenUsageMeter, setShowTokenUsageMeter] = useState(true);
 
+  // AI settings dialog state
+  const [showAISettings, setShowAISettings] = useState(false);
+
+  // Model picker dialog state
+  const [showModelPicker, setShowModelPicker] = useState(false);
+
   // MCP store for tool execution
   const mcpCallTool = useMcpStore((state) => state.callTool);
   const mcpServers = useMcpStore((state) => state.servers);
@@ -174,6 +196,9 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   // Current mode
   const currentMode: ChatMode = session?.mode || 'chat';
+
+  // Agent sub-mode (when in agent mode)
+  const agentModeId = session?.agentModeId || 'general';
 
   // Auto router for intelligent model selection
   const { selectModel } = useAutoRouter();
@@ -199,15 +224,30 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     return currentModel;
   }, [isAutoMode, currentModel]);
 
-  // Token usage calculation (simplified estimation)
+  // Token usage calculation using provider-aware estimation
+  // Uses tiktoken for OpenAI models, estimation for others
   const estimatedTokens = useMemo(() => {
-    const messageText = messages.map(m => m.content).join(' ');
-    // Rough estimation: ~4 characters per token
-    const contextTokens = Math.round(messageText.length / 4);
-    const systemTokens = 200; // Approximate system prompt tokens
-    const totalTokens = contextTokens + systemTokens;
-    return { contextTokens, systemTokens, totalTokens };
-  }, [messages]);
+    // Get system prompt from session
+    const systemPrompt = session?.systemPrompt || '';
+    
+    // Calculate token breakdown with provider info for accurate counting
+    const breakdown = calculateTokenBreakdown(messages, {
+      systemPrompt,
+      provider: currentProvider,
+      model: currentModel,
+    });
+    
+    return {
+      contextTokens: breakdown.contextTokens,
+      systemTokens: breakdown.systemTokens,
+      totalTokens: breakdown.totalTokens,
+      userTokens: breakdown.userTokens,
+      assistantTokens: breakdown.assistantTokens,
+      messageTokens: breakdown.messageTokens,
+      method: breakdown.method,
+      isExact: breakdown.isExact,
+    };
+  }, [messages, session?.systemPrompt, currentProvider, currentModel]);
 
   // Model max tokens (varies by model)
   const modelMaxTokens = useMemo(() => {
@@ -366,15 +406,25 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     }
     // Show learning start dialog when switching to learning mode
     if (mode === 'learning') {
-      const activeSessionId = session?.id;
-      const hasLearningSession = activeSessionId ? learningStore.getLearningSessionByChat(activeSessionId) : null;
+      const currentSessionId = session?.id;
+      const hasLearningSession = currentSessionId ? getLearningSessionByChat(currentSessionId) : null;
       if (!hasLearningSession) {
         setShowLearningStartDialog(true);
       } else {
         setShowLearningPanel(true);
       }
     }
-  }, [session, updateSession, createSession, learningStore]);
+  }, [session, updateSession, createSession, getLearningSessionByChat]);
+
+  // Handle agent sub-mode change (within agent mode)
+  const handleAgentModeChange = useCallback((agentMode: AgentModeConfig) => {
+    if (session) {
+      updateSession(session.id, {
+        agentModeId: agentMode.id,
+        systemPrompt: agentMode.systemPrompt,
+      });
+    }
+  }, [session, updateSession]);
 
   // Handle preset selection
   const handleSelectPreset = useCallback((preset: import('@/types/preset').Preset) => {
@@ -416,6 +466,22 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       updateSession(session.id, { thinkingEnabled: enabled });
     }
   }, [session, updateSession]);
+
+  // Handle AI settings change
+  const handleAISettingsChange = useCallback((settings: Partial<AISettings>) => {
+    if (session) {
+      updateSession(session.id, settings);
+    }
+  }, [session, updateSession]);
+
+  // Get current AI settings from session
+  const currentAISettings: AISettings = useMemo(() => ({
+    temperature: session?.temperature ?? 0.7,
+    maxTokens: session?.maxTokens ?? 4096,
+    topP: session?.topP ?? 1.0,
+    frequencyPenalty: session?.frequencyPenalty ?? 0,
+    presencePenalty: session?.presencePenalty ?? 0,
+  }), [session?.temperature, session?.maxTokens, session?.topP, session?.frequencyPenalty, session?.presencePenalty]);
 
   // Open preset manager (can be used by child components)
   const _handleManagePresets = useCallback(() => {
@@ -844,7 +910,7 @@ Be thorough in your thinking but concise in your final answer.`;
       // Add learning mode system prompt if in learning mode
       if (currentMode === 'learning') {
         const { buildLearningSystemPrompt } = await import('@/lib/learning');
-        const learningSession = learningStore.getLearningSessionByChat(currentSessionId!);
+        const learningSession = getLearningSessionByChat(currentSessionId!);
         const learningPrompt = buildLearningSystemPrompt(learningSession);
         if (learningPrompt) {
           console.log('Injecting learning mode (Socratic Method) system prompt');
@@ -859,6 +925,9 @@ Be thorough in your thinking but concise in your final answer.`;
           systemPrompt: enhancedSystemPrompt || undefined,
           temperature: session?.temperature ?? 0.7,
           maxTokens: session?.maxTokens,
+          topP: session?.topP,
+          frequencyPenalty: session?.frequencyPenalty,
+          presencePenalty: session?.presencePenalty,
           sessionId: currentSessionId!,
           messageId: assistantMessage.id,
         },
@@ -894,7 +963,7 @@ Be thorough in your thinking but concise in your final answer.`;
     } finally {
       setIsLoading(false);
     }
-  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, appendToMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes, getActiveSkills, learningStore]);
+  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, appendToMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes, getActiveSkills, getLearningSessionByChat]);
 
   const handleStop = useCallback(() => {
     aiStop();
@@ -1039,6 +1108,8 @@ Be thorough in your thinking but concise in your final answer.`;
             mode={currentMode}
             onSuggestionClick={handleSuggestionClick}
             onModeChange={handleModeChange}
+            agentModeId={agentModeId}
+            onAgentModeChange={handleAgentModeChange}
             onSelectTemplate={(template) => {
               // Apply template settings to session
               if (session) {
@@ -1105,11 +1176,10 @@ Be thorough in your thinking but concise in your final answer.`;
         </div>
       )}
 
-      {/* Agent Plan Editor for agent mode - enhanced visibility */}
+      {/* Agent Plan Editor for agent mode - floats above chat input */}
       {currentMode === 'agent' && activeSessionId && (
-        <div className="px-4 pb-3 mx-auto w-full max-w-4xl animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
-          <div className="relative">
-            <div className="absolute -left-2 top-0 bottom-0 w-1 bg-linear-to-b from-green-500 via-emerald-500 to-teal-500 rounded-full" />
+        <div className="relative mx-auto w-full max-w-4xl px-4">
+          <div className="absolute bottom-0 left-4 right-4 z-10">
             <AgentPlanEditor sessionId={activeSessionId} />
           </div>
         </div>
@@ -1118,13 +1188,15 @@ Be thorough in your thinking but concise in your final answer.`;
       {/* Quoted content display */}
       <QuotedContent />
 
-      {/* Skill suggestions based on input */}
+      {/* Skill suggestions based on input - floats above chat input */}
       {inputValue.length >= 3 && (
-        <div className="px-4 pb-2 mx-auto w-full max-w-4xl">
-          <SkillSuggestions
-            query={inputValue}
-            showActiveSkills={true}
-          />
+        <div className="relative mx-auto w-full max-w-4xl px-4">
+          <div className="absolute bottom-0 left-4 right-4 z-10">
+            <SkillSuggestions
+              query={inputValue}
+              showActiveSkills={true}
+            />
+          </div>
         </div>
       )}
 
@@ -1141,6 +1213,7 @@ Be thorough in your thinking but concise in your final answer.`;
         onOptimizePrompt={handleOpenPromptOptimizer}
         contextUsagePercent={contextUsagePercent}
         onOpenContextSettings={() => setShowContextSettings(true)}
+        onOpenAISettings={() => setShowAISettings(true)}
         webSearchEnabled={webSearchEnabled}
         thinkingEnabled={thinkingEnabled}
         onWebSearchChange={handleWebSearchChange}
@@ -1154,11 +1227,7 @@ Be thorough in your thinking but concise in your final answer.`;
           const nextMode = modes[(currentIndex + 1) % modes.length];
           handleModeChange(nextMode);
         }}
-        onModelClick={() => {
-          // Open model selector in header by scrolling to top and focusing
-          const header = document.querySelector('header');
-          header?.scrollIntoView({ behavior: 'smooth' });
-        }}
+        onModelClick={() => setShowModelPicker(true)}
         onWorkflowClick={() => setShowWorkflowSelector(true)}
       />
 
@@ -1193,6 +1262,39 @@ Be thorough in your thinking but concise in your final answer.`;
         showTokenUsageMeter={showTokenUsageMeter}
         onShowTokenUsageMeterChange={setShowTokenUsageMeter}
         modelMaxTokens={modelMaxTokens}
+        messageCount={messages.length}
+        onClearContext={() => {
+          if (confirm('Clear all messages in this conversation?')) {
+            _clearMessages();
+          }
+        }}
+      />
+
+      {/* AI Settings Dialog */}
+      <AISettingsDialog
+        open={showAISettings}
+        onOpenChange={setShowAISettings}
+        settings={currentAISettings}
+        onSettingsChange={handleAISettingsChange}
+      />
+
+      {/* Model Picker Dialog */}
+      <ModelPickerDialog
+        open={showModelPicker}
+        onOpenChange={setShowModelPicker}
+        currentProvider={currentProvider}
+        currentModel={currentModel}
+        isAutoMode={isAutoMode}
+        onModelSelect={(providerId, modelId) => {
+          if (session) {
+            updateSession(session.id, { provider: providerId as ProviderName, model: modelId });
+          }
+        }}
+        onAutoModeToggle={() => {
+          if (session) {
+            updateSession(session.id, { provider: isAutoMode ? 'openai' : 'auto' });
+          }
+        }}
       />
 
       {/* Agent Tool Approval Dialog */}

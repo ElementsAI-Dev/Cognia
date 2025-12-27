@@ -5,7 +5,7 @@
  * Shows hierarchical structure of elements
  */
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ChevronRight,
   ChevronDown,
@@ -18,9 +18,17 @@ import {
   FormInput,
   LayoutGrid,
   Trash2,
+  GripVertical,
+  Copy,
 } from 'lucide-react';
+import { useDesignerDragDrop } from '@/hooks';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -31,7 +39,6 @@ import {
 import { cn } from '@/lib/utils';
 import { useDesignerStore } from '@/stores/designer-store';
 import type { DesignerElement } from '@/types/designer';
-import { useState } from 'react';
 
 // Map tag names to icons
 const tagIcons: Record<string, React.ReactNode> = {
@@ -70,12 +77,27 @@ export function ElementTree({ className }: ElementTreeProps) {
   const selectElement = useDesignerStore((state) => state.selectElement);
   const hoverElement = useDesignerStore((state) => state.hoverElement);
   const deleteElement = useDesignerStore((state) => state.deleteElement);
+  const duplicateElement = useDesignerStore((state) => state.duplicateElement);
   const syncCodeFromElements = useDesignerStore((state) => state.syncCodeFromElements);
+
+  // Drag-drop support
+  const {
+    isDragging,
+    dropTargetId,
+    dropPosition,
+    createElementDragHandlers,
+    createDropHandlers,
+  } = useDesignerDragDrop();
 
   const handleDeleteElement = useCallback((id: string) => {
     deleteElement(id);
     syncCodeFromElements();
   }, [deleteElement, syncCodeFromElements]);
+
+  const handleDuplicateElement = useCallback((id: string) => {
+    duplicateElement(id);
+    syncCodeFromElements();
+  }, [duplicateElement, syncCodeFromElements]);
 
   if (!elementTree) {
     return (
@@ -102,6 +124,12 @@ export function ElementTree({ className }: ElementTreeProps) {
           onSelect={selectElement}
           onHover={hoverElement}
           onDelete={handleDeleteElement}
+          onDuplicate={handleDuplicateElement}
+          isDragging={isDragging}
+          dropTargetId={dropTargetId}
+          dropPosition={dropPosition}
+          createElementDragHandlers={createElementDragHandlers}
+          createDropHandlers={createDropHandlers}
         />
       </div>
     </ScrollArea>
@@ -116,6 +144,21 @@ interface ElementTreeNodeProps {
   onSelect: (id: string | null) => void;
   onHover: (id: string | null) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
+  isDragging: boolean;
+  dropTargetId: string | null;
+  dropPosition: 'before' | 'after' | 'inside' | null;
+  createElementDragHandlers: (elementId: string) => {
+    draggable: boolean;
+    onDragStart: (e: React.DragEvent) => void;
+    onDragEnd: (e: React.DragEvent) => void;
+  };
+  createDropHandlers: (targetId: string | null) => {
+    onDragOver: (e: React.DragEvent) => void;
+    onDragEnter: (e: React.DragEvent) => void;
+    onDragLeave: (e: React.DragEvent) => void;
+    onDrop: (e: React.DragEvent) => void;
+  };
 }
 
 function ElementTreeNode({
@@ -126,11 +169,23 @@ function ElementTreeNode({
   onSelect,
   onHover,
   onDelete,
+  onDuplicate,
+  isDragging,
+  dropTargetId,
+  dropPosition,
+  createElementDragHandlers,
+  createDropHandlers,
 }: ElementTreeNodeProps) {
-  const [isExpanded, setIsExpanded] = useState(depth < 3);
+  // Only expand first 2 levels by default (depth 0 and 1)
+  const [isExpanded, setIsExpanded] = useState(depth < 2);
   const hasChildren = element.children.length > 0;
   const isSelected = selectedId === element.id;
   const isHovered = hoveredId === element.id;
+  const isDropTarget = dropTargetId === element.id;
+
+  // Get drag and drop handlers
+  const dragHandlers = createElementDragHandlers(element.id);
+  const dropHandlers = createDropHandlers(element.id);
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
@@ -141,8 +196,8 @@ function ElementTreeNode({
   );
 
   const handleToggle = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
+    (e?: React.MouseEvent) => {
+      e?.stopPropagation();
       setIsExpanded(!isExpanded);
     },
     [isExpanded]
@@ -158,35 +213,57 @@ function ElementTreeNode({
   };
 
   return (
-    <div>
+    <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
       <ContextMenu>
         <ContextMenuTrigger>
           <div
             className={cn(
-              'flex items-center gap-1 rounded-md px-2 py-1 text-sm cursor-pointer transition-colors',
+              'flex items-center gap-1 rounded-md px-2 py-1 text-sm cursor-pointer transition-colors relative',
               isSelected && 'bg-primary/10 text-primary',
               isHovered && !isSelected && 'bg-muted',
-              !isSelected && !isHovered && 'hover:bg-muted/50'
+              !isSelected && !isHovered && 'hover:bg-muted/50',
+              isDragging && 'opacity-70',
+              isDropTarget && dropPosition === 'inside' && 'ring-2 ring-primary ring-inset'
             )}
             style={{ paddingLeft: `${depth * 12 + 8}px` }}
             onClick={handleClick}
             onMouseEnter={() => onHover(element.id)}
             onMouseLeave={() => onHover(null)}
+            {...dragHandlers}
+            {...dropHandlers}
           >
+            {/* Drop position indicator - before */}
+            {isDropTarget && dropPosition === 'before' && (
+              <div className="absolute left-0 right-0 top-0 h-0.5 bg-primary rounded-full" />
+            )}
+
+            {/* Drop position indicator - after */}
+            {isDropTarget && dropPosition === 'after' && (
+              <div className="absolute left-0 right-0 bottom-0 h-0.5 bg-primary rounded-full" />
+            )}
+
+            {/* Drag handle */}
+            <div className="opacity-0 group-hover:opacity-50 hover:opacity-100 cursor-grab active:cursor-grabbing">
+              <GripVertical className="h-3 w-3 text-muted-foreground" />
+            </div>
+
             {/* Expand/collapse toggle */}
             {hasChildren ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleToggle}
-                className="h-4 w-4 p-0"
-              >
-                {isExpanded ? (
-                  <ChevronDown className="h-3 w-3" />
-                ) : (
-                  <ChevronRight className="h-3 w-3" />
-                )}
-              </Button>
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={(e) => e.stopPropagation()}
+                  className="h-4 w-4 p-0 transition-transform duration-200"
+                >
+                  <ChevronRight 
+                    className={cn(
+                      "h-3 w-3 transition-transform duration-200",
+                      isExpanded && "rotate-90"
+                    )} 
+                  />
+                </Button>
+              </CollapsibleTrigger>
             ) : (
               <span className="w-4" />
             )}
@@ -209,27 +286,59 @@ function ElementTreeNode({
             )}
           </div>
         </ContextMenuTrigger>
-        <ContextMenuContent>
+        <ContextMenuContent className="w-48">
           <ContextMenuItem onClick={() => onSelect(element.id)}>
-            Select
+            <Box className="h-4 w-4 mr-2" />
+            Select Element
           </ContextMenuItem>
           <ContextMenuItem onClick={() => navigator.clipboard.writeText(element.id)}>
+            <Type className="h-4 w-4 mr-2" />
             Copy ID
           </ContextMenuItem>
+          <ContextMenuItem onClick={() => navigator.clipboard.writeText(element.tagName)}>
+            <Type className="h-4 w-4 mr-2" />
+            Copy Tag Name
+          </ContextMenuItem>
+          {element.className && (
+            <ContextMenuItem onClick={() => navigator.clipboard.writeText(element.className || '')}>
+              <Type className="h-4 w-4 mr-2" />
+              Copy Classes
+            </ContextMenuItem>
+          )}
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => onDuplicate(element.id)}>
+            <Copy className="h-4 w-4 mr-2" />
+            Duplicate
+          </ContextMenuItem>
+          {hasChildren && (
+            <ContextMenuItem onClick={() => handleToggle()}>
+              {isExpanded ? (
+                <>
+                  <ChevronRight className="h-4 w-4 mr-2" />
+                  Collapse
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-4 w-4 mr-2" />
+                  Expand
+                </>
+              )}
+            </ContextMenuItem>
+          )}
           <ContextMenuSeparator />
           <ContextMenuItem
             onClick={() => onDelete(element.id)}
             className="text-destructive focus:text-destructive"
           >
             <Trash2 className="h-4 w-4 mr-2" />
-            Delete
+            Delete Element
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
 
-      {/* Children */}
-      {hasChildren && isExpanded && (
-        <div>
+      {/* Children with smooth collapse animation */}
+      {hasChildren && (
+        <CollapsibleContent>
           {element.children.map((child) => (
             <ElementTreeNode
               key={child.id}
@@ -240,11 +349,17 @@ function ElementTreeNode({
               onSelect={onSelect}
               onHover={onHover}
               onDelete={onDelete}
+              onDuplicate={onDuplicate}
+              isDragging={isDragging}
+              dropTargetId={dropTargetId}
+              dropPosition={dropPosition}
+              createElementDragHandlers={createElementDragHandlers}
+              createDropHandlers={createDropHandlers}
             />
           ))}
-        </div>
+        </CollapsibleContent>
       )}
-    </div>
+    </Collapsible>
   );
 }
 

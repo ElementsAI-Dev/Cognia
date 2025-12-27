@@ -47,7 +47,11 @@ export const Plan = ({
 }: PlanProps) => (
   <PlanContext.Provider value={{ isStreaming }}>
     <Collapsible asChild data-slot="plan" {...props}>
-      <Card className={cn("shadow-none", className)}>{children}</Card>
+      <Card className={cn(
+        "shadow-lg bg-background/95 backdrop-blur",
+        "animate-in fade-in-0 slide-in-from-bottom-2 duration-200",
+        className
+      )}>{children}</Card>
     </Collapsible>
   </PlanContext.Provider>
 );
@@ -112,9 +116,17 @@ export const PlanAction = (props: PlanActionProps) => (
 
 export type PlanContentProps = ComponentProps<typeof CardContent>;
 
-export const PlanContent = (props: PlanContentProps) => (
+export const PlanContent = ({ className, ...props }: PlanContentProps) => (
   <CollapsibleContent asChild>
-    <CardContent data-slot="plan-content" {...props} />
+    <CardContent 
+      data-slot="plan-content" 
+      className={cn(
+        "overflow-hidden transition-all duration-200 ease-out",
+        "data-[state=closed]:animate-collapse data-[state=open]:animate-expand",
+        className
+      )}
+      {...props} 
+    />
   </CollapsibleContent>
 );
 

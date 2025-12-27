@@ -70,6 +70,13 @@ export const useMcpStore = create<McpState>((set, get) => ({
   initialize: async () => {
     if (get().isInitialized) return;
 
+    // Check if we're in Tauri environment
+    const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+    if (!isTauri) {
+      set({ isInitialized: true });
+      return;
+    }
+
     try {
       // Setup event listeners
       unlistenServerUpdate = await listen<McpServerState>(

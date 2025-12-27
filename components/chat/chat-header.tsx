@@ -54,11 +54,9 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { useSessionStore, usePresetStore, useArtifactStore, useChatStore, useProjectStore } from '@/stores';
 import { toast } from '@/components/ui/toaster';
-import { PROVIDERS, getModelConfig } from '@/types/provider';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { ExportDialog } from './export-dialog';
-import { ImageGenerationDialog } from './image-generation-dialog';
 import { AnimatedExportDialog, DocumentExportDialog } from '@/components/export';
 import { 
   OpenIn, 
@@ -73,11 +71,11 @@ import {
   OpenInCursor,
 } from '@/components/ai-elements/open-in-chat';
 import { BranchSelector } from './branch-selector';
-import { ModelPickerDialog } from './model-picker-dialog';
 import { SessionStats } from './session-stats';
 import { PresetSelector, CreatePresetDialog, PresetsManager } from '@/components/presets';
 import { ActiveSkillsIndicator } from '@/components/skills';
-import { BackgroundAgentIndicator } from '@/components/agent';
+import { BackgroundAgentIndicator, AgentModeSelector } from '@/components/agent';
+import type { AgentModeConfig } from '@/types/agent-mode';
 import {
   Dialog,
   DialogContent,
@@ -104,7 +102,6 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
   const [managePresetsOpen, setManagePresetsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [batchCopyOpen, setBatchCopyOpen] = useState(false);
-  const [modelPickerOpen, setModelPickerOpen] = useState(false);
 
   // Artifact panel state
   const openPanel = useArtifactStore((state) => state.openPanel);
@@ -130,18 +127,10 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
   // Get messages for search
   const { messages } = useMessages({ sessionId: session?.id || null });
 
-  const currentProvider = session?.provider || 'openai';
-  const currentModel = session?.model || PROVIDERS[currentProvider]?.defaultModel || 'gpt-4o';
   const currentMode = session?.mode || 'chat';
-  const isAutoMode = currentProvider === 'auto';
 
-  const modelConfig = getModelConfig(currentProvider, currentModel);
-
-  const handleModelChange = (providerId: string, modelId: string) => {
-    if (session) {
-      updateSession(session.id, { provider: providerId as typeof currentProvider, model: modelId });
-    }
-  };
+  // Agent sub-mode (for agent mode only)
+  const agentModeId = session?.agentModeId || 'general';
 
   const handleModeChange = (mode: ChatMode) => {
     if (session) {
@@ -149,9 +138,14 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
     }
   };
 
-  const handleAutoModeToggle = () => {
+  // Handle agent sub-mode change (within agent mode)
+  const handleAgentModeChange = (agentMode: AgentModeConfig) => {
     if (session) {
-      updateSession(session.id, { provider: 'auto', model: 'auto' });
+      updateSession(session.id, {
+        agentModeId: agentMode.id,
+        systemPrompt: agentMode.systemPrompt,
+        // Store agent-specific tools configuration
+      });
     }
   };
 
@@ -233,6 +227,18 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* Agent sub-mode selector - only shown in agent mode */}
+          {currentMode === 'agent' && (
+            <>
+              <Separator orientation="vertical" className="h-4" />
+              <AgentModeSelector
+                selectedModeId={agentModeId}
+                onModeChange={handleAgentModeChange}
+                className="h-8"
+              />
+            </>
+          )}
+
           {/* Preset selector */}
           <Separator orientation="vertical" className="h-4" />
           <PresetSelector
@@ -307,14 +313,17 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
             <TooltipContent>{t('designer')}</TooltipContent>
           </Tooltip>
 
-          {/* Image Generation button */}
-          <ImageGenerationDialog
-            trigger={
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <ImageIcon className="h-4 w-4" />
+          {/* Image Studio button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                <Link href="/image-studio">
+                  <ImageIcon className="h-4 w-4" />
+                </Link>
               </Button>
-            }
-          />
+            </TooltipTrigger>
+            <TooltipContent>{t('imageStudio') || 'Image Studio'}</TooltipContent>
+          </Tooltip>
 
           {/* Search button */}
           {session && messages.length > 0 && (
@@ -468,19 +477,6 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
             </DropdownMenu>
           )}
 
-          {/* Model Selector Button */}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="gap-2 border-border/50 hover:border-border transition-colors"
-            onClick={() => setModelPickerOpen(true)}
-          >
-            {isAutoMode && <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />}
-            <span className="max-w-[120px] truncate sm:max-w-[200px]">
-              {isAutoMode ? t('auto') : (modelConfig?.name || currentModel)}
-            </span>
-            <ChevronDown className="h-3 w-3 opacity-50" />
-          </Button>
       </div>
     </header>
 
@@ -511,16 +507,6 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
       messages={messages}
     />
 
-    {/* Model Picker Dialog */}
-    <ModelPickerDialog
-      open={modelPickerOpen}
-      onOpenChange={setModelPickerOpen}
-      currentProvider={currentProvider}
-      currentModel={currentModel}
-      isAutoMode={isAutoMode}
-      onModelSelect={handleModelChange}
-      onAutoModeToggle={handleAutoModeToggle}
-    />
     </>
   );
 }

@@ -5,7 +5,7 @@
  * Provides navigation, session list, search, and settings access
  */
 
-import { Plus, Settings, Moon, Sun, Monitor, MessageSquare, MoreHorizontal, Pencil, Trash2, Copy, Search, X, FolderKanban, Keyboard, Pin, PinOff, Wand2, ChevronDown, ChevronRight, Sparkles, Workflow } from 'lucide-react';
+import { Plus, Settings, Moon, Sun, Monitor, MessageSquare, MoreHorizontal, Pencil, Trash2, Copy, Search, X, FolderKanban, Keyboard, Pin, PinOff, Wand2, ChevronDown, ChevronRight, Sparkles, Workflow, Wrench } from 'lucide-react';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
@@ -388,6 +388,12 @@ export function AppSidebar() {
                 </div>
               </Link>
             </div>
+            <Link href="/native-tools">
+              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:border-accent">
+                <Wrench className="h-4 w-4 text-orange-500" />
+                <span>{t('nativeTools') || 'Native Tools'}</span>
+              </div>
+            </Link>
           </div>
         )}
 
@@ -424,6 +430,14 @@ export function AppSidebar() {
                   <Link href="/workflows">
                     <Workflow className="h-4 w-4 text-green-500" />
                     <span>Workflows</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip={t('nativeTools') || 'Native Tools'}>
+                  <Link href="/native-tools">
+                    <Wrench className="h-4 w-4 text-orange-500" />
+                    <span>Native Tools</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

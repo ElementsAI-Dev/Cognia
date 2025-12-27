@@ -129,6 +129,7 @@
     },
     "chatMode": "Chat Mode",
     "designer": "Designer",
+    "imageStudio": "Image Studio",
     "sidePanel": "Side Panel",
     "canvas": "Canvas",
     "canvasDesc": "Edit with AI assistance",
@@ -142,7 +143,10 @@
     "export": "Export",
     "clearChat": "Clear Chat",
     "auto": "Auto",
-    "managePresets": "Manage Presets"
+    "managePresets": "Manage Presets",
+    "exportAnimated": "Export Animated",
+    "exportDocument": "Export Document",
+    "openInOtherAI": "Open in Other AI"
   },
   "chatInput": {
     "dropFilesHere": "Drop files here",
@@ -162,11 +166,32 @@
     "think": "Think",
     "extendedThinking": "Extended Thinking Mode",
     "contextSettings": "Context Settings",
+    "aiSettings": "AI Settings",
     "contextWindowUsage": "Context window usage",
     "enterToSend": "Press Enter to send, Shift+Enter for new line",
     "clickToSend": "Click send button to send message",
     "dragDropFiles": "Drag & drop or paste files",
     "typeAtForMcp": "Type @ for MCP tools"
+  },
+  "aiSettings": {
+    "title": "AI Message Settings",
+    "description": "Configure AI generation parameters for this conversation",
+    "temperature": "Temperature",
+    "temperatureDesc": "Controls randomness. Lower values are more focused, higher values are more creative.",
+    "precise": "Precise",
+    "balanced": "Balanced",
+    "creative": "Creative",
+    "maxTokens": "Max Tokens",
+    "maxTokensDesc": "Maximum number of tokens in the response.",
+    "topP": "Top P (Nucleus Sampling)",
+    "topPTooltip": "Nucleus sampling parameter",
+    "topPDesc": "Alternative to temperature. Consider tokens with top_p probability mass.",
+    "frequencyPenalty": "Frequency Penalty",
+    "frequencyPenaltyDesc": "Reduces repetition by penalizing tokens based on frequency. Positive values decrease repetition.",
+    "presencePenalty": "Presence Penalty",
+    "presencePenaltyDesc": "Encourages new topics by penalizing tokens that have appeared. Positive values increase diversity.",
+    "resetDefaults": "Reset to Defaults",
+    "done": "Done"
   },
   "sidebar": {
     "newChat": "New Chat",
@@ -202,7 +227,8 @@
     "shortcuts": "Shortcuts",
     "unpin": "Unpin",
     "pinToTop": "Pin to top",
-    "workflows": "Workflows"
+    "workflows": "Workflows",
+    "nativeTools": "Native Tools"
   },
   "settings": {
     "title": "Settings",
@@ -589,6 +615,7 @@
     "plainTextDesc": "Simple text without formatting",
     "new": "NEW",
     "includeMetadata": "Include Metadata",
+    "includeMetadataDesc": "Add conversation metadata like timestamps and model info",
     "advancedOptions": "Advanced Options",
     "exporting": "Exporting...",
     "exportNow": "Export",
@@ -1093,7 +1120,46 @@
     "showTokenUsageMeter": "Show Token Usage Meter",
     "currentStats": "Current Statistics",
     "events": "Events",
-    "activeTokens": "Active Tokens"
+    "activeTokens": "Active Tokens",
+    "statusHealthy": "Healthy",
+    "statusWarning": "Warning",
+    "statusDanger": "Near Limit",
+    "used": "Used",
+    "limit": "Limit",
+    "messages": "messages",
+    "optimize": "Optimize",
+    "clear": "Clear",
+    "advancedSettings": "Advanced Settings",
+    "done": "Done",
+    "compressionSettings": "Compression Settings",
+    "enableCompression": "Enable Compression",
+    "compressionStrategy": "Strategy",
+    "compressionTrigger": "Trigger",
+    "strategy": {
+      "summary": "Summary",
+      "sliding-window": "Sliding Window",
+      "selective": "Selective",
+      "hybrid": "Hybrid"
+    },
+    "strategyDesc": {
+      "summary": "Summarize older messages using AI",
+      "sliding-window": "Keep only the most recent messages",
+      "selective": "Keep important messages and summarize others",
+      "hybrid": "Combination of sliding window + summary"
+    },
+    "trigger": {
+      "manual": "Manual",
+      "token-threshold": "Token Threshold",
+      "message-count": "Message Count"
+    },
+    "tokenThreshold": "Token Threshold",
+    "tokenThresholdDesc": "Compress when token usage exceeds this percentage",
+    "messageThreshold": "Message Threshold",
+    "messageThresholdDesc": "Compress when message count exceeds this number",
+    "preserveRecent": "Preserve Recent Messages",
+    "preserveRecentDesc": "Number of recent messages to keep uncompressed",
+    "compressNow": "Compress Now",
+    "compressing": "Compressing..."
   },
   "batchCopy": {
     "title": "Batch Copy Messages",

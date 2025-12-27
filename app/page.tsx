@@ -7,6 +7,9 @@
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/sidebar';
 import { ChatContainer } from '@/components/chat';
+import { ArtifactPanel } from '@/components/artifacts';
+import { CanvasPanel } from '@/components/canvas';
+import { BackgroundAgentPanel } from '@/components/agent';
 
 export default function Home() {
   return (
@@ -15,6 +18,9 @@ export default function Home() {
       <SidebarInset>
         <ChatContainer />
       </SidebarInset>
+      <ArtifactPanel />
+      <CanvasPanel />
+      <BackgroundAgentPanel />
     </SidebarProvider>
   );
 }

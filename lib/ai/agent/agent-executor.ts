@@ -13,6 +13,24 @@
 import { generateText, stepCountIs } from 'ai';
 import { z } from 'zod';
 import { getProviderModel, type ProviderName } from '../client';
+import {
+  type StopCondition as FunctionalStopCondition,
+  type StopConditionResult,
+  checkStopCondition,
+  defaultStopCondition,
+  type AgentExecutionState as StopConditionState,
+  stepCountIs as functionalStepCountIs,
+  durationExceeds,
+  noToolCalls as functionalNoToolCalls,
+  toolCalled,
+  responseContains,
+  allToolsSucceeded,
+  anyToolFailed,
+  allOf,
+  anyOf,
+  not,
+  namedCondition,
+} from './stop-conditions';
 
 export interface ToolCall {
   id: string;
@@ -43,11 +61,12 @@ export interface AgentTool {
   requiresApproval?: boolean;
 }
 
-export type StopCondition = 
+export type StopCondition =
   | { type: 'stepCount'; count: number }
   | { type: 'hasToolCall'; toolName: string }
   | { type: 'noToolCalls' }
-  | { type: 'custom'; check: (state: AgentExecutionState) => boolean };
+  | { type: 'custom'; check: (state: AgentExecutionState) => boolean }
+  | { type: 'functional'; condition: FunctionalStopCondition; name?: string };
 
 export interface PrepareStepResult {
   temperature?: number;
@@ -64,6 +83,10 @@ export interface AgentConfig {
   temperature?: number;
   maxSteps?: number;
   stopConditions?: StopCondition[];
+  /** Functional stop conditions from stop-conditions.ts API */
+  functionalStopConditions?: FunctionalStopCondition[];
+  /** Use default stop condition (stepCount OR noToolCalls) */
+  useDefaultStopCondition?: boolean;
   tools?: Record<string, AgentTool>;
   onStepStart?: (step: number) => void;
   onStepComplete?: (step: number, response: string, toolCalls: ToolCall[]) => void;
@@ -73,6 +96,8 @@ export interface AgentConfig {
   requireApproval?: (toolCall: ToolCall) => Promise<boolean>;
   prepareStep?: (step: number, state: AgentExecutionState) => PrepareStepResult | Promise<PrepareStepResult>;
   onFinish?: (result: AgentResult) => void;
+  /** Callback when stop condition is triggered */
+  onStopCondition?: (result: StopConditionResult) => void;
 }
 
 export interface AgentResult {
@@ -201,6 +226,8 @@ export async function executeAgent(
     temperature = 0.7,
     maxSteps = 10,
     stopConditions = [],
+    functionalStopConditions = [],
+    useDefaultStopCondition = false,
     tools = {},
     onStepStart,
     onStepComplete,
@@ -210,6 +237,7 @@ export async function executeAgent(
     requireApproval,
     prepareStep: prepareStepCallback,
     onFinish,
+    onStopCondition,
   } = config;
 
   const modelInstance = getProviderModel(provider, model, apiKey, baseURL);
@@ -232,27 +260,81 @@ export async function executeAgent(
     isRunning: true,
   });
 
-  // Check if any stop condition is met
-  const checkStopConditions = (): boolean => {
+  // Convert to stop-conditions.ts compatible state
+  const getStopConditionState = (): StopConditionState => {
     const state = getExecutionState();
-    
+    return {
+      stepCount: state.stepCount,
+      startTime: state.startTime,
+      lastResponse: state.lastResponse,
+      lastToolCalls: state.lastToolCalls.map(tc => ({
+        name: tc.name,
+        status: tc.status,
+      })),
+      isRunning: state.isRunning,
+      error: state.error,
+    };
+  };
+
+  // Check if any stop condition is met
+  const checkStopConditions = (): StopConditionResult | null => {
+    const state = getExecutionState();
+    const stopConditionState = getStopConditionState();
+
+    // Check object-based stop conditions first
     for (const condition of stopConditions) {
       switch (condition.type) {
         case 'stepCount':
-          if (stepCount >= condition.count) return true;
+          if (stepCount >= condition.count) {
+            return { shouldStop: true, reason: `Step count reached: ${condition.count}` };
+          }
           break;
         case 'hasToolCall':
-          if (state.lastToolCalls.some(tc => tc.name === condition.toolName)) return true;
+          if (state.lastToolCalls.some(tc => tc.name === condition.toolName)) {
+            return { shouldStop: true, reason: `Tool called: ${condition.toolName}` };
+          }
           break;
         case 'noToolCalls':
-          if (stepCount > 0 && state.lastToolCalls.length === 0) return true;
+          if (stepCount > 0 && state.lastToolCalls.length === 0) {
+            return { shouldStop: true, reason: 'No tool calls in last step' };
+          }
           break;
         case 'custom':
-          if (condition.check(state)) return true;
+          if (condition.check(state)) {
+            return { shouldStop: true, reason: 'Custom condition met' };
+          }
+          break;
+        case 'functional':
+          // Use the imported checkStopCondition helper
+          const result = checkStopCondition(stopConditionState, condition.condition, condition.name);
+          if (result.shouldStop) {
+            return result;
+          }
           break;
       }
     }
-    return false;
+
+    // Check functional stop conditions array
+    for (const condition of functionalStopConditions) {
+      const conditionName = 'conditionName' in condition
+        ? (condition as FunctionalStopCondition & { conditionName: string }).conditionName
+        : undefined;
+      const result = checkStopCondition(stopConditionState, condition, conditionName);
+      if (result.shouldStop) {
+        return result;
+      }
+    }
+
+    // Check default stop condition if enabled
+    if (useDefaultStopCondition) {
+      const defaultCondition = defaultStopCondition(maxSteps);
+      const result = checkStopCondition(stopConditionState, defaultCondition, 'Default (stepCount OR noToolCalls)');
+      if (result.shouldStop) {
+        return result;
+      }
+    }
+
+    return null;
   };
 
   // Convert AgentTools to AI SDK format
@@ -280,23 +362,28 @@ export async function executeAgent(
         onStepStart?.(stepCount);
 
         // Check custom stop conditions
-        if (stepCount > 1 && checkStopConditions()) {
-          // Return signal to stop (AI SDK will handle this)
-          return { stop: true };
+        if (stepCount > 1) {
+          const stopResult = checkStopConditions();
+          if (stopResult) {
+            // Call the onStopCondition callback
+            onStopCondition?.(stopResult);
+            // Return signal to stop (AI SDK will handle this)
+            return { stop: true };
+          }
         }
 
         // Call prepareStep callback if provided
         if (prepareStepCallback) {
           const state = getExecutionState();
           const stepConfig = await prepareStepCallback(stepCount, state);
-          
+
           if (stepConfig.temperature !== undefined) {
             currentTemperature = stepConfig.temperature;
           }
           if (stepConfig.systemPrompt !== undefined) {
             currentSystemPrompt = stepConfig.systemPrompt;
           }
-          
+
           return {
             temperature: currentTemperature,
             system: currentSystemPrompt,
@@ -449,4 +536,28 @@ export const stopConditions = {
   whenToolCalled: (toolName: string): StopCondition => ({ type: 'hasToolCall', toolName }),
   whenNoToolsCalled: (): StopCondition => ({ type: 'noToolCalls' }),
   custom: (check: (state: AgentExecutionState) => boolean): StopCondition => ({ type: 'custom', check }),
+  /** Wrap a functional stop condition from stop-conditions.ts */
+  functional: (condition: FunctionalStopCondition, name?: string): StopCondition => ({
+    type: 'functional',
+    condition,
+    name,
+  }),
 };
+
+// Re-export functional stop condition builders for convenience
+export {
+  functionalStepCountIs,
+  durationExceeds,
+  functionalNoToolCalls,
+  toolCalled,
+  responseContains,
+  allToolsSucceeded,
+  anyToolFailed,
+  allOf,
+  anyOf,
+  not,
+  namedCondition,
+};
+
+// Re-export types for functional stop conditions
+export type { FunctionalStopCondition, StopConditionResult };

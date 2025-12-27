@@ -207,7 +207,7 @@ describe('useRecentFilesStore', () => {
     it('should get recent files', () => {
       const recent = useRecentFilesStore.getState().getRecentFiles(5);
       expect(recent).toHaveLength(2);
-      expect(recent[0].name).toBe('second.png'); // Most recently added
+      expect(recent[0].name).toBe('second.png'); // Most recently added (ties keep insertion order)
     });
 
     it('should get most used files', () => {

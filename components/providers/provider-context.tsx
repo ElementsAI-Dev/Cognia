@@ -5,7 +5,7 @@
  * Provides centralized access to provider settings, health status, and utility functions
  */
 
-import { createContext, useContext, useCallback, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useCallback, useEffect, useState, useRef, ReactNode } from 'react';
 import { useSettingsStore } from '@/stores/settings-store';
 import type { UserProviderSettings } from '@/types/provider';
 
@@ -295,7 +295,12 @@ export function ProviderProvider({
   enableHealthChecks = true,
 }: ProviderProviderProps) {
   const [providers, setProviders] = useState<Record<string, EnhancedProvider>>({});
-  const [healthMap, setHealthMap] = useState<Record<string, ProviderHealth>>({});
+  const providersRef = useRef<Record<string, EnhancedProvider>>({});
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    providersRef.current = providers;
+  }, [providers]);
 
   const providerSettings = useSettingsStore((s) => s.providerSettings);
   const customProviders = useSettingsStore((s) => s.customProviders);
@@ -303,52 +308,55 @@ export function ProviderProvider({
 
   // Initialize providers on mount and when settings change
   useEffect(() => {
-    const enhancedProviders: Record<string, EnhancedProvider> = {};
+    setProviders((prevProviders) => {
+      const enhancedProviders: Record<string, EnhancedProvider> = {};
 
-    // Add built-in providers
-    Object.entries(providerSettings).forEach(([id, settings]) => {
-      const metadata = PROVIDER_METADATA[id] || {
-        id,
-        name: settings.providerId,
-        description: 'Custom provider',
-        requiresApiKey: true,
-        supportsStreaming: true,
-        supportsVision: false,
-        supportsTools: true,
-      };
-
-      enhancedProviders[id] = {
-        settings,
-        metadata,
-        health: healthMap[id] || { status: 'unknown', lastCheck: null },
-        isCustom: false,
-      };
-    });
-
-    // Add custom providers
-    Object.entries(customProviders).forEach(([id, settings]) => {
-      enhancedProviders[id] = {
-        settings,
-        metadata: {
+      // Add built-in providers
+      Object.entries(providerSettings).forEach(([id, settings]) => {
+        const metadata = PROVIDER_METADATA[id] || {
           id,
-          name: settings.customName,
-          description: 'Custom OpenAI-compatible provider',
+          name: settings.providerId,
+          description: 'Custom provider',
           requiresApiKey: true,
           supportsStreaming: true,
           supportsVision: false,
           supportsTools: true,
-        },
-        health: healthMap[id] || { status: 'unknown', lastCheck: null },
-        isCustom: true,
-      };
-    });
+        };
 
-    setProviders(enhancedProviders);
-  }, [providerSettings, customProviders, healthMap]);
+        enhancedProviders[id] = {
+          settings,
+          metadata,
+          health: prevProviders[id]?.health || { status: 'unknown', lastCheck: null },
+          isCustom: false,
+        };
+      });
+
+      // Add custom providers
+      Object.entries(customProviders).forEach(([id, settings]) => {
+        enhancedProviders[id] = {
+          settings,
+          metadata: {
+            id,
+            name: settings.customName,
+            description: 'Custom OpenAI-compatible provider',
+            requiresApiKey: true,
+            supportsStreaming: true,
+            supportsVision: false,
+            supportsTools: true,
+          },
+          health: prevProviders[id]?.health || { status: 'unknown', lastCheck: null },
+          isCustom: true,
+        };
+      });
+
+      return enhancedProviders;
+    });
+  }, [providerSettings, customProviders]);
+
 
   // Health check function - client-side implementation
   const checkProviderHealth = useCallback(async (providerId: string): Promise<ProviderHealthStatus> => {
-    const provider = providers[providerId];
+    const provider = providersRef.current[providerId];
     if (!provider) return 'unknown';
 
     const startTime = Date.now();
@@ -362,7 +370,7 @@ export function ProviderProvider({
           latency: Date.now() - startTime,
           lastError: 'Provider is disabled',
         };
-        setHealthMap((prev) => ({ ...prev, [providerId]: health }));
+        setProviders((prev) => ({ ...prev, [providerId]: { ...prev[providerId], health } }));
         return 'unhealthy';
       }
 
@@ -377,7 +385,7 @@ export function ProviderProvider({
           latency: Date.now() - startTime,
           lastError: 'No API key configured',
         };
-        setHealthMap((prev) => ({ ...prev, [providerId]: health }));
+        setProviders((prev) => ({ ...prev, [providerId]: { ...prev[providerId], health } }));
         return 'unhealthy';
       }
 
@@ -389,7 +397,7 @@ export function ProviderProvider({
           latency: Date.now() - startTime,
           lastError: 'API key format appears invalid',
         };
-        setHealthMap((prev) => ({ ...prev, [providerId]: health }));
+        setProviders((prev) => ({ ...prev, [providerId]: { ...prev[providerId], health } }));
         return 'degraded';
       }
 
@@ -411,7 +419,7 @@ export function ProviderProvider({
             latency: Date.now() - startTime,
             lastError: `Ollama unreachable: ${error instanceof Error ? error.message : 'Unknown error'}`,
           };
-          setHealthMap((prev) => ({ ...prev, [providerId]: health }));
+          setProviders((prev) => ({ ...prev, [providerId]: { ...prev[providerId], health } }));
           return 'degraded';
         }
       }
@@ -423,7 +431,7 @@ export function ProviderProvider({
         latency: Date.now() - startTime,
         errorRate: 0,
       };
-      setHealthMap((prev) => ({ ...prev, [providerId]: health }));
+      setProviders((prev) => ({ ...prev, [providerId]: { ...prev[providerId], health } }));
       return 'healthy';
 
     } catch (error) {
@@ -434,18 +442,18 @@ export function ProviderProvider({
         latency: Date.now() - startTime,
         lastError: error instanceof Error ? error.message : 'Unknown error during health check',
       };
-      setHealthMap((prev) => ({ ...prev, [providerId]: health }));
+      setProviders((prev) => ({ ...prev, [providerId]: { ...prev[providerId], health } }));
       return 'unknown';
     }
-  }, [providers]);
+  }, []);
 
   // Refresh all health statuses
   const refreshAllHealth = useCallback(async () => {
-    const enabledProviders = Object.values(providers).filter((p) => p.settings.enabled);
+    const enabledProviders = Object.values(providersRef.current).filter((p) => p.settings.enabled);
     await Promise.all(
       enabledProviders.map((p) => checkProviderHealth(p.settings.providerId))
     );
-  }, [providers, checkProviderHealth]);
+  }, [checkProviderHealth]);
 
   // Automatic health checks
   useEffect(() => {
@@ -459,7 +467,8 @@ export function ProviderProvider({
     refreshAllHealth();
 
     return () => clearInterval(interval);
-  }, [enableHealthChecks, healthCheckInterval, refreshAllHealth]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enableHealthChecks, healthCheckInterval]);
 
   // Context value
   const getProvider = useCallback((providerId: string): EnhancedProvider | undefined => {

@@ -47,6 +47,10 @@ export {
   createCodeExecutionTool,
   getToolDescriptions,
   buildRAGConfigFromSettings,
+  createDesignerTool,
+  getToolsFromRegistry,
+  getSkillsSystemPrompt,
+  initializeAgentToolsWithSkills,
   type AgentToolsConfig,
 } from './agent-tools';
 

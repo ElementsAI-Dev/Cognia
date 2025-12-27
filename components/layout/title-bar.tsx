@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { cn } from '@/lib/utils';
 
 export function TitleBar() {
   const [isMaximized, setIsMaximized] = useState(false);
@@ -11,8 +10,17 @@ export function TitleBar() {
   useEffect(() => {
     // Check if running in Tauri
     const checkTauri = async () => {
+      // Check for Tauri environment
+      if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) {
+        setIsTauri(false);
+        return;
+      }
+
       try {
         setIsTauri(true);
+        // Add padding to body for titlebar
+        document.body.style.paddingTop = '32px';
+        
         const appWindow = getCurrentWindow();
         const maximized = await appWindow.isMaximized();
         setIsMaximized(maximized);
@@ -24,9 +32,11 @@ export function TitleBar() {
 
         return () => {
           unlisten();
+          document.body.style.paddingTop = '';
         };
       } catch {
         setIsTauri(false);
+        document.body.style.paddingTop = '';
       }
     };
 

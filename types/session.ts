@@ -4,6 +4,7 @@
 
 import type { UIMessage } from './message';
 import type { ProviderName } from './provider';
+import type { SessionCompressionOverrides } from './compression';
 
 export type { ProviderName };
 
@@ -35,9 +36,15 @@ export interface Session {
   builtinPrompts?: Array<{ id: string; name: string; content: string; description?: string }>;
   temperature?: number;
   maxTokens?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
 
   // Chat mode
   mode: ChatMode;
+
+  // Agent sub-mode (when mode is 'agent')
+  agentModeId?: string;
 
   // Features
   enableTools?: boolean;
@@ -61,6 +68,9 @@ export interface Session {
 
   // Pin status
   pinned?: boolean;
+
+  // Compression overrides (per-session settings)
+  compressionOverrides?: SessionCompressionOverrides;
 }
 
 export interface SessionWithMessages extends Session {
@@ -81,12 +91,17 @@ export interface UpdateSessionInput {
   provider?: ProviderName;
   model?: string;
   mode?: ChatMode;
+  agentModeId?: string;
   systemPrompt?: string;
   builtinPrompts?: Array<{ id: string; name: string; content: string; description?: string }>;
   temperature?: number;
   maxTokens?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
   projectId?: string;
   webSearchEnabled?: boolean;
   thinkingEnabled?: boolean;
   presetId?: string;
+  compressionOverrides?: SessionCompressionOverrides;
 }

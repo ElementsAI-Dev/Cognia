@@ -9,3 +9,9 @@ export * from './shortcuts';
 export * from './updater';
 export * from './system';
 export * from './utils';
+
+// Namespaced exports to avoid conflicts
+export * as selection from './selection';
+export * as screenshot from './screenshot';
+export * as context from './context';
+export * as awareness from './awareness';

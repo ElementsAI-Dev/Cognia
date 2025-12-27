@@ -1,0 +1,1685 @@
+File,Namespace,Has i18n,String,Line,Type,Suggested Key
+components\workflow-editor\node-config-panel.tsx,common,Yes,"outline",139,PropString,common.outline
+components\workflow-editor\node-config-panel.tsx,common,Yes,"ghost",158,PropString,common.ghost
+components\workflow-editor\node-config-panel.tsx,common,Yes,"icon",159,PropString,common.icon
+components\workflow-editor\node-config-panel.tsx,common,Yes,"properties",193,PropString,common.properties
+components\workflow-editor\node-config-panel.tsx,common,Yes,"inputs",196,PropString,common.inputs
+components\workflow-editor\node-config-panel.tsx,common,Yes,"outputs",199,PropString,common.outputs
+components\workflow-editor\node-config-panel.tsx,common,Yes,"properties",206,PropString,common.properties
+components\workflow-editor\node-config-panel.tsx,common,Yes,"label",210,PropString,common.label
+components\workflow-editor\node-config-panel.tsx,common,Yes,"label",214,PropString,common.label
+components\workflow-editor\node-config-panel.tsx,common,Yes,"description",222,PropString,common.description
+components\workflow-editor\node-config-panel.tsx,common,Yes,"description",226,PropString,common.description
+components\workflow-editor\node-config-panel.tsx,common,Yes,"inputs",336,PropString,common.inputs
+components\workflow-editor\node-config-panel.tsx,common,Yes,"input",340,PropString,common.input
+components\workflow-editor\node-config-panel.tsx,common,Yes,"outputs",345,PropString,common.outputs
+components\workflow-editor\node-config-panel.tsx,common,Yes,"output",349,PropString,common.output
+components\workflow-editor\node-config-panel.tsx,common,Yes,"GPT-4o (OpenAI)",425,JSXText,common.gpt4o_openai
+components\workflow-editor\node-config-panel.tsx,common,Yes,"gpt-4o",425,PropString,common.gpt4o
+components\workflow-editor\node-config-panel.tsx,common,Yes,"GPT-4o Mini (OpenAI)",426,JSXText,common.gpt4o_mini_openai
+components\workflow-editor\node-config-panel.tsx,common,Yes,"gpt-4o-mini",426,PropString,common.gpt4omini
+components\workflow-editor\node-config-panel.tsx,common,Yes,"o1 (OpenAI)",427,JSXText,common.o1_openai
+components\workflow-editor\node-config-panel.tsx,common,Yes,"o1",427,PropString,common.o1
+components\workflow-editor\node-config-panel.tsx,common,Yes,"o1 Mini (OpenAI)",428,JSXText,common.o1_mini_openai
+components\workflow-editor\node-config-panel.tsx,common,Yes,"o1-mini",428,PropString,common.o1mini
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Claude Sonnet 4 (Anthropic)",430,JSXText,common.claude_sonnet_4_anthropic
+components\workflow-editor\node-config-panel.tsx,common,Yes,"claude-sonnet-4-20250514",430,PropString,common.claudesonnet420250514
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Claude Opus 4 (Anthropic)",431,JSXText,common.claude_opus_4_anthropic
+components\workflow-editor\node-config-panel.tsx,common,Yes,"claude-opus-4-20250514",431,PropString,common.claudeopus420250514
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Claude 3.5 Haiku (Anthropic)",432,JSXText,common.claude_35_haiku_anthropic
+components\workflow-editor\node-config-panel.tsx,common,Yes,"claude-3-5-haiku-20241022",432,PropString,common.claude35haiku20241022
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Gemini 2.0 Flash (Google)",434,JSXText,common.gemini_20_flash_google
+components\workflow-editor\node-config-panel.tsx,common,Yes,"gemini-2.0-flash-exp",434,PropString,common.gemini20flashexp
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Gemini 1.5 Pro (Google)",435,JSXText,common.gemini_15_pro_google
+components\workflow-editor\node-config-panel.tsx,common,Yes,"gemini-1.5-pro",435,PropString,common.gemini15pro
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Gemini 1.5 Flash (Google)",436,JSXText,common.gemini_15_flash_google
+components\workflow-editor\node-config-panel.tsx,common,Yes,"gemini-1.5-flash",436,PropString,common.gemini15flash
+components\workflow-editor\node-config-panel.tsx,common,Yes,"DeepSeek Chat",438,JSXText,common.deepseek_chat
+components\workflow-editor\node-config-panel.tsx,common,Yes,"deepseek-chat",438,PropString,common.deepseekchat
+components\workflow-editor\node-config-panel.tsx,common,Yes,"DeepSeek Reasoner",439,JSXText,common.deepseek_reasoner
+components\workflow-editor\node-config-panel.tsx,common,Yes,"deepseek-reasoner",439,PropString,common.deepseekreasoner
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Text",482,JSXText,common.text
+components\workflow-editor\node-config-panel.tsx,common,Yes,"text",482,PropString,common.text
+components\workflow-editor\node-config-panel.tsx,common,Yes,"JSON",483,JSXText,common.json
+components\workflow-editor\node-config-panel.tsx,common,Yes,"json",483,PropString,common.json
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Markdown",484,JSXText,common.markdown
+components\workflow-editor\node-config-panel.tsx,common,Yes,"markdown",484,PropString,common.markdown
+components\workflow-editor\node-config-panel.tsx,common,Yes,"🔍 Web Search",549,JSXText,common._web_search
+components\workflow-editor\node-config-panel.tsx,common,Yes,"web_search",549,PropString,common.websearch
+components\workflow-editor\node-config-panel.tsx,common,Yes,"📚 RAG Search",550,JSXText,common._rag_search
+components\workflow-editor\node-config-panel.tsx,common,Yes,"rag_search",550,PropString,common.ragsearch
+components\workflow-editor\node-config-panel.tsx,common,Yes,"🧮 Calculator",551,JSXText,common._calculator
+components\workflow-editor\node-config-panel.tsx,common,Yes,"calculator",551,PropString,common.calculator
+components\workflow-editor\node-config-panel.tsx,common,Yes,"📄 Document Summarize",552,JSXText,common._document_summarize
+components\workflow-editor\node-config-panel.tsx,common,Yes,"document_summarize",552,PropString,common.documentsummarize
+components\workflow-editor\node-config-panel.tsx,common,Yes,"✂️ Document Chunk",553,JSXText,common._document_chunk
+components\workflow-editor\node-config-panel.tsx,common,Yes,"document_chunk",553,PropString,common.documentchunk
+components\workflow-editor\node-config-panel.tsx,common,Yes,"🔬 Document Analyze",554,JSXText,common._document_analyze
+components\workflow-editor\node-config-panel.tsx,common,Yes,"document_analyze",554,PropString,common.documentanalyze
+components\workflow-editor\node-config-panel.tsx,common,Yes,"📖 File Read",555,JSXText,common._file_read
+components\workflow-editor\node-config-panel.tsx,common,Yes,"file_read",555,PropString,common.fileread
+components\workflow-editor\node-config-panel.tsx,common,Yes,"✏️ File Write",556,JSXText,common._file_write
+components\workflow-editor\node-config-panel.tsx,common,Yes,"file_write",556,PropString,common.filewrite
+components\workflow-editor\node-config-panel.tsx,common,Yes,"📁 File List",557,JSXText,common._file_list
+components\workflow-editor\node-config-panel.tsx,common,Yes,"file_list",557,PropString,common.filelist
+components\workflow-editor\node-config-panel.tsx,common,Yes,"❓ File Exists",558,JSXText,common._file_exists
+components\workflow-editor\node-config-panel.tsx,common,Yes,"file_exists",558,PropString,common.fileexists
+components\workflow-editor\node-config-panel.tsx,common,Yes,"🗑️ File Delete",559,JSXText,common._file_delete
+components\workflow-editor\node-config-panel.tsx,common,Yes,"file_delete",559,PropString,common.filedelete
+components\workflow-editor\node-config-panel.tsx,common,Yes,"📋 File Copy",560,JSXText,common._file_copy
+components\workflow-editor\node-config-panel.tsx,common,Yes,"file_copy",560,PropString,common.filecopy
+components\workflow-editor\node-config-panel.tsx,common,Yes,"📝 File Rename",561,JSXText,common._file_rename
+components\workflow-editor\node-config-panel.tsx,common,Yes,"file_rename",561,PropString,common.filerename
+components\workflow-editor\node-config-panel.tsx,common,Yes,"ℹ️ File Info",562,JSXText,common._file_info
+components\workflow-editor\node-config-panel.tsx,common,Yes,"file_info",562,PropString,common.fileinfo
+components\workflow-editor\node-config-panel.tsx,common,Yes,"🔎 File Search",563,JSXText,common._file_search
+components\workflow-editor\node-config-panel.tsx,common,Yes,"file_search",563,PropString,common.filesearch
+components\workflow-editor\node-config-panel.tsx,common,Yes,"➕ File Append",564,JSXText,common._file_append
+components\workflow-editor\node-config-panel.tsx,common,Yes,"file_append",564,PropString,common.fileappend
+components\workflow-editor\node-config-panel.tsx,common,Yes,"📂 Directory Create",565,JSXText,common._directory_create
+components\workflow-editor\node-config-panel.tsx,common,Yes,"directory_create",565,PropString,common.directorycreate
+components\workflow-editor\node-config-panel.tsx,common,Yes,"outline",574,PropString,common.outline
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Expression",602,JSXText,common.expression
+components\workflow-editor\node-config-panel.tsx,common,Yes,"expression",602,PropString,common.expression
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Comparison",603,JSXText,common.comparison
+components\workflow-editor\node-config-panel.tsx,common,Yes,"comparison",603,PropString,common.comparison
+components\workflow-editor\node-config-panel.tsx,common,Yes,"AI Decision",604,JSXText,common.ai_decision
+components\workflow-editor\node-config-panel.tsx,common,Yes,"ai",604,PropString,common.ai
+components\workflow-editor\node-config-panel.tsx,common,Yes,"==",634,PropString,common.
+components\workflow-editor\node-config-panel.tsx,common,Yes,"!=",635,PropString,common.
+components\workflow-editor\node-config-panel.tsx,common,Yes,""">Greater Than (&gt;)",636,JSXText,common.greater_than_gt
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Less Than (&lt;)",637,JSXText,common.less_than_lt
+components\workflow-editor\node-config-panel.tsx,common,Yes,">=",638,PropString,common.
+components\workflow-editor\node-config-panel.tsx,common,Yes,"<=",639,PropString,common.
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Contains",640,JSXText,common.contains
+components\workflow-editor\node-config-panel.tsx,common,Yes,"contains",640,PropString,common.contains
+components\workflow-editor\node-config-panel.tsx,common,Yes,"JavaScript",679,JSXText,common.javascript
+components\workflow-editor\node-config-panel.tsx,common,Yes,"javascript",679,PropString,common.javascript
+components\workflow-editor\node-config-panel.tsx,common,Yes,"TypeScript",680,JSXText,common.typescript
+components\workflow-editor\node-config-panel.tsx,common,Yes,"typescript",680,PropString,common.typescript
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Python",681,JSXText,common.python
+components\workflow-editor\node-config-panel.tsx,common,Yes,"python",681,PropString,common.python
+components\workflow-editor\node-config-panel.tsx,common,Yes,"200px",690,PropString,common.200px
+components\workflow-editor\node-config-panel.tsx,common,Yes,"vs-dark",692,PropString,common.vsdark
+components\workflow-editor\node-config-panel.tsx,common,Yes,"For Each",731,JSXText,common.for_each
+components\workflow-editor\node-config-panel.tsx,common,Yes,"forEach",731,PropString,common.foreach
+components\workflow-editor\node-config-panel.tsx,common,Yes,"While",732,JSXText,common.while
+components\workflow-editor\node-config-panel.tsx,common,Yes,"while",732,PropString,common.while
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Times",733,JSXText,common.times
+components\workflow-editor\node-config-panel.tsx,common,Yes,"times",733,PropString,common.times
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Approve",838,JSXText,common.approve
+components\workflow-editor\node-config-panel.tsx,common,Yes,"approve",838,PropString,common.approve
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Reject",839,JSXText,common.reject
+components\workflow-editor\node-config-panel.tsx,common,Yes,"reject",839,PropString,common.reject
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Timeout",840,JSXText,common.timeout
+components\workflow-editor\node-config-panel.tsx,common,Yes,"input",867,PropString,common.input
+components\workflow-editor\node-config-panel.tsx,common,Yes,"output",892,PropString,common.output
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Fixed Duration",962,JSXText,common.fixed_duration
+components\workflow-editor\node-config-panel.tsx,common,Yes,"fixed",962,PropString,common.fixed
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Until Time",963,JSXText,common.until_time
+components\workflow-editor\node-config-panel.tsx,common,Yes,"until",963,PropString,common.until
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Cron Schedule",964,JSXText,common.cron_schedule
+components\workflow-editor\node-config-panel.tsx,common,Yes,"cron",964,PropString,common.cron
+components\workflow-editor\node-config-panel.tsx,common,Yes,"GET",1087,JSXText,common.get
+components\workflow-editor\node-config-panel.tsx,common,Yes,"POST",1088,JSXText,common.post
+components\workflow-editor\node-config-panel.tsx,common,Yes,"PUT",1089,JSXText,common.put
+components\workflow-editor\node-config-panel.tsx,common,Yes,"DELETE",1090,JSXText,common.delete
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Map",1136,JSXText,common.map
+components\workflow-editor\node-config-panel.tsx,common,Yes,"map",1136,PropString,common.map
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Filter",1137,JSXText,common.filter
+components\workflow-editor\node-config-panel.tsx,common,Yes,"filter",1137,PropString,common.filter
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Reduce",1138,JSXText,common.reduce
+components\workflow-editor\node-config-panel.tsx,common,Yes,"reduce",1138,PropString,common.reduce
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Sort",1139,JSXText,common.sort
+components\workflow-editor\node-config-panel.tsx,common,Yes,"sort",1139,PropString,common.sort
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Custom",1140,JSXText,common.custom
+components\workflow-editor\node-config-panel.tsx,common,Yes,"custom",1140,PropString,common.custom
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Concat (Array)",1183,JSXText,common.concat_array
+components\workflow-editor\node-config-panel.tsx,common,Yes,"concat",1183,PropString,common.concat
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Merge (Object)",1184,JSXText,common.merge_object
+components\workflow-editor\node-config-panel.tsx,common,Yes,"merge",1184,PropString,common.merge
+components\workflow-editor\node-config-panel.tsx,common,Yes,"First Value",1185,JSXText,common.first_value
+components\workflow-editor\node-config-panel.tsx,common,Yes,"first",1185,PropString,common.first
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Last Value",1186,JSXText,common.last_value
+components\workflow-editor\node-config-panel.tsx,common,Yes,"last",1186,PropString,common.last
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Custom",1187,JSXText,common.custom
+components\workflow-editor\node-config-panel.tsx,common,Yes,"custom",1187,PropString,common.custom
+components\workflow-editor\node-config-panel.tsx,common,Yes,"outline",1253,PropString,common.outline
+components\workflow-editor\node-config-panel.tsx,common,Yes,"String",1286,JSXText,common.string
+components\workflow-editor\node-config-panel.tsx,common,Yes,"string",1286,PropString,common.string
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Number",1287,JSXText,common.number
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Boolean",1288,JSXText,common.boolean
+components\workflow-editor\node-config-panel.tsx,common,Yes,"boolean",1288,PropString,common.boolean
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Object",1289,JSXText,common.object
+components\workflow-editor\node-config-panel.tsx,common,Yes,"object",1289,PropString,common.object
+components\workflow-editor\node-config-panel.tsx,common,Yes,"Array",1290,JSXText,common.array
+components\workflow-editor\node-config-panel.tsx,common,Yes,"array",1290,PropString,common.array
+components\workflow-editor\node-config-panel.tsx,common,Yes,"ghost",1294,PropString,common.ghost
+components\workflow-editor\node-config-panel.tsx,common,Yes,"icon",1295,PropString,common.icon
+components\settings\vector-manager.tsx,common,No,"Collections & Search",253,JSXText,common.collections_search
+components\settings\vector-manager.tsx,common,No,"Manage collections, clear data, and run vector searches.",254,JSXText,common.manage_collections_clear_data_and_run_vector_searc
+components\settings\vector-manager.tsx,common,No,"Active collection",259,JSXText,common.active_collection
+components\settings\vector-manager.tsx,common,No,"outline",272,PropString,common.outline
+components\settings\vector-manager.tsx,common,No,"sm",272,PropString,common.sm
+components\settings\vector-manager.tsx,common,No,"Create new collection",278,JSXText,common.create_new_collection
+components\settings\vector-manager.tsx,common,No," setActionMessage(null)}>×",296,JSXText,common._setactionmessagenull
+components\settings\vector-manager.tsx,common,No,"ghost",296,PropString,common.ghost
+components\settings\vector-manager.tsx,common,No,"sm",296,PropString,common.sm
+components\settings\vector-manager.tsx,common,No,"outline",326,PropString,common.outline
+components\settings\vector-manager.tsx,common,No,"outline",329,PropString,common.outline
+components\settings\vector-manager.tsx,common,No,"outline",332,PropString,common.outline
+components\settings\vector-manager.tsx,common,No,"outline",335,PropString,common.outline
+components\settings\vector-manager.tsx,common,No,"outline",338,PropString,common.outline
+components\settings\vector-manager.tsx,common,No,"outline",341,PropString,common.outline
+components\settings\vector-manager.tsx,common,No,"file",346,PropString,common.file
+components\settings\vector-manager.tsx,common,No,"sm",363,PropString,common.sm
+components\settings\vector-manager.tsx,common,No,"sm",366,PropString,common.sm
+components\settings\vector-manager.tsx,common,No,"ghost",366,PropString,common.ghost
+components\settings\vector-manager.tsx,common,No,"outline",371,PropString,common.outline
+components\settings\vector-manager.tsx,common,No,"sm",371,PropString,common.sm
+components\settings\vector-manager.tsx,common,No,"Add document",380,JSXText,common.add_document
+components\settings\vector-manager.tsx,common,No,"Query",406,JSXText,common.query
+components\settings\vector-manager.tsx,common,No,"Top K",414,JSXText,common.top_k
+components\settings\vector-manager.tsx,common,No,"number",416,PropString,common.number
+components\settings\vector-manager.tsx,common,No,"Threshold (0-1)",423,JSXText,common.threshold_01
+components\settings\vector-manager.tsx,common,No,"number",425,PropString,common.number
+components\settings\vector-manager.tsx,common,No,"Filter (JSON)",434,JSXText,common.filter_json
+components\settings\vector-manager.tsx,common,No,"Sort",443,JSXText,common.sort
+components\settings\vector-manager.tsx,common,No,"sm",447,PropString,common.sm
+components\settings\vector-manager.tsx,common,No,"sm",454,PropString,common.sm
+components\settings\vector-manager.tsx,common,No,"sm",463,PropString,common.sm
+components\settings\vector-manager.tsx,common,No,"sm",470,PropString,common.sm
+components\settings\vector-manager.tsx,common,No,"sm",477,PropString,common.sm
+components\settings\vector-manager.tsx,common,No,"ghost",485,PropString,common.ghost
+components\settings\vector-manager.tsx,common,No,"sm",486,PropString,common.sm
+components\settings\vector-manager.tsx,common,No,"text-muted-foreground",492,PropString,common.textmutedforeground
+components\settings\vector-manager.tsx,common,No,"Page Size",498,JSXText,common.page_size
+components\settings\vector-manager.tsx,common,No,"number",500,PropString,common.number
+components\settings\vector-manager.tsx,common,No," 0 && ",517,JSXText,common._0_
+components\settings\vector-manager.tsx,common,No,"text-muted-foreground",517,PropString,common.textmutedforeground
+components\settings\vector-manager.tsx,common,No,"outline",521,PropString,common.outline
+components\settings\vector-manager.tsx,common,No,"sm",522,PropString,common.sm
+components\settings\vector-manager.tsx,common,No,"text-muted-foreground",528,PropString,common.textmutedforeground
+components\settings\vector-manager.tsx,common,No,"outline",532,PropString,common.outline
+components\settings\vector-manager.tsx,common,No,"sm",533,PropString,common.sm
+components\settings\vector-manager.tsx,common,No,"No results",544,JSXText,common.no_results
+components\settings\vector-manager.tsx,common,No,"outline",552,PropString,common.outline
+components\settings\vector-manager.tsx,common,No,"ghost",568,PropString,common.ghost
+components\settings\vector-manager.tsx,common,No,"sm",569,PropString,common.sm
+components\settings\vector-manager.tsx,common,No,"Peek (first N)",591,JSXText,common.peek_first_n
+components\settings\vector-manager.tsx,common,No,"number",594,PropString,common.number
+components\settings\vector-manager.tsx,common,No,"outline",600,PropString,common.outline
+components\agent\workflow-selector.tsx,common,Yes,"outline",227,PropString,common.outline
+components\agent\workflow-selector.tsx,common,Yes,"sm",228,PropString,common.sm
+components\agent\workflow-selector.tsx,common,Yes,"destructive",244,PropString,common.destructive
+components\agent\workflow-selector.tsx,common,Yes,"sm",245,PropString,common.sm
+components\agent\workflow-selector.tsx,common,Yes,"text-muted-foreground",302,PropString,common.textmutedforeground
+components\agent\workflow-selector.tsx,common,Yes,"outline",337,PropString,common.outline
+components\agent\workflow-selector.tsx,common,Yes,"secondary",373,PropString,common.secondary
+components\agent\workflow-selector.tsx,common,Yes,"outline",377,PropString,common.outline
+components\agent\workflow-selector.tsx,common,Yes,"basic",462,PropString,common.basic
+components\agent\workflow-selector.tsx,common,Yes,"basic",464,PropString,common.basic
+components\agent\workflow-selector.tsx,common,Yes,"templates",465,PropString,common.templates
+components\agent\workflow-selector.tsx,common,Yes,"advanced",466,PropString,common.advanced
+components\agent\workflow-selector.tsx,common,Yes,"basic",469,PropString,common.basic
+components\agent\workflow-selector.tsx,common,Yes,"topic",471,PropString,common.topic
+components\agent\workflow-selector.tsx,common,Yes,"topic",473,PropString,common.topic
+components\agent\workflow-selector.tsx,common,Yes,"description",481,PropString,common.description
+components\agent\workflow-selector.tsx,common,Yes,"description",483,PropString,common.description
+components\agent\workflow-selector.tsx,common,Yes,"slideCount",493,PropString,common.slidecount
+components\agent\workflow-selector.tsx,common,Yes,"slideCount",495,PropString,common.slidecount
+components\agent\workflow-selector.tsx,common,Yes,"style",507,PropString,common.style
+components\agent\workflow-selector.tsx,common,Yes,"style",517,PropString,common.style
+components\agent\workflow-selector.tsx,common,Yes,"Professional",521,JSXText,common.professional
+components\agent\workflow-selector.tsx,common,Yes,"professional",521,PropString,common.professional
+components\agent\workflow-selector.tsx,common,Yes,"Creative",522,JSXText,common.creative
+components\agent\workflow-selector.tsx,common,Yes,"creative",522,PropString,common.creative
+components\agent\workflow-selector.tsx,common,Yes,"Minimal",523,JSXText,common.minimal
+components\agent\workflow-selector.tsx,common,Yes,"minimal",523,PropString,common.minimal
+components\agent\workflow-selector.tsx,common,Yes,"Academic",524,JSXText,common.academic
+components\agent\workflow-selector.tsx,common,Yes,"academic",524,PropString,common.academic
+components\agent\workflow-selector.tsx,common,Yes,"Casual",525,JSXText,common.casual
+components\agent\workflow-selector.tsx,common,Yes,"casual",525,PropString,common.casual
+components\agent\workflow-selector.tsx,common,Yes,"templates",532,PropString,common.templates
+components\agent\workflow-selector.tsx,common,Yes,"advanced",560,PropString,common.advanced
+components\agent\workflow-selector.tsx,common,Yes,"targetAudience",562,PropString,common.targetaudience
+components\agent\workflow-selector.tsx,common,Yes,"targetAudience",564,PropString,common.targetaudience
+components\agent\workflow-selector.tsx,common,Yes,"language",572,PropString,common.language
+components\agent\workflow-selector.tsx,common,Yes,"language",577,PropString,common.language
+components\agent\workflow-selector.tsx,common,Yes,"English",581,JSXText,common.english
+components\agent\workflow-selector.tsx,common,Yes,"en",581,PropString,common.en
+components\agent\workflow-selector.tsx,common,Yes,"中文",582,JSXText,common.
+components\agent\workflow-selector.tsx,common,Yes,"zh",582,PropString,common.zh
+components\agent\workflow-selector.tsx,common,Yes,"日本語",583,JSXText,common.
+components\agent\workflow-selector.tsx,common,Yes,"ja",583,PropString,common.ja
+components\agent\workflow-selector.tsx,common,Yes,"한국어",584,JSXText,common.
+components\agent\workflow-selector.tsx,common,Yes,"ko",584,PropString,common.ko
+components\agent\workflow-selector.tsx,common,Yes,"Español",585,JSXText,common.espaol
+components\agent\workflow-selector.tsx,common,Yes,"es",585,PropString,common.es
+components\agent\workflow-selector.tsx,common,Yes,"Français",586,JSXText,common.franais
+components\agent\workflow-selector.tsx,common,Yes,"fr",586,PropString,common.fr
+components\agent\workflow-selector.tsx,common,Yes,"Deutsch",587,JSXText,common.deutsch
+components\agent\workflow-selector.tsx,common,Yes,"de",587,PropString,common.de
+components\settings\skill-settings.tsx,common,No,"Built-in",124,JSXText,common.builtin
+components\settings\skill-settings.tsx,common,No,"secondary",124,PropString,common.secondary
+components\settings\skill-settings.tsx,common,No,"Active",127,JSXText,common.active
+components\settings\skill-settings.tsx,common,No,"default",127,PropString,common.default
+components\settings\skill-settings.tsx,common,No,"ghost",157,PropString,common.ghost
+components\settings\skill-settings.tsx,common,No,"sm",157,PropString,common.sm
+components\settings\skill-settings.tsx,common,No,"Category:",168,JSXText,common.category
+components\settings\skill-settings.tsx,common,No,"Source:",169,JSXText,common.source
+components\settings\skill-settings.tsx,common,No,"Version:",170,JSXText,common.version
+components\settings\skill-settings.tsx,common,No,"Used:",172,JSXText,common.used
+components\settings\skill-settings.tsx,common,No,"destructive",176,PropString,common.destructive
+components\settings\skill-settings.tsx,common,No,"Validation Errors",178,JSXText,common.validation_errors
+components\settings\skill-settings.tsx,common,No,"sm",189,PropString,common.sm
+components\settings\skill-settings.tsx,common,No,"sm",192,PropString,common.sm
+components\settings\skill-settings.tsx,common,No,"sm",197,PropString,common.sm
+components\settings\skill-settings.tsx,common,No,"Create New Skill",263,JSXText,common.create_new_skill
+components\settings\skill-settings.tsx,common,No,"Start Blank",271,JSXText,common.start_blank
+components\settings\skill-settings.tsx,common,No,"blank",271,PropString,common.blank
+components\settings\skill-settings.tsx,common,No,"Use Template",272,JSXText,common.use_template
+components\settings\skill-settings.tsx,common,No,"template",272,PropString,common.template
+components\settings\skill-settings.tsx,common,No,"template",275,PropString,common.template
+components\settings\skill-settings.tsx,common,No,"blank",299,PropString,common.blank
+components\settings\skill-settings.tsx,common,No,"Name",309,JSXText,common.name
+components\settings\skill-settings.tsx,common,No,"Category",321,JSXText,common.category
+components\settings\skill-settings.tsx,common,No,"category",321,PropString,common.category
+components\settings\skill-settings.tsx,common,No,"Description",341,JSXText,common.description
+components\settings\skill-settings.tsx,common,No,"description",341,PropString,common.description
+components\settings\skill-settings.tsx,common,No,"description",343,PropString,common.description
+components\settings\skill-settings.tsx,common,No,"Skill Instructions (Markdown)",355,JSXText,common.skill_instructions_markdown
+components\settings\skill-settings.tsx,common,No,"content",355,PropString,common.content
+components\settings\skill-settings.tsx,common,No,"content",357,PropString,common.content
+components\settings\skill-settings.tsx,common,No,"Import Skill",408,JSXText,common.import_skill
+components\settings\skill-settings.tsx,common,No,"destructive",426,PropString,common.destructive
+components\settings\skill-settings.tsx,common,No,"destructive",545,PropString,common.destructive
+components\settings\skill-settings.tsx,common,No,"Error",547,JSXText,common.error
+components\settings\skill-settings.tsx,common,No,"ghost",550,PropString,common.ghost
+components\settings\skill-settings.tsx,common,No,"sm",550,PropString,common.sm
+components\settings\skill-settings.tsx,common,No,"All Categories",575,JSXText,common.all_categories
+components\settings\skill-settings.tsx,common,No,"all",575,PropString,common.all
+components\settings\skill-settings.tsx,common,No,"No skills found",606,JSXText,common.no_skills_found
+components\settings\skill-settings.tsx,common,No,"Create a new skill or import one to get started",607,JSXText,common.create_a_new_skill_or_import_one_to_get_started
+components\settings\skill-settings.tsx,common,No,"secondary",616,PropString,common.secondary
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"ghost",134,PropString,common.ghost
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"icon",135,PropString,common.icon
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"ghost",148,PropString,common.ghost
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"icon",148,PropString,common.icon
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"start",152,PropString,common.start
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"vertical",165,PropString,common.vertical
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"ghost",172,PropString,common.ghost
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"icon",173,PropString,common.icon
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"ghost",187,PropString,common.ghost
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"icon",188,PropString,common.icon
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"vertical",200,PropString,common.vertical
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"ghost",207,PropString,common.ghost
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"icon",208,PropString,common.icon
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"ghost",222,PropString,common.ghost
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"icon",223,PropString,common.icon
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"vertical",234,PropString,common.vertical
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"ghost",241,PropString,common.ghost
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"icon",242,PropString,common.icon
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"ghost",255,PropString,common.ghost
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"icon",256,PropString,common.icon
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"start",263,PropString,common.start
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"vertical",293,PropString,common.vertical
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"ghost",300,PropString,common.ghost
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"icon",301,PropString,common.icon
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"ghost",314,PropString,common.ghost
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"icon",315,PropString,common.icon
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"ghost",328,PropString,common.ghost
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"icon",329,PropString,common.icon
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"vertical",365,PropString,common.vertical
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"default",373,PropString,common.default
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"sm",374,PropString,common.sm
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"outline",390,PropString,common.outline
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"icon",391,PropString,common.icon
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"icon",405,PropString,common.icon
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"vertical",418,PropString,common.vertical
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"icon",426,PropString,common.icon
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"icon",440,PropString,common.icon
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"icon",454,PropString,common.icon
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"ghost",466,PropString,common.ghost
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"icon",466,PropString,common.icon
+components\workflow-editor\workflow-toolbar.tsx,common,Yes,"end",470,PropString,common.end
+components\settings\response-settings.tsx,common,Yes,"Preview unavailable",60,JSXText,common.preview_unavailable
+components\settings\response-settings.tsx,common,Yes,"Preview:",66,JSXText,common.preview
+components\settings\response-settings.tsx,common,Yes,"line-numbers",182,PropString,common.linenumbers
+components\settings\response-settings.tsx,common,Yes,"line-numbers",184,PropString,common.linenumbers
+components\settings\response-settings.tsx,common,Yes,"syntax-highlight",190,PropString,common.syntaxhighlight
+components\settings\response-settings.tsx,common,Yes,"syntax-highlight",192,PropString,common.syntaxhighlight
+components\settings\response-settings.tsx,common,Yes,"code-word-wrap",198,PropString,common.codewordwrap
+components\settings\response-settings.tsx,common,Yes,"code-word-wrap",200,PropString,common.codewordwrap
+components\settings\response-settings.tsx,common,Yes,"LaTeX",236,JSXText,common.latex
+components\settings\response-settings.tsx,common,Yes,"math-rendering",236,PropString,common.mathrendering
+components\settings\response-settings.tsx,common,Yes,"math-rendering",238,PropString,common.mathrendering
+components\settings\response-settings.tsx,common,Yes,"Mermaid",244,JSXText,common.mermaid
+components\settings\response-settings.tsx,common,Yes,"mermaid-diagrams",244,PropString,common.mermaiddiagrams
+components\settings\response-settings.tsx,common,Yes,"mermaid-diagrams",246,PropString,common.mermaiddiagrams
+components\settings\response-settings.tsx,common,Yes,"VegaLite",252,JSXText,common.vegalite
+components\settings\response-settings.tsx,common,Yes,"vegalite-charts",252,PropString,common.vegalitecharts
+components\settings\response-settings.tsx,common,Yes,"vegalite-charts",254,PropString,common.vegalitecharts
+components\settings\response-settings.tsx,common,Yes,"center",300,PropString,common.center
+components\settings\response-settings.tsx,common,Yes,"left",301,PropString,common.left
+components\settings\response-settings.tsx,common,Yes,"math-copy-button",307,PropString,common.mathcopybutton
+components\settings\response-settings.tsx,common,Yes,"math-copy-button",309,PropString,common.mathcopybutton
+components\settings\response-settings.tsx,common,Yes,"Default",347,JSXText,common.default
+components\settings\response-settings.tsx,common,Yes,"default",347,PropString,common.default
+components\settings\response-settings.tsx,common,Yes,"Dark",348,JSXText,common.dark
+components\settings\response-settings.tsx,common,Yes,"dark",348,PropString,common.dark
+components\settings\response-settings.tsx,common,Yes,"Forest",349,JSXText,common.forest
+components\settings\response-settings.tsx,common,Yes,"forest",349,PropString,common.forest
+components\settings\response-settings.tsx,common,Yes,"Neutral",350,JSXText,common.neutral
+components\settings\response-settings.tsx,common,Yes,"neutral",350,PropString,common.neutral
+components\settings\response-settings.tsx,common,Yes,"Default",365,JSXText,common.default
+components\settings\response-settings.tsx,common,Yes,"default",365,PropString,common.default
+components\settings\response-settings.tsx,common,Yes,"Dark",366,JSXText,common.dark
+components\settings\response-settings.tsx,common,Yes,"dark",366,PropString,common.dark
+components\settings\response-settings.tsx,common,Yes,"Excel",367,JSXText,common.excel
+components\settings\response-settings.tsx,common,Yes,"excel",367,PropString,common.excel
+components\settings\response-settings.tsx,common,Yes,"FiveThirtyEight",368,JSXText,common.fivethirtyeight
+components\settings\response-settings.tsx,common,Yes,"fivethirtyeight",368,PropString,common.fivethirtyeight
+components\settings\response-settings.tsx,common,Yes,"const greet = (n) => console.log(\",438,TemplateLiteral,common.const_greet_n_consolelog
+components\settings\response-settings.tsx,common,Yes,");",438,TemplateLiteral,common.
+components\chat\quoted-content.tsx,common,Yes,"icon",143,PropString,common.icon
+components\chat\quoted-content.tsx,common,Yes,"ghost",162,PropString,common.ghost
+components\chat\quoted-content.tsx,common,Yes,"icon",163,PropString,common.icon
+components\chat\quoted-content.tsx,common,Yes,"ghost",179,PropString,common.ghost
+components\chat\quoted-content.tsx,common,Yes,"icon",180,PropString,common.icon
+components\chat\quoted-content.tsx,common,Yes,"ghost",195,PropString,common.ghost
+components\chat\quoted-content.tsx,common,Yes,"icon",196,PropString,common.icon
+components\chat\quoted-content.tsx,common,Yes,"ghost",214,PropString,common.ghost
+components\chat\quoted-content.tsx,common,Yes,"icon",214,PropString,common.icon
+components\chat\quoted-content.tsx,common,Yes,"end",221,PropString,common.end
+components\chat\quoted-content.tsx,common,Yes,"ghost",242,PropString,common.ghost
+components\chat\quoted-content.tsx,common,Yes,"icon",242,PropString,common.icon
+components\chat\quoted-content.tsx,common,Yes,"end",249,PropString,common.end
+components\chat\quoted-content.tsx,common,Yes,"ghost",269,PropString,common.ghost
+components\chat\quoted-content.tsx,common,Yes,"icon",270,PropString,common.icon
+components\chat\quoted-content.tsx,common,Yes,"ghost",290,PropString,common.ghost
+components\chat\quoted-content.tsx,common,Yes,"ghost",473,PropString,common.ghost
+components\chat\quoted-content.tsx,common,Yes,"ghost",509,PropString,common.ghost
+components\chat\quoted-content.tsx,common,Yes,"icon",510,PropString,common.icon
+components\chat\quoted-content.tsx,common,Yes,"Move up",518,JSXText,common.move_up
+components\chat\quoted-content.tsx,common,Yes,"ghost",523,PropString,common.ghost
+components\chat\quoted-content.tsx,common,Yes,"icon",524,PropString,common.icon
+components\chat\quoted-content.tsx,common,Yes,"Move down",532,JSXText,common.move_down
+components\chat\quoted-content.tsx,common,Yes,"ghost",542,PropString,common.ghost
+components\chat\quoted-content.tsx,common,Yes,"icon",543,PropString,common.icon
+components\chat\quoted-content.tsx,common,Yes,"Collapse",550,JSXText,common.collapse
+components\chat\quoted-content.tsx,common,Yes,"ghost",558,PropString,common.ghost
+components\chat\quoted-content.tsx,common,Yes,"icon",559,PropString,common.icon
+components\chat\quoted-content.tsx,common,Yes,"Copy",566,JSXText,common.copy
+components\chat\quoted-content.tsx,common,Yes,"ghost",573,PropString,common.ghost
+components\chat\quoted-content.tsx,common,Yes,"icon",574,PropString,common.icon
+components\chat\quoted-content.tsx,common,Yes,"Edit",581,JSXText,common.edit
+components\chat\quoted-content.tsx,common,Yes,"ghost",588,PropString,common.ghost
+components\chat\quoted-content.tsx,common,Yes,"icon",589,PropString,common.icon
+components\chat\quoted-content.tsx,common,Yes,"Duplicate",596,JSXText,common.duplicate
+components\chat\quoted-content.tsx,common,Yes,"ghost",603,PropString,common.ghost
+components\chat\quoted-content.tsx,common,Yes,"icon",604,PropString,common.icon
+components\chat\quoted-content.tsx,common,Yes,"Remove",611,JSXText,common.remove
+components\export\animated-export-dialog.tsx,common,No,"outline",212,PropString,common.outline
+components\export\animated-export-dialog.tsx,common,No,"sm",212,PropString,common.sm
+components\export\animated-export-dialog.tsx,common,No,"Animated Chat Export",220,JSXText,common.animated_chat_export
+components\export\animated-export-dialog.tsx,common,No,"preview",226,PropString,common.preview
+components\export\animated-export-dialog.tsx,common,No,"Preview",228,JSXText,common.preview
+components\export\animated-export-dialog.tsx,common,No,"preview",228,PropString,common.preview
+components\export\animated-export-dialog.tsx,common,No,"settings",229,PropString,common.settings
+components\export\animated-export-dialog.tsx,common,No,"preview",235,PropString,common.preview
+components\export\animated-export-dialog.tsx,common,No,"outline",245,PropString,common.outline
+components\export\animated-export-dialog.tsx,common,No,"icon",246,PropString,common.icon
+components\export\animated-export-dialog.tsx,common,No,"outline",255,PropString,common.outline
+components\export\animated-export-dialog.tsx,common,No,"icon",255,PropString,common.icon
+components\export\animated-export-dialog.tsx,common,No,"icon",266,PropString,common.icon
+components\export\animated-export-dialog.tsx,common,No,"icon",274,PropString,common.icon
+components\export\animated-export-dialog.tsx,common,No,"icon",282,PropString,common.icon
+components\export\animated-export-dialog.tsx,common,No,"settings",330,PropString,common.settings
+components\export\animated-export-dialog.tsx,common,No,"Animation",333,JSXText,common.animation
+components\export\animated-export-dialog.tsx,common,No,"Typing Speed",337,JSXText,common.typing_speed
+components\export\animated-export-dialog.tsx,common,No,"Message Delay",351,JSXText,common.message_delay
+components\export\animated-export-dialog.tsx,common,No,"Display",366,JSXText,common.display
+components\export\animated-export-dialog.tsx,common,No,"Theme",369,JSXText,common.theme
+components\export\animated-export-dialog.tsx,common,No,"Light",375,JSXText,common.light
+components\export\animated-export-dialog.tsx,common,No,"light",375,PropString,common.light
+components\export\animated-export-dialog.tsx,common,No,"Dark",376,JSXText,common.dark
+components\export\animated-export-dialog.tsx,common,No,"dark",376,PropString,common.dark
+components\export\animated-export-dialog.tsx,common,No,"System",377,JSXText,common.system
+components\export\animated-export-dialog.tsx,common,No,"system",377,PropString,common.system
+components\export\animated-export-dialog.tsx,common,No,"Show Timestamps",383,JSXText,common.show_timestamps
+components\export\animated-export-dialog.tsx,common,No,"show-timestamps",383,PropString,common.showtimestamps
+components\export\animated-export-dialog.tsx,common,No,"show-timestamps",385,PropString,common.showtimestamps
+components\export\animated-export-dialog.tsx,common,No,"Show Playback Controls",392,JSXText,common.show_playback_controls
+components\export\animated-export-dialog.tsx,common,No,"show-controls",392,PropString,common.showcontrols
+components\export\animated-export-dialog.tsx,common,No,"show-controls",394,PropString,common.showcontrols
+components\export\animated-export-dialog.tsx,common,No,"Auto-play on Load",401,JSXText,common.autoplay_on_load
+components\export\animated-export-dialog.tsx,common,No,"auto-play",401,PropString,common.autoplay
+components\export\animated-export-dialog.tsx,common,No,"auto-play",403,PropString,common.autoplay
+components\export\animated-export-dialog.tsx,common,No,"outline",414,PropString,common.outline
+components\designer\designer-toolbar.tsx,common,No,"sm",108,PropString,common.sm
+components\designer\designer-toolbar.tsx,common,No,"vertical",121,PropString,common.vertical
+components\designer\designer-toolbar.tsx,common,No,"icon",130,PropString,common.icon
+components\designer\designer-toolbar.tsx,common,No,"vertical",142,PropString,common.vertical
+components\designer\designer-toolbar.tsx,common,No,"ghost",149,PropString,common.ghost
+components\designer\designer-toolbar.tsx,common,No,"icon",150,PropString,common.icon
+components\designer\designer-toolbar.tsx,common,No,"Zoom Out",158,JSXText,common.zoom_out
+components\designer\designer-toolbar.tsx,common,No,"ghost",168,PropString,common.ghost
+components\designer\designer-toolbar.tsx,common,No,"icon",169,PropString,common.icon
+components\designer\designer-toolbar.tsx,common,No,"Zoom In",177,JSXText,common.zoom_in
+components\designer\designer-toolbar.tsx,common,No,"ghost",183,PropString,common.ghost
+components\designer\designer-toolbar.tsx,common,No,"icon",184,PropString,common.icon
+components\designer\designer-toolbar.tsx,common,No,"Reset Zoom",192,JSXText,common.reset_zoom
+components\designer\designer-toolbar.tsx,common,No,"vertical",196,PropString,common.vertical
+components\designer\designer-toolbar.tsx,common,No,"ghost",203,PropString,common.ghost
+components\designer\designer-toolbar.tsx,common,No,"icon",204,PropString,common.icon
+components\designer\designer-toolbar.tsx,common,No,"Undo",212,JSXText,common.undo
+components\designer\designer-toolbar.tsx,common,No,"ghost",218,PropString,common.ghost
+components\designer\designer-toolbar.tsx,common,No,"icon",219,PropString,common.icon
+components\designer\designer-toolbar.tsx,common,No,"Redo",227,JSXText,common.redo
+components\designer\designer-toolbar.tsx,common,No,"icon",240,PropString,common.icon
+components\designer\designer-toolbar.tsx,common,No,"Element Tree",247,JSXText,common.element_tree
+components\designer\designer-toolbar.tsx,common,No,"icon",254,PropString,common.icon
+components\designer\designer-toolbar.tsx,common,No,"Style Panel",261,JSXText,common.style_panel
+components\designer\designer-toolbar.tsx,common,No,"vertical",265,PropString,common.vertical
+components\designer\designer-toolbar.tsx,common,No,"default",271,PropString,common.default
+components\designer\designer-toolbar.tsx,common,No,"sm",272,PropString,common.sm
+components\designer\designer-toolbar.tsx,common,No,"AI Edit",277,JSXText,common.ai_edit
+components\designer\designer-toolbar.tsx,common,No,"Edit with AI",280,JSXText,common.edit_with_ai
+components\designer\designer-toolbar.tsx,common,No,"outline",288,PropString,common.outline
+components\designer\designer-toolbar.tsx,common,No,"sm",289,PropString,common.sm
+components\designer\designer-toolbar.tsx,common,No,"Edit Code",294,JSXText,common.edit_code
+components\designer\designer-toolbar.tsx,common,No,"Open in Canvas for detailed editing",297,JSXText,common.open_in_canvas_for_detailed_editing
+components\designer\designer-toolbar.tsx,common,No,"ghost",304,PropString,common.ghost
+components\designer\designer-toolbar.tsx,common,No,"sm",304,PropString,common.sm
+components\designer\designer-toolbar.tsx,common,No,"More",305,JSXText,common.more
+components\designer\designer-toolbar.tsx,common,No,"end",308,PropString,common.end
+components\agent\background-agent-panel.tsx,common,Yes,"outline",133,PropString,common.outline
+components\agent\background-agent-panel.tsx,common,Yes,"ghost",178,PropString,common.ghost
+components\agent\background-agent-panel.tsx,common,Yes,"sm",179,PropString,common.sm
+components\agent\background-agent-panel.tsx,common,Yes,"Start",186,JSXText,common.start
+components\agent\background-agent-panel.tsx,common,Yes,"ghost",194,PropString,common.ghost
+components\agent\background-agent-panel.tsx,common,Yes,"sm",195,PropString,common.sm
+components\agent\background-agent-panel.tsx,common,Yes,"Pause",202,JSXText,common.pause
+components\agent\background-agent-panel.tsx,common,Yes,"ghost",210,PropString,common.ghost
+components\agent\background-agent-panel.tsx,common,Yes,"sm",211,PropString,common.sm
+components\agent\background-agent-panel.tsx,common,Yes,"Resume",218,JSXText,common.resume
+components\agent\background-agent-panel.tsx,common,Yes,"ghost",226,PropString,common.ghost
+components\agent\background-agent-panel.tsx,common,Yes,"sm",227,PropString,common.sm
+components\agent\background-agent-panel.tsx,common,Yes,"Cancel",234,JSXText,common.cancel
+components\agent\background-agent-panel.tsx,common,Yes,"ghost",242,PropString,common.ghost
+components\agent\background-agent-panel.tsx,common,Yes,"sm",243,PropString,common.sm
+components\agent\background-agent-panel.tsx,common,Yes,"Delete",250,JSXText,common.delete
+components\agent\background-agent-panel.tsx,common,Yes,"right",294,PropString,common.right
+components\agent\background-agent-panel.tsx,common,Yes,"default",301,PropString,common.default
+components\agent\background-agent-panel.tsx,common,Yes,"ghost",311,PropString,common.ghost
+components\agent\background-agent-panel.tsx,common,Yes,"sm",312,PropString,common.sm
+components\agent\background-agent-panel.tsx,common,Yes,"Mark all as read",322,JSXText,common.mark_all_as_read
+components\agent\background-agent-panel.tsx,common,Yes,"ghost",325,PropString,common.ghost
+components\agent\background-agent-panel.tsx,common,Yes,"sm",325,PropString,common.sm
+components\agent\background-agent-panel.tsx,common,Yes,"outline",338,PropString,common.outline
+components\agent\background-agent-panel.tsx,common,Yes,"sm",338,PropString,common.sm
+components\agent\background-agent-panel.tsx,common,Yes,"outline",343,PropString,common.outline
+components\agent\background-agent-panel.tsx,common,Yes,"sm",343,PropString,common.sm
+components\agent\background-agent-panel.tsx,common,Yes,"all",357,PropString,common.all
+components\agent\background-agent-panel.tsx,common,Yes,"running",360,PropString,common.running
+components\agent\background-agent-panel.tsx,common,Yes,"completed",363,PropString,common.completed
+components\agent\background-agent-panel.tsx,common,Yes,"No agents",374,JSXText,common.no_agents
+components\agent\background-agent-panel.tsx,common,Yes,"outline",398,PropString,common.outline
+components\agent\background-agent-panel.tsx,common,Yes,"sm",398,PropString,common.sm
+components\agent\background-agent-panel.tsx,common,Yes,"destructive",404,PropString,common.destructive
+components\agent\background-agent-panel.tsx,common,Yes,"sm",404,PropString,common.sm
+components\agent\background-agent-panel.tsx,common,Yes,"Select an agent to view details",426,JSXText,common.select_an_agent_to_view_details
+components\settings\provider-settings.tsx,common,Yes,"outline",324,PropString,common.outline
+components\settings\provider-settings.tsx,common,Yes,"Test Results:",359,JSXText,common.test_results
+components\settings\provider-settings.tsx,common,Yes,"secondary",454,PropString,common.secondary
+components\settings\provider-settings.tsx,common,Yes,"default",457,PropString,common.default
+components\settings\provider-settings.tsx,common,Yes,"outline",463,PropString,common.outline
+components\settings\provider-settings.tsx,common,Yes,"outline",475,PropString,common.outline
+components\settings\provider-settings.tsx,common,Yes,"Configured",485,JSXText,common.configured
+components\settings\provider-settings.tsx,common,Yes,"outline",524,PropString,common.outline
+components\settings\provider-settings.tsx,common,Yes,"_blank",557,PropString,common.blank
+components\settings\provider-settings.tsx,common,Yes,"button",592,PropString,common.button
+components\settings\provider-settings.tsx,common,Yes,"ghost",593,PropString,common.ghost
+components\settings\provider-settings.tsx,common,Yes,"icon",594,PropString,common.icon
+components\settings\provider-settings.tsx,common,Yes,"outline",607,PropString,common.outline
+components\settings\provider-settings.tsx,common,Yes,"_blank",641,PropString,common.blank
+components\settings\provider-settings.tsx,common,Yes,"API Key Rotation",660,JSXText,common.api_key_rotation
+components\settings\provider-settings.tsx,common,Yes,"outline",661,PropString,common.outline
+components\settings\provider-settings.tsx,common,Yes,"Strategy:",675,JSXText,common.strategy
+components\settings\provider-settings.tsx,common,Yes,"Round Robin",687,JSXText,common.round_robin
+components\settings\provider-settings.tsx,common,Yes,"round-robin",687,PropString,common.roundrobin
+components\settings\provider-settings.tsx,common,Yes,"Random",688,JSXText,common.random
+components\settings\provider-settings.tsx,common,Yes,"random",688,PropString,common.random
+components\settings\provider-settings.tsx,common,Yes,"Least Used",689,JSXText,common.least_used
+components\settings\provider-settings.tsx,common,Yes,"least-used",689,PropString,common.leastused
+components\settings\provider-settings.tsx,common,Yes,"default",711,PropString,common.default
+components\settings\provider-settings.tsx,common,Yes,"ghost",731,PropString,common.ghost
+components\settings\provider-settings.tsx,common,Yes,"icon",732,PropString,common.icon
+components\settings\provider-settings.tsx,common,Yes,"Reset stats",735,PropString,common.reset_stats
+components\settings\provider-settings.tsx,common,Yes,"ghost",740,PropString,common.ghost
+components\settings\provider-settings.tsx,common,Yes,"icon",741,PropString,common.icon
+components\settings\provider-settings.tsx,common,Yes,"outline",773,PropString,common.outline
+components\settings\provider-settings.tsx,common,Yes,"outline",842,PropString,common.outline
+components\settings\provider-settings.tsx,common,Yes,"outline",849,PropString,common.outline
+components\settings\provider-settings.tsx,common,Yes,"secondary",871,PropString,common.secondary
+components\settings\provider-settings.tsx,common,Yes,"ghost",881,PropString,common.ghost
+components\settings\provider-settings.tsx,common,Yes,"icon",882,PropString,common.icon
+components\projects\project-detail.tsx,common,No,"Project not found",120,JSXText,common.project_not_found
+components\projects\project-detail.tsx,common,No,"outline",121,PropString,common.outline
+components\projects\project-detail.tsx,common,No,"ghost",161,PropString,common.ghost
+components\projects\project-detail.tsx,common,No,"icon",161,PropString,common.icon
+components\projects\project-detail.tsx,common,No,"outline",187,PropString,common.outline
+components\projects\project-detail.tsx,common,No,"secondary",196,PropString,common.secondary
+components\projects\project-detail.tsx,common,No,"outline",208,PropString,common.outline
+components\projects\project-detail.tsx,common,No,"outline",215,PropString,common.outline
+components\projects\project-detail.tsx,common,No,"outline",220,PropString,common.outline
+components\projects\project-detail.tsx,common,No,"outline",225,PropString,common.outline
+components\projects\project-detail.tsx,common,No,"Chat Sessions",249,JSXText,common.chat_sessions
+components\projects\project-detail.tsx,common,No,"Knowledge Files",263,JSXText,common.knowledge_files
+components\projects\project-detail.tsx,common,No,"Created",277,JSXText,common.created
+components\projects\project-detail.tsx,common,No,"Last Updated",288,JSXText,common.last_updated
+components\projects\project-detail.tsx,common,No,"Custom Instructions",296,JSXText,common.custom_instructions
+components\projects\project-detail.tsx,common,No,"secondary",296,PropString,common.secondary
+components\projects\project-detail.tsx,common,No,"outline",299,PropString,common.outline
+components\projects\project-detail.tsx,common,No,"outline",302,PropString,common.outline
+components\projects\project-detail.tsx,common,No,"sessions",308,PropString,common.sessions
+components\projects\project-detail.tsx,common,No,"sessions",310,PropString,common.sessions
+components\projects\project-detail.tsx,common,No,"knowledge",314,PropString,common.knowledge
+components\projects\project-detail.tsx,common,No,"sessions",320,PropString,common.sessions
+components\projects\project-detail.tsx,common,No,"outline",333,PropString,common.outline
+components\projects\project-detail.tsx,common,No,"ghost",343,PropString,common.ghost
+components\projects\project-detail.tsx,common,No,"icon",344,PropString,common.icon
+components\projects\project-detail.tsx,common,No,"No sessions yet",361,JSXText,common.no_sessions_yet
+components\projects\project-detail.tsx,common,No,"outline",367,PropString,common.outline
+components\projects\project-detail.tsx,common,No,"knowledge",379,PropString,common.knowledge
+components\projects\project-detail.tsx,common,No,"Danger Zone",386,JSXText,common.danger_zone
+components\projects\project-detail.tsx,common,No,"Delete Project",414,JSXText,common.delete_project
+components\projects\project-detail.tsx,common,No,"Cancel",421,JSXText,common.cancel
+components\projects\project-detail.tsx,common,No,"Remove Session",439,JSXText,common.remove_session
+components\projects\project-detail.tsx,common,No,"Cancel",446,JSXText,common.cancel
+components\presets\create-preset-dialog.tsx,common,Yes,"basic",407,PropString,common.basic
+components\presets\create-preset-dialog.tsx,common,Yes,"basic",409,PropString,common.basic
+components\presets\create-preset-dialog.tsx,common,Yes,"model",410,PropString,common.model
+components\presets\create-preset-dialog.tsx,common,Yes,"prompt",411,PropString,common.prompt
+components\presets\create-preset-dialog.tsx,common,Yes,"quick",412,PropString,common.quick
+components\presets\create-preset-dialog.tsx,common,Yes,"basic",415,PropString,common.basic
+components\presets\create-preset-dialog.tsx,common,Yes,"name",417,PropString,common.name
+components\presets\create-preset-dialog.tsx,common,Yes,"name",419,PropString,common.name
+components\presets\create-preset-dialog.tsx,common,Yes,"description",427,PropString,common.description
+components\presets\create-preset-dialog.tsx,common,Yes,"description",429,PropString,common.description
+components\presets\create-preset-dialog.tsx,common,Yes,"button",444,PropString,common.button
+components\presets\create-preset-dialog.tsx,common,Yes,"button",463,PropString,common.button
+components\presets\create-preset-dialog.tsx,common,Yes,"model",477,PropString,common.model
+components\presets\create-preset-dialog.tsx,common,Yes,"chat",485,PropString,common.chat
+components\presets\create-preset-dialog.tsx,common,Yes,"agent",486,PropString,common.agent
+components\presets\create-preset-dialog.tsx,common,Yes,"research",487,PropString,common.research
+components\presets\create-preset-dialog.tsx,common,Yes,"auto",500,PropString,common.auto
+components\presets\create-preset-dialog.tsx,common,Yes,"maxTokens",543,PropString,common.maxtokens
+components\presets\create-preset-dialog.tsx,common,Yes,"maxTokens",545,PropString,common.maxtokens
+components\presets\create-preset-dialog.tsx,common,Yes,"number",546,PropString,common.number
+components\presets\create-preset-dialog.tsx,common,Yes,"prompt",591,PropString,common.prompt
+components\presets\create-preset-dialog.tsx,common,Yes,"systemPrompt",594,PropString,common.systemprompt
+components\presets\create-preset-dialog.tsx,common,Yes,"outline",596,PropString,common.outline
+components\presets\create-preset-dialog.tsx,common,Yes,"systemPrompt",610,PropString,common.systemprompt
+components\presets\create-preset-dialog.tsx,common,Yes,"quick",622,PropString,common.quick
+components\presets\create-preset-dialog.tsx,common,Yes,"outline",632,PropString,common.outline
+components\presets\create-preset-dialog.tsx,common,Yes,"outline",644,PropString,common.outline
+components\presets\create-preset-dialog.tsx,common,Yes,"ghost",667,PropString,common.ghost
+components\presets\create-preset-dialog.tsx,common,Yes,"icon",668,PropString,common.icon
+components\presets\create-preset-dialog.tsx,common,Yes,"outline",719,PropString,common.outline
+components\designer\v0-designer.tsx,common,No," Promise",77,JSXText,common._promise
+components\designer\v0-designer.tsx,common,No,"right",231,PropString,common.right
+components\designer\v0-designer.tsx,common,No,"Designer",242,JSXText,common.designer
+components\designer\v0-designer.tsx,common,No,"vertical",245,PropString,common.vertical
+components\designer\v0-designer.tsx,common,No,"ghost",252,PropString,common.ghost
+components\designer\v0-designer.tsx,common,No,"icon",253,PropString,common.icon
+components\designer\v0-designer.tsx,common,No,"Undo",261,JSXText,common.undo
+components\designer\v0-designer.tsx,common,No,"ghost",267,PropString,common.ghost
+components\designer\v0-designer.tsx,common,No,"icon",268,PropString,common.icon
+components\designer\v0-designer.tsx,common,No,"Redo",276,JSXText,common.redo
+components\designer\v0-designer.tsx,common,No,"ghost",287,PropString,common.ghost
+components\designer\v0-designer.tsx,common,No,"icon",288,PropString,common.icon
+components\designer\v0-designer.tsx,common,No,"ghost",300,PropString,common.ghost
+components\designer\v0-designer.tsx,common,No,"icon",301,PropString,common.icon
+components\designer\v0-designer.tsx,common,No,"Download code",308,JSXText,common.download_code
+components\designer\v0-designer.tsx,common,No,"vertical",312,PropString,common.vertical
+components\designer\v0-designer.tsx,common,No,"outline",316,PropString,common.outline
+components\designer\v0-designer.tsx,common,No,"outline",328,PropString,common.outline
+components\designer\v0-designer.tsx,common,No,"Open in Canvas for detailed code editing",336,JSXText,common.open_in_canvas_for_detailed_code_editing
+components\designer\v0-designer.tsx,common,No,"default",351,PropString,common.default
+components\designer\v0-designer.tsx,common,No,"ghost",359,PropString,common.ghost
+components\designer\v0-designer.tsx,common,No,"icon",360,PropString,common.icon
+components\designer\v0-designer.tsx,common,No,"secondary",386,PropString,common.secondary
+components\designer\v0-designer.tsx,common,No,"Choose a Template",435,JSXText,common.choose_a_template
+components\designer\v0-designer.tsx,common,No,"all",441,PropString,common.all
+components\designer\v0-designer.tsx,common,No,"All",443,JSXText,common.all
+components\designer\v0-designer.tsx,common,No,"all",443,PropString,common.all
+components\designer\v0-designer.tsx,common,No,"all",452,PropString,common.all
+components\designer\v0-designer.tsx,common,No,"secondary",510,PropString,common.secondary
+components\chat\image-generation-dialog.tsx,common,Yes,"outline",132,PropString,common.outline
+components\chat\image-generation-dialog.tsx,common,Yes,"sm",132,PropString,common.sm
+components\chat\image-generation-dialog.tsx,common,Yes,"prompt",152,PropString,common.prompt
+components\chat\image-generation-dialog.tsx,common,Yes,"prompt",154,PropString,common.prompt
+components\chat\image-generation-dialog.tsx,common,Yes,"ghost",166,PropString,common.ghost
+components\chat\image-generation-dialog.tsx,common,Yes,"sm",166,PropString,common.sm
+components\chat\image-generation-dialog.tsx,common,Yes,"DALL-E 3 (Best quality)",184,JSXText,common.dalle_3_best_quality
+components\chat\image-generation-dialog.tsx,common,Yes,"dall-e-3",184,PropString,common.dalle3
+components\chat\image-generation-dialog.tsx,common,Yes,"DALL-E 2 (Faster)",185,JSXText,common.dalle_2_faster
+components\chat\image-generation-dialog.tsx,common,Yes,"dall-e-2",185,PropString,common.dalle2
+components\chat\image-generation-dialog.tsx,common,Yes,"Square (1024x1024)",201,JSXText,common.square_1024x1024
+components\chat\image-generation-dialog.tsx,common,Yes,"1024x1024",201,PropString,common.1024x1024
+components\chat\image-generation-dialog.tsx,common,Yes,"Portrait (1024x1792)",202,JSXText,common.portrait_1024x1792
+components\chat\image-generation-dialog.tsx,common,Yes,"1024x1792",202,PropString,common.1024x1792
+components\chat\image-generation-dialog.tsx,common,Yes,"Landscape (1792x1024)",203,JSXText,common.landscape_1792x1024
+components\chat\image-generation-dialog.tsx,common,Yes,"1792x1024",203,PropString,common.1792x1024
+components\chat\image-generation-dialog.tsx,common,Yes,"Standard",219,JSXText,common.standard
+components\chat\image-generation-dialog.tsx,common,Yes,"standard",219,PropString,common.standard
+components\chat\image-generation-dialog.tsx,common,Yes,"HD (Higher detail)",220,JSXText,common.hd_higher_detail
+components\chat\image-generation-dialog.tsx,common,Yes,"hd",220,PropString,common.hd
+components\chat\image-generation-dialog.tsx,common,Yes,"Vivid (Dramatic)",236,JSXText,common.vivid_dramatic
+components\chat\image-generation-dialog.tsx,common,Yes,"vivid",236,PropString,common.vivid
+components\chat\image-generation-dialog.tsx,common,Yes,"Natural (Realistic)",237,JSXText,common.natural_realistic
+components\chat\image-generation-dialog.tsx,common,Yes,"natural",237,PropString,common.natural
+components\chat\image-generation-dialog.tsx,common,Yes,"destructive",247,PropString,common.destructive
+components\chat\image-generation-dialog.tsx,common,Yes,"outline",273,PropString,common.outline
+components\chat\image-generation-dialog.tsx,common,Yes,"sm",299,PropString,common.sm
+components\chat\image-generation-dialog.tsx,common,Yes,"secondary",300,PropString,common.secondary
+components\canvas\canvas-panel.tsx,common,No,"right",336,PropString,common.right
+components\canvas\canvas-panel.tsx,common,No,"secondary",348,PropString,common.secondary
+components\canvas\canvas-panel.tsx,common,No,"outline",352,PropString,common.outline
+components\canvas\canvas-panel.tsx,common,No,"ghost",362,PropString,common.ghost
+components\canvas\canvas-panel.tsx,common,No,"icon",363,PropString,common.icon
+components\canvas\canvas-panel.tsx,common,No,"Save version",373,JSXText,common.save_version
+components\canvas\canvas-panel.tsx,common,No,"ghost",380,PropString,common.ghost
+components\canvas\canvas-panel.tsx,common,No,"icon",380,PropString,common.icon
+components\canvas\canvas-panel.tsx,common,No,"ghost",392,PropString,common.ghost
+components\canvas\canvas-panel.tsx,common,No,"Preview",398,JSXText,common.preview
+components\canvas\canvas-panel.tsx,common,No,"Open in Designer with live preview",401,JSXText,common.open_in_designer_with_live_preview
+components\canvas\canvas-panel.tsx,common,No,"ghost",406,PropString,common.ghost
+components\canvas\canvas-panel.tsx,common,No,"icon",407,PropString,common.icon
+components\canvas\canvas-panel.tsx,common,No,"Open in Full Designer (new window)",414,JSXText,common.open_in_full_designer_new_window
+components\canvas\canvas-panel.tsx,common,No,"ghost",419,PropString,common.ghost
+components\canvas\canvas-panel.tsx,common,No,"icon",419,PropString,common.icon
+components\canvas\canvas-panel.tsx,common,No,"ghost",432,PropString,common.ghost
+components\canvas\canvas-panel.tsx,common,No,"ghost",457,PropString,common.ghost
+components\canvas\canvas-panel.tsx,common,No,"end",461,PropString,common.end
+components\canvas\canvas-panel.tsx,common,No,"Run Code",478,JSXText,common.run_code
+components\canvas\canvas-panel.tsx,common,No,"Processing...",486,JSXText,common.processing
+components\canvas\canvas-panel.tsx,common,No,"destructive",494,PropString,common.destructive
+components\canvas\canvas-panel.tsx,common,No,"100%",503,PropString,common.100
+components\canvas\canvas-panel.tsx,common,No,"AI Response",535,JSXText,common.ai_response
+components\canvas\canvas-panel.tsx,common,No,"ghost",537,PropString,common.ghost
+components\canvas\canvas-panel.tsx,common,No,"icon",538,PropString,common.icon
+components\canvas\canvas-panel.tsx,common,No,"No document open",561,JSXText,common.no_document_open
+components\canvas\canvas-panel.tsx,common,No,"ghost",621,PropString,common.ghost
+components\chat\renderers\code-block.tsx,common,Yes,"code",100,PropString,common.code
+components\chat\renderers\code-block.tsx,common,Yes," : ''}",139,TemplateLiteral,common._
+components\chat\renderers\code-block.tsx,common,Yes,"code",146,JSXText,common.code
+components\chat\renderers\code-block.tsx,common,Yes,"font-mono",146,PropString,common.fontmono
+components\chat\renderers\code-block.tsx,common,Yes,"ghost",154,PropString,common.ghost
+components\chat\renderers\code-block.tsx,common,Yes,"icon",155,PropString,common.icon
+components\chat\renderers\code-block.tsx,common,Yes,"ghost",170,PropString,common.ghost
+components\chat\renderers\code-block.tsx,common,Yes,"icon",171,PropString,common.icon
+components\chat\renderers\code-block.tsx,common,Yes,"ghost",186,PropString,common.ghost
+components\chat\renderers\code-block.tsx,common,Yes,"icon",187,PropString,common.icon
+components\chat\renderers\code-block.tsx,common,Yes,"Copy",196,JSXText,common.copy
+components\chat\renderers\code-block.tsx,common,Yes,"ghost",202,PropString,common.ghost
+components\chat\renderers\code-block.tsx,common,Yes,"icon",203,PropString,common.icon
+components\chat\renderers\code-block.tsx,common,Yes,"Download",211,JSXText,common.download
+components\chat\renderers\code-block.tsx,common,Yes,"ghost",217,PropString,common.ghost
+components\chat\renderers\code-block.tsx,common,Yes,"icon",218,PropString,common.icon
+components\chat\renderers\code-block.tsx,common,Yes,"Fullscreen",226,JSXText,common.fullscreen
+components\chat\renderers\code-block.tsx,common,Yes,"ghost",246,PropString,common.ghost
+components\chat\renderers\code-block.tsx,common,Yes,"icon",247,PropString,common.icon
+components\chat\renderers\code-block.tsx,common,Yes,"ghost",260,PropString,common.ghost
+components\chat\renderers\code-block.tsx,common,Yes,"icon",261,PropString,common.icon
+components\chat\renderers\code-block.tsx,common,Yes,"ghost",274,PropString,common.ghost
+components\chat\renderers\code-block.tsx,common,Yes,"icon",275,PropString,common.icon
+components\chat\renderers\code-block.tsx,common,Yes,"Copy",284,JSXText,common.copy
+components\chat\renderers\code-block.tsx,common,Yes,"ghost",289,PropString,common.ghost
+components\chat\renderers\code-block.tsx,common,Yes,"icon",290,PropString,common.icon
+components\chat\renderers\code-block.tsx,common,Yes,"Download",298,JSXText,common.download
+components\chat\preset-manager-dialog.tsx,common,Yes,"list",371,PropString,common.list
+components\chat\preset-manager-dialog.tsx,common,Yes,"edit",372,PropString,common.edit
+components\chat\preset-manager-dialog.tsx,common,Yes,"list",378,PropString,common.list
+components\chat\preset-manager-dialog.tsx,common,Yes,"edit",445,PropString,common.edit
+components\chat\preset-manager-dialog.tsx,common,Yes,"outline",467,PropString,common.outline
+components\chat\preset-manager-dialog.tsx,common,Yes,"ghost",542,PropString,common.ghost
+components\chat\preset-manager-dialog.tsx,common,Yes,"icon",543,PropString,common.icon
+components\chat\preset-manager-dialog.tsx,common,Yes,"ghost",553,PropString,common.ghost
+components\chat\preset-manager-dialog.tsx,common,Yes,"icon",554,PropString,common.icon
+components\chat\preset-manager-dialog.tsx,common,Yes,"ghost",564,PropString,common.ghost
+components\chat\preset-manager-dialog.tsx,common,Yes,"icon",565,PropString,common.icon
+components\chat\preset-manager-dialog.tsx,common,Yes,"name",614,PropString,common.name
+components\chat\preset-manager-dialog.tsx,common,Yes,"name",616,PropString,common.name
+components\chat\preset-manager-dialog.tsx,common,Yes,"cursor-pointer",636,PropString,common.cursorpointer
+components\chat\preset-manager-dialog.tsx,common,Yes,"description",664,PropString,common.description
+components\chat\preset-manager-dialog.tsx,common,Yes,"description",666,PropString,common.description
+components\chat\preset-manager-dialog.tsx,common,Yes,"auto",689,PropString,common.auto
+components\chat\preset-manager-dialog.tsx,common,Yes,"gpt-4o",704,PropString,common.gpt4o
+components\chat\preset-manager-dialog.tsx,common,Yes,"chat",718,PropString,common.chat
+components\chat\preset-manager-dialog.tsx,common,Yes,"agent",719,PropString,common.agent
+components\chat\preset-manager-dialog.tsx,common,Yes,"research",720,PropString,common.research
+components\chat\preset-manager-dialog.tsx,common,Yes,"outline",780,PropString,common.outline
+components\chat\preset-manager-dialog.tsx,common,Yes,"outline",808,PropString,common.outline
+components\chat\preset-manager-dialog.tsx,common,Yes,"outline",820,PropString,common.outline
+components\chat\preset-manager-dialog.tsx,common,Yes,"ghost",843,PropString,common.ghost
+components\chat\preset-manager-dialog.tsx,common,Yes,"icon",844,PropString,common.icon
+components\settings\mcp-server-dialog.tsx,common,Yes,"server-name",181,PropString,common.servername
+components\settings\mcp-server-dialog.tsx,common,Yes,"server-name",183,PropString,common.servername
+components\settings\mcp-server-dialog.tsx,common,Yes,"stdio",203,PropString,common.stdio
+components\settings\mcp-server-dialog.tsx,common,Yes,"sse",204,PropString,common.sse
+components\settings\mcp-server-dialog.tsx,common,Yes,"command",213,PropString,common.command
+components\settings\mcp-server-dialog.tsx,common,Yes,"command",215,PropString,common.command
+components\settings\mcp-server-dialog.tsx,common,Yes,"outline",238,PropString,common.outline
+components\settings\mcp-server-dialog.tsx,common,Yes,"icon",239,PropString,common.icon
+components\settings\mcp-server-dialog.tsx,common,Yes,"button",241,PropString,common.button
+components\settings\mcp-server-dialog.tsx,common,Yes,"button",254,PropString,common.button
+components\settings\mcp-server-dialog.tsx,common,Yes,"sse-url",267,PropString,common.sseurl
+components\settings\mcp-server-dialog.tsx,common,Yes,"sse-url",269,PropString,common.sseurl
+components\settings\mcp-server-dialog.tsx,common,Yes,"outline",295,PropString,common.outline
+components\settings\mcp-server-dialog.tsx,common,Yes,"icon",296,PropString,common.icon
+components\settings\mcp-server-dialog.tsx,common,Yes,"button",298,PropString,common.button
+components\settings\mcp-server-dialog.tsx,common,Yes,"ghost",315,PropString,common.ghost
+components\settings\mcp-server-dialog.tsx,common,Yes,"icon",316,PropString,common.icon
+components\settings\mcp-server-dialog.tsx,common,Yes,"button",324,PropString,common.button
+components\settings\mcp-server-dialog.tsx,common,Yes,"ghost",333,PropString,common.ghost
+components\settings\mcp-server-dialog.tsx,common,Yes,"icon",334,PropString,common.icon
+components\settings\mcp-server-dialog.tsx,common,Yes,"button",337,PropString,common.button
+components\settings\mcp-server-dialog.tsx,common,Yes,"enabled",350,PropString,common.enabled
+components\settings\mcp-server-dialog.tsx,common,Yes,"enabled",356,PropString,common.enabled
+components\settings\mcp-server-dialog.tsx,common,Yes,"auto-start",363,PropString,common.autostart
+components\settings\mcp-server-dialog.tsx,common,Yes,"auto-start",369,PropString,common.autostart
+components\settings\mcp-server-dialog.tsx,common,Yes,"outline",377,PropString,common.outline
+components\chat\chat-header.tsx,common,Yes,"vertical",209,PropString,common.vertical
+components\chat\chat-header.tsx,common,Yes,"ghost",214,PropString,common.ghost
+components\chat\chat-header.tsx,common,Yes,"sm",214,PropString,common.sm
+components\chat\chat-header.tsx,common,Yes,"start",220,PropString,common.start
+components\chat\chat-header.tsx,common,Yes,"vertical",237,PropString,common.vertical
+components\chat\chat-header.tsx,common,Yes,"vertical",256,PropString,common.vertical
+components\chat\chat-header.tsx,common,Yes,"outline",259,PropString,common.outline
+components\chat\chat-header.tsx,common,Yes,"vertical",275,PropString,common.vertical
+components\chat\chat-header.tsx,common,Yes,"/skills",276,PropString,common.skills
+components\chat\chat-header.tsx,common,Yes,"vertical",283,PropString,common.vertical
+components\chat\chat-header.tsx,common,Yes,"ghost",301,PropString,common.ghost
+components\chat\chat-header.tsx,common,Yes,"icon",301,PropString,common.icon
+components\chat\chat-header.tsx,common,Yes,"ghost",313,PropString,common.ghost
+components\chat\chat-header.tsx,common,Yes,"icon",313,PropString,common.icon
+components\chat\chat-header.tsx,common,Yes,"ghost",323,PropString,common.ghost
+components\chat\chat-header.tsx,common,Yes,"icon",323,PropString,common.icon
+components\chat\chat-header.tsx,common,Yes,"end",327,PropString,common.end
+components\chat\chat-header.tsx,common,Yes,"sm",347,PropString,common.sm
+components\chat\chat-header.tsx,common,Yes,"end",354,PropString,common.end
+components\chat\chat-header.tsx,common,Yes,"ghost",386,PropString,common.ghost
+components\chat\chat-header.tsx,common,Yes,"icon",386,PropString,common.icon
+components\chat\chat-header.tsx,common,Yes,"end",390,PropString,common.end
+components\chat\chat-header.tsx,common,Yes,"Open conversation in...",457,JSXText,common.open_conversation_in
+components\chat\chat-header.tsx,common,Yes,"outline",473,PropString,common.outline
+components\chat\chat-header.tsx,common,Yes,"sm",474,PropString,common.sm
+components\chat\chat-input.tsx,common,Yes,"ghost",718,PropString,common.ghost
+components\chat\chat-input.tsx,common,Yes,"icon",719,PropString,common.icon
+components\chat\chat-input.tsx,common,Yes,"file",754,PropString,common.file
+components\chat\chat-input.tsx,common,Yes,"hidden",756,PropString,common.hidden
+components\chat\chat-input.tsx,common,Yes,"ghost",770,PropString,common.ghost
+components\chat\chat-input.tsx,common,Yes,"icon",771,PropString,common.icon
+components\chat\chat-input.tsx,common,Yes,"ghost",810,PropString,common.ghost
+components\chat\chat-input.tsx,common,Yes,"icon",811,PropString,common.icon
+components\chat\chat-input.tsx,common,Yes,"ghost",830,PropString,common.ghost
+components\chat\chat-input.tsx,common,Yes,"icon",831,PropString,common.icon
+components\chat\chat-input.tsx,common,Yes,"ghost",877,PropString,common.ghost
+components\chat\chat-input.tsx,common,Yes,"icon",878,PropString,common.icon
+components\chat\chat-input.tsx,common,Yes,"default",897,PropString,common.default
+components\chat\chat-input.tsx,common,Yes,"icon",898,PropString,common.icon
+components\chat\chat-input.tsx,common,Yes,"ghost",922,PropString,common.ghost
+components\chat\chat-input.tsx,common,Yes,"sm",923,PropString,common.sm
+components\chat\chat-input.tsx,common,Yes,"ghost",941,PropString,common.ghost
+components\chat\chat-input.tsx,common,Yes,"sm",942,PropString,common.sm
+components\chat\chat-input.tsx,common,Yes,"ghost",961,PropString,common.ghost
+components\chat\chat-input.tsx,common,Yes,"sm",962,PropString,common.sm
+components\chat\chat-input.tsx,common,Yes,"ghost",983,PropString,common.ghost
+components\chat\chat-input.tsx,common,Yes,"sm",984,PropString,common.sm
+components\chat\chat-input.tsx,common,Yes,"ghost",1005,PropString,common.ghost
+components\chat\chat-input.tsx,common,Yes,"icon",1006,PropString,common.icon
+components\settings\search-settings.tsx,common,Yes,"secondary",207,PropString,common.secondary
+components\settings\search-settings.tsx,common,Yes,"default",237,PropString,common.default
+components\settings\search-settings.tsx,common,Yes,"outline",242,PropString,common.outline
+components\settings\search-settings.tsx,common,Yes,"API Key",272,JSXText,common.api_key
+components\settings\search-settings.tsx,common,Yes,"button",284,PropString,common.button
+components\settings\search-settings.tsx,common,Yes,"ghost",285,PropString,common.ghost
+components\settings\search-settings.tsx,common,Yes,"icon",286,PropString,common.icon
+components\settings\search-settings.tsx,common,Yes,"outline",298,PropString,common.outline
+components\settings\search-settings.tsx,common,Yes,"_blank",332,PropString,common.blank
+components\settings\search-settings.tsx,common,Yes,"AI Answer",344,JSXText,common.ai_answer
+components\settings\search-settings.tsx,common,Yes,"secondary",344,PropString,common.secondary
+components\settings\search-settings.tsx,common,Yes,"News",347,JSXText,common.news
+components\settings\search-settings.tsx,common,Yes,"secondary",347,PropString,common.secondary
+components\settings\search-settings.tsx,common,Yes,"Images",350,JSXText,common.images
+components\settings\search-settings.tsx,common,Yes,"secondary",350,PropString,common.secondary
+components\settings\search-settings.tsx,common,Yes,"Academic",353,JSXText,common.academic
+components\settings\search-settings.tsx,common,Yes,"secondary",353,PropString,common.secondary
+components\settings\search-settings.tsx,common,Yes,"Recency Filter",356,JSXText,common.recency_filter
+components\settings\search-settings.tsx,common,Yes,"secondary",356,PropString,common.secondary
+components\settings\search-settings.tsx,common,Yes,"Domain Filter",359,JSXText,common.domain_filter
+components\settings\search-settings.tsx,common,Yes,"secondary",359,PropString,common.secondary
+components\settings\search-settings.tsx,common,Yes,"Content Extraction",362,JSXText,common.content_extraction
+components\settings\search-settings.tsx,common,Yes,"secondary",362,PropString,common.secondary
+app\designer\page.tsx,common,No,"sm",193,PropString,common.sm
+app\designer\page.tsx,common,No,"Designer",202,JSXText,common.designer
+app\designer\page.tsx,common,No,"icon",211,PropString,common.icon
+app\designer\page.tsx,common,No,"icon",220,PropString,common.icon
+app\designer\page.tsx,common,No,"icon",233,PropString,common.icon
+app\designer\page.tsx,common,No,"icon",241,PropString,common.icon
+app\designer\page.tsx,common,No,"outline",249,PropString,common.outline
+app\designer\page.tsx,common,No,"sm",249,PropString,common.sm
+app\designer\page.tsx,common,No,"outline",254,PropString,common.outline
+app\designer\page.tsx,common,No,"sm",255,PropString,common.sm
+app\designer\page.tsx,common,No,"Open in Canvas for detailed code editing with Monaco Editor",257,PropString,common.open_in_canvas_for_detailed_code_editing_with_mona
+app\designer\page.tsx,common,No,"sm",264,PropString,common.sm
+app\designer\page.tsx,common,No,"outline",289,PropString,common.outline
+app\designer\page.tsx,common,No,"sm",306,PropString,common.sm
+app\designer\page.tsx,common,No,"icon",321,PropString,common.icon
+app\designer\page.tsx,common,No,"Choose a Template",347,JSXText,common.choose_a_template
+app\designer\page.tsx,common,No,"sm",359,PropString,common.sm
+app\designer\page.tsx,common,No,"all",367,PropString,common.all
+app\designer\page.tsx,common,No,"All",369,JSXText,common.all
+app\designer\page.tsx,common,No,"all",369,PropString,common.all
+app\designer\page.tsx,common,No,"all",378,PropString,common.all
+app\designer\page.tsx,common,No,"outline",395,PropString,common.outline
+app\designer\page.tsx,common,No,"outline",421,PropString,common.outline
+components\chat\branch-selector.tsx,common,No,"ghost",117,PropString,common.ghost
+components\chat\branch-selector.tsx,common,No,"sm",117,PropString,common.sm
+components\chat\branch-selector.tsx,common,No,"secondary",120,PropString,common.secondary
+components\chat\branch-selector.tsx,common,No,"outline",127,PropString,common.outline
+components\chat\branch-selector.tsx,common,No,"sm",127,PropString,common.sm
+components\chat\branch-selector.tsx,common,No,"end",136,PropString,common.end
+components\chat\branch-selector.tsx,common,No,"Main",149,JSXText,common.main
+components\chat\branch-selector.tsx,common,No,"default",151,PropString,common.default
+components\chat\branch-selector.tsx,common,No,"ghost",173,PropString,common.ghost
+components\chat\branch-selector.tsx,common,No,"icon",174,PropString,common.icon
+components\chat\branch-selector.tsx,common,No,"ghost",181,PropString,common.ghost
+components\chat\branch-selector.tsx,common,No,"icon",182,PropString,common.icon
+components\chat\branch-selector.tsx,common,No,"default",200,PropString,common.default
+components\chat\branch-selector.tsx,common,No,"ghost",206,PropString,common.ghost
+components\chat\branch-selector.tsx,common,No,"icon",207,PropString,common.icon
+components\chat\branch-selector.tsx,common,No,"ghost",217,PropString,common.ghost
+components\chat\branch-selector.tsx,common,No,"icon",218,PropString,common.icon
+components\chat\branch-selector.tsx,common,No,"Delete Branch",245,JSXText,common.delete_branch
+components\chat\branch-selector.tsx,common,No,"Cancel",253,JSXText,common.cancel
+components\chat\branch-selector.tsx,common,No," Promise",273,JSXText,common._promise
+components\chat\branch-selector.tsx,common,No,"ghost",307,PropString,common.ghost
+components\chat\branch-selector.tsx,common,No,"sm",308,PropString,common.sm
+components\chat\renderers\mermaid-block.tsx,common,Yes,"true",148,PropString,common.true
+components\chat\renderers\mermaid-block.tsx,common,Yes,"true",164,PropString,common.true
+components\chat\renderers\mermaid-block.tsx,common,Yes,"ghost",171,PropString,common.ghost
+components\chat\renderers\mermaid-block.tsx,common,Yes,"icon",172,PropString,common.icon
+components\chat\renderers\mermaid-block.tsx,common,Yes,"ghost",185,PropString,common.ghost
+components\chat\renderers\mermaid-block.tsx,common,Yes,"icon",186,PropString,common.icon
+components\chat\renderers\mermaid-block.tsx,common,Yes,"ghost",219,PropString,common.ghost
+components\chat\renderers\mermaid-block.tsx,common,Yes,"icon",220,PropString,common.icon
+components\chat\renderers\mermaid-block.tsx,common,Yes,"ghost",235,PropString,common.ghost
+components\chat\renderers\mermaid-block.tsx,common,Yes,"icon",236,PropString,common.icon
+components\chat\renderers\mermaid-block.tsx,common,Yes,"ghost",253,PropString,common.ghost
+components\chat\renderers\mermaid-block.tsx,common,Yes,"icon",254,PropString,common.icon
+components\chat\renderers\mermaid-block.tsx,common,Yes,"end",265,PropString,common.end
+components\chat\renderers\mermaid-block.tsx,common,Yes,"ghost",280,PropString,common.ghost
+components\chat\renderers\mermaid-block.tsx,common,Yes,"icon",281,PropString,common.icon
+components\chat\renderers\mermaid-block.tsx,common,Yes,"ghost",318,PropString,common.ghost
+components\chat\renderers\mermaid-block.tsx,common,Yes,"icon",319,PropString,common.icon
+components\chat\renderers\mermaid-block.tsx,common,Yes,"Copy source",328,JSXText,common.copy_source
+components\chat\renderers\mermaid-block.tsx,common,Yes,"ghost",333,PropString,common.ghost
+components\chat\renderers\mermaid-block.tsx,common,Yes,"icon",334,PropString,common.icon
+components\chat\renderers\mermaid-block.tsx,common,Yes,"Export PNG",343,JSXText,common.export_png
+components\chat\renderers\mermaid-block.tsx,common,Yes,"View Source Code",361,JSXText,common.view_source_code
+components\projects\create-project-dialog.tsx,common,Yes,"basic",156,PropString,common.basic
+components\projects\create-project-dialog.tsx,common,Yes,"basic",158,PropString,common.basic
+components\projects\create-project-dialog.tsx,common,Yes,"appearance",159,PropString,common.appearance
+components\projects\create-project-dialog.tsx,common,Yes,"defaults",160,PropString,common.defaults
+components\projects\create-project-dialog.tsx,common,Yes,"basic",163,PropString,common.basic
+components\projects\create-project-dialog.tsx,common,Yes,"name",165,PropString,common.name
+components\projects\create-project-dialog.tsx,common,Yes,"name",167,PropString,common.name
+components\projects\create-project-dialog.tsx,common,Yes,"description",175,PropString,common.description
+components\projects\create-project-dialog.tsx,common,Yes,"description",177,PropString,common.description
+components\projects\create-project-dialog.tsx,common,Yes,"instructions",186,PropString,common.instructions
+components\projects\create-project-dialog.tsx,common,Yes,"instructions",188,PropString,common.instructions
+components\projects\create-project-dialog.tsx,common,Yes,"appearance",213,PropString,common.appearance
+components\projects\create-project-dialog.tsx,common,Yes,"button",237,PropString,common.button
+components\projects\create-project-dialog.tsx,common,Yes,"button",259,PropString,common.button
+components\projects\create-project-dialog.tsx,common,Yes,"defaults",278,PropString,common.defaults
+components\projects\create-project-dialog.tsx,common,Yes,"provider",284,PropString,common.provider
+components\projects\create-project-dialog.tsx,common,Yes,"model",302,PropString,common.model
+components\projects\create-project-dialog.tsx,common,Yes,"mode",320,PropString,common.mode
+components\projects\create-project-dialog.tsx,common,Yes,"chat",327,PropString,common.chat
+components\projects\create-project-dialog.tsx,common,Yes,"agent",328,PropString,common.agent
+components\projects\create-project-dialog.tsx,common,Yes,"research",329,PropString,common.research
+components\projects\create-project-dialog.tsx,common,Yes,"outline",337,PropString,common.outline
+components\agent\agent-plan-editor.tsx,common,Yes,"ghost",132,PropString,common.ghost
+components\agent\agent-plan-editor.tsx,common,Yes,"icon",133,PropString,common.icon
+components\agent\agent-plan-editor.tsx,common,Yes,"ghost",141,PropString,common.ghost
+components\agent\agent-plan-editor.tsx,common,Yes,"icon",142,PropString,common.icon
+components\agent\agent-plan-editor.tsx,common,Yes,"sm",173,PropString,common.sm
+components\agent\agent-plan-editor.tsx,common,Yes,"sm",177,PropString,common.sm
+components\agent\agent-plan-editor.tsx,common,Yes,"ghost",177,PropString,common.ghost
+components\agent\agent-plan-editor.tsx,common,Yes,"ghost",217,PropString,common.ghost
+components\agent\agent-plan-editor.tsx,common,Yes,"icon",217,PropString,common.icon
+components\agent\agent-plan-editor.tsx,common,Yes,"end",221,PropString,common.end
+components\agent\agent-plan-editor.tsx,common,Yes," : ''}",360,TemplateLiteral,common._
+components\agent\agent-plan-editor.tsx,common,Yes,"outline",488,PropString,common.outline
+components\agent\agent-plan-editor.tsx,common,Yes,"Progress",531,JSXText,common.progress
+components\agent\agent-plan-editor.tsx,common,Yes,"ghost",544,PropString,common.ghost
+components\agent\agent-plan-editor.tsx,common,Yes,"icon",545,PropString,common.icon
+components\agent\agent-plan-editor.tsx,common,Yes,"Refine with AI",548,PropString,common.refine_with_ai
+components\agent\agent-plan-editor.tsx,common,Yes,"sm",603,PropString,common.sm
+components\agent\agent-plan-editor.tsx,common,Yes,"sm",608,PropString,common.sm
+components\agent\agent-plan-editor.tsx,common,Yes,"ghost",609,PropString,common.ghost
+components\agent\agent-plan-editor.tsx,common,Yes,"outline",622,PropString,common.outline
+components\agent\agent-plan-editor.tsx,common,Yes,"ghost",651,PropString,common.ghost
+components\agent\agent-plan-editor.tsx,common,Yes,"sm",652,PropString,common.sm
+components\chat\renderers\math-block.tsx,common,Yes,"true",132,PropString,common.true
+components\chat\renderers\math-block.tsx,common,Yes,"ghost",139,PropString,common.ghost
+components\chat\renderers\math-block.tsx,common,Yes,"icon",140,PropString,common.icon
+components\chat\renderers\math-block.tsx,common,Yes,"ghost",153,PropString,common.ghost
+components\chat\renderers\math-block.tsx,common,Yes,"icon",154,PropString,common.icon
+components\chat\renderers\math-block.tsx,common,Yes,"math",181,PropString,common.math
+components\chat\renderers\math-block.tsx,common,Yes,"ghost",189,PropString,common.ghost
+components\chat\renderers\math-block.tsx,common,Yes,"icon",190,PropString,common.icon
+components\chat\renderers\math-block.tsx,common,Yes,"ghost",205,PropString,common.ghost
+components\chat\renderers\math-block.tsx,common,Yes,"icon",206,PropString,common.icon
+components\chat\renderers\math-block.tsx,common,Yes,"ghost",223,PropString,common.ghost
+components\chat\renderers\math-block.tsx,common,Yes,"icon",224,PropString,common.icon
+components\chat\renderers\math-block.tsx,common,Yes,"end",235,PropString,common.end
+components\chat\renderers\math-block.tsx,common,Yes,"true",237,PropString,common.true
+components\chat\renderers\math-block.tsx,common,Yes,"ghost",250,PropString,common.ghost
+components\chat\renderers\math-block.tsx,common,Yes,"icon",251,PropString,common.icon
+components\chat\renderers\math-block.tsx,common,Yes,"ghost",289,PropString,common.ghost
+components\chat\renderers\math-block.tsx,common,Yes,"icon",290,PropString,common.icon
+components\chat\renderers\math-block.tsx,common,Yes,"ghost",304,PropString,common.ghost
+components\chat\renderers\math-block.tsx,common,Yes,"icon",305,PropString,common.icon
+components\chat\renderers\math-block.tsx,common,Yes,"true",311,PropString,common.true
+components\chat\renderers\enhanced-table.tsx,common,Yes,"text",290,PropString,common.text
+components\chat\renderers\enhanced-table.tsx,common,Yes,"ghost",306,PropString,common.ghost
+components\chat\renderers\enhanced-table.tsx,common,Yes,"icon",307,PropString,common.icon
+components\chat\renderers\enhanced-table.tsx,common,Yes,"ghost",324,PropString,common.ghost
+components\chat\renderers\enhanced-table.tsx,common,Yes,"icon",324,PropString,common.icon
+components\chat\renderers\enhanced-table.tsx,common,Yes,"end",331,PropString,common.end
+components\chat\renderers\enhanced-table.tsx,common,Yes,"ghost",357,PropString,common.ghost
+components\chat\renderers\enhanced-table.tsx,common,Yes,"icon",358,PropString,common.icon
+components\chat\renderers\enhanced-table.tsx,common,Yes,"text-muted-foreground",377,PropString,common.textmutedforeground
+components\chat\renderers\enhanced-table.tsx,common,Yes,"ghost",384,PropString,common.ghost
+components\chat\renderers\enhanced-table.tsx,common,Yes,"icon",385,PropString,common.icon
+components\chat\renderers\enhanced-table.tsx,common,Yes,"ghost",396,PropString,common.ghost
+components\chat\renderers\enhanced-table.tsx,common,Yes,"icon",397,PropString,common.icon
+components\chat\renderers\enhanced-table.tsx,common,Yes,"text",428,PropString,common.text
+components\chat\renderers\enhanced-table.tsx,common,Yes,"outline",441,PropString,common.outline
+components\chat\renderers\enhanced-table.tsx,common,Yes,"outline",445,PropString,common.outline
+components\chat\renderers\enhanced-table.tsx,common,Yes,"outline",449,PropString,common.outline
+components\chat\renderers\enhanced-table.tsx,common,Yes,"text-muted-foreground",464,PropString,common.textmutedforeground
+components\chat\renderers\enhanced-table.tsx,common,Yes,"outline",471,PropString,common.outline
+components\chat\renderers\enhanced-table.tsx,common,Yes,"outline",483,PropString,common.outline
+components\designer\react-sandbox.tsx,common,No,"Start editing to see your changes live.",275,JSXText,common.start_editing_to_see_your_changes_live
+components\designer\react-sandbox.tsx,common,No,"horizontal",380,PropString,common.horizontal
+components\designer\react-sandbox.tsx,common,No,"vertical",572,PropString,common.vertical
+components\designer\react-sandbox.tsx,common,No,"icon",581,PropString,common.icon
+components\designer\react-sandbox.tsx,common,No,"vertical",593,PropString,common.vertical
+components\designer\react-sandbox.tsx,common,No,"ghost",598,PropString,common.ghost
+components\designer\react-sandbox.tsx,common,No,"icon",598,PropString,common.icon
+components\designer\react-sandbox.tsx,common,No,"Refresh Preview",602,JSXText,common.refresh_preview
+components\designer\react-sandbox.tsx,common,No,"icon",609,PropString,common.icon
+components\designer\react-sandbox.tsx,common,No,"File Explorer",616,JSXText,common.file_explorer
+components\designer\react-sandbox.tsx,common,No,"icon",623,PropString,common.icon
+components\designer\react-sandbox.tsx,common,No,"Console",630,JSXText,common.console
+components\designer\react-sandbox.tsx,common,No,"default",640,PropString,common.default
+components\designer\react-sandbox.tsx,common,No,"AI Edit",642,JSXText,common.ai_edit
+components\designer\react-sandbox.tsx,common,No,"text-xs",642,PropString,common.textxs
+components\designer\react-sandbox.tsx,common,No,"Edit with AI",645,JSXText,common.edit_with_ai
+components\designer\react-sandbox.tsx,common,No,"ghost",652,PropString,common.ghost
+components\designer\react-sandbox.tsx,common,No,"More",653,JSXText,common.more
+components\designer\react-sandbox.tsx,common,No,"text-xs",653,PropString,common.textxs
+components\designer\react-sandbox.tsx,common,No,"end",657,PropString,common.end
+components\chat\renderers\vegalite-block.tsx,common,Yes,"true",177,PropString,common.true
+components\chat\renderers\vegalite-block.tsx,common,Yes,"true",193,PropString,common.true
+components\chat\renderers\vegalite-block.tsx,common,Yes,"ghost",200,PropString,common.ghost
+components\chat\renderers\vegalite-block.tsx,common,Yes,"icon",201,PropString,common.icon
+components\chat\renderers\vegalite-block.tsx,common,Yes,"ghost",214,PropString,common.ghost
+components\chat\renderers\vegalite-block.tsx,common,Yes,"icon",215,PropString,common.icon
+components\chat\renderers\vegalite-block.tsx,common,Yes,"ghost",248,PropString,common.ghost
+components\chat\renderers\vegalite-block.tsx,common,Yes,"icon",249,PropString,common.icon
+components\chat\renderers\vegalite-block.tsx,common,Yes,"ghost",264,PropString,common.ghost
+components\chat\renderers\vegalite-block.tsx,common,Yes,"icon",265,PropString,common.icon
+components\chat\renderers\vegalite-block.tsx,common,Yes,"ghost",282,PropString,common.ghost
+components\chat\renderers\vegalite-block.tsx,common,Yes,"icon",283,PropString,common.icon
+components\chat\renderers\vegalite-block.tsx,common,Yes,"end",294,PropString,common.end
+components\chat\renderers\vegalite-block.tsx,common,Yes,"ghost",309,PropString,common.ghost
+components\chat\renderers\vegalite-block.tsx,common,Yes,"icon",310,PropString,common.icon
+components\chat\renderers\vegalite-block.tsx,common,Yes,"ghost",346,PropString,common.ghost
+components\chat\renderers\vegalite-block.tsx,common,Yes,"icon",347,PropString,common.icon
+components\chat\renderers\vegalite-block.tsx,common,Yes,"ghost",361,PropString,common.ghost
+components\chat\renderers\vegalite-block.tsx,common,Yes,"icon",362,PropString,common.icon
+components\settings\mcp-settings.tsx,common,No,"MCP Servers",155,JSXText,common.mcp_servers
+components\settings\mcp-settings.tsx,common,No,"Error",166,JSXText,common.error
+components\settings\mcp-settings.tsx,common,No,"ghost",169,PropString,common.ghost
+components\settings\mcp-settings.tsx,common,No,"sm",169,PropString,common.sm
+components\settings\mcp-settings.tsx,common,No,"outline",179,PropString,common.outline
+components\settings\mcp-settings.tsx,common,No,"outline",188,PropString,common.outline
+components\settings\mcp-settings.tsx,common,No,"ghost",193,PropString,common.ghost
+components\settings\mcp-settings.tsx,common,No,"icon",194,PropString,common.icon
+components\settings\mcp-settings.tsx,common,No,"No MCP Servers",207,JSXText,common.no_mcp_servers
+components\settings\mcp-settings.tsx,common,No,"outline",217,PropString,common.outline
+components\settings\mcp-settings.tsx,common,No,"outline",234,PropString,common.outline
+components\settings\mcp-settings.tsx,common,No,"outline",274,PropString,common.outline
+components\settings\mcp-settings.tsx,common,No,"sm",275,PropString,common.sm
+components\settings\mcp-settings.tsx,common,No,"outline",287,PropString,common.outline
+components\settings\mcp-settings.tsx,common,No,"sm",288,PropString,common.sm
+components\settings\mcp-settings.tsx,common,No,"ghost",302,PropString,common.ghost
+components\settings\mcp-settings.tsx,common,No,"icon",303,PropString,common.icon
+components\settings\mcp-settings.tsx,common,No,"ghost",309,PropString,common.ghost
+components\settings\mcp-settings.tsx,common,No,"icon",310,PropString,common.icon
+components\projects\knowledge-base.tsx,common,Yes,"file",251,PropString,common.file
+components\projects\knowledge-base.tsx,common,Yes,"outline",258,PropString,common.outline
+components\projects\knowledge-base.tsx,common,Yes,"sm",259,PropString,common.sm
+components\projects\knowledge-base.tsx,common,Yes,"sm",270,PropString,common.sm
+components\projects\knowledge-base.tsx,common,Yes,"secondary",319,PropString,common.secondary
+components\projects\knowledge-base.tsx,common,Yes,"ghost",333,PropString,common.ghost
+components\projects\knowledge-base.tsx,common,Yes,"icon",334,PropString,common.icon
+components\projects\knowledge-base.tsx,common,Yes,"ghost",341,PropString,common.ghost
+components\projects\knowledge-base.tsx,common,Yes,"icon",342,PropString,common.icon
+components\projects\knowledge-base.tsx,common,Yes,"ghost",349,PropString,common.ghost
+components\projects\knowledge-base.tsx,common,Yes,"icon",350,PropString,common.icon
+components\projects\knowledge-base.tsx,common,Yes,"filename",384,PropString,common.filename
+components\projects\knowledge-base.tsx,common,Yes,"filename",386,PropString,common.filename
+components\projects\knowledge-base.tsx,common,Yes,"content",393,PropString,common.content
+components\projects\knowledge-base.tsx,common,Yes,"content",395,PropString,common.content
+components\projects\knowledge-base.tsx,common,Yes,"outline",404,PropString,common.outline
+components\projects\knowledge-base.tsx,common,Yes,"secondary",425,PropString,common.secondary
+components\projects\knowledge-base.tsx,common,Yes,"outline",437,PropString,common.outline
+components\artifacts\artifact-renderers.tsx,common,Yes,"3 3",198,PropString,common.3_3
+components\artifacts\artifact-renderers.tsx,common,Yes,"name",199,PropString,common.name
+components\artifacts\artifact-renderers.tsx,common,Yes,"value",214,PropString,common.value
+components\artifacts\artifact-renderers.tsx,common,Yes,"name",215,PropString,common.name
+components\artifacts\artifact-renderers.tsx,common,Yes,"50%",216,PropString,common.50
+components\artifacts\artifact-renderers.tsx,common,Yes,"50%",217,PropString,common.50
+components\artifacts\artifact-renderers.tsx,common,Yes,"3 3",233,PropString,common.3_3
+components\artifacts\artifact-renderers.tsx,common,Yes,"name",234,PropString,common.name
+components\artifacts\artifact-renderers.tsx,common,Yes,"3 3",254,PropString,common.3_3
+components\artifacts\artifact-renderers.tsx,common,Yes,"number",255,PropString,common.number
+components\artifacts\artifact-renderers.tsx,common,Yes,"number",256,PropString,common.number
+components\artifacts\artifact-renderers.tsx,common,Yes,"Data",259,PropString,common.data
+components\artifacts\artifact-renderers.tsx,common,Yes,"50%",265,PropString,common.50
+components\artifacts\artifact-renderers.tsx,common,Yes,"80%",265,PropString,common.80
+components\artifacts\artifact-renderers.tsx,common,Yes,"name",267,PropString,common.name
+components\artifacts\artifact-renderers.tsx,common,Yes,"3 3",288,PropString,common.3_3
+components\artifacts\artifact-renderers.tsx,common,Yes,"name",289,PropString,common.name
+components\chat\chat-container.tsx,common,No,"assistant",1077,PropString,common.assistant
+components\chat\chat-container.tsx,common,No,"Thinking...",1081,JSXText,common.thinking
+components\chat\chat-container.tsx,common,No,"shadow-lg",1240,PropString,common.shadowlg
+components\chat\chat-container.tsx,common,No,"Open Learning Panel",1259,PropString,common.open_learning_panel
+components\chat\chat-container.tsx,common,No,"20",1261,PropString,common.20
+components\chat\chat-container.tsx,common,No,"0 0 24 24",1261,PropString,common.0_0_24_24
+components\chat\chat-container.tsx,common,No,"none",1261,PropString,common.none
+components\chat\chat-container.tsx,common,No,"currentColor",1261,PropString,common.currentcolor
+components\chat\chat-container.tsx,common,No,"round",1261,PropString,common.round
+components\chat\chat-container.tsx,common,No,"M22 10v6M2 10l10-5 10 5-10 5z",1262,PropString,common.m22_10v6m2_10l105_10_510_5z
+components\chat\chat-container.tsx,common,No,"M6 12v5c3 3 9 3 12 0v-5",1263,PropString,common.m6_12v5c3_3_9_3_12_0v5
+components\chat\chat-container.tsx,common,No," Promise",1342,JSXText,common._promise
+components\chat\chat-container.tsx,common,No,"Edit message",1515,PropString,common.edit_message
+components\chat\chat-container.tsx,common,No,"Retry",1524,PropString,common.retry
+components\chat\chat-container.tsx,common,No,"Share",1548,PropString,common.share
+components\chat\chat-container.tsx,common,No,"Translate",1554,PropString,common.translate
+components\settings\memory-settings.tsx,common,Yes,"memory-enabled",130,PropString,common.memoryenabled
+components\settings\memory-settings.tsx,common,Yes,"memory-enabled",136,PropString,common.memoryenabled
+components\settings\memory-settings.tsx,common,Yes,"auto-infer",144,PropString,common.autoinfer
+components\settings\memory-settings.tsx,common,Yes,"auto-infer",150,PropString,common.autoinfer
+components\settings\memory-settings.tsx,common,Yes,"inject-prompt",159,PropString,common.injectprompt
+components\settings\memory-settings.tsx,common,Yes,"inject-prompt",165,PropString,common.injectprompt
+components\settings\memory-settings.tsx,common,Yes,"outline",245,PropString,common.outline
+components\settings\memory-settings.tsx,common,Yes,"destructive",258,PropString,common.destructive
+components\settings\memory-settings.tsx,common,Yes,"ghost",377,PropString,common.ghost
+components\settings\memory-settings.tsx,common,Yes,"secondary",398,PropString,common.secondary
+components\settings\memory-settings.tsx,common,Yes,"outline",404,PropString,common.outline
+components\settings\memory-settings.tsx,common,Yes,"text-xs",404,PropString,common.textxs
+components\settings\memory-settings.tsx,common,Yes,"icon",424,PropString,common.icon
+components\settings\memory-settings.tsx,common,Yes,"ghost",424,PropString,common.ghost
+components\settings\memory-settings.tsx,common,Yes,"icon",428,PropString,common.icon
+components\settings\memory-settings.tsx,common,Yes,"ghost",429,PropString,common.ghost
+components\chat\chat-designer-panel.tsx,common,No,"secondary",108,PropString,common.secondary
+components\chat\chat-designer-panel.tsx,common,No,"icon",119,PropString,common.icon
+components\chat\chat-designer-panel.tsx,common,No,"AI Edit",126,JSXText,common.ai_edit
+components\chat\chat-designer-panel.tsx,common,No,"ghost",132,PropString,common.ghost
+components\chat\chat-designer-panel.tsx,common,No,"icon",133,PropString,common.icon
+components\chat\chat-designer-panel.tsx,common,No,"Edit in Canvas",140,JSXText,common.edit_in_canvas
+components\chat\chat-designer-panel.tsx,common,No,"ghost",145,PropString,common.ghost
+components\chat\chat-designer-panel.tsx,common,No,"icon",146,PropString,common.icon
+components\chat\chat-designer-panel.tsx,common,No,"Open Full Designer",153,JSXText,common.open_full_designer
+components\chat\chat-designer-panel.tsx,common,No,"ghost",158,PropString,common.ghost
+components\chat\chat-designer-panel.tsx,common,No,"icon",159,PropString,common.icon
+components\chat\chat-designer-panel.tsx,common,No,"ghost",176,PropString,common.ghost
+components\chat\chat-designer-panel.tsx,common,No,"icon",177,PropString,common.icon
+components\chat\chat-designer-panel.tsx,common,No,"Close",184,JSXText,common.close
+components\chat\chat-designer-panel.tsx,common,No,"ghost",234,PropString,common.ghost
+components\settings\data-settings.tsx,common,No,"Sessions",209,JSXText,common.sessions
+components\settings\data-settings.tsx,common,No,"Artifacts",216,JSXText,common.artifacts
+components\settings\data-settings.tsx,common,No,"LocalStorage",221,JSXText,common.localstorage
+components\settings\data-settings.tsx,common,No,"IndexedDB",228,JSXText,common.indexeddb
+components\settings\data-settings.tsx,common,No,"Usage",234,JSXText,common.usage
+components\settings\data-settings.tsx,common,No,"sm",261,PropString,common.sm
+components\settings\data-settings.tsx,common,No,"sm",266,PropString,common.sm
+components\settings\data-settings.tsx,common,No,"outline",266,PropString,common.outline
+components\settings\data-settings.tsx,common,No,"file",271,PropString,common.file
+components\settings\data-settings.tsx,common,No,"sm",281,PropString,common.sm
+components\settings\data-settings.tsx,common,No,"outline",281,PropString,common.outline
+components\settings\data-settings.tsx,common,No,"Data Privacy",291,JSXText,common.data_privacy
+components\settings\data-settings.tsx,common,No,"sm",313,PropString,common.sm
+components\settings\data-settings.tsx,common,No,"Are you absolutely sure?",320,JSXText,common.are_you_absolutely_sure
+components\settings\data-settings.tsx,common,No,"outline",328,PropString,common.outline
+components\settings\setup-wizard.tsx,common,Yes,"ollama-url",455,PropString,common.ollamaurl
+components\settings\setup-wizard.tsx,common,Yes,"ollama-url",457,PropString,common.ollamaurl
+components\settings\setup-wizard.tsx,common,Yes,"_blank",466,PropString,common.blank
+components\settings\setup-wizard.tsx,common,Yes,"api-key",477,PropString,common.apikey
+components\settings\setup-wizard.tsx,common,Yes,"api-key",480,PropString,common.apikey
+components\settings\setup-wizard.tsx,common,Yes,"button",488,PropString,common.button
+components\settings\setup-wizard.tsx,common,Yes,"icon",490,PropString,common.icon
+components\settings\setup-wizard.tsx,common,Yes,"_blank",505,PropString,common.blank
+components\settings\setup-wizard.tsx,common,Yes,"outline",517,PropString,common.outline
+components\settings\setup-wizard.tsx,common,Yes,"tavily-key",576,PropString,common.tavilykey
+components\settings\setup-wizard.tsx,common,Yes,"tavily-key",579,PropString,common.tavilykey
+components\settings\setup-wizard.tsx,common,Yes,"button",587,PropString,common.button
+components\settings\setup-wizard.tsx,common,Yes,"icon",589,PropString,common.icon
+components\settings\setup-wizard.tsx,common,Yes,"_blank",604,PropString,common.blank
+components\settings\setup-wizard.tsx,common,Yes,"destructive",637,PropString,common.destructive
+components\export\document-export-dialog.tsx,common,Yes,"outline",214,PropString,common.outline
+components\export\document-export-dialog.tsx,common,Yes,"sm",214,PropString,common.sm
+components\export\document-export-dialog.tsx,common,Yes,"format",233,PropString,common.format
+components\export\document-export-dialog.tsx,common,Yes,"format",235,PropString,common.format
+components\export\document-export-dialog.tsx,common,Yes,"options",236,PropString,common.options
+components\export\document-export-dialog.tsx,common,Yes,"format",242,PropString,common.format
+components\export\document-export-dialog.tsx,common,Yes,"outline",285,PropString,common.outline
+components\export\document-export-dialog.tsx,common,Yes,"options",298,PropString,common.options
+components\export\document-export-dialog.tsx,common,Yes,"include-metadata",302,PropString,common.includemetadata
+components\export\document-export-dialog.tsx,common,Yes,"include-metadata",308,PropString,common.includemetadata
+components\export\document-export-dialog.tsx,common,Yes,"include-timestamps",318,PropString,common.includetimestamps
+components\export\document-export-dialog.tsx,common,Yes,"include-timestamps",324,PropString,common.includetimestamps
+components\export\document-export-dialog.tsx,common,Yes,"include-tokens",334,PropString,common.includetokens
+components\export\document-export-dialog.tsx,common,Yes,"include-tokens",340,PropString,common.includetokens
+components\export\document-export-dialog.tsx,common,Yes,"outline",379,PropString,common.outline
+components\settings\appearance-settings.tsx,common,Yes,"outline",238,PropString,common.outline
+components\settings\appearance-settings.tsx,common,Yes,"UI Font Size",256,JSXText,common.ui_font_size
+components\settings\appearance-settings.tsx,common,Yes,"12px",278,JSXText,common.12px
+components\settings\appearance-settings.tsx,common,Yes,"16px",279,JSXText,common.16px
+components\settings\appearance-settings.tsx,common,Yes,"20px",280,JSXText,common.20px
+components\settings\appearance-settings.tsx,common,Yes,"Preview Text",287,JSXText,common.preview_text
+components\settings\appearance-settings.tsx,common,Yes,"This is how text will appear in the interface.",288,JSXText,common.this_is_how_text_will_appear_in_the_interface
+components\settings\appearance-settings.tsx,common,Yes,"Message Style",298,JSXText,common.message_style
+components\settings\appearance-settings.tsx,common,Yes,"sidebar-collapsed",341,PropString,common.sidebarcollapsed
+components\settings\appearance-settings.tsx,common,Yes,"sidebar-collapsed",347,PropString,common.sidebarcollapsed
+components\settings\appearance-settings.tsx,common,Yes,"send-on-enter",355,PropString,common.sendonenter
+components\settings\appearance-settings.tsx,common,Yes,"send-on-enter",361,PropString,common.sendonenter
+components\settings\appearance-settings.tsx,common,Yes,"stream-responses",369,PropString,common.streamresponses
+components\settings\appearance-settings.tsx,common,Yes,"stream-responses",375,PropString,common.streamresponses
+components\settings\ollama-model-manager.tsx,common,Yes,"secondary",153,PropString,common.secondary
+components\settings\ollama-model-manager.tsx,common,Yes,"ghost",213,PropString,common.ghost
+components\settings\ollama-model-manager.tsx,common,Yes,"icon",214,PropString,common.icon
+components\settings\ollama-model-manager.tsx,common,Yes,"ghost",272,PropString,common.ghost
+components\settings\ollama-model-manager.tsx,common,Yes,"font-medium",304,PropString,common.fontmedium
+components\settings\ollama-model-manager.tsx,common,Yes,"ghost",342,PropString,common.ghost
+components\settings\ollama-model-manager.tsx,common,Yes,"icon",343,PropString,common.icon
+components\settings\ollama-model-manager.tsx,common,Yes,"outline",395,PropString,common.outline
+components\settings\ollama-model-manager.tsx,common,Yes,"default",400,PropString,common.default
+components\settings\ollama-model-manager.tsx,common,Yes,"ghost",424,PropString,common.ghost
+components\settings\ollama-model-manager.tsx,common,Yes,"icon",425,PropString,common.icon
+components\settings\ollama-model-manager.tsx,common,Yes,"Stop model",432,JSXText,common.stop_model
+components\settings\ollama-model-manager.tsx,common,Yes,"ghost",439,PropString,common.ghost
+components\settings\ollama-model-manager.tsx,common,Yes,"icon",440,PropString,common.icon
+app\workflows\page.tsx,common,Yes,"ghost",221,PropString,common.ghost
+app\workflows\page.tsx,common,Yes,"sm",221,PropString,common.sm
+app\workflows\page.tsx,common,Yes,"sm",226,PropString,common.sm
+app\workflows\page.tsx,common,Yes,"outline",246,PropString,common.outline
+app\workflows\page.tsx,common,Yes,"sm",246,PropString,common.sm
+app\workflows\page.tsx,common,Yes,"sm",252,PropString,common.sm
+app\workflows\page.tsx,common,Yes,"end",257,PropString,common.end
+app\workflows\page.tsx,common,Yes,"No workflows yet",303,JSXText,common.no_workflows_yet
+app\workflows\page.tsx,common,Yes,"Create your first workflow to get started",304,JSXText,common.create_your_first_workflow_to_get_started
+app\workflows\page.tsx,common,Yes,"ghost",326,PropString,common.ghost
+app\workflows\page.tsx,common,Yes,"end",330,PropString,common.end
+app\workflows\page.tsx,common,Yes,"secondary",365,PropString,common.secondary
+app\workflows\page.tsx,common,Yes,"outline",369,PropString,common.outline
+app\workflows\page.tsx,common,Yes,"Delete Workflow?",391,JSXText,common.delete_workflow
+components\settings\custom-provider-dialog.tsx,common,Yes,"provider-name",172,PropString,common.providername
+components\settings\custom-provider-dialog.tsx,common,Yes,"provider-name",174,PropString,common.providername
+components\settings\custom-provider-dialog.tsx,common,Yes,"base-url",183,PropString,common.baseurl
+components\settings\custom-provider-dialog.tsx,common,Yes,"base-url",185,PropString,common.baseurl
+components\settings\custom-provider-dialog.tsx,common,Yes,"api-key",197,PropString,common.apikey
+components\settings\custom-provider-dialog.tsx,common,Yes,"api-key",201,PropString,common.apikey
+components\settings\custom-provider-dialog.tsx,common,Yes,"button",209,PropString,common.button
+components\settings\custom-provider-dialog.tsx,common,Yes,"icon",211,PropString,common.icon
+components\settings\custom-provider-dialog.tsx,common,Yes,"outline",223,PropString,common.outline
+components\settings\custom-provider-dialog.tsx,common,Yes,"outline",257,PropString,common.outline
+components\settings\custom-provider-dialog.tsx,common,Yes,"icon",257,PropString,common.icon
+components\settings\custom-provider-dialog.tsx,common,Yes,"outline",310,PropString,common.outline
+components\settings\custom-provider-dialog.tsx,common,Yes,"outline",328,PropString,common.outline
+components\settings\vector-settings.tsx,common,No,"Vector Database",56,JSXText,common.vector_database
+components\settings\vector-settings.tsx,common,No,"Configure provider, mode, and embedding defaults.",57,JSXText,common.configure_provider_mode_and_embedding_defaults
+components\settings\vector-settings.tsx,common,No,"Provider",62,JSXText,common.provider
+components\settings\vector-settings.tsx,common,No,"Mode",81,JSXText,common.mode
+components\settings\vector-settings.tsx,common,No,"Embedded",91,JSXText,common.embedded
+components\settings\vector-settings.tsx,common,No,"embedded",91,PropString,common.embedded
+components\settings\vector-settings.tsx,common,No,"Server",92,JSXText,common.server
+components\settings\vector-settings.tsx,common,No,"server",92,PropString,common.server
+components\settings\vector-settings.tsx,common,No,"Chroma Server URL",103,JSXText,common.chroma_server_url
+components\settings\vector-settings.tsx,common,No,"Chunk size",118,JSXText,common.chunk_size
+components\settings\vector-settings.tsx,common,No,"Chunk overlap",130,JSXText,common.chunk_overlap
+components\settings\vector-settings.tsx,common,No,"Auto embed on import",145,JSXText,common.auto_embed_on_import
+components\settings\vector-settings.tsx,common,No,"Automatically generate embeddings when adding documents.",146,JSXText,common.automatically_generate_embeddings_when_adding_docu
+components\agent\background-agent-indicator.tsx,common,No,"ghost",59,PropString,common.ghost
+components\agent\background-agent-indicator.tsx,common,No,"sm",60,PropString,common.sm
+components\agent\background-agent-indicator.tsx,common,No,"end",91,PropString,common.end
+components\agent\background-agent-indicator.tsx,common,No,"Background Agents",94,JSXText,common.background_agents
+components\agent\background-agent-indicator.tsx,common,No,"ghost",95,PropString,common.ghost
+components\agent\background-agent-indicator.tsx,common,No,"sm",95,PropString,common.sm
+components\agent\background-agent-indicator.tsx,common,No,"Overall Progress",103,JSXText,common.overall_progress
+components\agent\background-agent-indicator.tsx,common,No,"Running",115,JSXText,common.running
+components\agent\background-agent-indicator.tsx,common,No,"Recently Completed",146,JSXText,common.recently_completed
+components\agent\background-agent-indicator.tsx,common,No,"text-[10px]",170,PropString,common.text10px
+components\agent\background-agent-indicator.tsx,common,No,"outline",189,PropString,common.outline
+components\agent\background-agent-indicator.tsx,common,No,"sm",190,PropString,common.sm
+components\settings\speech-settings.tsx,common,Yes,"destructive",128,PropString,common.destructive
+components\settings\speech-settings.tsx,common,Yes,"system",202,PropString,common.system
+components\settings\speech-settings.tsx,common,Yes,"🌐",204,JSXText,common.
+components\settings\speech-settings.tsx,common,Yes,"openai",208,PropString,common.openai
+components\settings\speech-settings.tsx,common,Yes,"🤖",210,JSXText,common.
+components\settings\speech-settings.tsx,common,Yes,"OpenAI Whisper",211,JSXText,common.openai_whisper
+components\settings\speech-settings.tsx,common,Yes,"outline",213,PropString,common.outline
+components\settings\speech-settings.tsx,common,Yes,"destructive",287,PropString,common.destructive
+components\settings\speech-settings.tsx,common,Yes,"secondary",330,PropString,common.secondary
+components\settings\speech-settings.tsx,common,Yes,"outline",421,PropString,common.outline
+components\settings\speech-settings.tsx,common,Yes,"secondary",467,PropString,common.secondary
+components\settings\usage-settings.tsx,common,No,"Tokens",84,JSXText,common.tokens
+components\settings\usage-settings.tsx,common,No,"Cost",92,JSXText,common.cost
+components\settings\usage-settings.tsx,common,No,"Since",100,JSXText,common.since
+components\settings\usage-settings.tsx,common,No,"By Provider",117,JSXText,common.by_provider
+components\settings\usage-settings.tsx,common,No,"secondary",125,PropString,common.secondary
+components\settings\usage-settings.tsx,common,No,"Last 7 Days",143,JSXText,common.last_7_days
+components\settings\usage-settings.tsx,common,No,"Recent Activity",182,JSXText,common.recent_activity
+components\settings\usage-settings.tsx,common,No,"outline",226,PropString,common.outline
+components\settings\usage-settings.tsx,common,No,"destructive",232,PropString,common.destructive
+components\settings\usage-settings.tsx,common,No,"Clear Usage Records",245,JSXText,common.clear_usage_records
+components\settings\usage-settings.tsx,common,No,"Cancel",252,JSXText,common.cancel
+components\projects\project-list.tsx,common,Yes,"Projects",116,JSXText,common.projects
+components\projects\project-list.tsx,common,Yes,"Archived",118,JSXText,common.archived
+components\projects\project-list.tsx,common,Yes,"secondary",118,PropString,common.secondary
+components\projects\project-list.tsx,common,Yes,"outline",123,PropString,common.outline
+components\projects\project-list.tsx,common,Yes,"sm",124,PropString,common.sm
+components\projects\project-list.tsx,common,Yes,"outline",131,PropString,common.outline
+components\projects\project-list.tsx,common,Yes,"sm",132,PropString,common.sm
+components\projects\project-list.tsx,common,Yes,"end",145,PropString,common.end
+components\projects\project-list.tsx,common,Yes,"Total Projects",169,JSXText,common.total_projects
+components\projects\project-list.tsx,common,Yes,"Conversations",180,JSXText,common.conversations
+components\projects\project-list.tsx,common,Yes,"Active Today",191,JSXText,common.active_today
+components\agent\agent-mode-selector.tsx,common,Yes,"outline",112,PropString,common.outline
+components\agent\agent-mode-selector.tsx,common,Yes,"sm",113,PropString,common.sm
+components\agent\agent-mode-selector.tsx,common,Yes,"start",122,PropString,common.start
+components\agent\agent-mode-selector.tsx,common,Yes,"secondary",150,PropString,common.secondary
+components\agent\agent-mode-selector.tsx,common,Yes,"name",185,PropString,common.name
+components\agent\agent-mode-selector.tsx,common,Yes,"name",187,PropString,common.name
+components\agent\agent-mode-selector.tsx,common,Yes,"description",194,PropString,common.description
+components\agent\agent-mode-selector.tsx,common,Yes,"description",196,PropString,common.description
+components\agent\agent-mode-selector.tsx,common,Yes,"prompt",203,PropString,common.prompt
+components\agent\agent-mode-selector.tsx,common,Yes,"prompt",205,PropString,common.prompt
+components\agent\agent-mode-selector.tsx,common,Yes,"outline",214,PropString,common.outline
+components\canvas\version-history-panel.tsx,common,Yes,"ghost",139,PropString,common.ghost
+components\canvas\version-history-panel.tsx,common,Yes,"sm",139,PropString,common.sm
+components\canvas\version-history-panel.tsx,common,Yes,"right",145,PropString,common.right
+components\canvas\version-history-panel.tsx,common,Yes,"secondary",243,PropString,common.secondary
+components\canvas\version-history-panel.tsx,common,Yes,"secondary",334,PropString,common.secondary
+components\canvas\version-history-panel.tsx,common,Yes,"ghost",350,PropString,common.ghost
+components\canvas\version-history-panel.tsx,common,Yes,"sm",350,PropString,common.sm
+components\canvas\version-history-panel.tsx,common,Yes,"ghost",355,PropString,common.ghost
+components\canvas\version-history-panel.tsx,common,Yes,"sm",355,PropString,common.sm
+components\canvas\version-history-panel.tsx,common,Yes,"ghost",361,PropString,common.ghost
+components\canvas\version-history-panel.tsx,common,Yes,"sm",362,PropString,common.sm
+components\designer\designer-panel.tsx,common,No," Promise",42,JSXText,common._promise
+components\designer\designer-panel.tsx,common,No,"right",158,PropString,common.right
+components\designer\designer-panel.tsx,common,No,"ghost",197,PropString,common.ghost
+components\designer\designer-panel.tsx,common,No,"100%",211,PropString,common.100
+components\designer\designer-panel.tsx,common,No,"typescript",212,PropString,common.typescript
+components\designer\designer-panel.tsx,common,No,"vs-dark",213,PropString,common.vsdark
+components\designer\designer-panel.tsx,common,No,"horizontal",229,PropString,common.horizontal
+components\designer\designer-panel.tsx,common,No,"Elements",236,JSXText,common.elements
+components\designer\designer-panel.tsx,common,No,"Styles",257,JSXText,common.styles
+components\designer\designer-panel.tsx,common,No,"ghost",270,PropString,common.ghost
+components\designer\designer-panel.tsx,common,No,"icon",271,PropString,common.icon
+components\chat\template-selector.tsx,common,Yes,"outline",70,PropString,common.outline
+components\chat\template-selector.tsx,common,Yes,"sm",70,PropString,common.sm
+components\chat\template-selector.tsx,common,Yes,"all",108,PropString,common.all
+components\chat\template-selector.tsx,common,Yes,"secondary",179,PropString,common.secondary
+components\chat\template-selector.tsx,common,Yes,"outline",184,PropString,common.outline
+components\chat\template-selector.tsx,common,Yes,"sm",206,PropString,common.sm
+components\chat\template-selector.tsx,common,Yes,"secondary",253,PropString,common.secondary
+components\chat\template-selector.tsx,common,Yes,"text-muted-foreground",257,PropString,common.textmutedforeground
+components\chat\template-selector.tsx,common,Yes,"outline",293,PropString,common.outline
+components\chat\template-selector.tsx,common,Yes,"outline",296,PropString,common.outline
+components\chat\text-selection-popover.tsx,common,Yes,"ghost",159,PropString,common.ghost
+components\chat\text-selection-popover.tsx,common,Yes,"icon",160,PropString,common.icon
+components\chat\text-selection-popover.tsx,common,Yes,"top",171,PropString,common.top
+components\chat\text-selection-popover.tsx,common,Yes,"ghost",179,PropString,common.ghost
+components\chat\text-selection-popover.tsx,common,Yes,"icon",180,PropString,common.icon
+components\chat\text-selection-popover.tsx,common,Yes,"top",191,PropString,common.top
+components\chat\text-selection-popover.tsx,common,Yes,"ghost",200,PropString,common.ghost
+components\chat\text-selection-popover.tsx,common,Yes,"icon",201,PropString,common.icon
+components\chat\text-selection-popover.tsx,common,Yes,"top",208,PropString,common.top
+components\chat\text-selection-popover.tsx,common,Yes,"Search",209,JSXText,common.search
+components\sidebar\app-sidebar.tsx,common,Yes,"icon",214,PropString,common.icon
+components\sidebar\app-sidebar.tsx,common,Yes,"lg",219,PropString,common.lg
+components\sidebar\app-sidebar.tsx,common,Yes,"text",240,PropString,common.text
+components\sidebar\app-sidebar.tsx,common,Yes,"end",280,PropString,common.end
+components\sidebar\app-sidebar.tsx,common,Yes,"Projects",402,JSXText,common.projects
+components\sidebar\app-sidebar.tsx,common,Yes,"Designer",410,JSXText,common.designer
+components\sidebar\app-sidebar.tsx,common,Yes,"Skills",418,JSXText,common.skills
+components\sidebar\app-sidebar.tsx,common,Yes,"Workflows",426,JSXText,common.workflows
+components\sidebar\app-sidebar.tsx,common,Yes,"More",578,JSXText,common.more
+components\sidebar\app-sidebar.tsx,common,Yes,"start",581,PropString,common.start
+components\agent\agent-flow-visualizer.tsx,common,No,"outline",112,PropString,common.outline
+components\agent\agent-flow-visualizer.tsx,common,No,"ghost",117,PropString,common.ghost
+components\agent\agent-flow-visualizer.tsx,common,No,"sm",117,PropString,common.sm
+components\agent\agent-flow-visualizer.tsx,common,No,"Task:",149,JSXText,common.task
+components\agent\agent-flow-visualizer.tsx,common,No,"Result:",155,JSXText,common.result
+components\agent\agent-flow-visualizer.tsx,common,No,"Error:",165,JSXText,common.error
+components\agent\agent-flow-visualizer.tsx,common,No,"Recent Logs:",172,JSXText,common.recent_logs
+components\agent\agent-flow-visualizer.tsx,common,No,"Progress",249,JSXText,common.progress
+components\agent\agent-flow-visualizer.tsx,common,No,"ghost",284,PropString,common.ghost
+components\agent\agent-flow-visualizer.tsx,common,No,"ghost",336,PropString,common.ghost
+app\splashscreen\page.tsx,common,No,"48",17,PropString,common.48
+app\splashscreen\page.tsx,common,No,"48",18,PropString,common.48
+app\splashscreen\page.tsx,common,No,"0 0 24 24",19,PropString,common.0_0_24_24
+app\splashscreen\page.tsx,common,No,"none",20,PropString,common.none
+app\splashscreen\page.tsx,common,No,"currentColor",21,PropString,common.currentcolor
+app\splashscreen\page.tsx,common,No,"round",23,PropString,common.round
+app\splashscreen\page.tsx,common,No,"round",24,PropString,common.round
+app\splashscreen\page.tsx,common,No,"M12 2L2 7l10 5 10-5-10-5z",27,PropString,common.m12_2l2_7l10_5_105105z
+app\splashscreen\page.tsx,common,No,"M2 17l10 5 10-5",28,PropString,common.m2_17l10_5_105
+app\splashscreen\page.tsx,common,No,"M2 12l10 5 10-5",29,PropString,common.m2_12l10_5_105
+components\chat\conversation-search.tsx,common,Yes," 0 ? '...' : '') + context + (end ",77,JSXText,common._0_context_end_
+components\chat\conversation-search.tsx,common,Yes,"icon",127,PropString,common.icon
+components\chat\conversation-search.tsx,common,Yes,"ghost",136,PropString,common.ghost
+components\chat\conversation-search.tsx,common,Yes,"icon",137,PropString,common.icon
+components\chat\conversation-search.tsx,common,Yes,"ghost",154,PropString,common.ghost
+components\chat\conversation-search.tsx,common,Yes,"icon",155,PropString,common.icon
+components\chat\conversation-search.tsx,common,Yes,"ghost",163,PropString,common.ghost
+components\chat\conversation-search.tsx,common,Yes,"icon",164,PropString,common.icon
+components\chat\conversation-search.tsx,common,Yes,"outline",191,PropString,common.outline
+components\sidebar\sidebar-container.tsx,common,No,"Cognia",46,JSXText,common.cognia
+components\sidebar\sidebar-container.tsx,common,No,"ghost",51,PropString,common.ghost
+components\sidebar\sidebar-container.tsx,common,No,"New Chat",57,JSXText,common.new_chat
+components\sidebar\sidebar-container.tsx,common,No,"New Chat",60,JSXText,common.new_chat
+components\sidebar\sidebar-container.tsx,common,No,"right",60,PropString,common.right
+components\sidebar\sidebar-container.tsx,common,No,"ghost",78,PropString,common.ghost
+components\sidebar\sidebar-container.tsx,common,No,"icon",79,PropString,common.icon
+components\sidebar\sidebar-container.tsx,common,No,"ghost",102,PropString,common.ghost
+components\sidebar\sidebar-container.tsx,common,No,"icon",103,PropString,common.icon
+components\projects\project-activity.tsx,common,No,"ghost",158,PropString,common.ghost
+components\projects\project-activity.tsx,common,No,"sm",158,PropString,common.sm
+components\projects\project-activity.tsx,common,No,"Activity",160,JSXText,common.activity
+components\projects\project-activity.tsx,common,No,"right",164,PropString,common.right
+components\projects\project-activity.tsx,common,No,"outline",173,PropString,common.outline
+components\projects\project-activity.tsx,common,No,"sm",173,PropString,common.sm
+components\projects\project-activity.tsx,common,No,"secondary",177,PropString,common.secondary
+components\projects\project-activity.tsx,common,No,"end",183,PropString,common.end
+components\projects\project-activity.tsx,common,No,"secondary",216,PropString,common.secondary
+components\artifacts\artifact-create-button.tsx,common,No,"sm",163,PropString,common.sm
+components\artifacts\artifact-create-button.tsx,common,No,"ghost",163,PropString,common.ghost
+components\artifacts\artifact-create-button.tsx,common,No,"Create Artifact",165,JSXText,common.create_artifact
+components\artifacts\artifact-create-button.tsx,common,No,"end",169,PropString,common.end
+components\artifacts\artifact-create-button.tsx,common,No,"sm",199,PropString,common.sm
+components\artifacts\artifact-create-button.tsx,common,No,"ghost",200,PropString,common.ghost
+components\artifacts\artifact-create-button.tsx,common,No,"Create Artifact",205,JSXText,common.create_artifact
+components\artifacts\artifact-create-button.tsx,common,No,"ghost",217,PropString,common.ghost
+components\artifacts\artifact-create-button.tsx,common,No,"Create Artifact",225,JSXText,common.create_artifact
+components\chat\batch-copy-dialog.tsx,common,Yes,"ghost",169,PropString,common.ghost
+components\chat\batch-copy-dialog.tsx,common,Yes,"text",207,PropString,common.text
+components\chat\batch-copy-dialog.tsx,common,Yes,"text",208,PropString,common.text
+components\chat\batch-copy-dialog.tsx,common,Yes,"markdown",214,PropString,common.markdown
+components\chat\batch-copy-dialog.tsx,common,Yes,"markdown",215,PropString,common.markdown
+components\chat\batch-copy-dialog.tsx,common,Yes,"json",221,PropString,common.json
+components\chat\batch-copy-dialog.tsx,common,Yes,"json",222,PropString,common.json
+components\chat\batch-copy-dialog.tsx,common,Yes,"outline",232,PropString,common.outline
+components\chat\export-dialog.tsx,common,Yes,"outline",201,PropString,common.outline
+components\chat\export-dialog.tsx,common,Yes,"sm",201,PropString,common.sm
+components\chat\export-dialog.tsx,common,Yes,"secondary",240,PropString,common.secondary
+components\chat\export-dialog.tsx,common,Yes,"ghost",257,PropString,common.ghost
+components\chat\export-dialog.tsx,common,Yes,"sm",257,PropString,common.sm
+components\chat\export-dialog.tsx,common,Yes,"include-metadata",267,PropString,common.includemetadata
+components\chat\export-dialog.tsx,common,Yes,"include-metadata",273,PropString,common.includemetadata
+components\chat\export-dialog.tsx,common,Yes,"outline",284,PropString,common.outline
+components\chat\recent-files-popover.tsx,common,No,"ghost",114,PropString,common.ghost
+components\chat\recent-files-popover.tsx,common,No,"icon",115,PropString,common.icon
+components\chat\recent-files-popover.tsx,common,No,"start",123,PropString,common.start
+components\chat\recent-files-popover.tsx,common,No,"ghost",134,PropString,common.ghost
+components\chat\recent-files-popover.tsx,common,No,"icon",135,PropString,common.icon
+components\chat\recent-files-popover.tsx,common,No,"ghost",161,PropString,common.ghost
+components\chat\recent-files-popover.tsx,common,No,"icon",162,PropString,common.icon
+components\chat\recent-files-popover.tsx,common,No,"ghost",181,PropString,common.ghost
+components\settings\desktop-settings.tsx,common,Yes,"outline",94,PropString,common.outline
+components\settings\desktop-settings.tsx,common,Yes,"secondary",162,PropString,common.secondary
+components\settings\desktop-settings.tsx,common,Yes,"outline",166,PropString,common.outline
+components\settings\desktop-settings.tsx,common,Yes,"outline",255,PropString,common.outline
+components\settings\desktop-settings.tsx,common,Yes,"default",290,PropString,common.default
+components\settings\desktop-settings.tsx,common,Yes,"outline",320,PropString,common.outline
+components\settings\desktop-settings.tsx,common,Yes,"ghost",345,PropString,common.ghost
+components\settings\desktop-settings.tsx,common,Yes,"ghost",353,PropString,common.ghost
+components\projects\import-export-dialog.tsx,common,Yes,"Import / Export Projects",236,JSXText,common.import_export_projects
+components\projects\import-export-dialog.tsx,common,Yes,"export",244,PropString,common.export
+components\projects\import-export-dialog.tsx,common,Yes,"import",248,PropString,common.import
+components\projects\import-export-dialog.tsx,common,Yes,"export",254,PropString,common.export
+components\projects\import-export-dialog.tsx,common,Yes,"ghost",265,PropString,common.ghost
+components\projects\import-export-dialog.tsx,common,Yes,"import",314,PropString,common.import
+components\projects\import-export-dialog.tsx,common,Yes,"file",317,PropString,common.file
+components\projects\import-export-dialog.tsx,common,Yes,"Importing...",332,JSXText,common.importing
+components\export\batch-export-dialog.tsx,common,No,"outline",159,PropString,common.outline
+components\export\batch-export-dialog.tsx,common,No,"Batch Export Sessions",167,JSXText,common.batch_export_sessions
+components\export\batch-export-dialog.tsx,common,No,"Export Format",176,JSXText,common.export_format
+components\export\batch-export-dialog.tsx,common,No,"ghost",199,PropString,common.ghost
+components\export\batch-export-dialog.tsx,common,No,"ghost",203,PropString,common.ghost
+components\export\batch-export-dialog.tsx,common,No,"Estimated size:",233,JSXText,common.estimated_size
+components\export\batch-export-dialog.tsx,common,No,"outline",247,PropString,common.outline
+components\export\batch-export-dialog.tsx,common,No,"outline",292,PropString,common.outline
+components\designer\designer-preview.tsx,common,Yes,"outline",144,PropString,common.outline
+components\designer\designer-preview.tsx,common,Yes,"utf-8",311,PropString,common.utf8
+components\designer\designer-preview.tsx,common,Yes,"viewport",312,PropString,common.viewport
+components\designer\designer-preview.tsx,common,Yes,"react",326,PropString,common.react
+components\designer\designer-preview.tsx,common,Yes,"Error:",341,JSXText,common.error
+components\designer\designer-preview.tsx,common,Yes," ' + error.message + '",341,JSXText,common._errormessage_
+components\designer\designer-preview.tsx,common,Yes,"utf-8",355,PropString,common.utf8
+components\designer\designer-preview.tsx,common,Yes,"viewport",356,PropString,common.viewport
+components\chat\code-executor.tsx,common,No,"outline",111,PropString,common.outline
+components\chat\code-executor.tsx,common,No,"secondary",115,PropString,common.secondary
+components\chat\code-executor.tsx,common,No,"ghost",122,PropString,common.ghost
+components\chat\code-executor.tsx,common,No,"icon",123,PropString,common.icon
+components\chat\code-executor.tsx,common,No,"ghost",135,PropString,common.ghost
+components\chat\code-executor.tsx,common,No,"icon",136,PropString,common.icon
+components\chat\code-executor.tsx,common,No,"Output",162,JSXText,common.output
+components\chat\error-message.tsx,common,No,"destructive",196,PropString,common.destructive
+components\chat\error-message.tsx,common,No,"outline",229,PropString,common.outline
+components\chat\error-message.tsx,common,No,"sm",230,PropString,common.sm
+components\chat\error-message.tsx,common,No,"outline",244,PropString,common.outline
+components\chat\error-message.tsx,common,No,"sm",244,PropString,common.sm
+components\chat\error-message.tsx,common,No,"ghost",262,PropString,common.ghost
+components\chat\error-message.tsx,common,No,"icon",263,PropString,common.icon
+components\chat\prompt-optimizer-dialog.tsx,common,Yes,"style",233,PropString,common.style
+components\chat\prompt-optimizer-dialog.tsx,common,Yes,"style",235,PropString,common.style
+components\chat\prompt-optimizer-dialog.tsx,common,Yes,"settings",236,PropString,common.settings
+components\chat\prompt-optimizer-dialog.tsx,common,Yes,"style",239,PropString,common.style
+components\chat\prompt-optimizer-dialog.tsx,common,Yes,"settings",324,PropString,common.settings
+components\chat\prompt-optimizer-dialog.tsx,common,Yes,"ghost",392,PropString,common.ghost
+components\chat\prompt-optimizer-dialog.tsx,common,Yes,"ghost",395,PropString,common.ghost
+components\settings\chat-settings.tsx,common,Yes,"openai",88,PropString,common.openai
+components\settings\chat-settings.tsx,common,Yes,"auto-title",250,PropString,common.autotitle
+components\settings\chat-settings.tsx,common,Yes,"auto-title",256,PropString,common.autotitle
+components\settings\chat-settings.tsx,common,Yes,"show-model",278,PropString,common.showmodel
+components\settings\chat-settings.tsx,common,Yes,"show-model",284,PropString,common.showmodel
+components\settings\chat-settings.tsx,common,Yes,"markdown-render",292,PropString,common.markdownrender
+components\settings\chat-settings.tsx,common,Yes,"markdown-render",298,PropString,common.markdownrender
+components\settings\provider-import-export.tsx,common,Yes,"outline",168,PropString,common.outline
+components\settings\provider-import-export.tsx,common,Yes,"sm",169,PropString,common.sm
+components\settings\provider-import-export.tsx,common,Yes,"outline",178,PropString,common.outline
+components\settings\provider-import-export.tsx,common,Yes,"sm",179,PropString,common.sm
+components\settings\provider-import-export.tsx,common,Yes,"file",187,PropString,common.file
+components\settings\provider-import-export.tsx,common,Yes,"outline",227,PropString,common.outline
+components\settings\provider-import-export.tsx,common,Yes,"outline",289,PropString,common.outline
+components\projects\project-card.tsx,common,No,"ghost",143,PropString,common.ghost
+components\projects\project-card.tsx,common,No,"icon",143,PropString,common.icon
+components\projects\project-card.tsx,common,No,"end",147,PropString,common.end
+components\projects\project-card.tsx,common,No,"secondary",236,PropString,common.secondary
+components\projects\project-card.tsx,common,No,"secondary",242,PropString,common.secondary
+components\projects\project-card.tsx,common,No,"Delete Project",262,JSXText,common.delete_project
+components\projects\project-card.tsx,common,No,"Cancel",270,JSXText,common.cancel
+components\artifacts\artifact-preview.tsx,common,No,"sm",114,PropString,common.sm
+components\artifacts\artifact-preview.tsx,common,No,"ghost",114,PropString,common.ghost
+components\artifacts\artifact-preview.tsx,common,No,"utf-8",158,PropString,common.utf8
+components\artifacts\artifact-preview.tsx,common,No,"react",171,PropString,common.react
+components\artifacts\artifact-preview.tsx,common,No,"No component found. Export an App, Component, or Main function.",187,JSXText,common.no_component_found_export_an_app_component_or_main
+components\artifacts\artifact-preview.tsx,common,No,"Error:",190,JSXText,common.error
+components\artifacts\artifact-preview.tsx,common,No," ' + error.message + '",190,JSXText,common._errormessage_
+components\presets\preset-card.tsx,common,Yes,"ghost",91,PropString,common.ghost
+components\presets\preset-card.tsx,common,Yes,"icon",91,PropString,common.icon
+components\presets\preset-card.tsx,common,Yes,"end",95,PropString,common.end
+components\presets\preset-card.tsx,common,Yes,"outline",124,PropString,common.outline
+components\presets\preset-card.tsx,common,Yes,"outline",127,PropString,common.outline
+components\presets\preset-card.tsx,common,Yes,"secondary",131,PropString,common.secondary
+components\learning\learning-mode-panel.tsx,common,Yes,"ghost",112,PropString,common.ghost
+components\learning\learning-mode-panel.tsx,common,Yes,"icon",112,PropString,common.icon
+components\learning\learning-mode-panel.tsx,common,Yes,"secondary",182,PropString,common.secondary
+components\learning\learning-mode-panel.tsx,common,Yes,"secondary",211,PropString,common.secondary
+components\learning\learning-mode-panel.tsx,common,Yes,"outline",244,PropString,common.outline
+components\learning\learning-mode-panel.tsx,common,Yes,"ghost",254,PropString,common.ghost
+components\learning\learning-start-dialog.tsx,common,Yes,"topic",117,PropString,common.topic
+components\learning\learning-start-dialog.tsx,common,Yes,"topic",122,PropString,common.topic
+components\learning\learning-start-dialog.tsx,common,Yes,"background",131,PropString,common.background
+components\learning\learning-start-dialog.tsx,common,Yes,"background",138,PropString,common.background
+components\learning\learning-start-dialog.tsx,common,Yes,"button",185,PropString,common.button
+components\learning\learning-start-dialog.tsx,common,Yes,"icon",187,PropString,common.icon
+components\artifacts\artifact-panel.tsx,common,Yes,"right",229,PropString,common.right
+components\artifacts\artifact-panel.tsx,common,Yes,"ghost",247,PropString,common.ghost
+components\artifacts\artifact-panel.tsx,common,Yes,"code",268,PropString,common.code
+components\artifacts\artifact-panel.tsx,common,Yes,"preview",270,PropString,common.preview
+components\artifacts\artifact-panel.tsx,common,Yes,"100%",320,PropString,common.100
+components\artifacts\artifact-panel.tsx,common,Yes,"utf-8",394,PropString,common.utf8
+components\settings\keyboard-settings.tsx,common,Yes,"Edit Shortcut",93,JSXText,common.edit_shortcut
+components\settings\keyboard-settings.tsx,common,Yes,"secondary",251,PropString,common.secondary
+components\settings\keyboard-settings.tsx,common,Yes,"ghost",278,PropString,common.ghost
+components\settings\keyboard-settings.tsx,common,Yes,"icon",279,PropString,common.icon
+components\settings\keyboard-settings.tsx,common,Yes,"destructive",328,PropString,common.destructive
+components\settings\mcp-install-wizard.tsx,common,Yes,"destructive",175,PropString,common.destructive
+components\settings\mcp-install-wizard.tsx,common,Yes,"custom-args",213,PropString,common.customargs
+components\settings\mcp-install-wizard.tsx,common,Yes,"custom-args",215,PropString,common.customargs
+components\settings\mcp-install-wizard.tsx,common,Yes,"outline",255,PropString,common.outline
+components\settings\mcp-install-wizard.tsx,common,Yes,"outline",261,PropString,common.outline
+components\settings\theme-editor.tsx,common,Yes,"theme-name",168,PropString,common.themename
+components\settings\theme-editor.tsx,common,Yes,"theme-name",170,PropString,common.themename
+components\settings\theme-editor.tsx,common,Yes,"outline",306,PropString,common.outline
+components\settings\theme-editor.tsx,common,Yes,"ghost",315,PropString,common.ghost
+components\settings\theme-editor.tsx,common,Yes,"outline",325,PropString,common.outline
+components\sidebar\session-item.tsx,common,No,"icon",74,PropString,common.icon
+components\sidebar\session-item.tsx,common,No,"right",81,PropString,common.right
+components\sidebar\session-item.tsx,common,No,"ghost",118,PropString,common.ghost
+components\sidebar\session-item.tsx,common,No,"icon",119,PropString,common.icon
+components\sidebar\session-item.tsx,common,No,"end",126,PropString,common.end
+components\workflow-editor\execution-panel.tsx,common,Yes,"outline",129,PropString,common.outline
+components\workflow-editor\execution-panel.tsx,common,Yes,"outline",140,PropString,common.outline
+components\workflow-editor\execution-panel.tsx,common,Yes,"destructive",151,PropString,common.destructive
+components\workflow-editor\execution-panel.tsx,common,Yes,"outline",164,PropString,common.outline
+components\workflow-editor\execution-panel.tsx,common,Yes,"outline",212,PropString,common.outline
+components\workflow-editor\nodes\base-node.tsx,common,No,"target",124,PropString,common.target
+components\workflow-editor\nodes\base-node.tsx,common,No,"target",133,PropString,common.target
+components\workflow-editor\nodes\base-node.tsx,common,No,"Not configured",186,JSXText,common.not_configured
+components\workflow-editor\nodes\base-node.tsx,common,No,"source",194,PropString,common.source
+components\workflow-editor\nodes\base-node.tsx,common,No,"source",203,PropString,common.source
+components\artifacts\artifact-card.tsx,common,No,"outline",95,PropString,common.outline
+components\artifacts\artifact-card.tsx,common,No,"sm",96,PropString,common.sm
+components\artifacts\artifact-card.tsx,common,No,"secondary",141,PropString,common.secondary
+components\artifacts\artifact-card.tsx,common,No,"ghost",166,PropString,common.ghost
+components\artifacts\artifact-card.tsx,common,No,"icon",167,PropString,common.icon
+components\artifacts\artifact-list.tsx,common,No,"No artifacts yet",103,JSXText,common.no_artifacts_yet
+components\artifacts\artifact-list.tsx,common,No,"Code snippets and content will appear here",104,JSXText,common.code_snippets_and_content_will_appear_here
+components\artifacts\artifact-list.tsx,common,No,"outline",140,PropString,common.outline
+components\artifacts\artifact-list.tsx,common,No,"ghost",207,PropString,common.ghost
+components\artifacts\artifact-list.tsx,common,No,"text-muted-foreground",215,PropString,common.textmutedforeground
+app\settings\page.tsx,common,Yes,"icon",371,PropString,common.icon
+app\settings\page.tsx,common,Yes,"end",375,PropString,common.end
+app\settings\page.tsx,common,Yes,"file",385,PropString,common.file
+app\settings\page.tsx,common,Yes,"Reset All Settings?",407,JSXText,common.reset_all_settings
+app\settings\page.tsx,common,Yes,"outline",413,PropString,common.outline
+components\chat\renderers\math-inline.tsx,common,No,"math",86,PropString,common.math
+components\chat\renderers\math-inline.tsx,common,No,"LaTeX Error",94,JSXText,common.latex_error
+components\chat\renderers\math-inline.tsx,common,No,"math",114,PropString,common.math
+components\chat\renderers\math-inline.tsx,common,No,"Click to copy",137,JSXText,common.click_to_copy
+components\chat\tool-result-display.tsx,common,No,"ghost",89,PropString,common.ghost
+components\chat\tool-result-display.tsx,common,No,"icon",90,PropString,common.icon
+components\chat\tool-result-display.tsx,common,No,"Tool result",141,PropString,common.tool_result
+components\chat\tool-result-display.tsx,common,No,"[Unknown content type]",163,JSXText,common.unknown_content_type
+components\presets\preset-quick-prompts.tsx,common,No,"ghost",44,PropString,common.ghost
+components\presets\preset-quick-prompts.tsx,common,No,"sm",45,PropString,common.sm
+components\presets\preset-quick-prompts.tsx,common,No,"Quick",50,JSXText,common.quick
+components\presets\preset-quick-prompts.tsx,common,No,"Quick Prompts",56,JSXText,common.quick_prompts
+components\presets\preset-selector.tsx,common,Yes,"ghost",80,PropString,common.ghost
+components\presets\preset-selector.tsx,common,Yes,"sm",80,PropString,common.sm
+components\presets\preset-selector.tsx,common,Yes,"outline",85,PropString,common.outline
+components\presets\preset-selector.tsx,common,Yes,"outline",243,PropString,common.outline
+components\presets\presets-manager.tsx,common,Yes,"outline",275,PropString,common.outline
+components\presets\presets-manager.tsx,common,Yes,"end",279,PropString,common.end
+components\presets\presets-manager.tsx,common,Yes,"file",295,PropString,common.file
+components\presets\presets-manager.tsx,common,Yes,"outline",302,PropString,common.outline
+components\chat\context-settings-dialog.tsx,common,Yes,"(GPT-4o)",85,JSXText,common.gpt4o
+components\chat\context-settings-dialog.tsx,common,Yes,"(Fast)",93,JSXText,common.fast
+components\chat\context-settings-dialog.tsx,common,Yes,"6/6",233,JSXText,common.66
+components\chat\mention-popover.tsx,common,Yes,"↑↓",214,JSXText,common.
+components\chat\mention-popover.tsx,common,Yes,"Enter",217,JSXText,common.enter
+components\chat\mention-popover.tsx,common,Yes,"Esc",220,JSXText,common.esc
+components\chat\session-stats.tsx,common,No,"secondary",147,PropString,common.secondary
+components\chat\session-stats.tsx,common,No,"Messages",214,JSXText,common.messages
+components\chat\session-stats.tsx,common,No,"Est. Tokens",224,JSXText,common.est_tokens
+components\settings\tool-settings.tsx,common,No,"Tool Permissions",151,JSXText,common.tool_permissions
+components\settings\tool-settings.tsx,common,No,"destructive",205,PropString,common.destructive
+components\settings\tool-settings.tsx,common,No,"Desktop App Required",207,JSXText,common.desktop_app_required
+components\projects\project-templates.tsx,common,Yes,"Create from Template",204,JSXText,common.create_from_template
+components\projects\project-templates.tsx,common,Yes,"secondary",258,PropString,common.secondary
+components\projects\project-templates.tsx,common,Yes,"outline",262,PropString,common.outline
+components\agent\tool-approval-dialog.tsx,common,Yes,"outline",105,PropString,common.outline
+components\agent\tool-approval-dialog.tsx,common,Yes,"json",123,PropString,common.json
+components\agent\tool-approval-dialog.tsx,common,Yes,"outline",147,PropString,common.outline
+components\workflow-editor\nodes\ai-node.tsx,common,No,"secondary",26,PropString,common.secondary
+components\workflow-editor\nodes\ai-node.tsx,common,No,"outline",31,PropString,common.outline
+components\workflow-editor\nodes\ai-node.tsx,common,No,"outline",36,PropString,common.outline
+components\designer\element-tree.tsx,common,No,"No elements",86,JSXText,common.no_elements
+components\designer\element-tree.tsx,common,No,"ghost",179,PropString,common.ghost
+components\designer\element-tree.tsx,common,No,"icon",180,PropString,common.icon
+components\chat\message-parts\sources-display.tsx,common,No,"outline",102,PropString,common.outline
+components\chat\message-parts\sources-display.tsx,common,No,"Web Search Answer",191,JSXText,common.web_search_answer
+components\chat\message-reactions.tsx,common,No,"ghost",57,PropString,common.ghost
+components\chat\message-reactions.tsx,common,No,"icon",58,PropString,common.icon
+components\chat\model-picker-dialog.tsx,common,Yes,"default",304,PropString,common.default
+components\chat\model-picker-dialog.tsx,common,Yes,"• Free",391,JSXText,common._free
+components\settings\provider-health-status.tsx,common,Yes,"ghost",164,PropString,common.ghost
+components\settings\provider-health-status.tsx,common,Yes," 75 && quotaPercentage ",216,JSXText,common._75_quotapercentage_
+components\settings\ui-customization-settings.tsx,common,Yes,"ghost",89,PropString,common.ghost
+components\settings\ui-customization-settings.tsx,common,Yes,"sm",90,PropString,common.sm
+components\sidebar\session-list.tsx,common,No,"No conversations yet",28,JSXText,common.no_conversations_yet
+components\sidebar\session-list.tsx,common,No,"Start a new chat to begin",29,JSXText,common.start_a_new_chat_to_begin
+components\agent\tool-timeline.tsx,common,No,"Tool Executions",122,JSXText,common.tool_executions
+components\agent\tool-timeline.tsx,common,No,"Running...",124,JSXText,common.running
+components\workflow-editor\nodes\conditional-node.tsx,common,No,"✓ True",41,JSXText,common._true
+components\workflow-editor\nodes\conditional-node.tsx,common,No,"✗ False",42,JSXText,common._false
+components\workflow-editor\nodes\loop-node.tsx,common,No,"secondary",20,PropString,common.secondary
+components\workflow-editor\nodes\loop-node.tsx,common,No,"outline",23,PropString,common.outline
+components\workflow-editor\nodes\parallel-node.tsx,common,No,"secondary",33,PropString,common.secondary
+components\workflow-editor\nodes\parallel-node.tsx,common,No,"outline",37,PropString,common.outline
+components\workflow-editor\workflow-editor-panel.tsx,common,No,"Loading...",177,JSXText,common.loading
+components\workflow-editor\workflow-editor-panel.tsx,common,No,"top-left",230,PropString,common.topleft
+components\designer\style-panel.tsx,common,Yes,"color",198,PropString,common.color
+components\designer\style-panel.tsx,common,Yes,"number",245,PropString,common.number
+components\chat\markdown-renderer.tsx,common,No,"lazy",225,PropString,common.lazy
+components\chat\welcome-state.tsx,common,Yes,"outline",200,PropString,common.outline
+components\settings\custom-instructions-settings.tsx,common,Yes,"outline",186,PropString,common.outline
+components\settings\oauth-login-button.tsx,common,Yes,"ghost",152,PropString,common.ghost
+components\settings\quick-settings-card.tsx,common,No,"outline",104,PropString,common.outline
+components\agent\agent-steps.tsx,common,No,"Progress",35,JSXText,common.progress
+components\workflow-editor\nodes\tool-node.tsx,common,No,"secondary",19,PropString,common.secondary
+app\projects\page.tsx,common,No,"Projects",72,JSXText,common.projects

@@ -22,10 +22,8 @@
     "out",
     "coverage",
     "__tests__",
-    "*.test.ts",
-    "*.test.tsx",
-    "*.spec.ts",
-    "*.spec.tsx"
+    "\\.test\\.",
+    "\\.spec\\."
   ],
   "extractionRules": {
     "includeStrings": [
@@ -43,9 +41,9 @@
       "^from\\s",
       "^require\\(",
       "\\.(css|scss|less|sass|json|md|txt|html)$",
-      "^__[A-Z_]+__$",  // React internals like __DEV__, __IS_BROWSER__
-      "^data-[a-z-]+",   // data attributes
-      "^aria-[a-z-]+",   // aria attributes (unless they're user-facing labels)
+      "^__[A-Z_]+__",
+      "^data-[a-z-]+",
+      "^aria-[a-z-]+",
       "^className$",
       "^id$",
       "^key$",

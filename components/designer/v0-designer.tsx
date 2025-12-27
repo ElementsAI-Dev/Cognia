@@ -439,7 +439,7 @@ export function V0Designer({
             </DialogHeader>
 
             <Tabs defaultValue="all" className="flex-1 overflow-hidden flex flex-col">
-              <TabsList>
+              <TabsList className="flex-wrap h-auto gap-1 p-1">
                 <TabsTrigger value="all">All</TabsTrigger>
                 {TEMPLATE_CATEGORIES.map((category) => (
                   <TabsTrigger key={category} value={category}>
@@ -450,7 +450,7 @@ export function V0Designer({
 
               <ScrollArea className="flex-1 mt-4">
                 <TabsContent value="all" className="mt-0">
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
                     {DESIGNER_TEMPLATES.map((template) => (
                       <TemplateCard
                         key={template.id}
@@ -463,7 +463,7 @@ export function V0Designer({
 
                 {TEMPLATE_CATEGORIES.map((category) => (
                   <TabsContent key={category} value={category} className="mt-0">
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
                       {DESIGNER_TEMPLATES.filter((t) => t.category === category).map((template) => (
                         <TemplateCard
                           key={template.id}

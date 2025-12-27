@@ -68,6 +68,7 @@ import { SpeechSettings } from '@/components/settings/speech-settings';
 import { QuickSettingsCard } from '@/components/settings/quick-settings-card';
 import { VectorSettings } from '@/components/settings/vector-settings';
 import { SelectionToolbarSettings } from '@/components/selection-toolbar/settings-panel';
+import { NativeToolsSettings } from '@/components/settings/native-tools-settings';
 
 type SettingsSection = 
   | 'providers'
@@ -85,7 +86,8 @@ type SettingsSection =
   | 'data'
   | 'vector'
   | 'desktop'
-  | 'selection';
+  | 'selection'
+  | 'native-tools';
 
 type SettingsGroup = 'ai' | 'interface' | 'data' | 'system';
 
@@ -277,6 +279,13 @@ export default function SettingsPage() {
         description: 'AI-powered text selection actions',
         group: 'system' as const,
       },
+      {
+        id: 'native-tools' as const,
+        label: 'Native Tools',
+        icon: <Wrench className="h-4 w-4" />,
+        description: 'Clipboard, screenshots, focus tracking',
+        group: 'system' as const,
+      },
     ] : []),
   ], [t, isDesktop]);
 
@@ -319,6 +328,8 @@ export default function SettingsPage() {
         return <DesktopSettings />;
       case 'selection':
         return <SelectionToolbarSettings />;
+      case 'native-tools':
+        return <NativeToolsSettings />;
       default:
         return <ProviderSettings />;
     }

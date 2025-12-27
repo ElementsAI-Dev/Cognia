@@ -11,7 +11,13 @@ Welcome to the official Cognia documentation. This section provides comprehensiv
   - [Artifacts System](features/artifacts-system.md) - AI-generated content and canvas editor
   - [Projects Management](features/projects-management.md) - Organize conversations with knowledge bases
   - [MCP Guide](features/mcp-guide.md) - Model Context Protocol usage
+  - [Agent Guide](features/agent-guide.md) - Autonomous AI agents with tools and planning
   - [Configuration](features/configuration.md) - Settings and customization options
+  - **Native Tools** - Desktop-exclusive features (requires desktop app)
+    - [Native Tools Overview](features/native-tools.md) - Introduction to all native tools
+    - [Native Selection](features/native-selection.md) - Smart text selection and clipboard
+    - [Native Awareness](features/native-awareness.md) - System monitoring and productivity
+    - [Native Context & Screenshot](features/native-context-screenshot.md) - Context detection and screenshots
 
 ### For Developers
 - [Getting Started](development/getting-started.md) - Installation and setup
@@ -67,17 +73,21 @@ Cognia uses a hybrid web/desktop architecture:
 - **Database**: Dexie (IndexedDB wrapper) for message storage
 
 ### AI Integration
-- **Providers**: Support for 7 AI providers (OpenAI, Anthropic, Google, DeepSeek, Groq, Mistral, Ollama)
+
+- **Providers**: Support for 14 AI providers (OpenAI, Anthropic, Google, DeepSeek, Groq, xAI, Together AI, OpenRouter, Cohere, Fireworks, Cerebras, SambaNova, Mistral, Ollama)
 - **Auto-Router**: Intelligent model selection based on task complexity
 - **Streaming**: Real-time response streaming with proper error handling
 - **Tool Calling**: Function calling and MCP tool support
 
 ### Key Features
+
 - **Artifacts**: AI-generated standalone content (code, documents, charts)
 - **Canvas Editor**: Monaco editor with AI suggestions and version history
+- **Agent System**: Autonomous AI agents with tool calling, planning, and background execution
 - **MCP**: Full Model Context Protocol support for extended capabilities
 - **Projects**: Organize conversations with knowledge bases
 - **Multi-Mode**: Chat, Agent, and Research modes
+- **Native Tools** (Desktop Only): Smart selection, system monitoring, screenshots with OCR, context awareness
 
 ## Getting Started
 
@@ -154,4 +164,4 @@ For questions, issues, or contributions:
 
 ---
 
-**Last Updated**: December 25, 2025
+**Last Updated**: December 26, 2024

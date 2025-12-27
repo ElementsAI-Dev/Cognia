@@ -2,12 +2,18 @@
 //!
 //! This is the main entry point for the Tauri desktop application.
 
+mod awareness;
 mod commands;
+mod context;
 mod mcp;
+mod screenshot;
 mod selection;
 mod tray;
 
+use awareness::AwarenessManager;
+use context::ContextManager;
 use mcp::McpManager;
+use screenshot::ScreenshotManager;
 use selection::SelectionManager;
 use tauri::Manager;
 use commands::vector::VectorStoreState;
@@ -81,6 +87,18 @@ pub fn run() {
                     log::error!("Failed to start selection manager: {}", e);
                 }
             });
+
+            // Initialize Screenshot Manager
+            let screenshot_manager = ScreenshotManager::new(app.handle().clone());
+            app.manage(screenshot_manager);
+
+            // Initialize Context Manager
+            let context_manager = ContextManager::new();
+            app.manage(context_manager);
+
+            // Initialize Awareness Manager
+            let awareness_manager = AwarenessManager::new();
+            app.manage(awareness_manager);
 
             // Setup splash screen and main window
             let app_handle = app.handle().clone();
@@ -174,6 +192,100 @@ pub fn run() {
             commands::selection::selection_update_config,
             commands::selection::selection_get_config,
             commands::selection::selection_trigger,
+            commands::selection::selection_get_status,
+            commands::selection::selection_set_enabled,
+            commands::selection::selection_is_enabled,
+            commands::selection::selection_restart,
+            commands::selection::selection_set_toolbar_hovered,
+            commands::selection::selection_set_auto_hide_timeout,
+            commands::selection::selection_get_detection_stats,
+            commands::selection::selection_get_enhanced,
+            commands::selection::selection_analyze_current,
+            commands::selection::selection_expand_to_word,
+            commands::selection::selection_expand_to_sentence,
+            commands::selection::selection_expand_to_line,
+            commands::selection::selection_expand_to_paragraph,
+            // Selection history commands
+            commands::selection::selection_get_history,
+            commands::selection::selection_search_history,
+            commands::selection::selection_search_history_by_app,
+            commands::selection::selection_search_history_by_type,
+            commands::selection::selection_get_history_stats,
+            commands::selection::selection_clear_history,
+            commands::selection::selection_export_history,
+            commands::selection::selection_import_history,
+            // Clipboard history commands
+            commands::selection::clipboard_get_history,
+            commands::selection::clipboard_search_history,
+            commands::selection::clipboard_get_pinned,
+            commands::selection::clipboard_pin_entry,
+            commands::selection::clipboard_unpin_entry,
+            commands::selection::clipboard_delete_entry,
+            commands::selection::clipboard_clear_unpinned,
+            commands::selection::clipboard_clear_all,
+            commands::selection::clipboard_copy_entry,
+            commands::selection::clipboard_check_update,
+            // Smart selection commands
+            commands::selection::selection_smart_expand,
+            commands::selection::selection_auto_expand,
+            commands::selection::selection_get_modes,
+            // Screenshot commands
+            commands::screenshot::screenshot_capture_fullscreen,
+            commands::screenshot::screenshot_capture_window,
+            commands::screenshot::screenshot_capture_region,
+            commands::screenshot::screenshot_start_region_selection,
+            commands::screenshot::screenshot_ocr,
+            commands::screenshot::screenshot_get_monitors,
+            commands::screenshot::screenshot_update_config,
+            commands::screenshot::screenshot_get_config,
+            commands::screenshot::screenshot_save,
+            // Screenshot history commands
+            commands::screenshot::screenshot_get_history,
+            commands::screenshot::screenshot_search_history,
+            commands::screenshot::screenshot_get_by_id,
+            commands::screenshot::screenshot_pin,
+            commands::screenshot::screenshot_unpin,
+            commands::screenshot::screenshot_delete,
+            commands::screenshot::screenshot_clear_history,
+            // Windows OCR commands
+            commands::screenshot::screenshot_ocr_windows,
+            commands::screenshot::screenshot_get_ocr_languages,
+            // Capture with history commands
+            commands::screenshot::screenshot_capture_fullscreen_with_history,
+            commands::screenshot::screenshot_capture_window_with_history,
+            commands::screenshot::screenshot_capture_region_with_history,
+            // Context commands
+            commands::context::context_get_full,
+            commands::context::context_get_window,
+            commands::context::context_get_app,
+            commands::context::context_get_file,
+            commands::context::context_get_browser,
+            commands::context::context_get_editor,
+            commands::context::context_get_all_windows,
+            commands::context::context_clear_cache,
+            commands::context::context_find_windows_by_title,
+            commands::context::context_find_windows_by_process,
+            // Awareness commands
+            commands::awareness::awareness_get_state,
+            commands::awareness::awareness_get_system_state,
+            commands::awareness::awareness_get_suggestions,
+            commands::awareness::awareness_record_activity,
+            commands::awareness::awareness_get_recent_activities,
+            commands::awareness::awareness_start_monitoring,
+            commands::awareness::awareness_stop_monitoring,
+            commands::awareness::awareness_clear_history,
+            // Focus tracking commands
+            commands::awareness::awareness_start_focus_tracking,
+            commands::awareness::awareness_stop_focus_tracking,
+            commands::awareness::awareness_is_focus_tracking,
+            commands::awareness::awareness_record_focus_change,
+            commands::awareness::awareness_get_current_focus,
+            commands::awareness::awareness_get_recent_focus_sessions,
+            commands::awareness::awareness_get_app_usage_stats,
+            commands::awareness::awareness_get_all_app_usage_stats,
+            commands::awareness::awareness_get_today_usage_summary,
+            commands::awareness::awareness_get_daily_usage_summary,
+            commands::awareness::awareness_clear_focus_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
