@@ -538,3 +538,160 @@ pub async fn selection_get_modes() -> Result<Vec<String>, String> {
         "file_path".to_string(),
     ])
 }
+
+// ============== AI Processing Commands ==============
+
+/// Process text with AI (non-streaming)
+#[tauri::command]
+pub async fn selection_ai_process(
+    _manager: State<'_, SelectionManager>,
+    prompt: String,
+) -> Result<String, String> {
+    // This is a placeholder that returns the prompt for now
+    // In a real implementation, this would call the AI provider
+    // The actual AI integration should be done through the existing AI infrastructure
+    
+    // For now, return a mock response indicating the feature needs AI provider integration
+    Ok(format!(
+        "AI processing is not yet connected. Prompt received:\n\n{}",
+        if prompt.len() > 200 {
+            format!("{}...", &prompt[..200])
+        } else {
+            prompt
+        }
+    ))
+}
+
+/// Process text with AI (streaming)
+#[tauri::command]
+pub async fn selection_ai_process_stream(
+    _manager: State<'_, SelectionManager>,
+    app_handle: tauri::AppHandle,
+    prompt: String,
+) -> Result<(), String> {
+    // This is a placeholder for streaming AI processing
+    // In a real implementation, this would:
+    // 1. Connect to the AI provider
+    // 2. Stream chunks back via the "selection-ai-chunk" event
+    
+    // Simulate streaming for demonstration
+    let response = format!(
+        "AI streaming is not yet connected. Your prompt was: {}",
+        if prompt.len() > 100 {
+            format!("{}...", &prompt[..100])
+        } else {
+            prompt.clone()
+        }
+    );
+    
+    // Emit chunks
+    for word in response.split_whitespace() {
+        let chunk = format!("{} ", word);
+        app_handle
+            .emit("selection-ai-chunk", serde_json::json!({ "chunk": chunk }))
+            .map_err(|e| format!("Failed to emit chunk: {}", e))?;
+        
+        // Small delay between chunks for visual effect
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+    }
+    
+    Ok(())
+}
+
+/// Detect text type (code, url, email, etc.)
+#[tauri::command]
+pub async fn selection_detect_text_type(
+    text: String,
+) -> Result<String, String> {
+    // Check for URL
+    if text.contains("://") || text.starts_with("www.") {
+        return Ok("url".to_string());
+    }
+    
+    // Check for email
+    if text.contains('@') && text.contains('.') {
+        let parts: Vec<&str> = text.split('@').collect();
+        if parts.len() == 2 && !parts[0].is_empty() && parts[1].contains('.') {
+            return Ok("email".to_string());
+        }
+    }
+    
+    // Check for file path
+    if text.contains('/') || text.contains('\\') || 
+       (text.len() >= 3 && text.chars().nth(1) == Some(':')) {
+        return Ok("path".to_string());
+    }
+    
+    // Check for code (simple heuristics)
+    let code_indicators = [
+        "function", "const ", "let ", "var ", "class ", "import ", "export ",
+        "def ", "fn ", "pub ", "async ", "await ", "return ", "if ", "for ",
+        "while ", "{", "}", "()", "=>", "->", "::", "//", "/*", "#include",
+    ];
+    
+    let text_lower = text.to_lowercase();
+    for indicator in &code_indicators {
+        if text_lower.contains(indicator) {
+            return Ok("code".to_string());
+        }
+    }
+    
+    // Check for numbers
+    if text.chars().all(|c| c.is_ascii_digit() || c == '.' || c == ',' || c == '-') {
+        return Ok("number".to_string());
+    }
+    
+    // Default to text
+    Ok("text".to_string())
+}
+
+/// Get toolbar configuration
+#[tauri::command]
+pub async fn selection_get_toolbar_config(
+    manager: State<'_, SelectionManager>,
+) -> Result<serde_json::Value, String> {
+    let config = manager.get_config();
+    serde_json::to_value(&config).map_err(|e| format!("Failed to serialize config: {}", e))
+}
+
+/// Update toolbar theme
+#[tauri::command]
+pub async fn selection_set_theme(
+    manager: State<'_, SelectionManager>,
+    theme: String,
+) -> Result<(), String> {
+    let config = manager.get_config();
+    // The theme setting would be stored in the config
+    // For now, just validate the theme
+    match theme.as_str() {
+        "auto" | "light" | "dark" | "glass" => {
+            // Theme is valid
+            manager.update_config(config);
+            Ok(())
+        }
+        _ => Err(format!("Invalid theme: {}", theme)),
+    }
+}
+
+/// Get selection statistics
+#[tauri::command]
+pub async fn selection_get_stats_summary(
+    manager: State<'_, SelectionManager>,
+) -> Result<serde_json::Value, String> {
+    let (attempts, successes) = manager.detector.get_stats();
+    let history_stats = manager.history.get_stats();
+    
+    Ok(serde_json::json!({
+        "detection": {
+            "attempts": attempts,
+            "successes": successes,
+            "successRate": if attempts > 0 { (successes as f64 / attempts as f64) * 100.0 } else { 0.0 }
+        },
+        "history": {
+            "totalSelections": history_stats.total_selections,
+            "byApp": history_stats.by_app,
+            "byType": history_stats.by_type,
+            "averageLength": history_stats.avg_text_length,
+        }
+    }))
+}

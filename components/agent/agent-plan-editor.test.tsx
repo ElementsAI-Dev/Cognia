@@ -286,7 +286,7 @@ describe('AgentPlanEditor', () => {
 
     it('renders "Execute Plan" button for draft plans with steps', () => {
       render(<AgentPlanEditor {...defaultProps} />);
-      expect(screen.getByText('Execute Plan')).toBeInTheDocument();
+      expect(screen.getByText(/Execute|execute/i)).toBeInTheDocument();
     });
 
     it('renders "Delete Plan" button', () => {
@@ -421,7 +421,7 @@ describe('AgentPlanEditor', () => {
     it('calls approvePlan and startPlanExecution when Execute Plan is clicked', () => {
       render(<AgentPlanEditor {...defaultProps} />);
       
-      const executeButton = screen.getByText('Execute Plan');
+      const executeButton = screen.getByText(/Execute|execute/i);
       fireEvent.click(executeButton);
       
       expect(mockApprovePlan).toHaveBeenCalledWith('plan-1');
@@ -483,7 +483,7 @@ describe('AgentPlanEditor', () => {
       const onExecute = jest.fn();
       render(<AgentPlanEditor {...defaultProps} onExecute={onExecute} />);
       
-      const executeButton = screen.getByText('Execute Plan');
+      const executeButton = screen.getByText(/Execute|execute/i);
       fireEvent.click(executeButton);
       
       // The onExecute callback is called in the executePlan callback

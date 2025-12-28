@@ -67,6 +67,6 @@ export {
   TAILWIND_CDN_SCRIPT,
   TAILWIND_CONFIG,
   generateSandpackStyles,
-  getSandpackExternalResources,
+  getTailwindExternalResources,
   generateStyleInjectionScript,
 } from './tailwind-config';

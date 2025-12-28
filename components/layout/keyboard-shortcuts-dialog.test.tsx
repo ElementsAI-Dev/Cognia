@@ -104,18 +104,20 @@ describe('KeyboardShortcutsDialog', () => {
     expect(screen.getByTestId('dialog')).toBeInTheDocument();
   });
 
-  it('renders default trigger button', () => {
+  it('does not render dialog trigger when no trigger prop is provided', () => {
     render(<KeyboardShortcutsDialog />);
-    expect(screen.getByText('Keyboard Shortcuts')).toBeInTheDocument();
+    // When no trigger is provided, only the controlled dialog is rendered without DialogTrigger
+    expect(screen.queryByTestId('dialog-trigger')).not.toBeInTheDocument();
   });
 
   it('renders custom trigger when provided', () => {
     render(
-      <KeyboardShortcutsDialog 
+      <KeyboardShortcutsDialog
         trigger={<button>Custom Trigger</button>}
       />
     );
     expect(screen.getByText('Custom Trigger')).toBeInTheDocument();
+    expect(screen.getByTestId('dialog-trigger')).toBeInTheDocument();
   });
 
   it('displays dialog title', () => {

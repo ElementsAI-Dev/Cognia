@@ -190,131 +190,132 @@ export function DataSettings() {
 
   return (
     <div className="space-y-4">
-      {/* Storage Info */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Database className="h-4 w-4" />
-            Storage
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Data stored locally in your browser
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-2 grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-lg border p-2 text-center">
-              <MessageSquare className="h-3.5 w-3.5 text-muted-foreground mx-auto mb-1" />
-              <div className="text-lg font-bold">{sessions.length}</div>
-              <span className="text-[10px] text-muted-foreground">Sessions</span>
-            </div>
-            <div className="rounded-lg border p-2 text-center">
-              <FileCode className="h-3.5 w-3.5 text-muted-foreground mx-auto mb-1" />
-              <div className="text-lg font-bold">
-                {Object.keys(useArtifactStore.getState().artifacts).length}
+      {/* Storage Info and Export/Import side by side on larger screens */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Storage Info */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Database className="h-4 w-4" />
+              Storage
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Data stored locally in your browser
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid gap-2 grid-cols-2">
+              <div className="rounded-lg border p-2 text-center">
+                <MessageSquare className="h-3.5 w-3.5 text-muted-foreground mx-auto mb-1" />
+                <div className="text-lg font-bold">{sessions.length}</div>
+                <span className="text-[10px] text-muted-foreground">Sessions</span>
               </div>
-              <span className="text-[10px] text-muted-foreground">Artifacts</span>
-            </div>
-            <div className="rounded-lg border p-2 text-center">
-              <HardDrive className="h-3.5 w-3.5 text-muted-foreground mx-auto mb-1" />
-              <div className="text-lg font-bold">{getStorageEstimate()}</div>
-              <span className="text-[10px] text-muted-foreground">LocalStorage</span>
-            </div>
-            <div className="rounded-lg border p-2 text-center">
-              <Database className="h-3.5 w-3.5 text-muted-foreground mx-auto mb-1" />
-              <div className="text-lg font-bold">
-                {storageInfo ? formatBytes(storageInfo.used) : 'N/A'}
+              <div className="rounded-lg border p-2 text-center">
+                <FileCode className="h-3.5 w-3.5 text-muted-foreground mx-auto mb-1" />
+                <div className="text-lg font-bold">
+                  {Object.keys(useArtifactStore.getState().artifacts).length}
+                </div>
+                <span className="text-[10px] text-muted-foreground">Artifacts</span>
               </div>
-              <span className="text-[10px] text-muted-foreground">IndexedDB</span>
-            </div>
-          </div>
-          {storageInfo && (
-            <div className="mt-3">
-              <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                <span>Usage</span>
-                <span>{formatBytes(storageInfo.used)} / {formatBytes(storageInfo.quota)}</span>
+              <div className="rounded-lg border p-2 text-center">
+                <HardDrive className="h-3.5 w-3.5 text-muted-foreground mx-auto mb-1" />
+                <div className="text-lg font-bold">{getStorageEstimate()}</div>
+                <span className="text-[10px] text-muted-foreground">LocalStorage</span>
               </div>
-              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary transition-all"
-                  style={{ width: `${Math.min((storageInfo.used / storageInfo.quota) * 100, 100)}%` }}
-                />
+              <div className="rounded-lg border p-2 text-center">
+                <Database className="h-3.5 w-3.5 text-muted-foreground mx-auto mb-1" />
+                <div className="text-lg font-bold">
+                  {storageInfo ? formatBytes(storageInfo.used) : 'N/A'}
+                </div>
+                <span className="text-[10px] text-muted-foreground">IndexedDB</span>
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+            {storageInfo && (
+              <div>
+                <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                  <span>Usage</span>
+                  <span>{formatBytes(storageInfo.used)} / {formatBytes(storageInfo.quota)}</span>
+                </div>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary transition-all"
+                    style={{ width: `${Math.min((storageInfo.used / storageInfo.quota) * 100, 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Export/Import */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <FileJson className="h-4 w-4" />
-            Export & Import
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Backup or transfer data
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={handleExport} disabled={isExporting}>
-              <Download className="mr-1.5 h-3.5 w-3.5" />
-              {isExporting ? 'Exporting...' : 'Export'}
-            </Button>
-
-            <Button size="sm" variant="outline" disabled={isImporting} asChild>
-              <label className="cursor-pointer">
-                <Upload className="mr-1.5 h-3.5 w-3.5" />
-                {isImporting ? 'Importing...' : 'Import'}
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={handleImport}
-                  className="hidden"
-                />
-              </label>
-            </Button>
-
-            <BatchExportDialog
-              trigger={
-                <Button size="sm" variant="outline">
-                  <FileArchive className="mr-1.5 h-3.5 w-3.5" />
-                  Batch Export
+        {/* Export/Import and Danger Zone stacked */}
+        <div className="space-y-4">
+          {/* Export/Import */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileJson className="h-4 w-4" />
+                Export & Import
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Backup or transfer data
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={handleExport} disabled={isExporting}>
+                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                  {isExporting ? 'Exporting...' : 'Export'}
                 </Button>
-              }
-            />
-          </div>
 
-          <Alert className="py-2">
-            <HardDrive className="h-3.5 w-3.5" />
-            <AlertTitle className="text-sm">Data Privacy</AlertTitle>
-            <AlertDescription className="text-xs">
-              Exports contain chat history, settings, and API keys. Keep secure.
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
+                <Button size="sm" variant="outline" disabled={isImporting} asChild>
+                  <label className="cursor-pointer">
+                    <Upload className="mr-1.5 h-3.5 w-3.5" />
+                    {isImporting ? 'Importing...' : 'Import'}
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={handleImport}
+                      className="hidden"
+                    />
+                  </label>
+                </Button>
 
-      {/* Danger Zone */}
-      <Card className="border-destructive">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm text-destructive">
-            <AlertTriangle className="h-4 w-4" />
-            Danger Zone
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Irreversible data deletion
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="destructive">
-                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                Delete All Data
-              </Button>
-            </DialogTrigger>
+                <BatchExportDialog
+                  trigger={
+                    <Button size="sm" variant="outline">
+                      <FileArchive className="mr-1.5 h-3.5 w-3.5" />
+                      Batch Export
+                    </Button>
+                  }
+                />
+              </div>
+
+              <Alert className="py-2">
+                <HardDrive className="h-3.5 w-3.5" />
+                <AlertTitle className="text-xs font-medium">Data Privacy</AlertTitle>
+                <AlertDescription className="text-[10px]">
+                  Exports contain chat history, settings, and API keys. Keep secure.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+
+          {/* Danger Zone */}
+          <Card className="border-destructive">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm text-destructive">
+                <AlertTriangle className="h-4 w-4" />
+                Danger Zone
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="destructive">
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    Delete All Data
+                  </Button>
+                </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Are you absolutely sure?</DialogTitle>
@@ -335,9 +336,11 @@ export function DataSettings() {
                 </Button>
               </DialogFooter>
             </DialogContent>
-          </Dialog>
-        </CardContent>
-      </Card>
+              </Dialog>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

@@ -18,6 +18,12 @@ import {
   type RAGContext,
   type IndexingResult,
 } from '@/lib/ai/rag';
+import {
+  RAGPipeline,
+  createRAGPipeline,
+  type RAGPipelineConfig,
+  type RAGPipelineContext,
+} from '@/lib/ai/rag/index';
 import { chunkDocument, type ChunkingOptions, type ChunkingResult } from '@/lib/ai/chunking';
 
 export interface UseRAGOptions {
@@ -28,6 +34,13 @@ export interface UseRAGOptions {
   chunkingStrategy?: 'fixed' | 'sentence' | 'paragraph';
   chunkSize?: number;
   chunkOverlap?: number;
+  
+  // Advanced RAG features
+  enableHybridSearch?: boolean;
+  enableReranking?: boolean;
+  enableQueryExpansion?: boolean;
+  vectorWeight?: number;
+  keywordWeight?: number;
 }
 
 export interface UseRAGReturn {
@@ -55,6 +68,10 @@ export interface UseRAGReturn {
 
   // Simple RAG (in-memory)
   createSimpleRAG: () => SimpleRAG;
+  
+  // Advanced RAG pipeline
+  createAdvancedPipeline: () => RAGPipeline;
+  advancedRetrieve: (query: string) => Promise<RAGPipelineContext>;
 }
 
 export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
@@ -281,6 +298,86 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
     );
   }, [vectorSettings.embeddingProvider, vectorSettings.embeddingModel, getApiKey]);
 
+  // Create advanced RAG pipeline with hybrid search, reranking, etc.
+  const createAdvancedPipeline = useCallback((): RAGPipeline => {
+    const pipelineConfig: RAGPipelineConfig = {
+      embeddingConfig: {
+        provider: vectorSettings.embeddingProvider,
+        model: vectorSettings.embeddingModel,
+      },
+      embeddingApiKey: getApiKey(),
+      hybridSearch: {
+        enabled: options.enableHybridSearch ?? true,
+        vectorWeight: options.vectorWeight ?? 0.5,
+        keywordWeight: options.keywordWeight ?? 0.5,
+      },
+      reranking: {
+        enabled: options.enableReranking ?? true,
+        useLLM: false,
+      },
+      queryExpansion: {
+        enabled: options.enableQueryExpansion ?? false,
+        maxVariants: 3,
+      },
+      contextualRetrieval: {
+        enabled: false,
+      },
+      topK,
+      similarityThreshold,
+      maxContextLength,
+      chunkingOptions: {
+        strategy: chunkingStrategy,
+        chunkSize,
+        chunkOverlap,
+      },
+    };
+    return createRAGPipeline(pipelineConfig);
+  }, [
+    vectorSettings.embeddingProvider,
+    vectorSettings.embeddingModel,
+    getApiKey,
+    options.enableHybridSearch,
+    options.enableReranking,
+    options.enableQueryExpansion,
+    options.vectorWeight,
+    options.keywordWeight,
+    topK,
+    similarityThreshold,
+    maxContextLength,
+    chunkingStrategy,
+    chunkSize,
+    chunkOverlap,
+  ]);
+
+  // Advanced retrieve with hybrid search and reranking
+  const advancedRetrieve = useCallback(async (query: string): Promise<RAGPipelineContext> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const pipeline = createAdvancedPipeline();
+      const context = await pipeline.retrieve(collectionName, query);
+      return context;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Advanced retrieval failed';
+      setError(message);
+      return {
+        documents: [],
+        query,
+        formattedContext: '',
+        totalTokensEstimate: 0,
+        searchMetadata: {
+          hybridSearchUsed: false,
+          queryExpansionUsed: false,
+          rerankingUsed: false,
+          originalResultCount: 0,
+          finalResultCount: 0,
+        },
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  }, [collectionName, createAdvancedPipeline]);
+
   return {
     isLoading,
     error,
@@ -295,6 +392,8 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
     chunkText,
     estimateChunks,
     createSimpleRAG,
+    createAdvancedPipeline,
+    advancedRetrieve,
   };
 }
 

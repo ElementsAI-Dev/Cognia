@@ -97,3 +97,8 @@ export {
   selectIsPanelOpen,
   selectSelectedAgentId,
 } from './background-agent-store';
+export {
+  useCustomThemeStore,
+  createDefaultThemeTemplate,
+  type CustomSyntaxTheme,
+} from './custom-theme-store';

@@ -1,5 +1,5 @@
 /**
- * Session Store - manages chat sessions with persistence
+ * Session Store - manages chat sessions with persistence and mode management
  */
 
 import { create } from 'zustand';
@@ -14,12 +14,29 @@ import type {
   ConversationBranch,
 } from '@/types';
 
+// Mode history entry for tracking mode switches
+interface ModeHistoryEntry {
+  mode: ChatMode;
+  timestamp: Date;
+  sessionId: string;
+}
+
+// Mode configuration for each chat mode
+interface ModeConfig {
+  id: ChatMode;
+  name: string;
+  description: string;
+  icon: string;
+  defaultSystemPrompt?: string;
+  suggestedModels?: string[];
+  features: string[];
+}
+
 interface SessionState {
-  // State
   sessions: Session[];
   activeSessionId: string | null;
+  modeHistory: ModeHistoryEntry[];
 
-  // Actions
   createSession: (input?: CreateSessionInput) => Session;
   deleteSession: (id: string) => void;
   updateSession: (id: string, updates: UpdateSessionInput) => void;
@@ -28,19 +45,21 @@ interface SessionState {
   togglePinSession: (id: string) => void;
   deleteAllSessions: () => void;
 
-  // Branching actions
+  switchMode: (sessionId: string, mode: ChatMode) => void;
+  getModeHistory: (sessionId?: string) => ModeHistoryEntry[];
+  getModeConfig: (mode: ChatMode) => ModeConfig;
+  getRecentModes: (limit?: number) => ChatMode[];
+
   createBranch: (sessionId: string, branchPointMessageId: string, name?: string) => ConversationBranch | null;
-  switchBranch: (sessionId: string, branchId: string | null) => void; // null for main branch
+  switchBranch: (sessionId: string, branchId: string | null) => void;
   deleteBranch: (sessionId: string, branchId: string) => void;
   renameBranch: (sessionId: string, branchId: string, name: string) => void;
   getBranches: (sessionId: string) => ConversationBranch[];
   getActiveBranchId: (sessionId: string) => string | undefined;
 
-  // Bulk operations
   clearAllSessions: () => void;
   importSessions: (sessions: Session[]) => void;
 
-  // Selectors
   getSession: (id: string) => Session | undefined;
   getActiveSession: () => Session | undefined;
 }
@@ -49,11 +68,47 @@ const DEFAULT_PROVIDER: ProviderName = 'openai';
 const DEFAULT_MODEL = 'gpt-4o';
 const DEFAULT_MODE: ChatMode = 'chat';
 
+const MODE_CONFIGS: Record<ChatMode, ModeConfig> = {
+  chat: {
+    id: 'chat',
+    name: 'Chat',
+    description: 'General conversation and Q&A',
+    icon: 'MessageSquare',
+    features: ['conversation', 'quick-answers', 'brainstorming'],
+  },
+  agent: {
+    id: 'agent',
+    name: 'Agent',
+    description: 'Autonomous task execution with tools',
+    icon: 'Bot',
+    defaultSystemPrompt: 'You are an autonomous agent capable of using tools to accomplish tasks.',
+    suggestedModels: ['gpt-4o', 'claude-3-5-sonnet'],
+    features: ['tool-use', 'planning', 'multi-step-tasks'],
+  },
+  research: {
+    id: 'research',
+    name: 'Research',
+    description: 'In-depth research and analysis',
+    icon: 'Search',
+    defaultSystemPrompt: 'You are a research assistant. Provide thorough, well-sourced answers.',
+    features: ['web-search', 'citations', 'deep-analysis'],
+  },
+  learning: {
+    id: 'learning',
+    name: 'Learning',
+    description: 'Interactive learning and tutoring',
+    icon: 'GraduationCap',
+    defaultSystemPrompt: 'You are a patient tutor. Explain concepts clearly and check understanding.',
+    features: ['explanations', 'quizzes', 'adaptive-learning'],
+  },
+};
+
 export const useSessionStore = create<SessionState>()(
   persist(
     (set, get) => ({
       sessions: [],
       activeSessionId: null,
+      modeHistory: [] as ModeHistoryEntry[],
 
       createSession: (input = {}) => {
         const session: Session = {
@@ -68,40 +123,23 @@ export const useSessionStore = create<SessionState>()(
           projectId: input.projectId,
           messageCount: 0,
         };
-
         set((state) => ({
           sessions: [session, ...state.sessions],
           activeSessionId: session.id,
         }));
-
         return session;
       },
 
       deleteSession: (id) =>
         set((state) => {
           const newSessions = state.sessions.filter((s) => s.id !== id);
-          const newActiveId =
-            state.activeSessionId === id
-              ? newSessions[0]?.id || null
-              : state.activeSessionId;
-
-          return {
-            sessions: newSessions,
-            activeSessionId: newActiveId,
-          };
+          const newActiveId = state.activeSessionId === id ? newSessions[0]?.id || null : state.activeSessionId;
+          return { sessions: newSessions, activeSessionId: newActiveId };
         }),
 
       updateSession: (id, updates) =>
         set((state) => ({
-          sessions: state.sessions.map((s) =>
-            s.id === id
-              ? {
-                  ...s,
-                  ...updates,
-                  updatedAt: new Date(),
-                }
-              : s
-          ),
+          sessions: state.sessions.map((s) => s.id === id ? { ...s, ...updates, updatedAt: new Date() } : s),
         })),
 
       setActiveSession: (id) => set({ activeSessionId: id }),
@@ -109,9 +147,7 @@ export const useSessionStore = create<SessionState>()(
       duplicateSession: (id) => {
         const { sessions } = get();
         const original = sessions.find((s) => s.id === id);
-
         if (!original) return null;
-
         const duplicate: Session = {
           ...original,
           id: nanoid(),
@@ -121,46 +157,55 @@ export const useSessionStore = create<SessionState>()(
           messageCount: 0,
           pinned: false,
         };
-
         set((state) => ({
           sessions: [duplicate, ...state.sessions],
           activeSessionId: duplicate.id,
         }));
-
         return duplicate;
       },
 
       togglePinSession: (id) =>
         set((state) => ({
-          sessions: state.sessions.map((s) =>
-            s.id === id
-              ? {
-                  ...s,
-                  pinned: !s.pinned,
-                  updatedAt: new Date(),
-                }
-              : s
-          ),
+          sessions: state.sessions.map((s) => s.id === id ? { ...s, pinned: !s.pinned, updatedAt: new Date() } : s),
         })),
 
-      deleteAllSessions: () =>
-        set({
-          sessions: [],
-          activeSessionId: null,
-        }),
+      deleteAllSessions: () => set({ sessions: [], activeSessionId: null }),
 
-      // Branching actions
+      switchMode: (sessionId: string, mode: ChatMode) => {
+        set((state) => {
+          const historyEntry: ModeHistoryEntry = { mode, timestamp: new Date(), sessionId };
+          return {
+            sessions: state.sessions.map((s) => s.id === sessionId ? { ...s, mode, updatedAt: new Date() } : s),
+            modeHistory: [...state.modeHistory.slice(-49), historyEntry],
+          };
+        });
+      },
+
+      getModeHistory: (sessionId?: string) => {
+        const { modeHistory } = get();
+        return sessionId ? modeHistory.filter((h) => h.sessionId === sessionId) : modeHistory;
+      },
+
+      getModeConfig: (mode: ChatMode) => MODE_CONFIGS[mode],
+
+      getRecentModes: (limit = 5) => {
+        const { modeHistory } = get();
+        const uniqueModes: ChatMode[] = [];
+        for (let i = modeHistory.length - 1; i >= 0 && uniqueModes.length < limit; i--) {
+          const mode = modeHistory[i].mode;
+          if (!uniqueModes.includes(mode)) uniqueModes.push(mode);
+        }
+        return uniqueModes;
+      },
+
       createBranch: (sessionId, branchPointMessageId, name) => {
         const { sessions } = get();
         const session = sessions.find((s) => s.id === sessionId);
         if (!session) return null;
-
         const existingBranches = session.branches || [];
-        const branchNumber = existingBranches.length + 1;
-
         const branch: ConversationBranch = {
           id: nanoid(),
-          name: name || `Branch ${branchNumber}`,
+          name: name || `Branch ${existingBranches.length + 1}`,
           parentBranchId: session.activeBranchId,
           branchPointMessageId,
           createdAt: new Date(),
@@ -168,38 +213,15 @@ export const useSessionStore = create<SessionState>()(
           messageCount: 0,
           isActive: true,
         };
-
         set((state) => ({
-          sessions: state.sessions.map((s) =>
-            s.id === sessionId
-              ? {
-                  ...s,
-                  branches: [...(s.branches || []), branch],
-                  activeBranchId: branch.id,
-                  updatedAt: new Date(),
-                }
-              : s
-          ),
+          sessions: state.sessions.map((s) => s.id === sessionId ? { ...s, branches: [...(s.branches || []), branch], activeBranchId: branch.id, updatedAt: new Date() } : s),
         }));
-
         return branch;
       },
 
       switchBranch: (sessionId, branchId) => {
         set((state) => ({
-          sessions: state.sessions.map((s) =>
-            s.id === sessionId
-              ? {
-                  ...s,
-                  activeBranchId: branchId || undefined,
-                  branches: s.branches?.map((b) => ({
-                    ...b,
-                    isActive: b.id === branchId,
-                  })),
-                  updatedAt: new Date(),
-                }
-              : s
-          ),
+          sessions: state.sessions.map((s) => s.id === sessionId ? { ...s, activeBranchId: branchId || undefined, branches: s.branches?.map((b) => ({ ...b, isActive: b.id === branchId })), updatedAt: new Date() } : s),
         }));
       },
 
@@ -207,68 +229,24 @@ export const useSessionStore = create<SessionState>()(
         set((state) => ({
           sessions: state.sessions.map((s) => {
             if (s.id !== sessionId) return s;
-
             const newBranches = (s.branches || []).filter((b) => b.id !== branchId);
-            const wasActive = s.activeBranchId === branchId;
-
-            return {
-              ...s,
-              branches: newBranches,
-              activeBranchId: wasActive ? undefined : s.activeBranchId,
-              updatedAt: new Date(),
-            };
+            return { ...s, branches: newBranches, activeBranchId: s.activeBranchId === branchId ? undefined : s.activeBranchId, updatedAt: new Date() };
           }),
         }));
       },
 
       renameBranch: (sessionId, branchId, name) => {
         set((state) => ({
-          sessions: state.sessions.map((s) =>
-            s.id === sessionId
-              ? {
-                  ...s,
-                  branches: s.branches?.map((b) =>
-                    b.id === branchId
-                      ? { ...b, name, updatedAt: new Date() }
-                      : b
-                  ),
-                  updatedAt: new Date(),
-                }
-              : s
-          ),
+          sessions: state.sessions.map((s) => s.id === sessionId ? { ...s, branches: s.branches?.map((b) => b.id === branchId ? { ...b, name, updatedAt: new Date() } : b), updatedAt: new Date() } : s),
         }));
       },
 
-      getBranches: (sessionId) => {
-        const session = get().sessions.find((s) => s.id === sessionId);
-        return session?.branches || [];
-      },
-
-      getActiveBranchId: (sessionId) => {
-        const session = get().sessions.find((s) => s.id === sessionId);
-        return session?.activeBranchId;
-      },
-
-      clearAllSessions: () =>
-        set({
-          sessions: [],
-          activeSessionId: null,
-        }),
-
-      importSessions: (sessions) =>
-        set((state) => ({
-          sessions: [...sessions, ...state.sessions],
-        })),
-
-      getSession: (id) => {
-        const { sessions } = get();
-        return sessions.find((s) => s.id === id);
-      },
-
-      getActiveSession: () => {
-        const { sessions, activeSessionId } = get();
-        return sessions.find((s) => s.id === activeSessionId);
-      },
+      getBranches: (sessionId) => get().sessions.find((s) => s.id === sessionId)?.branches || [],
+      getActiveBranchId: (sessionId) => get().sessions.find((s) => s.id === sessionId)?.activeBranchId,
+      clearAllSessions: () => set({ sessions: [], activeSessionId: null }),
+      importSessions: (sessions) => set((state) => ({ sessions: [...sessions, ...state.sessions] })),
+      getSession: (id) => get().sessions.find((s) => s.id === id),
+      getActiveSession: () => { const { sessions, activeSessionId } = get(); return sessions.find((s) => s.id === activeSessionId); },
     }),
     {
       name: 'cognia-sessions',
@@ -276,38 +254,27 @@ export const useSessionStore = create<SessionState>()(
       partialize: (state) => ({
         sessions: state.sessions.map((s) => ({
           ...s,
-          // Convert dates to ISO strings for storage
           createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : s.createdAt,
           updatedAt: s.updatedAt instanceof Date ? s.updatedAt.toISOString() : s.updatedAt,
-          // Handle branch dates
-          branches: s.branches?.map((b) => ({
-            ...b,
-            createdAt: b.createdAt instanceof Date ? b.createdAt.toISOString() : b.createdAt,
-            updatedAt: b.updatedAt instanceof Date ? b.updatedAt.toISOString() : b.updatedAt,
-          })),
+          branches: s.branches?.map((b) => ({ ...b, createdAt: b.createdAt instanceof Date ? b.createdAt.toISOString() : b.createdAt, updatedAt: b.updatedAt instanceof Date ? b.updatedAt.toISOString() : b.updatedAt })),
         })),
         activeSessionId: state.activeSessionId,
+        modeHistory: state.modeHistory.map((h) => ({ ...h, timestamp: h.timestamp instanceof Date ? h.timestamp.toISOString() : h.timestamp })),
       }),
       onRehydrateStorage: () => (state) => {
-        // Convert ISO strings back to Date objects
         if (state?.sessions) {
-          state.sessions = state.sessions.map((s) => ({
-            ...s,
-            createdAt: new Date(s.createdAt),
-            updatedAt: new Date(s.updatedAt),
-            // Handle branch dates
-            branches: s.branches?.map((b) => ({
-              ...b,
-              createdAt: new Date(b.createdAt),
-              updatedAt: new Date(b.updatedAt),
-            })),
-          }));
+          state.sessions = state.sessions.map((s) => ({ ...s, createdAt: new Date(s.createdAt), updatedAt: new Date(s.updatedAt), branches: s.branches?.map((b) => ({ ...b, createdAt: new Date(b.createdAt), updatedAt: new Date(b.updatedAt) })) }));
+        }
+        if (state?.modeHistory) {
+          state.modeHistory = state.modeHistory.map((h) => ({ ...h, timestamp: new Date(h.timestamp as unknown as string) }));
         }
       },
     }
   )
 );
 
-// Selectors
 export const selectSessions = (state: SessionState) => state.sessions;
 export const selectActiveSessionId = (state: SessionState) => state.activeSessionId;
+export const selectModeHistory = (state: SessionState) => state.modeHistory;
+export { MODE_CONFIGS };
+export type { ModeConfig, ModeHistoryEntry };

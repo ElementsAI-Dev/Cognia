@@ -11,6 +11,9 @@ import { ReactSandbox } from '@/components/designer';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { ButtonGroup } from '@/components/ui/button-group';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { CopyButton } from '@/components/ui/copy-button';
 import {
   DESIGNER_TEMPLATES,
   AI_SUGGESTIONS,
@@ -32,8 +35,6 @@ import {
   Undo2,
   Redo2,
   Download,
-  Copy,
-  Check,
   FileCode,
 } from 'lucide-react';
 import {
@@ -55,7 +56,6 @@ export default function DesignerPage() {
   const [aiPrompt, setAIPrompt] = useState('');
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [aiError, setAIError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [framework, setFramework] = useState<FrameworkType>('react');
   
   // History for undo/redo
@@ -113,13 +113,6 @@ export default function DesignerPage() {
       setCode(history[newIndex]);
     }
   }, [history, historyIndex]);
-
-  // Copy code handler
-  const handleCopyCode = useCallback(async () => {
-    await navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [code]);
 
   // Download code handler
   const handleDownload = useCallback(() => {
@@ -205,11 +198,11 @@ export default function DesignerPage() {
 
         <div className="flex items-center gap-2">
           {/* Undo/Redo */}
-          <div className="flex items-center border rounded-md">
+          <ButtonGroup>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 rounded-r-none"
+              className="h-8 w-8"
               onClick={handleUndo}
               disabled={historyIndex <= 0}
             >
@@ -218,33 +211,31 @@ export default function DesignerPage() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 rounded-l-none border-l"
+              className="h-8 w-8"
               onClick={handleRedo}
               disabled={historyIndex >= history.length - 1}
             >
               <Redo2 className="h-4 w-4" />
             </Button>
-          </div>
+          </ButtonGroup>
 
           {/* Copy/Download */}
-          <div className="flex items-center border rounded-md">
+          <ButtonGroup>
+            <CopyButton
+              content={code}
+              iconOnly
+              tooltip="Copy code"
+              className="h-8 w-8"
+            />
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 rounded-r-none"
-              onClick={handleCopyCode}
-            >
-              {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-l-none border-l"
+              className="h-8 w-8"
               onClick={handleDownload}
             >
               <Download className="h-4 w-4" />
             </Button>
-          </div>
+          </ButtonGroup>
 
           <Button variant="outline" size="sm" onClick={() => setShowTemplates(true)}>
             <Layers className="h-4 w-4 mr-2" />
@@ -295,10 +286,10 @@ export default function DesignerPage() {
                 ))}
               </div>
               {aiError && (
-                <div className="flex items-center gap-2 mt-2 text-destructive text-xs">
-                  <AlertCircle className="h-3.5 w-3.5" />
-                  <span>{aiError}</span>
-                </div>
+                <Alert variant="destructive" className="mt-2 py-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">{aiError}</AlertDescription>
+                </Alert>
               )}
             </div>
             <div className="flex gap-1">

@@ -31,41 +31,79 @@ const MONACO_CDN_PROVIDERS = [
   },
 ];
 
+// Storage key for caching successful CDN
+const MONACO_CDN_CACHE_KEY = 'cognia-monaco-cdn';
+
 // Track which CDN is currently configured
 let currentCDNIndex = 0;
 let monacoConfigured = false;
 
 /**
- * Configure Monaco loader with CDN fallback
+ * Get cached CDN index from localStorage
  */
-async function configureMonacoWithFallback(): Promise<boolean> {
-  if (typeof window === 'undefined') return false;
+function getCachedCDNIndex(): number {
+  if (typeof window === 'undefined') return 0;
+  try {
+    const cached = localStorage.getItem(MONACO_CDN_CACHE_KEY);
+    if (cached) {
+      const index = parseInt(cached, 10);
+      if (index >= 0 && index < MONACO_CDN_PROVIDERS.length) {
+        return index;
+      }
+    }
+  } catch {
+    // localStorage might be unavailable
+  }
+  return 0;
+}
+
+/**
+ * Cache successful CDN index in localStorage
+ */
+function cacheCDNIndex(index: number): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(MONACO_CDN_CACHE_KEY, index.toString());
+  } catch {
+    // localStorage might be unavailable
+  }
+}
+
+/**
+ * Configure Monaco loader with CDN fallback
+ * Returns the CDN index that was successfully configured, or -1 if all failed
+ */
+async function configureMonacoWithFallback(startIndex = 0): Promise<number> {
+  if (typeof window === 'undefined') return -1;
 
   // Try each CDN until one works
-  for (let i = currentCDNIndex; i < MONACO_CDN_PROVIDERS.length; i++) {
+  for (let i = startIndex; i < MONACO_CDN_PROVIDERS.length; i++) {
     const provider = MONACO_CDN_PROVIDERS[i];
 
     try {
       // Test if the CDN is accessible
       const testUrl = `${provider.url}/loader.js`;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
 
       const response = await fetch(testUrl, {
         method: 'HEAD',
         signal: controller.signal,
+        mode: 'no-cors', // Allow checking without CORS issues
       });
 
       clearTimeout(timeoutId);
 
-      if (response.ok) {
+      // For no-cors, response.ok might be false but type 'opaque' means success
+      if (response.ok || response.type === 'opaque') {
         loader.config({
           paths: { vs: provider.url },
         });
         currentCDNIndex = i;
         monacoConfigured = true;
+        cacheCDNIndex(i);
         console.log(`[Monaco] Using CDN: ${provider.name}`);
-        return true;
+        return i;
       }
     } catch (error) {
       console.warn(`[Monaco] CDN ${provider.name} failed:`, error);
@@ -73,14 +111,16 @@ async function configureMonacoWithFallback(): Promise<boolean> {
     }
   }
 
-  // All CDNs failed, use default
-  console.error('[Monaco] All CDNs failed, using default');
-  return false;
+  // All CDNs failed
+  console.error('[Monaco] All CDNs failed');
+  return -1;
 }
 
-// Initialize Monaco configuration on client side
+// Initialize Monaco configuration on client side with cached CDN
 if (typeof window !== 'undefined' && !monacoConfigured) {
-  configureMonacoWithFallback();
+  const cachedIndex = getCachedCDNIndex();
+  currentCDNIndex = cachedIndex;
+  configureMonacoWithFallback(cachedIndex);
 }
 
 interface MonacoSandpackEditorProps {
@@ -193,8 +233,8 @@ export function MonacoSandpackEditor({ readOnly = false }: MonacoSandpackEditorP
     setError(null);
     setIsLoading(true);
     currentCDNIndex++;
-    const success = await configureMonacoWithFallback();
-    if (!success) {
+    const result = await configureMonacoWithFallback(currentCDNIndex);
+    if (result === -1) {
       setError('Failed to load editor from all CDN providers');
     }
   }, []);

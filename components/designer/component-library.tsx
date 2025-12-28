@@ -3,11 +3,13 @@
 /**
  * ComponentLibrary - Panel for quick-inserting UI components
  * Provides a library of common components that can be inserted into code
+ * Uses @dnd-kit for drag-drop functionality
  */
 
 import { useCallback, useState } from 'react';
 import { useActiveCode } from '@codesandbox/sandpack-react';
-import { useDesignerDragDrop, type DragData } from '@/hooks';
+import { DraggableComponent, useDesignerDnd } from './dnd';
+import { nanoid } from 'nanoid';
 import {
   Box,
   Type,
@@ -26,7 +28,6 @@ import {
   Check,
   AlertCircle,
   Info,
-  Copy,
   GripVertical,
   Zap,
   Quote,
@@ -39,7 +40,12 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Input } from '@/components/ui/input';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group';
+import { CopyButton } from '@/components/ui/copy-button';
 import {
   Collapsible,
   CollapsibleContent,
@@ -1111,10 +1117,9 @@ export function ComponentLibrary({ className }: ComponentLibraryProps) {
   const { code, updateCode } = useActiveCode();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<string[]>(['layout', 'buttons']);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Drag-drop support
-  const { isDragging, createDragHandlers } = useDesignerDragDrop();
+  // Get drag state from @dnd-kit context
+  const { isDragging } = useDesignerDnd();
 
   // Filter components by search
   const filteredLibrary = COMPONENT_LIBRARY.map(category => ({
@@ -1133,13 +1138,6 @@ export function ComponentLibrary({ className }: ComponentLibraryProps) {
     updateCode(newCode);
   }, [code, updateCode]);
 
-  // Copy component code to clipboard
-  const handleCopyCode = useCallback(async (component: ComponentItem) => {
-    await navigator.clipboard.writeText(component.code);
-    setCopiedId(component.id);
-    setTimeout(() => setCopiedId(null), 2000);
-  }, []);
-
   // Toggle category expansion
   const toggleCategory = useCallback((categoryId: string) => {
     setExpandedCategories(prev =>
@@ -1153,15 +1151,17 @@ export function ComponentLibrary({ className }: ComponentLibraryProps) {
     <div className={cn('flex flex-col h-full', className)}>
       {/* Header */}
       <div className="shrink-0 p-2 border-b">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+        <InputGroup className="h-8">
+          <InputGroupAddon align="inline-start">
+            <Search className="h-4 w-4" />
+          </InputGroupAddon>
+          <InputGroupInput
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search components..."
-            className="pl-8 h-8 text-sm"
+            className="text-sm"
           />
-        </div>
+        </InputGroup>
       </div>
 
       {/* Component list */}
@@ -1194,26 +1194,21 @@ export function ComponentLibrary({ className }: ComponentLibraryProps) {
               <CollapsibleContent>
                 <div className="ml-6 space-y-0.5 py-1">
                   <TooltipProvider>
-                    {category.components.map((component) => {
-                      // Create drag data for this component
-                      const dragData: DragData = {
-                        type: 'component',
-                        componentCode: component.code,
-                        componentName: component.name,
-                      };
-                      const dragHandlers = createDragHandlers(dragData);
-
-                      return (
+                    {category.components.map((component) => (
+                      <DraggableComponent
+                        key={component.id}
+                        id={`lib-${component.id}-${nanoid(6)}`}
+                        componentCode={component.code}
+                        componentName={component.name}
+                      >
                         <div
-                          key={component.id}
                           className={cn(
                             'flex items-center gap-1 group rounded-md transition-colors',
                             isDragging && 'opacity-50'
                           )}
-                          {...dragHandlers}
                         >
                           {/* Drag handle */}
-                          <div className="opacity-0 group-hover:opacity-50 cursor-grab active:cursor-grabbing px-0.5">
+                          <div className="opacity-50 cursor-grab active:cursor-grabbing px-0.5">
                             <GripVertical className="h-3 w-3 text-muted-foreground" />
                           </div>
                           <Tooltip>
@@ -1240,24 +1235,19 @@ export function ComponentLibrary({ className }: ComponentLibraryProps) {
                           </Tooltip>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={() => handleCopyCode(component)}
-                              >
-                                {copiedId === component.id ? (
-                                  <Check className="h-3 w-3 text-green-500" />
-                                ) : (
-                                  <Copy className="h-3 w-3" />
-                                )}
-                              </Button>
+                              <div onClick={(e) => e.stopPropagation()}>
+                                <CopyButton
+                                  content={component.code}
+                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  iconOnly
+                                />
+                              </div>
                             </TooltipTrigger>
                             <TooltipContent>Copy code</TooltipContent>
                           </Tooltip>
                         </div>
-                      );
-                    })}
+                      </DraggableComponent>
+                    ))}
                   </TooltipProvider>
                 </div>
               </CollapsibleContent>

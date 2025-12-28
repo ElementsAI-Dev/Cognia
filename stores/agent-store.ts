@@ -1,11 +1,13 @@
 /**
- * Agent Store - manages agent execution state and planning
+ * Agent Store - manages agent execution state, planning, and sub-agents
  */
 
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
 import type { ToolExecution, ToolStatus } from '@/types/tool';
 import type { AgentPlan, PlanStep, PlanStepStatus, CreatePlanInput, UpdatePlanInput } from '@/types/agent';
+import type { SubAgent, CreateSubAgentInput, UpdateSubAgentInput } from '@/types/sub-agent';
+import { DEFAULT_SUB_AGENT_CONFIG } from '@/types/sub-agent';
 
 interface AgentState {
   // Agent running state
@@ -20,6 +22,10 @@ interface AgentState {
   // Plan management
   plans: Record<string, AgentPlan>;
   activePlanId: string | null;
+
+  // Sub-agent management
+  subAgents: Record<string, SubAgent>;
+  activeSubAgentIds: string[];
 
   // Actions
   startAgent: (maxSteps?: number) => void;
@@ -58,6 +64,18 @@ interface AgentState {
   completePlanExecution: (planId: string) => void;
   cancelPlanExecution: (planId: string) => void;
 
+  // Sub-agent management
+  createSubAgent: (input: CreateSubAgentInput) => SubAgent;
+  updateSubAgent: (id: string, updates: UpdateSubAgentInput) => void;
+  deleteSubAgent: (id: string) => void;
+  startSubAgent: (id: string) => void;
+  completeSubAgent: (id: string, result: SubAgent['result']) => void;
+  failSubAgent: (id: string, error: string) => void;
+  cancelSubAgent: (id: string) => void;
+  getSubAgent: (id: string) => SubAgent | undefined;
+  getSubAgentsByParent: (parentAgentId: string) => SubAgent[];
+  updateSubAgentProgress: (id: string, progress: number) => void;
+
   // Reset
   reset: () => void;
 }
@@ -70,6 +88,8 @@ const initialState = {
   currentToolId: null as string | null,
   plans: {} as Record<string, AgentPlan>,
   activePlanId: null as string | null,
+  subAgents: {} as Record<string, SubAgent>,
+  activeSubAgentIds: [] as string[],
 };
 
 export const useAgentStore = create<AgentState>((set, get) => ({
@@ -517,6 +537,175 @@ export const useAgentStore = create<AgentState>((set, get) => ({
           },
         },
         isAgentRunning: false,
+      };
+    });
+  },
+
+  // Sub-agent management implementations
+  createSubAgent: (input: CreateSubAgentInput) => {
+    const id = nanoid();
+    const subAgent: SubAgent = {
+      id,
+      parentAgentId: input.parentAgentId,
+      name: input.name,
+      description: input.description || '',
+      task: input.task,
+      status: 'pending',
+      config: { ...DEFAULT_SUB_AGENT_CONFIG, ...input.config },
+      logs: [],
+      progress: 0,
+      createdAt: new Date(),
+      retryCount: 0,
+      order: input.order ?? 0,
+      tags: input.tags,
+    };
+
+    set((state) => ({
+      subAgents: {
+        ...state.subAgents,
+        [id]: subAgent,
+      },
+    }));
+
+    return subAgent;
+  },
+
+  updateSubAgent: (id: string, updates: UpdateSubAgentInput) => {
+    set((state) => {
+      const subAgent = state.subAgents[id];
+      if (!subAgent) return state;
+
+      return {
+        subAgents: {
+          ...state.subAgents,
+          [id]: {
+            ...subAgent,
+            ...updates,
+          },
+        },
+      };
+    });
+  },
+
+  deleteSubAgent: (id: string) => {
+    set((state) => {
+      const { [id]: _deleted, ...remaining } = state.subAgents;
+      return {
+        subAgents: remaining,
+        activeSubAgentIds: state.activeSubAgentIds.filter((aid) => aid !== id),
+      };
+    });
+  },
+
+  startSubAgent: (id: string) => {
+    set((state) => {
+      const subAgent = state.subAgents[id];
+      if (!subAgent) return state;
+
+      return {
+        subAgents: {
+          ...state.subAgents,
+          [id]: {
+            ...subAgent,
+            status: 'running',
+            startedAt: new Date(),
+            context: {
+              parentAgentId: subAgent.parentAgentId,
+              sessionId: '', // Will be set by executor
+              startTime: new Date(),
+              currentStep: 0,
+            },
+          },
+        },
+        activeSubAgentIds: [...state.activeSubAgentIds, id],
+      };
+    });
+  },
+
+  completeSubAgent: (id: string, result: SubAgent['result']) => {
+    set((state) => {
+      const subAgent = state.subAgents[id];
+      if (!subAgent) return state;
+
+      return {
+        subAgents: {
+          ...state.subAgents,
+          [id]: {
+            ...subAgent,
+            status: 'completed',
+            completedAt: new Date(),
+            result,
+            progress: 100,
+          },
+        },
+        activeSubAgentIds: state.activeSubAgentIds.filter((aid) => aid !== id),
+      };
+    });
+  },
+
+  failSubAgent: (id: string, error: string) => {
+    set((state) => {
+      const subAgent = state.subAgents[id];
+      if (!subAgent) return state;
+
+      return {
+        subAgents: {
+          ...state.subAgents,
+          [id]: {
+            ...subAgent,
+            status: 'failed',
+            completedAt: new Date(),
+            error,
+          },
+        },
+        activeSubAgentIds: state.activeSubAgentIds.filter((aid) => aid !== id),
+      };
+    });
+  },
+
+  cancelSubAgent: (id: string) => {
+    set((state) => {
+      const subAgent = state.subAgents[id];
+      if (!subAgent) return state;
+
+      return {
+        subAgents: {
+          ...state.subAgents,
+          [id]: {
+            ...subAgent,
+            status: 'cancelled',
+            completedAt: new Date(),
+          },
+        },
+        activeSubAgentIds: state.activeSubAgentIds.filter((aid) => aid !== id),
+      };
+    });
+  },
+
+  getSubAgent: (id: string) => {
+    return get().subAgents[id];
+  },
+
+  getSubAgentsByParent: (parentAgentId: string) => {
+    const { subAgents } = get();
+    return Object.values(subAgents)
+      .filter((sa) => sa.parentAgentId === parentAgentId)
+      .sort((a, b) => a.order - b.order);
+  },
+
+  updateSubAgentProgress: (id: string, progress: number) => {
+    set((state) => {
+      const subAgent = state.subAgents[id];
+      if (!subAgent) return state;
+
+      return {
+        subAgents: {
+          ...state.subAgents,
+          [id]: {
+            ...subAgent,
+            progress: Math.min(100, Math.max(0, progress)),
+          },
+        },
       };
     });
   },

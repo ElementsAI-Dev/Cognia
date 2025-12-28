@@ -136,6 +136,7 @@ function ContentItemDisplay({ item }: ContentItemDisplayProps) {
   if (item.type === 'image') {
     return (
       <div className="my-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={`data:${item.mimeType};base64,${item.data}`}
           alt="Tool result"

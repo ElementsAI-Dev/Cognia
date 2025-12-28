@@ -26,6 +26,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { useWorkflow } from '@/hooks/use-workflow';
 import { useWorkflowStore } from '@/stores/workflow-store';
@@ -278,10 +279,10 @@ export function WorkflowSelector({
 
             {/* Error display */}
             {error && (
-              <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg p-3">
+              <Alert variant="destructive">
                 <XCircle className="h-4 w-4" />
-                <span>{error}</span>
-              </div>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
 
             {/* Logs */}

@@ -24,6 +24,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
@@ -288,15 +294,16 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
       )}
 
       {project.knowledgeBase.length > 0 && (
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+        <InputGroup>
+          <InputGroupAddon align="inline-start">
+            <Search className="h-4 w-4" />
+          </InputGroupAddon>
+          <InputGroupInput
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t('searchPlaceholder')}
-            className="pl-10"
           />
-        </div>
+        </InputGroup>
       )}
 
       {filteredFiles.length > 0 ? (
@@ -359,15 +366,11 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
           })}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-8 text-center">
-          <FileText className="h-10 w-10 text-muted-foreground/50" />
-          <p className="mt-2 font-medium">
-            {searchQuery ? t('noResults') : t('noFiles')}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {searchQuery ? t('tryDifferent') : t('uploadHint')}
-          </p>
-        </div>
+        <EmptyState
+          icon={FileText}
+          title={searchQuery ? t('noResults') : t('noFiles')}
+          description={searchQuery ? t('tryDifferent') : t('uploadHint')}
+        />
       )}
 
       {/* Add File Dialog */}

@@ -6,7 +6,8 @@
  * Includes preset selector for quick configuration changes
  */
 
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { 
   ChevronDown, 
@@ -53,11 +54,12 @@ import {
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { useSessionStore, usePresetStore, useArtifactStore, useChatStore, useProjectStore } from '@/stores';
+import { MODE_CONFIGS } from '@/stores/session-store';
 import { toast } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { ExportDialog } from './export-dialog';
-import { AnimatedExportDialog, DocumentExportDialog } from '@/components/export';
+import { BeautifulExportDialog } from '@/components/export';
 import { 
   OpenIn, 
   OpenInTrigger, 
@@ -95,6 +97,13 @@ const modeIcons: Record<ChatMode, React.ReactNode> = {
   learning: <GraduationCap className="h-4 w-4" />,
 };
 
+const modeColors: Record<ChatMode, string> = {
+  chat: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+  agent: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+  research: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
+  learning: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20',
+};
+
 
 export function ChatHeader({ sessionId }: ChatHeaderProps) {
   const t = useTranslations('chatHeader');
@@ -128,15 +137,31 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
   const { messages } = useMessages({ sessionId: session?.id || null });
 
   const currentMode = session?.mode || 'chat';
+  const [modeTransitioning, setModeTransitioning] = useState(false);
 
   // Agent sub-mode (for agent mode only)
   const agentModeId = session?.agentModeId || 'general';
 
-  const handleModeChange = (mode: ChatMode) => {
-    if (session) {
+  // Get mode config from SessionStore
+  const switchMode = useSessionStore((state) => state.switchMode);
+  const getModeConfig = useSessionStore((state) => state.getModeConfig);
+  const getRecentModes = useSessionStore((state) => state.getRecentModes);
+
+  // Get current mode configuration
+  const _currentModeConfig = useMemo(() => getModeConfig(currentMode), [getModeConfig, currentMode]);
+  const recentModes = useMemo(() => getRecentModes(3), [getRecentModes]);
+
+  const handleModeChange = useCallback((mode: ChatMode) => {
+    if (session && mode !== currentMode) {
+      setModeTransitioning(true);
+      // Use the enhanced switchMode from SessionStore
+      switchMode(session.id, mode);
+      // Also update session for backward compatibility
       updateSession(session.id, { mode });
+      // Reset transition state after animation
+      setTimeout(() => setModeTransitioning(false), 300);
     }
-  };
+  }, [session, currentMode, switchMode, updateSession]);
 
   // Handle agent sub-mode change (within agent mode)
   const handleAgentModeChange = (agentMode: AgentModeConfig) => {
@@ -202,28 +227,94 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
 
-          {/* Mode selector */}
+          {/* Enhanced Mode selector with animations */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-2 hover:bg-accent/80 transition-colors">
-                {modeIcons[currentMode]}
-                <span className="hidden sm:inline">{t(`mode.${currentMode}`)}</span>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className={cn(
+                  'gap-2 transition-all duration-300 border',
+                  modeColors[currentMode],
+                  modeTransitioning && 'scale-95 opacity-70'
+                )}
+              >
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentMode}
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    exit={{ scale: 0, rotate: 180 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex items-center"
+                  >
+                    {modeIcons[currentMode]}
+                  </motion.div>
+                </AnimatePresence>
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={currentMode}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.15 }}
+                    className="hidden sm:inline font-medium"
+                  >
+                    {t(`mode.${currentMode}`)}
+                  </motion.span>
+                </AnimatePresence>
                 <ChevronDown className="h-3 w-3 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuLabel>{t('chatMode')}</DropdownMenuLabel>
+            <DropdownMenuContent align="start" className="w-64">
+              <DropdownMenuLabel className="flex items-center justify-between">
+                <span>{t('chatMode')}</span>
+                {recentModes.length > 0 && (
+                  <span className="text-[10px] text-muted-foreground font-normal">Recent</span>
+                )}
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {(['chat', 'agent', 'research', 'learning'] as ChatMode[]).map((mode) => (
-                <DropdownMenuItem
-                  key={mode}
-                  onClick={() => handleModeChange(mode)}
-                  className={cn(currentMode === mode && 'bg-accent')}
-                >
-                  {modeIcons[mode]}
-                  <span className="ml-2">{t(`mode.${mode}`)}</span>
-                </DropdownMenuItem>
-              ))}
+              {(['chat', 'agent', 'research', 'learning'] as ChatMode[]).map((mode) => {
+                const config = MODE_CONFIGS[mode];
+                const isRecent = recentModes.includes(mode);
+                return (
+                  <DropdownMenuItem
+                    key={mode}
+                    onClick={() => handleModeChange(mode)}
+                    className={cn(
+                      'flex items-start gap-3 py-2',
+                      currentMode === mode && 'bg-accent'
+                    )}
+                  >
+                    <div className={cn(
+                      'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                      modeColors[mode]
+                    )}>
+                      {modeIcons[mode]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{t(`mode.${mode}`)}</span>
+                        {isRecent && currentMode !== mode && (
+                          <Badge variant="outline" className="text-[9px] h-4 px-1">
+                            Recent
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {config.description}
+                      </p>
+                    </div>
+                    {currentMode === mode && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="h-2 w-2 rounded-full bg-primary shrink-0 mt-3"
+                      />
+                    )}
+                  </DropdownMenuItem>
+                );
+              })}
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -416,7 +507,7 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
                   {t('selectCopy')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <ExportDialog
+                <BeautifulExportDialog
                   session={session}
                   trigger={
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
@@ -425,21 +516,12 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
                     </DropdownMenuItem>
                   }
                 />
-                <AnimatedExportDialog
+                <ExportDialog
                   session={session}
                   trigger={
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                       <Download className="mr-2 h-4 w-4" />
-                      {t('exportAnimated') || 'Export Animated'}
-                    </DropdownMenuItem>
-                  }
-                />
-                <DocumentExportDialog
-                  session={session}
-                  trigger={
-                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                      <Download className="mr-2 h-4 w-4" />
-                      {t('exportDocument') || 'Export Document'}
+                      {t('exportBasic') || 'Basic Export'}
                     </DropdownMenuItem>
                   }
                 />

@@ -59,7 +59,7 @@ export function useMention(options: UseMentionOptions = {}): UseMentionReturn {
   // MCP store
   const servers = useMcpStore((state) => state.servers);
   const isInitialized = useMcpStore((state) => state.isInitialized);
-  const initialize = useMcpStore((state) => state.initialize);
+  const _initialize = useMcpStore((state) => state.initialize);
   
   // Local state
   const [mentionState, setMentionState] = useState<MentionState>({

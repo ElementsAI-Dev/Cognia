@@ -9,16 +9,20 @@ import type {
   Artifact,
   ArtifactType,
   ArtifactLanguage,
+  ArtifactVersion,
   CanvasDocument,
   CanvasDocumentVersion,
   CanvasSuggestion,
   AnalysisResult,
+  ArtifactDetectionConfig,
+  DetectedArtifact,
 } from '@/types';
 
 interface ArtifactState {
   // Artifacts
   artifacts: Record<string, Artifact>;
   activeArtifactId: string | null;
+  artifactVersions: Record<string, ArtifactVersion[]>;
 
   // Canvas
   canvasDocuments: Record<string, CanvasDocument>;
@@ -48,6 +52,19 @@ interface ArtifactActions {
   getArtifact: (id: string) => Artifact | undefined;
   getSessionArtifacts: (sessionId: string) => Artifact[];
   setActiveArtifact: (id: string | null) => void;
+
+  // Auto-detection and creation
+  autoCreateFromContent: (params: {
+    sessionId: string;
+    messageId: string;
+    content: string;
+    config?: Partial<ArtifactDetectionConfig>;
+  }) => Promise<Artifact[]>;
+
+  // Artifact version history
+  saveArtifactVersion: (id: string, description?: string) => ArtifactVersion | null;
+  restoreArtifactVersion: (id: string, versionId: string) => void;
+  getArtifactVersions: (id: string) => ArtifactVersion[];
 
   // Canvas actions
   createCanvasDocument: (params: {
@@ -96,6 +113,7 @@ interface ArtifactActions {
 const initialState: ArtifactState = {
   artifacts: {},
   activeArtifactId: null,
+  artifactVersions: {},
   canvasDocuments: {},
   activeCanvasId: null,
   canvasOpen: false,
@@ -175,6 +193,117 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
         if (id) {
           set({ panelOpen: true, panelView: 'artifact' });
         }
+      },
+
+      // Auto-detection and creation
+      autoCreateFromContent: async ({ sessionId, messageId, content, config }) => {
+        // Import detection logic dynamically to avoid circular deps
+        const { detectArtifacts, DEFAULT_DETECTION_CONFIG } = await import('@/lib/ai/artifact-detector');
+        const finalConfig = { ...DEFAULT_DETECTION_CONFIG, ...config };
+        const detected: DetectedArtifact[] = detectArtifacts(content, finalConfig);
+
+        const createdArtifacts: Artifact[] = [];
+
+        for (const item of detected) {
+          const artifact: Artifact = {
+            id: nanoid(),
+            sessionId,
+            messageId,
+            type: item.type,
+            title: item.title,
+            content: item.content,
+            language: item.language,
+            version: 1,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+
+          set((state) => ({
+            artifacts: { ...state.artifacts, [artifact.id]: artifact },
+          }));
+
+          createdArtifacts.push(artifact);
+        }
+
+        // Set the first artifact as active and open panel
+        if (createdArtifacts.length > 0) {
+          set({
+            activeArtifactId: createdArtifacts[0].id,
+            panelOpen: true,
+            panelView: 'artifact',
+          });
+        }
+
+        return createdArtifacts;
+      },
+
+      // Artifact version history
+      saveArtifactVersion: (id, description) => {
+        const state = get();
+        const artifact = state.artifacts[id];
+        if (!artifact) return null;
+
+        const version: ArtifactVersion = {
+          id: nanoid(),
+          artifactId: id,
+          content: artifact.content,
+          version: artifact.version,
+          createdAt: new Date(),
+          changeDescription: description,
+        };
+
+        set((state) => ({
+          artifactVersions: {
+            ...state.artifactVersions,
+            [id]: [...(state.artifactVersions[id] || []), version],
+          },
+        }));
+
+        return version;
+      },
+
+      restoreArtifactVersion: (id, versionId) => {
+        const state = get();
+        const versions = state.artifactVersions[id];
+        if (!versions) return;
+
+        const version = versions.find((v) => v.id === versionId);
+        if (!version) return;
+
+        const artifact = state.artifacts[id];
+        if (!artifact) return;
+
+        // Save current state as a new version before restoring
+        const currentVersion: ArtifactVersion = {
+          id: nanoid(),
+          artifactId: id,
+          content: artifact.content,
+          version: artifact.version,
+          createdAt: new Date(),
+          changeDescription: 'Auto-saved before restore',
+        };
+
+        set((state) => ({
+          artifacts: {
+            ...state.artifacts,
+            [id]: {
+              ...artifact,
+              content: version.content,
+              version: artifact.version + 1,
+              updatedAt: new Date(),
+            },
+          },
+          artifactVersions: {
+            ...state.artifactVersions,
+            [id]: [...(state.artifactVersions[id] || []), currentVersion],
+          },
+        }));
+      },
+
+      getArtifactVersions: (id) => {
+        const versions = get().artifactVersions[id];
+        if (!versions) return [];
+        return [...versions].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       },
 
       // Canvas actions
@@ -458,6 +587,12 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
               ([, a]) => a.sessionId !== sessionId
             )
           );
+          // Filter artifact versions - keep only versions for artifacts that still exist
+          const artifactVersions = Object.fromEntries(
+            Object.entries(state.artifactVersions).filter(
+              ([id]) => artifacts[id]
+            )
+          );
           const canvasDocuments = Object.fromEntries(
             Object.entries(state.canvasDocuments).filter(
               ([, d]) => d.sessionId !== sessionId
@@ -471,6 +606,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
 
           return {
             artifacts,
+            artifactVersions,
             canvasDocuments,
             analysisResults,
             activeArtifactId:
@@ -491,6 +627,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
       name: 'cognia-artifacts',
       partialize: (state) => ({
         artifacts: state.artifacts,
+        artifactVersions: state.artifactVersions,
         canvasDocuments: state.canvasDocuments,
         analysisResults: state.analysisResults,
       }),

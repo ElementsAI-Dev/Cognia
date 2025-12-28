@@ -20,7 +20,6 @@ import {
   Zap,
   Play,
   RotateCcw,
-  Plus,
   StopCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -214,14 +213,14 @@ export function AgentFlowVisualizer({
   // Use sub-agent hook for managing sub-agents
   const {
     subAgents: managedSubAgents,
-    activeSubAgents,
+    activeSubAgents: _activeSubAgents,
     isExecuting,
     progress: subAgentProgress,
     executeOne,
     executeAll,
     cancelAll,
     clearCompleted,
-    createSubAgent,
+    createSubAgent: _createSubAgent,
   } = useSubAgent({ parentAgentId: agent.id });
 
   // Use managed sub-agents if available, otherwise fall back to agent.subAgents
@@ -236,7 +235,7 @@ export function AgentFlowVisualizer({
     }
   }, [executeAll, executionMode]);
 
-  const handleExecuteOne = useCallback(async (subAgentId: string) => {
+  const _handleExecuteOne = useCallback(async (subAgentId: string) => {
     try {
       await executeOne(subAgentId);
     } catch (error) {

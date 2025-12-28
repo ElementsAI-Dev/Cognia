@@ -35,7 +35,7 @@ import {
   createCompressionHistoryEntry,
   getEffectiveCompressionSettings,
 } from './compression';
-import { countTokens, calculateTokenBreakdown } from '@/hooks/use-token-count';
+import { calculateTokenBreakdown } from '@/hooks/use-token-count';
 
 // Helper function to create mock messages
 function createMockMessage(
@@ -1333,7 +1333,7 @@ describe('compression utilities', () => {
         };
 
         // Exactly 5 messages
-        const exactMessages: UIMessage[] = Array.from({ length: 5 }, (_, i) =>
+        const _exactMessages: UIMessage[] = Array.from({ length: 5 }, (_, i) =>
           createMockMessage(`${i + 1}`, i % 2 === 0 ? 'user' : 'assistant', `Message ${i + 1}`)
         );
 

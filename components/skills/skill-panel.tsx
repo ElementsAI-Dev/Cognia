@@ -32,8 +32,14 @@ import {
   Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupButton,
+} from '@/components/ui/input-group';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -414,25 +420,27 @@ export function SkillPanel({
         <div className="flex flex-col gap-3 p-4 border-b bg-muted/30">
           {/* Search and View Toggle */}
           <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
+            <InputGroup className="flex-1">
+              <InputGroupAddon align="inline-start">
+                <Search className="h-4 w-4" />
+              </InputGroupAddon>
+              <InputGroupInput
                 placeholder={t('searchSkills')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
               />
               {searchQuery && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
-                  onClick={() => setSearchQuery('')}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    size="icon-xs"
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Clear search"
+                  >
+                    <X className="h-3 w-3" />
+                  </InputGroupButton>
+                </InputGroupAddon>
               )}
-            </div>
+            </InputGroup>
             
             <div className="flex items-center border rounded-md">
               <Button
@@ -590,25 +598,20 @@ export function SkillPanel({
         <ScrollArea className="flex-1">
           <div className="p-4">
             {filteredSkills.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Sparkles className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                <h3 className="font-medium text-lg mb-1">{t('noSkillsFound')}</h3>
-                <p className="text-muted-foreground text-sm max-w-md">
-                  {hasActiveFilters
-                    ? t('noSkillsMatchFilters')
-                    : t('noSkillsYet')}
-                </p>
-                {hasActiveFilters ? (
-                  <Button variant="outline" className="mt-4" onClick={clearFilters}>
-                    {t('clearFilters')}
-                  </Button>
-                ) : (
-                  <Button className="mt-4" onClick={handleCreateNew}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    {t('createFirstSkill')}
-                  </Button>
-                )}
-              </div>
+              <EmptyState
+                icon={Sparkles}
+                title={t('noSkillsFound')}
+                description={hasActiveFilters ? t('noSkillsMatchFilters') : t('noSkillsYet')}
+                actions={hasActiveFilters ? [{
+                  label: t('clearFilters'),
+                  onClick: clearFilters,
+                  variant: 'outline',
+                }] : [{
+                  label: t('createFirstSkill'),
+                  onClick: handleCreateNew,
+                  icon: Plus,
+                }]}
+              />
             ) : viewMode === 'grid' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredSkills.map((skill) => (

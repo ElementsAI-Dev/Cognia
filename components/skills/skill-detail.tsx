@@ -11,7 +11,6 @@ import {
   Sparkles,
   Trash2,
   Download,
-  Copy,
   Play,
   Clock,
   Tag,
@@ -31,6 +30,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { CopyButton } from '@/components/ui/copy-button';
 import {
   Card,
   CardContent,
@@ -140,11 +140,6 @@ export function SkillDetail({ skillId, onClose, onEdit: _onEdit }: SkillDetailPr
     } else {
       downloadSkillAsPackage(skill);
     }
-  }, [skill]);
-
-  const handleCopy = useCallback(() => {
-    if (!skill) return;
-    navigator.clipboard.writeText(skill.rawContent);
   }, [skill]);
 
   const handleSaveEdit = useCallback((rawContent: string) => {
@@ -386,10 +381,11 @@ Status: ${skill.status}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Skill Content</CardTitle>
-                <Button variant="outline" size="sm" onClick={handleCopy}>
-                  <Copy className="h-4 w-4 mr-1" />
-                  Copy
-                </Button>
+                <CopyButton
+                  content={skill.rawContent}
+                  className="h-8"
+                  variant="outline"
+                />
               </CardHeader>
               <CardContent>
                 <SkillMarkdownPreview content={skill.content} />

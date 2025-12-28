@@ -22,7 +22,6 @@ import { getNextApiKey } from './api-key-rotation';
 import {
   filterMessagesForContext,
   mergeCompressionSettings,
-  calculateContextState,
 } from './compression';
 import type { UIMessage } from '@/types/message';
 

@@ -9,7 +9,12 @@ import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { WorkflowEditorPanel } from '@/components/workflow-editor';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -279,14 +284,17 @@ export default function WorkflowsPage() {
 
       {/* Search */}
       <div className="p-4 border-b">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t('searchNodes')}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+        <div className="max-w-md">
+          <InputGroup>
+            <InputGroupAddon align="inline-start">
+              <Search className="h-4 w-4" />
+            </InputGroupAddon>
+            <InputGroupInput
+              placeholder={t('searchNodes')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </InputGroup>
         </div>
       </div>
 
@@ -298,15 +306,18 @@ export default function WorkflowsPage() {
               {tCommon('loading')}
             </div>
           ) : filteredWorkflows.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
-              <Workflow className="h-12 w-12 mb-4 opacity-50" />
-              <p className="text-lg font-medium">No workflows yet</p>
-              <p className="text-sm">Create your first workflow to get started</p>
-              <Button className="mt-4" onClick={handleCreateNew}>
-                <Plus className="h-4 w-4 mr-1" />
-                Create Workflow
-              </Button>
-            </div>
+            <EmptyState
+              icon={Workflow}
+              title="No workflows yet"
+              description="Create your first workflow to get started"
+              actions={[
+                {
+                  label: 'Create Workflow',
+                  onClick: handleCreateNew,
+                  icon: Plus,
+                },
+              ]}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredWorkflows.map((workflow) => (

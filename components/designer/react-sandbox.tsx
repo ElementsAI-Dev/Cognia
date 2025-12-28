@@ -5,7 +5,7 @@
  * Uses Sandpack for browser-based code execution
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, startTransition, useTransition } from 'react';
 import {
   SandpackProvider,
   SandpackLayout,
@@ -72,6 +72,10 @@ import {
   detectPackagesFromCode,
   PACKAGE_PRESETS,
   type PackagePreset,
+  openInCodeSandbox,
+  openInStackBlitz,
+  downloadAsZip,
+  normalizeSandpackFiles,
 } from '@/lib/designer';
 import {
   ResizableHandle,
@@ -823,169 +827,36 @@ function SandboxToolbar({
   }, [code]);
 
   const handleOpenInCodeSandbox = useCallback(() => {
-    // Create CodeSandbox URL
-    const parameters = {
-      files: {
-        'App.js': { content: code },
-        'index.js': {
-          content: `import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);`,
-        },
-        'package.json': {
-          content: JSON.stringify({
-            dependencies: {
-              react: '^18.0.0',
-              'react-dom': '^18.0.0',
-              ...COMMON_DEPENDENCIES,
-            },
-          }),
-        },
-      },
-    };
-
-    const encoded = btoa(JSON.stringify(parameters));
-    window.open(`https://codesandbox.io/api/v1/sandboxes/define?parameters=${encoded}`, '_blank');
-  }, [code]);
-
-  // Download as project ZIP file
-  const handleDownloadProject = useCallback(async () => {
-    // Create a simple project structure
-    const files = sandpack.files;
-    const projectFiles: Record<string, string> = {};
-    
-    // Add all sandbox files
-    for (const [path, file] of Object.entries(files)) {
-      projectFiles[path.replace(/^\//, '')] = file.code;
-    }
-    
-    // Add package.json if not present
-    if (!projectFiles['package.json']) {
-      projectFiles['package.json'] = JSON.stringify({
-        name: 'sandbox-project',
-        version: '1.0.0',
-        dependencies: {
-          react: '^18.0.0',
-          'react-dom': '^18.0.0',
-          ...COMMON_DEPENDENCIES,
-        },
-        scripts: {
-          start: 'react-scripts start',
-          build: 'react-scripts build',
-        },
-      }, null, 2);
-    }
-    
-    // Create a simple blob with file list (real ZIP would need a library)
-    const fileList = Object.entries(projectFiles)
-      .map(([name, content]) => `// ${name}\n${content}`)
-      .join('\n\n// ---\n\n');
-    
-    const blob = new Blob([fileList], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'project-files.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [sandpack.files]);
-
-  // Open in StackBlitz
-  const handleOpenInStackBlitz = useCallback(() => {
-    const projectFiles: Record<string, string> = {};
-    
-    // Add main app code
-    projectFiles['src/App.jsx'] = code;
-    projectFiles['src/index.jsx'] = `import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-import './index.css';
-
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);`;
-    projectFiles['src/index.css'] = `@tailwind base;
-@tailwind components;
-@tailwind utilities;`;
-    projectFiles['index.html'] = `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sandbox Project</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/index.jsx"></script>
-  </body>
-</html>`;
-    projectFiles['package.json'] = JSON.stringify({
-      name: 'sandbox-project',
-      version: '0.0.0',
-      type: 'module',
-      scripts: {
-        dev: 'vite',
-        build: 'vite build',
-        preview: 'vite preview',
-      },
+    // Use shared export utility with proper encoding
+    const files = normalizeSandpackFiles(sandpack.files);
+    openInCodeSandbox(files, {
       dependencies: {
-        react: '^18.2.0',
-        'react-dom': '^18.2.0',
         ...COMMON_DEPENDENCIES,
       },
-      devDependencies: {
-        vite: '^5.0.0',
-        '@vitejs/plugin-react': '^4.0.0',
+    });
+  }, [sandpack.files]);
+
+  // Download as project ZIP file using shared utility
+  const handleDownloadProject = useCallback(async () => {
+    const files = normalizeSandpackFiles(sandpack.files);
+    await downloadAsZip(files, {
+      projectName: 'sandbox-project',
+      dependencies: {
+        ...COMMON_DEPENDENCIES,
       },
-    }, null, 2);
-    projectFiles['vite.config.js'] = `import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+    });
+  }, [sandpack.files]);
 
-export default defineConfig({
-  plugins: [react()],
-});`;
-
-    // Encode for StackBlitz
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = 'https://stackblitz.com/run';
-    form.target = '_blank';
-
-    // Add project files
-    for (const [filename, content] of Object.entries(projectFiles)) {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = `project[files][${filename}]`;
-      input.value = content;
-      form.appendChild(input);
-    }
-
-    // Add project settings
-    const titleInput = document.createElement('input');
-    titleInput.type = 'hidden';
-    titleInput.name = 'project[title]';
-    titleInput.value = 'Sandbox Project';
-    form.appendChild(titleInput);
-
-    const templateInput = document.createElement('input');
-    templateInput.type = 'hidden';
-    templateInput.name = 'project[template]';
-    templateInput.value = 'node';
-    form.appendChild(templateInput);
-
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
-  }, [code]);
+  // Open in StackBlitz using shared utility
+  const handleOpenInStackBlitz = useCallback(() => {
+    const files = normalizeSandpackFiles(sandpack.files);
+    openInStackBlitz(files, {
+      projectName: 'Sandbox Project',
+      dependencies: {
+        ...COMMON_DEPENDENCIES,
+      },
+    });
+  }, [sandpack.files]);
 
   const viewModeButtons = [
     { value: 'editor' as ViewMode, icon: <Code2 className="h-4 w-4" />, label: 'Code' },
@@ -1245,42 +1116,65 @@ function PreviewWithLoading({ viewport, viewportStyles }: PreviewWithLoadingProp
   );
 }
 
-// Code sync handler component with debouncing for better hot reload performance
+// Code sync handler component with improved hot reload performance
+// Uses version tracking and useTransition for smoother updates
 function CodeSyncHandler({ onCodeChange }: { onCodeChange: (code: string) => void }) {
   const { code } = useActiveCode();
   const lastCodeRef = useRef<string>(code);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const versionRef = useRef<number>(0);
+  const [, startTransition] = useTransition();
 
-  // Debounced code change handler to prevent excessive updates
+  // Stable callback reference
+  const onCodeChangeRef = useRef(onCodeChange);
+  useEffect(() => {
+    onCodeChangeRef.current = onCodeChange;
+  }, [onCodeChange]);
+
+  // Debounced code change handler with version tracking
   useEffect(() => {
     // Skip if code hasn't actually changed
     if (lastCodeRef.current === code) {
       return;
     }
 
+    // Increment version for this update
+    const currentVersion = ++versionRef.current;
+
     // Clear existing timer
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
 
-    // Debounce the callback (300ms delay for smoother hot reload)
+    // Debounce the callback (200ms for faster feedback)
     debounceTimerRef.current = setTimeout(() => {
-      lastCodeRef.current = code;
-      onCodeChange(code);
-    }, 300);
+      // Only apply if this is still the latest version
+      if (currentVersion === versionRef.current) {
+        lastCodeRef.current = code;
+        // Use transition for non-blocking update
+        startTransition(() => {
+          onCodeChangeRef.current(code);
+        });
+      }
+    }, 200);
 
     return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [code, onCodeChange]);
+  }, [code]);
 
-  // Force immediate sync on unmount - intentionally empty deps as cleanup-only effect
+  // Force immediate sync on unmount
   useEffect(() => {
     return () => {
+      // Cancel any pending debounce
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      // Sync final state
       if (lastCodeRef.current !== code) {
-        onCodeChange(code);
+        onCodeChangeRef.current(code);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

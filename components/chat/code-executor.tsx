@@ -2,19 +2,25 @@
 
 /**
  * CodeExecutor - Execute code in a sandboxed environment
+ * Supports both frontend JS execution and backend sandbox (Docker/Podman/Native)
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Play, Square, Copy, Check, Terminal, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { sandboxService } from '@/lib/native/sandbox';
+import { getLanguageInfo } from '@/types/sandbox';
+import type { ExecutionResult as BackendExecutionResult } from '@/types/sandbox';
 
 interface CodeExecutorProps {
   code: string;
   language: string;
   className?: string;
+  stdin?: string;
+  useBackend?: boolean;
 }
 
 interface ExecutionResult {
@@ -22,31 +28,84 @@ interface ExecutionResult {
   output: string;
   error?: string;
   executionTime?: number;
+  runtime?: string;
 }
 
-const SUPPORTED_LANGUAGES = ['javascript', 'js', 'typescript', 'ts'];
+const FRONTEND_LANGUAGES = ['javascript', 'js', 'typescript', 'ts'];
 
-export function CodeExecutor({ code, language, className }: CodeExecutorProps) {
+const ALL_BACKEND_LANGUAGES = [
+  'python', 'py', 'javascript', 'js', 'typescript', 'ts', 'go', 'golang',
+  'rust', 'rs', 'java', 'c', 'cpp', 'c++', 'ruby', 'rb', 'php', 'bash', 'sh',
+  'powershell', 'ps1', 'r', 'julia', 'jl', 'lua', 'perl', 'pl', 'swift',
+  'kotlin', 'kt', 'scala', 'haskell', 'hs', 'elixir', 'ex', 'clojure', 'clj',
+  'fsharp', 'fs', 'csharp', 'cs', 'zig',
+];
+
+export function CodeExecutor({ code, language, className, stdin, useBackend = true }: CodeExecutorProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const [backendAvailable, setBackendAvailable] = useState(false);
+  const [executionMode, setExecutionMode] = useState<'frontend' | 'backend'>('frontend');
 
-  const isSupported = SUPPORTED_LANGUAGES.includes(language.toLowerCase());
+  const langLower = language.toLowerCase();
+  const isFrontendSupported = FRONTEND_LANGUAGES.includes(langLower);
+  const isBackendSupported = ALL_BACKEND_LANGUAGES.includes(langLower);
+  const isSupported = isFrontendSupported || (backendAvailable && isBackendSupported);
+  const _langInfo = getLanguageInfo(langLower);
 
-  const executeCode = useCallback(async () => {
-    if (!isSupported) return;
+  // Check backend availability on mount
+  useEffect(() => {
+    if (useBackend) {
+      sandboxService.isAvailable().then(setBackendAvailable).catch(() => setBackendAvailable(false));
+    }
+  }, [useBackend]);
 
-    setIsRunning(true);
-    setResult(null);
+  // Determine execution mode
+  useEffect(() => {
+    if (backendAvailable && isBackendSupported && useBackend) {
+      setExecutionMode('backend');
+    } else if (isFrontendSupported) {
+      setExecutionMode('frontend');
+    }
+  }, [backendAvailable, isBackendSupported, isFrontendSupported, useBackend]);
 
+  // Execute code via backend sandbox
+  const executeBackend = useCallback(async () => {
     const startTime = performance.now();
-
     try {
-      // Create a sandboxed execution environment
+      const backendResult: BackendExecutionResult = stdin
+        ? await sandboxService.executeWithStdin(langLower, code, stdin)
+        : await sandboxService.quickExecute(langLower, code);
+
+      const output = backendResult.stdout || '';
+      const error = backendResult.stderr || backendResult.error || '';
+      const success = backendResult.status === 'completed' && backendResult.exit_code === 0;
+
+      setResult({
+        success,
+        output: output || (success ? '(No output)' : ''),
+        error: error || undefined,
+        executionTime: backendResult.execution_time_ms || (performance.now() - startTime),
+        runtime: backendResult.runtime,
+      });
+    } catch (err) {
+      setResult({
+        success: false,
+        output: '',
+        error: err instanceof Error ? err.message : String(err),
+        executionTime: performance.now() - startTime,
+      });
+    }
+  }, [langLower, code, stdin]);
+
+  // Execute code via frontend eval (JS/TS only)
+  const executeFrontend = useCallback(async () => {
+    const startTime = performance.now();
+    try {
       const logs: string[] = [];
       const errors: string[] = [];
 
-      // Override console methods to capture output
       const sandboxConsole = {
         log: (...args: unknown[]) => logs.push(args.map(formatValue).join(' ')),
         error: (...args: unknown[]) => errors.push(args.map(formatValue).join(' ')),
@@ -54,7 +113,6 @@ export function CodeExecutor({ code, language, className }: CodeExecutorProps) {
         info: (...args: unknown[]) => logs.push(`[INFO] ${args.map(formatValue).join(' ')}`),
       };
 
-      // Create a function from the code with sandboxed console
       const wrappedCode = `
         (function(console) {
           "use strict";
@@ -62,11 +120,9 @@ export function CodeExecutor({ code, language, className }: CodeExecutorProps) {
         })
       `;
 
-      // Execute in a try-catch
       const fn = eval(wrappedCode);
       const returnValue = fn(sandboxConsole);
 
-      // Handle async code
       if (returnValue instanceof Promise) {
         await returnValue;
       }
@@ -78,19 +134,35 @@ export function CodeExecutor({ code, language, className }: CodeExecutorProps) {
         output: logs.join('\n') || '(No output)',
         error: errors.length > 0 ? errors.join('\n') : undefined,
         executionTime,
+        runtime: 'browser',
       });
     } catch (error) {
-      const executionTime = performance.now() - startTime;
       setResult({
         success: false,
         output: '',
         error: error instanceof Error ? error.message : String(error),
-        executionTime,
+        executionTime: performance.now() - startTime,
+        runtime: 'browser',
       });
+    }
+  }, [code]);
+
+  const executeCode = useCallback(async () => {
+    if (!isSupported) return;
+
+    setIsRunning(true);
+    setResult(null);
+
+    try {
+      if (executionMode === 'backend' && backendAvailable) {
+        await executeBackend();
+      } else if (isFrontendSupported) {
+        await executeFrontend();
+      }
     } finally {
       setIsRunning(false);
     }
-  }, [code, isSupported]);
+  }, [isSupported, executionMode, backendAvailable, executeBackend, isFrontendSupported, executeFrontend]);
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(code);
@@ -114,6 +186,11 @@ export function CodeExecutor({ code, language, className }: CodeExecutorProps) {
           {!isSupported && (
             <Badge variant="secondary" className="text-xs">
               Run not supported
+            </Badge>
+          )}
+          {isSupported && backendAvailable && executionMode === 'backend' && (
+            <Badge variant="outline" className="text-xs text-blue-500 border-blue-500/50">
+              Backend
             </Badge>
           )}
         </div>
@@ -164,6 +241,11 @@ export function CodeExecutor({ code, language, className }: CodeExecutorProps) {
               <span className="text-xs text-muted-foreground">
                 ({result.executionTime.toFixed(2)}ms)
               </span>
+            )}
+            {result.runtime && (
+              <Badge variant="outline" className="text-xs h-5">
+                {result.runtime}
+              </Badge>
             )}
             {!result.success && (
               <AlertTriangle className="h-3.5 w-3.5 text-destructive" />

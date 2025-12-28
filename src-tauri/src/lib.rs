@@ -6,6 +6,7 @@ mod awareness;
 mod commands;
 mod context;
 mod mcp;
+mod sandbox;
 mod screenshot;
 mod selection;
 mod tray;
@@ -13,6 +14,7 @@ mod tray;
 use awareness::AwarenessManager;
 use context::ContextManager;
 use mcp::McpManager;
+use sandbox::SandboxState;
 use screenshot::ScreenshotManager;
 use selection::SelectionManager;
 use tauri::Manager;
@@ -61,6 +63,7 @@ pub fn run() {
             app.manage(vector_state);
 
             // Initialize MCP Manager
+            let sandbox_data_dir = app_data_dir.clone();
             let mcp_manager = McpManager::new(app.handle().clone(), app_data_dir);
 
             // Store manager in app state
@@ -99,6 +102,21 @@ pub fn run() {
             // Initialize Awareness Manager
             let awareness_manager = AwarenessManager::new();
             app.manage(awareness_manager);
+
+            // Initialize Sandbox State
+            let sandbox_config_path = sandbox_data_dir.join("sandbox_config.json");
+            let handle_for_sandbox = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                match SandboxState::new(sandbox_config_path).await {
+                    Ok(sandbox_state) => {
+                        handle_for_sandbox.manage(sandbox_state);
+                        log::info!("Sandbox state initialized");
+                    }
+                    Err(e) => {
+                        log::error!("Failed to initialize sandbox state: {}", e);
+                    }
+                }
+            });
 
             // Setup splash screen and main window
             let app_handle = app.handle().clone();
@@ -229,6 +247,13 @@ pub fn run() {
             commands::selection::selection_smart_expand,
             commands::selection::selection_auto_expand,
             commands::selection::selection_get_modes,
+            // AI processing commands
+            commands::selection::selection_ai_process,
+            commands::selection::selection_ai_process_stream,
+            commands::selection::selection_detect_text_type,
+            commands::selection::selection_get_toolbar_config,
+            commands::selection::selection_set_theme,
+            commands::selection::selection_get_stats_summary,
             // Screenshot commands
             commands::screenshot::screenshot_capture_fullscreen,
             commands::screenshot::screenshot_capture_window,
@@ -286,6 +311,62 @@ pub fn run() {
             commands::awareness::awareness_get_today_usage_summary,
             commands::awareness::awareness_get_daily_usage_summary,
             commands::awareness::awareness_clear_focus_history,
+            // Sandbox commands
+            commands::sandbox::sandbox_execute,
+            commands::sandbox::sandbox_get_status,
+            commands::sandbox::sandbox_get_config,
+            commands::sandbox::sandbox_update_config,
+            commands::sandbox::sandbox_get_runtimes,
+            commands::sandbox::sandbox_get_languages,
+            commands::sandbox::sandbox_check_runtime,
+            commands::sandbox::sandbox_prepare_language,
+            commands::sandbox::sandbox_quick_execute,
+            commands::sandbox::sandbox_execute_with_stdin,
+            commands::sandbox::sandbox_toggle_language,
+            commands::sandbox::sandbox_set_runtime,
+            commands::sandbox::sandbox_set_timeout,
+            commands::sandbox::sandbox_set_memory_limit,
+            commands::sandbox::sandbox_set_network,
+            commands::sandbox::sandbox_get_runtime_info,
+            commands::sandbox::sandbox_cleanup,
+            commands::sandbox::sandbox_execute_with_limits,
+            // Sandbox session commands
+            commands::sandbox::sandbox_start_session,
+            commands::sandbox::sandbox_get_current_session,
+            commands::sandbox::sandbox_set_current_session,
+            commands::sandbox::sandbox_end_session,
+            commands::sandbox::sandbox_list_sessions,
+            commands::sandbox::sandbox_get_session,
+            commands::sandbox::sandbox_delete_session,
+            // Sandbox execution history commands
+            commands::sandbox::sandbox_get_execution,
+            commands::sandbox::sandbox_query_executions,
+            commands::sandbox::sandbox_get_recent_executions,
+            commands::sandbox::sandbox_delete_execution,
+            commands::sandbox::sandbox_toggle_favorite,
+            commands::sandbox::sandbox_add_execution_tags,
+            commands::sandbox::sandbox_remove_execution_tags,
+            commands::sandbox::sandbox_clear_history,
+            // Sandbox snippet commands
+            commands::sandbox::sandbox_create_snippet,
+            commands::sandbox::sandbox_get_snippet,
+            commands::sandbox::sandbox_query_snippets,
+            commands::sandbox::sandbox_update_snippet,
+            commands::sandbox::sandbox_delete_snippet,
+            commands::sandbox::sandbox_create_snippet_from_execution,
+            commands::sandbox::sandbox_execute_snippet,
+            // Sandbox statistics commands
+            commands::sandbox::sandbox_get_language_stats,
+            commands::sandbox::sandbox_get_all_language_stats,
+            commands::sandbox::sandbox_get_stats,
+            commands::sandbox::sandbox_get_daily_counts,
+            // Sandbox utility commands
+            commands::sandbox::sandbox_export_data,
+            commands::sandbox::sandbox_get_all_tags,
+            commands::sandbox::sandbox_get_all_categories,
+            commands::sandbox::sandbox_get_db_size,
+            commands::sandbox::sandbox_vacuum_db,
+            commands::sandbox::sandbox_execute_with_options,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

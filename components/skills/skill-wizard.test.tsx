@@ -57,7 +57,7 @@ describe('SkillWizard', () => {
     it('renders wizard title', () => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
 
-      expect(screen.getByText('createNewSkill')).toBeInTheDocument();
+      expect(screen.getByText(/Create New Skill|createNewSkill/)).toBeInTheDocument();
     });
 
     it('renders close button', () => {
@@ -70,21 +70,21 @@ describe('SkillWizard', () => {
     it('renders step indicator', () => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
 
-      expect(screen.getByText('stepStart')).toBeInTheDocument();
+      expect(screen.getByText(/Start|stepStart/)).toBeInTheDocument();
     });
 
     it('shows start step by default', () => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
 
-      expect(screen.getByText('howToStart')).toBeInTheDocument();
-      expect(screen.getByText('chooseStartMethod')).toBeInTheDocument();
+      expect(screen.getByText(/How would you like to start|howToStart/)).toBeInTheDocument();
+      expect(screen.getByText(/Choose how to start|chooseStartMethod/)).toBeInTheDocument();
     });
 
     it('renders template and blank options', () => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
 
-      expect(screen.getByText('fromTemplate')).toBeInTheDocument();
-      expect(screen.getByText('fromScratch')).toBeInTheDocument();
+      expect(screen.getByText(/From Template|fromTemplate/)).toBeInTheDocument();
+      expect(screen.getByText(/From Scratch|fromScratch/)).toBeInTheDocument();
     });
   });
 
@@ -106,7 +106,7 @@ describe('SkillWizard', () => {
     it('enables Next button after selecting template option', () => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
 
-      fireEvent.click(screen.getByText('fromTemplate'));
+      fireEvent.click(screen.getByText(/From Template|fromTemplate/));
 
       const nextButton = screen.getByRole('button', { name: /next/i });
       expect(nextButton).not.toBeDisabled();
@@ -115,7 +115,7 @@ describe('SkillWizard', () => {
     it('enables Next button after selecting blank option', () => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
 
-      fireEvent.click(screen.getByText('fromScratch'));
+      fireEvent.click(screen.getByText(/From Scratch|fromScratch/));
 
       const nextButton = screen.getByRole('button', { name: /next/i });
       expect(nextButton).not.toBeDisabled();
@@ -143,16 +143,16 @@ describe('SkillWizard', () => {
     it('navigates to template selection when template option chosen', () => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
 
-      fireEvent.click(screen.getByText('fromTemplate'));
+      fireEvent.click(screen.getByText(/From Template|fromTemplate/));
       fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-      expect(screen.getByText('chooseTemplate')).toBeInTheDocument();
+      expect(screen.getByText(/Choose a Template|chooseTemplate/)).toBeInTheDocument();
     });
 
     it('displays available templates', () => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
 
-      fireEvent.click(screen.getByText('fromTemplate'));
+      fireEvent.click(screen.getByText(/From Template|fromTemplate/));
       fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
       expect(screen.getByText('Code Review')).toBeInTheDocument();
@@ -162,7 +162,7 @@ describe('SkillWizard', () => {
     it('displays template descriptions', () => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
 
-      fireEvent.click(screen.getByText('fromTemplate'));
+      fireEvent.click(screen.getByText(/From Template|fromTemplate/));
       fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
       expect(screen.getByText('Template for code review skills')).toBeInTheDocument();
@@ -171,7 +171,7 @@ describe('SkillWizard', () => {
     it('displays template tags', () => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
 
-      fireEvent.click(screen.getByText('fromTemplate'));
+      fireEvent.click(screen.getByText(/From Template|fromTemplate/));
       fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
       expect(screen.getByText('code')).toBeInTheDocument();
@@ -181,7 +181,7 @@ describe('SkillWizard', () => {
     it('enables Next after selecting template', () => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
 
-      fireEvent.click(screen.getByText('fromTemplate'));
+      fireEvent.click(screen.getByText(/From Template|fromTemplate/));
       fireEvent.click(screen.getByRole('button', { name: /next/i }));
       fireEvent.click(screen.getByText('Code Review'));
 
@@ -192,7 +192,7 @@ describe('SkillWizard', () => {
     it('pre-fills basic info from template', () => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
 
-      fireEvent.click(screen.getByText('fromTemplate'));
+      fireEvent.click(screen.getByText(/From Template|fromTemplate/));
       fireEvent.click(screen.getByRole('button', { name: /next/i }));
       fireEvent.click(screen.getByText('Code Review'));
       fireEvent.click(screen.getByRole('button', { name: /next/i }));
@@ -206,17 +206,17 @@ describe('SkillWizard', () => {
     it('navigates directly to basic info when blank chosen', () => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
 
-      fireEvent.click(screen.getByText('fromScratch'));
+      fireEvent.click(screen.getByText(/From Scratch|fromScratch/));
       fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-      expect(screen.getByText('basicInfo')).toBeInTheDocument();
+      expect(screen.getByText(/Basic Information|basicInfo/)).toBeInTheDocument();
     });
   });
 
   describe('basic info step', () => {
     beforeEach(() => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
-      fireEvent.click(screen.getByText('fromScratch'));
+      fireEvent.click(screen.getByText(/From Scratch|fromScratch/));
       fireEvent.click(screen.getByRole('button', { name: /next/i }));
     });
 
@@ -229,7 +229,7 @@ describe('SkillWizard', () => {
     });
 
     it('displays category selector', () => {
-      expect(screen.getByText('category')).toBeInTheDocument();
+      expect(screen.getByText(/Category|category/i)).toBeInTheDocument();
     });
 
     it('displays tags input', () => {
@@ -240,7 +240,7 @@ describe('SkillWizard', () => {
       const nameInput = screen.getByLabelText(/skillName/);
       fireEvent.change(nameInput, { target: { value: 'ab' } });
 
-      expect(screen.getByText('nameTooShort')).toBeInTheDocument();
+      expect(screen.getByText(/Name must be at least|nameTooShort/)).toBeInTheDocument();
     });
 
     it('validates name input', () => {
@@ -255,7 +255,7 @@ describe('SkillWizard', () => {
       const longDescription = 'a'.repeat(1025);
       fireEvent.change(descInput, { target: { value: longDescription } });
 
-      expect(screen.getByText('descriptionTooLong')).toBeInTheDocument();
+      expect(screen.getByText(/Description must be less than|descriptionTooLong/)).toBeInTheDocument();
     });
 
     it('shows character count for description', () => {
@@ -286,14 +286,14 @@ describe('SkillWizard', () => {
     it('goes back to start step', () => {
       fireEvent.click(screen.getByRole('button', { name: /back/i }));
 
-      expect(screen.getByText('howToStart')).toBeInTheDocument();
+      expect(screen.getByText(/How would you like to start|howToStart/)).toBeInTheDocument();
     });
   });
 
   describe('content step', () => {
     beforeEach(() => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
-      fireEvent.click(screen.getByText('fromScratch'));
+      fireEvent.click(screen.getByText(/From Scratch|fromScratch/));
       fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
       const nameInput = screen.getByLabelText(/skillName/);
@@ -327,7 +327,7 @@ describe('SkillWizard', () => {
   describe('preview step', () => {
     beforeEach(() => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
-      fireEvent.click(screen.getByText('fromScratch'));
+      fireEvent.click(screen.getByText(/From Scratch|fromScratch/));
       fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
       const nameInput = screen.getByLabelText(/skillName/);
@@ -344,7 +344,7 @@ describe('SkillWizard', () => {
     });
 
     it('displays preview header', () => {
-      expect(screen.getByText('previewSkill')).toBeInTheDocument();
+      expect(screen.getByText(/Preview Skill|previewSkill/)).toBeInTheDocument();
     });
 
     it('displays skill name in preview', () => {
@@ -389,7 +389,7 @@ describe('SkillWizard', () => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
 
       // Navigate to preview
-      fireEvent.click(screen.getByText('fromScratch'));
+      fireEvent.click(screen.getByText(/From Scratch|fromScratch/));
       fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
       const nameInput = screen.getByLabelText(/skillName/);
@@ -414,7 +414,7 @@ describe('SkillWizard', () => {
   describe('category options', () => {
     beforeEach(() => {
       renderWithProviders(<SkillWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
-      fireEvent.click(screen.getByText('fromScratch'));
+      fireEvent.click(screen.getByText(/From Scratch|fromScratch/));
       fireEvent.click(screen.getByRole('button', { name: /next/i }));
     });
 

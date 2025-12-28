@@ -5,7 +5,7 @@
  * Provides in-memory and persistent caching with TTL support
  */
 
-import { createContext, useContext, useCallback, useEffect, ReactNode, useRef } from 'react';
+import { createContext, useContext, useCallback, useEffect, useMemo, ReactNode, useRef } from 'react';
 
 // Cache entry structure
 export interface CacheEntry<T = unknown> {
@@ -84,7 +84,7 @@ export function CacheProvider({
   config: userConfig = {},
   initialCache = {},
 }: CacheProviderProps) {
-  const config = { ...DEFAULT_CONFIG, ...userConfig };
+  const config = useMemo(() => ({ ...DEFAULT_CONFIG, ...userConfig }), [userConfig]);
   const cacheRef = useRef<Map<string, CacheEntry>>(new Map());
   const statsRef = useRef({ hits: 0, misses: 0, totalRequests: 0 });
 
@@ -289,7 +289,7 @@ export function CacheProvider({
 
   const updateConfig = useCallback((updates: Partial<CacheConfig>) => {
     Object.assign(config, updates);
-  }, []);
+  }, [config]);
 
   const value: CacheContextValue = {
     get,

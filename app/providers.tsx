@@ -46,6 +46,69 @@ const useIsomorphicLayoutEffect =
   typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 /**
+ * AppLoadingScreen - Shows during initial app hydration
+ * Uses inline styles for colors as a fallback when CSS variables are not yet loaded
+ */
+function AppLoadingScreen() {
+  return (
+    <div
+      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center transition-opacity duration-300"
+      style={{
+        backgroundColor: 'var(--background, #ffffff)',
+        // Fallback for dark mode detection before theme is applied
+        ...(typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches
+          ? { backgroundColor: '#0a0a0a' }
+          : {})
+      }}
+    >
+      <div className="flex flex-col items-center gap-6">
+        {/* Logo / Brand with animated gradient */}
+        <div className="relative">
+          <div
+            className="h-16 w-16 rounded-2xl flex items-center justify-center"
+            style={{
+              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.05) 100%)'
+            }}
+          >
+            <div
+              className="h-8 w-8 rounded-lg animate-pulse"
+              style={{ backgroundColor: 'rgba(59, 130, 246, 0.8)' }}
+            />
+          </div>
+          {/* Outer ring animation */}
+          <div
+            className="absolute -inset-2 rounded-3xl animate-[spin_3s_linear_infinite]"
+            style={{ border: '2px solid rgba(59, 130, 246, 0.2)' }}
+          />
+        </div>
+
+        {/* Loading text */}
+        <div className="flex flex-col items-center gap-2">
+          <span
+            className="text-lg font-medium"
+            style={{ color: 'var(--foreground, #171717)' }}
+          >
+            Cognia
+          </span>
+          <div className="flex items-center gap-1.5">
+            {[0, 150, 300].map((delay) => (
+              <div
+                key={delay}
+                className="h-1.5 w-1.5 rounded-full animate-bounce"
+                style={{
+                  backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                  animationDelay: `${delay}ms`
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * OnboardingProvider - Shows setup wizard for first-time users
  */
 function OnboardingProvider({ children }: { children: React.ReactNode }) {
@@ -84,7 +147,7 @@ function OnboardingProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   if (!mounted) {
-    return null;
+    return <AppLoadingScreen />;
   }
 
   return (
@@ -197,7 +260,7 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Prevent flash of unstyled content
   if (!mounted) {
-    return null;
+    return <AppLoadingScreen />;
   }
 
   return <>{children}</>;

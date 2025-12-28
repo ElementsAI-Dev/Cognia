@@ -6,9 +6,13 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group';
 import { cn } from '@/lib/utils';
 import {
   Search,
@@ -94,15 +98,17 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
       {/* Header */}
       <div className="p-3 border-b">
         <h3 className="text-sm font-semibold mb-2">{t('nodePalette')}</h3>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+        <InputGroup className="h-8">
+          <InputGroupAddon align="inline-start">
+            <Search className="h-4 w-4" />
+          </InputGroupAddon>
+          <InputGroupInput
             placeholder={t('searchNodes')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 h-8 text-sm"
+            className="text-sm"
           />
-        </div>
+        </InputGroup>
       </div>
 
       {/* Node categories */}

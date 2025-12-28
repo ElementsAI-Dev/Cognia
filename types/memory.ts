@@ -16,6 +16,8 @@ export interface Memory {
   lastUsedAt: Date;
   useCount: number;
   enabled: boolean;
+  pinned?: boolean; // Pinned memories are always included in prompts
+  priority?: number; // Higher priority = included first (0-10, default 5)
 }
 
 export interface CreateMemoryInput {
@@ -32,6 +34,8 @@ export interface UpdateMemoryInput {
   category?: string;
   tags?: string[];
   enabled?: boolean;
+  pinned?: boolean;
+  priority?: number;
 }
 
 export interface MemorySettings {

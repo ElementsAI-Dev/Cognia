@@ -459,6 +459,7 @@ function SlideElementRenderer({ element, theme }: SlideElementRendererProps) {
     case 'image':
       return (
         <div style={baseStyle} className="flex items-center justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={element.content}
             alt={element.metadata?.alt as string || 'Slide image'}

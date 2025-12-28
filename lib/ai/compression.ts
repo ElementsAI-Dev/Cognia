@@ -273,7 +273,7 @@ export function createSummaryMessage(
 export function applyHybridCompression(
   messages: UIMessage[],
   settings: CompressionSettings,
-  summaryGenerator?: (msgs: UIMessage[]) => Promise<string>
+  _summaryGenerator?: (msgs: UIMessage[]) => Promise<string>
 ): { filteredMessages: UIMessage[]; compressedIds: string[]; needsSummary: boolean; messagesToSummarize: UIMessage[] } {
   const { preserveRecentMessages, preserveSystemMessages } = settings;
 

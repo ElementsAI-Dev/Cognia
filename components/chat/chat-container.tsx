@@ -33,6 +33,7 @@ import { TextSelectionPopover } from './text-selection-popover';
 import { QuotedContent } from './quoted-content';
 import { TextPart, ReasoningPart, ToolPart, SourcesPart } from './message-parts';
 import { MessageReactions } from './message-reactions';
+import { MessageArtifacts } from '@/components/artifacts';
 import type { EmojiReaction } from '@/types/message';
 import type { MessagePart } from '@/types/message';
 import { PromptOptimizerDialog } from './prompt-optimizer-dialog';
@@ -60,7 +61,7 @@ import {
 } from '@/lib/ai/suggestion-generator';
 import { translateText } from '@/lib/ai/translate';
 import type { SearchResponse, SearchResult } from '@/types/search';
-import { useSessionStore, useSettingsStore, usePresetStore, useMcpStore, useAgentStore, useProjectStore, useQuoteStore, useLearningStore } from '@/stores';
+import { useSessionStore, useSettingsStore, usePresetStore, useMcpStore, useAgentStore, useProjectStore, useQuoteStore, useLearningStore, useArtifactStore } from '@/stores';
 import { useMessages, useAgent, useProjectContext, calculateTokenBreakdown } from '@/hooks';
 import type { ParsedToolCall, ToolCallResult } from '@/types/mcp';
 import { useAIChat, useAutoRouter, type ProviderName, isVisionModel, buildMultimodalContent, type MultimodalMessage } from '@/lib/ai';
@@ -110,6 +111,9 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   // Learning store for Socratic method learning mode
   const getLearningSessionByChat = useLearningStore((state) => state.getLearningSessionByChat);
+
+  // Artifact store for auto-creating artifacts from AI responses
+  const autoCreateFromContent = useArtifactStore((state) => state.autoCreateFromContent);
 
   // Message persistence with IndexedDB (branch-aware)
   const {
@@ -954,6 +958,17 @@ Be thorough in your thinking but concise in your final answer.`;
 
         // Generate suggestions after successful response
         loadSuggestions(content, finalContent);
+
+        // Auto-detect and create artifacts from the response content
+        try {
+          autoCreateFromContent({
+            sessionId: currentSessionId!,
+            messageId: assistantMessage.id,
+            content: finalContent,
+          });
+        } catch (artifactError) {
+          console.warn('Failed to auto-create artifacts:', artifactError);
+        }
       }
     } catch (err) {
       console.error('Chat error:', err);
@@ -963,7 +978,7 @@ Be thorough in your thinking but concise in your final answer.`;
     } finally {
       setIsLoading(false);
     }
-  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, appendToMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes, getActiveSkills, getLearningSessionByChat]);
+  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, appendToMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes, getActiveSkills, getLearningSessionByChat, autoCreateFromContent]);
 
   const handleStop = useCallback(() => {
     aiStop();
@@ -1605,6 +1620,10 @@ function ChatMessageItem({
                   onReact={handleReaction}
                 />
               </div>
+            )}
+            {/* Message artifacts */}
+            {message.role === 'assistant' && (
+              <MessageArtifacts messageId={message.id} compact />
             )}
           </div>
         )}

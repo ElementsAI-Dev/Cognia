@@ -34,6 +34,12 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group';
+import { EmptyState } from '@/components/ui/empty-state';
+import {
   Card,
   CardContent,
   CardDescription,
@@ -555,15 +561,16 @@ export function SkillSettings() {
           )}
 
           <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+            <InputGroup className="flex-1">
+              <InputGroupAddon align="inline-start">
+                <Search className="h-4 w-4" />
+              </InputGroupAddon>
+              <InputGroupInput
                 placeholder="Search skills..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
               />
-            </div>
+            </InputGroup>
             <Select
               value={categoryFilter}
               onValueChange={(v) => setCategoryFilter(v as SkillCategory | 'all')}
@@ -601,11 +608,11 @@ export function SkillSettings() {
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
           ) : filteredSkills.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No skills found</p>
-              <p className="text-sm">Create a new skill or import one to get started</p>
-            </div>
+            <EmptyState
+              icon={BookOpen}
+              title="No skills found"
+              description="Create a new skill or import one to get started"
+            />
           ) : (
             <div className="space-y-6">
               {Object.entries(groupedSkills).map(([category, categorySkills]) => (

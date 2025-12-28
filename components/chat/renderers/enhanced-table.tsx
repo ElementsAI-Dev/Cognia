@@ -33,6 +33,11 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
+  InputGroup as _InputGroup,
+  InputGroupAddon as _InputGroupAddon,
+  InputGroupInput as _InputGroupInput,
+} from '@/components/ui/input-group';
+import {
   Dialog,
   DialogContent,
   DialogHeader,

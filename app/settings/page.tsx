@@ -28,12 +28,18 @@ import {
   Upload,
   Mic,
   MousePointer2,
+  Menu,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupButton,
+} from '@/components/ui/input-group';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
 import {
@@ -51,6 +57,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { ProviderSettings } from '@/components/settings/provider-settings';
 import { AppearanceSettings } from '@/components/settings/appearance-settings';
 import { SearchSettings } from '@/components/settings/search-settings';
@@ -69,12 +88,14 @@ import { QuickSettingsCard } from '@/components/settings/quick-settings-card';
 import { VectorSettings } from '@/components/settings/vector-settings';
 import { SelectionToolbarSettings } from '@/components/selection-toolbar/settings-panel';
 import { NativeToolsSettings } from '@/components/settings/native-tools-settings';
+import { SkillSettings } from '@/components/settings/skill-settings';
 
 type SettingsSection = 
   | 'providers'
   | 'chat'
   | 'mcp'
   | 'tools'
+  | 'skills'
   | 'instructions'
   | 'memory'
   | 'usage'
@@ -111,6 +132,7 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<SettingsSection>('providers');
   const [searchQuery, setSearchQuery] = useState('');
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const resetSettings = useSettingsStore((state) => state.resetSettings);
   
   // Detect Tauri environment - using useMemo to avoid SSR hydration issues
@@ -192,6 +214,13 @@ export default function SettingsPage() {
       label: 'Tools',
       icon: <Wrench className="h-4 w-4" />,
       description: 'Built-in AI tools configuration',
+      group: 'ai',
+    },
+    {
+      id: 'skills',
+      label: 'Skills',
+      icon: <Puzzle className="h-4 w-4" />,
+      description: 'Claude Skills for specialized workflows',
       group: 'ai',
     },
     {
@@ -324,6 +353,8 @@ export default function SettingsPage() {
         return <VectorSettings />;
       case 'tools':
         return <ToolSettings />;
+      case 'skills':
+        return <SkillSettings />;
       case 'desktop':
         return <DesktopSettings />;
       case 'selection':
@@ -435,124 +466,188 @@ export default function SettingsPage() {
       {/* Main content with sidebar */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - hidden on mobile */}
-        <aside className="hidden w-48 shrink-0 border-r bg-muted/20 md:block lg:w-52">
+        <aside className="hidden w-56 shrink-0 border-r bg-muted/20 md:block lg:w-64">
           <div className="p-2 border-b">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
+            <InputGroup className="h-8">
+              <InputGroupAddon align="inline-start">
+                <Search className="h-3.5 w-3.5" />
+              </InputGroupAddon>
+              <InputGroupInput
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-7 h-8 text-sm"
+                className="text-sm"
               />
               {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    size="icon-xs"
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Clear search"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </InputGroupButton>
+                </InputGroupAddon>
               )}
-            </div>
+            </InputGroup>
           </div>
           <ScrollArea className="h-[calc(100%-44px)]">
-            <nav className="flex flex-col gap-0.5 p-2">
-              {filteredNavItems.length > 0 ? (
-                (['ai', 'interface', 'data', 'system'] as SettingsGroup[]).map((group) => {
-                  const items = groupedItems[group];
-                  if (items.length === 0) return null;
-                  return (
-                    <div key={group} className="mb-1.5">
-                      <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                        {groupLabels[group]}
+            <TooltipProvider delayDuration={300}>
+              <nav className="flex flex-col gap-0.5 p-2">
+                {filteredNavItems.length > 0 ? (
+                  (['ai', 'interface', 'data', 'system'] as SettingsGroup[]).map((group) => {
+                    const items = groupedItems[group];
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={group} className="mb-1.5">
+                        <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          {groupLabels[group]}
+                        </div>
+                        <div className="flex flex-col gap-px">
+                          {items.map((item) => (
+                            <Tooltip key={item.id}>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => setActiveSection(item.id)}
+                                  className={cn(
+                                    'flex items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors text-xs',
+                                    activeSection === item.id
+                                      ? 'bg-primary text-primary-foreground'
+                                      : 'hover:bg-accent'
+                                  )}
+                                >
+                                  <div className={cn(
+                                    'shrink-0',
+                                    activeSection === item.id ? 'text-primary-foreground' : 'text-muted-foreground'
+                                  )}>
+                                    {item.icon}
+                                  </div>
+                                  <span className="font-medium truncate">{item.label}</span>
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="text-xs">
+                                {item.description}
+                              </TooltipContent>
+                            </Tooltip>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-px">
-                        {items.map((item) => (
-                          <button
-                            key={item.id}
-                            onClick={() => setActiveSection(item.id)}
-                            className={cn(
-                              'flex items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors text-xs',
-                              activeSection === item.id
-                                ? 'bg-primary text-primary-foreground'
-                                : 'hover:bg-accent'
-                            )}
-                          >
-                            <div className={cn(
-                              'shrink-0',
-                              activeSection === item.id ? 'text-primary-foreground' : 'text-muted-foreground'
-                            )}>
-                              {item.icon}
-                            </div>
-                            <span className="font-medium truncate">{item.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="text-center py-3 text-xs text-muted-foreground">
-                  No settings found
-                </div>
-              )}
-            </nav>
-          </ScrollArea>
-        </aside>
-
-        {/* Mobile navigation - improved layout */}
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-          {/* Mobile search bar */}
-          <div className="shrink-0 border-b md:hidden p-1.5">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-7 h-8 text-sm"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-          
-          {/* Mobile navigation tabs */}
-          <div className="shrink-0 border-b md:hidden overflow-x-auto">
-            <div className="flex gap-0.5 p-1.5 min-w-max">
-                {filteredNavItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveSection(item.id)}
-                    className={cn(
-                      'flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
-                      activeSection === item.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted hover:bg-accent'
-                    )}
-                  >
-                    <span className="[&>svg]:h-3.5 [&>svg]:w-3.5">{item.icon}</span>
-                    <span>{item.label}</span>
-                  </button>
-                ))}
-                {filteredNavItems.length === 0 && (
-                  <div className="px-3 py-1.5 text-xs text-muted-foreground">
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-3 text-xs text-muted-foreground">
                     No settings found
                   </div>
                 )}
-            </div>
+              </nav>
+            </TooltipProvider>
+          </ScrollArea>
+        </aside>
+
+        {/* Mobile navigation - Sheet panel */}
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+          {/* Mobile header with menu button */}
+          <div className="shrink-0 border-b md:hidden p-2 flex items-center gap-2">
+            <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                  <Menu className="h-4 w-4" />
+                  <span className="text-xs">{activeItem?.label || 'Menu'}</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 p-0">
+                <SheetHeader className="p-3 border-b">
+                  <SheetTitle className="text-sm">{t('title')}</SheetTitle>
+                </SheetHeader>
+                <div className="p-2 border-b">
+                  <InputGroup className="h-8">
+                    <InputGroupAddon align="inline-start">
+                      <Search className="h-3.5 w-3.5" />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      placeholder="Search..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="text-sm"
+                    />
+                    {searchQuery && (
+                      <InputGroupAddon align="inline-end">
+                        <InputGroupButton
+                          size="icon-xs"
+                          onClick={() => setSearchQuery('')}
+                          aria-label="Clear search"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </InputGroupButton>
+                      </InputGroupAddon>
+                    )}
+                  </InputGroup>
+                </div>
+                <ScrollArea className="h-[calc(100vh-120px)]">
+                  <nav className="flex flex-col gap-0.5 p-2">
+                    {filteredNavItems.length > 0 ? (
+                      (['ai', 'interface', 'data', 'system'] as SettingsGroup[]).map((group) => {
+                        const items = groupedItems[group];
+                        if (items.length === 0) return null;
+                        return (
+                          <div key={group} className="mb-2">
+                            <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                              {groupLabels[group]}
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                              {items.map((item) => (
+                                <button
+                                  key={item.id}
+                                  onClick={() => {
+                                    setActiveSection(item.id);
+                                    setMobileNavOpen(false);
+                                  }}
+                                  className={cn(
+                                    'flex items-center gap-2 rounded-md px-2 py-2 text-left transition-colors text-sm',
+                                    activeSection === item.id
+                                      ? 'bg-primary text-primary-foreground'
+                                      : 'hover:bg-accent'
+                                  )}
+                                >
+                                  <div className={cn(
+                                    'shrink-0',
+                                    activeSection === item.id ? 'text-primary-foreground' : 'text-muted-foreground'
+                                  )}>
+                                    {item.icon}
+                                  </div>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="font-medium truncate">{item.label}</span>
+                                    <span className={cn(
+                                      'text-xs truncate',
+                                      activeSection === item.id ? 'text-primary-foreground/70' : 'text-muted-foreground'
+                                    )}>
+                                      {item.description}
+                                    </span>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-4 text-sm text-muted-foreground">
+                        No settings found
+                      </div>
+                    )}
+                  </nav>
+                </ScrollArea>
+              </SheetContent>
+            </Sheet>
+            <span className="text-xs text-muted-foreground truncate flex-1">
+              {activeItem?.description}
+            </span>
           </div>
 
-          {/* Content area */}
+          {/* Content area - Full width with grid support */}
           <ScrollArea className="flex-1">
-            <div className="p-3 lg:p-4">
-              <div className="mx-auto max-w-3xl">
+            <div className="p-3 lg:p-6">
+              <div className="mx-auto max-w-7xl">
                 {renderContent()}
               </div>
             </div>

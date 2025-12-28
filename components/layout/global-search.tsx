@@ -6,8 +6,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { Search, X, MessageSquare, FolderKanban, Clock } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Button as _Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -17,6 +16,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupButton,
+} from '@/components/ui/input-group';
 import { useSessionStore, useProjectStore, useUIStore } from '@/stores';
 import { cn } from '@/lib/utils';
 
@@ -136,26 +141,29 @@ export function GlobalSearch() {
       <DialogContent className="sm:max-w-[550px] p-0">
         <DialogHeader className="px-4 pt-4 pb-0">
           <DialogTitle className="sr-only">Search</DialogTitle>
-          <div className="flex items-center gap-2">
-            <Search className="h-5 w-5 text-muted-foreground" />
-            <Input
+          <InputGroup className="border-0 shadow-none">
+            <InputGroupAddon align="inline-start">
+              <Search className="h-5 w-5" />
+            </InputGroupAddon>
+            <InputGroupInput
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search sessions, projects..."
-              className="border-0 focus-visible:ring-0 text-lg h-10"
+              className="text-lg h-10"
               autoFocus
             />
             {query && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setQuery('')}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  size="icon-xs"
+                  onClick={() => setQuery('')}
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </InputGroupButton>
+              </InputGroupAddon>
             )}
-          </div>
+          </InputGroup>
         </DialogHeader>
 
         {query.trim() && (

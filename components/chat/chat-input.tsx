@@ -19,6 +19,7 @@ import TextareaAutosize from 'react-textarea-autosize';
 import { Button } from '@/components/ui/button';
 // TooltipProvider is now at app level in providers.tsx
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Dialog,
   DialogContent,
@@ -659,6 +660,7 @@ export function ChatInput({
                   onClick={() => setPreviewAttachment(attachment)}
                 >
                   {attachment.type === 'image' ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={attachment.url}
                       alt={attachment.name}
@@ -691,15 +693,17 @@ export function ChatInput({
 
           {/* Upload error */}
           {uploadError && (
-            <div className="mb-3 rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive animate-in fade-in-0 slide-in-from-top-2 duration-200">
-              {uploadError}
-              <button
-                onClick={() => setUploadError(null)}
-                className="ml-2 underline hover:no-underline transition-all"
-              >
-                {t('dismiss')}
-              </button>
-            </div>
+            <Alert variant="destructive" className="mb-3 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+              <AlertDescription className="flex items-center justify-between">
+                <span>{uploadError}</span>
+                <button
+                  onClick={() => setUploadError(null)}
+                  className="ml-2 underline hover:no-underline transition-all"
+                >
+                  {t('dismiss')}
+                </button>
+              </AlertDescription>
+            </Alert>
           )}
 
           <div ref={inputContainerRef} className="relative flex items-end gap-2 rounded-2xl border border-input/50 bg-card p-2 shadow-md focus-within:shadow-lg focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-ring/10 transition-all duration-200">
@@ -1058,6 +1062,7 @@ export function ChatInput({
           </DialogHeader>
           <div className="flex flex-col items-center gap-4">
             {previewAttachment?.type === 'image' ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={previewAttachment.url}
                 alt={previewAttachment.name}

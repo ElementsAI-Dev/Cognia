@@ -3,8 +3,9 @@
 import { useTranslations } from 'next-intl';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CopyButton } from "@/components/ui/copy-button";
 import { cn } from "@/lib/utils";
-import { CheckIcon, CopyIcon, PanelRightOpen, Download } from "lucide-react";
+import { PanelRightOpen, Download } from "lucide-react";
 import { useArtifactStore } from "@/stores";
 import { ArtifactCreateButton } from "@/components/artifacts/artifact-create-button";
 import {
@@ -211,7 +212,7 @@ export const CodeBlock = ({
   );
 };
 
-export type CodeBlockCopyButtonProps = ComponentProps<typeof Button> & {
+export type CodeBlockCopyButtonProps = Omit<ComponentProps<typeof CopyButton>, 'content'> & {
   onCopy?: () => void;
   onError?: (error: Error) => void;
   timeout?: number;
@@ -221,42 +222,22 @@ export const CodeBlockCopyButton = ({
   onCopy,
   onError,
   timeout = 2000,
-  children,
   className,
   ...props
 }: CodeBlockCopyButtonProps) => {
   const t = useTranslations('renderer');
-  const [isCopied, setIsCopied] = useState(false);
   const { code } = useContext(CodeBlockContext);
 
-  const copyToClipboard = async () => {
-    if (typeof window === "undefined" || !navigator?.clipboard?.writeText) {
-      onError?.(new Error("Clipboard API not available"));
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(code);
-      setIsCopied(true);
-      onCopy?.();
-      setTimeout(() => setIsCopied(false), timeout);
-    } catch (error) {
-      onError?.(error as Error);
-    }
-  };
-
-  const Icon = isCopied ? CheckIcon : CopyIcon;
-
   return (
-    <Button
+    <CopyButton
+      content={code}
+      iconOnly
+      tooltip={t('copyCode')}
+      successDuration={timeout}
+      onCopySuccess={onCopy}
+      onCopyError={onError}
       className={cn("shrink-0", className)}
-      onClick={copyToClipboard}
-      size="icon"
-      variant="ghost"
-      title={t('copyCode')}
       {...props}
-    >
-      {children ?? <Icon size={14} />}
-    </Button>
+    />
   );
 };

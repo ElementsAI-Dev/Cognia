@@ -23,6 +23,36 @@ jest.mock('@/components/ai-elements/reasoning', () => ({
   ),
 }));
 
+// Mock ChainOfThought components (used for multi-step reasoning)
+jest.mock('@/components/ai-elements/chain-of-thought', () => ({
+  ChainOfThought: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="chain-of-thought">{children}</div>
+  ),
+  ChainOfThoughtHeader: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="chain-header">{children}</div>
+  ),
+  ChainOfThoughtContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="reasoning-content">{children}</div>
+  ),
+  ChainOfThoughtStep: ({ children, label, description }: { 
+    children?: React.ReactNode; 
+    label: React.ReactNode;
+    description: string;
+  }) => (
+    <div data-testid="chain-step">
+      <span>{label}</span>
+      <span>{description}</span>
+      {children}
+    </div>
+  ),
+  ChainOfThoughtSearchResults: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="search-results">{children}</div>
+  ),
+  ChainOfThoughtSearchResult: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="search-result">{children}</div>
+  ),
+}));
+
 describe('ReasoningPart', () => {
   it('renders without crashing', () => {
     const part: ReasoningPartType = { type: 'reasoning', content: 'Thinking...', isStreaming: false };

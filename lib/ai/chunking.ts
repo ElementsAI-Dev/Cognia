@@ -635,3 +635,326 @@ export function chunkDocumentSmart(
   
   return chunkDocument(cleanedText, { ...options, strategy }, documentId);
 }
+
+/**
+ * Recursive chunking - splits content hierarchically
+ * First by major sections, then by paragraphs, then by sentences
+ */
+export function chunkDocumentRecursive(
+  text: string,
+  options: {
+    maxChunkSize?: number;
+    minChunkSize?: number;
+    overlap?: number;
+    separators?: string[];
+  } = {},
+  documentId?: string
+): ChunkingResult {
+  const {
+    maxChunkSize = 1000,
+    minChunkSize = 100,
+    overlap = 50,
+    separators = ['\n\n\n', '\n\n', '\n', '. ', ' '],
+  } = options;
+
+  const cleanedText = text.replace(/\r\n/g, '\n').trim();
+  
+  if (!cleanedText) {
+    return { chunks: [], totalChunks: 0, originalLength: 0, strategy: 'fixed' };
+  }
+
+  const rawChunks: { content: string; start: number; end: number }[] = [];
+
+  function splitRecursively(
+    content: string,
+    startOffset: number,
+    separatorIdx: number
+  ): void {
+    // Base case: content is small enough
+    if (content.length <= maxChunkSize) {
+      if (content.trim().length >= minChunkSize) {
+        rawChunks.push({
+          content: content.trim(),
+          start: startOffset,
+          end: startOffset + content.length,
+        });
+      }
+      return;
+    }
+
+    // Try current separator
+    if (separatorIdx >= separators.length) {
+      // No more separators, force split at maxChunkSize
+      let pos = 0;
+      while (pos < content.length) {
+        const end = Math.min(pos + maxChunkSize, content.length);
+        const chunk = content.slice(pos, end).trim();
+        if (chunk.length >= minChunkSize) {
+          rawChunks.push({
+            content: chunk,
+            start: startOffset + pos,
+            end: startOffset + end,
+          });
+        }
+        pos = end - overlap;
+        if (pos <= 0 || end >= content.length) break;
+      }
+      return;
+    }
+
+    const separator = separators[separatorIdx];
+    const parts = content.split(separator);
+
+    if (parts.length === 1) {
+      // Separator not found, try next one
+      splitRecursively(content, startOffset, separatorIdx + 1);
+      return;
+    }
+
+    let currentOffset = startOffset;
+    let currentChunk = '';
+    let chunkStart = startOffset;
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const potentialChunk = currentChunk + (currentChunk ? separator : '') + part;
+
+      if (potentialChunk.length > maxChunkSize && currentChunk.length > 0) {
+        // Current chunk is full, process it
+        if (currentChunk.length <= maxChunkSize) {
+          if (currentChunk.trim().length >= minChunkSize) {
+            rawChunks.push({
+              content: currentChunk.trim(),
+              start: chunkStart,
+              end: currentOffset,
+            });
+          }
+        } else {
+          // Recursively split the large chunk
+          splitRecursively(currentChunk, chunkStart, separatorIdx + 1);
+        }
+
+        // Start new chunk with overlap
+        const overlapContent = currentChunk.slice(-overlap);
+        currentChunk = overlapContent + separator + part;
+        chunkStart = currentOffset - overlap;
+      } else {
+        currentChunk = potentialChunk;
+      }
+
+      currentOffset += part.length + separator.length;
+    }
+
+    // Handle remaining content
+    if (currentChunk.trim().length >= minChunkSize) {
+      if (currentChunk.length <= maxChunkSize) {
+        rawChunks.push({
+          content: currentChunk.trim(),
+          start: chunkStart,
+          end: startOffset + content.length,
+        });
+      } else {
+        splitRecursively(currentChunk, chunkStart, separatorIdx + 1);
+      }
+    }
+  }
+
+  splitRecursively(cleanedText, 0, 0);
+
+  // Create DocumentChunk objects
+  const chunks: DocumentChunk[] = rawChunks.map((chunk, index) => ({
+    id: documentId ? `${documentId}-chunk-${index}` : `chunk-${index}-${Date.now()}`,
+    content: chunk.content,
+    index,
+    startOffset: chunk.start,
+    endOffset: chunk.end,
+  }));
+
+  return {
+    chunks,
+    totalChunks: chunks.length,
+    originalLength: cleanedText.length,
+    strategy: 'fixed', // Recursive uses multiple strategies
+  };
+}
+
+/**
+ * Sliding window chunking with configurable step size
+ * Creates overlapping chunks for better context preservation
+ */
+export function chunkDocumentSlidingWindow(
+  text: string,
+  options: {
+    windowSize?: number;
+    stepSize?: number;
+    preserveWords?: boolean;
+  } = {},
+  documentId?: string
+): ChunkingResult {
+  const {
+    windowSize = 1000,
+    stepSize = 500,
+    preserveWords = true,
+  } = options;
+
+  const cleanedText = text.replace(/\r\n/g, '\n').trim();
+  
+  if (!cleanedText) {
+    return { chunks: [], totalChunks: 0, originalLength: 0, strategy: 'fixed' };
+  }
+
+  const rawChunks: { content: string; start: number; end: number }[] = [];
+  let start = 0;
+
+  while (start < cleanedText.length) {
+    let end = Math.min(start + windowSize, cleanedText.length);
+
+    // Adjust to word boundary if requested
+    if (preserveWords && end < cleanedText.length) {
+      const nextSpace = cleanedText.indexOf(' ', end);
+      const prevSpace = cleanedText.lastIndexOf(' ', end);
+      
+      if (prevSpace > start + windowSize * 0.5) {
+        end = prevSpace;
+      } else if (nextSpace !== -1 && nextSpace < end + 50) {
+        end = nextSpace;
+      }
+    }
+
+    const content = cleanedText.slice(start, end).trim();
+    if (content.length > 0) {
+      rawChunks.push({ content, start, end });
+    }
+
+    start += stepSize;
+    
+    // Prevent infinite loop
+    if (start >= cleanedText.length) break;
+  }
+
+  const chunks: DocumentChunk[] = rawChunks.map((chunk, index) => ({
+    id: documentId ? `${documentId}-chunk-${index}` : `chunk-${index}-${Date.now()}`,
+    content: chunk.content,
+    index,
+    startOffset: chunk.start,
+    endOffset: chunk.end,
+  }));
+
+  return {
+    chunks,
+    totalChunks: chunks.length,
+    originalLength: cleanedText.length,
+    strategy: 'fixed',
+  };
+}
+
+/**
+ * Code-aware chunking for source code files
+ * Splits by functions, classes, and logical blocks
+ */
+export function chunkCodeDocument(
+  code: string,
+  options: {
+    language?: 'javascript' | 'typescript' | 'python' | 'generic';
+    maxChunkSize?: number;
+    preserveContext?: boolean;
+  } = {},
+  documentId?: string
+): ChunkingResult {
+  const {
+    language = 'generic',
+    maxChunkSize = 2000,
+    preserveContext = true,
+  } = options;
+
+  const cleanedCode = code.replace(/\r\n/g, '\n');
+  
+  if (!cleanedCode.trim()) {
+    return { chunks: [], totalChunks: 0, originalLength: 0, strategy: 'fixed' };
+  }
+
+  // Define patterns based on language
+  const patterns: Record<string, RegExp> = {
+    javascript: /^(export\s+)?(async\s+)?function\s+\w+|^(export\s+)?(const|let|var)\s+\w+\s*=\s*(async\s+)?\([^)]*\)\s*=>|^(export\s+)?class\s+\w+/gm,
+    typescript: /^(export\s+)?(async\s+)?function\s+\w+|^(export\s+)?(const|let|var)\s+\w+\s*=\s*(async\s+)?\([^)]*\)\s*=>|^(export\s+)?class\s+\w+|^(export\s+)?interface\s+\w+|^(export\s+)?type\s+\w+/gm,
+    python: /^(async\s+)?def\s+\w+|^class\s+\w+/gm,
+    generic: /^(function|class|def|interface|type|export|public|private|protected)\s+\w+/gm,
+  };
+
+  const pattern = patterns[language] || patterns.generic;
+  const matches: { index: number; match: string }[] = [];
+  let match;
+
+  while ((match = pattern.exec(cleanedCode)) !== null) {
+    matches.push({ index: match.index, match: match[0] });
+  }
+
+  if (matches.length === 0) {
+    // No recognizable code structures, fall back to recursive chunking
+    return chunkDocumentRecursive(cleanedCode, { maxChunkSize }, documentId);
+  }
+
+  const rawChunks: { content: string; start: number; end: number }[] = [];
+
+  // Add content before first match if significant
+  if (matches[0].index > 50) {
+    const headerContent = cleanedCode.slice(0, matches[0].index).trim();
+    if (headerContent.length > 0) {
+      rawChunks.push({
+        content: headerContent,
+        start: 0,
+        end: matches[0].index,
+      });
+    }
+  }
+
+  // Process each code block
+  for (let i = 0; i < matches.length; i++) {
+    const start = matches[i].index;
+    const end = i < matches.length - 1 ? matches[i + 1].index : cleanedCode.length;
+    const content = cleanedCode.slice(start, end).trim();
+
+    // Add context header if preserving context
+    if (preserveContext && rawChunks.length > 0) {
+      const prevChunk = rawChunks[rawChunks.length - 1];
+      const lastLine = prevChunk.content.split('\n').pop() || '';
+      if (lastLine.includes('import') || lastLine.includes('export')) {
+        // Don't add import context
+      }
+    }
+
+    // Split large blocks
+    if (content.length > maxChunkSize) {
+      const subChunks = chunkDocumentRecursive(content, {
+        maxChunkSize,
+        separators: ['\n\n', '\n', '  '],
+      }, documentId);
+      
+      for (const subChunk of subChunks.chunks) {
+        rawChunks.push({
+          content: subChunk.content,
+          start: start + subChunk.startOffset,
+          end: start + subChunk.endOffset,
+        });
+      }
+    } else if (content.length > 0) {
+      rawChunks.push({ content, start, end });
+    }
+  }
+
+  const chunks: DocumentChunk[] = rawChunks.map((chunk, index) => ({
+    id: documentId ? `${documentId}-chunk-${index}` : `chunk-${index}-${Date.now()}`,
+    content: chunk.content,
+    index,
+    startOffset: chunk.start,
+    endOffset: chunk.end,
+    metadata: { language },
+  }));
+
+  return {
+    chunks,
+    totalChunks: chunks.length,
+    originalLength: cleanedCode.length,
+    strategy: 'semantic',
+  };
+}

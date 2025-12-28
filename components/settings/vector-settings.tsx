@@ -51,20 +51,22 @@ export function VectorSettings() {
 
   return (
     <div className="space-y-4">
+      {/* Provider and Connection Settings */}
       <Card>
-        <CardHeader>
-          <CardTitle>Vector Database</CardTitle>
-          <CardDescription>Configure provider, mode, and embedding defaults.</CardDescription>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Vector Database</CardTitle>
+          <CardDescription className="text-xs">Configure provider, mode, and embedding defaults.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Provider</Label>
+          {/* Provider and Mode in grid */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-sm">Provider</Label>
               <Select
                 value={settings.provider}
                 onValueChange={(value) => updateSettings({ provider: value as typeof settings.provider })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-9">
                   <SelectValue placeholder="Choose provider" />
                 </SelectTrigger>
                 <SelectContent>
@@ -77,14 +79,14 @@ export function VectorSettings() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Mode</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Mode</Label>
               <Select
                 value={settings.mode}
                 onValueChange={(value) => updateSettings({ mode: value as typeof settings.mode })}
                 disabled={settings.provider === 'native'}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-9">
                   <SelectValue placeholder="Select mode" />
                 </SelectTrigger>
                 <SelectContent>
@@ -92,58 +94,63 @@ export function VectorSettings() {
                   <SelectItem value="server">Server</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] text-muted-foreground">
                 Native provider ignores mode (always local).
               </p>
             </div>
           </div>
 
           {settings.provider === 'chroma' && (
-            <div className="space-y-2">
-              <Label>Chroma Server URL</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Chroma Server URL</Label>
               <Input
                 value={settings.serverUrl}
                 onChange={(e) => updateSettings({ serverUrl: e.target.value })}
                 placeholder="http://localhost:8000"
                 disabled={settings.mode === 'embedded'}
+                className="h-9"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] text-muted-foreground">
                 For server mode, ensure Chroma server is reachable.
               </p>
             </div>
           )}
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Chunk size</Label>
+          {/* Chunk settings in grid */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-sm">Chunk size</Label>
               <Input
                 type="number"
                 min={100}
                 value={settings.chunkSize}
                 onChange={(e) => updateSettings({ chunkSize: Number(e.target.value) || 0 })}
+                className="h-9"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] text-muted-foreground">
                 Characters per chunk (recommended: 500-2000)
               </p>
             </div>
-            <div className="space-y-2">
-              <Label>Chunk overlap</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Chunk overlap</Label>
               <Input
                 type="number"
                 min={0}
                 value={settings.chunkOverlap}
                 onChange={(e) => updateSettings({ chunkOverlap: Number(e.target.value) || 0 })}
+                className="h-9"
               />
-              <p className="text-xs text-muted-foreground">
-                Overlap between chunks (recommended: 10-20% of chunk size)
+              <p className="text-[10px] text-muted-foreground">
+                Overlap between chunks (10-20% of chunk size)
               </p>
             </div>
           </div>
 
+          {/* Auto embed toggle */}
           <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-            <div>
+            <div className="space-y-0.5">
               <p className="text-sm font-medium">Auto embed on import</p>
-              <p className="text-xs text-muted-foreground">Automatically generate embeddings when adding documents.</p>
+              <p className="text-[10px] text-muted-foreground">Automatically generate embeddings when adding documents.</p>
             </div>
             <Switch
               checked={settings.autoEmbed}
@@ -151,24 +158,27 @@ export function VectorSettings() {
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button onClick={handleTestConnection} disabled={testing}>
+          {/* Test connection */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button size="sm" onClick={handleTestConnection} disabled={testing}>
               {testing ? 'Testing...' : 'Test connection'}
             </Button>
-            {testResult && <span className="text-sm text-green-600">{testResult}</span>}
-            {testError && <span className="text-sm text-destructive">{testError}</span>}
+            {testResult && <span className="text-xs text-green-600">{testResult}</span>}
+            {testError && <span className="text-xs text-destructive">{testError}</span>}
           </div>
 
           {settings.provider === 'native' && (
-            <Alert className={cn('border-primary/50 bg-primary/5')}>
-              <AlertDescription>
+            <Alert className={cn('border-primary/50 bg-primary/5 py-2')}>
+              <AlertDescription className="text-xs">
                 Native provider stores vectors locally via Tauri commands (JSON-backed). Ensure desktop runtime is used.
               </AlertDescription>
             </Alert>
           )}
-          <VectorManager />
         </CardContent>
       </Card>
+
+      {/* Vector Manager - Full width below */}
+      <VectorManager />
     </div>
   );
 }

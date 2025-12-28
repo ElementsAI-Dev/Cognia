@@ -9,6 +9,12 @@ export { useSpeech, type UseSpeechOptions, type UseSpeechReturn, type SpeakOptio
 export { useNetworkStatus, useApiHealth, type NetworkStatus } from './use-network-status';
 export { useVectorDB, type UseVectorDBOptions, type UseVectorDBReturn } from './use-vector-db';
 export { useRAG, type UseRAGOptions, type UseRAGReturn } from './use-rag';
+export {
+  useRAGPipeline,
+  type UseRAGPipelineOptions,
+  type UseRAGPipelineReturn,
+  type IndexingResult as RAGIndexingResult,
+} from './use-rag-pipeline';
 export { useAgent, useConfiguredAgent, type UseAgentOptions, type UseAgentReturn } from './use-agent';
 export { usePlanExecutor, type PlanExecutionOptions, type UsePlanExecutorReturn } from './use-plan-executor';
 export { useMention, type UseMentionOptions, type UseMentionReturn } from './use-mention';
@@ -148,3 +154,20 @@ export {
   type DropPosition,
   type UseDesignerDragDropReturn,
 } from './use-designer-drag-drop';
+export {
+  useExecutionHistory,
+  useSnippets,
+  useSessions,
+  useSandboxStats,
+  useCodeExecution,
+  useTagsCategories,
+  type UseExecutionHistoryOptions,
+  type UseExecutionHistoryReturn,
+  type UseSnippetsOptions,
+  type UseSnippetsReturn,
+  type UseSessionsOptions,
+  type UseSessionsReturn,
+  type UseSandboxStatsReturn,
+  type UseCodeExecutionReturn,
+  type UseTagsCategoriesReturn,
+} from './use-sandbox-db';

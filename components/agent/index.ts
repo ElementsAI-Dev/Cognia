@@ -12,3 +12,5 @@ export { BackgroundAgentIndicator } from './background-agent-indicator';
 export { AgentPlanEditor } from './agent-plan-editor';
 export { ToolTimeline, type ToolExecution } from './tool-timeline';
 export { ToolApprovalDialog, type ToolApprovalRequest } from './tool-approval-dialog';
+export { SubAgentCoordinator } from './sub-agent-coordinator';
+export { AgentSubAgentPanel } from './agent-sub-agent-panel';

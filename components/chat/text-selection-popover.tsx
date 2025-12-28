@@ -2,13 +2,30 @@
 
 /**
  * TextSelectionPopover - Shows action menu when text is selected in chat messages
+ * Enhanced with AI explain, quick translate, and context integration
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Copy, Quote, Search, Check } from 'lucide-react';
+import { 
+  Copy, 
+  Quote, 
+  Search, 
+  Check, 
+  Languages, 
+  Sparkles, 
+  MessageSquare,
+  Loader2,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useQuoteStore } from '@/stores/quote-store';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -18,6 +35,9 @@ interface TextSelectionPopoverProps {
   messageId: string;
   messageRole: 'user' | 'assistant';
   onSearch?: (text: string) => void;
+  onExplain?: (text: string) => void;
+  onTranslate?: (text: string, targetLang: string) => void;
+  onAskAbout?: (text: string) => void;
 }
 
 interface SelectionState {
@@ -25,16 +45,32 @@ interface SelectionState {
   rect: DOMRect | null;
 }
 
+// Quick translate languages
+const QUICK_LANGUAGES = [
+  { code: 'en', name: 'English', flag: '🇺🇸' },
+  { code: 'zh', name: '中文', flag: '🇨🇳' },
+  { code: 'ja', name: '日本語', flag: '🇯🇵' },
+  { code: 'ko', name: '한국어', flag: '🇰🇷' },
+  { code: 'es', name: 'Español', flag: '🇪🇸' },
+  { code: 'fr', name: 'Français', flag: '🇫🇷' },
+];
+
 export function TextSelectionPopover({
   containerRef,
   messageId,
   messageRole,
   onSearch,
+  onExplain,
+  onTranslate,
+  onAskAbout,
 }: TextSelectionPopoverProps) {
+  const t = useTranslations('textSelection');
   const tToasts = useTranslations('toasts');
   const [selection, setSelection] = useState<SelectionState>({ text: '', rect: null });
   const [copied, setCopied] = useState(false);
   const [quoted, setQuoted] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showLanguages, setShowLanguages] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const addQuote = useQuoteStore((state) => state.addQuote);
 
@@ -131,6 +167,39 @@ export function TextSelectionPopover({
     window.getSelection()?.removeAllRanges();
   };
 
+  // Handle AI explain
+  const handleExplain = async () => {
+    if (onExplain) {
+      setIsProcessing(true);
+      try {
+        onExplain(selection.text);
+      } finally {
+        setIsProcessing(false);
+        setSelection({ text: '', rect: null });
+        window.getSelection()?.removeAllRanges();
+      }
+    }
+  };
+
+  // Handle translate
+  const handleTranslate = (langCode: string) => {
+    if (onTranslate) {
+      onTranslate(selection.text, langCode);
+      setShowLanguages(false);
+      setSelection({ text: '', rect: null });
+      window.getSelection()?.removeAllRanges();
+    }
+  };
+
+  // Handle ask about
+  const handleAskAbout = () => {
+    if (onAskAbout) {
+      onAskAbout(selection.text);
+      setSelection({ text: '', rect: null });
+      window.getSelection()?.removeAllRanges();
+    }
+  };
+
   if (!selection.text || !selection.rect) {
     return null;
   }
@@ -144,72 +213,162 @@ export function TextSelectionPopover({
     zIndex: 9999,
   };
 
+  // Word count for selection info
+  const wordCount = selection.text.split(/\s+/).filter(Boolean).length;
+
   return (
     <div
       ref={popoverRef}
       style={popoverStyle}
       className={cn(
-        'flex items-center gap-0.5 p-1 rounded-lg border bg-popover shadow-lg',
+        'flex flex-col gap-1 p-1.5 rounded-lg border bg-popover shadow-lg',
         'animate-in fade-in-0 zoom-in-95 duration-150'
       )}
     >
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={handleCopy}
-          >
-            {copied ? (
-              <Check className="h-3.5 w-3.5 text-green-500" />
-            ) : (
-              <Copy className="h-3.5 w-3.5" />
-            )}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="top">
-          <p>{copied ? 'Copied!' : 'Copy'}</p>
-        </TooltipContent>
-      </Tooltip>
+      {/* Selection info */}
+      <div className="flex items-center justify-center px-2">
+        <Badge variant="secondary" className="text-[10px] h-4">
+          {wordCount} {wordCount === 1 ? t('word') : t('words')}
+        </Badge>
+      </div>
 
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={handleQuote}
-          >
-            {quoted ? (
-              <Check className="h-3.5 w-3.5 text-green-500" />
-            ) : (
-              <Quote className="h-3.5 w-3.5" />
-            )}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="top">
-          <p>{quoted ? 'Quoted!' : 'Quote'}</p>
-        </TooltipContent>
-      </Tooltip>
-
-      {onSearch && (
+      {/* Main actions row */}
+      <div className="flex items-center gap-0.5">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
               className="h-7 w-7"
-              onClick={handleSearch}
+              onClick={handleCopy}
             >
-              <Search className="h-3.5 w-3.5" />
+              {copied ? (
+                <Check className="h-3.5 w-3.5 text-green-500" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
             </Button>
           </TooltipTrigger>
           <TooltipContent side="top">
-            <p>Search</p>
+            <p>{copied ? t('copied') : t('copy')}</p>
           </TooltipContent>
         </Tooltip>
-      )}
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={handleQuote}
+            >
+              {quoted ? (
+                <Check className="h-3.5 w-3.5 text-green-500" />
+              ) : (
+                <Quote className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <p>{quoted ? t('quoted') : t('quote')}</p>
+          </TooltipContent>
+        </Tooltip>
+
+        {onSearch && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={handleSearch}
+              >
+                <Search className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>{t('search')}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* AI Explain button */}
+        {onExplain && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={handleExplain}
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>{t('explain')}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* Ask about button */}
+        {onAskAbout && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={handleAskAbout}
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>{t('askAbout')}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* Translate dropdown */}
+        {onTranslate && (
+          <DropdownMenu open={showLanguages} onOpenChange={setShowLanguages}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                  >
+                    <Languages className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>{t('translate')}</p>
+              </TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="center" className="w-36">
+              {QUICK_LANGUAGES.map((lang) => (
+                <DropdownMenuItem
+                  key={lang.code}
+                  onClick={() => handleTranslate(lang.code)}
+                  className="text-xs"
+                >
+                  <span className="mr-2">{lang.flag}</span>
+                  {lang.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
     </div>
   );
 }

@@ -35,6 +35,13 @@ export interface ToolInvocationPart {
   state: ToolState;
   result?: unknown;
   errorText?: string;
+  // Enhanced metadata
+  description?: string;
+  startedAt?: Date;
+  completedAt?: Date;
+  duration?: number; // in milliseconds
+  riskLevel?: 'low' | 'medium' | 'high';
+  isApproved?: boolean;
 }
 
 export interface SourcesPart {

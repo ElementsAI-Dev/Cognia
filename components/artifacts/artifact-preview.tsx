@@ -15,6 +15,7 @@ import {
   MathRenderer,
   MarkdownRenderer,
 } from './artifact-renderers';
+import { JupyterRenderer } from './jupyter-renderer';
 
 interface ArtifactPreviewProps {
   artifact: Artifact;
@@ -92,6 +93,14 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
     return (
       <div className={cn('h-full w-full overflow-auto bg-background', className)}>
         <MathRenderer content={artifact.content} className="min-h-full" />
+      </div>
+    );
+  }
+
+  if (artifact.type === 'jupyter') {
+    return (
+      <div className={cn('h-full w-full overflow-hidden bg-background', className)}>
+        <JupyterRenderer content={artifact.content} className="h-full" />
       </div>
     );
   }

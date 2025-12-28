@@ -3,8 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useClipboardHistory, ClipboardEntry } from '@/hooks/use-selection-history';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupButton,
+} from '@/components/ui/input-group';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Copy,
   Pin,
@@ -16,6 +22,7 @@ import {
   File,
   X,
   RefreshCw,
+  Clipboard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -71,26 +78,28 @@ export function ClipboardHistoryPanel({
   return (
     <div className={cn('flex flex-col h-full min-h-0 overflow-hidden', className)}>
       <div className="flex items-center gap-2 p-2 sm:p-3 border-b shrink-0">
-        <div className="relative flex-1">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+        <InputGroup className="flex-1">
+          <InputGroupAddon align="inline-start">
+            <Search className="h-4 w-4" />
+          </InputGroupAddon>
+          <InputGroupInput
             placeholder="Search clipboard..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="pl-8 pr-8"
           />
           {searchQuery && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
-              onClick={handleClearSearch}
-            >
-              <X className="h-3 w-3" />
-            </Button>
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                size="icon-xs"
+                onClick={handleClearSearch}
+                aria-label="Clear search"
+              >
+                <X className="h-3 w-3" />
+              </InputGroupButton>
+            </InputGroupAddon>
           )}
-        </div>
+        </InputGroup>
         <Button
           variant="outline"
           size="icon"
@@ -135,9 +144,12 @@ export function ClipboardHistoryPanel({
             />
           ))}
           {displayItems.length === 0 && (
-            <div className="text-center text-muted-foreground py-8">
-              {searchResults ? 'No results found' : 'No clipboard history'}
-            </div>
+            <EmptyState
+              icon={Clipboard}
+              title={searchResults ? 'No results found' : 'No clipboard history'}
+              description={searchResults ? 'Try a different search query' : 'Copy something to get started'}
+              compact
+            />
           )}
         </div>
       </ScrollArea>

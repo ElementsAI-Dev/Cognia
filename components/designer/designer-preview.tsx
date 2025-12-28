@@ -3,26 +3,45 @@
 /**
  * DesignerPreview - Interactive preview with element selection and highlighting
  * Similar to V0's visual editing mode
+ *
+ * Features:
+ * - CDN fallback for core libraries (React, Babel, Tailwind)
+ * - Error handling with user feedback
+ * - Tailwind load synchronization to prevent race conditions
+ * - Dark mode support
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDesignerStore } from '@/stores/designer-store';
 import { VIEWPORT_PRESETS } from '@/types/designer';
+import { CORE_LIBRARY_CDNS } from '@/lib/designer/cdn-resolver';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 
 interface DesignerPreviewProps {
   className?: string;
+  onError?: (error: string) => void;
 }
 
-export function DesignerPreview({ className }: DesignerPreviewProps) {
+type PreviewError = {
+  type: 'cdn' | 'syntax' | 'runtime' | 'timeout';
+  message: string;
+  details?: string;
+} | null;
+
+export function DesignerPreview({ className, onError }: DesignerPreviewProps) {
   const t = useTranslations('designer');
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  
+  const [error, setError] = useState<PreviewError>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const mode = useDesignerStore((state) => state.mode);
   const code = useDesignerStore((state) => state.code);
   const viewport = useDesignerStore((state) => state.viewport);
@@ -35,30 +54,87 @@ export function DesignerPreview({ className }: DesignerPreviewProps) {
 
   const viewportDimensions = VIEWPORT_PRESETS[viewport];
 
+  // Handle error from iframe or internal
+  const handleError = useCallback((err: PreviewError) => {
+    setError(err);
+    if (err && onError) {
+      onError(err.message);
+    }
+  }, [onError]);
+
+  // Retry loading the preview
+  const handleRetry = useCallback(() => {
+    setIsRetrying(true);
+    setError(null);
+    setIsLoaded(false);
+
+    // Force reload by re-triggering the effect
+    setTimeout(() => {
+      setIsRetrying(false);
+    }, 100);
+  }, []);
+
   // Inject the code into iframe
   useEffect(() => {
-    if (!iframeRef.current) return;
-    
+    if (!iframeRef.current || isRetrying) return;
+
     const iframe = iframeRef.current;
     const doc = iframe.contentDocument;
     if (!doc) return;
 
-    const wrappedCode = wrapCodeForPreview(code, mode === 'design');
-    
-    doc.open();
-    doc.write(wrappedCode);
-    doc.close();
+    // Clear previous timeout
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+    }
 
-    // Parse code to element tree
-    parseCodeToElements(code);
-    
-    // Use requestAnimationFrame to avoid synchronous setState in effect
-    requestAnimationFrame(() => {
-      setIsLoaded(true);
-    });
-  }, [code, mode, parseCodeToElements]);
+    // Set loading timeout (10 seconds)
+    loadTimeoutRef.current = setTimeout(() => {
+      if (!isLoaded) {
+        handleError({
+          type: 'timeout',
+          message: 'Preview loading timed out',
+          details: 'The preview took too long to load. This may be due to CDN issues or network problems.',
+        });
+      }
+    }, 10000);
 
-  // Handle messages from iframe (element selection, hover)
+    try {
+      const wrappedCode = wrapCodeForPreview(code, mode === 'design');
+
+      doc.open();
+      doc.write(wrappedCode);
+      doc.close();
+
+      // Parse code to element tree
+      parseCodeToElements(code);
+
+      // Use requestAnimationFrame to avoid synchronous setState in effect
+      requestAnimationFrame(() => {
+        setIsLoaded(true);
+        setError(null);
+        if (loadTimeoutRef.current) {
+          clearTimeout(loadTimeoutRef.current);
+        }
+      });
+    } catch (err) {
+      // Use requestAnimationFrame to avoid synchronous setState in effect
+      requestAnimationFrame(() => {
+        handleError({
+          type: 'syntax',
+          message: 'Failed to render preview',
+          details: err instanceof Error ? err.message : 'Unknown error',
+        });
+      });
+    }
+
+    return () => {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
+    };
+  }, [code, mode, parseCodeToElements, isRetrying, isLoaded, handleError]);
+
+  // Handle messages from iframe (element selection, hover, errors)
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data.type === 'element-click') {
@@ -67,12 +143,24 @@ export function DesignerPreview({ className }: DesignerPreviewProps) {
         hoverElement(event.data.elementId);
       } else if (event.data.type === 'element-leave') {
         hoverElement(null);
+      } else if (event.data.type === 'preview-error') {
+        handleError({
+          type: event.data.errorType || 'runtime',
+          message: event.data.message || 'Preview error',
+          details: event.data.details,
+        });
+      } else if (event.data.type === 'preview-ready') {
+        setIsLoaded(true);
+        setError(null);
+        if (loadTimeoutRef.current) {
+          clearTimeout(loadTimeoutRef.current);
+        }
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [selectElement, hoverElement]);
+  }, [selectElement, hoverElement, handleError]);
 
   // Sync selection highlight to iframe
   useEffect(() => {
@@ -127,9 +215,36 @@ export function DesignerPreview({ className }: DesignerPreviewProps) {
           sandbox="allow-scripts allow-same-origin"
           title={t('preview')}
         />
-        
+
+        {/* Error overlay */}
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/95 p-4">
+            <div className="max-w-md text-center space-y-4">
+              <div className="mx-auto h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                <AlertCircle className="h-6 w-6 text-destructive" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg">{error.message}</h3>
+                {error.details && (
+                  <p className="text-sm text-muted-foreground">{error.details}</p>
+                )}
+                <Badge variant="outline" className="mt-2">
+                  {error.type === 'cdn' && 'CDN Error'}
+                  {error.type === 'syntax' && 'Syntax Error'}
+                  {error.type === 'runtime' && 'Runtime Error'}
+                  {error.type === 'timeout' && 'Timeout'}
+                </Badge>
+              </div>
+              <Button onClick={handleRetry} variant="outline" size="sm">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Loading overlay */}
-        {!isLoaded && (
+        {!isLoaded && !error && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/80">
             <div className="space-y-3 w-full max-w-sm p-4">
               <Skeleton className="h-4 w-3/4" />
@@ -302,7 +417,78 @@ function wrapCodeForPreview(code: string, designMode: boolean): string {
 
   // Check if it's React code or plain HTML
   const isReact = code.includes('function') && (code.includes('return') || code.includes('=>'));
-  
+
+  // Get CDN URLs with fallback support
+  const reactCDN = CORE_LIBRARY_CDNS.react;
+  const reactDomCDN = CORE_LIBRARY_CDNS.reactDom;
+  const babelCDN = CORE_LIBRARY_CDNS.babel;
+  const tailwindCDN = CORE_LIBRARY_CDNS.tailwind;
+  const lucideCDN = CORE_LIBRARY_CDNS.lucideIcons;
+
+  // Script to handle CDN loading errors and notify parent
+  const errorHandlingScript = `
+    <script>
+      window.__cdnLoadErrors = [];
+      window.__tailwindReady = false;
+
+      // Report errors to parent
+      function reportError(type, message, details) {
+        window.parent.postMessage({
+          type: 'preview-error',
+          errorType: type,
+          message: message,
+          details: details
+        }, '*');
+      }
+
+      // Report ready to parent
+      function reportReady() {
+        window.parent.postMessage({ type: 'preview-ready' }, '*');
+      }
+
+      // CDN load error handler
+      function handleCDNError(lib, primaryUrl, fallbackUrl) {
+        return function() {
+          window.__cdnLoadErrors.push(lib);
+          console.warn('[CDN] ' + lib + ' failed to load from ' + primaryUrl + ', trying fallback...');
+          if (fallbackUrl) {
+            var script = document.createElement('script');
+            script.src = fallbackUrl;
+            script.onerror = function() {
+              reportError('cdn', lib + ' failed to load', 'Both primary and fallback CDNs failed');
+            };
+            document.head.appendChild(script);
+          }
+        };
+      }
+
+      // Wait for Tailwind to be ready
+      function waitForTailwind(callback, maxWait) {
+        maxWait = maxWait || 5000;
+        var startTime = Date.now();
+
+        function check() {
+          if (typeof tailwind !== 'undefined' || window.__tailwindReady) {
+            window.__tailwindReady = true;
+            callback();
+          } else if (Date.now() - startTime < maxWait) {
+            requestAnimationFrame(check);
+          } else {
+            console.warn('[Tailwind] Timed out waiting for Tailwind');
+            callback(); // Continue anyway
+          }
+        }
+        check();
+      }
+
+      // Global error handler
+      window.onerror = function(msg, url, line, col, error) {
+        reportError('runtime', msg, 'Line ' + line + ': ' + (error ? error.stack : ''));
+        return false;
+      };
+    <\/script>
+  `;
+
   if (isReact) {
     return `
       <!DOCTYPE html>
@@ -310,43 +496,57 @@ function wrapCodeForPreview(code: string, designMode: boolean): string {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-        <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-        <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.min.css">
+        ${errorHandlingScript}
+        <script src="${reactCDN[0]}" crossorigin onerror="handleCDNError('React', '${reactCDN[0]}', '${reactCDN[1]}')()"><\/script>
+        <script src="${reactDomCDN[0]}" crossorigin onerror="handleCDNError('ReactDOM', '${reactDomCDN[0]}', '${reactDomCDN[1]}')()"><\/script>
+        <script src="${babelCDN[0]}" onerror="handleCDNError('Babel', '${babelCDN[0]}', '${babelCDN[1]}')()"><\/script>
+        <script src="${tailwindCDN[0]}" onload="window.__tailwindReady=true" onerror="handleCDNError('Tailwind', '${tailwindCDN[0]}', '${tailwindCDN[1] || ''}')()"><\/script>
+        <link rel="stylesheet" href="${lucideCDN[0]}" onerror="this.onerror=null;this.href='${lucideCDN[1]}'">
         <style>
           body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
           * { box-sizing: border-box; }
+          /* Hide content until Tailwind is ready to prevent FOUC */
+          .tw-loading { opacity: 0; transition: opacity 0.2s; }
+          .tw-ready { opacity: 1; }
         </style>
         ${designModeScript}
       </head>
       <body>
-        <div id="root"></div>
+        <div id="root" class="tw-loading"></div>
         <script type="text/babel" data-presets="react">
-          try {
-            ${code}
-            
-            const components = [
-              typeof App !== 'undefined' ? App : null,
-              typeof Component !== 'undefined' ? Component : null,
-              typeof Main !== 'undefined' ? Main : null,
-            ].filter(Boolean);
-            
-            if (components.length > 0) {
-              const root = ReactDOM.createRoot(document.getElementById('root'));
-              root.render(React.createElement(components[0]));
+          // Wait for Tailwind before rendering
+          waitForTailwind(function() {
+            try {
+              ${code}
+
+              const components = [
+                typeof App !== 'undefined' ? App : null,
+                typeof Component !== 'undefined' ? Component : null,
+                typeof Main !== 'undefined' ? Main : null,
+              ].filter(Boolean);
+
+              if (components.length > 0) {
+                const root = ReactDOM.createRoot(document.getElementById('root'));
+                root.render(React.createElement(components[0]));
+              }
+
+              // Show content and report ready
+              document.getElementById('root').classList.remove('tw-loading');
+              document.getElementById('root').classList.add('tw-ready');
+              reportReady();
+            } catch (error) {
+              document.getElementById('root').innerHTML = '<div style="color:red;padding:16px;background:#fee;border-radius:8px;"><strong>Error:</strong> ' + error.message + '</div>';
+              document.getElementById('root').classList.remove('tw-loading');
+              document.getElementById('root').classList.add('tw-ready');
+              reportError('syntax', 'React render error', error.message);
             }
-          } catch (error) {
-            document.getElementById('root').innerHTML = '<div style="color:red;padding:16px;background:#fee;border-radius:8px;"><strong>Error:</strong> ' + error.message + '</div>';
-            console.error(error);
-          }
-        </script>
+          });
+        <\/script>
       </body>
       </html>
     `;
   }
-  
+
   // Plain HTML
   return `
     <!DOCTYPE html>
@@ -354,15 +554,22 @@ function wrapCodeForPreview(code: string, designMode: boolean): string {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <script src="https://cdn.tailwindcss.com"></script>
+      ${errorHandlingScript}
+      <script src="${tailwindCDN[0]}" onload="window.__tailwindReady=true" onerror="handleCDNError('Tailwind', '${tailwindCDN[0]}', '${tailwindCDN[1] || ''}')()"><\/script>
       <style>
-        body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+        body { margin: 0; font-family: system-ui, -apple-system, sans-serif; opacity: 0; transition: opacity 0.2s; }
         * { box-sizing: border-box; }
       </style>
       ${designModeScript}
     </head>
     <body>
       ${code}
+      <script>
+        waitForTailwind(function() {
+          document.body.style.opacity = '1';
+          reportReady();
+        });
+      <\/script>
     </body>
     </html>
   `;

@@ -14,7 +14,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useKeyboardShortcuts, formatShortcut } from '@/hooks/use-keyboard-shortcuts';
 import { useUIStore } from '@/stores';
@@ -55,15 +54,72 @@ export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProp
     {} as Record<string, typeof shortcuts>
   );
 
+  // If no trigger is provided, render only the controlled dialog (no visible trigger button)
+  if (!trigger) {
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Keyboard className="h-5 w-5" />
+              {t('title')}
+            </DialogTitle>
+            <DialogDescription>
+              {t('description')}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {Object.entries(groupedShortcuts).map(([category, categoryShortcuts]) => (
+              <div key={category}>
+                <h3 className="flex items-center gap-2 text-sm font-semibold mb-3">
+                  <Badge variant="secondary" className={categoryColors[category]}>
+                    {t(categoryLabelKeys[category])}
+                  </Badge>
+                </h3>
+                <div className="space-y-2">
+                  {categoryShortcuts.map((shortcut, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between py-1.5"
+                    >
+                      <span className="text-sm text-muted-foreground">
+                        {shortcut.description}
+                      </span>
+                      <kbd className="inline-flex items-center gap-1 rounded border bg-muted px-2 py-1 font-mono text-xs">
+                        {formatShortcut({
+                          key: shortcut.key,
+                          ctrl: shortcut.ctrl,
+                          shift: shortcut.shift,
+                          alt: shortcut.alt,
+                          meta: shortcut.meta,
+                        })}
+                      </kbd>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 rounded-lg bg-muted p-3 text-sm">
+            <p className="text-muted-foreground">
+              <strong>{t('tip')}</strong> Press{' '}
+              <kbd className="mx-1 rounded border bg-background px-1.5 py-0.5 font-mono text-xs">
+                {typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl'}+K
+              </kbd>{' '}
+              {t('commandPaletteHint')}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {trigger || (
-          <Button variant="outline" size="sm">
-            <Keyboard className="mr-2 h-4 w-4" />
-            {t('title')}
-          </Button>
-        )}
+        {trigger}
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>

@@ -4,15 +4,27 @@ const React = require('react');
 const fs = require('fs');
 const path = require('path');
 
-// Load English translations
+// Load English translations - try multiple path resolution strategies
 let messages = {};
-try {
-  const messagesPath = path.join(__dirname, '..', 'lib', 'i18n', 'messages', 'en.json');
-  if (fs.existsSync(messagesPath)) {
-    messages = JSON.parse(fs.readFileSync(messagesPath, 'utf-8'));
+const pathsToTry = [
+  path.resolve(__dirname, '..', 'lib', 'i18n', 'messages', 'en.json'),
+  path.resolve(process.cwd(), 'lib', 'i18n', 'messages', 'en.json'),
+  path.join(__dirname, '..', 'lib', 'i18n', 'messages', 'en.json'),
+];
+
+for (const messagesPath of pathsToTry) {
+  try {
+    if (fs.existsSync(messagesPath)) {
+      const content = fs.readFileSync(messagesPath, 'utf-8');
+      messages = JSON.parse(content);
+      // Verify load was successful
+      if (Object.keys(messages).length > 0) {
+        break;
+      }
+    }
+  } catch {
+    // Continue to next path
   }
-} catch {
-  // Fallback to empty messages if file not found
 }
 
 // Helper to get nested value from object

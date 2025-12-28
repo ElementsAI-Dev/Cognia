@@ -395,6 +395,216 @@ export function detectPackagesFromCode(code: string): string[] {
   return Array.from(packages);
 }
 
+// ============================================================
+// Core Library CDN Configuration with Fallbacks
+// ============================================================
+
+/**
+ * Core library CDN URLs with multiple fallback options
+ * Used for iframe previews where we need direct script tags
+ */
+export const CORE_LIBRARY_CDNS = {
+  react: [
+    'https://unpkg.com/react@18/umd/react.development.js',
+    'https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.min.js',
+  ],
+  reactDom: [
+    'https://unpkg.com/react-dom@18/umd/react-dom.development.js',
+    'https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.min.js',
+  ],
+  babel: [
+    'https://unpkg.com/@babel/standalone/babel.min.js',
+    'https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js',
+  ],
+  tailwind: [
+    'https://cdn.tailwindcss.com',
+    'https://cdn.jsdelivr.net/npm/tailwindcss@3/dist/tailwind.min.js',
+  ],
+  lucideIcons: [
+    'https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.min.css',
+    'https://unpkg.com/lucide-static@latest/font/lucide.min.css',
+  ],
+} as const;
+
+export type CoreLibrary = keyof typeof CORE_LIBRARY_CDNS;
+
+// Cache for CDN health check results (5 minute TTL)
+const cdnHealthCache = new Map<string, { available: boolean; timestamp: number }>();
+const CDN_HEALTH_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Check if a CDN URL is available
+ * Results are cached for 5 minutes
+ */
+export async function checkCDNHealth(url: string, timeout = 3000): Promise<boolean> {
+  const cached = cdnHealthCache.get(url);
+  if (cached && Date.now() - cached.timestamp < CDN_HEALTH_CACHE_TTL) {
+    return cached.available;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    const response = await fetch(url, {
+      method: 'HEAD',
+      signal: controller.signal,
+      mode: 'no-cors', // Allow checking CDNs without CORS
+    });
+
+    clearTimeout(timeoutId);
+
+    // For no-cors requests, response.ok might be false but status 0 means success
+    const available = response.ok || response.type === 'opaque';
+    cdnHealthCache.set(url, { available, timestamp: Date.now() });
+    return available;
+  } catch {
+    cdnHealthCache.set(url, { available: false, timestamp: Date.now() });
+    return false;
+  }
+}
+
+/**
+ * Get the first available CDN URL for a core library
+ * Falls back through the list until one is available
+ */
+export async function getAvailableCDN(
+  library: CoreLibrary,
+  options: { timeout?: number; skipCheck?: boolean } = {}
+): Promise<string> {
+  const { timeout = 3000, skipCheck = false } = options;
+  const urls = CORE_LIBRARY_CDNS[library];
+
+  if (skipCheck) {
+    return urls[0];
+  }
+
+  for (const url of urls) {
+    const available = await checkCDNHealth(url, timeout);
+    if (available) {
+      return url;
+    }
+  }
+
+  // Return first URL as fallback even if health check failed
+  console.warn(`[CDN] All CDNs for ${library} failed health check, using primary`);
+  return urls[0];
+}
+
+/**
+ * Generate script tag with onerror fallback to next CDN
+ * This allows client-side fallback when a CDN fails to load
+ */
+export function generateScriptTagWithFallback(
+  library: CoreLibrary,
+  options: { async?: boolean; crossorigin?: boolean } = {}
+): string {
+  const urls = CORE_LIBRARY_CDNS[library];
+  const { async = false, crossorigin = true } = options;
+
+  const asyncAttr = async ? ' async' : '';
+  const crossoriginAttr = crossorigin ? ' crossorigin' : '';
+
+  // Generate script with onerror fallback chain
+  const fallbackChain = urls
+    .map((url, index) => {
+      if (index === 0) {
+        // First script with onerror handler
+        const fallbackScript = urls[1]
+          ? `this.onerror=null;this.src='${urls[1]}';`
+          : '';
+        return `<script src="${url}"${asyncAttr}${crossoriginAttr} onerror="${fallbackScript}"><\/script>`;
+      }
+      return null;
+    })
+    .filter(Boolean)
+    .join('\n');
+
+  return fallbackChain;
+}
+
+/**
+ * Generate all core library script tags with fallback support
+ * Returns HTML string ready to inject into iframe head
+ */
+export function generateCoreLibraryScripts(options: {
+  includeReact?: boolean;
+  includeBabel?: boolean;
+  includeTailwind?: boolean;
+  includeLucide?: boolean;
+} = {}): string {
+  const {
+    includeReact = true,
+    includeBabel = true,
+    includeTailwind = true,
+    includeLucide = true,
+  } = options;
+
+  const scripts: string[] = [];
+
+  if (includeReact) {
+    scripts.push(generateScriptTagWithFallback('react'));
+    scripts.push(generateScriptTagWithFallback('reactDom'));
+  }
+
+  if (includeBabel) {
+    scripts.push(generateScriptTagWithFallback('babel'));
+  }
+
+  if (includeTailwind) {
+    scripts.push(generateScriptTagWithFallback('tailwind'));
+  }
+
+  if (includeLucide) {
+    const lucideUrls = CORE_LIBRARY_CDNS.lucideIcons;
+    scripts.push(
+      `<link rel="stylesheet" href="${lucideUrls[0]}" onerror="this.onerror=null;this.href='${lucideUrls[1]}'">`
+    );
+  }
+
+  return scripts.join('\n    ');
+}
+
+/**
+ * Clear CDN health cache
+ */
+export function clearCDNHealthCache(): void {
+  cdnHealthCache.clear();
+}
+
+/**
+ * Safe base64 encoding that handles Unicode characters
+ * Replaces btoa() which fails on non-ASCII
+ */
+export function safeBase64Encode(str: string): string {
+  try {
+    // Convert to UTF-8 bytes then to base64
+    const bytes = new TextEncoder().encode(str);
+    const binString = Array.from(bytes, (b) => String.fromCharCode(b)).join('');
+    return btoa(binString);
+  } catch {
+    // Fallback for environments without TextEncoder
+    return btoa(unescape(encodeURIComponent(str)));
+  }
+}
+
+/**
+ * Safe base64 decoding that handles Unicode characters
+ */
+export function safeBase64Decode(base64: string): string {
+  try {
+    const binString = atob(base64);
+    const bytes = Uint8Array.from(binString, (c) => c.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  } catch {
+    // Fallback
+    return decodeURIComponent(escape(atob(base64)));
+  }
+}
+
 const cdnResolver = {
   parsePackageSpecifier,
   getCDNUrl,
@@ -409,6 +619,15 @@ const cdnResolver = {
   getPresetPackages,
   detectPackagesFromCode,
   PACKAGE_PRESETS,
+  // New exports
+  CORE_LIBRARY_CDNS,
+  checkCDNHealth,
+  getAvailableCDN,
+  generateScriptTagWithFallback,
+  generateCoreLibraryScripts,
+  clearCDNHealthCache,
+  safeBase64Encode,
+  safeBase64Decode,
 };
 
 export default cdnResolver;

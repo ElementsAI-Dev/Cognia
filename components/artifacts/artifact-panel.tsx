@@ -23,6 +23,7 @@ import {
   Calculator,
   Sparkles,
   Loader2,
+  BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -88,6 +89,7 @@ const typeIcons: Record<ArtType, React.ReactNode> = {
   mermaid: <GitBranch className="h-4 w-4" />,
   chart: <BarChart className="h-4 w-4" />,
   math: <Calculator className="h-4 w-4" />,
+  jupyter: <BookOpen className="h-4 w-4" />,
 };
 
 export function ArtifactPanel() {
@@ -217,7 +219,8 @@ export function ArtifactPanel() {
                      activeArtifact?.type === 'mermaid' ||
                      activeArtifact?.type === 'chart' ||
                      activeArtifact?.type === 'math' ||
-                     activeArtifact?.type === 'document';
+                     activeArtifact?.type === 'document' ||
+                     activeArtifact?.type === 'jupyter';
   
   // Designer is only available for HTML/React/SVG
   const canDesign = activeArtifact?.type === 'html' ||
@@ -376,40 +379,9 @@ function getExtension(artifact: ArtifactType): string {
     mermaid: 'mmd',
     chart: 'json',
     math: 'tex',
+    jupyter: 'ipynb',
   };
   return extensions[artifact.type] || 'txt';
-}
-
-function _openInNewTab(artifact: ArtifactType) {
-  if (artifact.type === 'html' || artifact.type === 'svg') {
-    const blob = new Blob([artifact.content], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-  } else if (artifact.type === 'react') {
-    // For React, wrap in basic HTML
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body>
-  <div id="root"></div>
-  <script type="text/babel">
-    ${artifact.content}
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
-  </script>
-</body>
-</html>`;
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-  }
 }
 
 // Designer Panel integration

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Monitor,
   AppWindow,
@@ -245,9 +246,12 @@ export function ContextPanel({ className }: ContextPanelProps) {
           )}
 
           {!context && !isLoading && !error && (
-            <div className="text-center text-muted-foreground py-8">
-              No context available
-            </div>
+            <EmptyState
+              icon={Monitor}
+              title="No context available"
+              description="Context awareness is not detecting any active window"
+              compact
+            />
           )}
         </div>
       </ScrollArea>

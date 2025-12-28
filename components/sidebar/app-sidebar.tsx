@@ -31,8 +31,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupButton,
+} from '@/components/ui/input-group';
 import { Input } from '@/components/ui/input';
 import { useSessionStore, useSettingsStore } from '@/stores';
+import { ArtifactListCompact } from '@/components/artifacts';
 import { messageRepository } from '@/lib/db';
 import { KeyboardShortcutsDialog } from '@/components/layout/keyboard-shortcuts-dialog';
 import type { Session } from '@/types';
@@ -234,24 +241,29 @@ export function AppSidebar() {
         {/* Search box */}
         {!isCollapsed && (
           <div className="px-2 pt-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+            <InputGroup className="h-9">
+              <InputGroupAddon align="inline-start">
+                <Search className="h-4 w-4" />
+              </InputGroupAddon>
+              <InputGroupInput
                 type="text"
                 placeholder={tPlaceholders('searchConversations')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 pl-8 pr-8 text-sm"
+                className="text-sm"
               />
               {searchQuery && (
-                <button
-                  onClick={clearSearch}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    size="icon-xs"
+                    onClick={clearSearch}
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </InputGroupButton>
+                </InputGroupAddon>
               )}
-            </div>
+            </InputGroup>
             {isSearching && (
               <p className="mt-1 text-xs text-muted-foreground">{t('searching')}</p>
             )}
@@ -357,6 +369,13 @@ export function AppSidebar() {
       <SidebarSeparator />
 
       <SidebarFooter>
+        {/* Session Artifacts - quick access */}
+        {!isCollapsed && activeSessionId && (
+          <div className="px-2 pb-2 border-b border-border/50">
+            <h3 className="text-xs font-medium text-muted-foreground mb-2">{t('sessionArtifacts') || 'Session Artifacts'}</h3>
+            <ArtifactListCompact sessionId={activeSessionId} limit={5} />
+          </div>
+        )}
         {/* Quick access buttons - highlighted */}
         {!isCollapsed && (
           <div className="px-2 pb-2 space-y-2">

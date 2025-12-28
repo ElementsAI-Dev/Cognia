@@ -4,9 +4,16 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useScreenshot, useScreenshotHistory, ScreenshotHistoryEntry } from '@/hooks/use-screenshot';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupButton,
+} from '@/components/ui/input-group';
+import { CopyButton } from '@/components/ui/copy-button';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Camera,
   Monitor,
@@ -16,7 +23,6 @@ import {
   PinOff,
   Trash2,
   Download,
-  Copy,
   X,
   RefreshCw,
   FileText,
@@ -176,16 +182,11 @@ export function ScreenshotPanel({
                   {lastScreenshot.metadata.width}x{lastScreenshot.metadata.height}
                 </span>
                 <div className="flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                  <CopyButton
+                    content={lastScreenshot.image_base64}
                     className="h-7 w-7"
-                    onClick={() => {
-                      navigator.clipboard.writeText(lastScreenshot.image_base64);
-                    }}
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </Button>
+                    iconOnly
+                  />
                   <Button
                     variant="ghost"
                     size="icon"
@@ -215,26 +216,28 @@ export function ScreenshotPanel({
       )}
 
       <div className="flex items-center gap-2 p-2 sm:p-3 border-b shrink-0">
-        <div className="relative flex-1">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+        <InputGroup className="flex-1">
+          <InputGroupAddon align="inline-start">
+            <Search className="h-4 w-4" />
+          </InputGroupAddon>
+          <InputGroupInput
             placeholder="Search by OCR text..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="pl-8 pr-8"
           />
           {searchQuery && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
-              onClick={handleClearSearch}
-            >
-              <X className="h-3 w-3" />
-            </Button>
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                size="icon-xs"
+                onClick={handleClearSearch}
+                aria-label="Clear search"
+              >
+                <X className="h-3 w-3" />
+              </InputGroupButton>
+            </InputGroupAddon>
           )}
-        </div>
+        </InputGroup>
         <Button
           variant="outline"
           size="icon"
@@ -258,8 +261,13 @@ export function ScreenshotPanel({
             />
           ))}
           {displayItems.length === 0 && (
-            <div className="col-span-2 text-center text-muted-foreground py-8">
-              {searchResults ? 'No results found' : 'No screenshot history'}
+            <div className="col-span-full">
+              <EmptyState
+                icon={Camera}
+                title={searchResults ? 'No results found' : 'No screenshot history'}
+                description={searchResults ? 'Try a different search query' : 'Take a screenshot to get started'}
+                compact
+              />
             </div>
           )}
         </div>

@@ -2,10 +2,16 @@
 
 /**
  * ElementTree - Component tree view for the designer
- * Shows hierarchical structure of elements
+ * Shows hierarchical structure of elements with @dnd-kit sortable support
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   ChevronRight,
   ChevronDown,
@@ -21,7 +27,6 @@ import {
   GripVertical,
   Copy,
 } from 'lucide-react';
-import { useDesignerDragDrop } from '@/hooks';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -38,6 +43,7 @@ import {
 } from '@/components/ui/context-menu';
 import { cn } from '@/lib/utils';
 import { useDesignerStore } from '@/stores/designer-store';
+import { useDesignerDnd, type DragItem } from './dnd';
 import type { DesignerElement } from '@/types/designer';
 
 // Map tag names to icons
@@ -80,14 +86,8 @@ export function ElementTree({ className }: ElementTreeProps) {
   const duplicateElement = useDesignerStore((state) => state.duplicateElement);
   const syncCodeFromElements = useDesignerStore((state) => state.syncCodeFromElements);
 
-  // Drag-drop support
-  const {
-    isDragging,
-    dropTargetId,
-    dropPosition,
-    createElementDragHandlers,
-    createDropHandlers,
-  } = useDesignerDragDrop();
+  // Get drag state from new DnD context
+  const { isDragging, overId } = useDesignerDnd();
 
   const handleDeleteElement = useCallback((id: string) => {
     deleteElement(id);
@@ -98,6 +98,18 @@ export function ElementTree({ className }: ElementTreeProps) {
     duplicateElement(id);
     syncCodeFromElements();
   }, [duplicateElement, syncCodeFromElements]);
+
+  // Collect all element IDs for SortableContext
+  const allElementIds = useMemo(() => {
+    if (!elementTree) return [];
+    const ids: string[] = [];
+    const collectIds = (element: DesignerElement) => {
+      ids.push(element.id);
+      element.children.forEach(collectIds);
+    };
+    collectIds(elementTree);
+    return ids;
+  }, [elementTree]);
 
   if (!elementTree) {
     return (
@@ -116,21 +128,20 @@ export function ElementTree({ className }: ElementTreeProps) {
   return (
     <ScrollArea className={cn('h-full', className)}>
       <div className="p-2">
-        <ElementTreeNode
-          element={elementTree}
-          depth={0}
-          selectedId={selectedElementId}
-          hoveredId={hoveredElementId}
-          onSelect={selectElement}
-          onHover={hoverElement}
-          onDelete={handleDeleteElement}
-          onDuplicate={handleDuplicateElement}
-          isDragging={isDragging}
-          dropTargetId={dropTargetId}
-          dropPosition={dropPosition}
-          createElementDragHandlers={createElementDragHandlers}
-          createDropHandlers={createDropHandlers}
-        />
+        <SortableContext items={allElementIds} strategy={verticalListSortingStrategy}>
+          <ElementTreeNode
+            element={elementTree}
+            depth={0}
+            selectedId={selectedElementId}
+            hoveredId={hoveredElementId}
+            onSelect={selectElement}
+            onHover={hoverElement}
+            onDelete={handleDeleteElement}
+            onDuplicate={handleDuplicateElement}
+            globalIsDragging={isDragging}
+            overElementId={overId as string | null}
+          />
+        </SortableContext>
       </div>
     </ScrollArea>
   );
@@ -145,20 +156,8 @@ interface ElementTreeNodeProps {
   onHover: (id: string | null) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
-  isDragging: boolean;
-  dropTargetId: string | null;
-  dropPosition: 'before' | 'after' | 'inside' | null;
-  createElementDragHandlers: (elementId: string) => {
-    draggable: boolean;
-    onDragStart: (e: React.DragEvent) => void;
-    onDragEnd: (e: React.DragEvent) => void;
-  };
-  createDropHandlers: (targetId: string | null) => {
-    onDragOver: (e: React.DragEvent) => void;
-    onDragEnter: (e: React.DragEvent) => void;
-    onDragLeave: (e: React.DragEvent) => void;
-    onDrop: (e: React.DragEvent) => void;
-  };
+  globalIsDragging: boolean;
+  overElementId: string | null;
 }
 
 function ElementTreeNode({
@@ -170,22 +169,37 @@ function ElementTreeNode({
   onHover,
   onDelete,
   onDuplicate,
-  isDragging,
-  dropTargetId,
-  dropPosition,
-  createElementDragHandlers,
-  createDropHandlers,
+  globalIsDragging,
+  overElementId,
 }: ElementTreeNodeProps) {
   // Only expand first 2 levels by default (depth 0 and 1)
   const [isExpanded, setIsExpanded] = useState(depth < 2);
   const hasChildren = element.children.length > 0;
   const isSelected = selectedId === element.id;
   const isHovered = hoveredId === element.id;
-  const isDropTarget = dropTargetId === element.id;
+  const isDropTarget = overElementId === element.id;
 
-  // Get drag and drop handlers
-  const dragHandlers = createElementDragHandlers(element.id);
-  const dropHandlers = createDropHandlers(element.id);
+  // Use @dnd-kit sortable hook
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging: isThisNodeDragging,
+  } = useSortable({
+    id: element.id,
+    data: {
+      type: 'element',
+      elementId: element.id,
+    } as DragItem,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isThisNodeDragging ? 0.5 : 1,
+  };
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
@@ -217,33 +231,26 @@ function ElementTreeNode({
       <ContextMenu>
         <ContextMenuTrigger>
           <div
+            ref={setNodeRef}
+            style={{ ...style, paddingLeft: `${depth * 12 + 8}px` }}
             className={cn(
-              'flex items-center gap-1 rounded-md px-2 py-1 text-sm cursor-pointer transition-colors relative',
+              'group flex items-center gap-1 rounded-md px-2 py-1 text-sm cursor-pointer transition-colors relative',
               isSelected && 'bg-primary/10 text-primary',
               isHovered && !isSelected && 'bg-muted',
               !isSelected && !isHovered && 'hover:bg-muted/50',
-              isDragging && 'opacity-70',
-              isDropTarget && dropPosition === 'inside' && 'ring-2 ring-primary ring-inset'
+              globalIsDragging && !isThisNodeDragging && 'opacity-70',
+              isDropTarget && 'ring-2 ring-primary ring-inset bg-primary/5'
             )}
-            style={{ paddingLeft: `${depth * 12 + 8}px` }}
             onClick={handleClick}
             onMouseEnter={() => onHover(element.id)}
             onMouseLeave={() => onHover(null)}
-            {...dragHandlers}
-            {...dropHandlers}
+            {...attributes}
           >
-            {/* Drop position indicator - before */}
-            {isDropTarget && dropPosition === 'before' && (
-              <div className="absolute left-0 right-0 top-0 h-0.5 bg-primary rounded-full" />
-            )}
-
-            {/* Drop position indicator - after */}
-            {isDropTarget && dropPosition === 'after' && (
-              <div className="absolute left-0 right-0 bottom-0 h-0.5 bg-primary rounded-full" />
-            )}
-
-            {/* Drag handle */}
-            <div className="opacity-0 group-hover:opacity-50 hover:opacity-100 cursor-grab active:cursor-grabbing">
+            {/* Drag handle with listeners */}
+            <div
+              className="opacity-0 group-hover:opacity-50 hover:!opacity-100 cursor-grab active:cursor-grabbing touch-none"
+              {...listeners}
+            >
               <GripVertical className="h-3 w-3 text-muted-foreground" />
             </div>
 
@@ -339,24 +346,26 @@ function ElementTreeNode({
       {/* Children with smooth collapse animation */}
       {hasChildren && (
         <CollapsibleContent>
-          {element.children.map((child) => (
-            <ElementTreeNode
-              key={child.id}
-              element={child}
-              depth={depth + 1}
-              selectedId={selectedId}
-              hoveredId={hoveredId}
-              onSelect={onSelect}
-              onHover={onHover}
-              onDelete={onDelete}
-              onDuplicate={onDuplicate}
-              isDragging={isDragging}
-              dropTargetId={dropTargetId}
-              dropPosition={dropPosition}
-              createElementDragHandlers={createElementDragHandlers}
-              createDropHandlers={createDropHandlers}
-            />
-          ))}
+          <SortableContext
+            items={element.children.map(c => c.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {element.children.map((child) => (
+              <ElementTreeNode
+                key={child.id}
+                element={child}
+                depth={depth + 1}
+                selectedId={selectedId}
+                hoveredId={hoveredId}
+                onSelect={onSelect}
+                onHover={onHover}
+                onDelete={onDelete}
+                onDuplicate={onDuplicate}
+                globalIsDragging={globalIsDragging}
+                overElementId={overElementId}
+              />
+            ))}
+          </SortableContext>
         </CollapsibleContent>
       )}
     </Collapsible>

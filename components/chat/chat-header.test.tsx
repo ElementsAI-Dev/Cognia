@@ -4,55 +4,43 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ChatHeader } from './chat-header';
+import { 
+  createSessionStoreState, 
+  createSettingsStoreState,
+  createPresetStoreState,
+  createArtifactStoreState,
+  createChatStoreState,
+  createProjectStoreState,
+  createCustomThemeStoreState,
+  resetAllMocks,
+} from '@/__mocks__/stores';
 
-// Mock stores
-const mockUpdateSession = jest.fn();
-const mockSelectPreset = jest.fn();
+// Reset mocks before each test
+beforeEach(() => {
+  resetAllMocks();
+});
 
 jest.mock('@/stores', () => ({
   useSessionStore: (selector: (state: Record<string, unknown>) => unknown) => {
-    const state = {
-      sessions: [
-        { id: 'session-1', provider: 'openai', model: 'gpt-4o', mode: 'chat' },
-      ],
-      activeSessionId: 'session-1',
-      updateSession: mockUpdateSession,
-    };
-    return selector(state);
+    return selector(createSessionStoreState());
   },
   useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
-    const state = {
-      providerSettings: { openai: { enabled: true, apiKey: 'test' } },
-    };
-    return selector(state);
+    return selector(createSettingsStoreState());
   },
   usePresetStore: (selector: (state: Record<string, unknown>) => unknown) => {
-    const state = {
-      selectPreset: mockSelectPreset,
-    };
-    return selector(state);
+    return selector(createPresetStoreState());
   },
   useArtifactStore: (selector: (state: Record<string, unknown>) => unknown) => {
-    const state = {
-      openPanel: jest.fn(),
-      panelOpen: false,
-      closePanel: jest.fn(),
-    };
-    return selector(state);
+    return selector(createArtifactStoreState());
   },
   useChatStore: (selector: (state: Record<string, unknown>) => unknown) => {
-    const state = {
-      messages: [],
-      clearMessages: jest.fn(),
-    };
-    return selector(state);
+    return selector(createChatStoreState());
   },
   useProjectStore: (selector: (state: Record<string, unknown>) => unknown) => {
-    const state = {
-      getProject: jest.fn(() => null),
-      projects: [],
-    };
-    return selector(state);
+    return selector(createProjectStoreState());
+  },
+  useCustomThemeStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    return selector(createCustomThemeStoreState());
   },
 }));
 

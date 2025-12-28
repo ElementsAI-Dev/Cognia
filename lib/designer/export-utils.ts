@@ -4,6 +4,7 @@
  */
 
 import type { SandpackFiles } from '@codesandbox/sandpack-react';
+import { safeBase64Encode } from './cdn-resolver';
 
 export interface ProjectFiles {
   [path: string]: string;
@@ -186,7 +187,8 @@ export function openInCodeSandbox(files: ProjectFiles, config: ExportConfig = {}
   const parametersInput = document.createElement('input');
   parametersInput.type = 'hidden';
   parametersInput.name = 'parameters';
-  parametersInput.value = btoa(unescape(encodeURIComponent(JSON.stringify(parameters))));
+  // Use safe base64 encoding that handles Unicode
+  parametersInput.value = safeBase64Encode(JSON.stringify(parameters));
   form.appendChild(parametersInput);
 
   const queryInput = document.createElement('input');
@@ -332,7 +334,7 @@ export function generateShareableUrl(code: string): string {
   return `data:text/javascript;base64,${encoded}`;
 }
 
-export default {
+const exportUtils = {
   normalizeSandpackFiles,
   generateViteProject,
   openInCodeSandbox,
@@ -342,3 +344,5 @@ export default {
   copyToClipboard,
   generateShareableUrl,
 };
+
+export default exportUtils;

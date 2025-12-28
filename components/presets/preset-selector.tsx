@@ -17,7 +17,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group';
 import { Badge } from '@/components/ui/badge';
 import { usePresetStore } from '@/stores';
 import type { Preset } from '@/types/preset';
@@ -98,15 +102,16 @@ export function PresetSelector({
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-72" align="start">
         <div className="p-2">
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+          <InputGroup className="h-8">
+            <InputGroupAddon align="inline-start">
+              <Search className="h-4 w-4" />
+            </InputGroupAddon>
+            <InputGroupInput
               placeholder={t('searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 h-8"
             />
-          </div>
+          </InputGroup>
         </div>
 
         {search ? (

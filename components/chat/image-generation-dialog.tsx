@@ -289,6 +289,7 @@ export function ImageGenerationDialog({
                   {generatedImages.map((image, index) => (
                     <div key={index} className="space-y-2">
                       <div className="relative group">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={image.url}
                           alt={`Generated image ${index + 1}`}

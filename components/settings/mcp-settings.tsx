@@ -4,6 +4,7 @@
  * MCP Settings Component
  *
  * Main component for managing MCP server configurations
+ * Enhanced with Skeleton loading, Tooltips, and grid layout
  */
 
 import { useState, useEffect } from 'react';
@@ -40,6 +41,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useMcpStore } from '@/stores/mcp-store';
 import { McpServerDialog } from './mcp-server-dialog';
 import { McpInstallWizard } from './mcp-install-wizard';
@@ -47,17 +55,74 @@ import type { McpServerState, McpServerStatus } from '@/types/mcp';
 import { getStatusText, getStatusColor, isServerConnected, isServerError } from '@/types/mcp';
 
 function StatusIcon({ status }: { status: McpServerStatus }) {
-  switch (status.type) {
-    case 'connected':
-      return <Check className="h-4 w-4 text-green-500" />;
-    case 'connecting':
-    case 'reconnecting':
-      return <Loader2 className="h-4 w-4 text-yellow-500 animate-spin" />;
-    case 'error':
-      return <AlertCircle className="h-4 w-4 text-destructive" />;
-    default:
-      return <Plug className="h-4 w-4 text-muted-foreground" />;
-  }
+  const getIcon = () => {
+    switch (status.type) {
+      case 'connected':
+        return <Check className="h-4 w-4 text-green-500" />;
+      case 'connecting':
+      case 'reconnecting':
+        return <Loader2 className="h-4 w-4 text-yellow-500 animate-spin" />;
+      case 'error':
+        return <AlertCircle className="h-4 w-4 text-destructive" />;
+      default:
+        return <Plug className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  const getTooltipText = () => {
+    switch (status.type) {
+      case 'connected':
+        return 'Server connected and ready';
+      case 'connecting':
+        return 'Connecting to server...';
+      case 'reconnecting':
+        return 'Reconnecting to server...';
+      case 'error':
+        return status.message || 'Connection error';
+      default:
+        return 'Server disconnected';
+    }
+  };
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="cursor-help">{getIcon()}</span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs">
+        {getTooltipText()}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+// Skeleton component for loading state
+function ServerCardSkeleton() {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-3 w-48" />
+          </div>
+          <Skeleton className="h-5 w-16" />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex gap-4">
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-8 w-24" />
+          <Skeleton className="h-8 w-8" />
+          <Skeleton className="h-8 w-8" />
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export function McpSettings() {
@@ -148,231 +213,276 @@ export function McpSettings() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header Alert */}
-      <Alert>
-        <Plug className="h-4 w-4" />
-        <AlertTitle>MCP Servers</AlertTitle>
-        <AlertDescription>
-          Connect to Model Context Protocol servers to extend AI capabilities with
-          tools, resources, and prompts.
-        </AlertDescription>
-      </Alert>
-
-      {/* Error Alert */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription className="flex items-center justify-between">
-            <span>{error}</span>
-            <Button variant="ghost" size="sm" onClick={clearError}>
-              Dismiss
-            </Button>
+    <TooltipProvider delayDuration={300}>
+      <div className="space-y-4">
+        {/* Header Alert */}
+        <Alert>
+          <Plug className="h-4 w-4" />
+          <AlertTitle>MCP Servers</AlertTitle>
+          <AlertDescription className="text-xs">
+            Connect to Model Context Protocol servers to extend AI capabilities with
+            tools, resources, and prompts.
           </AlertDescription>
         </Alert>
-      )}
 
-      {/* Actions */}
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          onClick={() => {
-            setEditingServer(null);
-            setShowServerDialog(true);
-          }}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Server
-        </Button>
-        <Button variant="outline" onClick={() => setShowInstallWizard(true)}>
-          <PlugZap className="h-4 w-4 mr-2" />
-          Quick Install
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => loadServers()}
-          disabled={isLoading}
-        >
-          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-        </Button>
-      </div>
-
-      {/* Server List */}
-      {servers.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <Plug className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="font-medium mb-2">No MCP Servers</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Add an MCP server to extend AI capabilities with tools, resources,
-              and prompts.
-            </p>
-            <div className="flex gap-2">
-              <Button onClick={() => setShowServerDialog(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Server
+        {/* Error Alert */}
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription className="flex items-center justify-between">
+              <span>{error}</span>
+              <Button variant="ghost" size="sm" onClick={clearError}>
+                Dismiss
               </Button>
-              <Button variant="outline" onClick={() => setShowInstallWizard(true)}>
-                <PlugZap className="h-4 w-4 mr-2" />
-                Quick Install
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setEditingServer(null);
+              setShowServerDialog(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-1.5" />
+            Add Server
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowInstallWizard(true)}>
+            <PlugZap className="h-4 w-4 mr-1.5" />
+            Quick Install
+          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => loadServers()}
+                disabled={isLoading}
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {servers.map((server) => (
-            <Card key={server.id}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <StatusIcon status={server.status} />
-                      {server.name}
-                      <Badge variant="outline" className="text-xs">
-                        {server.config.connectionType.toUpperCase()}
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription className="text-xs font-mono">
-                      {server.config.connectionType === 'stdio'
-                        ? `${server.config.command} ${server.config.args.join(' ')}`
-                        : server.config.url}
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs ${getStatusColor(server.status)}`}>
-                      {getStatusText(server.status)}
-                    </span>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Tools/Resources/Prompts counts */}
-                {isServerConnected(server.status) && (
-                  <div className="flex gap-4 text-sm text-muted-foreground">
-                    <span>{server.tools.length} tools</span>
-                    <span>{server.resources.length} resources</span>
-                    <span>{server.prompts.length} prompts</span>
-                  </div>
-                )}
-
-                {/* Error message */}
-                {isServerError(server.status) && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{server.status.message}</AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Actions */}
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-2">
-                    {isServerConnected(server.status) ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDisconnect(server.id)}
-                        disabled={actionLoading === server.id}
-                      >
-                        {actionLoading === server.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          'Disconnect'
-                        )}
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleConnect(server.id)}
-                        disabled={
-                          actionLoading === server.id || !server.config.enabled
-                        }
-                      >
-                        {actionLoading === server.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          'Connect'
-                        )}
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(server)}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemove(server.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <Switch
-                    checked={server.config.enabled}
-                    onCheckedChange={() => handleToggleEnabled(server)}
-                  />
-                </div>
-
-                {/* Tools list (expandable) */}
-                {isServerConnected(server.status) && server.tools.length > 0 && (
-                  <Collapsible
-                    open={expandedServers.has(server.id)}
-                    onOpenChange={() => toggleExpanded(server.id)}
-                  >
-                    <CollapsibleTrigger className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground cursor-pointer">
-                      {expandedServers.has(server.id) ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                      Show tools ({server.tools.length})
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="mt-2 space-y-1 pl-5">
-                      {server.tools.map((tool) => (
-                        <div
-                          key={tool.name}
-                          className="flex items-start gap-2 text-sm"
-                        >
-                          <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                            {tool.name}
-                          </code>
-                          {tool.description && (
-                            <span className="text-xs text-muted-foreground truncate">
-                              {tool.description}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </CollapsibleContent>
-                  </Collapsible>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+            </TooltipTrigger>
+            <TooltipContent>Refresh server list</TooltipContent>
+          </Tooltip>
         </div>
-      )}
 
-      {/* Dialogs */}
-      <McpServerDialog
-        open={showServerDialog}
-        onOpenChange={setShowServerDialog}
-        editingServer={editingServer}
-        onClose={() => {
-          setShowServerDialog(false);
-          setEditingServer(null);
-        }}
-      />
-      <McpInstallWizard
-        open={showInstallWizard}
-        onOpenChange={setShowInstallWizard}
-      />
-    </div>
+        {/* Loading State */}
+        {isLoading && servers.length === 0 && (
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ServerCardSkeleton />
+            <ServerCardSkeleton />
+          </div>
+        )}
+
+        {/* Server List */}
+        {!isLoading && servers.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+              <Plug className="h-10 w-10 text-muted-foreground mb-3" />
+              <h3 className="font-medium mb-1 text-sm">No MCP Servers</h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Add an MCP server to extend AI capabilities with tools, resources,
+                and prompts.
+              </p>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => setShowServerDialog(true)}>
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Add Server
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setShowInstallWizard(true)}>
+                  <PlugZap className="h-4 w-4 mr-1.5" />
+                  Quick Install
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : servers.length > 0 && (
+          <div className="grid gap-4 lg:grid-cols-2">
+            {servers.map((server) => (
+              <Card key={server.id}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5 min-w-0 flex-1">
+                      <CardTitle className="flex items-center gap-2 text-sm">
+                        <StatusIcon status={server.status} />
+                        <span className="truncate">{server.name}</span>
+                        <Badge variant="outline" className="text-[10px] shrink-0">
+                          {server.config.connectionType.toUpperCase()}
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription className="text-[10px] font-mono truncate">
+                        {server.config.connectionType === 'stdio'
+                          ? `${server.config.command} ${server.config.args.join(' ')}`
+                          : server.config.url}
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-[10px] ${getStatusColor(server.status)}`}>
+                        {getStatusText(server.status)}
+                      </span>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3 pt-0">
+                  {/* Tools/Resources/Prompts counts */}
+                  {isServerConnected(server.status) && (
+                    <div className="flex gap-3 text-xs text-muted-foreground">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="cursor-help">{server.tools.length} tools</span>
+                        </TooltipTrigger>
+                        <TooltipContent>Functions the AI can call</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="cursor-help">{server.resources.length} resources</span>
+                        </TooltipTrigger>
+                        <TooltipContent>Data sources available</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="cursor-help">{server.prompts.length} prompts</span>
+                        </TooltipTrigger>
+                        <TooltipContent>Prompt templates</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  )}
+
+                  {/* Error message */}
+                  {isServerError(server.status) && (
+                    <Alert variant="destructive" className="py-2">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      <AlertDescription className="text-xs">{server.status.message}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-1.5">
+                      {isServerConnected(server.status) ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => handleDisconnect(server.id)}
+                          disabled={actionLoading === server.id}
+                        >
+                          {actionLoading === server.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            'Disconnect'
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => handleConnect(server.id)}
+                          disabled={
+                            actionLoading === server.id || !server.config.enabled
+                          }
+                        >
+                          {actionLoading === server.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            'Connect'
+                          )}
+                        </Button>
+                      )}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => handleEdit(server)}
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Edit server</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={() => handleRemove(server.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Remove server</TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Switch
+                      checked={server.config.enabled}
+                      onCheckedChange={() => handleToggleEnabled(server)}
+                    />
+                  </div>
+
+                  {/* Tools list (expandable) */}
+                  {isServerConnected(server.status) && server.tools.length > 0 && (
+                    <Collapsible
+                      open={expandedServers.has(server.id)}
+                      onOpenChange={() => toggleExpanded(server.id)}
+                    >
+                      <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
+                        {expandedServers.has(server.id) ? (
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        )}
+                        Show tools ({server.tools.length})
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="mt-2 space-y-1 pl-4">
+                        {server.tools.map((tool) => (
+                          <div
+                            key={tool.name}
+                            className="flex items-start gap-2 text-xs"
+                          >
+                            <code className="text-[10px] bg-muted px-1 py-0.5 rounded shrink-0">
+                              {tool.name}
+                            </code>
+                            {tool.description && (
+                              <span className="text-[10px] text-muted-foreground truncate">
+                                {tool.description}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Dialogs */}
+        <McpServerDialog
+          open={showServerDialog}
+          onOpenChange={setShowServerDialog}
+          editingServer={editingServer}
+          onClose={() => {
+            setShowServerDialog(false);
+            setEditingServer(null);
+          }}
+        />
+        <McpInstallWizard
+          open={showInstallWizard}
+          onOpenChange={setShowInstallWizard}
+        />
+      </div>
+    </TooltipProvider>
   );
 }

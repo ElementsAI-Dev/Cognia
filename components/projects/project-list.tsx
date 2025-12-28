@@ -8,7 +8,11 @@ import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus, Search, FolderOpen, FolderPlus, MessageSquare, TrendingUp, Download, Sparkles, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ProjectCard } from './project-card';
 import { CreateProjectDialog } from './create-project-dialog';
@@ -196,15 +200,16 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
       )}
 
       {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
+      <InputGroup>
+        <InputGroupAddon align="inline-start">
+          <Search className="h-4 w-4" />
+        </InputGroupAddon>
+        <InputGroupInput
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={tPlaceholders('searchProjects')}
-          className="pl-10"
         />
-      </div>
+      </InputGroup>
 
       {/* Projects Grid */}
       {filteredProjects.length > 0 ? (

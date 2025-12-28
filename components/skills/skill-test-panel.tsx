@@ -10,7 +10,6 @@ import { useState, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Play,
-  Copy,
   CheckCircle2,
   AlertCircle,
   Clock,
@@ -25,6 +24,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { CopyButton } from '@/components/ui/copy-button';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Card,
   CardContent,
@@ -254,13 +255,6 @@ export function SkillTestPanel({ skill, onExecutionComplete }: SkillTestPanelPro
     }
   }, [skill, testQuery, addLog, clearLogs, onExecutionComplete]);
 
-  // Copy system prompt
-  const handleCopyPrompt = useCallback(() => {
-    if (testResult?.systemPrompt) {
-      navigator.clipboard.writeText(testResult.systemPrompt);
-    }
-  }, [testResult]);
-
   return (
     <div className="space-y-4">
       <Card>
@@ -405,10 +399,11 @@ export function SkillTestPanel({ skill, onExecutionComplete }: SkillTestPanelPro
             <Card>
               <CardHeader className="py-2 flex flex-row items-center justify-between">
                 <CardTitle className="text-sm">Generated System Prompt</CardTitle>
-                <Button variant="ghost" size="sm" onClick={handleCopyPrompt}>
-                  <Copy className="h-4 w-4 mr-1" />
-                  Copy
-                </Button>
+                <CopyButton
+                  content={testResult.systemPrompt || ''}
+                  className="h-8"
+                  variant="ghost"
+                />
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[300px]">
@@ -451,9 +446,12 @@ export function SkillTestPanel({ skill, onExecutionComplete }: SkillTestPanelPro
                       </div>
                     ))}
                     {logs.length === 0 && (
-                      <p className="text-center text-muted-foreground py-8">
-                        No logs yet. Run a test to see execution logs.
-                      </p>
+                      <EmptyState
+                        icon={Terminal}
+                        title="No logs yet"
+                        description="Run a test to see execution logs"
+                        compact
+                      />
                     )}
                   </div>
                 </ScrollArea>

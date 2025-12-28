@@ -80,7 +80,8 @@ describe('ToolPart', () => {
     });
     render(<ToolPart part={part} />);
     
-    expect(screen.getByTestId('tool-output')).toHaveTextContent('File not found');
+    // Error text is displayed in a custom error section, not in ToolOutput
+    expect(screen.getByText('File not found')).toBeInTheDocument();
   });
 
   it('maps input-streaming state correctly', () => {

@@ -73,5 +73,10 @@ windows = { version = "0.58", features = [
     "Win32_Storage_FileSystem",
 ] }
 
+# Sandbox dependencies
+tempfile = "3.8"
+lazy_static = "1.4"
+rusqlite = { version = "0.31", features = ["bundled"] }
+
 [dev-dependencies]
 tempfile = "3.8"

@@ -271,7 +271,7 @@ export interface ConsoleError {
 
 export function useConsoleErrorInterceptor() {
   const [errors, setErrors] = React.useState<ConsoleError[]>([]);
-  const originalConsoleError = React.useRef<typeof console.error>();
+  const originalConsoleError = React.useRef<typeof console.error | null>(null);
 
   React.useEffect(() => {
     originalConsoleError.current = console.error;

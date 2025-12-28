@@ -217,7 +217,7 @@ body {
 }
 
 // Generate external resources for Sandpack with Tailwind configuration
-export function getSandpackExternalResources(): string[] {
+export function getTailwindExternalResources(): string[] {
   return [
     TAILWIND_CDN_SCRIPT,
   ];
@@ -237,12 +237,14 @@ export function generateStyleInjectionScript(isDark = false): string {
 `;
 }
 
-export default {
+const tailwindConfig = {
   CSS_VARIABLES,
   BASE_STYLES,
   TAILWIND_CDN_SCRIPT,
   TAILWIND_CONFIG,
   generateSandpackStyles,
-  getSandpackExternalResources,
+  getTailwindExternalResources,
   generateStyleInjectionScript,
 };
+
+export default tailwindConfig;

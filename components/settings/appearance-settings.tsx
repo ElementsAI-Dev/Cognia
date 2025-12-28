@@ -88,84 +88,87 @@ export function AppearanceSettings() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Language Selection */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Globe className="h-5 w-5" />
-            <CardTitle>{t('language')}</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Select value={language} onValueChange={(value: Language) => setLanguage(value)}>
-            <SelectTrigger className="w-full sm:w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(localeNames) as Locale[]).map((locale) => (
-                <SelectItem key={locale} value={locale}>
-                  <span className="flex items-center gap-2">
-                    <span>{localeFlags[locale]}</span>
-                    <span>{localeNames[locale]}</span>
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+    <div className="space-y-4">
+      {/* Top row: Language and Theme Mode side by side on larger screens */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Language Selection */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4" />
+              <CardTitle className="text-base">{t('language')}</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Select value={language} onValueChange={(value: Language) => setLanguage(value)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(localeNames) as Locale[]).map((locale) => (
+                  <SelectItem key={locale} value={locale}>
+                    <span className="flex items-center gap-2">
+                      <span>{localeFlags[locale]}</span>
+                      <span>{localeNames[locale]}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
 
-      {/* Theme Mode Selection (Light/Dark/System) */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('theme')}</CardTitle>
-          <CardDescription>
-            {language === 'zh-CN' ? '选择您偏好的主题模式' : 'Choose your preferred theme mode'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4">
-            {themeOptions.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setTheme(option.value)}
-                className={cn(
-                  'relative flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-colors',
-                  theme === option.value
-                    ? 'border-primary bg-primary/5'
-                    : 'border-transparent bg-muted hover:bg-muted/80'
-                )}
-              >
-                {theme === option.value && (
-                  <div className="absolute top-2 right-2">
-                    <Check className="h-4 w-4 text-primary" />
+        {/* Theme Mode Selection (Light/Dark/System) */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{t('theme')}</CardTitle>
+            <CardDescription className="text-xs">
+              {language === 'zh-CN' ? '选择您偏好的主题模式' : 'Choose your preferred theme mode'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-2">
+              {themeOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setTheme(option.value)}
+                  className={cn(
+                    'relative flex flex-col items-center gap-1.5 rounded-lg border-2 p-3 transition-colors',
+                    theme === option.value
+                      ? 'border-primary bg-primary/5'
+                      : 'border-transparent bg-muted hover:bg-muted/80'
+                  )}
+                >
+                  {theme === option.value && (
+                    <div className="absolute top-1.5 right-1.5">
+                      <Check className="h-3 w-3 text-primary" />
+                    </div>
+                  )}
+                  <div className="rounded-full bg-background p-2 shadow-sm">
+                    {option.icon}
                   </div>
-                )}
-                <div className="rounded-full bg-background p-3 shadow-sm">
-                  {option.icon}
-                </div>
-                <span className="text-sm font-medium">{t(option.labelKey)}</span>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+                  <span className="text-xs font-medium">{t(option.labelKey)}</span>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Color Theme Selection */}
+      {/* Color Theme Selection - Full width */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
-            <Palette className="h-5 w-5" />
-            <CardTitle>{t('colorTheme')}</CardTitle>
+            <Palette className="h-4 w-4" />
+            <CardTitle className="text-base">{t('colorTheme')}</CardTitle>
           </div>
-          <CardDescription>
+          <CardDescription className="text-xs">
             {language === 'zh-CN' ? '选择配色方案' : 'Choose a color scheme'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Preset Themes */}
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
             {colorThemeOptions.map((option) => {
               const preset = THEME_PRESETS[option.value];
               const isSelected = colorTheme === option.value && !activeCustomThemeId;
@@ -175,7 +178,7 @@ export function AppearanceSettings() {
                   key={option.value}
                   onClick={() => handleColorThemeSelect(option.value)}
                   className={cn(
-                    'relative flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-colors',
+                    'relative flex flex-col items-center gap-1.5 rounded-lg border-2 p-2 transition-colors',
                     isSelected
                       ? 'border-primary bg-primary/5'
                       : 'border-transparent bg-muted hover:bg-muted/80'
@@ -186,8 +189,8 @@ export function AppearanceSettings() {
                       <Check className="h-3 w-3 text-primary" />
                     </div>
                   )}
-                  <div className={cn('h-8 w-8 rounded-full shadow-sm', option.color)} />
-                  <span className="text-xs font-medium">{preset.name}</span>
+                  <div className={cn('h-6 w-6 rounded-full shadow-sm', option.color)} />
+                  <span className="text-[10px] font-medium">{preset.name}</span>
                 </button>
               );
             })}
@@ -196,8 +199,8 @@ export function AppearanceSettings() {
           {/* Custom Themes */}
           {customThemes.length > 0 && (
             <div className="space-y-2">
-              <Label>{t('customThemes')}</Label>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+              <Label className="text-xs">{t('customThemes')}</Label>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                 {customThemes.map((customTheme) => {
                   const isSelected = activeCustomThemeId === customTheme.id;
 
@@ -207,7 +210,7 @@ export function AppearanceSettings() {
                       onClick={() => handleCustomThemeSelect(customTheme.id)}
                       onDoubleClick={() => handleEditCustomTheme(customTheme.id)}
                       className={cn(
-                        'relative flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-colors',
+                        'relative flex flex-col items-center gap-1.5 rounded-lg border-2 p-2 transition-colors',
                         isSelected
                           ? 'border-primary bg-primary/5'
                           : 'border-transparent bg-muted hover:bg-muted/80'
@@ -220,10 +223,10 @@ export function AppearanceSettings() {
                         </div>
                       )}
                       <div
-                        className="h-8 w-8 rounded-full shadow-sm"
+                        className="h-6 w-6 rounded-full shadow-sm"
                         style={{ backgroundColor: customTheme.colors.primary }}
                       />
-                      <span className="text-xs font-medium truncate max-w-full">
+                      <span className="text-[10px] font-medium truncate max-w-full">
                         {customTheme.name}
                       </span>
                     </button>
@@ -236,146 +239,151 @@ export function AppearanceSettings() {
           {/* Create Custom Theme Button */}
           <Button
             variant="outline"
-            className="w-full"
+            size="sm"
             onClick={() => {
               setEditingThemeId(null);
               setShowThemeEditor(true);
             }}
           >
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
             {t('createCustomTheme')}
           </Button>
         </CardContent>
       </Card>
 
-      {/* UI Font Size */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <Type className="h-4 w-4" />
-            <CardTitle className="text-base">UI Font Size</CardTitle>
-          </div>
-          <CardDescription className="text-xs">
-            Adjust the base font size for the interface
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label>Font Size: {uiFontSize}px</Label>
-              <span className="text-xs text-muted-foreground">
-                {uiFontSize <= 13 ? 'Compact' : uiFontSize <= 15 ? 'Default' : 'Large'}
-              </span>
+      {/* Font Size and Message Style side by side */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* UI Font Size */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Type className="h-4 w-4" />
+              <CardTitle className="text-base">UI Font Size</CardTitle>
             </div>
-            <Slider
-              value={[uiFontSize]}
-              onValueChange={([v]) => setUIFontSize(v)}
-              min={12}
-              max={20}
-              step={1}
-            />
-            <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>12px</span>
-              <span>16px</span>
-              <span>20px</span>
+            <CardDescription className="text-xs">
+              Adjust the base font size for the interface
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Font Size: {uiFontSize}px</Label>
+                <span className="text-xs text-muted-foreground">
+                  {uiFontSize <= 13 ? 'Compact' : uiFontSize <= 15 ? 'Default' : 'Large'}
+                </span>
+              </div>
+              <Slider
+                value={[uiFontSize]}
+                onValueChange={([v]) => setUIFontSize(v)}
+                min={12}
+                max={20}
+                step={1}
+              />
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>12px</span>
+                <span>16px</span>
+                <span>20px</span>
+              </div>
             </div>
-          </div>
-          <div
-            className="p-3 rounded-lg border bg-muted/30"
-            style={{ fontSize: `${uiFontSize}px` }}
-          >
-            <p className="font-medium">Preview Text</p>
-            <p className="text-muted-foreground">This is how text will appear in the interface.</p>
-          </div>
-        </CardContent>
-      </Card>
+            <div
+              className="p-2 rounded-lg border bg-muted/30"
+              style={{ fontSize: `${uiFontSize}px` }}
+            >
+              <p className="font-medium text-sm">Preview Text</p>
+              <p className="text-muted-foreground text-xs">This is how text will appear.</p>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Message Bubble Style */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <MessageCircle className="h-4 w-4" />
-            <CardTitle className="text-base">Message Style</CardTitle>
-          </div>
-          <CardDescription className="text-xs">
-            Choose how chat messages are displayed
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {[
-              { value: 'default', label: 'Default', desc: 'Standard bubbles' },
-              { value: 'minimal', label: 'Minimal', desc: 'Clean, no borders' },
-              { value: 'bordered', label: 'Bordered', desc: 'With outlines' },
-              { value: 'gradient', label: 'Gradient', desc: 'Subtle gradients' },
-            ].map((style) => (
-              <button
-                key={style.value}
-                onClick={() => setMessageBubbleStyle(style.value as MessageBubbleStyle)}
-                className={cn(
-                  'flex flex-col items-center gap-1 rounded-lg border-2 p-3 transition-colors text-center',
-                  messageBubbleStyle === style.value
-                    ? 'border-primary bg-primary/5'
-                    : 'border-transparent bg-muted hover:bg-muted/80'
-                )}
-              >
-                {messageBubbleStyle === style.value && (
-                  <Check className="h-3 w-3 text-primary absolute top-1 right-1" />
-                )}
-                <span className="text-xs font-medium">{style.label}</span>
-                <span className="text-[10px] text-muted-foreground">{style.desc}</span>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+        {/* Message Bubble Style */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="h-4 w-4" />
+              <CardTitle className="text-base">Message Style</CardTitle>
+            </div>
+            <CardDescription className="text-xs">
+              Choose how chat messages are displayed
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: 'default', label: 'Default', desc: 'Standard bubbles' },
+                { value: 'minimal', label: 'Minimal', desc: 'Clean, no borders' },
+                { value: 'bordered', label: 'Bordered', desc: 'With outlines' },
+                { value: 'gradient', label: 'Gradient', desc: 'Subtle gradients' },
+              ].map((style) => (
+                <button
+                  key={style.value}
+                  onClick={() => setMessageBubbleStyle(style.value as MessageBubbleStyle)}
+                  className={cn(
+                    'relative flex flex-col items-center gap-0.5 rounded-lg border-2 p-2 transition-colors text-center',
+                    messageBubbleStyle === style.value
+                      ? 'border-primary bg-primary/5'
+                      : 'border-transparent bg-muted hover:bg-muted/80'
+                  )}
+                >
+                  {messageBubbleStyle === style.value && (
+                    <Check className="h-3 w-3 text-primary absolute top-1 right-1" />
+                  )}
+                  <span className="text-xs font-medium">{style.label}</span>
+                  <span className="text-[10px] text-muted-foreground">{style.desc}</span>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* UI Preferences */}
+      {/* UI Preferences - Grid layout for switches */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">{t('interfacePreferences')}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between py-1">
-            <div className="space-y-0.5">
-              <Label htmlFor="sidebar-collapsed" className="text-sm">{t('collapseSidebar')}</Label>
-              <p className="text-xs text-muted-foreground">
-                {t('collapseSidebarDescription')}
-              </p>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5 min-w-0 flex-1 mr-2">
+                <Label htmlFor="sidebar-collapsed" className="text-sm">{t('collapseSidebar')}</Label>
+                <p className="text-[10px] text-muted-foreground line-clamp-2">
+                  {t('collapseSidebarDescription')}
+                </p>
+              </div>
+              <Switch
+                id="sidebar-collapsed"
+                checked={sidebarCollapsed}
+                onCheckedChange={setSidebarCollapsed}
+              />
             </div>
-            <Switch
-              id="sidebar-collapsed"
-              checked={sidebarCollapsed}
-              onCheckedChange={setSidebarCollapsed}
-            />
-          </div>
 
-          <div className="flex items-center justify-between py-1">
-            <div className="space-y-0.5">
-              <Label htmlFor="send-on-enter" className="text-sm">{t('sendOnEnter')}</Label>
-              <p className="text-xs text-muted-foreground">
-                {t('sendOnEnterDescription')}
-              </p>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5 min-w-0 flex-1 mr-2">
+                <Label htmlFor="send-on-enter" className="text-sm">{t('sendOnEnter')}</Label>
+                <p className="text-[10px] text-muted-foreground line-clamp-2">
+                  {t('sendOnEnterDescription')}
+                </p>
+              </div>
+              <Switch
+                id="send-on-enter"
+                checked={sendOnEnter}
+                onCheckedChange={setSendOnEnter}
+              />
             </div>
-            <Switch
-              id="send-on-enter"
-              checked={sendOnEnter}
-              onCheckedChange={setSendOnEnter}
-            />
-          </div>
 
-          <div className="flex items-center justify-between py-1">
-            <div className="space-y-0.5">
-              <Label htmlFor="stream-responses" className="text-sm">{t('streamResponses')}</Label>
-              <p className="text-xs text-muted-foreground">
-                {t('streamResponsesDescription')}
-              </p>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5 min-w-0 flex-1 mr-2">
+                <Label htmlFor="stream-responses" className="text-sm">{t('streamResponses')}</Label>
+                <p className="text-[10px] text-muted-foreground line-clamp-2">
+                  {t('streamResponsesDescription')}
+                </p>
+              </div>
+              <Switch
+                id="stream-responses"
+                checked={streamResponses}
+                onCheckedChange={setStreamResponses}
+              />
             </div>
-            <Switch
-              id="stream-responses"
-              checked={streamResponses}
-              onCheckedChange={setStreamResponses}
-            />
           </div>
         </CardContent>
       </Card>

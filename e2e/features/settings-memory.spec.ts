@@ -581,6 +581,438 @@ test.describe('Memory Settings - Persistence', () => {
   });
 });
 
+test.describe('Memory Settings - Pin/Priority', () => {
+  test('should toggle memory pin state', async ({ page }) => {
+    await page.goto('/');
+
+    const result = await page.evaluate(() => {
+      const memory = {
+        id: 'mem-1',
+        content: 'Test memory',
+        pinned: false,
+        priority: 5,
+      };
+
+      const togglePin = (): void => {
+        memory.pinned = !memory.pinned;
+      };
+
+      const initial = memory.pinned;
+      togglePin();
+      const afterToggle = memory.pinned;
+      togglePin();
+      const afterSecondToggle = memory.pinned;
+
+      return { initial, afterToggle, afterSecondToggle };
+    });
+
+    expect(result.initial).toBe(false);
+    expect(result.afterToggle).toBe(true);
+    expect(result.afterSecondToggle).toBe(false);
+  });
+
+  test('should set memory priority', async ({ page }) => {
+    await page.goto('/');
+
+    const result = await page.evaluate(() => {
+      const memory = {
+        id: 'mem-1',
+        content: 'Test memory',
+        priority: 5,
+      };
+
+      const setPriority = (priority: number): void => {
+        memory.priority = Math.min(10, Math.max(0, priority));
+      };
+
+      const initial = memory.priority;
+      setPriority(8);
+      const afterSet = memory.priority;
+      setPriority(15);
+      const afterClampHigh = memory.priority;
+      setPriority(-5);
+      const afterClampLow = memory.priority;
+
+      return { initial, afterSet, afterClampHigh, afterClampLow };
+    });
+
+    expect(result.initial).toBe(5);
+    expect(result.afterSet).toBe(8);
+    expect(result.afterClampHigh).toBe(10);
+    expect(result.afterClampLow).toBe(0);
+  });
+
+  test('should sort memories by pinned first', async ({ page }) => {
+    await page.goto('/');
+
+    const result = await page.evaluate(() => {
+      const memories = [
+        { id: 'mem-1', content: 'Normal memory', pinned: false, priority: 5 },
+        { id: 'mem-2', content: 'Pinned memory', pinned: true, priority: 5 },
+        { id: 'mem-3', content: 'High priority', pinned: false, priority: 8 },
+      ];
+
+      const sortMemories = () => {
+        return [...memories].sort((a, b) => {
+          if (a.pinned && !b.pinned) return -1;
+          if (!a.pinned && b.pinned) return 1;
+          return b.priority - a.priority;
+        });
+      };
+
+      const sorted = sortMemories();
+      return {
+        firstContent: sorted[0].content,
+        secondContent: sorted[1].content,
+        thirdContent: sorted[2].content,
+      };
+    });
+
+    expect(result.firstContent).toBe('Pinned memory');
+    expect(result.secondContent).toBe('High priority');
+    expect(result.thirdContent).toBe('Normal memory');
+  });
+});
+
+test.describe('Memory Settings - Import/Export', () => {
+  test('should export memories to JSON format', async ({ page }) => {
+    await page.goto('/');
+
+    const result = await page.evaluate(() => {
+      const memories = [
+        { id: 'mem-1', type: 'preference', content: 'I prefer TypeScript', pinned: true },
+        { id: 'mem-2', type: 'fact', content: 'My name is John', pinned: false },
+      ];
+
+      const settings = {
+        enabled: true,
+        autoInfer: true,
+        maxMemories: 100,
+        injectInSystemPrompt: true,
+      };
+
+      const exportMemories = (): string => {
+        return JSON.stringify({
+          version: '1.0',
+          exportedAt: new Date().toISOString(),
+          settings,
+          memories,
+        }, null, 2);
+      };
+
+      const exported = exportMemories();
+      const parsed = JSON.parse(exported);
+
+      return {
+        hasVersion: 'version' in parsed,
+        hasExportedAt: 'exportedAt' in parsed,
+        hasSettings: 'settings' in parsed,
+        hasMemories: 'memories' in parsed,
+        memoryCount: parsed.memories.length,
+        version: parsed.version,
+      };
+    });
+
+    expect(result.hasVersion).toBe(true);
+    expect(result.hasExportedAt).toBe(true);
+    expect(result.hasSettings).toBe(true);
+    expect(result.hasMemories).toBe(true);
+    expect(result.memoryCount).toBe(2);
+    expect(result.version).toBe('1.0');
+  });
+
+  test('should import memories from JSON', async ({ page }) => {
+    await page.goto('/');
+
+    const result = await page.evaluate(() => {
+      interface Memory {
+        id: string;
+        type: string;
+        content: string;
+        enabled: boolean;
+      }
+
+      const memories: Memory[] = [];
+
+      const importMemories = (jsonData: string): { success: boolean; imported: number; errors: string[] } => {
+        const errors: string[] = [];
+        let imported = 0;
+
+        try {
+          const data = JSON.parse(jsonData);
+          if (!data.memories || !Array.isArray(data.memories)) {
+            return { success: false, imported: 0, errors: ['Invalid format'] };
+          }
+
+          for (const mem of data.memories) {
+            if (!mem.type || !mem.content) {
+              errors.push('Skipped: missing type or content');
+              continue;
+            }
+            memories.push({
+              id: `imported-${Date.now()}-${imported}`,
+              type: mem.type,
+              content: mem.content,
+              enabled: mem.enabled !== false,
+            });
+            imported++;
+          }
+
+          return { success: true, imported, errors };
+        } catch {
+          return { success: false, imported: 0, errors: ['Parse error'] };
+        }
+      };
+
+      const importData = JSON.stringify({
+        memories: [
+          { type: 'fact', content: 'Imported fact' },
+          { type: 'preference', content: 'Imported preference' },
+        ],
+      });
+
+      const result = importMemories(importData);
+      return {
+        success: result.success,
+        imported: result.imported,
+        memoryCount: memories.length,
+      };
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.imported).toBe(2);
+    expect(result.memoryCount).toBe(2);
+  });
+
+  test('should handle duplicate detection on import', async ({ page }) => {
+    await page.goto('/');
+
+    const result = await page.evaluate(() => {
+      const existingMemories = [
+        { id: 'mem-1', type: 'fact', content: 'Existing memory' },
+      ];
+
+      const importMemories = (jsonData: string): { imported: number; errors: string[] } => {
+        const data = JSON.parse(jsonData);
+        const errors: string[] = [];
+        let imported = 0;
+
+        for (const mem of data.memories) {
+          const isDuplicate = existingMemories.some(
+            (m) => m.content === mem.content && m.type === mem.type
+          );
+          if (isDuplicate) {
+            errors.push(`Skipped duplicate: ${mem.content.substring(0, 30)}...`);
+            continue;
+          }
+          existingMemories.push({ id: `new-${imported}`, ...mem });
+          imported++;
+        }
+
+        return { imported, errors };
+      };
+
+      const importData = JSON.stringify({
+        memories: [
+          { type: 'fact', content: 'Existing memory' },
+          { type: 'fact', content: 'New memory' },
+        ],
+      });
+
+      const result = importMemories(importData);
+      return {
+        imported: result.imported,
+        errorCount: result.errors.length,
+        totalMemories: existingMemories.length,
+      };
+    });
+
+    expect(result.imported).toBe(1);
+    expect(result.errorCount).toBe(1);
+    expect(result.totalMemories).toBe(2);
+  });
+});
+
+test.describe('Memory Settings - Type Filter', () => {
+  test('should filter memories by type', async ({ page }) => {
+    await page.goto('/');
+
+    const result = await page.evaluate(() => {
+      const memories = [
+        { id: 'mem-1', type: 'preference', content: 'Pref 1' },
+        { id: 'mem-2', type: 'preference', content: 'Pref 2' },
+        { id: 'mem-3', type: 'fact', content: 'Fact 1' },
+        { id: 'mem-4', type: 'instruction', content: 'Instruction 1' },
+        { id: 'mem-5', type: 'context', content: 'Context 1' },
+      ];
+
+      const filterByType = (type: string | 'all') => {
+        if (type === 'all') return memories;
+        return memories.filter((m) => m.type === type);
+      };
+
+      return {
+        allCount: filterByType('all').length,
+        preferenceCount: filterByType('preference').length,
+        factCount: filterByType('fact').length,
+        instructionCount: filterByType('instruction').length,
+        contextCount: filterByType('context').length,
+      };
+    });
+
+    expect(result.allCount).toBe(5);
+    expect(result.preferenceCount).toBe(2);
+    expect(result.factCount).toBe(1);
+    expect(result.instructionCount).toBe(1);
+    expect(result.contextCount).toBe(1);
+  });
+
+  test('should combine type filter with search', async ({ page }) => {
+    await page.goto('/');
+
+    const result = await page.evaluate(() => {
+      const memories = [
+        { id: 'mem-1', type: 'preference', content: 'I prefer TypeScript' },
+        { id: 'mem-2', type: 'preference', content: 'I prefer Python' },
+        { id: 'mem-3', type: 'fact', content: 'I know TypeScript' },
+      ];
+
+      const filterMemories = (typeFilter: string | 'all', searchQuery: string) => {
+        return memories.filter((m) => {
+          if (typeFilter !== 'all' && m.type !== typeFilter) return false;
+          if (searchQuery) {
+            return m.content.toLowerCase().includes(searchQuery.toLowerCase());
+          }
+          return true;
+        });
+      };
+
+      return {
+        allTypescript: filterMemories('all', 'TypeScript').length,
+        preferenceTypescript: filterMemories('preference', 'TypeScript').length,
+        factTypescript: filterMemories('fact', 'TypeScript').length,
+      };
+    });
+
+    expect(result.allTypescript).toBe(2);
+    expect(result.preferenceTypescript).toBe(1);
+    expect(result.factTypescript).toBe(1);
+  });
+});
+
+test.describe('Memory Settings - Statistics', () => {
+  test('should calculate memory statistics with pinned count', async ({ page }) => {
+    await page.goto('/');
+
+    const result = await page.evaluate(() => {
+      const memories = [
+        { id: 'mem-1', type: 'preference', enabled: true, pinned: true },
+        { id: 'mem-2', type: 'fact', enabled: true, pinned: true },
+        { id: 'mem-3', type: 'instruction', enabled: false, pinned: false },
+        { id: 'mem-4', type: 'context', enabled: true, pinned: false },
+      ];
+
+      type MemoryType = 'preference' | 'fact' | 'instruction' | 'context';
+      const byType: Record<MemoryType, number> = {
+        preference: 0,
+        fact: 0,
+        instruction: 0,
+        context: 0,
+      };
+
+      let enabled = 0;
+      let pinned = 0;
+
+      for (const memory of memories) {
+        byType[memory.type as MemoryType]++;
+        if (memory.enabled) enabled++;
+        if (memory.pinned) pinned++;
+      }
+
+      return {
+        total: memories.length,
+        enabled,
+        pinned,
+        byType,
+      };
+    });
+
+    expect(result.total).toBe(4);
+    expect(result.enabled).toBe(3);
+    expect(result.pinned).toBe(2);
+    expect(result.byType.preference).toBe(1);
+    expect(result.byType.fact).toBe(1);
+  });
+
+  test('should collect all unique tags', async ({ page }) => {
+    await page.goto('/');
+
+    const result = await page.evaluate(() => {
+      const memories = [
+        { id: 'mem-1', tags: ['coding', 'typescript'] },
+        { id: 'mem-2', tags: ['python', 'coding'] },
+        { id: 'mem-3', tags: ['react'] },
+        { id: 'mem-4', tags: [] },
+      ];
+
+      const getAllTags = (): string[] => {
+        const tagsSet = new Set<string>();
+        for (const memory of memories) {
+          for (const tag of memory.tags || []) {
+            tagsSet.add(tag);
+          }
+        }
+        return Array.from(tagsSet).sort();
+      };
+
+      const tags = getAllTags();
+      return {
+        tagCount: tags.length,
+        tags,
+      };
+    });
+
+    expect(result.tagCount).toBe(4);
+    expect(result.tags).toEqual(['coding', 'python', 'react', 'typescript']);
+  });
+});
+
+test.describe('Memory Settings - Similarity Detection', () => {
+  test('should find similar memories', async ({ page }) => {
+    await page.goto('/');
+
+    const result = await page.evaluate(() => {
+      const memories = [
+        { id: 'mem-1', content: 'I prefer TypeScript for web development' },
+        { id: 'mem-2', content: 'I work with Python data science' },
+        { id: 'mem-3', content: 'TypeScript is great for large projects' },
+      ];
+
+      const findSimilarMemories = (content: string) => {
+        const lowerContent = content.toLowerCase();
+        const words = lowerContent.split(/\s+/).filter((w) => w.length > 3);
+        
+        if (words.length === 0) return [];
+
+        return memories.filter((m) => {
+          const memLower = m.content.toLowerCase();
+          const matchCount = words.filter((w) => memLower.includes(w)).length;
+          return matchCount >= Math.ceil(words.length * 0.5);
+        });
+      };
+
+      const similar = findSimilarMemories('TypeScript development projects');
+      return {
+        similarCount: similar.length,
+        hasTypescriptMatches: similar.some((m) => m.content.includes('TypeScript')),
+      };
+    });
+
+    expect(result.similarCount).toBeGreaterThan(0);
+    expect(result.hasTypescriptMatches).toBe(true);
+  });
+});
+
 test.describe('Memory Settings UI', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');

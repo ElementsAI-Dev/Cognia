@@ -2,11 +2,56 @@
 
 /**
  * ToolTimeline - Visual timeline of tool executions
+ * Enhanced with checkpoint markers, queue display, and inline result preview
  */
 
-import { useState } from 'react';
-import { Clock, CheckCircle, XCircle, Loader2, AlertTriangle, ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
+import {
+  Clock,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Zap,
+  Bookmark,
+  ListTodo,
+  Eye,
+  EyeOff,
+  BarChart3,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { CopyButton } from '@/components/ui/copy-button';
+import {
+  Collapsible,
+  CollapsibleContent,
+} from '@/components/ui/collapsible';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Progress } from '@/components/ui/progress';
+import {
+  Checkpoint,
+  CheckpointIcon,
+  CheckpointTrigger,
+} from '@/components/ai-elements/checkpoint';
+import {
+  Queue,
+  QueueSection,
+  QueueSectionTrigger,
+  QueueSectionLabel,
+  QueueSectionContent,
+  QueueList,
+  QueueItem,
+  QueueItemIndicator,
+  QueueItemContent,
+} from '@/components/ai-elements/queue';
 import type { ToolState } from '@/types/message';
 
 export interface ToolExecution {
@@ -16,10 +61,24 @@ export interface ToolExecution {
   startTime: number;
   endTime?: number;
   error?: string;
+  result?: unknown;
+  isCheckpoint?: boolean;
+  checkpointLabel?: string;
+}
+
+export interface PendingTool {
+  id: string;
+  toolName: string;
+  estimatedDuration?: number;
+  priority?: number;
 }
 
 interface ToolTimelineProps {
   executions: ToolExecution[];
+  pendingTools?: PendingTool[];
+  onCheckpointRestore?: (executionId: string) => void;
+  onCancelPending?: (toolId: string) => void;
+  showStatistics?: boolean;
   className?: string;
 }
 
@@ -74,29 +133,68 @@ function formatToolName(name: string): string {
     .join(' ');
 }
 
-export function ToolTimeline({ executions, className }: ToolTimelineProps) {
+export function ToolTimeline({ 
+  executions, 
+  pendingTools = [],
+  onCheckpointRestore,
+  onCancelPending,
+  showStatistics = true,
+  className 
+}: ToolTimelineProps) {
+  const t = useTranslations('agent');
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showQueue, setShowQueue] = useState(true);
+  const [expandedResults, setExpandedResults] = useState<Set<string>>(new Set());
   
-  if (executions.length === 0) {
+  // Calculate statistics
+  const statistics = useMemo(() => {
+    const totalDuration = executions.reduce((acc, exec) => {
+      if (exec.endTime && exec.startTime) {
+        return acc + (exec.endTime - exec.startTime);
+      }
+      return acc;
+    }, 0);
+    
+    const completedCount = executions.filter((e) => e.state === 'output-available').length;
+    const failedCount = executions.filter((e) => e.state === 'output-error' || e.state === 'output-denied').length;
+    const runningCount = executions.filter((e) => e.state === 'input-streaming' || e.state === 'input-available').length;
+    const checkpointCount = executions.filter((e) => e.isCheckpoint).length;
+    
+    const avgDuration = completedCount > 0 
+      ? Math.round(totalDuration / completedCount) 
+      : 0;
+    
+    return {
+      totalDuration,
+      completedCount,
+      failedCount,
+      runningCount,
+      checkpointCount,
+      avgDuration,
+      successRate: executions.length > 0 
+        ? Math.round((completedCount / executions.length) * 100) 
+        : 0,
+    };
+  }, [executions]);
+  
+  const hasRunningTool = statistics.runningCount > 0;
+  
+  // Toggle result preview
+  const toggleResultPreview = (id: string) => {
+    setExpandedResults(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  if (executions.length === 0 && pendingTools.length === 0) {
     return null;
   }
-
-  // Calculate total duration
-  const totalDuration = executions.reduce((acc, exec) => {
-    if (exec.endTime && exec.startTime) {
-      return acc + (exec.endTime - exec.startTime);
-    }
-    return acc;
-  }, 0);
-
-  // Check if any tool is currently running
-  const hasRunningTool = executions.some(
-    (exec) => exec.state === 'input-streaming' || exec.state === 'input-available'
-  );
-
-  // Count completed and failed tools
-  const completedCount = executions.filter((e) => e.state === 'output-available').length;
-  const failedCount = executions.filter((e) => e.state === 'output-error' || e.state === 'output-denied').length;
 
   return (
     <div className={cn(
@@ -116,33 +214,111 @@ export function ToolTimeline({ executions, className }: ToolTimelineProps) {
           ) : (
             <div className={cn(
               "h-2 w-2 rounded-full",
-              failedCount > 0 ? "bg-red-500" : "bg-green-500"
+              statistics.failedCount > 0 ? "bg-red-500" : "bg-green-500"
             )} />
           )}
-          <span className="font-semibold">Tool Executions</span>
+          <span className="font-semibold">{t('toolExecutions')}</span>
           {hasRunningTool && (
-            <span className="text-xs text-blue-500 animate-pulse">Running...</span>
+            <span className="text-xs text-blue-500 animate-pulse">{t('running')}...</span>
           )}
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-full">
-            {completedCount > 0 && (
+            {statistics.completedCount > 0 && (
               <span className="flex items-center gap-1 text-green-600">
-                <CheckCircle className="h-3 w-3" /> {completedCount}
+                <CheckCircle className="h-3 w-3" /> {statistics.completedCount}
               </span>
             )}
-            {failedCount > 0 && (
+            {statistics.failedCount > 0 && (
               <span className="flex items-center gap-1 text-red-500 ml-1">
-                <XCircle className="h-3 w-3" /> {failedCount}
+                <XCircle className="h-3 w-3" /> {statistics.failedCount}
               </span>
             )}
-            <span className="ml-1">{formatDuration(totalDuration)}</span>
+            {statistics.checkpointCount > 0 && (
+              <span className="flex items-center gap-1 text-purple-500 ml-1">
+                <Bookmark className="h-3 w-3" /> {statistics.checkpointCount}
+              </span>
+            )}
+            <span className="ml-1">{formatDuration(statistics.totalDuration)}</span>
           </div>
           <span className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-accent">
             {isCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
           </span>
         </div>
       </button>
+
+      {/* Statistics bar */}
+      {showStatistics && !isCollapsed && executions.length > 0 && (
+        <div className="flex items-center gap-4 text-xs text-muted-foreground px-2 py-2 bg-muted/30 rounded-lg">
+          <Tooltip>
+            <TooltipTrigger className="flex items-center gap-1">
+              <BarChart3 className="h-3 w-3" />
+              <span>{statistics.successRate}%</span>
+            </TooltipTrigger>
+            <TooltipContent>{t('successRate')}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              <span>{formatDuration(statistics.avgDuration)}</span>
+            </TooltipTrigger>
+            <TooltipContent>{t('avgDuration')}</TooltipContent>
+          </Tooltip>
+          {pendingTools.length > 0 && (
+            <Tooltip>
+              <TooltipTrigger className="flex items-center gap-1">
+                <ListTodo className="h-3 w-3" />
+                <span>{pendingTools.length} {t('pending')}</span>
+              </TooltipTrigger>
+              <TooltipContent>{t('pendingTools')}</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+      )}
+
+      {/* Pending tools queue */}
+      {!isCollapsed && pendingTools.length > 0 && (
+        <Queue className="mt-2">
+          <QueueSection defaultOpen={showQueue} onOpenChange={setShowQueue}>
+            <QueueSectionTrigger>
+              <QueueSectionLabel 
+                count={pendingTools.length} 
+                label={t('pendingTools')}
+                icon={<ListTodo className="h-4 w-4" />}
+              />
+            </QueueSectionTrigger>
+            <QueueSectionContent>
+              <QueueList>
+                {pendingTools.map((tool) => (
+                  <QueueItem key={tool.id} className="group">
+                    <div className="flex items-center gap-2 flex-1">
+                      <QueueItemIndicator />
+                      <QueueItemContent>
+                        {formatToolName(tool.toolName)}
+                        {tool.estimatedDuration && (
+                          <span className="text-muted-foreground ml-1">
+                            (~{formatDuration(tool.estimatedDuration)})
+                          </span>
+                        )}
+                      </QueueItemContent>
+                    </div>
+                    {onCancelPending && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => onCancelPending(tool.id)}
+                      >
+                        <XCircle className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                      </Button>
+                    )}
+                  </QueueItem>
+                ))}
+              </QueueList>
+            </QueueSectionContent>
+          </QueueSection>
+        </Queue>
+      )}
 
       {/* Timeline - collapsible */}
       {!isCollapsed && (
@@ -157,79 +333,143 @@ export function ToolTimeline({ executions, className }: ToolTimelineProps) {
           const isRunning =
             execution.state === 'input-streaming' ||
             execution.state === 'input-available';
+          const isExpanded = expandedResults.has(execution.id);
+          const hasResult = execution.result !== undefined;
 
           return (
-            <div 
-              key={execution.id} 
-              className="relative flex gap-4 animate-in fade-in-0 slide-in-from-left-2 duration-300"
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              {/* Timeline connector */}
-              <div className="flex flex-col items-center">
-                <div
-                  className={cn(
-                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border-2 transition-all duration-300',
-                    execution.state === 'output-available'
-                      ? 'border-green-300 bg-green-50 dark:bg-green-950/50 dark:border-green-700'
-                      : execution.state === 'output-error' ||
-                          execution.state === 'output-denied'
-                        ? 'border-red-300 bg-red-50 dark:bg-red-950/50 dark:border-red-700'
-                        : 'border-blue-300 bg-blue-50 dark:bg-blue-950/50 dark:border-blue-700'
+            <div key={execution.id}>
+              {/* Checkpoint marker */}
+              {execution.isCheckpoint && (
+                <Checkpoint className="my-2">
+                  <CheckpointIcon>
+                    <Bookmark className="h-4 w-4 text-purple-500" />
+                  </CheckpointIcon>
+                  <span className="text-xs text-purple-600 dark:text-purple-400 font-medium px-2">
+                    {execution.checkpointLabel || t('checkpoint')}
+                  </span>
+                  {onCheckpointRestore && (
+                    <CheckpointTrigger
+                      tooltip={t('restoreFromCheckpoint')}
+                      onClick={() => onCheckpointRestore(execution.id)}
+                    >
+                      {t('restore')}
+                    </CheckpointTrigger>
                   )}
-                >
-                  <Icon
+                </Checkpoint>
+              )}
+              
+              <div 
+                className="relative flex gap-4 animate-in fade-in-0 slide-in-from-left-2 duration-300"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                {/* Timeline connector */}
+                <div className="flex flex-col items-center">
+                  <div
                     className={cn(
-                      'h-4 w-4',
-                      config.color,
-                      isRunning && 'animate-spin'
+                      'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border-2 transition-all duration-300',
+                      execution.state === 'output-available'
+                        ? 'border-green-300 bg-green-50 dark:bg-green-950/50 dark:border-green-700'
+                        : execution.state === 'output-error' ||
+                            execution.state === 'output-denied'
+                          ? 'border-red-300 bg-red-50 dark:bg-red-950/50 dark:border-red-700'
+                          : 'border-blue-300 bg-blue-50 dark:bg-blue-950/50 dark:border-blue-700'
                     )}
-                  />
-                </div>
-                {!isLast && (
-                  <div className="h-full w-0.5 bg-linear-to-b from-border to-transparent" />
-                )}
-              </div>
-
-              {/* Content */}
-              <div className={cn('flex-1 pb-6', isLast && 'pb-0')}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm truncate">
-                      {formatToolName(execution.toolName)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {config.label}
-                      {execution.error && (
-                        <span className="text-destructive block truncate"> {execution.error}</span>
-                      )}
-                    </p>
-                  </div>
-                  {duration !== null && (
-                    <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded shrink-0">
-                      {formatDuration(duration)}
-                    </span>
-                  )}
-                </div>
-
-                {/* Progress bar for completed executions */}
-                {duration !== null && totalDuration > 0 && (
-                  <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-muted/50">
-                    <div
+                  >
+                    <Icon
                       className={cn(
-                        'h-full rounded-full transition-all duration-500 ease-out',
-                        execution.state === 'output-available'
-                          ? 'bg-linear-to-r from-green-400 to-green-500'
-                          : execution.state === 'output-error' ||
-                              execution.state === 'output-denied'
-                            ? 'bg-linear-to-r from-red-400 to-red-500'
-                            : 'bg-linear-to-r from-blue-400 to-blue-500'
+                        'h-4 w-4',
+                        config.color,
+                        isRunning && 'animate-spin'
                       )}
-                      style={{
-                        width: `${Math.min((duration / totalDuration) * 100, 100)}%`,
-                      }}
                     />
                   </div>
-                )}
+                  {!isLast && (
+                    <div className="h-full w-0.5 bg-linear-to-b from-border to-transparent" />
+                  )}
+                </div>
+
+                {/* Content */}
+                <div className={cn('flex-1 pb-6', isLast && 'pb-0')}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate">
+                        {formatToolName(execution.toolName)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {config.label}
+                        {execution.error && (
+                          <span className="text-destructive block truncate"> {execution.error}</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {/* Result preview toggle */}
+                      {hasResult && execution.state === 'output-available' && (
+                        <>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => toggleResultPreview(execution.id)}
+                              >
+                                {isExpanded ? (
+                                  <EyeOff className="h-3 w-3" />
+                                ) : (
+                                  <Eye className="h-3 w-3" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {isExpanded ? t('hideResult') : t('showResult')}
+                            </TooltipContent>
+                          </Tooltip>
+                          <CopyButton
+                            content={typeof execution.result === 'string'
+                              ? execution.result
+                              : JSON.stringify(execution.result, null, 2)}
+                            iconOnly
+                            tooltip={t('copyResult')}
+                            className="h-6 w-6"
+                          />
+                        </>
+                      )}
+                      {duration !== null && (
+                        <Badge variant="secondary" className="text-[10px] shrink-0">
+                          {formatDuration(duration)}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Inline result preview */}
+                  {isExpanded && hasResult && (
+                    <Collapsible open={isExpanded}>
+                      <CollapsibleContent className="mt-2">
+                        <div className="rounded-lg bg-muted/50 p-2 text-xs font-mono overflow-x-auto max-h-40 overflow-y-auto">
+                          <pre className="whitespace-pre-wrap">
+                            {typeof execution.result === 'string' 
+                              ? execution.result 
+                              : JSON.stringify(execution.result, null, 2)}
+                          </pre>
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
+
+                  {/* Progress bar for completed executions */}
+                  {duration !== null && statistics.totalDuration > 0 && (
+                    <Progress 
+                      value={Math.min((duration / statistics.totalDuration) * 100, 100)} 
+                      className={cn(
+                        "h-1 mt-2",
+                        execution.state === 'output-available' && '[&>div]:bg-green-500',
+                        (execution.state === 'output-error' || execution.state === 'output-denied') && '[&>div]:bg-red-500'
+                      )}
+                    />
+                  )}
+                </div>
               </div>
             </div>
           );

@@ -6,6 +6,7 @@ pub mod clipboard;
 pub mod context;
 pub mod mcp;
 pub mod ollama;
+pub mod sandbox;
 pub mod screenshot;
 pub mod selection;
 pub mod vector;

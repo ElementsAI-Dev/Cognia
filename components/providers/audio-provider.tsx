@@ -145,7 +145,7 @@ interface AudioProviderProps {
 export function AudioProvider({
   children,
   customSpeechRecognition,
-  customSpeechSynthesis,
+  customSpeechSynthesis: _customSpeechSynthesis,
   onTranscriptionInterim,
   onTranscriptionFinal,
 }: AudioProviderProps) {
@@ -221,7 +221,7 @@ export function AudioProvider({
         // Restart if still supposed to be recording (continuous mode)
         try {
           recognition.start();
-        } catch (error) {
+        } catch (_error) {
           setRecordingState('stopped');
         }
       } else {
@@ -273,10 +273,11 @@ export function AudioProvider({
       console.error('Failed to initialize AudioContext:', error);
     }
 
+    const objectUrls = objectUrlsRef.current;
     return () => {
       // Cleanup: revoke all object URLs
-      objectUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
-      objectUrlsRef.current.clear();
+      objectUrls.forEach(url => URL.revokeObjectURL(url));
+      objectUrls.clear();
 
       // Close audio context
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
@@ -288,7 +289,7 @@ export function AudioProvider({
   }, []);
 
   // Speech-to-Text functions
-  const startRecording = useCallback(async (options?: RecordingOptions) => {
+  const startRecording = useCallback(async (_options?: RecordingOptions) => {
     if (!SpeechRecognitionClass) {
       throw new Error('Speech recognition is not supported in this browser');
     }

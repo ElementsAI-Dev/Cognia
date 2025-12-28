@@ -70,13 +70,34 @@ interface StepItemProps {
   isEditing: boolean;
   isFirst: boolean;
   isLast: boolean;
+  allSteps: PlanStep[];
   onEdit: () => void;
-  onSave: (title: string, description?: string) => void;
+  onSave: (title: string, description?: string, estimatedDuration?: number, dependencies?: string[], isParallel?: boolean) => void;
   onCancel: () => void;
   onDelete: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
+  onGenerateDescription?: () => void;
   disabled?: boolean;
+}
+
+// Step templates for quick creation (exported for use in other components)
+export const STEP_TEMPLATES = [
+  { id: 'research', title: 'Research', icon: '🔍', description: 'Gather information and analyze data' },
+  { id: 'implement', title: 'Implement', icon: '⚙️', description: 'Build or create the solution' },
+  { id: 'test', title: 'Test', icon: '🧪', description: 'Verify functionality and quality' },
+  { id: 'review', title: 'Review', icon: '👁️', description: 'Check and validate results' },
+  { id: 'document', title: 'Document', icon: '📝', description: 'Create documentation' },
+  { id: 'deploy', title: 'Deploy', icon: '🚀', description: 'Release to production' },
+];
+
+// Format estimated duration (exported for use in other components)
+export function formatEstimatedDuration(minutes?: number): string {
+  if (!minutes) return '';
+  if (minutes < 60) return `~${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `~${hours}h ${mins}m` : `~${hours}h`;
 }
 
 function StepItem({
@@ -91,7 +112,7 @@ function StepItem({
   onMoveUp,
   onMoveDown,
   disabled,
-}: StepItemProps) {
+}: Omit<StepItemProps, 'allSteps' | 'onGenerateDescription'>) {
   const t = useTranslations('agent');
   const [editTitle, setEditTitle] = useState(step.title);
   const [editDescription, setEditDescription] = useState(step.description || '');

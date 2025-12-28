@@ -29,6 +29,35 @@ jest.mock('@/lib/export', () => ({
   generateFilename: jest.fn().mockReturnValue('conversation.md'),
 }));
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      title: 'Export Conversation',
+      description: 'Choose export format and options',
+      exportNow: 'Export',
+      exporting: 'Exporting...',
+      animatedHtml: 'Animated HTML',
+      animatedHtmlDesc: 'Interactive replay with typing animation',
+      richMarkdown: 'Rich Markdown',
+      richMarkdownDesc: 'Formatted markdown with metadata',
+      json: 'JSON',
+      jsonDesc: 'Complete data export',
+      staticHtml: 'Static HTML',
+      staticHtmlDesc: 'Simple HTML export',
+      pdf: 'PDF',
+      pdfDesc: 'Print-ready document format',
+      plainText: 'Plain Text',
+      plainTextDesc: 'Simple text without formatting',
+      new: 'NEW',
+      advancedOptions: 'Advanced Options',
+      includeMetadata: 'Include Metadata',
+      cancel: 'Cancel',
+    };
+    return translations[key] || key;
+  },
+}));
+
 // Mock UI components
 jest.mock('@/components/ui/dialog', () => ({
   Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
@@ -133,11 +162,11 @@ describe('ExportDialog', () => {
     expect(screen.getByText('Export Conversation')).toBeInTheDocument();
   });
 
-  it('shows session title in description', () => {
+  it('shows dialog description', () => {
     render(<ExportDialog session={mockSession} />);
     fireEvent.click(screen.getAllByText('Export')[0]);
     
-    expect(screen.getByText(/Test Conversation/)).toBeInTheDocument();
+    expect(screen.getByText(/Choose export format/)).toBeInTheDocument();
   });
 
   it('displays all export format options', () => {

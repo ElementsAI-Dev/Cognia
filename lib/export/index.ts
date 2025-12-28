@@ -11,6 +11,9 @@ export * from './batch-export';
 export * from './excel-export';
 export * from './word-export';
 export * from './google-sheets-export';
+export * from './beautiful-html';
+export * from './beautiful-pdf';
+export * from './syntax-themes';
 
 export interface ExportData {
   session: Session;

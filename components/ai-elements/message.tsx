@@ -368,6 +368,7 @@ export function MessageAttachment({
     >
       {isImage ? (
         <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             alt={filename || "attachment"}
             className="size-full object-cover"

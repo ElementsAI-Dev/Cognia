@@ -17,7 +17,11 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group';
 import {
   Popover,
   PopoverContent,
@@ -238,15 +242,16 @@ export function SkillSelector({
       )}
 
       {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
+      <InputGroup>
+        <InputGroupAddon align="inline-start">
+          <Search className="h-4 w-4" />
+        </InputGroupAddon>
+        <InputGroupInput
           placeholder={t('searchSkills')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
         />
-      </div>
+      </InputGroup>
 
       {/* Available Skills */}
       <div className="space-y-4 max-h-[300px] overflow-y-auto">

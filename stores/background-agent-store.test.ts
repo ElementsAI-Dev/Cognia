@@ -455,7 +455,7 @@ describe('useBackgroundAgentStore', () => {
       const { result } = renderHook(() => useBackgroundAgentStore());
 
       let agent1: ReturnType<typeof result.current.createAgent>;
-      let agent2: ReturnType<typeof result.current.createAgent>;
+      let _agent2: ReturnType<typeof result.current.createAgent>;
 
       act(() => {
         agent1 = result.current.createAgent({

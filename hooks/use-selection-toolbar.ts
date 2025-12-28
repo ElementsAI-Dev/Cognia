@@ -1,7 +1,17 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { SelectionAction, ToolbarState, SelectionPayload } from "@/components/selection-toolbar/types";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { 
+  SelectionAction, 
+  ToolbarState, 
+  SelectionPayload,
+  SelectionMode,
+  TextType,
+} from "@/components/selection-toolbar/types";
+import { useSelectionStore } from "@/stores/selection-store";
+import { useSettingsStore } from "@/stores/settings-store";
+import { useAIChat } from "@/lib/ai/use-ai-chat";
+import type { ProviderName } from "@/lib/ai/client";
 
 const initialState: ToolbarState = {
   isVisible: false,
@@ -11,10 +21,140 @@ const initialState: ToolbarState = {
   activeAction: null,
   result: null,
   error: null,
+  streamingResult: null,
+  isStreaming: false,
+  showMoreMenu: false,
+  selectionMode: "auto",
+  textType: null,
 };
+
+// System prompt for selection toolbar actions
+const SELECTION_SYSTEM_PROMPT = `You are a helpful assistant that processes selected text. Be concise and accurate. Follow the user's instructions precisely.`;
+
+// Prompts for different actions
+const ACTION_PROMPTS: Record<SelectionAction, (text: string, targetLang?: string) => string> = {
+  explain: (text) => 
+    `Please explain the following text in a clear and concise way:\n\n"${text}"`,
+  translate: (text, targetLang = "zh-CN") => 
+    `Translate the following text to ${getLanguageName(targetLang)}. Only provide the translation, no explanations:\n\n"${text}"`,
+  summarize: (text) => 
+    `Summarize the following text in 1-2 sentences:\n\n"${text}"`,
+  extract: (text) => 
+    `Extract the key points from the following text as a bullet list:\n\n"${text}"`,
+  define: (text) => 
+    `Provide a clear definition for the following term or phrase:\n\n"${text}"`,
+  rewrite: (text) => 
+    `Rewrite the following text to improve clarity and flow while maintaining the original meaning:\n\n"${text}"`,
+  grammar: (text) => 
+    `Check the following text for grammar and spelling errors. List any issues found and provide the corrected version:\n\n"${text}"`,
+  copy: () => "",
+  "send-to-chat": () => "",
+  search: () => "",
+  "code-explain": (text) => 
+    `Explain the following code in detail, including what it does and how it works:\n\n\`\`\`\n${text}\n\`\`\``,
+  "code-optimize": (text) => 
+    `Optimize the following code for better performance and readability. Provide the improved version with explanations:\n\n\`\`\`\n${text}\n\`\`\``,
+  "tone-formal": (text) => 
+    `Rewrite the following text in a more formal, professional tone:\n\n"${text}"`,
+  "tone-casual": (text) => 
+    `Rewrite the following text in a more casual, conversational tone:\n\n"${text}"`,
+  expand: (text) => 
+    `Expand on the following text with more details and context:\n\n"${text}"`,
+  shorten: (text) => 
+    `Shorten the following text while keeping the essential meaning:\n\n"${text}"`,
+};
+
+function getLanguageName(code: string): string {
+  const languages: Record<string, string> = {
+    "zh-CN": "Chinese (Simplified)",
+    "zh-TW": "Chinese (Traditional)",
+    "en": "English",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "ru": "Russian",
+    "ar": "Arabic",
+    "pt": "Portuguese",
+    "it": "Italian",
+    "vi": "Vietnamese",
+    "th": "Thai",
+    "id": "Indonesian",
+  };
+  return languages[code] || "Chinese (Simplified)";
+}
 
 export function useSelectionToolbar() {
   const [state, setState] = useState<ToolbarState>(initialState);
+  const store = useSelectionStore();
+  
+  // Get config from store
+  const config = store.config;
+
+  // Get AI settings from settings store
+  const defaultProvider = useSettingsStore((s) => s.defaultProvider);
+  const providerSettings = useSettingsStore((s) => s.providerSettings);
+  
+  // Resolve provider and model (handle 'auto')
+  const provider = useMemo(() => {
+    if (defaultProvider === 'auto') {
+      // Find first enabled provider
+      const providers: ProviderName[] = ['openai', 'anthropic', 'google', 'deepseek', 'groq'];
+      for (const p of providers) {
+        if (providerSettings[p]?.enabled && providerSettings[p]?.apiKey) {
+          return p;
+        }
+      }
+      return 'openai'; // fallback
+    }
+    return defaultProvider as ProviderName;
+  }, [defaultProvider, providerSettings]);
+
+  const model = useMemo(() => {
+    // Get model from provider settings or use defaults
+    const currentProviderSettings = providerSettings[provider];
+    if (currentProviderSettings?.defaultModel) {
+      return currentProviderSettings.defaultModel;
+    }
+    // Default models per provider
+    const defaults: Record<string, string> = {
+      openai: 'gpt-4o-mini',
+      anthropic: 'claude-3-haiku-20240307',
+      google: 'gemini-1.5-flash',
+      deepseek: 'deepseek-chat',
+      groq: 'llama-3.1-8b-instant',
+    };
+    return defaults[provider] || 'gpt-4o-mini';
+  }, [providerSettings, provider]);
+
+  // Use the existing AI chat hook
+  const { sendMessage, stop } = useAIChat({
+    provider,
+    model,
+    onStreamStart: () => {
+      setState((prev) => ({ ...prev, isStreaming: true }));
+    },
+    onStreamEnd: () => {
+      setState((prev) => ({ ...prev, isStreaming: false }));
+    },
+    onError: (error) => {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        isStreaming: false,
+        error: error.message,
+      }));
+    },
+    onFinish: (result) => {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        isStreaming: false,
+        result: result.text,
+      }));
+    },
+  });
 
   // Listen for selection events from Tauri
   useEffect(() => {
@@ -22,99 +162,158 @@ export function useSelectionToolbar() {
       return;
     }
 
-    let unlisten: (() => void) | undefined;
+    let unlistenShow: (() => void) | undefined;
+    let unlistenHide: (() => void) | undefined;
 
-    const setupListener = async () => {
+    const setupListeners = async () => {
       const { listen } = await import("@tauri-apps/api/event");
       
-      unlisten = await listen<SelectionPayload>("selection-toolbar-show", (event) => {
+      unlistenShow = await listen<SelectionPayload>("selection-toolbar-show", (event) => {
         setState((prev) => ({
           ...prev,
           isVisible: true,
           selectedText: event.payload.text,
           position: { x: event.payload.x, y: event.payload.y },
           result: null,
+          streamingResult: null,
           error: null,
           activeAction: null,
+          isLoading: false,
+          isStreaming: false,
+          textType: event.payload.textType || null,
         }));
+      });
+
+      unlistenHide = await listen("selection-toolbar-hide", () => {
+        setState(initialState);
       });
     };
 
-    setupListener();
+    setupListeners();
 
     return () => {
-      unlisten?.();
+      unlistenShow?.();
+      unlistenHide?.();
     };
   }, []);
 
-  // Execute an action on the selected text
+  // Execute an action on the selected text using the shared AI infrastructure
   const executeAction = useCallback(
     async (action: SelectionAction) => {
       if (!state.selectedText) return;
 
+      // Cancel any ongoing request
+      stop();
+
+      const promptFn = ACTION_PROMPTS[action];
+      if (!promptFn) {
+        setState((prev) => ({
+          ...prev,
+          error: `Unknown action: ${action}`,
+        }));
+        return;
+      }
+
+      const prompt = promptFn(state.selectedText, config.targetLanguage);
+      if (!prompt) {
+        setState((prev) => ({
+          ...prev,
+          error: `No prompt for action: ${action}`,
+        }));
+        return;
+      }
+
       setState((prev) => ({
         ...prev,
         isLoading: true,
+        isStreaming: config.enableStreaming,
         activeAction: action,
         result: null,
+        streamingResult: config.enableStreaming ? "" : null,
         error: null,
       }));
 
       try {
-        let result: string;
+        // Use the shared AI chat infrastructure
+        const result = await sendMessage(
+          {
+            messages: [{ role: "user", content: prompt }],
+            systemPrompt: SELECTION_SYSTEM_PROMPT,
+            temperature: 0.7,
+            maxTokens: 2000,
+          },
+          config.enableStreaming
+            ? (chunk) => {
+                setState((prev) => ({
+                  ...prev,
+                  streamingResult: (prev.streamingResult || "") + chunk,
+                }));
+              }
+            : undefined
+        );
 
-        switch (action) {
-          case "explain":
-            result = await explainText(state.selectedText);
-            break;
-          case "translate":
-            result = await translateText(state.selectedText);
-            break;
-          case "extract":
-            result = await extractKeyPoints(state.selectedText);
-            break;
-          case "summarize":
-            result = await summarizeText(state.selectedText);
-            break;
-          default:
-            throw new Error(`Unknown action: ${action}`);
+        // Add to history
+        if (result) {
+          store.addToHistory({
+            text: state.selectedText,
+            action,
+            result,
+            sourceApp: store.sourceApp || undefined,
+            textType: state.textType || undefined,
+          });
         }
-
-        setState((prev) => ({
-          ...prev,
-          isLoading: false,
-          result,
-        }));
       } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+        
         setState((prev) => ({
           ...prev,
           isLoading: false,
+          isStreaming: false,
           error: error instanceof Error ? error.message : "An error occurred",
         }));
       }
     },
-    [state.selectedText]
+    [state.selectedText, state.textType, config.targetLanguage, config.enableStreaming, store, sendMessage, stop]
   );
+
+  // Retry the last action
+  const retryAction = useCallback(() => {
+    if (state.activeAction) {
+      executeAction(state.activeAction);
+    }
+  }, [state.activeAction, executeAction]);
 
   // Copy result to clipboard
   const copyResult = useCallback(async () => {
-    if (state.result) {
-      await navigator.clipboard.writeText(state.result);
+    const textToCopy = state.result || state.streamingResult;
+    if (textToCopy) {
+      await navigator.clipboard.writeText(textToCopy);
     }
-  }, [state.result]);
+  }, [state.result, state.streamingResult]);
 
   // Clear result
   const clearResult = useCallback(() => {
+    // Cancel any ongoing request
+    stop();
+
     setState((prev) => ({
       ...prev,
       result: null,
+      streamingResult: null,
       error: null,
       activeAction: null,
+      isLoading: false,
+      isStreaming: false,
     }));
-  }, []);
+  }, [stop]);
 
   // Hide toolbar
   const hideToolbar = useCallback(async () => {
+    // Cancel any ongoing request
+    stop();
+
     setState(initialState);
 
     if (typeof window !== "undefined" && window.__TAURI__) {
@@ -125,19 +324,23 @@ export function useSelectionToolbar() {
         console.error("Failed to hide toolbar:", e);
       }
     }
-  }, []);
+  }, [stop]);
 
   // Show toolbar manually
   const showToolbar = useCallback(
-    async (text: string, x: number, y: number) => {
+    async (text: string, x: number, y: number, options?: { textType?: TextType }) => {
       setState((prev) => ({
         ...prev,
         isVisible: true,
         selectedText: text,
         position: { x, y },
         result: null,
+        streamingResult: null,
         error: null,
         activeAction: null,
+        isLoading: false,
+        isStreaming: false,
+        textType: options?.textType || null,
       }));
 
       if (typeof window !== "undefined" && window.__TAURI__) {
@@ -152,65 +355,50 @@ export function useSelectionToolbar() {
     []
   );
 
+  // Set selection mode
+  const setSelectionMode = useCallback((mode: SelectionMode) => {
+    setState((prev) => ({
+      ...prev,
+      selectionMode: mode,
+    }));
+    store.setSelectionMode(mode);
+  }, [store]);
+
+  // Provide feedback
+  const provideFeedback = useCallback((positive: boolean) => {
+    if (state.activeAction) {
+      store.setFeedback(`${state.activeAction}-${Date.now()}`, positive);
+    }
+  }, [state.activeAction, store]);
+
+  // Send result to chat
+  const sendResultToChat = useCallback(async () => {
+    const textToSend = state.result || state.streamingResult;
+    if (!textToSend) return;
+
+    if (typeof window !== "undefined" && window.__TAURI__) {
+      const { emit } = await import("@tauri-apps/api/event");
+      await emit("selection-send-to-chat", { 
+        text: state.selectedText,
+        result: textToSend,
+        action: state.activeAction,
+      });
+    }
+    hideToolbar();
+  }, [state.result, state.streamingResult, state.selectedText, state.activeAction, hideToolbar]);
+
   return {
     state,
+    config,
     executeAction,
+    retryAction,
     copyResult,
     clearResult,
     hideToolbar,
     showToolbar,
+    setSelectionMode,
+    provideFeedback,
+    sendResultToChat,
+    stop, // Expose stop for external cancellation
   };
-}
-
-// AI action implementations
-async function explainText(text: string): Promise<string> {
-  // Use the AI provider to explain the text
-  const response = await callAI(
-    `Please explain the following text in a clear and concise way:\n\n"${text}"`
-  );
-  return response;
-}
-
-async function translateText(text: string): Promise<string> {
-  // Detect language and translate
-  const response = await callAI(
-    `Translate the following text to Chinese (Simplified). Only provide the translation, no explanations:\n\n"${text}"`
-  );
-  return response;
-}
-
-async function extractKeyPoints(text: string): Promise<string> {
-  const response = await callAI(
-    `Extract the key points from the following text as a bullet list:\n\n"${text}"`
-  );
-  return response;
-}
-
-async function summarizeText(text: string): Promise<string> {
-  const response = await callAI(
-    `Summarize the following text in 1-2 sentences:\n\n"${text}"`
-  );
-  return response;
-}
-
-async function callAI(prompt: string): Promise<string> {
-  // This is a placeholder - in production, this would use the actual AI provider
-  // For now, we'll use a simple fetch to a local endpoint or return a mock response
-  
-  if (typeof window !== "undefined" && window.__TAURI__) {
-    // In Tauri, we can use the existing AI infrastructure
-    try {
-      const { invoke } = await import("@tauri-apps/api/core");
-      // Try to use the existing chat infrastructure
-      // This would need to be connected to the actual AI provider
-      const result = await invoke<string>("selection_ai_process", { prompt });
-      return result;
-    } catch {
-      // Fallback to a simple response for now
-      return `[AI Response for: "${prompt.slice(0, 50)}..."]`;
-    }
-  }
-
-  // Browser fallback
-  return `[AI Response for: "${prompt.slice(0, 50)}..."]`;
 }

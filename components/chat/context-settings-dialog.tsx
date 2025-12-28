@@ -18,7 +18,6 @@ import {
   ChevronDown,
   ChevronUp,
   Shrink,
-  Undo2,
 } from 'lucide-react';
 import { useSettingsStore } from '@/stores';
 import type { CompressionStrategy, CompressionTrigger } from '@/types/compression';

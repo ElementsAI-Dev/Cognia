@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -98,11 +99,13 @@ export function ArtifactList({
 
   if (sessionArtifacts.length === 0) {
     return (
-      <div className={cn('flex flex-col items-center justify-center p-6 text-muted-foreground', className)}>
-        <Code className="h-8 w-8 mb-2 opacity-50" />
-        <p className="text-sm">No artifacts yet</p>
-        <p className="text-xs mt-1">Code snippets and content will appear here</p>
-      </div>
+      <EmptyState
+        icon={Code}
+        title="No artifacts yet"
+        description="Code snippets and content will appear here"
+        className={className}
+        compact
+      />
     );
   }
 

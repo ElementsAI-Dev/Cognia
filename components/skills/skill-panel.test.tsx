@@ -108,7 +108,7 @@ describe('SkillPanel', () => {
     it('renders skills library header', () => {
       renderWithProviders(<SkillPanel />);
 
-      expect(screen.getByText('skillsLibrary')).toBeInTheDocument();
+      expect(screen.getByText(/Skills Library|skillsLibrary/)).toBeInTheDocument();
     });
 
     it('displays skill count badge', () => {
@@ -283,7 +283,7 @@ describe('SkillPanel', () => {
       fireEvent.click(screen.getByRole('button', { name: /newSkill/i }));
 
       // Should render SkillEditor for new skill
-      expect(screen.queryByText('skillsLibrary')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Skills Library|skillsLibrary/)).not.toBeInTheDocument();
     });
 
     it('navigates to analytics view when Analytics clicked', () => {
@@ -291,7 +291,7 @@ describe('SkillPanel', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /analytics/i }));
 
-      expect(screen.getByText('skillAnalytics')).toBeInTheDocument();
+      expect(screen.getByText(/Skill Analytics|skillAnalytics/)).toBeInTheDocument();
     });
 
     it('shows close button in analytics view', () => {
@@ -308,7 +308,7 @@ describe('SkillPanel', () => {
       fireEvent.click(screen.getByRole('button', { name: /analytics/i }));
       fireEvent.click(screen.getByRole('button', { name: /close/i }));
 
-      expect(screen.getByText('skillsLibrary')).toBeInTheDocument();
+      expect(screen.getByText(/Skills Library|skillsLibrary/)).toBeInTheDocument();
     });
 
     it('calls onSkillSelect when skill is selected', () => {
@@ -384,8 +384,8 @@ describe('SkillPanel', () => {
 
       renderWithProviders(<SkillPanel />);
 
-      expect(screen.getByText('noSkillsYet')).toBeInTheDocument();
-      expect(screen.getByText('createFirstSkill')).toBeInTheDocument();
+      expect(screen.getByText(/No skills yet|noSkillsYet/)).toBeInTheDocument();
+      expect(screen.getByText(/Create your first skill|createFirstSkill/)).toBeInTheDocument();
     });
   });
 
@@ -411,13 +411,14 @@ describe('SkillPanel', () => {
     it('starts with browse view by default', () => {
       renderWithProviders(<SkillPanel />);
 
-      expect(screen.getByText('skillsLibrary')).toBeInTheDocument();
+      expect(screen.getByText(/Skills Library|skillsLibrary/)).toBeInTheDocument();
     });
 
     it('starts with analytics view when specified', () => {
       renderWithProviders(<SkillPanel defaultView="analytics" />);
 
-      expect(screen.getByText('skillAnalytics')).toBeInTheDocument();
+      // Look for translated text or key fallback
+      expect(screen.getByText(/Skill Analytics|skillAnalytics/)).toBeInTheDocument();
     });
   });
 });

@@ -46,3 +46,9 @@ export { TextPart, ReasoningPart, ToolPart, SourcesPart } from './message-parts'
 // Quote/Selection components
 export { TextSelectionPopover } from './text-selection-popover';
 export { QuotedContent } from './quoted-content';
+
+// Message queue
+export { PendingMessagesQueue, type PendingMessage } from './pending-messages-queue';
+
+// Reactions
+export { MessageReactions } from './message-reactions';

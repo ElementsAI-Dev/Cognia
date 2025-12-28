@@ -99,7 +99,7 @@ export function useDesignerDragDrop(): UseDesignerDragDropReturn {
 
   const dragCounterRef = useRef(0);
 
-  const { insertElement, moveElement, elementTree } = useDesignerStore();
+  const { insertElement, moveElement, elementTree: _elementTree } = useDesignerStore();
 
   // Reset drag state
   const resetDragState = useCallback(() => {
@@ -131,7 +131,7 @@ export function useDesignerDragDrop(): UseDesignerDragDropReturn {
         setIsDragging(true);
         setDragData(data);
       },
-      onDragEnd: (e: React.DragEvent) => {
+      onDragEnd: (_e: React.DragEvent) => {
         resetDragState();
       },
     };
@@ -154,7 +154,7 @@ export function useDesignerDragDrop(): UseDesignerDragDropReturn {
         setIsDragging(true);
         setDragData(data);
       },
-      onDragEnd: (e: React.DragEvent) => {
+      onDragEnd: (_e: React.DragEvent) => {
         resetDragState();
       },
     };

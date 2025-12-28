@@ -4,7 +4,7 @@
  * BackgroundAgentPanel - Panel for managing background agents
  */
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   X,
@@ -19,6 +19,14 @@ import {
   XCircle,
   Clock,
   Bot,
+  Terminal,
+  BarChart3,
+  Eye,
+  AlertTriangle,
+  Info,
+  Zap,
+  TrendingUp,
+  Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -44,7 +52,8 @@ import {
 } from '@/components/ui/tooltip';
 import { useBackgroundAgent } from '@/hooks/use-background-agent';
 import { AgentFlowVisualizer } from './agent-flow-visualizer';
-import type { BackgroundAgent, BackgroundAgentStatus } from '@/types/background-agent';
+import type { BackgroundAgent, BackgroundAgentStatus, AgentLog } from '@/types/background-agent';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const statusConfig: Record<BackgroundAgentStatus, {
   icon: React.ElementType;
@@ -71,6 +80,27 @@ function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
   return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
+}
+
+// Log level configuration
+const logLevelConfig: Record<string, { icon: React.ElementType; color: string }> = {
+  info: { icon: Info, color: 'text-blue-500' },
+  warn: { icon: AlertTriangle, color: 'text-yellow-500' },
+  error: { icon: XCircle, color: 'text-destructive' },
+  debug: { icon: Terminal, color: 'text-muted-foreground' },
+  success: { icon: CheckCircle, color: 'text-green-500' },
+};
+
+// Performance stats interface
+interface PerformanceStats {
+  totalTasks: number;
+  completedTasks: number;
+  failedTasks: number;
+  averageDuration: number;
+  successRate: number;
+  activeSubAgents: number;
+  toolCallsTotal: number;
+  tokenUsage: number;
 }
 
 interface AgentCardProps {
@@ -257,9 +287,196 @@ function AgentCard({
   );
 }
 
+// Agent logs viewer component
+function AgentLogsViewer({ logs, maxHeight = 300 }: { logs: AgentLog[]; maxHeight?: number }) {
+  const [filter, setFilter] = useState<string>('all');
+  const [_autoScroll, _setAutoScroll] = useState(true);
+
+  const filteredLogs = useMemo(() => {
+    if (filter === 'all') return logs;
+    return logs.filter((log) => log.level === filter);
+  }, [logs, filter]);
+
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b">
+        <div className="flex items-center gap-2">
+          <Terminal className="h-4 w-4" />
+          <span className="text-sm font-medium">Logs</span>
+          <Badge variant="outline" className="text-[10px]">
+            {logs.length}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-1">
+          {['all', 'info', 'warn', 'error'].map((level) => (
+            <Button
+              key={level}
+              variant={filter === level ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-6 text-xs px-2"
+              onClick={() => setFilter(level)}
+            >
+              {level}
+            </Button>
+          ))}
+        </div>
+      </div>
+      <ScrollArea style={{ height: maxHeight }}>
+        <div className="p-2 space-y-1 font-mono text-xs">
+          <AnimatePresence>
+            {filteredLogs.map((log, idx) => {
+              const config = logLevelConfig[log.level] || logLevelConfig.info;
+              const LogIcon = config.icon;
+              return (
+                <motion.div
+                  key={log.id || idx}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="flex items-start gap-2 py-1 px-2 rounded hover:bg-muted/50"
+                >
+                  <LogIcon className={cn('h-3.5 w-3.5 mt-0.5 shrink-0', config.color)} />
+                  <span className="text-muted-foreground shrink-0">
+                    {formatTime(log.timestamp)}
+                  </span>
+                  <span className="flex-1 break-all">{log.message}</span>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+          {filteredLogs.length === 0 && (
+            <div className="text-center py-4 text-muted-foreground">
+              No logs to display
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
+
+// Performance statistics component
+function PerformanceStatsCard({ stats }: { stats: PerformanceStats }) {
+  return (
+    <div className="border rounded-lg p-4 space-y-4">
+      <div className="flex items-center gap-2">
+        <BarChart3 className="h-4 w-4" />
+        <span className="text-sm font-medium">Performance Statistics</span>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Activity className="h-3 w-3" />
+            <span>Tasks</span>
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-lg font-semibold">{stats.completedTasks}</span>
+            <span className="text-xs text-muted-foreground">/ {stats.totalTasks}</span>
+          </div>
+        </div>
+        
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <TrendingUp className="h-3 w-3" />
+            <span>Success Rate</span>
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className={cn(
+              'text-lg font-semibold',
+              stats.successRate >= 80 ? 'text-green-500' : stats.successRate >= 50 ? 'text-yellow-500' : 'text-destructive'
+            )}>
+              {stats.successRate.toFixed(1)}%
+            </span>
+          </div>
+        </div>
+        
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            <span>Avg Duration</span>
+          </div>
+          <div className="text-lg font-semibold">
+            {formatDuration(stats.averageDuration)}
+          </div>
+        </div>
+        
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Zap className="h-3 w-3" />
+            <span>Tool Calls</span>
+          </div>
+          <div className="text-lg font-semibold">{stats.toolCallsTotal}</div>
+        </div>
+      </div>
+      
+      <div className="pt-2 border-t">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">Sub-agents active</span>
+          <span className="font-medium">{stats.activeSubAgents}</span>
+        </div>
+        {stats.tokenUsage > 0 && (
+          <div className="flex items-center justify-between text-xs mt-1">
+            <span className="text-muted-foreground">Token usage</span>
+            <span className="font-medium">{stats.tokenUsage.toLocaleString()}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Quick result preview component
+function ResultPreview({ agent }: { agent: BackgroundAgent }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasResult = agent.status === 'completed' && agent.result;
+  
+  if (!hasResult) return null;
+  
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <button
+        className="flex items-center justify-between w-full px-3 py-2 bg-green-50 dark:bg-green-950/30 border-b hover:bg-green-100 dark:hover:bg-green-950/50 transition-colors"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center gap-2">
+          <Eye className="h-4 w-4 text-green-600" />
+          <span className="text-sm font-medium text-green-700 dark:text-green-400">Result Preview</span>
+        </div>
+        <ChevronRight className={cn(
+          'h-4 w-4 text-green-600 transition-transform',
+          expanded && 'rotate-90'
+        )} />
+      </button>
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0 }}
+            animate={{ height: 'auto' }}
+            exit={{ height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="p-3 text-sm max-h-48 overflow-auto">
+              {typeof agent.result === 'string' ? (
+                <p className="whitespace-pre-wrap">{agent.result}</p>
+              ) : (
+                <pre className="text-xs overflow-auto">
+                  {JSON.stringify(agent.result, null, 2)}
+                </pre>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export function BackgroundAgentPanel() {
   const _t = useTranslations('agent');
   const [activeTab, setActiveTab] = useState<'all' | 'running' | 'completed'>('all');
+  const [detailTab, setDetailTab] = useState<'flow' | 'logs' | 'stats'>('flow');
+  const [notificationsEnabled, _setNotificationsEnabled] = useState(true);
 
   const {
     agents,
@@ -282,6 +499,61 @@ export function BackgroundAgentPanel() {
     selectAgent,
     clearCompleted,
   } = useBackgroundAgent();
+
+  // Calculate performance stats
+  const performanceStats = useMemo<PerformanceStats>(() => {
+    const completed = completedAgents.filter((a) => a.status === 'completed');
+    const failed = completedAgents.filter((a) => a.status === 'failed');
+    const totalDuration = completed.reduce((sum, a) => {
+      if (a.startedAt && a.completedAt) {
+        return sum + (a.completedAt.getTime() - a.startedAt.getTime());
+      }
+      return sum;
+    }, 0);
+    
+    return {
+      totalTasks: agents.length,
+      completedTasks: completed.length,
+      failedTasks: failed.length,
+      averageDuration: completed.length > 0 ? totalDuration / completed.length : 0,
+      successRate: completedAgents.length > 0 ? (completed.length / completedAgents.length) * 100 : 0,
+      activeSubAgents: runningAgents.reduce((sum, a) => sum + a.subAgents.filter((s) => s.status === 'running').length, 0),
+      toolCallsTotal: agents.reduce((sum, a) => sum + (a.toolCalls?.length || 0), 0),
+      tokenUsage: agents.reduce((sum, a) => sum + (a.tokenUsage || 0), 0),
+    };
+  }, [agents, completedAgents, runningAgents]);
+
+  // Desktop notification handler
+  const sendNotification = useCallback((title: string, body: string) => {
+    if (!notificationsEnabled) return;
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, { body, icon: '/icon.png' });
+    }
+  }, [notificationsEnabled]);
+
+  // Request notification permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Watch for agent completion and send notifications
+  useEffect(() => {
+    const handleAgentComplete = (agent: BackgroundAgent) => {
+      if (agent.status === 'completed') {
+        sendNotification('Agent Completed', `"${agent.name}" has finished successfully.`);
+      } else if (agent.status === 'failed') {
+        sendNotification('Agent Failed', `"${agent.name}" encountered an error.`);
+      }
+    };
+    
+    completedAgents.forEach((agent) => {
+      if (agent.completedAt && Date.now() - agent.completedAt.getTime() < 1000) {
+        handleAgentComplete(agent);
+      }
+    });
+  }, [completedAgents, sendNotification]);
 
   const displayAgents = activeTab === 'running'
     ? runningAgents
@@ -413,13 +685,65 @@ export function BackgroundAgentPanel() {
           </div>
 
           {/* Agent details */}
-          <div className="w-1/2">
+          <div className="w-1/2 flex flex-col">
             {selectedAgent ? (
-              <ScrollArea className="h-full">
-                <div className="p-4">
-                  <AgentFlowVisualizer agent={selectedAgent} />
+              <>
+                {/* Detail tabs */}
+                <div className="border-b">
+                  <div className="flex items-center gap-1 p-2">
+                    <Button
+                      variant={detailTab === 'flow' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setDetailTab('flow')}
+                    >
+                      <Bot className="h-3.5 w-3.5 mr-1" />
+                      Flow
+                    </Button>
+                    <Button
+                      variant={detailTab === 'logs' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setDetailTab('logs')}
+                    >
+                      <Terminal className="h-3.5 w-3.5 mr-1" />
+                      Logs
+                      {selectedAgent.logs && selectedAgent.logs.length > 0 && (
+                        <Badge variant="outline" className="ml-1 text-[10px] h-4">
+                          {selectedAgent.logs.length}
+                        </Badge>
+                      )}
+                    </Button>
+                    <Button
+                      variant={detailTab === 'stats' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setDetailTab('stats')}
+                    >
+                      <BarChart3 className="h-3.5 w-3.5 mr-1" />
+                      Stats
+                    </Button>
+                  </div>
                 </div>
-              </ScrollArea>
+                
+                {/* Detail content */}
+                <ScrollArea className="flex-1">
+                  <div className="p-4 space-y-4">
+                    {detailTab === 'flow' && (
+                      <>
+                        <AgentFlowVisualizer agent={selectedAgent} />
+                        <ResultPreview agent={selectedAgent} />
+                      </>
+                    )}
+                    {detailTab === 'logs' && (
+                      <AgentLogsViewer logs={selectedAgent.logs || []} maxHeight={400} />
+                    )}
+                    {detailTab === 'stats' && (
+                      <PerformanceStatsCard stats={performanceStats} />
+                    )}
+                  </div>
+                </ScrollArea>
+              </>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                 <Bot className="h-16 w-16 mb-4 opacity-30" />

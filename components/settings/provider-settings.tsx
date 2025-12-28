@@ -61,6 +61,8 @@ import {
 } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
 import { PROVIDERS, type ApiKeyRotationStrategy } from '@/types/provider';
@@ -383,31 +385,30 @@ export function ProviderSettings() {
 
       {/* Category Filter Tabs and Search */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 max-sm:gap-1.5 max-sm:-mx-1 max-sm:px-1">
-          {(Object.keys(CATEGORY_CONFIG) as ProviderCategory[]).map((cat) => {
-            const config = CATEGORY_CONFIG[cat];
-            const count = cat === 'all' 
-              ? Object.keys(PROVIDERS).length 
-              : Object.keys(PROVIDERS).filter(id => PROVIDER_CATEGORIES[id] === cat).length;
-            return (
-              <button
-                key={cat}
-                onClick={() => setCategoryFilter(cat)}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap',
-                  'max-sm:px-3 max-sm:py-2 max-sm:text-sm',
-                  categoryFilter === cat
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted'
-                )}
-              >
-                {config.icon}
-                {config.label}
-                <span className="ml-1 opacity-70">({count})</span>
-              </button>
-            );
-          })}
-        </div>
+        <Tabs value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as ProviderCategory)} className="w-full sm:w-auto">
+          <TabsList className="h-8 p-0.5 bg-muted/50">
+            {(Object.keys(CATEGORY_CONFIG) as ProviderCategory[]).map((cat) => {
+              const config = CATEGORY_CONFIG[cat];
+              const count = cat === 'all'
+                ? Object.keys(PROVIDERS).length
+                : Object.keys(PROVIDERS).filter(id => PROVIDER_CATEGORIES[id] === cat).length;
+              return (
+                <TabsTrigger
+                  key={cat}
+                  value={cat}
+                  className="h-7 px-2.5 text-xs gap-1 data-[state=active]:bg-background"
+                >
+                  {config.icon}
+                  <span className="hidden sm:inline">{config.label}</span>
+                  <span className="sm:hidden">{config.label.slice(0, 3)}</span>
+                  <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[10px]">
+                    {count}
+                  </Badge>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </Tabs>
         <div className="relative w-full sm:w-48">
           <Input
             placeholder={tPlaceholders('searchProviders')}
@@ -419,12 +420,15 @@ export function ProviderSettings() {
         </div>
       </div>
 
-      {/* Built-in Providers */}
-      {filteredProviders.length === 0 ? (
-        <div className="text-center py-8 text-sm text-muted-foreground">
-          No providers found matching your filters.
-        </div>
-      ) : filteredProviders.map(([providerId, provider]) => {
+      {/* Built-in Providers - Grid Layout */}
+      <TooltipProvider delayDuration={300}>
+        {filteredProviders.length === 0 ? (
+          <div className="text-center py-8 text-sm text-muted-foreground">
+            No providers found matching your filters.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {filteredProviders.map(([providerId, provider]) => {
         const settings = providerSettings[providerId] || {};
         const isEnabled = settings.enabled !== false;
         const apiKey = settings.apiKey || '';
@@ -520,18 +524,25 @@ export function ProviderSettings() {
                             }
                             disabled={!isEnabled}
                           />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleTestConnection(providerId)}
-                            disabled={!isEnabled || testingProviders[providerId]}
-                          >
-                            {testingProviders[providerId] ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              t('test')
-                            )}
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleTestConnection(providerId)}
+                                disabled={!isEnabled || testingProviders[providerId]}
+                              >
+                                {testingProviders[providerId] ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  t('test')
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Test connection to Ollama server</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                         {testResult?.success && (
                           <div className="flex items-center gap-1 text-sm text-green-600">
@@ -603,18 +614,25 @@ export function ProviderSettings() {
                               )}
                             </Button>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleTestConnection(providerId)}
-                            disabled={!isEnabled || !apiKey || testingProviders[providerId]}
-                          >
-                            {testingProviders[providerId] ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              t('test')
-                            )}
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleTestConnection(providerId)}
+                                disabled={!isEnabled || !apiKey || testingProviders[providerId]}
+                              >
+                                {testingProviders[providerId] ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  t('test')
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Verify API key with {provider.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                         {testResult?.success && (
                           <div className="flex items-center gap-1 text-sm text-green-600">
@@ -828,9 +846,12 @@ export function ProviderSettings() {
                 </CardContent>
               </CollapsibleContent>
             </Card>
-          </Collapsible>
-        );
-      })}
+              </Collapsible>
+            );
+          })}
+          </div>
+        )}
+      </TooltipProvider>
 
       {/* Custom Providers Section */}
       <Card>

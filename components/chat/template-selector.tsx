@@ -16,10 +16,15 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useTemplateStore } from '@/stores';
 import type { ChatTemplate, TemplateCategory } from '@/types/template';
 import { TEMPLATE_CATEGORY_LABELS } from '@/types/template';
@@ -88,15 +93,16 @@ export function TemplateSelector({
           {/* Left side - Template list */}
           <div className="flex-1 space-y-4 flex flex-col min-w-0">
             {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+            <InputGroup>
+              <InputGroupAddon align="inline-start">
+                <Search className="h-4 w-4" />
+              </InputGroupAddon>
+              <InputGroupInput
                 placeholder={t('search')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
               />
-            </div>
+            </InputGroup>
 
             {/* Category Tabs */}
             <Tabs
@@ -128,9 +134,12 @@ export function TemplateSelector({
                       />
                     ))}
                     {filteredTemplates.length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        {t('noTemplates')}
-                      </div>
+                      <EmptyState
+                        icon={Sparkles}
+                        title={t('noTemplates')}
+                        description={searchQuery ? 'Try a different search query' : 'No templates available in this category'}
+                        compact
+                      />
                     )}
                   </div>
                 </ScrollArea>
