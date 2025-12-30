@@ -14,6 +14,8 @@ import {
   Monitor,
   Eye,
   Wrench,
+  Activity,
+  Terminal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,6 +24,8 @@ import {
   ScreenshotPanel,
   FocusTrackerPanel,
   ContextPanel,
+  SystemMonitorPanel,
+  SandboxPanel,
 } from '@/components/native';
 import { isTauri } from '@/lib/native/utils';
 
@@ -69,7 +73,7 @@ export default function NativeToolsPage() {
 
       <div className="flex-1 overflow-hidden p-2 sm:p-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-          <TabsList className="grid w-full max-w-md grid-cols-4 shrink-0">
+          <TabsList className="grid w-full max-w-2xl grid-cols-6 shrink-0">
             <TabsTrigger value="clipboard" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
               <Clipboard className="h-4 w-4" />
               <span className="hidden sm:inline text-xs sm:text-sm">Clipboard</span>
@@ -85,6 +89,14 @@ export default function NativeToolsPage() {
             <TabsTrigger value="context" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
               <Eye className="h-4 w-4" />
               <span className="hidden sm:inline text-xs sm:text-sm">Context</span>
+            </TabsTrigger>
+            <TabsTrigger value="system" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
+              <Activity className="h-4 w-4" />
+              <span className="hidden sm:inline text-xs sm:text-sm">System</span>
+            </TabsTrigger>
+            <TabsTrigger value="sandbox" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
+              <Terminal className="h-4 w-4" />
+              <span className="hidden sm:inline text-xs sm:text-sm">Sandbox</span>
             </TabsTrigger>
           </TabsList>
 
@@ -110,6 +122,18 @@ export default function NativeToolsPage() {
             <TabsContent value="context" className="h-full m-0 data-[state=active]:flex data-[state=active]:flex-col">
               <div className="h-full border rounded-lg overflow-hidden">
                 <ContextPanel className="h-full" />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="system" className="h-full m-0 data-[state=active]:flex data-[state=active]:flex-col">
+              <div className="h-full border rounded-lg overflow-hidden">
+                <SystemMonitorPanel className="h-full" />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="sandbox" className="h-full m-0 data-[state=active]:flex data-[state=active]:flex-col">
+              <div className="h-full border rounded-lg overflow-hidden">
+                <SandboxPanel className="h-full" />
               </div>
             </TabsContent>
           </div>

@@ -13,8 +13,9 @@ export {
   getTemplateById,
   getTemplatesByCategory,
   getTemplateCategories,
-  type WorkflowEditorTemplate,
 } from './templates';
+
+export type { WorkflowEditorTemplate } from '@/types/workflow-editor';
 
 export {
   executeVisualWorkflow,

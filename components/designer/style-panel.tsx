@@ -105,7 +105,7 @@ export function StylePanel({ className }: StylePanelProps) {
               )}
             </p>
             <p className="text-xs text-muted-foreground truncate">
-              {selectedElement.className || 'No classes'}
+              {selectedElement.className || t('noClasses')}
             </p>
           </div>
         </div>
@@ -134,6 +134,7 @@ export function StylePanel({ className }: StylePanelProps) {
                       property={property}
                       value={selectedElement.styles[property.key] || ''}
                       onChange={(value) => handleStyleChange(property.key, value)}
+                      t={t}
                     />
                   ))}
                 </div>
@@ -165,9 +166,10 @@ interface StylePropertyInputProps {
   property: StyleProperty;
   value: string;
   onChange: (value: string) => void;
+  t: ReturnType<typeof useTranslations>;
 }
 
-function StylePropertyInput({ property, value, onChange }: StylePropertyInputProps) {
+function StylePropertyInput({ property, value, onChange, t }: StylePropertyInputProps) {
   switch (property.type) {
     case 'select':
       return (
@@ -175,7 +177,7 @@ function StylePropertyInput({ property, value, onChange }: StylePropertyInputPro
           <Label className="text-xs">{property.label}</Label>
           <Select value={value} onValueChange={onChange}>
             <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Select..." />
+              <SelectValue placeholder={t('select')} />
             </SelectTrigger>
             <SelectContent>
               {property.options?.map((option) => (

@@ -200,8 +200,9 @@ describe('ErrorBoundaryProvider', () => {
     it('redirects to home when Go Home is clicked', () => {
       // Mock window.location
       const originalLocation = window.location;
-      // @ts-expect-error - Mock location
+      // @ts-expect-error - Mock location for testing
       delete window.location;
+      // @ts-expect-error - Partial mock of Location for testing
       window.location = { ...originalLocation, href: '' };
 
       render(
@@ -214,6 +215,7 @@ describe('ErrorBoundaryProvider', () => {
 
       expect(window.location.href).toBe('/');
 
+      // @ts-expect-error - Restoring original location
       window.location = originalLocation;
     });
   });

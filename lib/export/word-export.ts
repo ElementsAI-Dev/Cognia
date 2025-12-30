@@ -252,7 +252,7 @@ export async function exportChatToWord(
 
     // Generate Word file
     const buffer = await docx.Packer.toBuffer(doc);
-    const blob = new Blob([buffer], {
+    const blob = new Blob([buffer as BlobPart], {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
 
@@ -419,7 +419,7 @@ export async function exportContentToWord(
 
     // Generate Word file
     const buffer = await docx.Packer.toBuffer(doc);
-    const blob = new Blob([buffer], {
+    const blob = new Blob([buffer as BlobPart], {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
 
@@ -549,7 +549,7 @@ export async function exportTableToWord(
 
     // Generate Word file
     const buffer = await docx.Packer.toBuffer(doc);
-    const blob = new Blob([buffer], {
+    const blob = new Blob([buffer as BlobPart], {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
 

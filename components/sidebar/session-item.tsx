@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { MessageSquare, MoreHorizontal, Pencil, Trash2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,6 +28,7 @@ interface SessionItemProps {
 }
 
 export function SessionItem({ session, isActive, collapsed = false }: SessionItemProps) {
+  const t = useTranslations('sidebar');
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(session.title);
 
@@ -126,11 +128,11 @@ export function SessionItem({ session, isActive, collapsed = false }: SessionIte
         <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuItem onClick={() => setIsEditing(true)}>
             <Pencil className="mr-2 h-4 w-4" />
-            Rename
+            {t('rename')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleDuplicate}>
             <Copy className="mr-2 h-4 w-4" />
-            Duplicate
+            {t('duplicate')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -138,7 +140,7 @@ export function SessionItem({ session, isActive, collapsed = false }: SessionIte
             className="text-destructive focus:text-destructive"
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            Delete
+            {t('delete')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

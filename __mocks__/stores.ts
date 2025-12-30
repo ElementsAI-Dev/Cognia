@@ -36,6 +36,10 @@ export const mockGetProject = jest.fn(() => null);
 export const mockGetModeConfig = jest.fn((mode: ChatMode) => MODE_CONFIGS[mode] || MODE_CONFIGS.chat);
 export const mockGetRecentModes = jest.fn((count: number) => ['chat', 'agent'].slice(0, count));
 export const mockSetMode = jest.fn();
+export const mockGetActiveSession = jest.fn(() => mockSessions[0]);
+export const mockCreateSession = jest.fn(() => 'new-session-id');
+export const mockDeleteSession = jest.fn();
+export const mockSetActiveSession = jest.fn();
 
 // Session store state
 export const createSessionStoreState = (overrides = {}) => ({
@@ -46,6 +50,10 @@ export const createSessionStoreState = (overrides = {}) => ({
   getRecentModes: mockGetRecentModes,
   setMode: mockSetMode,
   currentMode: 'chat' as ChatMode,
+  getActiveSession: mockGetActiveSession,
+  createSession: mockCreateSession,
+  deleteSession: mockDeleteSession,
+  setActiveSession: mockSetActiveSession,
   ...overrides,
 });
 
@@ -131,6 +139,10 @@ export function resetAllMocks() {
   mockGetModeConfig.mockClear();
   mockGetRecentModes.mockClear();
   mockSetMode.mockClear();
+  mockGetActiveSession.mockClear();
+  mockCreateSession.mockClear();
+  mockDeleteSession.mockClear();
+  mockSetActiveSession.mockClear();
 }
 
 /**

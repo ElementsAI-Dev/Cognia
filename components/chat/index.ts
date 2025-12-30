@@ -33,6 +33,8 @@ export { TemplateSelector } from './template-selector';
 export { ConversationSearch } from './conversation-search';
 export { BatchCopyDialog } from './batch-copy-dialog';
 export { ModelPickerDialog } from './model-picker-dialog';
+export { AISettingsDialog, type AISettings } from './ai-settings-dialog';
+export { ContextSettingsDialog } from './context-settings-dialog';
 
 // Utilities
 export { RecentFilesPopover } from './recent-files-popover';

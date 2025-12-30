@@ -102,3 +102,41 @@ export {
   createDefaultThemeTemplate,
   type CustomSyntaxTheme,
 } from './custom-theme-store';
+export {
+  useMediaStore,
+  selectImages,
+  selectVideos,
+  selectRecentImages,
+  selectRecentVideos,
+  selectFavoriteImages,
+  selectFavoriteVideos,
+  selectPendingVideos,
+  type GeneratedImageRecord,
+  type GeneratedVideoRecord,
+  type MediaStats,
+  type MediaFilter,
+} from './media-store';
+export {
+  useEnvironmentStore,
+  useEnvironmentPlatform,
+  useToolStatus,
+  useInstallProgress,
+  useIsToolInstalled,
+  useEnvironmentRefreshing,
+  useEnvironmentInstalling,
+  type EnvironmentState,
+  type EnvironmentActions,
+} from './environment-store';
+export {
+  useProxyStore,
+  useProxyConfig,
+  useProxyStatus,
+  useProxyMode,
+  useProxyEnabled,
+  useDetectedProxies,
+  useProxyDetecting,
+  useProxyTesting,
+  getActiveProxyUrl,
+  type ProxyState,
+  type ProxyActions,
+} from './proxy-store';

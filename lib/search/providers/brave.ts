@@ -11,6 +11,7 @@ import type {
   SearchImage,
   SearchRecency,
 } from '@/types/search';
+import { braveFetch } from '../proxy-search-fetch';
 
 const BRAVE_SEARCH_URL = 'https://api.search.brave.com/res/v1/web/search';
 const BRAVE_NEWS_URL = 'https://api.search.brave.com/res/v1/news/search';
@@ -280,7 +281,7 @@ export async function searchWithBrave(
   }
 
   try {
-    const response = await fetch(`${BRAVE_SEARCH_URL}?${params.toString()}`, {
+    const response = await braveFetch(`${BRAVE_SEARCH_URL}?${params.toString()}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -376,7 +377,7 @@ export async function searchNewsWithBrave(
   }
 
   try {
-    const response = await fetch(`${BRAVE_NEWS_URL}?${params.toString()}`, {
+    const response = await braveFetch(`${BRAVE_NEWS_URL}?${params.toString()}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -451,7 +452,7 @@ export async function searchImagesWithBrave(
   }
 
   try {
-    const response = await fetch(`${BRAVE_IMAGES_URL}?${params.toString()}`, {
+    const response = await braveFetch(`${BRAVE_IMAGES_URL}?${params.toString()}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -529,7 +530,7 @@ export async function searchVideosWithBrave(
   }
 
   try {
-    const response = await fetch(`${BRAVE_VIDEOS_URL}?${params.toString()}`, {
+    const response = await braveFetch(`${BRAVE_VIDEOS_URL}?${params.toString()}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',

@@ -36,7 +36,7 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
     </div>
   ),
 });
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -230,6 +230,7 @@ export function ArtifactPanel() {
   return (
     <Sheet open={panelOpen && panelView === 'artifact'} onOpenChange={(open) => !open && closePanel()}>
       <SheetContent side="right" className="w-full sm:w-[600px] sm:max-w-[600px] p-0">
+        <SheetTitle className="sr-only">Artifact Panel</SheetTitle>
         {activeArtifact ? (
           <Artifact className="h-full border-0 rounded-none">
             <ArtifactHeader>

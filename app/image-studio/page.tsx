@@ -89,6 +89,7 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
+import { proxyFetch } from '@/lib/proxy-fetch';
 import {
   generateImage,
   editImage,
@@ -432,7 +433,7 @@ export default function ImageStudioPage() {
   const handleUseForEdit = useCallback(async (image: GeneratedImageWithMeta) => {
     if (!image.url) return;
     try {
-      const response = await fetch(image.url);
+      const response = await proxyFetch(image.url);
       const blob = await response.blob();
       const file = new File([blob], 'image.png', { type: 'image/png' });
       setEditImageFile(file);
@@ -447,7 +448,7 @@ export default function ImageStudioPage() {
   const handleUseForVariation = useCallback(async (image: GeneratedImageWithMeta) => {
     if (!image.url) return;
     try {
-      const response = await fetch(image.url);
+      const response = await proxyFetch(image.url);
       const blob = await response.blob();
       const file = new File([blob], 'image.png', { type: 'image/png' });
       setVariationImage(file);

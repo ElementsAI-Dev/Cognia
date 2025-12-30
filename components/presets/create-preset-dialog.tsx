@@ -40,6 +40,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { usePresetStore, useSettingsStore } from '@/stores';
+import { toast } from '@/components/ui/sonner';
 import { PRESET_COLORS, PRESET_ICONS, type Preset, type BuiltinPrompt } from '@/types/preset';
 import { PROVIDERS, type ProviderName } from '@/types/provider';
 import { nanoid } from 'nanoid';
@@ -75,7 +76,7 @@ export function CreatePresetDialog({
   // Model config
   const [provider, setProvider] = useState<ProviderName | 'auto'>('auto');
   const [model, setModel] = useState('gpt-4o');
-  const [mode, setMode] = useState<'chat' | 'agent' | 'research'>('chat');
+  const [mode, setMode] = useState<'chat' | 'agent' | 'research' | 'learning'>('chat');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState<number | undefined>(undefined);
@@ -144,7 +145,7 @@ export function CreatePresetDialog({
     
     const settings = getApiSettings();
     if (!settings?.apiKey) {
-      alert('Please configure an API key in settings first.');
+      toast.warning('Please configure an API key in settings first.');
       return;
     }
 
@@ -198,7 +199,7 @@ export function CreatePresetDialog({
     
     const settings = getApiSettings();
     if (!settings?.apiKey) {
-      alert('Please configure an API key in settings first.');
+      toast.warning('Please configure an API key in settings first.');
       return;
     }
 
@@ -232,7 +233,7 @@ export function CreatePresetDialog({
     
     const settings = getApiSettings();
     if (!settings?.apiKey) {
-      alert('Please configure an API key in settings first.');
+      toast.warning('Please configure an API key in settings first.');
       return;
     }
 

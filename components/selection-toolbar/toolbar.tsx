@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from 'next-intl';
 import { cn } from "@/lib/utils";
 import {
   BookOpen,
@@ -52,32 +53,39 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-// All available actions with metadata
-const ALL_ACTIONS: ActionDefinition[] = [
+// All available actions with metadata (using labelKey and descKey for i18n)
+const ALL_ACTIONS: Array<Omit<ActionDefinition, 'label' | 'description'> & { labelKey: string; descKey: string }> = [
   // AI Actions
-  { action: "explain", icon: BookOpen, label: "Explain", shortcut: "E", category: "ai", description: "Get a clear explanation" },
-  { action: "translate", icon: Languages, label: "Translate", shortcut: "T", category: "ai", description: "Translate to your language" },
-  { action: "summarize", icon: Sparkles, label: "Summarize", shortcut: "S", category: "ai", description: "Create a brief summary" },
-  { action: "define", icon: BookMarked, label: "Define", shortcut: "D", category: "ai", description: "Get definition" },
-  { action: "search", icon: Search, label: "Search", shortcut: "F", category: "ai", description: "Search the web" },
+  { action: "explain", icon: BookOpen, labelKey: "actionExplain", shortcut: "E", category: "ai", descKey: "actionExplainDesc" },
+  { action: "translate", icon: Languages, labelKey: "actionTranslate", shortcut: "T", category: "ai", descKey: "actionTranslateDesc" },
+  { action: "summarize", icon: Sparkles, labelKey: "actionSummarize", shortcut: "S", category: "ai", descKey: "actionSummarizeDesc" },
+  { action: "define", icon: BookMarked, labelKey: "actionDefine", shortcut: "D", category: "ai", descKey: "actionDefineDesc" },
+  { action: "search", icon: Search, labelKey: "actionSearch", shortcut: "F", category: "ai", descKey: "actionSearchDesc" },
   
   // Edit Actions
-  { action: "rewrite", icon: PenLine, label: "Rewrite", shortcut: "R", category: "edit", description: "Rewrite with better wording" },
-  { action: "grammar", icon: CheckCircle, label: "Grammar", shortcut: "G", category: "edit", description: "Fix grammar issues" },
-  { action: "expand", icon: ArrowUpRight, label: "Expand", category: "edit", description: "Expand with more details" },
-  { action: "shorten", icon: ArrowDownRight, label: "Shorten", category: "edit", description: "Make it shorter" },
-  { action: "tone-formal", icon: Briefcase, label: "Formal", category: "edit", description: "Make tone more formal" },
-  { action: "tone-casual", icon: Coffee, label: "Casual", category: "edit", description: "Make tone more casual" },
+  { action: "rewrite", icon: PenLine, labelKey: "actionRewrite", shortcut: "R", category: "edit", descKey: "actionRewriteDesc" },
+  { action: "grammar", icon: CheckCircle, labelKey: "actionGrammar", shortcut: "G", category: "edit", descKey: "actionGrammarDesc" },
+  { action: "expand", icon: ArrowUpRight, labelKey: "actionExpand", category: "edit", descKey: "actionExpandDesc" },
+  { action: "shorten", icon: ArrowDownRight, labelKey: "actionShorten", category: "edit", descKey: "actionShortenDesc" },
+  { action: "tone-formal", icon: Briefcase, labelKey: "actionFormal", category: "edit", descKey: "actionFormalDesc" },
+  { action: "tone-casual", icon: Coffee, labelKey: "actionCasual", category: "edit", descKey: "actionCasualDesc" },
   
   // Code Actions
-  { action: "code-explain", icon: Code2, label: "Explain Code", shortcut: "X", category: "code", description: "Explain this code" },
-  { action: "code-optimize", icon: Wand2, label: "Optimize", shortcut: "O", category: "code", description: "Optimize the code" },
+  { action: "code-explain", icon: Code2, labelKey: "actionCodeExplain", shortcut: "X", category: "code", descKey: "actionCodeExplainDesc" },
+  { action: "code-optimize", icon: Wand2, labelKey: "actionOptimize", shortcut: "O", category: "code", descKey: "actionOptimizeDesc" },
   
   // Utility Actions
-  { action: "extract", icon: FileText, label: "Key Points", shortcut: "K", category: "utility", description: "Extract key points" },
-  { action: "copy", icon: Copy, label: "Copy", shortcut: "C", category: "utility", description: "Copy to clipboard" },
-  { action: "send-to-chat", icon: MessageSquare, label: "Send to Chat", shortcut: "↵", category: "utility", description: "Continue in chat" },
+  { action: "extract", icon: FileText, labelKey: "actionKeyPoints", shortcut: "K", category: "utility", descKey: "actionKeyPointsDesc" },
+  { action: "copy", icon: Copy, labelKey: "actionCopy", shortcut: "C", category: "utility", descKey: "actionCopyDesc" },
+  { action: "send-to-chat", icon: MessageSquare, labelKey: "actionSendToChat", shortcut: "↵", category: "utility", descKey: "actionSendToChatDesc" },
 ];
 
 // Selection mode options
@@ -108,11 +116,13 @@ export function SelectionToolbar() {
     hideToolbar,
   } = useSelectionToolbar();
 
+  const t = useTranslations('selectionToolbar');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [activeCategory, setActiveCategory] = useState<ActionCategory | null>(null);
   const [selectionMode, setSelectionMode] = useState<SelectionMode>("auto");
   const [showModeSelector, setShowModeSelector] = useState(false);
   const [showReferences, setShowReferences] = useState(false);
+  const [showExpandedView, setShowExpandedView] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
   // Multi-selection and references from store
@@ -177,42 +187,6 @@ export function SelectionToolbar() {
     [state.selectedText, executeAction, hideToolbar, isMultiSelectMode, selections.length, getCombinedText, references]
   );
 
-  // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (showMoreMenu) {
-          setShowMoreMenu(false);
-        } else {
-          hideToolbar();
-        }
-        return;
-      }
-
-      // Don't trigger shortcuts when typing in inputs
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-
-      // Find matching action by shortcut
-      const key = e.key.toUpperCase();
-      const action = ALL_ACTIONS.find((a) => a.shortcut === key);
-      if (action && !state.isLoading) {
-        e.preventDefault();
-        handleAction(action.action);
-      }
-
-      // Enter key for send-to-chat
-      if (e.key === "Enter" && !state.isLoading) {
-        e.preventDefault();
-        handleAction("send-to-chat");
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [hideToolbar, handleAction, showMoreMenu, state.isLoading]);
-
   // Handle click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -247,7 +221,7 @@ export function SelectionToolbar() {
 
   // Keyboard shortcuts
   useEffect(() => {
-    if (!state.isVisible || state.isLoading) return;
+    if (!state.isVisible) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if typing in an input
@@ -255,10 +229,28 @@ export function SelectionToolbar() {
         return;
       }
 
-      // Escape to close
+      // Escape to close menus or toolbar
       if (e.key === "Escape") {
         e.preventDefault();
-        hideToolbar();
+        if (showMoreMenu) {
+          setShowMoreMenu(false);
+        } else if (showModeSelector) {
+          setShowModeSelector(false);
+        } else if (showReferences) {
+          setShowReferences(false);
+        } else {
+          hideToolbar();
+        }
+        return;
+      }
+
+      // Don't process other shortcuts when loading
+      if (state.isLoading) return;
+
+      // Enter key for send-to-chat
+      if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        handleAction("send-to-chat");
         return;
       }
 
@@ -274,7 +266,7 @@ export function SelectionToolbar() {
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [state.isVisible, state.isLoading, handleAction, hideToolbar]);
+  }, [state.isVisible, state.isLoading, handleAction, hideToolbar, showMoreMenu, showModeSelector, showReferences]);
 
   return (
     <TooltipProvider>
@@ -337,13 +329,13 @@ export function SelectionToolbar() {
           <Separator orientation="vertical" className="h-6 bg-white/6 mx-0.5" />
 
           {/* Primary Actions */}
-          {pinnedActions.map(({ action, icon, label, shortcut, description }) => (
+          {pinnedActions.map(({ action, icon, labelKey, shortcut, descKey }) => (
             <ToolbarButton
               key={action}
               icon={icon}
-              label={label}
+              label={t(labelKey)}
               shortcut={shortcut}
-              description={description}
+              description={t(descKey)}
               isActive={state.activeAction === action}
               isLoading={state.isLoading && state.activeAction === action}
               onClick={() => handleAction(action)}
@@ -401,9 +393,7 @@ export function SelectionToolbar() {
             label="Expand"
             description="Open in expanded view"
             size="sm"
-            onClick={() => {
-              // TODO: Open expanded view
-            }}
+            onClick={() => setShowExpandedView(true)}
           />
 
           {/* Close */}
@@ -664,7 +654,7 @@ export function SelectionToolbar() {
                 {activeCategory ? (
                   // Show single category
                   <div className="grid grid-cols-2 gap-1">
-                    {getActionsByCategory(activeCategory).map(({ action, icon: Icon, label, shortcut, description }) => (
+                    {getActionsByCategory(activeCategory).map(({ action, icon: Icon, labelKey, shortcut, descKey }) => (
                       <Button
                         key={action}
                         variant="ghost"
@@ -685,15 +675,15 @@ export function SelectionToolbar() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium truncate">{label}</span>
+                            <span className="text-sm font-medium truncate">{t(labelKey)}</span>
                             {shortcut && (
                               <Badge variant="secondary" className="px-1.5 py-0 text-[10px] h-5">
                                 {shortcut}
                               </Badge>
                             )}
                           </div>
-                          {description && (
-                            <p className="text-xs text-white/40 truncate font-normal">{description}</p>
+                          {descKey && (
+                            <p className="text-xs text-white/40 truncate font-normal">{t(descKey)}</p>
                           )}
                         </div>
                         <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/40 transition-colors" />
@@ -713,7 +703,7 @@ export function SelectionToolbar() {
                             {CATEGORY_INFO[category].label}
                           </div>
                           <div className="grid grid-cols-3 gap-1">
-                            {categoryActions.map(({ action, icon: Icon, label, shortcut }) => (
+                            {categoryActions.map(({ action, icon: Icon, labelKey, shortcut }) => (
                               <Button
                                 key={action}
                                 variant="ghost"
@@ -722,7 +712,7 @@ export function SelectionToolbar() {
                                 className="h-auto flex flex-col items-center gap-1.5 p-2.5 text-white/70 hover:text-white hover:bg-white/10"
                               >
                                 <Icon className="w-5 h-5" />
-                                <span className="text-[11px] font-medium">{label}</span>
+                                <span className="text-[11px] font-medium">{t(labelKey)}</span>
                                 {shortcut && (
                                   <kbd className="text-[9px] text-white/40">{shortcut}</kbd>
                                 )}
@@ -767,6 +757,138 @@ export function SelectionToolbar() {
             </span>
           </div>
         )}
+
+        {/* Expanded View Dialog */}
+        <Dialog open={showExpandedView} onOpenChange={setShowExpandedView}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5" />
+                {t('expandedViewTitle')}
+              </DialogTitle>
+              <DialogDescription>
+                {t('expandedViewDescription')}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="flex-1 overflow-hidden flex flex-col gap-4">
+              {/* Selected Text */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">
+                  {t('selectedText')}
+                </label>
+                <ScrollArea className="h-32 rounded-lg border bg-muted/30 p-3">
+                  <p className="text-sm whitespace-pre-wrap">
+                    {isMultiSelectMode && selections.length > 0 
+                      ? getCombinedText() 
+                      : state.selectedText}
+                  </p>
+                </ScrollArea>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    {(isMultiSelectMode && selections.length > 0 
+                      ? getCombinedText() 
+                      : state.selectedText
+                    )?.length || 0} {t('characters')}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs"
+                    onClick={() => {
+                      const text = isMultiSelectMode && selections.length > 0 
+                        ? getCombinedText() 
+                        : state.selectedText;
+                      if (text) navigator.clipboard.writeText(text);
+                    }}
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    {t('actionCopy')}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Actions Grid */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-muted-foreground">
+                  {t('availableActions')}
+                </label>
+                <Tabs defaultValue="ai" className="w-full">
+                  <TabsList className="grid w-full grid-cols-4">
+                    {Object.entries(CATEGORY_INFO).map(([key, info]) => (
+                      <TabsTrigger key={key} value={key} className={info.color}>
+                        {info.label}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                  <ScrollArea className="h-48 mt-3">
+                    <div className="grid grid-cols-2 gap-2 p-1">
+                      {ALL_ACTIONS.map((action) => {
+                        const Icon = action.icon;
+                        return (
+                          <Button
+                            key={action.action}
+                            variant="outline"
+                            className="justify-start gap-2 h-auto py-2"
+                            onClick={() => {
+                              setShowExpandedView(false);
+                              handleAction(action.action);
+                            }}
+                            disabled={state.isLoading}
+                          >
+                            <Icon className="h-4 w-4 shrink-0" />
+                            <div className="text-left">
+                              <div className="text-sm font-medium">
+                                {t(action.labelKey)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {t(action.descKey)}
+                              </div>
+                            </div>
+                            {action.shortcut && (
+                              <kbd className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded">
+                                {action.shortcut}
+                              </kbd>
+                            )}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                </Tabs>
+              </div>
+
+              {/* Result Preview */}
+              {state.result && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    {t('result')}
+                  </label>
+                  <ScrollArea className="h-32 rounded-lg border bg-muted/30 p-3">
+                    <p className="text-sm whitespace-pre-wrap">{state.result}</p>
+                  </ScrollArea>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={copyResult}
+                    >
+                      <Copy className="h-3 w-3 mr-1" />
+                      {t('actionCopy')}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearResult}
+                    >
+                      {t('clear')}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );

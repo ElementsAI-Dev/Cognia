@@ -30,9 +30,37 @@ jest.mock('next-intl', () => ({
       currentStats: 'Current Statistics',
       events: 'Events',
       activeTokens: 'Active Tokens',
+      used: 'Used',
+      limit: 'Limit',
+      remainingTokens: 'Remaining',
+      statusHealthy: 'Healthy',
+      statusWarning: 'Warning',
+      statusDanger: 'Near Limit',
+      advancedSettings: 'Advanced Settings',
+      compressionSettings: 'Compression Settings',
     };
     return translations[key] || key;
   },
+}));
+
+// Mock stores
+jest.mock('@/stores', () => ({
+  useSettingsStore: () => ({
+    compressionSettings: {
+      enabled: false,
+      strategy: 'sliding-window',
+      trigger: 'auto',
+      tokenThreshold: 80000,
+      messageThreshold: 50,
+      preserveRecentCount: 10,
+    },
+    setCompressionEnabled: jest.fn(),
+    setCompressionStrategy: jest.fn(),
+    setCompressionTrigger: jest.fn(),
+    setCompressionTokenThreshold: jest.fn(),
+    setCompressionMessageThreshold: jest.fn(),
+    setCompressionPreserveRecent: jest.fn(),
+  }),
 }));
 
 // Mock UI components
@@ -42,6 +70,7 @@ jest.mock('@/components/ui/dialog', () => ({
   DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
+  DialogFooter: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-footer">{children}</div>,
 }));
 
 jest.mock('@/components/ui/button', () => ({
@@ -72,6 +101,34 @@ jest.mock('@/components/ui/slider', () => ({
       data-testid="slider"
     />
   ),
+}));
+
+jest.mock('@/components/ui/badge', () => ({
+  Badge: ({ children, variant }: { children: React.ReactNode; variant?: string }) => (
+    <span data-testid="badge" data-variant={variant}>{children}</span>
+  ),
+}));
+
+jest.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+jest.mock('@/components/ui/collapsible', () => ({
+  Collapsible: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
+    <div data-testid="collapsible" data-open={open}>{children}</div>
+  ),
+  CollapsibleTrigger: ({ children, asChild: _asChild }: { children: React.ReactNode; asChild?: boolean }) => (
+    <div data-testid="collapsible-trigger">{children}</div>
+  ),
+  CollapsibleContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="collapsible-content">{children}</div>
+  ),
+}));
+
+jest.mock('@/lib/utils', () => ({
+  cn: (...args: string[]) => args.filter(Boolean).join(' '),
 }));
 
 describe('ContextSettingsDialog', () => {
@@ -125,9 +182,9 @@ describe('ContextSettingsDialog', () => {
     expect(screen.getByText(/Regex/)).toBeInTheDocument();
   });
 
-  it('displays context length section', () => {
+  it('displays dialog content', () => {
     render(<ContextSettingsDialog {...defaultProps} />);
-    expect(screen.getByText('Context Length')).toBeInTheDocument();
+    expect(screen.getByText('Configure context window settings')).toBeInTheDocument();
   });
 
   it('displays usage percentage', () => {
@@ -148,19 +205,20 @@ describe('ContextSettingsDialog', () => {
     expect(defaultProps.onContextLimitChange).toHaveBeenCalledWith(75);
   });
 
-  it('displays token stats section', () => {
+  it('displays used tokens', () => {
     render(<ContextSettingsDialog {...defaultProps} />);
-    expect(screen.getByText('Token')).toBeInTheDocument();
+    expect(screen.getByText('Used')).toBeInTheDocument();
+    expect(screen.getByText('25,000')).toBeInTheDocument();
   });
 
-  it('displays system token count', () => {
+  it('displays limit tokens', () => {
     render(<ContextSettingsDialog {...defaultProps} />);
-    expect(screen.getByText('5,000')).toBeInTheDocument();
+    expect(screen.getByText('Limit')).toBeInTheDocument();
   });
 
-  it('displays context token count', () => {
+  it('displays remaining label', () => {
     render(<ContextSettingsDialog {...defaultProps} />);
-    expect(screen.getByText('20,000')).toBeInTheDocument();
+    expect(screen.getByText('Remaining')).toBeInTheDocument();
   });
 
   it('displays memory activation toggle', () => {
@@ -187,9 +245,9 @@ describe('ContextSettingsDialog', () => {
     expect(defaultProps.onShowTokenUsageMeterChange).toHaveBeenCalled();
   });
 
-  it('displays current statistics section', () => {
+  it('displays context settings title', () => {
     render(<ContextSettingsDialog {...defaultProps} />);
-    expect(screen.getByText('Current Statistics')).toBeInTheDocument();
+    expect(screen.getByText('Context Settings')).toBeInTheDocument();
   });
 
   it('calculates token limit correctly', () => {
@@ -201,6 +259,6 @@ describe('ContextSettingsDialog', () => {
   it('displays remaining tokens', () => {
     render(<ContextSettingsDialog {...defaultProps} />);
     // 100000 - 25000 = 75000 remaining
-    expect(screen.getByText(/75,000 remaining/)).toBeInTheDocument();
+    expect(screen.getByText('75,000')).toBeInTheDocument();
   });
 });

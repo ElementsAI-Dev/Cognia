@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from 'next-intl';
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import {
   Collapsible,
@@ -117,21 +118,28 @@ export const Reasoning = memo(
 );
 
 export type ReasoningTriggerProps = ComponentProps<typeof CollapsibleTrigger> & {
-  getThinkingMessage?: (isStreaming: boolean, duration?: number) => ReactNode;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getThinkingMessage?: (isStreaming: boolean, duration?: number, t?: any) => ReactNode;
 };
 
-const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number, t?: any) => {
+  const thinking = t ? t('thinking') : 'Thinking...';
+  const thoughtFewSeconds = t ? t('thoughtFewSeconds') : 'Thought for a few seconds';
+  const thoughtSeconds = t ? t('thoughtSeconds', { duration }) : `Thought for ${duration} seconds`;
+  
   if (isStreaming || duration === 0) {
-    return <Shimmer duration={1}>Thinking...</Shimmer>;
+    return <Shimmer duration={1}>{thinking}</Shimmer>;
   }
   if (duration === undefined) {
-    return <p>Thought for a few seconds</p>;
+    return <p>{thoughtFewSeconds}</p>;
   }
-  return <p>Thought for {duration} seconds</p>;
+  return <p>{thoughtSeconds}</p>;
 };
 
 export const ReasoningTrigger = memo(
   ({ className, children, getThinkingMessage = defaultGetThinkingMessage, ...props }: ReasoningTriggerProps) => {
+    const t = useTranslations('reasoning');
     const { isStreaming, isOpen, duration } = useReasoning();
 
     return (
@@ -151,7 +159,7 @@ export const ReasoningTrigger = memo(
             )}>
               <BrainIcon className="size-3.5" />
             </div>
-            {getThinkingMessage(isStreaming, duration)}
+            {getThinkingMessage(isStreaming, duration, t)}
             <ChevronDownIcon
               className={cn(
                 "size-4 ml-auto transition-transform duration-200",

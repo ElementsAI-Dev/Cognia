@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { waitForAnimation } from '../utils/test-helpers';
 
 /**
  * Theme Editor Settings Complete Tests
  * Tests custom theme creation and management
+ * Optimized for CI/CD efficiency
  */
 
 test.describe('Theme Editor - Theme Creation', () => {
@@ -589,7 +591,7 @@ test.describe('Theme Editor UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Click Appearance tab
       const appearanceTab = page
@@ -597,7 +599,7 @@ test.describe('Theme Editor UI', () => {
         .first();
       if (await appearanceTab.isVisible()) {
         await appearanceTab.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
       }
 
       // Look for theme section
@@ -614,7 +616,7 @@ test.describe('Theme Editor UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for create/add theme button
       const createBtn = page
@@ -632,7 +634,7 @@ test.describe('Theme Editor UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for color-related elements
       const colorElements = page.locator('text=Color, text=Primary, text=Accent');
@@ -648,7 +650,7 @@ test.describe('Theme Editor UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for input elements
       const inputs = page.locator('input[type="text"], input[placeholder*="name" i]');

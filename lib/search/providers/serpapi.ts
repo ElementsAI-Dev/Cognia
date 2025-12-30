@@ -10,6 +10,7 @@ import type {
   SearchImage,
   SearchRecency,
 } from '@/types/search';
+import { serpApiFetch } from '../proxy-search-fetch';
 
 const SERPAPI_URL = 'https://serpapi.com/search.json';
 
@@ -161,7 +162,7 @@ export async function searchWithSerpAPI(
   }
 
   try {
-    const response = await fetch(`${SERPAPI_URL}?${params.toString()}`, {
+    const response = await serpApiFetch(`${SERPAPI_URL}?${params.toString()}`, {
       method: 'GET',
     });
 

@@ -4,14 +4,14 @@
  * ExecutionPanel - Real-time workflow execution visualization
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
+import { cn, formatDuration } from '@/lib/utils';
 import { useWorkflowEditorStore } from '@/stores/workflow-editor-store';
 import {
   Play,
@@ -79,6 +79,48 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
       }));
   }, [currentWorkflow, executionState]);
 
+  // Live elapsed time timer
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const startTime = executionState?.startedAt;
+
+  useEffect(() => {
+    if (!startTime || executionState?.status !== 'running') {
+      return;
+    }
+
+    const updateElapsed = () => {
+      setElapsedTime(Date.now() - new Date(startTime).getTime());
+    };
+
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 100);
+    return () => clearInterval(interval);
+  }, [startTime, executionState?.status]);
+
+  // Calculate current running node
+  const currentNode = useMemo(() => {
+    if (!executionState) return null;
+    const runningEntry = Object.entries(executionState.nodeStates).find(
+      ([, state]) => state.status === 'running'
+    );
+    if (!runningEntry) return null;
+    const node = currentWorkflow?.nodes.find((n) => n.id === runningEntry[0]);
+    return node ? { id: node.id, label: node.data.label } : null;
+  }, [executionState, currentWorkflow]);
+
+  // Calculate completed and total nodes
+  const { completedCount, totalCount } = useMemo(() => {
+    if (!executionState) return { completedCount: 0, totalCount: 0 };
+    const states = Object.values(executionState.nodeStates);
+    return {
+      completedCount: states.filter(
+        (s) => s.status === 'completed' || s.status === 'failed' || s.status === 'skipped'
+      ).length,
+      totalCount: states.length,
+    };
+  }, [executionState]);
+
+
   if (!executionState) {
     return (
       <div className={cn('flex flex-col h-full bg-background border-l', className)}>
@@ -113,10 +155,30 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
           </Badge>
         </div>
 
+        {/* Elapsed Time & Current Node */}
+        {executionState.status === 'running' && (
+          <div className="bg-blue-500/10 rounded-lg p-2 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Elapsed</span>
+              <span className="text-sm font-mono font-medium text-blue-500">
+                {formatDuration(elapsedTime)}
+              </span>
+            </div>
+            {currentNode && (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
+                <span className="text-xs truncate">
+                  Running: <span className="font-medium">{currentNode.label}</span>
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Progress */}
         <div className="space-y-1">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{t('progress')}</span>
+            <span>{completedCount}/{totalCount} nodes</span>
             <span>{Math.round(progress)}%</span>
           </div>
           <Progress value={progress} className="h-2" />

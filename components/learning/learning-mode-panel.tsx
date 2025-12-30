@@ -91,7 +91,17 @@ export const LearningModePanel = memo(function LearningModePanel({
 
   if (!isLearningActive || !learningSession) {
     return (
-      <Card className={cn('flex flex-col items-center justify-center p-6', className)}>
+      <Card className={cn('flex flex-col items-center justify-center p-6 relative', className)}>
+        {onClose && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="absolute top-2 right-2"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
         <GraduationCap className="h-12 w-12 text-muted-foreground mb-4" />
         <p className="text-muted-foreground text-center">
           {t('noActiveSession')}
@@ -297,6 +307,7 @@ const SubQuestionItem = memo(function SubQuestionItem({
   subQuestion,
   isActive,
 }: SubQuestionItemProps) {
+  const t = useTranslations('learningMode');
   const statusColors = {
     pending: 'text-muted-foreground',
     in_progress: 'text-blue-500',
@@ -328,7 +339,7 @@ const SubQuestionItem = memo(function SubQuestionItem({
           <div className="flex items-center gap-2 mt-1">
             {subQuestion.userAttempts > 0 && (
               <span className="text-xs text-muted-foreground">
-                {subQuestion.userAttempts} attempts
+                {t('attempts', { count: subQuestion.userAttempts })}
               </span>
             )}
             {subQuestion.hints.length > 0 && (

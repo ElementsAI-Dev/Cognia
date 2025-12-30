@@ -57,6 +57,144 @@ jest.mock('next/image', () => ({
   },
 }));
 
+// Mock remark/rehype plugins (ESM modules that Jest can't transform)
+jest.mock('remark-gfm', () => jest.fn());
+jest.mock('remark-math', () => jest.fn());
+jest.mock('rehype-raw', () => jest.fn());
+jest.mock('rehype-katex', () => jest.fn());
+jest.mock('rehype-sanitize', () => ({
+  __esModule: true,
+  default: jest.fn(),
+  defaultSchema: { tagNames: [], attributes: {}, protocols: {} },
+}));
+
+// Mock react-markdown
+jest.mock('react-markdown', () => ({
+  __esModule: true,
+  default: ({ children }: { children: string }) => React.createElement('div', { 'data-testid': 'markdown' }, children),
+}));
+
+// Mock stores globally with comprehensive default implementations
+// Note: Test files with local jest.mock('@/stores', ...) will override this
+jest.mock('@/stores', () => {
+  const mockSession = {
+    id: 'session-1',
+    title: 'Test Session',
+    provider: 'openai',
+    model: 'gpt-4o',
+    mode: 'chat',
+    systemPrompt: 'You are a helpful assistant.',
+    temperature: 0.7,
+    webSearchEnabled: false,
+    thinkingEnabled: false,
+    activeBranchId: 'branch-1',
+    projectId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const createMockSelector = <T>(state: T) => (selector: (s: T) => unknown) => selector(state);
+
+  return {
+    useSessionStore: createMockSelector({
+      sessions: [mockSession],
+      activeSessionId: 'session-1',
+      updateSession: jest.fn(),
+      getModeConfig: jest.fn((mode: string) => ({ name: mode, description: '', icon: '' })),
+      getRecentModes: jest.fn(() => ['chat', 'agent']),
+      setMode: jest.fn(),
+      currentMode: 'chat',
+      getActiveSession: jest.fn(() => mockSession),
+      getSession: jest.fn(() => mockSession),
+      createSession: jest.fn(() => mockSession),
+      deleteSession: jest.fn(),
+      setActiveSession: jest.fn(),
+    }),
+    useSettingsStore: createMockSelector({
+      providerSettings: { openai: { enabled: true, apiKey: 'test' }, tavily: { apiKey: 'tavily-key' } },
+      theme: 'dark',
+      language: 'en',
+      defaultTemperature: 0.7,
+      defaultMaxTokens: 4096,
+      defaultTopP: 1,
+      defaultFrequencyPenalty: 0,
+      defaultPresencePenalty: 0,
+    }),
+    usePresetStore: createMockSelector({
+      presets: [],
+      selectedPresetId: null,
+      selectPreset: jest.fn(),
+      usePreset: jest.fn(),
+    }),
+    useArtifactStore: createMockSelector({
+      artifacts: [],
+      openPanel: jest.fn(),
+      panelOpen: false,
+      closePanel: jest.fn(),
+      createCanvasDocument: jest.fn(() => 'canvas-doc-id'),
+      setActiveCanvas: jest.fn(),
+      autoCreateFromContent: jest.fn(),
+    }),
+    useChatStore: createMockSelector({
+      messages: [],
+      isLoading: false,
+      isStreaming: false,
+      error: null,
+      clearMessages: jest.fn(),
+    }),
+    useProjectStore: createMockSelector({
+      projects: [],
+      activeProjectId: null,
+      getProject: jest.fn(() => null),
+    }),
+    useAgentStore: createMockSelector({
+      isRunning: false,
+      isAgentRunning: false,
+      currentStep: null,
+      toolExecutions: [],
+      progress: 0,
+      addToolExecution: jest.fn(),
+      completeToolExecution: jest.fn(),
+      failToolExecution: jest.fn(),
+    }),
+    useCustomThemeStore: createMockSelector({
+      customThemes: [],
+      selectedCustomThemeId: null,
+      addTheme: jest.fn(),
+      updateTheme: jest.fn(),
+      deleteTheme: jest.fn(),
+    }),
+    useMcpStore: createMockSelector({
+      callTool: jest.fn(),
+      servers: [],
+      initialize: jest.fn(),
+      isInitialized: true,
+    }),
+    useQuoteStore: createMockSelector({
+      getFormattedQuotes: jest.fn(() => ''),
+      clearQuotes: jest.fn(),
+    }),
+    useLearningStore: createMockSelector({
+      getLearningSessionByChat: jest.fn(() => null),
+    }),
+    useWorkflowStore: createMockSelector({
+      presentations: {},
+      activePresentationId: null,
+    }),
+  };
+});
+
+// Mock skill store separately (different import path)
+jest.mock('@/stores/skill-store', () => ({
+  useSkillStore: (selector: (state: unknown) => unknown) => {
+    const state = {
+      getActiveSkills: jest.fn(() => []),
+      skills: [],
+    };
+    return selector ? selector(state) : state;
+  },
+}));
+
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
   useRouter() {

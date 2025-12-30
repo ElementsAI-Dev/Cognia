@@ -32,6 +32,7 @@ export const DESIGNER_TEMPLATES: DesignerTemplate[] = [
     description: 'Start from scratch',
     category: 'Basic',
     framework: 'react',
+    thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&h=250&fit=crop',
     code: `export default function App() {
   return (
     <div className="min-h-screen bg-white p-8">
@@ -46,6 +47,7 @@ export const DESIGNER_TEMPLATES: DesignerTemplate[] = [
     description: 'Modern landing page with hero section',
     category: 'Marketing',
     framework: 'react',
+    thumbnail: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=250&fit=crop',
     code: `export default function App() {
   return (
     <div className="min-h-screen bg-gray-50">
@@ -106,6 +108,7 @@ export const DESIGNER_TEMPLATES: DesignerTemplate[] = [
     description: 'Admin dashboard with stats and charts',
     category: 'Application',
     framework: 'react',
+    thumbnail: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=250&fit=crop',
     code: `export default function App() {
   const stats = [
     { label: 'Total Revenue', value: '$45,231.89', change: '+20.1%' },
@@ -165,6 +168,7 @@ export const DESIGNER_TEMPLATES: DesignerTemplate[] = [
     description: 'Beautiful contact form with validation',
     category: 'Components',
     framework: 'react',
+    thumbnail: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400&h=250&fit=crop',
     code: `import { useState } from 'react';
 
 export default function App() {
@@ -243,6 +247,7 @@ export default function App() {
     description: 'Pricing cards with features',
     category: 'Marketing',
     framework: 'react',
+    thumbnail: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&h=250&fit=crop',
     code: `export default function App() {
   const plans = [
     {
@@ -336,6 +341,7 @@ export default function App() {
     description: 'Clean blog post layout with author info',
     category: 'Components',
     framework: 'react',
+    thumbnail: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=400&h=250&fit=crop',
     code: `export default function App() {
   return (
     <article className="max-w-3xl mx-auto px-4 py-12">
@@ -414,6 +420,7 @@ export default function App() {
     description: 'E-commerce product card with details',
     category: 'E-commerce',
     framework: 'react',
+    thumbnail: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=250&fit=crop',
     code: `export default function App() {
   const product = {
     name: 'Premium Wireless Headphones',

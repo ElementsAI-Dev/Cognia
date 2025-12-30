@@ -119,7 +119,7 @@ export function AgentModeSelector({
             <ChevronDown className="h-3 w-3 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-64">
+        <DropdownMenuContent align="center" className="w-72">
           <div className="px-2 py-1.5">
             <p className="text-xs font-medium text-muted-foreground">{t('title')}</p>
           </div>

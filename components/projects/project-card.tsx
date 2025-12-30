@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Folder,
   Code,
@@ -85,7 +86,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string; style?: 
 
 export function ProjectCard({
   project,
-  isActive,
+  isActive = false,
   onSelect,
   onEdit,
   onDelete,
@@ -93,6 +94,7 @@ export function ProjectCard({
   onArchive,
   onUnarchive,
 }: ProjectCardProps) {
+  const t = useTranslations('projects');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const IconComponent = iconMap[project.icon || 'Folder'] || Folder;
@@ -152,7 +154,7 @@ export function ProjectCard({
                   }}
                 >
                   <Pencil className="mr-2 h-4 w-4" />
-                  Edit
+                  {t('edit')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={(e) => {
@@ -161,7 +163,7 @@ export function ProjectCard({
                   }}
                 >
                   <Copy className="mr-2 h-4 w-4" />
-                  Duplicate
+                  {t('duplicate')}
                 </DropdownMenuItem>
                 {project.isArchived ? (
                   onUnarchive && (
@@ -172,7 +174,7 @@ export function ProjectCard({
                       }}
                     >
                       <ArchiveRestore className="mr-2 h-4 w-4" />
-                      Unarchive
+                      {t('unarchive')}
                     </DropdownMenuItem>
                   )
                 ) : (
@@ -184,7 +186,7 @@ export function ProjectCard({
                       }}
                     >
                       <Archive className="mr-2 h-4 w-4" />
-                      Archive
+                      {t('archive')}
                     </DropdownMenuItem>
                   )
                 )}
@@ -197,7 +199,7 @@ export function ProjectCard({
                   className="text-destructive"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
+                  {t('delete')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -207,11 +209,11 @@ export function ProjectCard({
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <MessageSquare className="h-4 w-4" />
-              <span>{project.sessionCount} sessions</span>
+              <span>{t('sessionsCount', { count: project.sessionCount })}</span>
             </div>
             <div className="flex items-center gap-1">
               <FileText className="h-4 w-4" />
-              <span>{project.knowledgeBase.length} files</span>
+              <span>{t('filesCount', { count: project.knowledgeBase.length })}</span>
             </div>
           </div>
           {/* Tags */}
@@ -235,12 +237,12 @@ export function ProjectCard({
               {project.isArchived && (
                 <Badge variant="secondary" className="text-xs gap-1">
                   <Archive className="h-2.5 w-2.5" />
-                  Archived
+                  {t('archived')}
                 </Badge>
               )}
               {project.customInstructions && (
                 <Badge variant="secondary" className="text-xs">
-                  Instructions
+                  {t('instructions')}
                 </Badge>
               )}
               {project.defaultMode && (
@@ -259,15 +261,13 @@ export function ProjectCard({
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Project</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteProject')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete &quot;{project.name}&quot;? This will not
-              delete the sessions associated with this project, but they will be
-              unlinked.
+              {t('deleteProjectConfirm', { name: project.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 onDelete(project.id);
@@ -275,7 +275,7 @@ export function ProjectCard({
               }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              {t('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

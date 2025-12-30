@@ -8,6 +8,7 @@ import type {
   SearchResponse,
   SearchResult,
 } from '@/types/search';
+import { exaFetch } from '../proxy-search-fetch';
 
 const EXA_API_URL = 'https://api.exa.ai/search';
 
@@ -110,7 +111,7 @@ export async function searchWithExa(
   }
 
   try {
-    const response = await fetch(EXA_API_URL, {
+    const response = await exaFetch(EXA_API_URL, {
       method: 'POST',
       headers: {
         'x-api-key': apiKey,
@@ -196,7 +197,7 @@ export async function findSimilarWithExa(
   }
 
   try {
-    const response = await fetch('https://api.exa.ai/findSimilar', {
+    const response = await exaFetch('https://api.exa.ai/findSimilar', {
       method: 'POST',
       headers: {
         'x-api-key': apiKey,
@@ -261,7 +262,7 @@ export async function getContentsWithExa(
   }
 
   try {
-    const response = await fetch('https://api.exa.ai/contents', {
+    const response = await exaFetch('https://api.exa.ai/contents', {
       method: 'POST',
       headers: {
         'x-api-key': apiKey,

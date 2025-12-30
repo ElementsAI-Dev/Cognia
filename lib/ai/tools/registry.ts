@@ -42,6 +42,14 @@ import {
   executeFileSearch,
   executeFileAppend,
 } from './file-tool';
+import {
+  videoGenerateInputSchema,
+  videoStatusInputSchema,
+  executeVideoGenerate,
+  executeVideoStatus,
+  type VideoGenerateInput,
+  type VideoStatusInput,
+} from './video-tool';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ToolFunction = (...args: any[]) => any;
@@ -51,7 +59,7 @@ export interface ToolDefinition<T extends z.ZodType = z.ZodType> {
   description: string;
   parameters: T;
   requiresApproval?: boolean;
-  category?: 'search' | 'code' | 'file' | 'system' | 'custom' | 'ppt';
+  category?: 'search' | 'code' | 'file' | 'system' | 'custom' | 'ppt' | 'video';
   create: (config: Record<string, unknown>) => ToolFunction;
 }
 
@@ -355,5 +363,35 @@ function registerDefaultTools(registry: ToolRegistry): void {
     requiresApproval: true,
     category: 'file',
     create: () => executeFileAppend,
+  });
+
+  // Video generation tools
+  registry.register({
+    name: 'video_generate',
+    description: `Generate a video from a text prompt using AI. Supports Google Veo (veo-3, veo-3.1) and OpenAI Sora (sora-1, sora-turbo).
+
+Features:
+- Text-to-video generation
+- Image-to-video generation (provide referenceImageUrl)
+- Multiple resolutions (480p to 4K)
+- Various aspect ratios (16:9, 9:16, 1:1, etc.)
+- Durations from 5s to 60s
+- Visual styles (cinematic, animation, documentary, etc.)
+- Audio generation (Veo 3.1 only)
+
+Returns a jobId for async operations. Use video_status to check progress.`,
+    parameters: videoGenerateInputSchema,
+    requiresApproval: false,
+    category: 'video',
+    create: (config) => (input: unknown) => executeVideoGenerate(input as VideoGenerateInput, (config.apiKey as string) || ''),
+  });
+
+  registry.register({
+    name: 'video_status',
+    description: 'Check the status of a video generation job. Returns progress percentage and video URL when complete.',
+    parameters: videoStatusInputSchema,
+    requiresApproval: false,
+    category: 'video',
+    create: (config) => (input: unknown) => executeVideoStatus(input as VideoStatusInput, (config.apiKey as string) || ''),
   });
 }

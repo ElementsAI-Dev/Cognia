@@ -26,15 +26,7 @@ jest.mock('katex', () => ({
   renderToString: jest.fn((content) => `<span class="katex">${content}</span>`),
 }));
 
-// Mock react-markdown
-jest.mock('react-markdown', () => ({
-  __esModule: true,
-  default: ({ children }: { children: string }) => <div data-testid="markdown">{children}</div>,
-}));
-
-// Mock remark/rehype plugins
-jest.mock('remark-gfm', () => jest.fn());
-jest.mock('rehype-raw', () => jest.fn());
+// Note: react-markdown and remark/rehype plugins are mocked globally in jest.setup.ts
 
 // Mock recharts
 jest.mock('recharts', () => ({
@@ -65,10 +57,11 @@ jest.mock('recharts', () => ({
 describe('MermaidRenderer', () => {
   it('shows loading state initially', async () => {
     render(<MermaidRenderer content="graph TD; A-->B;" />);
-    expect(screen.getByText('Loading diagram...')).toBeInTheDocument();
+    // MermaidBlock from chat/renderers uses 'Rendering diagram...' text
+    expect(screen.getByText('Rendering diagram...')).toBeInTheDocument();
     // Wait for async rendering to complete to avoid act() warnings
     await waitFor(() => {
-      expect(screen.queryByText('Loading diagram...')).not.toBeInTheDocument();
+      expect(screen.queryByText('Rendering diagram...')).not.toBeInTheDocument();
     });
   });
 
@@ -187,12 +180,13 @@ describe('MarkdownRenderer', () => {
 
 describe('CodeRenderer', () => {
   it('renders code in pre tag', () => {
-    render(<CodeRenderer content="const x = 1;" />);
+    // CodeRenderer is now re-exported from CodeBlock which uses 'code' prop
+    render(<CodeRenderer code="const x = 1;" />);
     expect(screen.getByText('const x = 1;')).toBeInTheDocument();
   });
 
   it('applies className', () => {
-    const { container } = render(<CodeRenderer content="code" className="custom-class" />);
+    const { container } = render(<CodeRenderer code="code" className="custom-class" />);
     expect(container.querySelector('.custom-class')).toBeInTheDocument();
   });
 });
@@ -200,10 +194,11 @@ describe('CodeRenderer', () => {
 describe('ArtifactRenderer', () => {
   it('routes mermaid type to MermaidRenderer', async () => {
     render(<ArtifactRenderer type="mermaid" content="graph TD; A-->B;" />);
-    expect(screen.getByText('Loading diagram...')).toBeInTheDocument();
+    // MermaidBlock from chat/renderers uses 'Rendering diagram...' text
+    expect(screen.getByText('Rendering diagram...')).toBeInTheDocument();
     // Wait for async rendering to complete
     await waitFor(() => {
-      expect(screen.queryByText('Loading diagram...')).not.toBeInTheDocument();
+      expect(screen.queryByText('Rendering diagram...')).not.toBeInTheDocument();
     });
   });
 

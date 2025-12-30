@@ -7,6 +7,7 @@ import {
   SelectionPayload,
   SelectionMode,
   TextType,
+  getLanguageName,
 } from "@/components/selection-toolbar/types";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -26,6 +27,9 @@ const initialState: ToolbarState = {
   showMoreMenu: false,
   selectionMode: "auto",
   textType: null,
+  selections: [],
+  isMultiSelectMode: false,
+  references: [],
 };
 
 // System prompt for selection toolbar actions
@@ -64,26 +68,6 @@ const ACTION_PROMPTS: Record<SelectionAction, (text: string, targetLang?: string
     `Shorten the following text while keeping the essential meaning:\n\n"${text}"`,
 };
 
-function getLanguageName(code: string): string {
-  const languages: Record<string, string> = {
-    "zh-CN": "Chinese (Simplified)",
-    "zh-TW": "Chinese (Traditional)",
-    "en": "English",
-    "ja": "Japanese",
-    "ko": "Korean",
-    "es": "Spanish",
-    "fr": "French",
-    "de": "German",
-    "ru": "Russian",
-    "ar": "Arabic",
-    "pt": "Portuguese",
-    "it": "Italian",
-    "vi": "Vietnamese",
-    "th": "Thai",
-    "id": "Indonesian",
-  };
-  return languages[code] || "Chinese (Simplified)";
-}
 
 export function useSelectionToolbar() {
   const [state, setState] = useState<ToolbarState>(initialState);

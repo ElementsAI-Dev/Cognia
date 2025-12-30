@@ -3,7 +3,7 @@
  * Provides drag-drop functionality for the visual designer
  */
 
-export { DesignerDndProvider, useDesignerDnd, type DragItem, type DragItemType } from './designer-dnd-context';
+export { DesignerDndProvider, useDesignerDnd, useDesignerDndStrict, type DragItem, type DragItemType } from './designer-dnd-context';
 export { SortableElement } from './sortable-element';
 export { DraggableComponent } from './draggable-component';
 export { DroppableZone } from './droppable-zone';

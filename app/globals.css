@@ -205,6 +205,92 @@
   }
 }
 
+/* ===== Global Scrollbar Styles ===== */
+
+/* Scrollbar CSS variables for theme adaptation */
+:root {
+  --scrollbar-thumb: oklch(0 0 0 / 8%);
+  --scrollbar-thumb-hover: oklch(0 0 0 / 20%);
+  --scrollbar-track: transparent;
+}
+
+.dark {
+  --scrollbar-thumb: oklch(1 0 0 / 8%);
+  --scrollbar-thumb-hover: oklch(1 0 0 / 18%);
+}
+
+/* WebKit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--scrollbar-thumb-hover);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  opacity: 0.8;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* Thin scrollbar variant for smaller containers */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hidden::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.scrollbar-hidden {
+  scrollbar-width: none;
+}
+
+/* Auto-hide scrollbar (show on hover) */
+.scrollbar-auto-hide {
+  overflow: auto;
+}
+
+.scrollbar-auto-hide::-webkit-scrollbar-thumb {
+  background: transparent;
+  transition: background 0.3s ease;
+}
+
+.scrollbar-auto-hide:hover::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
+
 /* Markdown Renderer - Mermaid, KaTeX, VegaLite */
 .markdown-renderer .katex-display {
   overflow-x: auto;
@@ -531,7 +617,13 @@
 }
 
 @theme inline {
-  --animate-collapse-down: collapse-down 0.2s ease-out;
-  --animate-collapse-up: collapse-up 0.2s ease-out;
+  --animate-collapse-down: collapse-down 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --animate-collapse-up: collapse-up 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Monaco Editor Codicon Font Fix - imported from local package */
+@import '@vscode/codicons/dist/codicon.css';
+
+.monaco-editor .codicon {
+  font-family: 'codicon' !important;
+}

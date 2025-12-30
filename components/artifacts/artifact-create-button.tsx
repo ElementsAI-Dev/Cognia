@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Layers, Check, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -131,6 +132,7 @@ export function ArtifactCreateButton({
   className,
   variant = 'icon',
 }: ArtifactCreateButtonProps) {
+  const t = useTranslations('artifactCreateButton');
   const [created, setCreated] = useState(false);
   const createArtifact = useArtifactStore((state) => state.createArtifact);
   const getActiveSession = useSessionStore((state) => state.getActiveSession);
@@ -162,31 +164,31 @@ export function ArtifactCreateButton({
         <DropdownMenuTrigger asChild>
           <Button size="sm" variant="ghost" className={className}>
             {created ? <Check className="h-4 w-4 text-green-500" /> : <Layers className="h-4 w-4" />}
-            <span className="ml-1">Create Artifact</span>
+            <span className="ml-1">{t('createArtifact')}</span>
             <ChevronDown className="ml-1 h-3 w-3" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => handleCreate('code')}>
-            As Code
+            {t('asCode')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleCreate('react')}>
-            As React Component
+            {t('asReact')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleCreate('html')}>
-            As HTML Page
+            {t('asHtml')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleCreate('document')}>
-            As Document
+            {t('asDocument')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleCreate('mermaid')}>
-            As Mermaid Diagram
+            {t('asMermaid')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleCreate('chart')}>
-            As Chart
+            {t('asChart')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleCreate('math')}>
-            As Math Expression
+            {t('asMath')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -202,7 +204,7 @@ export function ArtifactCreateButton({
         onClick={() => handleCreate()}
       >
         {created ? <Check className="h-4 w-4 text-green-500" /> : <Layers className="h-4 w-4" />}
-        <span className="ml-1">Create Artifact</span>
+        <span className="ml-1">{t('createArtifact')}</span>
       </Button>
     );
   }
@@ -222,7 +224,7 @@ export function ArtifactCreateButton({
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          <p>Create Artifact</p>
+          <p>{t('createArtifact')}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -20,7 +21,7 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Palette, Save, RotateCcw, Download, Upload } from 'lucide-react';
-import { toast } from '@/components/ui/toaster';
+import { toast } from '@/components/ui/sonner';
 import { useCustomThemeStore, createDefaultThemeTemplate } from '@/stores/custom-theme-store';
 import type { SyntaxTheme } from '@/lib/export/syntax-themes';
 
@@ -102,6 +103,7 @@ export function CustomThemeEditor({
   editingThemeId,
   onSave 
 }: CustomThemeEditorProps) {
+  const t = useTranslations('customThemeEditor');
   const { addTheme, updateTheme, getTheme, exportTheme, importTheme } = useCustomThemeStore();
   
   const existingTheme = editingThemeId ? getTheme(editingThemeId) : null;
@@ -224,10 +226,10 @@ export function CustomThemeEditor({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Palette className="h-5 w-5" />
-            {editingThemeId ? 'Edit Theme' : 'Create Custom Theme'}
+            {editingThemeId ? t('editTheme') : t('createTheme')}
           </DialogTitle>
           <DialogDescription>
-            Customize syntax highlighting colors for code blocks in exports
+            {t('description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -235,7 +237,7 @@ export function CustomThemeEditor({
           {/* Left: Settings */}
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="theme-name">Theme Name</Label>
+              <Label htmlFor="theme-name">{t('themeName')}</Label>
               <Input
                 id="theme-name"
                 value={themeName}
@@ -246,9 +248,9 @@ export function CustomThemeEditor({
 
             <div className="flex items-center justify-between rounded-lg border p-3">
               <div>
-                <Label htmlFor="is-dark">Dark Theme</Label>
+                <Label htmlFor="is-dark">{t('darkTheme')}</Label>
                 <p className="text-xs text-muted-foreground">
-                  Optimized for dark backgrounds
+                  {t('darkThemeDesc')}
                 </p>
               </div>
               <Switch
@@ -260,8 +262,8 @@ export function CustomThemeEditor({
 
             <Tabs defaultValue="basic" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="basic">Basic Colors</TabsTrigger>
-                <TabsTrigger value="advanced">Advanced</TabsTrigger>
+                <TabsTrigger value="basic">{t('basicColors')}</TabsTrigger>
+                <TabsTrigger value="advanced">{t('advanced')}</TabsTrigger>
               </TabsList>
               
               <TabsContent value="basic">
@@ -300,7 +302,7 @@ export function CustomThemeEditor({
 
           {/* Right: Preview */}
           <div className="space-y-3">
-            <Label>Live Preview</Label>
+            <Label>{t('livePreview')}</Label>
             <style dangerouslySetInnerHTML={{ __html: previewStyles }} />
             <div 
               className="preview-code"
@@ -315,7 +317,7 @@ export function CustomThemeEditor({
                 className="flex-1"
               >
                 <RotateCcw className="h-4 w-4 mr-2" />
-                Reset
+                {t('reset')}
               </Button>
               <Button
                 variant="outline"
@@ -324,7 +326,7 @@ export function CustomThemeEditor({
                 className="flex-1"
               >
                 <Upload className="h-4 w-4 mr-2" />
-                Import
+                {t('import')}
               </Button>
               {editingThemeId && (
                 <Button
@@ -334,7 +336,7 @@ export function CustomThemeEditor({
                   className="flex-1"
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Export
+                  {t('export')}
                 </Button>
               )}
             </div>
@@ -343,11 +345,11 @@ export function CustomThemeEditor({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button onClick={handleSave}>
             <Save className="h-4 w-4 mr-2" />
-            {editingThemeId ? 'Update Theme' : 'Create Theme'}
+            {editingThemeId ? t('updateTheme') : t('createThemeBtn')}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Zap, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +27,7 @@ export function PresetQuickPrompts({
   onSelectPrompt,
   disabled = false,
 }: PresetQuickPromptsProps) {
+  const t = useTranslations('presets');
   const [open, setOpen] = useState(false);
 
   if (!prompts || prompts.length === 0) {
@@ -47,15 +49,15 @@ export function PresetQuickPrompts({
           disabled={disabled}
         >
           <Zap className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline text-xs">Quick</span>
+          <span className="hidden sm:inline text-xs">{t('quick')}</span>
           <ChevronDown className="h-3 w-3" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-0" align="start">
         <div className="p-2 border-b">
-          <p className="text-sm font-medium">Quick Prompts</p>
+          <p className="text-sm font-medium">{t('quickPrompts')}</p>
           <p className="text-xs text-muted-foreground">
-            Click to insert into your message
+            {t('quickPromptsHint')}
           </p>
         </div>
         <ScrollArea className="max-h-64">

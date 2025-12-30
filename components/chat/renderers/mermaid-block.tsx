@@ -46,6 +46,7 @@ import {
 import { useCopy } from '@/hooks/use-copy';
 import { exportDiagram, generateDiagramFilename } from '@/lib/export/diagram-export';
 import { toast } from 'sonner';
+import { LoadingAnimation } from './loading-animation';
 
 interface MermaidBlockProps {
   content: string;
@@ -139,16 +140,12 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
 
   if (isLoading) {
     return (
-      <div 
-        className={cn('flex items-center justify-center p-6 rounded-lg bg-muted/30 border', className)}
-        role="status"
-        aria-label={t('loadingDiagram')}
-      >
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" aria-hidden="true" />
-          <span className="text-sm">{t('renderingDiagram')}</span>
-        </div>
-      </div>
+      <LoadingAnimation
+        variant="ring"
+        size="md"
+        text={t('renderingDiagram')}
+        className={cn('my-4', className)}
+      />
     );
   }
 

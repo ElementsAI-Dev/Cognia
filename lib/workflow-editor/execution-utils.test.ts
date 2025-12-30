@@ -2,7 +2,7 @@
  * Tests for workflow execution utilities
  */
 
-import { describe, it, expect } from '@jest/globals';
+// Jest globals are available globally in test environment
 import {
   formatExecutionDuration,
   getExecutionSummary,
@@ -18,7 +18,7 @@ import {
   validateWorkflowInput,
   sanitizeWorkflowOutput,
 } from './execution-utils';
-import type { WorkflowExecutionState } from '@/types/workflow-editor';
+import type { WorkflowExecutionState, VisualWorkflow } from '@/types/workflow-editor';
 
 describe('Workflow Execution Utilities', () => {
   const mockExecutionState: WorkflowExecutionState = {
@@ -32,12 +32,14 @@ describe('Workflow Execution Utilities', () => {
         status: 'completed',
         startedAt: new Date('2025-01-01T10:00:00Z'),
         completedAt: new Date('2025-01-01T10:00:05Z'),
+        retryCount: 0,
         logs: [],
       },
       node2: {
         nodeId: 'node2',
         status: 'running',
         startedAt: new Date('2025-01-01T10:00:05Z'),
+        retryCount: 0,
         logs: [],
       },
       node3: {
@@ -52,6 +54,7 @@ describe('Workflow Execution Utilities', () => {
       node4: {
         nodeId: 'node4',
         status: 'pending',
+        retryCount: 0,
         logs: [],
       },
     },
@@ -134,6 +137,7 @@ describe('Workflow Execution Utilities', () => {
           node1: {
             nodeId: 'node1',
             status: 'completed',
+            retryCount: 0,
             logs: [],
           },
         },
@@ -171,6 +175,7 @@ describe('Workflow Execution Utilities', () => {
             nodeId: 'node1',
             status: 'running',
             startedAt: new Date(),
+            retryCount: 0,
             logs: [],
           },
         },
@@ -288,6 +293,7 @@ describe('Workflow Execution Utilities', () => {
             nodeId: 'node1',
             status: 'running',
             startedAt: new Date(),
+            retryCount: 0,
             logs: [],
           },
         },
@@ -315,7 +321,7 @@ describe('Workflow Execution Utilities', () => {
             },
           },
         },
-      } as VisualWorkflow;
+      } as unknown as VisualWorkflow;
 
       // Valid input
       const validResult = validateWorkflowInput(workflow, {
@@ -350,7 +356,7 @@ describe('Workflow Execution Utilities', () => {
         nodes: [],
         edges: [],
         settings: {},
-      } as VisualWorkflow;
+      } as unknown as VisualWorkflow;
 
       const result = validateWorkflowInput(workflow, {});
       expect(result.valid).toBe(true);

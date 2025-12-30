@@ -3,6 +3,7 @@
 /**
  * Settings Page - Dashboard layout with sidebar navigation
  * Responsive design: sidebar on desktop, tabs on mobile
+ * Enhanced with smooth transitions and better visual hierarchy
  */
 
 import { useState, useMemo } from 'react';
@@ -29,6 +30,7 @@ import {
   Mic,
   MousePointer2,
   Menu,
+  Globe,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -70,25 +72,29 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { ProviderSettings } from '@/components/settings/provider-settings';
-import { AppearanceSettings } from '@/components/settings/appearance-settings';
-import { SearchSettings } from '@/components/settings/search-settings';
-import { DataSettings } from '@/components/settings/data-settings';
-import { MemorySettings } from '@/components/settings/memory-settings';
-import { CustomInstructionsSettings } from '@/components/settings/custom-instructions-settings';
-import { UsageSettings } from '@/components/settings/usage-settings';
-import { McpSettings } from '@/components/settings/mcp-settings';
-import { ResponseSettings } from '@/components/settings/response-settings';
-import { KeyboardSettings } from '@/components/settings/keyboard-settings';
-import { ChatSettings } from '@/components/settings/chat-settings';
-import { ToolSettings } from '@/components/settings/tool-settings';
-import { DesktopSettings } from '@/components/settings/desktop-settings';
-import { SpeechSettings } from '@/components/settings/speech-settings';
-import { QuickSettingsCard } from '@/components/settings/quick-settings-card';
-import { VectorSettings } from '@/components/settings/vector-settings';
+import {
+  ProviderSettings,
+  AppearanceSettings,
+  DataSettings,
+  MemorySettings,
+  CustomInstructionsSettings,
+  UsageSettings,
+  McpSettings,
+  ResponseSettings,
+  KeyboardSettings,
+  ChatSettings,
+  ToolSettings,
+  DesktopSettings,
+  EnvironmentSettings,
+  ProxySettings,
+  SpeechSettings,
+  QuickSettingsCard,
+  VectorSettings,
+  NativeToolsSettings,
+  SkillSettings,
+  SearchSettings,
+} from '@/components/settings';
 import { SelectionToolbarSettings } from '@/components/selection-toolbar/settings-panel';
-import { NativeToolsSettings } from '@/components/settings/native-tools-settings';
-import { SkillSettings } from '@/components/settings/skill-settings';
 
 type SettingsSection = 
   | 'providers'
@@ -107,6 +113,8 @@ type SettingsSection =
   | 'data'
   | 'vector'
   | 'desktop'
+  | 'environment'
+  | 'proxy'
   | 'selection'
   | 'native-tools';
 
@@ -302,6 +310,20 @@ export default function SettingsPage() {
         group: 'system' as const,
       },
       {
+        id: 'environment' as const,
+        label: 'Environment',
+        icon: <Settings2 className="h-4 w-4" />,
+        description: 'Install uv, nvm, Docker, Podman',
+        group: 'system' as const,
+      },
+      {
+        id: 'proxy' as const,
+        label: 'Proxy',
+        icon: <Globe className="h-4 w-4" />,
+        description: 'Network proxy configuration',
+        group: 'system' as const,
+      },
+      {
         id: 'selection' as const,
         label: 'Selection Toolbar',
         icon: <MousePointer2 className="h-4 w-4" />,
@@ -357,6 +379,10 @@ export default function SettingsPage() {
         return <SkillSettings />;
       case 'desktop':
         return <DesktopSettings />;
+      case 'environment':
+        return <EnvironmentSettings />;
+      case 'proxy':
+        return <ProxySettings />;
       case 'selection':
         return <SelectionToolbarSettings />;
       case 'native-tools':
@@ -466,7 +492,7 @@ export default function SettingsPage() {
       {/* Main content with sidebar */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - hidden on mobile */}
-        <aside className="hidden w-56 shrink-0 border-r bg-muted/20 md:block lg:w-64">
+        <aside className="hidden shrink-0 border-r bg-muted/10 md:block" style={{ width: 'var(--sidebar-width, 280px)' }}>
           <div className="p-2 border-b">
             <InputGroup className="h-8">
               <InputGroupAddon align="inline-start">
@@ -645,9 +671,9 @@ export default function SettingsPage() {
           </div>
 
           {/* Content area - Full width with grid support */}
-          <ScrollArea className="flex-1">
-            <div className="p-3 lg:p-6">
-              <div className="mx-auto max-w-7xl">
+          <ScrollArea className="flex-1 overflow-hidden">
+            <div className="p-4 lg:p-6">
+              <div className="mx-auto max-w-5xl animate-in fade-in slide-in-from-bottom-2 duration-200">
                 {renderContent()}
               </div>
             </div>

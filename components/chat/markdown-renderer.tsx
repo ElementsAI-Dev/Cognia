@@ -1,10 +1,22 @@
 'use client';
 
 /**
- * MarkdownRenderer - Markdown renderer with support for Mermaid, LaTeX, VegaLite
+ * MarkdownRenderer - Comprehensive Markdown renderer with support for:
+ * - Mermaid diagrams
+ * - LaTeX math (block and inline)
+ * - VegaLite charts
+ * - Syntax-highlighted code blocks
+ * - Diff blocks
+ * - Interactive code playgrounds (Sandpack)
+ * - Enhanced images with lightbox
+ * - Video/Audio embedding
+ * - GitHub-style alerts
+ * - Task lists
+ * - Keyboard shortcuts
+ * - And more...
  */
 
-import { memo, useMemo } from 'react';
+import { memo, useMemo, isValidElement, Children } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -15,8 +27,31 @@ import { cn } from '@/lib/utils';
 import { MermaidBlock } from './renderers/mermaid-block';
 import { VegaLiteBlock } from './renderers/vegalite-block';
 import { CodeBlock } from './renderers/code-block';
-// EnhancedTable is exported for direct use when advanced table features are needed
+import { DiffBlock } from './renderers/diff-block';
+import { ImageBlock } from './renderers/image-block';
+import { VideoBlock } from './renderers/video-block';
+import { AudioBlock } from './renderers/audio-block';
+import { AlertBlock, parseAlertFromBlockquote } from './renderers/alert-block';
+import { DetailsBlock } from './renderers/details-block';
+import { TaskListItem as _TaskListItem } from './renderers/task-list';
+import { KbdInline } from './renderers/kbd-inline';
+
+// Re-export commonly used renderers for direct use
 export { EnhancedTable } from './renderers/enhanced-table';
+export { SandpackBlock, SimplePlayground } from './renderers/sandpack-block';
+export { LinkCard, LinkGroup } from './renderers/link-card';
+export { FootnoteRef, FootnoteSection } from './renderers/footnote-block';
+export { EmojiBlock, shouldRenderAsEmoji } from './renderers/emoji-block';
+export { TaskList, TaskListItem } from './renderers/task-list';
+export { AlertBlock } from './renderers/alert-block';
+export type { AlertType } from './renderers/alert-block';
+export { ImageBlock } from './renderers/image-block';
+export { VideoBlock } from './renderers/video-block';
+export { AudioBlock } from './renderers/audio-block';
+export { DiffBlock } from './renderers/diff-block';
+export { DetailsBlock, DetailsGroup } from './renderers/details-block';
+export { KbdInline, KeyboardShortcut } from './renderers/kbd-inline';
+
 import 'katex/dist/katex.min.css';
 
 /**
@@ -28,34 +63,34 @@ const sanitizeSchema = {
   ...defaultSchema,
   // Allow additional safe HTML elements
   tagNames: [
-    ...defaultSchema.tagNames,
+    ...(defaultSchema.tagNames ?? []),
     'div', 'span', 'summary', 'details', 'figure', 'figcaption', 'sup', 'sub'
   ],
   // Allow additional safe attributes
   attributes: {
-    ...defaultSchema.attributes,
+    ...(defaultSchema.attributes ?? {}),
     // Allow common styling attributes
     '*': [
-      ...(defaultSchema.attributes['*'] || []),
+      ...(defaultSchema.attributes?.['*'] ?? []),
       'className', 'class', 'style'
     ],
     // Allow specific attributes for links
     a: [
-      ...(defaultSchema.attributes.a || []),
+      ...(defaultSchema.attributes?.a ?? []),
       'className', 'class'
     ],
     // Allow specific attributes for images
     img: [
-      ...(defaultSchema.attributes.img || []),
+      ...(defaultSchema.attributes?.img ?? []),
       'className', 'class', 'loading'
     ],
     // Allow table-specific attributes
     th: [
-      ...(defaultSchema.attributes.th || []),
+      ...(defaultSchema.attributes?.th ?? []),
       'className', 'class', 'rowSpan', 'colSpan'
     ],
     td: [
-      ...(defaultSchema.attributes.th || []),
+      ...(defaultSchema.attributes?.td ?? []),
       'className', 'class', 'rowSpan', 'colSpan'
     ]
   },
@@ -75,6 +110,13 @@ interface MarkdownRendererProps {
   enableMermaid?: boolean;
   enableMath?: boolean;
   enableVegaLite?: boolean;
+  enableDiff?: boolean;
+  enableSandpack?: boolean;
+  enableAlerts?: boolean;
+  enableEnhancedImages?: boolean;
+  enableVideoEmbed?: boolean;
+  enableAudioEmbed?: boolean;
+  enableTaskLists?: boolean;
   showLineNumbers?: boolean;
 }
 
@@ -84,6 +126,13 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
   enableMermaid = true,
   enableMath = true,
   enableVegaLite = true,
+  enableDiff = true,
+  enableSandpack: _enableSandpack = false, // Disabled by default as it requires @codesandbox/sandpack-react
+  enableAlerts = true,
+  enableEnhancedImages = true,
+  enableVideoEmbed = true,
+  enableAudioEmbed = true,
+  enableTaskLists: _enableTaskLists = true,
   showLineNumbers = true,
 }: MarkdownRendererProps) {
   const remarkPlugins = useMemo(() => {
@@ -128,12 +177,19 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
               );
             }
 
+            // Mermaid diagrams
             if (enableMermaid && language === 'mermaid') {
               return <MermaidBlock content={codeContent} />;
             }
 
+            // VegaLite charts
             if (enableVegaLite && (language === 'vegalite' || language === 'vega-lite' || language === 'vega')) {
               return <VegaLiteBlock content={codeContent} />;
+            }
+
+            // Diff blocks
+            if (enableDiff && language === 'diff') {
+              return <DiffBlock content={codeContent} />;
             }
 
             return (
@@ -183,6 +239,18 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
             );
           },
           blockquote({ children }) {
+            // Check for GitHub-style alerts: > [!NOTE], > [!TIP], etc.
+            if (enableAlerts && children) {
+              const textContent = extractTextContent(children);
+              const alertInfo = parseAlertFromBlockquote(textContent);
+              if (alertInfo) {
+                return (
+                  <AlertBlock type={alertInfo.type}>
+                    {alertInfo.content}
+                  </AlertBlock>
+                );
+              }
+            }
             return (
               <blockquote className="border-l-4 border-primary/30 pl-4 italic text-muted-foreground my-4">
                 {children}
@@ -216,16 +284,61 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
           hr() {
             return <hr className="my-6 border-border" />;
           },
-          img({ src, alt }) {
+          img({ src, alt, title }) {
+            if (!src || typeof src !== 'string') return null;
+            
+            // Check if it's a video URL
+            if (enableVideoEmbed && isVideoUrl(src)) {
+              return <VideoBlock src={src} title={title || alt} />;
+            }
+            
+            // Check if it's an audio URL
+            if (enableAudioEmbed && isAudioUrl(src)) {
+              return <AudioBlock src={src} title={title || alt} />;
+            }
+            
+            // Enhanced image with lightbox
+            if (enableEnhancedImages) {
+              return <ImageBlock src={src} alt={alt || ''} title={title} />;
+            }
+            
+            // Fallback to basic image
             return (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={src}
                 alt={alt || ''}
+                title={title}
                 className="max-w-full h-auto rounded-lg my-4"
                 loading="lazy"
               />
             );
+          },
+          // HTML details/summary elements
+          details({ children }) {
+            // Extract summary from children
+            const childArray = Children.toArray(children);
+            let summaryContent: React.ReactNode = 'Details';
+            const restContent: React.ReactNode[] = [];
+            
+            childArray.forEach((child) => {
+              if (isValidElement(child) && child.type === 'summary') {
+                const props = child.props as { children?: React.ReactNode };
+                summaryContent = props.children;
+              } else {
+                restContent.push(child);
+              }
+            });
+            
+            return (
+              <DetailsBlock summary={summaryContent}>
+                {restContent}
+              </DetailsBlock>
+            );
+          },
+          // Keyboard elements
+          kbd({ children }) {
+            return <KbdInline>{children}</KbdInline>;
           },
         }}
       >
@@ -234,3 +347,36 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
     </div>
   );
 });
+
+/**
+ * Extract text content from React children for alert detection
+ */
+function extractTextContent(children: React.ReactNode): string {
+  if (typeof children === 'string') return children;
+  if (typeof children === 'number') return String(children);
+  if (Array.isArray(children)) {
+    return children.map(extractTextContent).join('');
+  }
+  if (isValidElement(children)) {
+    const props = children.props as { children?: React.ReactNode };
+    return extractTextContent(props.children);
+  }
+  return '';
+}
+
+/**
+ * Check if a URL points to a video file or video platform
+ */
+function isVideoUrl(url: string): boolean {
+  const videoExtensions = /\.(mp4|webm|ogg|mov|avi|mkv)$/i;
+  const videoPlatforms = /(youtube\.com|youtu\.be|vimeo\.com|bilibili\.com)/i;
+  return videoExtensions.test(url) || videoPlatforms.test(url);
+}
+
+/**
+ * Check if a URL points to an audio file
+ */
+function isAudioUrl(url: string): boolean {
+  const audioExtensions = /\.(mp3|wav|ogg|aac|flac|m4a|wma)$/i;
+  return audioExtensions.test(url);
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from 'next-intl';
 import {
   Collapsible,
   CollapsibleContent,
@@ -66,26 +67,29 @@ export const SourcesTrigger = ({
   children,
   variant = 'default',
   ...props
-}: SourcesTriggerProps) => (
-  <CollapsibleTrigger
-    className={cn(
-      "group flex items-center gap-2 transition-all",
-      variant === 'pill' && "px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20",
-      variant === 'default' && "px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20",
-      variant === 'minimal' && "px-2 py-1 rounded hover:bg-accent/50",
-      className
-    )}
-    {...props}
-  >
-    {children ?? (
-      <>
-        <BookIcon className="h-3.5 w-3.5" />
-        <p className="font-medium">Used {count} sources</p>
-        <ChevronDownIcon className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-      </>
-    )}
-  </CollapsibleTrigger>
-);
+}: SourcesTriggerProps) => {
+  const t = useTranslations('sources');
+  return (
+    <CollapsibleTrigger
+      className={cn(
+        "group flex items-center gap-2 transition-all",
+        variant === 'pill' && "px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20",
+        variant === 'default' && "px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20",
+        variant === 'minimal' && "px-2 py-1 rounded hover:bg-accent/50",
+        className
+      )}
+      {...props}
+    >
+      {children ?? (
+        <>
+          <BookIcon className="h-3.5 w-3.5" />
+          <p className="font-medium">{t('usedSources', { count })}</p>
+          <ChevronDownIcon className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+        </>
+      )}
+    </CollapsibleTrigger>
+  );
+};
 
 export type SourcesContentProps = ComponentProps<typeof CollapsibleContent> & {
   maxHeight?: number;

@@ -401,11 +401,11 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="format">
                     <Download className="h-4 w-4 mr-2" />
-                    Format
+                    {t('format')}
                   </TabsTrigger>
                   <TabsTrigger value="options">
                     <Settings2 className="h-4 w-4 mr-2" />
-                    Options
+                    {t('options')}
                   </TabsTrigger>
                 </TabsList>
 
@@ -480,10 +480,10 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                         disabled={messages.length === 0}
                       >
                         <ExternalLink className="h-4 w-4 mr-2" />
-                        Open in Google Sheets
+                        {t('openInGoogleSheets')}
                       </Button>
                       <p className="text-xs text-muted-foreground text-center mt-2">
-                        Downloads CSV and opens Google Sheets for import
+                        {t('googleSheetsHint')}
                       </p>
                     </div>
                   </ScrollArea>
@@ -494,12 +494,12 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                     <div className="space-y-6">
                       {/* Theme */}
                       <div className="space-y-3">
-                        <Label className="text-sm font-medium">Theme</Label>
+                        <Label className="text-sm font-medium">{t('theme')}</Label>
                         <div className="flex gap-2">
                           {[
-                            { value: 'light' as const, icon: Sun, label: 'Light' },
-                            { value: 'system' as const, icon: Monitor, label: 'Auto' },
-                            { value: 'dark' as const, icon: Moon, label: 'Dark' },
+                            { value: 'light' as const, icon: Sun, label: t('light') },
+                            { value: 'system' as const, icon: Monitor, label: t('auto') },
+                            { value: 'dark' as const, icon: Moon, label: t('dark') },
                           ].map(({ value, icon: Icon, label }) => (
                             <Button
                               key={value}
@@ -517,13 +517,13 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
 
                       {/* Display Options */}
                       <div className="space-y-4">
-                        <Label className="text-sm font-medium">Display</Label>
+                        <Label className="text-sm font-medium">{t('display')}</Label>
                         
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <div>
-                              <Label htmlFor="timestamps" className="text-sm">Show Timestamps</Label>
-                              <p className="text-xs text-muted-foreground">Display message times</p>
+                              <Label htmlFor="timestamps" className="text-sm">{t('showTimestamps')}</Label>
+                              <p className="text-xs text-muted-foreground">{t('showTimestampsDesc')}</p>
                             </div>
                             <Switch
                               id="timestamps"
@@ -536,8 +536,8 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
 
                           <div className="flex items-center justify-between">
                             <div>
-                              <Label htmlFor="tokens" className="text-sm">Show Token Count</Label>
-                              <p className="text-xs text-muted-foreground">Display token usage</p>
+                              <Label htmlFor="tokens" className="text-sm">{t('showTokenCount')}</Label>
+                              <p className="text-xs text-muted-foreground">{t('showTokenCountDesc')}</p>
                             </div>
                             <Switch
                               id="tokens"
@@ -550,8 +550,8 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
 
                           <div className="flex items-center justify-between">
                             <div>
-                              <Label htmlFor="thinking" className="text-sm">Show Thinking Process</Label>
-                              <p className="text-xs text-muted-foreground">Include reasoning steps</p>
+                              <Label htmlFor="thinking" className="text-sm">{t('showThinking')}</Label>
+                              <p className="text-xs text-muted-foreground">{t('showThinkingDesc')}</p>
                             </div>
                             <Switch
                               id="thinking"
@@ -564,8 +564,8 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
 
                           <div className="flex items-center justify-between">
                             <div>
-                              <Label htmlFor="tools" className="text-sm">Show Tool Calls</Label>
-                              <p className="text-xs text-muted-foreground">Include tool invocations</p>
+                              <Label htmlFor="tools" className="text-sm">{t('showToolCalls')}</Label>
+                              <p className="text-xs text-muted-foreground">{t('showToolCallsDesc')}</p>
                             </div>
                             <Switch
                               id="tools"
@@ -581,13 +581,13 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                       {/* Document Options */}
                       {(selectedFormat === 'beautiful-html' || selectedFormat === 'pdf') && (
                         <div className="space-y-4">
-                          <Label className="text-sm font-medium">Document</Label>
+                          <Label className="text-sm font-medium">{t('document')}</Label>
                           
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <div>
-                                <Label htmlFor="cover" className="text-sm">Cover Page</Label>
-                                <p className="text-xs text-muted-foreground">Include title page</p>
+                                <Label htmlFor="cover" className="text-sm">{t('coverPage')}</Label>
+                                <p className="text-xs text-muted-foreground">{t('coverPageDesc')}</p>
                               </div>
                               <Switch
                                 id="cover"
@@ -600,8 +600,8 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
 
                             <div className="flex items-center justify-between">
                               <div>
-                                <Label htmlFor="toc" className="text-sm">Table of Contents</Label>
-                                <p className="text-xs text-muted-foreground">Add navigation</p>
+                                <Label htmlFor="toc" className="text-sm">{t('tableOfContents')}</Label>
+                                <p className="text-xs text-muted-foreground">{t('tableOfContentsDesc')}</p>
                               </div>
                               <Switch
                                 id="toc"
@@ -615,7 +615,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                             {/* Syntax Theme Selector */}
                             <div className="space-y-2">
                               <div className="flex items-center justify-between">
-                                <Label className="text-sm">Code Theme</Label>
+                                <Label className="text-sm">{t('codeTheme')}</Label>
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -626,14 +626,14 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                                   }}
                                 >
                                   <Plus className="h-3 w-3 mr-1" />
-                                  Custom
+                                  {t('custom')}
                                 </Button>
                               </div>
                               
                               {/* Custom Themes */}
                               {customThemes.length > 0 && (
                                 <div className="space-y-1">
-                                  <p className="text-xs text-muted-foreground">Your Themes</p>
+                                  <p className="text-xs text-muted-foreground">{t('yourThemes')}</p>
                                   <div className="grid grid-cols-2 gap-2">
                                     {customThemes.map((theme) => (
                                       <div
@@ -686,7 +686,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                               )}
                               
                               {/* Built-in Themes */}
-                              <p className="text-xs text-muted-foreground pt-1">Built-in Themes</p>
+                              <p className="text-xs text-muted-foreground pt-1">{t('builtInThemes')}</p>
                               <div className="grid grid-cols-2 gap-2">
                                 {SYNTAX_THEMES.slice(0, 6).map((theme) => (
                                   <button
@@ -711,7 +711,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                               {SYNTAX_THEMES.length > 6 && (
                                 <details className="text-xs">
                                   <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                                    More themes ({SYNTAX_THEMES.length - 6})
+                                    {t('moreThemes', { count: SYNTAX_THEMES.length - 6 })}
                                   </summary>
                                   <div className="grid grid-cols-2 gap-2 mt-2">
                                     {SYNTAX_THEMES.slice(6).map((theme) => (
@@ -740,8 +740,8 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
 
                             <div className="flex items-center justify-between">
                               <div>
-                                <Label htmlFor="syntax" className="text-sm">Syntax Highlighting</Label>
-                                <p className="text-xs text-muted-foreground">Colorize code blocks</p>
+                                <Label htmlFor="syntax" className="text-sm">{t('syntaxHighlighting')}</Label>
+                                <p className="text-xs text-muted-foreground">{t('syntaxHighlightingDesc')}</p>
                               </div>
                               <Switch
                                 id="syntax"
@@ -754,8 +754,8 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
 
                             <div className="flex items-center justify-between">
                               <div>
-                                <Label htmlFor="compact" className="text-sm">Compact Mode</Label>
-                                <p className="text-xs text-muted-foreground">Reduce spacing</p>
+                                <Label htmlFor="compact" className="text-sm">{t('compactMode')}</Label>
+                                <p className="text-xs text-muted-foreground">{t('compactModeDesc')}</p>
                               </div>
                               <Switch
                                 id="compact"
@@ -775,22 +775,22 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
 
               {/* Stats */}
               <div className="rounded-lg bg-muted/50 p-4">
-                <h4 className="font-medium text-sm mb-3">Export Summary</h4>
+                <h4 className="font-medium text-sm mb-3">{t('exportSummary')}</h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Messages</span>
+                    <span className="text-muted-foreground">{t('messages')}</span>
                     <span className="font-medium">{stats.messages}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Tokens</span>
+                    <span className="text-muted-foreground">{t('tokens')}</span>
                     <span className="font-medium">{stats.tokens.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">User</span>
+                    <span className="text-muted-foreground">{t('user')}</span>
                     <span className="font-medium">{stats.userMessages}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Assistant</span>
+                    <span className="text-muted-foreground">{t('assistant')}</span>
                     <span className="font-medium">{stats.assistantMessages}</span>
                   </div>
                 </div>
@@ -801,7 +801,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Eye className="h-4 w-4" />
-                Preview
+                {t('preview')}
               </div>
               <div className="rounded-lg border bg-muted/30 overflow-hidden h-[420px]">
                 {(selectedFormat === 'beautiful-html' || selectedFormat === 'pdf') && previewHtml ? (
@@ -815,8 +815,8 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                     <Download className="h-12 w-12 mb-4 opacity-50" />
-                    <p className="text-sm">Preview not available for this format</p>
-                    <p className="text-xs mt-1">Export to see the result</p>
+                    <p className="text-sm">{t('previewNotAvailable')}</p>
+                    <p className="text-xs mt-1">{t('exportToSeeResult')}</p>
                   </div>
                 )}
               </div>
@@ -835,14 +835,14 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
         {exportSuccess && (
           <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-3 text-sm text-green-600 dark:text-green-400 flex items-center gap-2 mt-4">
             <Check className="h-4 w-4" />
-            Successfully exported as {FORMAT_CONFIG[exportSuccess].label}
+            {t('exportedAs', { format: FORMAT_CONFIG[exportSuccess].label })}
           </div>
         )}
 
         {/* Export button */}
         <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
           <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button
             onClick={handleExport}
@@ -852,12 +852,12 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
             {isExporting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Exporting...
+                {t('exporting')}
               </>
             ) : (
               <>
                 <Download className="h-4 w-4 mr-2" />
-                Export {FORMAT_CONFIG[selectedFormat].extension}
+                {t('exportFormat', { ext: FORMAT_CONFIG[selectedFormat].extension })}
               </>
             )}
           </Button>

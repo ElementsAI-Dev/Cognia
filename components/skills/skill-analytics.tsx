@@ -54,14 +54,14 @@ function formatDuration(ms: number): string {
   return `${(ms / 60000).toFixed(1)}m`;
 }
 
-function formatDate(date: Date): string {
+function formatDate(date: Date, t: ReturnType<typeof useTranslations>): string {
   const now = new Date();
   const diff = now.getTime() - date.getTime();
   
-  if (diff < 60000) return 'Just now';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
+  if (diff < 60000) return t('justNow');
+  if (diff < 3600000) return t('minutesAgo', { count: Math.floor(diff / 60000) });
+  if (diff < 86400000) return t('hoursAgo', { count: Math.floor(diff / 3600000) });
+  if (diff < 604800000) return t('daysAgo', { count: Math.floor(diff / 86400000) });
   return date.toLocaleDateString();
 }
 
@@ -148,19 +148,19 @@ function SingleSkillAnalytics({ skill }: { skill: Skill }) {
       {stats && stats.totalExecutions > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Execution History</CardTitle>
+            <CardTitle className="text-sm">{t('executionHistory')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
-                <span>Successful</span>
+                <span>{t('successful')}</span>
                 <span className="font-medium text-green-600">
                   {stats.successfulExecutions}
                 </span>
               </div>
               <Progress value={successRate} className="h-2" />
               <div className="flex items-center justify-between text-sm">
-                <span>Failed</span>
+                <span>{t('failed')}</span>
                 <span className="font-medium text-red-600">
                   {stats.totalExecutions - stats.successfulExecutions}
                 </span>
@@ -168,7 +168,7 @@ function SingleSkillAnalytics({ skill }: { skill: Skill }) {
               {stats.lastExecutionAt && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t">
                   <Calendar className="h-3 w-3" />
-                  Last used: {formatDate(stats.lastExecutionAt)}
+                  {t('lastUsed')}: {formatDate(stats.lastExecutionAt, t)}
                 </div>
               )}
             </div>
@@ -180,8 +180,8 @@ function SingleSkillAnalytics({ skill }: { skill: Skill }) {
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
             <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>No usage data yet</p>
-            <p className="text-sm">Start using this skill to see analytics</p>
+            <p>{t('noUsageDataYet')}</p>
+            <p className="text-sm">{t('startUsingSkill')}</p>
           </CardContent>
         </Card>
       )}
@@ -285,20 +285,20 @@ function OverallAnalytics() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <Zap className="h-4 w-4" />
-            Token Budget
+            {t('tokenBudget')}
           </CardTitle>
           <CardDescription>
-            Estimated token usage for active skills
+            {t('estimatedTokenUsage')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm">Active Skills Token Usage</span>
+              <span className="text-sm">{t('activeSkillsTokenUsage')}</span>
               <Badge variant="outline">
                 ~{aggregatedStats.activeSkills > 0 
                   ? Math.round(aggregatedStats.totalTokens / aggregatedStats.totalSkills * aggregatedStats.activeSkills)
-                  : 0} tokens
+                  : 0} {t('tokens')}
               </Badge>
             </div>
             <Progress 
@@ -306,7 +306,7 @@ function OverallAnalytics() {
               className="h-2" 
             />
             <p className="text-xs text-muted-foreground">
-              {aggregatedStats.activeSkills} of {aggregatedStats.enabledSkills} enabled skills active
+              {t('ofEnabledSkillsActive', { active: aggregatedStats.activeSkills, enabled: aggregatedStats.enabledSkills })}
             </p>
           </div>
         </CardContent>
@@ -318,7 +318,7 @@ function OverallAnalytics() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              Most Used Skills
+              {t('mostUsedSkills')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -328,7 +328,7 @@ function OverallAnalytics() {
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-sm">{skill.metadata.name}</span>
                     <Badge variant="secondary" className="text-xs">
-                      {stats.totalExecutions} uses
+                      {stats.totalExecutions} {t('uses')}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-2">
@@ -356,7 +356,7 @@ function OverallAnalytics() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              Recently Used
+              {t('recentlyUsed')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -365,7 +365,7 @@ function OverallAnalytics() {
                 <div key={skill.id} className="flex items-center justify-between">
                   <span className="font-medium text-sm">{skill.metadata.name}</span>
                   <span className="text-xs text-muted-foreground">
-                    {stats.lastExecutionAt && formatDate(stats.lastExecutionAt)}
+                    {stats.lastExecutionAt && formatDate(stats.lastExecutionAt, t)}
                   </span>
                 </div>
               ))}
@@ -378,8 +378,8 @@ function OverallAnalytics() {
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
             <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p className="font-medium">No usage data yet</p>
-            <p className="text-sm">Start using skills in chat to see analytics</p>
+            <p className="font-medium">{t('noUsageDataYet')}</p>
+            <p className="text-sm">{t('noUsageDataDescription')}</p>
           </CardContent>
         </Card>
       )}
@@ -388,6 +388,7 @@ function OverallAnalytics() {
 }
 
 export function SkillAnalytics({ skillId }: SkillAnalyticsProps) {
+  const t = useTranslations('skills');
   const { skills } = useSkillStore();
 
   if (skillId) {
@@ -396,7 +397,7 @@ export function SkillAnalytics({ skillId }: SkillAnalyticsProps) {
       return (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            Skill not found
+            {t('skillNotFound')}
           </CardContent>
         </Card>
       );

@@ -17,6 +17,7 @@
 
 import OpenAI from 'openai';
 import type { PPTImageStyle, PPTSlideLayout, PPTTheme } from '@/types/workflow';
+import { proxyFetch } from '@/lib/proxy-fetch';
 
 export type ImageProvider = 'openai' | 'google-imagen' | 'stability';
 
@@ -273,7 +274,7 @@ export async function createImageVariation(
  * Download image from URL to blob
  */
 export async function downloadImageAsBlob(url: string): Promise<Blob> {
-  const response = await fetch(url);
+  const response = await proxyFetch(url);
   return response.blob();
 }
 
@@ -620,7 +621,7 @@ async function generateSlideImageGoogleImagen(
     // Make request to Vertex AI
     const endpoint = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models/${model}:predict`;
     
-    const response = await fetch(endpoint, {
+    const response = await proxyFetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -695,7 +696,7 @@ async function generateSlideImageStability(
     // Stability AI API endpoint
     const endpoint = 'https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image';
     
-    const response = await fetch(endpoint, {
+    const response = await proxyFetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,

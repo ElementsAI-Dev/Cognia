@@ -8,7 +8,10 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useSandpack, useActiveCode } from '@codesandbox/sandpack-react';
 import Editor, { loader, type OnMount } from '@monaco-editor/react';
-import type * as monaco from 'monaco-editor';
+
+// Monaco editor instance type extracted from OnMount callback
+type MonacoEditor = Parameters<OnMount>[0];
+type _Monaco = Parameters<OnMount>[1];
 import { useResizeObserver } from '@/hooks/use-resize-observer';
 import { Loader2, X, FileCode, FileJson, FileText, AlertCircle, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -144,7 +147,7 @@ export function MonacoSandpackEditor({ readOnly = false }: MonacoSandpackEditorP
   const { code, updateCode } = useActiveCode();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const editorRef = useRef<MonacoEditor | null>(null);
 
   // Use ResizeObserver for proper layout sync
   const { ref: containerRef, size: _size } = useResizeObserver<HTMLDivElement>({

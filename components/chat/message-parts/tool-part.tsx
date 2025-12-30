@@ -197,8 +197,7 @@ export function ToolPart({ part, onRetry, onApprove, onDeny }: ToolPartProps) {
           </div>
           
           <div className="flex items-center gap-1">
-            {/* Copy result button */}
-            {isComplete && part.result && (
+            {isComplete && part.result !== undefined ? (
               <Button
                 variant="ghost"
                 size="icon"
@@ -211,7 +210,7 @@ export function ToolPart({ part, onRetry, onApprove, onDeny }: ToolPartProps) {
                   <Copy className="h-3 w-3" />
                 )}
               </Button>
-            )}
+            ) : null}
             
             {/* Retry button for errors */}
             {isError && onRetry && (
@@ -271,34 +270,31 @@ export function ToolPart({ part, onRetry, onApprove, onDeny }: ToolPartProps) {
           </div>
         )}
         
-        {/* Tool description if available */}
-        {part.description && !isApprovalRequired && (
+        {!isApprovalRequired && part.description ? (
           <div className="px-4 py-2 text-xs text-muted-foreground bg-muted/10 border-b border-border/20">
             {part.description}
           </div>
-        )}
+        ) : null}
         
         <ToolInput input={part.args} />
         
-        {/* Enhanced error display */}
-        {isError && part.errorText && (
+        {isError && part.errorText ? (
           <div className="px-4 py-3 bg-destructive/5 border-t border-destructive/20">
             <div className="flex items-start gap-2">
               <XCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-destructive">{t('errorOccurred')}</p>
-                <p className="text-xs text-destructive/80 mt-1 whitespace-pre-wrap wrap-break-word">
+                <p className="text-xs text-destructive/80 mt-1 whitespace-pre-wrap break-words">
                   {part.errorText}
                 </p>
               </div>
             </div>
           </div>
-        )}
+        ) : null}
         
-        {/* Success output */}
-        {isComplete && part.result && (
+        {isComplete && part.result !== undefined ? (
           <ToolOutput output={part.result} errorText={part.errorText} />
-        )}
+        ) : null}
       </ToolContent>
     </Tool>
   );

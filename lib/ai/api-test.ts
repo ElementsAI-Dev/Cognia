@@ -3,6 +3,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { proxyFetch } from '@/lib/proxy-fetch';
 
 export interface ApiTestResult {
   success: boolean;
@@ -36,7 +37,7 @@ export async function testOpenAIConnection(
   try {
     const url = baseUrl || 'https://api.openai.com/v1';
     const start = Date.now();
-    const response = await fetch(`${url}/models`, {
+    const response = await proxyFetch(`${url}/models`, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
       },
@@ -99,7 +100,7 @@ export async function testGoogleConnection(
 
   try {
     const start = Date.now();
-    const response = await fetch(
+    const response = await proxyFetch(
       `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
     );
     const latency = Date.now() - start;
@@ -200,7 +201,7 @@ export async function testOllamaConnection(
       ? baseUrl.slice(0, -3)
       : baseUrl;
     const start = Date.now();
-    const response = await fetch(`${url}/api/tags`);
+    const response = await proxyFetch(`${url}/api/tags`);
     const latency = Date.now() - start;
 
     if (response.ok) {
@@ -244,7 +245,7 @@ export async function testCustomProviderConnection(
   try {
     const url = baseUrl.endsWith('/') ? `${baseUrl}models` : `${baseUrl}/models`;
     const start = Date.now();
-    const response = await fetch(url, {
+    const response = await proxyFetch(url, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
       },

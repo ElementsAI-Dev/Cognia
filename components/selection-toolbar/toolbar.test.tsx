@@ -98,7 +98,7 @@ describe('SelectionToolbar', () => {
         enableStreaming: true,
         autoHideDelay: 0,
         pinnedActions: ['explain', 'translate', 'summarize', 'copy', 'send-to-chat'],
-        customShortcuts: {},
+        customShortcuts: {} as Record<string, string>,
       },
       retryAction: jest.fn(),
       showToolbar: jest.fn(),

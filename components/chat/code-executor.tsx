@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Play, Square, Copy, Check, Terminal, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -42,6 +43,7 @@ const ALL_BACKEND_LANGUAGES = [
 ];
 
 export function CodeExecutor({ code, language, className, stdin, useBackend = true }: CodeExecutorProps) {
+  const t = useTranslations('codeExecutor');
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [copied, setCopied] = useState(false);
@@ -120,6 +122,7 @@ export function CodeExecutor({ code, language, className, stdin, useBackend = tr
         })
       `;
 
+      // eslint-disable-next-line react-hooks/unsupported-syntax -- eval is intentionally used for code execution
       const fn = eval(wrappedCode);
       const returnValue = fn(sandboxConsole);
 
@@ -185,12 +188,12 @@ export function CodeExecutor({ code, language, className, stdin, useBackend = tr
           </Badge>
           {!isSupported && (
             <Badge variant="secondary" className="text-xs">
-              Run not supported
+              {t('notSupported')}
             </Badge>
           )}
           {isSupported && backendAvailable && executionMode === 'backend' && (
             <Badge variant="outline" className="text-xs text-blue-500 border-blue-500/50">
-              Backend
+              {t('backend')}
             </Badge>
           )}
         </div>
@@ -236,7 +239,7 @@ export function CodeExecutor({ code, language, className, stdin, useBackend = tr
       {result && (
         <div className="border-t">
           <div className="flex items-center gap-2 px-3 py-2 bg-muted/30">
-            <span className="text-xs font-medium">Output</span>
+            <span className="text-xs font-medium">{t('output')}</span>
             {result.executionTime !== undefined && (
               <span className="text-xs text-muted-foreground">
                 ({result.executionTime.toFixed(2)}ms)

@@ -13,5 +13,13 @@ export type {
   ActionCategory,
   ActionDefinition,
   ToolbarTheme,
+  LanguageOption,
 } from "./types";
-export { DEFAULT_CONFIG, TOOLBAR_THEMES } from "./types";
+export { 
+  DEFAULT_CONFIG, 
+  TOOLBAR_THEMES, 
+  ACTION_LABELS, 
+  ACTION_SHORT_LABELS,
+  LANGUAGES,
+  getLanguageName,
+} from "./types";

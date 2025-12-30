@@ -19,7 +19,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { SelectionAction } from "./types";
+import { SelectionAction, ACTION_LABELS } from "./types";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -42,25 +42,6 @@ export interface ResultPanelProps {
   onSendToChat?: () => void;
   onFeedback?: (positive: boolean) => void;
 }
-
-const ACTION_LABELS: Record<SelectionAction, string> = {
-  explain: "Explanation",
-  translate: "Translation",
-  summarize: "Summary",
-  extract: "Key Points",
-  define: "Definition",
-  rewrite: "Rewritten",
-  grammar: "Grammar Check",
-  copy: "Copied",
-  "send-to-chat": "Sent",
-  search: "Search Results",
-  "code-explain": "Code Explanation",
-  "code-optimize": "Optimized Code",
-  "tone-formal": "Formal Tone",
-  "tone-casual": "Casual Tone",
-  expand: "Expanded",
-  shorten: "Shortened",
-};
 
 export function ResultPanel({
   result,

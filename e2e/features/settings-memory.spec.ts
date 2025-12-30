@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { waitForAnimation } from '../utils/test-helpers';
 
 /**
  * Memory Settings Complete Tests
  * Tests memory management and configuration
+ * Optimized for CI/CD efficiency
  */
 
 test.describe('Memory Settings - Configuration', () => {
@@ -1026,7 +1028,7 @@ test.describe('Memory Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for Memory tab
       const memorySection = page.locator('text=Memory').first();
@@ -1042,7 +1044,7 @@ test.describe('Memory Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Click Memory tab if available
       const memoryTab = page
@@ -1050,7 +1052,7 @@ test.describe('Memory Settings UI', () => {
         .first();
       if (await memoryTab.isVisible()) {
         await memoryTab.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
       }
 
       // Look for add button
@@ -1067,7 +1069,7 @@ test.describe('Memory Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for clear button
       const clearBtn = page
@@ -1085,7 +1087,7 @@ test.describe('Memory Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Click Memory tab if available
       const memoryTab = page
@@ -1093,7 +1095,7 @@ test.describe('Memory Settings UI', () => {
         .first();
       if (await memoryTab.isVisible()) {
         await memoryTab.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
       }
 
       // Look for search input
@@ -1112,7 +1114,7 @@ test.describe('Memory Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for toggle switches
       const switches = page.locator('[role="switch"]');

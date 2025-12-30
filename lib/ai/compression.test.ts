@@ -6,6 +6,17 @@ import type { UIMessage } from '@/types/message';
 import type { CompressionSettings, ContextState, SessionCompressionOverrides } from '@/types/compression';
 import { DEFAULT_COMPRESSION_SETTINGS } from '@/types/compression';
 
+// Extended UIMessage type for compression-specific properties
+interface ExtendedUIMessage extends UIMessage {
+  compressionState?: {
+    isSummary?: boolean;
+    summarizedMessageIds?: string[];
+    originalMessageCount?: number;
+    strategyUsed?: string;
+  };
+  toolInvocations?: unknown[];
+}
+
 // Mock dependencies before importing the module
 jest.mock('@/hooks/use-token-count', () => ({
   countTokens: jest.fn((text: string) => Math.ceil(text.length / 4)),
@@ -540,8 +551,8 @@ describe('compression utilities', () => {
         createMockMessage('sys', 'system', 'You are a helpful assistant'),
         createMockMessage('1', 'user', 'Search something'),
         createMockMessage('2', 'assistant', 'Searching...', {
-          toolInvocations: [{ id: 'tool1', name: 'web_search', input: {}, state: 'result' }] as unknown as UIMessage['toolInvocations'],
-        }),
+          toolInvocations: [{ id: 'tool1', name: 'web_search', input: {}, state: 'result' }],
+        } as unknown as Partial<UIMessage>),
         createMockMessage('3', 'user', 'Simple question'),
         createMockMessage('4', 'assistant', 'Simple answer'),
       ];
@@ -680,7 +691,7 @@ describe('compression utilities', () => {
         createMockMessage('2', 'assistant', 'Hi there!'),
       ];
 
-      const summaryMessage = createSummaryMessage(compressedMessages, 'This is a summary');
+      const summaryMessage = createSummaryMessage(compressedMessages, 'This is a summary') as ExtendedUIMessage;
 
       expect(summaryMessage.role).toBe('system');
       expect(summaryMessage.content).toBe('This is a summary');
@@ -706,7 +717,7 @@ describe('compression utilities', () => {
         createMockMessage('1', 'user', 'Hello'),
       ];
 
-      const summaryMessage = createSummaryMessage(compressedMessages, 'Summary');
+      const summaryMessage = createSummaryMessage(compressedMessages, 'Summary') as ExtendedUIMessage;
 
       expect(summaryMessage.compressionState?.strategyUsed).toBe('summary');
     });
@@ -1494,7 +1505,7 @@ describe('compression utilities', () => {
 
     describe('createSummaryMessage edge cases', () => {
       it('should handle empty compressed messages array', () => {
-        const summaryMessage = createSummaryMessage([], 'Empty summary');
+        const summaryMessage = createSummaryMessage([], 'Empty summary') as ExtendedUIMessage;
 
         expect(summaryMessage.role).toBe('system');
         expect(summaryMessage.content).toBe('Empty summary');
@@ -1534,8 +1545,8 @@ describe('compression utilities', () => {
 
       it('should preserve all message metadata in history entry', () => {
         const messageWithMetadata = createMockMessage('1', 'user', 'Hello', {
-          toolInvocations: [{ id: 'tool1', name: 'search', input: {}, state: 'result' }] as unknown as UIMessage['toolInvocations'],
-        });
+          toolInvocations: [{ id: 'tool1', name: 'search', input: {}, state: 'result' }],
+        } as unknown as Partial<UIMessage>);
 
         const entry = createCompressionHistoryEntry(
           'session-123',

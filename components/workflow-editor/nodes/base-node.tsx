@@ -8,6 +8,8 @@
 import { memo, type ReactNode } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { cn } from '@/lib/utils';
+import { NodePreviewTooltip } from '../node-preview-tooltip';
+import { NodeQuickConfig } from '../node-quick-config';
 import {
   Play,
   Square,
@@ -28,6 +30,8 @@ import {
   Loader2,
   XCircle,
   Pause,
+  Group,
+  StickyNote,
 } from 'lucide-react';
 import type {
   WorkflowNodeData,
@@ -51,6 +55,8 @@ const NODE_ICONS: Record<WorkflowNodeType, React.ComponentType<{ className?: str
   code: Code,
   transform: Shuffle,
   merge: GitMerge,
+  group: Group,
+  annotation: StickyNote,
 };
 
 const STATUS_ICONS: Record<NodeExecutionStatus, React.ComponentType<{ className?: string }> | null> = {
@@ -101,17 +107,27 @@ function BaseNodeComponent({
   const color = NODE_TYPE_COLORS[nodeType];
 
   return (
-    <div
-      className={cn(
-        'relative min-w-[180px] max-w-[280px] rounded-lg border-2 bg-card shadow-md transition-all',
-        selected && 'ring-2 ring-primary ring-offset-2',
-        data.hasError && 'border-destructive',
-        data.executionStatus === 'running' && 'border-blue-500',
-        data.executionStatus === 'completed' && 'border-green-500',
-        data.executionStatus === 'failed' && 'border-red-500',
-        !data.hasError && data.executionStatus === 'idle' && 'border-border'
-      )}
-    >
+    <NodePreviewTooltip data={data}>
+      <NodeQuickConfig nodeId={data.id || ''} data={data}>
+      <div
+        className={cn(
+          'relative min-w-[180px] max-w-[280px] rounded-lg border-2 bg-card shadow-md',
+          'transition-all duration-200 ease-in-out',
+          'hover:shadow-lg hover:scale-[1.02]',
+          // Selection state
+          selected && 'ring-2 ring-primary ring-offset-2 shadow-lg scale-[1.02]',
+          // Error state
+          data.hasError && 'border-destructive animate-pulse',
+          // Execution states with animations
+          data.executionStatus === 'running' && 'border-blue-500 shadow-blue-500/30 shadow-lg animate-pulse',
+          data.executionStatus === 'completed' && 'border-green-500 shadow-green-500/20 shadow-md',
+          data.executionStatus === 'failed' && 'border-red-500 shadow-red-500/30 shadow-md',
+          data.executionStatus === 'pending' && 'border-yellow-500 opacity-70',
+          data.executionStatus === 'skipped' && 'border-gray-400 opacity-50',
+          // Default state
+          !data.hasError && data.executionStatus === 'idle' && 'border-border hover:border-primary/50'
+        )}
+      >
       {/* Color indicator bar */}
       <div
         className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
@@ -172,10 +188,19 @@ function BaseNodeComponent({
           </div>
         )}
 
+        {/* Execution status indicator */}
+        {data.executionStatus === 'running' && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-blue-500 bg-blue-500/10 rounded px-2 py-1">
+            <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+            <span>Executing...</span>
+          </div>
+        )}
+
         {/* Execution time */}
         {data.executionTime !== undefined && data.executionTime > 0 && (
-          <div className="mt-1 text-xs text-muted-foreground">
-            {(data.executionTime / 1000).toFixed(2)}s
+          <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+            <span>⏱</span>
+            <span>{(data.executionTime / 1000).toFixed(2)}s</span>
           </div>
         )}
 
@@ -205,7 +230,9 @@ function BaseNodeComponent({
           className="w-3! h-3! bg-muted-foreground! border-2! border-background!"
         />
       ))}
-    </div>
+      </div>
+    </NodeQuickConfig>
+    </NodePreviewTooltip>
   );
 }
 

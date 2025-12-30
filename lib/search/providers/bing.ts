@@ -10,6 +10,7 @@ import type {
   SearchImage,
   SearchRecency,
 } from '@/types/search';
+import { bingFetch } from '../proxy-search-fetch';
 
 const BING_WEB_SEARCH_URL = 'https://api.bing.microsoft.com/v7.0/search';
 const BING_NEWS_SEARCH_URL = 'https://api.bing.microsoft.com/v7.0/news/search';
@@ -148,7 +149,7 @@ export async function searchWithBing(
   }
 
   try {
-    const response = await fetch(`${BING_WEB_SEARCH_URL}?${params.toString()}`, {
+    const response = await bingFetch(`${BING_WEB_SEARCH_URL}?${params.toString()}`, {
       method: 'GET',
       headers: {
         'Ocp-Apim-Subscription-Key': apiKey,
@@ -248,7 +249,7 @@ export async function searchNewsWithBing(
   }
 
   try {
-    const response = await fetch(`${BING_NEWS_SEARCH_URL}?${params.toString()}`, {
+    const response = await bingFetch(`${BING_NEWS_SEARCH_URL}?${params.toString()}`, {
       method: 'GET',
       headers: {
         'Ocp-Apim-Subscription-Key': apiKey,
@@ -325,7 +326,7 @@ export async function searchImagesWithBing(
   }
 
   try {
-    const response = await fetch(`${BING_IMAGE_SEARCH_URL}?${params.toString()}`, {
+    const response = await bingFetch(`${BING_IMAGE_SEARCH_URL}?${params.toString()}`, {
       method: 'GET',
       headers: {
         'Ocp-Apim-Subscription-Key': apiKey,

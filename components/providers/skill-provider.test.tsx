@@ -135,7 +135,7 @@ describe('SkillProvider', () => {
   describe('loading custom skills', () => {
     it('loads custom skills when provided', async () => {
       const customSkills = [
-        { id: 'custom1', name: 'Custom 1', description: 'Custom skill 1', prompt: 'test' },
+        { name: 'Custom 1', description: 'Custom skill 1', content: 'test' },
       ];
 
       render(
@@ -151,8 +151,8 @@ describe('SkillProvider', () => {
 
     it('loads multiple custom skills', async () => {
       const customSkills = [
-        { id: 'custom1', name: 'Custom 1', description: 'Custom skill 1', prompt: 'test1' },
-        { id: 'custom2', name: 'Custom 2', description: 'Custom skill 2', prompt: 'test2' },
+        { name: 'Custom 1', description: 'Custom skill 1', content: 'test1' },
+        { name: 'Custom 2', description: 'Custom skill 2', content: 'test2' },
       ];
 
       render(
@@ -272,7 +272,7 @@ describe('useInitializeSkills hook', () => {
 
   it('loads custom skills', async () => {
     const customSkills = [
-      { id: 'custom1', name: 'Custom', description: 'Test', prompt: 'test' },
+      { name: 'Custom', description: 'Test', content: 'test' },
     ];
 
     renderHook(

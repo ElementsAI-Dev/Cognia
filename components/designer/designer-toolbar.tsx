@@ -6,6 +6,7 @@
  */
 
 import { useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Monitor,
   Tablet,
@@ -54,6 +55,7 @@ interface DesignerToolbarProps {
 }
 
 export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas }: DesignerToolbarProps) {
+  const t = useTranslations('designer');
   const mode = useDesignerStore((state) => state.mode);
   const setMode = useDesignerStore((state) => state.setMode);
   const viewport = useDesignerStore((state) => state.viewport);
@@ -81,16 +83,16 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas 
   }, [code]);
 
   const viewportButtons: { value: ViewportSize; icon: React.ReactNode; label: string }[] = [
-    { value: 'mobile', icon: <Smartphone className="h-4 w-4" />, label: 'Mobile' },
-    { value: 'tablet', icon: <Tablet className="h-4 w-4" />, label: 'Tablet' },
-    { value: 'desktop', icon: <Monitor className="h-4 w-4" />, label: 'Desktop' },
-    { value: 'full', icon: <Maximize className="h-4 w-4" />, label: 'Full Width' },
+    { value: 'mobile', icon: <Smartphone className="h-4 w-4" />, label: t('mobile') },
+    { value: 'tablet', icon: <Tablet className="h-4 w-4" />, label: t('tablet') },
+    { value: 'desktop', icon: <Monitor className="h-4 w-4" />, label: t('desktop') },
+    { value: 'full', icon: <Maximize className="h-4 w-4" />, label: t('fullWidth') },
   ];
 
   const modeButtons: { value: DesignerMode; icon: React.ReactNode; label: string }[] = [
-    { value: 'preview', icon: <Eye className="h-4 w-4" />, label: 'Preview' },
-    { value: 'design', icon: <Pencil className="h-4 w-4" />, label: 'Design' },
-    { value: 'code', icon: <Code2 className="h-4 w-4" />, label: 'Code' },
+    { value: 'preview', icon: <Eye className="h-4 w-4" />, label: t('previewMode') },
+    { value: 'design', icon: <Pencil className="h-4 w-4" />, label: t('design') },
+    { value: 'code', icon: <Code2 className="h-4 w-4" />, label: t('code') },
   ];
 
   return (
@@ -158,7 +160,7 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas 
                 <ZoomOut className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Zoom Out</TooltipContent>
+            <TooltipContent>{t('zoomOut')}</TooltipContent>
           </Tooltip>
 
           <span className="min-w-12 text-center text-xs text-muted-foreground">
@@ -177,7 +179,7 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas 
                 <ZoomIn className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Zoom In</TooltipContent>
+            <TooltipContent>{t('zoomIn')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -192,7 +194,7 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas 
                 <RotateCcw className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Reset Zoom</TooltipContent>
+            <TooltipContent>{t('resetZoom')}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -212,7 +214,7 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas 
                 <Undo2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Undo</TooltipContent>
+            <TooltipContent>{t('undo')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -227,7 +229,7 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas 
                 <Redo2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Redo</TooltipContent>
+            <TooltipContent>{t('redo')}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -247,7 +249,7 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas 
                 <Layers className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Element Tree</TooltipContent>
+            <TooltipContent>{t('elementTree')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -261,7 +263,7 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas 
                 <PanelRight className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Style Panel</TooltipContent>
+            <TooltipContent>{t('stylePanel')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -275,7 +277,7 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas 
                 <History className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Version History</TooltipContent>
+            <TooltipContent>{t('versionHistory')}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -291,10 +293,10 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas 
               onClick={onAIEdit}
             >
               <Sparkles className="h-3.5 w-3.5" />
-              <span className="text-xs">AI Edit</span>
+              <span className="text-xs">{t('aiEdit')}</span>
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Edit with AI</TooltipContent>
+          <TooltipContent>{t('editWithAI')}</TooltipContent>
         </Tooltip>
 
         {/* Canvas button */}
@@ -308,10 +310,10 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas 
                 onClick={onOpenInCanvas}
               >
                 <FileCode className="h-3.5 w-3.5" />
-                <span className="text-xs">Edit Code</span>
+                <span className="text-xs">{t('editCode')}</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Open in Canvas for detailed editing</TooltipContent>
+            <TooltipContent>{t('openInCanvas')}</TooltipContent>
           </Tooltip>
         )}
 
@@ -319,21 +321,21 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-7 px-2">
-              <span className="text-xs">More</span>
+              <span className="text-xs">{t('more')}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={handleCopyCode}>
               <Copy className="h-4 w-4 mr-2" />
-              Copy Code
+              {t('copyCode')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onExport}>
               <Download className="h-4 w-4 mr-2" />
-              Export
+              {t('export')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={reset} className="text-destructive">
               <RotateCcw className="h-4 w-4 mr-2" />
-              Reset
+              {t('reset')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

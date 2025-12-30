@@ -11,6 +11,7 @@ import type {
   SearchImage,
   SearchRecency,
 } from '@/types/search';
+import { googleFetch } from '../proxy-search-fetch';
 
 const GOOGLE_SEARCH_URL = 'https://www.googleapis.com/customsearch/v1';
 
@@ -192,7 +193,7 @@ export async function searchWithGoogle(
   }
 
   try {
-    const response = await fetch(`${GOOGLE_SEARCH_URL}?${params.toString()}`, {
+    const response = await googleFetch(`${GOOGLE_SEARCH_URL}?${params.toString()}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',

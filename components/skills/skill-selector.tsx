@@ -39,15 +39,15 @@ import { cn } from '@/lib/utils';
 import { useSkillStore } from '@/stores/skill-store';
 import type { Skill, SkillCategory } from '@/types/skill';
 
-const CATEGORY_LABELS: Record<SkillCategory, string> = {
-  'creative-design': 'Creative & Design',
-  'development': 'Development',
-  'enterprise': 'Enterprise',
-  'productivity': 'Productivity',
-  'data-analysis': 'Data Analysis',
-  'communication': 'Communication',
-  'meta': 'Meta Skills',
-  'custom': 'Custom',
+const CATEGORY_LABEL_KEYS: Record<SkillCategory, string> = {
+  'creative-design': 'categoryCreativeDesign',
+  'development': 'categoryDevelopment',
+  'enterprise': 'categoryEnterprise',
+  'productivity': 'categoryProductivity',
+  'data-analysis': 'categoryDataAnalysis',
+  'communication': 'categoryCommunication',
+  'meta': 'categoryMeta',
+  'custom': 'categoryCustom',
 };
 
 interface SkillSelectorProps {
@@ -147,10 +147,10 @@ export function SkillSelector({
             <Sparkles className="h-4 w-4 mr-2" />
             {activeSkills.length > 0 ? (
               <>
-                {activeSkills.length} skill{activeSkills.length !== 1 ? 's' : ''}
+                {activeSkills.length} {activeSkills.length !== 1 ? t('skillPlural') : t('skill')}
               </>
             ) : (
-              'Select skills'
+              t('selectSkills')
             )}
             <ChevronDown className="h-4 w-4 ml-2 opacity-50" />
           </Button>
@@ -163,11 +163,11 @@ export function SkillSelector({
               onValueChange={setSearch}
             />
             <CommandList>
-              <CommandEmpty>No skills found.</CommandEmpty>
+              <CommandEmpty>{t('noSkillsFoundCommand')}</CommandEmpty>
               {Object.entries(groupedSkills).map(([category, categorySkills]) => {
                 if (categorySkills.length === 0) return null;
                 return (
-                  <CommandGroup key={category} heading={CATEGORY_LABELS[category as SkillCategory]}>
+                  <CommandGroup key={category} heading={t(CATEGORY_LABEL_KEYS[category as SkillCategory])}>
                     {categorySkills.map((skill) => {
                       const isActive = activeSkillIds.includes(skill.id);
                       const disabled = !isActive && activeSkillIds.length >= maxSkills;
@@ -208,14 +208,14 @@ export function SkillSelector({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5" />
-          <span className="font-medium">Active Skills</span>
+          <span className="font-medium">{t('activeSkillsLabel')}</span>
           <Badge variant="secondary">
             {activeSkills.length}/{maxSkills}
           </Badge>
         </div>
         {activeSkills.length > 0 && (
           <Button variant="ghost" size="sm" onClick={handleClearAll}>
-            Clear All
+            {t('clearAll')}
           </Button>
         )}
       </div>
@@ -260,7 +260,7 @@ export function SkillSelector({
           return (
             <div key={category}>
               <h4 className="text-sm font-medium text-muted-foreground mb-2">
-                {CATEGORY_LABELS[category as SkillCategory]}
+                {t(CATEGORY_LABEL_KEYS[category as SkillCategory])}
               </h4>
               <div className="space-y-1">
                 {categorySkills.map((skill) => {

@@ -3,6 +3,8 @@
  * Supports multiple CDN providers: esm.sh, skypack, unpkg, jsdelivr
  */
 
+import { proxyFetch } from '@/lib/proxy-fetch';
+
 export type CDNProvider = 'esm.sh' | 'skypack' | 'unpkg' | 'jsdelivr';
 
 export interface PackageInfo {
@@ -174,7 +176,7 @@ export async function getCDNUrlWithFallback(
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-      const response = await fetch(url, {
+      const response = await proxyFetch(url, {
         method: 'HEAD',
         signal: controller.signal,
       });
@@ -449,7 +451,7 @@ export async function checkCDNHealth(url: string, timeout = 3000): Promise<boole
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-    const response = await fetch(url, {
+    const response = await proxyFetch(url, {
       method: 'HEAD',
       signal: controller.signal,
       mode: 'no-cors', // Allow checking CDNs without CORS

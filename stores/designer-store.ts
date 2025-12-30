@@ -441,7 +441,8 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()((set, 
     
     // Convert element tree back to code
     const generatedCode = elementTreeToCode(elementTree, code);
-    set({ code: generatedCode, isDirty: false });
+    // Keep isDirty state - syncing code doesn't mean document is saved
+    set({ code: generatedCode });
   },
 
   parseCodeToElements: (code: string) => {

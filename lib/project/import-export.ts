@@ -68,7 +68,7 @@ export function exportProjectToJSON(project: Project): string {
       customInstructions: project.customInstructions,
       defaultProvider: project.defaultProvider,
       defaultModel: project.defaultModel,
-      defaultMode: project.defaultMode,
+      defaultMode: project.defaultMode as 'chat' | 'agent' | 'research' | undefined,
       knowledgeBase: project.knowledgeBase.map((file) => ({
         id: file.id,
         name: file.name,

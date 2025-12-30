@@ -62,7 +62,6 @@ export * from './open-in-chat';
 
 // Presentation components
 export * from './ppt-preview';
-export * from './ppt-presenter';
 
 // Web preview
 export * from './web-preview';

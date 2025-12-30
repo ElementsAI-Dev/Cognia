@@ -41,7 +41,7 @@ async-trait = "0.1"
 uuid = { version = "1", features = ["v4", "serde"] }
 thiserror = "1.0"
 anyhow = "1.0"
-reqwest = { version = "0.12", features = ["json", "stream"] }
+reqwest = { version = "0.12", features = ["json", "stream", "socks"] }
 reqwest-eventsource = "0.6"
 directories = "5"
 chrono = { version = "0.4", features = ["serde"] }
@@ -57,8 +57,12 @@ mouse_position = "0.1"
 # Regex for pattern matching
 regex = "1"
 
+# URL opening
+open = "5"
+
 # Windows-specific dependencies
 [target.'cfg(windows)'.dependencies]
+winreg = "0.52"
 windows = { version = "0.58", features = [
     "Win32_Foundation",
     "Win32_UI_Accessibility",

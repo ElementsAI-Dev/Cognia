@@ -323,7 +323,7 @@ describe('useBackgroundAgentStore', () => {
       let step: ReturnType<typeof result.current.addStep>;
       act(() => {
         step = result.current.addStep(agent!.id, {
-          type: 'ai',
+          type: 'thinking',
           status: 'running',
           title: 'Step 1',
           description: 'First step',
@@ -463,7 +463,7 @@ describe('useBackgroundAgentStore', () => {
           name: 'Agent 1',
           task: 'Task 1',
         });
-        agent2 = result.current.createAgent({
+        _agent2 = result.current.createAgent({
           sessionId: 'session-1',
           name: 'Agent 2',
           task: 'Task 2',

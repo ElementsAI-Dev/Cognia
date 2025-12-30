@@ -99,7 +99,57 @@ export function useDesignerDragDrop(): UseDesignerDragDropReturn {
 
   const dragCounterRef = useRef(0);
 
-  const { insertElement, moveElement, elementTree: _elementTree } = useDesignerStore();
+  const { insertElement, moveElement, elementTree, elementMap } = useDesignerStore();
+
+  // Helper to find element's index in parent's children
+  const getElementIndex = useCallback((elementId: string): number => {
+    const element = elementMap[elementId];
+    if (!element) return -1;
+
+    const parentId = element.parentId;
+    let parent: DesignerElement | null = null;
+
+    if (parentId) {
+      parent = elementMap[parentId] || null;
+    } else {
+      parent = elementTree;
+    }
+
+    if (!parent) return -1;
+    return parent.children.findIndex(child => child.id === elementId);
+  }, [elementMap, elementTree]);
+
+  // Calculate insertion index based on drop position and target element
+  const calculateInsertIndex = useCallback((
+    targetId: string | null,
+    position: 'before' | 'after' | 'inside'
+  ): { parentId: string | null; index?: number } => {
+    if (!targetId) {
+      // Dropping on root
+      return { parentId: null };
+    }
+
+    if (position === 'inside') {
+      // Insert as last child of target
+      return { parentId: targetId };
+    }
+
+    // For 'before' and 'after', get target's parent and calculate index
+    const targetElement = elementMap[targetId];
+    if (!targetElement) {
+      return { parentId: null };
+    }
+
+    const parentId = targetElement.parentId;
+    const targetIndex = getElementIndex(targetId);
+
+    if (targetIndex === -1) {
+      return { parentId };
+    }
+
+    const index = position === 'before' ? targetIndex : targetIndex + 1;
+    return { parentId, index };
+  }, [elementMap, getElementIndex]);
 
   // Reset drag state
   const resetDragState = useCallback(() => {
@@ -226,16 +276,13 @@ export function useDesignerDragDrop(): UseDesignerDragDropReturn {
 
             if (data.type === 'component' && data.componentCode) {
               // Create new element from component code
-              const parentId = position === 'inside' ? targetId : null;
+              const { parentId, index } = calculateInsertIndex(targetId, position);
               const newElement = parseComponentToElement(data.componentCode, parentId);
-
-              // TODO: Calculate proper index based on position
-              insertElement(parentId, newElement);
+              insertElement(parentId, newElement, index);
             } else if (data.type === 'element' && data.elementId) {
               // Move existing element
-              const newParentId = position === 'inside' ? targetId : null;
-              // TODO: Calculate proper index based on position
-              moveElement(data.elementId, newParentId);
+              const { parentId: newParentId, index } = calculateInsertIndex(targetId, position);
+              moveElement(data.elementId, newParentId, index);
             }
           } catch (err) {
             console.error('Failed to parse drag data:', err);
@@ -245,7 +292,7 @@ export function useDesignerDragDrop(): UseDesignerDragDropReturn {
         },
       };
     },
-    [dragData, getDropPosition, insertElement, moveElement, resetDragState]
+    [dragData, getDropPosition, insertElement, moveElement, resetDragState, calculateInsertIndex]
   );
 
   // Create drop handlers for preview area (root drop zone)

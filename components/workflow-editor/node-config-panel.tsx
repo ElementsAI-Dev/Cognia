@@ -58,6 +58,8 @@ import type {
   WebhookNodeData,
   TransformNodeData,
   MergeNodeData,
+  GroupNodeData,
+  AnnotationNodeData,
 } from '@/types/workflow-editor';
 import { NODE_TYPE_COLORS } from '@/types/workflow-editor';
 
@@ -124,21 +126,28 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
   const color = NODE_TYPE_COLORS[nodeType];
 
   return (
-    <div className={cn('flex flex-col h-full bg-background border-l', className)}>
+    <div className={cn('flex flex-col h-full min-h-0 bg-background border-l', className)}>
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b">
+      <div className="flex items-center justify-between p-3 border-b shrink-0">
         <div className="flex items-center gap-2">
           <div
-            className="p-1.5 rounded"
+            className="p-1.5 rounded-md shadow-sm"
             style={{ backgroundColor: `${color}20` }}
           >
             <Settings className="h-4 w-4" style={{ color }} />
           </div>
-          <div>
-            <h3 className="text-sm font-semibold">{data.label}</h3>
-            <Badge variant="outline" className="text-xs">
-              {nodeType}
-            </Badge>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold truncate max-w-[150px]">{data.label}</h3>
+            <div className="flex items-center gap-1">
+              <Badge variant="outline" className="text-xs">
+                {nodeType}
+              </Badge>
+              {data.isConfigured && (
+                <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-600">
+                  Configured
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -157,7 +166,7 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-destructive hover:text-destructive"
+            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
             onClick={handleDelete}
           >
             <Trash2 className="h-4 w-4" />
@@ -167,15 +176,15 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
 
       {/* Validation Summary */}
       {(validation.errors.length > 0 || validation.warnings.length > 0) && (
-        <div className="px-3 py-2 border-b space-y-1">
+        <div className="px-3 py-2 border-b space-y-1 bg-muted/30 shrink-0">
           {validation.errors.map((error, i) => (
-            <div key={`error-${i}`} className="flex items-start gap-1.5 text-xs text-destructive">
+            <div key={`error-${i}`} className="flex items-start gap-1.5 text-xs text-destructive bg-destructive/10 rounded px-2 py-1">
               <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
               <span>{error.message}</span>
             </div>
           ))}
           {validation.warnings.map((warning, i) => (
-            <div key={`warning-${i}`} className="flex items-start gap-1.5 text-xs text-yellow-600 dark:text-yellow-500">
+            <div key={`warning-${i}`} className="flex items-start gap-1.5 text-xs text-yellow-600 dark:text-yellow-500 bg-yellow-500/10 rounded px-2 py-1">
               <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
               <span>{warning.message}</span>
             </div>
@@ -187,9 +196,9 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
       <Tabs
         value={activeConfigTab}
         onValueChange={setActiveConfigTab}
-        className="flex-1 flex flex-col"
+        className="flex-1 flex flex-col min-h-0"
       >
-        <TabsList className="grid w-full grid-cols-3 px-3 pt-2">
+        <TabsList className="grid w-full grid-cols-4 px-3 pt-2 shrink-0">
           <TabsTrigger value="properties" className="text-xs">
             {t('properties')}
           </TabsTrigger>
@@ -199,23 +208,36 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
           <TabsTrigger value="outputs" className="text-xs">
             {t('outputs')}
           </TabsTrigger>
+          <TabsTrigger value="advanced" className="text-xs">
+            Advanced
+          </TabsTrigger>
         </TabsList>
 
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           {/* Properties Tab */}
           <TabsContent value="properties" className="p-3 space-y-4 mt-0">
             {/* Common properties */}
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label htmlFor="label" className="text-xs">
+                <Label htmlFor="label" className="text-xs flex items-center gap-1">
                   {t('name')}
+                  <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="label"
                   value={data.label}
-                  onChange={(e) => handleUpdateData({ label: e.target.value })}
+                  onChange={(e) => {
+                    handleUpdateData({ label: e.target.value });
+                    if (e.target.value.trim()) {
+                      handleUpdateData({ isConfigured: true });
+                    }
+                  }}
                   className="h-8 text-sm"
+                  placeholder="Enter node name"
                 />
+                {!data.label.trim() && (
+                  <p className="text-xs text-destructive">Node name is required</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -226,9 +248,31 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
                   id="description"
                   value={data.description || ''}
                   onChange={(e) => handleUpdateData({ description: e.target.value })}
-                  className="text-sm min-h-[60px]"
+                  className="text-sm min-h-[60px] resize-none"
                   rows={2}
+                  placeholder="Describe what this node does..."
                 />
+              </div>
+
+              {/* Quick Actions */}
+              <div className="flex items-center gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs flex-1"
+                  onClick={() => handleUpdateData({ isConfigured: true })}
+                  disabled={data.isConfigured}
+                >
+                  Mark as Configured
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs flex-1"
+                  onClick={() => handleUpdateData({ executionStatus: 'idle' })}
+                >
+                  Reset Status
+                </Button>
               </div>
             </div>
 
@@ -330,6 +374,20 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
                 onUpdate={handleUpdateData}
               />
             )}
+
+            {nodeType === 'group' && (
+              <GroupNodeConfig
+                data={data as GroupNodeData}
+                onUpdate={handleUpdateData}
+              />
+            )}
+
+            {nodeType === 'annotation' && (
+              <AnnotationNodeConfig
+                data={data as AnnotationNodeData}
+                onUpdate={handleUpdateData}
+              />
+            )}
           </TabsContent>
 
           {/* Inputs Tab */}
@@ -348,6 +406,116 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
               onChange={(outputs) => handleUpdateData({ outputs } as Partial<WorkflowNodeData>)}
               type="output"
             />
+          </TabsContent>
+
+          {/* Advanced Tab */}
+          <TabsContent value="advanced" className="p-3 space-y-4 mt-0">
+            <div className="space-y-4">
+              {/* Execution Settings */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Execution Settings
+                </h4>
+                <div className="space-y-3 p-3 border rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-xs">Skip on Error</Label>
+                      <p className="text-xs text-muted-foreground">Continue workflow if this node fails</p>
+                    </div>
+                    <Switch
+                      checked={Boolean((data as Record<string, unknown>).skipOnError)}
+                      onCheckedChange={(skipOnError) => handleUpdateData({ skipOnError } as Partial<WorkflowNodeData>)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-xs">Cache Results</Label>
+                      <p className="text-xs text-muted-foreground">Reuse output for identical inputs</p>
+                    </div>
+                    <Switch
+                      checked={Boolean((data as Record<string, unknown>).cacheResults)}
+                      onCheckedChange={(cacheResults) => handleUpdateData({ cacheResults } as Partial<WorkflowNodeData>)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Retry Settings */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Retry Configuration
+                </h4>
+                <div className="space-y-3 p-3 border rounded-lg">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Max Retries</Label>
+                    <Input
+                      type="number"
+                      value={(data as Record<string, unknown>).maxRetries as number || 0}
+                      onChange={(e) => handleUpdateData({ maxRetries: parseInt(e.target.value) || 0 } as Partial<WorkflowNodeData>)}
+                      placeholder="0"
+                      className="h-8 text-sm"
+                      min={0}
+                      max={10}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Retry Delay (ms)</Label>
+                    <Input
+                      type="number"
+                      value={(data as Record<string, unknown>).retryDelay as number || 1000}
+                      onChange={(e) => handleUpdateData({ retryDelay: parseInt(e.target.value) || 1000 } as Partial<WorkflowNodeData>)}
+                      placeholder="1000"
+                      className="h-8 text-sm"
+                      min={0}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Timeout Settings */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Timeout
+                </h4>
+                <div className="space-y-1.5 p-3 border rounded-lg">
+                  <Label className="text-xs">Execution Timeout (ms)</Label>
+                  <Input
+                    type="number"
+                    value={(data as Record<string, unknown>).timeout as number || ''}
+                    onChange={(e) => handleUpdateData({ timeout: parseInt(e.target.value) || undefined } as Partial<WorkflowNodeData>)}
+                    placeholder="No timeout"
+                    className="h-8 text-sm"
+                    min={0}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Maximum time allowed for this node to complete
+                  </p>
+                </div>
+              </div>
+
+              {/* Node Metadata */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Metadata
+                </h4>
+                <div className="space-y-3 p-3 border rounded-lg">
+                  <div className="text-xs space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Node ID</span>
+                      <span className="font-mono">{nodeId}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Type</span>
+                      <span className="font-mono">{nodeType}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Status</span>
+                      <Badge variant="outline" className="text-xs">{data.executionStatus}</Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </TabsContent>
         </ScrollArea>
       </Tabs>
@@ -1193,6 +1361,175 @@ function MergeNodeConfig({ data, onUpdate }: MergeNodeConfigProps) {
         <p className="text-xs text-muted-foreground">
           {t('mergeHint') || 'Connect multiple branches to this node to merge their outputs.'}
         </p>
+      </div>
+    </div>
+  );
+}
+
+// Group Node Configuration
+interface GroupNodeConfigProps {
+  data: GroupNodeData;
+  onUpdate: (updates: Partial<GroupNodeData>) => void;
+}
+
+const GROUP_COLORS = [
+  { name: 'Gray', value: '#6b7280' },
+  { name: 'Blue', value: '#3b82f6' },
+  { name: 'Purple', value: '#8b5cf6' },
+  { name: 'Green', value: '#22c55e' },
+  { name: 'Orange', value: '#f97316' },
+  { name: 'Pink', value: '#ec4899' },
+  { name: 'Cyan', value: '#06b6d4' },
+  { name: 'Yellow', value: '#eab308' },
+];
+
+function GroupNodeConfig({ data, onUpdate }: GroupNodeConfigProps) {
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label className="text-xs">Group Color</Label>
+        <div className="grid grid-cols-4 gap-2">
+          {GROUP_COLORS.map((color) => (
+            <button
+              key={color.value}
+              className={cn(
+                'h-8 rounded-md border-2 transition-all hover:scale-105',
+                data.color === color.value ? 'border-foreground ring-2 ring-offset-2' : 'border-transparent'
+              )}
+              style={{ backgroundColor: color.value }}
+              onClick={() => onUpdate({ color: color.value })}
+              title={color.name}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs">Size</Label>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label className="text-[10px] text-muted-foreground">Min Width</Label>
+            <Input
+              type="number"
+              value={data.minWidth || 200}
+              onChange={(e) => onUpdate({ minWidth: parseInt(e.target.value) || 200 })}
+              className="h-8 text-sm"
+              min={100}
+              max={800}
+            />
+          </div>
+          <div>
+            <Label className="text-[10px] text-muted-foreground">Min Height</Label>
+            <Input
+              type="number"
+              value={data.minHeight || 150}
+              onChange={(e) => onUpdate({ minHeight: parseInt(e.target.value) || 150 })}
+              className="h-8 text-sm"
+              min={80}
+              max={600}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div>
+          <Label className="text-xs">Collapsed</Label>
+          <p className="text-xs text-muted-foreground">Minimize the group</p>
+        </div>
+        <Switch
+          checked={data.isCollapsed}
+          onCheckedChange={(isCollapsed) => onUpdate({ isCollapsed })}
+        />
+      </div>
+
+      {data.childNodeIds && data.childNodeIds.length > 0 && (
+        <div className="p-3 bg-muted/50 rounded-lg">
+          <p className="text-xs font-medium mb-1">Grouped Nodes</p>
+          <p className="text-xs text-muted-foreground">
+            {data.childNodeIds.length} node(s) in this group
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Annotation Node Configuration
+interface AnnotationNodeConfigProps {
+  data: AnnotationNodeData;
+  onUpdate: (updates: Partial<AnnotationNodeData>) => void;
+}
+
+const ANNOTATION_COLORS = [
+  { name: 'Yellow', value: '#fef08a' },
+  { name: 'Blue', value: '#bfdbfe' },
+  { name: 'Green', value: '#bbf7d0' },
+  { name: 'Pink', value: '#fbcfe8' },
+  { name: 'Purple', value: '#ddd6fe' },
+  { name: 'Orange', value: '#fed7aa' },
+  { name: 'Gray', value: '#e5e7eb' },
+  { name: 'White', value: '#ffffff' },
+];
+
+function AnnotationNodeConfig({ data, onUpdate }: AnnotationNodeConfigProps) {
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label className="text-xs">Content</Label>
+        <Textarea
+          value={data.content || ''}
+          onChange={(e) => onUpdate({ content: e.target.value })}
+          placeholder="Enter your note..."
+          className="text-sm min-h-[100px]"
+          rows={4}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs">Background Color</Label>
+        <div className="grid grid-cols-4 gap-2">
+          {ANNOTATION_COLORS.map((color) => (
+            <button
+              key={color.value}
+              className={cn(
+                'h-8 rounded-md border-2 transition-all hover:scale-105',
+                data.color === color.value ? 'border-foreground ring-2 ring-offset-2' : 'border-muted'
+              )}
+              style={{ backgroundColor: color.value }}
+              onClick={() => onUpdate({ color: color.value })}
+              title={color.name}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs">Font Size</Label>
+        <Select
+          value={data.fontSize || 'medium'}
+          onValueChange={(value) => onUpdate({ fontSize: value as AnnotationNodeData['fontSize'] })}
+        >
+          <SelectTrigger className="h-8 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="small">Small</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="large">Large</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div>
+          <Label className="text-xs">Show Border</Label>
+          <p className="text-xs text-muted-foreground">Display a border around the note</p>
+        </div>
+        <Switch
+          checked={data.showBorder}
+          onCheckedChange={(showBorder) => onUpdate({ showBorder })}
+        />
       </div>
     </div>
   );

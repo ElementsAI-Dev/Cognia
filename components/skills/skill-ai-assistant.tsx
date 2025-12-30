@@ -53,42 +53,42 @@ import {
 } from '@/lib/skills/generator';
 import type { SkillCategory, SkillRefinementType, GenerateSkillInput } from '@/types/skill';
 
-const REFINEMENT_OPTIONS: Array<{ value: SkillRefinementType; label: string; icon: React.ReactNode; description: string }> = [
+const REFINEMENT_OPTIONS: Array<{ value: SkillRefinementType; labelKey: string; icon: React.ReactNode; descKey: string }> = [
   {
     value: 'optimize',
-    label: 'Optimize',
+    labelKey: 'optimize',
     icon: <Zap className="h-4 w-4" />,
-    description: 'Remove redundancy, improve efficiency',
+    descKey: 'optimizeDesc',
   },
   {
     value: 'simplify',
-    label: 'Simplify',
+    labelKey: 'simplify',
     icon: <Minimize2 className="h-4 w-4" />,
-    description: 'Break down complex instructions',
+    descKey: 'simplifyDesc',
   },
   {
     value: 'expand',
-    label: 'Expand',
+    labelKey: 'expand',
     icon: <Maximize2 className="h-4 w-4" />,
-    description: 'Add examples and edge cases',
+    descKey: 'expandDesc',
   },
   {
     value: 'fix-errors',
-    label: 'Fix Errors',
+    labelKey: 'fixErrors',
     icon: <Bug className="h-4 w-4" />,
-    description: 'Fix formatting and validation issues',
+    descKey: 'fixErrorsDesc',
   },
 ];
 
-const CATEGORY_OPTIONS: Array<{ value: SkillCategory; label: string }> = [
-  { value: 'creative-design', label: 'Creative & Design' },
-  { value: 'development', label: 'Development' },
-  { value: 'enterprise', label: 'Enterprise' },
-  { value: 'productivity', label: 'Productivity' },
-  { value: 'data-analysis', label: 'Data Analysis' },
-  { value: 'communication', label: 'Communication' },
-  { value: 'meta', label: 'Meta Skills' },
-  { value: 'custom', label: 'Custom' },
+const CATEGORY_OPTIONS: Array<{ value: SkillCategory; labelKey: string }> = [
+  { value: 'creative-design', labelKey: 'categoryCreativeDesign' },
+  { value: 'development', labelKey: 'categoryDevelopment' },
+  { value: 'enterprise', labelKey: 'categoryEnterprise' },
+  { value: 'productivity', labelKey: 'categoryProductivity' },
+  { value: 'data-analysis', labelKey: 'categoryDataAnalysis' },
+  { value: 'communication', labelKey: 'categoryCommunication' },
+  { value: 'meta', labelKey: 'categoryMeta' },
+  { value: 'custom', labelKey: 'categoryCustom' },
 ];
 
 interface SkillAIAssistantProps {
@@ -234,7 +234,7 @@ export function SkillAIAssistant({
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-4">
         <Sparkles className="h-5 w-5 text-primary" />
-        <h3 className="text-sm font-medium">AI Assistant</h3>
+        <h3 className="text-sm font-medium">{t('aiAssistant')}</h3>
       </div>
 
       {/* Validation Status */}
@@ -248,7 +248,7 @@ export function SkillAIAssistant({
                 <AlertCircle className="h-4 w-4 text-yellow-500" />
               )}
               <span className="text-sm font-medium">
-                {validation.valid ? 'Content Valid' : 'Validation Issues'}
+                {validation.valid ? t('contentValid') : t('validationIssues')}
               </span>
             </div>
           </CardHeader>
@@ -269,22 +269,22 @@ export function SkillAIAssistant({
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="generate">
             <Wand2 className="h-4 w-4 mr-1" />
-            Generate
+            {t('generate')}
           </TabsTrigger>
           <TabsTrigger value="refine">
             <RefreshCw className="h-4 w-4 mr-1" />
-            Refine
+            {t('refine')}
           </TabsTrigger>
           <TabsTrigger value="suggest">
             <Lightbulb className="h-4 w-4 mr-1" />
-            Suggest
+            {t('suggest')}
           </TabsTrigger>
         </TabsList>
 
         {/* Generate Tab */}
         <TabsContent value="generate" className="space-y-4 mt-4">
           <div className="space-y-2">
-            <Label htmlFor="ai-description">What should this skill do?</Label>
+            <Label htmlFor="ai-description">{t('whatShouldSkillDo')}</Label>
             <Textarea
               id="ai-description"
               placeholder={t('describeSkillPlaceholder')}
@@ -295,7 +295,7 @@ export function SkillAIAssistant({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ai-examples">Example use cases (one per line)</Label>
+            <Label htmlFor="ai-examples">{t('exampleUseCases')}</Label>
             <Textarea
               id="ai-examples"
               placeholder={t('examplesPlaceholder')}
@@ -306,7 +306,7 @@ export function SkillAIAssistant({
           </div>
 
           <div className="space-y-2">
-            <Label>Category</Label>
+            <Label>{t('category')}</Label>
             <Select value={category} onValueChange={(v) => setCategory(v as SkillCategory)}>
               <SelectTrigger>
                 <SelectValue />
@@ -314,7 +314,7 @@ export function SkillAIAssistant({
               <SelectContent>
                 {CATEGORY_OPTIONS.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -325,12 +325,12 @@ export function SkillAIAssistant({
             {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Generating...
+                {t('generating')}
               </>
             ) : (
               <>
                 <Wand2 className="h-4 w-4 mr-2" />
-                Generate Skill
+                {t('generateSkill')}
               </>
             )}
           </Button>
@@ -339,13 +339,13 @@ export function SkillAIAssistant({
             <Card>
               <CardHeader className="py-2 px-3">
                 <CardTitle className="text-sm flex items-center justify-between">
-                  Generation Prompt
+                  {t('generationPrompt')}
                   <Button variant="ghost" size="sm" onClick={() => handleCopyPrompt(generatedPrompt)}>
                     <Copy className="h-4 w-4" />
                   </Button>
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Copy this prompt to use with your AI assistant
+                  {t('copyPromptHint')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="py-2 px-3">
@@ -362,11 +362,11 @@ export function SkillAIAssistant({
                 <CardTitle className="text-sm flex items-center justify-between">
                   <span className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    Generated Skill
+                    {t('generatedSkill')}
                   </span>
                   <Button size="sm" onClick={() => onApplyGenerated(generatedContent)}>
                     <ArrowRight className="h-4 w-4 mr-1" />
-                    Apply
+                    {t('apply')}
                   </Button>
                 </CardTitle>
               </CardHeader>
@@ -382,7 +382,7 @@ export function SkillAIAssistant({
         {/* Refine Tab */}
         <TabsContent value="refine" className="space-y-4 mt-4">
           <div className="space-y-2">
-            <Label>Refinement Type</Label>
+            <Label>{t('refinementType')}</Label>
             <div className="grid grid-cols-2 gap-2">
               {REFINEMENT_OPTIONS.map((opt) => (
                 <Card
@@ -394,16 +394,16 @@ export function SkillAIAssistant({
                 >
                   <div className="flex items-center gap-2">
                     {opt.icon}
-                    <span className="text-sm font-medium">{opt.label}</span>
+                    <span className="text-sm font-medium">{t(opt.labelKey)}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">{opt.description}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t(opt.descKey)}</p>
                 </Card>
               ))}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="custom-instructions">Additional Instructions (optional)</Label>
+            <Label htmlFor="custom-instructions">{t('additionalInstructions')}</Label>
             <Textarea
               id="custom-instructions"
               placeholder={t('customInstructionsPlaceholder')}
@@ -417,12 +417,12 @@ export function SkillAIAssistant({
             {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Refining...
+                {t('refining')}
               </>
             ) : (
               <>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refine Skill
+                {t('refineSkill')}
               </>
             )}
           </Button>
@@ -433,11 +433,11 @@ export function SkillAIAssistant({
                 <CardTitle className="text-sm flex items-center justify-between">
                   <span className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    Refined Skill
+                    {t('refinedSkill')}
                   </span>
                   <Button size="sm" onClick={() => onApplyGenerated(refinedContent)}>
                     <ArrowRight className="h-4 w-4 mr-1" />
-                    Apply
+                    {t('apply')}
                   </Button>
                 </CardTitle>
               </CardHeader>
@@ -454,9 +454,9 @@ export function SkillAIAssistant({
         <TabsContent value="suggest" className="space-y-4 mt-4">
           <Card>
             <CardHeader className="py-2 px-3">
-              <CardTitle className="text-sm">Get Improvement Suggestions</CardTitle>
+              <CardTitle className="text-sm">{t('getImprovementSuggestions')}</CardTitle>
               <CardDescription className="text-xs">
-                AI will analyze your skill and suggest improvements
+                {t('aiAnalyzeSuggestions')}
               </CardDescription>
             </CardHeader>
           </Card>
@@ -465,12 +465,12 @@ export function SkillAIAssistant({
             {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Analyzing...
+                {t('analyzing')}
               </>
             ) : (
               <>
                 <Lightbulb className="h-4 w-4 mr-2" />
-                Get Suggestions
+                {t('getSuggestions')}
               </>
             )}
           </Button>

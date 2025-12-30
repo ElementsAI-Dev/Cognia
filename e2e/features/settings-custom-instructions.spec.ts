@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { waitForAnimation } from '../utils/test-helpers';
 
 /**
  * Custom Instructions Settings Complete Tests
  * Tests custom instructions configuration for AI responses
+ * Optimized for CI/CD efficiency
  */
 
 test.describe('Custom Instructions - Enable/Disable', () => {
@@ -538,7 +540,7 @@ test.describe('Custom Instructions UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for Custom Instructions or Chat tab
       const instructionsSection = page
@@ -556,7 +558,7 @@ test.describe('Custom Instructions UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for switch elements
       const switches = page.locator('[role="switch"]');
@@ -572,7 +574,7 @@ test.describe('Custom Instructions UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for textarea elements
       const textareas = page.locator('textarea');
@@ -588,7 +590,7 @@ test.describe('Custom Instructions UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for action buttons
       const saveBtn = page.locator('button:has-text("Save")').first();

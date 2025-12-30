@@ -367,6 +367,21 @@ pub fn run() {
             commands::sandbox::sandbox_get_db_size,
             commands::sandbox::sandbox_vacuum_db,
             commands::sandbox::sandbox_execute_with_options,
+            // Environment commands
+            commands::environment::environment_get_platform,
+            commands::environment::environment_check_tool,
+            commands::environment::environment_check_all_tools,
+            commands::environment::environment_install_tool,
+            commands::environment::environment_uninstall_tool,
+            commands::environment::environment_open_tool_website,
+            commands::environment::environment_get_python_versions,
+            commands::environment::environment_get_node_versions,
+            // Proxy commands
+            commands::proxy::proxy_detect_all,
+            commands::proxy::proxy_test,
+            commands::proxy::proxy_get_system,
+            commands::proxy::proxy_check_port,
+            commands::proxy::proxy_get_clash_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

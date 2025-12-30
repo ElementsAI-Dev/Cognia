@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { proxyFetch } from '@/lib/proxy-fetch';
 
 // Whisper API endpoint
 const WHISPER_API_URL = 'https://api.openai.com/v1/audio/transcriptions';
@@ -74,8 +75,8 @@ export async function POST(request: NextRequest) {
       whisperFormData.append('temperature', temperature);
     }
 
-    // Call OpenAI Whisper API
-    const response = await fetch(WHISPER_API_URL, {
+    // Call OpenAI Whisper API (with proxy support)
+    const response = await proxyFetch(WHISPER_API_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openaiApiKey}`,
@@ -110,9 +111,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Disable body parsing since we're handling multipart form data
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};

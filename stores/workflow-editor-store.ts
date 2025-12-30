@@ -26,10 +26,19 @@ import type {
   NodeExecutionState,
   WorkflowNodeType,
   ExecutionLog,
+  NodeTemplate,
+  WorkflowVersion,
+  WorkflowExport,
+  ExecutionRecord,
+  WorkflowStatistics,
 } from '@/types/workflow-editor';
 import {
   createEmptyVisualWorkflow,
   createDefaultNodeData,
+  createNodeTemplate,
+  createWorkflowVersion,
+  createWorkflowExport,
+  calculateWorkflowStatistics,
 } from '@/types/workflow-editor';
 import { nanoid } from 'nanoid';
 import {
@@ -81,6 +90,16 @@ interface WorkflowEditorState {
   
   // Saved workflows
   savedWorkflows: VisualWorkflow[];
+  
+  // Node templates
+  nodeTemplates: NodeTemplate[];
+  
+  // Version control
+  workflowVersions: Record<string, WorkflowVersion[]>;
+  currentVersionNumber: number;
+  
+  // Execution statistics
+  executionRecords: ExecutionRecord[];
 }
 
 interface WorkflowEditorActions {
@@ -92,6 +111,9 @@ interface WorkflowEditorActions {
   duplicateWorkflow: (workflowId: string) => void;
   updateWorkflowMeta: (updates: Partial<Pick<VisualWorkflow, 'name' | 'description' | 'category' | 'tags' | 'icon'>>) => void;
   updateWorkflowSettings: (settings: Partial<WorkflowSettings>) => void;
+  updateWorkflowVariables: (variables: Record<string, unknown>) => void;
+  setWorkflowVariable: (name: string, value: unknown) => void;
+  deleteWorkflowVariable: (name: string) => void;
   
   // Node operations
   addNode: (type: WorkflowNodeType, position: { x: number; y: number }) => string;
@@ -156,6 +178,29 @@ interface WorkflowEditorActions {
   setActiveConfigTab: (tab: string) => void;
   setSearchQuery: (query: string) => void;
   
+  // Node templates
+  saveNodeAsTemplate: (nodeId: string, name: string, options?: { description?: string; category?: string; tags?: string[] }) => NodeTemplate | null;
+  addNodeFromTemplate: (templateId: string, position: { x: number; y: number }) => string | null;
+  deleteNodeTemplate: (templateId: string) => void;
+  updateNodeTemplate: (templateId: string, updates: Partial<Pick<NodeTemplate, 'name' | 'description' | 'category' | 'tags'>>) => void;
+  
+  // Version control
+  saveVersion: (name?: string, description?: string) => WorkflowVersion | null;
+  getVersions: () => WorkflowVersion[];
+  restoreVersion: (versionId: string) => void;
+  deleteVersion: (versionId: string) => void;
+  
+  // Import/Export
+  exportWorkflow: (options?: { includeTemplates?: boolean }) => WorkflowExport | null;
+  importWorkflow: (data: WorkflowExport) => void;
+  exportToFile: () => void;
+  importFromFile: (file: File) => Promise<void>;
+  
+  // Execution statistics
+  recordExecution: (record: Omit<ExecutionRecord, 'id'>) => void;
+  getWorkflowStatistics: (workflowId?: string) => WorkflowStatistics | null;
+  clearExecutionRecords: (workflowId?: string) => void;
+  
   // Reset
   reset: () => void;
 }
@@ -166,6 +211,10 @@ const initialState: WorkflowEditorState = {
   selectedEdges: [],
   copiedNodes: [],
   copiedEdges: [],
+  nodeTemplates: [],
+  workflowVersions: {},
+  currentVersionNumber: 0,
+  executionRecords: [],
   history: [],
   historyIndex: -1,
   maxHistorySize: 50,
@@ -287,6 +336,52 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
         };
 
         set({ currentWorkflow: updated, isDirty: true });
+      },
+
+      updateWorkflowVariables: (variables) => {
+        const { currentWorkflow } = get();
+        if (!currentWorkflow) return;
+
+        const updated = {
+          ...currentWorkflow,
+          variables,
+          updatedAt: new Date(),
+        };
+
+        set({ currentWorkflow: updated, isDirty: true });
+        get().pushHistory();
+      },
+
+      setWorkflowVariable: (name, value) => {
+        const { currentWorkflow } = get();
+        if (!currentWorkflow) return;
+
+        const updated = {
+          ...currentWorkflow,
+          variables: {
+            ...currentWorkflow.variables,
+            [name]: value,
+          },
+          updatedAt: new Date(),
+        };
+
+        set({ currentWorkflow: updated, isDirty: true });
+        get().pushHistory();
+      },
+
+      deleteWorkflowVariable: (name) => {
+        const { currentWorkflow } = get();
+        if (!currentWorkflow) return;
+
+        const { [name]: _deleted, ...rest } = currentWorkflow.variables;
+        const updated = {
+          ...currentWorkflow,
+          variables: rest,
+          updatedAt: new Date(),
+        };
+
+        set({ currentWorkflow: updated, isDirty: true });
+        get().pushHistory();
       },
 
       // Node operations
@@ -1273,6 +1368,30 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
       },
 
       clearExecutionState: () => {
+        const { executionState, currentWorkflow, recordExecution } = get();
+        
+        // Record execution statistics before clearing
+        if (executionState && currentWorkflow && 
+            (executionState.status === 'completed' || 
+             executionState.status === 'failed' || 
+             executionState.status === 'cancelled')) {
+          const nodeStates = Object.values(executionState.nodeStates);
+          const startTime = executionState.startedAt ? new Date(executionState.startedAt).getTime() : Date.now();
+          const endTime = executionState.completedAt ? new Date(executionState.completedAt).getTime() : Date.now();
+          
+          recordExecution({
+            workflowId: currentWorkflow.id,
+            status: executionState.status as 'completed' | 'failed' | 'cancelled',
+            startedAt: new Date(startTime),
+            completedAt: new Date(endTime),
+            duration: endTime - startTime,
+            nodesExecuted: nodeStates.filter(s => s.status === 'completed').length,
+            nodesFailed: nodeStates.filter(s => s.status === 'failed').length,
+            nodesSkipped: nodeStates.filter(s => s.status === 'skipped').length,
+            errorMessage: executionState.error,
+          });
+        }
+        
         set({
           isExecuting: false,
           executionState: null,
@@ -1304,6 +1423,233 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
         set({ searchQuery: query });
       },
 
+      // Node templates
+      saveNodeAsTemplate: (nodeId, name, options) => {
+        const { currentWorkflow, nodeTemplates } = get();
+        if (!currentWorkflow) return null;
+
+        const node = currentWorkflow.nodes.find((n) => n.id === nodeId);
+        if (!node) return null;
+
+        const template = createNodeTemplate(name, node.type as WorkflowNodeType, node.data, {
+          description: options?.description,
+          category: options?.category,
+          tags: options?.tags,
+        });
+
+        set({ nodeTemplates: [...nodeTemplates, template] });
+        return template;
+      },
+
+      addNodeFromTemplate: (templateId, position) => {
+        const { currentWorkflow, nodeTemplates } = get();
+        if (!currentWorkflow) return null;
+
+        const template = nodeTemplates.find((t) => t.id === templateId);
+        if (!template) return null;
+
+        const nodeId = `node-${nanoid()}`;
+        const newNode: WorkflowNode = {
+          id: nodeId,
+          type: template.nodeType,
+          position,
+          data: {
+            ...template.data,
+            label: template.name,
+          },
+        };
+
+        get().pushHistory();
+        set({
+          currentWorkflow: {
+            ...currentWorkflow,
+            nodes: [...currentWorkflow.nodes, newNode],
+            updatedAt: new Date(),
+          },
+          isDirty: true,
+        });
+
+        return nodeId;
+      },
+
+      deleteNodeTemplate: (templateId) => {
+        const { nodeTemplates } = get();
+        set({
+          nodeTemplates: nodeTemplates.filter((t) => t.id !== templateId),
+        });
+      },
+
+      updateNodeTemplate: (templateId, updates) => {
+        const { nodeTemplates } = get();
+        set({
+          nodeTemplates: nodeTemplates.map((t) =>
+            t.id === templateId
+              ? { ...t, ...updates, updatedAt: new Date() }
+              : t
+          ),
+        });
+      },
+
+      // Version control
+      saveVersion: (name, description) => {
+        const { currentWorkflow, workflowVersions, currentVersionNumber } = get();
+        if (!currentWorkflow) return null;
+
+        const newVersionNumber = currentVersionNumber + 1;
+        const version = createWorkflowVersion(currentWorkflow, newVersionNumber, {
+          name: name || `Version ${newVersionNumber}`,
+          description,
+        });
+
+        const workflowId = currentWorkflow.id;
+        const existingVersions = workflowVersions[workflowId] || [];
+
+        set({
+          workflowVersions: {
+            ...workflowVersions,
+            [workflowId]: [...existingVersions, version],
+          },
+          currentVersionNumber: newVersionNumber,
+        });
+
+        return version;
+      },
+
+      getVersions: () => {
+        const { currentWorkflow, workflowVersions } = get();
+        if (!currentWorkflow) return [];
+        return workflowVersions[currentWorkflow.id] || [];
+      },
+
+      restoreVersion: (versionId) => {
+        const { currentWorkflow, workflowVersions } = get();
+        if (!currentWorkflow) return;
+
+        const versions = workflowVersions[currentWorkflow.id] || [];
+        const version = versions.find((v) => v.id === versionId);
+        if (!version) return;
+
+        get().pushHistory();
+        set({
+          currentWorkflow: {
+            ...version.snapshot,
+            id: currentWorkflow.id,
+            updatedAt: new Date(),
+          },
+          isDirty: true,
+        });
+      },
+
+      deleteVersion: (versionId) => {
+        const { currentWorkflow, workflowVersions } = get();
+        if (!currentWorkflow) return;
+
+        const workflowId = currentWorkflow.id;
+        const versions = workflowVersions[workflowId] || [];
+
+        set({
+          workflowVersions: {
+            ...workflowVersions,
+            [workflowId]: versions.filter((v) => v.id !== versionId),
+          },
+        });
+      },
+
+      // Import/Export
+      exportWorkflow: (options) => {
+        const { currentWorkflow, nodeTemplates } = get();
+        if (!currentWorkflow) return null;
+
+        return createWorkflowExport(currentWorkflow, {
+          includeTemplates: options?.includeTemplates ? nodeTemplates : undefined,
+        });
+      },
+
+      importWorkflow: (data) => {
+        const workflow = data.workflow;
+        workflow.id = `workflow-${nanoid()}`;
+        workflow.createdAt = new Date();
+        workflow.updatedAt = new Date();
+
+        set({
+          currentWorkflow: workflow,
+          isDirty: false,
+          selectedNodes: [],
+          selectedEdges: [],
+        });
+
+        if (data.templates && data.templates.length > 0) {
+          const { nodeTemplates } = get();
+          set({
+            nodeTemplates: [...nodeTemplates, ...data.templates],
+          });
+        }
+      },
+
+      exportToFile: () => {
+        const exportData = get().exportWorkflow({ includeTemplates: true });
+        if (!exportData) return;
+
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+          type: 'application/json',
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${exportData.workflow.name || 'workflow'}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      },
+
+      importFromFile: async (file) => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const data = JSON.parse(e.target?.result as string) as WorkflowExport;
+              get().importWorkflow(data);
+              resolve();
+            } catch (error) {
+              reject(error);
+            }
+          };
+          reader.onerror = () => reject(reader.error);
+          reader.readAsText(file);
+        });
+      },
+
+      // Execution statistics
+      recordExecution: (record) => {
+        const { executionRecords } = get();
+        const newRecord: ExecutionRecord = {
+          ...record,
+          id: `exec-${nanoid()}`,
+        };
+        set({
+          executionRecords: [newRecord, ...executionRecords].slice(0, 500),
+        });
+      },
+
+      getWorkflowStatistics: (workflowId) => {
+        const { currentWorkflow, executionRecords } = get();
+        const targetId = workflowId || currentWorkflow?.id;
+        if (!targetId) return null;
+        return calculateWorkflowStatistics(targetId, executionRecords);
+      },
+
+      clearExecutionRecords: (workflowId) => {
+        const { executionRecords } = get();
+        if (workflowId) {
+          set({
+            executionRecords: executionRecords.filter((r) => r.workflowId !== workflowId),
+          });
+        } else {
+          set({ executionRecords: [] });
+        }
+      },
+
       // Reset
       reset: () => {
         set(initialState);
@@ -1313,6 +1659,9 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
       name: 'cognia-workflow-editor',
       partialize: (state) => ({
         savedWorkflows: state.savedWorkflows,
+        nodeTemplates: state.nodeTemplates,
+        workflowVersions: state.workflowVersions,
+        executionRecords: state.executionRecords,
         showNodePalette: state.showNodePalette,
         showConfigPanel: state.showConfigPanel,
         showMinimap: state.showMinimap,

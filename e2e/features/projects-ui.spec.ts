@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { waitForAnimation } from '../utils/test-helpers';
 
 /**
  * Projects UI Complete Tests
  * Tests real UI interactions for project management
+ * Optimized for CI/CD efficiency
  */
 
 test.describe('Projects Page Navigation', () => {
@@ -178,7 +180,7 @@ test.describe('Project List', () => {
     
     if (await searchInput.isVisible()) {
       await searchInput.fill('React');
-      await page.waitForTimeout(300); // Wait for filter
+      await waitForAnimation(page); // Wait for filter
 
       // React project should be visible
       const reactProject = page.locator('text=React Application').first();
@@ -241,7 +243,7 @@ test.describe('Project List', () => {
     
     if (await archiveToggle.isVisible()) {
       await archiveToggle.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Archived project should now be visible
       const archivedProject = page.locator('text=Archived Project').first();
@@ -503,7 +505,7 @@ test.describe('Project Card Actions', () => {
       
       if (await cardMenuBtn.isVisible()) {
         await cardMenuBtn.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
 
         // Check for menu items
         const editOption = page.locator('[role="menuitem"]:has-text("Edit"), text=Edit').first();
@@ -631,13 +633,13 @@ test.describe('Project Card Actions', () => {
       
       if (await menuBtn.isVisible()) {
         await menuBtn.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
 
         // Click delete
         const deleteOption = page.locator('[role="menuitem"]:has-text("Delete")').first();
         if (await deleteOption.isVisible()) {
           await deleteOption.click();
-          await page.waitForTimeout(300);
+          await waitForAnimation(page);
 
           // Confirmation dialog should appear
           const confirmDialog = page.locator('[role="alertdialog"], text=Are you sure').first();
@@ -661,18 +663,18 @@ test.describe('Project Card Actions', () => {
       
       if (await menuBtn.isVisible()) {
         await menuBtn.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
 
         const deleteOption = page.locator('[role="menuitem"]:has-text("Delete")').first();
         if (await deleteOption.isVisible()) {
           await deleteOption.click();
-          await page.waitForTimeout(300);
+          await waitForAnimation(page);
 
           // Click cancel
           const cancelBtn = page.locator('button:has-text("Cancel")').first();
           if (await cancelBtn.isVisible()) {
             await cancelBtn.click();
-            await page.waitForTimeout(300);
+            await waitForAnimation(page);
           }
 
           // Project should still exist

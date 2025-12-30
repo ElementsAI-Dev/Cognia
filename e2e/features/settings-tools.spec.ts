@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { waitForAnimation } from '../utils/test-helpers';
 
 /**
  * Tool Settings Complete Tests
  * Tests built-in tool configuration and permissions
+ * Optimized for CI/CD efficiency
  */
 
 test.describe('Tool Settings - Tool Categories', () => {
@@ -558,7 +560,7 @@ test.describe('Tool Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for Tools tab
       const toolsSection = page.locator('text=Tools').first();
@@ -574,7 +576,7 @@ test.describe('Tool Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Click Tools tab if available
       const toolsTab = page
@@ -582,7 +584,7 @@ test.describe('Tool Settings UI', () => {
         .first();
       if (await toolsTab.isVisible()) {
         await toolsTab.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
       }
 
       // Look for tool categories
@@ -599,7 +601,7 @@ test.describe('Tool Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for toggle switches
       const switches = page.locator('[role="switch"]');
@@ -615,7 +617,7 @@ test.describe('Tool Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Click Tools tab if available
       const toolsTab = page
@@ -623,7 +625,7 @@ test.describe('Tool Settings UI', () => {
         .first();
       if (await toolsTab.isVisible()) {
         await toolsTab.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
       }
 
       // Look for approval warnings
@@ -642,7 +644,7 @@ test.describe('Tool Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Click Tools tab if available
       const toolsTab = page
@@ -650,7 +652,7 @@ test.describe('Tool Settings UI', () => {
         .first();
       if (await toolsTab.isVisible()) {
         await toolsTab.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
       }
 
       // Look for permission info

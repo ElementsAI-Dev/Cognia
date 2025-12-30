@@ -32,10 +32,11 @@ describe('useUsageStore', () => {
     it('should add usage record', () => {
       act(() => {
         useUsageStore.getState().addUsageRecord({
+          messageId: 'msg-1',
           sessionId: 'session-1',
           provider: 'openai',
           model: 'gpt-4',
-          tokens: { input: 100, output: 50, total: 150 },
+          tokens: { prompt: 100, completion: 50, total: 150 },
         });
       });
 
@@ -49,16 +50,18 @@ describe('useUsageStore', () => {
     it('should accumulate total tokens and cost', () => {
       act(() => {
         useUsageStore.getState().addUsageRecord({
+          messageId: 'msg-1',
           sessionId: 'session-1',
           provider: 'openai',
           model: 'gpt-4',
-          tokens: { input: 100, output: 50, total: 150 },
+          tokens: { prompt: 100, completion: 50, total: 150 },
         });
         useUsageStore.getState().addUsageRecord({
+          messageId: 'msg-2',
           sessionId: 'session-2',
           provider: 'openai',
           model: 'gpt-4',
-          tokens: { input: 200, output: 100, total: 300 },
+          tokens: { prompt: 200, completion: 100, total: 300 },
         });
       });
 
@@ -72,10 +75,11 @@ describe('useUsageStore', () => {
     it('should clear all records', () => {
       act(() => {
         useUsageStore.getState().addUsageRecord({
+          messageId: 'msg-1',
           sessionId: 'session-1',
           provider: 'openai',
           model: 'gpt-4',
-          tokens: { input: 100, output: 50, total: 150 },
+          tokens: { prompt: 100, completion: 50, total: 150 },
         });
       });
 
@@ -99,19 +103,21 @@ describe('useUsageStore', () => {
         records: [
           {
             id: '1',
+            messageId: 'msg-1',
             sessionId: 'session-1',
             provider: 'openai',
             model: 'gpt-4',
-            tokens: { input: 100, output: 50, total: 150 },
+            tokens: { prompt: 100, completion: 50, total: 150 },
             cost: 0.01,
             createdAt: oldDate,
           },
           {
             id: '2',
+            messageId: 'msg-2',
             sessionId: 'session-2',
             provider: 'openai',
             model: 'gpt-4',
-            tokens: { input: 200, output: 100, total: 300 },
+            tokens: { prompt: 200, completion: 100, total: 300 },
             cost: 0.02,
             createdAt: newDate,
           },
@@ -136,28 +142,31 @@ describe('useUsageStore', () => {
         records: [
           {
             id: '1',
+            messageId: 'msg-1',
             sessionId: 'session-1',
             provider: 'openai',
             model: 'gpt-4',
-            tokens: { input: 100, output: 50, total: 150 },
+            tokens: { prompt: 100, completion: 50, total: 150 },
             cost: 0.01,
             createdAt: new Date(),
           },
           {
             id: '2',
+            messageId: 'msg-2',
             sessionId: 'session-1',
             provider: 'openai',
             model: 'gpt-4',
-            tokens: { input: 200, output: 100, total: 300 },
+            tokens: { prompt: 200, completion: 100, total: 300 },
             cost: 0.02,
             createdAt: new Date(),
           },
           {
             id: '3',
+            messageId: 'msg-3',
             sessionId: 'session-2',
             provider: 'anthropic',
             model: 'claude-3',
-            tokens: { input: 50, output: 25, total: 75 },
+            tokens: { prompt: 50, completion: 25, total: 75 },
             cost: 0.005,
             createdAt: new Date(),
           },

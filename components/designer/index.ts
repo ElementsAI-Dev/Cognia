@@ -16,3 +16,8 @@ export { MonacoSandpackEditor } from './monaco-sandpack-editor';
 export { SandboxErrorBoundary, useErrorBoundaryReset, useConsoleErrorInterceptor } from './sandbox-error-boundary';
 export { PreviewLoading, usePreviewStatus } from './preview-loading';
 export { VersionHistoryPanel } from './version-history-panel';
+export { DesignerCard } from './designer-card';
+export { DesignerBrowser } from './designer-browser';
+
+// DnD exports
+export { DesignerDndProvider, useDesignerDnd, useDesignerDndStrict } from './dnd';

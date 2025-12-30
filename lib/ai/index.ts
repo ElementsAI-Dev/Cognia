@@ -10,10 +10,13 @@
  * - Agent execution with tool calling
  * - Image generation and processing
  */
+/**
+ * AI Module - Unified AI SDK exports
+ */
 
-// Core client and provider management
 export * from './client';
 export * from './provider-registry';
+export * from './proxy-client';
 export * from './middleware';
 
 // Chat and generation
@@ -46,6 +49,9 @@ export {
   type MessageContent,
 } from './image-utils';
 export * from './image-generation';
+
+// Video generation
+export * from './video-generation';
 
 // Agent system
 export * from './agent';

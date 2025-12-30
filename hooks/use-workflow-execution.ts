@@ -98,8 +98,8 @@ export function useWorkflowExecution(
   const pauseExecution = useWorkflowEditorStore((s) => s.pauseExecution);
   const resumeExecution = useWorkflowEditorStore((s) => s.resumeExecution);
   const cancelExecution = useWorkflowEditorStore((s) => s.cancelExecution);
-  const clearLogs = useWorkflowEditorStore((s) => s.clearExecutionLogs);
-  const updateShowPanel = useWorkflowEditorStore((s) => s.setShowExecutionPanel);
+  const clearLogs = useWorkflowEditorStore((s) => s.clearExecutionState);
+  const updateShowPanel = useWorkflowEditorStore((s) => s.toggleExecutionPanel);
 
   // Derived state
   const isPaused = executionState?.status === 'paused';
@@ -133,7 +133,7 @@ export function useWorkflowExecution(
     switch (executionState.status) {
       case 'completed':
         if (onSuccess) {
-          const duration = executionState.completedAt
+          const duration = executionState.completedAt && executionState.startedAt
             ? executionState.completedAt.getTime() - executionState.startedAt.getTime()
             : 0;
 
@@ -188,7 +188,7 @@ export function useWorkflowExecution(
       try {
         // Show execution panel if not visible
         if (!showExecutionPanel) {
-          updateShowPanel(true);
+          updateShowPanel();
         }
 
         await startExecution(input ?? initialInput);

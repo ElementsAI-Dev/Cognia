@@ -59,7 +59,8 @@ describe('ProviderProvider', () => {
         customProviders: {},
         defaultProvider: 'openai',
       };
-      return selector(state as ReturnType<typeof useSettingsStore>);
+      // @ts-expect-error - Partial mock state for testing
+      return selector(state);
     });
 
     mockFetch.mockResolvedValue({
@@ -304,7 +305,8 @@ describe('ProviderProvider', () => {
           customProviders: {},
           defaultProvider: 'openai',
         };
-        return selector(state as ReturnType<typeof useSettingsStore>);
+        // @ts-expect-error - Partial mock state for testing
+        return selector(state);
       });
 
       const { result } = renderHook(() => useProviderContext(), { wrapper });
@@ -355,7 +357,8 @@ describe('useProvider hook', () => {
         customProviders: {},
         defaultProvider: 'openai',
       };
-      return selector(state as ReturnType<typeof useSettingsStore>);
+      // @ts-expect-error - Partial mock state for testing
+      return selector(state);
     });
   });
 
@@ -391,7 +394,8 @@ describe('useAvailableProviders hook', () => {
         customProviders: {},
         defaultProvider: 'openai',
       };
-      return selector(state as ReturnType<typeof useSettingsStore>);
+      // @ts-expect-error - Partial mock state for testing
+      return selector(state);
     });
   });
 
@@ -420,7 +424,8 @@ describe('useProviderModels hook', () => {
         customProviders: {},
         defaultProvider: 'openai',
       };
-      return selector(state as ReturnType<typeof useSettingsStore>);
+      // @ts-expect-error - Partial mock state for testing
+      return selector(state);
     });
   });
 

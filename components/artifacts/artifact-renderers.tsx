@@ -2,18 +2,23 @@
 
 /**
  * Artifact Renderers - Specialized renderers for different artifact types
- * Supports: Mermaid diagrams, Charts (Recharts), Math (KaTeX), Markdown
+ * 
+ * This module provides a unified interface for artifact rendering by:
+ * 1. Re-exporting feature-rich renderers from chat/renderers for consistency
+ * 2. Providing ChartRenderer (unique to artifacts, not in chat/renderers)
+ * 3. Maintaining backward-compatible API through wrapper components
+ * 
+ * Supports: Mermaid diagrams, Charts (Recharts), Math (KaTeX), Markdown, Code
  */
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
-import katex from 'katex';
-import 'katex/dist/katex.min.css';
+import { MermaidBlock } from '@/components/chat/renderers/mermaid-block';
+import { MathBlock } from '@/components/chat/renderers/math-block';
+import { CodeBlock } from '@/components/chat/renderers/code-block';
+import { MarkdownRenderer as ChatMarkdownRenderer } from '@/components/chat/markdown-renderer';
 import {
   LineChart,
   Line,
@@ -39,6 +44,15 @@ import {
   Cell,
 } from 'recharts';
 
+// Re-export feature-rich renderers from chat/renderers for unified usage
+// These provide full functionality: fullscreen, copy, export, etc.
+export { MermaidBlock as MermaidRenderer } from '@/components/chat/renderers/mermaid-block';
+export { MathBlock as MathRenderer } from '@/components/chat/renderers/math-block';
+export { CodeBlock as CodeRenderer } from '@/components/chat/renderers/code-block';
+
+// Re-export MarkdownRenderer from chat module for full markdown support
+export { MarkdownRenderer } from '@/components/chat/markdown-renderer';
+
 interface RendererProps {
   content: string;
   className?: string;
@@ -56,82 +70,6 @@ interface ChartDataPoint {
 }
 
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088fe', '#00C49F', '#FFBB28', '#FF8042'];
-
-/**
- * Mermaid Diagram Renderer
- */
-export function MermaidRenderer({ content, className }: RendererProps) {
-  const t = useTranslations('renderer');
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [svg, setSvg] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const renderMermaid = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        // Dynamically import mermaid to avoid SSR issues
-        const mermaid = (await import('mermaid')).default;
-        
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: 'default',
-          securityLevel: 'loose',
-          fontFamily: 'system-ui, -apple-system, sans-serif',
-        });
-
-        const id = `mermaid-${Date.now()}`;
-        const { svg: renderedSvg } = await mermaid.render(id, content);
-        
-        if (mounted) {
-          setSvg(renderedSvg);
-          setIsLoading(false);
-        }
-      } catch (err) {
-        if (mounted) {
-          setError(err instanceof Error ? err.message : 'Failed to render diagram');
-          setIsLoading(false);
-        }
-      }
-    };
-
-    renderMermaid();
-
-    return () => {
-      mounted = false;
-    };
-  }, [content]);
-
-  if (isLoading) {
-    return (
-      <div className={cn('flex items-center justify-center p-8', className)}>
-        <div className="animate-pulse text-muted-foreground">{t('loadingDiagram')}</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className={cn('flex flex-col items-center justify-center gap-2 p-4 text-destructive', className)}>
-        <AlertCircle className="h-5 w-5" />
-        <p className="text-sm">{error}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      ref={containerRef}
-      className={cn('flex items-center justify-center overflow-auto p-4', className)}
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
-  );
-}
 
 /**
  * Chart Renderer using Recharts
@@ -314,104 +252,8 @@ export function ChartRenderer({ content, chartType = 'line', chartData, classNam
 }
 
 /**
- * Math/LaTeX Renderer using KaTeX
- */
-export function MathRenderer({ content, className }: RendererProps) {
-  const result = useMemo(() => {
-    try {
-      // Check if content is display mode (wrapped in $$ or contains newlines)
-      const isDisplayMode = content.startsWith('$$') || content.includes('\n');
-      const cleanContent = content.replace(/^\$\$|\$\$$/g, '').trim();
-
-      const rendered = katex.renderToString(cleanContent, {
-        displayMode: isDisplayMode,
-        throwOnError: false,
-        trust: true,
-        strict: false,
-      });
-
-      return { html: rendered, error: null };
-    } catch (err) {
-      return { html: '', error: err instanceof Error ? err.message : 'Failed to render math' };
-    }
-  }, [content]);
-
-  if (result.error) {
-    return (
-      <div className={cn('flex flex-col items-center justify-center gap-2 p-4 text-destructive', className)}>
-        <AlertCircle className="h-5 w-5" />
-        <p className="text-sm">{result.error}</p>
-        <pre className="text-xs text-muted-foreground">{content}</pre>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className={cn('flex items-center justify-center overflow-auto p-4', className)}
-      dangerouslySetInnerHTML={{ __html: result.html }}
-    />
-  );
-}
-
-/**
- * Markdown Document Renderer
- */
-export function MarkdownRenderer({ content, className }: RendererProps) {
-  return (
-    <div className={cn('prose prose-sm dark:prose-invert max-w-none p-4', className)}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
-        components={{
-          code({ className: codeClassName, children, ...props }) {
-            const match = /language-(\w+)/.exec(codeClassName || '');
-            const isInline = !match;
-            
-            if (isInline) {
-              return (
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm" {...props}>
-                  {children}
-                </code>
-              );
-            }
-
-            return (
-              <pre className="overflow-auto rounded-lg bg-muted p-4">
-                <code className={codeClassName} {...props}>
-                  {children}
-                </code>
-              </pre>
-            );
-          },
-          table({ children }) {
-            return (
-              <div className="overflow-auto">
-                <table className="min-w-full border-collapse">{children}</table>
-              </div>
-            );
-          },
-        }}
-      >
-        {content}
-      </ReactMarkdown>
-    </div>
-  );
-}
-
-/**
- * Code Renderer with syntax highlighting fallback
- */
-export function CodeRenderer({ content, className }: RendererProps) {
-  return (
-    <pre className={cn('overflow-auto rounded-lg bg-muted p-4 text-sm', className)}>
-      <code>{content}</code>
-    </pre>
-  );
-}
-
-/**
  * Generic Artifact Renderer - Routes to appropriate renderer based on type
+ * Uses feature-rich renderers from chat/renderers for full functionality
  */
 export function ArtifactRenderer({
   type,
@@ -428,15 +270,17 @@ export function ArtifactRenderer({
 }) {
   switch (type) {
     case 'mermaid':
-      return <MermaidRenderer content={content} className={className} />;
+      return <MermaidBlock content={content} className={className} />;
     case 'chart':
       return <ChartRenderer content={content} chartType={chartType} chartData={chartData} className={className} />;
     case 'math':
-      return <MathRenderer content={content} className={className} />;
+      return <MathBlock content={content} className={className} />;
     case 'document':
-      return <MarkdownRenderer content={content} className={className} />;
+      return <ChatMarkdownRenderer content={content} className={className} />;
+    case 'code':
+      return <CodeBlock code={content} className={className} />;
     default:
-      return <CodeRenderer content={content} className={className} />;
+      return <CodeBlock code={content} className={className} />;
   }
 }
 

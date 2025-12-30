@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Bot,
   Loader2,
@@ -30,6 +31,7 @@ interface BackgroundAgentIndicatorProps {
 }
 
 export function BackgroundAgentIndicator({ className }: BackgroundAgentIndicatorProps) {
+  const t = useTranslations('agent');
   const [isOpen, setIsOpen] = useState(false);
 
   const {
@@ -71,7 +73,7 @@ export function BackgroundAgentIndicator({ className }: BackgroundAgentIndicator
           )}
           
           <span className="text-xs">
-            {hasRunning ? `${runningAgents.length} running` : `${completedAgents.length} completed`}
+            {hasRunning ? `${runningAgents.length} ${t('running')}` : `${completedAgents.length} ${t('completed')}`}
           </span>
 
           {unreadNotificationCount > 0 && (
@@ -91,9 +93,9 @@ export function BackgroundAgentIndicator({ className }: BackgroundAgentIndicator
       <PopoverContent align="end" className="w-80 p-0">
         <div className="p-3 border-b">
           <div className="flex items-center justify-between">
-            <h4 className="font-medium text-sm">Background Agents</h4>
+            <h4 className="font-medium text-sm">{t('backgroundAgents')}</h4>
             <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={openPanel}>
-              View All
+              {t('viewAll')}
             </Button>
           </div>
 

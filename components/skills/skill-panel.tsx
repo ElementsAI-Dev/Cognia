@@ -30,7 +30,9 @@ import {
   ChevronDown,
   Check,
   Loader2,
+  ArrowLeft,
 } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
   InputGroup,
@@ -59,36 +61,37 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useSkillStore } from '@/stores/skill-store';
 import { downloadSkillAsMarkdown } from '@/lib/skills/packager';
+import { processSelectionWithAI } from '@/lib/ai/selection-ai';
 import { SkillCard } from './skill-card';
 import { SkillDetail } from './skill-detail';
 import { SkillEditor } from './skill-editor';
 import { SkillAnalytics } from './skill-analytics';
 import type { Skill, SkillCategory, SkillStatus } from '@/types/skill';
 
-const CATEGORY_OPTIONS: Array<{ value: SkillCategory | 'all'; label: string; icon: React.ReactNode }> = [
-  { value: 'all', label: 'All Categories', icon: <Sparkles className="h-4 w-4" /> },
-  { value: 'creative-design', label: 'Creative & Design', icon: <Palette className="h-4 w-4" /> },
-  { value: 'development', label: 'Development', icon: <Code className="h-4 w-4" /> },
-  { value: 'enterprise', label: 'Enterprise', icon: <Building2 className="h-4 w-4" /> },
-  { value: 'productivity', label: 'Productivity', icon: <Zap className="h-4 w-4" /> },
-  { value: 'data-analysis', label: 'Data Analysis', icon: <BarChart3 className="h-4 w-4" /> },
-  { value: 'communication', label: 'Communication', icon: <MessageSquare className="h-4 w-4" /> },
-  { value: 'meta', label: 'Meta Skills', icon: <Cog className="h-4 w-4" /> },
-  { value: 'custom', label: 'Custom', icon: <FileText className="h-4 w-4" /> },
+const CATEGORY_OPTIONS: Array<{ value: SkillCategory | 'all'; labelKey: string; icon: React.ReactNode }> = [
+  { value: 'all', labelKey: 'allCategories', icon: <Sparkles className="h-4 w-4" /> },
+  { value: 'creative-design', labelKey: 'categoryCreativeDesign', icon: <Palette className="h-4 w-4" /> },
+  { value: 'development', labelKey: 'categoryDevelopment', icon: <Code className="h-4 w-4" /> },
+  { value: 'enterprise', labelKey: 'categoryEnterprise', icon: <Building2 className="h-4 w-4" /> },
+  { value: 'productivity', labelKey: 'categoryProductivity', icon: <Zap className="h-4 w-4" /> },
+  { value: 'data-analysis', labelKey: 'categoryDataAnalysis', icon: <BarChart3 className="h-4 w-4" /> },
+  { value: 'communication', labelKey: 'categoryCommunication', icon: <MessageSquare className="h-4 w-4" /> },
+  { value: 'meta', labelKey: 'categoryMeta', icon: <Cog className="h-4 w-4" /> },
+  { value: 'custom', labelKey: 'categoryCustom', icon: <FileText className="h-4 w-4" /> },
 ];
 
-const STATUS_OPTIONS: Array<{ value: SkillStatus | 'all'; label: string }> = [
-  { value: 'all', label: 'All Status' },
-  { value: 'enabled', label: 'Enabled' },
-  { value: 'disabled', label: 'Disabled' },
-  { value: 'error', label: 'Has Errors' },
+const STATUS_OPTIONS: Array<{ value: SkillStatus | 'all'; labelKey: string }> = [
+  { value: 'all', labelKey: 'allStatus' },
+  { value: 'enabled', labelKey: 'enabled' },
+  { value: 'disabled', labelKey: 'disabled' },
+  { value: 'error', labelKey: 'hasErrors' },
 ];
 
-const SOURCE_OPTIONS: Array<{ value: 'all' | 'builtin' | 'custom' | 'imported'; label: string }> = [
-  { value: 'all', label: 'All Sources' },
-  { value: 'builtin', label: 'Built-in' },
-  { value: 'custom', label: 'Custom' },
-  { value: 'imported', label: 'Imported' },
+const SOURCE_OPTIONS: Array<{ value: 'all' | 'builtin' | 'custom' | 'imported'; labelKey: string }> = [
+  { value: 'all', labelKey: 'allSources' },
+  { value: 'builtin', labelKey: 'builtin' },
+  { value: 'custom', labelKey: 'categoryCustom' },
+  { value: 'imported', labelKey: 'imported' },
 ];
 
 type ViewMode = 'grid' | 'list';
@@ -346,6 +349,11 @@ export function SkillPanel({
             onSave={handleSaveSkill}
             onCancel={handleBack}
             readOnly={selectedSkill.source === 'builtin'}
+            onRequestAI={async (prompt) => {
+              const result = await processSelectionWithAI({ action: 'rewrite', text: prompt, customPrompt: prompt });
+              if (result.success && result.result) return result.result;
+              throw new Error(result.error || 'AI request failed');
+            }}
           />
         </div>
       </TooltipProvider>
@@ -360,6 +368,11 @@ export function SkillPanel({
           <SkillEditor
             onSave={handleSaveSkill}
             onCancel={handleBack}
+            onRequestAI={async (prompt) => {
+              const result = await processSelectionWithAI({ action: 'rewrite', text: prompt, customPrompt: prompt });
+              if (result.success && result.result) return result.result;
+              throw new Error(result.error || 'AI request failed');
+            }}
           />
         </div>
       </TooltipProvider>
@@ -381,7 +394,7 @@ export function SkillPanel({
               {t('close')}
             </Button>
           </div>
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0 overflow-hidden">
             <div className="p-4">
               <SkillAnalytics />
             </div>
@@ -398,6 +411,11 @@ export function SkillPanel({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
+            <Link href="/">
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
             <Sparkles className="h-5 w-5 text-primary" />
             <h2 className="font-semibold">{t('skillsLibrary')}</h2>
             <Badge variant="secondary" className="ml-2">
@@ -470,7 +488,7 @@ export function SkillPanel({
                 <Button variant="outline" size="sm" className="h-8">
                   {CATEGORY_OPTIONS.find(c => c.value === categoryFilter)?.icon}
                   <span className="ml-1.5">
-                    {CATEGORY_OPTIONS.find(c => c.value === categoryFilter)?.label}
+                    {t(CATEGORY_OPTIONS.find(c => c.value === categoryFilter)?.labelKey || 'allCategories')}
                   </span>
                   <ChevronDown className="ml-1.5 h-3 w-3" />
                 </Button>
@@ -483,7 +501,7 @@ export function SkillPanel({
                   >
                     <div className="flex items-center gap-2 flex-1">
                       {option.icon}
-                      <span>{option.label}</span>
+                      <span>{t(option.labelKey)}</span>
                     </div>
                     {categoryCounts[option.value] !== undefined && (
                       <Badge variant="secondary" className="ml-2 text-xs">
@@ -503,7 +521,7 @@ export function SkillPanel({
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8">
                   <Filter className="h-3.5 w-3.5 mr-1.5" />
-                  {STATUS_OPTIONS.find(s => s.value === statusFilter)?.label}
+                  {t(STATUS_OPTIONS.find(s => s.value === statusFilter)?.labelKey || 'allStatus')}
                   <ChevronDown className="ml-1.5 h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
@@ -513,7 +531,7 @@ export function SkillPanel({
                     key={option.value}
                     onClick={() => setStatusFilter(option.value)}
                   >
-                    {option.label}
+                    {t(option.labelKey)}
                     {statusFilter === option.value && (
                       <Check className="h-4 w-4 ml-auto" />
                     )}
@@ -526,7 +544,7 @@ export function SkillPanel({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8">
-                  {SOURCE_OPTIONS.find(s => s.value === sourceFilter)?.label}
+                  {t(SOURCE_OPTIONS.find(s => s.value === sourceFilter)?.labelKey || 'allSources')}
                   <ChevronDown className="ml-1.5 h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
@@ -536,7 +554,7 @@ export function SkillPanel({
                     key={option.value}
                     onClick={() => setSourceFilter(option.value)}
                   >
-                    {option.label}
+                    {t(option.labelKey)}
                     {sourceFilter === option.value && (
                       <Check className="h-4 w-4 ml-auto" />
                     )}
@@ -595,8 +613,8 @@ export function SkillPanel({
         </div>
 
         {/* Skills List */}
-        <ScrollArea className="flex-1">
-          <div className="p-4">
+        <ScrollArea className="flex-1 min-h-0 overflow-hidden">
+          <div className="p-4 overflow-hidden">
             {filteredSkills.length === 0 ? (
               <EmptyState
                 icon={Sparkles}
@@ -630,7 +648,7 @@ export function SkillPanel({
                 ))}
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 overflow-hidden">
                 {filteredSkills.map((skill) => (
                   <SkillCard
                     key={skill.id}

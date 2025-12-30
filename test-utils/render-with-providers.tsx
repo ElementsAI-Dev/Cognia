@@ -4,16 +4,22 @@
 
 import { ReactElement, ReactNode } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
+import { NextIntlClientProvider } from 'next-intl';
 import { TooltipProvider } from '@/components/ui/tooltip';
+
+// Import English messages for testing
+import enMessages from '@/lib/i18n/messages/en.json';
 
 /**
  * All providers wrapper for testing
  */
 function AllProviders({ children }: { children: ReactNode }) {
   return (
-    <TooltipProvider>
-      {children}
-    </TooltipProvider>
+    <NextIntlClientProvider locale="en" messages={enMessages} timeZone="UTC">
+      <TooltipProvider>
+        {children}
+      </TooltipProvider>
+    </NextIntlClientProvider>
   );
 }
 

@@ -42,7 +42,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useSessionStore, useSettingsStore, useUIStore, useArtifactStore, useChatStore } from '@/stores';
-import { toast } from '@/components/ui/toaster';
+import { toast } from '@/components/ui/sonner';
 import type { ChatMode } from '@/types';
 
 interface CommandPaletteProps {

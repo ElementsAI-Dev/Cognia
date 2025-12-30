@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { waitForAnimation } from '../utils/test-helpers';
 
 /**
  * Project Import/Export Tests
  * Tests for project import and export functionality
+ * Optimized for CI/CD efficiency
  */
 
 test.describe('Import/Export Dialog', () => {
@@ -99,7 +101,7 @@ test.describe('Import/Export Dialog', () => {
 
     if (await importExportBtn.isVisible()) {
       await importExportBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Export tab should be active
       const exportTab = page.locator('[role="tab"][data-state="active"]:has-text("Export")').first();
@@ -113,7 +115,7 @@ test.describe('Import/Export Dialog', () => {
 
     if (await importExportBtn.isVisible()) {
       await importExportBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Projects should be listed
       const project1 = page.locator('text=Export Project 1').first();
@@ -161,14 +163,14 @@ test.describe('Import/Export Dialog', () => {
 
     if (await importExportBtn.isVisible()) {
       await importExportBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Find select all button
       const selectAllBtn = page.locator('button:has-text("Select All")').first();
 
       if (await selectAllBtn.isVisible()) {
         await selectAllBtn.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
 
         // Button should change to Deselect All
         const deselectBtn = page.locator('button:has-text("Deselect All")').first();
@@ -183,7 +185,7 @@ test.describe('Import/Export Dialog', () => {
 
     if (await importExportBtn.isVisible()) {
       await importExportBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       const exportJsonBtn = page.locator('button:has-text("Export JSON")').first();
       const isVisible = await exportJsonBtn.isVisible().catch(() => false);
@@ -196,7 +198,7 @@ test.describe('Import/Export Dialog', () => {
 
     if (await importExportBtn.isVisible()) {
       await importExportBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       const exportZipBtn = page.locator('button:has-text("Export ZIP")').first();
       const isVisible = await exportZipBtn.isVisible().catch(() => false);
@@ -269,7 +271,7 @@ test.describe('Import/Export Dialog', () => {
 
     if (await importExportBtn.isVisible()) {
       await importExportBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Close dialog by clicking outside or close button
       const closeBtn = page.locator('[role="dialog"] button[aria-label="Close"], [role="dialog"] button:has(svg[class*="X"])').first();
@@ -280,7 +282,7 @@ test.describe('Import/Export Dialog', () => {
         // Try pressing escape
         await page.keyboard.press('Escape');
       }
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Dialog should be closed
       const dialog = page.locator('[role="dialog"]').first();

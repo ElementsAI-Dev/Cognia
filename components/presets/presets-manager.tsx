@@ -29,6 +29,7 @@ import {
 import { PresetCard } from './preset-card';
 import { CreatePresetDialog } from './create-preset-dialog';
 import { usePresetStore, useSettingsStore } from '@/stores';
+import { toast } from '@/components/ui/sonner';
 import type { Preset, CreatePresetInput } from '@/types/preset';
 import { nanoid } from 'nanoid';
 
@@ -158,12 +159,12 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
               imported++;
             }
           });
-          alert(`Successfully imported ${imported} presets.`);
+          toast.success(`Successfully imported ${imported} presets.`);
         } else {
-          alert('Invalid preset file format.');
+          toast.error('Invalid preset file format.');
         }
       } catch {
-        alert('Failed to parse preset file.');
+        toast.error('Failed to parse preset file.');
       }
     };
     reader.readAsText(file);
@@ -180,7 +181,7 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
     
     const settings = providerSettings['openai'] || Object.values(providerSettings).find(s => s?.apiKey);
     if (!settings?.apiKey) {
-      alert('Please configure an API key in settings first.');
+      toast.warning('Please configure an API key in settings first.');
       return;
     }
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { cn, formatRelativeTime } from "@/lib/utils";
+import { useTranslations } from 'next-intl';
 import { useSelectionStore, type SelectionHistoryItem } from "@/stores/selection-store";
 import { 
   Clock, 
@@ -94,18 +95,6 @@ function HistoryItem({
   const [showMenu, setShowMenu] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-
-    if (diff < 60000) return "Just now";
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-    if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
-    return date.toLocaleDateString();
-  };
-
   const handleCopy = useCallback((text: string) => {
     onCopy(text);
     setCopied(true);
@@ -166,7 +155,7 @@ function HistoryItem({
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-muted-foreground flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              {formatTime(item.timestamp)}
+              {formatRelativeTime(item.timestamp)}
             </span>
             <ChevronRight className={cn(
               "w-4 h-4 text-muted-foreground transition-transform duration-200",
@@ -255,6 +244,7 @@ function HistoryItem({
 }
 
 export function SelectionHistoryPanel() {
+  const t = useTranslations('selectionHistory');
   const { history, clearHistory } = useSelectionStore();
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -338,7 +328,7 @@ export function SelectionHistoryPanel() {
         onClick={() => setIsOpen(true)}
       >
         <Clock className="w-4 h-4" />
-        History
+        {t('history')}
         {history.length > 0 && (
           <Badge variant="secondary" className="h-5 text-[10px]">
             {history.length}
@@ -365,9 +355,9 @@ export function SelectionHistoryPanel() {
             <Clock className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <span>Selection History</span>
+            <span>{t('title')}</span>
             <p className="text-[10px] text-muted-foreground font-normal">
-              {filteredHistory.length} of {history.length} items
+              {t('itemCount', { filtered: filteredHistory.length, total: history.length })}
             </p>
           </div>
         </h3>
@@ -377,7 +367,7 @@ export function SelectionHistoryPanel() {
             size="sm"
             className="h-8 w-8 p-0"
             onClick={handleExport}
-            title="Export history"
+            title={t('exportHistory')}
           >
             <Download className="w-4 h-4" />
           </Button>
@@ -387,7 +377,7 @@ export function SelectionHistoryPanel() {
               size="sm"
               className="h-8 w-8 p-0 text-destructive hover:text-destructive"
               onClick={clearHistory}
-              title="Clear all history"
+              title={t('clearAllHistory')}
             >
               <Trash2 className="w-4 h-4" />
             </Button>
@@ -410,7 +400,7 @@ export function SelectionHistoryPanel() {
             <Search className="w-4 h-4" />
           </InputGroupAddon>
           <InputGroupInput
-            placeholder="Search history..."
+            placeholder={t('searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="text-sm"
@@ -429,7 +419,7 @@ export function SelectionHistoryPanel() {
             onClick={() => setShowFilters(!showFilters)}
           >
             <Filter className="w-3.5 h-3.5" />
-            Filter
+            {t('filter')}
             <ChevronDown className={cn(
               "w-3 h-3 transition-transform",
               showFilters && "rotate-180"
@@ -438,14 +428,14 @@ export function SelectionHistoryPanel() {
           
           {selectedItems.size > 0 && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <span>{selectedItems.size} selected</span>
+              <span>{t('selected', { count: selectedItems.size })}</span>
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-6 px-2 text-xs"
                 onClick={() => setSelectedItems(new Set())}
               >
-                Clear
+                {t('clear')}
               </Button>
             </div>
           )}
@@ -456,7 +446,7 @@ export function SelectionHistoryPanel() {
             className="h-7 text-xs ml-auto"
             onClick={handleSelectAll}
           >
-            {selectedItems.size === filteredHistory.length ? "Deselect all" : "Select all"}
+            {selectedItems.size === filteredHistory.length ? t('deselectAll') : t('selectAll')}
           </Button>
         </div>
         
@@ -468,7 +458,7 @@ export function SelectionHistoryPanel() {
               className="cursor-pointer hover:opacity-80"
               onClick={() => setFilterAction("all")}
             >
-              All
+              {t('all')}
             </Badge>
             {availableActions.map((action) => (
               <Badge
@@ -491,15 +481,15 @@ export function SelectionHistoryPanel() {
             history.length === 0 ? (
               <EmptyState
                 icon={Clock}
-                title="No history yet"
-                description="Your selection actions will appear here"
+                title={t('noHistoryYet')}
+                description={t('noHistoryDesc')}
                 compact
               />
             ) : (
               <EmptyState
                 icon={Search}
-                title="No results found"
-                description="Try adjusting your search or filters"
+                title={t('noResultsFound')}
+                description={t('noResultsDesc')}
                 compact
               />
             )

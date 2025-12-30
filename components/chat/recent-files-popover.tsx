@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Popover,
   PopoverContent,
@@ -39,17 +40,17 @@ function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-function formatTimeAgo(date: Date): string {
+function formatTimeAgo(date: Date, t: ReturnType<typeof useTranslations>): string {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffMins < 1) return t('justNow');
+  if (diffMins < 60) return t('minutesAgo', { count: diffMins });
+  if (diffHours < 24) return t('hoursAgo', { count: diffHours });
+  if (diffDays < 7) return t('daysAgo', { count: diffDays });
   return date.toLocaleDateString();
 }
 
@@ -69,6 +70,7 @@ export function RecentFilesPopover({
   disabled = false,
   className,
 }: RecentFilesPopoverProps) {
+  const t = useTranslations('recentFilesPopover');
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -126,7 +128,7 @@ export function RecentFilesPopover({
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search recent files..."
+            placeholder={t('searchPlaceholder')}
             className="h-8 border-0 bg-transparent p-0 focus-visible:ring-0"
           />
           {searchQuery && (
@@ -154,7 +156,7 @@ export function RecentFilesPopover({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{file.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {formatFileSize(file.size)} • {formatTimeAgo(file.usedAt)}
+                      {formatFileSize(file.size)} • {formatTimeAgo(file.usedAt, t)}
                     </p>
                   </div>
                   <Button
@@ -169,7 +171,7 @@ export function RecentFilesPopover({
               ))
             ) : (
               <div className="py-6 text-center text-sm text-muted-foreground">
-                {searchQuery ? 'No files found' : 'No recent files'}
+                {searchQuery ? t('noFilesFound') : t('noRecentFiles')}
               </div>
             )}
           </div>
@@ -184,7 +186,7 @@ export function RecentFilesPopover({
               onClick={handleClearAll}
             >
               <Trash2 className="h-3 w-3 mr-1" />
-              Clear all recent files
+              {t('clearAll')}
             </Button>
           </div>
         )}

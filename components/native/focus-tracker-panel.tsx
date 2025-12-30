@@ -13,7 +13,7 @@ import {
   Monitor,
   BarChart3,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatTime } from '@/lib/utils';
 
 interface FocusTrackerPanelProps {
   className?: string;
@@ -45,12 +45,6 @@ export function FocusTrackerPanel({ className }: FocusTrackerPanelProps) {
     return `${seconds}s`;
   };
 
-  const formatTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const totalTodayMs = todaySummary?.total_active_ms ?? 0;
 

@@ -5,6 +5,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   ArrowLeft,
   MessageSquare,
@@ -85,6 +86,7 @@ export function ProjectDetail({
   onNewChat,
   onSelectSession,
 }: ProjectDetailProps) {
+  const t = useTranslations('projectDetail');
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [sessionToRemove, setSessionToRemove] = useState<string | null>(null);
@@ -117,10 +119,10 @@ export function ProjectDetail({
   if (!project) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <p className="text-muted-foreground">Project not found</p>
+        <p className="text-muted-foreground">{t('notFound')}</p>
         <Button variant="outline" className="mt-4" onClick={onBack}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Projects
+          {t('backToProjects')}
         </Button>
       </div>
     );
@@ -176,9 +178,9 @@ export function ProjectDetail({
               <p className="mt-1 text-muted-foreground">{project.description}</p>
             )}
             <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
-              <span>{projectSessions.length} sessions</span>
-              <span>{project.knowledgeBase.length} files</span>
-              <span>Created {formatDate(project.createdAt)}</span>
+              <span>{t('sessionsCount', { count: projectSessions.length })}</span>
+              <span>{t('filesCount', { count: project.knowledgeBase.length })}</span>
+              <span>{t('created')} {formatDate(project.createdAt)}</span>
             </div>
             {/* Tags */}
             {project.tags && project.tags.length > 0 && (
@@ -195,7 +197,7 @@ export function ProjectDetail({
             {project.isArchived && (
               <Badge variant="secondary" className="mt-2 gap-1">
                 <Archive className="h-3 w-3" />
-                Archived
+                {t('archived')}
               </Badge>
             )}
           </div>
@@ -207,29 +209,29 @@ export function ProjectDetail({
             trigger={
               <Button variant="outline" size="sm">
                 <History className="mr-2 h-4 w-4" />
-                Activity
+                {t('activity')}
               </Button>
             }
           />
           {project.isArchived ? (
             <Button variant="outline" onClick={() => unarchiveProject(projectId)}>
               <ArchiveRestore className="mr-2 h-4 w-4" />
-              Unarchive
+              {t('unarchive')}
             </Button>
           ) : (
             <Button variant="outline" onClick={() => archiveProject(projectId)}>
               <Archive className="mr-2 h-4 w-4" />
-              Archive
+              {t('archive')}
             </Button>
           )}
           <Button variant="outline" onClick={() => setShowEditDialog(true)}>
             <Settings className="mr-2 h-4 w-4" />
-            Settings
+            {t('settings')}
           </Button>
           {onNewChat && !project.isArchived && (
             <Button onClick={() => onNewChat(projectId)}>
               <Plus className="mr-2 h-4 w-4" />
-              New Chat
+              {t('newChat')}
             </Button>
           )}
         </div>
@@ -246,7 +248,7 @@ export function ProjectDetail({
             </div>
             <span className="text-2xl font-bold">{projectSessions.length}</span>
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">Chat Sessions</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t('chatSessions')}</p>
           <div className="mt-2 h-1 w-full bg-muted rounded-full overflow-hidden">
             <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(projectSessions.length * 10, 100)}%` }} />
           </div>
@@ -260,7 +262,7 @@ export function ProjectDetail({
             </div>
             <span className="text-2xl font-bold">{project.knowledgeBase.length}</span>
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">Knowledge Files</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t('knowledgeFiles')}</p>
           <div className="mt-2 h-1 w-full bg-muted rounded-full overflow-hidden">
             <div className="h-full bg-green-500 rounded-full" style={{ width: `${Math.min(project.knowledgeBase.length * 10, 100)}%` }} />
           </div>
@@ -274,7 +276,7 @@ export function ProjectDetail({
             </div>
           </div>
           <p className="mt-2 text-sm font-medium">{formatDate(project.createdAt)}</p>
-          <p className="text-xs text-muted-foreground">Created</p>
+          <p className="text-xs text-muted-foreground">{t('created')}</p>
         </div>
         <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/20 animate-in fade-in-0 slide-in-from-bottom-2 duration-300" style={{ animationDelay: '150ms' }}>
           <div className="flex items-center justify-between">
@@ -285,7 +287,7 @@ export function ProjectDetail({
             </div>
           </div>
           <p className="mt-2 text-sm font-medium">{formatDate(project.updatedAt)}</p>
-          <p className="text-xs text-muted-foreground">Last Updated</p>
+          <p className="text-xs text-muted-foreground">{t('lastUpdated')}</p>
         </div>
       </div>
 
@@ -293,7 +295,7 @@ export function ProjectDetail({
       {(project.customInstructions || project.defaultMode || project.defaultProvider) && (
         <div className="flex flex-wrap gap-2">
           {project.customInstructions && (
-            <Badge variant="secondary">Custom Instructions</Badge>
+            <Badge variant="secondary">{t('customInstructions')}</Badge>
           )}
           {project.defaultMode && (
             <Badge variant="outline">Default: {project.defaultMode}</Badge>
@@ -309,11 +311,11 @@ export function ProjectDetail({
         <TabsList>
           <TabsTrigger value="sessions" className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
-            Sessions
+            {t('sessions')}
           </TabsTrigger>
           <TabsTrigger value="knowledge" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
-            Knowledge Base
+            {t('knowledgeBase')}
           </TabsTrigger>
         </TabsList>
 
@@ -332,7 +334,7 @@ export function ProjectDetail({
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Badge variant="outline">{session.mode}</Badge>
                         <span>{session.provider}/{session.model}</span>
-                        <span>{session.messageCount || 0} messages</span>
+                        <span>{t('messagesCount', { count: session.messageCount || 0 })}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -358,9 +360,9 @@ export function ProjectDetail({
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <MessageSquare className="h-12 w-12 text-muted-foreground/50" />
-              <h3 className="mt-4 font-medium">No sessions yet</h3>
+              <h3 className="mt-4 font-medium">{t('noSessionsYet')}</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Start a new chat to add sessions to this project
+                {t('startNewChatToAdd')}
               </p>
               {onNewChat && (
                 <Button
@@ -369,7 +371,7 @@ export function ProjectDetail({
                   onClick={() => onNewChat(projectId)}
                 >
                   <Plus className="mr-2 h-4 w-4" />
-                  New Chat
+                  {t('newChat')}
                 </Button>
               )}
             </div>
@@ -383,10 +385,9 @@ export function ProjectDetail({
 
       {/* Danger Zone */}
       <div className="rounded-lg border border-destructive/50 p-4">
-        <h3 className="font-semibold text-destructive">Danger Zone</h3>
+        <h3 className="font-semibold text-destructive">{t('dangerZone')}</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Deleting this project will not delete associated sessions, but they will be
-          unlinked.
+          {t('deleteWarning')}
         </p>
         <Button
           variant="destructive"
@@ -395,7 +396,7 @@ export function ProjectDetail({
           onClick={() => setShowDeleteDialog(true)}
         >
           <Trash2 className="mr-2 h-4 w-4" />
-          Delete Project
+          {t('deleteProject')}
         </Button>
       </div>
 
@@ -411,19 +412,18 @@ export function ProjectDetail({
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Project</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteProject')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete &quot;{project.name}&quot;? This action
-              cannot be undone. Sessions will be unlinked but not deleted.
+              {t('deleteConfirmation', { name: project.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              {t('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -436,16 +436,15 @@ export function ProjectDetail({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Session</AlertDialogTitle>
+            <AlertDialogTitle>{t('removeSession')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove this session from the project? The session will not be deleted,
-              just unlinked from this project.
+              {t('removeSessionConfirmation')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleRemoveSession}>
-              Remove
+              {t('remove')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

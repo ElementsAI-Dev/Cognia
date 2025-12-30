@@ -1,3 +1,7 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+
 /**
  * Splash Screen Page
  *
@@ -6,70 +10,190 @@
  */
 
 export default function SplashScreenPage() {
-  return (
-    <div className="flex h-screen w-screen items-center justify-center bg-gradient-to-br from-primary via-primary/80 to-primary/60">
-      <div className="flex flex-col items-center gap-6">
-        {/* Logo/Icon */}
-        <div className="relative">
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm ring-1 ring-white/20">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="animate-pulse text-white"
-            >
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
-          </div>
+  // Primary blue color for the splash
+  const primary = '#3b82f6';
+  const [progress, setProgress] = useState(0);
+  const [loadingText, setLoadingText] = useState('Initializing...');
 
-          {/* Pulsing rings */}
-          <div className="absolute inset-0 -m-4 animate-ping rounded-full bg-white/20 opacity-75" />
-          <div className="absolute inset-0 -m-8 animate-ping rounded-full bg-white/10 opacity-50 animation-delay-500" />
+  // Simulate loading progress with realistic stages
+  useEffect(() => {
+    const stages = [
+      { progress: 15, text: 'Loading core modules...' },
+      { progress: 35, text: 'Initializing providers...' },
+      { progress: 55, text: 'Loading themes...' },
+      { progress: 75, text: 'Preparing workspace...' },
+      { progress: 90, text: 'Almost ready...' },
+      { progress: 100, text: 'Ready!' },
+    ];
+
+    let currentStage = 0;
+    const interval = setInterval(() => {
+      if (currentStage < stages.length) {
+        setProgress(stages[currentStage].progress);
+        setLoadingText(stages[currentStage].text);
+        currentStage++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 400);
+
+    return () => clearInterval(interval);
+  }, []);
+  
+  return (
+    <div className="flex h-screen w-screen items-center justify-center bg-[#09090b] overflow-hidden">
+      {/* Background gradient effects */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: `radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15), transparent),
+                       radial-gradient(ellipse 60% 40% at 80% 100%, rgba(139, 92, 246, 0.1), transparent)`,
+        }}
+      />
+      
+      <div className="relative flex flex-col items-center gap-8">
+        {/* Logo Container */}
+        <div className="relative">
+          {/* Outer rotating glow */}
+          <div
+            className="absolute -inset-8 rounded-full opacity-40"
+            style={{
+              background: `conic-gradient(from 0deg, transparent, ${primary}, transparent)`,
+              animation: 'spin 4s linear infinite',
+            }}
+          />
+          
+          {/* Middle pulsing ring */}
+          <div
+            className="absolute -inset-5 rounded-full"
+            style={{
+              border: '2px solid rgba(59, 130, 246, 0.2)',
+              animation: 'pulse-ring 2s ease-in-out infinite',
+            }}
+          />
+          
+          {/* Inner breathing ring */}
+          <div
+            className="absolute -inset-3 rounded-full"
+            style={{
+              border: '1px solid rgba(59, 130, 246, 0.15)',
+              animation: 'pulse-ring 2s ease-in-out infinite 0.5s',
+            }}
+          />
+
+          {/* Logo container with glass effect */}
+          <div
+            className="relative h-24 w-24 rounded-2xl flex items-center justify-center overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 0 60px rgba(59, 130, 246, 0.4), inset 0 0 30px rgba(59, 130, 246, 0.1)',
+            }}
+          >
+            {/* Shimmer effect */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `linear-gradient(45deg, ${primary}30, transparent, ${primary}15)`,
+                animation: 'shimmer 3s ease-in-out infinite',
+              }}
+            />
+            
+            {/* Neural network logo */}
+            <div className="relative z-10">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                <circle
+                  cx="12" cy="12" r="3.5"
+                  fill={primary}
+                  style={{ animation: 'pulse 2s ease-in-out infinite' }}
+                />
+                <circle cx="12" cy="4" r="2" fill={primary} opacity="0.7" style={{ animation: 'pulse 2s ease-in-out infinite 0.2s' }} />
+                <circle cx="12" cy="20" r="2" fill={primary} opacity="0.7" style={{ animation: 'pulse 2s ease-in-out infinite 0.4s' }} />
+                <circle cx="4" cy="12" r="2" fill={primary} opacity="0.7" style={{ animation: 'pulse 2s ease-in-out infinite 0.6s' }} />
+                <circle cx="20" cy="12" r="2" fill={primary} opacity="0.7" style={{ animation: 'pulse 2s ease-in-out infinite 0.8s' }} />
+                <line x1="12" y1="8.5" x2="12" y2="6" stroke={primary} strokeWidth="1.5" opacity="0.6" />
+                <line x1="12" y1="15.5" x2="12" y2="18" stroke={primary} strokeWidth="1.5" opacity="0.6" />
+                <line x1="8.5" y1="12" x2="6" y2="12" stroke={primary} strokeWidth="1.5" opacity="0.6" />
+                <line x1="15.5" y1="12" x2="18" y2="12" stroke={primary} strokeWidth="1.5" opacity="0.6" />
+              </svg>
+            </div>
+          </div>
         </div>
 
-        {/* App name */}
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-white tracking-tight">
+        {/* Brand name */}
+        <div className="flex flex-col items-center gap-4">
+          <h1 className="text-3xl font-semibold text-white tracking-tight">
             Cognia
           </h1>
-          <p className="mt-2 text-sm text-white/80">
+          <p className="text-sm text-white/50">
             AI Chat Assistant
           </p>
-        </div>
-
-        {/* Loading indicator */}
-        <div className="mt-4 flex items-center gap-2">
-          <div className="h-2 w-2 animate-bounce rounded-full bg-white [animation-delay:-0.3s]" />
-          <div className="h-2 w-2 animate-bounce rounded-full bg-white [animation-delay:-0.15s]" />
-          <div className="h-2 w-2 animate-bounce rounded-full bg-white" />
+          
+          {/* Progress bar container */}
+          <div className="w-48 flex flex-col items-center gap-2 mt-2">
+            {/* Progress bar background */}
+            <div
+              className="relative w-full h-1.5 rounded-full overflow-hidden"
+              style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+            >
+              {/* Progress bar fill */}
+              <div
+                className="absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
+                style={{
+                  width: `${progress}%`,
+                  background: `linear-gradient(90deg, ${primary}, ${primary}cc)`,
+                  boxShadow: `0 0 12px rgba(59, 130, 246, 0.4)`,
+                }}
+              />
+              {/* Shimmer effect */}
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                  animation: 'progress-shimmer 1.5s ease-in-out infinite',
+                }}
+              />
+            </div>
+            
+            {/* Progress percentage and text */}
+            <div className="flex items-center justify-between w-full">
+              <span className="text-xs font-medium text-white/50 transition-all duration-300">
+                {loadingText}
+              </span>
+              <span className="text-xs font-mono" style={{ color: primary }}>
+                {progress}%
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Version info */}
-        <p className="mt-4 text-xs text-white/60">
+        <p className="text-xs text-white/30 mt-4">
           Version 0.1.0
         </p>
       </div>
 
+      {/* CSS Animations */}
       <style jsx>{`
-        @keyframes ping {
-          75%, 100% {
-            transform: scale(2);
-            opacity: 0;
-          }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
-        .animate-ping {
-          animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(0.95); }
         }
-        .animation-delay-500 {
-          animation-delay: 500ms;
+        @keyframes pulse-ring {
+          0%, 100% { transform: scale(1); opacity: 0.3; }
+          50% { transform: scale(1.08); opacity: 0.6; }
+        }
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        @keyframes progress-shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(200%); }
         }
       `}</style>
     </div>

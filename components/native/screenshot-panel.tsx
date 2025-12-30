@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { useScreenshot, useScreenshotHistory, ScreenshotHistoryEntry } from '@/hooks/use-screenshot';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,7 @@ export function ScreenshotPanel({
   className,
   onScreenshotTaken,
 }: ScreenshotPanelProps) {
+  const t = useTranslations('screenshotPanel');
   const {
     isCapturing,
     lastScreenshot,
@@ -125,7 +127,7 @@ export function ScreenshotPanel({
       <div className="p-2 sm:p-3 border-b space-y-2 sm:space-y-3 shrink-0">
         <div className="flex items-center gap-2">
           <Camera className="h-5 w-5" />
-          <span className="font-medium">Screenshot</span>
+          <span className="font-medium">{t('title')}</span>
         </div>
         
         <div className="flex flex-wrap gap-2">
@@ -137,7 +139,7 @@ export function ScreenshotPanel({
             className="flex-1 min-w-[80px]"
           >
             <Monitor className="h-4 w-4 mr-1" />
-            <span className="hidden xs:inline">Full</span>
+            <span className="hidden xs:inline">{t('full')}</span>
             <span className="xs:hidden">F</span>
           </Button>
           <Button
@@ -148,7 +150,7 @@ export function ScreenshotPanel({
             className="flex-1 min-w-[80px]"
           >
             <Square className="h-4 w-4 mr-1" />
-            <span className="hidden xs:inline">Window</span>
+            <span className="hidden xs:inline">{t('window')}</span>
             <span className="xs:hidden">W</span>
           </Button>
           <Button
@@ -159,7 +161,7 @@ export function ScreenshotPanel({
             className="flex-1 min-w-[80px]"
           >
             <Square className="h-4 w-4 mr-1" />
-            <span className="hidden xs:inline">Region</span>
+            <span className="hidden xs:inline">{t('region')}</span>
             <span className="xs:hidden">R</span>
           </Button>
         </div>
@@ -221,7 +223,7 @@ export function ScreenshotPanel({
             <Search className="h-4 w-4" />
           </InputGroupAddon>
           <InputGroupInput
-            placeholder="Search by OCR text..."
+            placeholder={t('searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -231,7 +233,7 @@ export function ScreenshotPanel({
               <InputGroupButton
                 size="icon-xs"
                 onClick={handleClearSearch}
-                aria-label="Clear search"
+                aria-label={t('clearSearch')}
               >
                 <X className="h-3 w-3" />
               </InputGroupButton>
@@ -264,8 +266,8 @@ export function ScreenshotPanel({
             <div className="col-span-full">
               <EmptyState
                 icon={Camera}
-                title={searchResults ? 'No results found' : 'No screenshot history'}
-                description={searchResults ? 'Try a different search query' : 'Take a screenshot to get started'}
+                title={searchResults ? t('noResultsFound') : t('noHistory')}
+                description={searchResults ? t('tryDifferentQuery') : t('takeScreenshotToStart')}
                 compact
               />
             </div>
@@ -275,7 +277,7 @@ export function ScreenshotPanel({
 
       <div className="p-2 border-t flex justify-between items-center shrink-0">
         <span className="text-xs text-muted-foreground">
-          {history.length} screenshots
+          {t('screenshotCount', { count: history.length })}
         </span>
         <Button
           variant="ghost"
@@ -283,7 +285,7 @@ export function ScreenshotPanel({
           onClick={clearHistory}
           className="text-xs"
         >
-          Clear history
+          {t('clearHistory')}
         </Button>
       </div>
     </div>

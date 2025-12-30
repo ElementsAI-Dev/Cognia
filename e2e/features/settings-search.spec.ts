@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { waitForAnimation } from '../utils/test-helpers';
 
 /**
  * Search Settings Complete Tests
  * Tests web search provider configuration and management
+ * Optimized for CI/CD efficiency
  */
 
 test.describe('Search Settings - Provider Configuration', () => {
@@ -667,7 +669,7 @@ test.describe('Search Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for Search tab or section
       const searchSection = page.locator('text=Search, text=Web Search').first();
@@ -683,7 +685,7 @@ test.describe('Search Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Click Search tab if available
       const searchTab = page
@@ -691,7 +693,7 @@ test.describe('Search Settings UI', () => {
         .first();
       if (await searchTab.isVisible()) {
         await searchTab.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
       }
 
       // Check for provider names
@@ -708,7 +710,7 @@ test.describe('Search Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for password inputs (API keys)
       const apiKeyInputs = page.locator(
@@ -726,7 +728,7 @@ test.describe('Search Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for test/verify buttons
       const testButtons = page.locator(

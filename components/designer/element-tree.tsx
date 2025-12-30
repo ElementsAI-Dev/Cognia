@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   SortableContext,
   useSortable,
@@ -77,6 +78,7 @@ interface ElementTreeProps {
 }
 
 export function ElementTree({ className }: ElementTreeProps) {
+  const t = useTranslations('elementTree');
   const elementTree = useDesignerStore((state) => state.elementTree);
   const selectedElementId = useDesignerStore((state) => state.selectedElementId);
   const hoveredElementId = useDesignerStore((state) => state.hoveredElementId);
@@ -117,9 +119,9 @@ export function ElementTree({ className }: ElementTreeProps) {
         <div className="rounded-full bg-muted p-4 mb-4">
           <LayoutGrid className="h-6 w-6 text-muted-foreground" />
         </div>
-        <p className="text-sm font-medium">No elements</p>
+        <p className="text-sm font-medium">{t('noElements')}</p>
         <p className="text-xs text-muted-foreground mt-1">
-          Elements will appear here when code is loaded
+          {t('noElementsDesc')}
         </p>
       </div>
     );
@@ -140,6 +142,7 @@ export function ElementTree({ className }: ElementTreeProps) {
             onDuplicate={handleDuplicateElement}
             globalIsDragging={isDragging}
             overElementId={overId as string | null}
+            t={t}
           />
         </SortableContext>
       </div>
@@ -158,6 +161,7 @@ interface ElementTreeNodeProps {
   onDuplicate: (id: string) => void;
   globalIsDragging: boolean;
   overElementId: string | null;
+  t: ReturnType<typeof useTranslations>;
 }
 
 function ElementTreeNode({
@@ -171,6 +175,7 @@ function ElementTreeNode({
   onDuplicate,
   globalIsDragging,
   overElementId,
+  t,
 }: ElementTreeNodeProps) {
   // Only expand first 2 levels by default (depth 0 and 1)
   const [isExpanded, setIsExpanded] = useState(depth < 2);
@@ -296,38 +301,38 @@ function ElementTreeNode({
         <ContextMenuContent className="w-48">
           <ContextMenuItem onClick={() => onSelect(element.id)}>
             <Box className="h-4 w-4 mr-2" />
-            Select Element
+            {t('selectElement')}
           </ContextMenuItem>
           <ContextMenuItem onClick={() => navigator.clipboard.writeText(element.id)}>
             <Type className="h-4 w-4 mr-2" />
-            Copy ID
+            {t('copyId')}
           </ContextMenuItem>
           <ContextMenuItem onClick={() => navigator.clipboard.writeText(element.tagName)}>
             <Type className="h-4 w-4 mr-2" />
-            Copy Tag Name
+            {t('copyTagName')}
           </ContextMenuItem>
           {element.className && (
             <ContextMenuItem onClick={() => navigator.clipboard.writeText(element.className || '')}>
               <Type className="h-4 w-4 mr-2" />
-              Copy Classes
+              {t('copyClasses')}
             </ContextMenuItem>
           )}
           <ContextMenuSeparator />
           <ContextMenuItem onClick={() => onDuplicate(element.id)}>
             <Copy className="h-4 w-4 mr-2" />
-            Duplicate
+            {t('duplicate')}
           </ContextMenuItem>
           {hasChildren && (
             <ContextMenuItem onClick={() => handleToggle()}>
               {isExpanded ? (
                 <>
                   <ChevronRight className="h-4 w-4 mr-2" />
-                  Collapse
+                  {t('collapse')}
                 </>
               ) : (
                 <>
                   <ChevronDown className="h-4 w-4 mr-2" />
-                  Expand
+                  {t('expand')}
                 </>
               )}
             </ContextMenuItem>
@@ -338,7 +343,7 @@ function ElementTreeNode({
             className="text-destructive focus:text-destructive"
           >
             <Trash2 className="h-4 w-4 mr-2" />
-            Delete Element
+            {t('deleteElement')}
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
@@ -363,6 +368,7 @@ function ElementTreeNode({
                 onDuplicate={onDuplicate}
                 globalIsDragging={globalIsDragging}
                 overElementId={overElementId}
+                t={t}
               />
             ))}
           </SortableContext>

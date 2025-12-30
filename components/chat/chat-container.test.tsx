@@ -33,6 +33,8 @@ const mockMessages = [
 jest.mock('@/stores', () => ({
   useSessionStore: (selector: (state: unknown) => unknown) => {
     const state = {
+      sessions: [mockSession],
+      activeSessionId: 'session-1',
       setActiveSession: jest.fn(),
       getSession: jest.fn(() => mockSession),
       getActiveSession: jest.fn(() => mockSession),
@@ -319,10 +321,6 @@ jest.mock('@/components/ai-elements/suggestion', () => ({
   Suggestion: ({ suggestion, onClick }: { suggestion: string; onClick: (s: string) => void }) => (
     <button onClick={() => onClick(suggestion)}>{suggestion}</button>
   ),
-}));
-
-jest.mock('@/components/agent/agent-plan-editor', () => ({
-  AgentPlanEditor: () => <div data-testid="agent-plan-editor">Plan Editor</div>,
 }));
 
 jest.mock('@/components/agent/tool-timeline', () => ({

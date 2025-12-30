@@ -27,6 +27,13 @@ import { generateText } from 'ai';
 
 const mockGenerateText = generateText as jest.Mock;
 
+// Helper type for mock config to avoid type errors
+interface MockConfig {
+  prepareStep?: () => Promise<void>;
+  onStepFinish?: (step: unknown) => void;
+  tools?: Record<string, { execute: (args: unknown) => Promise<unknown> }>;
+}
+
 describe('executeAgent', () => {
   const baseConfig: AgentConfig = {
     provider: 'openai',
@@ -39,7 +46,7 @@ describe('executeAgent', () => {
   });
 
   it('executes simple prompt without tools', async () => {
-    mockGenerateText.mockImplementation(async (config: Record<string, unknown>) => {
+    mockGenerateText.mockImplementation(async (config: MockConfig) => {
       const { prepareStep, onStepFinish } = config;
       const result = {
         text: 'Hello! How can I help you today?',
@@ -96,7 +103,7 @@ describe('executeAgent', () => {
   it('executes tool calls', async () => {
     const mockExecute = jest.fn().mockResolvedValue({ result: 'calculated' });
 
-    mockGenerateText.mockImplementation(async (config: Record<string, unknown>) => {
+    mockGenerateText.mockImplementation(async (config: MockConfig) => {
       const { prepareStep, onStepFinish, tools } = config;
       const result = {
         text: 'The result is 8',
@@ -160,7 +167,7 @@ describe('executeAgent', () => {
   });
 
   it('handles tool execution errors', async () => {
-    mockGenerateText.mockImplementation(async (config: Record<string, unknown>) => {
+    mockGenerateText.mockImplementation(async (config: MockConfig) => {
       const { prepareStep, onStepFinish, tools } = config;
       const result = {
         text: 'I encountered an error, but I can still help.',
@@ -223,7 +230,7 @@ describe('executeAgent', () => {
   it('calls onStepStart callback', async () => {
     const onStepStart = jest.fn();
 
-    mockGenerateText.mockImplementation(async (config: Record<string, unknown>) => {
+    mockGenerateText.mockImplementation(async (config: MockConfig) => {
       const { prepareStep, onStepFinish } = config;
       const result = {
         text: 'Response',
@@ -256,7 +263,7 @@ describe('executeAgent', () => {
   it('calls onStepComplete callback', async () => {
     const onStepComplete = jest.fn();
 
-    mockGenerateText.mockImplementation(async (config: Record<string, unknown>) => {
+    mockGenerateText.mockImplementation(async (config: MockConfig) => {
       const { prepareStep, onStepFinish } = config;
       const result = {
         text: 'Response',
@@ -289,7 +296,7 @@ describe('executeAgent', () => {
   it('calls onToolCall callback', async () => {
     const onToolCall = jest.fn();
 
-    mockGenerateText.mockImplementation(async (config: Record<string, unknown>) => {
+    mockGenerateText.mockImplementation(async (config: MockConfig) => {
       const { prepareStep, onStepFinish, tools } = config;
       const result = {
         text: 'Done',
@@ -348,7 +355,7 @@ describe('executeAgent', () => {
   it('calls onToolResult callback', async () => {
     const onToolResult = jest.fn();
 
-    mockGenerateText.mockImplementation(async (config: Record<string, unknown>) => {
+    mockGenerateText.mockImplementation(async (config: MockConfig) => {
       const { prepareStep, onStepFinish, tools } = config;
       const result = {
         text: 'Done',
@@ -422,7 +429,7 @@ describe('executeAgent', () => {
   it('handles tool approval rejection', async () => {
     const requireApproval = jest.fn().mockResolvedValue(false);
 
-    mockGenerateText.mockImplementation(async (config: Record<string, unknown>) => {
+    mockGenerateText.mockImplementation(async (config: MockConfig) => {
       const { prepareStep, onStepFinish, tools } = config;
       const result = {
         text: 'I will try another approach.',
@@ -535,7 +542,7 @@ describe('executeAgent', () => {
   });
 
   it('stops when no tool calls in response', async () => {
-    mockGenerateText.mockImplementation(async (config: Record<string, unknown>) => {
+    mockGenerateText.mockImplementation(async (config: MockConfig) => {
       const { prepareStep, onStepFinish } = config;
       const result = {
         text: 'Here is my final answer without any tools.',

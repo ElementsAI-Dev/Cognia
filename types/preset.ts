@@ -37,6 +37,8 @@ export interface Preset {
   // Metadata
   isDefault?: boolean;
   isBuiltin?: boolean;
+  isFavorite?: boolean;
+  sortOrder?: number;
   usageCount: number;
   createdAt: Date;
   updatedAt: Date;

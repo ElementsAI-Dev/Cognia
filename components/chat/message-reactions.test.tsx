@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { MessageReactions, type Reaction } from './message-reactions';
+import { MessageReactions } from './message-reactions';
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
@@ -27,7 +27,7 @@ jest.mock('@/components/ui/popover', () => ({
 describe('MessageReactions', () => {
   const mockOnReact = jest.fn();
 
-  const defaultReactions: Reaction[] = [
+  const defaultReactions: Array<{ emoji: string; count: number; reacted: boolean }> = [
     { emoji: '👍', count: 3, reacted: true },
     { emoji: '❤️', count: 1, reacted: false },
   ];
@@ -60,7 +60,7 @@ describe('MessageReactions', () => {
   });
 
   it('displays reaction count correctly', () => {
-    const reactions: Reaction[] = [
+    const reactions: Array<{ emoji: string; count: number; reacted: boolean }> = [
       { emoji: '🎉', count: 10, reacted: false },
     ];
     render(<MessageReactions reactions={reactions} onReact={mockOnReact} />);
@@ -106,7 +106,7 @@ describe('MessageReactions', () => {
   });
 
   it('handles multiple reactions from same user', () => {
-    const reactions: Reaction[] = [
+    const reactions: Array<{ emoji: string; count: number; reacted: boolean }> = [
       { emoji: '👍', count: 1, reacted: true },
       { emoji: '❤️', count: 1, reacted: true },
       { emoji: '🎉', count: 1, reacted: true },

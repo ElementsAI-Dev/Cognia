@@ -7,6 +7,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import {
   Wrench,
@@ -40,6 +41,7 @@ export function ToolResultDisplay({
   isExecuting = false,
   className,
 }: ToolResultDisplayProps) {
+  const t = useTranslations('toolResultDisplay');
   const [isExpanded, setIsExpanded] = useState(true);
   const [copied, setCopied] = useState(false);
 
@@ -80,7 +82,7 @@ export function ToolResultDisplay({
           )}
           {isExecuting && (
             <span className="text-xs text-muted-foreground animate-pulse">
-              Executing...
+              {t('executing')}
             </span>
           )}
         </div>
@@ -112,7 +114,7 @@ export function ToolResultDisplay({
       {isExpanded && (
         <div className="px-3 py-2 text-sm">
           {result.content.map((item, index) => (
-            <ContentItemDisplay key={index} item={item} />
+            <ContentItemDisplay key={index} item={item} t={t} />
           ))}
         </div>
       )}
@@ -122,9 +124,10 @@ export function ToolResultDisplay({
 
 interface ContentItemDisplayProps {
   item: ContentItem;
+  t: ReturnType<typeof useTranslations>;
 }
 
-function ContentItemDisplay({ item }: ContentItemDisplayProps) {
+function ContentItemDisplay({ item, t }: ContentItemDisplayProps) {
   if (item.type === 'text') {
     return (
       <pre className="whitespace-pre-wrap font-mono text-xs bg-muted/50 rounded p-2 overflow-x-auto">
@@ -150,7 +153,7 @@ function ContentItemDisplay({ item }: ContentItemDisplayProps) {
     return (
       <div className="my-2 p-2 bg-muted/50 rounded">
         <div className="text-xs text-muted-foreground mb-1">
-          Resource: {item.resource.uri}
+          {t('resource')}: {item.resource.uri}
         </div>
         {item.resource.text && (
           <pre className="whitespace-pre-wrap font-mono text-xs overflow-x-auto">
@@ -161,7 +164,7 @@ function ContentItemDisplay({ item }: ContentItemDisplayProps) {
     );
   }
 
-  return <div className="text-muted-foreground text-xs">[Unknown content type]</div>;
+  return <div className="text-muted-foreground text-xs">{t('unknownType')}</div>;
 }
 
 function formatResultAsText(result: ToolCallResult): string {
@@ -218,6 +221,7 @@ export function ToolExecutionStatus({
   serverId,
   errorMessage,
 }: ToolExecutionStatusProps) {
+  const t = useTranslations('toolResultDisplay');
   return (
     <div
       className={cn(
@@ -231,25 +235,25 @@ export function ToolExecutionStatus({
       {status === 'pending' && (
         <>
           <Wrench className="h-4 w-4" />
-          <span>Pending: @{serverId}:{toolName}</span>
+          <span>{t('pending')}: @{serverId}:{toolName}</span>
         </>
       )}
       {status === 'executing' && (
         <>
           <Wrench className="h-4 w-4 animate-spin" />
-          <span>Executing: @{serverId}:{toolName}</span>
+          <span>{t('executingStatus')}: @{serverId}:{toolName}</span>
         </>
       )}
       {status === 'success' && (
         <>
           <CheckCircle2 className="h-4 w-4" />
-          <span>Completed: @{serverId}:{toolName}</span>
+          <span>{t('completed')}: @{serverId}:{toolName}</span>
         </>
       )}
       {status === 'error' && (
         <>
           <XCircle className="h-4 w-4" />
-          <span>Failed: @{serverId}:{toolName}</span>
+          <span>{t('failed')}: @{serverId}:{toolName}</span>
           {errorMessage && (
             <span className="text-xs opacity-75">- {errorMessage}</span>
           )}

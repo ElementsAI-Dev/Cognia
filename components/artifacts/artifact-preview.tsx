@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,7 @@ interface ArtifactPreviewProps {
 }
 
 export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
+  const t = useTranslations('artifactPreview');
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [key, setKey] = useState(0);
@@ -60,7 +62,7 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
           doc.body.innerHTML = `<pre>${escapeHtml(artifact.content)}</pre>`;
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Preview error');
+      setError(err instanceof Error ? err.message : t('previewError'));
     }
   };
 
@@ -130,7 +132,7 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
         key={key}
         className="h-full w-full border-0 bg-white"
         sandbox="allow-scripts allow-same-origin"
-        title={`Preview: ${artifact.title}`}
+        title={t('previewTitle', { title: artifact.title })}
       />
     </div>
   );

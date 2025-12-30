@@ -27,7 +27,9 @@ export type WorkflowNodeType =
   | 'webhook'
   | 'code'
   | 'transform'
-  | 'merge';
+  | 'merge'
+  | 'group'
+  | 'annotation';
 
 /**
  * Node execution status for visualization
@@ -46,6 +48,7 @@ export type NodeExecutionStatus =
  */
 export interface BaseNodeData {
   [key: string]: unknown;
+  id?: string;
   label: string;
   description?: string;
   nodeType: WorkflowNodeType;
@@ -226,6 +229,29 @@ export interface MergeNodeData extends BaseNodeData {
 }
 
 /**
+ * Group node data - Container for grouping multiple nodes
+ */
+export interface GroupNodeData extends BaseNodeData {
+  nodeType: 'group';
+  isCollapsed: boolean;
+  color: string;
+  childNodeIds: string[];
+  minWidth: number;
+  minHeight: number;
+}
+
+/**
+ * Annotation node data - Text annotation/sticky note
+ */
+export interface AnnotationNodeData extends BaseNodeData {
+  nodeType: 'annotation';
+  content: string;
+  color: string;
+  fontSize: 'small' | 'medium' | 'large';
+  showBorder: boolean;
+}
+
+/**
  * Union type for all node data types
  */
 export type WorkflowNodeData =
@@ -242,7 +268,9 @@ export type WorkflowNodeData =
   | WebhookNodeData
   | CodeNodeData
   | TransformNodeData
-  | MergeNodeData;
+  | MergeNodeData
+  | GroupNodeData
+  | AnnotationNodeData;
 
 /**
  * Workflow node (React Flow node with workflow data)
@@ -534,6 +562,8 @@ export const NODE_TYPE_COLORS: Record<WorkflowNodeType, string> = {
   code: '#84cc16',
   transform: '#a855f7',
   merge: '#0ea5e9',
+  group: '#6b7280',
+  annotation: '#fbbf24',
 };
 
 /**
@@ -554,6 +584,8 @@ export const NODE_TYPE_ICONS: Record<WorkflowNodeType, string> = {
   code: 'Code',
   transform: 'Shuffle',
   merge: 'GitMerge',
+  group: 'FolderOpen',
+  annotation: 'StickyNote',
 };
 
 /**
@@ -682,6 +714,25 @@ export function createDefaultNodeData(type: WorkflowNodeType, label?: string): W
         inputs: {},
         outputs: {},
       } as MergeNodeData;
+    case 'group':
+      return {
+        ...base,
+        nodeType: 'group',
+        isCollapsed: false,
+        color: '#6b7280',
+        childNodeIds: [],
+        minWidth: 200,
+        minHeight: 150,
+      } as GroupNodeData;
+    case 'annotation':
+      return {
+        ...base,
+        nodeType: 'annotation',
+        content: '',
+        color: '#fef08a',
+        fontSize: 'medium',
+        showBorder: false,
+      } as AnnotationNodeData;
     default:
       return base as WorkflowNodeData;
   }
@@ -706,6 +757,8 @@ export function getDefaultNodeLabel(type: WorkflowNodeType): string {
     code: 'Code',
     transform: 'Transform',
     merge: 'Merge',
+    group: 'Group',
+    annotation: 'Note',
   };
   return labels[type] || 'Node';
 }
@@ -898,4 +951,312 @@ export const NODE_CATEGORIES: NodeCategory[] = [
       },
     ],
   },
+  {
+    id: 'data',
+    name: 'Data',
+    icon: 'Database',
+    description: 'Data processing nodes',
+    nodes: [
+      {
+        type: 'transform',
+        name: 'JSON Transform',
+        description: 'Transform JSON data',
+        icon: 'Shuffle',
+        color: NODE_TYPE_COLORS.transform,
+        defaultData: createDefaultNodeData('transform'),
+      },
+      {
+        type: 'code',
+        name: 'Filter',
+        description: 'Filter data by condition',
+        icon: 'Filter',
+        color: NODE_TYPE_COLORS.code,
+        defaultData: createDefaultNodeData('code'),
+      },
+      {
+        type: 'code',
+        name: 'Aggregate',
+        description: 'Aggregate data values',
+        icon: 'Sigma',
+        color: NODE_TYPE_COLORS.code,
+        defaultData: createDefaultNodeData('code'),
+      },
+    ],
+  },
+  {
+    id: 'organization',
+    name: 'Organization',
+    icon: 'FolderOpen',
+    description: 'Organize your workflow',
+    nodes: [
+      {
+        type: 'group',
+        name: 'Group',
+        description: 'Group multiple nodes together',
+        icon: 'FolderOpen',
+        color: NODE_TYPE_COLORS.group,
+        defaultData: createDefaultNodeData('group'),
+      },
+      {
+        type: 'annotation',
+        name: 'Note',
+        description: 'Add a text annotation',
+        icon: 'StickyNote',
+        color: NODE_TYPE_COLORS.annotation,
+        defaultData: createDefaultNodeData('annotation'),
+      },
+    ],
+  },
 ];
+
+// =====================
+// Node Templates
+// =====================
+
+/**
+ * User-saved node template
+ */
+export interface NodeTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  nodeType: WorkflowNodeType;
+  data: WorkflowNodeData;
+  icon?: string;
+  category?: string;
+  tags?: string[];
+  isBuiltIn?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Node template category
+ */
+export interface NodeTemplateCategory {
+  id: string;
+  name: string;
+  icon?: string;
+  templates: NodeTemplate[];
+}
+
+/**
+ * Create a node template from node data
+ */
+export function createNodeTemplate(
+  name: string,
+  nodeType: WorkflowNodeType,
+  data: WorkflowNodeData,
+  options?: {
+    description?: string;
+    icon?: string;
+    category?: string;
+    tags?: string[];
+  }
+): NodeTemplate {
+  const now = new Date();
+  return {
+    id: `template-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    name,
+    description: options?.description,
+    nodeType,
+    data: { ...data },
+    icon: options?.icon,
+    category: options?.category || 'custom',
+    tags: options?.tags || [],
+    isBuiltIn: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+// =====================
+// Version Control
+// =====================
+
+/**
+ * Workflow version snapshot
+ */
+export interface WorkflowVersion {
+  id: string;
+  workflowId: string;
+  version: number;
+  name: string;
+  description?: string;
+  snapshot: VisualWorkflow;
+  createdAt: Date;
+  createdBy?: string;
+  isAutoSave?: boolean;
+  tags?: string[];
+}
+
+/**
+ * Version comparison result
+ */
+export interface VersionDiff {
+  addedNodes: string[];
+  removedNodes: string[];
+  modifiedNodes: string[];
+  addedEdges: string[];
+  removedEdges: string[];
+}
+
+/**
+ * Create a workflow version from current state
+ */
+export function createWorkflowVersion(
+  workflow: VisualWorkflow,
+  versionNumber: number,
+  options?: {
+    name?: string;
+    description?: string;
+    createdBy?: string;
+    isAutoSave?: boolean;
+    tags?: string[];
+  }
+): WorkflowVersion {
+  return {
+    id: `version-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    workflowId: workflow.id,
+    version: versionNumber,
+    name: options?.name || `Version ${versionNumber}`,
+    description: options?.description,
+    snapshot: JSON.parse(JSON.stringify(workflow)),
+    createdAt: new Date(),
+    createdBy: options?.createdBy,
+    isAutoSave: options?.isAutoSave || false,
+    tags: options?.tags,
+  };
+}
+
+// =====================
+// Import/Export
+// =====================
+
+/**
+ * Workflow export format
+ */
+export interface WorkflowExport {
+  version: string;
+  exportedAt: Date;
+  workflow: VisualWorkflow;
+  templates?: NodeTemplate[];
+  metadata?: {
+    exportedBy?: string;
+    description?: string;
+    tags?: string[];
+  };
+}
+
+/**
+ * Create exportable workflow data
+ */
+export function createWorkflowExport(
+  workflow: VisualWorkflow,
+  options?: {
+    includeTemplates?: NodeTemplate[];
+    exportedBy?: string;
+    description?: string;
+    tags?: string[];
+  }
+): WorkflowExport {
+  return {
+    version: '1.0.0',
+    exportedAt: new Date(),
+    workflow: JSON.parse(JSON.stringify(workflow)),
+    templates: options?.includeTemplates,
+    metadata: {
+      exportedBy: options?.exportedBy,
+      description: options?.description,
+      tags: options?.tags,
+    },
+  };
+}
+
+// =====================
+// Execution Statistics
+// =====================
+
+/**
+ * Single execution record
+ */
+export interface ExecutionRecord {
+  id: string;
+  workflowId: string;
+  status: 'completed' | 'failed' | 'cancelled';
+  startedAt: Date;
+  completedAt: Date;
+  duration: number;
+  nodesExecuted: number;
+  nodesFailed: number;
+  nodesSkipped: number;
+  errorMessage?: string;
+}
+
+/**
+ * Aggregated workflow statistics
+ */
+export interface WorkflowStatistics {
+  workflowId: string;
+  totalExecutions: number;
+  successfulExecutions: number;
+  failedExecutions: number;
+  cancelledExecutions: number;
+  successRate: number;
+  averageDuration: number;
+  minDuration: number;
+  maxDuration: number;
+  lastExecutedAt?: Date;
+  executionHistory: ExecutionRecord[];
+}
+
+/**
+ * Calculate statistics from execution records
+ */
+export function calculateWorkflowStatistics(
+  workflowId: string,
+  records: ExecutionRecord[]
+): WorkflowStatistics {
+  const workflowRecords = records.filter((r) => r.workflowId === workflowId);
+  
+  if (workflowRecords.length === 0) {
+    return {
+      workflowId,
+      totalExecutions: 0,
+      successfulExecutions: 0,
+      failedExecutions: 0,
+      cancelledExecutions: 0,
+      successRate: 0,
+      averageDuration: 0,
+      minDuration: 0,
+      maxDuration: 0,
+      executionHistory: [],
+    };
+  }
+
+  const successful = workflowRecords.filter((r) => r.status === 'completed');
+  const failed = workflowRecords.filter((r) => r.status === 'failed');
+  const cancelled = workflowRecords.filter((r) => r.status === 'cancelled');
+  const durations = workflowRecords.map((r) => r.duration);
+  const sortedRecords = [...workflowRecords].sort(
+    (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+  );
+
+  return {
+    workflowId,
+    totalExecutions: workflowRecords.length,
+    successfulExecutions: successful.length,
+    failedExecutions: failed.length,
+    cancelledExecutions: cancelled.length,
+    successRate: workflowRecords.length > 0 
+      ? (successful.length / workflowRecords.length) * 100 
+      : 0,
+    averageDuration: durations.length > 0 
+      ? durations.reduce((a, b) => a + b, 0) / durations.length 
+      : 0,
+    minDuration: durations.length > 0 ? Math.min(...durations) : 0,
+    maxDuration: durations.length > 0 ? Math.max(...durations) : 0,
+    lastExecutedAt: sortedRecords[0]?.startedAt,
+    executionHistory: sortedRecords.slice(0, 50),
+  };
+}

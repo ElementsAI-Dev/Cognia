@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { waitForAnimation } from '../utils/test-helpers';
 
 /**
  * Presets Manager Tests
  * Tests for the full presets management interface
+ * Optimized for CI/CD efficiency
  */
 
 test.describe('Presets Manager Interface', () => {
@@ -84,12 +86,12 @@ test.describe('Presets Manager Interface', () => {
 
     if (await presetSelector.isVisible()) {
       await presetSelector.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       const manageOption = page.locator('[role="menuitem"]:has-text("Manage")').first();
       if (await manageOption.isVisible()) {
         await manageOption.click();
-        await page.waitForTimeout(500);
+        await waitForAnimation(page);
 
         const preset1 = page.locator('text=Manager Test Preset 1').first();
         const preset2 = page.locator('text=Manager Test Preset 2').first();
@@ -107,17 +109,17 @@ test.describe('Presets Manager Interface', () => {
 
     if (await presetSelector.isVisible()) {
       await presetSelector.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       const manageOption = page.locator('[role="menuitem"]:has-text("Manage")').first();
       if (await manageOption.isVisible()) {
         await manageOption.click();
-        await page.waitForTimeout(500);
+        await waitForAnimation(page);
 
         const searchInput = page.locator('input[placeholder*="Search"]').first();
         if (await searchInput.isVisible()) {
           await searchInput.fill('Preset 2');
-          await page.waitForTimeout(300);
+          await waitForAnimation(page);
 
           const preset2 = page.locator('text=Manager Test Preset 2').first();
           const isVisible = await preset2.isVisible().catch(() => false);
@@ -132,12 +134,12 @@ test.describe('Presets Manager Interface', () => {
 
     if (await presetSelector.isVisible()) {
       await presetSelector.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       const manageOption = page.locator('[role="menuitem"]:has-text("Manage")').first();
       if (await manageOption.isVisible()) {
         await manageOption.click();
-        await page.waitForTimeout(500);
+        await waitForAnimation(page);
 
         const newPresetBtn = page.locator('button:has-text("New Preset")').first();
         const isVisible = await newPresetBtn.isVisible().catch(() => false);

@@ -52,8 +52,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useBackgroundAgent } from '@/hooks/use-background-agent';
 import { AgentFlowVisualizer } from './agent-flow-visualizer';
-import type { BackgroundAgent, BackgroundAgentStatus, AgentLog } from '@/types/background-agent';
-import { AnimatePresence, motion } from 'framer-motion';
+import type { BackgroundAgent, BackgroundAgentStatus, BackgroundAgentLog } from '@/types/background-agent';
 
 const statusConfig: Record<BackgroundAgentStatus, {
   icon: React.ElementType;
@@ -288,7 +287,7 @@ function AgentCard({
 }
 
 // Agent logs viewer component
-function AgentLogsViewer({ logs, maxHeight = 300 }: { logs: AgentLog[]; maxHeight?: number }) {
+function AgentLogsViewer({ logs, maxHeight = 300 }: { logs: BackgroundAgentLog[]; maxHeight?: number }) {
   const [filter, setFilter] = useState<string>('all');
   const [_autoScroll, _setAutoScroll] = useState(true);
 
@@ -323,27 +322,24 @@ function AgentLogsViewer({ logs, maxHeight = 300 }: { logs: AgentLog[]; maxHeigh
       </div>
       <ScrollArea style={{ height: maxHeight }}>
         <div className="p-2 space-y-1 font-mono text-xs">
-          <AnimatePresence>
+          <>
             {filteredLogs.map((log, idx) => {
               const config = logLevelConfig[log.level] || logLevelConfig.info;
               const LogIcon = config.icon;
               return (
-                <motion.div
+                <div
                   key={log.id || idx}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="flex items-start gap-2 py-1 px-2 rounded hover:bg-muted/50"
+                  className="flex items-start gap-2 py-1 px-2 rounded hover:bg-muted/50 transition-opacity"
                 >
                   <LogIcon className={cn('h-3.5 w-3.5 mt-0.5 shrink-0', config.color)} />
                   <span className="text-muted-foreground shrink-0">
                     {formatTime(log.timestamp)}
                   </span>
                   <span className="flex-1 break-all">{log.message}</span>
-                </motion.div>
+                </div>
               );
             })}
-          </AnimatePresence>
+          </>
           {filteredLogs.length === 0 && (
             <div className="text-center py-4 text-muted-foreground">
               No logs to display
@@ -448,26 +444,19 @@ function ResultPreview({ agent }: { agent: BackgroundAgent }) {
           expanded && 'rotate-90'
         )} />
       </button>
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0 }}
-            animate={{ height: 'auto' }}
-            exit={{ height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="p-3 text-sm max-h-48 overflow-auto">
-              {typeof agent.result === 'string' ? (
-                <p className="whitespace-pre-wrap">{agent.result}</p>
-              ) : (
-                <pre className="text-xs overflow-auto">
-                  {JSON.stringify(agent.result, null, 2)}
-                </pre>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {expanded && (
+        <div className="overflow-hidden transition-all">
+          <div className="p-3 text-sm max-h-48 overflow-auto">
+            {typeof agent.result === 'string' ? (
+              <p className="whitespace-pre-wrap">{agent.result}</p>
+            ) : (
+              <pre className="text-xs overflow-auto">
+                {JSON.stringify(agent.result, null, 2)}
+              </pre>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -518,8 +507,8 @@ export function BackgroundAgentPanel() {
       averageDuration: completed.length > 0 ? totalDuration / completed.length : 0,
       successRate: completedAgents.length > 0 ? (completed.length / completedAgents.length) * 100 : 0,
       activeSubAgents: runningAgents.reduce((sum, a) => sum + a.subAgents.filter((s) => s.status === 'running').length, 0),
-      toolCallsTotal: agents.reduce((sum, a) => sum + (a.toolCalls?.length || 0), 0),
-      tokenUsage: agents.reduce((sum, a) => sum + (a.tokenUsage || 0), 0),
+      toolCallsTotal: agents.reduce((sum, a) => sum + (a.result?.toolResults?.length || 0), 0),
+      tokenUsage: agents.reduce((sum, a) => sum + (a.result?.tokenUsage?.totalTokens || 0), 0),
     };
   }, [agents, completedAgents, runningAgents]);
 

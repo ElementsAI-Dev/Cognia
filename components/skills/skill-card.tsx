@@ -167,7 +167,7 @@ export const SkillCard = memo(function SkillCard({
     return (
       <div
         className={cn(
-          'group flex items-center gap-4 p-3 rounded-lg border cursor-pointer transition-all hover:bg-accent/50',
+          'group flex items-center gap-4 p-3 rounded-lg border cursor-pointer transition-all hover:bg-accent/50 overflow-hidden',
           selected && 'ring-2 ring-primary border-primary bg-accent/30',
           !isEnabled && 'opacity-60',
           className

@@ -5,6 +5,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   History,
   MessageSquare,
@@ -105,6 +106,7 @@ export function ProjectActivity({
   activities,
   trigger,
 }: ProjectActivityProps) {
+  const t = useTranslations('projectActivity');
   const [open, setOpen] = useState(false);
   const [filterTypes, setFilterTypes] = useState<Set<ActivityType>>(new Set());
 
@@ -157,7 +159,7 @@ export function ProjectActivity({
         {trigger || (
           <Button variant="ghost" size="sm" className="gap-2">
             <History className="h-4 w-4" />
-            <span className="hidden sm:inline">Activity</span>
+            <span className="hidden sm:inline">{t('activity')}</span>
           </Button>
         )}
       </SheetTrigger>
@@ -166,13 +168,13 @@ export function ProjectActivity({
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2">
               <History className="h-5 w-5" />
-              Activity History
+              {t('activityHistory')}
             </SheetTitle>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
                   <Filter className="h-4 w-4" />
-                  Filter
+                  {t('filter')}
                   {filterTypes.size > 0 && (
                     <Badge variant="secondary" className="ml-1 text-xs">
                       {filterTypes.size}
@@ -189,7 +191,7 @@ export function ProjectActivity({
                   >
                     <span className="flex items-center gap-2">
                       {ACTIVITY_ICONS[type]}
-                      {ACTIVITY_LABELS[type]}
+                      {t(`activityTypes.${type}`)}
                     </span>
                   </DropdownMenuCheckboxItem>
                 ))}
@@ -203,7 +205,7 @@ export function ProjectActivity({
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <History className="h-12 w-12 text-muted-foreground/50" />
               <p className="mt-4 text-sm text-muted-foreground">
-                No activity recorded yet
+                {t('noActivityYet')}
               </p>
             </div>
           ) : (
@@ -244,13 +246,14 @@ interface ActivityItemProps {
 }
 
 function ActivityItem({ activity, formatTime }: ActivityItemProps) {
+  const t = useTranslations('projectActivity');
   return (
     <div className="flex items-start gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50">
       <div className="mt-0.5">{ACTIVITY_ICONS[activity.type]}</div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">
-            {ACTIVITY_LABELS[activity.type]}
+            {t(`activityTypes.${activity.type}`)}
           </span>
         </div>
         <p className="text-sm text-muted-foreground mt-0.5 truncate">

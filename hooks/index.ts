@@ -171,3 +171,50 @@ export {
   type UseCodeExecutionReturn,
   type UseTagsCategoriesReturn,
 } from './use-sandbox-db';
+export { useSandbox } from './use-sandbox';
+export {
+  useScreenshot,
+  useScreenshotHistory,
+  type ScreenshotMetadata,
+  type ScreenshotResult,
+  type ScreenshotHistoryEntry,
+  type MonitorInfo,
+  type WinOcrResult,
+} from './use-screenshot';
+export {
+  useContext,
+  type AppType,
+  type WindowInfo,
+  type AppContext,
+  type FileContext,
+  type BrowserContext,
+  type EditorContext,
+  type FullContext,
+} from './use-context';
+export {
+  useAwareness,
+  useFocusTracking,
+  type SystemState,
+  type Suggestion,
+  type AwarenessState,
+  type UserActivity,
+  type FocusSession,
+  type AppUsageStats,
+  type DailyUsageSummary,
+} from './use-awareness';
+export {
+  useSelectionHistory,
+  useClipboardHistory,
+  type SelectionHistoryEntry,
+  type SelectionHistoryStats,
+  type ClipboardEntry,
+} from './use-selection-history';
+export {
+  useWorkflowKeyboardShortcuts,
+} from './use-workflow-keyboard-shortcuts';
+export {
+  useVideoGeneration,
+  type UseVideoGenerationOptions,
+  type UseVideoGenerationReturn,
+  type VideoGenerationJob,
+} from './use-video-generation';

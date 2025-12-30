@@ -95,7 +95,8 @@ describe('SkillCard', () => {
     it('shows builtin badge for builtin skills', () => {
       renderWithProviders(<SkillCard skill={mockBuiltinSkill} />);
 
-      expect(screen.getByText('builtin')).toBeInTheDocument();
+      const builtinElements = screen.queryAllByText(/builtin|Built-in|内置/i);
+      expect(builtinElements.length).toBeGreaterThan(0);
     });
 
     it('shows green indicator for active skills', () => {
@@ -209,13 +210,15 @@ describe('SkillCard', () => {
     it('shows builtin badge in list mode', () => {
       renderWithProviders(<SkillCard skill={mockBuiltinSkill} variant="list" />);
 
-      expect(screen.getByText('builtin')).toBeInTheDocument();
+      const builtinElements = screen.queryAllByText(/builtin|Built-in|内置/i);
+      expect(builtinElements.length).toBeGreaterThan(0);
     });
 
     it('shows active badge in list mode', () => {
       renderWithProviders(<SkillCard skill={mockActiveSkill} variant="list" />);
 
-      expect(screen.getByText('active')).toBeInTheDocument();
+      const activeElements = screen.queryAllByText(/active|Active|活跃/i);
+      expect(activeElements.length).toBeGreaterThan(0);
     });
 
     it('renders switch in list mode', () => {

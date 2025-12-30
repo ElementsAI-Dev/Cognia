@@ -23,11 +23,22 @@ import '@xyflow/react/dist/style.css';
 
 import { cn } from '@/lib/utils';
 import { useWorkflowEditorStore } from '@/stores/workflow-editor-store';
+import { useWorkflowKeyboardShortcuts } from '@/hooks';
 import { nodeTypes } from './nodes';
 import { NodePalette } from './node-palette';
 import { WorkflowToolbar } from './workflow-toolbar';
 import { NodeConfigPanel } from './node-config-panel';
+import { ExecutionPanel } from './execution-panel';
+import { CustomEdge } from './custom-edge';
+import { CustomConnectionLine } from './custom-connection-line';
+import { NodeSearchCommand } from './node-search-command';
 import type { WorkflowNodeType, WorkflowNode } from '@/types/workflow-editor';
+
+// Define edge types for React Flow
+const edgeTypes = {
+  default: CustomEdge,
+  custom: CustomEdge,
+};
 
 interface WorkflowEditorPanelProps {
   className?: string;
@@ -41,9 +52,11 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     currentWorkflow,
     showNodePalette,
     showConfigPanel,
+    showExecutionPanel,
     showMinimap,
     selectedNodes,
     executionState,
+    isExecuting,
     onNodesChange,
     onEdgesChange,
     onConnect,
@@ -58,6 +71,14 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
       createWorkflow('New Workflow');
     }
   }, [currentWorkflow, createWorkflow]);
+
+  // Keyboard shortcuts
+  useWorkflowKeyboardShortcuts({
+    enabled: true,
+    onSave: () => {
+      useWorkflowEditorStore.getState().saveWorkflow();
+    },
+  });
 
   // Handle node changes
   const handleNodesChange = useCallback(
@@ -191,16 +212,16 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
       />
 
       {/* Main content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Node palette */}
         {showNodePalette && (
-          <NodePalette className="w-64 shrink-0" />
+          <NodePalette className="w-64 shrink-0 h-full" />
         )}
 
         {/* React Flow canvas */}
         <div
           ref={reactFlowWrapper}
-          className="flex-1 h-full"
+          className="flex-1 h-full relative"
           onDragOver={handleDragOver}
           onDrop={handleDrop}
         >
@@ -212,6 +233,8 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
             onConnect={handleConnect}
             onSelectionChange={handleSelectionChange}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            connectionLineComponent={CustomConnectionLine}
             fitView
             fitViewOptions={{ padding: 0.2 }}
             defaultViewport={currentWorkflow.viewport}
@@ -258,6 +281,11 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
             className="w-80 shrink-0"
           />
         )}
+
+        {/* Execution panel - show when executing or when panel is toggled */}
+        {(showExecutionPanel || isExecuting) && (
+          <ExecutionPanel className="w-80 shrink-0" />
+        )}
       </div>
     </div>
   );
@@ -267,6 +295,7 @@ export function WorkflowEditorPanel(props: WorkflowEditorPanelProps) {
   return (
     <ReactFlowProvider>
       <WorkflowEditorContent {...props} />
+      <NodeSearchCommand />
     </ReactFlowProvider>
   );
 }

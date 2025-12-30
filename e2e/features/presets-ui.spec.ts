@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { waitForAnimation } from '../utils/test-helpers';
 
 /**
  * Presets UI Complete Tests
  * Tests real UI interactions for preset management
+ * Optimized for CI/CD efficiency
  */
 
 test.describe('Presets Manager UI', () => {
@@ -261,12 +263,12 @@ test.describe('Create Preset Dialog', () => {
 
     if (await presetSelector.isVisible()) {
       await presetSelector.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       const createOption = page.locator('[role="menuitem"]:has-text("Create new")').first();
       if (await createOption.isVisible()) {
         await createOption.click();
-        await page.waitForTimeout(300);
+        await waitForAnimation(page);
 
         // Look for AI generate section
         const aiSection = page.locator('text=AI Generate Preset').first();
@@ -281,12 +283,12 @@ test.describe('Create Preset Dialog', () => {
 
     if (await presetSelector.isVisible()) {
       await presetSelector.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       const createOption = page.locator('[role="menuitem"]:has-text("Create new")').first();
       if (await createOption.isVisible()) {
         await createOption.click();
-        await page.waitForTimeout(300);
+        await waitForAnimation(page);
 
         // Check for tabs
         const basicTab = page.locator('[role="tab"]:has-text("Basic")').first();
@@ -307,12 +309,12 @@ test.describe('Create Preset Dialog', () => {
 
     if (await presetSelector.isVisible()) {
       await presetSelector.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       const createOption = page.locator('[role="menuitem"]:has-text("Create new")').first();
       if (await createOption.isVisible()) {
         await createOption.click();
-        await page.waitForTimeout(300);
+        await waitForAnimation(page);
 
         // Fill name
         const nameInput = page.locator('input#name, input[placeholder*="Preset"]').first();
@@ -330,18 +332,18 @@ test.describe('Create Preset Dialog', () => {
 
     if (await presetSelector.isVisible()) {
       await presetSelector.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       const createOption = page.locator('[role="menuitem"]:has-text("Create new")').first();
       if (await createOption.isVisible()) {
         await createOption.click();
-        await page.waitForTimeout(300);
+        await waitForAnimation(page);
 
         // Click model tab
         const modelTab = page.locator('[role="tab"]:has-text("Model")').first();
         if (await modelTab.isVisible()) {
           await modelTab.click();
-          await page.waitForTimeout(200);
+          await waitForAnimation(page);
 
           // Should see model settings
           const modeSelect = page.locator('text=Mode').first();
@@ -361,18 +363,18 @@ test.describe('Create Preset Dialog', () => {
 
     if (await presetSelector.isVisible()) {
       await presetSelector.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       const createOption = page.locator('[role="menuitem"]:has-text("Create new")').first();
       if (await createOption.isVisible()) {
         await createOption.click();
-        await page.waitForTimeout(300);
+        await waitForAnimation(page);
 
         // Click prompt tab
         const promptTab = page.locator('[role="tab"]:has-text("Prompt")').first();
         if (await promptTab.isVisible()) {
           await promptTab.click();
-          await page.waitForTimeout(200);
+          await waitForAnimation(page);
 
           // Should see system prompt textarea
           const systemPrompt = page.locator('text=System Prompt').first();
@@ -388,12 +390,12 @@ test.describe('Create Preset Dialog', () => {
 
     if (await presetSelector.isVisible()) {
       await presetSelector.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       const createOption = page.locator('[role="menuitem"]:has-text("Create new")').first();
       if (await createOption.isVisible()) {
         await createOption.click();
-        await page.waitForTimeout(300);
+        await waitForAnimation(page);
 
         // Look for preview
         const preview = page.locator('text=Preview').first();

@@ -7,6 +7,7 @@
  */
 
 import { useState, useMemo, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Sparkles,
   Trash2,
@@ -53,6 +54,7 @@ import { SkillEditor } from './skill-editor';
 import { useSkillStore } from '@/stores/skill-store';
 import { estimateSkillTokens } from '@/lib/skills/executor';
 import { downloadSkillAsMarkdown, downloadSkillAsPackage } from '@/lib/skills/packager';
+import { processSelectionWithAI } from '@/lib/ai/selection-ai';
 import type { Skill, SkillCategory } from '@/types/skill';
 
 const CATEGORY_ICONS: Record<SkillCategory, React.ReactNode> = {
@@ -66,15 +68,15 @@ const CATEGORY_ICONS: Record<SkillCategory, React.ReactNode> = {
   'custom': <FileText className="h-4 w-4" />,
 };
 
-const CATEGORY_LABELS: Record<SkillCategory, string> = {
-  'creative-design': 'Creative & Design',
-  'development': 'Development',
-  'enterprise': 'Enterprise',
-  'productivity': 'Productivity',
-  'data-analysis': 'Data Analysis',
-  'communication': 'Communication',
-  'meta': 'Meta Skills',
-  'custom': 'Custom',
+const CATEGORY_LABEL_KEYS: Record<SkillCategory, string> = {
+  'creative-design': 'categoryCreativeDesign',
+  'development': 'categoryDevelopment',
+  'enterprise': 'categoryEnterprise',
+  'productivity': 'categoryProductivity',
+  'data-analysis': 'categoryDataAnalysis',
+  'communication': 'categoryCommunication',
+  'meta': 'categoryMeta',
+  'custom': 'categoryCustom',
 };
 
 interface SkillDetailProps {
@@ -84,6 +86,7 @@ interface SkillDetailProps {
 }
 
 export function SkillDetail({ skillId, onClose, onEdit: _onEdit }: SkillDetailProps) {
+  const t = useTranslations('skills');
   const [activeTab, setActiveTab] = useState<'overview' | 'content' | 'resources' | 'edit'>('overview');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showTestDialog, setShowTestDialog] = useState(false);
@@ -174,10 +177,10 @@ Status: ${skill.status}
     return (
       <div className="flex flex-col items-center justify-center h-full p-8">
         <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-        <p className="text-muted-foreground">Skill not found</p>
+        <p className="text-muted-foreground">{t('skillNotFound')}</p>
         {onClose && (
           <Button variant="outline" onClick={onClose} className="mt-4">
-            Go Back
+            {t('goBack')}
           </Button>
         )}
       </div>
@@ -201,43 +204,43 @@ Status: ${skill.status}
             <h1 className="text-xl font-semibold">{skill.metadata.name}</h1>
           </div>
           <Badge variant={skill.status === 'enabled' ? 'default' : 'secondary'}>
-            {skill.status}
+            {skill.status === 'enabled' ? t('enabled') : t('disabled')}
           </Badge>
           {skill.isActive && (
             <Badge variant="default" className="bg-green-500">
-              Active
+              {t('active')}
             </Badge>
           )}
           {skill.source === 'builtin' && (
-            <Badge variant="outline">Built-in</Badge>
+            <Badge variant="outline">{t('builtin')}</Badge>
           )}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleTestSkill}>
             <Play className="h-4 w-4 mr-1" />
-            Test
+            {t('test')}
           </Button>
           <Button variant="outline" size="sm" onClick={() => handleDownload('md')}>
             <Download className="h-4 w-4 mr-1" />
-            Export
+            {t('export')}
           </Button>
           {skill.source !== 'builtin' && (
             <Button variant="outline" size="sm" onClick={() => setShowDeleteDialog(true)}>
               <Trash2 className="h-4 w-4 mr-1" />
-              Delete
+              {t('delete')}
             </Button>
           )}
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 min-h-0 overflow-auto">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="h-full">
           <TabsList className="mx-4 mt-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="content">Content</TabsTrigger>
-            <TabsTrigger value="resources">Resources</TabsTrigger>
-            <TabsTrigger value="edit">Edit</TabsTrigger>
+            <TabsTrigger value="overview">{t('previewTab')}</TabsTrigger>
+            <TabsTrigger value="content">{t('content')}</TabsTrigger>
+            <TabsTrigger value="resources">{t('resourcesTab')}</TabsTrigger>
+            <TabsTrigger value="edit">{t('editTab')}</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -246,36 +249,36 @@ Status: ${skill.status}
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5" />
-                  About this Skill
+                  {t('aboutThisSkill')}
                 </CardTitle>
                 <CardDescription>{skill.metadata.description}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Category</p>
+                    <p className="text-sm font-medium text-muted-foreground">{t('category')}</p>
                     <div className="flex items-center gap-2 mt-1">
                       {CATEGORY_ICONS[skill.category]}
-                      <span>{CATEGORY_LABELS[skill.category]}</span>
+                      <span>{t(CATEGORY_LABEL_KEYS[skill.category])}</span>
                     </div>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Source</p>
+                    <p className="text-sm font-medium text-muted-foreground">{t('source')}</p>
                     <p className="mt-1 capitalize">{skill.source}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Version</p>
+                    <p className="text-sm font-medium text-muted-foreground">{t('version')}</p>
                     <p className="mt-1">{skill.version || '1.0.0'}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Token Estimate</p>
-                    <p className="mt-1">~{tokenEstimate} tokens</p>
+                    <p className="text-sm font-medium text-muted-foreground">{t('tokenEstimate')}</p>
+                    <p className="mt-1">~{tokenEstimate} {t('tokens')}</p>
                   </div>
                 </div>
 
                 {skill.tags.length > 0 && (
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-2">Tags</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">{t('tags')}</p>
                     <div className="flex flex-wrap gap-2">
                       {skill.tags.map((tag) => (
                         <Badge key={tag} variant="outline">
@@ -289,14 +292,14 @@ Status: ${skill.status}
 
                 <div className="flex items-center justify-between pt-4 border-t">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm">Enabled</span>
+                    <span className="text-sm">{t('enabled')}</span>
                     <Switch
                       checked={skill.status === 'enabled'}
                       onCheckedChange={handleToggleStatus}
                     />
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm">Active in Chat</span>
+                    <span className="text-sm">{t('activeInChat')}</span>
                     <Switch
                       checked={skill.isActive}
                       onCheckedChange={handleToggleActive}
@@ -313,14 +316,14 @@ Status: ${skill.status}
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <BarChart3 className="h-5 w-5" />
-                    Usage Statistics
+                    {t('usageStatistics')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <p className="text-2xl font-bold">{usageStats.totalExecutions}</p>
-                      <p className="text-sm text-muted-foreground">Total Executions</p>
+                      <p className="text-sm text-muted-foreground">{t('totalExecutionsLabel')}</p>
                     </div>
                     <div>
                       <p className="text-2xl font-bold">
@@ -328,19 +331,19 @@ Status: ${skill.status}
                           ? Math.round((usageStats.successfulExecutions / usageStats.totalExecutions) * 100)
                           : 0}%
                       </p>
-                      <p className="text-sm text-muted-foreground">Success Rate</p>
+                      <p className="text-sm text-muted-foreground">{t('successRateLabel')}</p>
                     </div>
                     <div>
                       <p className="text-2xl font-bold">
                         {Math.round(usageStats.averageExecutionTime)}ms
                       </p>
-                      <p className="text-sm text-muted-foreground">Avg. Duration</p>
+                      <p className="text-sm text-muted-foreground">{t('avgDurationLabel')}</p>
                     </div>
                   </div>
                   {usageStats.lastExecutionAt && (
                     <p className="text-xs text-muted-foreground mt-4 flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      Last used: {new Date(usageStats.lastExecutionAt).toLocaleString()}
+                      {t('lastUsed')}: {new Date(usageStats.lastExecutionAt).toLocaleString()}
                     </p>
                   )}
                 </CardContent>
@@ -353,7 +356,7 @@ Status: ${skill.status}
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-destructive">
                     <AlertCircle className="h-5 w-5" />
-                    Validation Issues
+                    {t('validationIssuesTitle')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -380,7 +383,7 @@ Status: ${skill.status}
           <TabsContent value="content" className="p-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Skill Content</CardTitle>
+                <CardTitle>{t('skillContentLabel')}</CardTitle>
                 <CopyButton
                   content={skill.rawContent}
                   className="h-8"
@@ -410,6 +413,12 @@ Status: ${skill.status}
               onSave={handleSaveEdit}
               onCancel={() => setActiveTab('overview')}
               readOnly={skill.source === 'builtin'}
+              hideHeader
+              onRequestAI={async (prompt) => {
+                const result = await processSelectionWithAI({ action: 'rewrite', text: prompt, customPrompt: prompt });
+                if (result.success && result.result) return result.result;
+                throw new Error(result.error || 'AI request failed');
+              }}
             />
           </TabsContent>
         </Tabs>
@@ -419,17 +428,17 @@ Status: ${skill.status}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Skill</DialogTitle>
+            <DialogTitle>{t('deleteSkill')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &quot;{skill.metadata.name}&quot;? This action cannot be undone.
+              {t('deleteConfirm', { name: skill.metadata.name })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-              Cancel
+              {t('cancel')}
             </Button>
             <Button variant="destructive" onClick={handleDelete}>
-              Delete
+              {t('delete')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -441,17 +450,17 @@ Status: ${skill.status}
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-green-500" />
-              Skill Test Result
+              {t('skillTestResult')}
             </DialogTitle>
             <DialogDescription>
-              Preview of how this skill will be injected into the AI context
+              {t('previewInjection')}
             </DialogDescription>
           </DialogHeader>
           <div className="bg-muted rounded-lg p-4 max-h-[400px] overflow-auto">
             <pre className="text-sm whitespace-pre-wrap font-mono">{testResult}</pre>
           </div>
           <DialogFooter>
-            <Button onClick={() => setShowTestDialog(false)}>Close</Button>
+            <Button onClick={() => setShowTestDialog(false)}>{t('close')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -24,9 +24,9 @@ import { THEME_PRESETS, applyThemeColors, removeCustomThemeColors } from '@/lib/
 import type { ColorThemePreset as _ColorThemePreset } from '@/lib/themes';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { CommandPalette } from '@/components/layout/command-palette';
-import { Toaster } from '@/components/ui/toaster';
+import { Toaster } from '@/components/ui/sonner';
 import { KeyboardShortcutsDialog } from '@/components/layout/keyboard-shortcuts-dialog';
-import { SetupWizard } from '@/components/settings/setup-wizard';
+import { SetupWizard } from '@/components/settings';
 import {
   ErrorBoundaryProvider,
   LoggerProvider,
@@ -47,63 +47,236 @@ const useIsomorphicLayoutEffect =
 
 /**
  * AppLoadingScreen - Shows during initial app hydration
- * Uses inline styles for colors as a fallback when CSS variables are not yet loaded
+ * Features beautiful, modern loading animation with theme adaptation
  */
 function AppLoadingScreen() {
+  const [isDark, setIsDark] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [loadingText, setLoadingText] = useState('Initializing...');
+
+  useIsomorphicLayoutEffect(() => {
+    setIsDark(window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false);
+  }, []);
+
+  // Simulate loading progress with realistic stages
+  useEffect(() => {
+    const stages = [
+      { progress: 15, text: 'Loading core modules...' },
+      { progress: 35, text: 'Initializing providers...' },
+      { progress: 55, text: 'Loading themes...' },
+      { progress: 75, text: 'Preparing workspace...' },
+      { progress: 90, text: 'Almost ready...' },
+      { progress: 100, text: 'Ready!' },
+    ];
+
+    let currentStage = 0;
+    const interval = setInterval(() => {
+      if (currentStage < stages.length) {
+        setProgress(stages[currentStage].progress);
+        setLoadingText(stages[currentStage].text);
+        currentStage++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 400);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Theme-adaptive colors
+  const colors = {
+    bg: isDark ? '#09090b' : '#fafafa',
+    text: isDark ? '#fafafa' : '#09090b',
+    textMuted: isDark ? 'rgba(250, 250, 250, 0.5)' : 'rgba(9, 9, 11, 0.5)',
+    primary: '#3b82f6',
+    primaryGlow: isDark ? 'rgba(59, 130, 246, 0.4)' : 'rgba(59, 130, 246, 0.3)',
+    ring: isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.1)',
+    gradient1: isDark ? 'rgba(59, 130, 246, 0.08)' : 'rgba(59, 130, 246, 0.05)',
+    gradient2: isDark ? 'rgba(139, 92, 246, 0.08)' : 'rgba(139, 92, 246, 0.05)',
+  };
+
   return (
     <div
-      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center transition-opacity duration-300"
-      style={{
-        backgroundColor: 'var(--background, #ffffff)',
-        // Fallback for dark mode detection before theme is applied
-        ...(typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches
-          ? { backgroundColor: '#0a0a0a' }
-          : {})
-      }}
+      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center"
+      style={{ backgroundColor: colors.bg }}
     >
-      <div className="flex flex-col items-center gap-6">
-        {/* Logo / Brand with animated gradient */}
+      {/* Subtle background gradient */}
+      <div
+        className="absolute inset-0 opacity-60"
+        style={{
+          background: `radial-gradient(ellipse 80% 50% at 50% -20%, ${colors.gradient1}, transparent),
+                       radial-gradient(ellipse 60% 40% at 80% 100%, ${colors.gradient2}, transparent)`,
+        }}
+      />
+
+      <div className="relative flex flex-col items-center gap-8">
+        {/* Animated Logo Container */}
         <div className="relative">
+          {/* Outer glow ring - slow rotation */}
           <div
-            className="h-16 w-16 rounded-2xl flex items-center justify-center"
+            className="absolute -inset-6 rounded-full opacity-30"
             style={{
-              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.05) 100%)'
+              background: `conic-gradient(from 0deg, transparent, ${colors.primary}, transparent)`,
+              animation: 'spin 4s linear infinite',
+            }}
+          />
+          
+          {/* Middle pulsing ring */}
+          <div
+            className="absolute -inset-4 rounded-full"
+            style={{
+              border: `2px solid ${colors.ring}`,
+              animation: 'pulse-ring 2s ease-in-out infinite',
+            }}
+          />
+
+          {/* Inner breathing ring */}
+          <div
+            className="absolute -inset-2 rounded-full"
+            style={{
+              border: `1px solid ${colors.ring}`,
+              animation: 'pulse-ring 2s ease-in-out infinite 0.5s',
+            }}
+          />
+
+          {/* Logo container with glass effect */}
+          <div
+            className="relative h-20 w-20 rounded-2xl flex items-center justify-center overflow-hidden"
+            style={{
+              background: `linear-gradient(135deg, ${colors.gradient1} 0%, ${colors.gradient2} 100%)`,
+              backdropFilter: 'blur(10px)',
+              boxShadow: `0 0 40px ${colors.primaryGlow}, inset 0 0 20px ${colors.ring}`,
             }}
           >
+            {/* Animated gradient background */}
             <div
-              className="h-8 w-8 rounded-lg animate-pulse"
-              style={{ backgroundColor: 'rgba(59, 130, 246, 0.8)' }}
+              className="absolute inset-0"
+              style={{
+                background: `linear-gradient(45deg, ${colors.primary}20, transparent, ${colors.primary}10)`,
+                animation: 'shimmer 3s ease-in-out infinite',
+              }}
             />
+            
+            {/* Core logo shape */}
+            <div className="relative z-10">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                {/* Neural network / brain icon */}
+                <circle
+                  cx="12" cy="12" r="3"
+                  fill={colors.primary}
+                  style={{ animation: 'pulse 2s ease-in-out infinite' }}
+                />
+                <circle
+                  cx="12" cy="4" r="2"
+                  fill={colors.primary}
+                  opacity="0.7"
+                  style={{ animation: 'pulse 2s ease-in-out infinite 0.2s' }}
+                />
+                <circle
+                  cx="12" cy="20" r="2"
+                  fill={colors.primary}
+                  opacity="0.7"
+                  style={{ animation: 'pulse 2s ease-in-out infinite 0.4s' }}
+                />
+                <circle
+                  cx="4" cy="12" r="2"
+                  fill={colors.primary}
+                  opacity="0.7"
+                  style={{ animation: 'pulse 2s ease-in-out infinite 0.6s' }}
+                />
+                <circle
+                  cx="20" cy="12" r="2"
+                  fill={colors.primary}
+                  opacity="0.7"
+                  style={{ animation: 'pulse 2s ease-in-out infinite 0.8s' }}
+                />
+                {/* Connecting lines */}
+                <line x1="12" y1="9" x2="12" y2="6" stroke={colors.primary} strokeWidth="1.5" opacity="0.5" />
+                <line x1="12" y1="15" x2="12" y2="18" stroke={colors.primary} strokeWidth="1.5" opacity="0.5" />
+                <line x1="9" y1="12" x2="6" y2="12" stroke={colors.primary} strokeWidth="1.5" opacity="0.5" />
+                <line x1="15" y1="12" x2="18" y2="12" stroke={colors.primary} strokeWidth="1.5" opacity="0.5" />
+              </svg>
+            </div>
           </div>
-          {/* Outer ring animation */}
-          <div
-            className="absolute -inset-2 rounded-3xl animate-[spin_3s_linear_infinite]"
-            style={{ border: '2px solid rgba(59, 130, 246, 0.2)' }}
-          />
         </div>
 
-        {/* Loading text */}
-        <div className="flex flex-col items-center gap-2">
-          <span
-            className="text-lg font-medium"
-            style={{ color: 'var(--foreground, #171717)' }}
+        {/* Brand name with fade-in effect */}
+        <div className="flex flex-col items-center gap-4">
+          <h1
+            className="text-2xl font-semibold tracking-tight"
+            style={{ color: colors.text }}
           >
             Cognia
-          </span>
-          <div className="flex items-center gap-1.5">
-            {[0, 150, 300].map((delay) => (
+          </h1>
+          
+          {/* Progress bar container */}
+          <div className="w-48 flex flex-col items-center gap-2">
+            {/* Progress bar background */}
+            <div
+              className="relative w-full h-1.5 rounded-full overflow-hidden"
+              style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }}
+            >
+              {/* Progress bar fill */}
               <div
-                key={delay}
-                className="h-1.5 w-1.5 rounded-full animate-bounce"
+                className="absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
                 style={{
-                  backgroundColor: 'rgba(59, 130, 246, 0.8)',
-                  animationDelay: `${delay}ms`
+                  width: `${progress}%`,
+                  background: `linear-gradient(90deg, ${colors.primary}, ${colors.primary}cc)`,
+                  boxShadow: `0 0 12px ${colors.primaryGlow}`,
                 }}
               />
-            ))}
+              {/* Shimmer effect on progress */}
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                  animation: 'progress-shimmer 1.5s ease-in-out infinite',
+                }}
+              />
+            </div>
+            
+            {/* Progress percentage and text */}
+            <div className="flex items-center justify-between w-full">
+              <span
+                className="text-xs font-medium transition-all duration-300"
+                style={{ color: colors.textMuted }}
+              >
+                {loadingText}
+              </span>
+              <span
+                className="text-xs font-mono"
+                style={{ color: colors.primary }}
+              >
+                {progress}%
+              </span>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* CSS Animations */}
+      <style jsx>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(0.95); }
+        }
+        @keyframes pulse-ring {
+          0%, 100% { transform: scale(1); opacity: 0.3; }
+          50% { transform: scale(1.05); opacity: 0.5; }
+        }
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        @keyframes progress-shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(200%); }
+        }
+      `}</style>
     </div>
   );
 }

@@ -7,6 +7,7 @@
  */
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { Copy, Check, Pencil, RotateCcw, Languages, Bookmark, BookmarkCheck, Volume2, VolumeX, Share2 } from 'lucide-react';
 import {
   Conversation,
@@ -40,7 +41,6 @@ import { PromptOptimizerDialog } from './prompt-optimizer-dialog';
 import { PresetManagerDialog } from './preset-manager-dialog';
 import { Suggestions, Suggestion } from '@/components/ai-elements/suggestion';
 import {
-  AgentPlanEditor,
   ToolTimeline,
   ToolApprovalDialog,
   WorkflowSelector,
@@ -62,6 +62,16 @@ import {
 import { translateText } from '@/lib/ai/translate';
 import type { SearchResponse, SearchResult } from '@/types/search';
 import { useSessionStore, useSettingsStore, usePresetStore, useMcpStore, useAgentStore, useProjectStore, useQuoteStore, useLearningStore, useArtifactStore } from '@/stores';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useMessages, useAgent, useProjectContext, calculateTokenBreakdown } from '@/hooks';
 import type { ParsedToolCall, ToolCallResult } from '@/types/mcp';
 import { useAIChat, useAutoRouter, type ProviderName, isVisionModel, buildMultimodalContent, type MultimodalMessage } from '@/lib/ai';
@@ -75,6 +85,8 @@ interface ChatContainerProps {
 }
 
 export function ChatContainer({ sessionId }: ChatContainerProps) {
+  const t = useTranslations('chat');
+  const tCommon = useTranslations('common');
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
   const getSession = useSessionStore((state) => state.getSession);
   const _getActiveSession = useSessionStore((state) => state.getActiveSession);
@@ -133,8 +145,14 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     onError: (err) => setError(err.message),
   });
 
-  // Settings store for API keys
+  // Settings store for API keys and global defaults
   const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const defaultTemperature = useSettingsStore((state) => state.defaultTemperature);
+  const defaultMaxTokens = useSettingsStore((state) => state.defaultMaxTokens);
+  const defaultTopP = useSettingsStore((state) => state.defaultTopP);
+  const defaultFrequencyPenalty = useSettingsStore((state) => state.defaultFrequencyPenalty);
+  const defaultPresencePenalty = useSettingsStore((state) => state.defaultPresencePenalty);
+  const addAlwaysAllowedTool = useSettingsStore((state) => state.addAlwaysAllowedTool);
 
   // Local state
   const [inputValue, setInputValue] = useState('');
@@ -162,6 +180,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   // Learning mode states
   const [showLearningPanel, setShowLearningPanel] = useState(false);
+  const learningPanelRef = useRef<HTMLDivElement>(null);
   const [showLearningStartDialog, setShowLearningStartDialog] = useState(false);
   const workflowPresentations = useWorkflowStore((state) => state.presentations);
   const activePresentationId = useWorkflowStore((state) => state.activePresentationId);
@@ -175,6 +194,9 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   // AI settings dialog state
   const [showAISettings, setShowAISettings] = useState(false);
+
+  // Clear context confirmation dialog state
+  const [showClearContextConfirm, setShowClearContextConfirm] = useState(false);
 
   // Model picker dialog state
   const [showModelPicker, setShowModelPicker] = useState(false);
@@ -357,10 +379,14 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       pendingApprovalRef.current = null;
     }
     setShowToolApproval(false);
+    
+    // Store alwaysAllow preference for the tool
+    if (alwaysAllow && toolApprovalRequest?.toolName) {
+      addAlwaysAllowedTool(toolApprovalRequest.toolName);
+    }
+    
     setToolApprovalRequest(null);
-    // TODO: Store alwaysAllow preference if needed
-    console.log('Tool approved:', toolCallId, 'alwaysAllow:', alwaysAllow);
-  }, []);
+  }, [toolApprovalRequest, addAlwaysAllowedTool]);
 
   const handleToolDeny = useCallback((toolCallId: string) => {
     if (pendingApprovalRef.current) {
@@ -420,6 +446,20 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     }
   }, [session, updateSession, createSession, getLearningSessionByChat]);
 
+  // Close learning panel when clicking outside
+  useEffect(() => {
+    if (!showLearningPanel) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (learningPanelRef.current && !learningPanelRef.current.contains(e.target as Node)) {
+        setShowLearningPanel(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showLearningPanel]);
+
   // Handle agent sub-mode change (within agent mode)
   const handleAgentModeChange = useCallback((agentMode: AgentModeConfig) => {
     if (session) {
@@ -478,14 +518,23 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     }
   }, [session, updateSession]);
 
-  // Get current AI settings from session
+  // Get current AI settings from session (fallback to global defaults)
   const currentAISettings: AISettings = useMemo(() => ({
-    temperature: session?.temperature ?? 0.7,
-    maxTokens: session?.maxTokens ?? 4096,
-    topP: session?.topP ?? 1.0,
-    frequencyPenalty: session?.frequencyPenalty ?? 0,
-    presencePenalty: session?.presencePenalty ?? 0,
-  }), [session?.temperature, session?.maxTokens, session?.topP, session?.frequencyPenalty, session?.presencePenalty]);
+    temperature: session?.temperature ?? defaultTemperature,
+    maxTokens: session?.maxTokens ?? defaultMaxTokens,
+    topP: session?.topP ?? defaultTopP,
+    frequencyPenalty: session?.frequencyPenalty ?? defaultFrequencyPenalty,
+    presencePenalty: session?.presencePenalty ?? defaultPresencePenalty,
+  }), [session?.temperature, session?.maxTokens, session?.topP, session?.frequencyPenalty, session?.presencePenalty, defaultTemperature, defaultMaxTokens, defaultTopP, defaultFrequencyPenalty, defaultPresencePenalty]);
+
+  // Global default AI settings for reset functionality
+  const globalDefaultAISettings: AISettings = useMemo(() => ({
+    temperature: defaultTemperature,
+    maxTokens: defaultMaxTokens,
+    topP: defaultTopP,
+    frequencyPenalty: defaultFrequencyPenalty,
+    presencePenalty: defaultPresencePenalty,
+  }), [defaultTemperature, defaultMaxTokens, defaultTopP, defaultFrequencyPenalty, defaultPresencePenalty]);
 
   // Open preset manager (can be used by child components)
   const _handleManagePresets = useCallback(() => {
@@ -1191,14 +1240,6 @@ Be thorough in your thinking but concise in your final answer.`;
         </div>
       )}
 
-      {/* Agent Plan Editor for agent mode - floats above chat input */}
-      {currentMode === 'agent' && activeSessionId && (
-        <div className="relative mx-auto w-full max-w-4xl px-4">
-          <div className="absolute bottom-0 left-4 right-4 z-10">
-            <AgentPlanEditor sessionId={activeSessionId} />
-          </div>
-        </div>
-      )}
 
       {/* Quoted content display */}
       <QuotedContent />
@@ -1244,6 +1285,15 @@ Be thorough in your thinking but concise in your final answer.`;
         }}
         onModelClick={() => setShowModelPicker(true)}
         onWorkflowClick={() => setShowWorkflowSelector(true)}
+        onPresetChange={handleSelectPreset}
+        onCreatePreset={() => {
+          setEditingPresetId(null);
+          setShowPresetManager(true);
+        }}
+        onManagePresets={() => {
+          setEditingPresetId(null);
+          setShowPresetManager(true);
+        }}
       />
 
       {/* Prompt Optimizer Dialog */}
@@ -1278,11 +1328,7 @@ Be thorough in your thinking but concise in your final answer.`;
         onShowTokenUsageMeterChange={setShowTokenUsageMeter}
         modelMaxTokens={modelMaxTokens}
         messageCount={messages.length}
-        onClearContext={() => {
-          if (confirm('Clear all messages in this conversation?')) {
-            _clearMessages();
-          }
-        }}
+        onClearContext={() => setShowClearContextConfirm(true)}
       />
 
       {/* AI Settings Dialog */}
@@ -1291,6 +1337,7 @@ Be thorough in your thinking but concise in your final answer.`;
         onOpenChange={setShowAISettings}
         settings={currentAISettings}
         onSettingsChange={handleAISettingsChange}
+        defaultSettings={globalDefaultAISettings}
       />
 
       {/* Model Picker Dialog */}
@@ -1351,7 +1398,10 @@ Be thorough in your thinking but concise in your final answer.`;
 
       {/* Learning Mode Panel - shown when in learning mode */}
       {currentMode === 'learning' && showLearningPanel && (
-        <div className="fixed right-4 top-20 z-40 w-80 max-h-[calc(100vh-6rem)] overflow-auto">
+        <div
+          ref={learningPanelRef}
+          className="fixed right-4 top-20 z-40 w-80 max-h-[calc(100vh-6rem)] overflow-auto"
+        >
           <LearningModePanel
             onClose={() => setShowLearningPanel(false)}
             className="shadow-lg"
@@ -1381,6 +1431,27 @@ Be thorough in your thinking but concise in your final answer.`;
           </svg>
         </button>
       )}
+
+      {/* Clear Context Confirmation Dialog */}
+      <AlertDialog open={showClearContextConfirm} onOpenChange={setShowClearContextConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('clearConversation')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('clearConversationConfirmation')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              _clearMessages();
+              setShowClearContextConfirm(false);
+            }}>
+              {tCommon('clear')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

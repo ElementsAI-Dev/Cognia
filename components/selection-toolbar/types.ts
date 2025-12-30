@@ -186,3 +186,74 @@ export const TOOLBAR_THEMES: Record<string, ToolbarTheme> = {
     active: "bg-white/25",
   },
 };
+
+// Unified action labels for display
+export const ACTION_LABELS: Record<SelectionAction, string> = {
+  explain: "Explanation",
+  translate: "Translation",
+  summarize: "Summary",
+  extract: "Key Points",
+  define: "Definition",
+  rewrite: "Rewritten",
+  grammar: "Grammar Check",
+  copy: "Copied",
+  "send-to-chat": "Sent",
+  search: "Search Results",
+  "code-explain": "Code Explanation",
+  "code-optimize": "Optimized Code",
+  "tone-formal": "Formal Tone",
+  "tone-casual": "Casual Tone",
+  expand: "Expanded",
+  shorten: "Shortened",
+};
+
+// Short action labels for buttons
+export const ACTION_SHORT_LABELS: Record<SelectionAction, string> = {
+  explain: "Explain",
+  translate: "Translate",
+  summarize: "Summarize",
+  extract: "Extract",
+  define: "Define",
+  rewrite: "Rewrite",
+  grammar: "Grammar",
+  copy: "Copy",
+  "send-to-chat": "Send to Chat",
+  search: "Search",
+  "code-explain": "Explain Code",
+  "code-optimize": "Optimize",
+  "tone-formal": "Formal",
+  "tone-casual": "Casual",
+  expand: "Expand",
+  shorten: "Shorten",
+};
+
+// Unified language definitions
+export interface LanguageOption {
+  value: string;
+  label: string;
+  flag: string;
+}
+
+export const LANGUAGES: LanguageOption[] = [
+  { value: "zh-CN", label: "Chinese (Simplified)", flag: "🇨🇳" },
+  { value: "zh-TW", label: "Chinese (Traditional)", flag: "🇹🇼" },
+  { value: "en", label: "English", flag: "🇺🇸" },
+  { value: "ja", label: "Japanese", flag: "🇯🇵" },
+  { value: "ko", label: "Korean", flag: "🇰🇷" },
+  { value: "es", label: "Spanish", flag: "🇪🇸" },
+  { value: "fr", label: "French", flag: "🇫🇷" },
+  { value: "de", label: "German", flag: "🇩🇪" },
+  { value: "ru", label: "Russian", flag: "🇷🇺" },
+  { value: "ar", label: "Arabic", flag: "🇸🇦" },
+  { value: "pt", label: "Portuguese", flag: "🇵🇹" },
+  { value: "it", label: "Italian", flag: "🇮🇹" },
+  { value: "vi", label: "Vietnamese", flag: "🇻🇳" },
+  { value: "th", label: "Thai", flag: "🇹🇭" },
+  { value: "id", label: "Indonesian", flag: "🇮🇩" },
+];
+
+// Helper function to get language name from code
+export function getLanguageName(code: string): string {
+  const lang = LANGUAGES.find(l => l.value === code);
+  return lang?.label || "Chinese (Simplified)";
+}

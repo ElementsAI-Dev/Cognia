@@ -83,7 +83,7 @@ export function getLogsForNode(
   nodeId: string
 ): ExecutionLog[] {
   return state.logs.filter((log) =>
-    log.message.includes(nodeId) || log.stepId === nodeId
+    log.message.includes(nodeId) || (log as { stepId?: string }).stepId === nodeId
   );
 }
 
@@ -194,7 +194,7 @@ export function exportExecutionState(state: WorkflowExecutionState): string {
       workflowId: state.workflowId,
       status: state.status,
       progress: state.progress,
-      startedAt: state.startedAt.toISOString(),
+      startedAt: state.startedAt?.toISOString(),
       completedAt: state.completedAt?.toISOString(),
       input: state.input,
       output: state.output,
@@ -216,6 +216,7 @@ export function exportExecutionState(state: WorkflowExecutionState): string {
  */
 export function formatExecutionStatus(status: WorkflowExecutionState['status']): string {
   const statusMap: Record<WorkflowExecutionState['status'], string> = {
+    idle: 'Idle',
     running: 'Running',
     paused: 'Paused',
     completed: 'Completed',
@@ -233,6 +234,7 @@ export function getStatusColor(
   status: WorkflowExecutionState['status']
 ): string {
   const colorMap: Record<WorkflowExecutionState['status'], string> = {
+    idle: 'gray',
     running: 'blue',
     paused: 'yellow',
     completed: 'green',
@@ -248,6 +250,8 @@ export function getStatusColor(
  */
 export function getNodeStatusColor(status: NodeExecutionState['status']): string {
   const colorMap: Record<NodeExecutionState['status'], string> = {
+    idle: 'gray',
+    waiting: 'gray',
     pending: 'gray',
     running: 'blue',
     completed: 'green',
@@ -292,9 +296,10 @@ export function calculateExecutionStats(state: WorkflowExecutionState): {
   totalErrors: number;
   totalWarnings: number;
 } {
+  const startTime = state.startedAt?.getTime() ?? Date.now();
   const duration = state.completedAt
-    ? state.completedAt.getTime() - state.startedAt.getTime()
-    : Date.now() - state.startedAt.getTime();
+    ? state.completedAt.getTime() - startTime
+    : Date.now() - startTime;
 
   // Calculate step durations
   const stepDurations: Array<{ nodeId: string; duration: number }> = [];
@@ -346,8 +351,9 @@ export function validateWorkflowInput(
   const errors: string[] = [];
 
   // Check if workflow has input schema defined
-  if (workflow.settings.inputSchema) {
-    const schema = workflow.settings.inputSchema;
+  const settings = workflow.settings as { inputSchema?: { required?: string[]; properties?: Record<string, unknown> } };
+  if (settings.inputSchema) {
+    const schema = settings.inputSchema;
 
     // Check required fields
     if (schema.required) {

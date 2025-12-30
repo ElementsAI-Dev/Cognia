@@ -101,10 +101,10 @@ export function VersionHistoryPanel({
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffMins < 1) return t('justNow');
+    if (diffMins < 60) return t('minutesAgo', { count: diffMins });
+    if (diffHours < 24) return t('hoursAgo', { count: diffHours });
+    if (diffDays < 7) return t('daysAgo', { count: diffDays });
     return date.toLocaleDateString(undefined, {
       year: 'numeric',
       month: 'short',
@@ -191,6 +191,7 @@ export function VersionHistoryPanel({
                             onRestore={() => handleRestoreVersion(version.id)}
                             onDelete={() => setDeleteVersion(version)}
                             formatDate={formatDate}
+                            t={t}
                           />
                         ))}
                       </CollapsibleContent>
@@ -217,7 +218,7 @@ export function VersionHistoryPanel({
               <Input
                 value={saveDescription}
                 onChange={(e) => setSaveDescription(e.target.value)}
-                placeholder="e.g., Added error handling..."
+                placeholder={t('descriptionPlaceholder')}
               />
             </div>
             <div className="flex justify-end gap-2">
@@ -301,6 +302,7 @@ interface VersionItemProps {
   onRestore: () => void;
   onDelete: () => void;
   formatDate: (date: Date) => string;
+  t: ReturnType<typeof useTranslations>;
 }
 
 function VersionItem({
@@ -310,6 +312,7 @@ function VersionItem({
   onRestore,
   onDelete,
   formatDate,
+  t,
 }: VersionItemProps) {
   return (
     <div
@@ -327,12 +330,12 @@ function VersionItem({
             </span>
             {isCurrent && (
               <Badge variant="default" className="text-xs">
-                Current
+                {t('current')}
               </Badge>
             )}
             {version.isAutoSave && (
               <Badge variant="secondary" className="text-xs">
-                Auto
+                {t('autoSave')}
               </Badge>
             )}
           </div>
@@ -342,19 +345,19 @@ function VersionItem({
             </p>
           )}
           <p className="mt-1 text-xs text-muted-foreground">
-            {version.content.split('\n').length} lines
+            {version.content.split('\n').length} {t('lines')}
           </p>
         </div>
       </div>
       <div className="mt-2 flex gap-1">
         <Button variant="ghost" size="sm" onClick={onPreview}>
           <Eye className="h-3.5 w-3.5 mr-1" />
-          Preview
+          {t('previewAction')}
         </Button>
         {!isCurrent && (
           <Button variant="ghost" size="sm" onClick={onRestore}>
             <RotateCcw className="h-3.5 w-3.5 mr-1" />
-            Restore
+            {t('restore')}
           </Button>
         )}
         <Button

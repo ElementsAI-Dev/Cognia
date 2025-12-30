@@ -3,6 +3,7 @@
  */
 
 import type { UIMessage, Session, MessagePart, Attachment, Source } from '@/types';
+import { formatBytes } from '@/lib/utils';
 
 export interface RichExportData {
   session: Session;
@@ -210,10 +211,10 @@ function renderAttachments(attachments: Attachment[]): string {
 
   for (const attachment of attachments) {
     if (attachment.type === 'image') {
-      lines.push(`- **${attachment.name}** (${formatFileSize(attachment.size)})`);
+      lines.push(`- **${attachment.name}** (${formatBytes(attachment.size)})`);
       lines.push(`  ![${attachment.name}](${attachment.url})`);
     } else {
-      lines.push(`- **${attachment.name}** (${attachment.mimeType}, ${formatFileSize(attachment.size)})`);
+      lines.push(`- **${attachment.name}** (${attachment.mimeType}, ${formatBytes(attachment.size)})`);
     }
   }
 
@@ -255,15 +256,6 @@ function formatToolName(name: string): string {
     .split(/[-_]/)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
-}
-
-/**
- * Format file size for display
- */
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 /**

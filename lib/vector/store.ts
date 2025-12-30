@@ -847,7 +847,8 @@ export function createVectorStore(config: VectorStoreConfig): IVectorStore {
       if (!config.pineconeApiKey) {
         throw new Error('Pinecone API key is required');
       }
-      return new PineconeVectorStore(config);
+      // TODO: Implement PineconeVectorStore
+      throw new Error('Pinecone vector store is not yet implemented');
     case 'qdrant':
       if (!config.qdrantUrl) {
         throw new Error('Qdrant URL is required');

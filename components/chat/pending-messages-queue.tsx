@@ -5,6 +5,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Clock,
   Loader2,
@@ -52,42 +53,42 @@ const statusConfig: Record<PendingMessage['status'], {
   icon: React.ElementType;
   color: string;
   bgColor: string;
-  label: string;
+  labelKey: string;
 }> = {
   queued: { 
     icon: Clock, 
     color: 'text-muted-foreground', 
     bgColor: 'bg-muted', 
-    label: 'Queued' 
+    labelKey: 'statusQueued' 
   },
   processing: { 
     icon: Loader2, 
     color: 'text-primary', 
     bgColor: 'bg-primary/10', 
-    label: 'Processing' 
+    labelKey: 'statusProcessing' 
   },
   retrying: { 
     icon: RotateCcw, 
     color: 'text-orange-500', 
     bgColor: 'bg-orange-500/10', 
-    label: 'Retrying' 
+    labelKey: 'statusRetrying' 
   },
   failed: { 
     icon: AlertCircle, 
     color: 'text-destructive', 
     bgColor: 'bg-destructive/10', 
-    label: 'Failed' 
+    labelKey: 'statusFailed' 
   },
 };
 
 // Priority configuration
 const priorityConfig: Record<PendingMessage['priority'], {
   color: string;
-  label: string;
+  labelKey: string;
 }> = {
-  low: { color: 'text-muted-foreground', label: 'Low' },
-  normal: { color: 'text-blue-500', label: 'Normal' },
-  high: { color: 'text-orange-500', label: 'High' },
+  low: { color: 'text-muted-foreground', labelKey: 'priorityLow' },
+  normal: { color: 'text-blue-500', labelKey: 'priorityNormal' },
+  high: { color: 'text-orange-500', labelKey: 'priorityHigh' },
 };
 
 function formatTime(date: Date): string {
@@ -104,13 +105,15 @@ interface PendingMessageItemProps {
   onCancel: () => void;
   onRetry: () => void;
   position: number;
+  t: ReturnType<typeof useTranslations>;
 }
 
 function PendingMessageItem({ 
   message, 
   onCancel, 
   onRetry, 
-  position 
+  position,
+  t 
 }: PendingMessageItemProps) {
   const config = statusConfig[message.status];
   const StatusIcon = config.icon;
@@ -149,14 +152,14 @@ function PendingMessageItem({
       <div className="flex-1 min-w-0 space-y-1">
         <div className="flex items-center gap-2">
           <Badge variant="outline" className={cn('text-[10px] h-4', priorityCfg.color)}>
-            {priorityCfg.label}
+            {t(priorityCfg.labelKey)}
           </Badge>
           <Badge variant="secondary" className="text-[10px] h-4">
-            {config.label}
+            {t(config.labelKey)}
           </Badge>
           {message.retryCount && message.retryCount > 0 && (
             <Badge variant="outline" className="text-[10px] h-4 text-orange-500">
-              Retry {message.retryCount}
+              {t('retry', { count: message.retryCount })}
             </Badge>
           )}
         </div>
@@ -169,7 +172,7 @@ function PendingMessageItem({
             {formatTime(message.createdAt)}
           </span>
           {message.estimatedWaitTime && message.status === 'queued' && (
-            <span>Wait: {formatWaitTime(message.estimatedWaitTime)}</span>
+            <span>{t('wait')}: {formatWaitTime(message.estimatedWaitTime)}</span>
           )}
         </div>
 
@@ -194,7 +197,7 @@ function PendingMessageItem({
                 <RotateCcw className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Retry</TooltipContent>
+            <TooltipContent>{t('retryAction')}</TooltipContent>
           </Tooltip>
         )}
         <Tooltip>
@@ -208,7 +211,7 @@ function PendingMessageItem({
               <X className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Cancel</TooltipContent>
+          <TooltipContent>{t('cancel')}</TooltipContent>
         </Tooltip>
       </div>
     </motion.div>
@@ -238,6 +241,7 @@ export function PendingMessagesQueue({
   maxVisible = 5,
   className,
 }: PendingMessagesQueueProps) {
+  const t = useTranslations('pendingMessagesQueue');
   const [isExpanded, setIsExpanded] = useState(true);
 
   // Statistics
@@ -286,18 +290,18 @@ export function PendingMessagesQueue({
                 <MessageSquare className="h-4 w-4 text-primary" />
               </div>
               <div className="text-left">
-                <h4 className="font-medium text-sm">Message Queue</h4>
+                <h4 className="font-medium text-sm">{t('title')}</h4>
                 <p className="text-xs text-muted-foreground">
-                  {stats.processing > 0 && `${stats.processing} processing, `}
-                  {stats.queued} waiting
-                  {stats.failed > 0 && `, ${stats.failed} failed`}
+                  {stats.processing > 0 && `${stats.processing} ${t('processing')}, `}
+                  {stats.queued} {t('waiting')}
+                  {stats.failed > 0 && `, ${stats.failed} ${t('failed')}`}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               {isPaused && (
                 <Badge variant="outline" className="text-orange-500 border-orange-500/50">
-                  Paused
+                  {t('paused')}
                 </Badge>
               )}
               {isExpanded ? (
@@ -328,6 +332,7 @@ export function PendingMessagesQueue({
                     position={index + 1}
                     onCancel={() => onCancelMessage(message.id)}
                     onRetry={() => onRetryMessage(message.id)}
+                    t={t}
                   />
                 ))}
               </AnimatePresence>
@@ -335,7 +340,7 @@ export function PendingMessagesQueue({
               {hiddenCount > 0 && (
                 <div className="text-center py-2">
                   <span className="text-xs text-muted-foreground">
-                    +{hiddenCount} more messages
+                    {t('moreMessages', { count: hiddenCount })}
                   </span>
                 </div>
               )}
@@ -355,12 +360,12 @@ export function PendingMessagesQueue({
                   {isPaused ? (
                     <>
                       <Play className="h-3 w-3 mr-1" />
-                      Resume
+                      {t('resume')}
                     </>
                   ) : (
                     <>
                       <Pause className="h-3 w-3 mr-1" />
-                      Pause
+                      {t('pause')}
                     </>
                   )}
                 </Button>
@@ -374,7 +379,7 @@ export function PendingMessagesQueue({
                 onClick={onClearAll}
               >
                 <Trash2 className="h-3 w-3 mr-1" />
-                Clear All
+                {t('clearAll')}
               </Button>
             )}
           </div>

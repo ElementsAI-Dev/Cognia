@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { AgentSteps, AgentStepsPanel } from './agent-steps';
+import { AgentSteps } from './agent-steps';
 
 // Mock the stores
 const mockIsAgentRunning = jest.fn();
@@ -66,7 +66,7 @@ describe('AgentSteps', () => {
 
   it('displays step count correctly', () => {
     render(<AgentSteps steps={mockSteps} />);
-    expect(screen.getByText('1 / 3 steps')).toBeInTheDocument();
+    expect(screen.getByText(/1 \/ 3/)).toBeInTheDocument();
   });
 
   it('renders all step names', () => {
@@ -95,7 +95,7 @@ describe('AgentSteps', () => {
 
   it('handles empty steps array', () => {
     render(<AgentSteps steps={[]} />);
-    expect(screen.getByText('0 / 0 steps')).toBeInTheDocument();
+    expect(screen.getByText(/0 \/ 0/)).toBeInTheDocument();
     const progress = screen.getByTestId('progress');
     expect(progress).toHaveAttribute('data-value', '0');
   });
@@ -146,88 +146,58 @@ describe('AgentSteps', () => {
   });
 });
 
-describe('AgentStepsPanel', () => {
+describe('AgentSteps', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockIsAgentRunning.mockReturnValue(false);
     mockToolExecutions.mockReturnValue([]);
   });
 
-  it('returns null when not running and no executions', () => {
-    mockIsAgentRunning.mockReturnValue(false);
-    mockToolExecutions.mockReturnValue([]);
-
-    const { container } = render(<AgentStepsPanel />);
-    expect(container.firstChild).toBeNull();
+  it('renders empty state when steps array is empty', () => {
+    render(<AgentSteps steps={[]} />);
+    // Component still renders container with 0/0 progress
+    expect(screen.getByText(/0 \/ 0/)).toBeInTheDocument();
   });
 
-  it('renders when agent is running', () => {
-    mockIsAgentRunning.mockReturnValue(true);
-    mockToolExecutions.mockReturnValue([]);
-
-    render(<AgentStepsPanel />);
-    expect(screen.getByText('Agent Execution')).toBeInTheDocument();
+  it('renders when there are steps', () => {
+    const steps = [
+      { id: 'step-1', name: 'TestStep', status: 'running' as const, description: 'Running step' },
+    ];
+    render(<AgentSteps steps={steps} />);
+    expect(screen.getByText('TestStep')).toBeInTheDocument();
   });
 
-  it('renders when there are tool executions', () => {
-    mockIsAgentRunning.mockReturnValue(false);
-    mockToolExecutions.mockReturnValue([
-      {
-        id: 'tool-1',
-        toolName: 'web_search',
-        status: 'completed',
-        startedAt: new Date(),
-        completedAt: new Date(),
-      },
-    ]);
-
-    render(<AgentStepsPanel />);
-    expect(screen.getByText('Agent Execution')).toBeInTheDocument();
-    expect(screen.getByText('web_search')).toBeInTheDocument();
+  it('renders completed steps', () => {
+    const steps = [
+      { id: 'step-1', name: 'WebSearch', status: 'completed' as const, description: 'Search completed' },
+    ];
+    render(<AgentSteps steps={steps} />);
+    expect(screen.getByText('WebSearch')).toBeInTheDocument();
   });
 
-  it('converts tool executions to AgentStep format', () => {
-    mockIsAgentRunning.mockReturnValue(true);
-    mockToolExecutions.mockReturnValue([
-      {
-        id: 'tool-1',
-        toolName: 'file_read',
-        status: 'pending',
-      },
-      {
-        id: 'tool-2',
-        toolName: 'code_execute',
-        status: 'running',
-      },
-      {
-        id: 'tool-3',
-        toolName: 'web_search',
-        status: 'completed',
-      },
-      {
-        id: 'tool-4',
-        toolName: 'api_call',
-        status: 'error',
-      },
-    ]);
-
-    render(<AgentStepsPanel />);
-    expect(screen.getByText('file_read')).toBeInTheDocument();
-    expect(screen.getByText('code_execute')).toBeInTheDocument();
-    expect(screen.getByText('web_search')).toBeInTheDocument();
-    expect(screen.getByText('api_call')).toBeInTheDocument();
+  it('renders multiple steps with different statuses', () => {
+    const steps = [
+      { id: 'step-1', name: 'FileRead', status: 'pending' as const, description: 'Pending' },
+      { id: 'step-2', name: 'CodeExecute', status: 'running' as const, description: 'Running' },
+      { id: 'step-3', name: 'WebSearch', status: 'completed' as const, description: 'Done' },
+      { id: 'step-4', name: 'ApiCall', status: 'error' as const, description: 'Failed' },
+    ];
+    render(<AgentSteps steps={steps} />);
+    expect(screen.getByText('FileRead')).toBeInTheDocument();
+    expect(screen.getByText('CodeExecute')).toBeInTheDocument();
+    expect(screen.getByText('WebSearch')).toBeInTheDocument();
+    expect(screen.getByText('ApiCall')).toBeInTheDocument();
   });
 
-  it('displays progress based on tool executions', () => {
-    mockIsAgentRunning.mockReturnValue(true);
-    mockToolExecutions.mockReturnValue([
-      { id: 'tool-1', toolName: 'step1', status: 'completed' },
-      { id: 'tool-2', toolName: 'step2', status: 'completed' },
-      { id: 'tool-3', toolName: 'step3', status: 'running' },
-      { id: 'tool-4', toolName: 'step4', status: 'pending' },
-    ]);
-
-    render(<AgentStepsPanel />);
-    expect(screen.getByText('2 / 4 steps')).toBeInTheDocument();
+  it('displays progress based on completed steps', () => {
+    const steps = [
+      { id: 'step-1', name: 'step1', status: 'completed' as const, description: '' },
+      { id: 'step-2', name: 'step2', status: 'completed' as const, description: '' },
+      { id: 'step-3', name: 'step3', status: 'running' as const, description: '' },
+      { id: 'step-4', name: 'step4', status: 'pending' as const, description: '' },
+    ];
+    render(<AgentSteps steps={steps} />);
+    // Component shows "X / Y" format with translated "steps" text
+    expect(screen.getByText(/2 \/ 4/)).toBeInTheDocument();
   });
 });

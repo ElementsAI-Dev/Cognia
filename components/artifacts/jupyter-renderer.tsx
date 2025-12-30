@@ -5,6 +5,7 @@
  */
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronDown, ChevronRight, Play, Code, FileText, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ interface JupyterRendererProps {
 }
 
 export function JupyterRenderer({ content, className, onCellExecute }: JupyterRendererProps) {
+  const t = useTranslations('jupyterRenderer');
   const [collapsedCells, setCollapsedCells] = useState<Set<number>>(new Set());
   const [collapsedOutputs, setCollapsedOutputs] = useState<Set<number>>(new Set());
 
@@ -46,7 +48,7 @@ export function JupyterRenderer({ content, className, onCellExecute }: JupyterRe
       <div className={cn('p-4 text-destructive', className)}>
         <div className="flex items-center gap-2">
           <AlertCircle className="h-4 w-4" />
-          <span>Failed to parse Jupyter notebook</span>
+          <span>{t('parseError')}</span>
         </div>
       </div>
     );
@@ -87,7 +89,7 @@ export function JupyterRenderer({ content, className, onCellExecute }: JupyterRe
             {language}
           </Badge>
           <span className="text-xs text-muted-foreground">
-            {notebook.cells.length} cells
+            {notebook.cells.length} {t('cells')}
           </span>
         </div>
 
@@ -103,6 +105,7 @@ export function JupyterRenderer({ content, className, onCellExecute }: JupyterRe
             onToggleCollapse={() => toggleCellCollapse(index)}
             onToggleOutputCollapse={() => toggleOutputCollapse(index)}
             onExecute={onCellExecute ? () => onCellExecute(index, getCellSource(cell)) : undefined}
+            t={t}
           />
         ))}
       </div>
@@ -119,6 +122,7 @@ interface NotebookCellProps {
   onToggleCollapse: () => void;
   onToggleOutputCollapse: () => void;
   onExecute?: () => void;
+  t: ReturnType<typeof useTranslations>;
 }
 
 function NotebookCell({
@@ -130,6 +134,7 @@ function NotebookCell({
   onToggleCollapse,
   onToggleOutputCollapse,
   onExecute,
+  t,
 }: NotebookCellProps) {
   const source = getCellSource(cell);
   const isCodeCell = cell.cell_type === 'code';
@@ -180,7 +185,7 @@ function NotebookCell({
             size="icon"
             className="h-5 w-5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity"
             onClick={onExecute}
-            title="Run cell"
+            title={t('runCell')}
           >
             <Play className="h-3 w-3" />
           </Button>
@@ -223,7 +228,7 @@ function NotebookCell({
               <ChevronDown className="h-3 w-3" />
             )}
             <span className="text-xs text-muted-foreground">
-              Output ({cell.outputs.length})
+              {t('output')} ({cell.outputs.length})
             </span>
           </div>
 

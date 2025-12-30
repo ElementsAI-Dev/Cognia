@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { waitForAnimation } from '../utils/test-helpers';
 
 /**
  * MCP Settings Complete Tests
  * Tests MCP server configuration and management
+ * Optimized for CI/CD efficiency
  */
 
 test.describe('MCP Settings - Server List', () => {
@@ -767,7 +769,7 @@ test.describe('MCP Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for MCP tab
       const mcpSection = page.locator('text=MCP').first();
@@ -783,7 +785,7 @@ test.describe('MCP Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Click MCP tab if available
       const mcpTab = page
@@ -791,7 +793,7 @@ test.describe('MCP Settings UI', () => {
         .first();
       if (await mcpTab.isVisible()) {
         await mcpTab.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
       }
 
       // Look for add button
@@ -808,7 +810,7 @@ test.describe('MCP Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Click MCP tab if available
       const mcpTab = page
@@ -816,7 +818,7 @@ test.describe('MCP Settings UI', () => {
         .first();
       if (await mcpTab.isVisible()) {
         await mcpTab.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
       }
 
       // Look for quick install button
@@ -835,7 +837,7 @@ test.describe('MCP Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for refresh icon button
       const refreshBtn = page

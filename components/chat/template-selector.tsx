@@ -78,7 +78,7 @@ export function TemplateSelector({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+      <DialogContent className="w-[95vw] max-w-5xl max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
@@ -89,9 +89,9 @@ export function TemplateSelector({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex gap-4 flex-1 min-h-0">
+        <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0 overflow-hidden">
           {/* Left side - Template list */}
-          <div className="flex-1 space-y-4 flex flex-col min-w-0">
+          <div className="md:w-[55%] lg:w-[60%] space-y-4 flex flex-col min-w-0 overflow-hidden shrink-0">
             {/* Search */}
             <InputGroup>
               <InputGroupAddon align="inline-start">
@@ -120,7 +120,7 @@ export function TemplateSelector({
               </TabsList>
 
               <TabsContent value={selectedCategory} className="mt-4 flex-1 min-h-0">
-                <ScrollArea className="h-[350px]">
+                <ScrollArea className="h-[200px] md:h-[350px]">
                   <div className="grid gap-3">
                     {filteredTemplates.map((template) => (
                       <TemplateCard
@@ -148,8 +148,8 @@ export function TemplateSelector({
           </div>
 
           {/* Right side - Preview panel */}
-          <div className="w-80 shrink-0 border-l hidden md:block">
-            <ScrollArea className="h-[450px]">
+          <div className="flex-1 border-t md:border-t-0 md:border-l flex flex-col overflow-hidden min-w-0">
+            <ScrollArea className="h-[200px] md:h-auto md:flex-1">
               <TemplatePreview 
                 template={previewTemplate}
                 selectToPreviewLabel={t('selectToPreview')}
@@ -203,7 +203,7 @@ function TemplateCard({ template, onSelect, onPreview, isSelected, builtInLabel,
           {template.suggestedQuestions.slice(0, 2).map((q, i) => (
             <span
               key={i}
-              className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground truncate max-w-[150px]"
+              className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground truncate max-w-[200px]"
             >
               {q}
             </span>

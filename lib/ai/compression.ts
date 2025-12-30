@@ -168,7 +168,7 @@ export function applySelectiveCompression(
     if (content.includes('```')) return true;
 
     // Messages with tool calls are important
-    if (msg.toolInvocations && msg.toolInvocations.length > 0) return true;
+    if ((msg as { toolInvocations?: unknown[] }).toolInvocations?.length) return true;
 
     // Messages with artifacts are important
     if (content.includes('artifact') || content.includes('<artifact')) return true;
@@ -256,6 +256,7 @@ export function createSummaryMessage(
     role: 'system',
     content: summary,
     createdAt: now,
+    // @ts-expect-error compressionState is a custom extension
     compressionState: {
       isSummary: true,
       summarizedMessageIds: compressedMessages.map(m => m.id),

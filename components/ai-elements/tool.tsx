@@ -17,8 +17,8 @@ import {
   WrenchIcon,
   XCircleIcon,
 } from "lucide-react";
+import React, { isValidElement } from "react";
 import type { ComponentProps, ReactNode } from "react";
-import { isValidElement } from "react";
 import { CodeBlock } from "./code-block";
 
 export type ToolProps = ComponentProps<typeof Collapsible>;
@@ -101,49 +101,57 @@ export const ToolHeader = ({
   </CollapsibleTrigger>
 );
 
-export type ToolContentProps = ComponentProps<typeof CollapsibleContent>;
+export type ToolContentProps = {
+  children?: ReactNode;
+  className?: string;
+};
 
-export const ToolContent = ({ className, ...props }: ToolContentProps) => (
+export const ToolContent = ({ className, children }: ToolContentProps) => (
   <CollapsibleContent
     className={cn(
       "border-t border-border/30",
       "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-popover-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in duration-200",
       className
     )}
-    {...props}
-  />
+  >
+    {children}
+  </CollapsibleContent>
 );
 
-export type ToolInputProps = ComponentProps<"div"> & {
-  input: ToolUIPart["input"];
-};
+export type ToolArgs = Record<string, unknown>;
 
-export function ToolInput({ className, input, ...props }: ToolInputProps) {
+export interface ToolInputProps {
+  input: unknown;
+  className?: string;
+}
+
+export function ToolInput({ className, input }: ToolInputProps): React.ReactElement {
   const t = useTranslations('toolStatus');
+  const inputData = (input ?? {}) as Record<string, unknown>;
   return (
-    <div className={cn("space-y-2 overflow-hidden p-4", className)} {...props}>
+    <div className={cn("space-y-2 overflow-hidden p-4", className)}>
       <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wider flex items-center gap-2">
         <span className="h-px flex-1 bg-border/50" />
         {t('parameters')}
         <span className="h-px flex-1 bg-border/50" />
       </h4>
       <div className="rounded-lg bg-muted/30 border border-border/30 overflow-hidden">
-        <CodeBlock code={JSON.stringify(input, null, 2)} language="json" />
+        <CodeBlock code={JSON.stringify(inputData, null, 2)} language="json" />
       </div>
     </div>
   );
 }
 
-export type ToolOutputProps = ComponentProps<"div"> & {
-  output: ToolUIPart["output"];
-  errorText: ToolUIPart["errorText"];
-};
+export interface ToolOutputProps {
+  output: unknown;
+  errorText?: string;
+  className?: string;
+}
 
 export function ToolOutput({
   className,
   output,
   errorText,
-  ...props
 }: ToolOutputProps) {
   const t = useTranslations('toolStatus');
   
@@ -151,18 +159,31 @@ export function ToolOutput({
     return null;
   }
 
-  let Output = <div>{output as ReactNode}</div>;
+  // Render output based on its type
+  const renderOutput = (): ReactNode => {
+    if (output === null || output === undefined) {
+      return null;
+    }
+    if (typeof output === "string") {
+      return <CodeBlock code={output} language="json" />;
+    }
+    if (typeof output === "number" || typeof output === "boolean") {
+      return <CodeBlock code={String(output)} language="json" />;
+    }
+    if (isValidElement(output)) {
+      return output;
+    }
+    if (typeof output === "object") {
+      return <CodeBlock code={JSON.stringify(output, null, 2)} language="json" />;
+    }
+    // Fallback for other types
+    return <CodeBlock code={String(output)} language="json" />;
+  };
 
-  if (typeof output === "object" && !isValidElement(output)) {
-    Output = (
-      <CodeBlock code={JSON.stringify(output, null, 2)} language="json" />
-    );
-  } else if (typeof output === "string") {
-    Output = <CodeBlock code={output} language="json" />;
-  }
+  const Output = renderOutput();
 
   return (
-    <div className={cn("space-y-2 p-4", className)} {...props}>
+    <div className={cn("space-y-2 p-4", className)}>
       <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wider flex items-center gap-2">
         <span className="h-px flex-1 bg-border/50" />
         {errorText ? t('error') : t('result')}

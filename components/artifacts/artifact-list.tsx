@@ -5,6 +5,7 @@
  */
 
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { formatDistanceToNow } from 'date-fns';
 import {
   Code,
@@ -15,6 +16,7 @@ import {
   Sparkles,
   Calculator,
   Trash2,
+  BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -46,17 +48,19 @@ const typeIcons: Record<ArtifactType, React.ReactNode> = {
   mermaid: <GitBranch className="h-4 w-4" />,
   chart: <BarChart className="h-4 w-4" />,
   math: <Calculator className="h-4 w-4" />,
+  jupyter: <BookOpen className="h-4 w-4" />,
 };
 
-const typeLabels: Record<ArtifactType, string> = {
-  code: 'Code',
-  document: 'Document',
-  svg: 'SVG',
-  html: 'HTML',
-  react: 'React',
-  mermaid: 'Diagram',
-  chart: 'Chart',
-  math: 'Math',
+const TYPE_LABEL_KEYS: Record<ArtifactType, string> = {
+  code: 'code',
+  document: 'document',
+  svg: 'svg',
+  html: 'html',
+  react: 'react',
+  mermaid: 'mermaid',
+  chart: 'chart',
+  math: 'math',
+  jupyter: 'jupyter',
 };
 
 export function ArtifactList({
@@ -65,6 +69,7 @@ export function ArtifactList({
   maxHeight = '400px',
   onArtifactClick,
 }: ArtifactListProps) {
+  const t = useTranslations('artifactList');
   const artifacts = useArtifactStore((state) => state.artifacts);
   const activeArtifactId = useArtifactStore((state) => state.activeArtifactId);
   const setActiveArtifact = useArtifactStore((state) => state.setActiveArtifact);
@@ -101,8 +106,8 @@ export function ArtifactList({
     return (
       <EmptyState
         icon={Code}
-        title="No artifacts yet"
-        description="Code snippets and content will appear here"
+        title={t('noArtifacts')}
+        description={t('noArtifactsDesc')}
         className={className}
         compact
       />
@@ -141,21 +146,21 @@ export function ArtifactList({
                       </p>
                     </div>
                     <Badge variant="outline" className="shrink-0 text-xs">
-                      {typeLabels[artifact.type]}
+                      {t(`types.${TYPE_LABEL_KEYS[artifact.type]}`)}
                     </Badge>
                   </div>
                 </Button>
               </ContextMenuTrigger>
               <ContextMenuContent>
                 <ContextMenuItem onClick={() => handleArtifactClick(artifact)}>
-                  Open
+                  {t('open')}
                 </ContextMenuItem>
                 <ContextMenuItem
                   className="text-destructive"
                   onClick={(e) => handleDelete(artifact.id, e as unknown as React.MouseEvent)}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
+                  {t('delete')}
                 </ContextMenuItem>
               </ContextMenuContent>
             </ContextMenu>

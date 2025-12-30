@@ -134,8 +134,8 @@ function nodeToStep(
       return {
         ...baseStep,
         type: 'human',
-        inputs: (data as AINodeData).inputs || {},
-        outputs: (data as AINodeData).outputs || {},
+        inputs: (data as unknown as AINodeData).inputs || {},
+        outputs: (data as unknown as AINodeData).outputs || {},
       } as WorkflowStepDefinition;
     }
 
@@ -143,8 +143,8 @@ function nodeToStep(
       return {
         ...baseStep,
         type: 'parallel',
-        inputs: (data as AINodeData).inputs || {},
-        outputs: (data as AINodeData).outputs || {},
+        inputs: (data as unknown as AINodeData).inputs || {},
+        outputs: (data as unknown as AINodeData).outputs || {},
       } as WorkflowStepDefinition;
     }
 
@@ -159,8 +159,8 @@ function nodeToStep(
         ...baseStep,
         type: 'tool',
         toolName: `${data.nodeType}_executor`,
-        inputs: (data as AINodeData).inputs || {},
-        outputs: (data as AINodeData).outputs || {},
+        inputs: (data as unknown as AINodeData).inputs || {},
+        outputs: (data as unknown as AINodeData).outputs || {},
       } as WorkflowStepDefinition;
     }
 
@@ -366,10 +366,10 @@ function stepToNode(step: WorkflowStepDefinition, position: { x: number; y: numb
 
   return {
     id: step.id,
-    type: nodeType as string,
+    type: nodeType,
     position,
     data,
-  };
+  } as WorkflowNode;
 }
 
 /**

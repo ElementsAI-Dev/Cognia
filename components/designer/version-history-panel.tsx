@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   History,
   Undo2,
@@ -63,7 +64,7 @@ function getActionIcon(action: string): React.ReactNode {
   return <History className="h-3.5 w-3.5" />;
 }
 
-function formatTimestamp(date: Date): string {
+function formatTimestamp(date: Date, t: ReturnType<typeof useTranslations>): string {
   const now = new Date();
   const diff = now.getTime() - date.getTime();
   const seconds = Math.floor(diff / 1000);
@@ -71,13 +72,13 @@ function formatTimestamp(date: Date): string {
   const hours = Math.floor(minutes / 60);
 
   if (seconds < 60) {
-    return 'Just now';
+    return t('justNow');
   }
   if (minutes < 60) {
-    return `${minutes}m ago`;
+    return t('minutesAgo', { count: minutes });
   }
   if (hours < 24) {
-    return `${hours}h ago`;
+    return t('hoursAgo', { count: hours });
   }
   return date.toLocaleDateString('en-US', {
     month: 'short',
@@ -88,6 +89,7 @@ function formatTimestamp(date: Date): string {
 }
 
 export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
+  const t = useTranslations('versionHistoryPanel');
   const history = useDesignerStore((state) => state.history);
   const historyIndex = useDesignerStore((state) => state.historyIndex);
   const undo = useDesignerStore((state) => state.undo);
@@ -119,13 +121,13 @@ export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
     const diff = newLines - oldLines;
 
     if (diff === 0) {
-      return 'Modified';
+      return t('modified');
     }
     if (diff > 0) {
       return `+${diff} lines`;
     }
     return `${diff} lines`;
-  }, []);
+  }, [t]);
 
   // Memoize reversed history for display (newest first)
   const reversedHistory = useMemo(() => {
@@ -142,7 +144,7 @@ export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
         <div className="flex items-center justify-between border-b px-3 py-2">
           <div className="flex items-center gap-2">
             <History className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Version History</span>
+            <span className="text-sm font-medium">{t('title')}</span>
           </div>
         </div>
 
@@ -151,9 +153,9 @@ export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
           <div className="rounded-full bg-muted p-3 mb-3">
             <Clock className="h-5 w-5 text-muted-foreground" />
           </div>
-          <p className="text-sm font-medium">No history yet</p>
+          <p className="text-sm font-medium">{t('noHistory')}</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Changes will appear here as you edit
+            {t('noHistoryDesc')}
           </p>
         </div>
       </div>
@@ -167,7 +169,7 @@ export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
         <div className="flex items-center justify-between border-b px-3 py-2">
           <div className="flex items-center gap-2">
             <History className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">History</span>
+            <span className="text-sm font-medium">{t('history')}</span>
             <span className="text-xs text-muted-foreground">
               ({history.length})
             </span>
@@ -186,7 +188,7 @@ export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
                   <Undo2 className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
+              <TooltipContent>{t('undoTooltip')}</TooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -201,7 +203,7 @@ export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
                   <Redo2 className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Redo (Ctrl+Y)</TooltipContent>
+              <TooltipContent>{t('redoTooltip')}</TooltipContent>
             </Tooltip>
           </div>
         </div>
@@ -245,13 +247,13 @@ export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
                         </span>
                         {isCurrent && (
                           <span className="text-[10px] bg-primary/20 text-primary px-1 rounded">
-                            Current
+                            {t('current')}
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] text-muted-foreground">
-                          {formatTimestamp(new Date(entry.timestamp))}
+                          {formatTimestamp(new Date(entry.timestamp), t)}
                         </span>
                         <span className="text-[10px] text-muted-foreground">
                           {getDiffSummary(entry)}
@@ -275,8 +277,8 @@ export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
         {/* Footer with keyboard hints */}
         <div className="border-t px-3 py-2">
           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-            <span>Ctrl+Z to undo</span>
-            <span>Ctrl+Y to redo</span>
+            <span>{t('undoHint')}</span>
+            <span>{t('redoHint')}</span>
           </div>
         </div>
       </div>

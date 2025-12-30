@@ -9,6 +9,7 @@
  */
 
 import type { LanguageModel } from 'ai';
+import { proxyFetch } from '@/lib/proxy-fetch';
 
 export interface RerankDocument {
   id: string;
@@ -151,7 +152,7 @@ export async function rerankWithCohere(
   if (documents.length === 0) return [];
 
   try {
-    const response = await fetch('https://api.cohere.ai/v1/rerank', {
+    const response = await proxyFetch('https://api.cohere.ai/v1/rerank', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,

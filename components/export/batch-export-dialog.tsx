@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Download,
   Loader2,
@@ -48,6 +49,7 @@ interface BatchExportDialogProps {
 }
 
 export function BatchExportDialog({ trigger }: BatchExportDialogProps) {
+  const t = useTranslations('batchExport');
   const [open, setOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [format, setFormat] = useState<BatchExportFormat>('mixed');
@@ -144,12 +146,12 @@ export function BatchExportDialog({ trigger }: BatchExportDialogProps) {
   };
 
   const formatLabels: Record<BatchExportFormat, string> = {
-    markdown: 'Markdown (.md)',
-    json: 'JSON (.json)',
-    html: 'Static HTML',
-    'animated-html': 'Animated HTML',
-    text: 'Plain Text (.txt)',
-    mixed: 'All Formats',
+    markdown: t('formatMarkdown'),
+    json: t('formatJson'),
+    html: t('formatHtml'),
+    'animated-html': t('formatAnimatedHtml'),
+    text: t('formatText'),
+    mixed: t('formatMixed'),
   };
 
   return (
@@ -158,22 +160,22 @@ export function BatchExportDialog({ trigger }: BatchExportDialogProps) {
         {trigger || (
           <Button variant="outline">
             <FileArchive className="h-4 w-4 mr-2" />
-            Batch Export
+            {t('batchExport')}
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Batch Export Sessions</DialogTitle>
+          <DialogTitle>{t('title')}</DialogTitle>
           <DialogDescription>
-            Select sessions to export as a ZIP archive
+            {t('description')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {/* Format Selection */}
           <div className="space-y-2">
-            <Label>Export Format</Label>
+            <Label>{t('exportFormat')}</Label>
             <Select
               value={format}
               onValueChange={(v) => setFormat(v as BatchExportFormat)}
@@ -194,15 +196,15 @@ export function BatchExportDialog({ trigger }: BatchExportDialogProps) {
           {/* Session Selection */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Select Sessions ({selectedIds.size} of {sessions.length})</Label>
+              <Label>{t('selectSessions', { selected: selectedIds.size, total: sessions.length })}</Label>
               <div className="flex gap-2">
                 <Button variant="ghost" size="sm" onClick={selectAll}>
                   <Check className="h-3 w-3 mr-1" />
-                  All
+                  {t('all')}
                 </Button>
                 <Button variant="ghost" size="sm" onClick={selectNone}>
                   <X className="h-3 w-3 mr-1" />
-                  None
+                  {t('none')}
                 </Button>
               </div>
             </div>
@@ -211,7 +213,7 @@ export function BatchExportDialog({ trigger }: BatchExportDialogProps) {
               <div className="space-y-2">
                 {sessions.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    No sessions to export
+                    {t('noSessions')}
                   </p>
                 ) : (
                   sessions.map((session) => (
@@ -230,7 +232,7 @@ export function BatchExportDialog({ trigger }: BatchExportDialogProps) {
           {/* Size Estimate */}
           {selectedIds.size > 0 && (
             <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>Estimated size:</span>
+              <span>{t('estimatedSize')}</span>
               <span>
                 {isLoadingMessages ? (
                   <Loader2 className="h-3 w-3 animate-spin inline mr-1" />
@@ -245,7 +247,7 @@ export function BatchExportDialog({ trigger }: BatchExportDialogProps) {
         {/* Actions */}
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button
             onClick={handleExport}
@@ -254,12 +256,12 @@ export function BatchExportDialog({ trigger }: BatchExportDialogProps) {
             {isExporting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Exporting...
+                {t('exporting')}
               </>
             ) : (
               <>
                 <Download className="h-4 w-4 mr-2" />
-                Export {selectedIds.size} Sessions
+                {t('exportSessions', { count: selectedIds.size })}
               </>
             )}
           </Button>

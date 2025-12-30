@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from 'next-intl';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -233,16 +234,19 @@ export const OpenInSeparator = (props: OpenInSeparatorProps) => (
 
 export type OpenInTriggerProps = ComponentProps<typeof DropdownMenuTrigger>;
 
-export const OpenInTrigger = ({ children, ...props }: OpenInTriggerProps) => (
-  <DropdownMenuTrigger {...props} asChild>
-    {children ?? (
-      <Button type="button" variant="outline">
-        Open in chat
-        <ChevronDownIcon className="size-4" />
-      </Button>
-    )}
-  </DropdownMenuTrigger>
-);
+export const OpenInTrigger = ({ children, ...props }: OpenInTriggerProps) => {
+  const t = useTranslations('openInChat');
+  return (
+    <DropdownMenuTrigger {...props} asChild>
+      {children ?? (
+        <Button type="button" variant="outline">
+          {t('openInChat')}
+          <ChevronDownIcon className="size-4" />
+        </Button>
+      )}
+    </DropdownMenuTrigger>
+  );
+};
 
 export type OpenInChatGPTProps = ComponentProps<typeof DropdownMenuItem>;
 

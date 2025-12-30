@@ -12,6 +12,13 @@ export { ParallelNode } from './parallel-node';
 export { HumanNode } from './human-node';
 export { LoopNode } from './loop-node';
 export { CodeNode } from './code-node';
+export { SubworkflowNode } from './subworkflow-node';
+export { DelayNode } from './delay-node';
+export { WebhookNode } from './webhook-node';
+export { TransformNode } from './transform-node';
+export { MergeNode } from './merge-node';
+export { GroupNode } from './group-node';
+export { AnnotationNode } from './annotation-node';
 
 import { StartNode } from './start-node';
 import { EndNode } from './end-node';
@@ -22,7 +29,13 @@ import { ParallelNode } from './parallel-node';
 import { HumanNode } from './human-node';
 import { LoopNode } from './loop-node';
 import { CodeNode } from './code-node';
-import { BaseNode } from './base-node';
+import { SubworkflowNode } from './subworkflow-node';
+import { DelayNode } from './delay-node';
+import { WebhookNode } from './webhook-node';
+import { TransformNode } from './transform-node';
+import { MergeNode } from './merge-node';
+import { GroupNode } from './group-node';
+import { AnnotationNode } from './annotation-node';
 
 /**
  * Node type to component mapping for React Flow
@@ -35,11 +48,13 @@ export const nodeTypes = {
   conditional: ConditionalNode,
   parallel: ParallelNode,
   human: HumanNode,
-  subworkflow: BaseNode,
+  subworkflow: SubworkflowNode,
   loop: LoopNode,
-  delay: BaseNode,
-  webhook: BaseNode,
+  delay: DelayNode,
+  webhook: WebhookNode,
   code: CodeNode,
-  transform: BaseNode,
-  merge: BaseNode,
+  transform: TransformNode,
+  merge: MergeNode,
+  group: GroupNode,
+  annotation: AnnotationNode,
 };

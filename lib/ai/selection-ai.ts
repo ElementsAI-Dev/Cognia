@@ -103,7 +103,7 @@ export async function processSelectionWithAI(
     }
 
     // Get provider instance
-    const provider = getProvider(providerId, providerSettings.apiKey);
+    const provider = getProvider(providerId as ProviderName, providerSettings.apiKey);
 
     // Build prompt
     const prompt = customPrompt || PROMPT_TEMPLATES[action](text, { targetLanguage });

@@ -83,6 +83,7 @@ import {
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
+import { DesignerDndProvider } from './dnd';
 
 // Default React template with Tailwind CSS - clean, minimal design
 const DEFAULT_APP_CODE = `export default function App() {
@@ -548,6 +549,7 @@ body {
   }, [viewport]);
 
   return (
+    <DesignerDndProvider>
     <div className={cn('flex flex-col h-full bg-background', className)}>
       <SandpackProvider
         template={sandpackTemplate}
@@ -766,6 +768,7 @@ body {
         </DialogContent>
       </Dialog>
     </div>
+    </DesignerDndProvider>
   );
 }
 

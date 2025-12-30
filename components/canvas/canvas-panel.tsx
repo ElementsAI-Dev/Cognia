@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useState, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import {
   X,
@@ -24,7 +25,7 @@ import {
   Palette,
   ExternalLink,
 } from 'lucide-react';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -44,7 +45,7 @@ import {
 import { useArtifactStore, useSettingsStore, useSessionStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import { VersionHistoryPanel } from './version-history-panel';
-import type { CanvasAction, CanvasSuggestion } from '@/types';
+import type { CanvasSuggestion } from '@/types';
 import {
   executeCanvasAction,
   applyCanvasActionResult,
@@ -65,15 +66,15 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ),
 });
 
-const canvasActions: CanvasAction[] = [
-  { type: 'review', label: 'Review', icon: 'eye', shortcut: '⌘R' },
-  { type: 'fix', label: 'Fix Issues', icon: 'bug', shortcut: '⌘F' },
-  { type: 'improve', label: 'Improve', icon: 'sparkles', shortcut: '⌘I' },
-  { type: 'explain', label: 'Explain', icon: 'help', shortcut: '⌘E' },
-  { type: 'simplify', label: 'Simplify', icon: 'minimize', shortcut: '⌘S' },
-  { type: 'expand', label: 'Expand', icon: 'maximize', shortcut: '⌘X' },
-  { type: 'translate', label: 'Translate', icon: 'languages' },
-  { type: 'format', label: 'Format', icon: 'format' },
+const canvasActions: Array<{ type: CanvasActionType; labelKey: string; icon: string; shortcut?: string }> = [
+  { type: 'review', labelKey: 'actionReview', icon: 'eye', shortcut: '⌘R' },
+  { type: 'fix', labelKey: 'actionFix', icon: 'bug', shortcut: '⌘F' },
+  { type: 'improve', labelKey: 'actionImprove', icon: 'sparkles', shortcut: '⌘I' },
+  { type: 'explain', labelKey: 'actionExplain', icon: 'help', shortcut: '⌘E' },
+  { type: 'simplify', labelKey: 'actionSimplify', icon: 'minimize', shortcut: '⌘S' },
+  { type: 'expand', labelKey: 'actionExpand', icon: 'maximize', shortcut: '⌘X' },
+  { type: 'translate', labelKey: 'actionTranslate', icon: 'languages' },
+  { type: 'format', labelKey: 'actionFormat', icon: 'format' },
 ];
 
 const actionIcons: Record<string, React.ReactNode> = {
@@ -87,6 +88,7 @@ const actionIcons: Record<string, React.ReactNode> = {
 };
 
 export function CanvasPanel() {
+  const t = useTranslations('canvas');
   const panelOpen = useArtifactStore((state) => state.panelOpen);
   const panelView = useArtifactStore((state) => state.panelView);
   const closePanel = useArtifactStore((state) => state.closePanel);
@@ -225,7 +227,7 @@ export function CanvasPanel() {
     }
   }, [activeCanvasId, hasUnsavedChanges, saveCanvasVersion, localContent]);
 
-  const handleAction = useCallback(async (action: CanvasAction) => {
+  const handleAction = useCallback(async (action: { type: CanvasActionType; labelKey?: string; label?: string; icon?: string; shortcut?: string }) => {
     if (!activeDocument) return;
 
     setIsProcessing(true);
@@ -334,6 +336,7 @@ export function CanvasPanel() {
   return (
     <Sheet open={panelOpen && panelView === 'canvas'} onOpenChange={(open) => !open && closePanel()}>
       <SheetContent side="right" className="w-full sm:w-[700px] sm:max-w-[700px] p-0 flex flex-col">
+        <SheetTitle className="sr-only">Canvas Panel</SheetTitle>
         {activeDocument ? (
           <>
             {/* Header */}
@@ -350,7 +353,7 @@ export function CanvasPanel() {
                 </Badge>
                 {hasUnsavedChanges && (
                   <Badge variant="outline" className="text-xs">
-                    Unsaved
+                    {t('unsaved')}
                   </Badge>
                 )}
               </div>
@@ -370,7 +373,7 @@ export function CanvasPanel() {
                       )} />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Save version</TooltipContent>
+                  <TooltipContent>{t('saveVersion')}</TooltipContent>
                 </Tooltip>
 
                 {/* Version History Button */}
@@ -395,10 +398,10 @@ export function CanvasPanel() {
                           onClick={() => setDesignerOpen(true)}
                         >
                           <Palette className="h-4 w-4" />
-                          <span className="text-xs">Preview</span>
+                          <span className="text-xs">{t('preview')}</span>
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Open in Designer with live preview</TooltipContent>
+                      <TooltipContent>{t('openInDesigner')}</TooltipContent>
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -411,7 +414,7 @@ export function CanvasPanel() {
                           <ExternalLink className="h-3.5 w-3.5" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Open in Full Designer (new window)</TooltipContent>
+                      <TooltipContent>{t('openInFullDesigner')}</TooltipContent>
                     </Tooltip>
                   </div>
                 )}
@@ -436,12 +439,12 @@ export function CanvasPanel() {
                         disabled={isProcessing}
                       >
                         {actionIcons[action.type]}
-                        <span className="hidden sm:inline">{action.label}</span>
+                        <span className="hidden sm:inline">{t(action.labelKey)}</span>
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>
-                        {action.label}
+                        {t(action.labelKey)}
                         {action.shortcut && (
                           <span className="ml-2 text-muted-foreground">
                             {action.shortcut}
@@ -455,7 +458,7 @@ export function CanvasPanel() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm">
-                      More...
+                      {t('more')}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -466,7 +469,7 @@ export function CanvasPanel() {
                         disabled={isProcessing}
                       >
                         {actionIcons[action.type] || <Wand2 className="h-4 w-4" />}
-                        <span className="ml-2">{action.label}</span>
+                        <span className="ml-2">{t(action.labelKey)}</span>
                       </DropdownMenuItem>
                     ))}
                     <DropdownMenuSeparator />
@@ -475,7 +478,7 @@ export function CanvasPanel() {
                       disabled={isProcessing || activeDocument.language !== 'python'}
                     >
                       <Play className="h-4 w-4" />
-                      <span className="ml-2">Run Code</span>
+                      <span className="ml-2">{t('runCode')}</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -483,7 +486,7 @@ export function CanvasPanel() {
                 {isProcessing && (
                   <div className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Processing...</span>
+                    <span>{t('processing')}</span>
                   </div>
                 )}
               </TooltipProvider>
@@ -532,7 +535,7 @@ export function CanvasPanel() {
             {actionResult && (
               <div className="border-t max-h-[200px] overflow-auto">
                 <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/50">
-                  <span className="text-sm font-medium">AI Response</span>
+                  <span className="text-sm font-medium">{t('aiResponse')}</span>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -558,7 +561,7 @@ export function CanvasPanel() {
           </>
         ) : (
           <div className="flex h-full items-center justify-center text-muted-foreground">
-            <p>No document open</p>
+            <p>{t('noDocument')}</p>
           </div>
         )}
 

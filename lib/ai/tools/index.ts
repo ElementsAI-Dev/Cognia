@@ -62,6 +62,43 @@ export {
   type PPTToolResult,
 } from './ppt-tool';
 
+// Video generation tools
+export {
+  videoTools,
+  videoGenerateTool,
+  videoStatusTool,
+  executeVideoGenerate,
+  executeVideoStatus,
+  executeGetVideoModels,
+  registerVideoTools,
+  videoGenerateInputSchema,
+  videoStatusInputSchema,
+  type VideoGenerateInput,
+  type VideoStatusInput,
+  type VideoToolResult,
+} from './video-tool';
+
+// Image generation tools
+export {
+  imageTools,
+  imageGenerateTool,
+  imageEditTool,
+  imageVariationTool,
+  executeImageGenerate,
+  executeImageEdit,
+  executeImageVariation,
+  executeGetImageModels,
+  executeEstimateCost,
+  registerImageTools,
+  imageGenerateInputSchema,
+  imageEditInputSchema,
+  imageVariationInputSchema,
+  type ImageGenerateInput,
+  type ImageEditInput,
+  type ImageVariationInput,
+  type ImageToolResult,
+} from './image-tool';
+
 // Unified Tool Registry
 export {
   UnifiedToolRegistry,

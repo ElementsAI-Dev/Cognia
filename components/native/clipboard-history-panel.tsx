@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { useClipboardHistory, ClipboardEntry } from '@/hooks/use-selection-history';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -35,6 +36,7 @@ export function ClipboardHistoryPanel({
   className,
   onSelect,
 }: ClipboardHistoryPanelProps) {
+  const t = useTranslations('clipboardPanel');
   const {
     history,
     pinnedItems,
@@ -83,7 +85,7 @@ export function ClipboardHistoryPanel({
             <Search className="h-4 w-4" />
           </InputGroupAddon>
           <InputGroupInput
-            placeholder="Search clipboard..."
+            placeholder={t('searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -93,7 +95,7 @@ export function ClipboardHistoryPanel({
               <InputGroupButton
                 size="icon-xs"
                 onClick={handleClearSearch}
-                aria-label="Clear search"
+                aria-label={t('clearSearch')}
               >
                 <X className="h-3 w-3" />
               </InputGroupButton>
@@ -113,7 +115,7 @@ export function ClipboardHistoryPanel({
       {pinnedItems.length > 0 && !searchResults && (
         <div className="p-2 border-b">
           <div className="text-xs font-medium text-muted-foreground mb-2">
-            Pinned
+            {t('pinned')}
           </div>
           <div className="space-y-1">
             {pinnedItems.map((item) => (
@@ -146,8 +148,8 @@ export function ClipboardHistoryPanel({
           {displayItems.length === 0 && (
             <EmptyState
               icon={Clipboard}
-              title={searchResults ? 'No results found' : 'No clipboard history'}
-              description={searchResults ? 'Try a different search query' : 'Copy something to get started'}
+              title={searchResults ? t('noResultsFound') : t('noHistory')}
+              description={searchResults ? t('tryDifferentQuery') : t('copyToStart')}
               compact
             />
           )}
@@ -156,7 +158,7 @@ export function ClipboardHistoryPanel({
 
       <div className="p-2 border-t flex justify-between items-center shrink-0">
         <span className="text-xs text-muted-foreground">
-          {history.length} items
+          {t('itemCount', { count: history.length })}
         </span>
         <Button
           variant="ghost"
@@ -164,7 +166,7 @@ export function ClipboardHistoryPanel({
           onClick={clearUnpinned}
           className="text-xs"
         >
-          Clear unpinned
+          {t('clearUnpinned')}
         </Button>
       </div>
     </div>

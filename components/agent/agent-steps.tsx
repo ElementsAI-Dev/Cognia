@@ -5,11 +5,11 @@
  */
 
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { CheckCircle, Circle, Loader2, XCircle, Flag, Clock, Zap, AlertTriangle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { useAgentStore } from '@/stores';
 import { Checkpoint, CheckpointTrigger } from '@/components/ai-elements/checkpoint';
 import {
   Tooltip,
@@ -46,6 +46,7 @@ const priorityConfig: Record<string, { color: string; icon: React.ElementType }>
 };
 
 export function AgentSteps({ steps, className, showCheckpoints = true, compactMode = false }: AgentStepsProps) {
+  const t = useTranslations('agent');
   const completedSteps = steps.filter((s) => s.status === 'completed').length;
   const errorSteps = steps.filter((s) => s.status === 'error').length;
   const progress = steps.length > 0 ? (completedSteps / steps.length) * 100 : 0;
@@ -73,10 +74,10 @@ export function AgentSteps({ steps, className, showCheckpoints = true, compactMo
       <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center gap-3">
-            <span className="text-muted-foreground">Progress</span>
+            <span className="text-muted-foreground">{t('progress')}</span>
             {errorSteps > 0 && (
               <Badge variant="destructive" className="text-[10px] h-5">
-                {errorSteps} failed
+                {errorSteps} {t('failed')}
               </Badge>
             )}
           </div>
@@ -88,7 +89,7 @@ export function AgentSteps({ steps, className, showCheckpoints = true, compactMo
               </span>
             )}
             <span className="font-medium text-primary">
-              {completedSteps} / {steps.length} steps
+              {completedSteps} / {steps.length} {t('steps')}
             </span>
           </div>
         </div>
@@ -238,43 +239,6 @@ function StepItem({ step, index, compact = false, highlighted = false }: StepIte
           </p>
         )}
       </div>
-    </div>
-  );
-}
-
-// Wrapper component that uses the agent store
-export function AgentStepsPanel() {
-  const isAgentRunning = useAgentStore((state) => state.isAgentRunning);
-  const toolExecutions = useAgentStore((state) => state.toolExecutions);
-
-  if (!isAgentRunning && toolExecutions.length === 0) {
-    return null;
-  }
-
-  // Convert tool executions to AgentStep format
-  const steps: AgentStep[] = toolExecutions.map((tool) => ({
-    id: tool.id,
-    name: tool.toolName,
-    description: undefined,
-    status:
-      tool.status === 'pending'
-        ? ('pending' as const)
-        : tool.status === 'running'
-          ? ('running' as const)
-          : tool.status === 'completed'
-            ? ('completed' as const)
-            : ('error' as const),
-    startedAt: tool.startedAt,
-    completedAt: tool.completedAt,
-  }));
-
-  return (
-    <div className="rounded-2xl border border-border/50 bg-card/95 backdrop-blur-sm p-4 shadow-sm animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
-      <h3 className="mb-4 font-semibold flex items-center gap-2">
-        <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-        Agent Execution
-      </h3>
-      <AgentSteps steps={steps} />
     </div>
   );
 }

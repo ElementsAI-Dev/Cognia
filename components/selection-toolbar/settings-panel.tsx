@@ -36,25 +36,7 @@ import {
   FileText,
 } from "lucide-react";
 import { useState } from "react";
-import { SelectionAction } from "./types";
-
-const LANGUAGES = [
-  { value: "zh-CN", label: "Chinese (Simplified)", flag: "🇨🇳" },
-  { value: "zh-TW", label: "Chinese (Traditional)", flag: "🇹🇼" },
-  { value: "en", label: "English", flag: "🇺🇸" },
-  { value: "ja", label: "Japanese", flag: "🇯🇵" },
-  { value: "ko", label: "Korean", flag: "🇰🇷" },
-  { value: "es", label: "Spanish", flag: "🇪🇸" },
-  { value: "fr", label: "French", flag: "🇫🇷" },
-  { value: "de", label: "German", flag: "🇩🇪" },
-  { value: "ru", label: "Russian", flag: "🇷🇺" },
-  { value: "ar", label: "Arabic", flag: "🇸🇦" },
-  { value: "pt", label: "Portuguese", flag: "🇵🇹" },
-  { value: "it", label: "Italian", flag: "🇮🇹" },
-  { value: "vi", label: "Vietnamese", flag: "🇻🇳" },
-  { value: "th", label: "Thai", flag: "🇹🇭" },
-  { value: "id", label: "Indonesian", flag: "🇮🇩" },
-];
+import { SelectionAction, LANGUAGES } from "./types";
 
 const THEMES = [
   { value: "auto", label: "Auto (System)", description: "Follow system theme" },

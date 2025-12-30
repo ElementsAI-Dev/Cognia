@@ -5,6 +5,7 @@
  */
 
 import { useMemo, useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   MessageSquare,
   Clock,
@@ -55,6 +56,7 @@ export function SessionStats({
   className,
   compact = false,
 }: SessionStatsProps) {
+  const t = useTranslations('chat');
   // Duration is calculated via state + effect to avoid impure Date.now() in render
   const [duration, setDuration] = useState(() => formatDuration(sessionCreatedAt));
 
@@ -99,41 +101,41 @@ export function SessionStats({
 
   const statItems: StatItem[] = [
     {
-      label: 'Messages',
+      label: t('statsMessages'),
       value: stats.totalMessages,
       icon: <MessageSquare className="h-3.5 w-3.5" />,
-      tooltip: `${stats.userMessages} from you, ${stats.assistantMessages} from AI`,
+      tooltip: t('statsMessagesDetail', { user: stats.userMessages, ai: stats.assistantMessages }),
     },
     {
-      label: 'Tokens',
+      label: t('statsTokens'),
       value: stats.estimatedTokens > 1000 
         ? `${(stats.estimatedTokens / 1000).toFixed(1)}k` 
         : stats.estimatedTokens,
       icon: <Zap className="h-3.5 w-3.5" />,
-      tooltip: 'Estimated token usage',
+      tooltip: t('statsTokensTooltip'),
     },
     {
-      label: 'Avg Length',
+      label: t('statsAvgLength'),
       value: stats.avgResponseLength > 1000 
         ? `${(stats.avgResponseLength / 1000).toFixed(1)}k` 
         : stats.avgResponseLength,
       icon: <TrendingUp className="h-3.5 w-3.5" />,
-      tooltip: 'Average AI response length (chars)',
+      tooltip: t('statsAvgLengthTooltip'),
     },
     {
-      label: 'Code',
+      label: t('statsCode'),
       value: stats.codeBlocks,
       icon: <FileText className="h-3.5 w-3.5" />,
-      tooltip: 'Code blocks in conversation',
+      tooltip: t('statsCodeTooltip'),
     },
   ];
 
   if (duration) {
     statItems.push({
-      label: 'Duration',
+      label: t('statsDuration'),
       value: duration,
       icon: <Clock className="h-3.5 w-3.5" />,
-      tooltip: 'Session duration',
+      tooltip: t('statsDurationTooltip'),
     });
   }
 

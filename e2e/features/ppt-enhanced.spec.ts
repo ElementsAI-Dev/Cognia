@@ -631,7 +631,7 @@ test.describe('Enhanced PPT Generation Workflow', () => {
       expect(result.hasBullets).toBe(true);
       expect(result.hasImage).toBe(true);
       expect(result.hasSpeakerNotes).toBe(true);
-      expect(result.slideSeparatorCount).toBe(2);
+      expect(result.slideSeparatorCount).toBe(3); // frontmatter end + 2 slide separators
     });
   });
 

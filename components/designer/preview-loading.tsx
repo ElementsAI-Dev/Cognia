@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Loader2, Code2, Box, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +23,7 @@ export function PreviewLoading({
   variant = 'default',
   status = 'loading',
 }: PreviewLoadingProps) {
+  const t = useTranslations('previewLoading');
   const [dots, setDots] = useState('');
 
   // Animated dots for loading text
@@ -36,11 +38,11 @@ export function PreviewLoading({
   }, [status]);
 
   const statusMessages: Record<typeof status, string> = {
-    loading: 'Loading preview',
-    compiling: 'Compiling code',
-    bundling: 'Bundling modules',
-    ready: 'Ready',
-    error: 'Error loading preview',
+    loading: t('loading'),
+    compiling: t('compiling'),
+    bundling: t('bundling'),
+    ready: t('ready'),
+    error: t('error'),
   };
 
   if (variant === 'minimal') {
@@ -143,11 +145,11 @@ export function PreviewLoading({
           {status !== 'ready' && status !== 'error' && dots}
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          {status === 'loading' && 'Initializing sandbox environment'}
-          {status === 'compiling' && 'Transforming React components'}
-          {status === 'bundling' && 'Resolving dependencies'}
-          {status === 'ready' && 'Preview is ready'}
-          {status === 'error' && 'Check the console for details'}
+          {status === 'loading' && t('loadingDesc')}
+          {status === 'compiling' && t('compilingDesc')}
+          {status === 'bundling' && t('bundlingDesc')}
+          {status === 'ready' && t('readyDesc')}
+          {status === 'error' && t('errorDesc')}
         </p>
       </div>
 

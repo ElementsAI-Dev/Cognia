@@ -4,6 +4,7 @@
  * WorkflowToolbar - Toolbar for workflow editor actions
  */
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -38,13 +39,9 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
-  Download,
-  Upload,
   FileJson,
   Copy,
   Trash2,
-  Settings,
-  MoreHorizontal,
   CheckCircle,
   AlertTriangle,
   PanelLeft,
@@ -52,6 +49,11 @@ import {
   Map,
 } from 'lucide-react';
 import { useWorkflowEditorStore } from '@/stores/workflow-editor-store';
+import { VersionHistoryPanel, ImportExportDialog } from './version-history-panel';
+import { ExecutionStatisticsPanel } from './execution-statistics-panel';
+import { VariableManagerPanel } from './variable-manager-panel';
+import { KeyboardShortcutsPanel } from './keyboard-shortcuts-panel';
+import { WorkflowSettingsPanel } from './workflow-settings-panel';
 
 interface WorkflowToolbarProps {
   onFitView?: () => void;
@@ -66,11 +68,10 @@ export function WorkflowToolbar({
   onFitView,
   onZoomIn,
   onZoomOut,
-  onExport,
-  onImport,
   className,
 }: WorkflowToolbarProps) {
   const t = useTranslations('workflowEditor');
+  const [importExportOpen, setImportExportOpen] = useState(false);
 
   const {
     currentWorkflow,
@@ -118,6 +119,14 @@ export function WorkflowToolbar({
     }
   };
 
+  const handleDuplicateSelection = () => {
+    if (hasSelection) {
+      selectedNodes.forEach((nodeId) => {
+        useWorkflowEditorStore.getState().duplicateNode(nodeId);
+      });
+    }
+  };
+
   return (
     <TooltipProvider delayDuration={300}>
       <div
@@ -143,23 +152,22 @@ export function WorkflowToolbar({
             <TooltipContent>{t('save')}</TooltipContent>
           </Tooltip>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setImportExportOpen(true)}
+              >
                 <FileJson className="h-4 w-4" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={onExport}>
-                <Download className="h-4 w-4 mr-2" />
-                {t('exportWorkflow')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onImport}>
-                <Upload className="h-4 w-4 mr-2" />
-                {t('importWorkflow')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </TooltipTrigger>
+            <TooltipContent>Import/Export</TooltipContent>
+          </Tooltip>
+
+          <VersionHistoryPanel />
+          <ExecutionStatisticsPanel />
         </div>
 
         <Separator orientation="vertical" className="h-6 mx-1" />
@@ -222,6 +230,7 @@ export function WorkflowToolbar({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
+                onClick={handleDuplicateSelection}
                 disabled={!hasSelection}
               >
                 <Copy className="h-4 w-4" />
@@ -461,21 +470,16 @@ export function WorkflowToolbar({
             <TooltipContent>{t('toggleMinimap')}</TooltipContent>
           </Tooltip>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>
-                <Settings className="h-4 w-4 mr-2" />
-                {t('workflowSettings')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <VariableManagerPanel />
+          <WorkflowSettingsPanel />
+          <KeyboardShortcutsPanel />
         </div>
       </div>
+
+      <ImportExportDialog
+        open={importExportOpen}
+        onOpenChange={setImportExportOpen}
+      />
     </TooltipProvider>
   );
 }

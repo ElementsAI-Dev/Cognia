@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { waitForAnimation } from '../utils/test-helpers';
 
 /**
  * UI Optimizations E2E Tests
  * Tests for newly implemented UI features and enhancements
+ * Optimized for CI/CD efficiency
  */
 
 test.describe('WelcomeState Quick Access', () => {
@@ -135,7 +137,7 @@ test.describe('Web Search and Thinking Toggles', () => {
     const closeButton = page.locator('button:has-text("Skip for now"), button[aria-label="Close"]').first();
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
     }
   });
 
@@ -177,7 +179,7 @@ test.describe('Web Search and Thinking Toggles', () => {
       
       // Click to toggle
       await searchToggle.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
       
       // Check new state
       const newClasses = await searchToggle.getAttribute('class') || '';
@@ -198,7 +200,7 @@ test.describe('Web Search and Thinking Toggles', () => {
       
       // Click to toggle
       await thinkToggle.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
       
       // Check new state
       const newClasses = await thinkToggle.getAttribute('class') || '';
@@ -384,7 +386,7 @@ test.describe('Agent Plan Editor Visibility', () => {
       const agentOption = page.locator('[role="menuitem"]').filter({ hasText: 'Agent' });
       if (await agentOption.isVisible().catch(() => false)) {
         await agentOption.click();
-        await page.waitForTimeout(500);
+        await waitForAnimation(page);
         
         // Check if Agent plan editor appears
         const planEditor = page.locator('text=Plan').first();

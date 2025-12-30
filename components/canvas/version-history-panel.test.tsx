@@ -90,6 +90,29 @@ jest.mock('@/components/ui/input', () => ({
   Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
 }));
 
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      versionHistory: 'Version History',
+      noVersions: 'No versions saved yet',
+      saveVersion: 'Save Current Version',
+      current: 'Current',
+      autoSave: 'Auto',
+      previewAction: 'Preview',
+      restoreAction: 'Restore',
+      deleteAction: 'Delete',
+      cancel: 'Cancel',
+      save: 'Save',
+      close: 'Close',
+      versionDescription: 'Version description',
+      confirmDelete: 'Are you sure?',
+      deleteDescription: 'This action cannot be undone.',
+      versionPreview: 'Version Preview',
+    };
+    return translations[key] || key;
+  },
+}));
+
 describe('VersionHistoryPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();

@@ -47,9 +47,10 @@ export function AppShell({ children, sidebar }: AppShellProps) {
             sidebarOpen
               ? sidebarCollapsed
                 ? 'w-16'
-                : 'w-64'
+                : ''
               : 'w-0 overflow-hidden'
           )}
+          style={sidebarOpen && !sidebarCollapsed ? { width: 'var(--sidebar-width, 280px)' } : undefined}
         >
           {sidebarWithProps}
 

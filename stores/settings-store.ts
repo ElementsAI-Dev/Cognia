@@ -182,6 +182,11 @@ interface SettingsState {
   setEnableRAGSearch: (enabled: boolean) => void;
   enableCalculator: boolean;
   setEnableCalculator: (enabled: boolean) => void;
+  alwaysAllowedTools: string[];
+  addAlwaysAllowedTool: (toolName: string) => void;
+  removeAlwaysAllowedTool: (toolName: string) => void;
+  isToolAlwaysAllowed: (toolName: string) => boolean;
+  clearAlwaysAllowedTools: () => void;
 
   // Response display settings
   codeTheme: CodeTheme;
@@ -421,6 +426,7 @@ const initialState = {
   enableWebSearch: true,
   enableRAGSearch: true,
   enableCalculator: true,
+  alwaysAllowedTools: [] as string[],
 
   // Response display
   codeTheme: 'github-dark' as CodeTheme,
@@ -840,6 +846,20 @@ export const useSettingsStore = create<SettingsState>()(
       setEnableWebSearch: (enableWebSearch) => set({ enableWebSearch }),
       setEnableRAGSearch: (enableRAGSearch) => set({ enableRAGSearch }),
       setEnableCalculator: (enableCalculator) => set({ enableCalculator }),
+
+      addAlwaysAllowedTool: (toolName) => set((state) => ({
+        alwaysAllowedTools: state.alwaysAllowedTools.includes(toolName)
+          ? state.alwaysAllowedTools
+          : [...state.alwaysAllowedTools, toolName],
+      })),
+
+      removeAlwaysAllowedTool: (toolName) => set((state) => ({
+        alwaysAllowedTools: state.alwaysAllowedTools.filter(t => t !== toolName),
+      })),
+
+      isToolAlwaysAllowed: (toolName) => get().alwaysAllowedTools.includes(toolName),
+
+      clearAlwaysAllowedTools: () => set({ alwaysAllowedTools: [] }),
 
       // Response display actions
       setCodeTheme: (codeTheme) => set({ codeTheme }),

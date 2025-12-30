@@ -4,6 +4,7 @@
  * ArtifactCard - Card component to display artifact reference in messages
  */
 
+import { useTranslations } from 'next-intl';
 import {
   Code,
   FileText,
@@ -14,6 +15,7 @@ import {
   Calculator,
   ExternalLink,
   Eye,
+  BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -44,17 +46,19 @@ const typeIcons: Record<ArtifactType, React.ReactNode> = {
   mermaid: <GitBranch className="h-4 w-4" />,
   chart: <BarChart className="h-4 w-4" />,
   math: <Calculator className="h-4 w-4" />,
+  jupyter: <BookOpen className="h-4 w-4" />,
 };
 
-const typeLabels: Record<ArtifactType, string> = {
-  code: 'Code',
-  document: 'Document',
-  svg: 'SVG',
-  html: 'HTML',
-  react: 'React',
-  mermaid: 'Diagram',
-  chart: 'Chart',
-  math: 'Math',
+const typeLabelKeys: Record<ArtifactType, string> = {
+  code: 'typeCode',
+  document: 'typeDocument',
+  svg: 'typeSvg',
+  html: 'typeHtml',
+  react: 'typeReact',
+  mermaid: 'typeMermaid',
+  chart: 'typeChart',
+  math: 'typeMath',
+  jupyter: 'typeJupyter',
 };
 
 const typeColors: Record<ArtifactType, string> = {
@@ -66,6 +70,7 @@ const typeColors: Record<ArtifactType, string> = {
   mermaid: 'bg-pink-500/10 text-pink-600 dark:text-pink-400',
   chart: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
   math: 'bg-red-500/10 text-red-600 dark:text-red-400',
+  jupyter: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
 };
 
 export function ArtifactCard({
@@ -74,6 +79,7 @@ export function ArtifactCard({
   compact = false,
   showPreview = false,
 }: ArtifactCardProps) {
+  const t = useTranslations('artifacts');
   const setActiveArtifact = useArtifactStore((state) => state.setActiveArtifact);
   const openPanel = useArtifactStore((state) => state.openPanel);
 
@@ -108,7 +114,7 @@ export function ArtifactCard({
           <TooltipContent>
             <p>{artifact.title}</p>
             <p className="text-xs text-muted-foreground">
-              {typeLabels[artifact.type]} · v{artifact.version}
+              {t(typeLabelKeys[artifact.type])} · v{artifact.version}
             </p>
           </TooltipContent>
         </Tooltip>
@@ -139,7 +145,7 @@ export function ArtifactCard({
             <div className="flex items-center gap-2 mb-1">
               <h4 className="font-medium text-sm truncate">{artifact.title}</h4>
               <Badge variant="secondary" className="shrink-0 text-xs">
-                {typeLabels[artifact.type]}
+                {t(typeLabelKeys[artifact.type])}
               </Badge>
             </div>
 

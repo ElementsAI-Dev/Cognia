@@ -27,6 +27,8 @@ interface PresetState {
   selectPreset: (id: string | null) => void;
   usePreset: (id: string) => void;
   setDefaultPreset: (id: string) => void;
+  toggleFavorite: (id: string) => void;
+  reorderPresets: (activeId: string, overId: string) => void;
   resetToDefaults: () => void;
 
   // Selectors
@@ -176,6 +178,37 @@ export const usePresetStore = create<PresetState>()(
             isDefault: preset.id === id,
           })),
         }));
+      },
+
+      toggleFavorite: (id) => {
+        set((state) => ({
+          presets: state.presets.map((preset) =>
+            preset.id === id
+              ? { ...preset, isFavorite: !preset.isFavorite }
+              : preset
+          ),
+        }));
+      },
+
+      reorderPresets: (activeId, overId) => {
+        set((state) => {
+          const oldIndex = state.presets.findIndex((p) => p.id === activeId);
+          const newIndex = state.presets.findIndex((p) => p.id === overId);
+          
+          if (oldIndex === -1 || newIndex === -1) return state;
+          
+          const newPresets = [...state.presets];
+          const [removed] = newPresets.splice(oldIndex, 1);
+          newPresets.splice(newIndex, 0, removed);
+          
+          // Update sortOrder for all presets
+          const updatedPresets = newPresets.map((preset, index) => ({
+            ...preset,
+            sortOrder: index,
+          }));
+          
+          return { presets: updatedPresets };
+        });
       },
 
       resetToDefaults: () => {

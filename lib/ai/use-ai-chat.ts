@@ -16,7 +16,8 @@
 
 import { useCallback, useRef } from 'react';
 import { generateText, streamText, type CoreMessage, type ImagePart, type TextPart } from 'ai';
-import { getProviderModel, type ProviderName } from './client';
+import { type ProviderName } from './client';
+import { getProxyProviderModel } from './proxy-client';
 import { useSettingsStore, useMemoryStore, useUsageStore, useSessionStore } from '@/stores';
 import { getNextApiKey } from './api-key-rotation';
 import {
@@ -166,11 +167,12 @@ export function useAIChat({
         });
       }
 
-      const modelInstance = getProviderModel(
+      const modelInstance = getProxyProviderModel(
         provider,
         model,
         activeApiKey,
-        settings?.baseURL
+        settings?.baseURL,
+        true // Enable proxy support
       );
 
       abortControllerRef.current = new AbortController();
@@ -260,7 +262,7 @@ export function useAIChat({
 
       // Also include any summary messages that were created during compression
       const summaryMessages: MultimodalMessage[] = filteredUIMessages
-        .filter(m => m.compressionState?.isSummary)
+        .filter(m => (m as { compressionState?: { isSummary?: boolean } }).compressionState?.isSummary)
         .map(m => ({
           role: 'system' as const,
           content: m.content,

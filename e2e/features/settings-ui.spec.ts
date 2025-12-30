@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { waitForDialog, closeDialogWithEscape, waitForAnimation } from '../utils/test-helpers';
 
 /**
  * Settings UI Complete Tests
  * Tests real UI interactions for settings management
+ * Optimized for CI/CD efficiency
  */
 
 test.describe('Settings Dialog Navigation', () => {
@@ -17,12 +19,8 @@ test.describe('Settings Dialog Navigation', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
-
-      // Settings dialog should open
-      const dialog = page.locator('[role="dialog"], text=Settings').first();
-      const isOpen = await dialog.isVisible().catch(() => false);
-      expect(isOpen).toBe(true);
+      const dialog = await waitForDialog(page).catch(() => null);
+      expect(dialog !== null).toBe(true);
     }
   });
 
@@ -31,7 +29,7 @@ test.describe('Settings Dialog Navigation', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForDialog(page).catch(() => null);
 
       // Check for tab options
       const providerTab = page.locator('text=Provider, text=Providers').first();
@@ -51,13 +49,13 @@ test.describe('Settings Dialog Navigation', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForDialog(page).catch(() => null);
 
       // Click Appearance tab
       const appearanceTab = page.locator('[role="tab"]:has-text("Appearance"), button:has-text("Appearance")').first();
       if (await appearanceTab.isVisible()) {
         await appearanceTab.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
 
         // Appearance content should be visible
         const themeSection = page.locator('text=Theme, text=Light, text=Dark').first();
@@ -72,11 +70,10 @@ test.describe('Settings Dialog Navigation', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForDialog(page).catch(() => null);
 
-      // Press escape or click close button
-      await page.keyboard.press('Escape');
-      await page.waitForTimeout(300);
+      // Press escape to close
+      await closeDialogWithEscape(page);
 
       // Dialog should be closed
       const dialog = page.locator('[role="dialog"]').first();
@@ -95,7 +92,7 @@ test.describe('Provider Settings UI', () => {
     const settingsBtn = page.locator('button[aria-label*="settings" i], button:has-text("Settings")').first();
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForDialog(page).catch(() => null);
     }
   });
 
@@ -160,7 +157,7 @@ test.describe('Provider Settings UI', () => {
 
       if (await toggleBtn.isVisible()) {
         await toggleBtn.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
 
         // Input type should change
         const _inputType = await apiKeyInput.getAttribute('type');
@@ -248,13 +245,13 @@ test.describe('Appearance Settings UI', () => {
     const settingsBtn = page.locator('button[aria-label*="settings" i], button:has-text("Settings")').first();
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForDialog(page).catch(() => null);
 
       // Click Appearance tab
       const appearanceTab = page.locator('[role="tab"]:has-text("Appearance"), button:has-text("Appearance")').first();
       if (await appearanceTab.isVisible()) {
         await appearanceTab.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
       }
     }
   });
@@ -285,7 +282,7 @@ test.describe('Appearance Settings UI', () => {
 
     if (await darkOption.isVisible()) {
       await darkOption.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Check if dark class is applied
       const htmlClass = await page.locator('html').getAttribute('class');
@@ -332,13 +329,13 @@ test.describe('Chat Settings UI', () => {
     const settingsBtn = page.locator('button[aria-label*="settings" i], button:has-text("Settings")').first();
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForDialog(page).catch(() => null);
 
       // Click Chat tab
       const chatTab = page.locator('[role="tab"]:has-text("Chat"), button:has-text("Chat")').first();
       if (await chatTab.isVisible()) {
         await chatTab.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
       }
     }
   });
@@ -388,13 +385,13 @@ test.describe('MCP Settings UI', () => {
     const settingsBtn = page.locator('button[aria-label*="settings" i], button:has-text("Settings")').first();
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForDialog(page).catch(() => null);
 
       // Click MCP tab if visible
       const mcpTab = page.locator('[role="tab"]:has-text("MCP"), button:has-text("MCP")').first();
       if (await mcpTab.isVisible()) {
         await mcpTab.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
       }
     }
   });
@@ -492,13 +489,13 @@ test.describe('Data Settings UI', () => {
     const settingsBtn = page.locator('button[aria-label*="settings" i], button:has-text("Settings")').first();
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForDialog(page).catch(() => null);
 
       // Click Data tab
       const dataTab = page.locator('[role="tab"]:has-text("Data"), button:has-text("Data")').first();
       if (await dataTab.isVisible()) {
         await dataTab.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
       }
     }
   });

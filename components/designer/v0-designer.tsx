@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useSettingsStore, useArtifactStore } from '@/stores';
 import {
   DESIGNER_TEMPLATES,
@@ -37,7 +38,7 @@ import {
   Download,
   Check,
 } from 'lucide-react';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -58,6 +59,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReactSandbox } from './react-sandbox';
+import { DesignerDndProvider } from './dnd';
 
 // Template icon mapping
 const TEMPLATE_ICON_MAP: Record<string, React.ReactNode> = {
@@ -85,6 +87,7 @@ export function V0Designer({
   onSave,
   onAIRequest,
 }: V0DesignerProps) {
+  const t = useTranslations('v0Designer');
   const [code, setCode] = useState(initialCode || DESIGNER_TEMPLATES[0].code);
   const [aiPrompt, setAIPrompt] = useState('');
   const [isAIProcessing, setIsAIProcessing] = useState(false);
@@ -231,6 +234,7 @@ export function V0Designer({
         side="right"
         className="w-full sm:w-[95vw] sm:max-w-[1600px] p-0 flex flex-col"
       >
+        <SheetTitle className="sr-only">V0 Designer</SheetTitle>
         <TooltipProvider>
           {/* Header */}
           <div className="flex items-center justify-between border-b px-4 py-2">
@@ -258,7 +262,7 @@ export function V0Designer({
                       <Undo2 className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Undo</TooltipContent>
+                  <TooltipContent>{t('undo')}</TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -273,7 +277,7 @@ export function V0Designer({
                       <Redo2 className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Redo</TooltipContent>
+                  <TooltipContent>{t('redo')}</TooltipContent>
                 </Tooltip>
               </div>
             </div>
@@ -292,7 +296,7 @@ export function V0Designer({
                       {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>{copied ? 'Copied!' : 'Copy code'}</TooltipContent>
+                  <TooltipContent>{copied ? t('copied') : t('copyCode')}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -305,7 +309,7 @@ export function V0Designer({
                       <Download className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Download code</TooltipContent>
+                  <TooltipContent>{t('downloadCode')}</TooltipContent>
                 </Tooltip>
               </div>
 
@@ -318,7 +322,7 @@ export function V0Designer({
                 onClick={() => setShowTemplates(true)}
               >
                 <Layers className="h-4 w-4 mr-2" />
-                Templates
+                {t('templates')}
               </Button>
 
               {/* Canvas button - Edit in Monaco */}
@@ -330,10 +334,10 @@ export function V0Designer({
                     onClick={handleOpenInCanvas}
                   >
                     <FileCode className="h-4 w-4 mr-2" />
-                    Edit Code
+                    {t('editCode')}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Open in Canvas for detailed code editing</TooltipContent>
+                <TooltipContent>{t('openInCanvas')}</TooltipContent>
               </Tooltip>
 
               {/* AI button */}
@@ -343,14 +347,14 @@ export function V0Designer({
                 onClick={() => setShowAIPanel(!showAIPanel)}
               >
                 <Sparkles className="h-4 w-4 mr-2" />
-                AI Edit
+                {t('aiEdit')}
               </Button>
 
               {/* Save button */}
               {onSave && (
                 <Button variant="default" size="sm" onClick={handleSave}>
                   <Save className="h-4 w-4 mr-2" />
-                  Save
+                  {t('save')}
                 </Button>
               )}
 
@@ -375,7 +379,7 @@ export function V0Designer({
                     <Textarea
                       value={aiPrompt}
                       onChange={(e) => setAIPrompt(e.target.value)}
-                      placeholder="Describe what you want to change..."
+                      placeholder={t('aiPlaceholder')}
                       className="min-h-[80px] resize-none"
                       disabled={isAIProcessing}
                     />
@@ -407,7 +411,7 @@ export function V0Designer({
                     ) : (
                       <>
                         <Send className="h-4 w-4 mr-2" />
-                        Generate
+                        {t('generate')}
                       </>
                     )}
                   </Button>
@@ -418,13 +422,15 @@ export function V0Designer({
 
           {/* Main content */}
           <div className="flex-1 overflow-hidden">
-            <ReactSandbox
-              code={code}
-              onCodeChange={handleCodeChange}
-              showFileExplorer={false}
-              showConsole={false}
-              onAIEdit={() => setShowAIPanel(true)}
-            />
+            <DesignerDndProvider>
+              <ReactSandbox
+                code={code}
+                onCodeChange={handleCodeChange}
+                showFileExplorer={false}
+                showConsole={false}
+                onAIEdit={() => setShowAIPanel(true)}
+              />
+            </DesignerDndProvider>
           </div>
         </TooltipProvider>
 
@@ -432,15 +438,15 @@ export function V0Designer({
         <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
             <DialogHeader>
-              <DialogTitle>Choose a Template</DialogTitle>
+              <DialogTitle>{t('chooseTemplate')}</DialogTitle>
               <DialogDescription>
-                Start with a pre-built template or create from scratch
+                {t('chooseTemplateDesc')}
               </DialogDescription>
             </DialogHeader>
 
             <Tabs defaultValue="all" className="flex-1 overflow-hidden flex flex-col">
               <TabsList className="flex-wrap h-auto gap-1 p-1">
-                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="all">{t('all')}</TabsTrigger>
                 {TEMPLATE_CATEGORIES.map((category) => (
                   <TabsTrigger key={category} value={category}>
                     {category}

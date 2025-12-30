@@ -58,16 +58,16 @@ const RESOURCE_TYPE_ICONS: Record<SkillResourceType, React.ReactNode> = {
   asset: <ImageIcon className="h-4 w-4" />,
 };
 
-const RESOURCE_TYPE_LABELS: Record<SkillResourceType, string> = {
-  script: 'Script',
-  reference: 'Reference',
-  asset: 'Asset',
+const RESOURCE_TYPE_LABEL_KEYS: Record<SkillResourceType, string> = {
+  script: 'script',
+  reference: 'reference',
+  asset: 'asset',
 };
 
-const RESOURCE_TYPE_DESCRIPTIONS: Record<SkillResourceType, string> = {
-  script: 'Executable code files (Python, JavaScript, Shell scripts)',
-  reference: 'Documentation, guides, and text-based reference materials',
-  asset: 'Images, PDFs, data files, and other binary assets',
+const RESOURCE_TYPE_DESC_KEYS: Record<SkillResourceType, string> = {
+  script: 'scriptDesc',
+  reference: 'referenceDesc',
+  asset: 'assetDesc',
 };
 
 interface ResourceItemProps {
@@ -78,6 +78,7 @@ interface ResourceItemProps {
 }
 
 function ResourceItem({ resource, onEdit, onDelete, onPreview }: ResourceItemProps) {
+  const t = useTranslations('skills');
   const [expanded, setExpanded] = useState(false);
   const hasContent = resource.content && resource.content.length > 0;
 
@@ -91,7 +92,7 @@ function ResourceItem({ resource, onEdit, onDelete, onPreview }: ResourceItemPro
                 {RESOURCE_TYPE_ICONS[resource.type]}
                 <span className="font-medium text-sm">{resource.name}</span>
                 <Badge variant="outline" className="text-xs">
-                  {RESOURCE_TYPE_LABELS[resource.type]}
+                  {t(RESOURCE_TYPE_LABEL_KEYS[resource.type])}
                 </Badge>
               </div>
               <div className="flex items-center gap-2">
@@ -112,9 +113,9 @@ function ResourceItem({ resource, onEdit, onDelete, onPreview }: ResourceItemPro
         <CollapsibleContent>
           <CardContent className="pt-0 pb-3 px-3">
             <div className="text-xs text-muted-foreground mb-2">
-              <p><strong>Path:</strong> {resource.path}</p>
+              <p><strong>{t('path')}:</strong> {resource.path}</p>
               {resource.mimeType && (
-                <p><strong>Type:</strong> {resource.mimeType}</p>
+                <p><strong>{t('type')}:</strong> {resource.mimeType}</p>
               )}
             </div>
             {hasContent && resource.type !== 'asset' && (
@@ -129,16 +130,16 @@ function ResourceItem({ resource, onEdit, onDelete, onPreview }: ResourceItemPro
               {hasContent && (
                 <Button variant="outline" size="sm" onClick={onPreview}>
                   <Eye className="h-3 w-3 mr-1" />
-                  Preview
+                  {t('preview')}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={onEdit}>
                 <Edit2 className="h-3 w-3 mr-1" />
-                Edit
+                {t('edit')}
               </Button>
               <Button variant="outline" size="sm" onClick={onDelete}>
                 <Trash2 className="h-3 w-3 mr-1" />
-                Delete
+                {t('delete')}
               </Button>
             </div>
           </CardContent>
@@ -208,28 +209,28 @@ function AddResourceDialog({ open, onOpenChange, onAdd, editResource }: AddResou
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{editResource ? 'Edit Resource' : 'Add Resource'}</DialogTitle>
+          <DialogTitle>{editResource ? t('editResource') : t('addResource')}</DialogTitle>
           <DialogDescription>
-            Add a resource file to bundle with this skill
+            {t('addResourcesHint')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Resource Type</Label>
+            <Label>{t('resourceType')}</Label>
             <Select value={type} onValueChange={(v) => setType(v as SkillResourceType)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(RESOURCE_TYPE_LABELS).map(([key, label]) => (
+                {Object.entries(RESOURCE_TYPE_LABEL_KEYS).map(([key, labelKey]) => (
                   <SelectItem key={key} value={key}>
                     <div className="flex items-center gap-2">
                       {RESOURCE_TYPE_ICONS[key as SkillResourceType]}
                       <div>
-                        <div>{label}</div>
+                        <div>{t(labelKey)}</div>
                         <div className="text-xs text-muted-foreground">
-                          {RESOURCE_TYPE_DESCRIPTIONS[key as SkillResourceType]}
+                          {t(RESOURCE_TYPE_DESC_KEYS[key as SkillResourceType])}
                         </div>
                       </div>
                     </div>
@@ -241,7 +242,7 @@ function AddResourceDialog({ open, onOpenChange, onAdd, editResource }: AddResou
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="resource-name">Name</Label>
+              <Label htmlFor="resource-name">{t('name')}</Label>
               <Input
                 id="resource-name"
                 placeholder={t('resourceNamePlaceholder')}
@@ -250,7 +251,7 @@ function AddResourceDialog({ open, onOpenChange, onAdd, editResource }: AddResou
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="resource-path">Path</Label>
+              <Label htmlFor="resource-path">{t('path')}</Label>
               <Input
                 id="resource-path"
                 placeholder={t('resourcePathPlaceholder')}
@@ -261,7 +262,7 @@ function AddResourceDialog({ open, onOpenChange, onAdd, editResource }: AddResou
           </div>
 
           <div className="space-y-2">
-            <Label>Upload File (optional)</Label>
+            <Label>{t('uploadFile')}</Label>
             <Input
               type="file"
               onChange={handleFileUpload}
@@ -271,7 +272,7 @@ function AddResourceDialog({ open, onOpenChange, onAdd, editResource }: AddResou
 
           {type !== 'asset' && (
             <div className="space-y-2">
-              <Label htmlFor="resource-content">Content</Label>
+              <Label htmlFor="resource-content">{t('content')}</Label>
               <Textarea
                 id="resource-content"
                 placeholder={t('resourceContentPlaceholder')}
@@ -286,10 +287,10 @@ function AddResourceDialog({ open, onOpenChange, onAdd, editResource }: AddResou
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={!name || !path}>
-            {editResource ? 'Update' : 'Add'} Resource
+            {editResource ? t('update') : t('add')} {t('resourceWord')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -304,6 +305,7 @@ interface PreviewDialogProps {
 }
 
 function PreviewDialog({ open, onOpenChange, resource }: PreviewDialogProps) {
+  const t = useTranslations('skills');
   if (!resource) return null;
 
   return (
@@ -321,13 +323,13 @@ function PreviewDialog({ open, onOpenChange, resource }: PreviewDialogProps) {
 
         <div className="bg-muted rounded-lg p-4 overflow-auto max-h-[60vh]">
           <pre className="text-sm font-mono whitespace-pre-wrap">
-            {resource.content || 'No content available'}
+            {resource.content || t('noContentAvailable')}
           </pre>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
+            {t('close')}
           </Button>
           <Button
             onClick={() => {
@@ -341,7 +343,7 @@ function PreviewDialog({ open, onOpenChange, resource }: PreviewDialogProps) {
             }}
           >
             <Download className="h-4 w-4 mr-2" />
-            Download
+            {t('download')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -364,6 +366,7 @@ export function SkillResourceManager({
   onRemoveResource,
   readOnly = false,
 }: SkillResourceManagerProps) {
+  const t = useTranslations('skills');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editResource, setEditResource] = useState<SkillResource | undefined>();
   const [previewResource, setPreviewResource] = useState<SkillResource | null>(null);
@@ -382,10 +385,10 @@ export function SkillResourceManager({
   }, []);
 
   const handleDelete = useCallback((path: string) => {
-    if (confirm('Are you sure you want to delete this resource?')) {
+    if (confirm(t('confirmDeleteResource'))) {
       onRemoveResource(path);
     }
-  }, [onRemoveResource]);
+  }, [onRemoveResource, t]);
 
   const handleAddOrUpdate = useCallback((resource: Omit<SkillResource, 'size' | 'mimeType'>) => {
     if (editResource) {
@@ -400,15 +403,15 @@ export function SkillResourceManager({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-medium">Resources</h3>
+          <h3 className="text-sm font-medium">{t('resources')}</h3>
           <p className="text-xs text-muted-foreground">
-            Scripts, references, and assets bundled with this skill
+            {t('resourcesBundled')}
           </p>
         </div>
         {!readOnly && (
           <Button size="sm" onClick={() => setShowAddDialog(true)}>
             <Plus className="h-4 w-4 mr-1" />
-            Add Resource
+            {t('addResource')}
           </Button>
         )}
       </div>
@@ -417,8 +420,8 @@ export function SkillResourceManager({
         <Card className="border-dashed">
           <CardContent className="py-8 text-center text-muted-foreground">
             <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No resources attached</p>
-            <p className="text-xs">Add scripts, references, or assets to bundle with this skill</p>
+            <p className="text-sm">{t('noResourcesAttached')}</p>
+            <p className="text-xs">{t('addResourcesHint')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -431,7 +434,7 @@ export function SkillResourceManager({
               <div key={type}>
                 <div className="flex items-center gap-2 mb-2">
                   {RESOURCE_TYPE_ICONS[type]}
-                  <span className="text-sm font-medium">{RESOURCE_TYPE_LABELS[type]}s</span>
+                  <span className="text-sm font-medium">{t(RESOURCE_TYPE_LABEL_KEYS[type])}s</span>
                   <Badge variant="secondary" className="text-xs">
                     {typeResources.length}
                   </Badge>

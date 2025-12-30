@@ -44,6 +44,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { usePresetStore, useSettingsStore } from '@/stores';
+import { toast } from '@/components/ui/sonner';
 import {
   type Preset,
   type CreatePresetInput,
@@ -175,7 +176,7 @@ export function PresetManagerDialog({
     const settings = providerSettings[currentProvider as keyof typeof providerSettings];
 
     if (!settings?.apiKey) {
-      alert('Please configure API key for the selected provider first.');
+      toast.warning('Please configure API key for the selected provider first.');
       return;
     }
 
@@ -228,7 +229,7 @@ export function PresetManagerDialog({
 
     const settings = providerSettings['openai'] || Object.values(providerSettings).find(s => s?.apiKey);
     if (!settings?.apiKey) {
-      alert('Please configure an API key first.');
+      toast.warning('Please configure an API key first.');
       return;
     }
 
@@ -285,7 +286,7 @@ export function PresetManagerDialog({
     const settings = providerSettings[currentProvider as keyof typeof providerSettings] || providerSettings['openai'];
 
     if (!settings?.apiKey) {
-      alert('Please configure an API key first.');
+      toast.warning('Please configure an API key first.');
       return;
     }
 

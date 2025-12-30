@@ -2,18 +2,39 @@
 
 /**
  * Designer Page - Standalone V0-style web page designer
+ * Full-featured designer with ElementTree, StylePanel, VersionHistory, and AI editing
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useSettingsStore, useArtifactStore } from '@/stores';
-import { ReactSandbox } from '@/components/designer';
+import { useDesignerStore } from '@/stores/designer-store';
+import {
+  ReactSandbox,
+  ElementTree,
+  StylePanel,
+  VersionHistoryPanel,
+  DesignerDndProvider,
+  DesignerCard,
+} from '@/components/designer';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CopyButton } from '@/components/ui/copy-button';
+import { Separator } from '@/components/ui/separator';
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@/components/ui/resizable';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   DESIGNER_TEMPLATES,
   AI_SUGGESTIONS,
@@ -36,6 +57,16 @@ import {
   Redo2,
   Download,
   FileCode,
+  Eye,
+  Pencil,
+  Code2,
+  PanelLeft,
+  PanelRight,
+  History,
+  Monitor,
+  Tablet,
+  Smartphone,
+  Maximize,
 } from 'lucide-react';
 import {
   Dialog,
@@ -44,9 +75,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupButton,
+} from '@/components/ui/input-group';
+import { Search, Grid3X3, List, ChevronDown, Check } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
+import type { DesignerMode, ViewportSize } from '@/types/designer';
 
 export default function DesignerPage() {
   const searchParams = useSearchParams();
@@ -57,13 +101,63 @@ export default function DesignerPage() {
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [aiError, setAIError] = useState<string | null>(null);
   const [framework, setFramework] = useState<FrameworkType>('react');
+  const [templateSearch, setTemplateSearch] = useState('');
+  const [templateViewMode, setTemplateViewMode] = useState<'grid' | 'list'>('grid');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  
+  // Panel visibility states
+  const [showElementTree, setShowElementTree] = useState(false);
+  const [showStylePanel, setShowStylePanel] = useState(false);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [designerMode, setDesignerMode] = useState<DesignerMode>('preview');
+  const [viewport, setViewport] = useState<ViewportSize>('desktop');
   
   // History for undo/redo
   const [history, setHistory] = useState<string[]>([DESIGNER_TEMPLATES[0].code]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
-  // Filter templates by selected framework
-  const filteredTemplates = DESIGNER_TEMPLATES.filter(t => t.framework === framework);
+  // Designer store integration - sync code with store for ElementTree/StylePanel
+  const parseCodeToElements = useDesignerStore((state) => state.parseCodeToElements);
+  const setDesignerCode = useDesignerStore((state) => state.setCode);
+  
+  // Sync code with designer store when code changes
+  useEffect(() => {
+    setDesignerCode(code, false);
+    parseCodeToElements(code);
+  }, [code, setDesignerCode, parseCodeToElements]);
+
+  // Filter templates by selected framework, search, and category
+  const filteredTemplates = useMemo(() => {
+    let result = DESIGNER_TEMPLATES.filter(t => t.framework === framework);
+    
+    // Search filter
+    if (templateSearch.trim()) {
+      const query = templateSearch.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.name.toLowerCase().includes(query) ||
+          t.description.toLowerCase().includes(query) ||
+          t.category.toLowerCase().includes(query)
+      );
+    }
+    
+    // Category filter
+    if (categoryFilter !== 'all') {
+      result = result.filter((t) => t.category === categoryFilter);
+    }
+    
+    return result;
+  }, [framework, templateSearch, categoryFilter]);
+  
+  // Category counts for current framework
+  const categoryCounts = useMemo(() => {
+    const frameworkTemplates = DESIGNER_TEMPLATES.filter(t => t.framework === framework);
+    const counts: Record<string, number> = { all: frameworkTemplates.length };
+    for (const template of frameworkTemplates) {
+      counts[template.category] = (counts[template.category] || 0) + 1;
+    }
+    return counts;
+  }, [framework]);
 
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const defaultProvider = useSettingsStore((state) => state.defaultProvider);
@@ -258,6 +352,156 @@ export default function DesignerPage() {
             <Sparkles className="h-4 w-4 mr-2" />
             AI Edit
           </Button>
+
+          <Separator orientation="vertical" className="h-6" />
+
+          {/* Panel toggles */}
+          <TooltipProvider>
+            <div className="flex items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={showElementTree ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setShowElementTree(!showElementTree)}
+                  >
+                    <PanelLeft className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Element Tree</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={showStylePanel ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setShowStylePanel(!showStylePanel)}
+                  >
+                    <PanelRight className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Style Panel</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={showHistoryPanel ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setShowHistoryPanel(!showHistoryPanel)}
+                  >
+                    <History className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Version History</TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
+
+          <Separator orientation="vertical" className="h-6" />
+
+          {/* Mode switcher */}
+          <ButtonGroup>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={designerMode === 'preview' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setDesignerMode('preview')}
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Preview</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={designerMode === 'design' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setDesignerMode('design')}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Design</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={designerMode === 'code' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setDesignerMode('code')}
+                >
+                  <Code2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Code</TooltipContent>
+            </Tooltip>
+          </ButtonGroup>
+
+          {/* Viewport controls */}
+          <ButtonGroup>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={viewport === 'mobile' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setViewport('mobile')}
+                >
+                  <Smartphone className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Mobile</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={viewport === 'tablet' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setViewport('tablet')}
+                >
+                  <Tablet className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Tablet</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={viewport === 'desktop' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setViewport('desktop')}
+                >
+                  <Monitor className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Desktop</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={viewport === 'full' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setViewport('full')}
+                >
+                  <Maximize className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Full Width</TooltipContent>
+            </Tooltip>
+          </ButtonGroup>
         </div>
       </header>
 
@@ -322,18 +566,95 @@ export default function DesignerPage() {
 
       {/* Main content */}
       <div className="flex-1 overflow-hidden">
-        <ReactSandbox
-          code={code}
-          onCodeChange={handleCodeChange}
-          showFileExplorer={false}
-          showConsole={false}
-          framework={framework}
-        />
+        <DesignerDndProvider>
+          <ResizablePanelGroup direction="horizontal" className="h-full">
+            {/* Element Tree Panel */}
+            {showElementTree && (
+              <>
+                <ResizablePanel defaultSize={18} minSize={15} maxSize={25}>
+                  <div className="flex flex-col h-full border-r bg-background">
+                    <div className="border-b px-3 py-2 flex items-center justify-between">
+                      <h3 className="text-sm font-medium">Elements</h3>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => setShowElementTree(false)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <ElementTree className="flex-1 overflow-auto" />
+                  </div>
+                </ResizablePanel>
+                <ResizableHandle withHandle />
+              </>
+            )}
+
+            {/* Main Preview/Editor Panel */}
+            <ResizablePanel defaultSize={showElementTree || showStylePanel || showHistoryPanel ? 64 : 100}>
+              <ReactSandbox
+                code={code}
+                onCodeChange={handleCodeChange}
+                showFileExplorer={false}
+                showConsole={false}
+                framework={framework}
+                onAIEdit={() => setShowAIPanel(true)}
+              />
+            </ResizablePanel>
+
+            {/* Style Panel */}
+            {showStylePanel && (
+              <>
+                <ResizableHandle withHandle />
+                <ResizablePanel defaultSize={22} minSize={18} maxSize={30}>
+                  <div className="flex flex-col h-full border-l bg-background">
+                    <div className="border-b px-3 py-2 flex items-center justify-between">
+                      <h3 className="text-sm font-medium">Styles</h3>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => setShowStylePanel(false)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <StylePanel className="flex-1 overflow-auto" />
+                  </div>
+                </ResizablePanel>
+              </>
+            )}
+
+            {/* Version History Panel */}
+            {showHistoryPanel && (
+              <>
+                <ResizableHandle withHandle />
+                <ResizablePanel defaultSize={18} minSize={15} maxSize={25}>
+                  <div className="flex flex-col h-full border-l bg-background">
+                    <div className="border-b px-3 py-2 flex items-center justify-between">
+                      <h3 className="text-sm font-medium">History</h3>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => setShowHistoryPanel(false)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <VersionHistoryPanel className="flex-1 overflow-auto" />
+                  </div>
+                </ResizablePanel>
+              </>
+            )}
+          </ResizablePanelGroup>
+        </DesignerDndProvider>
       </div>
 
       {/* Templates Dialog */}
       <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
-        <DialogContent className="w-[95vw] max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="w-[95vw] max-w-5xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Choose a Template</DialogTitle>
             <DialogDescription>
@@ -341,84 +662,177 @@ export default function DesignerPage() {
             </DialogDescription>
           </DialogHeader>
 
-          {/* Framework selector */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            {FRAMEWORK_OPTIONS.map((opt) => (
-              <Button
-                key={opt.value}
-                variant={framework === opt.value ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFramework(opt.value)}
-              >
-                {opt.label}
-              </Button>
-            ))}
+          {/* Search and Filters Toolbar */}
+          <div className="flex flex-col gap-3 pb-3 border-b">
+            {/* Search and View Toggle */}
+            <div className="flex items-center gap-2">
+              <InputGroup className="flex-1">
+                <InputGroupAddon align="inline-start">
+                  <Search className="h-4 w-4" />
+                </InputGroupAddon>
+                <InputGroupInput
+                  placeholder="Search templates..."
+                  value={templateSearch}
+                  onChange={(e) => setTemplateSearch(e.target.value)}
+                />
+                {templateSearch && (
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton
+                      size="icon-xs"
+                      onClick={() => setTemplateSearch('')}
+                      aria-label="Clear search"
+                    >
+                      <X className="h-3 w-3" />
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                )}
+              </InputGroup>
+
+              <div className="flex items-center border rounded-md">
+                <Button
+                  variant={templateViewMode === 'grid' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="h-9 w-9 rounded-r-none"
+                  onClick={() => setTemplateViewMode('grid')}
+                >
+                  <Grid3X3 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={templateViewMode === 'list' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="h-9 w-9 rounded-l-none"
+                  onClick={() => setTemplateViewMode('list')}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Framework and Category Filters */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Framework selector */}
+              {FRAMEWORK_OPTIONS.map((opt) => (
+                <Button
+                  key={opt.value}
+                  variant={framework === opt.value ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-8"
+                  onClick={() => setFramework(opt.value)}
+                >
+                  {opt.label}
+                </Button>
+              ))}
+
+              <Separator orientation="vertical" className="h-6 mx-1" />
+
+              {/* Category Filter */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8">
+                    {categoryFilter === 'all' ? 'All Categories' : categoryFilter}
+                    <ChevronDown className="ml-1.5 h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => setCategoryFilter('all')}>
+                    <div className="flex items-center gap-2 flex-1">
+                      <span>All Categories</span>
+                    </div>
+                    <Badge variant="secondary" className="ml-2 text-xs">
+                      {categoryCounts.all}
+                    </Badge>
+                    {categoryFilter === 'all' && <Check className="h-4 w-4 ml-2" />}
+                  </DropdownMenuItem>
+                  {TEMPLATE_CATEGORIES.map((category) => (
+                    <DropdownMenuItem
+                      key={category}
+                      onClick={() => setCategoryFilter(category)}
+                    >
+                      <div className="flex items-center gap-2 flex-1">
+                        <span>{category}</span>
+                      </div>
+                      {categoryCounts[category] !== undefined && (
+                        <Badge variant="secondary" className="ml-2 text-xs">
+                          {categoryCounts[category]}
+                        </Badge>
+                      )}
+                      {categoryFilter === category && <Check className="h-4 w-4 ml-2" />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Clear filters */}
+              {(templateSearch || categoryFilter !== 'all') && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => {
+                    setTemplateSearch('');
+                    setCategoryFilter('all');
+                  }}
+                >
+                  <X className="h-3.5 w-3.5 mr-1" />
+                  Clear
+                </Button>
+              )}
+
+              <div className="flex-1" />
+              <span className="text-sm text-muted-foreground">
+                {filteredTemplates.length} templates
+              </span>
+            </div>
           </div>
 
-          <Tabs defaultValue="all" className="flex-1 overflow-hidden flex flex-col">
-            <TabsList className="flex-wrap h-auto gap-1 p-1">
-              <TabsTrigger value="all">All</TabsTrigger>
-              {TEMPLATE_CATEGORIES.map((category) => (
-                <TabsTrigger key={category} value={category}>
-                  {category}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
-            <ScrollArea className="flex-1 mt-4">
-              <TabsContent value="all" className="mt-0 px-1">
+          {/* Templates Grid/List */}
+          <ScrollArea className="flex-1 mt-4">
+            <div className="px-1">
+              {filteredTemplates.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Layers className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                  <h3 className="font-medium text-lg mb-1">No templates found</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Try adjusting your search or filters
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setTemplateSearch('');
+                      setCategoryFilter('all');
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                </div>
+              ) : templateViewMode === 'grid' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredTemplates.map((template) => (
-                    <button
+                    <DesignerCard
                       key={template.id}
-                      onClick={() => handleSelectTemplate(template)}
-                      className="group text-left rounded-lg border bg-card p-4 hover:border-primary/50 hover:shadow-md transition-all duration-200"
-                    >
-                      <div className="aspect-video bg-muted rounded-md mb-3 flex items-center justify-center overflow-hidden">
-                        <Layers className="h-8 w-8 text-muted-foreground/30" />
-                      </div>
-                      <h3 className="font-medium group-hover:text-primary transition-colors">
-                        {template.name}
-                      </h3>
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {template.description}
-                      </p>
-                      <Badge variant="secondary" className="mt-3">
-                        {template.category}
-                      </Badge>
-                    </button>
+                      template={template}
+                      variant="default"
+                      onSelect={handleSelectTemplate}
+                      showActions={false}
+                    />
                   ))}
                 </div>
-              </TabsContent>
-
-              {TEMPLATE_CATEGORIES.map((category) => (
-                <TabsContent key={category} value={category} className="mt-0 px-1">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredTemplates.filter((t) => t.category === category).map((template) => (
-                      <button
-                        key={template.id}
-                        onClick={() => handleSelectTemplate(template)}
-                        className="group text-left rounded-lg border bg-card p-4 hover:border-primary/50 hover:shadow-md transition-all duration-200"
-                      >
-                        <div className="aspect-video bg-muted rounded-md mb-3 flex items-center justify-center overflow-hidden">
-                          <Layers className="h-8 w-8 text-muted-foreground/30" />
-                        </div>
-                        <h3 className="font-medium group-hover:text-primary transition-colors">
-                          {template.name}
-                        </h3>
-                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                          {template.description}
-                        </p>
-                        <Badge variant="secondary" className="mt-3">
-                          {template.category}
-                        </Badge>
-                      </button>
-                    ))}
-                  </div>
-                </TabsContent>
-              ))}
-            </ScrollArea>
-          </Tabs>
+              ) : (
+                <div className="space-y-2">
+                  {filteredTemplates.map((template) => (
+                    <DesignerCard
+                      key={template.id}
+                      template={template}
+                      variant="list"
+                      onSelect={handleSelectTemplate}
+                      showActions={false}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>

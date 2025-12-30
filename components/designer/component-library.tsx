@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useActiveCode } from '@codesandbox/sandpack-react';
 import { DraggableComponent, useDesignerDnd } from './dnd';
 import { nanoid } from 'nanoid';
@@ -1114,6 +1115,7 @@ interface ComponentLibraryProps {
 }
 
 export function ComponentLibrary({ className }: ComponentLibraryProps) {
+  const t = useTranslations('componentLibrary');
   const { code, updateCode } = useActiveCode();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<string[]>(['layout', 'buttons']);
@@ -1158,7 +1160,7 @@ export function ComponentLibrary({ className }: ComponentLibraryProps) {
           <InputGroupInput
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search components..."
+            placeholder={t('searchPlaceholder')}
             className="text-sm"
           />
         </InputGroup>
@@ -1223,14 +1225,105 @@ export function ComponentLibrary({ className }: ComponentLibraryProps) {
                                 <span className="truncate">{component.name}</span>
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="right" className="max-w-xs">
-                              <p className="font-medium">{component.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {component.description}
-                              </p>
-                              <p className="text-xs mt-1 text-primary">
-                                Click to insert · Drag to place
-                              </p>
+                            <TooltipContent side="right" className="max-w-sm p-0 overflow-hidden">
+                              {/* Component Preview Thumbnail */}
+                              <div className="w-64 bg-gradient-to-br from-muted to-muted/50 p-3 border-b">
+                                <div className="bg-background rounded-md p-2 shadow-sm">
+                                  {/* Simulated preview based on component type */}
+                                  {component.id.includes('button') ? (
+                                    <div className="flex gap-1.5">
+                                      <div className="h-5 w-14 rounded bg-primary/80" />
+                                      <div className="h-5 w-14 rounded bg-muted-foreground/20 border" />
+                                    </div>
+                                  ) : component.id.includes('input') || component.id.includes('form') || component.id.includes('search') ? (
+                                    <div className="space-y-1.5">
+                                      <div className="h-2 w-10 rounded bg-muted-foreground/20" />
+                                      <div className="h-5 w-full rounded border bg-background" />
+                                    </div>
+                                  ) : component.id.includes('card') ? (
+                                    <div className="border rounded p-2 space-y-1.5">
+                                      <div className="h-8 w-full rounded bg-muted" />
+                                      <div className="h-2 w-3/4 rounded bg-muted-foreground/20" />
+                                      <div className="h-2 w-1/2 rounded bg-muted-foreground/15" />
+                                    </div>
+                                  ) : component.id.includes('grid') || component.id.includes('layout') ? (
+                                    <div className="grid grid-cols-3 gap-1">
+                                      <div className="h-6 rounded bg-muted" />
+                                      <div className="h-6 rounded bg-muted" />
+                                      <div className="h-6 rounded bg-muted" />
+                                    </div>
+                                  ) : component.id.includes('nav') || component.id.includes('header') ? (
+                                    <div className="flex items-center gap-2">
+                                      <div className="h-4 w-4 rounded bg-primary/60" />
+                                      <div className="h-2 w-8 rounded bg-muted-foreground/20" />
+                                      <div className="flex-1" />
+                                      <div className="h-2 w-6 rounded bg-muted-foreground/15" />
+                                      <div className="h-2 w-6 rounded bg-muted-foreground/15" />
+                                    </div>
+                                  ) : component.id.includes('hero') ? (
+                                    <div className="text-center space-y-1.5 py-2">
+                                      <div className="h-3 w-3/4 mx-auto rounded bg-muted-foreground/25" />
+                                      <div className="h-2 w-1/2 mx-auto rounded bg-muted-foreground/15" />
+                                      <div className="h-4 w-16 mx-auto rounded bg-primary/60 mt-2" />
+                                    </div>
+                                  ) : component.id.includes('list') ? (
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-1.5">
+                                        <div className="h-2 w-2 rounded-full bg-primary/60" />
+                                        <div className="h-2 flex-1 rounded bg-muted-foreground/20" />
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <div className="h-2 w-2 rounded-full bg-primary/60" />
+                                        <div className="h-2 flex-1 rounded bg-muted-foreground/20" />
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <div className="h-2 w-2 rounded-full bg-primary/60" />
+                                        <div className="h-2 flex-1 rounded bg-muted-foreground/20" />
+                                      </div>
+                                    </div>
+                                  ) : component.id.includes('avatar') || component.id.includes('user') ? (
+                                    <div className="flex items-center gap-2">
+                                      <div className="h-6 w-6 rounded-full bg-muted" />
+                                      <div className="space-y-1">
+                                        <div className="h-2 w-12 rounded bg-muted-foreground/20" />
+                                        <div className="h-1.5 w-16 rounded bg-muted-foreground/15" />
+                                      </div>
+                                    </div>
+                                  ) : component.id.includes('alert') || component.id.includes('badge') ? (
+                                    <div className="flex items-center gap-1.5 p-1.5 rounded bg-primary/10 border border-primary/20">
+                                      <div className="h-3 w-3 rounded-full bg-primary/40" />
+                                      <div className="h-2 flex-1 rounded bg-primary/20" />
+                                    </div>
+                                  ) : component.id.includes('table') ? (
+                                    <div className="border rounded overflow-hidden">
+                                      <div className="h-4 bg-muted flex">
+                                        <div className="flex-1 border-r" />
+                                        <div className="flex-1 border-r" />
+                                        <div className="flex-1" />
+                                      </div>
+                                      <div className="h-3 flex border-t">
+                                        <div className="flex-1 border-r" />
+                                        <div className="flex-1 border-r" />
+                                        <div className="flex-1" />
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-center h-8">
+                                      {component.icon}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              {/* Component Info */}
+                              <div className="p-2.5">
+                                <p className="font-medium text-sm">{component.name}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {component.description}
+                                </p>
+                                <p className="text-xs mt-1.5 text-primary">
+                                  {t('clickToInsert')}
+                                </p>
+                              </div>
                             </TooltipContent>
                           </Tooltip>
                           <Tooltip>
@@ -1243,7 +1336,7 @@ export function ComponentLibrary({ className }: ComponentLibraryProps) {
                                 />
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent>Copy code</TooltipContent>
+                            <TooltipContent>{t('copyCode')}</TooltipContent>
                           </Tooltip>
                         </div>
                       </DraggableComponent>

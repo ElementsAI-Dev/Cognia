@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useSandpack } from '@codesandbox/sandpack-react';
 import {
   ChevronRight,
@@ -76,6 +77,7 @@ export function SandboxFileExplorer({
   onFileDelete,
   onFileRename,
 }: SandboxFileExplorerProps) {
+  const t = useTranslations('sandboxFileExplorer');
   const { sandpack } = useSandpack();
   const { files, activeFile, setActiveFile, addFile, deleteFile } = sandpack;
 
@@ -187,7 +189,7 @@ export function SandboxFileExplorer({
       {/* Header with actions */}
       <div className="flex items-center justify-between px-2 py-1.5 border-b">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Files
+          {t('files')}
         </span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -200,13 +202,13 @@ export function SandboxFileExplorer({
               onClick={() => setNewFileDialog({ open: true, type: 'file', parentPath: '/' })}
             >
               <FilePlus className="h-4 w-4 mr-2" />
-              New File
+              {t('newFile')}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => setNewFileDialog({ open: true, type: 'directory', parentPath: '/' })}
             >
               <FolderPlus className="h-4 w-4 mr-2" />
-              New Folder
+              {t('newFolder')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -233,6 +235,7 @@ export function SandboxFileExplorer({
               onNewFolder={(parentPath) => {
                 setNewFileDialog({ open: true, type: 'directory', parentPath });
               }}
+              t={t}
             />
           ))}
         </div>
@@ -243,24 +246,24 @@ export function SandboxFileExplorer({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {newFileDialog.type === 'file' ? 'Create New File' : 'Create New Folder'}
+              {newFileDialog.type === 'file' ? t('createNewFile') : t('createNewFolder')}
             </DialogTitle>
             <DialogDescription>
-              Enter the name for your new {newFileDialog.type}.
+              {t('enterName', { type: newFileDialog.type })}
             </DialogDescription>
           </DialogHeader>
           <Input
             value={newFileName}
             onChange={(e) => setNewFileName(e.target.value)}
-            placeholder={newFileDialog.type === 'file' ? 'filename.js' : 'folder-name'}
+            placeholder={newFileDialog.type === 'file' ? t('filenamePlaceholder') : t('foldernamePlaceholder')}
             onKeyDown={(e) => e.key === 'Enter' && handleCreateFile()}
             autoFocus
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setNewFileDialog({ ...newFileDialog, open: false })}>
-              Cancel
+              {t('cancel')}
             </Button>
-            <Button onClick={handleCreateFile}>Create</Button>
+            <Button onClick={handleCreateFile}>{t('create')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -269,23 +272,23 @@ export function SandboxFileExplorer({
       <Dialog open={renameDialog.open} onOpenChange={(open) => setRenameDialog({ ...renameDialog, open })}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rename File</DialogTitle>
+            <DialogTitle>{t('renameFile')}</DialogTitle>
             <DialogDescription>
-              Enter a new name for this file.
+              {t('renameDescription')}
             </DialogDescription>
           </DialogHeader>
           <Input
             value={renameName}
             onChange={(e) => setRenameName(e.target.value)}
-            placeholder="new-name.js"
+            placeholder={t('newNamePlaceholder')}
             onKeyDown={(e) => e.key === 'Enter' && handleRenameFile()}
             autoFocus
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setRenameDialog({ ...renameDialog, open: false })}>
-              Cancel
+              {t('cancel')}
             </Button>
-            <Button onClick={handleRenameFile}>Rename</Button>
+            <Button onClick={handleRenameFile}>{t('rename')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -329,6 +332,7 @@ interface FileTreeItemProps {
   onRename: (path: string, currentName: string) => void;
   onNewFile: (parentPath: string) => void;
   onNewFolder: (parentPath: string) => void;
+  t: ReturnType<typeof useTranslations>;
 }
 
 function FileTreeItem({
@@ -340,6 +344,7 @@ function FileTreeItem({
   onRename,
   onNewFile,
   onNewFolder,
+  t,
 }: FileTreeItemProps) {
   // Only expand root level by default
   const [isExpanded, setIsExpanded] = useState(depth === 0);
@@ -411,18 +416,18 @@ function FileTreeItem({
             <>
               <ContextMenuItem onClick={() => onNewFile(node.path)}>
                 <FilePlus className="h-4 w-4 mr-2" />
-                New File
+                {t('newFile')}
               </ContextMenuItem>
               <ContextMenuItem onClick={() => onNewFolder(node.path)}>
                 <FolderPlus className="h-4 w-4 mr-2" />
-                New Folder
+                {t('newFolder')}
               </ContextMenuItem>
               <ContextMenuSeparator />
             </>
           )}
           <ContextMenuItem onClick={() => onRename(node.path, node.name)}>
             <Edit3 className="h-4 w-4 mr-2" />
-            Rename
+            {t('rename')}
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem
@@ -430,7 +435,7 @@ function FileTreeItem({
             className="text-destructive focus:text-destructive"
           >
             <Trash2 className="h-4 w-4 mr-2" />
-            Delete
+            {t('delete')}
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
@@ -449,6 +454,7 @@ function FileTreeItem({
               onRename={onRename}
               onNewFile={onNewFile}
               onNewFolder={onNewFolder}
+              t={t}
             />
           ))}
         </CollapsibleContent>

@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   AlertCircle,
   RefreshCw,
@@ -44,7 +45,7 @@ interface ErrorInfo {
   showSettings: boolean;
 }
 
-function categorizeError(error: string): ErrorInfo {
+function categorizeError(error: string, t: ReturnType<typeof useTranslations>): ErrorInfo {
   const lowerError = error.toLowerCase();
 
   // API Key errors
@@ -58,8 +59,8 @@ function categorizeError(error: string): ErrorInfo {
   ) {
     return {
       category: 'api_key',
-      title: 'API Key Error',
-      description: 'Your API key is missing or invalid. Please check your settings.',
+      title: t('errorApiKeyTitle'),
+      description: t('errorApiKeyDesc'),
       icon: <Key className="h-5 w-5" />,
       canRetry: false,
       showSettings: true,
@@ -77,8 +78,8 @@ function categorizeError(error: string): ErrorInfo {
   ) {
     return {
       category: 'network',
-      title: 'Network Error',
-      description: 'Unable to connect to the server. Please check your internet connection.',
+      title: t('errorNetworkTitle'),
+      description: t('errorNetworkDesc'),
       icon: <Wifi className="h-5 w-5" />,
       canRetry: true,
       showSettings: false,
@@ -94,8 +95,8 @@ function categorizeError(error: string): ErrorInfo {
   ) {
     return {
       category: 'rate_limit',
-      title: 'Rate Limit Exceeded',
-      description: 'Too many requests. Please wait a moment before trying again.',
+      title: t('errorRateLimitTitle'),
+      description: t('errorRateLimitDesc'),
       icon: <Clock className="h-5 w-5" />,
       canRetry: true,
       showSettings: false,
@@ -113,8 +114,8 @@ function categorizeError(error: string): ErrorInfo {
   ) {
     return {
       category: 'server',
-      title: 'Server Error',
-      description: 'The AI service is temporarily unavailable. Please try again later.',
+      title: t('errorServerTitle'),
+      description: t('errorServerDesc'),
       icon: <AlertTriangle className="h-5 w-5" />,
       canRetry: true,
       showSettings: false,
@@ -124,7 +125,7 @@ function categorizeError(error: string): ErrorInfo {
   // Unknown errors
   return {
     category: 'unknown',
-    title: 'Error',
+    title: t('errorUnknownTitle'),
     description: error,
     icon: <AlertCircle className="h-5 w-5" />,
     canRetry: true,
@@ -141,10 +142,11 @@ export function ErrorMessage({
   retryCount = 0,
   className,
 }: ErrorMessageProps) {
+  const t = useTranslations('chat');
   const [countdown, setCountdown] = useState<number | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
 
-  const errorInfo = categorizeError(error);
+  const errorInfo = categorizeError(error, t);
   const canAutoRetry = autoRetry && errorInfo.canRetry && retryCount < maxRetries;
 
   // Calculate retry delay with exponential backoff

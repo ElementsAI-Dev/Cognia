@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   GitBranch,
   ChevronDown,
@@ -51,6 +52,7 @@ export function BranchSelector({
   onBranchChange,
   compact = false,
 }: BranchSelectorProps) {
+  const t = useTranslations('branchSelector');
   const [editingBranchId, setEditingBranchId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -127,7 +129,7 @@ export function BranchSelector({
             <Button variant="outline" size="sm" className="gap-2">
               <GitBranch className="h-4 w-4" />
               <span className="truncate max-w-[120px]">
-                {activeBranch?.name || 'Main'}
+                {activeBranch?.name || t('main')}
               </span>
               <ChevronDown className="h-3 w-3 opacity-50" />
             </Button>
@@ -136,7 +138,7 @@ export function BranchSelector({
         <DropdownMenuContent align="end" className="w-64">
           <DropdownMenuLabel className="flex items-center gap-2">
             <GitBranch className="h-4 w-4" />
-            Conversation Branches
+            {t('title')}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
 
@@ -146,10 +148,10 @@ export function BranchSelector({
             className={cn(!activeBranchId && 'bg-accent')}
           >
             <Home className="mr-2 h-4 w-4" />
-            <span className="flex-1">Main</span>
+            <span className="flex-1">{t('main')}</span>
             {!activeBranchId && (
               <Badge variant="default" className="text-xs">
-                Active
+                {t('active')}
               </Badge>
             )}
           </DropdownMenuItem>
@@ -198,7 +200,7 @@ export function BranchSelector({
                   <span className="flex-1 truncate">{branch.name}</span>
                   {activeBranchId === branch.id && (
                     <Badge variant="default" className="text-xs mr-1">
-                      Active
+                      {t('active')}
                     </Badge>
                   )}
                   <div className="opacity-0 group-hover:opacity-100 flex gap-0.5">
@@ -233,7 +235,7 @@ export function BranchSelector({
 
           <DropdownMenuSeparator />
           <p className="px-2 py-1 text-xs text-muted-foreground">
-            Click &quot;Branch&quot; on a message to create a new branch
+            {t('hint')}
           </p>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -242,21 +244,19 @@ export function BranchSelector({
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Branch</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete &quot;{branchToDelete?.name}&quot;? This
-              will delete all messages in this branch. This action cannot be
-              undone.
+              {t('deleteDesc', { name: branchToDelete?.name || '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteBranch}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Delete
+              {t('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -279,6 +279,7 @@ export function BranchButton({
   onBranchCreated,
   onCopyMessages,
 }: BranchButtonProps) {
+  const t = useTranslations('branchSelector');
   const [isCreating, setIsCreating] = useState(false);
   const createBranch = useSessionStore((state) => state.createBranch);
 
@@ -311,7 +312,7 @@ export function BranchButton({
       disabled={isCreating}
     >
       <GitBranch className="h-3.5 w-3.5" />
-      {isCreating ? 'Creating...' : 'Branch'}
+      {isCreating ? t('creating') : t('branch')}
     </Button>
   );
 }

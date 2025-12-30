@@ -15,3 +15,7 @@ export * as selection from './selection';
 export * as screenshot from './screenshot';
 export * as context from './context';
 export * as awareness from './awareness';
+export * as sandbox from './sandbox';
+export * as sandboxDb from './sandbox-db';
+export * as environment from './environment';
+export * as proxy from './proxy';

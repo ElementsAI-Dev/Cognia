@@ -30,6 +30,7 @@ import { useSettingsStore, useRecentFilesStore, usePresetStore, useSessionStore 
 import { RecentFilesPopover } from './recent-files-popover';
 import { MentionPopover } from './mention-popover';
 import { PresetQuickPrompts } from '@/components/presets/preset-quick-prompts';
+import { PresetQuickSwitcher } from '@/components/presets/preset-quick-switcher';
 import type { RecentFile } from '@/stores/recent-files-store';
 import type { MentionItem, SelectedMention, ParsedToolCall } from '@/types/mcp';
 import { useMention, useSpeech } from '@/hooks';
@@ -180,6 +181,10 @@ interface ChatInputProps {
   onModelClick?: () => void;
   onModeClick?: () => void;
   onWorkflowClick?: () => void;
+  // Preset management
+  onPresetChange?: (preset: import('@/types/preset').Preset) => void;
+  onCreatePreset?: () => void;
+  onManagePresets?: () => void;
 }
 
 function formatFileSize(bytes: number): string {
@@ -238,6 +243,9 @@ export function ChatInput({
   modeName: _modeName,
   onModelClick,
   onModeClick: _onModeClick,
+  onPresetChange,
+  onCreatePreset,
+  onManagePresets,
 }: ChatInputProps) {
   const t = useTranslations('chatInput');
   const tPlaceholders = useTranslations('placeholders');
@@ -999,6 +1007,17 @@ export function ChatInput({
                 </TooltipTrigger>
                 <TooltipContent>{t('aiSettings')}</TooltipContent>
               </Tooltip>
+
+              {/* Divider */}
+              <div className="mx-1 h-4 w-px bg-border" />
+
+              {/* Preset Quick Switcher */}
+              <PresetQuickSwitcher
+                onPresetChange={onPresetChange}
+                onCreateNew={onCreatePreset}
+                onManage={onManagePresets}
+                disabled={isProcessing || disabled}
+              />
 
               {/* Preset Quick Prompts */}
               <PresetQuickPromptsWrapper

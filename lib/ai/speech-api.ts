@@ -3,6 +3,7 @@
  */
 
 import type { WhisperTranscriptionResponse, SpeechLanguageCode } from '@/types/speech';
+import { proxyFetch } from '@/lib/proxy-fetch';
 
 // Whisper API endpoint
 const WHISPER_API_URL = 'https://api.openai.com/v1/audio/transcriptions';
@@ -91,7 +92,7 @@ export async function transcribeAudio(
       formData.append('temperature', temperature.toString());
     }
 
-    const response = await fetch(WHISPER_API_URL, {
+    const response = await proxyFetch(WHISPER_API_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,

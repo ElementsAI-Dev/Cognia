@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { waitForAnimation } from '../utils/test-helpers';
 
 /**
  * Usage Settings Complete Tests
  * Tests token usage tracking and statistics display
+ * Optimized for CI/CD efficiency
  */
 
 test.describe('Usage Settings - Statistics Display', () => {
@@ -585,7 +587,7 @@ test.describe('Usage Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for Usage tab or section
       const usageSection = page.locator('text=Usage, text=Statistics').first();
@@ -601,7 +603,7 @@ test.describe('Usage Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for summary elements
       const tokensCard = page.locator('text=Tokens, text=Total Tokens').first();
@@ -617,7 +619,7 @@ test.describe('Usage Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for export button
       const exportBtn = page.locator('button:has-text("Export")').first();
@@ -633,7 +635,7 @@ test.describe('Usage Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for clear button
       const clearBtn = page

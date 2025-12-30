@@ -261,10 +261,10 @@ export function SkillTestPanel({ skill, onExecutionComplete }: SkillTestPanelPro
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <Terminal className="h-4 w-4" />
-            Skill Test Panel
+            {t('skillTestPanel')}
           </CardTitle>
           <CardDescription>
-            Test your skill to see how it will be processed and injected into the AI context
+            {t('testSkillDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -272,11 +272,11 @@ export function SkillTestPanel({ skill, onExecutionComplete }: SkillTestPanelPro
           <div className="flex items-center gap-4">
             <Badge variant="outline" className="flex items-center gap-1">
               <Coins className="h-3 w-3" />
-              ~{tokenEstimate} tokens
+              ~{tokenEstimate} {t('tokens')}
             </Badge>
             <Badge variant="outline" className="flex items-center gap-1">
               <FileText className="h-3 w-3" />
-              {skill.resources.length} resources
+              {skill.resources.length} {t('resources')}
             </Badge>
             <Badge variant={skill.status === 'enabled' ? 'default' : 'secondary'}>
               {skill.status}
@@ -285,7 +285,7 @@ export function SkillTestPanel({ skill, onExecutionComplete }: SkillTestPanelPro
 
           {/* Test Query Input */}
           <div className="space-y-2">
-            <Label htmlFor="test-query">Test Query (optional)</Label>
+            <Label htmlFor="test-query">{t('testQuery')}</Label>
             <Textarea
               id="test-query"
               placeholder={t('testQueryPlaceholder')}
@@ -294,7 +294,7 @@ export function SkillTestPanel({ skill, onExecutionComplete }: SkillTestPanelPro
               rows={2}
             />
             <p className="text-xs text-muted-foreground">
-              Test how well this skill matches a specific user query
+              {t('testQueryHint')}
             </p>
           </div>
 
@@ -304,25 +304,25 @@ export function SkillTestPanel({ skill, onExecutionComplete }: SkillTestPanelPro
               {isRunning ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Running...
+                  {t('running')}
                 </>
               ) : (
                 <>
                   <Play className="h-4 w-4 mr-2" />
-                  Run Test
+                  {t('runTest')}
                 </>
               )}
             </Button>
             {testResult && (
               <Button variant="outline" onClick={() => setTestResult(null)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Reset
+                {t('reset')}
               </Button>
             )}
             {logs.length > 0 && (
               <Button variant="outline" onClick={clearLogs}>
                 <Trash2 className="h-4 w-4 mr-2" />
-                Clear Logs
+                {t('clearLogs')}
               </Button>
             )}
           </div>
@@ -333,9 +333,9 @@ export function SkillTestPanel({ skill, onExecutionComplete }: SkillTestPanelPro
       {testResult && (
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
           <TabsList>
-            <TabsTrigger value="test">Results</TabsTrigger>
-            <TabsTrigger value="prompt">System Prompt</TabsTrigger>
-            <TabsTrigger value="logs">Logs ({logs.length})</TabsTrigger>
+            <TabsTrigger value="test">{t('results')}</TabsTrigger>
+            <TabsTrigger value="prompt">{t('systemPrompt')}</TabsTrigger>
+            <TabsTrigger value="logs">{t('logs')} ({logs.length})</TabsTrigger>
           </TabsList>
 
           {/* Results Tab */}
@@ -351,7 +351,7 @@ export function SkillTestPanel({ skill, onExecutionComplete }: SkillTestPanelPro
                       <AlertCircle className="h-5 w-5 text-destructive" />
                     )}
                     <span className="font-medium">
-                      {testResult.success ? 'Test Passed' : 'Test Failed'}
+                      {testResult.success ? t('testPassed') : t('testFailed')}
                     </span>
                   </div>
 
@@ -359,17 +359,17 @@ export function SkillTestPanel({ skill, onExecutionComplete }: SkillTestPanelPro
                   <div className="grid grid-cols-3 gap-4">
                     <div className="text-center p-3 bg-muted rounded-lg">
                       <p className="text-2xl font-bold">{testResult.tokenCount}</p>
-                      <p className="text-xs text-muted-foreground">Tokens</p>
+                      <p className="text-xs text-muted-foreground">{t('tokensLabel')}</p>
                     </div>
                     <div className="text-center p-3 bg-muted rounded-lg">
                       <p className="text-2xl font-bold">
                         {testQuery ? `${(testResult.matchScore * 100).toFixed(0)}%` : 'N/A'}
                       </p>
-                      <p className="text-xs text-muted-foreground">Match Score</p>
+                      <p className="text-xs text-muted-foreground">{t('matchScore')}</p>
                     </div>
                     <div className="text-center p-3 bg-muted rounded-lg">
                       <p className="text-2xl font-bold">{testResult.executionTime}ms</p>
-                      <p className="text-xs text-muted-foreground">Duration</p>
+                      <p className="text-xs text-muted-foreground">{t('duration')}</p>
                     </div>
                   </div>
 
@@ -378,13 +378,13 @@ export function SkillTestPanel({ skill, onExecutionComplete }: SkillTestPanelPro
                     <Alert variant={testResult.matchScore >= 0.4 ? 'default' : 'destructive'}>
                       <AlertDescription>
                         {testResult.matchScore >= 0.7 && (
-                          <span><strong>High match:</strong> This skill is very relevant to the query.</span>
+                          <span><strong>{t('highMatch')}:</strong> {t('highMatchDesc')}</span>
                         )}
                         {testResult.matchScore >= 0.4 && testResult.matchScore < 0.7 && (
-                          <span><strong>Medium match:</strong> This skill may be selected for this query.</span>
+                          <span><strong>{t('mediumMatch')}:</strong> {t('mediumMatchDesc')}</span>
                         )}
                         {testResult.matchScore < 0.4 && (
-                          <span><strong>Low match:</strong> This skill is unlikely to be selected for this query.</span>
+                          <span><strong>{t('lowMatch')}:</strong> {t('lowMatchDesc')}</span>
                         )}
                       </AlertDescription>
                     </Alert>
@@ -398,7 +398,7 @@ export function SkillTestPanel({ skill, onExecutionComplete }: SkillTestPanelPro
           <TabsContent value="prompt" className="mt-4">
             <Card>
               <CardHeader className="py-2 flex flex-row items-center justify-between">
-                <CardTitle className="text-sm">Generated System Prompt</CardTitle>
+                <CardTitle className="text-sm">{t('generatedSystemPrompt')}</CardTitle>
                 <CopyButton
                   content={testResult.systemPrompt || ''}
                   className="h-8"
@@ -408,7 +408,7 @@ export function SkillTestPanel({ skill, onExecutionComplete }: SkillTestPanelPro
               <CardContent>
                 <ScrollArea className="h-[300px]">
                   <pre className="text-xs font-mono whitespace-pre-wrap bg-muted p-4 rounded-lg">
-                    {testResult.systemPrompt || 'No prompt generated'}
+                    {testResult.systemPrompt || t('noPromptGenerated')}
                   </pre>
                 </ScrollArea>
               </CardContent>
@@ -448,8 +448,8 @@ export function SkillTestPanel({ skill, onExecutionComplete }: SkillTestPanelPro
                     {logs.length === 0 && (
                       <EmptyState
                         icon={Terminal}
-                        title="No logs yet"
-                        description="Run a test to see execution logs"
+                        title={t('noLogsYet')}
+                        description={t('runTestToSeeLogs')}
                         compact
                       />
                     )}

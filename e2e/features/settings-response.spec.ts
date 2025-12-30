@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { waitForAnimation } from '../utils/test-helpers';
 
 /**
  * Response Settings Complete Tests
  * Tests AI response formatting and display options
+ * Optimized for CI/CD efficiency
  */
 
 test.describe('Response Settings - Code Display', () => {
@@ -580,7 +582,7 @@ test.describe('Response Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for Response tab or Code Display section
       const responseSection = page
@@ -598,7 +600,7 @@ test.describe('Response Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Click Response tab if available
       const responseTab = page
@@ -606,7 +608,7 @@ test.describe('Response Settings UI', () => {
         .first();
       if (await responseTab.isVisible()) {
         await responseTab.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
       }
 
       // Look for theme-related elements
@@ -623,7 +625,7 @@ test.describe('Response Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for slider elements
       const sliders = page.locator('[role="slider"], input[type="range"]');
@@ -639,7 +641,7 @@ test.describe('Response Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Look for switch elements
       const switches = page.locator('[role="switch"], input[type="checkbox"]');
@@ -655,7 +657,7 @@ test.describe('Response Settings UI', () => {
 
     if (await settingsBtn.isVisible()) {
       await settingsBtn.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Click Response tab if available
       const responseTab = page
@@ -663,7 +665,7 @@ test.describe('Response Settings UI', () => {
         .first();
       if (await responseTab.isVisible()) {
         await responseTab.click();
-        await page.waitForTimeout(200);
+        await waitForAnimation(page);
       }
 
       // Look for preview section

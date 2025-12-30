@@ -62,7 +62,7 @@ export function PPTPreview({
   onThemeChange,
   className,
 }: PPTPreviewProps) {
-  const _t = useTranslations('workflow');
+  const t = useTranslations('pptPreview');
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [viewMode, setViewMode] = useState<'single' | 'grid' | 'outline'>('single');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -206,7 +206,7 @@ export function PPTPreview({
         <div className="flex items-center gap-2">
           <Presentation className="h-5 w-5 text-primary" />
           <CardTitle className="text-lg">{presentation.title}</CardTitle>
-          <Badge variant="secondary">{totalSlides} slides</Badge>
+          <Badge variant="secondary">{t('slides', { count: totalSlides })}</Badge>
         </div>
         <div className="flex items-center gap-1">
           {/* View mode toggle */}
@@ -221,7 +221,7 @@ export function PPTPreview({
                   <Eye className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Single View</TooltipContent>
+              <TooltipContent>{t('singleView')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
@@ -236,7 +236,7 @@ export function PPTPreview({
                   <Grid3X3 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Grid View</TooltipContent>
+              <TooltipContent>{t('gridView')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
@@ -251,7 +251,7 @@ export function PPTPreview({
                   <FileText className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Outline View</TooltipContent>
+              <TooltipContent>{t('outlineView')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
@@ -265,27 +265,27 @@ export function PPTPreview({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 max-h-80 overflow-y-auto">
-              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Basic</div>
+              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">{t('basic')}</div>
               {DEFAULT_PPT_THEMES.slice(0, 6).map((theme) => (
                 <ThemeMenuItem key={theme.id} theme={theme} onSelect={() => onThemeChange?.(theme.id)} />
               ))}
-              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-2">Business</div>
+              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-2">{t('business')}</div>
               {DEFAULT_PPT_THEMES.slice(6, 9).map((theme) => (
                 <ThemeMenuItem key={theme.id} theme={theme} onSelect={() => onThemeChange?.(theme.id)} />
               ))}
-              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-2">Technology</div>
+              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-2">{t('technology')}</div>
               {DEFAULT_PPT_THEMES.slice(9, 12).map((theme) => (
                 <ThemeMenuItem key={theme.id} theme={theme} onSelect={() => onThemeChange?.(theme.id)} />
               ))}
-              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-2">Education</div>
+              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-2">{t('education')}</div>
               {DEFAULT_PPT_THEMES.slice(12, 15).map((theme) => (
                 <ThemeMenuItem key={theme.id} theme={theme} onSelect={() => onThemeChange?.(theme.id)} />
               ))}
-              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-2">Creative</div>
+              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-2">{t('creative')}</div>
               {DEFAULT_PPT_THEMES.slice(15, 18).map((theme) => (
                 <ThemeMenuItem key={theme.id} theme={theme} onSelect={() => onThemeChange?.(theme.id)} />
               ))}
-              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-2">Special</div>
+              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-2">{t('special')}</div>
               {DEFAULT_PPT_THEMES.slice(18).map((theme) => (
                 <ThemeMenuItem key={theme.id} theme={theme} onSelect={() => onThemeChange?.(theme.id)} />
               ))}
@@ -301,19 +301,19 @@ export function PPTPreview({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => handleExport('marp')}>
-                📝 Export as Marp (.md)
+                📝 {t('exportMarp')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExport('html')}>
-                🌐 Export as HTML
+                🌐 {t('exportHtml')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExport('reveal')}>
-                🎭 Export as Reveal.js
+                🎭 {t('exportReveal')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExport('pdf')}>
-                📄 Save as PDF
+                📄 {t('savePdf')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExport('pptx')}>
-                📊 Download PPTX
+                📊 {t('downloadPptx')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -331,7 +331,7 @@ export function PPTPreview({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                {isFullscreen ? t('exitFullscreen') : t('fullscreen')}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -343,7 +343,7 @@ export function PPTPreview({
         {isExporting && (
           <div className="mb-4 flex items-center gap-2 p-3 rounded-lg bg-primary/10 border border-primary/20">
             <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm text-primary">Exporting presentation...</span>
+            <span className="text-sm text-primary">{t('exporting')}</span>
           </div>
         )}
         
@@ -354,7 +354,7 @@ export function PPTPreview({
               onClick={() => setExportError(null)}
               className="ml-2 text-xs underline hover:no-underline"
             >
-              Dismiss
+              {t('dismiss')}
             </button>
           </div>
         )}
@@ -373,7 +373,7 @@ export function PPTPreview({
 
         {viewMode === 'single' && !currentSlide && (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            No slides in this presentation
+            {t('noSlides')}
           </div>
         )}
 
@@ -588,6 +588,7 @@ function SingleSlideView({
   onNext,
   onEdit,
 }: SingleSlideViewProps) {
+  const t = useTranslations('pptPreview');
   const layoutInfo = SLIDE_LAYOUT_INFO[slide.layout] || SLIDE_LAYOUT_INFO['title-content'];
 
   return (
@@ -728,14 +729,14 @@ function SingleSlideView({
           <span>{layoutInfo.name}</span>
         </div>
         <div>
-          Slide {slideIndex + 1} of {totalSlides}
+          {t('slideOf', { current: slideIndex + 1, total: totalSlides })}
         </div>
       </div>
 
       {/* Speaker notes */}
       {slide.notes && (
         <div className="border rounded-lg p-3 bg-muted/30">
-          <div className="text-xs font-medium text-muted-foreground mb-1">Speaker Notes</div>
+          <div className="text-xs font-medium text-muted-foreground mb-1">{t('speakerNotes')}</div>
           <div className="text-sm">{slide.notes}</div>
         </div>
       )}
@@ -752,6 +753,7 @@ interface GridViewProps {
 }
 
 function GridView({ slides, theme, currentIndex, onSelect, onEdit }: GridViewProps) {
+  const t = useTranslations('pptPreview');
   return (
     <ScrollArea className="flex-1">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-2">
@@ -786,7 +788,7 @@ function GridView({ slides, theme, currentIndex, onSelect, onEdit }: GridViewPro
                   ))}
                   {slide.bullets.length > 3 && (
                     <li className="text-muted-foreground/50">
-                      +{slide.bullets.length - 3} more
+                      {t('more', { count: slide.bullets.length - 3 })}
                     </li>
                   )}
                 </ul>
@@ -825,11 +827,12 @@ interface OutlineViewProps {
 }
 
 function OutlineView({ presentation, marpContent, onCopy, copied }: OutlineViewProps) {
+  const t = useTranslations('pptPreview');
   return (
     <Tabs defaultValue="outline" className="flex-1 flex flex-col">
       <TabsList className="w-full justify-start">
-        <TabsTrigger value="outline">Outline</TabsTrigger>
-        <TabsTrigger value="marp">Marp Code</TabsTrigger>
+        <TabsTrigger value="outline">{t('outline')}</TabsTrigger>
+        <TabsTrigger value="marp">{t('marpCode')}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="outline" className="flex-1 overflow-hidden">
@@ -846,7 +849,7 @@ function OutlineView({ presentation, marpContent, onCopy, copied }: OutlineViewP
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h4 className="font-medium truncate">{slide.title || 'Untitled'}</h4>
+                      <h4 className="font-medium truncate">{slide.title || t('untitled')}</h4>
                       <Badge variant="outline" className="text-xs">
                         {SLIDE_LAYOUT_INFO[slide.layout]?.name || slide.layout}
                       </Badge>
@@ -863,7 +866,7 @@ function OutlineView({ presentation, marpContent, onCopy, copied }: OutlineViewP
                     )}
                     {slide.notes && (
                       <div className="mt-2 text-xs text-muted-foreground bg-muted/50 rounded p-2">
-                        <span className="font-medium">Notes:</span> {slide.notes}
+                        <span className="font-medium">{t('notes')}:</span> {slide.notes}
                       </div>
                     )}
                   </div>
@@ -877,17 +880,17 @@ function OutlineView({ presentation, marpContent, onCopy, copied }: OutlineViewP
       <TabsContent value="marp" className="flex-1 overflow-hidden">
         <div className="h-full flex flex-col">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">Marp Markdown</span>
+            <span className="text-sm text-muted-foreground">{t('marpMarkdown')}</span>
             <Button variant="ghost" size="sm" onClick={onCopy}>
               {copied ? (
                 <>
                   <Check className="h-4 w-4 mr-1" />
-                  Copied!
+                  {t('copied')}
                 </>
               ) : (
                 <>
                   <Copy className="h-4 w-4 mr-1" />
-                  Copy
+                  {t('copy')}
                 </>
               )}
             </Button>

@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { waitForAnimation } from '../utils/test-helpers';
 
 /**
  * Knowledge Base UI Tests
  * Tests for project knowledge base management
+ * Optimized for CI/CD efficiency
  */
 
 test.describe('Knowledge Base Management', () => {
@@ -74,21 +76,21 @@ test.describe('Knowledge Base Management', () => {
     const closeButton = page.locator('button:has-text("Skip for now"), button[aria-label="Close"]').first();
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
     }
 
     // Navigate to project detail
     const projectCard = page.locator('text=Knowledge Base Test').first();
     if (await projectCard.isVisible()) {
       await projectCard.click();
-      await page.waitForTimeout(500);
+      await waitForAnimation(page);
     }
 
     // Switch to knowledge base tab
     const knowledgeTab = page.locator('[role="tab"]:has-text("Knowledge"), button:has-text("Knowledge Base")').first();
     if (await knowledgeTab.isVisible()) {
       await knowledgeTab.click();
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
     }
   });
 
@@ -124,7 +126,7 @@ test.describe('Knowledge Base Management', () => {
 
     if (await searchInput.isVisible()) {
       await searchInput.fill('documentation');
-      await page.waitForTimeout(300);
+      await waitForAnimation(page);
 
       // Documentation file should be visible
       const docFile = page.locator('text=documentation.md').first();
@@ -221,7 +223,7 @@ test.describe('Knowledge Base Management', () => {
 
       if (await viewBtn.isVisible()) {
         await viewBtn.click();
-        await page.waitForTimeout(300);
+        await waitForAnimation(page);
 
         // Content dialog should open
         const contentDialog = page.locator('[role="dialog"], text=documentation.md').first();
@@ -240,7 +242,7 @@ test.describe('Knowledge Base Management', () => {
 
       if (await viewBtn.isVisible()) {
         await viewBtn.click();
-        await page.waitForTimeout(300);
+        await waitForAnimation(page);
 
         // Content should be visible
         const content = page.locator('text=Documentation, text=Getting Started').first();
@@ -259,13 +261,13 @@ test.describe('Knowledge Base Management', () => {
 
       if (await viewBtn.isVisible()) {
         await viewBtn.click();
-        await page.waitForTimeout(300);
+        await waitForAnimation(page);
 
         // Close dialog
         const closeBtn = page.locator('button:has-text("Close")').first();
         if (await closeBtn.isVisible()) {
           await closeBtn.click();
-          await page.waitForTimeout(300);
+          await waitForAnimation(page);
 
           // Dialog should be closed
           const dialog = page.locator('[role="dialog"]').first();
@@ -287,7 +289,7 @@ test.describe('Knowledge Base Management', () => {
 
       if (await deleteBtn.isVisible()) {
         await deleteBtn.click();
-        await page.waitForTimeout(300);
+        await waitForAnimation(page);
 
         // Confirmation dialog should appear
         const confirmDialog = page.locator('[role="alertdialog"], text=Delete File, text=Are you sure').first();
@@ -306,13 +308,13 @@ test.describe('Knowledge Base Management', () => {
 
       if (await deleteBtn.isVisible()) {
         await deleteBtn.click();
-        await page.waitForTimeout(300);
+        await waitForAnimation(page);
 
         // Cancel deletion
         const cancelBtn = page.locator('button:has-text("Cancel")').first();
         if (await cancelBtn.isVisible()) {
           await cancelBtn.click();
-          await page.waitForTimeout(300);
+          await waitForAnimation(page);
 
           // File should still exist
           const fileStillExists = await docFile.isVisible().catch(() => false);

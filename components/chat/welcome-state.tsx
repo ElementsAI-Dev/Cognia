@@ -245,11 +245,10 @@ export function WelcomeState({
 
         {/* Agent Mode Selector - only shown in agent mode */}
         {mode === 'agent' && onAgentModeChange && (
-          <div className="animate-in fade-in-0 duration-500" style={{ animationDelay: '425ms' }}>
+          <div className="flex justify-center animate-in fade-in-0 duration-500" style={{ animationDelay: '425ms' }}>
             <AgentModeSelector
               selectedModeId={agentModeId}
               onModeChange={onAgentModeChange}
-              className="w-full"
             />
           </div>
         )}

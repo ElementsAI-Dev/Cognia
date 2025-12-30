@@ -6,6 +6,7 @@
  */
 
 import { useState, useMemo, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   ChevronDown,
   ChevronRight,
@@ -74,9 +75,10 @@ interface SubAgentNodeProps {
   subAgent: SubAgent;
   onClick?: () => void;
   isLast?: boolean;
+  t: ReturnType<typeof useTranslations>;
 }
 
-function SubAgentNode({ subAgent, onClick, isLast }: SubAgentNodeProps) {
+function SubAgentNode({ subAgent, onClick, isLast, t }: SubAgentNodeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const config = statusConfig[subAgent.status] || statusConfig.pending;
   const Icon = config.icon;
@@ -155,13 +157,13 @@ function SubAgentNode({ subAgent, onClick, isLast }: SubAgentNodeProps) {
 
           {/* Task */}
           <div className="text-xs bg-muted/50 rounded p-2">
-            <span className="font-medium">Task:</span> {subAgent.task}
+            <span className="font-medium">{t('task')}:</span> {subAgent.task}
           </div>
 
           {/* Result */}
           {subAgent.result && (
             <div className="text-xs bg-muted/50 rounded p-2">
-              <span className="font-medium">Result:</span>
+              <span className="font-medium">{t('result')}:</span>
               <p className="mt-1 whitespace-pre-wrap line-clamp-3">
                 {subAgent.result.finalResponse}
               </p>
@@ -171,14 +173,14 @@ function SubAgentNode({ subAgent, onClick, isLast }: SubAgentNodeProps) {
           {/* Error */}
           {subAgent.error && (
             <div className="text-xs bg-destructive/10 text-destructive rounded p-2">
-              <span className="font-medium">Error:</span> {subAgent.error}
+              <span className="font-medium">{t('error')}:</span> {subAgent.error}
             </div>
           )}
 
           {/* Logs */}
           {subAgent.logs.length > 0 && (
             <div className="text-xs space-y-1">
-              <span className="font-medium">Recent Logs:</span>
+              <span className="font-medium">{t('recentLogs')}:</span>
               {subAgent.logs.slice(-3).map((log, i) => (
                 <div
                   key={i}
@@ -206,6 +208,7 @@ export function AgentFlowVisualizer({
   onStepClick,
   className,
 }: AgentFlowVisualizerProps) {
+  const t = useTranslations('agentFlowVisualizer');
   const [showSteps, setShowSteps] = useState(true);
   const [showSubAgents, setShowSubAgents] = useState(true);
   const [executionMode, setExecutionMode] = useState<SubAgentExecutionMode>('sequential');
@@ -298,7 +301,7 @@ export function AgentFlowVisualizer({
             {/* Progress */}
             <div className="mt-3 space-y-1">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Progress</span>
+                <span>{t('progress')}</span>
                 <span>{agent.progress}%</span>
               </div>
               <Progress value={agent.progress} className="h-2" />
@@ -308,11 +311,11 @@ export function AgentFlowVisualizer({
             <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
                 <GitBranch className="h-3 w-3" />
-                <span>{completedSubAgents}/{totalSubAgents} sub-agents</span>
+                <span>{completedSubAgents}/{totalSubAgents} {t('subAgents')}</span>
               </div>
               <div className="flex items-center gap-1">
                 <Zap className="h-3 w-3" />
-                <span>{agent.steps.length} steps</span>
+                <span>{agent.steps.length} {t('steps')}</span>
               </div>
               {agent.startedAt && (
                 <div className="flex items-center gap-1">
@@ -320,7 +323,7 @@ export function AgentFlowVisualizer({
                   <span>
                     {agent.completedAt
                       ? formatDuration(agent.completedAt.getTime() - agent.startedAt.getTime())
-                      : 'Running...'}
+                      : t('running')}
                   </span>
                 </div>
               )}
@@ -336,7 +339,7 @@ export function AgentFlowVisualizer({
             <Button variant="ghost" className="w-full justify-between">
               <span className="flex items-center gap-2">
                 <Zap className="h-4 w-4" />
-                Execution Steps ({agent.steps.length})
+                {t('executionSteps')} ({agent.steps.length})
               </span>
               {showSteps ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </Button>
@@ -388,11 +391,11 @@ export function AgentFlowVisualizer({
             <Button variant="ghost" className="w-full justify-between">
               <span className="flex items-center gap-2">
                 <GitBranch className="h-4 w-4" />
-                Sub-Agents ({completedSubAgents}/{totalSubAgents})
+                {t('subAgentsTitle')} ({completedSubAgents}/{totalSubAgents})
                 {isExecuting && (
                   <Badge variant="secondary" className="text-[10px] ml-1">
                     <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                    Running
+                    {t('running')}
                   </Badge>
                 )}
               </span>
@@ -410,8 +413,8 @@ export function AgentFlowVisualizer({
                   className="text-xs px-2 py-1 rounded border bg-background"
                   disabled={isExecuting}
                 >
-                  <option value="sequential">Sequential</option>
-                  <option value="parallel">Parallel</option>
+                  <option value="sequential">{t('sequential')}</option>
+                  <option value="parallel">{t('parallel')}</option>
                 </select>
 
                 {/* Execute All Button */}
@@ -425,10 +428,10 @@ export function AgentFlowVisualizer({
                         onClick={handleExecuteAll}
                       >
                         <Play className="h-3 w-3" />
-                        <span className="text-xs">Run All</span>
+                        <span className="text-xs">{t('runAll')}</span>
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Execute all pending sub-agents ({executionMode})</TooltipContent>
+                    <TooltipContent>{t('executeAllTooltip', { mode: executionMode })}</TooltipContent>
                   </Tooltip>
                 )}
 
@@ -443,10 +446,10 @@ export function AgentFlowVisualizer({
                         onClick={handleCancelAll}
                       >
                         <StopCircle className="h-3 w-3" />
-                        <span className="text-xs">Cancel</span>
+                        <span className="text-xs">{t('cancel')}</span>
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Cancel all running sub-agents</TooltipContent>
+                    <TooltipContent>{t('cancelAllTooltip')}</TooltipContent>
                   </Tooltip>
                 )}
               </div>
@@ -463,10 +466,10 @@ export function AgentFlowVisualizer({
                         onClick={handleClearCompleted}
                       >
                         <RotateCcw className="h-3 w-3" />
-                        <span className="text-xs">Clear Done</span>
+                        <span className="text-xs">{t('clearDone')}</span>
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Clear completed sub-agents</TooltipContent>
+                    <TooltipContent>{t('clearCompletedTooltip')}</TooltipContent>
                   </Tooltip>
                 )}
 
@@ -488,6 +491,7 @@ export function AgentFlowVisualizer({
                   subAgent={subAgent}
                   onClick={() => onSubAgentClick?.(subAgent)}
                   isLast={_index === displaySubAgents.length - 1}
+                  t={t}
                 />
               ))}
             </div>

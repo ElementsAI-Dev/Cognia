@@ -50,7 +50,21 @@ const DesignerDndContextValue = createContext<DesignerDndContextValue | null>(nu
 export function useDesignerDnd() {
   const context = useContext(DesignerDndContextValue);
   if (!context) {
-    throw new Error('useDesignerDnd must be used within DesignerDndProvider');
+    // Return default values if not within provider (graceful fallback)
+    return {
+      activeItem: null,
+      overId: null,
+      isDragging: false,
+    };
+  }
+  return context;
+}
+
+// Hook that throws if not within provider (for components that require DnD)
+export function useDesignerDndStrict() {
+  const context = useContext(DesignerDndContextValue);
+  if (!context) {
+    throw new Error('useDesignerDndStrict must be used within DesignerDndProvider');
   }
   return context;
 }
