@@ -13,6 +13,7 @@ export * from './utils';
 // Namespaced exports to avoid conflicts
 export * as selection from './selection';
 export * as screenshot from './screenshot';
+export * as screenRecording from './screen-recording';
 export * as context from './context';
 export * as awareness from './awareness';
 export * as sandbox from './sandbox';

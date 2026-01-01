@@ -221,7 +221,11 @@ describe('useVideoGeneration', () => {
       });
 
       expect(cancelResult).toBe(true);
-      expect(videoGeneration.cancelVideoGeneration).toHaveBeenCalledWith('job-123');
+      expect(videoGeneration.cancelVideoGeneration).toHaveBeenCalledWith(
+        'test-google-api-key',
+        'job-123',
+        'google-veo'
+      );
     });
   });
 

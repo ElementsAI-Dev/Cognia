@@ -74,6 +74,9 @@ jest.mock('react-markdown', () => ({
   default: ({ children }: { children: string }) => React.createElement('div', { 'data-testid': 'markdown' }, children),
 }));
 
+// Note: next-intl is NOT mocked globally because many tests need specific translations.
+// Each test file should mock next-intl as needed.
+
 // Mock stores globally with comprehensive default implementations
 // Note: Test files with local jest.mock('@/stores', ...) will override this
 jest.mock('@/stores', () => {
@@ -176,6 +179,21 @@ jest.mock('@/stores', () => {
     }),
     useLearningStore: createMockSelector({
       getLearningSessionByChat: jest.fn(() => null),
+      getAchievements: jest.fn(() => []),
+      getCompletedSessions: jest.fn(() => []),
+      globalStats: {
+        totalSessionsCompleted: 0,
+        totalTimeSpentMs: 0,
+        totalQuestionsAnswered: 0,
+        totalCorrectAnswers: 0,
+        conceptsMastered: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+      },
+    }),
+    useTemplateStore: createMockSelector({
+      templates: [],
+      searchTemplates: jest.fn(() => []),
     }),
     useWorkflowStore: createMockSelector({
       presentations: {},

@@ -37,6 +37,7 @@ import {
   Copy,
   Download,
   Check,
+  MessageSquare,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -60,6 +61,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReactSandbox } from './react-sandbox';
 import { DesignerDndProvider } from './dnd';
+import { AIChatPanel } from './ai-chat-panel';
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@/components/ui/resizable';
 
 // Template icon mapping
 const TEMPLATE_ICON_MAP: Record<string, React.ReactNode> = {
@@ -93,6 +100,7 @@ export function V0Designer({
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [showTemplates, setShowTemplates] = useState(!initialCode);
   const [showAIPanel, setShowAIPanel] = useState(false);
+  const [showAIChatPanel, setShowAIChatPanel] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [aiError, setAIError] = useState<string | null>(null);
@@ -350,6 +358,21 @@ export function V0Designer({
                 {t('aiEdit')}
               </Button>
 
+              {/* AI Chat button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={showAIChatPanel ? 'secondary' : 'outline'}
+                    size="sm"
+                    onClick={() => setShowAIChatPanel(!showAIChatPanel)}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    {t('aiChat') || 'AI Chat'}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('aiChatTooltip') || 'Open AI conversation panel'}</TooltipContent>
+              </Tooltip>
+
               {/* Save button */}
               {onSave && (
                 <Button variant="default" size="sm" onClick={handleSave}>
@@ -422,15 +445,39 @@ export function V0Designer({
 
           {/* Main content */}
           <div className="flex-1 overflow-hidden">
-            <DesignerDndProvider>
-              <ReactSandbox
-                code={code}
-                onCodeChange={handleCodeChange}
-                showFileExplorer={false}
-                showConsole={false}
-                onAIEdit={() => setShowAIPanel(true)}
-              />
-            </DesignerDndProvider>
+            <ResizablePanelGroup direction="horizontal" className="h-full">
+              {/* Main sandbox area */}
+              <ResizablePanel defaultSize={showAIChatPanel ? 70 : 100} minSize={50}>
+                <DesignerDndProvider>
+                  <ReactSandbox
+                    code={code}
+                    onCodeChange={handleCodeChange}
+                    showFileExplorer={false}
+                    showConsole={false}
+                    onAIEdit={() => setShowAIPanel(true)}
+                  />
+                </DesignerDndProvider>
+              </ResizablePanel>
+
+              {/* AI Chat Panel */}
+              {showAIChatPanel && (
+                <>
+                  <ResizableHandle withHandle />
+                  <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
+                    <AIChatPanel
+                      code={code}
+                      onCodeChange={(newCode) => {
+                        setCode(newCode);
+                        addToHistory(newCode);
+                        onCodeChange?.(newCode);
+                      }}
+                      isOpen={showAIChatPanel}
+                      onClose={() => setShowAIChatPanel(false)}
+                    />
+                  </ResizablePanel>
+                </>
+              )}
+            </ResizablePanelGroup>
           </div>
         </TooltipProvider>
 

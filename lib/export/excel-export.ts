@@ -221,18 +221,128 @@ export async function exportChatToExcel(
     const assistantMsgs = messages.filter((m) => m.role === 'assistant').length;
     const totalTokens = messages.reduce((sum, m) => sum + (m.tokens?.total || 0), 0);
 
-    const statsData = [
+    // Calculate media statistics
+    let imageCount = 0;
+    let aiGeneratedImageCount = 0;
+    let videoCount = 0;
+    let aiGeneratedVideoCount = 0;
+    let totalVideoDuration = 0;
+    const videoProviders = new Set<string>();
+    const videoModels = new Set<string>();
+
+    for (const msg of messages) {
+      if (msg.parts) {
+        for (const part of msg.parts) {
+          if (part.type === 'image') {
+            imageCount++;
+            if (part.isGenerated) aiGeneratedImageCount++;
+          }
+          if (part.type === 'video') {
+            videoCount++;
+            if (part.isGenerated) aiGeneratedVideoCount++;
+            if (part.durationSeconds) totalVideoDuration += part.durationSeconds;
+            if (part.provider) videoProviders.add(part.provider);
+            if (part.model) videoModels.add(part.model);
+          }
+        }
+      }
+      // Also check attachments
+      if (msg.attachments) {
+        for (const att of msg.attachments) {
+          if (att.type === 'image') imageCount++;
+        }
+      }
+    }
+
+    const statsData: (string | number)[][] = [
       ['Statistic', 'Value'],
       ['Total Messages', messages.length],
       ['User Messages', userMsgs],
       ['Assistant Messages', assistantMsgs],
       ['Total Tokens', totalTokens],
       ['Avg Tokens/Message', Math.round(totalTokens / messages.length) || 0],
+      ['', ''],
+      ['--- Media Statistics ---', ''],
+      ['Total Images', imageCount],
+      ['AI Generated Images', aiGeneratedImageCount],
+      ['Total Videos', videoCount],
+      ['AI Generated Videos', aiGeneratedVideoCount],
     ];
 
+    if (totalVideoDuration > 0) {
+      const mins = Math.floor(totalVideoDuration / 60);
+      const secs = Math.floor(totalVideoDuration % 60);
+      statsData.push(['Total Video Duration', `${mins}m ${secs}s`]);
+    }
+
+    if (videoProviders.size > 0) {
+      statsData.push(['Video Providers', Array.from(videoProviders).join(', ')]);
+    }
+
+    if (videoModels.size > 0) {
+      statsData.push(['Video Models', Array.from(videoModels).join(', ')]);
+    }
+
     const statsSheet = XLSX.utils.aoa_to_sheet(statsData);
-    statsSheet['!cols'] = [{ wch: 20 }, { wch: 15 }];
+    statsSheet['!cols'] = [{ wch: 25 }, { wch: 30 }];
     XLSX.utils.book_append_sheet(workbook, statsSheet, 'Statistics');
+
+    // Sheet 4: Media Details (if any media exists)
+    if (imageCount > 0 || videoCount > 0) {
+      const mediaHeaders = ['#', 'Type', 'AI Generated', 'Description', 'Prompt', 'Dimensions', 'Duration', 'Provider/Model'];
+      const mediaRows: (string | number)[][] = [];
+      let mediaIndex = 1;
+
+      for (const msg of messages) {
+        if (msg.parts) {
+          for (const part of msg.parts) {
+            if (part.type === 'image') {
+              mediaRows.push([
+                mediaIndex++,
+                'Image',
+                part.isGenerated ? 'Yes' : 'No',
+                part.alt || '',
+                part.prompt || '',
+                part.width && part.height ? `${part.width}×${part.height}` : '',
+                '',
+                '',
+              ]);
+            }
+            if (part.type === 'video') {
+              const duration = part.durationSeconds 
+                ? `${Math.floor(part.durationSeconds / 60)}:${String(Math.floor(part.durationSeconds % 60)).padStart(2, '0')}`
+                : '';
+              mediaRows.push([
+                mediaIndex++,
+                'Video',
+                part.isGenerated ? 'Yes' : 'No',
+                part.title || '',
+                part.prompt || '',
+                part.width && part.height ? `${part.width}×${part.height}` : '',
+                duration,
+                [part.provider, part.model].filter(Boolean).join(' / '),
+              ]);
+            }
+          }
+        }
+      }
+
+      if (mediaRows.length > 0) {
+        const mediaData = [mediaHeaders, ...mediaRows];
+        const mediaSheet = XLSX.utils.aoa_to_sheet(mediaData);
+        mediaSheet['!cols'] = [
+          { wch: 5 },   // #
+          { wch: 8 },   // Type
+          { wch: 12 },  // AI Generated
+          { wch: 30 },  // Description
+          { wch: 50 },  // Prompt
+          { wch: 12 },  // Dimensions
+          { wch: 10 },  // Duration
+          { wch: 25 },  // Provider/Model
+        ];
+        XLSX.utils.book_append_sheet(workbook, mediaSheet, 'Media');
+      }
+    }
 
     // Generate Excel file
     const excelBuffer = XLSX.write(workbook, {

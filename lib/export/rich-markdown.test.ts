@@ -226,6 +226,277 @@ describe('exportToRichMarkdown', () => {
   });
 });
 
+// Mock messages with image parts
+const mockMessagesWithImages: UIMessage[] = [
+  {
+    id: 'msg-1',
+    role: 'user',
+    content: 'Generate an image of a sunset',
+    createdAt: new Date('2024-01-15T10:01:00Z'),
+  },
+  {
+    id: 'msg-2',
+    role: 'assistant',
+    content: 'Here is the generated image:',
+    createdAt: new Date('2024-01-15T10:01:30Z'),
+    parts: [
+      {
+        type: 'text',
+        content: 'Here is the generated image:',
+      },
+      {
+        type: 'image',
+        url: 'https://example.com/sunset.png',
+        alt: 'A beautiful sunset',
+        width: 1024,
+        height: 768,
+        isGenerated: true,
+        prompt: 'Generate a beautiful sunset over the ocean',
+        revisedPrompt: 'A stunning sunset with orange and purple hues over a calm ocean',
+      },
+    ],
+  },
+];
+
+// Mock messages with video parts
+const mockMessagesWithVideos: UIMessage[] = [
+  {
+    id: 'msg-1',
+    role: 'user',
+    content: 'Generate a video of a dancing cat',
+    createdAt: new Date('2024-01-15T10:01:00Z'),
+  },
+  {
+    id: 'msg-2',
+    role: 'assistant',
+    content: 'Here is the generated video:',
+    createdAt: new Date('2024-01-15T10:01:30Z'),
+    parts: [
+      {
+        type: 'text',
+        content: 'Here is the generated video:',
+      },
+      {
+        type: 'video',
+        url: 'https://example.com/dancing-cat.mp4',
+        title: 'Dancing Cat Video',
+        thumbnailUrl: 'https://example.com/thumbnail.jpg',
+        durationSeconds: 15,
+        width: 1920,
+        height: 1080,
+        fps: 30,
+        isGenerated: true,
+        provider: 'google-veo',
+        model: 'veo-2',
+        prompt: 'A cute cat dancing to music',
+        revisedPrompt: 'A fluffy orange cat performing dance moves in a living room',
+      },
+    ],
+  },
+];
+
+// Mock messages with base64 image
+const mockMessagesWithBase64Image: UIMessage[] = [
+  {
+    id: 'msg-1',
+    role: 'assistant',
+    content: 'Generated image:',
+    createdAt: new Date('2024-01-15T10:01:30Z'),
+    parts: [
+      {
+        type: 'image',
+        url: '',
+        base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        mimeType: 'image/png',
+        isGenerated: true,
+      },
+    ],
+  },
+];
+
+describe('exportToRichMarkdown - Image Parts', () => {
+  const exportedAt = new Date('2024-01-15T12:00:00Z');
+
+  it('should render AI generated image with metadata', () => {
+    const data: RichExportData = {
+      session: mockSession,
+      messages: mockMessagesWithImages,
+      exportedAt,
+    };
+
+    const result = exportToRichMarkdown(data);
+
+    // Check AI generated indicator
+    expect(result).toContain('✨ **AI Generated Image**');
+    
+    // Check image markdown
+    expect(result).toContain('![A beautiful sunset]');
+    expect(result).toContain('https://example.com/sunset.png');
+    
+    // Check dimensions
+    expect(result).toContain('1024×768');
+    
+    // Check prompt
+    expect(result).toContain('View prompt');
+    expect(result).toContain('Generate a beautiful sunset over the ocean');
+    
+    // Check revised prompt
+    expect(result).toContain('**Revised:**');
+    expect(result).toContain('stunning sunset with orange and purple hues');
+  });
+
+  it('should render image with base64 data', () => {
+    const data: RichExportData = {
+      session: mockSession,
+      messages: mockMessagesWithBase64Image,
+      exportedAt,
+    };
+
+    const result = exportToRichMarkdown(data);
+
+    // Check that base64 data URL is included
+    expect(result).toContain('data:image/png;base64,');
+  });
+
+  it('should render non-AI image without generated indicator', () => {
+    const messagesWithRegularImage: UIMessage[] = [
+      {
+        id: 'msg-1',
+        role: 'assistant',
+        content: 'Here is the image:',
+        createdAt: new Date('2024-01-15T10:01:30Z'),
+        parts: [
+          {
+            type: 'image',
+            url: 'https://example.com/photo.jpg',
+            alt: 'A photo',
+          },
+        ],
+      },
+    ];
+
+    const data: RichExportData = {
+      session: mockSession,
+      messages: messagesWithRegularImage,
+      exportedAt,
+    };
+
+    const result = exportToRichMarkdown(data);
+
+    // Should not contain AI generated indicator
+    expect(result).not.toContain('✨ **AI Generated Image**');
+    
+    // Should still render the image
+    expect(result).toContain('![A photo]');
+  });
+});
+
+describe('exportToRichMarkdown - Video Parts', () => {
+  const exportedAt = new Date('2024-01-15T12:00:00Z');
+
+  it('should render AI generated video with full metadata', () => {
+    const data: RichExportData = {
+      session: mockSession,
+      messages: mockMessagesWithVideos,
+      exportedAt,
+    };
+
+    const result = exportToRichMarkdown(data);
+
+    // Check AI generated indicator with provider
+    expect(result).toContain('🎬 **AI Generated Video**');
+    expect(result).toContain('google-veo');
+    expect(result).toContain('veo-2');
+    
+    // Check video title
+    expect(result).toContain('🎥 **Video:** Dancing Cat Video');
+    
+    // Check duration formatting
+    expect(result).toContain('⏱️ 15s');
+    
+    // Check dimensions
+    expect(result).toContain('📐 1920×1080');
+    
+    // Check FPS
+    expect(result).toContain('🎞️ 30fps');
+    
+    // Check video link
+    expect(result).toContain('[▶️ Play Video]');
+    expect(result).toContain('https://example.com/dancing-cat.mp4');
+    
+    // Check thumbnail
+    expect(result).toContain('![Video Thumbnail]');
+    expect(result).toContain('https://example.com/thumbnail.jpg');
+    
+    // Check prompt
+    expect(result).toContain('A cute cat dancing to music');
+  });
+
+  it('should format duration correctly for videos over 1 minute', () => {
+    const messagesWithLongVideo: UIMessage[] = [
+      {
+        id: 'msg-1',
+        role: 'assistant',
+        content: 'Video:',
+        createdAt: new Date('2024-01-15T10:01:30Z'),
+        parts: [
+          {
+            type: 'video',
+            url: 'https://example.com/video.mp4',
+            durationSeconds: 125, // 2:05
+            isGenerated: false,
+          },
+        ],
+      },
+    ];
+
+    const data: RichExportData = {
+      session: mockSession,
+      messages: messagesWithLongVideo,
+      exportedAt,
+    };
+
+    const result = exportToRichMarkdown(data);
+
+    // Should show 2:05 format
+    expect(result).toContain('⏱️ 2:05');
+  });
+
+  it('should render video without optional metadata', () => {
+    const messagesWithMinimalVideo: UIMessage[] = [
+      {
+        id: 'msg-1',
+        role: 'assistant',
+        content: 'Video:',
+        createdAt: new Date('2024-01-15T10:01:30Z'),
+        parts: [
+          {
+            type: 'video',
+            url: 'https://example.com/video.mp4',
+          },
+        ],
+      },
+    ];
+
+    const data: RichExportData = {
+      session: mockSession,
+      messages: messagesWithMinimalVideo,
+      exportedAt,
+    };
+
+    const result = exportToRichMarkdown(data);
+
+    // Should have video section
+    expect(result).toContain('🎥 **Video:**');
+    expect(result).toContain('[▶️ Play Video]');
+    
+    // Should not have metadata sections
+    expect(result).not.toContain('⏱️');
+    expect(result).not.toContain('📐');
+    expect(result).not.toContain('🎞️');
+  });
+});
+
 describe('exportToRichJSON', () => {
   const exportedAt = new Date('2024-01-15T12:00:00Z');
 

@@ -5,6 +5,20 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ToolTimeline, ToolExecution } from './tool-timeline';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      toolExecutions: 'Tool Executions',
+      running: 'Running',
+      successRate: 'Success Rate',
+      avgDuration: 'Avg Duration',
+      pending: 'Pending',
+    };
+    return translations[key] || key;
+  },
+}));
+
 describe('ToolTimeline', () => {
   const mockExecutions: ToolExecution[] = [
     {

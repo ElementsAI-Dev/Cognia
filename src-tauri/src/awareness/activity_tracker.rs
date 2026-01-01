@@ -74,6 +74,7 @@ pub struct ActivityTracker {
 
 impl ActivityTracker {
     pub fn new() -> Self {
+        log::debug!("Creating new ActivityTracker with capacity {}", MAX_HISTORY_SIZE);
         Self {
             history: VecDeque::with_capacity(MAX_HISTORY_SIZE),
             is_enabled: true,
@@ -84,12 +85,15 @@ impl ActivityTracker {
     /// Record a new activity
     pub fn record(&mut self, activity: UserActivity) {
         if !self.is_enabled {
+            log::trace!("Activity tracking disabled, skipping record");
             return;
         }
 
         // Update activity count
         let type_key = format!("{:?}", activity.activity_type);
-        *self.activity_counts.entry(type_key).or_insert(0) += 1;
+        *self.activity_counts.entry(type_key.clone()).or_insert(0) += 1;
+
+        log::trace!("Recording activity: type={}, history_size={}", type_key, self.history.len() + 1);
 
         // Add to history
         self.history.push_front(activity);
@@ -179,12 +183,15 @@ impl ActivityTracker {
 
     /// Clear all history
     pub fn clear(&mut self) {
+        let count = self.history.len();
         self.history.clear();
         self.activity_counts.clear();
+        log::info!("Cleared {} activities from history", count);
     }
 
     /// Enable/disable tracking
     pub fn set_enabled(&mut self, enabled: bool) {
+        log::info!("Activity tracking {}", if enabled { "enabled" } else { "disabled" });
         self.is_enabled = enabled;
     }
 
@@ -201,9 +208,13 @@ impl ActivityTracker {
     /// Import history from JSON
     pub fn import(&mut self, json: &str) -> Result<usize, String> {
         let activities: Vec<UserActivity> =
-            serde_json::from_str(json).map_err(|e| format!("Failed to parse: {}", e))?;
+            serde_json::from_str(json).map_err(|e| {
+                log::error!("Failed to import activity history: {}", e);
+                format!("Failed to parse: {}", e)
+            })?;
         
         let count = activities.len();
+        log::info!("Importing {} activities from JSON", count);
         for activity in activities {
             self.record(activity);
         }
@@ -226,6 +237,80 @@ pub struct ActivityStats {
 impl Default for ActivityTracker {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl UserActivity {
+    /// Create a text selection activity
+    pub fn text_selection(text: &str, app: Option<String>) -> Self {
+        Self {
+            activity_type: ActivityType::TextSelection,
+            description: format!("Selected {} characters", text.len()),
+            application: app,
+            target: None,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration_ms: None,
+            metadata: {
+                let mut m = std::collections::HashMap::new();
+                m.insert("text_length".to_string(), text.len().to_string());
+                if text.len() <= 100 {
+                    m.insert("text_preview".to_string(), text.to_string());
+                } else {
+                    m.insert("text_preview".to_string(), format!("{}...", &text[..100]));
+                }
+                m
+            },
+        }
+    }
+
+    /// Create a screenshot activity
+    pub fn screenshot(mode: &str, width: u32, height: u32) -> Self {
+        Self {
+            activity_type: ActivityType::Screenshot,
+            description: format!("Captured {} screenshot ({}x{})", mode, width, height),
+            application: None,
+            target: None,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration_ms: None,
+            metadata: {
+                let mut m = std::collections::HashMap::new();
+                m.insert("mode".to_string(), mode.to_string());
+                m.insert("width".to_string(), width.to_string());
+                m.insert("height".to_string(), height.to_string());
+                m
+            },
+        }
+    }
+
+    /// Create an app switch activity
+    pub fn app_switch(from_app: Option<String>, to_app: String) -> Self {
+        Self {
+            activity_type: ActivityType::AppSwitch,
+            description: format!("Switched to {}", to_app),
+            application: Some(to_app),
+            target: from_app,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration_ms: None,
+            metadata: std::collections::HashMap::new(),
+        }
+    }
+
+    /// Create an AI query activity
+    pub fn ai_query(query: &str, action: &str) -> Self {
+        Self {
+            activity_type: ActivityType::AiQuery,
+            description: format!("AI {}: {}", action, if query.len() > 50 { &query[..50] } else { query }),
+            application: None,
+            target: None,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration_ms: None,
+            metadata: {
+                let mut m = std::collections::HashMap::new();
+                m.insert("action".to_string(), action.to_string());
+                m.insert("query_length".to_string(), query.len().to_string());
+                m
+            },
+        }
     }
 }
 
@@ -359,78 +444,321 @@ mod tests {
         // Should be capped at MAX_HISTORY_SIZE (1000)
         assert!(tracker.get_recent(2000).len() <= 1000);
     }
-}
 
-impl UserActivity {
-    /// Create a text selection activity
-    pub fn text_selection(text: &str, app: Option<String>) -> Self {
-        Self {
-            activity_type: ActivityType::TextSelection,
-            description: format!("Selected {} characters", text.len()),
-            application: app,
-            target: None,
-            timestamp: chrono::Utc::now().timestamp_millis(),
-            duration_ms: None,
-            metadata: {
-                let mut m = std::collections::HashMap::new();
-                m.insert("text_length".to_string(), text.len().to_string());
-                if text.len() <= 100 {
-                    m.insert("text_preview".to_string(), text.to_string());
-                } else {
-                    m.insert("text_preview".to_string(), format!("{}...", &text[..100]));
-                }
-                m
-            },
+    #[test]
+    fn test_get_in_range() {
+        let mut tracker = ActivityTracker::new();
+        let base_time = chrono::Utc::now().timestamp_millis();
+        
+        // Create activities at different times
+        for i in 0..5 {
+            let mut activity = UserActivity::text_selection(&format!("text {}", i), None);
+            activity.timestamp = base_time + (i * 1000) as i64; // 1 second apart
+            tracker.record(activity);
+        }
+        
+        // Get activities in middle range
+        let range_activities = tracker.get_in_range(base_time + 1000, base_time + 3000);
+        assert_eq!(range_activities.len(), 3); // Activities at 1s, 2s, 3s
+    }
+
+    #[test]
+    fn test_get_in_range_empty() {
+        let mut tracker = ActivityTracker::new();
+        let now = chrono::Utc::now().timestamp_millis();
+        
+        tracker.record(UserActivity::text_selection("test", None));
+        
+        // Query a range that doesn't include any activities
+        let range_activities = tracker.get_in_range(now + 100000, now + 200000);
+        assert!(range_activities.is_empty());
+    }
+
+    #[test]
+    fn test_import_invalid_json() {
+        let mut tracker = ActivityTracker::new();
+        let result = tracker.import("invalid json");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Failed to parse"));
+    }
+
+    #[test]
+    fn test_import_empty_array() {
+        let mut tracker = ActivityTracker::new();
+        let result = tracker.import("[]");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 0);
+    }
+
+    #[test]
+    fn test_activity_type_serialization() {
+        let types = vec![
+            ActivityType::TextSelection,
+            ActivityType::Screenshot,
+            ActivityType::AppSwitch,
+            ActivityType::FileOpen,
+            ActivityType::FileSave,
+            ActivityType::UrlVisit,
+            ActivityType::Search,
+            ActivityType::Copy,
+            ActivityType::Paste,
+            ActivityType::AiQuery,
+            ActivityType::Translation,
+            ActivityType::CodeAction,
+            ActivityType::DocumentAction,
+            ActivityType::Custom("custom_action".to_string()),
+        ];
+        
+        for activity_type in types {
+            let json = serde_json::to_string(&activity_type);
+            assert!(json.is_ok());
+            
+            let parsed: Result<ActivityType, _> = serde_json::from_str(&json.unwrap());
+            assert!(parsed.is_ok());
         }
     }
 
-    /// Create a screenshot activity
-    pub fn screenshot(mode: &str, width: u32, height: u32) -> Self {
-        Self {
-            activity_type: ActivityType::Screenshot,
-            description: format!("Captured {} screenshot ({}x{})", mode, width, height),
-            application: None,
-            target: None,
-            timestamp: chrono::Utc::now().timestamp_millis(),
-            duration_ms: None,
+    #[test]
+    fn test_activity_type_equality() {
+        assert_eq!(ActivityType::Screenshot, ActivityType::Screenshot);
+        assert_ne!(ActivityType::Copy, ActivityType::Paste);
+        assert_eq!(
+            ActivityType::Custom("test".to_string()),
+            ActivityType::Custom("test".to_string())
+        );
+        assert_ne!(
+            ActivityType::Custom("test1".to_string()),
+            ActivityType::Custom("test2".to_string())
+        );
+    }
+
+    #[test]
+    fn test_user_activity_serialization() {
+        let activity = UserActivity {
+            activity_type: ActivityType::FileOpen,
+            description: "Opened file".to_string(),
+            application: Some("VSCode".to_string()),
+            target: Some("/path/to/file.rs".to_string()),
+            timestamp: 1234567890,
+            duration_ms: Some(500),
             metadata: {
                 let mut m = std::collections::HashMap::new();
-                m.insert("mode".to_string(), mode.to_string());
-                m.insert("width".to_string(), width.to_string());
-                m.insert("height".to_string(), height.to_string());
+                m.insert("key".to_string(), "value".to_string());
                 m
             },
+        };
+        
+        let json = serde_json::to_string(&activity);
+        assert!(json.is_ok());
+        
+        let parsed: Result<UserActivity, _> = serde_json::from_str(&json.unwrap());
+        assert!(parsed.is_ok());
+        
+        let parsed_activity = parsed.unwrap();
+        assert_eq!(parsed_activity.activity_type, ActivityType::FileOpen);
+        assert_eq!(parsed_activity.application, Some("VSCode".to_string()));
+    }
+
+    #[test]
+    fn test_activity_stats_serialization() {
+        let stats = ActivityStats {
+            total_activities: 100,
+            activities_last_hour: 10,
+            activities_last_day: 50,
+            most_common_type: Some("TextSelection".to_string()),
+            most_used_application: Some("Chrome".to_string()),
+            activity_counts: {
+                let mut m = std::collections::HashMap::new();
+                m.insert("TextSelection".to_string(), 50);
+                m.insert("Screenshot".to_string(), 30);
+                m
+            },
+        };
+        
+        let json = serde_json::to_string(&stats);
+        assert!(json.is_ok());
+        
+        let parsed: Result<ActivityStats, _> = serde_json::from_str(&json.unwrap());
+        assert!(parsed.is_ok());
+        assert_eq!(parsed.unwrap().total_activities, 100);
+    }
+
+    #[test]
+    fn test_default_trait() {
+        let tracker = ActivityTracker::default();
+        assert!(tracker.is_enabled());
+        assert_eq!(tracker.get_recent(10).len(), 0);
+    }
+
+    #[test]
+    fn test_toggle_enabled() {
+        let mut tracker = ActivityTracker::new();
+        
+        assert!(tracker.is_enabled());
+        
+        tracker.set_enabled(false);
+        assert!(!tracker.is_enabled());
+        
+        tracker.set_enabled(true);
+        assert!(tracker.is_enabled());
+    }
+
+    #[test]
+    fn test_get_stats_empty() {
+        let tracker = ActivityTracker::new();
+        let stats = tracker.get_stats();
+        
+        assert_eq!(stats.total_activities, 0);
+        assert_eq!(stats.activities_last_hour, 0);
+        assert_eq!(stats.activities_last_day, 0);
+        assert!(stats.most_common_type.is_none());
+        assert!(stats.most_used_application.is_none());
+    }
+
+    #[test]
+    fn test_export_empty() {
+        let tracker = ActivityTracker::new();
+        let json = tracker.export();
+        assert_eq!(json, "[]");
+    }
+
+    #[test]
+    fn test_user_activity_clone() {
+        let activity = UserActivity::text_selection("test text", Some("App".to_string()));
+        let cloned = activity.clone();
+        
+        assert_eq!(cloned.activity_type, activity.activity_type);
+        assert_eq!(cloned.description, activity.description);
+        assert_eq!(cloned.application, activity.application);
+    }
+
+    #[test]
+    fn test_user_activity_debug() {
+        let activity = UserActivity::screenshot("fullscreen", 1920, 1080);
+        let debug_str = format!("{:?}", activity);
+        
+        assert!(debug_str.contains("Screenshot"));
+        assert!(debug_str.contains("fullscreen"));
+    }
+
+    #[test]
+    fn test_text_selection_long_text() {
+        let long_text = "a".repeat(200);
+        let activity = UserActivity::text_selection(&long_text, None);
+        
+        // Preview should be truncated
+        if let Some(preview) = activity.metadata.get("text_preview") {
+            assert!(preview.len() <= 103); // 100 chars + "..."
         }
     }
 
-    /// Create an app switch activity
-    pub fn app_switch(from_app: Option<String>, to_app: String) -> Self {
-        Self {
-            activity_type: ActivityType::AppSwitch,
-            description: format!("Switched to {}", to_app),
-            application: Some(to_app),
-            target: from_app,
-            timestamp: chrono::Utc::now().timestamp_millis(),
-            duration_ms: None,
-            metadata: std::collections::HashMap::new(),
+    #[test]
+    fn test_text_selection_short_text() {
+        let short_text = "hello";
+        let activity = UserActivity::text_selection(short_text, None);
+        
+        if let Some(preview) = activity.metadata.get("text_preview") {
+            assert_eq!(preview, short_text);
         }
     }
 
-    /// Create an AI query activity
-    pub fn ai_query(query: &str, action: &str) -> Self {
-        Self {
-            activity_type: ActivityType::AiQuery,
-            description: format!("AI {}: {}", action, if query.len() > 50 { &query[..50] } else { query }),
-            application: None,
-            target: None,
-            timestamp: chrono::Utc::now().timestamp_millis(),
-            duration_ms: None,
-            metadata: {
-                let mut m = std::collections::HashMap::new();
-                m.insert("action".to_string(), action.to_string());
-                m.insert("query_length".to_string(), query.len().to_string());
-                m
-            },
+    #[test]
+    fn test_ai_query_long_query() {
+        let long_query = "a".repeat(100);
+        let activity = UserActivity::ai_query(&long_query, "explain");
+        
+        // Description should be truncated
+        assert!(activity.description.len() < long_query.len() + 20);
+    }
+
+    #[test]
+    fn test_ai_query_short_query() {
+        let short_query = "what is this?";
+        let activity = UserActivity::ai_query(short_query, "ask");
+        
+        assert!(activity.description.contains(short_query));
+    }
+
+    #[test]
+    fn test_multiple_applications_stats() {
+        let mut tracker = ActivityTracker::new();
+        
+        // Record activities for different apps
+        for _ in 0..5 {
+            tracker.record(UserActivity::text_selection("text", Some("App1".to_string())));
         }
+        for _ in 0..3 {
+            tracker.record(UserActivity::text_selection("text", Some("App2".to_string())));
+        }
+        for _ in 0..2 {
+            tracker.record(UserActivity::text_selection("text", Some("App3".to_string())));
+        }
+        
+        let stats = tracker.get_stats();
+        assert_eq!(stats.total_activities, 10);
+        assert_eq!(stats.most_used_application, Some("App1".to_string()));
+    }
+
+    #[test]
+    fn test_get_by_type_empty() {
+        let tracker = ActivityTracker::new();
+        let result = tracker.get_by_type(&ActivityType::Screenshot);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_get_by_application_empty() {
+        let tracker = ActivityTracker::new();
+        let result = tracker.get_by_application("NonExistent");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_get_by_application_case_insensitive() {
+        let mut tracker = ActivityTracker::new();
+        tracker.record(UserActivity::text_selection("text", Some("VSCode".to_string())));
+        
+        let result = tracker.get_by_application("vscode");
+        assert_eq!(result.len(), 1);
+        
+        let result = tracker.get_by_application("VSCODE");
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn test_record_order() {
+        let mut tracker = ActivityTracker::new();
+        
+        tracker.record(UserActivity::text_selection("first", None));
+        tracker.record(UserActivity::text_selection("second", None));
+        tracker.record(UserActivity::text_selection("third", None));
+        
+        let recent = tracker.get_recent(3);
+        // Most recent should be first
+        assert!(recent[0].description.contains("third") || recent[0].metadata.get("text_preview").map(|s| s.contains("third")).unwrap_or(false));
+    }
+
+    #[test]
+    fn test_activity_with_all_fields() {
+        let mut metadata = std::collections::HashMap::new();
+        metadata.insert("custom_key".to_string(), "custom_value".to_string());
+        
+        let activity = UserActivity {
+            activity_type: ActivityType::Custom("test".to_string()),
+            description: "Test activity".to_string(),
+            application: Some("TestApp".to_string()),
+            target: Some("/target/path".to_string()),
+            timestamp: 1000,
+            duration_ms: Some(100),
+            metadata,
+        };
+        
+        let mut tracker = ActivityTracker::new();
+        tracker.record(activity);
+        
+        let recent = tracker.get_recent(1);
+        assert_eq!(recent.len(), 1);
+        assert_eq!(recent[0].target, Some("/target/path".to_string()));
+        assert_eq!(recent[0].duration_ms, Some(100));
     }
 }

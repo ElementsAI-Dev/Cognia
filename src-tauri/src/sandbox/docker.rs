@@ -33,7 +33,7 @@ impl DockerRuntime {
         request: &ExecutionRequest,
         language_config: &LanguageConfig,
         exec_config: &ExecutionConfig,
-        work_dir: &PathBuf,
+        work_dir: &std::path::Path,
     ) -> Command {
         let mut cmd = Command::new(&self.docker_path);
         
@@ -85,7 +85,7 @@ impl DockerRuntime {
 
         // Build execution command
         let file_path = format!("/code/{}", language_config.file_name);
-        let basename = language_config.file_name.rsplit('.').last().unwrap_or("main");
+        let basename = language_config.file_name.rsplit('.').next_back().unwrap_or("main");
 
         if let Some(compile_cmd) = language_config.compile_cmd {
             // Compiled language: compile then run
@@ -277,11 +277,301 @@ impl SandboxRuntime for DockerRuntime {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::runtime::ExecutionStatus;
+    use std::time::Duration;
+
+    // ==================== Runtime Creation Tests ====================
+
+    #[test]
+    fn test_docker_runtime_new() {
+        let runtime = DockerRuntime::new();
+        assert_eq!(runtime.docker_path, PathBuf::from("docker"));
+    }
+
+    #[test]
+    fn test_docker_runtime_default() {
+        let runtime = DockerRuntime::default();
+        assert_eq!(runtime.docker_path, PathBuf::from("docker"));
+    }
+
+    #[test]
+    fn test_docker_runtime_type() {
+        let runtime = DockerRuntime::new();
+        assert_eq!(runtime.runtime_type(), RuntimeType::Docker);
+    }
+
+    // ==================== Availability Tests ====================
 
     #[tokio::test]
     async fn test_docker_available() {
         let runtime = DockerRuntime::new();
-        // This test will pass if Docker is installed
+        // This test will pass if Docker is installed, fail gracefully otherwise
         let _ = runtime.is_available().await;
+    }
+
+    #[tokio::test]
+    async fn test_docker_version() {
+        let runtime = DockerRuntime::new();
+        if runtime.is_available().await {
+            let version = runtime.get_version().await;
+            assert!(version.is_ok());
+            let version_str = version.unwrap();
+            assert!(!version_str.is_empty());
+        }
+    }
+
+    // ==================== Command Building Tests ====================
+
+    #[test]
+    fn test_build_command_basic() {
+        let runtime = DockerRuntime::new();
+        let request = ExecutionRequest::new("python", "print('hello')");
+        let language_config = super::super::languages::get_language_config("python").unwrap();
+        let exec_config = ExecutionConfig {
+            timeout: Duration::from_secs(30),
+            memory_limit_mb: 256,
+            cpu_limit_percent: 50,
+            network_enabled: false,
+            max_output_size: 1024 * 1024,
+        };
+        let work_dir = PathBuf::from("/tmp/test");
+
+        let cmd = runtime.build_command(&request, language_config, &exec_config, &work_dir);
+        
+        // Verify command was created (we can't easily inspect Command internals)
+        assert!(cmd.as_std().get_program().to_str().unwrap().contains("docker"));
+    }
+
+    #[test]
+    fn test_build_command_with_network() {
+        let runtime = DockerRuntime::new();
+        let request = ExecutionRequest::new("python", "import requests");
+        let language_config = super::super::languages::get_language_config("python").unwrap();
+        let exec_config = ExecutionConfig {
+            timeout: Duration::from_secs(30),
+            memory_limit_mb: 256,
+            cpu_limit_percent: 50,
+            network_enabled: true,
+            max_output_size: 1024 * 1024,
+        };
+        let work_dir = PathBuf::from("/tmp/test");
+
+        let cmd = runtime.build_command(&request, language_config, &exec_config, &work_dir);
+        assert!(cmd.as_std().get_program().to_str().unwrap().contains("docker"));
+    }
+
+    #[test]
+    fn test_build_command_with_env_vars() {
+        let runtime = DockerRuntime::new();
+        let mut request = ExecutionRequest::new("python", "import os; print(os.environ['TEST'])");
+        request.env.insert("TEST".to_string(), "value".to_string());
+        
+        let language_config = super::super::languages::get_language_config("python").unwrap();
+        let exec_config = ExecutionConfig {
+            timeout: Duration::from_secs(30),
+            memory_limit_mb: 256,
+            cpu_limit_percent: 50,
+            network_enabled: false,
+            max_output_size: 1024 * 1024,
+        };
+        let work_dir = PathBuf::from("/tmp/test");
+
+        let cmd = runtime.build_command(&request, language_config, &exec_config, &work_dir);
+        assert!(cmd.as_std().get_program().to_str().unwrap().contains("docker"));
+    }
+
+    #[test]
+    fn test_build_command_compiled_language() {
+        let runtime = DockerRuntime::new();
+        let request = ExecutionRequest::new("rust", "fn main() { println!(\"hello\"); }");
+        let language_config = super::super::languages::get_language_config("rust").unwrap();
+        let exec_config = ExecutionConfig {
+            timeout: Duration::from_secs(60),
+            memory_limit_mb: 512,
+            cpu_limit_percent: 75,
+            network_enabled: false,
+            max_output_size: 1024 * 1024,
+        };
+        let work_dir = PathBuf::from("/tmp/test");
+
+        let cmd = runtime.build_command(&request, language_config, &exec_config, &work_dir);
+        assert!(cmd.as_std().get_program().to_str().unwrap().contains("docker"));
+    }
+
+    #[test]
+    fn test_build_command_memory_limits() {
+        let runtime = DockerRuntime::new();
+        let request = ExecutionRequest::new("python", "x = [0] * 1000000");
+        let language_config = super::super::languages::get_language_config("python").unwrap();
+        let exec_config = ExecutionConfig {
+            timeout: Duration::from_secs(30),
+            memory_limit_mb: 128, // Lower memory limit
+            cpu_limit_percent: 25, // Lower CPU limit
+            network_enabled: false,
+            max_output_size: 1024,
+        };
+        let work_dir = PathBuf::from("/tmp/test");
+
+        let cmd = runtime.build_command(&request, language_config, &exec_config, &work_dir);
+        assert!(cmd.as_std().get_program().to_str().unwrap().contains("docker"));
+    }
+
+    // ==================== Cleanup Tests ====================
+
+    #[tokio::test]
+    async fn test_cleanup() {
+        let runtime = DockerRuntime::new();
+        // Cleanup should not error even if nothing to clean
+        let result = runtime.cleanup().await;
+        assert!(result.is_ok());
+    }
+
+    // ==================== Prepare Image Tests ====================
+
+    #[tokio::test]
+    async fn test_prepare_image_unsupported_language() {
+        let runtime = DockerRuntime::new();
+        let result = runtime.prepare_image("nonexistent_language").await;
+        assert!(result.is_err());
+        match result {
+            Err(SandboxError::LanguageNotSupported(lang)) => {
+                assert_eq!(lang, "nonexistent_language");
+            }
+            _ => panic!("Expected LanguageNotSupported error"),
+        }
+    }
+
+    // ==================== Execution Result Tests ====================
+
+    #[test]
+    fn test_execution_result_success_creation() {
+        let result = ExecutionResult::success(
+            "test-id".to_string(),
+            "output".to_string(),
+            String::new(),
+            0,
+            100,
+            RuntimeType::Docker,
+            "python".to_string(),
+        );
+        
+        assert_eq!(result.id, "test-id");
+        assert_eq!(result.stdout, "output");
+        assert_eq!(result.exit_code, Some(0));
+        assert_eq!(result.runtime, RuntimeType::Docker);
+    }
+
+    #[test]
+    fn test_execution_result_with_stderr() {
+        let result = ExecutionResult::success(
+            "test-id".to_string(),
+            String::new(),
+            "error output".to_string(),
+            1,
+            100,
+            RuntimeType::Docker,
+            "python".to_string(),
+        );
+        
+        assert_eq!(result.stderr, "error output");
+        assert_eq!(result.exit_code, Some(1));
+    }
+
+    #[test]
+    fn test_execution_result_timeout() {
+        let result = ExecutionResult::timeout(
+            "test-id".to_string(),
+            "partial".to_string(),
+            String::new(),
+            30,
+            RuntimeType::Docker,
+            "python".to_string(),
+        );
+        
+        assert!(matches!(result.status, ExecutionStatus::Timeout));
+        assert!(result.error.is_some());
+        assert!(result.error.unwrap().contains("30"));
+    }
+
+    // ==================== Integration Test (requires Docker) ====================
+
+    #[tokio::test]
+    #[ignore] // Run with --ignored flag when Docker is available
+    async fn test_execute_simple_python() {
+        let runtime = DockerRuntime::new();
+        
+        if !runtime.is_available().await {
+            return;
+        }
+
+        let request = ExecutionRequest::new("python", "print('Hello, World!')");
+        let language_config = super::super::languages::get_language_config("python").unwrap();
+        let exec_config = ExecutionConfig {
+            timeout: Duration::from_secs(30),
+            memory_limit_mb: 256,
+            cpu_limit_percent: 50,
+            network_enabled: false,
+            max_output_size: 1024 * 1024,
+        };
+
+        let result = runtime.execute(&request, language_config, &exec_config).await;
+        assert!(result.is_ok());
+        
+        let execution_result = result.unwrap();
+        assert!(execution_result.stdout.contains("Hello, World!"));
+        assert_eq!(execution_result.exit_code, Some(0));
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_execute_with_stdin() {
+        let runtime = DockerRuntime::new();
+        
+        if !runtime.is_available().await {
+            return;
+        }
+
+        let request = ExecutionRequest::new("python", "name = input(); print(f'Hello, {name}!')")
+            .with_stdin("World");
+        let language_config = super::super::languages::get_language_config("python").unwrap();
+        let exec_config = ExecutionConfig {
+            timeout: Duration::from_secs(30),
+            memory_limit_mb: 256,
+            cpu_limit_percent: 50,
+            network_enabled: false,
+            max_output_size: 1024 * 1024,
+        };
+
+        let result = runtime.execute(&request, language_config, &exec_config).await;
+        assert!(result.is_ok());
+        
+        let execution_result = result.unwrap();
+        assert!(execution_result.stdout.contains("Hello, World!"));
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_execute_with_error() {
+        let runtime = DockerRuntime::new();
+        
+        if !runtime.is_available().await {
+            return;
+        }
+
+        let request = ExecutionRequest::new("python", "raise Exception('test error')");
+        let language_config = super::super::languages::get_language_config("python").unwrap();
+        let exec_config = ExecutionConfig {
+            timeout: Duration::from_secs(30),
+            memory_limit_mb: 256,
+            cpu_limit_percent: 50,
+            network_enabled: false,
+            max_output_size: 1024 * 1024,
+        };
+
+        let result = runtime.execute(&request, language_config, &exec_config).await;
+        assert!(result.is_ok());
+        
+        let execution_result = result.unwrap();
+        assert!(execution_result.stderr.contains("Exception") || execution_result.exit_code != Some(0));
     }
 }

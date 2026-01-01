@@ -57,19 +57,25 @@ pub struct SmartSuggestions {
     dismissed: std::collections::HashSet<String>,
 }
 
+/// Type alias for suggestion condition function
+#[allow(clippy::type_complexity)]
+type SuggestionConditionFn = Box<dyn Fn(&SystemState, &[UserActivity]) -> Option<Suggestion> + Send + Sync>;
+
 /// A rule for generating suggestions
 struct SuggestionRule {
     name: String,
-    condition: Box<dyn Fn(&SystemState, &[UserActivity]) -> Option<Suggestion> + Send + Sync>,
+    condition: SuggestionConditionFn,
 }
 
 impl SmartSuggestions {
     pub fn new() -> Self {
+        log::debug!("Creating new SmartSuggestions engine");
         let mut engine = Self {
             rules: Vec::new(),
             dismissed: std::collections::HashSet::new(),
         };
         engine.register_default_rules();
+        log::debug!("Registered {} suggestion rules", engine.rules.len());
         engine
     }
 
@@ -340,17 +346,24 @@ impl SmartSuggestions {
         // Limit to top 5 suggestions
         suggestions.truncate(5);
 
+        if !suggestions.is_empty() {
+            log::trace!("Generated {} suggestions", suggestions.len());
+        }
+
         suggestions
     }
 
     /// Dismiss a suggestion
     pub fn dismiss(&mut self, action: &str) {
+        log::debug!("Dismissing suggestion: {}", action);
         self.dismissed.insert(action.to_string());
     }
 
     /// Clear dismissed suggestions
     pub fn clear_dismissed(&mut self) {
+        let count = self.dismissed.len();
         self.dismissed.clear();
+        log::info!("Cleared {} dismissed suggestions", count);
     }
 
     /// Check if a suggestion is dismissed
@@ -526,5 +539,458 @@ mod tests {
         
         let parsed: Result<Suggestion, _> = serde_json::from_str(&json.unwrap());
         assert!(parsed.is_ok());
+    }
+
+    #[test]
+    fn test_default_trait() {
+        let engine = SmartSuggestions::default();
+        let system = create_test_system_state();
+        let suggestions = engine.get_suggestions(&system, &[]);
+        assert!(suggestions.len() <= 5);
+    }
+
+    #[test]
+    fn test_suggestion_clone() {
+        let suggestion = Suggestion {
+            suggestion_type: SuggestionType::BreakReminder,
+            title: "Take a break".to_string(),
+            description: "You've been working hard".to_string(),
+            action: "break".to_string(),
+            priority: 3,
+            confidence: 0.7,
+            context: "Long session".to_string(),
+            dismissible: true,
+        };
+        
+        let cloned = suggestion.clone();
+        assert_eq!(cloned.title, suggestion.title);
+        assert_eq!(cloned.priority, suggestion.priority);
+        assert_eq!(cloned.confidence, suggestion.confidence);
+    }
+
+    #[test]
+    fn test_suggestion_debug() {
+        let suggestion = Suggestion {
+            suggestion_type: SuggestionType::Learning,
+            title: "Debug Test".to_string(),
+            description: "Debug description".to_string(),
+            action: "debug_action".to_string(),
+            priority: 1,
+            confidence: 0.5,
+            context: "Debug context".to_string(),
+            dismissible: false,
+        };
+        
+        let debug_str = format!("{:?}", suggestion);
+        assert!(debug_str.contains("Debug Test"));
+        assert!(debug_str.contains("Learning"));
+    }
+
+    #[test]
+    fn test_suggestion_type_equality() {
+        assert_eq!(SuggestionType::QuickAction, SuggestionType::QuickAction);
+        assert_ne!(SuggestionType::QuickAction, SuggestionType::BreakReminder);
+        assert_ne!(SuggestionType::Automation, SuggestionType::Learning);
+    }
+
+    #[test]
+    fn test_code_explanation_suggestion() {
+        let engine = SmartSuggestions::new();
+        let system = create_test_system_state();
+        
+        // Create activities that should trigger code explanation
+        let mut activities = Vec::new();
+        for _ in 0..5 {
+            let mut activity = UserActivity::text_selection("code snippet", Some("VSCode".to_string()));
+            activity.timestamp = chrono::Utc::now().timestamp_millis();
+            activities.push(activity);
+        }
+        
+        let suggestions = engine.get_suggestions(&system, &activities);
+        
+        let has_code_suggestion = suggestions.iter().any(|s| {
+            s.action == "explain_code" || s.title.to_lowercase().contains("code")
+        });
+        assert!(has_code_suggestion);
+    }
+
+    #[test]
+    fn test_translation_suggestion() {
+        let engine = SmartSuggestions::new();
+        let system = create_test_system_state();
+        
+        // Create activity with non-ASCII text (foreign language)
+        let activity = UserActivity {
+            activity_type: ActivityType::TextSelection,
+            description: "Selected text".to_string(),
+            application: None,
+            target: None,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration_ms: None,
+            metadata: {
+                let mut m = std::collections::HashMap::new();
+                m.insert("text_preview".to_string(), "这是中文测试文本".to_string());
+                m.insert("text_length".to_string(), "24".to_string());
+                m
+            },
+        };
+        
+        let suggestions = engine.get_suggestions(&system, &[activity]);
+        
+        let has_translation = suggestions.iter().any(|s| {
+            s.action == "translate_text" || s.title.to_lowercase().contains("translate")
+        });
+        assert!(has_translation);
+    }
+
+    #[test]
+    fn test_summarization_suggestion() {
+        let engine = SmartSuggestions::new();
+        let system = create_test_system_state();
+        
+        // Create activity with long text
+        let activity = UserActivity {
+            activity_type: ActivityType::TextSelection,
+            description: "Selected long text".to_string(),
+            application: None,
+            target: None,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration_ms: None,
+            metadata: {
+                let mut m = std::collections::HashMap::new();
+                m.insert("text_length".to_string(), "1000".to_string());
+                m
+            },
+        };
+        
+        let suggestions = engine.get_suggestions(&system, &[activity]);
+        
+        let has_summarize = suggestions.iter().any(|s| {
+            s.action == "summarize_text" || s.title.to_lowercase().contains("summarize")
+        });
+        assert!(has_summarize);
+    }
+
+    #[test]
+    fn test_break_reminder_suggestion() {
+        let engine = SmartSuggestions::new();
+        let system = create_test_system_state();
+        
+        // Create many recent activities to trigger break reminder
+        let now = chrono::Utc::now().timestamp_millis();
+        let mut activities = Vec::new();
+        for i in 0..60 {
+            let mut activity = UserActivity::text_selection(&format!("text {}", i), None);
+            activity.timestamp = now - (i as i64 * 60000); // 1 minute apart, all within last hour
+            activities.push(activity);
+        }
+        
+        let suggestions = engine.get_suggestions(&system, &activities);
+        
+        let has_break = suggestions.iter().any(|s| {
+            s.suggestion_type == SuggestionType::BreakReminder
+        });
+        assert!(has_break);
+    }
+
+    #[test]
+    fn test_workflow_suggestion() {
+        let engine = SmartSuggestions::new();
+        let system = create_test_system_state();
+        
+        // Create repeated AI queries with same action
+        let mut activities = Vec::new();
+        for i in 0..10 {
+            let mut activity = UserActivity::ai_query(&format!("query {}", i), "explain");
+            activity.timestamp = chrono::Utc::now().timestamp_millis() - (i as i64 * 1000);
+            activities.push(activity);
+        }
+        
+        let suggestions = engine.get_suggestions(&system, &activities);
+        
+        let has_workflow = suggestions.iter().any(|s| {
+            s.suggestion_type == SuggestionType::Automation || s.action == "create_workflow"
+        });
+        assert!(has_workflow);
+    }
+
+    #[test]
+    fn test_context_help_suggestion() {
+        let engine = SmartSuggestions::new();
+        let system = create_test_system_state();
+        
+        // Create app switch to a new app
+        let activity = UserActivity::app_switch(Some("OldApp".to_string()), "NewUniqueApp".to_string());
+        
+        let suggestions = engine.get_suggestions(&system, &[activity]);
+        
+        let has_context_help = suggestions.iter().any(|s| {
+            s.suggestion_type == SuggestionType::ContextHelp || s.action == "show_app_tips"
+        });
+        assert!(has_context_help);
+    }
+
+    #[test]
+    fn test_dismissed_suggestions_not_returned() {
+        let mut engine = SmartSuggestions::new();
+        let mut system = create_test_system_state();
+        system.memory_percent = 95.0; // High memory to trigger warning
+        
+        // First get suggestions
+        let suggestions = engine.get_suggestions(&system, &[]);
+        let memory_action = suggestions.iter()
+            .find(|s| s.action == "show_memory_usage")
+            .map(|s| s.action.clone());
+        
+        if let Some(action) = memory_action {
+            // Dismiss the memory warning
+            engine.dismiss(&action);
+            
+            // Get suggestions again
+            let new_suggestions = engine.get_suggestions(&system, &[]);
+            
+            // Should not contain the dismissed suggestion
+            let has_memory_warning = new_suggestions.iter()
+                .any(|s| s.action == "show_memory_usage");
+            assert!(!has_memory_warning);
+        }
+    }
+
+    #[test]
+    fn test_clear_dismissed_restores_suggestions() {
+        let mut engine = SmartSuggestions::new();
+        
+        engine.dismiss("test_action");
+        assert!(engine.is_dismissed("test_action"));
+        
+        engine.clear_dismissed();
+        assert!(!engine.is_dismissed("test_action"));
+    }
+
+    #[test]
+    fn test_battery_charging_no_warning() {
+        let engine = SmartSuggestions::new();
+        let mut system = create_test_system_state();
+        system.battery = Some(super::super::system_monitor::BatteryState {
+            percent: 15.0,
+            is_charging: true, // Charging, so no warning needed
+            time_remaining_minutes: None,
+        });
+        
+        let suggestions = engine.get_suggestions(&system, &[]);
+        
+        let has_battery_warning = suggestions.iter().any(|s| {
+            s.title.to_lowercase().contains("battery")
+        });
+        assert!(!has_battery_warning);
+    }
+
+    #[test]
+    fn test_normal_memory_no_warning() {
+        let engine = SmartSuggestions::new();
+        let mut system = create_test_system_state();
+        system.memory_percent = 50.0; // Normal memory usage
+        
+        let suggestions = engine.get_suggestions(&system, &[]);
+        
+        let has_memory_warning = suggestions.iter().any(|s| {
+            s.title.to_lowercase().contains("memory")
+        });
+        assert!(!has_memory_warning);
+    }
+
+    #[test]
+    fn test_suggestion_priority_range() {
+        let engine = SmartSuggestions::new();
+        let mut system = create_test_system_state();
+        system.memory_percent = 95.0;
+        system.battery = Some(super::super::system_monitor::BatteryState {
+            percent: 5.0,
+            is_charging: false,
+            time_remaining_minutes: Some(10),
+        });
+        
+        let suggestions = engine.get_suggestions(&system, &[]);
+        
+        for suggestion in &suggestions {
+            assert!(suggestion.priority >= 1 && suggestion.priority <= 10);
+            assert!(suggestion.confidence >= 0.0 && suggestion.confidence <= 1.0);
+        }
+    }
+
+    #[test]
+    fn test_suggestion_non_dismissible() {
+        // Create a suggestion that is not dismissible
+        let suggestion = Suggestion {
+            suggestion_type: SuggestionType::SystemOptimization,
+            title: "Critical".to_string(),
+            description: "Critical issue".to_string(),
+            action: "critical_action".to_string(),
+            priority: 10,
+            confidence: 1.0,
+            context: "Critical".to_string(),
+            dismissible: false,
+        };
+        
+        assert!(!suggestion.dismissible);
+    }
+
+    #[test]
+    fn test_multiple_dismissals() {
+        let mut engine = SmartSuggestions::new();
+        
+        engine.dismiss("action1");
+        engine.dismiss("action2");
+        engine.dismiss("action3");
+        
+        assert!(engine.is_dismissed("action1"));
+        assert!(engine.is_dismissed("action2"));
+        assert!(engine.is_dismissed("action3"));
+        assert!(!engine.is_dismissed("action4"));
+    }
+
+    #[test]
+    fn test_no_duplicate_dismissals() {
+        let mut engine = SmartSuggestions::new();
+        
+        engine.dismiss("same_action");
+        engine.dismiss("same_action");
+        engine.dismiss("same_action");
+        
+        // Should still be dismissed
+        assert!(engine.is_dismissed("same_action"));
+        
+        // Clear should remove it once
+        engine.clear_dismissed();
+        assert!(!engine.is_dismissed("same_action"));
+    }
+
+    #[test]
+    fn test_empty_activities_some_system_suggestions() {
+        let engine = SmartSuggestions::new();
+        let mut system = create_test_system_state();
+        system.memory_percent = 90.0;
+        
+        let suggestions = engine.get_suggestions(&system, &[]);
+        
+        // Should have at least memory warning
+        assert!(!suggestions.is_empty());
+    }
+
+    #[test]
+    fn test_suggestions_max_five() {
+        let engine = SmartSuggestions::new();
+        let mut system = create_test_system_state();
+        
+        // Trigger multiple suggestions
+        system.memory_percent = 95.0;
+        system.battery = Some(super::super::system_monitor::BatteryState {
+            percent: 5.0,
+            is_charging: false,
+            time_remaining_minutes: Some(5),
+        });
+        
+        let now = chrono::Utc::now().timestamp_millis();
+        let mut activities = Vec::new();
+        
+        // Add many activities to trigger multiple rules
+        for i in 0..100 {
+            let mut activity = UserActivity::text_selection("text", Some("VSCode".to_string()));
+            activity.timestamp = now - (i as i64 * 30000); // 30 seconds apart
+            activities.push(activity);
+        }
+        
+        let suggestions = engine.get_suggestions(&system, &activities);
+        
+        // Should be limited to 5
+        assert!(suggestions.len() <= 5);
+    }
+
+    #[test]
+    fn test_suggestion_context_filled() {
+        let engine = SmartSuggestions::new();
+        let mut system = create_test_system_state();
+        system.memory_percent = 92.0;
+        
+        let suggestions = engine.get_suggestions(&system, &[]);
+        
+        for suggestion in &suggestions {
+            // Context should not be empty
+            assert!(!suggestion.context.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_short_text_no_summarize() {
+        let engine = SmartSuggestions::new();
+        let system = create_test_system_state();
+        
+        // Create activity with short text
+        let activity = UserActivity {
+            activity_type: ActivityType::TextSelection,
+            description: "Short".to_string(),
+            application: None,
+            target: None,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration_ms: None,
+            metadata: {
+                let mut m = std::collections::HashMap::new();
+                m.insert("text_length".to_string(), "50".to_string());
+                m
+            },
+        };
+        
+        let suggestions = engine.get_suggestions(&system, &[activity]);
+        
+        let has_summarize = suggestions.iter().any(|s| {
+            s.action == "summarize_text"
+        });
+        assert!(!has_summarize);
+    }
+
+    #[test]
+    fn test_ascii_text_no_translate() {
+        let engine = SmartSuggestions::new();
+        let system = create_test_system_state();
+        
+        // Create activity with ASCII text only
+        let activity = UserActivity {
+            activity_type: ActivityType::TextSelection,
+            description: "Selected".to_string(),
+            application: None,
+            target: None,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration_ms: None,
+            metadata: {
+                let mut m = std::collections::HashMap::new();
+                m.insert("text_preview".to_string(), "This is plain English text".to_string());
+                m
+            },
+        };
+        
+        let suggestions = engine.get_suggestions(&system, &[activity]);
+        
+        let has_translate = suggestions.iter().any(|s| {
+            s.action == "translate_text"
+        });
+        assert!(!has_translate);
+    }
+
+    #[test]
+    fn test_few_code_selections_no_explain() {
+        let engine = SmartSuggestions::new();
+        let system = create_test_system_state();
+        
+        // Only 2 code selections (need 3+ to trigger)
+        let activities: Vec<UserActivity> = (0..2)
+            .map(|_| UserActivity::text_selection("code", Some("VSCode".to_string())))
+            .collect();
+        
+        let suggestions = engine.get_suggestions(&system, &activities);
+        
+        let has_explain = suggestions.iter().any(|s| {
+            s.action == "explain_code"
+        });
+        assert!(!has_explain);
     }
 }

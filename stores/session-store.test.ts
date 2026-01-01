@@ -322,4 +322,107 @@ describe('useSessionStore', () => {
       expect(selectActiveSessionId(useSessionStore.getState())).toBe(session!.id);
     });
   });
+
+  describe('Environment Management', () => {
+    it('should create session with virtualEnvId', () => {
+      let session;
+      act(() => {
+        session = useSessionStore.getState().createSession({
+          title: 'With Env',
+          virtualEnvId: 'env-123',
+        });
+      });
+
+      expect(session!.virtualEnvId).toBe('env-123');
+    });
+
+    it('should set session environment', () => {
+      let session;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+      });
+
+      act(() => {
+        useSessionStore.getState().setSessionEnvironment(session!.id, 'env-456', '/path/to/env');
+      });
+
+      const updated = useSessionStore.getState().getSession(session!.id);
+      expect(updated?.virtualEnvId).toBe('env-456');
+      expect(updated?.virtualEnvPath).toBe('/path/to/env');
+    });
+
+    it('should get session environment', () => {
+      let session;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+        useSessionStore.getState().setSessionEnvironment(session!.id, 'env-789', '/path/to/env');
+      });
+
+      const env = useSessionStore.getState().getSessionEnvironment(session!.id);
+      expect(env.envId).toBe('env-789');
+      expect(env.envPath).toBe('/path/to/env');
+    });
+
+    it('should return null for session without environment', () => {
+      let session;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+      });
+
+      const env = useSessionStore.getState().getSessionEnvironment(session!.id);
+      expect(env.envId).toBeNull();
+      expect(env.envPath).toBeNull();
+    });
+
+    it('should clear session environment', () => {
+      let session;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+        useSessionStore.getState().setSessionEnvironment(session!.id, 'env-123', '/path');
+      });
+
+      act(() => {
+        useSessionStore.getState().clearSessionEnvironment(session!.id);
+      });
+
+      const env = useSessionStore.getState().getSessionEnvironment(session!.id);
+      expect(env.envId).toBeNull();
+      expect(env.envPath).toBeNull();
+    });
+
+    it('should update session timestamp when setting environment', async () => {
+      let session;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+      });
+
+      const originalUpdate = useSessionStore.getState().getSession(session!.id)?.updatedAt;
+
+      // Wait a bit to ensure timestamp difference
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      act(() => {
+        useSessionStore.getState().setSessionEnvironment(session!.id, 'env-123', '/path');
+      });
+
+      const newUpdate = useSessionStore.getState().getSession(session!.id)?.updatedAt;
+      expect(newUpdate).not.toEqual(originalUpdate);
+    });
+
+    it('should handle setting null environment', () => {
+      let session;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+        useSessionStore.getState().setSessionEnvironment(session!.id, 'env-123', '/path');
+      });
+
+      act(() => {
+        useSessionStore.getState().setSessionEnvironment(session!.id, null, null);
+      });
+
+      const updated = useSessionStore.getState().getSession(session!.id);
+      expect(updated?.virtualEnvId).toBeUndefined();
+      expect(updated?.virtualEnvPath).toBeUndefined();
+    });
+  });
 });

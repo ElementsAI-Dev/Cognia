@@ -180,6 +180,7 @@ export const DesignerCard = memo(function DesignerCard({
         {/* Thumbnail */}
         <div className="w-20 h-14 rounded-md bg-gradient-to-br from-muted to-muted/50 shrink-0 overflow-hidden flex items-center justify-center relative">
           {template.thumbnail ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={template.thumbnail}
               alt={template.name}
@@ -268,6 +269,7 @@ export const DesignerCard = memo(function DesignerCard({
         {/* Actual thumbnail image if available */}
         {template.thumbnail ? (
           <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={template.thumbnail}
               alt={template.name}

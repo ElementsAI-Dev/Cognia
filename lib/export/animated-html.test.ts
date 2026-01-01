@@ -331,4 +331,146 @@ describe('exportToAnimatedHTML', () => {
     expect(result).toContain('.tool-header');
     expect(result).toContain('.tool-status');
   });
+
+  describe('with image parts', () => {
+    const messagesWithImages: UIMessage[] = [
+      {
+        id: 'msg-1',
+        role: 'assistant',
+        content: 'Here is the image:',
+        createdAt: new Date('2024-01-15T10:01:30Z'),
+        parts: [
+          { type: 'text', content: 'Here is the image:' },
+          {
+            type: 'image',
+            url: 'https://example.com/sunset.png',
+            alt: 'A beautiful sunset',
+            width: 1024,
+            height: 768,
+            isGenerated: true,
+            prompt: 'Generate a beautiful sunset',
+          },
+        ],
+      },
+    ];
+
+    it('should include image data in messages JSON', () => {
+      const data: AnimatedExportData = {
+        session: mockSession,
+        messages: messagesWithImages,
+        exportedAt,
+      };
+
+      const result = exportToAnimatedHTML(data);
+
+      expect(result).toContain('"type":"image"');
+      expect(result).toContain('https://example.com/sunset.png');
+    });
+
+    it('should include media block CSS styles', () => {
+      const data: AnimatedExportData = {
+        session: mockSession,
+        messages: messagesWithImages,
+        exportedAt,
+      };
+
+      const result = exportToAnimatedHTML(data);
+
+      expect(result).toContain('.media-block');
+      expect(result).toContain('.ai-badge');
+    });
+
+    it('should include renderMessageParts JavaScript for handling images', () => {
+      const data: AnimatedExportData = {
+        session: mockSession,
+        messages: messagesWithImages,
+        exportedAt,
+      };
+
+      const result = exportToAnimatedHTML(data);
+
+      expect(result).toContain('renderMessageParts');
+      expect(result).toContain("part.type === 'image'");
+    });
+  });
+
+  describe('with video parts', () => {
+    const messagesWithVideos: UIMessage[] = [
+      {
+        id: 'msg-1',
+        role: 'assistant',
+        content: 'Here is the video:',
+        createdAt: new Date('2024-01-15T10:01:30Z'),
+        parts: [
+          { type: 'text', content: 'Here is the video:' },
+          {
+            type: 'video',
+            url: 'https://example.com/video.mp4',
+            title: 'Dancing Cat',
+            thumbnailUrl: 'https://example.com/thumb.jpg',
+            durationSeconds: 30,
+            width: 1920,
+            height: 1080,
+            isGenerated: true,
+            provider: 'google-veo',
+            model: 'veo-2',
+            prompt: 'A cat dancing to music',
+          },
+        ],
+      },
+    ];
+
+    it('should include video data in messages JSON', () => {
+      const data: AnimatedExportData = {
+        session: mockSession,
+        messages: messagesWithVideos,
+        exportedAt,
+      };
+
+      const result = exportToAnimatedHTML(data);
+
+      expect(result).toContain('"type":"video"');
+      expect(result).toContain('https://example.com/video.mp4');
+    });
+
+    it('should include video block CSS styles', () => {
+      const data: AnimatedExportData = {
+        session: mockSession,
+        messages: messagesWithVideos,
+        exportedAt,
+      };
+
+      const result = exportToAnimatedHTML(data);
+
+      expect(result).toContain('.video-block');
+      expect(result).toContain('.video-container');
+    });
+
+    it('should include renderMessageParts JavaScript for handling videos', () => {
+      const data: AnimatedExportData = {
+        session: mockSession,
+        messages: messagesWithVideos,
+        exportedAt,
+      };
+
+      const result = exportToAnimatedHTML(data);
+
+      expect(result).toContain('renderMessageParts');
+      expect(result).toContain("part.type === 'video'");
+    });
+
+    it('should include video metadata in JSON', () => {
+      const data: AnimatedExportData = {
+        session: mockSession,
+        messages: messagesWithVideos,
+        exportedAt,
+      };
+
+      const result = exportToAnimatedHTML(data);
+
+      expect(result).toContain('"durationSeconds":30');
+      expect(result).toContain('"provider":"google-veo"');
+      expect(result).toContain('"model":"veo-2"');
+    });
+  });
 });

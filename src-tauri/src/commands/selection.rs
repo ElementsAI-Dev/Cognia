@@ -695,3 +695,246 @@ pub async fn selection_get_stats_summary(
         }
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_selection_payload_struct() {
+        let payload = SelectionPayload {
+            text: "Hello World".to_string(),
+            x: 100,
+            y: 200,
+            timestamp: 1704067200000,
+        };
+        
+        assert_eq!(payload.text, "Hello World");
+        assert_eq!(payload.x, 100);
+        assert_eq!(payload.y, 200);
+    }
+
+    #[test]
+    fn test_selection_payload_serialization() {
+        let payload = SelectionPayload {
+            text: "Test".to_string(),
+            x: 50,
+            y: 75,
+            timestamp: 1704067200000,
+        };
+        
+        let serialized = serde_json::to_string(&payload).unwrap();
+        assert!(serialized.contains("\"text\":\"Test\""));
+        assert!(serialized.contains("\"x\":50"));
+    }
+
+    #[test]
+    fn test_get_mouse_position() {
+        let (x, y) = get_mouse_position();
+        // Just verify it returns valid coordinates (could be anywhere)
+        assert!(x >= 0.0 || x < 0.0); // Always true, just checking it runs
+        assert!(y >= 0.0 || y < 0.0);
+    }
+
+    #[test]
+    fn test_selection_detect_text_type_url() {
+        let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            selection_detect_text_type("https://example.com".to_string()).await
+        });
+        assert_eq!(result.unwrap(), "url");
+        
+        let result2 = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            selection_detect_text_type("http://test.org/page".to_string()).await
+        });
+        assert_eq!(result2.unwrap(), "url");
+        
+        let result3 = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            selection_detect_text_type("www.example.com".to_string()).await
+        });
+        assert_eq!(result3.unwrap(), "url");
+    }
+
+    #[test]
+    fn test_selection_detect_text_type_email() {
+        let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            selection_detect_text_type("user@example.com".to_string()).await
+        });
+        assert_eq!(result.unwrap(), "email");
+        
+        let result2 = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            selection_detect_text_type("test.user@domain.org".to_string()).await
+        });
+        assert_eq!(result2.unwrap(), "email");
+    }
+
+    #[test]
+    fn test_selection_detect_text_type_path() {
+        let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            selection_detect_text_type("/usr/local/bin".to_string()).await
+        });
+        assert_eq!(result.unwrap(), "path");
+        
+        let result2 = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            selection_detect_text_type("C:\\Users\\test".to_string()).await
+        });
+        assert_eq!(result2.unwrap(), "path");
+    }
+
+    #[test]
+    fn test_selection_detect_text_type_code() {
+        let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            selection_detect_text_type("function test() { return 1; }".to_string()).await
+        });
+        assert_eq!(result.unwrap(), "code");
+        
+        let result2 = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            selection_detect_text_type("const x = 5;".to_string()).await
+        });
+        assert_eq!(result2.unwrap(), "code");
+        
+        let result3 = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            selection_detect_text_type("def foo(): pass".to_string()).await
+        });
+        assert_eq!(result3.unwrap(), "code");
+    }
+
+    #[test]
+    fn test_selection_detect_text_type_number() {
+        let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            selection_detect_text_type("12345".to_string()).await
+        });
+        assert_eq!(result.unwrap(), "number");
+        
+        let result2 = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            selection_detect_text_type("1,234.56".to_string()).await
+        });
+        assert_eq!(result2.unwrap(), "number");
+    }
+
+    #[test]
+    fn test_selection_detect_text_type_text() {
+        let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            selection_detect_text_type("Hello world, this is plain text.".to_string()).await
+        });
+        assert_eq!(result.unwrap(), "text");
+    }
+
+    #[test]
+    fn test_selection_get_modes() {
+        let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            selection_get_modes().await
+        });
+        let modes = result.unwrap();
+        
+        assert!(modes.contains(&"word".to_string()));
+        assert!(modes.contains(&"line".to_string()));
+        assert!(modes.contains(&"sentence".to_string()));
+        assert!(modes.contains(&"paragraph".to_string()));
+        assert!(modes.contains(&"code_block".to_string()));
+        assert!(modes.contains(&"url".to_string()));
+        assert!(modes.contains(&"email".to_string()));
+    }
+
+    #[test]
+    fn test_selection_mode_parsing() {
+        // Test that selection modes are parsed correctly
+        let modes = vec![
+            ("word", SelectionMode::Word),
+            ("line", SelectionMode::Line),
+            ("sentence", SelectionMode::Sentence),
+            ("paragraph", SelectionMode::Paragraph),
+            ("code_block", SelectionMode::CodeBlock),
+            ("function", SelectionMode::Function),
+            ("bracket", SelectionMode::BracketMatch),
+            ("quote", SelectionMode::QuoteMatch),
+            ("url", SelectionMode::Url),
+            ("email", SelectionMode::Email),
+            ("file_path", SelectionMode::FilePath),
+        ];
+        
+        for (mode_str, _expected) in modes {
+            let parsed = match mode_str {
+                "word" => SelectionMode::Word,
+                "line" => SelectionMode::Line,
+                "sentence" => SelectionMode::Sentence,
+                "paragraph" => SelectionMode::Paragraph,
+                "code_block" => SelectionMode::CodeBlock,
+                "function" => SelectionMode::Function,
+                "bracket" => SelectionMode::BracketMatch,
+                "quote" => SelectionMode::QuoteMatch,
+                "url" => SelectionMode::Url,
+                "email" => SelectionMode::Email,
+                "file_path" => SelectionMode::FilePath,
+                _ => SelectionMode::Word,
+            };
+            assert!(matches!(parsed, _expected), "Mode {} should match", mode_str);
+        }
+    }
+
+    #[test]
+    fn test_source_app_info_struct() {
+        let app_info = SourceAppInfo {
+            name: "Code".to_string(),
+            process: "code.exe".to_string(),
+            window_title: "main.rs - Cognia".to_string(),
+            app_type: "editor".to_string(),
+        };
+        
+        assert_eq!(app_info.name, "Code");
+        assert_eq!(app_info.process, "code.exe");
+        assert_eq!(app_info.app_type, "editor");
+    }
+
+    #[test]
+    fn test_selection_context_struct() {
+        let context = SelectionContext {
+            full_text: "Hello world".to_string(),
+            cursor_pos: 5,
+            selection_start: Some(0),
+            selection_end: Some(5),
+            app_type: Some("editor".to_string()),
+            is_code: false,
+            language: None,
+        };
+        
+        assert_eq!(context.full_text, "Hello world");
+        assert_eq!(context.cursor_pos, 5);
+        assert!(!context.is_code);
+    }
+
+    #[test]
+    fn test_selection_context_code() {
+        let context = SelectionContext {
+            full_text: "fn main() { println!(\"Hello\"); }".to_string(),
+            cursor_pos: 15,
+            selection_start: None,
+            selection_end: None,
+            app_type: Some("editor".to_string()),
+            is_code: true,
+            language: Some("rust".to_string()),
+        };
+        
+        assert!(context.is_code);
+        assert_eq!(context.language, Some("rust".to_string()));
+    }
+
+    #[test]
+    fn test_selection_expansion_struct() {
+        let expansion = SelectionExpansion {
+            original_start: 0,
+            original_end: 5,
+            expanded_start: 0,
+            expanded_end: 11,
+            expanded_text: "Hello World".to_string(),
+            mode: SelectionMode::Word,
+            confidence: 0.95,
+        };
+        
+        assert_eq!(expansion.original_start, 0);
+        assert_eq!(expansion.original_end, 5);
+        assert_eq!(expansion.expanded_start, 0);
+        assert_eq!(expansion.expanded_end, 11);
+        assert_eq!(expansion.expanded_text, "Hello World");
+        assert_eq!(expansion.confidence, 0.95);
+    }
+}

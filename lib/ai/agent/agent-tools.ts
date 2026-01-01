@@ -25,6 +25,8 @@ import {
 } from '@/lib/skills';
 import type { McpServerState, ToolCallResult } from '@/types/mcp';
 import { createMcpToolsFromStore } from './mcp-tools';
+import { initializeEnvironmentTools, getEnvironmentToolsSystemPrompt, getEnvironmentToolsPromptSnippet } from './environment-tools';
+import { getJupyterTools, getJupyterToolsSystemPrompt } from './jupyter-tools';
 
 export interface AgentToolsConfig {
   tavilyApiKey?: string;
@@ -37,6 +39,8 @@ export interface AgentToolsConfig {
   enableDesigner?: boolean;
   enableSkills?: boolean;
   enableMcpTools?: boolean;
+  enableEnvironmentTools?: boolean;
+  enableJupyterTools?: boolean;
   ragConfig?: RAGConfig;
   customTools?: Record<string, AgentTool>;
   activeSkills?: Skill[];
@@ -320,6 +324,23 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
     Object.assign(tools, mcpTools);
   }
 
+  // Environment tools - virtual environment management for Python
+  if (config.enableEnvironmentTools) {
+    const envTools = initializeEnvironmentTools({
+      enableCreate: true,
+      enableInstall: true,
+      enableRun: true,
+      enableList: true,
+    });
+    Object.assign(tools, envTools);
+  }
+
+  // Jupyter tools - Python code execution with kernel
+  if (config.enableJupyterTools) {
+    const jupyterTools = getJupyterTools();
+    Object.assign(tools, jupyterTools);
+  }
+
   // Add custom tools
   if (config.customTools) {
     Object.assign(tools, config.customTools);
@@ -379,6 +400,54 @@ export function initializeAgentToolsWithSkills(
   const skillsSystemPrompt = getSkillsSystemPrompt(activeSkills);
   
   return { tools, skillsSystemPrompt };
+}
+
+/**
+ * Build complete system prompt with environment tools guidance
+ * Use this when environment tools are enabled to help AI understand usage
+ */
+export function buildEnvironmentToolsSystemPrompt(includeDetailed: boolean = false): string {
+  return includeDetailed 
+    ? getEnvironmentToolsSystemPrompt() 
+    : getEnvironmentToolsPromptSnippet();
+}
+
+/**
+ * Build combined system prompt for agent with all tool guidance
+ */
+export function buildAgentSystemPrompt(config: {
+  basePrompt?: string;
+  activeSkills?: Skill[];
+  enableEnvironmentTools?: boolean;
+  environmentToolsDetailed?: boolean;
+  enableJupyterTools?: boolean;
+}): string {
+  const parts: string[] = [];
+
+  // Base prompt
+  if (config.basePrompt) {
+    parts.push(config.basePrompt);
+  }
+
+  // Skills prompt
+  if (config.activeSkills && config.activeSkills.length > 0) {
+    const skillsPrompt = getSkillsSystemPrompt(config.activeSkills);
+    if (skillsPrompt) {
+      parts.push(skillsPrompt);
+    }
+  }
+
+  // Environment tools prompt
+  if (config.enableEnvironmentTools) {
+    parts.push(buildEnvironmentToolsSystemPrompt(config.environmentToolsDetailed));
+  }
+
+  // Jupyter tools prompt
+  if (config.enableJupyterTools) {
+    parts.push(getJupyterToolsSystemPrompt());
+  }
+
+  return parts.join('\n\n');
 }
 
 export default initializeAgentTools;

@@ -434,3 +434,482 @@ fn get_mouse_position() -> (f64, f64) {
         mouse_position::mouse_position::Mouse::Error => (0.0, 0.0),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // SelectionPayload tests
+    #[test]
+    fn test_selection_payload_creation() {
+        let payload = SelectionPayload {
+            text: "test text".to_string(),
+            x: 100,
+            y: 200,
+            timestamp: 1234567890,
+        };
+
+        assert_eq!(payload.text, "test text");
+        assert_eq!(payload.x, 100);
+        assert_eq!(payload.y, 200);
+        assert_eq!(payload.timestamp, 1234567890);
+    }
+
+    #[test]
+    fn test_selection_payload_clone() {
+        let payload = SelectionPayload {
+            text: "test".to_string(),
+            x: 50,
+            y: 75,
+            timestamp: 999,
+        };
+
+        let cloned = payload.clone();
+        assert_eq!(cloned.text, payload.text);
+        assert_eq!(cloned.x, payload.x);
+        assert_eq!(cloned.y, payload.y);
+        assert_eq!(cloned.timestamp, payload.timestamp);
+    }
+
+    #[test]
+    fn test_selection_payload_debug() {
+        let payload = SelectionPayload {
+            text: "debug test".to_string(),
+            x: 10,
+            y: 20,
+            timestamp: 123,
+        };
+
+        let debug_str = format!("{:?}", payload);
+        assert!(debug_str.contains("SelectionPayload"));
+        assert!(debug_str.contains("debug test"));
+    }
+
+    #[test]
+    fn test_selection_payload_serialize() {
+        let payload = SelectionPayload {
+            text: "serialize test".to_string(),
+            x: 100,
+            y: 200,
+            timestamp: 1000,
+        };
+
+        let json = serde_json::to_string(&payload);
+        assert!(json.is_ok());
+        
+        let json_str = json.unwrap();
+        assert!(json_str.contains("serialize test"));
+        assert!(json_str.contains("100"));
+        assert!(json_str.contains("200"));
+    }
+
+    #[test]
+    fn test_selection_payload_deserialize() {
+        let json = r#"{"text":"deserialized","x":50,"y":60,"timestamp":2000}"#;
+        let payload: Result<SelectionPayload, _> = serde_json::from_str(json);
+        
+        assert!(payload.is_ok());
+        let payload = payload.unwrap();
+        assert_eq!(payload.text, "deserialized");
+        assert_eq!(payload.x, 50);
+        assert_eq!(payload.y, 60);
+        assert_eq!(payload.timestamp, 2000);
+    }
+
+    // SelectionConfig tests
+    #[test]
+    fn test_selection_config_default() {
+        let config = SelectionConfig::default();
+
+        assert!(config.enabled);
+        assert_eq!(config.trigger_mode, "auto");
+        assert_eq!(config.min_text_length, 1);
+        assert_eq!(config.max_text_length, 5000);
+        assert_eq!(config.delay_ms, 200);
+        assert_eq!(config.target_language, "zh-CN");
+        assert!(config.excluded_apps.is_empty());
+    }
+
+    #[test]
+    fn test_selection_config_custom() {
+        let config = SelectionConfig {
+            enabled: false,
+            trigger_mode: "shortcut".to_string(),
+            min_text_length: 5,
+            max_text_length: 1000,
+            delay_ms: 100,
+            target_language: "en-US".to_string(),
+            excluded_apps: vec!["notepad.exe".to_string(), "calc.exe".to_string()],
+        };
+
+        assert!(!config.enabled);
+        assert_eq!(config.trigger_mode, "shortcut");
+        assert_eq!(config.min_text_length, 5);
+        assert_eq!(config.max_text_length, 1000);
+        assert_eq!(config.delay_ms, 100);
+        assert_eq!(config.target_language, "en-US");
+        assert_eq!(config.excluded_apps.len(), 2);
+    }
+
+    #[test]
+    fn test_selection_config_clone() {
+        let config = SelectionConfig::default();
+        let cloned = config.clone();
+
+        assert_eq!(cloned.enabled, config.enabled);
+        assert_eq!(cloned.trigger_mode, config.trigger_mode);
+        assert_eq!(cloned.min_text_length, config.min_text_length);
+        assert_eq!(cloned.max_text_length, config.max_text_length);
+    }
+
+    #[test]
+    fn test_selection_config_serialize() {
+        let config = SelectionConfig::default();
+        let json = serde_json::to_string(&config);
+        
+        assert!(json.is_ok());
+        let json_str = json.unwrap();
+        assert!(json_str.contains("enabled"));
+        assert!(json_str.contains("trigger_mode"));
+        assert!(json_str.contains("auto"));
+    }
+
+    #[test]
+    fn test_selection_config_deserialize() {
+        let json = r#"{
+            "enabled": true,
+            "trigger_mode": "manual",
+            "min_text_length": 10,
+            "max_text_length": 2000,
+            "delay_ms": 300,
+            "target_language": "ja-JP",
+            "excluded_apps": ["app1", "app2"]
+        }"#;
+
+        let config: Result<SelectionConfig, _> = serde_json::from_str(json);
+        assert!(config.is_ok());
+        
+        let config = config.unwrap();
+        assert!(config.enabled);
+        assert_eq!(config.trigger_mode, "manual");
+        assert_eq!(config.min_text_length, 10);
+        assert_eq!(config.max_text_length, 2000);
+        assert_eq!(config.delay_ms, 300);
+        assert_eq!(config.target_language, "ja-JP");
+        assert_eq!(config.excluded_apps, vec!["app1", "app2"]);
+    }
+
+    // SelectionStatus tests
+    #[test]
+    fn test_selection_status_creation() {
+        let status = SelectionStatus {
+            is_running: true,
+            toolbar_visible: false,
+            toolbar_position: None,
+            selected_text: None,
+            last_selection_timestamp: None,
+            config: SelectionConfig::default(),
+        };
+
+        assert!(status.is_running);
+        assert!(!status.toolbar_visible);
+        assert!(status.toolbar_position.is_none());
+        assert!(status.selected_text.is_none());
+        assert!(status.last_selection_timestamp.is_none());
+    }
+
+    #[test]
+    fn test_selection_status_with_toolbar_visible() {
+        let status = SelectionStatus {
+            is_running: true,
+            toolbar_visible: true,
+            toolbar_position: Some((100, 200)),
+            selected_text: Some("selected".to_string()),
+            last_selection_timestamp: Some(1234567890),
+            config: SelectionConfig::default(),
+        };
+
+        assert!(status.toolbar_visible);
+        assert_eq!(status.toolbar_position, Some((100, 200)));
+        assert_eq!(status.selected_text, Some("selected".to_string()));
+        assert_eq!(status.last_selection_timestamp, Some(1234567890));
+    }
+
+    #[test]
+    fn test_selection_status_clone() {
+        let status = SelectionStatus {
+            is_running: true,
+            toolbar_visible: true,
+            toolbar_position: Some((50, 75)),
+            selected_text: Some("text".to_string()),
+            last_selection_timestamp: Some(999),
+            config: SelectionConfig::default(),
+        };
+
+        let cloned = status.clone();
+        assert_eq!(cloned.is_running, status.is_running);
+        assert_eq!(cloned.toolbar_visible, status.toolbar_visible);
+        assert_eq!(cloned.toolbar_position, status.toolbar_position);
+        assert_eq!(cloned.selected_text, status.selected_text);
+    }
+
+    #[test]
+    fn test_selection_status_serialize() {
+        let status = SelectionStatus {
+            is_running: false,
+            toolbar_visible: false,
+            toolbar_position: None,
+            selected_text: None,
+            last_selection_timestamp: None,
+            config: SelectionConfig::default(),
+        };
+
+        let json = serde_json::to_string(&status);
+        assert!(json.is_ok());
+        
+        let json_str = json.unwrap();
+        assert!(json_str.contains("is_running"));
+        assert!(json_str.contains("toolbar_visible"));
+        assert!(json_str.contains("config"));
+    }
+
+    #[test]
+    fn test_selection_status_deserialize() {
+        let json = r#"{
+            "is_running": true,
+            "toolbar_visible": true,
+            "toolbar_position": [100, 200],
+            "selected_text": "hello",
+            "last_selection_timestamp": 12345,
+            "config": {
+                "enabled": true,
+                "trigger_mode": "auto",
+                "min_text_length": 1,
+                "max_text_length": 5000,
+                "delay_ms": 200,
+                "target_language": "zh-CN",
+                "excluded_apps": []
+            }
+        }"#;
+
+        let status: Result<SelectionStatus, _> = serde_json::from_str(json);
+        assert!(status.is_ok());
+        
+        let status = status.unwrap();
+        assert!(status.is_running);
+        assert!(status.toolbar_visible);
+        assert_eq!(status.toolbar_position, Some((100, 200)));
+        assert_eq!(status.selected_text, Some("hello".to_string()));
+    }
+
+    // Edge case tests
+    #[test]
+    fn test_selection_payload_empty_text() {
+        let payload = SelectionPayload {
+            text: "".to_string(),
+            x: 0,
+            y: 0,
+            timestamp: 0,
+        };
+
+        assert!(payload.text.is_empty());
+    }
+
+    #[test]
+    fn test_selection_payload_unicode_text() {
+        let payload = SelectionPayload {
+            text: "你好世界 🌍 émoji".to_string(),
+            x: 100,
+            y: 200,
+            timestamp: 1000,
+        };
+
+        assert_eq!(payload.text, "你好世界 🌍 émoji");
+        
+        // Should serialize correctly
+        let json = serde_json::to_string(&payload);
+        assert!(json.is_ok());
+    }
+
+    #[test]
+    fn test_selection_payload_negative_coordinates() {
+        // Negative coordinates are valid (multi-monitor setups)
+        let payload = SelectionPayload {
+            text: "test".to_string(),
+            x: -100,
+            y: -50,
+            timestamp: 1000,
+        };
+
+        assert_eq!(payload.x, -100);
+        assert_eq!(payload.y, -50);
+    }
+
+    #[test]
+    fn test_selection_config_zero_values() {
+        let config = SelectionConfig {
+            enabled: true,
+            trigger_mode: "auto".to_string(),
+            min_text_length: 0,
+            max_text_length: 0,
+            delay_ms: 0,
+            target_language: "".to_string(),
+            excluded_apps: vec![],
+        };
+
+        assert_eq!(config.min_text_length, 0);
+        assert_eq!(config.max_text_length, 0);
+        assert_eq!(config.delay_ms, 0);
+    }
+
+    #[test]
+    fn test_selection_config_large_values() {
+        let config = SelectionConfig {
+            enabled: true,
+            trigger_mode: "auto".to_string(),
+            min_text_length: usize::MAX,
+            max_text_length: usize::MAX,
+            delay_ms: u64::MAX,
+            target_language: "test".to_string(),
+            excluded_apps: vec![],
+        };
+
+        assert_eq!(config.min_text_length, usize::MAX);
+        assert_eq!(config.max_text_length, usize::MAX);
+        assert_eq!(config.delay_ms, u64::MAX);
+    }
+
+    #[test]
+    fn test_selection_config_many_excluded_apps() {
+        let excluded: Vec<String> = (0..100).map(|i| format!("app{}.exe", i)).collect();
+        
+        let config = SelectionConfig {
+            enabled: true,
+            trigger_mode: "auto".to_string(),
+            min_text_length: 1,
+            max_text_length: 5000,
+            delay_ms: 200,
+            target_language: "en-US".to_string(),
+            excluded_apps: excluded.clone(),
+        };
+
+        assert_eq!(config.excluded_apps.len(), 100);
+        assert_eq!(config.excluded_apps[0], "app0.exe");
+        assert_eq!(config.excluded_apps[99], "app99.exe");
+    }
+
+    #[test]
+    fn test_selection_status_debug() {
+        let status = SelectionStatus {
+            is_running: true,
+            toolbar_visible: false,
+            toolbar_position: None,
+            selected_text: None,
+            last_selection_timestamp: None,
+            config: SelectionConfig::default(),
+        };
+
+        let debug_str = format!("{:?}", status);
+        assert!(debug_str.contains("SelectionStatus"));
+        assert!(debug_str.contains("is_running"));
+    }
+
+    // Integration-like tests (testing struct relationships)
+    #[test]
+    fn test_status_contains_config() {
+        let config = SelectionConfig {
+            enabled: false,
+            trigger_mode: "shortcut".to_string(),
+            min_text_length: 10,
+            max_text_length: 100,
+            delay_ms: 500,
+            target_language: "de-DE".to_string(),
+            excluded_apps: vec!["test.exe".to_string()],
+        };
+
+        let status = SelectionStatus {
+            is_running: true,
+            toolbar_visible: false,
+            toolbar_position: None,
+            selected_text: None,
+            last_selection_timestamp: None,
+            config: config.clone(),
+        };
+
+        assert_eq!(status.config.enabled, config.enabled);
+        assert_eq!(status.config.trigger_mode, config.trigger_mode);
+        assert_eq!(status.config.excluded_apps, config.excluded_apps);
+    }
+
+    #[test]
+    fn test_payload_timestamp_is_recent() {
+        let now = chrono::Utc::now().timestamp_millis();
+        let payload = SelectionPayload {
+            text: "test".to_string(),
+            x: 0,
+            y: 0,
+            timestamp: now,
+        };
+
+        // Timestamp should be very close to now
+        let diff = (payload.timestamp - now).abs();
+        assert!(diff < 1000); // Within 1 second
+    }
+
+    #[test]
+    fn test_config_text_length_validation_logic() {
+        let config = SelectionConfig::default();
+        
+        // Test text length validation logic that would be used elsewhere
+        let short_text = "ab";
+        let valid_text = "abc";
+        let long_text = "a".repeat(6000);
+
+        assert!(short_text.len() >= config.min_text_length);
+        assert!(valid_text.len() >= config.min_text_length);
+        assert!(valid_text.len() <= config.max_text_length);
+        assert!(long_text.len() > config.max_text_length);
+    }
+
+    #[test]
+    fn test_config_trigger_mode_values() {
+        // Test that both supported trigger modes work
+        let auto_config = SelectionConfig {
+            trigger_mode: "auto".to_string(),
+            ..SelectionConfig::default()
+        };
+        
+        let shortcut_config = SelectionConfig {
+            trigger_mode: "shortcut".to_string(),
+            ..SelectionConfig::default()
+        };
+
+        assert_eq!(auto_config.trigger_mode, "auto");
+        assert_eq!(shortcut_config.trigger_mode, "shortcut");
+    }
+
+    #[test]
+    fn test_round_trip_serialization() {
+        // Test that serialization and deserialization are consistent
+        let original_config = SelectionConfig {
+            enabled: true,
+            trigger_mode: "auto".to_string(),
+            min_text_length: 5,
+            max_text_length: 1000,
+            delay_ms: 150,
+            target_language: "fr-FR".to_string(),
+            excluded_apps: vec!["app1.exe".to_string(), "app2.exe".to_string()],
+        };
+
+        let json = serde_json::to_string(&original_config).unwrap();
+        let restored: SelectionConfig = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(original_config.enabled, restored.enabled);
+        assert_eq!(original_config.trigger_mode, restored.trigger_mode);
+        assert_eq!(original_config.min_text_length, restored.min_text_length);
+        assert_eq!(original_config.max_text_length, restored.max_text_length);
+        assert_eq!(original_config.delay_ms, restored.delay_ms);
+        assert_eq!(original_config.target_language, restored.target_language);
+        assert_eq!(original_config.excluded_apps, restored.excluded_apps);
+    }
+}

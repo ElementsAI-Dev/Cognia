@@ -671,3 +671,188 @@ pub async fn sandbox_execute_with_options(
         .await
         .map_err(|e| e.to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_execute_code_request_deserialization() {
+        let json = json!({
+            "language": "python",
+            "code": "print('hello')",
+            "stdin": null,
+            "args": [],
+            "env": {},
+            "timeout_secs": 30,
+            "memory_limit_mb": 256
+        });
+        
+        let request: ExecuteCodeRequest = serde_json::from_value(json).unwrap();
+        assert_eq!(request.language, "python");
+        assert_eq!(request.code, "print('hello')");
+        assert!(request.stdin.is_none());
+        assert!(request.args.is_empty());
+    }
+
+    #[test]
+    fn test_execute_code_request_with_all_fields() {
+        let mut env = HashMap::new();
+        env.insert("MY_VAR".to_string(), "value".to_string());
+        
+        let mut files = HashMap::new();
+        files.insert("data.txt".to_string(), "file content".to_string());
+        
+        let request = ExecuteCodeRequest {
+            language: "javascript".to_string(),
+            code: "console.log('test')".to_string(),
+            stdin: Some("input data".to_string()),
+            args: vec!["--flag".to_string()],
+            env,
+            timeout_secs: Some(60),
+            memory_limit_mb: Some(512),
+            runtime: Some(RuntimeType::Native),
+            files,
+            network_enabled: Some(false),
+        };
+        
+        assert_eq!(request.language, "javascript");
+        assert_eq!(request.stdin, Some("input data".to_string()));
+        assert_eq!(request.args.len(), 1);
+        assert_eq!(request.env.get("MY_VAR"), Some(&"value".to_string()));
+        assert_eq!(request.files.get("data.txt"), Some(&"file content".to_string()));
+    }
+
+    #[test]
+    fn test_runtime_status_struct() {
+        let status = RuntimeStatus {
+            runtime_type: RuntimeType::Docker,
+            available: true,
+            version: Some("24.0.5".to_string()),
+        };
+        
+        assert!(matches!(status.runtime_type, RuntimeType::Docker));
+        assert!(status.available);
+        assert_eq!(status.version, Some("24.0.5".to_string()));
+    }
+
+    #[test]
+    fn test_runtime_status_unavailable() {
+        let status = RuntimeStatus {
+            runtime_type: RuntimeType::Podman,
+            available: false,
+            version: None,
+        };
+        
+        assert!(!status.available);
+        assert!(status.version.is_none());
+    }
+
+    #[test]
+    fn test_runtime_status_serialization() {
+        let status = RuntimeStatus {
+            runtime_type: RuntimeType::Native,
+            available: true,
+            version: Some("1.0.0".to_string()),
+        };
+        
+        let serialized = serde_json::to_string(&status).unwrap();
+        assert!(serialized.contains("\"available\":true"));
+    }
+
+    #[test]
+    fn test_sandbox_status_struct() {
+        let status = SandboxStatus {
+            available_runtimes: vec![
+                RuntimeStatus {
+                    runtime_type: RuntimeType::Docker,
+                    available: true,
+                    version: Some("24.0".to_string()),
+                },
+                RuntimeStatus {
+                    runtime_type: RuntimeType::Native,
+                    available: true,
+                    version: None,
+                },
+            ],
+            supported_languages: vec![],
+            config: SandboxConfig::default(),
+        };
+        
+        assert_eq!(status.available_runtimes.len(), 2);
+    }
+
+    #[test]
+    fn test_create_snippet_request_struct() {
+        let request = CreateSnippetRequest {
+            title: "My Snippet".to_string(),
+            description: Some("A test snippet".to_string()),
+            language: "rust".to_string(),
+            code: "fn main() {}".to_string(),
+            tags: vec!["test".to_string(), "example".to_string()],
+            category: Some("examples".to_string()),
+            is_template: false,
+        };
+        
+        assert_eq!(request.title, "My Snippet");
+        assert_eq!(request.language, "rust");
+        assert_eq!(request.tags.len(), 2);
+        assert!(!request.is_template);
+    }
+
+    #[test]
+    fn test_create_snippet_request_deserialization() {
+        let json = json!({
+            "title": "Test",
+            "description": null,
+            "language": "python",
+            "code": "pass",
+            "tags": [],
+            "category": null,
+            "is_template": true
+        });
+        
+        let request: CreateSnippetRequest = serde_json::from_value(json).unwrap();
+        assert_eq!(request.title, "Test");
+        assert!(request.description.is_none());
+        assert!(request.is_template);
+    }
+
+    #[test]
+    fn test_execute_code_request_defaults() {
+        let json = json!({
+            "language": "python",
+            "code": "pass"
+        });
+        
+        let request: ExecuteCodeRequest = serde_json::from_value(json).unwrap();
+        assert!(request.args.is_empty());
+        assert!(request.env.is_empty());
+        assert!(request.files.is_empty());
+        assert!(request.stdin.is_none());
+        assert!(request.timeout_secs.is_none());
+        assert!(request.memory_limit_mb.is_none());
+        assert!(request.runtime.is_none());
+        assert!(request.network_enabled.is_none());
+    }
+
+    #[test]
+    fn test_execute_code_request_with_runtime() {
+        let request = ExecuteCodeRequest {
+            language: "python".to_string(),
+            code: "print(1)".to_string(),
+            stdin: None,
+            args: vec![],
+            env: HashMap::new(),
+            timeout_secs: None,
+            memory_limit_mb: None,
+            runtime: Some(RuntimeType::Docker),
+            files: HashMap::new(),
+            network_enabled: None,
+        };
+        
+        assert!(matches!(request.runtime, Some(RuntimeType::Docker)));
+    }
+}

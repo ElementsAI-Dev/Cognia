@@ -276,5 +276,191 @@ describe('beautiful-html', () => {
         expect(html).toContain('2'); // Total messages
       });
     });
+
+    describe('with image parts', () => {
+      const messagesWithImages: UIMessage[] = [
+        {
+          id: 'msg-image',
+          role: 'assistant',
+          content: 'Here is the generated image:',
+          parts: [
+            { type: 'text', content: 'Here is the generated image:' },
+            {
+              type: 'image',
+              url: 'https://example.com/sunset.png',
+              alt: 'A beautiful sunset',
+              width: 1024,
+              height: 768,
+              isGenerated: true,
+              prompt: 'Generate a beautiful sunset over the ocean',
+              revisedPrompt: 'A stunning sunset with orange and purple hues',
+            },
+          ],
+          createdAt: new Date('2024-01-15T10:01:00Z'),
+        },
+      ];
+
+      it('should render image block with AI badge', () => {
+        const html = exportToBeautifulHTML({
+          ...mockExportData,
+          messages: messagesWithImages,
+        });
+        expect(html).toContain('media-block');
+        expect(html).toContain('image-block');
+        expect(html).toContain('ai-generated');
+        expect(html).toContain('AI Generated');
+      });
+
+      it('should include image src and alt', () => {
+        const html = exportToBeautifulHTML({
+          ...mockExportData,
+          messages: messagesWithImages,
+        });
+        expect(html).toContain('https://example.com/sunset.png');
+        expect(html).toContain('A beautiful sunset');
+      });
+
+      it('should include image prompt details', () => {
+        const html = exportToBeautifulHTML({
+          ...mockExportData,
+          messages: messagesWithImages,
+        });
+        expect(html).toContain('View prompt');
+        expect(html).toContain('Generate a beautiful sunset over the ocean');
+        expect(html).toContain('Revised');
+      });
+
+      it('should render base64 image correctly', () => {
+        const messagesWithBase64: UIMessage[] = [
+          {
+            id: 'msg-base64',
+            role: 'assistant',
+            content: 'Image:',
+            parts: [
+              {
+                type: 'image',
+                url: '',
+                base64: 'iVBORw0KGgoAAAANSUhEUg==',
+                mimeType: 'image/png',
+                isGenerated: true,
+              },
+            ],
+            createdAt: new Date('2024-01-15T10:01:00Z'),
+          },
+        ];
+
+        const html = exportToBeautifulHTML({
+          ...mockExportData,
+          messages: messagesWithBase64,
+        });
+        expect(html).toContain('data:image/png;base64,');
+      });
+    });
+
+    describe('with video parts', () => {
+      const messagesWithVideos: UIMessage[] = [
+        {
+          id: 'msg-video',
+          role: 'assistant',
+          content: 'Here is the generated video:',
+          parts: [
+            { type: 'text', content: 'Here is the generated video:' },
+            {
+              type: 'video',
+              url: 'https://example.com/video.mp4',
+              title: 'Dancing Cat',
+              thumbnailUrl: 'https://example.com/thumb.jpg',
+              durationSeconds: 30,
+              width: 1920,
+              height: 1080,
+              fps: 30,
+              mimeType: 'video/mp4',
+              isGenerated: true,
+              provider: 'google-veo',
+              model: 'veo-2',
+              prompt: 'A cat dancing to music',
+            },
+          ],
+          createdAt: new Date('2024-01-15T10:01:00Z'),
+        },
+      ];
+
+      it('should render video block with AI badge', () => {
+        const html = exportToBeautifulHTML({
+          ...mockExportData,
+          messages: messagesWithVideos,
+        });
+        expect(html).toContain('media-block');
+        expect(html).toContain('video-block');
+        expect(html).toContain('ai-generated');
+        expect(html).toContain('AI Generated Video');
+      });
+
+      it('should include video source and poster', () => {
+        const html = exportToBeautifulHTML({
+          ...mockExportData,
+          messages: messagesWithVideos,
+        });
+        expect(html).toContain('https://example.com/video.mp4');
+        expect(html).toContain('poster');
+        expect(html).toContain('https://example.com/thumb.jpg');
+      });
+
+      it('should include video metadata', () => {
+        const html = exportToBeautifulHTML({
+          ...mockExportData,
+          messages: messagesWithVideos,
+        });
+        expect(html).toContain('30s'); // Duration (less than 1 min shows as Xs)
+        expect(html).toContain('1920×1080'); // Dimensions
+        expect(html).toContain('30fps'); // FPS
+        expect(html).toContain('veo-2'); // Model
+      });
+
+      it('should include provider info in AI badge', () => {
+        const html = exportToBeautifulHTML({
+          ...mockExportData,
+          messages: messagesWithVideos,
+        });
+        expect(html).toContain('google-veo');
+      });
+
+      it('should render video without optional fields', () => {
+        const minimalVideo: UIMessage[] = [
+          {
+            id: 'msg-minimal',
+            role: 'assistant',
+            content: 'Video:',
+            parts: [
+              {
+                type: 'video',
+                url: 'https://example.com/simple.mp4',
+              },
+            ],
+            createdAt: new Date('2024-01-15T10:01:00Z'),
+          },
+        ];
+
+        const html = exportToBeautifulHTML({
+          ...mockExportData,
+          messages: minimalVideo,
+        });
+        expect(html).toContain('video-block');
+        expect(html).toContain('https://example.com/simple.mp4');
+        // Should not have ai-generated class on the figure element (CSS class in styles is fine)
+        expect(html).not.toContain('video-block ai-generated');
+        expect(html).not.toContain('AI Generated Video');
+      });
+    });
+
+    describe('media block CSS styles', () => {
+      it('should include media block styles', () => {
+        const html = exportToBeautifulHTML(mockExportData);
+        expect(html).toContain('.media-block');
+        expect(html).toContain('.ai-badge');
+        expect(html).toContain('.video-container');
+        expect(html).toContain('.media-caption');
+      });
+    });
   });
 });

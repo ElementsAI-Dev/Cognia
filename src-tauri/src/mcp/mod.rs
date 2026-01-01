@@ -7,6 +7,7 @@
 //! - Configuration persistence
 
 #![allow(dead_code)]
+#![allow(unused_imports)]
 
 pub mod client;
 pub mod config;
@@ -16,4 +17,5 @@ pub mod protocol;
 pub mod transport;
 pub mod types;
 
+pub use error::McpErrorInfo;
 pub use manager::McpManager;

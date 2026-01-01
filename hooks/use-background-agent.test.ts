@@ -31,12 +31,46 @@ jest.mock('@/stores/session-store', () => ({
   }),
 }));
 
+jest.mock('@/stores/skill-store', () => ({
+  useSkillStore: jest.fn((selector) => {
+    const state = {
+      skills: [],
+      activeSkillIds: [],
+    };
+    return selector(state);
+  }),
+}));
+
+jest.mock('@/stores/mcp-store', () => ({
+  useMcpStore: jest.fn((selector) => {
+    const state = {
+      servers: [],
+      callTool: jest.fn(),
+    };
+    return selector(state);
+  }),
+}));
+
+jest.mock('@/stores/vector-store', () => ({
+  useVectorStore: jest.fn((selector) => {
+    const state = {
+      settings: {},
+    };
+    return selector(state);
+  }),
+}));
+
 // Mock the background agent manager
 jest.mock('@/lib/ai/agent/background-agent-manager', () => ({
   BackgroundAgentManager: jest.fn(),
   createBackgroundAgentManager: jest.fn(() => ({
     createAgent: jest.fn(() => ({ id: 'managed-agent-1' })),
     startAgent: jest.fn().mockResolvedValue(undefined),
+    setProviders: jest.fn(),
+    pauseAgent: jest.fn(),
+    resumeAgent: jest.fn(),
+    cancelAgent: jest.fn(),
+    cancelAll: jest.fn(),
   })),
 }));
 

@@ -70,3 +70,15 @@ export const readText = notInTauriError;
 export const writeText = notInTauriError;
 export const readImage = notInTauriError;
 export const writeImage = notInTauriError;
+
+// @tauri-apps/plugin-geolocation stubs
+export const getCurrentPosition = notInTauriError;
+export const watchPosition = notInTauriError;
+export const clearWatch = notInTauriError;
+export const checkPermissions = notInTauriError;
+export const requestPermissions = notInTauriError;
+
+// @tauri-apps/plugin-autostart stubs
+export const enable = notInTauriError;
+export const disable = notInTauriError;
+export const isEnabled = notInTauriError;

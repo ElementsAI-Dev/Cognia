@@ -1,0 +1,277 @@
+/**
+ * Screen Recording Native API
+ *
+ * Provides TypeScript bindings for the Tauri screen recording commands.
+ */
+
+import { invoke } from "@tauri-apps/api/core";
+
+// ============== Types ==============
+
+export type RecordingStatus = 
+  | "Idle" 
+  | "Countdown" 
+  | "Recording" 
+  | "Paused" 
+  | "Processing" 
+  | { Error: string };
+
+export interface RecordingConfig {
+  save_directory?: string;
+  format: string;
+  codec: string;
+  frame_rate: number;
+  quality: number;
+  bitrate: number;
+  capture_system_audio: boolean;
+  capture_microphone: boolean;
+  show_cursor: boolean;
+  highlight_clicks: boolean;
+  countdown_seconds: number;
+  show_indicator: boolean;
+  max_duration: number;
+  pause_on_minimize: boolean;
+}
+
+export interface RecordingMetadata {
+  id: string;
+  start_time: number;
+  end_time?: number;
+  duration_ms: number;
+  width: number;
+  height: number;
+  mode: string;
+  monitor_index?: number;
+  window_title?: string;
+  region?: RecordingRegion;
+  file_path?: string;
+  file_size: number;
+  has_audio: boolean;
+  thumbnail?: string;
+}
+
+export interface RecordingRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface RecordingHistoryEntry {
+  id: string;
+  timestamp: number;
+  duration_ms: number;
+  width: number;
+  height: number;
+  mode: string;
+  file_path?: string;
+  file_size: number;
+  thumbnail?: string;
+  is_pinned: boolean;
+  tags: string[];
+}
+
+export interface MonitorInfo {
+  index: number;
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  is_primary: boolean;
+  scale_factor: number;
+}
+
+export interface AudioDevices {
+  system_audio_available: boolean;
+  microphones: AudioDevice[];
+}
+
+export interface AudioDevice {
+  id: string;
+  name: string;
+  is_default: boolean;
+}
+
+// ============== Recording Control Functions ==============
+
+/**
+ * Get current recording status
+ */
+export async function getRecordingStatus(): Promise<RecordingStatus> {
+  return invoke<RecordingStatus>("recording_get_status");
+}
+
+/**
+ * Get current recording duration in milliseconds
+ */
+export async function getRecordingDuration(): Promise<number> {
+  return invoke<number>("recording_get_duration");
+}
+
+/**
+ * Start fullscreen recording
+ */
+export async function startFullscreenRecording(monitorIndex?: number): Promise<string> {
+  return invoke<string>("recording_start_fullscreen", { monitorIndex });
+}
+
+/**
+ * Start window recording
+ */
+export async function startWindowRecording(windowTitle?: string): Promise<string> {
+  return invoke<string>("recording_start_window", { windowTitle });
+}
+
+/**
+ * Start region recording
+ */
+export async function startRegionRecording(region: RecordingRegion): Promise<string> {
+  return invoke<string>("recording_start_region", {
+    x: region.x,
+    y: region.y,
+    width: region.width,
+    height: region.height,
+  });
+}
+
+/**
+ * Pause recording
+ */
+export async function pauseRecording(): Promise<void> {
+  return invoke<void>("recording_pause");
+}
+
+/**
+ * Resume recording
+ */
+export async function resumeRecording(): Promise<void> {
+  return invoke<void>("recording_resume");
+}
+
+/**
+ * Stop recording and save
+ */
+export async function stopRecording(): Promise<RecordingMetadata> {
+  return invoke<RecordingMetadata>("recording_stop");
+}
+
+/**
+ * Cancel recording without saving
+ */
+export async function cancelRecording(): Promise<void> {
+  return invoke<void>("recording_cancel");
+}
+
+// ============== Configuration Functions ==============
+
+/**
+ * Get recording configuration
+ */
+export async function getRecordingConfig(): Promise<RecordingConfig> {
+  return invoke<RecordingConfig>("recording_get_config");
+}
+
+/**
+ * Update recording configuration
+ */
+export async function updateRecordingConfig(config: RecordingConfig): Promise<void> {
+  return invoke<void>("recording_update_config", { config });
+}
+
+// ============== System Info Functions ==============
+
+/**
+ * Get available monitors
+ */
+export async function getRecordingMonitors(): Promise<MonitorInfo[]> {
+  return invoke<MonitorInfo[]>("recording_get_monitors");
+}
+
+/**
+ * Check if FFmpeg is available
+ */
+export async function checkFFmpeg(): Promise<boolean> {
+  return invoke<boolean>("recording_check_ffmpeg");
+}
+
+/**
+ * Get available audio devices
+ */
+export async function getAudioDevices(): Promise<AudioDevices> {
+  return invoke<AudioDevices>("recording_get_audio_devices");
+}
+
+// ============== History Functions ==============
+
+/**
+ * Get recording history
+ */
+export async function getRecordingHistory(count?: number): Promise<RecordingHistoryEntry[]> {
+  return invoke<RecordingHistoryEntry[]>("recording_get_history", { count });
+}
+
+/**
+ * Delete recording from history
+ */
+export async function deleteRecording(id: string): Promise<void> {
+  return invoke<void>("recording_delete", { id });
+}
+
+/**
+ * Clear recording history
+ */
+export async function clearRecordingHistory(): Promise<void> {
+  return invoke<void>("recording_clear_history");
+}
+
+// ============== Utility Functions ==============
+
+/**
+ * Format duration in milliseconds to human-readable string
+ */
+export function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+
+  const s = seconds % 60;
+  const m = minutes % 60;
+
+  if (hours > 0) {
+    return `${hours}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+/**
+ * Format file size to human-readable string
+ */
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}
+
+/**
+ * Get default recording configuration
+ */
+export function getDefaultRecordingConfig(): RecordingConfig {
+  return {
+    format: "mp4",
+    codec: "h264",
+    frame_rate: 30,
+    quality: 80,
+    bitrate: 0,
+    capture_system_audio: true,
+    capture_microphone: false,
+    show_cursor: true,
+    highlight_clicks: false,
+    countdown_seconds: 3,
+    show_indicator: true,
+    max_duration: 0,
+    pause_on_minimize: false,
+  };
+}

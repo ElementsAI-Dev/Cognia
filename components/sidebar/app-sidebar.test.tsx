@@ -18,6 +18,7 @@ jest.mock('@/stores', () => ({
       ],
       activeSessionId: 'session-1',
       createSession: mockCreateSession,
+      getActiveSession: () => ({ id: 'session-1', title: 'Test Session 1' }),
     };
     return selector(state);
   },
@@ -25,6 +26,27 @@ jest.mock('@/stores', () => ({
     const state = {
       theme: 'light',
       setTheme: mockSetTheme,
+    };
+    return selector(state);
+  },
+  useArtifactStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      artifacts: [],
+      setActiveArtifact: jest.fn(),
+      openPanel: jest.fn(),
+    };
+    return selector(state);
+  },
+  useChatStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      messages: [],
+    };
+    return selector(state);
+  },
+  useProjectStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      projects: [],
+      activeProjectId: null,
     };
     return selector(state);
   },

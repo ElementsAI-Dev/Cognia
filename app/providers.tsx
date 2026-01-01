@@ -36,6 +36,7 @@ import {
   SkillProvider,
   NativeProvider,
 } from '@/components/providers';
+import { LocaleInitializer } from '@/components/providers/locale-initializer';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -476,6 +477,7 @@ export function Providers({ children }: ProvidersProps) {
               healthCheckInterval={5 * 60 * 1000} // 5 minutes
             >
               <I18nProvider>
+                <LocaleInitializer />
                 <ThemeProvider>
                   <TooltipProvider delayDuration={0}>
                     <SkillProvider loadBuiltinSkills={true}>

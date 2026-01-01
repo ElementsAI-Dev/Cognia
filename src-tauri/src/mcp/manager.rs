@@ -68,6 +68,78 @@ impl McpManager {
         }
     }
 
+    // ==================== Helper Methods ====================
+
+    /// Create a client based on connection type
+    async fn create_client(
+        config: &McpServerConfig,
+        notification_tx: mpsc::Sender<JsonRpcNotification>,
+    ) -> McpResult<McpClient> {
+        match config.connection_type {
+            McpConnectionType::Stdio => {
+                McpClient::connect_stdio(&config.command, &config.args, &config.env, notification_tx)
+                    .await
+            }
+            McpConnectionType::Sse => {
+                let url = config.url.as_ref().ok_or(McpError::MissingUrl)?;
+                McpClient::connect_sse(url, notification_tx).await
+            }
+        }
+    }
+
+    /// Update server state on connection error
+    async fn handle_connection_error(
+        servers: &Arc<RwLock<HashMap<String, ServerInstance>>>,
+        server_id: &str,
+        error: &McpError,
+    ) {
+        let mut servers_lock = servers.write().await;
+        if let Some(instance) = servers_lock.get_mut(server_id) {
+            instance.state.status = McpServerStatus::Error(error.to_string());
+            instance.state.error_message = Some(error.to_string());
+            instance.state.reconnect_attempts += 1;
+        }
+    }
+
+    /// Update server state on successful connection
+    #[allow(clippy::too_many_arguments)]
+    async fn handle_connection_success(
+        servers: &Arc<RwLock<HashMap<String, ServerInstance>>>,
+        server_id: &str,
+        client: McpClient,
+        init_result: InitializeResult,
+        tools: Vec<McpTool>,
+        resources: Vec<McpResource>,
+        prompts: Vec<McpPrompt>,
+        stop_tx: mpsc::Sender<()>,
+    ) {
+        let mut servers_lock = servers.write().await;
+        if let Some(instance) = servers_lock.get_mut(server_id) {
+            instance.state.status = McpServerStatus::Connected;
+            instance.state.capabilities = Some(init_result.capabilities);
+            instance.state.tools = tools;
+            instance.state.resources = resources;
+            instance.state.prompts = prompts;
+            instance.state.error_message = None;
+            instance.state.connected_at = Some(chrono::Utc::now().timestamp());
+            instance.state.reconnect_attempts = 0;
+            instance.client = Some(client);
+            instance.stop_tx = Some(stop_tx);
+        }
+    }
+
+    /// Emit server state update to frontend
+    async fn emit_server_state(
+        app_handle: &AppHandle,
+        servers: &Arc<RwLock<HashMap<String, ServerInstance>>>,
+        server_id: &str,
+    ) {
+        let servers_lock = servers.read().await;
+        if let Some(instance) = servers_lock.get(server_id) {
+            let _ = app_handle.emit(events::SERVER_UPDATE, &instance.state);
+        }
+    }
+
     /// Initialize the manager - load config and start auto-start servers
     pub async fn initialize(&self) -> McpResult<()> {
         // Load configuration
@@ -248,37 +320,13 @@ impl McpManager {
         // Create notification channel
         let (notification_tx, notification_rx) = mpsc::channel(100);
 
-        // Create client based on connection type
-        let client_result = match config.connection_type {
-            McpConnectionType::Stdio => {
-                McpClient::connect_stdio(&config.command, &config.args, &config.env, notification_tx)
-                    .await
-            }
-            McpConnectionType::Sse => {
-                let url = config
-                    .url
-                    .as_ref()
-                    .ok_or(McpError::MissingUrl)?;
-                McpClient::connect_sse(url, notification_tx).await
-            }
-        };
-
-        let client = match client_result {
+        // Create client using helper method
+        let client = match Self::create_client(&config, notification_tx).await {
             Ok(c) => c,
             Err(e) => {
-                // Update status to error
-                let mut servers = self.servers.write().await;
-                if let Some(instance) = servers.get_mut(id) {
-                    instance.state.status = McpServerStatus::Error(e.to_string());
-                    instance.state.error_message = Some(e.to_string());
-                    instance.state.reconnect_attempts += 1;
-                }
-                drop(servers);
+                Self::handle_connection_error(&self.servers, id, &e).await;
                 self.emit_server_update(id).await;
-                
-                // Schedule reconnection if enabled
                 self.schedule_reconnection(id.to_string()).await;
-                
                 return Err(e);
             }
         };
@@ -291,18 +339,9 @@ impl McpManager {
             Ok(r) => r,
             Err(e) => {
                 client.close().await.ok();
-                let mut servers = self.servers.write().await;
-                if let Some(instance) = servers.get_mut(id) {
-                    instance.state.status = McpServerStatus::Error(e.to_string());
-                    instance.state.error_message = Some(e.to_string());
-                    instance.state.reconnect_attempts += 1;
-                }
-                drop(servers);
+                Self::handle_connection_error(&self.servers, id, &e).await;
                 self.emit_server_update(id).await;
-                
-                // Schedule reconnection if enabled
                 self.schedule_reconnection(id.to_string()).await;
-                
                 return Err(e);
             }
         };
@@ -315,22 +354,18 @@ impl McpManager {
         // Create stop channel for background tasks
         let (stop_tx, stop_rx) = mpsc::channel(1);
 
-        // Update state
-        {
-            let mut servers = self.servers.write().await;
-            if let Some(instance) = servers.get_mut(id) {
-                instance.state.status = McpServerStatus::Connected;
-                instance.state.capabilities = Some(init_result.capabilities);
-                instance.state.tools = tools;
-                instance.state.resources = resources;
-                instance.state.prompts = prompts;
-                instance.state.error_message = None;
-                instance.state.connected_at = Some(chrono::Utc::now().timestamp());
-                instance.state.reconnect_attempts = 0;
-                instance.client = Some(client);
-                instance.stop_tx = Some(stop_tx);
-            }
-        }
+        // Update state using helper method
+        Self::handle_connection_success(
+            &self.servers,
+            id,
+            client,
+            init_result,
+            tools,
+            resources,
+            prompts,
+            stop_tx,
+        )
+        .await;
 
         self.emit_server_update(id).await;
 
@@ -766,134 +801,87 @@ impl McpManager {
 
             log::info!("Attempting reconnection for server: {}", server_id);
 
-            // Create a temporary manager-like struct to perform connection
-            // This is a simplified reconnection - in production you might want
-            // to refactor to avoid code duplication
+            // Create notification channel and client
             let (notification_tx, notification_rx) = mpsc::channel(100);
 
-            let client_result = match config.connection_type {
-                McpConnectionType::Stdio => {
-                    McpClient::connect_stdio(&config.command, &config.args, &config.env, notification_tx)
-                        .await
-                }
-                McpConnectionType::Sse => {
-                    let url = match config.url.as_ref() {
-                        Some(u) => u,
-                        None => return,
-                    };
-                    McpClient::connect_sse(url, notification_tx).await
+            let client = match Self::create_client(&config, notification_tx).await {
+                Ok(c) => c,
+                Err(e) => {
+                    log::error!("Reconnection failed for {}: {}", server_id, e);
+                    Self::handle_connection_error(&servers, &server_id, &e).await;
+                    Self::emit_server_state(&app_handle, &servers, &server_id).await;
+                    return;
                 }
             };
 
-            match client_result {
-                Ok(client) => {
-                    client.start_receive_loop().await;
-                    
-                    match client.initialize(ClientInfo::default()).await {
-                        Ok(init_result) => {
-                            let tools = client.list_tools().await.unwrap_or_default();
-                            let resources = client.list_resources().await.unwrap_or_default();
-                            let prompts = client.list_prompts().await.unwrap_or_default();
+            client.start_receive_loop().await;
 
-                            let (stop_tx, stop_rx) = mpsc::channel(1);
+            let init_result = match client.initialize(ClientInfo::default()).await {
+                Ok(r) => r,
+                Err(e) => {
+                    client.close().await.ok();
+                    log::error!("Reconnection initialization failed for {}: {}", server_id, e);
+                    Self::handle_connection_error(&servers, &server_id, &e).await;
+                    Self::emit_server_state(&app_handle, &servers, &server_id).await;
+                    return;
+                }
+            };
 
-                            {
-                                let mut servers_lock = servers.write().await;
-                                if let Some(instance) = servers_lock.get_mut(&server_id) {
-                                    instance.state.status = McpServerStatus::Connected;
-                                    instance.state.capabilities = Some(init_result.capabilities);
-                                    instance.state.tools = tools;
-                                    instance.state.resources = resources;
-                                    instance.state.prompts = prompts;
-                                    instance.state.error_message = None;
-                                    instance.state.connected_at = Some(chrono::Utc::now().timestamp());
-                                    instance.state.reconnect_attempts = 0;
-                                    instance.client = Some(client);
-                                    instance.stop_tx = Some(stop_tx);
+            // Fetch capabilities
+            let tools = client.list_tools().await.unwrap_or_default();
+            let resources = client.list_resources().await.unwrap_or_default();
+            let prompts = client.list_prompts().await.unwrap_or_default();
+
+            let (stop_tx, stop_rx) = mpsc::channel(1);
+
+            // Update state
+            Self::handle_connection_success(
+                &servers,
+                &server_id,
+                client,
+                init_result,
+                tools,
+                resources,
+                prompts,
+                stop_tx,
+            )
+            .await;
+
+            Self::emit_server_state(&app_handle, &servers, &server_id).await;
+            log::info!("Successfully reconnected to server: {}", server_id);
+
+            // Start notification handler for reconnected server
+            let servers_clone = servers.clone();
+            let app_handle_clone = app_handle.clone();
+            let server_id_for_handler = server_id.clone();
+
+            let notif_task = tokio::spawn(async move {
+                let mut rx = notification_rx;
+                let mut stop = stop_rx;
+                loop {
+                    tokio::select! {
+                        _ = stop.recv() => break,
+                        notif = rx.recv() => {
+                            match notif {
+                                Some(n) => {
+                                    Self::handle_notification(
+                                        &app_handle_clone,
+                                        &servers_clone,
+                                        &server_id_for_handler,
+                                        n
+                                    ).await;
                                 }
+                                None => break,
                             }
-
-                            let _ = app_handle.emit(events::SERVER_UPDATE, &{
-                                let servers_lock = servers.read().await;
-                                servers_lock.get(&server_id).map(|i| i.state.clone())
-                            });
-
-                            log::info!("Successfully reconnected to server: {}", server_id);
-
-                            // Start notification handler for reconnected server
-                            let servers_clone = servers.clone();
-                            let app_handle_clone = app_handle.clone();
-                            let server_id_for_handler = server_id.clone();
-                            
-                            let notif_task = tokio::spawn(async move {
-                                let mut rx = notification_rx;
-                                let mut stop = stop_rx;
-                                loop {
-                                    tokio::select! {
-                                        _ = stop.recv() => break,
-                                        notif = rx.recv() => {
-                                            match notif {
-                                                Some(n) => {
-                                                    Self::handle_notification(
-                                                        &app_handle_clone,
-                                                        &servers_clone,
-                                                        &server_id_for_handler,
-                                                        n
-                                                    ).await;
-                                                }
-                                                None => break,
-                                            }
-                                        }
-                                    }
-                                }
-                            });
-
-                            {
-                                let mut servers_lock = servers.write().await;
-                                if let Some(instance) = servers_lock.get_mut(&server_id) {
-                                    instance.notification_task = Some(notif_task);
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            client.close().await.ok();
-                            log::error!("Reconnection failed for {}: {}", server_id, e);
-                            
-                            {
-                                let mut servers_lock = servers.write().await;
-                                if let Some(instance) = servers_lock.get_mut(&server_id) {
-                                    instance.state.status = McpServerStatus::Error(e.to_string());
-                                    instance.state.error_message = Some(e.to_string());
-                                    instance.state.reconnect_attempts += 1;
-                                }
-                            }
-
-                            let _ = app_handle.emit(events::SERVER_UPDATE, &{
-                                let servers_lock = servers.read().await;
-                                servers_lock.get(&server_id).map(|i| i.state.clone())
-                            });
-
-                            // Schedule another reconnection attempt
-                            // (This would need the full manager context, simplified here)
                         }
                     }
                 }
-                Err(e) => {
-                    log::error!("Reconnection failed for {}: {}", server_id, e);
-                    
-                    {
-                        let mut servers_lock = servers.write().await;
-                        if let Some(instance) = servers_lock.get_mut(&server_id) {
-                            instance.state.status = McpServerStatus::Error(e.to_string());
-                            instance.state.error_message = Some(e.to_string());
-                            instance.state.reconnect_attempts += 1;
-                        }
-                    }
+            });
 
-                    let _ = app_handle.emit(events::SERVER_UPDATE, &{
-                        let servers_lock = servers.read().await;
-                        servers_lock.get(&server_id).map(|i| i.state.clone())
-                    });
+            {
+                let mut servers_lock = servers.write().await;
+                if let Some(instance) = servers_lock.get_mut(&server_id) {
+                    instance.notification_task = Some(notif_task);
                 }
             }
         });
@@ -919,6 +907,26 @@ impl McpManager {
     async fn emit_servers_changed(&self) {
         let servers = self.get_all_servers().await;
         let _ = self.app_handle.emit(events::SERVERS_CHANGED, &servers);
+    }
+
+    /// Shutdown the MCP manager - disconnect all servers and cleanup resources
+    pub async fn shutdown(&self) {
+        log::info!("Shutting down MCP manager...");
+        
+        // Get all server IDs
+        let server_ids: Vec<String> = {
+            let servers = self.servers.read().await;
+            servers.keys().cloned().collect()
+        };
+
+        // Disconnect all servers
+        for id in server_ids {
+            if let Err(e) = self.disconnect_server(&id).await {
+                log::warn!("Failed to disconnect server {} during shutdown: {}", id, e);
+            }
+        }
+
+        log::info!("MCP manager shutdown completed");
     }
 }
 
@@ -1008,7 +1016,6 @@ mod tests {
         );
         assert_eq!(delay_2, 4500);
     }
-}
 
     // ============================================================================
     // Error Handling Edge Cases
@@ -1080,3 +1087,134 @@ mod tests {
         assert!(events::SERVER_HEALTH.starts_with("mcp:"));
         assert!(events::LOG_MESSAGE.starts_with("mcp:"));
     }
+
+    // ============================================================================
+    // ReconnectConfig Tests
+    // ============================================================================
+
+    #[test]
+    fn test_reconnect_config_default() {
+        let config = ReconnectConfig::default();
+        assert!(config.enabled);
+        assert!(config.max_attempts > 0);
+        assert!(config.initial_delay_ms > 0);
+        assert!(config.max_delay_ms >= config.initial_delay_ms);
+        assert!(config.backoff_multiplier >= 1.0);
+    }
+
+    #[test]
+    fn test_reconnect_config_disabled() {
+        let config = ReconnectConfig {
+            enabled: false,
+            max_attempts: 5,
+            initial_delay_ms: 1000,
+            max_delay_ms: 30000,
+            backoff_multiplier: 2.0,
+        };
+        assert!(!config.enabled);
+    }
+
+    #[test]
+    fn test_reconnect_config_serialization() {
+        let config = ReconnectConfig {
+            enabled: true,
+            max_attempts: 3,
+            initial_delay_ms: 500,
+            max_delay_ms: 10000,
+            backoff_multiplier: 1.5,
+        };
+
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["enabled"], true);
+        assert_eq!(json["maxAttempts"], 3);
+        assert_eq!(json["initialDelayMs"], 500);
+        assert_eq!(json["maxDelayMs"], 10000);
+        assert_eq!(json["backoffMultiplier"], 1.5);
+    }
+
+    #[test]
+    fn test_reconnect_config_deserialization() {
+        let json = serde_json::json!({
+            "enabled": false,
+            "maxAttempts": 10,
+            "initialDelayMs": 2000,
+            "maxDelayMs": 60000,
+            "backoffMultiplier": 2.5
+        });
+
+        let config: ReconnectConfig = serde_json::from_value(json).unwrap();
+        assert!(!config.enabled);
+        assert_eq!(config.max_attempts, 10);
+        assert_eq!(config.initial_delay_ms, 2000);
+        assert_eq!(config.max_delay_ms, 60000);
+        assert_eq!(config.backoff_multiplier, 2.5);
+    }
+
+    // ============================================================================
+    // Event Constants Tests
+    // ============================================================================
+
+    #[test]
+    fn test_all_event_constants_are_unique() {
+        use std::collections::HashSet;
+        let mut event_names = HashSet::new();
+        
+        assert!(event_names.insert(events::SERVER_UPDATE));
+        assert!(event_names.insert(events::SERVERS_CHANGED));
+        assert!(event_names.insert(events::NOTIFICATION));
+        assert!(event_names.insert(events::TOOL_CALL_PROGRESS));
+        assert!(event_names.insert(events::SERVER_HEALTH));
+        assert!(event_names.insert(events::LOG_MESSAGE));
+    }
+
+    #[test]
+    fn test_event_constants_values() {
+        assert_eq!(events::SERVER_UPDATE, "mcp:server-update");
+        assert_eq!(events::SERVERS_CHANGED, "mcp:servers-changed");
+        assert_eq!(events::NOTIFICATION, "mcp:notification");
+        assert_eq!(events::TOOL_CALL_PROGRESS, "mcp:tool-call-progress");
+        assert_eq!(events::SERVER_HEALTH, "mcp:server-health");
+        assert_eq!(events::LOG_MESSAGE, "mcp:log-message");
+    }
+
+    // ============================================================================
+    // Delay Calculation Edge Cases
+    // ============================================================================
+
+    #[test]
+    fn test_delay_calculation_caps_at_max() {
+        let config = ReconnectConfig {
+            enabled: true,
+            max_attempts: 100,
+            initial_delay_ms: 1000,
+            max_delay_ms: 5000,
+            backoff_multiplier: 10.0,
+        };
+
+        // With high multiplier, delay should cap at max
+        let delay = std::cmp::min(
+            (config.initial_delay_ms as f64 * config.backoff_multiplier.powi(5)) as u64,
+            config.max_delay_ms,
+        );
+        assert_eq!(delay, 5000); // Capped at max
+    }
+
+    #[test]
+    fn test_delay_calculation_with_fractional_multiplier() {
+        let config = ReconnectConfig {
+            enabled: true,
+            max_attempts: 10,
+            initial_delay_ms: 1000,
+            max_delay_ms: 30000,
+            backoff_multiplier: 1.5,
+        };
+
+        let delay_0 = (config.initial_delay_ms as f64 * config.backoff_multiplier.powi(0)) as u64;
+        let delay_1 = (config.initial_delay_ms as f64 * config.backoff_multiplier.powi(1)) as u64;
+        let delay_2 = (config.initial_delay_ms as f64 * config.backoff_multiplier.powi(2)) as u64;
+
+        assert_eq!(delay_0, 1000);
+        assert_eq!(delay_1, 1500);
+        assert_eq!(delay_2, 2250);
+    }
+}

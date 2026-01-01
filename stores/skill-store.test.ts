@@ -12,11 +12,8 @@ jest.mock('nanoid', () => ({
 
 describe('useSkillStore', () => {
   beforeEach(() => {
-    // Reset store state before each test
-    const { result } = renderHook(() => useSkillStore());
-    act(() => {
-      result.current.reset();
-    });
+    // Clear mocks before each test
+    jest.clearAllMocks();
   });
 
   describe('createSkill', () => {

@@ -80,7 +80,52 @@ export interface UserProviderSettings {
   quotaUsed?: number;
   quotaLimit?: number;
   rateLimitRemaining?: number;
+  // OpenRouter-specific settings
+  openRouterSettings?: OpenRouterExtendedSettings;
 }
+
+// OpenRouter-specific extended settings
+export interface OpenRouterExtendedSettings {
+  // Provisioning API key for key management
+  provisioningApiKey?: string;
+  // BYOK (Bring Your Own Key) configurations
+  byokKeys?: BYOKKeyEntry[];
+  // Provider ordering for fallback control
+  providerOrdering?: {
+    enabled: boolean;
+    allowFallbacks: boolean;
+    order: string[];
+  };
+  // Cached credits info
+  credits?: number;
+  creditsUsed?: number;
+  creditsRemaining?: number;
+  creditsLastFetched?: number;
+  // Site attribution
+  siteUrl?: string;
+  siteName?: string;
+}
+
+// BYOK key entry for OpenRouter
+export interface BYOKKeyEntry {
+  id: string;
+  provider: BYOKProvider;
+  config: string; // JSON stringified config for complex providers
+  alwaysUse: boolean;
+  enabled: boolean;
+  name?: string;
+}
+
+export type BYOKProvider = 
+  | 'openai'
+  | 'anthropic'
+  | 'google'
+  | 'azure'
+  | 'bedrock'
+  | 'vertex'
+  | 'mistral'
+  | 'cohere'
+  | 'groq';
 
 export interface CustomProviderSettings {
   id: string;

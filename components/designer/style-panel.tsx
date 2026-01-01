@@ -5,7 +5,7 @@
  * Similar to V0's style editing panel
  */
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Layout,
@@ -16,6 +16,10 @@ import {
   Square,
   Sparkles,
   Crosshair,
+  Wand2,
+  Plus,
+  X,
+  Check,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,6 +42,55 @@ import {
 import { cn } from '@/lib/utils';
 import { useDesignerStore } from '@/stores/designer-store';
 import { STYLE_CATEGORIES, type StyleProperty } from '@/types/designer';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+
+// Common Tailwind class suggestions by category
+const TAILWIND_SUGGESTIONS: Record<string, string[]> = {
+  layout: [
+    'flex', 'grid', 'block', 'inline-block', 'hidden',
+    'flex-row', 'flex-col', 'items-center', 'justify-center', 'justify-between',
+    'gap-2', 'gap-4', 'gap-6', 'space-x-2', 'space-y-2',
+  ],
+  spacing: [
+    'p-2', 'p-4', 'p-6', 'p-8', 'px-4', 'py-2',
+    'm-2', 'm-4', 'm-auto', 'mx-auto', 'my-4',
+  ],
+  size: [
+    'w-full', 'w-1/2', 'w-auto', 'max-w-md', 'max-w-lg', 'max-w-xl',
+    'h-full', 'h-screen', 'h-auto', 'min-h-screen',
+  ],
+  typography: [
+    'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl',
+    'font-normal', 'font-medium', 'font-semibold', 'font-bold',
+    'text-left', 'text-center', 'text-right',
+  ],
+  colors: [
+    'text-gray-900', 'text-gray-600', 'text-white', 'text-primary',
+    'bg-white', 'bg-gray-50', 'bg-gray-100', 'bg-primary',
+  ],
+  borders: [
+    'border', 'border-2', 'border-none',
+    'rounded', 'rounded-md', 'rounded-lg', 'rounded-xl', 'rounded-full',
+    'border-gray-200', 'border-gray-300',
+  ],
+  effects: [
+    'shadow', 'shadow-md', 'shadow-lg', 'shadow-xl',
+    'opacity-50', 'opacity-75',
+    'hover:bg-gray-50', 'hover:opacity-80',
+    'transition', 'transition-all', 'duration-200',
+  ],
+  responsive: [
+    'sm:flex', 'md:flex', 'lg:flex',
+    'sm:hidden', 'md:block', 'lg:grid',
+    'sm:text-sm', 'md:text-base', 'lg:text-lg',
+  ],
+};
 
 const categoryIcons: Record<string, React.ReactNode> = {
   layout: <Layout className="h-4 w-4" />,
@@ -59,19 +112,62 @@ export function StylePanel({ className }: StylePanelProps) {
   const selectedElementId = useDesignerStore((state) => state.selectedElementId);
   const elementMap = useDesignerStore((state) => state.elementMap);
   const updateElementStyle = useDesignerStore((state) => state.updateElementStyle);
+  const updateElement = useDesignerStore((state) => state.updateElement);
   const syncCodeFromElements = useDesignerStore((state) => state.syncCodeFromElements);
 
   const selectedElement = selectedElementId ? elementMap[selectedElementId] : null;
+
+  // State for class editing
+  const [isEditingClasses, setIsEditingClasses] = useState(false);
+  const [classInputValue, setClassInputValue] = useState('');
+  const [activeSuggestionCategory, setActiveSuggestionCategory] = useState<string | null>(null);
+
+  // Update class input when element changes
+  const currentClasses = selectedElement?.className || '';
 
   const handleStyleChange = useCallback(
     (key: string, value: string) => {
       if (!selectedElementId) return;
       updateElementStyle(selectedElementId, { [key]: value });
-      // Sync the changes back to code
       syncCodeFromElements();
     },
     [selectedElementId, updateElementStyle, syncCodeFromElements]
   );
+
+  const handleClassNameChange = useCallback(
+    (newClassName: string) => {
+      if (!selectedElementId) return;
+      updateElement(selectedElementId, { className: newClassName });
+      syncCodeFromElements();
+    },
+    [selectedElementId, updateElement, syncCodeFromElements]
+  );
+
+  const handleAddClass = useCallback(
+    (cls: string) => {
+      if (!selectedElementId) return;
+      const classes = currentClasses.split(' ').filter(Boolean);
+      if (!classes.includes(cls)) {
+        classes.push(cls);
+        handleClassNameChange(classes.join(' '));
+      }
+    },
+    [selectedElementId, currentClasses, handleClassNameChange]
+  );
+
+  const handleRemoveClass = useCallback(
+    (cls: string) => {
+      if (!selectedElementId) return;
+      const classes = currentClasses.split(' ').filter((c) => c !== cls);
+      handleClassNameChange(classes.join(' '));
+    },
+    [selectedElementId, currentClasses, handleClassNameChange]
+  );
+
+  const handleSaveClasses = useCallback(() => {
+    handleClassNameChange(classInputValue);
+    setIsEditingClasses(false);
+  }, [classInputValue, handleClassNameChange]);
 
   if (!selectedElement) {
     return (
@@ -109,6 +205,125 @@ export function StylePanel({ className }: StylePanelProps) {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Tailwind Classes Editor */}
+      <div className="border-b px-4 py-3">
+        <div className="flex items-center justify-between mb-2">
+          <Label className="text-xs font-medium">{t('tailwindClasses')}</Label>
+          <div className="flex gap-1">
+            {isEditingClasses ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={handleSaveClasses}
+                >
+                  <Check className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => setIsEditingClasses(false)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => {
+                  setClassInputValue(currentClasses);
+                  setIsEditingClasses(true);
+                }}
+              >
+                <Wand2 className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {isEditingClasses ? (
+          <Textarea
+            value={classInputValue}
+            onChange={(e) => setClassInputValue(e.target.value)}
+            className="text-xs font-mono h-20 resize-none"
+            placeholder="flex items-center gap-2..."
+          />
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {currentClasses.split(' ').filter(Boolean).map((cls) => (
+              <Badge
+                key={cls}
+                variant="secondary"
+                className="text-xs font-mono cursor-pointer group"
+              >
+                {cls}
+                <button
+                  onClick={() => handleRemoveClass(cls)}
+                  className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </Badge>
+            ))}
+            {currentClasses.split(' ').filter(Boolean).length === 0 && (
+              <span className="text-xs text-muted-foreground italic">
+                {t('noClasses')}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Quick add suggestions */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full mt-2 h-7 text-xs"
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              {t('addClasses')}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 p-2" align="start">
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-1">
+                {Object.keys(TAILWIND_SUGGESTIONS).map((category) => (
+                  <Badge
+                    key={category}
+                    variant={activeSuggestionCategory === category ? 'default' : 'outline'}
+                    className="text-xs cursor-pointer capitalize"
+                    onClick={() => setActiveSuggestionCategory(
+                      activeSuggestionCategory === category ? null : category
+                    )}
+                  >
+                    {category}
+                  </Badge>
+                ))}
+              </div>
+              {activeSuggestionCategory && (
+                <div className="flex flex-wrap gap-1 pt-2 border-t">
+                  {TAILWIND_SUGGESTIONS[activeSuggestionCategory].map((cls) => (
+                    <Badge
+                      key={cls}
+                      variant="secondary"
+                      className="text-xs font-mono cursor-pointer hover:bg-primary hover:text-primary-foreground"
+                      onClick={() => handleAddClass(cls)}
+                    >
+                      {cls}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Style categories */}

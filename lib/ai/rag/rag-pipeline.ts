@@ -14,6 +14,7 @@ import type { DocumentChunk, ChunkingOptions } from '../chunking';
 import { chunkDocument } from '../chunking';
 import type { EmbeddingModelConfig } from '@/lib/vector/embedding';
 import { generateEmbedding, generateEmbeddings } from '@/lib/vector/embedding';
+import { cosineSimilarity } from '@/lib/ai/embedding';
 
 import {
   HybridSearchEngine,
@@ -451,7 +452,7 @@ export class RAGPipeline {
     queryEmbedding: number[]
   ): { id: string; content: string; metadata?: Record<string, unknown>; score: number }[] {
     const results = collection.map(doc => {
-      const score = this.cosineSimilarity(queryEmbedding, doc.embedding);
+      const score = cosineSimilarity(queryEmbedding, doc.embedding);
       return {
         id: doc.id,
         content: doc.content,
@@ -465,20 +466,6 @@ export class RAGPipeline {
       .slice(0, this.config.topK * 2);
   }
 
-  /**
-   * Cosine similarity calculation
-   */
-  private cosineSimilarity(a: number[], b: number[]): number {
-    if (a.length !== b.length) return 0;
-    let dotProduct = 0, normA = 0, normB = 0;
-    for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-    const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
-    return magnitude === 0 ? 0 : dotProduct / magnitude;
-  }
 
   /**
    * Format retrieved documents into context string

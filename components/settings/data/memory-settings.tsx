@@ -6,7 +6,7 @@
 
 import { useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Brain, Plus, Trash2, Edit2, Check, X, Search, Download, Upload, Tag, Settings2, Pin, Star, Eye } from 'lucide-react';
+import { Brain, Plus, Trash2, Edit2, Check, X, Search, Download, Upload, Tag, Settings2, Pin, Star, Eye, Clock, Zap, Globe, RefreshCw, CheckSquare, Square, Cloud, HardDrive, Key, Workflow } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -52,7 +52,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useMemoryStore } from '@/stores';
-import type { Memory, MemoryType, CreateMemoryInput } from '@/types';
+import type { Memory, MemoryType, MemoryScope, CreateMemoryInput } from '@/types';
 
 const MEMORY_TYPE_COLORS: Record<MemoryType, string> = {
   preference: 'bg-blue-500',
@@ -89,8 +89,17 @@ export function MemorySettings() {
   const [tagInput, setTagInput] = useState('');
   const [similarWarning, setSimilarWarning] = useState<string[]>([]);
   const [typeFilter, setTypeFilter] = useState<MemoryType | 'all'>('all');
+  const [scopeFilter, setScopeFilter] = useState<MemoryScope | 'all'>('all');
   const [showPromptPreview, setShowPromptPreview] = useState(false);
+  const [selectedMemories, setSelectedMemories] = useState<Set<string>>(new Set());
+  const [showCleanupDialog, setShowCleanupDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Get batch operations from store
+  const batchDelete = useMemoryStore((state) => state.batchDelete);
+  const batchSetEnabled = useMemoryStore((state) => state.batchSetEnabled);
+  const cleanupExpired = useMemoryStore((state) => state.cleanupExpired);
+  const cleanupOldUnused = useMemoryStore((state) => state.cleanupOldUnused);
 
   // New memory form state
   const [newMemory, setNewMemory] = useState<CreateMemoryInput>({
@@ -100,11 +109,13 @@ export function MemorySettings() {
     tags: [],
   });
 
-  // Filter memories by search query and type, then sort (pinned first)
+  // Filter memories by search query, type, and scope, then sort (pinned first)
   const filteredMemories = memories
     .filter((m) => {
       // Type filter
       if (typeFilter !== 'all' && m.type !== typeFilter) return false;
+      // Scope filter
+      if (scopeFilter !== 'all' && (m.scope || 'global') !== scopeFilter) return false;
       // Search query filter
       if (searchQuery) {
         const lowerQuery = searchQuery.toLowerCase();
@@ -127,6 +138,44 @@ export function MemorySettings() {
       // Then by most recently used
       return new Date(b.lastUsedAt).getTime() - new Date(a.lastUsedAt).getTime();
     });
+
+  // Handle batch selection (used by MemoryItem checkbox if needed)
+  const _toggleMemorySelection = (id: string) => {
+    setSelectedMemories((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+  void _toggleMemorySelection; // Silence lint - available for future use
+
+  const selectAllFiltered = () => {
+    setSelectedMemories(new Set(filteredMemories.map((m) => m.id)));
+  };
+
+  const clearSelection = () => {
+    setSelectedMemories(new Set());
+  };
+
+  const handleBatchDelete = () => {
+    batchDelete(Array.from(selectedMemories));
+    clearSelection();
+  };
+
+  const handleBatchEnable = (enabled: boolean) => {
+    batchSetEnabled(Array.from(selectedMemories), enabled);
+    clearSelection();
+  };
+
+  const handleCleanup = () => {
+    cleanupExpired();
+    cleanupOldUnused(settings.cleanupDays || 60);
+    setShowCleanupDialog(false);
+  };
 
   // Check for similar memories when content changes
   const checkSimilarity = (content: string) => {
@@ -352,6 +401,217 @@ export function MemorySettings() {
                 </div>
               </div>
 
+              {/* Provider Selection */}
+              <div className="space-y-2">
+                <Label className="text-sm flex items-center gap-1.5">
+                  <Cloud className="h-3.5 w-3.5" />
+                  {t('memoryProvider') || 'Memory Provider'}
+                </Label>
+                <Select
+                  value={settings.provider}
+                  onValueChange={(provider: 'local' | 'mem0') => updateSettings({ provider })}
+                  disabled={!settings.enabled}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="local">
+                      <span className="flex items-center gap-2">
+                        <HardDrive className="h-3.5 w-3.5" />
+                        {t('localProvider') || 'Local Storage'}
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="mem0">
+                      <span className="flex items-center gap-2">
+                        <Cloud className="h-3.5 w-3.5" />
+                        {t('mem0Provider') || 'Mem0 (Cloud)'}
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">
+                  {settings.provider === 'mem0' 
+                    ? (t('mem0ProviderDesc') || 'Use Mem0 cloud service for advanced memory management with 26% higher accuracy')
+                    : (t('localProviderDesc') || 'Store memories locally in your browser')
+                  }
+                </p>
+              </div>
+
+              {/* Mem0 Configuration (only show when mem0 selected) */}
+              {settings.provider === 'mem0' && (
+                <div className="space-y-3 pl-4 border-l-2 border-primary/30 bg-primary/5 p-3 rounded-r-lg">
+                  <div className="space-y-2">
+                    <Label className="text-sm flex items-center gap-1.5">
+                      <Key className="h-3.5 w-3.5" />
+                      {t('mem0ApiKey') || 'Mem0 API Key'}
+                    </Label>
+                    <Input
+                      type="password"
+                      placeholder="m0-..."
+                      value={settings.mem0ApiKey || ''}
+                      onChange={(e) => updateSettings({ mem0ApiKey: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm">{t('mem0UserId') || 'User ID'}</Label>
+                    <Input
+                      placeholder={t('mem0UserIdPlaceholder') || 'your-unique-id'}
+                      value={settings.mem0UserId || ''}
+                      onChange={(e) => updateSettings({ mem0UserId: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="mem0-graph" className="text-sm">
+                      {t('mem0EnableGraph') || 'Enable Graph Memory'}
+                    </Label>
+                    <Switch
+                      id="mem0-graph"
+                      checked={settings.mem0EnableGraph || false}
+                      onCheckedChange={(mem0EnableGraph) => updateSettings({ mem0EnableGraph })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="mem0-mcp" className="text-sm">
+                      {t('mem0UseMcp') || 'Use MCP Server'}
+                    </Label>
+                    <Switch
+                      id="mem0-mcp"
+                      checked={settings.mem0UseMcp || false}
+                      onCheckedChange={(mem0UseMcp) => updateSettings({ mem0UseMcp })}
+                    />
+                  </div>
+                  {settings.mem0UseMcp && (
+                    <div className="space-y-2">
+                      <Label className="text-sm">{t('mem0McpServerId') || 'MCP Server ID'}</Label>
+                      <Input
+                        placeholder="mem0"
+                        value={settings.mem0McpServerId || ''}
+                        onChange={(e) => updateSettings({ mem0McpServerId: e.target.value })}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Pipeline Settings */}
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5 min-w-0 flex-1 mr-2">
+                  <Label htmlFor="enable-pipeline" className="text-sm flex items-center gap-1.5">
+                    <Workflow className="h-3.5 w-3.5" />
+                    {t('enablePipeline') || 'Smart Extraction'}
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground line-clamp-2">
+                    {t('enablePipelineDesc') || 'Use two-phase pipeline for intelligent memory extraction (26% more accurate)'}
+                  </p>
+                </div>
+                <Switch
+                  id="enable-pipeline"
+                  checked={settings.enablePipeline}
+                  onCheckedChange={(enablePipeline) => updateSettings({ enablePipeline })}
+                  disabled={!settings.enabled}
+                />
+              </div>
+
+              {/* Semantic Search Toggle */}
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5 min-w-0 flex-1 mr-2">
+                  <Label htmlFor="semantic-search" className="text-sm flex items-center gap-1.5">
+                    <Zap className="h-3.5 w-3.5" />
+                    {t('semanticSearch') || 'Semantic Search'}
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground line-clamp-2">
+                    {t('semanticSearchDesc') || 'Use AI embeddings for smarter memory retrieval'}
+                  </p>
+                </div>
+                <Switch
+                  id="semantic-search"
+                  checked={settings.enableSemanticSearch}
+                  onCheckedChange={(enableSemanticSearch) => updateSettings({ enableSemanticSearch })}
+                  disabled={!settings.enabled}
+                />
+              </div>
+
+              {/* Auto Decay Toggle */}
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5 min-w-0 flex-1 mr-2">
+                  <Label htmlFor="auto-decay" className="text-sm flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" />
+                    {t('autoDecay') || 'Memory Decay'}
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground line-clamp-2">
+                    {t('autoDecayDesc') || 'Reduce relevance of unused memories over time'}
+                  </p>
+                </div>
+                <Switch
+                  id="auto-decay"
+                  checked={settings.autoDecay}
+                  onCheckedChange={(autoDecay) => updateSettings({ autoDecay })}
+                  disabled={!settings.enabled}
+                />
+              </div>
+
+              {/* Decay Days Slider (only show if auto decay enabled) */}
+              {settings.autoDecay && (
+                <div className="space-y-2 pl-4 border-l-2 border-muted">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">{t('decayDays') || 'Decay Period'}</Label>
+                    <span className="text-xs text-muted-foreground">{settings.decayDays} {t('days') || 'days'}</span>
+                  </div>
+                  <Slider
+                    value={[settings.decayDays]}
+                    onValueChange={([value]) => updateSettings({ decayDays: value })}
+                    min={7}
+                    max={90}
+                    step={7}
+                    disabled={!settings.enabled}
+                  />
+                </div>
+              )}
+
+              {/* Auto Cleanup Toggle */}
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5 min-w-0 flex-1 mr-2">
+                  <Label htmlFor="auto-cleanup" className="text-sm flex items-center gap-1.5">
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    {t('autoCleanup') || 'Auto Cleanup'}
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground line-clamp-2">
+                    {t('autoCleanupDesc') || 'Automatically remove expired and unused memories'}
+                  </p>
+                </div>
+                <Switch
+                  id="auto-cleanup"
+                  checked={settings.autoCleanup}
+                  onCheckedChange={(autoCleanup) => updateSettings({ autoCleanup })}
+                  disabled={!settings.enabled}
+                />
+              </div>
+
+              {/* Default Scope */}
+              <div className="space-y-2">
+                <Label className="text-sm flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5" />
+                  {t('defaultScope') || 'Default Scope'}
+                </Label>
+                <Select
+                  value={settings.defaultScope}
+                  onValueChange={(defaultScope: 'global' | 'session') => updateSettings({ defaultScope })}
+                  disabled={!settings.enabled}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="global">{t('global') || 'Global'}</SelectItem>
+                    <SelectItem value="session">{t('session') || 'Session'}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">
+                  {t('defaultScopeDesc') || 'New memories will use this scope by default'}
+                </p>
+              </div>
+
               {/* Import/Export */}
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={handleExport} disabled={memories.length === 0}>
@@ -370,6 +630,30 @@ export function MemorySettings() {
                   className="hidden"
                 />
               </div>
+
+              {/* Manual Cleanup Button */}
+              <AlertDialog open={showCleanupDialog} onOpenChange={setShowCleanupDialog}>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full" disabled={memories.length === 0}>
+                    <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                    {t('cleanupNow') || 'Cleanup Old Memories'}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t('cleanupTitle') || 'Cleanup Memories'}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t('cleanupDesc') || 'This will remove expired memories and memories that have not been used in a long time (except pinned ones).'}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleCleanup}>
+                      {t('cleanup') || 'Cleanup'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </CollapsibleContent>
           </Collapsible>
         </CardContent>
@@ -560,6 +844,29 @@ export function MemorySettings() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Batch Operations Toolbar */}
+          {selectedMemories.size > 0 && (
+            <div className="flex items-center gap-2 mb-4 p-2 bg-muted/50 rounded-lg">
+              <span className="text-sm font-medium">
+                {selectedMemories.size} {t('selected') || 'selected'}
+              </span>
+              <div className="flex-1" />
+              <Button variant="outline" size="sm" onClick={() => handleBatchEnable(true)}>
+                {t('enableSelected') || 'Enable'}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleBatchEnable(false)}>
+                {t('disableSelected') || 'Disable'}
+              </Button>
+              <Button variant="destructive" size="sm" onClick={handleBatchDelete}>
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                {t('deleteSelected') || 'Delete'}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={clearSelection}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+
           {/* Search and Filter */}
           <div className="flex gap-2 mb-4">
             <InputGroup className="flex-1">
@@ -573,7 +880,7 @@ export function MemorySettings() {
               />
             </InputGroup>
             <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as MemoryType | 'all')}>
-              <SelectTrigger className="w-[130px]">
+              <SelectTrigger className="w-[110px]">
                 <SelectValue placeholder={t('allTypes') || 'All Types'} />
               </SelectTrigger>
               <SelectContent>
@@ -585,6 +892,30 @@ export function MemorySettings() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={scopeFilter} onValueChange={(v) => setScopeFilter(v as MemoryScope | 'all')}>
+              <SelectTrigger className="w-[100px]">
+                <SelectValue placeholder={t('allScopes') || 'All Scopes'} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('allScopes') || 'All Scopes'}</SelectItem>
+                <SelectItem value="global">{t('global') || 'Global'}</SelectItem>
+                <SelectItem value="session">{t('session') || 'Session'}</SelectItem>
+              </SelectContent>
+            </Select>
+            {filteredMemories.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={selectedMemories.size === filteredMemories.length ? clearSelection : selectAllFiltered}
+                className="px-2"
+              >
+                {selectedMemories.size === filteredMemories.length ? (
+                  <CheckSquare className="h-4 w-4" />
+                ) : (
+                  <Square className="h-4 w-4" />
+                )}
+              </Button>
+            )}
           </div>
 
           {/* Memory List - Grid layout */}

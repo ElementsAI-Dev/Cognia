@@ -7,7 +7,9 @@ const renderWithProviders = (ui: React.ReactElement) => {
   return render(<TooltipProvider>{ui}</TooltipProvider>);
 };
 
-jest.mock('@/stores/skill-store');
+jest.mock('@/stores/skill-store', () => ({
+  useSkillStore: jest.fn(),
+}));
 jest.mock('@/lib/skills/templates', () => ({
   getAllTemplates: jest.fn(() => [
     {

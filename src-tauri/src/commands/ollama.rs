@@ -69,8 +69,8 @@ pub struct OllamaModelInfo {
 fn normalize_base_url(base_url: &str) -> String {
     let url = base_url.trim_end_matches('/');
     // Remove /v1 suffix if present (OpenAI compat endpoint)
-    if url.ends_with("/v1") {
-        url[..url.len() - 3].to_string()
+    if let Some(stripped) = url.strip_suffix("/v1") {
+        stripped.to_string()
     } else {
         url.to_string()
     }
@@ -414,4 +414,242 @@ pub async fn ollama_stop_model(base_url: String, model_name: String) -> Result<b
     }
 
     Ok(true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_normalize_base_url_no_trailing_slash() {
+        let url = "http://localhost:11434";
+        let normalized = normalize_base_url(url);
+        assert_eq!(normalized, "http://localhost:11434");
+    }
+
+    #[test]
+    fn test_normalize_base_url_with_trailing_slash() {
+        let url = "http://localhost:11434/";
+        let normalized = normalize_base_url(url);
+        assert_eq!(normalized, "http://localhost:11434");
+    }
+
+    #[test]
+    fn test_normalize_base_url_with_v1_suffix() {
+        let url = "http://localhost:11434/v1";
+        let normalized = normalize_base_url(url);
+        assert_eq!(normalized, "http://localhost:11434");
+    }
+
+    #[test]
+    fn test_normalize_base_url_with_v1_and_trailing_slash() {
+        let url = "http://localhost:11434/v1/";
+        let normalized = normalize_base_url(url);
+        assert_eq!(normalized, "http://localhost:11434");
+    }
+
+    #[test]
+    fn test_normalize_base_url_multiple_slashes() {
+        let url = "http://localhost:11434///";
+        let normalized = normalize_base_url(url);
+        assert_eq!(normalized, "http://localhost:11434");
+    }
+
+    #[test]
+    fn test_ollama_model_struct() {
+        let model = OllamaModel {
+            name: "llama2:latest".to_string(),
+            model: "llama2".to_string(),
+            modified_at: "2024-01-01T00:00:00Z".to_string(),
+            size: 3_800_000_000,
+            digest: "abc123".to_string(),
+            details: Some(OllamaModelDetails {
+                parent_model: None,
+                format: Some("gguf".to_string()),
+                family: Some("llama".to_string()),
+                families: Some(vec!["llama".to_string()]),
+                parameter_size: Some("7B".to_string()),
+                quantization_level: Some("Q4_0".to_string()),
+            }),
+        };
+        
+        assert_eq!(model.name, "llama2:latest");
+        assert_eq!(model.size, 3_800_000_000);
+        assert!(model.details.is_some());
+    }
+
+    #[test]
+    fn test_ollama_model_serialization() {
+        let model = OllamaModel {
+            name: "mistral".to_string(),
+            model: "mistral".to_string(),
+            modified_at: "2024-01-01T00:00:00Z".to_string(),
+            size: 4_000_000_000,
+            digest: "def456".to_string(),
+            details: None,
+        };
+        
+        let serialized = serde_json::to_string(&model).unwrap();
+        let deserialized: OllamaModel = serde_json::from_str(&serialized).unwrap();
+        
+        assert_eq!(model.name, deserialized.name);
+        assert_eq!(model.size, deserialized.size);
+        assert_eq!(model.digest, deserialized.digest);
+    }
+
+    #[test]
+    fn test_ollama_model_details_struct() {
+        let details = OllamaModelDetails {
+            parent_model: Some("parent".to_string()),
+            format: Some("gguf".to_string()),
+            family: Some("llama".to_string()),
+            families: Some(vec!["llama".to_string(), "codellama".to_string()]),
+            parameter_size: Some("13B".to_string()),
+            quantization_level: Some("Q5_K_M".to_string()),
+        };
+        
+        assert_eq!(details.family, Some("llama".to_string()));
+        assert_eq!(details.parameter_size, Some("13B".to_string()));
+        assert_eq!(details.families.as_ref().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_ollama_server_status_struct() {
+        let status = OllamaServerStatus {
+            connected: true,
+            version: Some("0.1.24".to_string()),
+            models_count: 5,
+        };
+        
+        assert!(status.connected);
+        assert_eq!(status.version, Some("0.1.24".to_string()));
+        assert_eq!(status.models_count, 5);
+    }
+
+    #[test]
+    fn test_ollama_server_status_disconnected() {
+        let status = OllamaServerStatus {
+            connected: false,
+            version: None,
+            models_count: 0,
+        };
+        
+        assert!(!status.connected);
+        assert!(status.version.is_none());
+        assert_eq!(status.models_count, 0);
+    }
+
+    #[test]
+    fn test_ollama_pull_progress_struct() {
+        let progress = OllamaPullProgress {
+            status: "downloading".to_string(),
+            digest: Some("sha256:abc123".to_string()),
+            total: Some(4_000_000_000),
+            completed: Some(2_000_000_000),
+            model: "llama2".to_string(),
+        };
+        
+        assert_eq!(progress.status, "downloading");
+        assert_eq!(progress.total, Some(4_000_000_000));
+        assert_eq!(progress.completed, Some(2_000_000_000));
+    }
+
+    #[test]
+    fn test_ollama_pull_progress_complete() {
+        let progress = OllamaPullProgress {
+            status: "success".to_string(),
+            digest: None,
+            total: None,
+            completed: None,
+            model: "llama2".to_string(),
+        };
+        
+        assert_eq!(progress.status, "success");
+        assert!(progress.digest.is_none());
+    }
+
+    #[test]
+    fn test_ollama_running_model_struct() {
+        let running = OllamaRunningModel {
+            name: "llama2:latest".to_string(),
+            model: "llama2".to_string(),
+            size: 3_800_000_000,
+            digest: "abc123".to_string(),
+            expires_at: Some("2024-01-01T01:00:00Z".to_string()),
+            size_vram: Some(3_500_000_000),
+        };
+        
+        assert_eq!(running.name, "llama2:latest");
+        assert_eq!(running.size_vram, Some(3_500_000_000));
+    }
+
+    #[test]
+    fn test_ollama_model_info_struct() {
+        let info = OllamaModelInfo {
+            modelfile: Some("FROM llama2".to_string()),
+            parameters: Some("temperature 0.7".to_string()),
+            template: Some("{{ .Prompt }}".to_string()),
+            details: Some(OllamaModelDetails {
+                parent_model: None,
+                format: Some("gguf".to_string()),
+                family: None,
+                families: None,
+                parameter_size: None,
+                quantization_level: None,
+            }),
+            model_info: Some(json!({"general.architecture": "llama"})),
+        };
+        
+        assert!(info.modelfile.is_some());
+        assert!(info.details.is_some());
+    }
+
+    #[test]
+    fn test_ollama_structs_serialization_roundtrip() {
+        // Test OllamaServerStatus
+        let status = OllamaServerStatus {
+            connected: true,
+            version: Some("0.1.24".to_string()),
+            models_count: 3,
+        };
+        let json = serde_json::to_string(&status).unwrap();
+        let parsed: OllamaServerStatus = serde_json::from_str(&json).unwrap();
+        assert_eq!(status.connected, parsed.connected);
+        assert_eq!(status.version, parsed.version);
+        assert_eq!(status.models_count, parsed.models_count);
+
+        // Test OllamaPullProgress
+        let progress = OllamaPullProgress {
+            status: "pulling".to_string(),
+            digest: Some("sha256:xyz".to_string()),
+            total: Some(1000),
+            completed: Some(500),
+            model: "test".to_string(),
+        };
+        let json = serde_json::to_string(&progress).unwrap();
+        let parsed: OllamaPullProgress = serde_json::from_str(&json).unwrap();
+        assert_eq!(progress.status, parsed.status);
+        assert_eq!(progress.model, parsed.model);
+    }
+
+    #[test]
+    fn test_normalize_base_url_preserves_protocol() {
+        let https_url = "https://ollama.example.com/v1";
+        let normalized = normalize_base_url(https_url);
+        assert!(normalized.starts_with("https://"));
+        assert!(!normalized.ends_with("/v1"));
+        
+        let http_url = "http://localhost:11434";
+        let normalized = normalize_base_url(http_url);
+        assert!(normalized.starts_with("http://"));
+    }
+
+    #[test]
+    fn test_normalize_base_url_with_path() {
+        let url = "http://localhost:11434/api/v1";
+        let normalized = normalize_base_url(url);
+        // Should only remove trailing /v1
+        assert_eq!(normalized, "http://localhost:11434/api");
+    }
 }

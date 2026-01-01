@@ -9,6 +9,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { LearningModePanel } from './learning-mode-panel';
 import { useLearningMode } from '@/hooks/use-learning-mode';
 import type { LearningSession, LearningPhase } from '@/types/learning';
+import { DEFAULT_LEARNING_STATISTICS } from '@/types/learning';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
@@ -38,6 +39,13 @@ jest.mock('next-intl', () => ({
 jest.mock('@/hooks/use-learning-mode');
 const mockUseLearningMode = useLearningMode as jest.MockedFunction<typeof useLearningMode>;
 
+// Mock the learning store
+jest.mock('@/stores/learning-store', () => ({
+  useLearningStore: jest.fn(() => ({
+    getAchievements: jest.fn().mockReturnValue([]),
+  })),
+}));
+
 const createMockSession = (overrides?: Partial<LearningSession>): LearningSession => ({
   id: 'learning-1',
   sessionId: 'session-1',
@@ -57,6 +65,16 @@ const createMockSession = (overrides?: Partial<LearningSession>): LearningSessio
   totalHintsProvided: 1,
   startedAt: new Date(),
   lastActivityAt: new Date(),
+  // New enhanced fields
+  notes: [],
+  concepts: [],
+  statistics: { ...DEFAULT_LEARNING_STATISTICS },
+  reviewItems: [],
+  currentDifficulty: 'intermediate',
+  adaptiveAdjustments: 0,
+  engagementScore: 50,
+  consecutiveCorrect: 0,
+  consecutiveIncorrect: 0,
   ...overrides,
 });
 
@@ -74,6 +92,14 @@ const createMockHookReturn = (overrides?: Partial<ReturnType<typeof useLearningM
     enableEncouragement: true,
     autoGenerateSummary: true,
     includeKeyTakeaways: true,
+    enableAdaptiveDifficulty: true,
+    difficultyAdjustThreshold: 3,
+    enableSpacedRepetition: true,
+    defaultReviewIntervalDays: 1,
+    enableAutoNotes: false,
+    autoHighlightInsights: true,
+    enableAIAnalysis: true,
+    analysisDepth: 'standard' as const,
   },
   startLearning: jest.fn(),
   endLearning: jest.fn(),
@@ -356,6 +382,128 @@ describe('LearningModePanel', () => {
       expect(screen.getByText('What is a base case?')).toBeInTheDocument();
       expect(screen.getByText('What is recursion?')).toBeInTheDocument();
       expect(screen.getByText('When to use recursion?')).toBeInTheDocument();
+    });
+  });
+
+  describe('Tabs Navigation', () => {
+    it('should render all four tabs', () => {
+      const session = createMockSession();
+      mockUseLearningMode.mockReturnValue(
+        createMockHookReturn({
+          learningSession: session,
+          isLearningActive: true,
+          currentPhase: session.currentPhase,
+          progress: session.progress,
+          subQuestions: session.subQuestions,
+          learningGoals: session.learningGoals,
+        })
+      );
+
+      render(<LearningModePanel />);
+
+      // Use role to find tab buttons specifically
+      const tabs = screen.getAllByRole('tab');
+      expect(tabs.length).toBe(4);
+      expect(screen.getByRole('tab', { name: /stats/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /notes/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /history/i })).toBeInTheDocument();
+    });
+
+    it('should allow clicking on tabs without errors', () => {
+      const session = createMockSession();
+      mockUseLearningMode.mockReturnValue(
+        createMockHookReturn({
+          learningSession: session,
+          isLearningActive: true,
+          currentPhase: session.currentPhase,
+          progress: session.progress,
+          subQuestions: session.subQuestions,
+          learningGoals: session.learningGoals,
+        })
+      );
+
+      render(<LearningModePanel />);
+
+      // Should be able to click all tabs without errors
+      const statsTab = screen.getByRole('tab', { name: /stats/i });
+      const notesTab = screen.getByRole('tab', { name: /notes/i });
+      const historyTab = screen.getByRole('tab', { name: /history/i });
+
+      expect(() => fireEvent.click(statsTab)).not.toThrow();
+      expect(() => fireEvent.click(notesTab)).not.toThrow();
+      expect(() => fireEvent.click(historyTab)).not.toThrow();
+    });
+  });
+
+  describe('Enhanced Session Data', () => {
+    it('should render with notes in session', () => {
+      const session = createMockSession({
+        notes: [
+          { id: 'n1', content: 'Important insight', createdAt: new Date(), isHighlight: false },
+        ],
+      });
+      mockUseLearningMode.mockReturnValue(
+        createMockHookReturn({
+          learningSession: session,
+          isLearningActive: true,
+          currentPhase: session.currentPhase,
+          progress: session.progress,
+          subQuestions: session.subQuestions,
+          learningGoals: session.learningGoals,
+        })
+      );
+
+      // Should render without error
+      const { container } = render(<LearningModePanel />);
+      expect(container).toBeInTheDocument();
+    });
+
+    it('should render with concepts in session', () => {
+      const session = createMockSession({
+        concepts: [
+          {
+            id: 'c1',
+            name: 'Recursion',
+            masteryStatus: 'learning',
+            masteryScore: 50,
+            reviewCount: 2,
+            correctAnswers: 3,
+            totalAttempts: 6,
+          },
+        ],
+      });
+      mockUseLearningMode.mockReturnValue(
+        createMockHookReturn({
+          learningSession: session,
+          isLearningActive: true,
+          currentPhase: session.currentPhase,
+          progress: session.progress,
+          subQuestions: session.subQuestions,
+          learningGoals: session.learningGoals,
+        })
+      );
+
+      // Should render without error
+      const { container } = render(<LearningModePanel />);
+      expect(container).toBeInTheDocument();
+    });
+
+    it('should render with achievements', () => {
+      const session = createMockSession();
+      mockUseLearningMode.mockReturnValue(
+        createMockHookReturn({
+          learningSession: session,
+          isLearningActive: true,
+          currentPhase: session.currentPhase,
+          progress: session.progress,
+          subQuestions: session.subQuestions,
+          learningGoals: session.learningGoals,
+        })
+      );
+
+      // Should render without error
+      const { container } = render(<LearningModePanel />);
+      expect(container).toBeInTheDocument();
     });
   });
 });

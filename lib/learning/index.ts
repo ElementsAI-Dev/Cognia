@@ -7,8 +7,15 @@
 export {
   SOCRATIC_MENTOR_PROMPT,
   PHASE_PROMPTS,
+  DIFFICULTY_PROMPTS,
+  LEARNING_STYLE_PROMPTS,
+  UNDERSTANDING_PROMPTS,
+  SCENARIO_PROMPTS,
   buildLearningSystemPrompt,
+  buildAdaptiveLearningPrompt,
   generateHintGuidance,
+  generateContextualHint,
+  generateCelebrationMessage,
   ENCOURAGEMENT_MESSAGES,
   getEncouragementMessage,
 } from './prompts';

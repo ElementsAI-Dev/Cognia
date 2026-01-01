@@ -18,6 +18,10 @@ jest.mock('@/stores/designer-store', () => ({
       showElementTree: true,
       showStylePanel: true,
       parseCodeToElements: mockParseCodeToElements,
+      elements: [],
+      selectedElementId: null,
+      history: [],
+      historyIndex: 0,
     };
     return selector(state);
   },

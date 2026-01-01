@@ -94,6 +94,13 @@ jest.mock('@/stores', () => ({
   useLearningStore: () => ({
     getLearningSessionByChat: jest.fn(() => null),
   }),
+  useCustomThemeStore: (selector: (state: unknown) => unknown) => {
+    const state = {
+      themes: [],
+      activeThemeId: null,
+    };
+    return selector ? selector(state) : state;
+  },
 }));
 
 jest.mock('@/stores/skill-store', () => ({

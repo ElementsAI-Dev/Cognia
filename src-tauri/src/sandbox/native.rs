@@ -324,3 +324,345 @@ impl SandboxRuntime for NativeRuntime {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    // ==================== Runtime Creation Tests ====================
+
+    #[test]
+    fn test_native_runtime_new() {
+        let runtime = NativeRuntime::new();
+        assert!(runtime._available_languages.is_empty());
+    }
+
+    #[test]
+    fn test_native_runtime_default() {
+        let runtime = NativeRuntime::default();
+        assert!(runtime._available_languages.is_empty());
+    }
+
+    #[test]
+    fn test_native_runtime_type() {
+        let runtime = NativeRuntime::new();
+        assert_eq!(runtime.runtime_type(), RuntimeType::Native);
+    }
+
+    // ==================== Availability Tests ====================
+
+    #[tokio::test]
+    async fn test_native_always_available() {
+        let runtime = NativeRuntime::new();
+        // Native runtime is always "available"
+        assert!(runtime.is_available().await);
+    }
+
+    #[tokio::test]
+    async fn test_native_version() {
+        let runtime = NativeRuntime::new();
+        let version = runtime.get_version().await;
+        assert!(version.is_ok());
+        assert_eq!(version.unwrap(), "native-1.0");
+    }
+
+    // ==================== Language Detection Tests ====================
+
+    #[tokio::test]
+    async fn test_detect_available_languages() {
+        let mut runtime = NativeRuntime::new();
+        runtime.detect_available_languages().await;
+        // At least one common language should be available on most systems
+        // This is a soft assertion since it depends on the system
+        let _ = runtime.get_available_languages();
+    }
+
+    #[test]
+    fn test_get_available_languages_initially_empty() {
+        let runtime = NativeRuntime::new();
+        let languages = runtime.get_available_languages();
+        assert!(languages.is_empty());
+    }
+
+    // ==================== Cleanup Tests ====================
+
+    #[tokio::test]
+    async fn test_cleanup() {
+        let runtime = NativeRuntime::new();
+        let result = runtime.cleanup().await;
+        assert!(result.is_ok());
+    }
+
+    // ==================== Prepare Image Tests ====================
+
+    #[tokio::test]
+    async fn test_prepare_image_noop() {
+        let runtime = NativeRuntime::new();
+        // Native runtime doesn't need to prepare images
+        let result = runtime.prepare_image("python").await;
+        assert!(result.is_ok());
+    }
+
+    // ==================== Unsupported Language Tests ====================
+
+    #[tokio::test]
+    async fn test_execute_unsupported_language() {
+        let runtime = NativeRuntime::new();
+        let request = ExecutionRequest::new("nonexistent_lang", "code");
+        
+        // Create a mock language config (this would normally fail at lookup)
+        let language_config = LanguageConfig {
+            id: "nonexistent_lang",
+            name: "Nonexistent",
+            extension: "xxx",
+            aliases: &[],
+            docker_image: "none",
+            compile_cmd: None,
+            run_cmd: "nonexistent",
+            category: super::super::languages::LanguageCategory::Interpreted,
+            file_name: "main.xxx",
+        };
+        
+        let exec_config = ExecutionConfig {
+            timeout: Duration::from_secs(30),
+            memory_limit_mb: 256,
+            cpu_limit_percent: 50,
+            network_enabled: false,
+            max_output_size: 1024 * 1024,
+        };
+
+        let result = runtime.execute(&request, &language_config, &exec_config).await;
+        assert!(result.is_err());
+        match result {
+            Err(SandboxError::LanguageNotSupported(msg)) => {
+                assert!(msg.contains("not supported"));
+            }
+            _ => panic!("Expected LanguageNotSupported error"),
+        }
+    }
+
+    // ==================== NATIVE_COMMANDS Tests ====================
+
+    #[test]
+    fn test_native_commands_contains_python() {
+        assert!(NATIVE_COMMANDS.contains_key("python"));
+        let cmd = &NATIVE_COMMANDS["python"];
+        assert_eq!(cmd.check_cmd, "python3");
+        assert!(cmd.compile_cmd.is_none());
+    }
+
+    #[test]
+    fn test_native_commands_contains_javascript() {
+        assert!(NATIVE_COMMANDS.contains_key("javascript"));
+        let cmd = &NATIVE_COMMANDS["javascript"];
+        assert_eq!(cmd.check_cmd, "node");
+        assert!(cmd.compile_cmd.is_none());
+    }
+
+    #[test]
+    fn test_native_commands_contains_rust() {
+        assert!(NATIVE_COMMANDS.contains_key("rust"));
+        let cmd = &NATIVE_COMMANDS["rust"];
+        assert_eq!(cmd.check_cmd, "rustc");
+        assert!(cmd.compile_cmd.is_some());
+    }
+
+    #[test]
+    fn test_native_commands_contains_go() {
+        assert!(NATIVE_COMMANDS.contains_key("go"));
+        let cmd = &NATIVE_COMMANDS["go"];
+        assert_eq!(cmd.check_cmd, "go");
+    }
+
+    #[test]
+    fn test_native_commands_contains_ruby() {
+        assert!(NATIVE_COMMANDS.contains_key("ruby"));
+        let cmd = &NATIVE_COMMANDS["ruby"];
+        assert_eq!(cmd.check_cmd, "ruby");
+    }
+
+    #[test]
+    fn test_native_commands_contains_bash() {
+        assert!(NATIVE_COMMANDS.contains_key("bash"));
+        let cmd = &NATIVE_COMMANDS["bash"];
+        assert_eq!(cmd.check_cmd, "bash");
+    }
+
+    #[test]
+    fn test_native_commands_contains_powershell() {
+        assert!(NATIVE_COMMANDS.contains_key("powershell"));
+        let cmd = &NATIVE_COMMANDS["powershell"];
+        assert_eq!(cmd.check_cmd, "pwsh");
+    }
+
+    #[test]
+    fn test_native_commands_all_have_check_cmd() {
+        for (lang, cmd) in NATIVE_COMMANDS.iter() {
+            assert!(!cmd.check_cmd.is_empty(), "{} has no check_cmd", lang);
+            assert!(!cmd.check_args.is_empty(), "{} has no check_args", lang);
+        }
+    }
+
+    #[test]
+    fn test_native_commands_compiled_have_compile_cmd() {
+        let compiled_langs = ["rust", "typescript"];
+        for lang in compiled_langs {
+            if let Some(cmd) = NATIVE_COMMANDS.get(lang) {
+                assert!(cmd.compile_cmd.is_some(), "{} should have compile_cmd", lang);
+            }
+        }
+    }
+
+    // ==================== Execution Config Tests ====================
+
+    #[test]
+    fn test_execution_config_creation() {
+        let config = ExecutionConfig {
+            timeout: Duration::from_secs(30),
+            memory_limit_mb: 256,
+            cpu_limit_percent: 50,
+            network_enabled: false,
+            max_output_size: 1024 * 1024,
+        };
+        
+        assert_eq!(config.timeout.as_secs(), 30);
+        assert_eq!(config.memory_limit_mb, 256);
+        assert_eq!(config.cpu_limit_percent, 50);
+        assert!(!config.network_enabled);
+        assert_eq!(config.max_output_size, 1024 * 1024);
+    }
+
+    // ==================== Integration Tests (requires native runtimes) ====================
+
+    #[tokio::test]
+    #[ignore] // Run with --ignored flag when Python is available
+    async fn test_execute_python_native() {
+        let runtime = NativeRuntime::new();
+        let request = ExecutionRequest::new("python", "print('Hello from native!')");
+        let language_config = super::super::languages::get_language_config("python").unwrap();
+        let exec_config = ExecutionConfig {
+            timeout: Duration::from_secs(30),
+            memory_limit_mb: 256,
+            cpu_limit_percent: 50,
+            network_enabled: false,
+            max_output_size: 1024 * 1024,
+        };
+
+        let result = runtime.execute(&request, language_config, &exec_config).await;
+        if result.is_ok() {
+            let execution_result = result.unwrap();
+            assert!(execution_result.stdout.contains("Hello from native!"));
+        }
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_execute_python_with_stdin_native() {
+        let runtime = NativeRuntime::new();
+        let request = ExecutionRequest::new("python", "name = input(); print(f'Hello, {name}!')")
+            .with_stdin("World");
+        let language_config = super::super::languages::get_language_config("python").unwrap();
+        let exec_config = ExecutionConfig {
+            timeout: Duration::from_secs(30),
+            memory_limit_mb: 256,
+            cpu_limit_percent: 50,
+            network_enabled: false,
+            max_output_size: 1024 * 1024,
+        };
+
+        let result = runtime.execute(&request, language_config, &exec_config).await;
+        if result.is_ok() {
+            let execution_result = result.unwrap();
+            assert!(execution_result.stdout.contains("Hello, World!"));
+        }
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_execute_bash_native() {
+        let runtime = NativeRuntime::new();
+        let request = ExecutionRequest::new("bash", "echo 'Hello from bash!'");
+        let language_config = super::super::languages::get_language_config("bash").unwrap();
+        let exec_config = ExecutionConfig {
+            timeout: Duration::from_secs(30),
+            memory_limit_mb: 256,
+            cpu_limit_percent: 50,
+            network_enabled: false,
+            max_output_size: 1024 * 1024,
+        };
+
+        let result = runtime.execute(&request, language_config, &exec_config).await;
+        if result.is_ok() {
+            let execution_result = result.unwrap();
+            assert!(execution_result.stdout.contains("Hello from bash!"));
+        }
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_execute_with_error_native() {
+        let runtime = NativeRuntime::new();
+        let request = ExecutionRequest::new("python", "raise Exception('test error')");
+        let language_config = super::super::languages::get_language_config("python").unwrap();
+        let exec_config = ExecutionConfig {
+            timeout: Duration::from_secs(30),
+            memory_limit_mb: 256,
+            cpu_limit_percent: 50,
+            network_enabled: false,
+            max_output_size: 1024 * 1024,
+        };
+
+        let result = runtime.execute(&request, language_config, &exec_config).await;
+        if result.is_ok() {
+            let execution_result = result.unwrap();
+            assert!(execution_result.stderr.contains("Exception") || execution_result.exit_code != Some(0));
+        }
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_execute_with_env_vars_native() {
+        let runtime = NativeRuntime::new();
+        let mut request = ExecutionRequest::new("python", "import os; print(os.environ['MY_VAR'])");
+        request.env.insert("MY_VAR".to_string(), "test_value".to_string());
+        
+        let language_config = super::super::languages::get_language_config("python").unwrap();
+        let exec_config = ExecutionConfig {
+            timeout: Duration::from_secs(30),
+            memory_limit_mb: 256,
+            cpu_limit_percent: 50,
+            network_enabled: false,
+            max_output_size: 1024 * 1024,
+        };
+
+        let result = runtime.execute(&request, language_config, &exec_config).await;
+        if result.is_ok() {
+            let execution_result = result.unwrap();
+            assert!(execution_result.stdout.contains("test_value"));
+        }
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_execute_with_args_native() {
+        let runtime = NativeRuntime::new();
+        let mut request = ExecutionRequest::new("python", "import sys; print(sys.argv[1])");
+        request.args.push("test_arg".to_string());
+        
+        let language_config = super::super::languages::get_language_config("python").unwrap();
+        let exec_config = ExecutionConfig {
+            timeout: Duration::from_secs(30),
+            memory_limit_mb: 256,
+            cpu_limit_percent: 50,
+            network_enabled: false,
+            max_output_size: 1024 * 1024,
+        };
+
+        let result = runtime.execute(&request, language_config, &exec_config).await;
+        if result.is_ok() {
+            let execution_result = result.unwrap();
+            assert!(execution_result.stdout.contains("test_arg"));
+        }
+    }
+}

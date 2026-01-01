@@ -4,7 +4,7 @@
  * AppearanceSettings - Configure theme, language, and UI preferences
  */
 
-import { Moon, Sun, Monitor, Check, Palette, Globe, Plus, Type, MessageCircle, Settings2 } from 'lucide-react';
+import { Moon, Sun, Monitor, Check, Palette, Globe, Plus, Type, MessageCircle, Settings2, MapPin, RefreshCw, Power } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Label } from '@/components/ui/label';
@@ -27,10 +27,11 @@ import {
 } from '@/components/ui/select';
 import { useSettingsStore, type Theme, type Language, type MessageBubbleStyle } from '@/stores';
 import { THEME_PRESETS, type ColorThemePreset } from '@/lib/themes';
-import { localeNames, localeFlags, type Locale } from '@/lib/i18n';
+import { localeNames, localeFlags, autoDetectLocale, type Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { ThemeEditor } from './theme-editor';
 import { UICustomizationSettings } from './ui-customization-settings';
+import { useAutostart } from '@/hooks/use-autostart';
 
 const themeOptions: { value: Theme; labelKey: string; icon: React.ReactNode }[] = [
   { value: 'light', labelKey: 'themeLight', icon: <Sun className="h-4 w-4" /> },
@@ -70,8 +71,32 @@ export function AppearanceSettings() {
   const messageBubbleStyle = useSettingsStore((state) => state.messageBubbleStyle);
   const setMessageBubbleStyle = useSettingsStore((state) => state.setMessageBubbleStyle);
 
+  const autoDetectLocaleEnabled = useSettingsStore((state) => state.autoDetectLocale);
+  const setAutoDetectLocale = useSettingsStore((state) => state.setAutoDetectLocale);
+  const localeDetectionResult = useSettingsStore((state) => state.localeDetectionResult);
+  const setLocaleDetectionResult = useSettingsStore((state) => state.setLocaleDetectionResult);
+  const detectedTimezone = useSettingsStore((state) => state.detectedTimezone);
+
   const [showThemeEditor, setShowThemeEditor] = useState(false);
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
+  const [isDetecting, setIsDetecting] = useState(false);
+
+  const autostart = useAutostart();
+
+  const handleDetectLocale = async () => {
+    setIsDetecting(true);
+    try {
+      const result = await autoDetectLocale();
+      setLocaleDetectionResult(result);
+      if (result.locale !== language) {
+        setLanguage(result.locale as Language);
+      }
+    } catch (error) {
+      console.error('Failed to detect locale:', error);
+    } finally {
+      setIsDetecting(false);
+    }
+  };
 
   const handleColorThemeSelect = (value: ColorThemePreset) => {
     setColorTheme(value);
@@ -99,7 +124,7 @@ export function AppearanceSettings() {
               <CardTitle className="text-sm font-medium">{t('language')}</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 space-y-3">
             <Select value={language} onValueChange={(value: Language) => setLanguage(value)}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -115,6 +140,64 @@ export function AppearanceSettings() {
                 ))}
               </SelectContent>
             </Select>
+            
+            {/* Auto-detect locale option */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                <Label htmlFor="auto-detect-locale" className="text-xs">
+                  {language === 'zh-CN' ? '自动检测语言' : 'Auto-detect'}
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={handleDetectLocale}
+                  disabled={isDetecting}
+                  title={language === 'zh-CN' ? '重新检测' : 'Detect now'}
+                >
+                  <RefreshCw className={cn("h-3 w-3", isDetecting && "animate-spin")} />
+                </Button>
+                <Switch
+                  id="auto-detect-locale"
+                  checked={autoDetectLocaleEnabled}
+                  onCheckedChange={setAutoDetectLocale}
+                />
+              </div>
+            </div>
+
+            {/* Detection result info */}
+            {localeDetectionResult && (
+              <div className="text-[10px] text-muted-foreground bg-muted/50 rounded px-2 py-1.5 space-y-0.5">
+                <div className="flex items-center justify-between">
+                  <span>{language === 'zh-CN' ? '检测来源' : 'Source'}:</span>
+                  <span className="capitalize">{localeDetectionResult.source}</span>
+                </div>
+                {localeDetectionResult.country && (
+                  <div className="flex items-center justify-between">
+                    <span>{language === 'zh-CN' ? '国家/地区' : 'Region'}:</span>
+                    <span>{localeDetectionResult.country}</span>
+                  </div>
+                )}
+                {detectedTimezone && (
+                  <div className="flex items-center justify-between">
+                    <span>{language === 'zh-CN' ? '时区' : 'Timezone'}:</span>
+                    <span>{detectedTimezone}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span>{language === 'zh-CN' ? '置信度' : 'Confidence'}:</span>
+                  <span className={cn(
+                    "capitalize",
+                    localeDetectionResult.confidence === 'high' && "text-green-600",
+                    localeDetectionResult.confidence === 'medium' && "text-yellow-600",
+                    localeDetectionResult.confidence === 'low' && "text-red-600"
+                  )}>{localeDetectionResult.confidence}</span>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -388,6 +471,26 @@ export function AppearanceSettings() {
                 id="stream-responses"
                 checked={streamResponses}
                 onCheckedChange={setStreamResponses}
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5 min-w-0 flex-1 mr-2">
+                <div className="flex items-center gap-1.5">
+                  <Power className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Label htmlFor="autostart" className="text-sm">
+                    {language === 'zh-CN' ? '开机自启' : 'Launch at Startup'}
+                  </Label>
+                </div>
+                <p className="text-[10px] text-muted-foreground line-clamp-2">
+                  {language === 'zh-CN' ? '系统启动时自动运行应用' : 'Automatically start app on system boot'}
+                </p>
+              </div>
+              <Switch
+                id="autostart"
+                checked={autostart.isEnabled}
+                onCheckedChange={autostart.toggle}
+                disabled={autostart.isLoading}
               />
             </div>
           </div>

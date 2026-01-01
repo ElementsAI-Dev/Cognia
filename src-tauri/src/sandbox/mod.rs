@@ -612,6 +612,18 @@ mod tests {
     use super::*;
     use runtime::ExecutionStatus;
 
+    // ==================== Constants Tests ====================
+
+    #[test]
+    fn test_default_constants() {
+        assert_eq!(DEFAULT_TIMEOUT_SECS, 30);
+        assert_eq!(DEFAULT_MEMORY_LIMIT_MB, 256);
+        assert_eq!(DEFAULT_CPU_LIMIT_PERCENT, 50);
+        assert_eq!(DEFAULT_MAX_OUTPUT_SIZE, 1024 * 1024);
+    }
+
+    // ==================== SandboxConfig Tests ====================
+
     #[test]
     fn test_default_config() {
         let config = SandboxConfig::default();
@@ -620,6 +632,23 @@ mod tests {
         assert!(!config.enable_native);
         assert!(!config.network_enabled);
         assert_eq!(config.default_timeout_secs, DEFAULT_TIMEOUT_SECS);
+    }
+
+    #[test]
+    fn test_config_default_values() {
+        let config = SandboxConfig::default();
+        assert_eq!(config.default_timeout_secs, DEFAULT_TIMEOUT_SECS);
+        assert_eq!(config.default_memory_limit_mb, DEFAULT_MEMORY_LIMIT_MB);
+        assert_eq!(config.default_cpu_limit_percent, DEFAULT_CPU_LIMIT_PERCENT);
+        assert_eq!(config.max_output_size, DEFAULT_MAX_OUTPUT_SIZE);
+        assert!(config.custom_images.is_empty());
+        assert!(config.workspace_dir.is_none());
+    }
+
+    #[test]
+    fn test_config_preferred_runtime_default() {
+        let config = SandboxConfig::default();
+        assert_eq!(config.preferred_runtime, RuntimeType::Docker);
     }
 
     #[test]
@@ -632,11 +661,70 @@ mod tests {
     }
 
     #[test]
+    fn test_config_serialization_roundtrip() {
+        let mut config = SandboxConfig {
+            enable_native: true,
+            network_enabled: true,
+            default_timeout_secs: 60,
+            ..Default::default()
+        };
+        config.custom_images.insert("python".to_string(), "custom/python:latest".to_string());
+        
+        let json = serde_json::to_string(&config).unwrap();
+        let parsed: SandboxConfig = serde_json::from_str(&json).unwrap();
+        
+        assert!(parsed.enable_native);
+        assert!(parsed.network_enabled);
+        assert_eq!(parsed.default_timeout_secs, 60);
+        assert_eq!(parsed.custom_images.get("python"), Some(&"custom/python:latest".to_string()));
+    }
+
+    #[test]
+    fn test_config_with_custom_images() {
+        let mut config = SandboxConfig::default();
+        config.custom_images.insert("python".to_string(), "my-python:3.12".to_string());
+        config.custom_images.insert("rust".to_string(), "my-rust:1.80".to_string());
+        
+        assert_eq!(config.custom_images.len(), 2);
+        assert_eq!(config.custom_images.get("python"), Some(&"my-python:3.12".to_string()));
+    }
+
+    #[test]
+    fn test_config_with_workspace_dir() {
+        let config = SandboxConfig {
+            workspace_dir: Some(PathBuf::from("/tmp/sandbox")),
+            ..Default::default()
+        };
+        
+        assert!(config.workspace_dir.is_some());
+        assert_eq!(config.workspace_dir.unwrap(), PathBuf::from("/tmp/sandbox"));
+    }
+
+    #[test]
+    fn test_config_clone() {
+        let config = SandboxConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.default_timeout_secs, cloned.default_timeout_secs);
+        assert_eq!(config.enabled_languages.len(), cloned.enabled_languages.len());
+    }
+
+    #[test]
+    fn test_config_debug() {
+        let config = SandboxConfig::default();
+        let debug = format!("{:?}", config);
+        assert!(debug.contains("SandboxConfig"));
+    }
+
+    // ==================== RuntimeType Tests ====================
+
+    #[test]
     fn test_runtime_type_display() {
         assert_eq!(RuntimeType::Docker.to_string(), "docker");
         assert_eq!(RuntimeType::Podman.to_string(), "podman");
         assert_eq!(RuntimeType::Native.to_string(), "native");
     }
+
+    // ==================== ExecutionRequest Tests ====================
 
     #[test]
     fn test_execution_request_new() {
@@ -681,6 +769,8 @@ mod tests {
         assert_eq!(request.timeout_secs, Some(30));
         assert_eq!(request.memory_limit_mb, Some(256));
     }
+
+    // ==================== ExecutionResult Tests ====================
 
     #[test]
     fn test_execution_result_success() {
@@ -731,6 +821,8 @@ mod tests {
         assert!(result.error.unwrap().contains("timeout"));
     }
 
+    // ==================== Enabled Languages Tests ====================
+
     #[test]
     fn test_enabled_languages_default() {
         let config = SandboxConfig::default();
@@ -739,6 +831,34 @@ mod tests {
         assert!(config.enabled_languages.contains(&"rust".to_string()));
         assert!(config.enabled_languages.contains(&"go".to_string()));
     }
+
+    #[test]
+    fn test_enabled_languages_count() {
+        let config = SandboxConfig::default();
+        // Should have all 25 default languages
+        assert_eq!(config.enabled_languages.len(), 25);
+    }
+
+    #[test]
+    fn test_enabled_languages_all_present() {
+        let config = SandboxConfig::default();
+        let expected = vec![
+            "python", "javascript", "typescript", "go", "rust", "java",
+            "c", "cpp", "ruby", "php", "bash", "powershell", "r", "julia",
+            "lua", "perl", "swift", "kotlin", "scala", "haskell", "elixir",
+            "clojure", "fsharp", "csharp", "zig"
+        ];
+        
+        for lang in expected {
+            assert!(
+                config.enabled_languages.contains(&lang.to_string()),
+                "{} should be in enabled_languages",
+                lang
+            );
+        }
+    }
+
+    // ==================== SandboxError Tests ====================
 
     #[test]
     fn test_sandbox_error_display() {
@@ -750,5 +870,155 @@ mod tests {
         
         let err = SandboxError::RuntimeNotAvailable("docker".to_string());
         assert!(err.to_string().contains("docker"));
+    }
+
+    #[test]
+    fn test_sandbox_error_all_variants() {
+        // Test all error variants have proper display
+        let errors = vec![
+            SandboxError::RuntimeNotAvailable("test".to_string()),
+            SandboxError::LanguageNotSupported("test".to_string()),
+            SandboxError::Timeout(30),
+            SandboxError::ExecutionFailed("test".to_string()),
+            SandboxError::ContainerError("test".to_string()),
+            SandboxError::Config("test".to_string()),
+            SandboxError::ResourceLimit("test".to_string()),
+            SandboxError::SecurityViolation("test".to_string()),
+        ];
+        
+        for err in errors {
+            let display = err.to_string();
+            assert!(!display.is_empty());
+        }
+    }
+
+    // ==================== Re-exports Tests ====================
+
+    #[test]
+    fn test_public_reexports() {
+        // Test that public types are accessible
+        let _: CodeSnippet;
+        let _: ExecutionFilter;
+        let _: ExecutionRecord;
+        let _: ExecutionSession;
+        let _: LanguageStats;
+        let _: SandboxStats;
+        let _: SnippetFilter;
+        
+        // These should compile - just checking reexports work
+        let _ = DockerRuntime::new();
+        let _ = PodmanRuntime::new();
+        let _ = NativeRuntime::new();
+    }
+
+    #[test]
+    fn test_language_configs_reexport() {
+        // Test LANGUAGE_CONFIGS is accessible
+        assert!(!LANGUAGE_CONFIGS.is_empty());
+        
+        // Test Language struct is accessible
+        let lang = Language {
+            id: "test",
+            name: "Test",
+            extension: "test",
+            category: languages::LanguageCategory::Interpreted,
+        };
+        assert_eq!(lang.id, "test");
+    }
+
+    // ==================== Integration-style Unit Tests ====================
+
+    #[test]
+    fn test_config_and_request_compatibility() {
+        let config = SandboxConfig::default();
+        let request = ExecutionRequest::new("python", "print('hello')")
+            .with_timeout(config.default_timeout_secs)
+            .with_memory_limit(config.default_memory_limit_mb);
+        
+        assert_eq!(request.timeout_secs, Some(DEFAULT_TIMEOUT_SECS));
+        assert_eq!(request.memory_limit_mb, Some(DEFAULT_MEMORY_LIMIT_MB));
+    }
+
+    #[test]
+    fn test_execution_result_status_mapping() {
+        // Exit code 0 -> Completed
+        let success = ExecutionResult::success(
+            "id".to_string(), String::new(), String::new(), 0, 0, RuntimeType::Docker, "python".to_string()
+        );
+        assert!(matches!(success.status, ExecutionStatus::Completed));
+        
+        // Exit code non-zero -> Failed
+        let failed = ExecutionResult::success(
+            "id".to_string(), String::new(), String::new(), 1, 0, RuntimeType::Docker, "python".to_string()
+        );
+        assert!(matches!(failed.status, ExecutionStatus::Failed));
+        
+        // Error -> Failed
+        let error = ExecutionResult::error(
+            "id".to_string(), "error".to_string(), RuntimeType::Docker, "python".to_string()
+        );
+        assert!(matches!(error.status, ExecutionStatus::Failed));
+        
+        // Timeout -> Timeout
+        let timeout = ExecutionResult::timeout(
+            "id".to_string(), String::new(), String::new(), 30, RuntimeType::Docker, "python".to_string()
+        );
+        assert!(matches!(timeout.status, ExecutionStatus::Timeout));
+    }
+
+    // ==================== Edge Case Tests ====================
+
+    #[test]
+    fn test_empty_code_request() {
+        let request = ExecutionRequest::new("python", "");
+        assert_eq!(request.code, "");
+    }
+
+    #[test]
+    fn test_multiline_code_request() {
+        let code = r#"
+def hello():
+    print("Hello")
+    
+hello()
+"#;
+        let request = ExecutionRequest::new("python", code);
+        assert!(request.code.contains("def hello"));
+    }
+
+    #[test]
+    fn test_special_characters_in_code() {
+        let code = r#"print("Special: \" \\ \n \t")"#;
+        let request = ExecutionRequest::new("python", code);
+        assert!(request.code.contains("Special"));
+    }
+
+    #[test]
+    fn test_unicode_in_code() {
+        let code = r#"print("你好世界 🎉")"#;
+        let request = ExecutionRequest::new("python", code);
+        assert!(request.code.contains("你好世界"));
+    }
+
+    #[test]
+    fn test_large_stdin() {
+        let large_input = "a".repeat(10000);
+        let request = ExecutionRequest::new("python", "x = input()")
+            .with_stdin(&large_input);
+        assert_eq!(request.stdin.unwrap().len(), 10000);
+    }
+
+    #[test]
+    fn test_zero_timeout() {
+        let request = ExecutionRequest::new("python", "code")
+            .with_timeout(0);
+        assert_eq!(request.timeout_secs, Some(0));
+    }
+
+    #[test]
+    fn test_large_memory_limit() {
+        let request = ExecutionRequest::new("python", "code")
+            .with_memory_limit(8192); // 8GB
+        assert_eq!(request.memory_limit_mb, Some(8192));
     }
 }

@@ -53,6 +53,54 @@ export interface ImagePart {
   type: 'image';
   url: string;
   alt?: string;
+  /** Base64 encoded image data */
+  base64?: string;
+  /** MIME type of the image */
+  mimeType?: string;
+  /** Width in pixels */
+  width?: number;
+  /** Height in pixels */
+  height?: number;
+  /** Whether this is an AI-generated image */
+  isGenerated?: boolean;
+  /** Original prompt used to generate the image */
+  prompt?: string;
+  /** Revised prompt from the model */
+  revisedPrompt?: string;
+}
+
+export interface VideoPart {
+  type: 'video';
+  /** URL to the video */
+  url?: string;
+  /** Base64 encoded video data */
+  base64?: string;
+  /** Thumbnail URL */
+  thumbnailUrl?: string;
+  /** Thumbnail base64 */
+  thumbnailBase64?: string;
+  /** Video title or description */
+  title?: string;
+  /** Duration in seconds */
+  durationSeconds?: number;
+  /** Width in pixels */
+  width?: number;
+  /** Height in pixels */
+  height?: number;
+  /** Frames per second */
+  fps?: number;
+  /** MIME type */
+  mimeType?: string;
+  /** Whether this is an AI-generated video */
+  isGenerated?: boolean;
+  /** Original prompt used to generate the video */
+  prompt?: string;
+  /** Revised prompt from the model */
+  revisedPrompt?: string;
+  /** Video provider (e.g., 'google-veo', 'openai-sora') */
+  provider?: string;
+  /** Video model used */
+  model?: string;
 }
 
 export interface FilePart {
@@ -66,6 +114,7 @@ export type MessagePart =
   | ToolInvocationPart
   | SourcesPart
   | ImagePart
+  | VideoPart
   | FilePart;
 
 export interface Attachment {

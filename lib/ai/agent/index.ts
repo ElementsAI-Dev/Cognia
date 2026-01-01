@@ -3,27 +3,6 @@
  */
 
 export {
-  executeAgent,
-  createAgent,
-  type ToolCall,
-  type AgentExecutionState,
-  type AgentTool,
-  type AgentConfig,
-  type AgentResult,
-  type AgentStep,
-} from './agent-executor';
-
-export {
-  executeAgentLoop,
-  createAgentLoop,
-  type AgentTask,
-  type AgentLoopConfig,
-  type AgentLoopResult,
-} from './agent-loop';
-
-export {
-  stepCountIs,
-  durationExceeds,
   noToolCalls,
   toolCalled,
   responseContains,
@@ -40,6 +19,18 @@ export {
 } from './stop-conditions';
 
 export {
+  executeAgent,
+  createAgent,
+  stopConditions,
+  type AgentTool,
+  type AgentConfig,
+  type AgentResult,
+  type AgentStep,
+  type ToolCall,
+  type AgentExecutionState,
+} from './agent-executor';
+
+export {
   initializeAgentTools,
   createCalculatorTool,
   createWebSearchTool,
@@ -51,6 +42,8 @@ export {
   getToolsFromRegistry,
   getSkillsSystemPrompt,
   initializeAgentToolsWithSkills,
+  buildEnvironmentToolsSystemPrompt,
+  buildAgentSystemPrompt,
   type AgentToolsConfig,
 } from './agent-tools';
 
@@ -98,3 +91,27 @@ export {
   getBackgroundAgentManager,
   setBackgroundAgentManager,
 } from './background-agent-manager';
+
+// Agent Loop exports
+export {
+  executeAgentLoop,
+  createAgentLoop,
+  type AgentLoopConfig,
+  type AgentLoopResult,
+  type AgentTask,
+} from './agent-loop';
+
+// Environment Tools exports
+export {
+  getEnvironmentTools,
+  initializeEnvironmentTools,
+  createVenvTool,
+  createInstallPackagesTool,
+  createRunPythonTool,
+  createRunInEnvTool,
+  createListPackagesTool,
+  createCheckEnvTool,
+  createGetPythonVersionsTool,
+  getEnvironmentToolsSystemPrompt,
+  getEnvironmentToolsPromptSnippet,
+} from './environment-tools';

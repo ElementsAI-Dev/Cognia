@@ -214,7 +214,9 @@ describe('KnowledgeBase', () => {
     
     fireEvent.change(fileNameInput, { target: { value: 'test.md' } });
     fireEvent.change(contentInput, { target: { value: 'Test content' } });
-    fireEvent.click(screen.getByText('Add File'));
+    // Use getAllByText and get the specific button
+    const addButtons = screen.getAllByRole('button', { name: /Add File|添加文件/i });
+    fireEvent.click(addButtons[addButtons.length - 1]);
     
     expect(mockAddKnowledgeFile).toHaveBeenCalledWith('project-1', expect.objectContaining({
       name: 'test.md',

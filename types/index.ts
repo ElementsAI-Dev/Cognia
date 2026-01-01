@@ -9,6 +9,7 @@ export * from './tool';
 export * from './research';
 export * from './artifact';
 export * from './memory';
+export * from './memory-provider';
 export * from './project';
 export * from './usage';
 export * from './preset';

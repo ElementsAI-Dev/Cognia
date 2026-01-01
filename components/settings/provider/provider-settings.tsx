@@ -86,6 +86,8 @@ import { OAuthLoginButton } from './oauth-login-button';
 import { ProviderImportExport } from './provider-import-export';
 import { ProviderHealthStatus } from './provider-health-status';
 import { OllamaModelManager } from './ollama-model-manager';
+import { OpenRouterSettings } from './openrouter-settings';
+import { OpenRouterKeyManagement } from './openrouter-key-management';
 import { testProviderConnection, type ApiTestResult } from '@/lib/ai/api-test';
 import { maskApiKey } from '@/lib/ai/api-key-rotation';
 
@@ -1241,6 +1243,14 @@ export function ProviderSettings() {
                   {/* Health Status */}
                   {isEnabled && apiKey && (
                     <ProviderHealthStatus providerId={providerId} />
+                  )}
+
+                  {/* OpenRouter-specific settings */}
+                  {providerId === 'openrouter' && isEnabled && (
+                    <div className="space-y-4 pt-2 border-t">
+                      <OpenRouterSettings />
+                      <OpenRouterKeyManagement />
+                    </div>
                   )}
                 </CardContent>
               </CollapsibleContent>

@@ -26,6 +26,7 @@ import { ElementTree } from './element-tree';
 import { StylePanel } from './style-panel';
 import { VersionHistoryPanel } from './version-history-panel';
 import { DesignerDndProvider, SelectionOverlay } from './dnd';
+import { AIChatPanel } from './ai-chat-panel';
 
 // Dynamically import Monaco to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
@@ -57,6 +58,7 @@ export function DesignerPanel({
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [showAIInput, setShowAIInput] = useState(false);
   const [aiError, setAIError] = useState<string | null>(null);
+  const [showAIChatPanel, setShowAIChatPanel] = useState(false);
 
   // Settings for built-in AI
   const providerSettings = useSettingsStore((state) => state.providerSettings);
@@ -210,7 +212,13 @@ export function DesignerPanel({
         <SheetTitle className="sr-only">Designer Panel</SheetTitle>
         <DesignerDndProvider>
           {/* Toolbar */}
-          <DesignerToolbar onAIEdit={handleAIEdit} onExport={handleExport} onOpenInCanvas={handleOpenInCanvas} />
+          <DesignerToolbar 
+            onAIEdit={handleAIEdit} 
+            onExport={handleExport} 
+            onOpenInCanvas={handleOpenInCanvas}
+            showAIChatPanel={showAIChatPanel}
+            onToggleAIChat={() => setShowAIChatPanel(!showAIChatPanel)}
+          />
 
           {/* AI Input Bar */}
           {showAIInput && (
@@ -325,6 +333,25 @@ export function DesignerPanel({
                     <ResizableHandle withHandle />
                     <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
                       <VersionHistoryPanel className="h-full border-l" />
+                    </ResizablePanel>
+                  </>
+                )}
+
+                {/* AI Chat Panel */}
+                {showAIChatPanel && (
+                  <>
+                    <ResizableHandle withHandle />
+                    <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+                      <AIChatPanel
+                        code={code}
+                        onCodeChange={(newCode) => {
+                          setCode(newCode);
+                          parseCodeToElements(newCode);
+                          onCodeChange?.(newCode);
+                        }}
+                        isOpen={showAIChatPanel}
+                        onClose={() => setShowAIChatPanel(false)}
+                      />
                     </ResizablePanel>
                   </>
                 )}

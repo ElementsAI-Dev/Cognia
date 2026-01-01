@@ -207,7 +207,7 @@ describe('ExecutionStatisticsPanel with no data', () => {
       averageDuration: 0,
       minDuration: 0,
       maxDuration: 0,
-      lastExecutedAt: undefined,
+      lastExecutedAt: null as unknown as Date,
       executionHistory: [],
     });
   });

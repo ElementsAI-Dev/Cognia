@@ -1,13 +1,32 @@
 /**
  * AI Middleware - Composable middleware for language models
  * Provides caching, logging, retry logic, and reasoning extraction
+ * 
+ * Built-in middlewares from AI SDK:
+ * - extractReasoningMiddleware: Extract reasoning from <think> tags
+ * - simulateStreamingMiddleware: Simulate streaming for non-streaming models
+ * - defaultSettingsMiddleware: Apply default settings to models
+ * - addToolInputExamplesMiddleware: Add examples to tool descriptions
+ * 
+ * Based on AI SDK documentation:
+ * https://ai-sdk.dev/docs/ai-sdk-core/middleware
  */
 
 import {
   wrapLanguageModel,
   extractReasoningMiddleware,
+  simulateStreamingMiddleware,
+  defaultSettingsMiddleware,
   type LanguageModel,
+  type LanguageModelMiddleware,
 } from 'ai';
+
+// Re-export built-in middlewares for convenience
+export {
+  extractReasoningMiddleware,
+  simulateStreamingMiddleware,
+  defaultSettingsMiddleware,
+};
 
 export interface MiddlewareConfig {
   enableLogging?: boolean;
@@ -248,3 +267,190 @@ export function withTelemetry<T>(
     });
 }
 
+/**
+ * Default settings configuration for models
+ */
+export interface DefaultModelSettings {
+  temperature?: number;
+  maxTokens?: number;
+  topP?: number;
+  topK?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  providerOptions?: Record<string, unknown>;
+}
+
+/**
+ * Create a model with default settings applied
+ */
+export function withDefaultSettings<T extends LanguageModel>(
+  model: T,
+  settings: DefaultModelSettings
+): T {
+  // Build settings object without providerOptions first
+  const baseSettings: Record<string, unknown> = {};
+  if (settings.temperature !== undefined) baseSettings.temperature = settings.temperature;
+  if (settings.maxTokens !== undefined) baseSettings.maxOutputTokens = settings.maxTokens;
+  if (settings.topP !== undefined) baseSettings.topP = settings.topP;
+  if (settings.topK !== undefined) baseSettings.topK = settings.topK;
+  if (settings.frequencyPenalty !== undefined) baseSettings.frequencyPenalty = settings.frequencyPenalty;
+  if (settings.presencePenalty !== undefined) baseSettings.presencePenalty = settings.presencePenalty;
+  if (settings.providerOptions) baseSettings.providerOptions = settings.providerOptions;
+
+  return wrapLanguageModel({
+    model: model as Parameters<typeof wrapLanguageModel>[0]['model'],
+    middleware: defaultSettingsMiddleware({
+      settings: baseSettings as Parameters<typeof defaultSettingsMiddleware>[0]['settings'],
+    }),
+  }) as T;
+}
+
+/**
+ * Create a model that simulates streaming for non-streaming providers
+ */
+export function withSimulatedStreaming<T extends LanguageModel>(model: T): T {
+  return wrapLanguageModel({
+    model: model as Parameters<typeof wrapLanguageModel>[0]['model'],
+    middleware: simulateStreamingMiddleware(),
+  }) as T;
+}
+
+/**
+ * Combine multiple middlewares into a single wrapped model
+ */
+export function withMiddlewares<T extends LanguageModel>(
+  model: T,
+  middlewares: LanguageModelMiddleware[]
+): T {
+  if (middlewares.length === 0) {
+    return model;
+  }
+
+  return wrapLanguageModel({
+    model: model as Parameters<typeof wrapLanguageModel>[0]['model'],
+    middleware: middlewares.length === 1 ? middlewares[0] : middlewares,
+  }) as T;
+}
+
+/**
+ * Create a logging middleware
+ */
+export function createLoggingMiddleware(options?: {
+  logParams?: boolean;
+  logResult?: boolean;
+  logger?: (message: string, data?: unknown) => void;
+}): LanguageModelMiddleware {
+  const {
+    logParams = true,
+    logResult = true,
+    logger = console.log,
+  } = options || {};
+
+  return {
+    wrapGenerate: async ({ doGenerate, params }) => {
+      const startTime = Date.now();
+      
+      if (logParams) {
+        logger('[AI] Generate started', { params });
+      }
+
+      const result = await doGenerate();
+      
+      if (logResult) {
+        // Extract text from content array
+        const textContent = result.content?.find((c: { type: string }) => c.type === 'text');
+        const textLength = textContent && 'text' in textContent ? (textContent.text as string)?.length : 0;
+        logger('[AI] Generate completed', {
+          duration: Date.now() - startTime,
+          textLength,
+          finishReason: result.finishReason,
+        });
+      }
+
+      return result;
+    },
+
+    wrapStream: async ({ doStream, params }) => {
+      const startTime = Date.now();
+      
+      if (logParams) {
+        logger('[AI] Stream started', { params });
+      }
+
+      const result = await doStream();
+      
+      if (logResult) {
+        logger('[AI] Stream initiated', {
+          duration: Date.now() - startTime,
+        });
+      }
+
+      return result;
+    },
+  };
+}
+
+/**
+ * Create a guardrail middleware for content filtering
+ */
+export function createGuardrailMiddleware(options: {
+  /** Words or patterns to filter from output */
+  blockedPatterns?: (string | RegExp)[];
+  /** Replacement text for blocked content */
+  replacement?: string;
+  /** Custom filter function */
+  customFilter?: (text: string) => string;
+}): LanguageModelMiddleware {
+  const {
+    blockedPatterns = [],
+    replacement = '[FILTERED]',
+    customFilter,
+  } = options;
+
+  const filterText = (text: string | undefined): string | undefined => {
+    if (!text) return text;
+    
+    let filtered = text;
+    
+    // Apply blocked patterns
+    for (const pattern of blockedPatterns) {
+      if (typeof pattern === 'string') {
+        filtered = filtered.replaceAll(pattern, replacement);
+      } else {
+        filtered = filtered.replace(pattern, replacement);
+      }
+    }
+    
+    // Apply custom filter
+    if (customFilter) {
+      filtered = customFilter(filtered);
+    }
+    
+    return filtered;
+  };
+
+  return {
+    wrapGenerate: async ({ doGenerate }) => {
+      const result = await doGenerate();
+      // Filter text content in the content array
+      const filteredContent = result.content?.map((item) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const anyItem = item as any;
+        if (anyItem.type === 'text' && 'text' in anyItem) {
+          return { ...anyItem, text: filterText(anyItem.text) };
+        }
+        return item;
+      });
+      return {
+        ...result,
+        content: filteredContent,
+      };
+    },
+  };
+}
+
+// Re-export wrapLanguageModel for advanced usage
+export { wrapLanguageModel };
+
+// Export type for external use
+export type { LanguageModelMiddleware };

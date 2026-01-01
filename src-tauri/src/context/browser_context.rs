@@ -171,15 +171,15 @@ impl BrowserContext {
     /// Try to extract domain from page title
     fn extract_domain_from_title(title: &str) -> Option<String> {
         // Common patterns where domain appears in title
+        // NOTE: More specific matches MUST come before more general ones
+        // e.g., "Google Drive" before "Google", "Yahoo Mail" before "Yahoo"
         let known_domains = [
             ("GitHub", "github.com"),
             ("GitLab", "gitlab.com"),
             ("Stack Overflow", "stackoverflow.com"),
             ("Reddit", "reddit.com"),
             ("Twitter", "twitter.com"),
-            ("X", "x.com"),
             ("YouTube", "youtube.com"),
-            ("Google", "google.com"),
             ("Bing", "bing.com"),
             ("DuckDuckGo", "duckduckgo.com"),
             ("Wikipedia", "wikipedia.org"),
@@ -198,7 +198,12 @@ impl BrowserContext {
             ("Netlify", "netlify.com"),
             ("AWS", "aws.amazon.com"),
             ("Azure", "azure.microsoft.com"),
+            // Google services - more specific first
+            ("Google Drive", "drive.google.com"),
             ("Google Cloud", "cloud.google.com"),
+            ("Google Meet", "meet.google.com"),
+            ("Gmail", "mail.google.com"),
+            ("Google", "google.com"),  // General Google last
             ("ChatGPT", "chat.openai.com"),
             ("Claude", "claude.ai"),
             ("Anthropic", "anthropic.com"),
@@ -227,15 +232,14 @@ impl BrowserContext {
             ("Monday", "monday.com"),
             ("Linear", "linear.app"),
             ("Dropbox", "dropbox.com"),
-            ("Google Drive", "drive.google.com"),
             ("OneDrive", "onedrive.live.com"),
             ("iCloud", "icloud.com"),
-            ("Gmail", "mail.google.com"),
             ("Outlook", "outlook.live.com"),
+            // Yahoo services - more specific first
             ("Yahoo Mail", "mail.yahoo.com"),
             ("Zoom", "zoom.us"),
-            ("Google Meet", "meet.google.com"),
             ("Microsoft Teams", "teams.microsoft.com"),
+            ("X", "x.com"),  // Put X last as it's very short and might match unintentionally
         ];
 
         let title_lower = title.to_lowercase();
@@ -248,7 +252,7 @@ impl BrowserContext {
 
         // Try to find domain pattern in title (e.g., "example.com")
         let domain_regex = regex::Regex::new(r"([a-zA-Z0-9][-a-zA-Z0-9]*\.)+[a-zA-Z]{2,}").ok()?;
-        domain_regex.find(&title).map(|m| m.as_str().to_lowercase())
+        domain_regex.find(title).map(|m| m.as_str().to_lowercase())
     }
 
     /// Detect tab information
@@ -284,14 +288,24 @@ impl BrowserContext {
             return PageType::BrowserInternal;
         }
 
-        // Search engines
-        if dom.contains("google.com") && (title.contains("search") || title.contains(" - google")) {
+        // Cloud storage (check before search engines to avoid false positives)
+        if dom.contains("drive.google.com") || dom.contains("dropbox.com") || dom.contains("onedrive.")
+            || dom.contains("box.com") || dom.contains("icloud.com") {
+            return PageType::CloudStorage;
+        }
+
+        // Web email (check before search engines to avoid false positives)
+        if dom.contains("mail.google.com") || dom.contains("outlook.live.com") || dom.contains("mail.yahoo.com")
+            || dom.contains("protonmail.com") || title.contains("inbox") {
+            return PageType::WebEmail;
+        }
+
+        // Search engines (more specific check to avoid matching Gmail/Drive)
+        if dom == "google.com" && (title.contains("search") || title.contains(" - google search")) {
             return PageType::SearchResults;
         }
-        if dom.contains("bing.com") || dom.contains("duckduckgo.com") || dom.contains("yahoo.com") {
-            if title.contains("search") {
-                return PageType::SearchResults;
-            }
+        if (dom.contains("bing.com") || dom.contains("duckduckgo.com")) && title.contains("search") {
+            return PageType::SearchResults;
         }
 
         // Code repositories
@@ -331,23 +345,11 @@ impl BrowserContext {
             return PageType::Chat;
         }
 
-        // Web email
-        if dom.contains("mail.google.com") || dom.contains("outlook.live.com") || dom.contains("mail.yahoo.com")
-            || dom.contains("protonmail.com") || title.contains("inbox") || title.contains("email") {
-            return PageType::WebEmail;
-        }
-
         // E-commerce
         if dom.contains("amazon.") || dom.contains("ebay.") || dom.contains("aliexpress.")
             || dom.contains("shopify.") || dom.contains("etsy.com") || title.contains("shopping")
             || title.contains("cart") || title.contains("checkout") {
             return PageType::Ecommerce;
-        }
-
-        // Cloud storage
-        if dom.contains("drive.google.com") || dom.contains("dropbox.com") || dom.contains("onedrive.")
-            || dom.contains("box.com") || dom.contains("icloud.com") {
-            return PageType::CloudStorage;
         }
 
         // Dev tools (online IDEs, etc.)
@@ -412,5 +414,386 @@ impl BrowserContext {
                 "Translate".to_string(),
             ],
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::context::WindowInfo;
+
+    fn create_test_window_info(process_name: &str, title: &str) -> WindowInfo {
+        WindowInfo {
+            handle: 12345,
+            title: title.to_string(),
+            class_name: "TestClass".to_string(),
+            process_id: 1234,
+            process_name: process_name.to_string(),
+            exe_path: Some(format!("C:\\Program Files\\{}", process_name)),
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+            is_minimized: false,
+            is_maximized: false,
+            is_focused: true,
+            is_visible: true,
+        }
+    }
+
+    // Browser detection tests
+    #[test]
+    fn test_detect_browser_chrome() {
+        let window = create_test_window_info("chrome.exe", "Google - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.browser, "Google Chrome");
+    }
+
+    #[test]
+    fn test_detect_browser_firefox() {
+        let window = create_test_window_info("firefox.exe", "Mozilla Firefox");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.browser, "Mozilla Firefox");
+    }
+
+    #[test]
+    fn test_detect_browser_edge() {
+        let window = create_test_window_info("msedge.exe", "Microsoft Edge");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.browser, "Microsoft Edge");
+    }
+
+    #[test]
+    fn test_detect_browser_safari() {
+        let window = create_test_window_info("safari.exe", "Safari");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.browser, "Safari");
+    }
+
+    #[test]
+    fn test_detect_browser_opera() {
+        let window = create_test_window_info("opera.exe", "Opera");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.browser, "Opera");
+    }
+
+    #[test]
+    fn test_detect_browser_brave() {
+        let window = create_test_window_info("brave.exe", "Brave");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.browser, "Brave");
+    }
+
+    #[test]
+    fn test_detect_browser_vivaldi() {
+        let window = create_test_window_info("vivaldi.exe", "Vivaldi");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.browser, "Vivaldi");
+    }
+
+    #[test]
+    fn test_detect_browser_arc() {
+        let window = create_test_window_info("arc.exe", "Arc");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.browser, "Arc");
+    }
+
+    #[test]
+    fn test_not_a_browser() {
+        let window = create_test_window_info("notepad.exe", "Notepad");
+        let result = BrowserContext::from_window_info(&window);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Not a recognized browser");
+    }
+
+    // Page title parsing tests
+    #[test]
+    fn test_parse_page_title_chrome_format() {
+        let window = create_test_window_info("chrome.exe", "GitHub - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.page_title, Some("GitHub".to_string()));
+    }
+
+    #[test]
+    fn test_parse_page_title_firefox_format() {
+        let window = create_test_window_info("firefox.exe", "GitHub - Mozilla Firefox");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.page_title, Some("GitHub".to_string()));
+    }
+
+    #[test]
+    fn test_parse_page_title_with_em_dash() {
+        let window = create_test_window_info("chrome.exe", "Stack Overflow — Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.page_title, Some("Stack Overflow".to_string()));
+    }
+
+    // Domain detection tests
+    #[test]
+    fn test_detect_domain_github() {
+        let window = create_test_window_info("chrome.exe", "GitHub - google/material-design - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.domain, Some("github.com".to_string()));
+    }
+
+    #[test]
+    fn test_detect_domain_stackoverflow() {
+        let window = create_test_window_info("chrome.exe", "Stack Overflow - How to do something - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.domain, Some("stackoverflow.com".to_string()));
+    }
+
+    #[test]
+    fn test_detect_domain_youtube() {
+        let window = create_test_window_info("chrome.exe", "YouTube - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.domain, Some("youtube.com".to_string()));
+    }
+
+    #[test]
+    fn test_detect_domain_chatgpt() {
+        let window = create_test_window_info("chrome.exe", "ChatGPT - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.domain, Some("chat.openai.com".to_string()));
+    }
+
+    #[test]
+    fn test_detect_domain_claude() {
+        let window = create_test_window_info("chrome.exe", "Claude - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.domain, Some("claude.ai".to_string()));
+    }
+
+    // Tab info tests
+    #[test]
+    fn test_detect_new_tab() {
+        let window = create_test_window_info("chrome.exe", "New Tab - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert!(context.tab_info.as_ref().unwrap().is_new_tab);
+    }
+
+    #[test]
+    fn test_detect_settings_page() {
+        let window = create_test_window_info("chrome.exe", "Settings - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert!(context.tab_info.as_ref().unwrap().is_settings);
+    }
+
+    #[test]
+    fn test_detect_dev_tools() {
+        let window = create_test_window_info("chrome.exe", "DevTools - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert!(context.tab_info.as_ref().unwrap().is_dev_tools);
+    }
+
+    #[test]
+    fn test_detect_extension_page() {
+        let window = create_test_window_info("chrome.exe", "Extension Manager - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert!(context.tab_info.as_ref().unwrap().is_extension);
+    }
+
+    // Page type detection tests
+    #[test]
+    fn test_page_type_code_repository() {
+        let window = create_test_window_info("chrome.exe", "GitHub - myrepo - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.page_type, PageType::CodeRepository);
+    }
+
+    #[test]
+    fn test_page_type_video_streaming() {
+        let window = create_test_window_info("chrome.exe", "YouTube - Funny Video - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.page_type, PageType::VideoStreaming);
+    }
+
+    #[test]
+    fn test_page_type_social_media() {
+        let window = create_test_window_info("chrome.exe", "Twitter - Home - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.page_type, PageType::SocialMedia);
+    }
+
+    #[test]
+    fn test_page_type_ai_interface() {
+        let window = create_test_window_info("chrome.exe", "ChatGPT - New conversation - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.page_type, PageType::AiInterface);
+    }
+
+    #[test]
+    fn test_page_type_documentation() {
+        let window = create_test_window_info("chrome.exe", "MDN Web Docs - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.page_type, PageType::Documentation);
+    }
+
+    #[test]
+    fn test_page_type_chat() {
+        let window = create_test_window_info("chrome.exe", "Discord - Server Chat - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.page_type, PageType::Chat);
+    }
+
+    #[test]
+    fn test_page_type_web_email() {
+        let window = create_test_window_info("chrome.exe", "Gmail - Inbox - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.page_type, PageType::WebEmail);
+    }
+
+    #[test]
+    fn test_page_type_cloud_storage() {
+        let window = create_test_window_info("chrome.exe", "Google Drive - My Files - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.page_type, PageType::CloudStorage);
+    }
+
+    #[test]
+    fn test_page_type_dev_tools() {
+        let window = create_test_window_info("chrome.exe", "CodePen - Test Pen - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.page_type, PageType::DevTools);
+    }
+
+    #[test]
+    fn test_page_type_browser_internal() {
+        let window = create_test_window_info("chrome.exe", "New Tab - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.page_type, PageType::BrowserInternal);
+    }
+
+    // Suggested actions tests
+    #[test]
+    fn test_suggested_actions_search_results() {
+        let window = create_test_window_info("chrome.exe", "search results - Google Search - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        let actions = context.get_suggested_actions();
+        assert!(actions.contains(&"Summarize results".to_string()));
+    }
+
+    #[test]
+    fn test_suggested_actions_documentation() {
+        let window = create_test_window_info("chrome.exe", "MDN Web Docs - Array - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        let actions = context.get_suggested_actions();
+        assert!(actions.contains(&"Explain concept".to_string()));
+    }
+
+    #[test]
+    fn test_suggested_actions_code_repository() {
+        let window = create_test_window_info("chrome.exe", "GitHub - myrepo - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        let actions = context.get_suggested_actions();
+        assert!(actions.contains(&"Explain code".to_string()));
+    }
+
+    #[test]
+    fn test_suggested_actions_video_streaming() {
+        let window = create_test_window_info("chrome.exe", "YouTube - Video - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        let actions = context.get_suggested_actions();
+        assert!(actions.contains(&"Summarize video".to_string()));
+    }
+
+    #[test]
+    fn test_suggested_actions_news_article() {
+        let window = create_test_window_info("chrome.exe", "Medium - Article Title - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        let actions = context.get_suggested_actions();
+        assert!(actions.contains(&"Summarize article".to_string()));
+    }
+
+    // Serialization tests
+    #[test]
+    fn test_browser_context_serialization() {
+        let window = create_test_window_info("chrome.exe", "GitHub - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        
+        let json = serde_json::to_string(&context);
+        assert!(json.is_ok());
+        
+        let parsed: Result<BrowserContext, _> = serde_json::from_str(&json.unwrap());
+        assert!(parsed.is_ok());
+        assert_eq!(parsed.unwrap().browser, "Google Chrome");
+    }
+
+    #[test]
+    fn test_tab_info_serialization() {
+        let tab_info = TabInfo {
+            is_new_tab: true,
+            is_settings: false,
+            is_dev_tools: false,
+            is_extension: false,
+        };
+        
+        let json = serde_json::to_string(&tab_info);
+        assert!(json.is_ok());
+        
+        let parsed: Result<TabInfo, _> = serde_json::from_str(&json.unwrap());
+        assert!(parsed.is_ok());
+        assert!(parsed.unwrap().is_new_tab);
+    }
+
+    #[test]
+    fn test_page_type_serialization() {
+        let page_types = vec![
+            PageType::SearchResults,
+            PageType::Documentation,
+            PageType::CodeRepository,
+            PageType::SocialMedia,
+            PageType::VideoStreaming,
+            PageType::NewsArticle,
+            PageType::WebEmail,
+            PageType::Ecommerce,
+            PageType::Chat,
+            PageType::CloudStorage,
+            PageType::AiInterface,
+            PageType::DevTools,
+            PageType::General,
+            PageType::BrowserInternal,
+        ];
+        
+        for page_type in page_types {
+            let json = serde_json::to_string(&page_type);
+            assert!(json.is_ok());
+        }
+    }
+
+    // Edge case tests
+    #[test]
+    fn test_empty_title() {
+        let window = create_test_window_info("chrome.exe", " - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert!(context.page_title.is_none() || context.page_title.as_ref().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_complex_title_with_multiple_separators() {
+        let window = create_test_window_info("chrome.exe", "Page - Section | Site - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert!(context.page_title.is_some());
+    }
+
+    #[test]
+    fn test_case_insensitive_browser_detection() {
+        let window = create_test_window_info("CHROME.EXE", "Test - Google Chrome");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.browser, "Google Chrome");
+    }
+
+    #[test]
+    fn test_chromium_detection() {
+        let window = create_test_window_info("chromium.exe", "Test - Chromium");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.browser, "Google Chrome");
+    }
+
+    #[test]
+    fn test_mozilla_detection() {
+        let window = create_test_window_info("mozilla.exe", "Test - Mozilla");
+        let context = BrowserContext::from_window_info(&window).unwrap();
+        assert_eq!(context.browser, "Mozilla Firefox");
     }
 }

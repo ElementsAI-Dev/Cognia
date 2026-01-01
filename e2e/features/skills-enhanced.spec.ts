@@ -2,13 +2,12 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Skills Enhanced Features', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/settings');
   });
 
   test.describe('Skill Editor', () => {
     test('should display all editor tabs', async ({ page }) => {
-      // Navigate to settings
-      await page.click('[data-testid="settings-button"]');
+      // Navigate to Skills tab
       await page.click('text=Skills');
       
       // Click create skill
@@ -22,7 +21,6 @@ test.describe('Skills Enhanced Features', () => {
     });
 
     test('should switch between editor tabs', async ({ page }) => {
-      await page.click('[data-testid="settings-button"]');
       await page.click('text=Skills');
       await page.click('text=Create Skill');
 
@@ -40,7 +38,6 @@ test.describe('Skills Enhanced Features', () => {
     });
 
     test('should validate skill content in real-time', async ({ page }) => {
-      await page.click('[data-testid="settings-button"]');
       await page.click('text=Skills');
       await page.click('text=Create Skill');
 
@@ -65,7 +62,6 @@ Instructions here.`);
     });
 
     test('should show token estimate', async ({ page }) => {
-      await page.click('[data-testid="settings-button"]');
       await page.click('text=Skills');
       await page.click('text=Create Skill');
 
@@ -85,7 +81,6 @@ Instructions here.`);
 
   test.describe('Skill Resources', () => {
     test('should open add resource dialog', async ({ page }) => {
-      await page.click('[data-testid="settings-button"]');
       await page.click('text=Skills');
       await page.click('text=Create Skill');
       
@@ -105,7 +100,6 @@ Instructions here.`);
 
   test.describe('Skill AI Assistant', () => {
     test('should display generation form', async ({ page }) => {
-      await page.click('[data-testid="settings-button"]');
       await page.click('text=Skills');
       await page.click('text=Create Skill');
       
@@ -120,7 +114,6 @@ Instructions here.`);
     });
 
     test('should switch between AI tabs', async ({ page }) => {
-      await page.click('[data-testid="settings-button"]');
       await page.click('text=Skills');
       await page.click('text=Create Skill');
       await page.click('role=tab[name="AI Assist"]');
@@ -137,7 +130,6 @@ Instructions here.`);
 
   test.describe('Skill Detail View', () => {
     test('should open skill detail dialog', async ({ page }) => {
-      await page.click('[data-testid="settings-button"]');
       await page.click('text=Skills');
       
       // Wait for skills to load
@@ -158,7 +150,6 @@ Instructions here.`);
 
   test.describe('Skill Settings', () => {
     test('should filter skills by category', async ({ page }) => {
-      await page.click('[data-testid="settings-button"]');
       await page.click('text=Skills');
       
       // Open category filter
@@ -172,7 +163,6 @@ Instructions here.`);
     });
 
     test('should search skills', async ({ page }) => {
-      await page.click('[data-testid="settings-button"]');
       await page.click('text=Skills');
       
       // Type in search
@@ -183,7 +173,6 @@ Instructions here.`);
     });
 
     test('should create new skill from template', async ({ page }) => {
-      await page.click('[data-testid="settings-button"]');
       await page.click('text=Skills');
       await page.click('text=Create Skill');
       
@@ -195,7 +184,6 @@ Instructions here.`);
     });
 
     test('should import skill from markdown', async ({ page }) => {
-      await page.click('[data-testid="settings-button"]');
       await page.click('text=Skills');
       
       // Click Import

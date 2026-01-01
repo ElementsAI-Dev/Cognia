@@ -173,7 +173,9 @@ describe('CreateProjectDialog', () => {
     const descInput = screen.getByPlaceholderText('What is this project about?');
     fireEvent.change(descInput, { target: { value: 'Project description' } });
     
-    fireEvent.click(screen.getByText('Create Project'));
+    // Find submit button by role
+    const submitButtons = screen.getAllByRole('button', { name: /Create Project|创建项目/i });
+    fireEvent.click(submitButtons[submitButtons.length - 1]);
     
     expect(defaultProps.onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({

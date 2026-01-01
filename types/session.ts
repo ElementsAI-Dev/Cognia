@@ -58,6 +58,10 @@ export interface Session {
   // Project association
   projectId?: string;
 
+  // Virtual environment association
+  virtualEnvId?: string;
+  virtualEnvPath?: string;
+
   // Branching support
   branches?: ConversationBranch[];
   activeBranchId?: string; // null means main branch
@@ -84,6 +88,7 @@ export interface CreateSessionInput {
   mode?: ChatMode;
   systemPrompt?: string;
   projectId?: string;
+  virtualEnvId?: string;
 }
 
 export interface UpdateSessionInput {
@@ -104,4 +109,6 @@ export interface UpdateSessionInput {
   thinkingEnabled?: boolean;
   presetId?: string;
   compressionOverrides?: SessionCompressionOverrides;
+  virtualEnvId?: string;
+  virtualEnvPath?: string;
 }

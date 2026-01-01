@@ -135,6 +135,139 @@ export function getCellImageOutput(cell: JupyterCell): { mimeType: string; data:
 }
 
 /**
+ * Get LaTeX/Math output from a cell if available
+ */
+export function getCellLatexOutput(cell: JupyterCell): string | null {
+  if (!cell.outputs) return null;
+
+  for (const output of cell.outputs) {
+    if (output.output_type === 'display_data' || output.output_type === 'execute_result') {
+      if (output.data?.['text/latex']) {
+        return Array.isArray(output.data['text/latex'])
+          ? output.data['text/latex'].join('')
+          : output.data['text/latex'];
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Get JSON output from a cell if available
+ */
+export function getCellJsonOutput(cell: JupyterCell): unknown | null {
+  if (!cell.outputs) return null;
+
+  for (const output of cell.outputs) {
+    if (output.output_type === 'display_data' || output.output_type === 'execute_result') {
+      if (output.data?.['application/json']) {
+        return output.data['application/json'];
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Parse ANSI escape codes and convert to HTML spans
+ */
+export function parseAnsiToHtml(text: string): string {
+  const ansiColors: Record<string, string> = {
+    '30': 'color: #000',
+    '31': 'color: #c00',
+    '32': 'color: #0a0',
+    '33': 'color: #aa0',
+    '34': 'color: #00a',
+    '35': 'color: #a0a',
+    '36': 'color: #0aa',
+    '37': 'color: #aaa',
+    '90': 'color: #555',
+    '91': 'color: #f55',
+    '92': 'color: #5f5',
+    '93': 'color: #ff5',
+    '94': 'color: #55f',
+    '95': 'color: #f5f',
+    '96': 'color: #5ff',
+    '97': 'color: #fff',
+    '40': 'background-color: #000',
+    '41': 'background-color: #c00',
+    '42': 'background-color: #0a0',
+    '43': 'background-color: #aa0',
+    '44': 'background-color: #00a',
+    '45': 'background-color: #a0a',
+    '46': 'background-color: #0aa',
+    '47': 'background-color: #aaa',
+    '1': 'font-weight: bold',
+    '3': 'font-style: italic',
+    '4': 'text-decoration: underline',
+  };
+
+  let result = '';
+  let currentStyles: string[] = [];
+  let i = 0;
+
+  while (i < text.length) {
+    if (text[i] === '\x1b' && text[i + 1] === '[') {
+      // Find the end of the escape sequence
+      let j = i + 2;
+      while (j < text.length && text[j] !== 'm') {
+        j++;
+      }
+      
+      if (j < text.length) {
+        const codes = text.slice(i + 2, j).split(';');
+        
+        for (const code of codes) {
+          if (code === '0' || code === '') {
+            // Reset
+            if (currentStyles.length > 0) {
+              result += '</span>';
+              currentStyles = [];
+            }
+          } else if (ansiColors[code]) {
+            if (currentStyles.length > 0) {
+              result += '</span>';
+            }
+            currentStyles.push(ansiColors[code]);
+            result += `<span style="${currentStyles.join('; ')}">`;
+          }
+        }
+        
+        i = j + 1;
+        continue;
+      }
+    }
+    
+    // Escape HTML characters
+    if (text[i] === '<') {
+      result += '&lt;';
+    } else if (text[i] === '>') {
+      result += '&gt;';
+    } else if (text[i] === '&') {
+      result += '&amp;';
+    } else {
+      result += text[i];
+    }
+    i++;
+  }
+
+  if (currentStyles.length > 0) {
+    result += '</span>';
+  }
+
+  return result;
+}
+
+/**
+ * Check if text contains ANSI escape codes
+ */
+export function hasAnsiCodes(text: string): boolean {
+  return /\x1b\[[0-9;]*m/.test(text);
+}
+
+/**
  * Detect the programming language of the notebook
  */
 export function getNotebookLanguage(notebook: JupyterNotebook): string {

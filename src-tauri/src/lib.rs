@@ -5,43 +5,93 @@
 mod awareness;
 mod commands;
 mod context;
+mod http;
+mod jupyter;
 mod mcp;
 mod sandbox;
+mod screen_recording;
 mod screenshot;
 mod selection;
 mod tray;
 
 use awareness::AwarenessManager;
+use commands::jupyter::JupyterState;
 use context::ContextManager;
 use mcp::McpManager;
 use sandbox::SandboxState;
+use screen_recording::ScreenRecordingManager;
 use screenshot::ScreenshotManager;
 use selection::SelectionManager;
-use tauri::Manager;
+use tauri::{Emitter, Manager, RunEvent, WindowEvent};
+use tauri_plugin_log::{Target, TargetKind, RotationStrategy, TimezoneStrategy};
 use commands::vector::VectorStoreState;
 use std::sync::Arc;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    // Initialize CrabNebula DevTools for debugging (only in development builds)
+    #[cfg(debug_assertions)]
+    let devtools = tauri_plugin_devtools::init();
+
+    let mut builder = tauri::Builder::default();
+
+    // Register DevTools plugin (only in development builds)
+    #[cfg(debug_assertions)]
+    {
+        builder = builder.plugin(devtools);
+    }
+
+    // Single instance plugin - prevents multiple instances of the app
+    // Can be disabled by compiling with --no-default-features or removing "single-instance" feature
+    #[cfg(feature = "single-instance")]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+            log::info!(
+                "Another instance attempted to start with args: {:?}, cwd: {:?}",
+                argv,
+                cwd
+            );
+            
+            // Focus the existing main window when another instance tries to start
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+                let _ = window.unminimize();
+            }
+            
+            // Emit event to frontend so it can handle the arguments if needed
+            let _ = app.emit("single-instance", serde_json::json!({
+                "args": argv,
+                "cwd": cwd
+            }));
+        }));
+    }
+
+    builder = builder
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        // .plugin(tauri_plugin_updater::Builder::new().build()) // Disabled until updater is configured
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .setup(|app| {
-            // Initialize logging in debug mode
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
+        .plugin(tauri_plugin_geolocation::init())
+        .plugin(build_log_plugin());
+
+    // Autostart plugin - only available on desktop platforms
+    #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+    {
+        builder = builder.plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ));
+        log::debug!("Autostart plugin initialized");
+    }
+
+    builder.setup(|app| {
+            log::info!("Cognia application starting...");
 
             // Initialize system tray
             if let Err(e) = tray::create_tray(app.handle()) {
@@ -95,6 +145,10 @@ pub fn run() {
             let screenshot_manager = ScreenshotManager::new(app.handle().clone());
             app.manage(screenshot_manager);
 
+            // Initialize Screen Recording Manager
+            let screen_recording_manager = ScreenRecordingManager::new(app.handle().clone());
+            app.manage(screen_recording_manager);
+
             // Initialize Context Manager
             let context_manager = ContextManager::new();
             app.manage(context_manager);
@@ -102,6 +156,11 @@ pub fn run() {
             // Initialize Awareness Manager
             let awareness_manager = AwarenessManager::new();
             app.manage(awareness_manager);
+
+            // Initialize Jupyter State
+            let jupyter_state = JupyterState::new();
+            app.manage(jupyter_state);
+            log::info!("Jupyter state initialized");
 
             // Initialize Sandbox State
             let sandbox_config_path = sandbox_data_dir.join("sandbox_config.json");
@@ -156,6 +215,7 @@ pub fn run() {
             commands::mcp::mcp_install_pip_package,
             commands::mcp::mcp_check_command_exists,
             commands::mcp::mcp_ping_server,
+            commands::mcp::mcp_test_connection,
             commands::mcp::mcp_set_log_level,
             commands::mcp::mcp_subscribe_resource,
             commands::mcp::mcp_unsubscribe_resource,
@@ -376,14 +436,159 @@ pub fn run() {
             commands::environment::environment_open_tool_website,
             commands::environment::environment_get_python_versions,
             commands::environment::environment_get_node_versions,
+            // Virtual environment commands
+            commands::environment::environment_create_venv,
+            commands::environment::environment_list_venvs,
+            commands::environment::environment_delete_venv,
+            commands::environment::environment_list_packages,
+            commands::environment::environment_install_packages,
+            commands::environment::environment_run_in_venv,
+            commands::environment::environment_get_available_python_versions,
+            commands::environment::environment_install_python_version,
+            commands::environment::environment_execute_python,
+            commands::environment::environment_execute_python_stream,
+            commands::environment::environment_execute_python_file,
+            commands::environment::environment_get_python_info,
+            // Jupyter commands
+            commands::jupyter::jupyter_create_session,
+            commands::jupyter::jupyter_list_sessions,
+            commands::jupyter::jupyter_get_session,
+            commands::jupyter::jupyter_delete_session,
+            commands::jupyter::jupyter_list_kernels,
+            commands::jupyter::jupyter_restart_kernel,
+            commands::jupyter::jupyter_interrupt_kernel,
+            commands::jupyter::jupyter_execute,
+            commands::jupyter::jupyter_quick_execute,
+            commands::jupyter::jupyter_execute_cell,
+            commands::jupyter::jupyter_execute_notebook,
+            commands::jupyter::jupyter_get_variables,
+            commands::jupyter::jupyter_inspect_variable,
+            commands::jupyter::jupyter_check_kernel_available,
+            commands::jupyter::jupyter_ensure_kernel,
+            commands::jupyter::jupyter_shutdown_all,
             // Proxy commands
             commands::proxy::proxy_detect_all,
             commands::proxy::proxy_test,
             commands::proxy::proxy_get_system,
             commands::proxy::proxy_check_port,
             commands::proxy::proxy_get_clash_info,
+            // Screen recording commands
+            commands::screen_recording::recording_get_status,
+            commands::screen_recording::recording_get_duration,
+            commands::screen_recording::recording_start_fullscreen,
+            commands::screen_recording::recording_start_window,
+            commands::screen_recording::recording_start_region,
+            commands::screen_recording::recording_pause,
+            commands::screen_recording::recording_resume,
+            commands::screen_recording::recording_stop,
+            commands::screen_recording::recording_cancel,
+            commands::screen_recording::recording_get_config,
+            commands::screen_recording::recording_update_config,
+            commands::screen_recording::recording_get_monitors,
+            commands::screen_recording::recording_check_ffmpeg,
+            commands::screen_recording::recording_get_audio_devices,
+            commands::screen_recording::recording_get_history,
+            commands::screen_recording::recording_delete,
+            commands::screen_recording::recording_clear_history,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            match event {
+                RunEvent::WindowEvent {
+                    label,
+                    event: WindowEvent::CloseRequested { .. },
+                    ..
+                } => {
+                    if label == "main" {
+                        // Perform cleanup before window closes
+                        log::info!("Main window close requested, performing cleanup...");
+                        
+                        // Stop selection manager
+                        if let Some(manager) = app_handle.try_state::<SelectionManager>() {
+                            if let Err(e) = manager.stop() {
+                                log::warn!("Failed to stop selection manager: {}", e);
+                            }
+                        }
+                        
+                        // Cleanup MCP manager
+                        if let Some(manager) = app_handle.try_state::<McpManager>() {
+                            tauri::async_runtime::block_on(async {
+                                manager.shutdown().await;
+                            });
+                        }
+                        
+                        log::info!("Cleanup completed");
+                    }
+                }
+                RunEvent::ExitRequested { .. } => {
+                    // Allow the app to exit
+                    log::info!("Exit requested");
+                }
+                RunEvent::Exit => {
+                    log::info!("Application exiting");
+                }
+                _ => {}
+            }
+        });
+}
+
+/// Build the logging plugin with comprehensive configuration
+/// 
+/// Configures multiple log targets:
+/// - Stdout: Console output for development
+/// - Webview: Browser console for debugging frontend-backend interaction
+/// - LogDir: Persistent log files with rotation for production debugging
+fn build_log_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
+    tauri_plugin_log::Builder::new()
+        // Set default log level based on build mode
+        .level(if cfg!(debug_assertions) {
+            log::LevelFilter::Debug
+        } else {
+            log::LevelFilter::Info
+        })
+        // Configure per-module log levels
+        .level_for("app_lib", log::LevelFilter::Debug)
+        .level_for("app_lib::mcp", log::LevelFilter::Debug)
+        .level_for("app_lib::commands", log::LevelFilter::Debug)
+        .level_for("app_lib::selection", log::LevelFilter::Debug)
+        .level_for("app_lib::screenshot", log::LevelFilter::Debug)
+        .level_for("app_lib::sandbox", log::LevelFilter::Debug)
+        .level_for("app_lib::awareness", log::LevelFilter::Debug)
+        .level_for("app_lib::context", log::LevelFilter::Debug)
+        // Filter out noisy third-party crate logs
+        .level_for("hyper", log::LevelFilter::Warn)
+        .level_for("reqwest", log::LevelFilter::Warn)
+        .level_for("tao", log::LevelFilter::Warn)
+        .level_for("wry", log::LevelFilter::Warn)
+        .level_for("tokio", log::LevelFilter::Warn)
+        .level_for("tracing", log::LevelFilter::Warn)
+        // Configure log targets
+        .targets([
+            // Console output (stdout)
+            Target::new(TargetKind::Stdout),
+            // Webview console for browser devtools
+            Target::new(TargetKind::Webview),
+            // Persistent log file in app log directory
+            Target::new(TargetKind::LogDir {
+                file_name: Some("cognia".to_string()),
+            }),
+        ])
+        // Log rotation: keep all rotated files instead of discarding
+        .rotation_strategy(RotationStrategy::KeepAll)
+        // Maximum log file size: 10MB before rotation
+        .max_file_size(10 * 1024 * 1024)
+        // Use local timezone for log timestamps
+        .timezone_strategy(TimezoneStrategy::UseLocal)
+        // Custom log format: [LEVEL][TARGET] MESSAGE
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "[{}][{}] {}",
+                record.level(),
+                record.target(),
+                message
+            ))
+        })
+        .build()
 }
 

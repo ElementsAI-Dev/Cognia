@@ -6,6 +6,7 @@ export {
   type DesignerTemplate,
   type TemplateCategory,
   type FrameworkType,
+  type CustomTemplate,
   DESIGNER_TEMPLATES,
   TEMPLATE_CATEGORIES,
   FRAMEWORK_OPTIONS,
@@ -17,15 +18,47 @@ export {
   getTemplatesByCategoryAndFramework,
   getDefaultTemplate,
   getRandomSuggestions,
+  // Custom templates & favorites
+  getCustomTemplates,
+  saveCustomTemplate,
+  updateCustomTemplate,
+  deleteCustomTemplate,
+  getFavoriteTemplateIds,
+  toggleFavoriteTemplate,
+  isTemplateFavorited,
+  getFavoriteTemplates,
+  getAllTemplates,
+  searchTemplates,
+  exportTemplatesAsJson,
+  importTemplatesFromJson,
+  duplicateTemplate,
 } from './templates';
 
 export {
   type DesignerAIConfig,
   type DesignerAIResult,
+  type AISuggestionType,
+  type AISuggestion,
+  type AIConversationMessage,
+  type QuickAIActionId,
   executeDesignerAIEdit,
   generateDesignerComponent,
   getDesignerAIConfig,
   cleanAICodeResponse,
+  getAIStyleSuggestions,
+  getAIAccessibilitySuggestions,
+  editElementWithAI,
+  continueDesignConversation,
+  generateComponentVariations,
+  QUICK_AI_ACTIONS,
+  // New AI functions
+  getAIResponsiveSuggestions,
+  getAILayoutSuggestions,
+  executeQuickAIAction,
+  applyAISuggestions,
+  getAIComponentAnalysis,
+  generateTailwindClasses,
+  optimizeTailwindClasses,
 } from './ai';
 
 export {
@@ -51,6 +84,7 @@ export {
 export {
   type ProjectFiles,
   type ExportConfig,
+  type CodeSnippet,
   normalizeSandpackFiles,
   generateViteProject,
   openInCodeSandbox,
@@ -59,6 +93,16 @@ export {
   downloadFile,
   copyToClipboard,
   generateShareableUrl,
+  // New export functions
+  createGitHubGist,
+  encodeCodeForSharing,
+  decodeSharedCode,
+  generateCompactShareUrl,
+  parseSharedUrl,
+  generateEmbedCode,
+  exportAsFormat,
+  getQRCodeData,
+  generateSocialShareLinks,
 } from './export-utils';
 
 export {

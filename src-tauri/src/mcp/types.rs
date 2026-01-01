@@ -328,7 +328,7 @@ pub enum ContentItem {
     #[serde(rename = "text")]
     Text { text: String },
 
-    #[serde(rename = "image")]
+    #[serde(rename = "image", rename_all = "camelCase")]
     Image { data: String, mime_type: String },
 
     #[serde(rename = "resource")]
@@ -756,6 +756,7 @@ pub struct ServerHealth {
 mod tests {
     use super::*;
     use serde_json;
+    use std::collections::HashMap;
 
     // ============================================================================
     // LogLevel Tests
@@ -1108,7 +1109,6 @@ mod tests {
         let json = serde_json::to_value(&updated).unwrap();
         assert_eq!(json["uri"], "file:///path/to/resource");
     }
-}
 
     // ============================================================================
     // Error Handling Edge Cases
@@ -1320,3 +1320,537 @@ mod tests {
         assert_eq!(json["endedAt"], i64::MAX);
     }
 
+    // ============================================================================
+    // McpConnectionType Tests
+    // ============================================================================
+
+    #[test]
+    fn test_connection_type_default() {
+        let conn_type = McpConnectionType::default();
+        assert_eq!(conn_type, McpConnectionType::Stdio);
+    }
+
+    #[test]
+    fn test_connection_type_serialization() {
+        assert_eq!(serde_json::to_string(&McpConnectionType::Stdio).unwrap(), "\"stdio\"");
+        assert_eq!(serde_json::to_string(&McpConnectionType::Sse).unwrap(), "\"sse\"");
+    }
+
+    #[test]
+    fn test_connection_type_deserialization() {
+        assert_eq!(serde_json::from_str::<McpConnectionType>("\"stdio\"").unwrap(), McpConnectionType::Stdio);
+        assert_eq!(serde_json::from_str::<McpConnectionType>("\"sse\"").unwrap(), McpConnectionType::Sse);
+    }
+
+    // ============================================================================
+    // McpServerConfig Tests
+    // ============================================================================
+
+    #[test]
+    fn test_server_config_default() {
+        let config = McpServerConfig::default();
+        assert!(config.name.is_empty());
+        assert!(config.command.is_empty());
+        assert!(config.args.is_empty());
+        assert!(config.env.is_empty());
+        assert_eq!(config.connection_type, McpConnectionType::Stdio);
+        assert!(config.url.is_none());
+        assert!(config.enabled);
+        assert!(!config.auto_start);
+    }
+
+    #[test]
+    fn test_server_config_serialization() {
+        let config = McpServerConfig {
+            name: "Test Server".to_string(),
+            command: "npx".to_string(),
+            args: vec!["-y".to_string(), "test-server".to_string()],
+            env: HashMap::from([("KEY".to_string(), "VALUE".to_string())]),
+            connection_type: McpConnectionType::Stdio,
+            url: None,
+            enabled: true,
+            auto_start: true,
+        };
+
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["name"], "Test Server");
+        assert_eq!(json["command"], "npx");
+        assert_eq!(json["args"][0], "-y");
+        assert_eq!(json["env"]["KEY"], "VALUE");
+        assert_eq!(json["connectionType"], "stdio");
+        assert_eq!(json["enabled"], true);
+        assert_eq!(json["autoStart"], true);
+    }
+
+    #[test]
+    fn test_server_config_deserialization() {
+        let json = serde_json::json!({
+            "name": "My Server",
+            "command": "node",
+            "args": ["server.js"],
+            "connectionType": "sse",
+            "url": "http://localhost:8080/sse"
+        });
+
+        let config: McpServerConfig = serde_json::from_value(json).unwrap();
+        assert_eq!(config.name, "My Server");
+        assert_eq!(config.command, "node");
+        assert_eq!(config.args, vec!["server.js"]);
+        assert_eq!(config.connection_type, McpConnectionType::Sse);
+        assert_eq!(config.url, Some("http://localhost:8080/sse".to_string()));
+        assert!(config.enabled); // default true
+        assert!(!config.auto_start); // default false
+    }
+
+    // ============================================================================
+    // McpServerStatus Tests
+    // ============================================================================
+
+    #[test]
+    fn test_server_status_default() {
+        let status = McpServerStatus::default();
+        assert_eq!(status, McpServerStatus::Disconnected);
+    }
+
+    #[test]
+    fn test_server_status_serialization() {
+        let statuses = [
+            (McpServerStatus::Disconnected, "disconnected"),
+            (McpServerStatus::Connecting, "connecting"),
+            (McpServerStatus::Connected, "connected"),
+            (McpServerStatus::Reconnecting, "reconnecting"),
+        ];
+
+        for (status, expected_type) in statuses {
+            let json = serde_json::to_value(&status).unwrap();
+            assert_eq!(json["type"], expected_type);
+        }
+    }
+
+    #[test]
+    fn test_server_status_error_serialization() {
+        let status = McpServerStatus::Error("Connection refused".to_string());
+        let json = serde_json::to_value(&status).unwrap();
+        assert_eq!(json["type"], "error");
+        assert_eq!(json["message"], "Connection refused");
+    }
+
+    // ============================================================================
+    // McpServerState Tests
+    // ============================================================================
+
+    #[test]
+    fn test_server_state_new() {
+        let config = McpServerConfig {
+            name: "Test".to_string(),
+            ..Default::default()
+        };
+
+        let state = McpServerState::new("test-id".to_string(), config);
+        assert_eq!(state.id, "test-id");
+        assert_eq!(state.name, "Test");
+        assert_eq!(state.status, McpServerStatus::Disconnected);
+        assert!(state.capabilities.is_none());
+        assert!(state.tools.is_empty());
+        assert!(state.resources.is_empty());
+        assert!(state.prompts.is_empty());
+        assert!(state.error_message.is_none());
+        assert!(state.connected_at.is_none());
+        assert_eq!(state.reconnect_attempts, 0);
+    }
+
+    #[test]
+    fn test_server_state_serialization() {
+        let config = McpServerConfig {
+            name: "Test".to_string(),
+            ..Default::default()
+        };
+
+        let mut state = McpServerState::new("test-id".to_string(), config);
+        state.status = McpServerStatus::Connected;
+        state.connected_at = Some(1234567890);
+
+        let json = serde_json::to_value(&state).unwrap();
+        assert_eq!(json["id"], "test-id");
+        assert_eq!(json["name"], "Test");
+        assert_eq!(json["status"]["type"], "connected");
+        assert_eq!(json["connectedAt"], 1234567890);
+    }
+
+    // ============================================================================
+    // McpTool Tests
+    // ============================================================================
+
+    #[test]
+    fn test_mcp_tool_serialization() {
+        let tool = McpTool {
+            name: "my_tool".to_string(),
+            description: Some("A test tool".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "param1": {"type": "string"}
+                }
+            }),
+        };
+
+        let json = serde_json::to_value(&tool).unwrap();
+        assert_eq!(json["name"], "my_tool");
+        assert_eq!(json["description"], "A test tool");
+        assert_eq!(json["inputSchema"]["type"], "object");
+    }
+
+    #[test]
+    fn test_mcp_tool_without_description() {
+        let tool = McpTool {
+            name: "simple_tool".to_string(),
+            description: None,
+            input_schema: serde_json::json!({}),
+        };
+
+        let json = serde_json::to_value(&tool).unwrap();
+        assert_eq!(json["name"], "simple_tool");
+        assert!(json.get("description").is_none());
+    }
+
+    // ============================================================================
+    // McpResource Tests
+    // ============================================================================
+
+    #[test]
+    fn test_mcp_resource_serialization() {
+        let resource = McpResource {
+            uri: "file:///test.txt".to_string(),
+            name: "Test File".to_string(),
+            description: Some("A test file resource".to_string()),
+            mime_type: Some("text/plain".to_string()),
+        };
+
+        let json = serde_json::to_value(&resource).unwrap();
+        assert_eq!(json["uri"], "file:///test.txt");
+        assert_eq!(json["name"], "Test File");
+        assert_eq!(json["description"], "A test file resource");
+        assert_eq!(json["mimeType"], "text/plain");
+    }
+
+    #[test]
+    fn test_mcp_resource_minimal() {
+        let resource = McpResource {
+            uri: "http://example.com".to_string(),
+            name: "Web Resource".to_string(),
+            description: None,
+            mime_type: None,
+        };
+
+        let json = serde_json::to_value(&resource).unwrap();
+        assert_eq!(json["uri"], "http://example.com");
+        assert!(json.get("description").is_none());
+        assert!(json.get("mimeType").is_none());
+    }
+
+    // ============================================================================
+    // McpPrompt Tests
+    // ============================================================================
+
+    #[test]
+    fn test_mcp_prompt_serialization() {
+        let prompt = McpPrompt {
+            name: "code_review".to_string(),
+            description: Some("Review code for issues".to_string()),
+            arguments: Some(vec![
+                PromptArgument {
+                    name: "code".to_string(),
+                    description: Some("Code to review".to_string()),
+                    required: true,
+                },
+                PromptArgument {
+                    name: "language".to_string(),
+                    description: None,
+                    required: false,
+                },
+            ]),
+        };
+
+        let json = serde_json::to_value(&prompt).unwrap();
+        assert_eq!(json["name"], "code_review");
+        assert_eq!(json["arguments"][0]["name"], "code");
+        assert_eq!(json["arguments"][0]["required"], true);
+        assert_eq!(json["arguments"][1]["required"], false);
+    }
+
+    // ============================================================================
+    // ContentItem Tests
+    // ============================================================================
+
+    #[test]
+    fn test_content_item_text() {
+        let content = ContentItem::Text {
+            text: "Hello, world!".to_string(),
+        };
+
+        let json = serde_json::to_value(&content).unwrap();
+        assert_eq!(json["type"], "text");
+        assert_eq!(json["text"], "Hello, world!");
+    }
+
+    #[test]
+    fn test_content_item_image() {
+        let content = ContentItem::Image {
+            data: "base64data".to_string(),
+            mime_type: "image/png".to_string(),
+        };
+
+        let json = serde_json::to_value(&content).unwrap();
+        assert_eq!(json["type"], "image");
+        assert_eq!(json["data"], "base64data");
+        assert_eq!(json["mimeType"], "image/png");
+    }
+
+    #[test]
+    fn test_content_item_resource() {
+        let content = ContentItem::Resource {
+            resource: EmbeddedResource {
+                uri: "file:///test.txt".to_string(),
+                mime_type: Some("text/plain".to_string()),
+                text: Some("File content".to_string()),
+                blob: None,
+            },
+        };
+
+        let json = serde_json::to_value(&content).unwrap();
+        assert_eq!(json["type"], "resource");
+        assert_eq!(json["resource"]["uri"], "file:///test.txt");
+    }
+
+    // ============================================================================
+    // ToolCallResult Tests
+    // ============================================================================
+
+    #[test]
+    fn test_tool_call_result_success() {
+        let result = ToolCallResult {
+            content: vec![ContentItem::Text {
+                text: "Success".to_string(),
+            }],
+            is_error: false,
+        };
+
+        let json = serde_json::to_value(&result).unwrap();
+        assert_eq!(json["isError"], false);
+        assert_eq!(json["content"][0]["text"], "Success");
+    }
+
+    #[test]
+    fn test_tool_call_result_error() {
+        let result = ToolCallResult {
+            content: vec![ContentItem::Text {
+                text: "Error occurred".to_string(),
+            }],
+            is_error: true,
+        };
+
+        let json = serde_json::to_value(&result).unwrap();
+        assert_eq!(json["isError"], true);
+    }
+
+    // ============================================================================
+    // ServerCapabilities Tests
+    // ============================================================================
+
+    #[test]
+    fn test_server_capabilities_default() {
+        let caps = ServerCapabilities::default();
+        assert!(caps.tools.is_none());
+        assert!(caps.resources.is_none());
+        assert!(caps.prompts.is_none());
+        assert!(caps.sampling.is_none());
+        assert!(caps.logging.is_none());
+    }
+
+    #[test]
+    fn test_server_capabilities_full() {
+        let caps = ServerCapabilities {
+            tools: Some(ToolsCapability { list_changed: Some(true) }),
+            resources: Some(ResourcesCapability {
+                subscribe: Some(true),
+                list_changed: Some(true),
+            }),
+            prompts: Some(PromptsCapability { list_changed: Some(true) }),
+            sampling: Some(SamplingCapability {}),
+            logging: Some(LoggingCapability {}),
+        };
+
+        let json = serde_json::to_value(&caps).unwrap();
+        assert_eq!(json["tools"]["listChanged"], true);
+        assert_eq!(json["resources"]["subscribe"], true);
+    }
+
+    // ============================================================================
+    // InitializeResult Tests
+    // ============================================================================
+
+    #[test]
+    fn test_initialize_result_serialization() {
+        let result = InitializeResult {
+            protocol_version: "2024-11-05".to_string(),
+            capabilities: ServerCapabilities::default(),
+            server_info: Some(ServerInfo {
+                name: "Test Server".to_string(),
+                version: Some("1.0.0".to_string()),
+            }),
+            instructions: Some("Use this server for testing".to_string()),
+        };
+
+        let json = serde_json::to_value(&result).unwrap();
+        assert_eq!(json["protocolVersion"], "2024-11-05");
+        assert_eq!(json["serverInfo"]["name"], "Test Server");
+        assert_eq!(json["serverInfo"]["version"], "1.0.0");
+        assert_eq!(json["instructions"], "Use this server for testing");
+    }
+
+    // ============================================================================
+    // Sampling Types Tests
+    // ============================================================================
+
+    #[test]
+    fn test_sampling_role_serialization() {
+        assert_eq!(serde_json::to_string(&SamplingRole::User).unwrap(), "\"user\"");
+        assert_eq!(serde_json::to_string(&SamplingRole::Assistant).unwrap(), "\"assistant\"");
+    }
+
+    #[test]
+    fn test_sampling_message_serialization() {
+        let msg = SamplingMessage {
+            role: SamplingRole::User,
+            content: SamplingContent::Text("Hello".to_string()),
+        };
+
+        let json = serde_json::to_value(&msg).unwrap();
+        assert_eq!(json["role"], "user");
+        assert_eq!(json["content"], "Hello");
+    }
+
+    #[test]
+    fn test_sampling_request_full() {
+        let request = SamplingRequest {
+            messages: vec![SamplingMessage {
+                role: SamplingRole::User,
+                content: SamplingContent::Text("Test".to_string()),
+            }],
+            model_preferences: Some(ModelPreferences {
+                hints: Some(vec![ModelHint {
+                    name: Some("gpt-4".to_string()),
+                }]),
+                cost_priority: Some(0.5),
+                speed_priority: Some(0.3),
+                intelligence_priority: Some(0.8),
+            }),
+            system_prompt: Some("You are helpful".to_string()),
+            include_context: Some("all".to_string()),
+            temperature: Some(0.7),
+            max_tokens: Some(1000),
+            stop_sequences: Some(vec!["STOP".to_string()]),
+            metadata: Some(serde_json::json!({"key": "value"})),
+        };
+
+        let json = serde_json::to_value(&request).unwrap();
+        assert_eq!(json["messages"][0]["role"], "user");
+        assert_eq!(json["modelPreferences"]["hints"][0]["name"], "gpt-4");
+        assert_eq!(json["temperature"], 0.7);
+        assert_eq!(json["maxTokens"], 1000);
+    }
+
+    #[test]
+    fn test_sampling_result_serialization() {
+        let result = SamplingResult {
+            role: SamplingRole::Assistant,
+            content: SamplingContent::Text("Response".to_string()),
+            model: "gpt-4".to_string(),
+            stop_reason: Some("end_turn".to_string()),
+        };
+
+        let json = serde_json::to_value(&result).unwrap();
+        assert_eq!(json["role"], "assistant");
+        assert_eq!(json["model"], "gpt-4");
+        assert_eq!(json["stopReason"], "end_turn");
+    }
+
+    // ============================================================================
+    // PromptContent Tests
+    // ============================================================================
+
+    #[test]
+    fn test_prompt_content_serialization() {
+        let content = PromptContent {
+            description: Some("Test prompt".to_string()),
+            messages: vec![PromptMessage {
+                role: PromptRole::User,
+                content: PromptMessageContent::Text("Hello".to_string()),
+            }],
+        };
+
+        let json = serde_json::to_value(&content).unwrap();
+        assert_eq!(json["description"], "Test prompt");
+        assert_eq!(json["messages"][0]["role"], "user");
+    }
+
+    #[test]
+    fn test_prompt_role_serialization() {
+        assert_eq!(serde_json::to_string(&PromptRole::User).unwrap(), "\"user\"");
+        assert_eq!(serde_json::to_string(&PromptRole::Assistant).unwrap(), "\"assistant\"");
+    }
+
+    // ============================================================================
+    // ResourceContent Tests
+    // ============================================================================
+
+    #[test]
+    fn test_resource_content_serialization() {
+        let content = ResourceContent {
+            contents: vec![ResourceContentItem {
+                uri: "file:///test.txt".to_string(),
+                mime_type: Some("text/plain".to_string()),
+                text: Some("File contents here".to_string()),
+                blob: None,
+            }],
+        };
+
+        let json = serde_json::to_value(&content).unwrap();
+        assert_eq!(json["contents"][0]["uri"], "file:///test.txt");
+        assert_eq!(json["contents"][0]["text"], "File contents here");
+    }
+
+    #[test]
+    fn test_resource_content_with_blob() {
+        let content = ResourceContent {
+            contents: vec![ResourceContentItem {
+                uri: "file:///image.png".to_string(),
+                mime_type: Some("image/png".to_string()),
+                text: None,
+                blob: Some("base64encodeddata".to_string()),
+            }],
+        };
+
+        let json = serde_json::to_value(&content).unwrap();
+        assert_eq!(json["contents"][0]["blob"], "base64encodeddata");
+        assert!(json["contents"][0].get("text").is_none());
+    }
+
+    // ============================================================================
+    // EmbeddedResource Tests
+    // ============================================================================
+
+    #[test]
+    fn test_embedded_resource_serialization() {
+        let resource = EmbeddedResource {
+            uri: "file:///resource.json".to_string(),
+            mime_type: Some("application/json".to_string()),
+            text: Some("{\"key\": \"value\"}".to_string()),
+            blob: None,
+        };
+
+        let json = serde_json::to_value(&resource).unwrap();
+        assert_eq!(json["uri"], "file:///resource.json");
+        assert_eq!(json["mimeType"], "application/json");
+    }
+}

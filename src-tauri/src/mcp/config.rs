@@ -189,6 +189,135 @@ impl McpConfigManager {
 mod tests {
     use super::*;
     use crate::mcp::types::McpConnectionType;
+    use tempfile::TempDir;
+
+    // ============================================================================
+    // McpConfig Tests
+    // ============================================================================
+
+    #[test]
+    fn test_config_new() {
+        let config = McpConfig::new();
+        assert!(config.mcp_servers.is_empty());
+    }
+
+    #[test]
+    fn test_config_default() {
+        let config = McpConfig::default();
+        assert!(config.mcp_servers.is_empty());
+    }
+
+    #[test]
+    fn test_config_set_server() {
+        let mut config = McpConfig::new();
+        config.set_server(
+            "test".to_string(),
+            McpServerConfig {
+                name: "Test Server".to_string(),
+                ..Default::default()
+            },
+        );
+
+        assert_eq!(config.mcp_servers.len(), 1);
+        assert!(config.mcp_servers.contains_key("test"));
+    }
+
+    #[test]
+    fn test_config_set_server_overwrite() {
+        let mut config = McpConfig::new();
+        config.set_server(
+            "test".to_string(),
+            McpServerConfig {
+                name: "First".to_string(),
+                ..Default::default()
+            },
+        );
+        config.set_server(
+            "test".to_string(),
+            McpServerConfig {
+                name: "Second".to_string(),
+                ..Default::default()
+            },
+        );
+
+        assert_eq!(config.mcp_servers.len(), 1);
+        assert_eq!(config.get_server("test").unwrap().name, "Second");
+    }
+
+    #[test]
+    fn test_config_remove_server() {
+        let mut config = McpConfig::new();
+        config.set_server(
+            "test".to_string(),
+            McpServerConfig {
+                name: "Test".to_string(),
+                ..Default::default()
+            },
+        );
+
+        let removed = config.remove_server("test");
+        assert!(removed.is_some());
+        assert_eq!(removed.unwrap().name, "Test");
+        assert!(config.mcp_servers.is_empty());
+    }
+
+    #[test]
+    fn test_config_remove_nonexistent_server() {
+        let mut config = McpConfig::new();
+        let removed = config.remove_server("nonexistent");
+        assert!(removed.is_none());
+    }
+
+    #[test]
+    fn test_config_get_server() {
+        let mut config = McpConfig::new();
+        config.set_server(
+            "test".to_string(),
+            McpServerConfig {
+                name: "Test".to_string(),
+                ..Default::default()
+            },
+        );
+
+        assert!(config.get_server("test").is_some());
+        assert!(config.get_server("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_config_server_ids() {
+        let mut config = McpConfig::new();
+        config.set_server("server1".to_string(), McpServerConfig::default());
+        config.set_server("server2".to_string(), McpServerConfig::default());
+        config.set_server("server3".to_string(), McpServerConfig::default());
+
+        let ids: Vec<_> = config.server_ids().collect();
+        assert_eq!(ids.len(), 3);
+        assert!(ids.contains(&&"server1".to_string()));
+        assert!(ids.contains(&&"server2".to_string()));
+        assert!(ids.contains(&&"server3".to_string()));
+    }
+
+    #[test]
+    fn test_config_servers() {
+        let mut config = McpConfig::new();
+        config.set_server(
+            "s1".to_string(),
+            McpServerConfig {
+                name: "Server 1".to_string(),
+                ..Default::default()
+            },
+        );
+        config.set_server(
+            "s2".to_string(),
+            McpServerConfig {
+                name: "Server 2".to_string(),
+                ..Default::default()
+            },
+        );
+
+        let servers: Vec<_> = config.servers().collect();
+        assert_eq!(servers.len(), 2);
+    }
 
     #[test]
     fn test_config_serialization() {
@@ -214,6 +343,17 @@ mod tests {
         let parsed: McpConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.mcp_servers.len(), 1);
         assert!(parsed.mcp_servers.contains_key("test"));
+    }
+
+    #[test]
+    fn test_config_deserialization_with_defaults() {
+        let json = r#"{"mcpServers": {"test": {"name": "Test"}}}"#;
+        let config: McpConfig = serde_json::from_str(json).unwrap();
+        
+        let server = config.get_server("test").unwrap();
+        assert_eq!(server.name, "Test");
+        assert!(server.enabled); // default true
+        assert!(!server.auto_start); // default false
     }
 
     #[test]
@@ -253,5 +393,317 @@ mod tests {
         let auto_start: Vec<_> = config.auto_start_servers().collect();
         assert_eq!(auto_start.len(), 1);
         assert_eq!(auto_start[0].0, "auto1");
+    }
+
+    #[test]
+    fn test_auto_start_with_multiple_enabled() {
+        let mut config = McpConfig::new();
+
+        config.set_server(
+            "auto1".to_string(),
+            McpServerConfig {
+                name: "Auto 1".to_string(),
+                auto_start: true,
+                enabled: true,
+                ..Default::default()
+            },
+        );
+
+        config.set_server(
+            "auto2".to_string(),
+            McpServerConfig {
+                name: "Auto 2".to_string(),
+                auto_start: true,
+                enabled: true,
+                ..Default::default()
+            },
+        );
+
+        let auto_start: Vec<_> = config.auto_start_servers().collect();
+        assert_eq!(auto_start.len(), 2);
+    }
+
+    #[test]
+    fn test_auto_start_empty_config() {
+        let config = McpConfig::new();
+        let auto_start: Vec<_> = config.auto_start_servers().collect();
+        assert!(auto_start.is_empty());
+    }
+
+    // ============================================================================
+    // McpConfigManager Tests
+    // ============================================================================
+
+    #[test]
+    fn test_config_manager_new() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
+        
+        assert_eq!(manager.config_path(), &temp_dir.path().join("mcp_servers.json"));
+    }
+
+    #[test]
+    fn test_config_manager_get_config() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
+        
+        let config = manager.get_config();
+        assert!(config.mcp_servers.is_empty());
+    }
+
+    #[test]
+    fn test_config_manager_set_server() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
+        
+        manager.set_server(
+            "test".to_string(),
+            McpServerConfig {
+                name: "Test".to_string(),
+                ..Default::default()
+            },
+        );
+
+        let server = manager.get_server("test");
+        assert!(server.is_some());
+        assert_eq!(server.unwrap().name, "Test");
+    }
+
+    #[test]
+    fn test_config_manager_remove_server() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
+        
+        manager.set_server("test".to_string(), McpServerConfig::default());
+        assert!(manager.has_server("test"));
+
+        let removed = manager.remove_server("test");
+        assert!(removed.is_some());
+        assert!(!manager.has_server("test"));
+    }
+
+    #[test]
+    fn test_config_manager_get_all_servers() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
+        
+        manager.set_server("s1".to_string(), McpServerConfig::default());
+        manager.set_server("s2".to_string(), McpServerConfig::default());
+
+        let servers = manager.get_all_servers();
+        assert_eq!(servers.len(), 2);
+        assert!(servers.contains_key("s1"));
+        assert!(servers.contains_key("s2"));
+    }
+
+    #[test]
+    fn test_config_manager_has_server() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
+        
+        assert!(!manager.has_server("test"));
+        manager.set_server("test".to_string(), McpServerConfig::default());
+        assert!(manager.has_server("test"));
+    }
+
+    #[test]
+    fn test_config_manager_set_server_enabled() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
+        
+        manager.set_server(
+            "test".to_string(),
+            McpServerConfig {
+                enabled: true,
+                ..Default::default()
+            },
+        );
+
+        assert!(manager.set_server_enabled("test", false));
+        assert!(!manager.get_server("test").unwrap().enabled);
+
+        assert!(manager.set_server_enabled("test", true));
+        assert!(manager.get_server("test").unwrap().enabled);
+    }
+
+    #[test]
+    fn test_config_manager_set_server_enabled_nonexistent() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
+        
+        assert!(!manager.set_server_enabled("nonexistent", true));
+    }
+
+    #[test]
+    fn test_config_manager_set_server_auto_start() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
+        
+        manager.set_server(
+            "test".to_string(),
+            McpServerConfig {
+                auto_start: false,
+                ..Default::default()
+            },
+        );
+
+        assert!(manager.set_server_auto_start("test", true));
+        assert!(manager.get_server("test").unwrap().auto_start);
+
+        assert!(manager.set_server_auto_start("test", false));
+        assert!(!manager.get_server("test").unwrap().auto_start);
+    }
+
+    #[test]
+    fn test_config_manager_set_server_auto_start_nonexistent() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
+        
+        assert!(!manager.set_server_auto_start("nonexistent", true));
+    }
+
+    #[test]
+    fn test_config_manager_get_auto_start_servers() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
+        
+        manager.set_server(
+            "auto".to_string(),
+            McpServerConfig {
+                auto_start: true,
+                enabled: true,
+                ..Default::default()
+            },
+        );
+        manager.set_server(
+            "manual".to_string(),
+            McpServerConfig {
+                auto_start: false,
+                enabled: true,
+                ..Default::default()
+            },
+        );
+
+        let auto_start = manager.get_auto_start_servers();
+        assert_eq!(auto_start.len(), 1);
+        assert_eq!(auto_start[0].0, "auto");
+    }
+
+    #[tokio::test]
+    async fn test_config_manager_load_nonexistent_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
+        
+        // Loading from nonexistent file should succeed with empty config
+        let result = manager.load().await;
+        assert!(result.is_ok());
+        assert!(manager.get_config().mcp_servers.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_config_manager_save_and_load() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
+        
+        manager.set_server(
+            "test".to_string(),
+            McpServerConfig {
+                name: "Test Server".to_string(),
+                command: "test-cmd".to_string(),
+                ..Default::default()
+            },
+        );
+
+        // Save
+        let save_result = manager.save().await;
+        assert!(save_result.is_ok());
+
+        // Create a new manager and load
+        let manager2 = McpConfigManager::new(temp_dir.path().to_path_buf());
+        let load_result = manager2.load().await;
+        assert!(load_result.is_ok());
+
+        let server = manager2.get_server("test");
+        assert!(server.is_some());
+        assert_eq!(server.unwrap().name, "Test Server");
+    }
+
+    #[tokio::test]
+    async fn test_config_manager_load_invalid_json() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("mcp_servers.json");
+        
+        // Write invalid JSON
+        std::fs::write(&config_path, "invalid json content").unwrap();
+
+        let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
+        let result = manager.load().await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_config_manager_save_creates_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let nested_path = temp_dir.path().join("nested").join("dir");
+        let manager = McpConfigManager::new(nested_path.clone());
+        
+        manager.set_server("test".to_string(), McpServerConfig::default());
+        
+        let result = manager.save().await;
+        assert!(result.is_ok());
+        assert!(nested_path.join("mcp_servers.json").exists());
+    }
+
+    // ============================================================================
+    // Edge Cases
+    // ============================================================================
+
+    #[test]
+    fn test_config_with_special_characters_in_id() {
+        let mut config = McpConfig::new();
+        config.set_server(
+            "server-with-special_chars.123".to_string(),
+            McpServerConfig::default(),
+        );
+
+        assert!(config.get_server("server-with-special_chars.123").is_some());
+    }
+
+    #[test]
+    fn test_config_with_unicode_server_name() {
+        let mut config = McpConfig::new();
+        config.set_server(
+            "test".to_string(),
+            McpServerConfig {
+                name: "测试服务器 🚀".to_string(),
+                ..Default::default()
+            },
+        );
+
+        let json = serde_json::to_string(&config).unwrap();
+        let parsed: McpConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.get_server("test").unwrap().name, "测试服务器 🚀");
+    }
+
+    #[test]
+    fn test_config_with_empty_string_id() {
+        let mut config = McpConfig::new();
+        config.set_server(String::new(), McpServerConfig::default());
+
+        assert!(config.get_server("").is_some());
+    }
+
+    #[test]
+    fn test_config_concurrent_read_access() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
+        
+        manager.set_server("test".to_string(), McpServerConfig::default());
+
+        // Multiple concurrent reads should work
+        let config1 = manager.get_config();
+        let config2 = manager.get_config();
+        
+        assert_eq!(config1.mcp_servers.len(), config2.mcp_servers.len());
     }
 }

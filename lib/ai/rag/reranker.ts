@@ -10,6 +10,7 @@
 
 import type { LanguageModel } from 'ai';
 import { proxyFetch } from '@/lib/proxy-fetch';
+import { cosineSimilarity } from '@/lib/ai/embedding';
 
 export interface RerankDocument {
   id: string;
@@ -292,19 +293,7 @@ export function rerankWithMMR(
 
   if (documents.length === 0) return [];
 
-  // Helper function for cosine similarity
-  const cosineSimilarity = (a: number[], b: number[]): number => {
-    if (a.length !== b.length) return 0;
-    let dotProduct = 0, normA = 0, normB = 0;
-    for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-    const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
-    return magnitude === 0 ? 0 : dotProduct / magnitude;
-  };
-
+  // Using imported cosineSimilarity from @/lib/ai/embedding
   const selected: RerankResult[] = [];
   const remaining = [...documents];
 

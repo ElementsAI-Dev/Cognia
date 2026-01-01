@@ -18,6 +18,11 @@ export { PreviewLoading, usePreviewStatus } from './preview-loading';
 export { VersionHistoryPanel } from './version-history-panel';
 export { DesignerCard } from './designer-card';
 export { DesignerBrowser } from './designer-browser';
+export { AIChatPanel } from './ai-chat-panel';
+export { AISuggestionsPanel } from './ai-suggestions-panel';
+export { ElementActionsPopover } from './element-actions-popover';
+export { InlineTextEditor, useInlineTextEditor } from './inline-text-editor';
+export { ResponsiveControls } from './responsive-controls';
 
 // DnD exports
 export { DesignerDndProvider, useDesignerDnd, useDesignerDndStrict } from './dnd';

@@ -561,6 +561,97 @@ function getStyles(theme: 'light' | 'dark' | 'system'): string {
       border-radius: 6px;
     }
 
+    /* Media Blocks (Images & Videos) */
+    .media-block {
+      margin: 16px 0;
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+    }
+
+    .media-block.ai-generated {
+      border: 2px solid var(--accent-color);
+    }
+
+    .ai-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: var(--accent-light);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent-color);
+    }
+
+    .media-content {
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+
+    .image-block .media-content {
+      width: 100%;
+      object-fit: contain;
+      max-height: 500px;
+      background: var(--bg-primary);
+    }
+
+    .video-container {
+      position: relative;
+      background: #000;
+    }
+
+    .video-block video {
+      width: 100%;
+      max-height: 400px;
+      display: block;
+    }
+
+    .media-caption {
+      padding: 10px 12px;
+      background: var(--bg-secondary);
+    }
+
+    .caption-text {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .media-size {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-left: 8px;
+    }
+
+    .video-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .meta-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .prompt-text {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      padding: 8px;
+      background: var(--bg-primary);
+      border-radius: 6px;
+      font-style: italic;
+    }
+
     .footer {
       text-align: center;
       padding: 20px;
@@ -947,6 +1038,68 @@ function getAnimationScript(): string {
           block.innerHTML = \`
             <div class="sources-title">📚 Sources (\${part.sources.length})</div>
             \${part.sources.map(s => \`<a href="\${s.url}" target="_blank" class="source-item">\${escapeHtmlJS(s.title)}</a>\`).join('')}
+          \`;
+          content.appendChild(block);
+        }
+
+        // Handle image parts
+        if (part.type === 'image') {
+          const imageSrc = part.base64 
+            ? \`data:\${part.mimeType || 'image/png'};base64,\${part.base64}\`
+            : part.url;
+          const block = document.createElement('figure');
+          block.className = 'media-block image-block' + (part.isGenerated ? ' ai-generated' : '');
+          block.innerHTML = \`
+            \${part.isGenerated ? '<div class="ai-badge">✨ AI Generated Image</div>' : ''}
+            <img src="\${imageSrc}" alt="\${escapeHtmlJS(part.alt || '')}" loading="lazy" class="media-content">
+            \${(part.alt || part.prompt) ? \`
+              <figcaption class="media-caption">
+                \${part.alt ? \`<span class="caption-text">\${escapeHtmlJS(part.alt)}</span>\` : ''}
+                \${part.width && part.height ? \`<span class="media-size">\${part.width}×\${part.height}</span>\` : ''}
+                \${part.prompt ? \`<div class="prompt-text">Prompt: \${escapeHtmlJS(part.prompt)}</div>\` : ''}
+              </figcaption>
+            \` : ''}
+          \`;
+          content.appendChild(block);
+        }
+
+        // Handle video parts
+        if (part.type === 'video') {
+          const videoSrc = part.base64 
+            ? \`data:\${part.mimeType || 'video/mp4'};base64,\${part.base64}\`
+            : part.url;
+          const thumbnailSrc = part.thumbnailBase64
+            ? \`data:image/jpeg;base64,\${part.thumbnailBase64}\`
+            : part.thumbnailUrl;
+          const block = document.createElement('figure');
+          block.className = 'media-block video-block' + (part.isGenerated ? ' ai-generated' : '');
+          
+          // Format duration
+          let durationStr = '';
+          if (part.durationSeconds) {
+            const mins = Math.floor(part.durationSeconds / 60);
+            const secs = Math.floor(part.durationSeconds % 60);
+            durationStr = mins > 0 ? \`\${mins}:\${secs.toString().padStart(2, '0')}\` : \`\${secs}s\`;
+          }
+          
+          block.innerHTML = \`
+            \${part.isGenerated ? \`<div class="ai-badge">🎬 AI Generated Video\${part.provider ? \` (\${escapeHtmlJS(part.provider)})\` : ''}</div>\` : ''}
+            <div class="video-container">
+              <video controls preload="metadata" class="media-content"\${thumbnailSrc ? \` poster="\${thumbnailSrc}"\` : ''}>
+                \${videoSrc ? \`<source src="\${videoSrc}" type="\${part.mimeType || 'video/mp4'}">\` : ''}
+                Your browser does not support the video tag.
+              </video>
+            </div>
+            <figcaption class="media-caption">
+              \${part.title ? \`<span class="caption-text">\${escapeHtmlJS(part.title)}</span>\` : ''}
+              <div class="video-meta">
+                \${durationStr ? \`<span class="meta-item">⏱️ \${durationStr}</span>\` : ''}
+                \${part.width && part.height ? \`<span class="meta-item">📐 \${part.width}×\${part.height}</span>\` : ''}
+                \${part.fps ? \`<span class="meta-item">🎞️ \${part.fps}fps</span>\` : ''}
+                \${part.model ? \`<span class="meta-item">🤖 \${escapeHtmlJS(part.model)}</span>\` : ''}
+              </div>
+              \${part.prompt ? \`<div class="prompt-text">Prompt: \${escapeHtmlJS(part.prompt)}</div>\` : ''}
+            </figcaption>
           \`;
           content.appendChild(block);
         }

@@ -223,7 +223,7 @@ impl EnhancedSelectionDetector {
         // Relative path with extension
         if text.contains('/') || text.contains('\\') {
             let has_extension = text.split(&['/', '\\'][..])
-                .last()
+                .next_back()
                 .map(|f| f.contains('.') && !f.starts_with('.'))
                 .unwrap_or(false);
             return has_extension;
@@ -403,7 +403,7 @@ impl EnhancedSelectionDetector {
         }
 
         // Need at least 2 indicators or 20% of lines with indicators
-        code_indicators >= 2 || (lines.len() > 0 && code_indicators as f64 / lines.len() as f64 > 0.2)
+        code_indicators >= 2 || (!lines.is_empty() && code_indicators as f64 / lines.len() as f64 > 0.2)
     }
 
     /// Check if text is primarily numeric

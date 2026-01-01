@@ -666,17 +666,150 @@ function elementToHTML(element: DesignerElement, indent: number): string {
   return result;
 }
 
-// Simple HTML parser to element tree
-function parseHTMLToElementTree(html: string): DesignerElement | null {
+// Enhanced parser that handles both HTML and React/JSX code
+function parseHTMLToElementTree(code: string): DesignerElement | null {
   if (typeof window === 'undefined') return null;
   
+  // Check if this is React code
+  const isReact = code.includes('function') && 
+    (code.includes('return') || code.includes('=>'));
+  
+  if (isReact) {
+    return parseReactToElementTree(code);
+  }
+  
+  // Fall back to HTML parsing
   const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
+  const doc = parser.parseFromString(code, 'text/html');
   const body = doc.body;
   
   if (!body.firstElementChild) return null;
   
   return domToDesignerElement(body.firstElementChild as HTMLElement, null);
+}
+
+// Parse React/JSX code to element tree
+function parseReactToElementTree(code: string): DesignerElement | null {
+  // Extract JSX from return statement
+  const jsxContent = extractJSXFromReact(code);
+  if (!jsxContent) return null;
+  
+  // Convert JSX to parseable HTML-like structure
+  const htmlLike = convertJSXToHTML(jsxContent);
+  
+  // Parse as HTML
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlLike, 'text/html');
+  const body = doc.body;
+  
+  if (!body.firstElementChild) return null;
+  
+  return domToDesignerElement(body.firstElementChild as HTMLElement, null);
+}
+
+// Extract JSX content from React component code
+function extractJSXFromReact(code: string): string | null {
+  // Try to find return statement with JSX
+  // Match: return ( ... ) or return <...>
+  const returnMatch = code.match(/return\s*\(\s*([\s\S]*?)\s*\);?\s*(?:\}|$)/);
+  if (returnMatch) {
+    return returnMatch[1].trim();
+  }
+  
+  // Try arrow function with implicit return
+  const arrowMatch = code.match(/=>\s*\(\s*([\s\S]*?)\s*\)\s*(?:;|$)/);
+  if (arrowMatch) {
+    return arrowMatch[1].trim();
+  }
+  
+  // Try arrow function with direct JSX
+  const directArrowMatch = code.match(/=>\s*(<[\s\S]*?>)\s*(?:;|$)/);
+  if (directArrowMatch) {
+    return directArrowMatch[1].trim();
+  }
+  
+  return null;
+}
+
+// Convert JSX syntax to HTML-parseable format
+function convertJSXToHTML(jsx: string): string {
+  let html = jsx;
+  
+  // Replace className with class
+  html = html.replace(/className=/g, 'class=');
+  
+  // Replace htmlFor with for
+  html = html.replace(/htmlFor=/g, 'for=');
+  
+  // Handle self-closing tags that aren't valid in HTML
+  html = html.replace(/<(\w+)([^>]*?)\/>/g, (_, tag, attrs) => {
+    const selfClosingTags = ['img', 'br', 'hr', 'input', 'meta', 'link', 'area', 'base', 'col', 'embed', 'source', 'track', 'wbr'];
+    if (selfClosingTags.includes(tag.toLowerCase())) {
+      return `<${tag}${attrs}/>`;
+    }
+    return `<${tag}${attrs}></${tag}>`;
+  });
+  
+  // Remove JSX expressions { ... } - replace with placeholder text
+  // But preserve style objects
+  html = html.replace(/\{([^{}]*)\}/g, (match, content) => {
+    // Check if it's a style object
+    if (content.trim().startsWith('{') || content.includes(':')) {
+      // Try to extract style value
+      return `style="${extractStyleString(content)}"`;
+    }
+    // For other expressions, use placeholder
+    return `[${content.trim().slice(0, 30)}]`;
+  });
+  
+  // Handle template literals in attributes
+  html = html.replace(/=\{`([^`]*)`\}/g, '="$1"');
+  
+  // Handle string literals in attributes
+  html = html.replace(/=\{['"]([^'"]*)['"]\}/g, '="$1"');
+  
+  // Handle boolean attributes
+  html = html.replace(/=\{true\}/g, '');
+  html = html.replace(/=\{false\}/g, '');
+  
+  // Clean up any remaining curly braces in attributes
+  html = html.replace(/=\{([^}]+)\}/g, '="$1"');
+  
+  return html;
+}
+
+// Extract style string from JSX style object
+function extractStyleString(styleContent: string): string {
+  // Remove outer braces if present
+  let content = styleContent.trim();
+  if (content.startsWith('{')) {
+    content = content.slice(1);
+  }
+  if (content.endsWith('}')) {
+    content = content.slice(0, -1);
+  }
+  
+  // Parse simple key: value pairs
+  const styles: string[] = [];
+  const pairs = content.split(',');
+  
+  for (const pair of pairs) {
+    const colonIndex = pair.indexOf(':');
+    if (colonIndex > 0) {
+      let key = pair.slice(0, colonIndex).trim();
+      let value = pair.slice(colonIndex + 1).trim();
+      
+      // Convert camelCase to kebab-case
+      key = key.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+      
+      // Remove quotes from value
+      value = value.replace(/['"]/g, '');
+      
+      styles.push(`${key}: ${value}`);
+    }
+  }
+  
+  return styles.join('; ');
 }
 
 function domToDesignerElement(

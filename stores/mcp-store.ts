@@ -201,6 +201,7 @@ export const useMcpStore = create<McpState>((set, get) => ({
 
   getAllTools: async () => {
     const result = await invoke<Array<[string, McpTool]>>('mcp_get_all_tools');
+    if (!Array.isArray(result)) return [];
     return result.map(([serverId, tool]) => ({ serverId, tool }));
   },
 

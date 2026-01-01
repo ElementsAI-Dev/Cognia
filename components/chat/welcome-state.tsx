@@ -105,10 +105,10 @@ const suggestionKeyMap: Record<ChatMode, SuggestionKey[]> = {
 };
 
 const modeIcons: Record<ChatMode, React.ReactNode> = {
-  chat: <Sparkles className="h-8 w-8 sm:h-10 sm:w-10" />,
-  agent: <Bot className="h-8 w-8 sm:h-10 sm:w-10" />,
-  research: <Search className="h-8 w-8 sm:h-10 sm:w-10" />,
-  learning: <GraduationCap className="h-8 w-8 sm:h-10 sm:w-10" />,
+  chat: <Sparkles />,
+  agent: <Bot />,
+  research: <Search />,
+  learning: <GraduationCap />,
 };
 
 const modeGradients: Record<ChatMode, string> = {
@@ -132,16 +132,16 @@ function SuggestionCardComponent({
   return (
     <button
       onClick={onClick}
-      className="group flex flex-col items-start gap-1 sm:gap-1.5 rounded-lg border border-border/50 bg-card/50 p-2 sm:p-2.5 text-left transition-all duration-200 hover:bg-accent hover:border-accent hover:shadow-md animate-in fade-in-0 slide-in-from-bottom-4"
+      className="group flex flex-col items-start gap-0.5 sm:gap-1.5 rounded-lg border border-border/50 bg-card/50 p-1.5 sm:p-2.5 text-left transition-all duration-200 hover:bg-accent hover:border-accent hover:shadow-md animate-in fade-in-0 slide-in-from-bottom-4"
       style={{ animationDelay: `${index * 75}ms`, animationFillMode: 'backwards' }}
     >
-      <div className="flex items-center gap-1.5">
-        <div className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-md bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground [&>svg]:h-3.5 [&>svg]:w-3.5 sm:[&>svg]:h-4 sm:[&>svg]:w-4">
+      <div className="flex items-center gap-1 sm:gap-1.5">
+        <div className="flex h-5 w-5 sm:h-7 sm:w-7 items-center justify-center rounded-md bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground [&>svg]:h-3 [&>svg]:w-3 sm:[&>svg]:h-4 sm:[&>svg]:w-4">
           {suggestion.icon}
         </div>
-        <span className="font-semibold text-xs sm:text-sm">{suggestion.title}</span>
+        <span className="font-semibold text-[11px] sm:text-sm">{suggestion.title}</span>
       </div>
-      <p className="text-xs text-muted-foreground leading-tight line-clamp-1 sm:line-clamp-2">{suggestion.description}</p>
+      <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight line-clamp-1 sm:line-clamp-2">{suggestion.description}</p>
       <div className="hidden sm:flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
         <span>{tryItLabel}</span>
         <ArrowRight className="h-3 w-3" />
@@ -182,23 +182,25 @@ export function WelcomeState({
   }));
 
   return (
-    <div className="flex h-full flex-col items-center justify-center px-3 py-2 sm:px-4 sm:py-3">
-      <div className="w-full max-w-3xl space-y-2 sm:space-y-3">
-        {/* Header with gradient background */}
+    <div className="flex h-full flex-col items-center justify-center px-2 py-1 sm:px-4 sm:py-3">
+      <div className="w-full max-w-3xl space-y-1 sm:space-y-3">
+        {/* Header with gradient background - compact on small screens */}
         <div className={cn(
-          'flex flex-col items-center space-y-1.5 sm:space-y-2 rounded-xl sm:rounded-2xl bg-linear-to-br p-3 sm:p-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500',
+          'flex flex-col items-center rounded-lg sm:rounded-2xl bg-linear-to-br p-1.5 sm:p-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500',
           modeGradients[mode]
         )}>
-          <div className="text-primary animate-in zoom-in-50 duration-500" style={{ animationDelay: '100ms' }}>
-            {modeIcons[mode]}
+          <div className="flex items-center gap-1.5 sm:flex-col sm:gap-2">
+            <div className="text-primary [&>svg]:h-5 [&>svg]:w-5 sm:[&>svg]:h-10 sm:[&>svg]:w-10">
+              {modeIcons[mode]}
+            </div>
+            <h1 className="text-sm sm:text-xl font-bold tracking-tight">
+              {t(`modes.${mode}.title`)}
+            </h1>
           </div>
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight animate-in fade-in-0 slide-in-from-bottom-2 duration-500" style={{ animationDelay: '150ms' }}>
-            {t(`modes.${mode}.title`)}
-          </h1>
-          <p className="max-w-lg text-center text-xs sm:text-sm text-muted-foreground leading-relaxed animate-in fade-in-0 duration-500 line-clamp-2" style={{ animationDelay: '200ms' }}>
+          <p className="hidden sm:block max-w-lg text-center text-sm text-muted-foreground leading-relaxed mt-2">
             {t(`modes.${mode}.description`)}
           </p>
-          <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5">
+          <div className="hidden sm:flex flex-wrap justify-center gap-1.5 mt-2">
             {features.map((feature, index) => (
               <FeatureBadge key={index} feature={feature} index={index} />
             ))}
@@ -206,12 +208,12 @@ export function WelcomeState({
         </div>
 
         {/* Mode switcher and Template button */}
-        <div className="flex justify-center items-center gap-1 flex-wrap animate-in fade-in-0 slide-in-from-bottom-2 duration-500" style={{ animationDelay: '400ms' }}>
+        <div className="flex justify-center items-center gap-0.5 sm:gap-1 flex-wrap">
           {/* Template Selector */}
           <TemplateSelector
             trigger={
-              <Button variant="outline" size="sm" className="gap-1 rounded-full hover:bg-accent transition-colors h-7 text-xs px-2">
-                <LayoutTemplate className="h-3 w-3" />
+              <Button variant="outline" size="sm" className="gap-1 rounded-full hover:bg-accent transition-colors h-6 sm:h-7 text-[10px] sm:text-xs px-1.5 sm:px-2">
+                <LayoutTemplate className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                 <span className="hidden sm:inline">{t('templates')}</span>
               </Button>
             }
@@ -222,30 +224,30 @@ export function WelcomeState({
               }
             }}
           />
-          <div className="h-4 w-px bg-border/50 mx-0.5" />
+          <div className="h-3 sm:h-4 w-px bg-border/50 mx-0.5" />
           {(['chat', 'agent', 'research', 'learning'] as ChatMode[]).map((m) => (
             <button
               key={m}
               onClick={() => onModeChange?.(m)}
               className={cn(
-                'flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium transition-all duration-200',
+                'flex items-center gap-0.5 sm:gap-1 rounded-full px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium transition-all duration-200',
                 m === mode
                   ? 'bg-primary text-primary-foreground shadow-md'
                   : 'bg-muted/50 hover:bg-accent hover:shadow-sm'
               )}
             >
-              {m === 'chat' && <Sparkles className="h-3 w-3" />}
-              {m === 'agent' && <Bot className="h-3 w-3" />}
-              {m === 'research' && <Search className="h-3 w-3" />}
-              {m === 'learning' && <GraduationCap className="h-3 w-3" />}
+              {m === 'chat' && <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
+              {m === 'agent' && <Bot className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
+              {m === 'research' && <Search className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
+              {m === 'learning' && <GraduationCap className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
               <span className="capitalize hidden sm:inline">{m === 'chat' ? tChat('modeChat') : m === 'agent' ? tChat('modeAgent') : m === 'research' ? tChat('modeResearch') : tChat('modeLearning')}</span>
             </button>
           ))}
         </div>
 
-        {/* Agent Mode Selector - only shown in agent mode */}
+        {/* Agent Mode Selector - only shown in agent mode on larger screens */}
         {mode === 'agent' && onAgentModeChange && (
-          <div className="flex justify-center animate-in fade-in-0 duration-500" style={{ animationDelay: '425ms' }}>
+          <div className="hidden sm:flex justify-center">
             <AgentModeSelector
               selectedModeId={agentModeId}
               onModeChange={onAgentModeChange}
@@ -253,41 +255,54 @@ export function WelcomeState({
           </div>
         )}
 
-        {/* Quick Access - Designer & Projects */}
-        <div className="animate-in fade-in-0 duration-500" style={{ animationDelay: '450ms' }}>
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+        {/* Quick Access - Designer & Projects - hidden on small screens */}
+        <div className="hidden sm:block">
+          <div className="grid grid-cols-2 gap-2">
             <Link href="/designer" className="group">
-              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/50 p-2 sm:p-2.5 transition-all duration-200 hover:bg-accent hover:border-purple-500/30 hover:shadow-md">
+              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/50 p-2.5 transition-all duration-200 hover:bg-accent hover:border-purple-500/30 hover:shadow-md">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-purple-500/10 text-purple-500 transition-colors group-hover:bg-purple-500 group-hover:text-white">
                   <Wand2 className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-xs sm:text-sm">{t('designer')}</h3>
-                  <p className="text-xs text-muted-foreground truncate hidden sm:block">{t('designerDesc')}</p>
+                  <h3 className="font-semibold text-sm">{t('designer')}</h3>
+                  <p className="text-xs text-muted-foreground truncate">{t('designerDesc')}</p>
                 </div>
               </div>
             </Link>
             <Link href="/projects" className="group">
-              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/50 p-2 sm:p-2.5 transition-all duration-200 hover:bg-accent hover:border-blue-500/30 hover:shadow-md">
+              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/50 p-2.5 transition-all duration-200 hover:bg-accent hover:border-blue-500/30 hover:shadow-md">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-500/10 text-blue-500 transition-colors group-hover:bg-blue-500 group-hover:text-white">
                   <FolderKanban className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-xs sm:text-sm">{t('projects')}</h3>
-                  <p className="text-xs text-muted-foreground truncate hidden sm:block">{t('projectsDesc')}</p>
+                  <h3 className="font-semibold text-sm">{t('projects')}</h3>
+                  <p className="text-xs text-muted-foreground truncate">{t('projectsDesc')}</p>
                 </div>
               </div>
             </Link>
           </div>
         </div>
 
-        {/* Suggestions grid */}
-        <div className="animate-in fade-in-0 duration-500" style={{ animationDelay: '550ms' }}>
-          <h2 className="mb-1.5 sm:mb-2 text-center text-xs font-medium text-muted-foreground">
+        {/* Suggestions - simplified on small screens */}
+        <div>
+          <h2 className="mb-0.5 sm:mb-2 text-center text-[10px] sm:text-xs font-medium text-muted-foreground">
             {t('tryPrompts')}
           </h2>
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
-            {suggestions.map((suggestion, index) => (
+          {/* Mobile: simple text buttons */}
+          <div className="sm:hidden flex flex-wrap justify-center gap-1">
+            {suggestions.slice(0, 2).map((suggestion, index) => (
+              <button
+                key={index}
+                onClick={() => onSuggestionClick?.(suggestion.prompt)}
+                className="text-[10px] px-2 py-1 rounded-full border border-border/50 bg-card/50 hover:bg-accent transition-colors"
+              >
+                {suggestion.title}
+              </button>
+            ))}
+          </div>
+          {/* Desktop: full cards */}
+          <div className="hidden sm:grid grid-cols-2 gap-2">
+            {suggestions.slice(0, 4).map((suggestion, index) => (
               <SuggestionCardComponent
                 key={index}
                 suggestion={suggestion}

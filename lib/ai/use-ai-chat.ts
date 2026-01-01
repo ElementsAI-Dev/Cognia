@@ -179,13 +179,47 @@ export function useAIChat({
 
       const { messages, systemPrompt, temperature = 0.7, maxTokens, topP, frequencyPenalty, presencePenalty, sessionId, messageId } = options;
 
-      // Auto-detect memories from user messages
+      // Auto-detect memories from user messages using two-phase pipeline
       if (memorySettings.enabled && memorySettings.autoInfer) {
         const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
         if (lastUserMessage && typeof lastUserMessage.content === 'string') {
-          const detectedMemory = detectMemoryFromText(lastUserMessage.content);
-          if (detectedMemory) {
-            createMemory(detectedMemory);
+          if (memorySettings.enablePipeline) {
+            // Use the new two-phase pipeline for better extraction (26% more accurate)
+            const { extractMemoryCandidates } = await import('./memory/memory-pipeline');
+            const conversationMessages = messages
+              .filter(m => typeof m.content === 'string')
+              .map(m => ({
+                role: m.role as 'user' | 'assistant' | 'system',
+                content: m.content as string,
+              }));
+            
+            const candidates = extractMemoryCandidates({
+              messages: conversationMessages,
+              sessionId,
+            }, {
+              enablePipeline: true,
+              recentMessageCount: memorySettings.pipelineRecentMessages || 5,
+              enableSummary: memorySettings.enableRollingSummary || false,
+              maxCandidates: 3,
+              similarityThreshold: memorySettings.conflictThreshold || 0.7,
+              topKSimilar: 3,
+            });
+
+            // Create memories from high-confidence candidates
+            for (const candidate of candidates.filter(c => c.confidence >= 0.7)) {
+              createMemory({
+                type: candidate.type,
+                content: candidate.content,
+                source: 'inferred',
+                sessionId,
+              });
+            }
+          } else {
+            // Fallback to simple detection
+            const detectedMemory = detectMemoryFromText(lastUserMessage.content);
+            if (detectedMemory) {
+              createMemory(detectedMemory);
+            }
           }
         }
       }

@@ -1412,3 +1412,302 @@ export function getRandomSuggestions(count: number = 4): string[] {
   const shuffled = [...AI_SUGGESTIONS].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, count);
 }
+
+// ============================================
+// Custom Templates & Favorites
+// ============================================
+
+const CUSTOM_TEMPLATES_KEY = 'designer_custom_templates';
+const FAVORITE_TEMPLATES_KEY = 'designer_favorite_templates';
+
+export interface CustomTemplate extends DesignerTemplate {
+  createdAt: Date;
+  updatedAt: Date;
+  isCustom: true;
+}
+
+/**
+ * Get all custom templates from localStorage
+ */
+export function getCustomTemplates(): CustomTemplate[] {
+  if (typeof window === 'undefined') return [];
+  
+  try {
+    const stored = localStorage.getItem(CUSTOM_TEMPLATES_KEY);
+    if (stored) {
+      const templates = JSON.parse(stored);
+      return templates.map((t: CustomTemplate) => ({
+        ...t,
+        createdAt: new Date(t.createdAt),
+        updatedAt: new Date(t.updatedAt),
+      }));
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return [];
+}
+
+/**
+ * Save a custom template
+ */
+export function saveCustomTemplate(
+  template: Omit<CustomTemplate, 'id' | 'createdAt' | 'updatedAt' | 'isCustom'>
+): CustomTemplate {
+  const templates = getCustomTemplates();
+  
+  const newTemplate: CustomTemplate = {
+    ...template,
+    id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    isCustom: true,
+  };
+  
+  templates.push(newTemplate);
+  
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(templates));
+  }
+  
+  return newTemplate;
+}
+
+/**
+ * Update an existing custom template
+ */
+export function updateCustomTemplate(
+  id: string,
+  updates: Partial<Omit<CustomTemplate, 'id' | 'createdAt' | 'isCustom'>>
+): CustomTemplate | null {
+  const templates = getCustomTemplates();
+  const index = templates.findIndex((t) => t.id === id);
+  
+  if (index === -1) return null;
+  
+  templates[index] = {
+    ...templates[index],
+    ...updates,
+    updatedAt: new Date(),
+  };
+  
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(templates));
+  }
+  
+  return templates[index];
+}
+
+/**
+ * Delete a custom template
+ */
+export function deleteCustomTemplate(id: string): boolean {
+  const templates = getCustomTemplates();
+  const filtered = templates.filter((t) => t.id !== id);
+  
+  if (filtered.length === templates.length) return false;
+  
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(filtered));
+  }
+  
+  return true;
+}
+
+/**
+ * Get favorite template IDs
+ */
+export function getFavoriteTemplateIds(): string[] {
+  if (typeof window === 'undefined') return [];
+  
+  try {
+    const stored = localStorage.getItem(FAVORITE_TEMPLATES_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return [];
+}
+
+/**
+ * Toggle favorite status for a template
+ */
+export function toggleFavoriteTemplate(id: string): boolean {
+  const favorites = getFavoriteTemplateIds();
+  const index = favorites.indexOf(id);
+  
+  if (index === -1) {
+    favorites.push(id);
+  } else {
+    favorites.splice(index, 1);
+  }
+  
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(FAVORITE_TEMPLATES_KEY, JSON.stringify(favorites));
+  }
+  
+  return index === -1; // Returns true if now favorited
+}
+
+/**
+ * Check if a template is favorited
+ */
+export function isTemplateFavorited(id: string): boolean {
+  return getFavoriteTemplateIds().includes(id);
+}
+
+/**
+ * Get all favorite templates (both built-in and custom)
+ */
+export function getFavoriteTemplates(): (DesignerTemplate | CustomTemplate)[] {
+  const favoriteIds = getFavoriteTemplateIds();
+  const customTemplates = getCustomTemplates();
+  
+  const favorites: (DesignerTemplate | CustomTemplate)[] = [];
+  
+  for (const id of favoriteIds) {
+    // Check built-in templates
+    const builtIn = DESIGNER_TEMPLATES.find((t) => t.id === id);
+    if (builtIn) {
+      favorites.push(builtIn);
+      continue;
+    }
+    
+    // Check custom templates
+    const custom = customTemplates.find((t) => t.id === id);
+    if (custom) {
+      favorites.push(custom);
+    }
+  }
+  
+  return favorites;
+}
+
+/**
+ * Get all templates (built-in + custom)
+ */
+export function getAllTemplates(): (DesignerTemplate | CustomTemplate)[] {
+  return [...DESIGNER_TEMPLATES, ...getCustomTemplates()];
+}
+
+/**
+ * Search templates by query
+ */
+export function searchTemplates(
+  query: string,
+  options: {
+    framework?: FrameworkType;
+    category?: TemplateCategory;
+    includeCustom?: boolean;
+    favoritesOnly?: boolean;
+  } = {}
+): (DesignerTemplate | CustomTemplate)[] {
+  const { framework, category, includeCustom = true, favoritesOnly = false } = options;
+  
+  let templates: (DesignerTemplate | CustomTemplate)[] = favoritesOnly
+    ? getFavoriteTemplates()
+    : includeCustom
+    ? getAllTemplates()
+    : [...DESIGNER_TEMPLATES];
+  
+  // Filter by framework
+  if (framework) {
+    templates = templates.filter((t) => t.framework === framework);
+  }
+  
+  // Filter by category
+  if (category) {
+    templates = templates.filter((t) => t.category === category);
+  }
+  
+  // Search filter
+  if (query.trim()) {
+    const q = query.toLowerCase();
+    templates = templates.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        t.description.toLowerCase().includes(q) ||
+        t.category.toLowerCase().includes(q)
+    );
+  }
+  
+  return templates;
+}
+
+/**
+ * Export templates as JSON
+ */
+export function exportTemplatesAsJson(templateIds?: string[]): string {
+  const customTemplates = getCustomTemplates();
+  
+  const toExport = templateIds
+    ? customTemplates.filter((t) => templateIds.includes(t.id))
+    : customTemplates;
+  
+  return JSON.stringify(toExport, null, 2);
+}
+
+/**
+ * Import templates from JSON
+ */
+export function importTemplatesFromJson(json: string): {
+  success: boolean;
+  imported: number;
+  error?: string;
+} {
+  try {
+    const parsed = JSON.parse(json);
+    const templates = Array.isArray(parsed) ? parsed : [parsed];
+    
+    let imported = 0;
+    for (const template of templates) {
+      if (template.name && template.code && template.category && template.framework) {
+        saveCustomTemplate({
+          name: template.name,
+          description: template.description || '',
+          code: template.code,
+          category: template.category,
+          framework: template.framework,
+          thumbnail: template.thumbnail,
+          icon: template.icon,
+        });
+        imported++;
+      }
+    }
+    
+    return { success: true, imported };
+  } catch (error) {
+    return {
+      success: false,
+      imported: 0,
+      error: error instanceof Error ? error.message : 'Failed to parse JSON',
+    };
+  }
+}
+
+/**
+ * Duplicate an existing template as a custom template
+ */
+export function duplicateTemplate(id: string, newName?: string): CustomTemplate | null {
+  // Check built-in templates
+  let original: DesignerTemplate | CustomTemplate | undefined = DESIGNER_TEMPLATES.find((t) => t.id === id);
+  
+  // Check custom templates
+  if (!original) {
+    original = getCustomTemplates().find((t) => t.id === id);
+  }
+  
+  if (!original) return null;
+  
+  return saveCustomTemplate({
+    name: newName || `${original.name} (Copy)`,
+    description: original.description,
+    code: original.code,
+    category: original.category,
+    framework: original.framework,
+    thumbnail: original.thumbnail,
+    icon: original.icon,
+  });
+}

@@ -23,6 +23,8 @@ import {
   createRAGPipeline,
   type RAGPipelineConfig,
   type RAGPipelineContext,
+  createRAGTools,
+  type RAGToolsConfig,
 } from '@/lib/ai/rag/index';
 import { chunkDocument, type ChunkingOptions, type ChunkingResult } from '@/lib/ai/chunking';
 
@@ -72,6 +74,9 @@ export interface UseRAGReturn {
   // Advanced RAG pipeline
   createAdvancedPipeline: () => RAGPipeline;
   advancedRetrieve: (query: string) => Promise<RAGPipelineContext>;
+  
+  // RAG tools for AI SDK integration
+  createTools: () => ReturnType<typeof createRAGTools>;
 }
 
 export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
@@ -349,6 +354,18 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
     chunkOverlap,
   ]);
 
+  // Create RAG tools for use with AI SDK streamText/generateText
+  const createTools = useCallback((toolsConfig?: Partial<RAGToolsConfig>) => {
+    const pipeline = createAdvancedPipeline();
+    return createRAGTools({
+      pipeline,
+      collectionName,
+      topK,
+      similarityThreshold,
+      ...toolsConfig,
+    });
+  }, [createAdvancedPipeline, collectionName, topK, similarityThreshold]);
+
   // Advanced retrieve with hybrid search and reranking
   const advancedRetrieve = useCallback(async (query: string): Promise<RAGPipelineContext> => {
     setIsLoading(true);
@@ -394,6 +411,8 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
     createSimpleRAG,
     createAdvancedPipeline,
     advancedRetrieve,
+    // New: RAG tools for AI SDK integration
+    createTools,
   };
 }
 

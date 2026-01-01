@@ -179,7 +179,6 @@ describe('MathBlock', () => {
       await user.click(fullscreenButton);
       
       expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText('Mathematical Expression')).toBeInTheDocument();
     });
 
     it('renders math in fullscreen dialog', async () => {

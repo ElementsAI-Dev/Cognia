@@ -259,7 +259,12 @@ describe('useMcpStore', () => {
         ['server-1', { name: 'tool1', description: 'Tool 1' }],
         ['server-2', { name: 'tool2', description: 'Tool 2' }],
       ];
-      mockInvoke.mockResolvedValueOnce(mockTools);
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'mcp_get_all_tools') {
+          return Promise.resolve(mockTools);
+        }
+        return Promise.resolve(undefined);
+      });
 
       const result = await useMcpStore.getState().getAllTools();
 

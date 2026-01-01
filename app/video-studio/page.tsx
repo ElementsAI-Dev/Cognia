@@ -537,7 +537,7 @@ export default function VideoStudioPage() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-full flex flex-col bg-background">
       {/* Header */}
       <header className="flex items-center justify-between border-b px-4 py-2 shrink-0">
         <div className="flex items-center gap-4">
@@ -665,6 +665,7 @@ export default function VideoStudioPage() {
                     >
                       {referenceImage ? (
                         <div className="relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={`data:image/png;base64,${referenceImage}`}
                             alt="Reference"

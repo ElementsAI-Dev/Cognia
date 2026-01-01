@@ -305,10 +305,11 @@ test.describe('Background Agent Store', () => {
 
       const steps: BackgroundAgentStep[] = [];
       let stepCounter = 0;
+      let idCounter = 0;
 
       const addStep = (action: string, input?: unknown): BackgroundAgentStep => {
         const step: BackgroundAgentStep = {
-          id: `step-${Date.now()}`,
+          id: `step-${++idCounter}`,
           stepNumber: ++stepCounter,
           action,
           status: 'pending',

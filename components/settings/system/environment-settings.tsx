@@ -53,6 +53,9 @@ import {
 } from '@/components/ui/dialog';
 import { useEnvironment } from '@/hooks/use-environment';
 import { TOOL_INFO, type EnvironmentTool, type ToolStatus } from '@/types/environment';
+import { VirtualEnvPanel } from './virtual-env-panel';
+import { ProjectEnvConfigPanel } from './project-env-config';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface ToolCardProps {
   tool: EnvironmentTool;
@@ -352,51 +355,82 @@ export function EnvironmentSettings() {
         </Card>
       )}
 
-      {/* Language Managers Section */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Terminal className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-semibold">{t('languageManagers')}</h3>
-        </div>
-        <p className="text-xs text-muted-foreground">{t('languageManagersDesc')}</p>
-        <div className="grid gap-4 md:grid-cols-2">
-          {languageManagers.map((tool) => (
-            <ToolCard
-              key={tool}
-              tool={tool}
-              status={tools[tool]}
-              isInstalling={isInstalling}
-              onInstall={() => handleInstallClick(tool)}
-              onOpenWebsite={() => openToolWebsite(tool)}
-              onRefresh={() => checkTool(tool)}
-            />
-          ))}
-        </div>
-      </div>
+      {/* Tabs for different sections */}
+      <Tabs defaultValue="tools" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="tools">
+            <Terminal className="h-4 w-4 mr-2" />
+            Tools
+          </TabsTrigger>
+          <TabsTrigger value="virtualenv">
+            <Package className="h-4 w-4 mr-2" />
+            Virtual Envs
+          </TabsTrigger>
+          <TabsTrigger value="projects">
+            <Settings className="h-4 w-4 mr-2" />
+            Projects
+          </TabsTrigger>
+        </TabsList>
 
-      <Separator />
+        {/* Tools Tab */}
+        <TabsContent value="tools" className="space-y-6 mt-4">
+          {/* Language Managers Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Terminal className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold">{t('languageManagers')}</h3>
+            </div>
+            <p className="text-xs text-muted-foreground">{t('languageManagersDesc')}</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              {languageManagers.map((tool) => (
+                <ToolCard
+                  key={tool}
+                  tool={tool}
+                  status={tools[tool]}
+                  isInstalling={isInstalling}
+                  onInstall={() => handleInstallClick(tool)}
+                  onOpenWebsite={() => openToolWebsite(tool)}
+                  onRefresh={() => checkTool(tool)}
+                />
+              ))}
+            </div>
+          </div>
 
-      {/* Container Runtimes Section */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Box className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-semibold">{t('containerRuntimes')}</h3>
-        </div>
-        <p className="text-xs text-muted-foreground">{t('containerRuntimesDesc')}</p>
-        <div className="grid gap-4 md:grid-cols-2">
-          {containerRuntimes.map((tool) => (
-            <ToolCard
-              key={tool}
-              tool={tool}
-              status={tools[tool]}
-              isInstalling={isInstalling}
-              onInstall={() => handleInstallClick(tool)}
-              onOpenWebsite={() => openToolWebsite(tool)}
-              onRefresh={() => checkTool(tool)}
-            />
-          ))}
-        </div>
-      </div>
+          <Separator />
+
+          {/* Container Runtimes Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Box className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold">{t('containerRuntimes')}</h3>
+            </div>
+            <p className="text-xs text-muted-foreground">{t('containerRuntimesDesc')}</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              {containerRuntimes.map((tool) => (
+                <ToolCard
+                  key={tool}
+                  tool={tool}
+                  status={tools[tool]}
+                  isInstalling={isInstalling}
+                  onInstall={() => handleInstallClick(tool)}
+                  onOpenWebsite={() => openToolWebsite(tool)}
+                  onRefresh={() => checkTool(tool)}
+                />
+              ))}
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Virtual Environments Tab */}
+        <TabsContent value="virtualenv" className="mt-4">
+          <VirtualEnvPanel />
+        </TabsContent>
+
+        {/* Projects Tab */}
+        <TabsContent value="projects" className="mt-4">
+          <ProjectEnvConfigPanel />
+        </TabsContent>
+      </Tabs>
 
       {/* Install Confirmation Dialog */}
       <Dialog open={!!confirmInstall} onOpenChange={() => setConfirmInstall(null)}>

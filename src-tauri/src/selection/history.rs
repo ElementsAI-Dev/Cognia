@@ -452,7 +452,7 @@ mod tests {
     fn test_get_by_index() {
         let history = SelectionHistory::new();
         
-        let mut entry1 = SelectionHistoryEntry::new("first".to_string(), 0, 0);
+        let entry1 = SelectionHistoryEntry::new("first".to_string(), 0, 0);
         let mut entry2 = SelectionHistoryEntry::new("second".to_string(), 0, 0);
         entry2.timestamp += 10000;
         
@@ -472,7 +472,7 @@ mod tests {
         let history = SelectionHistory::new();
         assert!(history.get_latest().is_none());
         
-        let mut entry1 = SelectionHistoryEntry::new("first".to_string(), 0, 0);
+        let entry1 = SelectionHistoryEntry::new("first".to_string(), 0, 0);
         let mut entry2 = SelectionHistoryEntry::new("second".to_string(), 0, 0);
         entry2.timestamp += 10000;
         

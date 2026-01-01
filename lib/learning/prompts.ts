@@ -6,7 +6,7 @@
  * but instead helps the learner discover knowledge through questioning.
  */
 
-import type { LearningPhase, LearningSession } from '@/types/learning';
+import type { LearningPhase, LearningSession, DifficultyLevel, LearningStyle, UnderstandingLevel } from '@/types/learning';
 
 /**
  * Base Socratic Method system prompt
@@ -229,4 +229,323 @@ export function getEncouragementMessage(
 ): string {
   const messages = ENCOURAGEMENT_MESSAGES[type];
   return messages[Math.floor(Math.random() * messages.length)];
+}
+
+/**
+ * Difficulty-specific guidance prompts
+ */
+export const DIFFICULTY_PROMPTS: Record<DifficultyLevel, string> = {
+  beginner: `
+## Difficulty Level: Beginner
+
+Adjust your approach for a beginner learner:
+- Use simple, everyday language and avoid jargon
+- Provide more context and background for each concept
+- Break down questions into smaller, more manageable parts
+- Use concrete examples and analogies from daily life
+- Be extra patient and provide more scaffolding
+- Celebrate small wins to build confidence`,
+
+  intermediate: `
+## Difficulty Level: Intermediate
+
+The learner has some foundational knowledge:
+- Build on their existing understanding
+- Introduce more nuanced concepts gradually
+- Connect ideas to form a broader picture
+- Ask questions that require synthesis of multiple concepts
+- Challenge assumptions while remaining supportive`,
+
+  advanced: `
+## Difficulty Level: Advanced
+
+The learner has solid knowledge in this area:
+- Engage with complex, multi-layered questions
+- Explore edge cases and exceptions
+- Encourage critical analysis and evaluation
+- Connect to advanced theories or frameworks
+- Push for deeper abstraction and generalization`,
+
+  expert: `
+## Difficulty Level: Expert
+
+The learner is highly knowledgeable:
+- Engage in sophisticated intellectual discourse
+- Explore cutting-edge ideas and open questions
+- Challenge with paradoxes and counterexamples
+- Discuss meta-level aspects and epistemological questions
+- Treat them as a peer in collaborative inquiry`,
+};
+
+/**
+ * Learning style-specific guidance
+ */
+export const LEARNING_STYLE_PROMPTS: Record<LearningStyle, string> = {
+  visual: `
+## Preferred Learning Style: Visual
+
+Adapt your teaching for a visual learner:
+- Describe concepts using spatial and visual metaphors
+- Suggest diagrams, charts, or mind maps when helpful
+- Use color and position-based organization
+- Paint mental pictures with descriptive language
+- Reference visual patterns and relationships`,
+
+  auditory: `
+## Preferred Learning Style: Auditory
+
+Adapt your teaching for an auditory learner:
+- Use rhythm and patterns in explanations
+- Encourage thinking aloud and verbal reasoning
+- Suggest mnemonics or verbal associations
+- Reference how concepts "sound" or can be explained
+- Use dialogue and conversational examples`,
+
+  reading: `
+## Preferred Learning Style: Reading/Writing
+
+Adapt your teaching for a reading/writing learner:
+- Provide structured, well-organized explanations
+- Suggest note-taking and summarization activities
+- Use lists, definitions, and textual descriptions
+- Encourage written reflection and documentation
+- Reference authoritative sources and texts`,
+
+  kinesthetic: `
+## Preferred Learning Style: Kinesthetic
+
+Adapt your teaching for a kinesthetic learner:
+- Connect concepts to physical actions or processes
+- Use hands-on examples and practical applications
+- Encourage experimentation and trial-and-error
+- Break learning into active, engaging steps
+- Reference real-world tactile experiences`,
+};
+
+/**
+ * Understanding-based response prompts
+ */
+export const UNDERSTANDING_PROMPTS: Record<UnderstandingLevel, string> = {
+  none: `The learner shows minimal understanding. Start with the most fundamental prerequisite concepts. Use simple, concrete examples. Break down the question into much smaller pieces.`,
+  
+  partial: `The learner has partial understanding with some gaps. Identify specific misconceptions and address them. Build bridges between what they know and what they need to learn.`,
+  
+  good: `The learner demonstrates good understanding. Push them to deeper analysis and synthesis. Ask questions that connect multiple concepts together.`,
+  
+  excellent: `The learner shows excellent understanding. Challenge them with advanced applications, edge cases, or opportunities to teach the concept back. Celebrate their mastery.`,
+};
+
+/**
+ * Scenario-specific prompts for different learning contexts
+ */
+export const SCENARIO_PROMPTS = {
+  problemSolving: `
+## Learning Scenario: Problem Solving
+
+Guide the learner through a problem-solving process:
+1. Help them clearly define and understand the problem
+2. Encourage brainstorming multiple approaches
+3. Guide evaluation of pros/cons for each approach
+4. Support systematic implementation of chosen solution
+5. Facilitate reflection on what worked and what didn't`,
+
+  conceptLearning: `
+## Learning Scenario: Concept Learning
+
+Help the learner understand a new concept:
+1. Activate prior knowledge and find connection points
+2. Build understanding from concrete to abstract
+3. Explore examples and non-examples
+4. Test understanding through application
+5. Connect to the broader knowledge framework`,
+
+  skillDevelopment: `
+## Learning Scenario: Skill Development
+
+Guide the learner in developing a new skill:
+1. Break the skill into component sub-skills
+2. Focus on one component at a time
+3. Provide opportunities for practice with feedback
+4. Gradually increase complexity
+5. Integrate components into fluid performance`,
+
+  criticalAnalysis: `
+## Learning Scenario: Critical Analysis
+
+Guide the learner through critical analysis:
+1. Identify assumptions and premises
+2. Evaluate evidence and reasoning
+3. Consider alternative perspectives
+4. Identify strengths and weaknesses
+5. Form reasoned conclusions`,
+
+  creativeExploration: `
+## Learning Scenario: Creative Exploration
+
+Support creative exploration and discovery:
+1. Encourage curiosity and open-ended questions
+2. Value unusual ideas and perspectives
+3. Support risk-taking and experimentation
+4. Help make connections across domains
+5. Celebrate novel insights and approaches`,
+};
+
+/**
+ * Build enhanced system prompt with adaptive features
+ */
+export function buildAdaptiveLearningPrompt(
+  session: LearningSession,
+  options?: {
+    scenario?: keyof typeof SCENARIO_PROMPTS;
+    understandingLevel?: UnderstandingLevel;
+    customContext?: string;
+  }
+): string {
+  let prompt = SOCRATIC_MENTOR_PROMPT;
+
+  // Add phase-specific guidance
+  prompt += '\n\n' + PHASE_PROMPTS[session.currentPhase];
+
+  // Add difficulty-level guidance
+  if (session.currentDifficulty) {
+    prompt += '\n\n' + DIFFICULTY_PROMPTS[session.currentDifficulty];
+  }
+
+  // Add learning style guidance if specified
+  if (session.preferredStyle) {
+    prompt += '\n\n' + LEARNING_STYLE_PROMPTS[session.preferredStyle];
+  }
+
+  // Add scenario-specific guidance if provided
+  if (options?.scenario) {
+    prompt += '\n\n' + SCENARIO_PROMPTS[options.scenario];
+  }
+
+  // Add understanding-based guidance if provided
+  if (options?.understandingLevel) {
+    prompt += `\n\n## Current Understanding Assessment\n${UNDERSTANDING_PROMPTS[options.understandingLevel]}`;
+  }
+
+  // Add engagement guidance based on session metrics
+  if (session.engagementScore < 40) {
+    prompt += `\n\n## Engagement Alert
+The learner's engagement appears low. Try to:
+- Make questions more interactive and relevant
+- Use surprising facts or counterintuitive examples
+- Connect to their interests or real-world applications
+- Vary your approach to rekindle interest`;
+  } else if (session.engagementScore > 80) {
+    prompt += `\n\n## High Engagement
+The learner is highly engaged! You can:
+- Introduce more challenging questions
+- Explore tangential but interesting topics
+- Encourage deeper exploration of insights`;
+  }
+
+  // Add adaptive difficulty guidance
+  if (session.consecutiveCorrect >= 3) {
+    prompt += `\n\n## Performance Note
+The learner has answered ${session.consecutiveCorrect} questions correctly in a row. Consider increasing the challenge level.`;
+  } else if (session.consecutiveIncorrect >= 2) {
+    prompt += `\n\n## Performance Note
+The learner has struggled with ${session.consecutiveIncorrect} consecutive questions. Consider providing more scaffolding or simpler prerequisite questions.`;
+  }
+
+  // Add session context
+  prompt += `\n\n## Current Learning Context
+- **Topic**: ${session.topic}
+- **Learning Goals**: ${session.learningGoals.map(g => g.description).join(', ') || 'Not yet defined'}
+- **Background Knowledge**: ${session.backgroundKnowledge || 'Not specified'}
+- **Progress**: ${session.progress}%
+- **Current Difficulty**: ${session.currentDifficulty}
+- **Engagement Score**: ${session.engagementScore}/100`;
+
+  // Add sub-questions context for relevant phases
+  if (session.currentPhase === 'questioning' || session.currentPhase === 'feedback') {
+    const currentSQ = session.subQuestions.find(
+      (sq) => sq.id === session.currentSubQuestionId
+    );
+    if (currentSQ) {
+      prompt += `\n- **Current Sub-Question**: ${currentSQ.question}`;
+      prompt += `\n- **Attempts on this question**: ${currentSQ.userAttempts}`;
+      if (currentSQ.hints.length > 0) {
+        prompt += `\n- **Hints already provided**: ${currentSQ.hints.length}`;
+      }
+      if (currentSQ.difficulty) {
+        prompt += `\n- **Question Difficulty**: ${currentSQ.difficulty}`;
+      }
+    }
+
+    const resolvedCount = session.subQuestions.filter(
+      (sq) => sq.status === 'resolved'
+    ).length;
+    prompt += `\n- **Sub-questions resolved**: ${resolvedCount}/${session.subQuestions.length}`;
+  }
+
+  // Add concepts being learned
+  if (session.concepts.length > 0) {
+    const masteredCount = session.concepts.filter(c => c.masteryStatus === 'mastered').length;
+    prompt += `\n- **Concepts tracked**: ${session.concepts.length} (${masteredCount} mastered)`;
+  }
+
+  // Add custom context if provided
+  if (options?.customContext) {
+    prompt += `\n\n## Additional Context\n${options.customContext}`;
+  }
+
+  return prompt;
+}
+
+/**
+ * Generate contextual hints based on learning state
+ */
+export function generateContextualHint(
+  session: LearningSession,
+  attemptCount: number
+): string {
+  const difficulty = session.currentDifficulty;
+  const baseHint = generateHintGuidance(attemptCount, 5);
+
+  const difficultyModifiers: Record<DifficultyLevel, string> = {
+    beginner: 'Use very simple language and concrete examples in your hint.',
+    intermediate: 'Provide a hint that bridges to their existing knowledge.',
+    advanced: 'Give a subtle hint that points to the right direction without revealing too much.',
+    expert: 'Offer a sophisticated hint that respects their expertise.',
+  };
+
+  return `${baseHint}\n${difficultyModifiers[difficulty]}`;
+}
+
+/**
+ * Generate celebration message based on achievement
+ */
+export function generateCelebrationMessage(
+  achievementType: 'concept_mastered' | 'question_solved' | 'phase_complete' | 'session_complete',
+  session: LearningSession
+): string {
+  const messages: Record<typeof achievementType, string[]> = {
+    concept_mastered: [
+      "🎯 Excellent! You've mastered a new concept through your own reasoning!",
+      "🌟 Outstanding! Your understanding has reached mastery level!",
+      "💡 Brilliant! You've internalized this concept completely!",
+    ],
+    question_solved: [
+      "✨ Well done! You worked through that question beautifully!",
+      "🎉 Great thinking! Your reasoning led you to the answer!",
+      "👏 Impressive! You discovered the solution yourself!",
+    ],
+    phase_complete: [
+      `🚀 You've completed the ${session.currentPhase} phase! Ready for the next challenge!`,
+      `📈 Excellent progress! Moving on from ${session.currentPhase}!`,
+      `🌱 You're growing! ${session.currentPhase} phase mastered!`,
+    ],
+    session_complete: [
+      "🏆 Congratulations! You've completed this learning session!",
+      "🎓 Amazing work! You've learned so much through your own thinking!",
+      "⭐ Outstanding! This session showcases your intellectual growth!",
+    ],
+  };
+
+  const typeMessages = messages[achievementType];
+  return typeMessages[Math.floor(Math.random() * typeMessages.length)];
 }

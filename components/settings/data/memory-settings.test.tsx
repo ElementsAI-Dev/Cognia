@@ -287,4 +287,63 @@ describe('MemorySettings', () => {
     // Component renders lowercase translation key
     expect(screen.getByText('category')).toBeInTheDocument();
   });
+
+  it('handles search input change', () => {
+    render(<MemorySettings />);
+    const searchInputs = screen.getAllByTestId('input');
+    const searchInput = searchInputs[0];
+    fireEvent.change(searchInput, { target: { value: 'test query' } });
+    expect(searchInput).toHaveValue('test query');
+  });
+
+  it('displays multiple buttons for actions', () => {
+    render(<MemorySettings />);
+    // Export, import, add memory buttons exist
+    expect(screen.getAllByRole('button').length).toBeGreaterThan(0);
+  });
+});
+
+describe('MemorySettings interactions', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('renders all switch controls', () => {
+    render(<MemorySettings />);
+    expect(screen.getByTestId('memory-enabled')).toBeInTheDocument();
+    expect(screen.getByTestId('auto-infer')).toBeInTheDocument();
+    expect(screen.getByTestId('inject-prompt')).toBeInTheDocument();
+  });
+
+  it('displays zero memories count', () => {
+    render(<MemorySettings />);
+    expect(screen.getByText('0 memories stored')).toBeInTheDocument();
+  });
+});
+
+describe('MemorySettings advanced features', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('renders advanced settings section', () => {
+    render(<MemorySettings />);
+    // Advanced settings should be collapsed by default
+    expect(screen.getAllByRole('button').length).toBeGreaterThan(0);
+  });
+
+  it('displays dialog components', () => {
+    render(<MemorySettings />);
+    expect(screen.getAllByTestId('dialog').length).toBeGreaterThan(0);
+  });
+
+  it('displays select components for memory type', () => {
+    render(<MemorySettings />);
+    expect(screen.getAllByTestId('select').length).toBeGreaterThan(0);
+  });
+
+  it('handles empty state gracefully', () => {
+    render(<MemorySettings />);
+    expect(screen.getByText('No memories stored yet')).toBeInTheDocument();
+  });
 });

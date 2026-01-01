@@ -20,6 +20,7 @@ import type { SpeechSettings, SpeechLanguageCode, SpeechProvider } from '@/types
 import { DEFAULT_SPEECH_SETTINGS } from '@/types/speech';
 import type { CompressionSettings, CompressionStrategy, CompressionTrigger, CompressionModelConfig } from '@/types/compression';
 import { DEFAULT_COMPRESSION_SETTINGS } from '@/types/compression';
+import type { AutoDetectResult } from '@/lib/i18n/locale-auto-detect';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'en' | 'zh-CN';
@@ -83,6 +84,14 @@ interface SettingsState {
   // Language
   language: Language;
   setLanguage: (language: Language) => void;
+  
+  // Locale auto-detection
+  autoDetectLocale: boolean;
+  setAutoDetectLocale: (enabled: boolean) => void;
+  localeDetectionResult: AutoDetectResult | null;
+  setLocaleDetectionResult: (result: AutoDetectResult | null) => void;
+  detectedTimezone: string | null;
+  setDetectedTimezone: (timezone: string | null) => void;
 
   // Custom Instructions (global)
   customInstructions: string;
@@ -378,6 +387,9 @@ const initialState = {
 
   // Language
   language: 'en' as Language,
+  autoDetectLocale: true,
+  localeDetectionResult: null as AutoDetectResult | null,
+  detectedTimezone: null as string | null,
 
   // Custom Instructions
   customInstructions: '',
@@ -539,6 +551,9 @@ export const useSettingsStore = create<SettingsState>()(
 
       // Language actions
       setLanguage: (language) => set({ language }),
+      setAutoDetectLocale: (autoDetectLocale) => set({ autoDetectLocale }),
+      setLocaleDetectionResult: (localeDetectionResult) => set({ localeDetectionResult }),
+      setDetectedTimezone: (detectedTimezone) => set({ detectedTimezone }),
 
       // Custom Instructions actions
       setCustomInstructions: (customInstructions) => set({ customInstructions }),
@@ -1019,6 +1034,9 @@ export const useSettingsStore = create<SettingsState>()(
         activeCustomThemeId: state.activeCustomThemeId,
         uiCustomization: state.uiCustomization,
         language: state.language,
+        autoDetectLocale: state.autoDetectLocale,
+        localeDetectionResult: state.localeDetectionResult,
+        detectedTimezone: state.detectedTimezone,
         customInstructions: state.customInstructions,
         customInstructionsEnabled: state.customInstructionsEnabled,
         aboutUser: state.aboutUser,

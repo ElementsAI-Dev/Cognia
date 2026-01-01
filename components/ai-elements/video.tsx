@@ -627,6 +627,7 @@ export function Video({
                 className="group relative rounded overflow-hidden cursor-pointer"
                 onClick={() => handleJumpToScreenshot(item.timestamp)}
               >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={item.dataUrl}
                   alt={`Screenshot at ${formatVideoTime(item.timestamp)}`}

@@ -221,7 +221,7 @@ export default function WorkflowsPage() {
 
   if (viewMode === 'editor') {
     return (
-      <div className="h-screen w-full flex flex-col">
+      <div className="h-full w-full flex flex-col">
         <div className="flex items-center gap-2 p-2 border-b bg-background">
           <Button variant="ghost" size="sm" onClick={handleBackToList}>
             <ArrowLeft className="h-4 w-4 mr-1" />
@@ -240,7 +240,7 @@ export default function WorkflowsPage() {
   }
 
   return (
-    <div className="h-screen w-full flex flex-col bg-background">
+    <div className="h-full w-full flex flex-col bg-background">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center gap-3">

@@ -76,3 +76,25 @@ export {
   RAGPipeline,
   createRAGPipeline,
 } from './rag-pipeline';
+
+// Find Relevant Content API
+export {
+  type DocumentWithEmbedding,
+  type RelevantContent,
+  type FindRelevantOptions,
+  findRelevantContent,
+  findRelevantContentWithEmbedding,
+  batchFindRelevantContent,
+  findMostRelevant,
+  hasRelevantContent,
+  groupBySimilarity,
+} from './find-relevant';
+
+// RAG Tools for AI SDK Integration
+export {
+  type RAGToolsConfig,
+  createRAGTools,
+  createSimpleRetrievalTool,
+  createKnowledgeBaseManagementTools,
+  combineTools,
+} from './rag-tools';

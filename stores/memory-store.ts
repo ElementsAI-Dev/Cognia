@@ -9,6 +9,7 @@ import type {
   Memory,
   MemoryType,
   MemorySource,
+  MemoryScope,
   CreateMemoryInput,
   UpdateMemoryInput,
   MemorySettings,
@@ -39,11 +40,22 @@ interface MemoryState {
   // Selectors
   getMemory: (id: string) => Memory | undefined;
   getMemoriesByType: (type: MemoryType) => Memory[];
+  getMemoriesBySession: (sessionId: string) => Memory[];
+  getMemoriesByScope: (scope: MemoryScope) => Memory[];
   getEnabledMemories: () => Memory[];
   getPinnedMemories: () => Memory[];
+  getExpiringMemories: (days?: number) => Memory[];
   searchMemories: (query: string) => Memory[];
   getAllTags: () => string[];
-  getMemoryStats: () => { total: number; enabled: number; pinned: number; byType: Record<MemoryType, number> };
+  getMemoryStats: () => {
+    total: number;
+    enabled: number;
+    pinned: number;
+    byType: Record<MemoryType, number>;
+    byScope: Record<MemoryScope, number>;
+    expiringSoon: number;
+    recentlyUsed: number;
+  };
 
   // AI integration
   getMemoriesForPrompt: () => string;
@@ -53,6 +65,15 @@ interface MemoryState {
   // Import/Export
   exportMemories: () => string;
   importMemories: (jsonData: string) => { success: boolean; imported: number; errors: string[] };
+
+  // Batch operations
+  batchDelete: (ids: string[]) => number;
+  batchUpdate: (ids: string[], updates: UpdateMemoryInput) => number;
+  batchSetEnabled: (ids: string[], enabled: boolean) => number;
+
+  // Cleanup operations
+  cleanupExpired: () => number;
+  cleanupOldUnused: (days: number) => number;
 }
 
 // Patterns for detecting memory-worthy content
@@ -78,6 +99,7 @@ export const useMemoryStore = create<MemoryState>()(
       settings: DEFAULT_MEMORY_SETTINGS,
 
       createMemory: (input) => {
+        const { settings } = get();
         const memory: Memory = {
           id: nanoid(),
           type: input.type,
@@ -89,6 +111,12 @@ export const useMemoryStore = create<MemoryState>()(
           lastUsedAt: new Date(),
           useCount: 0,
           enabled: true,
+          pinned: input.pinned || false,
+          priority: input.priority ?? 5,
+          sessionId: input.sessionId,
+          scope: input.scope || settings.defaultScope,
+          expiresAt: input.expiresAt,
+          metadata: input.metadata,
         };
 
         set((state) => ({
@@ -189,6 +217,29 @@ export const useMemoryStore = create<MemoryState>()(
         return Array.from(tagsSet).sort();
       },
 
+      getMemoriesBySession: (sessionId) => {
+        const { memories } = get();
+        return memories.filter(
+          (m) => m.sessionId === sessionId || m.scope === 'global' || !m.sessionId
+        );
+      },
+
+      getMemoriesByScope: (scope) => {
+        const { memories } = get();
+        return memories.filter((m) => (m.scope || 'global') === scope);
+      },
+
+      getExpiringMemories: (days = 7) => {
+        const { memories } = get();
+        const threshold = new Date();
+        threshold.setDate(threshold.getDate() + days);
+        return memories.filter((m) => {
+          if (!m.expiresAt) return false;
+          const expiresAt = m.expiresAt instanceof Date ? m.expiresAt : new Date(m.expiresAt);
+          return expiresAt <= threshold;
+        });
+      },
+
       getMemoryStats: () => {
         const { memories } = get();
         const byType: Record<MemoryType, number> = {
@@ -197,14 +248,32 @@ export const useMemoryStore = create<MemoryState>()(
           instruction: 0,
           context: 0,
         };
+        const byScope: Record<MemoryScope, number> = {
+          global: 0,
+          session: 0,
+        };
         let enabled = 0;
         let pinned = 0;
+        let expiringSoon = 0;
+        let recentlyUsed = 0;
+        const now = Date.now();
+        const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+        const weekFromNow = new Date();
+        weekFromNow.setDate(weekFromNow.getDate() + 7);
+
         for (const memory of memories) {
           byType[memory.type]++;
+          byScope[memory.scope || 'global']++;
           if (memory.enabled) enabled++;
           if (memory.pinned) pinned++;
+          if (memory.expiresAt) {
+            const expiresAt = memory.expiresAt instanceof Date ? memory.expiresAt : new Date(memory.expiresAt);
+            if (expiresAt <= weekFromNow) expiringSoon++;
+          }
+          const lastUsed = memory.lastUsedAt instanceof Date ? memory.lastUsedAt.getTime() : new Date(memory.lastUsedAt).getTime();
+          if (lastUsed >= weekAgo) recentlyUsed++;
         }
-        return { total: memories.length, enabled, pinned, byType };
+        return { total: memories.length, enabled, pinned, byType, byScope, expiringSoon, recentlyUsed };
       },
 
       // Generate prompt section from memories and track their usage
@@ -391,6 +460,12 @@ export const useMemoryStore = create<MemoryState>()(
               lastUsedAt: mem.lastUsedAt ? new Date(mem.lastUsedAt) : new Date(),
               useCount: mem.useCount || 0,
               enabled: mem.enabled !== false,
+              pinned: mem.pinned || false,
+              priority: mem.priority ?? 5,
+              sessionId: mem.sessionId,
+              scope: mem.scope || 'global',
+              expiresAt: mem.expiresAt ? new Date(mem.expiresAt) : undefined,
+              metadata: mem.metadata,
             };
 
             newMemories.push(newMemory);
@@ -406,6 +481,94 @@ export const useMemoryStore = create<MemoryState>()(
         } catch (e) {
           return { success: false, imported: 0, errors: [`Parse error: ${(e as Error).message}`] };
         }
+      },
+
+      // Batch delete memories
+      batchDelete: (ids) => {
+        const idsSet = new Set(ids);
+        let deleted = 0;
+        set((state) => {
+          const newMemories = state.memories.filter((m) => {
+            if (idsSet.has(m.id)) {
+              deleted++;
+              return false;
+            }
+            return true;
+          });
+          return { memories: newMemories };
+        });
+        return deleted;
+      },
+
+      // Batch update memories
+      batchUpdate: (ids, updates) => {
+        const idsSet = new Set(ids);
+        let updated = 0;
+        set((state) => ({
+          memories: state.memories.map((m) => {
+            if (idsSet.has(m.id)) {
+              updated++;
+              return { ...m, ...updates };
+            }
+            return m;
+          }),
+        }));
+        return updated;
+      },
+
+      // Batch set enabled state
+      batchSetEnabled: (ids, enabled) => {
+        const idsSet = new Set(ids);
+        let updated = 0;
+        set((state) => ({
+          memories: state.memories.map((m) => {
+            if (idsSet.has(m.id)) {
+              updated++;
+              return { ...m, enabled };
+            }
+            return m;
+          }),
+        }));
+        return updated;
+      },
+
+      // Cleanup expired memories
+      cleanupExpired: () => {
+        const now = new Date();
+        let cleaned = 0;
+        set((state) => {
+          const newMemories = state.memories.filter((m) => {
+            if (!m.expiresAt) return true;
+            const expiresAt = m.expiresAt instanceof Date ? m.expiresAt : new Date(m.expiresAt);
+            if (expiresAt <= now) {
+              cleaned++;
+              return false;
+            }
+            return true;
+          });
+          return { memories: newMemories };
+        });
+        return cleaned;
+      },
+
+      // Cleanup old unused memories
+      cleanupOldUnused: (days) => {
+        const threshold = Date.now() - days * 24 * 60 * 60 * 1000;
+        let cleaned = 0;
+        set((state) => {
+          const newMemories = state.memories.filter((m) => {
+            // Never clean pinned memories
+            if (m.pinned) return true;
+            const lastUsed = m.lastUsedAt instanceof Date ? m.lastUsedAt.getTime() : new Date(m.lastUsedAt).getTime();
+            if (lastUsed < threshold && m.useCount === 0) {
+              cleaned++;
+              return false;
+            }
+            return true;
+          });
+          return { memories: newMemories };
+        });
+        return cleaned;
       },
     }),
     {

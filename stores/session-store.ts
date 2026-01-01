@@ -57,6 +57,11 @@ interface SessionState {
   getBranches: (sessionId: string) => ConversationBranch[];
   getActiveBranchId: (sessionId: string) => string | undefined;
 
+  // Environment management
+  setSessionEnvironment: (sessionId: string, envId: string | null, envPath?: string | null) => void;
+  getSessionEnvironment: (sessionId: string) => { envId: string | null; envPath: string | null };
+  clearSessionEnvironment: (sessionId: string) => void;
+
   clearAllSessions: () => void;
   importSessions: (sessions: Session[]) => void;
 
@@ -121,6 +126,7 @@ export const useSessionStore = create<SessionState>()(
           mode: input.mode || DEFAULT_MODE,
           systemPrompt: input.systemPrompt,
           projectId: input.projectId,
+          virtualEnvId: input.virtualEnvId,
           messageCount: 0,
         };
         set((state) => ({
@@ -243,6 +249,34 @@ export const useSessionStore = create<SessionState>()(
 
       getBranches: (sessionId) => get().sessions.find((s) => s.id === sessionId)?.branches || [],
       getActiveBranchId: (sessionId) => get().sessions.find((s) => s.id === sessionId)?.activeBranchId,
+
+      // Environment management
+      setSessionEnvironment: (sessionId, envId, envPath) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId
+              ? { ...s, virtualEnvId: envId || undefined, virtualEnvPath: envPath || undefined, updatedAt: new Date() }
+              : s
+          ),
+        })),
+
+      getSessionEnvironment: (sessionId) => {
+        const session = get().sessions.find((s) => s.id === sessionId);
+        return {
+          envId: session?.virtualEnvId || null,
+          envPath: session?.virtualEnvPath || null,
+        };
+      },
+
+      clearSessionEnvironment: (sessionId) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId
+              ? { ...s, virtualEnvId: undefined, virtualEnvPath: undefined, updatedAt: new Date() }
+              : s
+          ),
+        })),
+
       clearAllSessions: () => set({ sessions: [], activeSessionId: null }),
       importSessions: (sessions) => set((state) => ({ sessions: [...sessions, ...state.sessions] })),
       getSession: (id) => get().sessions.find((s) => s.id === id),

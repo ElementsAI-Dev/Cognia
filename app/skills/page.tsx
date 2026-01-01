@@ -10,7 +10,7 @@ import { SkillPanel } from '@/components/skills';
 
 export default function SkillsPage() {
   return (
-    <div className="h-screen">
+    <div className="h-full">
       <SkillPanel className="h-full" />
     </div>
   );

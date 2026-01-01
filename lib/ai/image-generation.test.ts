@@ -272,7 +272,7 @@ describe('downloadImageAsBlob', () => {
 
     const result = await downloadImageAsBlob('https://example.com/image.png');
 
-    expect(global.fetch).toHaveBeenCalledWith('https://example.com/image.png');
+    expect(global.fetch).toHaveBeenCalledWith('https://example.com/image.png', {});
     expect(result).toBe(mockBlob);
   });
 });

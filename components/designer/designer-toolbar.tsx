@@ -27,6 +27,7 @@ import {
   PanelRight,
   FileCode,
   History,
+  MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
@@ -52,9 +53,11 @@ interface DesignerToolbarProps {
   onAIEdit?: () => void;
   onExport?: () => void;
   onOpenInCanvas?: () => void;
+  showAIChatPanel?: boolean;
+  onToggleAIChat?: () => void;
 }
 
-export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas }: DesignerToolbarProps) {
+export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas, showAIChatPanel, onToggleAIChat }: DesignerToolbarProps) {
   const t = useTranslations('designer');
   const mode = useDesignerStore((state) => state.mode);
   const setMode = useDesignerStore((state) => state.setMode);
@@ -298,6 +301,24 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas 
           </TooltipTrigger>
           <TooltipContent>{t('editWithAI')}</TooltipContent>
         </Tooltip>
+
+        {/* AI Chat button */}
+        {onToggleAIChat && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={showAIChatPanel ? 'secondary' : 'outline'}
+                size="sm"
+                className="h-7 gap-1.5"
+                onClick={onToggleAIChat}
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                <span className="text-xs">{t('aiChat') || 'AI Chat'}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('aiChatTooltip') || 'Open AI conversation'}</TooltipContent>
+          </Tooltip>
+        )}
 
         {/* Canvas button */}
         {onOpenInCanvas && (

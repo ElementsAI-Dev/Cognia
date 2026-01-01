@@ -8,7 +8,9 @@ const renderWithProviders = (ui: React.ReactElement) => {
   return render(<TooltipProvider>{ui}</TooltipProvider>);
 };
 
-jest.mock('@/stores/skill-store');
+jest.mock('@/stores/skill-store', () => ({
+  useSkillStore: jest.fn(),
+}));
 jest.mock('@/lib/skills/executor', () => ({
   findMatchingSkills: jest.fn((skills, _query, _max) => skills.slice(0, 2)),
 }));

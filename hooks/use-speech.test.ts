@@ -3,6 +3,26 @@
  */
 
 import { renderHook, act } from '@testing-library/react';
+
+// Mock settings store before importing hook
+jest.mock('@/stores/settings-store', () => ({
+  useSettingsStore: jest.fn((selector) => {
+    const state = {
+      speechSettings: {
+        sttLanguage: 'en-US',
+        sttProvider: 'system',
+        sttContinuous: true,
+        sttInterimResults: true,
+        ttsVoice: null,
+        ttsRate: 1,
+        ttsPitch: 1,
+        ttsVolume: 1,
+      },
+    };
+    return typeof selector === 'function' ? selector(state) : state;
+  }),
+}));
+
 import { useSpeech } from './use-speech';
 
 // Mock SpeechRecognition

@@ -233,3 +233,239 @@ impl Default for ScreenContentAnalyzer {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_analyzer_new() {
+        let analyzer = ScreenContentAnalyzer::new();
+        assert_eq!(analyzer.cache_duration_ms, 1000);
+    }
+
+    #[test]
+    fn test_analyzer_default() {
+        let analyzer = ScreenContentAnalyzer::default();
+        assert_eq!(analyzer.cache_duration_ms, 1000);
+    }
+
+    #[test]
+    fn test_set_cache_duration() {
+        let mut analyzer = ScreenContentAnalyzer::new();
+        analyzer.set_cache_duration(2000);
+        assert_eq!(analyzer.cache_duration_ms, 2000);
+    }
+
+    #[test]
+    fn test_clear_cache() {
+        let analyzer = ScreenContentAnalyzer::new();
+        let _ = analyzer.analyze(&[], 100, 100);
+        analyzer.clear_cache();
+        assert!(analyzer.last_analysis.read().is_none());
+    }
+
+    #[test]
+    fn test_analyze_returns_content() {
+        let analyzer = ScreenContentAnalyzer::new();
+        let result = analyzer.analyze(&[], 1920, 1080);
+        assert!(result.is_ok());
+        let content = result.unwrap();
+        assert_eq!(content.width, 1920);
+        assert_eq!(content.height, 1080);
+    }
+
+    #[test]
+    fn test_analyze_caching() {
+        let analyzer = ScreenContentAnalyzer::new();
+        let result1 = analyzer.analyze(&[], 1920, 1080).unwrap();
+        let timestamp1 = result1.timestamp;
+        let result2 = analyzer.analyze(&[], 1920, 1080).unwrap();
+        assert_eq!(timestamp1, result2.timestamp);
+    }
+
+    #[test]
+    fn test_get_text_at_no_analysis() {
+        let analyzer = ScreenContentAnalyzer::new();
+        assert!(analyzer.get_text_at(100, 100).is_none());
+    }
+
+    #[test]
+    fn test_get_element_at_no_analysis() {
+        let analyzer = ScreenContentAnalyzer::new();
+        assert!(analyzer.get_element_at(100, 100).is_none());
+    }
+
+    #[test]
+    fn test_get_text_at_with_blocks() {
+        let analyzer = ScreenContentAnalyzer::new();
+        let content = ScreenContent {
+            text: "Test".to_string(),
+            text_blocks: vec![TextBlock {
+                text: "Hello".to_string(),
+                x: 50, y: 50, width: 100, height: 20,
+                confidence: 0.95, language: Some("en".to_string()),
+            }],
+            ui_elements: vec![],
+            width: 1920, height: 1080,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            confidence: 0.9,
+        };
+        *analyzer.last_analysis.write() = Some(content);
+        assert_eq!(analyzer.get_text_at(75, 60), Some("Hello".to_string()));
+        assert!(analyzer.get_text_at(200, 200).is_none());
+    }
+
+    #[test]
+    fn test_get_element_at_with_elements() {
+        let analyzer = ScreenContentAnalyzer::new();
+        let content = ScreenContent {
+            text: String::new(),
+            text_blocks: vec![],
+            ui_elements: vec![UiElement {
+                element_type: UiElementType::Button,
+                text: Some("Click".to_string()),
+                x: 100, y: 100, width: 80, height: 30,
+                is_interactive: true,
+            }],
+            width: 1920, height: 1080,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            confidence: 0.9,
+        };
+        *analyzer.last_analysis.write() = Some(content);
+        let result = analyzer.get_element_at(120, 115);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().element_type, UiElementType::Button);
+        assert!(analyzer.get_element_at(500, 500).is_none());
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn test_analyze_ui_automation_non_windows() {
+        let analyzer = ScreenContentAnalyzer::new();
+        let result = analyzer.analyze_ui_automation();
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_screen_content_serialization() {
+        let content = ScreenContent {
+            text: "Test".to_string(),
+            text_blocks: vec![],
+            ui_elements: vec![],
+            width: 1920, height: 1080,
+            timestamp: 0, confidence: 0.95,
+        };
+        let json = serde_json::to_string(&content);
+        assert!(json.is_ok());
+        let parsed: Result<ScreenContent, _> = serde_json::from_str(&json.unwrap());
+        assert!(parsed.is_ok());
+    }
+
+    #[test]
+    fn test_text_block_serialization() {
+        let block = TextBlock {
+            text: "Hello".to_string(),
+            x: 100, y: 200, width: 150, height: 25,
+            confidence: 0.98, language: Some("en".to_string()),
+        };
+        let json = serde_json::to_string(&block);
+        assert!(json.is_ok());
+        let parsed: TextBlock = serde_json::from_str(&json.unwrap()).unwrap();
+        assert_eq!(parsed.text, "Hello");
+    }
+
+    #[test]
+    fn test_ui_element_serialization() {
+        let element = UiElement {
+            element_type: UiElementType::Button,
+            text: Some("Submit".to_string()),
+            x: 300, y: 400, width: 100, height: 40,
+            is_interactive: true,
+        };
+        let json = serde_json::to_string(&element);
+        assert!(json.is_ok());
+        let parsed: UiElement = serde_json::from_str(&json.unwrap()).unwrap();
+        assert_eq!(parsed.element_type, UiElementType::Button);
+    }
+
+    #[test]
+    fn test_ui_element_type_serialization() {
+        let types = vec![
+            UiElementType::Button, UiElementType::TextInput,
+            UiElementType::Checkbox, UiElementType::RadioButton,
+            UiElementType::Dropdown, UiElementType::Link,
+            UiElementType::Menu, UiElementType::MenuItem,
+            UiElementType::Tab, UiElementType::Window,
+            UiElementType::Dialog, UiElementType::Tooltip,
+            UiElementType::Icon, UiElementType::Image,
+            UiElementType::Text, UiElementType::Unknown,
+        ];
+        for t in types {
+            assert!(serde_json::to_string(&t).is_ok());
+        }
+    }
+
+    #[test]
+    fn test_ui_element_type_equality() {
+        assert_eq!(UiElementType::Button, UiElementType::Button);
+        assert_ne!(UiElementType::Button, UiElementType::TextInput);
+    }
+
+    #[test]
+    fn test_screen_content_clone() {
+        let content = ScreenContent {
+            text: "Test".to_string(),
+            text_blocks: vec![], ui_elements: vec![],
+            width: 100, height: 100, timestamp: 12345, confidence: 0.9,
+        };
+        let cloned = content.clone();
+        assert_eq!(cloned.text, "Test");
+        assert_eq!(cloned.timestamp, 12345);
+    }
+
+    #[test]
+    fn test_text_block_clone() {
+        let block = TextBlock {
+            text: "Test".to_string(),
+            x: 10, y: 20, width: 30, height: 40,
+            confidence: 0.5, language: Some("en".to_string()),
+        };
+        let cloned = block.clone();
+        assert_eq!(cloned.x, 10);
+    }
+
+    #[test]
+    fn test_ui_element_clone() {
+        let element = UiElement {
+            element_type: UiElementType::Button,
+            text: Some("Clone".to_string()),
+            x: 100, y: 200, width: 50, height: 25,
+            is_interactive: true,
+        };
+        let cloned = element.clone();
+        assert_eq!(cloned.element_type, UiElementType::Button);
+    }
+
+    #[test]
+    fn test_boundary_conditions() {
+        let analyzer = ScreenContentAnalyzer::new();
+        let content = ScreenContent {
+            text: String::new(), text_blocks: vec![],
+            ui_elements: vec![UiElement {
+                element_type: UiElementType::Button,
+                text: Some("Edge".to_string()),
+                x: 0, y: 0, width: 10, height: 10,
+                is_interactive: true,
+            }],
+            width: 100, height: 100,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            confidence: 1.0,
+        };
+        *analyzer.last_analysis.write() = Some(content);
+        assert!(analyzer.get_element_at(0, 0).is_some());
+        assert!(analyzer.get_element_at(10, 10).is_some());
+        assert!(analyzer.get_element_at(11, 11).is_none());
+    }
+}

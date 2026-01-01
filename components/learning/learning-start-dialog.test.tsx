@@ -26,6 +26,18 @@ jest.mock('next-intl', () => ({
       'startDialog.goalHint': 'Press Enter to add',
       'startDialog.cancel': 'Cancel',
       'startDialog.start': 'Start Learning',
+      'startDialog.difficulty': 'Preferred Difficulty',
+      'startDialog.difficultyHint': 'Select your comfort level',
+      'startDialog.learningStyle': 'Learning Style',
+      'startDialog.learningStyleHint': 'How do you learn best?',
+      'difficulty.beginner': 'Beginner',
+      'difficulty.intermediate': 'Intermediate',
+      'difficulty.advanced': 'Advanced',
+      'difficulty.expert': 'Expert',
+      'style.visual': 'Visual',
+      'style.auditory': 'Auditory',
+      'style.reading': 'Reading/Writing',
+      'style.kinesthetic': 'Hands-on',
     };
     return translations[key] || key;
   },
@@ -49,6 +61,14 @@ const createMockHookReturn = (overrides?: Partial<ReturnType<typeof useLearningM
     enableEncouragement: true,
     autoGenerateSummary: true,
     includeKeyTakeaways: true,
+    enableAdaptiveDifficulty: true,
+    difficultyAdjustThreshold: 3,
+    enableSpacedRepetition: true,
+    defaultReviewIntervalDays: 1,
+    enableAutoNotes: false,
+    autoHighlightInsights: true,
+    enableAIAnalysis: true,
+    analysisDepth: 'standard' as const,
   },
   startLearning: jest.fn(),
   endLearning: jest.fn(),
@@ -286,6 +306,8 @@ describe('LearningStartDialog', () => {
         topic: 'Understanding Recursion',
         backgroundKnowledge: 'I know basic programming',
         learningGoals: ['Understand base case', 'Understand recursive case'],
+        preferredDifficulty: 'intermediate',
+        preferredStyle: undefined,
       });
 
       expect(onOpenChangeMock).toHaveBeenCalledWith(false);
@@ -314,6 +336,39 @@ describe('LearningStartDialog', () => {
       await user.click(startButton);
 
       expect(onStartMock).toHaveBeenCalled();
+    });
+  });
+
+  describe('Difficulty and Learning Style Selectors', () => {
+    it('should display difficulty selector', () => {
+      mockUseLearningMode.mockReturnValue(createMockHookReturn());
+
+      render(
+        <LearningStartDialog open={true} onOpenChange={() => {}} />
+      );
+
+      expect(screen.getByText('Preferred Difficulty')).toBeInTheDocument();
+    });
+
+    it('should display learning style selector', () => {
+      mockUseLearningMode.mockReturnValue(createMockHookReturn());
+
+      render(
+        <LearningStartDialog open={true} onOpenChange={() => {}} />
+      );
+
+      expect(screen.getByText('Learning Style')).toBeInTheDocument();
+    });
+
+    it('should have intermediate as default difficulty', () => {
+      mockUseLearningMode.mockReturnValue(createMockHookReturn());
+
+      render(
+        <LearningStartDialog open={true} onOpenChange={() => {}} />
+      );
+
+      // Default difficulty should be intermediate
+      expect(screen.getByText('Intermediate')).toBeInTheDocument();
     });
   });
 

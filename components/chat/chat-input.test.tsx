@@ -30,13 +30,32 @@ jest.mock('next-intl', () => ({
 
 // Mock stores
 jest.mock('@/stores', () => ({
-  useSettingsStore: () => ({
-    sendOnEnter: true,
-  }),
-  useRecentFilesStore: () => ({
-    addFile: jest.fn(),
-    recentFiles: [],
-  }),
+  useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = { sendOnEnter: true };
+    return selector ? selector(state) : state;
+  },
+  useRecentFilesStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      addFile: jest.fn(),
+      recentFiles: [],
+    };
+    return selector ? selector(state) : state;
+  },
+  useSessionStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      sessions: [],
+      activeSessionId: null,
+      getActiveSession: () => null,
+    };
+    return selector ? selector(state) : state;
+  },
+  usePresetStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      presets: [],
+      activePresetId: null,
+    };
+    return selector ? selector(state) : state;
+  },
 }));
 
 // Mock hooks
@@ -49,6 +68,14 @@ jest.mock('@/hooks', () => ({
     closeMention: jest.fn(),
     parseToolCalls: jest.fn(() => []),
     isMcpAvailable: false,
+  }),
+  useSpeech: () => ({
+    isListening: false,
+    isSupported: true,
+    startListening: jest.fn(),
+    stopListening: jest.fn(),
+    audioBlob: null,
+    recordingDuration: 0,
   }),
 }));
 
@@ -94,6 +121,10 @@ jest.mock('./recent-files-popover', () => ({
 
 jest.mock('./mention-popover', () => ({
   MentionPopover: () => <div data-testid="mention-popover" />,
+}));
+
+jest.mock('@/components/presets/preset-quick-switcher', () => ({
+  PresetQuickSwitcher: () => <div data-testid="preset-quick-switcher" />,
 }));
 
 describe('ChatInput', () => {

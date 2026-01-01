@@ -127,43 +127,40 @@ impl ScreenshotManager {
         self.config.read().clone()
     }
 
-    /// Capture full screen
-    pub async fn capture_fullscreen(&self, monitor_index: Option<usize>) -> Result<ScreenshotResult, String> {
-        let config = self.config.read().clone();
-        
+    /// Apply configured delay before capture
+    async fn apply_capture_delay(&self, config: &ScreenshotConfig) {
         if config.delay_ms > 0 {
             tokio::time::sleep(tokio::time::Duration::from_millis(config.delay_ms)).await;
         }
+    }
 
-        let result = self.capture.capture_screen(monitor_index)?;
+    /// Execute capture with common pre/post actions
+    async fn execute_capture<F>(&self, capture_fn: F) -> Result<ScreenshotResult, String>
+    where
+        F: FnOnce(&ScreenshotCapture) -> Result<ScreenshotResult, String>,
+    {
+        let config = self.config.read().clone();
+        self.apply_capture_delay(&config).await;
+        let result = capture_fn(&self.capture)?;
         self.post_capture_actions(&result, &config).await?;
         Ok(result)
+    }
+
+    /// Capture full screen
+    pub async fn capture_fullscreen(&self, monitor_index: Option<usize>) -> Result<ScreenshotResult, String> {
+        self.execute_capture(|capture| capture.capture_screen(monitor_index)).await
     }
 
     /// Capture active window
     pub async fn capture_window(&self) -> Result<ScreenshotResult, String> {
-        let config = self.config.read().clone();
-        
-        if config.delay_ms > 0 {
-            tokio::time::sleep(tokio::time::Duration::from_millis(config.delay_ms)).await;
-        }
-
-        let result = self.capture.capture_active_window()?;
-        self.post_capture_actions(&result, &config).await?;
-        Ok(result)
+        self.execute_capture(|capture| capture.capture_active_window()).await
     }
 
     /// Capture selected region
     pub async fn capture_region(&self, region: CaptureRegion) -> Result<ScreenshotResult, String> {
-        let config = self.config.read().clone();
-        
-        if config.delay_ms > 0 {
-            tokio::time::sleep(tokio::time::Duration::from_millis(config.delay_ms)).await;
-        }
-
-        let result = self.capture.capture_region(region.x, region.y, region.width, region.height)?;
-        self.post_capture_actions(&result, &config).await?;
-        Ok(result)
+        self.execute_capture(|capture| {
+            capture.capture_region(region.x, region.y, region.width, region.height)
+        }).await
     }
 
     /// Start interactive region selection
@@ -338,3 +335,344 @@ pub struct MonitorInfo {
 }
 
 use tauri::Emitter;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== ScreenshotConfig Tests ====================
+
+    #[test]
+    fn test_screenshot_config_default() {
+        let config = ScreenshotConfig::default();
+        
+        assert!(config.save_directory.is_none());
+        assert_eq!(config.format, "png");
+        assert_eq!(config.quality, 95);
+        assert!(!config.include_cursor);
+        assert_eq!(config.delay_ms, 0);
+        assert!(config.copy_to_clipboard);
+        assert!(config.show_notification);
+        assert_eq!(config.ocr_language, "eng");
+    }
+
+    #[test]
+    fn test_screenshot_config_custom() {
+        let config = ScreenshotConfig {
+            save_directory: Some("/custom/path".to_string()),
+            format: "jpg".to_string(),
+            quality: 80,
+            include_cursor: true,
+            delay_ms: 500,
+            copy_to_clipboard: false,
+            show_notification: false,
+            ocr_language: "chi_sim".to_string(),
+        };
+        
+        assert_eq!(config.save_directory, Some("/custom/path".to_string()));
+        assert_eq!(config.format, "jpg");
+        assert_eq!(config.quality, 80);
+        assert!(config.include_cursor);
+        assert_eq!(config.delay_ms, 500);
+        assert!(!config.copy_to_clipboard);
+        assert!(!config.show_notification);
+        assert_eq!(config.ocr_language, "chi_sim");
+    }
+
+    #[test]
+    fn test_screenshot_config_clone() {
+        let config = ScreenshotConfig::default();
+        let cloned = config.clone();
+        
+        assert_eq!(config.format, cloned.format);
+        assert_eq!(config.quality, cloned.quality);
+    }
+
+    #[test]
+    fn test_screenshot_config_serialization() {
+        let config = ScreenshotConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: ScreenshotConfig = serde_json::from_str(&json).unwrap();
+        
+        assert_eq!(config.format, deserialized.format);
+        assert_eq!(config.quality, deserialized.quality);
+        assert_eq!(config.ocr_language, deserialized.ocr_language);
+    }
+
+    // ==================== CaptureRegion Tests ====================
+
+    #[test]
+    fn test_capture_region_creation() {
+        let region = CaptureRegion {
+            x: 100,
+            y: 200,
+            width: 800,
+            height: 600,
+        };
+        
+        assert_eq!(region.x, 100);
+        assert_eq!(region.y, 200);
+        assert_eq!(region.width, 800);
+        assert_eq!(region.height, 600);
+    }
+
+    #[test]
+    fn test_capture_region_clone() {
+        let region = CaptureRegion {
+            x: 50,
+            y: 50,
+            width: 100,
+            height: 100,
+        };
+        let cloned = region.clone();
+        
+        assert_eq!(region.x, cloned.x);
+        assert_eq!(region.y, cloned.y);
+        assert_eq!(region.width, cloned.width);
+        assert_eq!(region.height, cloned.height);
+    }
+
+    #[test]
+    fn test_capture_region_serialization() {
+        let region = CaptureRegion {
+            x: -100,
+            y: -50,
+            width: 1920,
+            height: 1080,
+        };
+        let json = serde_json::to_string(&region).unwrap();
+        let deserialized: CaptureRegion = serde_json::from_str(&json).unwrap();
+        
+        assert_eq!(region.x, deserialized.x);
+        assert_eq!(region.y, deserialized.y);
+        assert_eq!(region.width, deserialized.width);
+        assert_eq!(region.height, deserialized.height);
+    }
+
+    #[test]
+    fn test_capture_region_negative_coordinates() {
+        let region = CaptureRegion {
+            x: -500,
+            y: -300,
+            width: 400,
+            height: 300,
+        };
+        
+        assert_eq!(region.x, -500);
+        assert_eq!(region.y, -300);
+    }
+
+    #[test]
+    fn test_capture_region_zero_dimensions() {
+        let region = CaptureRegion {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+        };
+        
+        assert_eq!(region.width, 0);
+        assert_eq!(region.height, 0);
+    }
+
+    // ==================== ScreenshotMetadata Tests ====================
+
+    #[test]
+    fn test_screenshot_metadata_creation() {
+        let metadata = ScreenshotMetadata {
+            timestamp: 1234567890,
+            width: 1920,
+            height: 1080,
+            mode: "fullscreen".to_string(),
+            monitor_index: Some(0),
+            window_title: None,
+            region: None,
+            file_path: None,
+            ocr_text: None,
+        };
+        
+        assert_eq!(metadata.timestamp, 1234567890);
+        assert_eq!(metadata.width, 1920);
+        assert_eq!(metadata.height, 1080);
+        assert_eq!(metadata.mode, "fullscreen");
+        assert_eq!(metadata.monitor_index, Some(0));
+    }
+
+    #[test]
+    fn test_screenshot_metadata_with_region() {
+        let region = CaptureRegion {
+            x: 100,
+            y: 100,
+            width: 500,
+            height: 400,
+        };
+        let metadata = ScreenshotMetadata {
+            timestamp: 0,
+            width: 500,
+            height: 400,
+            mode: "region".to_string(),
+            monitor_index: None,
+            window_title: None,
+            region: Some(region),
+            file_path: None,
+            ocr_text: None,
+        };
+        
+        assert!(metadata.region.is_some());
+        let r = metadata.region.unwrap();
+        assert_eq!(r.x, 100);
+        assert_eq!(r.width, 500);
+    }
+
+    #[test]
+    fn test_screenshot_metadata_with_window_title() {
+        let metadata = ScreenshotMetadata {
+            timestamp: 0,
+            width: 800,
+            height: 600,
+            mode: "window".to_string(),
+            monitor_index: None,
+            window_title: Some("Test Window Title".to_string()),
+            region: None,
+            file_path: None,
+            ocr_text: None,
+        };
+        
+        assert_eq!(metadata.window_title, Some("Test Window Title".to_string()));
+    }
+
+    #[test]
+    fn test_screenshot_metadata_with_ocr() {
+        let metadata = ScreenshotMetadata {
+            timestamp: 0,
+            width: 800,
+            height: 600,
+            mode: "region".to_string(),
+            monitor_index: None,
+            window_title: None,
+            region: None,
+            file_path: Some("/path/to/screenshot.png".to_string()),
+            ocr_text: Some("Extracted text from image".to_string()),
+        };
+        
+        assert_eq!(metadata.file_path, Some("/path/to/screenshot.png".to_string()));
+        assert_eq!(metadata.ocr_text, Some("Extracted text from image".to_string()));
+    }
+
+    #[test]
+    fn test_screenshot_metadata_serialization() {
+        let metadata = ScreenshotMetadata {
+            timestamp: 1700000000000,
+            width: 1920,
+            height: 1080,
+            mode: "fullscreen".to_string(),
+            monitor_index: Some(1),
+            window_title: Some("Window".to_string()),
+            region: Some(CaptureRegion { x: 0, y: 0, width: 100, height: 100 }),
+            file_path: Some("/path.png".to_string()),
+            ocr_text: Some("text".to_string()),
+        };
+        
+        let json = serde_json::to_string(&metadata).unwrap();
+        let deserialized: ScreenshotMetadata = serde_json::from_str(&json).unwrap();
+        
+        assert_eq!(metadata.timestamp, deserialized.timestamp);
+        assert_eq!(metadata.width, deserialized.width);
+        assert_eq!(metadata.mode, deserialized.mode);
+    }
+
+    // ==================== MonitorInfo Tests ====================
+
+    #[test]
+    fn test_monitor_info_creation() {
+        let monitor = MonitorInfo {
+            index: 0,
+            name: "Primary Monitor".to_string(),
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+            is_primary: true,
+            scale_factor: 1.0,
+        };
+        
+        assert_eq!(monitor.index, 0);
+        assert_eq!(monitor.name, "Primary Monitor");
+        assert!(monitor.is_primary);
+        assert_eq!(monitor.scale_factor, 1.0);
+    }
+
+    #[test]
+    fn test_monitor_info_secondary() {
+        let monitor = MonitorInfo {
+            index: 1,
+            name: "Secondary Monitor".to_string(),
+            x: 1920,
+            y: 0,
+            width: 2560,
+            height: 1440,
+            is_primary: false,
+            scale_factor: 1.25,
+        };
+        
+        assert_eq!(monitor.index, 1);
+        assert!(!monitor.is_primary);
+        assert_eq!(monitor.scale_factor, 1.25);
+        assert_eq!(monitor.x, 1920);
+    }
+
+    #[test]
+    fn test_monitor_info_negative_position() {
+        let monitor = MonitorInfo {
+            index: 2,
+            name: "Left Monitor".to_string(),
+            x: -1920,
+            y: 0,
+            width: 1920,
+            height: 1080,
+            is_primary: false,
+            scale_factor: 1.0,
+        };
+        
+        assert_eq!(monitor.x, -1920);
+    }
+
+    #[test]
+    fn test_monitor_info_serialization() {
+        let monitor = MonitorInfo {
+            index: 0,
+            name: "Test".to_string(),
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+            is_primary: true,
+            scale_factor: 2.0,
+        };
+        
+        let json = serde_json::to_string(&monitor).unwrap();
+        let deserialized: MonitorInfo = serde_json::from_str(&json).unwrap();
+        
+        assert_eq!(monitor.index, deserialized.index);
+        assert_eq!(monitor.scale_factor, deserialized.scale_factor);
+    }
+
+    #[test]
+    fn test_monitor_info_clone() {
+        let monitor = MonitorInfo {
+            index: 0,
+            name: "Monitor".to_string(),
+            x: 100,
+            y: 200,
+            width: 1280,
+            height: 720,
+            is_primary: true,
+            scale_factor: 1.5,
+        };
+        let cloned = monitor.clone();
+        
+        assert_eq!(monitor.name, cloned.name);
+        assert_eq!(monitor.width, cloned.width);
+        assert_eq!(monitor.scale_factor, cloned.scale_factor);
+    }
+}

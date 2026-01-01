@@ -72,9 +72,5 @@
       "timestampUrl": ""
     }
   },
-  "plugins": {
-    "updater": {
-      "endpoints": []
-    }
-  }
+  "plugins": {}
 }

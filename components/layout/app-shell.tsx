@@ -37,7 +37,7 @@ export function AppShell({ children, sidebar }: AppShellProps) {
       {/* Offline Banner - shown when user is offline */}
       <OfflineBanner />
       
-      <div className="flex h-screen w-full overflow-hidden bg-background">
+      <div className="flex h-full w-full overflow-hidden bg-background">
       {/* Desktop Sidebar - always rendered, width controlled by state */}
       {sidebar && (
         <aside

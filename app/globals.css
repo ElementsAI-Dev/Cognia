@@ -197,12 +197,41 @@
     height: 100%;
     scrollbar-gutter: stable;
     overflow: hidden;
+    --titlebar-height: 0px;
   }
   body {
     @apply bg-background text-foreground;
     overflow: hidden;
     height: 100%;
   }
+  
+}
+
+/* ===== Tauri Desktop App Styles ===== */
+/* These must be outside @layer to have higher specificity than Tailwind utilities */
+
+html.tauri-app {
+  --titlebar-height: 32px;
+}
+
+html.tauri-app body {
+  padding-top: var(--titlebar-height);
+  height: calc(100% - var(--titlebar-height));
+}
+
+/* Sidebar positioning in Tauri mode - override Tailwind's top-0 */
+html.tauri-app [data-slot="sidebar-container"] {
+  top: 32px !important;
+  height: calc(100vh - 32px) !important;
+}
+
+html.tauri-app [data-slot="sidebar-wrapper"] {
+  height: calc(100vh - 32px) !important;
+}
+
+/* SidebarInset (main content area) positioning */
+html.tauri-app [data-slot="sidebar-inset"] {
+  height: calc(100vh - 32px) !important;
 }
 
 /* ===== Global Scrollbar Styles ===== */

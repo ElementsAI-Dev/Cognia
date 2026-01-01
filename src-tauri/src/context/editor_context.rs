@@ -5,6 +5,19 @@
 use super::WindowInfo;
 use serde::{Deserialize, Serialize};
 
+/// Type alias for parsed editor title components
+/// (file_path, file_name, file_extension, project_name, is_modified, git_branch, line_col)
+#[allow(clippy::type_complexity)]
+type ParsedTitleInfo = (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    bool,
+    Option<String>,
+    Option<(u32, Option<u32>)>,
+);
+
 /// Editor context information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EditorContext {
@@ -90,15 +103,7 @@ impl EditorContext {
         }
     }
 
-    fn parse_editor_title(editor_name: &str, title: &str) -> (
-        Option<String>, // file_path
-        Option<String>, // file_name
-        Option<String>, // file_extension
-        Option<String>, // project_name
-        bool,           // is_modified
-        Option<String>, // git_branch
-        Option<(u32, Option<u32>)>, // line, column
-    ) {
+    fn parse_editor_title(editor_name: &str, title: &str) -> ParsedTitleInfo {
         let is_modified = title.contains("●") || title.contains("*") || title.contains("[Modified]");
         
         // VS Code style: "filename.ext - folder - Visual Studio Code"
@@ -127,9 +132,7 @@ impl EditorContext {
         Self::parse_generic_title(title, is_modified)
     }
 
-    fn parse_vscode_title(title: &str, is_modified: bool) -> (
-        Option<String>, Option<String>, Option<String>, Option<String>, bool, Option<String>, Option<(u32, Option<u32>)>
-    ) {
+    fn parse_vscode_title(title: &str, is_modified: bool) -> ParsedTitleInfo {
         // Remove modification indicator
         let clean_title = title.replace("●", "").replace("•", "").trim().to_string();
         
@@ -172,9 +175,7 @@ impl EditorContext {
         (None, file_name, file_extension, project_name, is_modified, git_branch, None)
     }
 
-    fn parse_jetbrains_title(title: &str, is_modified: bool) -> (
-        Option<String>, Option<String>, Option<String>, Option<String>, bool, Option<String>, Option<(u32, Option<u32>)>
-    ) {
+    fn parse_jetbrains_title(title: &str, is_modified: bool) -> ParsedTitleInfo {
         // JetBrains format: "project – file.ext [branch]" or "project – path/to/file.ext"
         let parts: Vec<&str> = title.split(" – ").collect();
         
@@ -217,9 +218,7 @@ impl EditorContext {
         (file_path, file_name, file_extension, project_name, is_modified, git_branch, None)
     }
 
-    fn parse_sublime_title(title: &str, is_modified: bool) -> (
-        Option<String>, Option<String>, Option<String>, Option<String>, bool, Option<String>, Option<(u32, Option<u32>)>
-    ) {
+    fn parse_sublime_title(title: &str, is_modified: bool) -> ParsedTitleInfo {
         // Sublime format: "filename.ext - Sublime Text" or "path/to/file.ext - Sublime Text"
         let parts: Vec<&str> = title.split(" - ").collect();
         
@@ -246,17 +245,22 @@ impl EditorContext {
         (file_path, file_name, file_extension, None, is_modified, None, None)
     }
 
-    fn parse_vim_title(title: &str, is_modified: bool) -> (
-        Option<String>, Option<String>, Option<String>, Option<String>, bool, Option<String>, Option<(u32, Option<u32>)>
-    ) {
+    fn parse_vim_title(title: &str, is_modified: bool) -> ParsedTitleInfo {
         // Vim format varies: "filename.ext + VIM" or "filename.ext [+] - VIM"
-        let clean = title.replace("[+]", "").replace(" + ", " ");
-        let parts: Vec<&str> = clean.split(" - ").collect();
+        let clean = title.replace("[+]", "").replace(" + ", " ").trim().to_string();
         
-        let file_part = parts.first().map(|s| s.trim()).unwrap_or("");
+        // Remove VIM/NVIM suffix
+        let without_vim = clean
+            .trim_end_matches(" VIM")
+            .trim_end_matches(" NVIM")
+            .trim_end_matches(" vim")
+            .trim_end_matches(" nvim")
+            .trim_end_matches(" - VIM")
+            .trim_end_matches(" - NVIM")
+            .trim();
         
-        let file_name = if !file_part.is_empty() {
-            Some(file_part.to_string())
+        let file_name = if !without_vim.is_empty() && without_vim.contains('.') {
+            Some(without_vim.to_string())
         } else {
             None
         };
@@ -272,9 +276,7 @@ impl EditorContext {
         (None, file_name, file_extension, None, is_modified || title.contains("+"), None, None)
     }
 
-    fn parse_generic_title(title: &str, is_modified: bool) -> (
-        Option<String>, Option<String>, Option<String>, Option<String>, bool, Option<String>, Option<(u32, Option<u32>)>
-    ) {
+    fn parse_generic_title(title: &str, is_modified: bool) -> ParsedTitleInfo {
         // Try to extract file name from title
         let parts: Vec<&str> = title.split(" - ").collect();
         
@@ -366,5 +368,488 @@ impl EditorContext {
     /// Check if this is a code editor context
     pub fn is_code_editor(&self) -> bool {
         self.language.is_some() || self.file_extension.is_some()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::context::WindowInfo;
+
+    fn create_test_window_info(process_name: &str, title: &str) -> WindowInfo {
+        WindowInfo {
+            handle: 12345,
+            title: title.to_string(),
+            class_name: "TestClass".to_string(),
+            process_id: 1234,
+            process_name: process_name.to_string(),
+            exe_path: Some(format!("C:\\Program Files\\{}", process_name)),
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+            is_minimized: false,
+            is_maximized: false,
+            is_focused: true,
+            is_visible: true,
+        }
+    }
+
+    // Editor detection tests
+    #[test]
+    fn test_detect_editor_vscode() {
+        let window = create_test_window_info("code.exe", "main.rs - myproject - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.editor_name, "Visual Studio Code");
+    }
+
+    #[test]
+    fn test_detect_editor_cursor() {
+        let window = create_test_window_info("cursor.exe", "main.rs - myproject - Cursor");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.editor_name, "Cursor");
+    }
+
+    #[test]
+    fn test_detect_editor_windsurf() {
+        let window = create_test_window_info("windsurf.exe", "main.rs - Windsurf");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.editor_name, "Windsurf");
+    }
+
+    #[test]
+    fn test_detect_editor_intellij() {
+        let window = create_test_window_info("idea64.exe", "myproject – Main.java [master]");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.editor_name, "IntelliJ IDEA");
+    }
+
+    #[test]
+    fn test_detect_editor_pycharm() {
+        let window = create_test_window_info("pycharm64.exe", "myproject – main.py [main]");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.editor_name, "PyCharm");
+    }
+
+    #[test]
+    fn test_detect_editor_webstorm() {
+        let window = create_test_window_info("webstorm64.exe", "myproject – index.ts");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.editor_name, "WebStorm");
+    }
+
+    #[test]
+    fn test_detect_editor_sublime() {
+        let window = create_test_window_info("sublime_text.exe", "main.rs - Sublime Text");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.editor_name, "Sublime Text");
+    }
+
+    #[test]
+    fn test_detect_editor_vim() {
+        let window = create_test_window_info("vim.exe", "main.rs + VIM");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.editor_name, "Vim/Neovim");
+    }
+
+    #[test]
+    fn test_detect_editor_neovim() {
+        let window = create_test_window_info("nvim.exe", "main.rs - NVIM");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.editor_name, "Vim/Neovim");
+    }
+
+    #[test]
+    fn test_detect_editor_visual_studio() {
+        let window = create_test_window_info("devenv.exe", "Solution - Visual Studio");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.editor_name, "Visual Studio");
+    }
+
+    #[test]
+    fn test_detect_editor_notepad_plus_plus() {
+        let window = create_test_window_info("notepad++.exe", "main.rs - Notepad++");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.editor_name, "Notepad++");
+    }
+
+    #[test]
+    fn test_detect_editor_zed() {
+        let window = create_test_window_info("zed.exe", "main.rs - Zed");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.editor_name, "Zed");
+    }
+
+    #[test]
+    fn test_detect_editor_unknown() {
+        let window = create_test_window_info("unknown_editor.exe", "main.rs - Unknown");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.editor_name, "Unknown Editor");
+    }
+
+    // VSCode title parsing tests
+    #[test]
+    fn test_vscode_parse_file_name() {
+        let window = create_test_window_info("code.exe", "main.rs - myproject - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.file_name, Some("main.rs".to_string()));
+    }
+
+    #[test]
+    fn test_vscode_parse_project_name() {
+        let window = create_test_window_info("code.exe", "main.rs - myproject - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.project_name, Some("myproject".to_string()));
+    }
+
+    #[test]
+    fn test_vscode_parse_modified_indicator() {
+        let window = create_test_window_info("code.exe", "● main.rs - myproject - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert!(context.is_modified);
+    }
+
+    #[test]
+    fn test_vscode_parse_modified_indicator_dot() {
+        let window = create_test_window_info("code.exe", "• main.rs - myproject - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.file_name, Some("main.rs".to_string()));
+    }
+
+    #[test]
+    fn test_vscode_parse_git_branch() {
+        let window = create_test_window_info("code.exe", "main.rs - myproject [main] - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.git_branch, Some("main".to_string()));
+    }
+
+    // JetBrains title parsing tests
+    #[test]
+    fn test_jetbrains_parse_project_name() {
+        let window = create_test_window_info("idea64.exe", "myproject – Main.java");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.project_name, Some("myproject".to_string()));
+    }
+
+    #[test]
+    fn test_jetbrains_parse_file_name() {
+        let window = create_test_window_info("idea64.exe", "myproject – Main.java");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.file_name, Some("Main.java".to_string()));
+    }
+
+    #[test]
+    fn test_jetbrains_parse_git_branch() {
+        let window = create_test_window_info("idea64.exe", "myproject – Main.java [feature-branch]");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.git_branch, Some("feature-branch".to_string()));
+    }
+
+    #[test]
+    fn test_jetbrains_parse_file_path() {
+        let window = create_test_window_info("idea64.exe", "myproject – src/main/java/Main.java");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.file_path, Some("src/main/java/Main.java".to_string()));
+    }
+
+    // Sublime title parsing tests
+    #[test]
+    fn test_sublime_parse_file_name() {
+        let window = create_test_window_info("sublime_text.exe", "main.rs - Sublime Text");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.file_name, Some("main.rs".to_string()));
+    }
+
+    #[test]
+    fn test_sublime_parse_file_path() {
+        let window = create_test_window_info("sublime_text.exe", "C:\\project\\src\\main.rs - Sublime Text");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.file_path, Some("C:\\project\\src\\main.rs".to_string()));
+    }
+
+    // Vim title parsing tests
+    #[test]
+    fn test_vim_parse_file_name() {
+        let window = create_test_window_info("vim.exe", "main.rs + VIM");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.file_name, Some("main.rs".to_string()));
+    }
+
+    #[test]
+    fn test_vim_parse_modified() {
+        let window = create_test_window_info("vim.exe", "main.rs [+] - VIM");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert!(context.is_modified);
+    }
+
+    // File extension parsing tests
+    #[test]
+    fn test_parse_extension_rs() {
+        let window = create_test_window_info("code.exe", "main.rs - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.file_extension, Some("rs".to_string()));
+    }
+
+    #[test]
+    fn test_parse_extension_ts() {
+        let window = create_test_window_info("code.exe", "index.ts - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.file_extension, Some("ts".to_string()));
+    }
+
+    #[test]
+    fn test_parse_extension_tsx() {
+        let window = create_test_window_info("code.exe", "App.tsx - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.file_extension, Some("tsx".to_string()));
+    }
+
+    // Language detection tests
+    #[test]
+    fn test_language_rust() {
+        let window = create_test_window_info("code.exe", "main.rs - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("Rust".to_string()));
+    }
+
+    #[test]
+    fn test_language_typescript() {
+        let window = create_test_window_info("code.exe", "index.ts - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("TypeScript".to_string()));
+    }
+
+    #[test]
+    fn test_language_typescript_react() {
+        let window = create_test_window_info("code.exe", "App.tsx - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("TypeScript (React)".to_string()));
+    }
+
+    #[test]
+    fn test_language_javascript() {
+        let window = create_test_window_info("code.exe", "index.js - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("JavaScript".to_string()));
+    }
+
+    #[test]
+    fn test_language_python() {
+        let window = create_test_window_info("code.exe", "main.py - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("Python".to_string()));
+    }
+
+    #[test]
+    fn test_language_go() {
+        let window = create_test_window_info("code.exe", "main.go - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("Go".to_string()));
+    }
+
+    #[test]
+    fn test_language_java() {
+        let window = create_test_window_info("code.exe", "Main.java - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("Java".to_string()));
+    }
+
+    #[test]
+    fn test_language_kotlin() {
+        let window = create_test_window_info("code.exe", "Main.kt - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("Kotlin".to_string()));
+    }
+
+    #[test]
+    fn test_language_cpp() {
+        let window = create_test_window_info("code.exe", "main.cpp - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("C++".to_string()));
+    }
+
+    #[test]
+    fn test_language_c() {
+        let window = create_test_window_info("code.exe", "main.c - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("C".to_string()));
+    }
+
+    #[test]
+    fn test_language_csharp() {
+        let window = create_test_window_info("code.exe", "Program.cs - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("C#".to_string()));
+    }
+
+    #[test]
+    fn test_language_ruby() {
+        let window = create_test_window_info("code.exe", "app.rb - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("Ruby".to_string()));
+    }
+
+    #[test]
+    fn test_language_php() {
+        let window = create_test_window_info("code.exe", "index.php - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("PHP".to_string()));
+    }
+
+    #[test]
+    fn test_language_swift() {
+        let window = create_test_window_info("code.exe", "main.swift - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("Swift".to_string()));
+    }
+
+    #[test]
+    fn test_language_shell() {
+        let window = create_test_window_info("code.exe", "script.sh - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("Shell".to_string()));
+    }
+
+    #[test]
+    fn test_language_powershell() {
+        let window = create_test_window_info("code.exe", "script.ps1 - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("PowerShell".to_string()));
+    }
+
+    #[test]
+    fn test_language_html() {
+        let window = create_test_window_info("code.exe", "index.html - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("HTML".to_string()));
+    }
+
+    #[test]
+    fn test_language_css() {
+        let window = create_test_window_info("code.exe", "styles.css - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("CSS".to_string()));
+    }
+
+    #[test]
+    fn test_language_json() {
+        let window = create_test_window_info("code.exe", "package.json - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("JSON".to_string()));
+    }
+
+    #[test]
+    fn test_language_yaml() {
+        let window = create_test_window_info("code.exe", "config.yaml - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("YAML".to_string()));
+    }
+
+    #[test]
+    fn test_language_markdown() {
+        let window = create_test_window_info("code.exe", "README.md - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("Markdown".to_string()));
+    }
+
+    #[test]
+    fn test_language_sql() {
+        let window = create_test_window_info("code.exe", "query.sql - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("SQL".to_string()));
+    }
+
+    #[test]
+    fn test_language_vue() {
+        let window = create_test_window_info("code.exe", "App.vue - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("Vue".to_string()));
+    }
+
+    #[test]
+    fn test_language_svelte() {
+        let window = create_test_window_info("code.exe", "App.svelte - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("Svelte".to_string()));
+    }
+
+    #[test]
+    fn test_language_unknown_extension() {
+        let window = create_test_window_info("code.exe", "file.xyz - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert!(context.language.is_none());
+    }
+
+    // is_code_editor tests
+    #[test]
+    fn test_is_code_editor_with_language() {
+        let window = create_test_window_info("code.exe", "main.rs - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert!(context.is_code_editor());
+    }
+
+    #[test]
+    fn test_is_code_editor_with_extension_only() {
+        let window = create_test_window_info("code.exe", "file.xyz - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert!(context.is_code_editor());
+    }
+
+    #[test]
+    fn test_is_not_code_editor() {
+        let window = create_test_window_info("code.exe", "Welcome - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert!(!context.is_code_editor());
+    }
+
+    // Serialization tests
+    #[test]
+    fn test_editor_context_serialization() {
+        let window = create_test_window_info("code.exe", "main.rs - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        
+        let json = serde_json::to_string(&context);
+        assert!(json.is_ok());
+        
+        let parsed: Result<EditorContext, _> = serde_json::from_str(&json.unwrap());
+        assert!(parsed.is_ok());
+        assert_eq!(parsed.unwrap().editor_name, "Visual Studio Code");
+    }
+
+    // Edge cases
+    #[test]
+    fn test_empty_title() {
+        let window = create_test_window_info("code.exe", "");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert!(context.file_name.is_none() || context.file_name.as_ref().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_title_without_file() {
+        let window = create_test_window_info("code.exe", "Welcome Tab - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        // Should not detect file extension in welcome text
+        assert!(context.file_extension.is_none() || context.file_name.as_ref().map(|n| n.contains(' ')).unwrap_or(true));
+    }
+
+    #[test]
+    fn test_modified_indicator_star() {
+        let window = create_test_window_info("code.exe", "*main.rs - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert!(context.is_modified);
+    }
+
+    #[test]
+    fn test_modified_indicator_text() {
+        let window = create_test_window_info("code.exe", "main.rs [Modified] - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert!(context.is_modified);
+    }
+
+    #[test]
+    fn test_case_insensitive_extension() {
+        let window = create_test_window_info("code.exe", "main.RS - project - Visual Studio Code");
+        let context = EditorContext::from_window_info(&window).unwrap();
+        assert_eq!(context.language, Some("Rust".to_string()));
     }
 }

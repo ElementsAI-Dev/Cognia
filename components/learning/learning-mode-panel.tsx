@@ -24,6 +24,9 @@ import {
   X,
   Play,
   Pause,
+  BarChart3,
+  StickyNote,
+  History,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,8 +44,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { useLearningMode } from '@/hooks/use-learning-mode';
+import { useLearningStore } from '@/stores/learning-store';
+import { LearningStatisticsPanel } from './learning-statistics-panel';
+import { LearningNotesPanel } from './learning-notes-panel';
+import { LearningHistoryPanel } from './learning-history-panel';
 import type { LearningPhase, LearningSubQuestion, LearningGoal } from '@/types/learning';
 
 const PHASE_ICONS: Record<LearningPhase, React.ReactNode> = {
@@ -84,6 +92,9 @@ export const LearningModePanel = memo(function LearningModePanel({
 
   const [isGoalsExpanded, setIsGoalsExpanded] = useState(true);
   const [isQuestionsExpanded, setIsQuestionsExpanded] = useState(true);
+  const [activeTab, setActiveTab] = useState('progress');
+  const { getAchievements } = useLearningStore();
+  const achievements = getAchievements();
 
   const handleEndLearning = useCallback(() => {
     endLearning();
@@ -129,146 +140,194 @@ export const LearningModePanel = memo(function LearningModePanel({
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden">
-        {/* Progress */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{t('progress')}</span>
-            <span className="font-medium">{progress}%</span>
-          </div>
-          <Progress value={progress} className="h-2" />
-        </div>
+      <CardContent className="flex-1 flex flex-col gap-2 overflow-hidden p-0">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+          <TabsList className="grid w-full grid-cols-4 mx-4 mt-2" style={{ width: 'calc(100% - 2rem)' }}>
+            <TabsTrigger value="progress" className="text-xs">
+              <GraduationCap className="h-3 w-3 mr-1" />
+              Progress
+            </TabsTrigger>
+            <TabsTrigger value="stats" className="text-xs">
+              <BarChart3 className="h-3 w-3 mr-1" />
+              Stats
+            </TabsTrigger>
+            <TabsTrigger value="notes" className="text-xs">
+              <StickyNote className="h-3 w-3 mr-1" />
+              Notes
+            </TabsTrigger>
+            <TabsTrigger value="history" className="text-xs">
+              <History className="h-3 w-3 mr-1" />
+              History
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Phase Timeline */}
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium">{t('phases')}</h4>
-          <div className="flex items-center justify-between">
-            {PHASE_ORDER.map((phase, index) => {
-              const isActive = phase === currentPhase;
-              const isPast = PHASE_ORDER.indexOf(currentPhase!) > index;
-              const isFuture = !isActive && !isPast;
+          <div className="flex-1 overflow-hidden px-4 pb-4">
+            <TabsContent value="progress" className="h-full mt-2 data-[state=active]:flex data-[state=active]:flex-col">
+              {/* Progress */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{t('progress')}</span>
+                  <span className="font-medium">{progress}%</span>
+                </div>
+                <Progress value={progress} className="h-2" />
+              </div>
 
-              return (
-                <div key={phase} className="flex items-center">
-                  <div
-                    className={cn(
-                      'flex items-center justify-center w-8 h-8 rounded-full border-2 transition-colors',
-                      isActive && 'border-primary bg-primary text-primary-foreground',
-                      isPast && 'border-green-500 bg-green-500 text-white',
-                      isFuture && 'border-muted-foreground/30 text-muted-foreground/50'
-                    )}
-                  >
-                    {isPast ? (
-                      <CheckCircle2 className="h-4 w-4" />
-                    ) : (
-                      PHASE_ICONS[phase]
-                    )}
-                  </div>
-                  {index < PHASE_ORDER.length - 1 && (
-                    <div
-                      className={cn(
-                        'w-4 h-0.5 mx-1',
-                        isPast ? 'bg-green-500' : 'bg-muted-foreground/20'
+              {/* Phase Timeline */}
+              <div className="space-y-2 mt-4">
+                <h4 className="text-sm font-medium">{t('phases')}</h4>
+                <div className="flex items-center justify-between">
+                  {PHASE_ORDER.map((phase, index) => {
+                    const isActive = phase === currentPhase;
+                    const isPast = PHASE_ORDER.indexOf(currentPhase!) > index;
+                    const isFuture = !isActive && !isPast;
+
+                    return (
+                      <div key={phase} className="flex items-center">
+                        <div
+                          className={cn(
+                            'flex items-center justify-center w-8 h-8 rounded-full border-2 transition-colors',
+                            isActive && 'border-primary bg-primary text-primary-foreground',
+                            isPast && 'border-green-500 bg-green-500 text-white',
+                            isFuture && 'border-muted-foreground/30 text-muted-foreground/50'
+                          )}
+                        >
+                          {isPast ? (
+                            <CheckCircle2 className="h-4 w-4" />
+                          ) : (
+                            PHASE_ICONS[phase]
+                          )}
+                        </div>
+                        {index < PHASE_ORDER.length - 1 && (
+                          <div
+                            className={cn(
+                              'w-4 h-0.5 mx-1',
+                              isPast ? 'bg-green-500' : 'bg-muted-foreground/20'
+                            )}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  {t(`phase.${currentPhase}`)}
+                </p>
+              </div>
+
+              <ScrollArea className="flex-1 mt-4">
+                <div className="space-y-4">
+                  {/* Learning Goals */}
+                  <Collapsible open={isGoalsExpanded} onOpenChange={setIsGoalsExpanded}>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full py-2">
+                      <div className="flex items-center gap-2">
+                        <Target className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">{t('goals')}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {learningGoals.filter((g) => g.achieved).length}/{learningGoals.length}
+                        </Badge>
+                      </div>
+                      {isGoalsExpanded ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
                       )}
-                    />
-                  )}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-2 pt-2">
+                      {learningGoals.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic">
+                          {t('noGoalsYet')}
+                        </p>
+                      ) : (
+                        learningGoals.map((goal) => (
+                          <GoalItem key={goal.id} goal={goal} />
+                        ))
+                      )}
+                    </CollapsibleContent>
+                  </Collapsible>
+
+                  {/* Sub-Questions */}
+                  <Collapsible open={isQuestionsExpanded} onOpenChange={setIsQuestionsExpanded}>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full py-2">
+                      <div className="flex items-center gap-2">
+                        <MessageCircleQuestion className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">{t('subQuestions')}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {subQuestions.filter((sq) => sq.status === 'resolved').length}/{subQuestions.length}
+                        </Badge>
+                      </div>
+                      {isQuestionsExpanded ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-2 pt-2">
+                      {subQuestions.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic">
+                          {t('noQuestionsYet')}
+                        </p>
+                      ) : (
+                        subQuestions.map((sq) => (
+                          <SubQuestionItem
+                            key={sq.id}
+                            subQuestion={sq}
+                            isActive={sq.id === learningSession.currentSubQuestionId}
+                          />
+                        ))
+                      )}
+                    </CollapsibleContent>
+                  </Collapsible>
                 </div>
-              );
-            })}
+              </ScrollArea>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2 border-t mt-auto">
+                {currentPhase !== 'summary' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={advancePhase}
+                  >
+                    <Play className="h-3 w-3 mr-1" />
+                    {t('nextPhase')}
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleEndLearning}
+                >
+                  <Pause className="h-3 w-3 mr-1" />
+                  {t('endSession')}
+                </Button>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="stats" className="h-full mt-2 overflow-auto">
+              <ScrollArea className="h-full">
+                <LearningStatisticsPanel
+                  session={learningSession}
+                  achievements={achievements}
+                />
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="notes" className="h-full mt-2">
+              <LearningNotesPanel
+                sessionId={learningSession.id}
+                notes={learningSession.notes}
+                className="h-full border-0 shadow-none"
+              />
+            </TabsContent>
+
+            <TabsContent value="history" className="h-full mt-2 overflow-auto">
+              <ScrollArea className="h-full">
+                <LearningHistoryPanel />
+              </ScrollArea>
+            </TabsContent>
           </div>
-          <p className="text-xs text-muted-foreground text-center">
-            {t(`phase.${currentPhase}`)}
-          </p>
-        </div>
-
-        <ScrollArea className="flex-1">
-          <div className="space-y-4">
-            {/* Learning Goals */}
-            <Collapsible open={isGoalsExpanded} onOpenChange={setIsGoalsExpanded}>
-              <CollapsibleTrigger className="flex items-center justify-between w-full py-2">
-                <div className="flex items-center gap-2">
-                  <Target className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{t('goals')}</span>
-                  <Badge variant="secondary" className="text-xs">
-                    {learningGoals.filter((g) => g.achieved).length}/{learningGoals.length}
-                  </Badge>
-                </div>
-                {isGoalsExpanded ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-2 pt-2">
-                {learningGoals.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">
-                    {t('noGoalsYet')}
-                  </p>
-                ) : (
-                  learningGoals.map((goal) => (
-                    <GoalItem key={goal.id} goal={goal} />
-                  ))
-                )}
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* Sub-Questions */}
-            <Collapsible open={isQuestionsExpanded} onOpenChange={setIsQuestionsExpanded}>
-              <CollapsibleTrigger className="flex items-center justify-between w-full py-2">
-                <div className="flex items-center gap-2">
-                  <MessageCircleQuestion className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{t('subQuestions')}</span>
-                  <Badge variant="secondary" className="text-xs">
-                    {subQuestions.filter((sq) => sq.status === 'resolved').length}/{subQuestions.length}
-                  </Badge>
-                </div>
-                {isQuestionsExpanded ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-2 pt-2">
-                {subQuestions.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">
-                    {t('noQuestionsYet')}
-                  </p>
-                ) : (
-                  subQuestions.map((sq) => (
-                    <SubQuestionItem
-                      key={sq.id}
-                      subQuestion={sq}
-                      isActive={sq.id === learningSession.currentSubQuestionId}
-                    />
-                  ))
-                )}
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
-        </ScrollArea>
-
-        {/* Actions */}
-        <div className="flex gap-2 pt-2 border-t">
-          {currentPhase !== 'summary' && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={advancePhase}
-            >
-              <Play className="h-3 w-3 mr-1" />
-              {t('nextPhase')}
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleEndLearning}
-          >
-            <Pause className="h-3 w-3 mr-1" />
-            {t('endSession')}
-          </Button>
-        </div>
+        </Tabs>
       </CardContent>
     </Card>
   );

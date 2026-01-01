@@ -114,6 +114,7 @@ test.describe('Sub-Agent Store', () => {
       }
 
       const groups: Record<string, SubAgentGroup> = {};
+      let groupIdCounter = 0;
 
       const createGroup = (
         name: string,
@@ -121,7 +122,7 @@ test.describe('Sub-Agent Store', () => {
         subAgentIds: string[]
       ): SubAgentGroup => {
         const group: SubAgentGroup = {
-          id: `group-${Date.now()}`,
+          id: `group-${++groupIdCounter}`,
           name,
           executionMode,
           subAgentIds,

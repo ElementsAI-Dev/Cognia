@@ -6,20 +6,40 @@ import { renderHook } from '@testing-library/react';
 
 // Mock stores
 jest.mock('@/stores', () => ({
-  useSettingsStore: () => ({
-    ragEnabled: false,
-  }),
-  useSkillStore: () => ({
-    skills: {},
-    activeSkillIds: [],
-  }),
-  useMcpStore: () => ({
-    servers: [],
-    isInitialized: true,
-  }),
-  useVectorStore: () => ({
-    collections: [],
-  }),
+  useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      ragEnabled: false,
+    };
+    return typeof selector === 'function' ? selector(state) : state;
+  },
+  useSkillStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      skills: {},
+      activeSkillIds: [],
+    };
+    return typeof selector === 'function' ? selector(state) : state;
+  },
+  useMcpStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      servers: [],
+      isInitialized: true,
+    };
+    return typeof selector === 'function' ? selector(state) : state;
+  },
+  useVectorStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      collections: [],
+    };
+    return typeof selector === 'function' ? selector(state) : state;
+  },
+  useProjectStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      projects: [],
+      activeProjectId: null,
+      getActiveProject: () => null,
+    };
+    return typeof selector === 'function' ? selector(state) : state;
+  },
 }));
 
 // Mock AI tools

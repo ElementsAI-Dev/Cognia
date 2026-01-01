@@ -14,6 +14,19 @@ describe('useMemoryStore', () => {
         maxMemories: 100,
         autoInfer: true,
         injectInSystemPrompt: true,
+        enableSemanticSearch: false,
+        semanticSearchThreshold: 0.7,
+        autoDecay: false,
+        decayDays: 30,
+        autoCleanup: false,
+        cleanupDays: 60,
+        defaultScope: 'global',
+        conflictDetection: true,
+        conflictThreshold: 0.7,
+        provider: 'local',
+        enablePipeline: true,
+        pipelineRecentMessages: 5,
+        enableRollingSummary: false,
       },
     });
   });
@@ -487,6 +500,371 @@ describe('useMemoryStore', () => {
       // Pinned memory should appear first
       expect(prompt.indexOf('Pinned memory')).toBeLessThan(prompt.indexOf('High priority'));
       expect(prompt.indexOf('High priority')).toBeLessThan(prompt.indexOf('Low priority'));
+    });
+  });
+
+  describe('getMemoriesBySession', () => {
+    it('should return memories for specific session and global memories', () => {
+      act(() => {
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Global memory', scope: 'global' });
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Session A memory', sessionId: 'session-a', scope: 'session' });
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Session B memory', sessionId: 'session-b', scope: 'session' });
+      });
+
+      const sessionAMemories = useMemoryStore.getState().getMemoriesBySession('session-a');
+      
+      expect(sessionAMemories).toHaveLength(2);
+      expect(sessionAMemories.some(m => m.content === 'Global memory')).toBe(true);
+      expect(sessionAMemories.some(m => m.content === 'Session A memory')).toBe(true);
+      expect(sessionAMemories.some(m => m.content === 'Session B memory')).toBe(false);
+    });
+
+    it('should return memories without sessionId as accessible to all sessions', () => {
+      act(() => {
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'No session memory' });
+      });
+
+      const memories = useMemoryStore.getState().getMemoriesBySession('any-session');
+      expect(memories).toHaveLength(1);
+    });
+  });
+
+  describe('getMemoriesByScope', () => {
+    it('should filter memories by scope', () => {
+      act(() => {
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Global 1', scope: 'global' });
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Global 2', scope: 'global' });
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Session 1', scope: 'session' });
+      });
+
+      const globalMemories = useMemoryStore.getState().getMemoriesByScope('global');
+      const sessionMemories = useMemoryStore.getState().getMemoriesByScope('session');
+
+      expect(globalMemories).toHaveLength(2);
+      expect(sessionMemories).toHaveLength(1);
+    });
+
+    it('should treat memories without scope as global', () => {
+      act(() => {
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'No scope memory' });
+      });
+
+      const globalMemories = useMemoryStore.getState().getMemoriesByScope('global');
+      expect(globalMemories).toHaveLength(1);
+    });
+  });
+
+  describe('getExpiringMemories', () => {
+    it('should return memories expiring within specified days', () => {
+      const soon = new Date();
+      soon.setDate(soon.getDate() + 3);
+      
+      const later = new Date();
+      later.setDate(later.getDate() + 30);
+
+      act(() => {
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Expiring soon', expiresAt: soon });
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Expiring later', expiresAt: later });
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'No expiration' });
+      });
+
+      const expiring = useMemoryStore.getState().getExpiringMemories(7);
+      
+      expect(expiring).toHaveLength(1);
+      expect(expiring[0].content).toBe('Expiring soon');
+    });
+
+    it('should not include memories without expiresAt', () => {
+      act(() => {
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'No expiration' });
+      });
+
+      const expiring = useMemoryStore.getState().getExpiringMemories(365);
+      expect(expiring).toHaveLength(0);
+    });
+  });
+
+  describe('batchDelete', () => {
+    it('should delete multiple memories at once', () => {
+      let ids: string[] = [];
+      act(() => {
+        ids = [
+          useMemoryStore.getState().createMemory({ type: 'fact', content: 'Memory 1' }).id,
+          useMemoryStore.getState().createMemory({ type: 'fact', content: 'Memory 2' }).id,
+          useMemoryStore.getState().createMemory({ type: 'fact', content: 'Memory 3' }).id,
+        ];
+      });
+
+      expect(useMemoryStore.getState().memories).toHaveLength(3);
+
+      let deleted: number = 0;
+      act(() => {
+        deleted = useMemoryStore.getState().batchDelete([ids[0], ids[1]]);
+      });
+
+      expect(deleted).toBe(2);
+      expect(useMemoryStore.getState().memories).toHaveLength(1);
+      expect(useMemoryStore.getState().memories[0].content).toBe('Memory 3');
+    });
+
+    it('should return 0 for non-existent ids', () => {
+      let deleted: number = 0;
+      act(() => {
+        deleted = useMemoryStore.getState().batchDelete(['non-existent-1', 'non-existent-2']);
+      });
+
+      expect(deleted).toBe(0);
+    });
+  });
+
+  describe('batchUpdate', () => {
+    it('should update multiple memories at once', () => {
+      let ids: string[] = [];
+      act(() => {
+        ids = [
+          useMemoryStore.getState().createMemory({ type: 'fact', content: 'Memory 1' }).id,
+          useMemoryStore.getState().createMemory({ type: 'fact', content: 'Memory 2' }).id,
+          useMemoryStore.getState().createMemory({ type: 'fact', content: 'Memory 3' }).id,
+        ];
+      });
+
+      let updated: number = 0;
+      act(() => {
+        updated = useMemoryStore.getState().batchUpdate([ids[0], ids[1]], { category: 'test-category' });
+      });
+
+      expect(updated).toBe(2);
+      
+      const memories = useMemoryStore.getState().memories;
+      expect(memories.filter(m => m.category === 'test-category')).toHaveLength(2);
+      expect(memories.find(m => m.id === ids[2])?.category).toBeUndefined();
+    });
+  });
+
+  describe('batchSetEnabled', () => {
+    it('should enable/disable multiple memories at once', () => {
+      let ids: string[] = [];
+      act(() => {
+        ids = [
+          useMemoryStore.getState().createMemory({ type: 'fact', content: 'Memory 1' }).id,
+          useMemoryStore.getState().createMemory({ type: 'fact', content: 'Memory 2' }).id,
+          useMemoryStore.getState().createMemory({ type: 'fact', content: 'Memory 3' }).id,
+        ];
+      });
+
+      // All should be enabled initially
+      expect(useMemoryStore.getState().memories.every(m => m.enabled)).toBe(true);
+
+      let updated: number = 0;
+      act(() => {
+        updated = useMemoryStore.getState().batchSetEnabled([ids[0], ids[1]], false);
+      });
+
+      expect(updated).toBe(2);
+      
+      const memories = useMemoryStore.getState().memories;
+      expect(memories.filter(m => !m.enabled)).toHaveLength(2);
+      expect(memories.find(m => m.id === ids[2])?.enabled).toBe(true);
+    });
+  });
+
+  describe('cleanupExpired', () => {
+    it('should remove expired memories', () => {
+      const past = new Date();
+      past.setDate(past.getDate() - 10);
+      
+      const future = new Date();
+      future.setDate(future.getDate() + 10);
+
+      act(() => {
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Expired', expiresAt: past });
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Not expired', expiresAt: future });
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'No expiration' });
+      });
+
+      expect(useMemoryStore.getState().memories).toHaveLength(3);
+
+      let cleaned: number = 0;
+      act(() => {
+        cleaned = useMemoryStore.getState().cleanupExpired();
+      });
+
+      expect(cleaned).toBe(1);
+      expect(useMemoryStore.getState().memories).toHaveLength(2);
+      expect(useMemoryStore.getState().memories.some(m => m.content === 'Expired')).toBe(false);
+    });
+  });
+
+  describe('cleanupOldUnused', () => {
+    it('should remove old unused memories', () => {
+      const oldDate = new Date();
+      oldDate.setDate(oldDate.getDate() - 100);
+
+      // Create memories with different lastUsedAt dates
+      act(() => {
+        const m1 = useMemoryStore.getState().createMemory({ type: 'fact', content: 'Old unused' });
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Recent' });
+        const m3 = useMemoryStore.getState().createMemory({ type: 'fact', content: 'Old but pinned' });
+        
+        // Manually set lastUsedAt for testing
+        useMemoryStore.setState({
+          memories: useMemoryStore.getState().memories.map(m => {
+            if (m.id === m1.id) return { ...m, lastUsedAt: oldDate, useCount: 0 };
+            if (m.id === m3.id) {
+              return { ...m, lastUsedAt: oldDate, useCount: 0, pinned: true };
+            }
+            return m;
+          }),
+        });
+      });
+
+      let cleaned: number = 0;
+      act(() => {
+        cleaned = useMemoryStore.getState().cleanupOldUnused(30);
+      });
+
+      expect(cleaned).toBe(1);
+      expect(useMemoryStore.getState().memories).toHaveLength(2);
+      expect(useMemoryStore.getState().memories.some(m => m.content === 'Old unused')).toBe(false);
+      expect(useMemoryStore.getState().memories.some(m => m.content === 'Old but pinned')).toBe(true);
+    });
+
+    it('should not remove pinned memories even if old', () => {
+      const oldDate = new Date();
+      oldDate.setDate(oldDate.getDate() - 100);
+
+      act(() => {
+        const m = useMemoryStore.getState().createMemory({ type: 'fact', content: 'Old pinned' });
+        useMemoryStore.getState().togglePin(m.id);
+        useMemoryStore.setState({
+          memories: useMemoryStore.getState().memories.map(mem => 
+            mem.id === m.id ? { ...mem, lastUsedAt: oldDate, useCount: 0 } : mem
+          ),
+        });
+      });
+
+      let cleaned: number = 0;
+      act(() => {
+        cleaned = useMemoryStore.getState().cleanupOldUnused(30);
+      });
+
+      expect(cleaned).toBe(0);
+      expect(useMemoryStore.getState().memories).toHaveLength(1);
+    });
+  });
+
+  describe('extended getMemoryStats', () => {
+    it('should include byScope statistics', () => {
+      act(() => {
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Global 1', scope: 'global' });
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Global 2', scope: 'global' });
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Session 1', scope: 'session' });
+      });
+
+      const stats = useMemoryStore.getState().getMemoryStats();
+      
+      expect(stats.byScope.global).toBe(2);
+      expect(stats.byScope.session).toBe(1);
+    });
+
+    it('should count expiring soon memories', () => {
+      const soon = new Date();
+      soon.setDate(soon.getDate() + 3);
+
+      act(() => {
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Expiring', expiresAt: soon });
+        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Not expiring' });
+      });
+
+      const stats = useMemoryStore.getState().getMemoryStats();
+      expect(stats.expiringSoon).toBe(1);
+    });
+
+    it('should count recently used memories', () => {
+      const oldDate = new Date();
+      oldDate.setDate(oldDate.getDate() - 30);
+
+      act(() => {
+        const m1 = useMemoryStore.getState().createMemory({ type: 'fact', content: 'Recent' });
+        const m2 = useMemoryStore.getState().createMemory({ type: 'fact', content: 'Old' });
+        
+        // Set m2 as old
+        useMemoryStore.setState({
+          memories: useMemoryStore.getState().memories.map(m =>
+            m.id === m2.id ? { ...m, lastUsedAt: oldDate } : m
+          ),
+        });
+        
+        // m1 is already recent (just created)
+        void m1;
+      });
+
+      const stats = useMemoryStore.getState().getMemoryStats();
+      expect(stats.recentlyUsed).toBe(1);
+    });
+  });
+
+  describe('createMemory with extended options', () => {
+    it('should create memory with scope and sessionId', () => {
+      let memory;
+      act(() => {
+        memory = useMemoryStore.getState().createMemory({
+          type: 'fact',
+          content: 'Session memory',
+          scope: 'session',
+          sessionId: 'test-session',
+        });
+      });
+
+      expect(memory!.scope).toBe('session');
+      expect(memory!.sessionId).toBe('test-session');
+    });
+
+    it('should create memory with expiresAt', () => {
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      let memory;
+      act(() => {
+        memory = useMemoryStore.getState().createMemory({
+          type: 'fact',
+          content: 'Expiring memory',
+          expiresAt,
+        });
+      });
+
+      expect(memory!.expiresAt).toEqual(expiresAt);
+    });
+
+    it('should create memory with metadata', () => {
+      let memory;
+      act(() => {
+        memory = useMemoryStore.getState().createMemory({
+          type: 'fact',
+          content: 'Memory with metadata',
+          metadata: { source: 'test', confidence: 0.95 },
+        });
+      });
+
+      expect(memory!.metadata).toEqual({ source: 'test', confidence: 0.95 });
+    });
+
+    it('should use default scope from settings', () => {
+      act(() => {
+        useMemoryStore.setState({
+          settings: { ...useMemoryStore.getState().settings, defaultScope: 'session' },
+        });
+      });
+
+      let memory;
+      act(() => {
+        memory = useMemoryStore.getState().createMemory({
+          type: 'fact',
+          content: 'Memory with default scope',
+        });
+      });
+
+      expect(memory!.scope).toBe('session');
     });
   });
 });

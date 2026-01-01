@@ -14,12 +14,21 @@ import {
   X,
   Target,
   BookOpen,
+  Gauge,
+  Palette,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -29,6 +38,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useLearningMode } from '@/hooks/use-learning-mode';
+import type { DifficultyLevel, LearningStyle } from '@/types/learning';
 
 interface LearningStartDialogProps {
   open: boolean;
@@ -48,6 +58,8 @@ export const LearningStartDialog = memo(function LearningStartDialog({
   const [background, setBackground] = useState('');
   const [goals, setGoals] = useState<string[]>([]);
   const [newGoal, setNewGoal] = useState('');
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>('intermediate');
+  const [learningStyle, setLearningStyle] = useState<LearningStyle | undefined>(undefined);
 
   const handleAddGoal = useCallback(() => {
     if (newGoal.trim()) {
@@ -77,6 +89,8 @@ export const LearningStartDialog = memo(function LearningStartDialog({
       topic: topic.trim(),
       backgroundKnowledge: background.trim() || undefined,
       learningGoals: goals.length > 0 ? goals : undefined,
+      preferredDifficulty: difficulty,
+      preferredStyle: learningStyle,
     });
 
     // Reset form
@@ -84,10 +98,12 @@ export const LearningStartDialog = memo(function LearningStartDialog({
     setBackground('');
     setGoals([]);
     setNewGoal('');
+    setDifficulty('intermediate');
+    setLearningStyle(undefined);
 
     onOpenChange(false);
     onStart?.();
-  }, [topic, background, goals, startLearning, onOpenChange, onStart]);
+  }, [topic, background, goals, difficulty, learningStyle, startLearning, onOpenChange, onStart]);
 
   const handleClose = useCallback(() => {
     onOpenChange(false);
@@ -96,6 +112,8 @@ export const LearningStartDialog = memo(function LearningStartDialog({
     setBackground('');
     setGoals([]);
     setNewGoal('');
+    setDifficulty('intermediate');
+    setLearningStyle(undefined);
   }, [onOpenChange]);
 
   return (
@@ -141,6 +159,47 @@ export const LearningStartDialog = memo(function LearningStartDialog({
               placeholder={t('startDialog.backgroundPlaceholder')}
               className="min-h-[80px]"
             />
+          </div>
+
+          {/* Difficulty Level */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Gauge className="h-4 w-4" />
+              {t('startDialog.difficulty')}
+            </Label>
+            <Select value={difficulty} onValueChange={(v) => setDifficulty(v as DifficultyLevel)}>
+              <SelectTrigger>
+                <SelectValue placeholder={t('startDialog.difficultyHint')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="beginner">{t('difficulty.beginner')}</SelectItem>
+                <SelectItem value="intermediate">{t('difficulty.intermediate')}</SelectItem>
+                <SelectItem value="advanced">{t('difficulty.advanced')}</SelectItem>
+                <SelectItem value="expert">{t('difficulty.expert')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Learning Style */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Palette className="h-4 w-4" />
+              {t('startDialog.learningStyle')}
+              <span className="text-muted-foreground text-xs">
+                ({t('startDialog.optional')})
+              </span>
+            </Label>
+            <Select value={learningStyle || ''} onValueChange={(v) => setLearningStyle(v as LearningStyle || undefined)}>
+              <SelectTrigger>
+                <SelectValue placeholder={t('startDialog.learningStyleHint')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="visual">{t('style.visual')}</SelectItem>
+                <SelectItem value="auditory">{t('style.auditory')}</SelectItem>
+                <SelectItem value="reading">{t('style.reading')}</SelectItem>
+                <SelectItem value="kinesthetic">{t('style.kinesthetic')}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Learning Goals */}

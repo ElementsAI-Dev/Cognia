@@ -148,3 +148,296 @@ impl SelectionState {
         region.width > 10 && region.height > 10
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== SelectionState Tests ====================
+
+    #[test]
+    fn test_selection_state_default() {
+        let state = SelectionState::default();
+        
+        assert!(!state.is_selecting);
+        assert_eq!(state.start_x, 0);
+        assert_eq!(state.start_y, 0);
+        assert_eq!(state.current_x, 0);
+        assert_eq!(state.current_y, 0);
+    }
+
+    #[test]
+    fn test_selection_state_creation() {
+        let state = SelectionState {
+            is_selecting: true,
+            start_x: 100,
+            start_y: 100,
+            current_x: 200,
+            current_y: 200,
+        };
+        
+        assert!(state.is_selecting);
+        assert_eq!(state.start_x, 100);
+        assert_eq!(state.start_y, 100);
+        assert_eq!(state.current_x, 200);
+        assert_eq!(state.current_y, 200);
+    }
+
+    #[test]
+    fn test_selection_state_get_region_normal() {
+        let state = SelectionState {
+            is_selecting: true,
+            start_x: 50,
+            start_y: 50,
+            current_x: 150,
+            current_y: 100,
+        };
+        
+        let region = state.get_region();
+        
+        assert_eq!(region.x, 50);
+        assert_eq!(region.y, 50);
+        assert_eq!(region.width, 100);
+        assert_eq!(region.height, 50);
+    }
+
+    #[test]
+    fn test_selection_state_get_region_reversed_x() {
+        // Start from right, drag to left
+        let state = SelectionState {
+            is_selecting: true,
+            start_x: 200,
+            start_y: 50,
+            current_x: 100,
+            current_y: 150,
+        };
+        
+        let region = state.get_region();
+        
+        // Should normalize to top-left origin
+        assert_eq!(region.x, 100);
+        assert_eq!(region.y, 50);
+        assert_eq!(region.width, 100);
+        assert_eq!(region.height, 100);
+    }
+
+    #[test]
+    fn test_selection_state_get_region_reversed_y() {
+        // Start from bottom, drag to top
+        let state = SelectionState {
+            is_selecting: true,
+            start_x: 50,
+            start_y: 200,
+            current_x: 150,
+            current_y: 100,
+        };
+        
+        let region = state.get_region();
+        
+        assert_eq!(region.x, 50);
+        assert_eq!(region.y, 100);
+        assert_eq!(region.width, 100);
+        assert_eq!(region.height, 100);
+    }
+
+    #[test]
+    fn test_selection_state_get_region_reversed_both() {
+        // Start from bottom-right, drag to top-left
+        let state = SelectionState {
+            is_selecting: true,
+            start_x: 300,
+            start_y: 300,
+            current_x: 100,
+            current_y: 100,
+        };
+        
+        let region = state.get_region();
+        
+        assert_eq!(region.x, 100);
+        assert_eq!(region.y, 100);
+        assert_eq!(region.width, 200);
+        assert_eq!(region.height, 200);
+    }
+
+    #[test]
+    fn test_selection_state_get_region_negative_coordinates() {
+        let state = SelectionState {
+            is_selecting: true,
+            start_x: -100,
+            start_y: -50,
+            current_x: 100,
+            current_y: 50,
+        };
+        
+        let region = state.get_region();
+        
+        assert_eq!(region.x, -100);
+        assert_eq!(region.y, -50);
+        assert_eq!(region.width, 200);
+        assert_eq!(region.height, 100);
+    }
+
+    #[test]
+    fn test_selection_state_get_region_same_point() {
+        let state = SelectionState {
+            is_selecting: true,
+            start_x: 100,
+            start_y: 100,
+            current_x: 100,
+            current_y: 100,
+        };
+        
+        let region = state.get_region();
+        
+        assert_eq!(region.width, 0);
+        assert_eq!(region.height, 0);
+    }
+
+    #[test]
+    fn test_selection_state_is_valid_true() {
+        let state = SelectionState {
+            is_selecting: true,
+            start_x: 0,
+            start_y: 0,
+            current_x: 100,
+            current_y: 100,
+        };
+        
+        assert!(state.is_valid());
+    }
+
+    #[test]
+    fn test_selection_state_is_valid_false_small() {
+        // Width and height less than 10
+        let state = SelectionState {
+            is_selecting: true,
+            start_x: 0,
+            start_y: 0,
+            current_x: 5,
+            current_y: 5,
+        };
+        
+        assert!(!state.is_valid());
+    }
+
+    #[test]
+    fn test_selection_state_is_valid_false_width_only() {
+        // Only width is large enough
+        let state = SelectionState {
+            is_selecting: true,
+            start_x: 0,
+            start_y: 0,
+            current_x: 100,
+            current_y: 5,
+        };
+        
+        assert!(!state.is_valid());
+    }
+
+    #[test]
+    fn test_selection_state_is_valid_false_height_only() {
+        // Only height is large enough
+        let state = SelectionState {
+            is_selecting: true,
+            start_x: 0,
+            start_y: 0,
+            current_x: 5,
+            current_y: 100,
+        };
+        
+        assert!(!state.is_valid());
+    }
+
+    #[test]
+    fn test_selection_state_is_valid_boundary() {
+        // Exactly at boundary (width = 11, height = 11)
+        let state = SelectionState {
+            is_selecting: true,
+            start_x: 0,
+            start_y: 0,
+            current_x: 11,
+            current_y: 11,
+        };
+        
+        assert!(state.is_valid());
+    }
+
+    #[test]
+    fn test_selection_state_is_valid_at_boundary() {
+        // Exactly at boundary (width = 10, height = 10) - should be invalid
+        let state = SelectionState {
+            is_selecting: true,
+            start_x: 0,
+            start_y: 0,
+            current_x: 10,
+            current_y: 10,
+        };
+        
+        assert!(!state.is_valid());
+    }
+
+    #[test]
+    fn test_selection_state_clone() {
+        let state = SelectionState {
+            is_selecting: true,
+            start_x: 10,
+            start_y: 20,
+            current_x: 30,
+            current_y: 40,
+        };
+        let cloned = state.clone();
+        
+        assert_eq!(state.is_selecting, cloned.is_selecting);
+        assert_eq!(state.start_x, cloned.start_x);
+        assert_eq!(state.start_y, cloned.start_y);
+        assert_eq!(state.current_x, cloned.current_x);
+        assert_eq!(state.current_y, cloned.current_y);
+    }
+
+    #[test]
+    fn test_selection_state_debug() {
+        let state = SelectionState {
+            is_selecting: true,
+            start_x: 100,
+            start_y: 200,
+            current_x: 300,
+            current_y: 400,
+        };
+        
+        let debug_str = format!("{:?}", state);
+        assert!(debug_str.contains("SelectionState"));
+        assert!(debug_str.contains("is_selecting: true"));
+        assert!(debug_str.contains("100"));
+    }
+
+    // ==================== get_virtual_screen_bounds Tests ====================
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn test_get_virtual_screen_bounds_fallback() {
+        let (x, y, width, height) = get_virtual_screen_bounds();
+        
+        assert_eq!(x, 0);
+        assert_eq!(y, 0);
+        assert_eq!(width, 1920);
+        assert_eq!(height, 1080);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn test_get_virtual_screen_bounds_windows() {
+        let (x, y, width, height) = get_virtual_screen_bounds();
+        
+        // On Windows, should return actual screen dimensions
+        // Width and height should be positive
+        assert!(width > 0);
+        assert!(height > 0);
+    }
+
+    // ==================== REGION_SELECTOR_LABEL Tests ====================
+
+    #[test]
+    fn test_region_selector_label_constant() {
+        assert_eq!(REGION_SELECTOR_LABEL, "region-selector");
+    }
+}

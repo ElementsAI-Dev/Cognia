@@ -363,7 +363,10 @@ impl Drop for McpClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mcp::protocol::jsonrpc::methods;
+    use crate::mcp::protocol::jsonrpc::{methods, JsonRpcRequest, JsonRpcResponse, JsonRpcNotification, RequestId, JSONRPC_VERSION};
+    use crate::mcp::protocol::tools::{ToolsListParams, ToolsCallParams};
+    use crate::mcp::protocol::resources::{ResourcesListParams, ResourcesReadParams};
+    use crate::mcp::protocol::prompts::{PromptsListParams, PromptsGetParams};
 
     // ============================================================================
     // JSON-RPC Method Constants Tests
@@ -383,6 +386,23 @@ mod tests {
         assert_eq!(methods::PROMPTS_LIST, "prompts/list");
         assert_eq!(methods::PROMPTS_GET, "prompts/get");
         assert_eq!(methods::LOGGING_SET_LEVEL, "logging/setLevel");
+    }
+
+    #[test]
+    fn test_notification_method_constants() {
+        assert_eq!(methods::INITIALIZED, "notifications/initialized");
+        assert_eq!(methods::NOTIFICATION_PROGRESS, "notifications/progress");
+        assert_eq!(methods::NOTIFICATION_MESSAGE, "notifications/message");
+        assert_eq!(methods::NOTIFICATION_RESOURCES_UPDATED, "notifications/resources/updated");
+        assert_eq!(methods::NOTIFICATION_RESOURCES_LIST_CHANGED, "notifications/resources/list_changed");
+        assert_eq!(methods::NOTIFICATION_TOOLS_LIST_CHANGED, "notifications/tools/list_changed");
+        assert_eq!(methods::NOTIFICATION_PROMPTS_LIST_CHANGED, "notifications/prompts/list_changed");
+        assert_eq!(methods::NOTIFICATION_CANCELLED, "notifications/cancelled");
+    }
+
+    #[test]
+    fn test_sampling_method_constant() {
+        assert_eq!(methods::SAMPLING_CREATE_MESSAGE, "sampling/createMessage");
     }
 
     // ============================================================================
@@ -406,5 +426,410 @@ mod tests {
         let json = serde_json::to_value(&info).unwrap();
         assert_eq!(json["name"], "TestClient");
         assert_eq!(json["version"], "1.0.0");
+    }
+
+    #[test]
+    fn test_client_info_deserialization() {
+        let json = serde_json::json!({
+            "name": "CustomClient",
+            "version": "2.0.0"
+        });
+
+        let info: ClientInfo = serde_json::from_value(json).unwrap();
+        assert_eq!(info.name, "CustomClient");
+        assert_eq!(info.version, "2.0.0");
+    }
+
+    // ============================================================================
+    // JsonRpcRequest Tests
+    // ============================================================================
+
+    #[test]
+    fn test_jsonrpc_request_creation() {
+        let request = JsonRpcRequest::new(1i64, "test/method", None);
+        assert_eq!(request.jsonrpc, JSONRPC_VERSION);
+        assert_eq!(request.id, RequestId::Number(1));
+        assert_eq!(request.method, "test/method");
+        assert!(request.params.is_none());
+    }
+
+    #[test]
+    fn test_jsonrpc_request_with_params() {
+        let params = serde_json::json!({"key": "value"});
+        let request = JsonRpcRequest::new(42i64, "test/method", Some(params.clone()));
+        
+        assert_eq!(request.params, Some(params));
+    }
+
+    #[test]
+    fn test_jsonrpc_request_serialization() {
+        let request = JsonRpcRequest::new(1i64, "tools/list", None);
+        let json = serde_json::to_value(&request).unwrap();
+
+        assert_eq!(json["jsonrpc"], "2.0");
+        assert_eq!(json["id"], 1);
+        assert_eq!(json["method"], "tools/list");
+    }
+
+    #[test]
+    fn test_jsonrpc_request_with_string_id() {
+        let request = JsonRpcRequest::new("req-123".to_string(), "test/method", None);
+        assert_eq!(request.id, RequestId::String("req-123".to_string()));
+    }
+
+    // ============================================================================
+    // JsonRpcResponse Tests
+    // ============================================================================
+
+    #[test]
+    fn test_jsonrpc_response_success() {
+        let result = serde_json::json!({"status": "ok"});
+        let response = JsonRpcResponse::success(RequestId::Number(1), result.clone());
+
+        assert_eq!(response.jsonrpc, JSONRPC_VERSION);
+        assert_eq!(response.result, Some(result));
+        assert!(response.error.is_none());
+    }
+
+    #[test]
+    fn test_jsonrpc_response_error() {
+        use crate::mcp::protocol::jsonrpc::JsonRpcError;
+        
+        let error = JsonRpcError::method_not_found("unknown");
+        let response = JsonRpcResponse::error(RequestId::Number(1), error);
+
+        assert!(response.result.is_none());
+        assert!(response.error.is_some());
+    }
+
+    // ============================================================================
+    // JsonRpcNotification Tests
+    // ============================================================================
+
+    #[test]
+    fn test_jsonrpc_notification_creation() {
+        let notification = JsonRpcNotification::new("notifications/progress", None);
+        assert_eq!(notification.jsonrpc, JSONRPC_VERSION);
+        assert_eq!(notification.method, "notifications/progress");
+        assert!(notification.params.is_none());
+    }
+
+    #[test]
+    fn test_jsonrpc_notification_with_params() {
+        let params = serde_json::json!({"progress": 0.5});
+        let notification = JsonRpcNotification::new("notifications/progress", Some(params.clone()));
+        
+        assert_eq!(notification.params, Some(params));
+    }
+
+    // ============================================================================
+    // Protocol Params Tests
+    // ============================================================================
+
+    #[test]
+    fn test_tools_list_params_default() {
+        let params = ToolsListParams::default();
+        assert!(params.cursor.is_none());
+    }
+
+    #[test]
+    fn test_tools_list_params_with_cursor() {
+        let params = ToolsListParams {
+            cursor: Some("next-page-token".to_string()),
+        };
+        
+        let json = serde_json::to_value(&params).unwrap();
+        assert_eq!(json["cursor"], "next-page-token");
+    }
+
+    #[test]
+    fn test_tools_call_params_serialization() {
+        let params = ToolsCallParams {
+            name: "my_tool".to_string(),
+            arguments: serde_json::json!({"arg1": "value1"}),
+        };
+
+        let json = serde_json::to_value(&params).unwrap();
+        assert_eq!(json["name"], "my_tool");
+        assert_eq!(json["arguments"]["arg1"], "value1");
+    }
+
+    #[test]
+    fn test_resources_list_params_default() {
+        let params = ResourcesListParams::default();
+        assert!(params.cursor.is_none());
+    }
+
+    #[test]
+    fn test_resources_read_params_serialization() {
+        let params = ResourcesReadParams {
+            uri: "file:///test.txt".to_string(),
+        };
+
+        let json = serde_json::to_value(&params).unwrap();
+        assert_eq!(json["uri"], "file:///test.txt");
+    }
+
+    #[test]
+    fn test_prompts_list_params_default() {
+        let params = PromptsListParams::default();
+        assert!(params.cursor.is_none());
+    }
+
+    #[test]
+    fn test_prompts_get_params_serialization() {
+        let params = PromptsGetParams {
+            name: "code_review".to_string(),
+            arguments: Some(serde_json::json!({"code": "fn main() {}"})),
+        };
+
+        let json = serde_json::to_value(&params).unwrap();
+        assert_eq!(json["name"], "code_review");
+        assert_eq!(json["arguments"]["code"], "fn main() {}");
+    }
+
+    #[test]
+    fn test_prompts_get_params_without_arguments() {
+        let params = PromptsGetParams {
+            name: "simple_prompt".to_string(),
+            arguments: None,
+        };
+
+        let json = serde_json::to_value(&params).unwrap();
+        assert_eq!(json["name"], "simple_prompt");
+        assert!(json.get("arguments").is_none());
+    }
+
+    // ============================================================================
+    // Initialize Request/Response Tests
+    // ============================================================================
+
+    #[test]
+    fn test_initialize_request_structure() {
+        let client_info = ClientInfo::default();
+        let params = serde_json::json!({
+            "protocolVersion": "2024-11-05",
+            "capabilities": {
+                "sampling": {}
+            },
+            "clientInfo": client_info
+        });
+
+        let request = JsonRpcRequest::new(0i64, methods::INITIALIZE, Some(params));
+        let json = serde_json::to_value(&request).unwrap();
+
+        assert_eq!(json["method"], "initialize");
+        assert_eq!(json["params"]["protocolVersion"], "2024-11-05");
+        assert!(json["params"]["capabilities"]["sampling"].is_object());
+    }
+
+    #[test]
+    fn test_initialize_result_deserialization() {
+        let json = serde_json::json!({
+            "protocolVersion": "2024-11-05",
+            "capabilities": {
+                "tools": {"listChanged": true},
+                "resources": {"subscribe": true, "listChanged": true},
+                "prompts": {"listChanged": true}
+            },
+            "serverInfo": {
+                "name": "Test Server",
+                "version": "1.0.0"
+            },
+            "instructions": "Use this server for testing"
+        });
+
+        let result: InitializeResult = serde_json::from_value(json).unwrap();
+        assert_eq!(result.protocol_version, "2024-11-05");
+        assert!(result.capabilities.tools.is_some());
+        assert!(result.server_info.is_some());
+        assert_eq!(result.server_info.unwrap().name, "Test Server");
+    }
+
+    // ============================================================================
+    // Tool Response Tests
+    // ============================================================================
+
+    #[test]
+    fn test_tools_list_response_deserialization() {
+        use crate::mcp::protocol::tools::ToolsListResponse;
+
+        let json = serde_json::json!({
+            "tools": [
+                {
+                    "name": "read_file",
+                    "description": "Read a file from disk",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "path": {"type": "string"}
+                        },
+                        "required": ["path"]
+                    }
+                }
+            ],
+            "nextCursor": "page2"
+        });
+
+        let response: ToolsListResponse = serde_json::from_value(json).unwrap();
+        assert_eq!(response.tools.len(), 1);
+        assert_eq!(response.tools[0].name, "read_file");
+        assert_eq!(response.next_cursor, Some("page2".to_string()));
+    }
+
+    #[test]
+    fn test_tool_call_result_deserialization() {
+        let json = serde_json::json!({
+            "content": [
+                {"type": "text", "text": "File contents here"}
+            ],
+            "isError": false
+        });
+
+        let result: ToolCallResult = serde_json::from_value(json).unwrap();
+        assert_eq!(result.content.len(), 1);
+        assert!(!result.is_error);
+    }
+
+    // ============================================================================
+    // Resource Response Tests
+    // ============================================================================
+
+    #[test]
+    fn test_resources_list_response_deserialization() {
+        use crate::mcp::protocol::resources::ResourcesListResponse;
+
+        let json = serde_json::json!({
+            "resources": [
+                {
+                    "uri": "file:///readme.md",
+                    "name": "README",
+                    "description": "Project documentation",
+                    "mimeType": "text/markdown"
+                }
+            ]
+        });
+
+        let response: ResourcesListResponse = serde_json::from_value(json).unwrap();
+        assert_eq!(response.resources.len(), 1);
+        assert_eq!(response.resources[0].uri, "file:///readme.md");
+    }
+
+    #[test]
+    fn test_resource_content_deserialization() {
+        let json = serde_json::json!({
+            "contents": [
+                {
+                    "uri": "file:///test.txt",
+                    "mimeType": "text/plain",
+                    "text": "Hello, World!"
+                }
+            ]
+        });
+
+        let content: ResourceContent = serde_json::from_value(json).unwrap();
+        assert_eq!(content.contents.len(), 1);
+        assert_eq!(content.contents[0].text, Some("Hello, World!".to_string()));
+    }
+
+    // ============================================================================
+    // Prompt Response Tests
+    // ============================================================================
+
+    #[test]
+    fn test_prompts_list_response_deserialization() {
+        use crate::mcp::protocol::prompts::PromptsListResponse;
+
+        let json = serde_json::json!({
+            "prompts": [
+                {
+                    "name": "explain_code",
+                    "description": "Explain code in detail",
+                    "arguments": [
+                        {"name": "code", "required": true},
+                        {"name": "language", "required": false}
+                    ]
+                }
+            ]
+        });
+
+        let response: PromptsListResponse = serde_json::from_value(json).unwrap();
+        assert_eq!(response.prompts.len(), 1);
+        assert_eq!(response.prompts[0].name, "explain_code");
+    }
+
+    #[test]
+    fn test_prompt_content_deserialization() {
+        let json = serde_json::json!({
+            "description": "Code explanation prompt",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Explain this code"
+                }
+            ]
+        });
+
+        let content: PromptContent = serde_json::from_value(json).unwrap();
+        assert_eq!(content.description, Some("Code explanation prompt".to_string()));
+        assert_eq!(content.messages.len(), 1);
+    }
+
+    // ============================================================================
+    // Edge Cases
+    // ============================================================================
+
+    #[test]
+    fn test_empty_tools_list_response() {
+        use crate::mcp::protocol::tools::ToolsListResponse;
+
+        let json = serde_json::json!({
+            "tools": []
+        });
+
+        let response: ToolsListResponse = serde_json::from_value(json).unwrap();
+        assert!(response.tools.is_empty());
+        assert!(response.next_cursor.is_none());
+    }
+
+    #[test]
+    fn test_tool_call_with_empty_arguments() {
+        let params = ToolsCallParams {
+            name: "no_args_tool".to_string(),
+            arguments: serde_json::json!({}),
+        };
+
+        let json = serde_json::to_value(&params).unwrap();
+        assert_eq!(json["arguments"], serde_json::json!({}));
+    }
+
+    #[test]
+    fn test_tool_call_result_with_error() {
+        let json = serde_json::json!({
+            "content": [
+                {"type": "text", "text": "Error: File not found"}
+            ],
+            "isError": true
+        });
+
+        let result: ToolCallResult = serde_json::from_value(json).unwrap();
+        assert!(result.is_error);
+    }
+
+    #[test]
+    fn test_resource_with_blob_content() {
+        let json = serde_json::json!({
+            "contents": [
+                {
+                    "uri": "file:///image.png",
+                    "mimeType": "image/png",
+                    "blob": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+                }
+            ]
+        });
+
+        let content: ResourceContent = serde_json::from_value(json).unwrap();
+        assert!(content.contents[0].blob.is_some());
+        assert!(content.contents[0].text.is_none());
     }
 }

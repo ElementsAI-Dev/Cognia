@@ -244,3 +244,422 @@ impl Default for WindowManager {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // WindowInfo tests
+    #[test]
+    fn test_window_info_creation() {
+        let window = WindowInfo {
+            handle: 12345,
+            title: "Test Window".to_string(),
+            class_name: "TestClass".to_string(),
+            process_id: 1234,
+            process_name: "test.exe".to_string(),
+            exe_path: Some("C:\\test.exe".to_string()),
+            x: 100,
+            y: 200,
+            width: 800,
+            height: 600,
+            is_minimized: false,
+            is_maximized: false,
+            is_focused: true,
+            is_visible: true,
+        };
+
+        assert_eq!(window.handle, 12345);
+        assert_eq!(window.title, "Test Window");
+        assert_eq!(window.class_name, "TestClass");
+        assert_eq!(window.process_id, 1234);
+        assert_eq!(window.process_name, "test.exe");
+        assert_eq!(window.exe_path, Some("C:\\test.exe".to_string()));
+        assert_eq!(window.x, 100);
+        assert_eq!(window.y, 200);
+        assert_eq!(window.width, 800);
+        assert_eq!(window.height, 600);
+        assert!(!window.is_minimized);
+        assert!(!window.is_maximized);
+        assert!(window.is_focused);
+        assert!(window.is_visible);
+    }
+
+    #[test]
+    fn test_window_info_without_exe_path() {
+        let window = WindowInfo {
+            handle: 1,
+            title: "Window".to_string(),
+            class_name: "Class".to_string(),
+            process_id: 100,
+            process_name: "proc.exe".to_string(),
+            exe_path: None,
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 100,
+            is_minimized: false,
+            is_maximized: false,
+            is_focused: false,
+            is_visible: true,
+        };
+
+        assert!(window.exe_path.is_none());
+    }
+
+    #[test]
+    fn test_window_info_minimized() {
+        let window = WindowInfo {
+            handle: 1,
+            title: "Minimized".to_string(),
+            class_name: "Class".to_string(),
+            process_id: 100,
+            process_name: "proc.exe".to_string(),
+            exe_path: None,
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            is_minimized: true,
+            is_maximized: false,
+            is_focused: false,
+            is_visible: false,
+        };
+
+        assert!(window.is_minimized);
+        assert!(!window.is_maximized);
+        assert!(!window.is_visible);
+    }
+
+    #[test]
+    fn test_window_info_maximized() {
+        let window = WindowInfo {
+            handle: 1,
+            title: "Maximized".to_string(),
+            class_name: "Class".to_string(),
+            process_id: 100,
+            process_name: "proc.exe".to_string(),
+            exe_path: None,
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+            is_minimized: false,
+            is_maximized: true,
+            is_focused: true,
+            is_visible: true,
+        };
+
+        assert!(!window.is_minimized);
+        assert!(window.is_maximized);
+    }
+
+    #[test]
+    fn test_window_info_serialization() {
+        let window = WindowInfo {
+            handle: 12345,
+            title: "Test".to_string(),
+            class_name: "Class".to_string(),
+            process_id: 100,
+            process_name: "test.exe".to_string(),
+            exe_path: Some("C:\\test.exe".to_string()),
+            x: 10,
+            y: 20,
+            width: 800,
+            height: 600,
+            is_minimized: false,
+            is_maximized: true,
+            is_focused: true,
+            is_visible: true,
+        };
+
+        let json = serde_json::to_string(&window);
+        assert!(json.is_ok());
+
+        let parsed: WindowInfo = serde_json::from_str(&json.unwrap()).unwrap();
+        assert_eq!(parsed.handle, 12345);
+        assert_eq!(parsed.title, "Test");
+        assert_eq!(parsed.width, 800);
+        assert!(parsed.is_maximized);
+    }
+
+    #[test]
+    fn test_window_info_deserialization() {
+        let json = r#"{
+            "handle": 99999,
+            "title": "Deserialized Window",
+            "class_name": "DeserClass",
+            "process_id": 555,
+            "process_name": "deser.exe",
+            "exe_path": null,
+            "x": 50,
+            "y": 75,
+            "width": 640,
+            "height": 480,
+            "is_minimized": true,
+            "is_maximized": false,
+            "is_focused": false,
+            "is_visible": false
+        }"#;
+
+        let window: WindowInfo = serde_json::from_str(json).unwrap();
+        assert_eq!(window.handle, 99999);
+        assert_eq!(window.title, "Deserialized Window");
+        assert_eq!(window.process_id, 555);
+        assert!(window.exe_path.is_none());
+        assert!(window.is_minimized);
+    }
+
+    #[test]
+    fn test_window_info_clone() {
+        let window = WindowInfo {
+            handle: 1,
+            title: "Original".to_string(),
+            class_name: "Class".to_string(),
+            process_id: 100,
+            process_name: "proc.exe".to_string(),
+            exe_path: Some("path".to_string()),
+            x: 10,
+            y: 20,
+            width: 100,
+            height: 200,
+            is_minimized: false,
+            is_maximized: false,
+            is_focused: true,
+            is_visible: true,
+        };
+
+        let cloned = window.clone();
+        assert_eq!(cloned.handle, 1);
+        assert_eq!(cloned.title, "Original");
+        assert_eq!(cloned.exe_path, Some("path".to_string()));
+    }
+
+    #[test]
+    fn test_window_info_debug() {
+        let window = WindowInfo {
+            handle: 1,
+            title: "Debug".to_string(),
+            class_name: "Class".to_string(),
+            process_id: 100,
+            process_name: "proc.exe".to_string(),
+            exe_path: None,
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 100,
+            is_minimized: false,
+            is_maximized: false,
+            is_focused: false,
+            is_visible: true,
+        };
+
+        let debug_str = format!("{:?}", window);
+        assert!(debug_str.contains("Debug"));
+        assert!(debug_str.contains("WindowInfo"));
+    }
+
+    // WindowManager tests
+    #[test]
+    fn test_window_manager_new() {
+        let manager = WindowManager::new();
+        let _ = manager; // Just verify it can be created
+    }
+
+    #[test]
+    fn test_window_manager_default() {
+        let manager = WindowManager::default();
+        let _ = manager;
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn test_get_active_window_non_windows() {
+        let manager = WindowManager::new();
+        let result = manager.get_active_window();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Window info not available on this platform");
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn test_get_all_windows_non_windows() {
+        let manager = WindowManager::new();
+        let result = manager.get_all_windows();
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn test_find_windows_by_title_non_windows() {
+        let manager = WindowManager::new();
+        let result = manager.find_windows_by_title("test");
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn test_find_windows_by_process_non_windows() {
+        let manager = WindowManager::new();
+        let result = manager.find_windows_by_process("test.exe");
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    // Edge case tests
+    #[test]
+    fn test_window_info_empty_strings() {
+        let window = WindowInfo {
+            handle: 0,
+            title: String::new(),
+            class_name: String::new(),
+            process_id: 0,
+            process_name: String::new(),
+            exe_path: None,
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            is_minimized: false,
+            is_maximized: false,
+            is_focused: false,
+            is_visible: false,
+        };
+
+        assert!(window.title.is_empty());
+        assert!(window.class_name.is_empty());
+        assert!(window.process_name.is_empty());
+    }
+
+    #[test]
+    fn test_window_info_negative_coordinates() {
+        let window = WindowInfo {
+            handle: 1,
+            title: "Offscreen".to_string(),
+            class_name: "Class".to_string(),
+            process_id: 100,
+            process_name: "proc.exe".to_string(),
+            exe_path: None,
+            x: -100,
+            y: -50,
+            width: 800,
+            height: 600,
+            is_minimized: false,
+            is_maximized: false,
+            is_focused: false,
+            is_visible: true,
+        };
+
+        assert_eq!(window.x, -100);
+        assert_eq!(window.y, -50);
+    }
+
+    #[test]
+    fn test_window_info_large_dimensions() {
+        let window = WindowInfo {
+            handle: 1,
+            title: "Large".to_string(),
+            class_name: "Class".to_string(),
+            process_id: 100,
+            process_name: "proc.exe".to_string(),
+            exe_path: None,
+            x: 0,
+            y: 0,
+            width: 7680,  // 8K width
+            height: 4320, // 8K height
+            is_minimized: false,
+            is_maximized: true,
+            is_focused: true,
+            is_visible: true,
+        };
+
+        assert_eq!(window.width, 7680);
+        assert_eq!(window.height, 4320);
+    }
+
+    #[test]
+    fn test_window_info_unicode_title() {
+        let window = WindowInfo {
+            handle: 1,
+            title: "日本語タイトル - 中文标题 - 한국어".to_string(),
+            class_name: "Class".to_string(),
+            process_id: 100,
+            process_name: "proc.exe".to_string(),
+            exe_path: None,
+            x: 0,
+            y: 0,
+            width: 800,
+            height: 600,
+            is_minimized: false,
+            is_maximized: false,
+            is_focused: true,
+            is_visible: true,
+        };
+
+        assert!(window.title.contains("日本語"));
+        assert!(window.title.contains("中文"));
+        assert!(window.title.contains("한국어"));
+
+        // Test serialization with unicode
+        let json = serde_json::to_string(&window).unwrap();
+        let parsed: WindowInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.title, window.title);
+    }
+
+    #[test]
+    fn test_window_info_special_chars_in_path() {
+        let window = WindowInfo {
+            handle: 1,
+            title: "Test".to_string(),
+            class_name: "Class".to_string(),
+            process_id: 100,
+            process_name: "test app.exe".to_string(),
+            exe_path: Some("C:\\Program Files (x86)\\Test App\\test app.exe".to_string()),
+            x: 0,
+            y: 0,
+            width: 800,
+            height: 600,
+            is_minimized: false,
+            is_maximized: false,
+            is_focused: true,
+            is_visible: true,
+        };
+
+        assert!(window.exe_path.as_ref().unwrap().contains("Program Files (x86)"));
+        
+        // Test serialization with special chars
+        let json = serde_json::to_string(&window).unwrap();
+        let parsed: WindowInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.exe_path, window.exe_path);
+    }
+
+    #[test]
+    fn test_window_info_max_handle() {
+        let window = WindowInfo {
+            handle: u64::MAX,
+            title: "Max Handle".to_string(),
+            class_name: "Class".to_string(),
+            process_id: u32::MAX,
+            process_name: "proc.exe".to_string(),
+            exe_path: None,
+            x: i32::MAX,
+            y: i32::MIN,
+            width: u32::MAX,
+            height: u32::MAX,
+            is_minimized: false,
+            is_maximized: false,
+            is_focused: true,
+            is_visible: true,
+        };
+
+        assert_eq!(window.handle, u64::MAX);
+        assert_eq!(window.process_id, u32::MAX);
+        
+        // Test serialization with max values
+        let json = serde_json::to_string(&window).unwrap();
+        let parsed: WindowInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.handle, u64::MAX);
+    }
+}

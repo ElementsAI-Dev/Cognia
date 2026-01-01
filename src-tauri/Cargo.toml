@@ -28,10 +28,13 @@ tauri-plugin-fs = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-global-shortcut = "2"
-tauri-plugin-updater = "2"
+# tauri-plugin-updater = "2" # Disabled until updater is configured
 tauri-plugin-process = "2"
 tauri-plugin-os = "2"
 tauri-plugin-clipboard-manager = "2"
+tauri-plugin-geolocation = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-devtools = "2"
 
 # MCP support dependencies
 tokio = { version = "1", features = ["full", "process", "sync", "io-util"] }
@@ -44,6 +47,7 @@ anyhow = "1.0"
 reqwest = { version = "0.12", features = ["json", "stream", "socks"] }
 reqwest-eventsource = "0.6"
 directories = "5"
+dirs = "5"
 chrono = { version = "0.4", features = ["serde"] }
 parking_lot = "0.12"
 arboard = "3"
@@ -57,8 +61,20 @@ mouse_position = "0.1"
 # Regex for pattern matching
 regex = "1"
 
+# Lazy initialization
+once_cell = "1.19"
+
 # URL opening
 open = "5"
+
+# Sandbox dependencies
+tempfile = "3.8"
+lazy_static = "1.4"
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+# Desktop-specific dependencies (Windows, macOS, Linux)
+[target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
+tauri-plugin-autostart = "2"
 
 # Windows-specific dependencies
 [target.'cfg(windows)'.dependencies]
@@ -77,10 +93,9 @@ windows = { version = "0.58", features = [
     "Win32_Storage_FileSystem",
 ] }
 
-# Sandbox dependencies
-tempfile = "3.8"
-lazy_static = "1.4"
-rusqlite = { version = "0.31", features = ["bundled"] }
+[features]
+default = ["single-instance"]
+single-instance = []
 
 [dev-dependencies]
 tempfile = "3.8"

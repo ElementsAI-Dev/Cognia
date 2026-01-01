@@ -33,9 +33,6 @@
     "global-shortcut:allow-unregister",
     "global-shortcut:allow-unregister-all",
     "global-shortcut:allow-is-registered",
-    "updater:default",
-    "updater:allow-check",
-    "updater:allow-download-and-install",
     "process:default",
     "process:allow-exit",
     "process:allow-restart",
@@ -64,6 +61,10 @@
     "core:window:allow-set-size",
     "core:window:allow-set-focus",
     "core:window:allow-set-always-on-top",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-is-fullscreen",
+    "core:window:allow-center",
+    "core:window:allow-set-title",
     "core:window:allow-is-maximized",
     "core:window:allow-is-minimized",
     "core:window:allow-is-visible",
@@ -76,6 +77,12 @@
     "core:tray:allow-set-title",
     "core:event:default",
     "core:event:allow-emit",
-    "core:event:allow-listen"
+    "core:event:allow-listen",
+    "geolocation:allow-get-current-position",
+    "geolocation:allow-watch-position",
+    "geolocation:allow-clear-watch",
+    "geolocation:allow-check-permissions",
+    "geolocation:allow-request-permissions",
+    "log:default"
   ]
 }

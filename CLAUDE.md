@@ -14,6 +14,7 @@ Cognia is an AI-native chat and creation application with multi-provider support
 - **Agent System**: Autonomous agent execution with tool calling, planning, sub-agent orchestration
 - **MCP Support**: Full Model Context Protocol support for extended capabilities
 - **Native Tools**: Desktop-only features (selection, awareness, context, screenshot) on Windows/macOS/Linux
+- **i18n**: Multi-language support via `next-intl` (English, Chinese)
 
 ## Development Commands
 
@@ -22,12 +23,15 @@ Cognia is an AI-native chat and creation application with multi-provider support
 pnpm dev              # Start Next.js dev server (localhost:3000)
 pnpm build            # Production build (static export to out/)
 pnpm start            # Serve production build
-pnpm lint             # Run ESLint (use --fix to auto-fix)
+pnpm lint             # Run ESLint
+pnpm lint --fix       # Auto-fix ESLint issues
 
 # Testing - Unit
 pnpm test             # Run Jest unit tests
 pnpm test:watch       # Jest watch mode
-pnpm test:coverage    # Jest with coverage (55%+ lines, 50%+ branches)
+pnpm test:coverage    # Jest with coverage (70%+ lines, 60%+ branches)
+pnpm test -- path/to/file.test.ts           # Run single test file
+pnpm test -- --testNamePattern="test name"  # Run tests matching pattern
 
 # Testing - E2E
 pnpm test:e2e         # Run Playwright e2e tests
@@ -37,6 +41,7 @@ pnpm test:e2e:headed  # Playwright headed browser
 # Desktop
 pnpm tauri dev        # Run Tauri dev mode
 pnpm tauri build      # Build desktop binaries
+pnpm tauri info       # Check Tauri environment
 
 # Adding shadcn components
 pnpm dlx shadcn@latest add <component>
@@ -73,9 +78,9 @@ Cognia is a hybrid web/desktop application that:
   - `db/`, `document/`, `export/`, `file/`, `i18n/`, `search/`, `themes/`, `vector/`
   - `native/` — Tauri native API bindings
 - `hooks/` — Custom hooks: agent, messages, awareness, context, screenshot, selection, workflow, skills
-- `stores/` — Zustand stores: settings, session, artifact, agent, memory, project, usage, preset, mcp, selection, workflow, learning
-- `types/` — TypeScript definitions: provider, message, artifact, session, memory, project, preset, usage, mcp, agent, workflow, learning, skill
-- `src-tauri/` — Rust backend: `awareness/`, `context/`, `screenshot/`, `selection/`, `mcp/`, `commands/`
+- `stores/` — Zustand stores: settings, session, artifact, agent, memory, project, usage, preset, mcp, selection, workflow, learning, designer, media, skill, virtual-env
+- `types/` — TypeScript definitions: provider, message, artifact, session, memory, project, preset, usage, mcp, agent, workflow, learning, skill, environment, summary
+- `src-tauri/` — Rust backend: `awareness/`, `context/`, `screenshot/`, `selection/`, `mcp/`, `sandbox/`, `commands/`
 
 ### Path Aliases
 
@@ -99,6 +104,10 @@ All Zustand stores use localStorage persistence with the `persist` middleware:
 | `selection-store.ts` | `cognia-selection` | Selection toolbar state, selection history (desktop only) |
 | `workflow-store.ts` | `cognia-workflows` | Workflow definitions and execution |
 | `learning-store.ts` | `cognia-learning` | Learning mode state |
+| `designer-store.ts` | `cognia-designer` | V0-style designer state, components, preview |
+| `media-store.ts` | `cognia-media` | Video/image generation state |
+| `skill-store.ts` | `cognia-skills` | Custom skills and suggestions |
+| `virtual-env-store.ts` | `cognia-virtual-env` | Virtual environment management |
 
 **Note**: Native tools features (selection, awareness, context, screenshot) are only available in Tauri desktop builds.
 
@@ -136,6 +145,8 @@ Three-tier intelligent routing:
 - `lib/ai/auto-router.ts` — Intelligent model selection
 - `lib/ai/image-utils.ts` — Vision support utilities
 - `lib/ai/image-generation.ts` — DALL-E integration
+- `lib/ai/summarizer.ts` — Conversation summarization
+- `lib/ai/memory/` — Memory provider implementations
 
 ## Agent System
 
@@ -158,7 +169,10 @@ Three-tier intelligent routing:
 - `lib/ai/agent/agent-loop.ts` — Multi-step execution loop
 - `lib/ai/agent/agent-orchestrator.ts` — Sub-agent coordination
 - `lib/ai/agent/background-agent-manager.ts` — Queue and persistence
+- `lib/ai/agent/agent-tools.ts` — Built-in tool definitions
+- `lib/ai/agent/environment-tools.ts` — Environment/sandbox tools
 - `hooks/use-agent.ts` — React hook for agent mode
+- `hooks/use-background-agent.ts` — Background agent execution
 
 ## MCP (Model Context Protocol)
 
@@ -199,6 +213,66 @@ Built-in quick install templates: Filesystem, GitHub, PostgreSQL, SQLite, Brave 
 
 - Rust: `src-tauri/src/awareness/`, `src-tauri/src/context/`, `src-tauri/src/screenshot/`, `src-tauri/src/selection/`
 - Frontend: `lib/native/`, `hooks/use-*.ts`, `stores/selection-store.ts`, `components/native/`
+
+## Designer System
+
+V0-style visual web page designer with AI-powered editing:
+
+- **Components**: 40+ component library (14 categories) with drag-drop insertion
+- **Live Preview**: Real-time preview with CDN fallback and error handling
+- **AI Integration**: AI-powered content generation and editing via `lib/designer/ai.ts`
+- **Export**: Export to HTML, React components via `lib/designer/export-utils.ts`
+- **Templates**: Built-in templates in `lib/designer/templates.ts`
+
+### Key Files
+
+- `components/designer/v0-designer.tsx` — Main designer component
+- `components/designer/ai-chat-panel.tsx` — AI chat for design assistance
+- `components/designer/element-tree.tsx` — Component hierarchy view
+- `components/designer/style-panel.tsx` — Visual style editor
+- `stores/designer-store.ts` — Designer state management
+- `lib/designer/` — AI, export, templates utilities
+
+## Export System
+
+Multi-format export capabilities in `lib/export/`:
+
+| Format | File | Features |
+|--------|------|----------|
+| Markdown | `rich-markdown.ts` | GFM, code highlighting, math |
+| HTML | `beautiful-html.ts`, `animated-html.ts` | Styled export, animations |
+| PDF | `beautiful-pdf.ts` | Formatted PDF generation |
+| Word | `word-export.ts` | DOCX via docx library |
+| Excel | `excel-export.ts` | XLSX via SheetJS |
+| Diagrams | `chat-diagram.ts`, `agent-diagram.ts` | Visual conversation/agent flow |
+
+## Learning Mode
+
+Interactive learning system for educational content:
+
+- `components/learning/learning-mode-panel.tsx` — Main learning interface
+- `components/learning/learning-start-dialog.tsx` — Session setup
+- `components/learning/learning-history-panel.tsx` — Learning history
+- `components/learning/learning-statistics-panel.tsx` — Progress stats
+- `stores/learning-store.ts` — Learning state
+- `lib/learning/prompts.ts` — Learning-specific prompts
+
+## Sandbox System (Code Execution)
+
+Secure code execution environment in `src-tauri/src/sandbox/`:
+
+- **Docker/Podman**: Container-based isolation (`docker.rs`, `podman.rs`)
+- **Native**: Direct execution for trusted code (`native.rs`)
+- **Languages**: Multi-language support (`languages.rs`)
+- **Runtime**: Execution management (`runtime.rs`)
+
+## Internationalization
+
+Multi-language support via `next-intl`:
+
+- `lib/i18n/messages/en.json` — English translations
+- `lib/i18n/messages/zh-CN.json` — Chinese translations
+- Use `useTranslations()` hook in components
 
 ## Component Patterns
 

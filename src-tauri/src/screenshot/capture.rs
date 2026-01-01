@@ -100,7 +100,7 @@ impl ScreenshotCapture {
 
         unsafe {
             let hwnd = GetForegroundWindow();
-            if hwnd.0 == std::ptr::null_mut() {
+            if hwnd.0.is_null() {
                 return Err("No active window found".to_string());
             }
 
@@ -369,5 +369,306 @@ impl ScreenshotCapture {
 impl Default for ScreenshotCapture {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== CaptureMode Tests ====================
+
+    #[test]
+    fn test_capture_mode_fullscreen() {
+        let mode = CaptureMode::FullScreen;
+        let json = serde_json::to_string(&mode).unwrap();
+        let deserialized: CaptureMode = serde_json::from_str(&json).unwrap();
+        assert!(matches!(deserialized, CaptureMode::FullScreen));
+    }
+
+    #[test]
+    fn test_capture_mode_window() {
+        let mode = CaptureMode::Window;
+        let json = serde_json::to_string(&mode).unwrap();
+        let deserialized: CaptureMode = serde_json::from_str(&json).unwrap();
+        assert!(matches!(deserialized, CaptureMode::Window));
+    }
+
+    #[test]
+    fn test_capture_mode_region() {
+        let mode = CaptureMode::Region;
+        let json = serde_json::to_string(&mode).unwrap();
+        let deserialized: CaptureMode = serde_json::from_str(&json).unwrap();
+        assert!(matches!(deserialized, CaptureMode::Region));
+    }
+
+    #[test]
+    fn test_capture_mode_monitor() {
+        let mode = CaptureMode::Monitor(2);
+        let json = serde_json::to_string(&mode).unwrap();
+        let deserialized: CaptureMode = serde_json::from_str(&json).unwrap();
+        if let CaptureMode::Monitor(idx) = deserialized {
+            assert_eq!(idx, 2);
+        } else {
+            panic!("Wrong capture mode");
+        }
+    }
+
+    #[test]
+    fn test_capture_mode_clone() {
+        let mode = CaptureMode::Monitor(1);
+        let cloned = mode.clone();
+        if let CaptureMode::Monitor(idx) = cloned {
+            assert_eq!(idx, 1);
+        } else {
+            panic!("Clone failed");
+        }
+    }
+
+    #[test]
+    fn test_capture_mode_debug() {
+        let mode = CaptureMode::FullScreen;
+        let debug_str = format!("{:?}", mode);
+        assert!(debug_str.contains("FullScreen"));
+    }
+
+    // ==================== ScreenshotCapture Tests ====================
+
+    #[test]
+    fn test_screenshot_capture_new() {
+        let capture = ScreenshotCapture::new();
+        // Just verify it can be created without panic
+        // Note: ScreenshotCapture may be a ZST (zero-sized type) so we just verify construction works
+        let _ = &capture;
+    }
+
+    #[test]
+    fn test_screenshot_capture_default() {
+        let capture = ScreenshotCapture::default();
+        // Note: ScreenshotCapture may be a ZST (zero-sized type) so we just verify construction works
+        let _ = &capture;
+    }
+
+    #[test]
+    fn test_encode_png_basic() {
+        let capture = ScreenshotCapture::new();
+        // Create a simple 2x2 red image (RGBA)
+        let pixels: Vec<u8> = vec![
+            255, 0, 0, 255,  // Red pixel
+            255, 0, 0, 255,  // Red pixel
+            255, 0, 0, 255,  // Red pixel
+            255, 0, 0, 255,  // Red pixel
+        ];
+        
+        let result = capture.encode_png(&pixels, 2, 2);
+        assert!(result.is_ok());
+        
+        let png_data = result.unwrap();
+        // PNG signature starts with specific bytes
+        assert!(png_data.len() > 8);
+        assert_eq!(png_data[0..8], [137, 80, 78, 71, 13, 10, 26, 10]);
+    }
+
+    #[test]
+    fn test_encode_png_various_sizes() {
+        let capture = ScreenshotCapture::new();
+        
+        // Test 1x1
+        let pixels = vec![0u8; 4];
+        let result = capture.encode_png(&pixels, 1, 1);
+        assert!(result.is_ok());
+        
+        // Test 10x10
+        let pixels = vec![128u8; 10 * 10 * 4];
+        let result = capture.encode_png(&pixels, 10, 10);
+        assert!(result.is_ok());
+        
+        // Test 100x100
+        let pixels = vec![255u8; 100 * 100 * 4];
+        let result = capture.encode_png(&pixels, 100, 100);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_encode_png_transparent() {
+        let capture = ScreenshotCapture::new();
+        // Semi-transparent blue
+        let pixels: Vec<u8> = vec![
+            0, 0, 255, 128,
+            0, 0, 255, 128,
+            0, 0, 255, 128,
+            0, 0, 255, 128,
+        ];
+        
+        let result = capture.encode_png(&pixels, 2, 2);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_encode_png_gradient() {
+        let capture = ScreenshotCapture::new();
+        // Create a simple gradient
+        let mut pixels = Vec::with_capacity(4 * 4 * 4);
+        for i in 0..16 {
+            let v = (i * 16) as u8;
+            pixels.extend_from_slice(&[v, v, v, 255]);
+        }
+        
+        let result = capture.encode_png(&pixels, 4, 4);
+        assert!(result.is_ok());
+    }
+
+    // ==================== base64_serde Tests ====================
+
+    #[test]
+    fn test_screenshot_result_serialization() {
+        let result = ScreenshotResult {
+            image_data: vec![1, 2, 3, 4, 5],
+            metadata: ScreenshotMetadata {
+                timestamp: 1234567890,
+                width: 100,
+                height: 100,
+                mode: "fullscreen".to_string(),
+                monitor_index: None,
+                window_title: None,
+                region: None,
+                file_path: None,
+                ocr_text: None,
+            },
+        };
+        
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("AQIDBAU=")); // Base64 of [1,2,3,4,5]
+        
+        let deserialized: ScreenshotResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.image_data, vec![1, 2, 3, 4, 5]);
+        assert_eq!(deserialized.metadata.width, 100);
+    }
+
+    #[test]
+    fn test_screenshot_result_empty_image() {
+        let result = ScreenshotResult {
+            image_data: vec![],
+            metadata: ScreenshotMetadata {
+                timestamp: 0,
+                width: 0,
+                height: 0,
+                mode: "region".to_string(),
+                monitor_index: None,
+                window_title: None,
+                region: None,
+                file_path: None,
+                ocr_text: None,
+            },
+        };
+        
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: ScreenshotResult = serde_json::from_str(&json).unwrap();
+        assert!(deserialized.image_data.is_empty());
+    }
+
+    #[test]
+    fn test_screenshot_result_large_data() {
+        let large_data: Vec<u8> = (0..1000).map(|i| (i % 256) as u8).collect();
+        let result = ScreenshotResult {
+            image_data: large_data.clone(),
+            metadata: ScreenshotMetadata {
+                timestamp: 0,
+                width: 100,
+                height: 10,
+                mode: "window".to_string(),
+                monitor_index: Some(0),
+                window_title: Some("Test".to_string()),
+                region: None,
+                file_path: None,
+                ocr_text: None,
+            },
+        };
+        
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: ScreenshotResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.image_data, large_data);
+    }
+
+    #[test]
+    fn test_screenshot_result_clone() {
+        let result = ScreenshotResult {
+            image_data: vec![10, 20, 30],
+            metadata: ScreenshotMetadata {
+                timestamp: 999,
+                width: 50,
+                height: 50,
+                mode: "region".to_string(),
+                monitor_index: None,
+                window_title: None,
+                region: Some(CaptureRegion { x: 0, y: 0, width: 50, height: 50 }),
+                file_path: None,
+                ocr_text: None,
+            },
+        };
+        
+        let cloned = result.clone();
+        assert_eq!(cloned.image_data, result.image_data);
+        assert_eq!(cloned.metadata.width, result.metadata.width);
+    }
+
+    // ==================== Platform-specific Tests ====================
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn test_capture_screen_not_windows() {
+        let capture = ScreenshotCapture::new();
+        let result = capture.capture_screen(None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not implemented"));
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn test_capture_active_window_not_windows() {
+        let capture = ScreenshotCapture::new();
+        let result = capture.capture_active_window();
+        assert!(result.is_err());
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn test_capture_region_not_windows() {
+        let capture = ScreenshotCapture::new();
+        let result = capture.capture_region(0, 0, 100, 100);
+        assert!(result.is_err());
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn test_get_monitors_not_windows() {
+        let capture = ScreenshotCapture::new();
+        let monitors = capture.get_monitors();
+        assert!(monitors.is_empty());
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn test_get_monitors_windows() {
+        let capture = ScreenshotCapture::new();
+        let monitors = capture.get_monitors();
+        // Should have at least one monitor on a real system
+        // But in CI this might not work, so we just check it doesn't panic
+        let _ = monitors.len();
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn test_capture_region_invalid_dimensions() {
+        let capture = ScreenshotCapture::new();
+        
+        // Zero width
+        let result = capture.capture_region(0, 0, 0, 100);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid capture dimensions"));
+        
+        // Zero height
+        let result = capture.capture_region(0, 0, 100, 0);
+        assert!(result.is_err());
     }
 }

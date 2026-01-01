@@ -5,6 +5,17 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { WelcomeState } from './welcome-state';
 
+// Mock stores
+jest.mock('@/stores', () => ({
+  useTemplateStore: jest.fn((selector) => {
+    const state = {
+      templates: [],
+      searchTemplates: jest.fn().mockReturnValue([]),
+    };
+    return selector ? selector(state) : state;
+  }),
+}));
+
 // Mock next-intl
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {

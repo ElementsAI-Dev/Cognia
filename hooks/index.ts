@@ -4,6 +4,13 @@
 
 export { useIsMobile } from './use-mobile';
 export { useMessages } from './use-messages';
+export {
+  useAIRegistry,
+  useReasoningModel,
+  useModelAliases,
+  type UseAIRegistryOptions,
+  type UseAIRegistryReturn,
+} from './use-ai-registry';
 export { useKeyboardShortcuts, formatShortcut, type KeyboardShortcut } from './use-keyboard-shortcuts';
 export { useSpeech, type UseSpeechOptions, type UseSpeechReturn, type SpeakOptions } from './use-speech';
 export { useNetworkStatus, useApiHealth, type NetworkStatus } from './use-network-status';
@@ -218,3 +225,41 @@ export {
   type UseVideoGenerationReturn,
   type VideoGenerationJob,
 } from './use-video-generation';
+export {
+  useMemory,
+  type MemorySearchOptions,
+  type MemorySearchResult,
+  type MemoryConflict,
+  type BatchOperationResult,
+  type MemoryRelevanceContext,
+  type RelevantMemory,
+  type UseMemoryOptions,
+} from './use-memory';
+export {
+  useMemoryProvider,
+  type UseMemoryProviderOptions,
+  type UseMemoryProviderReturn,
+  type PipelineResult,
+} from './use-memory-provider';
+export {
+  useSessionEnv,
+  getSessionEnvContext,
+  selectSessionHasEnv,
+  type SessionEnvContext,
+} from './use-session-env';
+export {
+  useVirtualEnv,
+} from './use-virtual-env';
+export {
+  useJupyterKernel,
+  type UseJupyterKernelReturn,
+} from './use-jupyter-kernel';
+export {
+  useGeolocation,
+  useLocaleDetection,
+  type UseGeolocationState,
+  type UseGeolocationOptions,
+  type UseGeolocationReturn,
+  type UseLocaleDetectionState,
+  type UseLocaleDetectionReturn,
+} from './use-geolocation';

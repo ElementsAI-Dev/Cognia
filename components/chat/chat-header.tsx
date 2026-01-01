@@ -26,6 +26,8 @@ import {
   PinOff,
   GraduationCap,
   ExternalLink,
+  FileText,
+  Film,
 } from 'lucide-react';
 import { ConversationSearch } from './conversation-search';
 import { useMessages } from '@/hooks';
@@ -73,10 +75,12 @@ import {
   OpenInCursor,
 } from '@/components/ai-elements/open-in-chat';
 import { BranchSelector } from './branch-selector';
+import { ChatSummaryDialog } from './chat-summary-dialog';
 import { SessionStats } from './session-stats';
 import { PresetSelector, CreatePresetDialog, PresetsManager } from '@/components/presets';
 import { ActiveSkillsIndicator } from '@/components/skills';
 import { BackgroundAgentIndicator, AgentModeSelector } from '@/components/agent';
+import { SessionEnvSelector } from './session-env-selector';
 import type { AgentModeConfig } from '@/types/agent-mode';
 import {
   Dialog,
@@ -111,6 +115,7 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
   const [managePresetsOpen, setManagePresetsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [batchCopyOpen, setBatchCopyOpen] = useState(false);
+  const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
 
   // Artifact panel state
   const openPanel = useArtifactStore((state) => state.openPanel);
@@ -221,11 +226,11 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
 
   return (
     <>
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border/50 px-4 bg-background/95 backdrop-blur-sm">
-        <div className="flex items-center gap-2">
+      <header className="flex h-12 sm:h-14 shrink-0 items-center justify-between border-b border-border/50 px-2 sm:px-4 bg-background/95 backdrop-blur-sm">
+        <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-none">
           {/* Sidebar trigger - works on both mobile and desktop */}
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
+          <SidebarTrigger className="-ml-1 shrink-0" />
+          <Separator orientation="vertical" className="mr-1 sm:mr-2 h-4 shrink-0" />
 
           {/* Enhanced Mode selector with animations */}
           <DropdownMenu>
@@ -318,38 +323,42 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Agent sub-mode selector - only shown in agent mode */}
+          {/* Agent sub-mode selector - only shown in agent mode, hidden on small screens */}
           {currentMode === 'agent' && (
-            <>
+            <div className="hidden sm:flex items-center gap-2">
               <Separator orientation="vertical" className="h-4" />
               <AgentModeSelector
                 selectedModeId={agentModeId}
                 onModeChange={handleAgentModeChange}
                 className="h-8"
               />
-            </>
+            </div>
           )}
 
-          {/* Preset selector */}
-          <Separator orientation="vertical" className="h-4" />
-          <PresetSelector
-            compact
-            onSelect={handlePresetSelect}
-            onCreateNew={() => setCreatePresetOpen(true)}
-            onManage={() => setManagePresetsOpen(true)}
-          />
-
-          {/* Branch selector (only shown when branches exist) */}
-          {session && (
-            <BranchSelector
-              sessionId={session.id}
+          {/* Preset selector - hidden on very small screens */}
+          <div className="hidden min-[400px]:flex items-center gap-2">
+            <Separator orientation="vertical" className="h-4" />
+            <PresetSelector
               compact
+              onSelect={handlePresetSelect}
+              onCreateNew={() => setCreatePresetOpen(true)}
+              onManage={() => setManagePresetsOpen(true)}
             />
+          </div>
+
+          {/* Branch selector (only shown when branches exist) - hidden on small screens */}
+          {session && (
+            <div className="hidden sm:block">
+              <BranchSelector
+                sessionId={session.id}
+                compact
+              />
+            </div>
           )}
 
-          {/* Project context indicator */}
+          {/* Project context indicator - hidden on small screens */}
           {linkedProject && (
-            <>
+            <div className="hidden md:flex items-center gap-2">
               <Separator orientation="vertical" className="h-4" />
               <Link href="/projects" className="group">
                 <Badge 
@@ -365,56 +374,82 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
                   </span>
                 </Badge>
               </Link>
-            </>
+            </div>
           )}
 
-          {/* Active skills indicator */}
-          <Separator orientation="vertical" className="h-4" />
-          <Link href="/skills">
-            <ActiveSkillsIndicator />
-          </Link>
+          {/* Virtual environment selector - hidden on small screens */}
+          <div className="hidden md:flex items-center gap-2">
+            <Separator orientation="vertical" className="h-4" />
+            <SessionEnvSelector sessionId={session?.id} compact />
+          </div>
 
-          {/* Session stats - compact view */}
+          {/* Active skills indicator - hidden on small screens */}
+          <div className="hidden md:flex items-center gap-2">
+            <Separator orientation="vertical" className="h-4" />
+            <Link href="/skills">
+              <ActiveSkillsIndicator />
+            </Link>
+          </div>
+
+          {/* Session stats - compact view, hidden on small screens */}
           {session && messages.length > 0 && (
-            <>
+            <div className="hidden lg:flex items-center gap-2">
               <Separator orientation="vertical" className="h-4" />
               <SessionStats
                 messages={messages}
                 sessionCreatedAt={session.createdAt}
                 compact
               />
-            </>
+            </div>
           )}
         </div>
 
-        {/* Model selector */}
-        <div className="flex items-center gap-2">
+        {/* Right side actions */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Background Agent Indicator */}
           <BackgroundAgentIndicator />
 
-          {/* Designer button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                <Link href="/designer">
-                  <Wand2 className="h-4 w-4" />
-                </Link>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('designer')}</TooltipContent>
-          </Tooltip>
+          {/* Designer button - hidden on small screens */}
+          <div className="hidden sm:block">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                  <Link href="/designer">
+                    <Wand2 className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('designer')}</TooltipContent>
+            </Tooltip>
+          </div>
 
-          {/* Image Studio button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                <Link href="/image-studio">
-                  <ImageIcon className="h-4 w-4" />
-                </Link>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('imageStudio') || 'Image Studio'}</TooltipContent>
-          </Tooltip>
+          {/* Image Studio button - hidden on small screens */}
+          <div className="hidden sm:block">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                  <Link href="/image-studio">
+                    <ImageIcon className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('imageStudio') || 'Image Studio'}</TooltipContent>
+            </Tooltip>
+          </div>
+
+          {/* Video Editor button - hidden on small screens */}
+          <div className="hidden sm:block">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                  <Link href="/video-editor">
+                    <Film className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('videoEditor') || 'Video Editor'}</TooltipContent>
+            </Tooltip>
+          </div>
 
           {/* Search button */}
           {session && messages.length > 0 && (
@@ -439,16 +474,16 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
             </Popover>
           )}
 
-          {/* Panel toggle with dropdown for Canvas/Artifact selection */}
+          {/* Panel toggle with dropdown for Canvas/Artifact selection - hidden on small screens */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
                 variant={panelOpen ? 'secondary' : 'ghost'} 
-                size="sm" 
-                className="h-8 gap-1.5 px-2"
+                size="icon"
+                className="h-8 w-8 sm:w-auto sm:gap-1.5 sm:px-2"
               >
                 <PanelRight className="h-4 w-4" />
-                <ChevronDown className="h-3 w-3 opacity-50" />
+                <ChevronDown className="hidden sm:block h-3 w-3 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
@@ -505,6 +540,14 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
                 >
                   <CopyCheck className="mr-2 h-4 w-4" />
                   {t('selectCopy')}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => setSummaryDialogOpen(true)} 
+                  disabled={messages.length === 0}
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  {t('summarize') || 'Summarize & Diagram'}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <BeautifulExportDialog
@@ -587,6 +630,14 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
       open={batchCopyOpen}
       onOpenChange={setBatchCopyOpen}
       messages={messages}
+    />
+
+    {/* Chat Summary Dialog */}
+    <ChatSummaryDialog
+      open={summaryDialogOpen}
+      onOpenChange={setSummaryDialogOpen}
+      messages={messages}
+      sessionTitle={session?.title}
     />
 
     </>

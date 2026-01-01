@@ -356,6 +356,89 @@ function generatePartsHTML(parts: MessagePart[], opts: Required<PdfExportOptions
         </div>
       `);
     }
+
+    // Handle image parts
+    if (part.type === 'image') {
+      const imageSrc = part.base64 
+        ? `data:${part.mimeType || 'image/png'};base64,${part.base64}`
+        : part.url;
+      const isGenerated = part.isGenerated;
+      partsContent.push(`
+        <figure class="media-block image-block${isGenerated ? ' ai-generated' : ''}">
+          ${isGenerated ? '<div class="ai-badge">✨ AI Generated Image</div>' : ''}
+          <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(part.alt || '')}" class="media-image">
+          ${(part.alt || part.prompt || (part.width && part.height)) ? `
+            <figcaption class="media-caption">
+              ${part.alt ? `<div class="caption-text">${escapeHtml(part.alt)}</div>` : ''}
+              ${part.width && part.height ? `<div class="media-dimensions">📐 ${part.width}×${part.height}</div>` : ''}
+              ${part.prompt ? `
+                <div class="media-prompt">
+                  <span class="prompt-label">Prompt:</span>
+                  <span class="prompt-text">${escapeHtml(part.prompt)}</span>
+                </div>
+              ` : ''}
+              ${part.revisedPrompt ? `
+                <div class="media-prompt revised">
+                  <span class="prompt-label">Revised:</span>
+                  <span class="prompt-text">${escapeHtml(part.revisedPrompt)}</span>
+                </div>
+              ` : ''}
+            </figcaption>
+          ` : ''}
+        </figure>
+      `);
+    }
+
+    // Handle video parts
+    if (part.type === 'video') {
+      const isGenerated = part.isGenerated;
+      const thumbnailSrc = part.thumbnailBase64
+        ? `data:image/jpeg;base64,${part.thumbnailBase64}`
+        : part.thumbnailUrl;
+      
+      // Format duration
+      let durationStr = '';
+      if (part.durationSeconds) {
+        const mins = Math.floor(part.durationSeconds / 60);
+        const secs = Math.floor(part.durationSeconds % 60);
+        durationStr = mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`;
+      }
+      
+      partsContent.push(`
+        <figure class="media-block video-block${isGenerated ? ' ai-generated' : ''}">
+          ${isGenerated ? `<div class="ai-badge">🎬 AI Generated Video${part.provider ? ` (${escapeHtml(part.provider)})` : ''}</div>` : ''}
+          <div class="video-preview">
+            ${thumbnailSrc 
+              ? `<img src="${escapeHtml(thumbnailSrc)}" alt="Video thumbnail" class="video-thumbnail">` 
+              : '<div class="video-placeholder">🎥</div>'
+            }
+            <div class="video-play-icon">▶</div>
+            ${part.url ? `<div class="video-link"><a href="${escapeHtml(part.url)}" target="_blank">Open Video</a></div>` : ''}
+          </div>
+          <figcaption class="media-caption">
+            ${part.title ? `<div class="caption-text">${escapeHtml(part.title)}</div>` : ''}
+            <div class="video-meta">
+              ${durationStr ? `<span class="meta-item">⏱️ ${durationStr}</span>` : ''}
+              ${part.width && part.height ? `<span class="meta-item">📐 ${part.width}×${part.height}</span>` : ''}
+              ${part.fps ? `<span class="meta-item">🎞️ ${part.fps}fps</span>` : ''}
+              ${part.model ? `<span class="meta-item">🤖 ${escapeHtml(part.model)}</span>` : ''}
+            </div>
+            ${part.prompt ? `
+              <div class="media-prompt">
+                <span class="prompt-label">Prompt:</span>
+                <span class="prompt-text">${escapeHtml(part.prompt)}</span>
+              </div>
+            ` : ''}
+            ${part.revisedPrompt ? `
+              <div class="media-prompt revised">
+                <span class="prompt-label">Revised:</span>
+                <span class="prompt-text">${escapeHtml(part.revisedPrompt)}</span>
+              </div>
+            ` : ''}
+          </figcaption>
+        </figure>
+      `);
+    }
   }
   
   return partsContent.join('');
@@ -821,6 +904,145 @@ function getPdfStyles(opts: Required<PdfExportOptions>, fontSizeBase: string): s
       padding: 4px 10px;
       background: ${isLight ? '#f3f4f6' : '#374151'};
       border-radius: 6px;
+    }
+
+    /* Media Blocks (Images & Videos) */
+    .media-block {
+      margin: 18px 0;
+      border-radius: 10px;
+      overflow: hidden;
+      background: ${isLight ? '#f9fafb' : '#1f2937'};
+      border: 1px solid ${isLight ? '#e5e7eb' : '#374151'};
+      page-break-inside: avoid;
+    }
+
+    .media-block.ai-generated {
+      border: 2px solid ${isLight ? '#8b5cf6' : '#a78bfa'};
+    }
+
+    .ai-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: ${isLight ? '#f5f3ff' : 'rgba(139, 92, 246, 0.15)'};
+      font-size: 0.8em;
+      font-weight: 600;
+      color: ${isLight ? '#7c3aed' : '#a78bfa'};
+    }
+
+    .media-image {
+      display: block;
+      width: 100%;
+      max-height: 400px;
+      object-fit: contain;
+      background: ${isLight ? '#f3f4f6' : '#111827'};
+    }
+
+    .video-preview {
+      position: relative;
+      background: #000;
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .video-thumbnail {
+      width: 100%;
+      max-height: 300px;
+      object-fit: contain;
+    }
+
+    .video-placeholder {
+      font-size: 48px;
+      color: #6b7280;
+    }
+
+    .video-play-icon {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px;
+      height: 60px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 24px;
+    }
+
+    .video-link {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+    }
+
+    .video-link a {
+      padding: 6px 12px;
+      background: ${isLight ? '#3b82f6' : '#60a5fa'};
+      color: white;
+      border-radius: 6px;
+      font-size: 0.8em;
+      font-weight: 500;
+      text-decoration: none;
+    }
+
+    .media-caption {
+      padding: 12px 14px;
+    }
+
+    .caption-text {
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: ${isLight ? '#111827' : '#f9fafb'};
+    }
+
+    .media-dimensions {
+      font-size: 0.8em;
+      color: ${isLight ? '#6b7280' : '#9ca3af'};
+      margin-bottom: 6px;
+    }
+
+    .video-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 0.8em;
+      color: ${isLight ? '#6b7280' : '#9ca3af'};
+      margin-bottom: 8px;
+    }
+
+    .meta-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .media-prompt {
+      font-size: 0.85em;
+      padding: 8px 10px;
+      background: ${isLight ? '#f3f4f6' : '#111827'};
+      border-radius: 6px;
+      margin-top: 8px;
+    }
+
+    .media-prompt.revised {
+      border-left: 3px solid ${isLight ? '#8b5cf6' : '#a78bfa'};
+      font-style: italic;
+    }
+
+    .prompt-label {
+      font-weight: 600;
+      color: ${isLight ? '#6b7280' : '#9ca3af'};
+      margin-right: 6px;
+    }
+
+    .prompt-text {
+      color: ${isLight ? '#374151' : '#d1d5db'};
     }
 
     /* Document Footer */

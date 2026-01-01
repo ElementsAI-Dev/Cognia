@@ -88,6 +88,7 @@ pub struct SystemMonitor {
 
 impl SystemMonitor {
     pub fn new() -> Self {
+        log::debug!("Creating new SystemMonitor");
         Self {
             #[cfg(target_os = "windows")]
             _marker: std::marker::PhantomData,
@@ -97,7 +98,8 @@ impl SystemMonitor {
     /// Get current system state
     #[cfg(target_os = "windows")]
     pub fn get_state(&self) -> SystemState {
-        SystemState {
+        log::trace!("Retrieving system state");
+        let state = SystemState {
             cpu_usage: self.get_cpu_usage(),
             memory_used: self.get_memory_used(),
             memory_total: self.get_memory_total(),
@@ -109,7 +111,10 @@ impl SystemMonitor {
             process_count: self.get_process_count(),
             power_mode: self.get_power_mode(),
             displays: self.get_display_info(),
-        }
+        };
+        log::trace!("System state: cpu={:.1}%, mem={:.1}%, processes={}", 
+            state.cpu_usage, state.memory_percent, state.process_count);
+        state
     }
 
     #[cfg(target_os = "windows")]
@@ -247,7 +252,7 @@ impl SystemMonitor {
                 let is_charging = status.ACLineStatus == 1;
                 
                 let time_remaining = if status.BatteryLifeTime != 0xFFFFFFFF {
-                    Some((status.BatteryLifeTime / 60) as u32)
+                    Some(status.BatteryLifeTime / 60)
                 } else {
                     None
                 };
@@ -360,6 +365,7 @@ impl SystemMonitor {
     // Non-Windows implementations
     #[cfg(not(target_os = "windows"))]
     pub fn get_state(&self) -> SystemState {
+        log::trace!("Retrieving system state (non-Windows stub)");
         SystemState {
             cpu_usage: 0.0,
             memory_used: 0,
@@ -384,5 +390,392 @@ impl SystemMonitor {
 impl Default for SystemMonitor {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_system_monitor_new() {
+        let monitor = SystemMonitor::new();
+        // Should create without panicking
+        let _ = monitor;
+    }
+
+    #[test]
+    fn test_system_monitor_default() {
+        let monitor = SystemMonitor::default();
+        let _ = monitor;
+    }
+
+    #[test]
+    fn test_get_state() {
+        let monitor = SystemMonitor::new();
+        let state = monitor.get_state();
+        
+        // Memory total should be >= used
+        assert!(state.memory_total >= state.memory_used);
+        // Memory percent should be in valid range
+        assert!(state.memory_percent >= 0.0 && state.memory_percent <= 100.0);
+        // CPU usage should be in valid range
+        assert!(state.cpu_usage >= 0.0 && state.cpu_usage <= 100.0);
+    }
+
+    #[test]
+    fn test_system_state_serialization() {
+        let state = SystemState {
+            cpu_usage: 25.5,
+            memory_used: 8_000_000_000,
+            memory_total: 16_000_000_000,
+            memory_percent: 50.0,
+            disks: vec![DiskInfo {
+                name: "C:".to_string(),
+                mount_point: "C:\\".to_string(),
+                total_bytes: 500_000_000_000,
+                used_bytes: 250_000_000_000,
+                free_bytes: 250_000_000_000,
+                usage_percent: 50.0,
+            }],
+            network: NetworkState {
+                is_connected: true,
+                connection_type: "WiFi".to_string(),
+                bytes_sent: 1000,
+                bytes_received: 2000,
+            },
+            battery: Some(BatteryState {
+                percent: 75.0,
+                is_charging: true,
+                time_remaining_minutes: Some(120),
+            }),
+            uptime_seconds: 3600,
+            process_count: 150,
+            power_mode: PowerMode::Balanced,
+            displays: vec![DisplayInfo {
+                index: 0,
+                name: "Primary".to_string(),
+                width: 1920,
+                height: 1080,
+                refresh_rate: 60,
+                is_primary: true,
+                scale_factor: 1.0,
+            }],
+        };
+
+        let json = serde_json::to_string(&state);
+        assert!(json.is_ok());
+
+        let parsed: Result<SystemState, _> = serde_json::from_str(&json.unwrap());
+        assert!(parsed.is_ok());
+
+        let parsed_state = parsed.unwrap();
+        assert_eq!(parsed_state.cpu_usage, 25.5);
+        assert_eq!(parsed_state.memory_percent, 50.0);
+    }
+
+    #[test]
+    fn test_disk_info_serialization() {
+        let disk = DiskInfo {
+            name: "D:".to_string(),
+            mount_point: "D:\\".to_string(),
+            total_bytes: 1_000_000_000_000,
+            used_bytes: 500_000_000_000,
+            free_bytes: 500_000_000_000,
+            usage_percent: 50.0,
+        };
+
+        let json = serde_json::to_string(&disk);
+        assert!(json.is_ok());
+
+        let parsed: Result<DiskInfo, _> = serde_json::from_str(&json.unwrap());
+        assert!(parsed.is_ok());
+        assert_eq!(parsed.unwrap().name, "D:");
+    }
+
+    #[test]
+    fn test_network_state_serialization() {
+        let network = NetworkState {
+            is_connected: true,
+            connection_type: "Ethernet".to_string(),
+            bytes_sent: 1024,
+            bytes_received: 2048,
+        };
+
+        let json = serde_json::to_string(&network);
+        assert!(json.is_ok());
+
+        let parsed: Result<NetworkState, _> = serde_json::from_str(&json.unwrap());
+        assert!(parsed.is_ok());
+        assert!(parsed.unwrap().is_connected);
+    }
+
+    #[test]
+    fn test_battery_state_serialization() {
+        let battery = BatteryState {
+            percent: 80.0,
+            is_charging: false,
+            time_remaining_minutes: Some(90),
+        };
+
+        let json = serde_json::to_string(&battery);
+        assert!(json.is_ok());
+
+        let parsed: Result<BatteryState, _> = serde_json::from_str(&json.unwrap());
+        assert!(parsed.is_ok());
+        assert_eq!(parsed.unwrap().percent, 80.0);
+    }
+
+    #[test]
+    fn test_battery_state_no_time_remaining() {
+        let battery = BatteryState {
+            percent: 100.0,
+            is_charging: true,
+            time_remaining_minutes: None,
+        };
+
+        let json = serde_json::to_string(&battery);
+        assert!(json.is_ok());
+
+        let parsed: Result<BatteryState, _> = serde_json::from_str(&json.unwrap());
+        assert!(parsed.is_ok());
+        assert!(parsed.unwrap().time_remaining_minutes.is_none());
+    }
+
+    #[test]
+    fn test_power_mode_serialization() {
+        let modes = vec![
+            PowerMode::HighPerformance,
+            PowerMode::Balanced,
+            PowerMode::PowerSaver,
+            PowerMode::Unknown,
+        ];
+
+        for mode in modes {
+            let json = serde_json::to_string(&mode);
+            assert!(json.is_ok());
+
+            let parsed: Result<PowerMode, _> = serde_json::from_str(&json.unwrap());
+            assert!(parsed.is_ok());
+        }
+    }
+
+    #[test]
+    fn test_power_mode_equality() {
+        assert_eq!(PowerMode::Balanced, PowerMode::Balanced);
+        assert_ne!(PowerMode::Balanced, PowerMode::PowerSaver);
+        assert_ne!(PowerMode::HighPerformance, PowerMode::Unknown);
+    }
+
+    #[test]
+    fn test_display_info_serialization() {
+        let display = DisplayInfo {
+            index: 0,
+            name: "DISPLAY1".to_string(),
+            width: 2560,
+            height: 1440,
+            refresh_rate: 144,
+            is_primary: true,
+            scale_factor: 1.25,
+        };
+
+        let json = serde_json::to_string(&display);
+        assert!(json.is_ok());
+
+        let parsed: Result<DisplayInfo, _> = serde_json::from_str(&json.unwrap());
+        assert!(parsed.is_ok());
+        
+        let parsed_display = parsed.unwrap();
+        assert_eq!(parsed_display.width, 2560);
+        assert_eq!(parsed_display.height, 1440);
+        assert!(parsed_display.is_primary);
+    }
+
+    #[test]
+    fn test_system_state_clone() {
+        let state = SystemState {
+            cpu_usage: 30.0,
+            memory_used: 4_000_000_000,
+            memory_total: 8_000_000_000,
+            memory_percent: 50.0,
+            disks: Vec::new(),
+            network: NetworkState {
+                is_connected: false,
+                connection_type: "None".to_string(),
+                bytes_sent: 0,
+                bytes_received: 0,
+            },
+            battery: None,
+            uptime_seconds: 7200,
+            process_count: 50,
+            power_mode: PowerMode::PowerSaver,
+            displays: Vec::new(),
+        };
+
+        let cloned = state.clone();
+        assert_eq!(cloned.cpu_usage, state.cpu_usage);
+        assert_eq!(cloned.memory_percent, state.memory_percent);
+        assert_eq!(cloned.uptime_seconds, state.uptime_seconds);
+    }
+
+    #[test]
+    fn test_system_state_debug() {
+        let state = SystemState {
+            cpu_usage: 10.0,
+            memory_used: 1_000_000_000,
+            memory_total: 2_000_000_000,
+            memory_percent: 50.0,
+            disks: Vec::new(),
+            network: NetworkState {
+                is_connected: true,
+                connection_type: "WiFi".to_string(),
+                bytes_sent: 0,
+                bytes_received: 0,
+            },
+            battery: None,
+            uptime_seconds: 100,
+            process_count: 10,
+            power_mode: PowerMode::Balanced,
+            displays: Vec::new(),
+        };
+
+        let debug_str = format!("{:?}", state);
+        assert!(debug_str.contains("cpu_usage"));
+        assert!(debug_str.contains("memory_percent"));
+    }
+
+    #[test]
+    fn test_disk_info_clone() {
+        let disk = DiskInfo {
+            name: "E:".to_string(),
+            mount_point: "E:\\".to_string(),
+            total_bytes: 100,
+            used_bytes: 50,
+            free_bytes: 50,
+            usage_percent: 50.0,
+        };
+
+        let cloned = disk.clone();
+        assert_eq!(cloned.name, disk.name);
+        assert_eq!(cloned.total_bytes, disk.total_bytes);
+    }
+
+    #[test]
+    fn test_network_state_clone() {
+        let network = NetworkState {
+            is_connected: true,
+            connection_type: "5G".to_string(),
+            bytes_sent: 500,
+            bytes_received: 1000,
+        };
+
+        let cloned = network.clone();
+        assert_eq!(cloned.connection_type, "5G");
+        assert_eq!(cloned.bytes_received, 1000);
+    }
+
+    #[test]
+    fn test_display_info_clone() {
+        let display = DisplayInfo {
+            index: 1,
+            name: "Secondary".to_string(),
+            width: 1920,
+            height: 1080,
+            refresh_rate: 60,
+            is_primary: false,
+            scale_factor: 1.0,
+        };
+
+        let cloned = display.clone();
+        assert_eq!(cloned.index, 1);
+        assert!(!cloned.is_primary);
+    }
+
+    #[test]
+    fn test_system_state_with_multiple_disks() {
+        let state = SystemState {
+            cpu_usage: 0.0,
+            memory_used: 0,
+            memory_total: 0,
+            memory_percent: 0.0,
+            disks: vec![
+                DiskInfo {
+                    name: "C:".to_string(),
+                    mount_point: "C:\\".to_string(),
+                    total_bytes: 500_000_000_000,
+                    used_bytes: 250_000_000_000,
+                    free_bytes: 250_000_000_000,
+                    usage_percent: 50.0,
+                },
+                DiskInfo {
+                    name: "D:".to_string(),
+                    mount_point: "D:\\".to_string(),
+                    total_bytes: 1_000_000_000_000,
+                    used_bytes: 100_000_000_000,
+                    free_bytes: 900_000_000_000,
+                    usage_percent: 10.0,
+                },
+            ],
+            network: NetworkState {
+                is_connected: true,
+                connection_type: "WiFi".to_string(),
+                bytes_sent: 0,
+                bytes_received: 0,
+            },
+            battery: None,
+            uptime_seconds: 0,
+            process_count: 0,
+            power_mode: PowerMode::Balanced,
+            displays: Vec::new(),
+        };
+
+        assert_eq!(state.disks.len(), 2);
+        assert_eq!(state.disks[0].name, "C:");
+        assert_eq!(state.disks[1].name, "D:");
+    }
+
+    #[test]
+    fn test_system_state_with_multiple_displays() {
+        let state = SystemState {
+            cpu_usage: 0.0,
+            memory_used: 0,
+            memory_total: 0,
+            memory_percent: 0.0,
+            disks: Vec::new(),
+            network: NetworkState {
+                is_connected: true,
+                connection_type: "Ethernet".to_string(),
+                bytes_sent: 0,
+                bytes_received: 0,
+            },
+            battery: None,
+            uptime_seconds: 0,
+            process_count: 0,
+            power_mode: PowerMode::HighPerformance,
+            displays: vec![
+                DisplayInfo {
+                    index: 0,
+                    name: "Primary".to_string(),
+                    width: 2560,
+                    height: 1440,
+                    refresh_rate: 165,
+                    is_primary: true,
+                    scale_factor: 1.0,
+                },
+                DisplayInfo {
+                    index: 1,
+                    name: "Secondary".to_string(),
+                    width: 1920,
+                    height: 1080,
+                    refresh_rate: 60,
+                    is_primary: false,
+                    scale_factor: 1.0,
+                },
+            ],
+        };
+
+        assert_eq!(state.displays.len(), 2);
+        assert!(state.displays[0].is_primary);
+        assert!(!state.displays[1].is_primary);
     }
 }

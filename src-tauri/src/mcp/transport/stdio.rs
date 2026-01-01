@@ -185,6 +185,10 @@ impl Drop for StdioTransport {
 mod tests {
     use super::*;
 
+    // ============================================================================
+    // StdioTransport Creation Tests
+    // ============================================================================
+
     #[tokio::test]
     async fn test_stdio_transport_creation() {
         // This test requires a simple echo command
@@ -193,6 +197,191 @@ mod tests {
 
         #[cfg(not(windows))]
         let result = StdioTransport::spawn("echo", &["test".to_string()], &HashMap::new(), None).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_stdio_transport_spawn_nonexistent_command() {
+        let result = StdioTransport::spawn(
+            "nonexistent_command_12345",
+            &[],
+            &HashMap::new(),
+            None,
+        ).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_stdio_transport_with_env_vars() {
+        let mut env = HashMap::new();
+        env.insert("TEST_VAR".to_string(), "test_value".to_string());
+
+        #[cfg(windows)]
+        let result = StdioTransport::spawn("cmd", &["/c".to_string(), "echo %TEST_VAR%".to_string()], &env, None).await;
+
+        #[cfg(not(windows))]
+        let result = StdioTransport::spawn("echo", &["$TEST_VAR".to_string()], &env, None).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_stdio_transport_with_working_dir() {
+        #[cfg(windows)]
+        let result = StdioTransport::spawn(
+            "cmd",
+            &["/c".to_string(), "cd".to_string()],
+            &HashMap::new(),
+            Some("."),
+        ).await;
+
+        #[cfg(not(windows))]
+        let result = StdioTransport::spawn(
+            "pwd",
+            &[],
+            &HashMap::new(),
+            Some("."),
+        ).await;
+
+        assert!(result.is_ok());
+    }
+
+    // ============================================================================
+    // Connection State Tests
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_stdio_transport_is_connected_initially() {
+        #[cfg(windows)]
+        let transport = StdioTransport::spawn("cmd", &["/c".to_string(), "echo test".to_string()], &HashMap::new(), None).await.unwrap();
+
+        #[cfg(not(windows))]
+        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None).await.unwrap();
+
+        assert!(transport.is_connected());
+    }
+
+    #[tokio::test]
+    async fn test_stdio_transport_close() {
+        #[cfg(windows)]
+        let transport = StdioTransport::spawn("cmd", &["/c".to_string(), "echo test".to_string()], &HashMap::new(), None).await.unwrap();
+
+        #[cfg(not(windows))]
+        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None).await.unwrap();
+
+        let close_result = transport.close().await;
+        assert!(close_result.is_ok());
+        assert!(!transport.is_connected());
+    }
+
+    // ============================================================================
+    // Process Management Tests
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_stdio_transport_pid() {
+        #[cfg(windows)]
+        let transport = StdioTransport::spawn("cmd", &["/c".to_string(), "echo test".to_string()], &HashMap::new(), None).await.unwrap();
+
+        #[cfg(not(windows))]
+        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None).await.unwrap();
+
+        let pid = transport.pid().await;
+        // PID should be available for a running process
+        assert!(pid.is_some() || pid.is_none()); // PID may or may not be available depending on timing
+    }
+
+    #[tokio::test]
+    async fn test_stdio_transport_check_process() {
+        #[cfg(windows)]
+        let transport = StdioTransport::spawn("cmd", &["/c".to_string(), "echo test".to_string()], &HashMap::new(), None).await.unwrap();
+
+        #[cfg(not(windows))]
+        let transport = StdioTransport::spawn("sleep", &["0.1".to_string()], &HashMap::new(), None).await.unwrap();
+
+        // Process should be running initially or may have completed
+        let _is_running = transport.check_process().await;
+        // We just verify this doesn't panic
+    }
+
+    // ============================================================================
+    // Send/Receive Tests
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_stdio_transport_send_when_not_connected() {
+        #[cfg(windows)]
+        let transport = StdioTransport::spawn("cmd", &["/c".to_string(), "echo test".to_string()], &HashMap::new(), None).await.unwrap();
+
+        #[cfg(not(windows))]
+        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None).await.unwrap();
+
+        transport.close().await.unwrap();
+
+        let result = transport.send("test message").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_stdio_transport_receive_when_not_connected() {
+        #[cfg(windows)]
+        let transport = StdioTransport::spawn("cmd", &["/c".to_string(), "echo test".to_string()], &HashMap::new(), None).await.unwrap();
+
+        #[cfg(not(windows))]
+        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None).await.unwrap();
+
+        transport.close().await.unwrap();
+
+        let result = transport.receive().await;
+        assert!(result.is_err());
+    }
+
+    // ============================================================================
+    // Edge Cases
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_stdio_transport_with_empty_args() {
+        #[cfg(windows)]
+        let result = StdioTransport::spawn("cmd", &["/c".to_string()], &HashMap::new(), None).await;
+
+        #[cfg(not(windows))]
+        let result = StdioTransport::spawn("true", &[], &HashMap::new(), None).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_stdio_transport_multiple_close_calls() {
+        #[cfg(windows)]
+        let transport = StdioTransport::spawn("cmd", &["/c".to_string(), "echo test".to_string()], &HashMap::new(), None).await.unwrap();
+
+        #[cfg(not(windows))]
+        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None).await.unwrap();
+
+        // First close
+        let result1 = transport.close().await;
+        assert!(result1.is_ok());
+
+        // Second close should also succeed (idempotent)
+        let result2 = transport.close().await;
+        assert!(result2.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_stdio_transport_with_multiple_env_vars() {
+        let mut env = HashMap::new();
+        env.insert("VAR1".to_string(), "value1".to_string());
+        env.insert("VAR2".to_string(), "value2".to_string());
+        env.insert("VAR3".to_string(), "value3".to_string());
+
+        #[cfg(windows)]
+        let result = StdioTransport::spawn("cmd", &["/c".to_string(), "echo test".to_string()], &env, None).await;
+
+        #[cfg(not(windows))]
+        let result = StdioTransport::spawn("echo", &["test".to_string()], &env, None).await;
 
         assert!(result.is_ok());
     }

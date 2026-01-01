@@ -2,13 +2,15 @@
  * Embedding utilities using AI SDK
  * 
  * Features:
- * - Multi-provider support (OpenAI, Google, Cohere, Mistral)
+ * - Multi-provider support (OpenAI, Google, Cohere, Mistral, Amazon Bedrock, Azure)
  * - In-memory caching for repeated embeddings
  * - Batch processing with automatic chunking
- * - Similarity calculations (cosine, euclidean, dot product)
+ * - Parallel request control with maxParallelCalls
+ * - Similarity calculations using AI SDK cosineSimilarity
+ * - Provider-specific options support
  */
 
-import { embed, embedMany } from 'ai';
+import { embed, embedMany, cosineSimilarity as aiCosineSimilarity } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createCohere } from '@ai-sdk/cohere';
@@ -16,13 +18,63 @@ import { createMistral } from '@ai-sdk/mistral';
 import type { ProviderName } from '@/types/provider';
 import { generateOllamaEmbedding } from './ollama';
 
+// Re-export cosineSimilarity from AI SDK for consistent usage
+export { cosineSimilarity as aiCosineSimilarity } from 'ai';
+
+/**
+ * Embedding-specific provider names (superset of chat providers)
+ * Includes providers that only support embeddings
+ */
+export type EmbeddingProviderName = ProviderName | 'azure' | 'amazon-bedrock' | 'voyage';
+
+/**
+ * Provider-specific options for embedding models
+ */
+export interface EmbeddingProviderOptions {
+  /** OpenAI/Azure specific options */
+  openai?: {
+    dimensions?: number;
+    user?: string;
+  };
+  /** Google specific options */
+  google?: {
+    outputDimensionality?: number;
+    taskType?: 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY' | 'SEMANTIC_SIMILARITY' | 'CLASSIFICATION' | 'CLUSTERING';
+  };
+  /** Cohere specific options */
+  cohere?: {
+    inputType?: 'search_document' | 'search_query' | 'classification' | 'clustering';
+    truncate?: 'NONE' | 'START' | 'END';
+  };
+  /** Amazon Bedrock specific options */
+  bedrock?: {
+    dimensions?: number;
+    normalize?: boolean;
+  };
+}
+
 export interface EmbeddingConfig {
-  provider: ProviderName;
+  provider: EmbeddingProviderName;
   model?: string;
   apiKey: string;
   baseURL?: string; // For Ollama and custom providers
   dimensions?: number;
   cache?: EmbeddingCache;
+  /** Maximum number of parallel requests for batch embedding */
+  maxParallelCalls?: number;
+  /** Maximum number of retries (default: 2) */
+  maxRetries?: number;
+  /** Abort signal for cancellation */
+  abortSignal?: AbortSignal;
+  /** Provider-specific options */
+  providerOptions?: EmbeddingProviderOptions;
+  /** Error callback */
+  onError?: (error: Error) => void;
+  // Azure specific
+  resourceName?: string;
+  apiVersion?: string;
+  // Amazon Bedrock specific  
+  region?: string;
 }
 
 /**
@@ -109,12 +161,15 @@ export interface BatchEmbeddingResult {
 /**
  * Default embedding models for each provider
  */
-export const defaultEmbeddingModels: Partial<Record<ProviderName, string>> = {
+export const defaultEmbeddingModels: Partial<Record<EmbeddingProviderName, string>> = {
   openai: 'text-embedding-3-small',
   google: 'text-embedding-004',
   cohere: 'embed-english-v3.0',
   mistral: 'mistral-embed',
   ollama: 'nomic-embed-text',
+  // Additional embedding-only providers
+  azure: 'text-embedding-3-small',
+  'amazon-bedrock': 'amazon.titan-embed-text-v2:0',
 };
 
 /**
@@ -190,23 +245,32 @@ export async function generateEmbedding(
   // Standard AI SDK providers
   const model = getEmbeddingModel(config);
 
-  const result = await embed({
-    model,
-    value: text,
-  });
+  try {
+    const result = await embed({
+      model,
+      value: text,
+      maxRetries: config.maxRetries ?? 2,
+      abortSignal: config.abortSignal,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      providerOptions: config.providerOptions as any,
+    });
 
-  embedding = result.embedding;
+    embedding = result.embedding;
 
-  // Store in cache
-  if (config.cache) {
-    const cacheKey = getCacheKey(text, config);
-    config.cache.set(cacheKey, embedding);
+    // Store in cache
+    if (config.cache) {
+      const cacheKey = getCacheKey(text, config);
+      config.cache.set(cacheKey, embedding);
+    }
+
+    return {
+      embedding,
+      usage: result.usage ? { tokens: result.usage.tokens } : undefined,
+    };
+  } catch (error) {
+    config.onError?.(error instanceof Error ? error : new Error(String(error)));
+    throw error;
   }
-
-  return {
-    embedding,
-    usage: result.usage ? { tokens: result.usage.tokens } : undefined,
-  };
 }
 
 /**
@@ -265,10 +329,17 @@ export async function generateEmbeddings(
 
   // Generate embeddings for uncached texts using AI SDK
   const model = getEmbeddingModel(config);
-  const result = await embedMany({
-    model,
-    values: textsToEmbed.map((t) => t.text),
-  });
+  
+  try {
+    const result = await embedMany({
+      model,
+      values: textsToEmbed.map((t) => t.text),
+      maxRetries: config.maxRetries ?? 2,
+      maxParallelCalls: config.maxParallelCalls ?? 5,
+      abortSignal: config.abortSignal,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      providerOptions: config.providerOptions as any,
+    });
 
   // Merge results and update cache
   for (let i = 0; i < textsToEmbed.length; i++) {
@@ -282,10 +353,14 @@ export async function generateEmbeddings(
     }
   }
 
-  return {
-    embeddings: results as number[][],
-    usage: result.usage ? { tokens: result.usage.tokens } : undefined,
-  };
+    return {
+      embeddings: results as number[][],
+      usage: result.usage ? { tokens: result.usage.tokens } : undefined,
+    };
+  } catch (error) {
+    config.onError?.(error instanceof Error ? error : new Error(String(error)));
+    throw error;
+  }
 }
 
 /**
@@ -316,24 +391,11 @@ export async function generateEmbeddingsBatched(
 
 /**
  * Calculate cosine similarity between two embeddings
+ * Uses AI SDK's cosineSimilarity for consistency
+ * @returns A number between -1 and 1, where 1 indicates identical vectors
  */
 export function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) {
-    throw new Error('Embeddings must have the same length');
-  }
-
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-
-  for (let i = 0; i < a.length; i++) {
-    dotProduct += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-
-  const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
-  return magnitude === 0 ? 0 : dotProduct / magnitude;
+  return aiCosineSimilarity(a, b);
 }
 
 /**
@@ -433,6 +495,12 @@ export const embeddingDimensions: Record<string, number> = {
   'embed-multilingual-light-v3.0': 384,
   // Mistral models
   'mistral-embed': 1024,
+  // Amazon Bedrock models
+  'amazon.titan-embed-text-v2:0': 1024,
+  'amazon.titan-embed-text-v1': 1536,
+  // Azure (same as OpenAI)
+  'azure-text-embedding-3-small': 1536,
+  'azure-text-embedding-3-large': 3072,
 };
 
 /**

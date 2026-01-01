@@ -298,3 +298,218 @@ impl Default for SelectionDetector {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_detector() {
+        let detector = SelectionDetector::new();
+        assert!(detector.get_last_text().is_none());
+    }
+
+    #[test]
+    fn test_default_impl() {
+        let detector = SelectionDetector::default();
+        assert!(detector.get_last_text().is_none());
+    }
+
+    #[test]
+    fn test_initial_stats() {
+        let detector = SelectionDetector::new();
+        let (attempts, successes) = detector.get_stats();
+        assert_eq!(attempts, 0);
+        assert_eq!(successes, 0);
+    }
+
+    #[test]
+    fn test_time_since_last_detection_initial() {
+        let detector = SelectionDetector::new();
+        assert!(detector.time_since_last_detection().is_none());
+    }
+
+    #[test]
+    fn test_clear_last_text() {
+        let detector = SelectionDetector::new();
+        
+        // Initially no text
+        assert!(detector.get_last_text().is_none());
+        
+        // Manually set some state for testing
+        *detector.last_text.write() = Some("test text".to_string());
+        assert_eq!(detector.get_last_text(), Some("test text".to_string()));
+        
+        // Clear it
+        detector.clear_last_text();
+        assert!(detector.get_last_text().is_none());
+    }
+
+    #[test]
+    fn test_record_successful_detection() {
+        let detector = SelectionDetector::new();
+        
+        // Record a detection
+        detector.record_successful_detection("detected text".to_string());
+        
+        // Verify stats updated
+        let (_, successes) = detector.get_stats();
+        assert_eq!(successes, 1);
+        
+        // Verify last text updated
+        assert_eq!(detector.get_last_text(), Some("detected text".to_string()));
+        
+        // Verify time since last detection is Some
+        assert!(detector.time_since_last_detection().is_some());
+    }
+
+    #[test]
+    fn test_multiple_successful_detections() {
+        let detector = SelectionDetector::new();
+        
+        detector.record_successful_detection("first".to_string());
+        detector.record_successful_detection("second".to_string());
+        detector.record_successful_detection("third".to_string());
+        
+        let (_, successes) = detector.get_stats();
+        assert_eq!(successes, 3);
+        
+        // Last text should be the most recent
+        assert_eq!(detector.get_last_text(), Some("third".to_string()));
+    }
+
+    #[test]
+    fn test_detection_attempts_counter() {
+        let detector = SelectionDetector::new();
+        
+        // Simulate detection attempts (normally done via get_selected_text)
+        detector.detection_attempts.fetch_add(1, Ordering::Relaxed);
+        detector.detection_attempts.fetch_add(1, Ordering::Relaxed);
+        detector.detection_attempts.fetch_add(1, Ordering::Relaxed);
+        
+        let (attempts, _) = detector.get_stats();
+        assert_eq!(attempts, 3);
+    }
+
+    #[test]
+    fn test_last_detection_time_updates() {
+        let detector = SelectionDetector::new();
+        
+        // Initially no detection time
+        assert!(detector.last_detection_time.read().is_none());
+        
+        // Record detection
+        detector.record_successful_detection("test".to_string());
+        
+        // Detection time should be set
+        assert!(detector.last_detection_time.read().is_some());
+        
+        // Time since detection should be very small (less than 1 second)
+        let duration = detector.time_since_last_detection().unwrap();
+        assert!(duration.as_secs() < 1);
+    }
+
+    #[test]
+    fn test_get_last_text_clones_value() {
+        let detector = SelectionDetector::new();
+        
+        *detector.last_text.write() = Some("original".to_string());
+        
+        let text1 = detector.get_last_text();
+        let text2 = detector.get_last_text();
+        
+        // Both should be equal (cloned)
+        assert_eq!(text1, text2);
+        assert_eq!(text1, Some("original".to_string()));
+    }
+
+    #[test]
+    fn test_stats_are_atomic() {
+        let detector = SelectionDetector::new();
+        
+        // Simulate concurrent access pattern
+        for _ in 0..100 {
+            detector.detection_attempts.fetch_add(1, Ordering::Relaxed);
+        }
+        
+        for _ in 0..50 {
+            detector.successful_detections.fetch_add(1, Ordering::Relaxed);
+        }
+        
+        let (attempts, successes) = detector.get_stats();
+        assert_eq!(attempts, 100);
+        assert_eq!(successes, 50);
+    }
+
+    #[test]
+    fn test_clear_and_record_cycle() {
+        let detector = SelectionDetector::new();
+        
+        // Record -> Clear -> Record cycle
+        detector.record_successful_detection("first".to_string());
+        assert_eq!(detector.get_last_text(), Some("first".to_string()));
+        
+        detector.clear_last_text();
+        assert!(detector.get_last_text().is_none());
+        
+        detector.record_successful_detection("second".to_string());
+        assert_eq!(detector.get_last_text(), Some("second".to_string()));
+        
+        // Stats should accumulate
+        let (_, successes) = detector.get_stats();
+        assert_eq!(successes, 2);
+    }
+
+    #[test]
+    fn test_empty_string_detection() {
+        let detector = SelectionDetector::new();
+        
+        // Recording empty string is technically valid
+        detector.record_successful_detection("".to_string());
+        
+        assert_eq!(detector.get_last_text(), Some("".to_string()));
+        let (_, successes) = detector.get_stats();
+        assert_eq!(successes, 1);
+    }
+
+    #[test]
+    fn test_unicode_text_detection() {
+        let detector = SelectionDetector::new();
+        
+        // Test with various unicode characters
+        detector.record_successful_detection("你好世界 🌍 émoji".to_string());
+        
+        assert_eq!(detector.get_last_text(), Some("你好世界 🌍 émoji".to_string()));
+    }
+
+    #[test]
+    fn test_long_text_detection() {
+        let detector = SelectionDetector::new();
+        
+        // Test with a long string
+        let long_text = "a".repeat(10000);
+        detector.record_successful_detection(long_text.clone());
+        
+        assert_eq!(detector.get_last_text(), Some(long_text));
+    }
+
+    #[test]
+    fn test_multiline_text_detection() {
+        let detector = SelectionDetector::new();
+        
+        let multiline = "Line 1\nLine 2\nLine 3\r\nLine 4";
+        detector.record_successful_detection(multiline.to_string());
+        
+        assert_eq!(detector.get_last_text(), Some(multiline.to_string()));
+    }
+
+    #[test]
+    fn test_special_characters_detection() {
+        let detector = SelectionDetector::new();
+        
+        let special = "Tab:\t Null:\0 Quote:\" Backslash:\\";
+        detector.record_successful_detection(special.to_string());
+        
+        assert_eq!(detector.get_last_text(), Some(special.to_string()));
+    }
+}

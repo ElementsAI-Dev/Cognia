@@ -102,3 +102,6 @@ export {
   type ProviderHealth,
   type ProviderHealthStatus,
 } from './provider-context';
+
+// Locale initialization
+export { LocaleInitializer } from './locale-initializer';

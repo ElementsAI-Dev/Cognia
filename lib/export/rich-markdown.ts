@@ -184,10 +184,95 @@ function renderMessageParts(parts: MessagePart[]): string {
         lines.push(renderSources(part.sources));
         break;
 
-      case 'image':
-        lines.push(`![${part.alt || 'Image'}](${part.url})`);
+      case 'image': {
+        const imageSrc = part.base64 
+          ? `data:${part.mimeType || 'image/png'};base64,${part.base64}`
+          : part.url;
+        const isGenerated = part.isGenerated;
+        
+        if (isGenerated) {
+          lines.push('> ✨ **AI Generated Image**');
+          lines.push('');
+        }
+        lines.push(`![${part.alt || 'Image'}](${imageSrc})`);
+        if (part.width && part.height) {
+          lines.push(`*${part.width}×${part.height}*`);
+        }
+        if (part.prompt) {
+          lines.push('');
+          lines.push('<details>');
+          lines.push('<summary>View prompt</summary>');
+          lines.push('');
+          lines.push(`> ${part.prompt}`);
+          if (part.revisedPrompt) {
+            lines.push('');
+            lines.push(`> **Revised:** ${part.revisedPrompt}`);
+          }
+          lines.push('');
+          lines.push('</details>');
+        }
         lines.push('');
         break;
+      }
+
+      case 'video': {
+        const isGenerated = part.isGenerated;
+        const videoSrc = part.url || (part.base64 ? '[Base64 Video Data]' : '');
+        
+        if (isGenerated) {
+          lines.push(`> 🎬 **AI Generated Video**${part.provider ? ` (${part.provider})` : ''}${part.model ? ` - ${part.model}` : ''}`);
+          lines.push('');
+        }
+        
+        lines.push(`🎥 **Video:** ${part.title || 'Untitled Video'}`);
+        lines.push('');
+        
+        // Video metadata
+        const metaParts: string[] = [];
+        if (part.durationSeconds) {
+          const mins = Math.floor(part.durationSeconds / 60);
+          const secs = Math.floor(part.durationSeconds % 60);
+          metaParts.push(`⏱️ ${mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`}`);
+        }
+        if (part.width && part.height) {
+          metaParts.push(`📐 ${part.width}×${part.height}`);
+        }
+        if (part.fps) {
+          metaParts.push(`🎞️ ${part.fps}fps`);
+        }
+        if (metaParts.length > 0) {
+          lines.push(`*${metaParts.join(' • ')}*`);
+          lines.push('');
+        }
+        
+        // Video link if URL available
+        if (part.url) {
+          lines.push(`[▶️ Play Video](${videoSrc})`);
+          lines.push('');
+        }
+        
+        // Thumbnail if available
+        if (part.thumbnailUrl) {
+          lines.push(`![Video Thumbnail](${part.thumbnailUrl})`);
+          lines.push('');
+        }
+        
+        // Prompt details
+        if (part.prompt) {
+          lines.push('<details>');
+          lines.push('<summary>View prompt</summary>');
+          lines.push('');
+          lines.push(`> ${part.prompt}`);
+          if (part.revisedPrompt) {
+            lines.push('');
+            lines.push(`> **Revised:** ${part.revisedPrompt}`);
+          }
+          lines.push('');
+          lines.push('</details>');
+        }
+        lines.push('');
+        break;
+      }
 
       case 'file':
         lines.push(`📎 **Attachment:** [${part.attachment.name}](${part.attachment.url})`);

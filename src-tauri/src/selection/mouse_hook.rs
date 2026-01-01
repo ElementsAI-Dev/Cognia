@@ -215,3 +215,322 @@ fn get_mouse_position() -> (f64, f64) {
         mouse_position::mouse_position::Mouse::Error => (0.0, 0.0),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_mouse_hook() {
+        let hook = MouseHook::new();
+        assert!(!hook.is_running());
+    }
+
+    #[test]
+    fn test_default_impl() {
+        let hook = MouseHook::default();
+        assert!(!hook.is_running());
+    }
+
+    #[test]
+    fn test_initial_state() {
+        let hook = MouseHook::new();
+        
+        // Should not be running initially
+        assert!(!hook.is_running.load(Ordering::SeqCst));
+        assert!(!hook.stop_requested.load(Ordering::SeqCst));
+        assert!(!hook.left_button_down.load(Ordering::SeqCst));
+        
+        // Click count should be 0
+        assert_eq!(*hook.click_count.read(), 0);
+        
+        // Last position should be (0, 0)
+        assert_eq!(*hook.last_position.read(), (0.0, 0.0));
+        
+        // No event sender initially
+        assert!(hook.event_tx.read().is_none());
+    }
+
+    #[test]
+    fn test_set_event_sender() {
+        let hook = MouseHook::new();
+        let (tx, _rx) = mpsc::unbounded_channel::<MouseEvent>();
+        
+        // Initially no sender
+        assert!(hook.event_tx.read().is_none());
+        
+        // Set sender
+        hook.set_event_sender(tx);
+        
+        // Should have sender now
+        assert!(hook.event_tx.read().is_some());
+    }
+
+    #[test]
+    fn test_reset() {
+        let hook = MouseHook::new();
+        
+        // Modify state
+        *hook.click_count.write() = 5;
+        hook.left_button_down.store(true, Ordering::SeqCst);
+        *hook.last_position.write() = (100.0, 200.0);
+        
+        // Reset
+        hook.reset();
+        
+        // Verify reset state
+        assert_eq!(*hook.click_count.read(), 0);
+        assert!(!hook.left_button_down.load(Ordering::SeqCst));
+        assert_eq!(*hook.last_position.read(), (0.0, 0.0));
+    }
+
+    #[test]
+    fn test_stop_when_not_running() {
+        let hook = MouseHook::new();
+        
+        // Should not error when stopping a non-running hook
+        let result = hook.stop();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_stop_clears_event_sender() {
+        let hook = MouseHook::new();
+        let (tx, _rx) = mpsc::unbounded_channel::<MouseEvent>();
+        
+        // Set sender
+        hook.set_event_sender(tx);
+        assert!(hook.event_tx.read().is_some());
+        
+        // Simulate running state
+        hook.is_running.store(true, Ordering::SeqCst);
+        
+        // Stop
+        let _ = hook.stop();
+        
+        // Sender should be cleared
+        assert!(hook.event_tx.read().is_none());
+    }
+
+    #[test]
+    fn test_stop_resets_click_state() {
+        let hook = MouseHook::new();
+        
+        // Modify click state
+        *hook.click_count.write() = 3;
+        hook.left_button_down.store(true, Ordering::SeqCst);
+        
+        // Simulate running state
+        hook.is_running.store(true, Ordering::SeqCst);
+        
+        // Stop
+        let _ = hook.stop();
+        
+        // Click state should be reset
+        assert_eq!(*hook.click_count.read(), 0);
+        assert!(!hook.left_button_down.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn test_stop_sets_flags() {
+        let hook = MouseHook::new();
+        
+        // Simulate running state
+        hook.is_running.store(true, Ordering::SeqCst);
+        
+        // Stop
+        let _ = hook.stop();
+        
+        // Flags should be set
+        assert!(hook.stop_requested.load(Ordering::SeqCst));
+        assert!(!hook.is_running.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn test_mouse_event_left_button_up() {
+        let event = MouseEvent::LeftButtonUp { x: 100.0, y: 200.0 };
+        
+        match event {
+            MouseEvent::LeftButtonUp { x, y } => {
+                assert_eq!(x, 100.0);
+                assert_eq!(y, 200.0);
+            }
+            _ => panic!("Wrong event type"),
+        }
+    }
+
+    #[test]
+    fn test_mouse_event_double_click() {
+        let event = MouseEvent::DoubleClick { x: 150.0, y: 250.0 };
+        
+        match event {
+            MouseEvent::DoubleClick { x, y } => {
+                assert_eq!(x, 150.0);
+                assert_eq!(y, 250.0);
+            }
+            _ => panic!("Wrong event type"),
+        }
+    }
+
+    #[test]
+    fn test_mouse_event_triple_click() {
+        let event = MouseEvent::TripleClick { x: 200.0, y: 300.0 };
+        
+        match event {
+            MouseEvent::TripleClick { x, y } => {
+                assert_eq!(x, 200.0);
+                assert_eq!(y, 300.0);
+            }
+            _ => panic!("Wrong event type"),
+        }
+    }
+
+    #[test]
+    fn test_mouse_event_drag_end() {
+        let event = MouseEvent::DragEnd { 
+            x: 300.0, 
+            y: 400.0, 
+            start_x: 100.0, 
+            start_y: 200.0 
+        };
+        
+        match event {
+            MouseEvent::DragEnd { x, y, start_x, start_y } => {
+                assert_eq!(x, 300.0);
+                assert_eq!(y, 400.0);
+                assert_eq!(start_x, 100.0);
+                assert_eq!(start_y, 200.0);
+            }
+            _ => panic!("Wrong event type"),
+        }
+    }
+
+    #[test]
+    fn test_mouse_event_clone() {
+        let event = MouseEvent::LeftButtonUp { x: 100.0, y: 200.0 };
+        let cloned = event.clone();
+        
+        match (event, cloned) {
+            (MouseEvent::LeftButtonUp { x: x1, y: y1 }, MouseEvent::LeftButtonUp { x: x2, y: y2 }) => {
+                assert_eq!(x1, x2);
+                assert_eq!(y1, y2);
+            }
+            _ => panic!("Clone failed"),
+        }
+    }
+
+    #[test]
+    fn test_mouse_event_debug() {
+        let event = MouseEvent::LeftButtonUp { x: 100.0, y: 200.0 };
+        let debug_str = format!("{:?}", event);
+        
+        assert!(debug_str.contains("LeftButtonUp"));
+        assert!(debug_str.contains("100"));
+        assert!(debug_str.contains("200"));
+    }
+
+    #[test]
+    fn test_multi_click_timeout_constant() {
+        // Verify the constant is set correctly
+        assert_eq!(MULTI_CLICK_TIMEOUT_MS, 500);
+    }
+
+    #[test]
+    fn test_click_count_bounds() {
+        let hook = MouseHook::new();
+        
+        // Simulate multiple clicks
+        for i in 1..=5 {
+            let count = (i as u8).min(3);
+            *hook.click_count.write() = count;
+        }
+        
+        // Should max out at 3
+        assert!(*hook.click_count.read() <= 3);
+    }
+
+    #[test]
+    fn test_position_tracking() {
+        let hook = MouseHook::new();
+        
+        // Update position
+        *hook.last_position.write() = (500.5, 600.5);
+        
+        let (x, y) = *hook.last_position.read();
+        assert_eq!(x, 500.5);
+        assert_eq!(y, 600.5);
+    }
+
+    #[test]
+    fn test_left_button_state() {
+        let hook = MouseHook::new();
+        
+        // Initially up
+        assert!(!hook.left_button_down.load(Ordering::SeqCst));
+        
+        // Simulate button down
+        hook.left_button_down.store(true, Ordering::SeqCst);
+        assert!(hook.left_button_down.load(Ordering::SeqCst));
+        
+        // Simulate button up
+        hook.left_button_down.store(false, Ordering::SeqCst);
+        assert!(!hook.left_button_down.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn test_is_running_method() {
+        let hook = MouseHook::new();
+        
+        assert!(!hook.is_running());
+        
+        hook.is_running.store(true, Ordering::SeqCst);
+        assert!(hook.is_running());
+        
+        hook.is_running.store(false, Ordering::SeqCst);
+        assert!(!hook.is_running());
+    }
+
+    #[test]
+    fn test_event_sender_can_send() {
+        let hook = MouseHook::new();
+        let (tx, mut rx) = mpsc::unbounded_channel::<MouseEvent>();
+        
+        hook.set_event_sender(tx);
+        
+        // Send an event through the stored sender
+        if let Some(sender) = hook.event_tx.read().as_ref() {
+            let result = sender.send(MouseEvent::LeftButtonUp { x: 10.0, y: 20.0 });
+            assert!(result.is_ok());
+        }
+        
+        // Receive and verify
+        let received = rx.try_recv();
+        assert!(received.is_ok());
+        match received.unwrap() {
+            MouseEvent::LeftButtonUp { x, y } => {
+                assert_eq!(x, 10.0);
+                assert_eq!(y, 20.0);
+            }
+            _ => panic!("Wrong event type received"),
+        }
+    }
+
+    #[test]
+    fn test_concurrent_state_access() {
+        let hook = MouseHook::new();
+        
+        // Simulate concurrent reads and writes
+        for i in 0..100 {
+            hook.left_button_down.store(i % 2 == 0, Ordering::SeqCst);
+            *hook.click_count.write() = (i % 4) as u8;
+            *hook.last_position.write() = (i as f64, i as f64);
+            
+            // Read back
+            let _ = hook.left_button_down.load(Ordering::SeqCst);
+            let _ = *hook.click_count.read();
+            let _ = *hook.last_position.read();
+        }
+        
+        // Should not panic or deadlock
+    }
+}

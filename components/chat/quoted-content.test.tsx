@@ -12,6 +12,17 @@ jest.mock('@/stores/quote-store', () => ({
   useQuoteStore: jest.fn(),
 }));
 
+// Mock settings store
+jest.mock('@/stores/settings-store', () => ({
+  useSettingsStore: jest.fn((selector) => {
+    const state = {
+      fontSize: 'medium',
+      size: 'medium',
+    };
+    return typeof selector === 'function' ? selector(state) : state;
+  }),
+}));
+
 describe('QuotedContent', () => {
   const mockRemoveQuote = jest.fn();
   const mockClearQuotes = jest.fn();

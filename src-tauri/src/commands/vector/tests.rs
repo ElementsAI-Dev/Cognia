@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod tests {
     use crate::commands::vector::*;
     use std::sync::Arc;
@@ -49,7 +50,7 @@ mod tests {
 
         let result = create_collection_impl(&state, payload);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), true);
+        assert!(result.unwrap());
 
         // Verify collection was created
         let data = state.data.lock();

@@ -204,6 +204,190 @@ export async function exportChatToWord(
         }
       }
 
+      // Handle message parts (images, videos, etc.)
+      if (message.parts && message.parts.length > 0) {
+        for (const part of message.parts) {
+          // Handle image parts
+          if (part.type === 'image') {
+            const imageLabel = part.isGenerated ? '✨ AI Generated Image' : '🖼️ Image';
+            children.push(
+              new docx.Paragraph({
+                children: [
+                  new docx.TextRun({
+                    text: imageLabel,
+                    bold: true,
+                    color: '7B1FA2',
+                  }),
+                ],
+                spacing: { before: 200, after: 100 },
+              })
+            );
+            
+            if (part.alt) {
+              children.push(
+                new docx.Paragraph({
+                  children: [
+                    new docx.TextRun({
+                      text: `Description: ${part.alt}`,
+                      italics: true,
+                    }),
+                  ],
+                  spacing: { after: 50 },
+                })
+              );
+            }
+            
+            if (part.width && part.height) {
+              children.push(
+                new docx.Paragraph({
+                  children: [
+                    new docx.TextRun({
+                      text: `Dimensions: ${part.width}×${part.height}`,
+                      size: 18,
+                      color: '757575',
+                    }),
+                  ],
+                  spacing: { after: 50 },
+                })
+              );
+            }
+            
+            if (part.prompt) {
+              children.push(
+                new docx.Paragraph({
+                  children: [
+                    new docx.TextRun({
+                      text: `Prompt: "${part.prompt}"`,
+                      italics: true,
+                      size: 20,
+                    }),
+                  ],
+                  shading: {
+                    type: docx.ShadingType.SOLID,
+                    color: 'F3E5F5',
+                  },
+                  spacing: { after: 100 },
+                })
+              );
+            }
+            
+            if (part.url) {
+              children.push(
+                new docx.Paragraph({
+                  children: [
+                    new docx.TextRun({
+                      text: `[View Image: ${part.url}]`,
+                      color: '1976D2',
+                      size: 18,
+                    }),
+                  ],
+                  spacing: { after: 100 },
+                })
+              );
+            }
+          }
+          
+          // Handle video parts
+          if (part.type === 'video') {
+            const videoLabel = part.isGenerated 
+              ? `🎬 AI Generated Video${part.provider ? ` (${part.provider})` : ''}`
+              : '🎥 Video';
+            children.push(
+              new docx.Paragraph({
+                children: [
+                  new docx.TextRun({
+                    text: videoLabel,
+                    bold: true,
+                    color: 'E65100',
+                  }),
+                ],
+                spacing: { before: 200, after: 100 },
+              })
+            );
+            
+            if (part.title) {
+              children.push(
+                new docx.Paragraph({
+                  children: [
+                    new docx.TextRun({
+                      text: `Title: ${part.title}`,
+                      bold: true,
+                    }),
+                  ],
+                  spacing: { after: 50 },
+                })
+              );
+            }
+            
+            // Video metadata
+            const videoMeta: string[] = [];
+            if (part.durationSeconds) {
+              const mins = Math.floor(part.durationSeconds / 60);
+              const secs = Math.floor(part.durationSeconds % 60);
+              videoMeta.push(`Duration: ${mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`}`);
+            }
+            if (part.width && part.height) {
+              videoMeta.push(`Resolution: ${part.width}×${part.height}`);
+            }
+            if (part.fps) {
+              videoMeta.push(`FPS: ${part.fps}`);
+            }
+            if (part.model) {
+              videoMeta.push(`Model: ${part.model}`);
+            }
+            
+            if (videoMeta.length > 0) {
+              children.push(
+                new docx.Paragraph({
+                  children: [
+                    new docx.TextRun({
+                      text: videoMeta.join(' • '),
+                      size: 18,
+                      color: '757575',
+                    }),
+                  ],
+                  spacing: { after: 50 },
+                })
+              );
+            }
+            
+            if (part.prompt) {
+              children.push(
+                new docx.Paragraph({
+                  children: [
+                    new docx.TextRun({
+                      text: `Prompt: "${part.prompt}"`,
+                      italics: true,
+                      size: 20,
+                    }),
+                  ],
+                  shading: {
+                    type: docx.ShadingType.SOLID,
+                    color: 'FFF3E0',
+                  },
+                  spacing: { after: 100 },
+                })
+              );
+            }
+            
+            if (part.url) {
+              children.push(
+                new docx.Paragraph({
+                  children: [
+                    new docx.TextRun({
+                      text: `[View Video: ${part.url}]`,
+                      color: '1976D2',
+                      size: 18,
+                    }),
+                  ],
+                  spacing: { after: 100 },
+                })
+              );
+            }
+          }
+        }
+      }
+
       // Token info if enabled
       if (opts.includeTokens && message.tokens) {
         children.push(

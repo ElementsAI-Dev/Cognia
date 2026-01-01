@@ -925,7 +925,7 @@ export function ChatInput({
           </div>
 
           {/* Bottom toolbar with feature toggles */}
-          <div className="mt-2 flex items-center justify-between px-1">
+          <div className="mt-1 sm:mt-2 flex items-center justify-between px-1">
             {/* Left side - Feature toggles */}
             <div className="flex items-center gap-1">
               {/* Model selector */}
@@ -935,11 +935,11 @@ export function ChatInput({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground hover:text-foreground"
+                      className="h-6 sm:h-7 gap-1 sm:gap-1.5 px-1.5 sm:px-2 text-[10px] sm:text-xs font-normal text-muted-foreground hover:text-foreground"
                       onClick={onModelClick}
                     >
                       <span className="font-medium">⚡</span>
-                      <span className="max-w-[100px] truncate">{modelName}</span>
+                      <span className="max-w-[60px] sm:max-w-[100px] truncate">{modelName}</span>
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>{t('changeModel')}</TooltipContent>
@@ -947,7 +947,7 @@ export function ChatInput({
               )}
 
               {/* Divider */}
-              <div className="mx-1 h-4 w-px bg-border" />
+              <div className="mx-0.5 sm:mx-1 h-3 sm:h-4 w-px bg-border" />
 
               {/* Web Search toggle - enhanced with label */}
               <Tooltip>
@@ -956,16 +956,16 @@ export function ChatInput({
                     variant="ghost"
                     size="sm"
                     className={cn(
-                      'h-7 gap-1.5 px-2 text-xs font-normal',
+                      'h-6 sm:h-7 gap-1 sm:gap-1.5 px-1.5 sm:px-2 text-[10px] sm:text-xs font-normal',
                       webSearchEnabled 
                         ? 'bg-primary/10 text-primary hover:bg-primary/20' 
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                     onClick={() => onWebSearchChange?.(!webSearchEnabled)}
                   >
-                    <Globe className="h-3.5 w-3.5" />
+                    <Globe className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                     <span className="hidden sm:inline">{t('search')}</span>
-                    {webSearchEnabled && <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />}
+                    {webSearchEnabled && <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-primary animate-pulse" />}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>{t('toggleWebSearch')}</TooltipContent>
@@ -978,16 +978,16 @@ export function ChatInput({
                     variant="ghost"
                     size="sm"
                     className={cn(
-                      'h-7 gap-1.5 px-2 text-xs font-normal',
+                      'h-6 sm:h-7 gap-1 sm:gap-1.5 px-1.5 sm:px-2 text-[10px] sm:text-xs font-normal',
                       thinkingEnabled 
                         ? 'bg-purple-500/10 text-purple-500 hover:bg-purple-500/20' 
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                     onClick={() => onThinkingChange?.(!thinkingEnabled)}
                   >
-                    <Brain className="h-3.5 w-3.5" />
+                    <Brain className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                     <span className="hidden sm:inline">{t('think')}</span>
-                    {thinkingEnabled && <span className="h-1.5 w-1.5 rounded-full bg-purple-500 animate-pulse" />}
+                    {thinkingEnabled && <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-purple-500 animate-pulse" />}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>{t('extendedThinking')}</TooltipContent>
@@ -999,44 +999,48 @@ export function ChatInput({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
+                    className="h-6 w-6 sm:h-7 sm:w-7"
                     onClick={onOpenAISettings}
                   >
-                    <Settings2 className="h-3.5 w-3.5" />
+                    <Settings2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>{t('aiSettings')}</TooltipContent>
               </Tooltip>
 
-              {/* Divider */}
-              <div className="mx-1 h-4 w-px bg-border" />
+              {/* Divider - hidden on very small screens */}
+              <div className="hidden min-[400px]:block mx-0.5 sm:mx-1 h-3 sm:h-4 w-px bg-border" />
 
-              {/* Preset Quick Switcher */}
-              <PresetQuickSwitcher
-                onPresetChange={onPresetChange}
-                onCreateNew={onCreatePreset}
-                onManage={onManagePresets}
-                disabled={isProcessing || disabled}
-              />
+              {/* Preset Quick Switcher - hidden on very small screens */}
+              <div className="hidden min-[400px]:block">
+                <PresetQuickSwitcher
+                  onPresetChange={onPresetChange}
+                  onCreateNew={onCreatePreset}
+                  onManage={onManagePresets}
+                  disabled={isProcessing || disabled}
+                />
+              </div>
 
-              {/* Preset Quick Prompts */}
-              <PresetQuickPromptsWrapper
-                onSelectPrompt={(content) => {
-                  onChange(value ? `${value}\n${content}` : content);
-                }}
-                disabled={isProcessing || disabled}
-              />
+              {/* Preset Quick Prompts - hidden on small screens */}
+              <div className="hidden sm:block">
+                <PresetQuickPromptsWrapper
+                  onSelectPrompt={(content) => {
+                    onChange(value ? `${value}\n${content}` : content);
+                  }}
+                  disabled={isProcessing || disabled}
+                />
+              </div>
             </div>
 
             {/* Right side - Context usage with progress bar */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <button
                 onClick={onOpenContextSettings}
-                className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors group"
+                className="flex items-center gap-1 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground hover:text-foreground transition-colors group"
                 title={t('contextWindowUsage')}
               >
-                <div className="flex items-center gap-1.5">
-                  <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <div className="w-10 sm:w-16 h-1 sm:h-1.5 bg-muted rounded-full overflow-hidden">
                     <div 
                       className={cn(
                         "h-full rounded-full transition-all duration-300",
@@ -1057,19 +1061,22 @@ export function ChatInput({
             </div>
           </div>
 
-          {/* Helper text */}
-          <p className="mt-2 text-center text-xs text-muted-foreground/70">
-            {sendOnEnter
-              ? t('enterToSend')
-              : t('clickToSend')}
-            {' • '}
-            <span>{t('dragDropFiles')}</span>
-            {isMcpAvailable && (
-              <>
-                {' • '}
-                <span className="text-primary/80">{t('typeAtForMcp')}</span>
-              </>
-            )}
+          {/* Helper text - simplified on small screens */}
+          <p className="mt-1 sm:mt-2 text-center text-[10px] sm:text-xs text-muted-foreground/70">
+            <span className="hidden sm:inline">
+              {sendOnEnter ? t('enterToSend') : t('clickToSend')}
+              {' • '}
+              <span>{t('dragDropFiles')}</span>
+              {isMcpAvailable && (
+                <>
+                  {' • '}
+                  <span className="text-primary/80">{t('typeAtForMcp')}</span>
+                </>
+              )}
+            </span>
+            <span className="sm:hidden">
+              {sendOnEnter ? 'Enter ↵' : 'Click ➤'}
+            </span>
           </p>
         </div>
 

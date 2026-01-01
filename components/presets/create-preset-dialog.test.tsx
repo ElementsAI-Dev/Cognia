@@ -304,8 +304,9 @@ describe('CreatePresetDialog', () => {
     expect(screen.getByText('AI Generate')).toBeInTheDocument();
   });
 
-  it('renders Add button for quick prompts', () => {
+  it('renders quick prompts section', () => {
     render(<CreatePresetDialog open={true} onOpenChange={mockOnOpenChange} />);
-    expect(screen.getByText('Add')).toBeInTheDocument();
+    // Verify the quick prompts section exists
+    expect(screen.getByText('Built-in Quick Prompts')).toBeInTheDocument();
   });
 });

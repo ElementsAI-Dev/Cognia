@@ -436,9 +436,70 @@ function generatePartsHTML(parts: MessagePart[], opts: Required<BeautifulExportO
         </details>
       `);
     }
+
+    // Handle image parts
+    if (part.type === 'image') {
+      const imageSrc = part.base64 
+        ? `data:${part.mimeType || 'image/png'};base64,${part.base64}`
+        : part.url;
+      const isGenerated = part.isGenerated;
+      partsContent.push(`
+        <figure class="media-block image-block${isGenerated ? ' ai-generated' : ''}">
+          ${isGenerated ? '<div class="ai-badge"><span class="ai-icon">✨</span> AI Generated</div>' : ''}
+          <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(part.alt || '')}" loading="lazy" class="media-content"${part.width ? ` width="${part.width}"` : ''}${part.height ? ` height="${part.height}"` : ''}>
+          ${(part.alt || part.prompt) ? `
+            <figcaption class="media-caption">
+              ${part.alt ? `<span class="caption-text">${escapeHtml(part.alt)}</span>` : ''}
+              ${part.prompt ? `<details class="prompt-details"><summary>View prompt</summary><p>${escapeHtml(part.prompt)}</p>${part.revisedPrompt ? `<p class="revised-prompt"><strong>Revised:</strong> ${escapeHtml(part.revisedPrompt)}</p>` : ''}</details>` : ''}
+            </figcaption>
+          ` : ''}
+        </figure>
+      `);
+    }
+
+    // Handle video parts
+    if (part.type === 'video') {
+      const videoSrc = part.base64 
+        ? `data:${part.mimeType || 'video/mp4'};base64,${part.base64}`
+        : part.url;
+      const thumbnailSrc = part.thumbnailBase64
+        ? `data:image/jpeg;base64,${part.thumbnailBase64}`
+        : part.thumbnailUrl;
+      const isGenerated = part.isGenerated;
+      partsContent.push(`
+        <figure class="media-block video-block${isGenerated ? ' ai-generated' : ''}">
+          ${isGenerated ? `<div class="ai-badge"><span class="ai-icon">🎬</span> AI Generated Video${part.provider ? ` (${escapeHtml(part.provider)})` : ''}</div>` : ''}
+          <div class="video-container">
+            <video controls preload="metadata" class="media-content"${thumbnailSrc ? ` poster="${escapeHtml(thumbnailSrc)}"` : ''}${part.width ? ` width="${part.width}"` : ''}${part.height ? ` height="${part.height}"` : ''}>
+              ${videoSrc ? `<source src="${escapeHtml(videoSrc)}" type="${part.mimeType || 'video/mp4'}">` : ''}
+              Your browser does not support the video tag.
+            </video>
+          </div>
+          <figcaption class="media-caption">
+            ${part.title ? `<span class="caption-text">${escapeHtml(part.title)}</span>` : ''}
+            <div class="video-meta">
+              ${part.durationSeconds ? `<span class="meta-item">⏱️ ${formatDuration(part.durationSeconds)}</span>` : ''}
+              ${part.width && part.height ? `<span class="meta-item">📐 ${part.width}×${part.height}</span>` : ''}
+              ${part.fps ? `<span class="meta-item">🎞️ ${part.fps}fps</span>` : ''}
+              ${part.model ? `<span class="meta-item">🤖 ${escapeHtml(part.model)}</span>` : ''}
+            </div>
+            ${part.prompt ? `<details class="prompt-details"><summary>View prompt</summary><p>${escapeHtml(part.prompt)}</p>${part.revisedPrompt ? `<p class="revised-prompt"><strong>Revised:</strong> ${escapeHtml(part.revisedPrompt)}</p>` : ''}</details>` : ''}
+          </figcaption>
+        </figure>
+      `);
+    }
   }
   
   return partsContent.join('');
+}
+
+/**
+ * Format duration in seconds to human-readable string
+ */
+function formatDuration(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`;
 }
 
 function formatToolName(name: string): string {
@@ -1130,6 +1191,120 @@ function getBeautifulStyles(opts: Required<BeautifulExportOptions>): string {
       max-width: 200px;
       max-height: 150px;
       border-radius: var(--radius-sm);
+    }
+
+    /* Media Blocks (Images & Videos) */
+    .media-block {
+      margin: 20px 0;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+    }
+
+    .media-block.ai-generated {
+      border: 2px solid transparent;
+      background: linear-gradient(var(--bg-secondary), var(--bg-secondary)) padding-box,
+                  linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) border-box;
+    }
+
+    .ai-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent-primary);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .ai-icon {
+      font-size: 1rem;
+    }
+
+    .media-content {
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+
+    .image-block .media-content {
+      width: 100%;
+      object-fit: contain;
+      max-height: 600px;
+      background: var(--bg-tertiary);
+    }
+
+    .video-container {
+      position: relative;
+      background: #000;
+    }
+
+    .video-block video {
+      width: 100%;
+      max-height: 500px;
+      display: block;
+    }
+
+    .media-caption {
+      padding: 12px 16px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+    }
+
+    .caption-text {
+      display: block;
+      font-size: 0.875rem;
+      color: var(--text-primary);
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+
+    .video-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 0.75rem;
+      color: var(--text-tertiary);
+      margin-bottom: 8px;
+    }
+
+    .meta-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .prompt-details {
+      margin-top: 8px;
+      font-size: 0.8125rem;
+    }
+
+    .prompt-details summary {
+      cursor: pointer;
+      color: var(--accent-primary);
+      font-weight: 500;
+      padding: 4px 0;
+    }
+
+    .prompt-details summary:hover {
+      text-decoration: underline;
+    }
+
+    .prompt-details p {
+      margin: 8px 0;
+      padding: 10px 14px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .revised-prompt {
+      border-left: 3px solid var(--accent-secondary);
+      font-style: italic;
     }
 
     /* Footer */

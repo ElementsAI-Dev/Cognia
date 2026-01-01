@@ -441,7 +441,7 @@ pub fn upsert_points_impl(
         validate_vector(&p.vector, &p.id)?;
     }
     
-    let entry = data.points.entry(collection.clone()).or_insert_with(Vec::new);
+    let entry = data.points.entry(collection.clone()).or_default();
     let mut added_count = 0;
     
     for p in points {

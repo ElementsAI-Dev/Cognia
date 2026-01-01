@@ -187,17 +187,22 @@ export function SelectionToolbar() {
     [state.selectedText, executeAction, hideToolbar, isMultiSelectMode, selections.length, getCombinedText, references]
   );
 
-  // Handle click outside
+  // Handle click outside - use mouseup to not interfere with text selection
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target.closest(".selection-toolbar")) {
-        hideToolbar();
+        // Don't hide if user might be making a new selection
+        const windowSelection = window.getSelection();
+        if (!windowSelection || windowSelection.isCollapsed || windowSelection.toString().trim() === '') {
+          hideToolbar();
+        }
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    // Use mouseup instead of mousedown to not interfere with selection start
+    document.addEventListener("mouseup", handleClickOutside);
+    return () => document.removeEventListener("mouseup", handleClickOutside);
   }, [hideToolbar]);
 
   // Handle selection mode change
@@ -255,10 +260,15 @@ export function SelectionToolbar() {
       }
 
       // Find action by shortcut (case-insensitive, single key)
+      // Skip if Ctrl/Cmd is pressed to allow native copy (Ctrl+C)
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        return;
+      }
+
       const key = e.key.toUpperCase();
       const action = ALL_ACTIONS.find((a) => a.shortcut === key);
       
-      if (action && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (action) {
         e.preventDefault();
         handleAction(action.action);
       }

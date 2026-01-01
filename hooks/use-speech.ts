@@ -14,6 +14,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSettingsStore } from '@/stores';
 import type { SpeechLanguageCode, SpeechProvider, SpeechError } from '@/types/speech';
 import { getSpeechError } from '@/types/speech';
+import { toast } from '@/components/ui/sonner';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SpeechRecognitionInstance = any;
@@ -172,10 +173,10 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
     };
 
     recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
       setIsListening(false);
       const speechError = getSpeechError(event.error as Parameters<typeof getSpeechError>[0]);
       setError(speechError);
+      toast.error(speechError.message);
       onError?.(speechError);
     };
 
@@ -247,10 +248,10 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
         setRecordingDuration(Date.now() - recordingStartTimeRef.current);
       }, 100);
       
-    } catch (err) {
-      console.error('Failed to start recording:', err);
+    } catch (_err) {
       const speechError = getSpeechError('audio-capture');
       setError(speechError);
+      toast.error(speechError.message);
       onError?.(speechError);
     }
   }, [mediaRecorderSupported, onError]);
@@ -274,10 +275,10 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechReturn {
       if (!recognitionRef.current || isListening) return;
       try {
         recognitionRef.current.start();
-      } catch (err) {
-        console.error('Failed to start speech recognition:', err);
+      } catch (_err) {
         const speechError = getSpeechError('aborted');
         setError(speechError);
+        toast.error(speechError.message);
         onError?.(speechError);
       }
     }

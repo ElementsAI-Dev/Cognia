@@ -15,14 +15,29 @@ import type {
   SubQuestionStatus,
   StartLearningInput,
   LearningModeConfig,
+  LearningNote,
+  KnowledgeConcept,
+  ReviewItem,
+  LearningStatistics,
+  DifficultyLevel,
+  LearningAchievement,
 } from '@/types/learning';
-import { DEFAULT_LEARNING_CONFIG } from '@/types/learning';
+import { DEFAULT_LEARNING_CONFIG, DEFAULT_LEARNING_STATISTICS } from '@/types/learning';
 
 interface LearningState {
   // State
   sessions: Record<string, LearningSession>;
   activeSessionId: string | null;
   config: LearningModeConfig;
+  achievements: LearningAchievement[];
+  globalStats: {
+    totalSessions: number;
+    totalTimeSpentMs: number;
+    conceptsMastered: number;
+    currentStreak: number;
+    longestStreak: number;
+    lastActiveDate?: string;
+  };
   isLoading: boolean;
   error: string | null;
 
@@ -31,6 +46,8 @@ interface LearningState {
   endLearningSession: (learningSessionId: string, summary?: string, takeaways?: string[]) => void;
   getLearningSession: (learningSessionId: string) => LearningSession | undefined;
   getLearningSessionByChat: (chatSessionId: string) => LearningSession | undefined;
+  getAllSessions: () => LearningSession[];
+  getCompletedSessions: () => LearningSession[];
   setActiveSession: (learningSessionId: string | null) => void;
   deleteLearningSession: (learningSessionId: string) => void;
 
@@ -40,7 +57,7 @@ interface LearningState {
   getCurrentPhase: (learningSessionId: string) => LearningPhase | undefined;
 
   // Sub-questions management
-  addSubQuestion: (learningSessionId: string, question: string) => LearningSubQuestion;
+  addSubQuestion: (learningSessionId: string, question: string, difficulty?: DifficultyLevel) => LearningSubQuestion;
   updateSubQuestion: (learningSessionId: string, subQuestionId: string, updates: Partial<LearningSubQuestion>) => void;
   setCurrentSubQuestion: (learningSessionId: string, subQuestionId: string) => void;
   markSubQuestionResolved: (learningSessionId: string, subQuestionId: string, insights?: string[]) => void;
@@ -52,6 +69,31 @@ interface LearningState {
   markGoalAchieved: (learningSessionId: string, goalId: string) => void;
   updateGoals: (learningSessionId: string, goals: LearningGoal[]) => void;
 
+  // Notes management
+  addNote: (learningSessionId: string, content: string, subQuestionId?: string) => LearningNote;
+  updateNote: (learningSessionId: string, noteId: string, updates: Partial<LearningNote>) => void;
+  deleteNote: (learningSessionId: string, noteId: string) => void;
+  toggleNoteHighlight: (learningSessionId: string, noteId: string) => void;
+
+  // Concept tracking
+  addConcept: (learningSessionId: string, name: string, description?: string) => KnowledgeConcept;
+  updateConceptMastery: (learningSessionId: string, conceptId: string, correct: boolean) => void;
+  getConceptsForReview: (learningSessionId: string) => KnowledgeConcept[];
+
+  // Review items (spaced repetition)
+  addReviewItem: (learningSessionId: string, item: Omit<ReviewItem, 'id'>) => ReviewItem;
+  updateReviewItem: (learningSessionId: string, itemId: string, quality: number) => void;
+  getDueReviewItems: () => ReviewItem[];
+
+  // Statistics
+  updateStatistics: (learningSessionId: string, updates: Partial<LearningStatistics>) => void;
+  recordAnswer: (learningSessionId: string, correct: boolean, responseTimeMs: number) => void;
+  updateEngagement: (learningSessionId: string, engaged: boolean) => void;
+
+  // Adaptive difficulty
+  adjustDifficulty: (learningSessionId: string) => void;
+  setDifficulty: (learningSessionId: string, difficulty: DifficultyLevel) => void;
+
   // Progress tracking
   updateProgress: (learningSessionId: string) => void;
   getProgress: (learningSessionId: string) => number;
@@ -59,6 +101,10 @@ interface LearningState {
   // Topic and background
   updateTopic: (learningSessionId: string, topic: string) => void;
   updateBackgroundKnowledge: (learningSessionId: string, background: string) => void;
+
+  // Achievements
+  checkAndAwardAchievements: () => void;
+  getAchievements: () => LearningAchievement[];
 
   // Configuration
   updateConfig: (config: Partial<LearningModeConfig>) => void;
@@ -84,6 +130,15 @@ const initialState = {
   sessions: {} as Record<string, LearningSession>,
   activeSessionId: null as string | null,
   config: DEFAULT_LEARNING_CONFIG,
+  achievements: [] as LearningAchievement[],
+  globalStats: {
+    totalSessions: 0,
+    totalTimeSpentMs: 0,
+    conceptsMastered: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    lastActiveDate: undefined as string | undefined,
+  },
   isLoading: false,
   error: null as string | null,
 };
@@ -116,6 +171,19 @@ export const useLearningStore = create<LearningState>()(
           totalHintsProvided: 0,
           startedAt: now,
           lastActivityAt: now,
+          // Enhanced features
+          notes: [],
+          concepts: [],
+          statistics: { ...DEFAULT_LEARNING_STATISTICS },
+          reviewItems: [],
+          // Adaptive learning
+          currentDifficulty: input.preferredDifficulty || 'intermediate',
+          preferredStyle: input.preferredStyle,
+          adaptiveAdjustments: 0,
+          // Engagement metrics
+          engagementScore: 50,
+          consecutiveCorrect: 0,
+          consecutiveIncorrect: 0,
         };
 
         set((state) => ({
@@ -533,6 +601,469 @@ export const useLearningStore = create<LearningState>()(
             },
           };
         });
+      },
+
+      // Session queries
+      getAllSessions: () => {
+        return Object.values(get().sessions);
+      },
+
+      getCompletedSessions: () => {
+        return Object.values(get().sessions).filter((s) => s.completedAt);
+      },
+
+      // Notes management
+      addNote: (learningSessionId: string, content: string, subQuestionId?: string) => {
+        const note: LearningNote = {
+          id: nanoid(),
+          content,
+          createdAt: new Date(),
+          subQuestionId,
+          isHighlight: false,
+        };
+
+        set((state) => {
+          const session = state.sessions[learningSessionId];
+          if (!session) return state;
+
+          return {
+            sessions: {
+              ...state.sessions,
+              [learningSessionId]: {
+                ...session,
+                notes: [...session.notes, note],
+                lastActivityAt: new Date(),
+              },
+            },
+          };
+        });
+
+        return note;
+      },
+
+      updateNote: (learningSessionId: string, noteId: string, updates: Partial<LearningNote>) => {
+        set((state) => {
+          const session = state.sessions[learningSessionId];
+          if (!session) return state;
+
+          return {
+            sessions: {
+              ...state.sessions,
+              [learningSessionId]: {
+                ...session,
+                notes: session.notes.map((n) =>
+                  n.id === noteId ? { ...n, ...updates } : n
+                ),
+                lastActivityAt: new Date(),
+              },
+            },
+          };
+        });
+      },
+
+      deleteNote: (learningSessionId: string, noteId: string) => {
+        set((state) => {
+          const session = state.sessions[learningSessionId];
+          if (!session) return state;
+
+          return {
+            sessions: {
+              ...state.sessions,
+              [learningSessionId]: {
+                ...session,
+                notes: session.notes.filter((n) => n.id !== noteId),
+                lastActivityAt: new Date(),
+              },
+            },
+          };
+        });
+      },
+
+      toggleNoteHighlight: (learningSessionId: string, noteId: string) => {
+        set((state) => {
+          const session = state.sessions[learningSessionId];
+          if (!session) return state;
+
+          return {
+            sessions: {
+              ...state.sessions,
+              [learningSessionId]: {
+                ...session,
+                notes: session.notes.map((n) =>
+                  n.id === noteId ? { ...n, isHighlight: !n.isHighlight } : n
+                ),
+              },
+            },
+          };
+        });
+      },
+
+      // Concept tracking
+      addConcept: (learningSessionId: string, name: string, description?: string) => {
+        const concept: KnowledgeConcept = {
+          id: nanoid(),
+          name,
+          description,
+          masteryStatus: 'learning',
+          masteryScore: 0,
+          reviewCount: 0,
+          correctAnswers: 0,
+          totalAttempts: 0,
+        };
+
+        set((state) => {
+          const session = state.sessions[learningSessionId];
+          if (!session) return state;
+
+          return {
+            sessions: {
+              ...state.sessions,
+              [learningSessionId]: {
+                ...session,
+                concepts: [...session.concepts, concept],
+                lastActivityAt: new Date(),
+              },
+            },
+          };
+        });
+
+        return concept;
+      },
+
+      updateConceptMastery: (learningSessionId: string, conceptId: string, correct: boolean) => {
+        set((state) => {
+          const session = state.sessions[learningSessionId];
+          if (!session) return state;
+
+          return {
+            sessions: {
+              ...state.sessions,
+              [learningSessionId]: {
+                ...session,
+                concepts: session.concepts.map((c) => {
+                  if (c.id !== conceptId) return c;
+
+                  const newCorrect = c.correctAnswers + (correct ? 1 : 0);
+                  const newTotal = c.totalAttempts + 1;
+                  const newScore = Math.round((newCorrect / newTotal) * 100);
+
+                  let newStatus = c.masteryStatus;
+                  if (newScore >= 90 && newTotal >= 5) {
+                    newStatus = 'mastered';
+                  } else if (newScore >= 60) {
+                    newStatus = 'practicing';
+                  } else if (newTotal > 0) {
+                    newStatus = 'learning';
+                  }
+
+                  return {
+                    ...c,
+                    correctAnswers: newCorrect,
+                    totalAttempts: newTotal,
+                    masteryScore: newScore,
+                    masteryStatus: newStatus,
+                    lastPracticedAt: new Date(),
+                  };
+                }),
+                lastActivityAt: new Date(),
+              },
+            },
+          };
+        });
+      },
+
+      getConceptsForReview: (learningSessionId: string) => {
+        const session = get().sessions[learningSessionId];
+        if (!session) return [];
+
+        const now = new Date();
+        return session.concepts.filter((c) => {
+          if (!c.nextReviewAt) return c.masteryStatus !== 'mastered';
+          return new Date(c.nextReviewAt) <= now;
+        });
+      },
+
+      // Review items (spaced repetition with SM-2 algorithm)
+      addReviewItem: (learningSessionId: string, item: Omit<ReviewItem, 'id'>) => {
+        const reviewItem: ReviewItem = {
+          ...item,
+          id: nanoid(),
+        };
+
+        set((state) => {
+          const session = state.sessions[learningSessionId];
+          if (!session) return state;
+
+          return {
+            sessions: {
+              ...state.sessions,
+              [learningSessionId]: {
+                ...session,
+                reviewItems: [...session.reviewItems, reviewItem],
+              },
+            },
+          };
+        });
+
+        return reviewItem;
+      },
+
+      updateReviewItem: (learningSessionId: string, itemId: string, quality: number) => {
+        // SM-2 algorithm implementation
+        set((state) => {
+          const session = state.sessions[learningSessionId];
+          if (!session) return state;
+
+          return {
+            sessions: {
+              ...state.sessions,
+              [learningSessionId]: {
+                ...session,
+                reviewItems: session.reviewItems.map((item) => {
+                  if (item.id !== itemId) return item;
+
+                  // SM-2 algorithm
+                  let { easeFactor, interval, repetitions } = item;
+
+                  if (quality >= 3) {
+                    // Correct response
+                    if (repetitions === 0) {
+                      interval = 1;
+                    } else if (repetitions === 1) {
+                      interval = 6;
+                    } else {
+                      interval = Math.round(interval * easeFactor);
+                    }
+                    repetitions += 1;
+                  } else {
+                    // Incorrect response - reset
+                    repetitions = 0;
+                    interval = 1;
+                  }
+
+                  // Update ease factor
+                  easeFactor = Math.max(
+                    1.3,
+                    easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
+                  );
+
+                  const nextReviewAt = new Date();
+                  nextReviewAt.setDate(nextReviewAt.getDate() + interval);
+
+                  return {
+                    ...item,
+                    easeFactor,
+                    interval,
+                    repetitions,
+                    nextReviewAt,
+                    lastReviewedAt: new Date(),
+                  };
+                }),
+              },
+            },
+          };
+        });
+      },
+
+      getDueReviewItems: () => {
+        const now = new Date();
+        const allItems: ReviewItem[] = [];
+
+        Object.values(get().sessions).forEach((session) => {
+          session.reviewItems.forEach((item) => {
+            if (new Date(item.nextReviewAt) <= now) {
+              allItems.push(item);
+            }
+          });
+        });
+
+        return allItems;
+      },
+
+      // Statistics
+      updateStatistics: (learningSessionId: string, updates: Partial<LearningStatistics>) => {
+        set((state) => {
+          const session = state.sessions[learningSessionId];
+          if (!session) return state;
+
+          return {
+            sessions: {
+              ...state.sessions,
+              [learningSessionId]: {
+                ...session,
+                statistics: { ...session.statistics, ...updates },
+                lastActivityAt: new Date(),
+              },
+            },
+          };
+        });
+      },
+
+      recordAnswer: (learningSessionId: string, correct: boolean, responseTimeMs: number) => {
+        set((state) => {
+          const session = state.sessions[learningSessionId];
+          if (!session) return state;
+
+          const stats = session.statistics;
+          const newQuestionsAnswered = stats.questionsAnswered + 1;
+          const newCorrect = stats.correctAnswers + (correct ? 1 : 0);
+          const newAvgTime = Math.round(
+            (stats.averageResponseTimeMs * stats.questionsAnswered + responseTimeMs) /
+              newQuestionsAnswered
+          );
+
+          return {
+            sessions: {
+              ...state.sessions,
+              [learningSessionId]: {
+                ...session,
+                statistics: {
+                  ...stats,
+                  questionsAnswered: newQuestionsAnswered,
+                  correctAnswers: newCorrect,
+                  averageResponseTimeMs: newAvgTime,
+                },
+                consecutiveCorrect: correct ? session.consecutiveCorrect + 1 : 0,
+                consecutiveIncorrect: correct ? 0 : session.consecutiveIncorrect + 1,
+                lastActivityAt: new Date(),
+              },
+            },
+          };
+        });
+
+        // Check if difficulty should be adjusted
+        if (get().config.enableAdaptiveDifficulty) {
+          get().adjustDifficulty(learningSessionId);
+        }
+      },
+
+      updateEngagement: (learningSessionId: string, engaged: boolean) => {
+        set((state) => {
+          const session = state.sessions[learningSessionId];
+          if (!session) return state;
+
+          const delta = engaged ? 5 : -10;
+          const newScore = Math.max(0, Math.min(100, session.engagementScore + delta));
+
+          return {
+            sessions: {
+              ...state.sessions,
+              [learningSessionId]: {
+                ...session,
+                engagementScore: newScore,
+              },
+            },
+          };
+        });
+      },
+
+      // Adaptive difficulty
+      adjustDifficulty: (learningSessionId: string) => {
+        const session = get().sessions[learningSessionId];
+        if (!session) return;
+
+        const { difficultyAdjustThreshold } = get().config;
+        const difficulties: DifficultyLevel[] = ['beginner', 'intermediate', 'advanced', 'expert'];
+        const currentIndex = difficulties.indexOf(session.currentDifficulty);
+
+        let newDifficulty = session.currentDifficulty;
+
+        if (session.consecutiveCorrect >= difficultyAdjustThreshold && currentIndex < difficulties.length - 1) {
+          newDifficulty = difficulties[currentIndex + 1];
+        } else if (session.consecutiveIncorrect >= difficultyAdjustThreshold && currentIndex > 0) {
+          newDifficulty = difficulties[currentIndex - 1];
+        }
+
+        if (newDifficulty !== session.currentDifficulty) {
+          set((state) => ({
+            sessions: {
+              ...state.sessions,
+              [learningSessionId]: {
+                ...state.sessions[learningSessionId],
+                currentDifficulty: newDifficulty,
+                adaptiveAdjustments: session.adaptiveAdjustments + 1,
+                consecutiveCorrect: 0,
+                consecutiveIncorrect: 0,
+              },
+            },
+          }));
+        }
+      },
+
+      setDifficulty: (learningSessionId: string, difficulty: DifficultyLevel) => {
+        set((state) => {
+          const session = state.sessions[learningSessionId];
+          if (!session) return state;
+
+          return {
+            sessions: {
+              ...state.sessions,
+              [learningSessionId]: {
+                ...session,
+                currentDifficulty: difficulty,
+                lastActivityAt: new Date(),
+              },
+            },
+          };
+        });
+      },
+
+      // Achievements
+      checkAndAwardAchievements: () => {
+        const state = get();
+        const newAchievements: LearningAchievement[] = [];
+        const completedSessions = Object.values(state.sessions).filter((s) => s.completedAt);
+
+        // First session achievement
+        if (completedSessions.length === 1 && !state.achievements.find((a) => a.type === 'explorer')) {
+          newAchievements.push({
+            id: nanoid(),
+            type: 'explorer',
+            name: 'First Steps',
+            description: 'Complete your first learning session',
+            iconName: 'Rocket',
+            earnedAt: new Date(),
+          });
+        }
+
+        // Scholar achievement (10 sessions)
+        if (completedSessions.length >= 10 && !state.achievements.find((a) => a.name === 'Scholar')) {
+          newAchievements.push({
+            id: nanoid(),
+            type: 'scholar',
+            name: 'Scholar',
+            description: 'Complete 10 learning sessions',
+            iconName: 'GraduationCap',
+            earnedAt: new Date(),
+          });
+        }
+
+        // Quick learner achievement
+        const quickSession = completedSessions.find((s) => {
+          if (!s.completedAt) return false;
+          const duration = new Date(s.completedAt).getTime() - new Date(s.startedAt).getTime();
+          return duration < 15 * 60 * 1000; // Under 15 minutes
+        });
+        if (quickSession && !state.achievements.find((a) => a.type === 'speed')) {
+          newAchievements.push({
+            id: nanoid(),
+            type: 'speed',
+            name: 'Quick Learner',
+            description: 'Complete a session in under 15 minutes',
+            iconName: 'Zap',
+            earnedAt: new Date(),
+          });
+        }
+
+        if (newAchievements.length > 0) {
+          set((state) => ({
+            achievements: [...state.achievements, ...newAchievements],
+          }));
+        }
+      },
+
+      getAchievements: () => {
+        return get().achievements;
       },
 
       // Configuration

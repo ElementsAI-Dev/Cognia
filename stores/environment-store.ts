@@ -86,6 +86,7 @@ const initialState: EnvironmentState = {
     nvm: createDefaultToolStatus('nvm'),
     docker: createDefaultToolStatus('docker'),
     podman: createDefaultToolStatus('podman'),
+    ffmpeg: createDefaultToolStatus('ffmpeg'),
   },
   installProgress: null,
   pythonEnv: null,

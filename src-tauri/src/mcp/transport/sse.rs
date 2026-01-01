@@ -34,7 +34,7 @@ impl SseTransport {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(30))
             .build()
-            .map_err(|e| McpError::RequestError(e))?;
+            .map_err(McpError::RequestError)?;
 
         let (event_tx, event_rx) = mpsc::channel(100);
 
@@ -119,7 +119,7 @@ impl Transport for SseTransport {
             .body(message.to_string())
             .send()
             .await
-            .map_err(|e| McpError::RequestError(e))?;
+            .map_err(McpError::RequestError)?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -164,6 +164,10 @@ impl Transport for SseTransport {
 mod tests {
     use super::*;
 
+    // ============================================================================
+    // SseTransport Connection Tests
+    // ============================================================================
+
     // SSE tests require a running server, so they're marked as ignored by default
     #[tokio::test]
     #[ignore]
@@ -171,5 +175,155 @@ mod tests {
         let result = SseTransport::connect("http://localhost:8080/sse").await;
         // This will fail without a running server
         assert!(result.is_err() || result.is_ok());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_sse_transport_connection_invalid_url() {
+        let result = SseTransport::connect("http://invalid-host-that-does-not-exist:9999/sse").await;
+        // Connection to invalid host should eventually fail or timeout
+        // Note: This may take time due to DNS resolution
+        assert!(result.is_ok()); // The struct is created, but connection may not be established
+    }
+
+    // ============================================================================
+    // SseTransport State Tests
+    // ============================================================================
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_sse_transport_is_connected() {
+        let transport = SseTransport::connect("http://localhost:8080/sse").await;
+        if let Ok(t) = transport {
+            // Initially marked as connected (optimistically)
+            assert!(t.is_connected());
+        }
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_sse_transport_close() {
+        let transport = SseTransport::connect("http://localhost:8080/sse").await;
+        if let Ok(t) = transport {
+            let close_result = t.close().await;
+            assert!(close_result.is_ok());
+            assert!(!t.is_connected());
+        }
+    }
+
+    // ============================================================================
+    // Message URL Tests
+    // ============================================================================
+
+    #[test]
+    fn test_message_url_derivation_from_sse_suffix() {
+        // Test that message URL is correctly derived from SSE URL
+        let url = "http://localhost:8080/sse";
+        let expected_message_url = "http://localhost:8080/message";
+        
+        // The derivation logic: if URL ends with /sse, replace with /message
+        let derived = if url.ends_with("/sse") {
+            url.replace("/sse", "/message")
+        } else {
+            format!("{}/message", url.trim_end_matches('/'))
+        };
+        
+        assert_eq!(derived, expected_message_url);
+    }
+
+    #[test]
+    fn test_message_url_derivation_without_sse_suffix() {
+        let url = "http://localhost:8080/events";
+        let derived = if url.ends_with("/sse") {
+            url.replace("/sse", "/message")
+        } else {
+            format!("{}/message", url.trim_end_matches('/'))
+        };
+        
+        assert_eq!(derived, "http://localhost:8080/events/message");
+    }
+
+    #[test]
+    fn test_message_url_derivation_with_trailing_slash() {
+        let url = "http://localhost:8080/";
+        let derived = format!("{}/message", url.trim_end_matches('/'));
+        
+        assert_eq!(derived, "http://localhost:8080/message");
+    }
+
+    // ============================================================================
+    // Transport Behavior Tests (require running server)
+    // ============================================================================
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_sse_transport_send_when_not_connected() {
+        let transport = SseTransport::connect("http://localhost:8080/sse").await;
+        if let Ok(t) = transport {
+            t.close().await.unwrap();
+            
+            let result = t.send(r#"{"jsonrpc":"2.0","id":1,"method":"ping"}"#).await;
+            assert!(result.is_err());
+        }
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_sse_transport_receive_when_not_connected() {
+        let transport = SseTransport::connect("http://localhost:8080/sse").await;
+        if let Ok(t) = transport {
+            t.close().await.unwrap();
+            
+            let result = t.receive().await;
+            assert!(result.is_err());
+        }
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_sse_transport_multiple_close_calls() {
+        let transport = SseTransport::connect("http://localhost:8080/sse").await;
+        if let Ok(t) = transport {
+            // First close
+            let result1 = t.close().await;
+            assert!(result1.is_ok());
+
+            // Second close should also succeed (idempotent)
+            let result2 = t.close().await;
+            assert!(result2.is_ok());
+        }
+    }
+
+    // ============================================================================
+    // URL Format Tests
+    // ============================================================================
+
+    #[test]
+    fn test_various_url_formats() {
+        let urls = vec![
+            ("http://localhost:8080/sse", "http://localhost:8080/message"),
+            ("https://api.example.com/sse", "https://api.example.com/message"),
+            ("http://127.0.0.1:3000/sse", "http://127.0.0.1:3000/message"),
+            ("http://localhost/sse", "http://localhost/message"),
+        ];
+
+        for (input, expected) in urls {
+            let derived = input.replace("/sse", "/message");
+            assert_eq!(derived, expected, "Failed for input: {}", input);
+        }
+    }
+
+    #[test]
+    fn test_url_with_query_params() {
+        let url = "http://localhost:8080/sse?token=abc123";
+        let derived = url.replace("/sse", "/message");
+        assert_eq!(derived, "http://localhost:8080/message?token=abc123");
+    }
+
+    #[test]
+    fn test_url_with_path_segments() {
+        let url = "http://localhost:8080/api/v1/sse";
+        let derived = url.replace("/sse", "/message");
+        assert_eq!(derived, "http://localhost:8080/api/v1/message");
     }
 }

@@ -334,6 +334,243 @@ export function generateShareableUrl(code: string): string {
   return `data:text/javascript;base64,${encoded}`;
 }
 
+/**
+ * Create a GitHub Gist with the code
+ * Note: Requires a GitHub token for authentication
+ */
+export async function createGitHubGist(
+  files: ProjectFiles,
+  config: ExportConfig & { githubToken: string; isPublic?: boolean; description?: string }
+): Promise<{ success: boolean; url?: string; id?: string; error?: string }> {
+  const { githubToken, isPublic = true, description = 'Created with Designer' } = config;
+
+  if (!githubToken) {
+    return { success: false, error: 'GitHub token is required' };
+  }
+
+  try {
+    const projectFiles = generateViteProject(files, config);
+    
+    // Convert to Gist format
+    const gistFiles: Record<string, { content: string }> = {};
+    for (const [filename, content] of Object.entries(projectFiles)) {
+      // Gist doesn't support nested paths, flatten with underscore
+      const flatName = filename.replace(/\//g, '_');
+      gistFiles[flatName] = { content };
+    }
+
+    const response = await fetch('https://api.github.com/gists', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${githubToken}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github.v3+json',
+      },
+      body: JSON.stringify({
+        description,
+        public: isPublic,
+        files: gistFiles,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        error: `GitHub API error: ${response.status} - ${errorData.message || 'Unknown error'}`,
+      };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      url: data.html_url,
+      id: data.id,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create Gist',
+    };
+  }
+}
+
+/**
+ * Generate a shareable code snippet with syntax highlighting support
+ */
+export interface CodeSnippet {
+  id: string;
+  code: string;
+  language: 'jsx' | 'tsx' | 'html' | 'css';
+  title?: string;
+  createdAt: Date;
+  expiresAt?: Date;
+}
+
+/**
+ * Encode code as a URL-safe base64 string for sharing
+ */
+export function encodeCodeForSharing(code: string): string {
+  try {
+    // Use safe base64 encoding
+    return safeBase64Encode(code);
+  } catch {
+    // Fallback
+    return btoa(unescape(encodeURIComponent(code)));
+  }
+}
+
+/**
+ * Decode a shared code string
+ */
+export function decodeSharedCode(encoded: string): string {
+  try {
+    // Try safe base64 decoding first
+    const binString = atob(encoded);
+    const bytes = Uint8Array.from(binString, (c) => c.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  } catch {
+    // Fallback
+    return decodeURIComponent(escape(atob(encoded)));
+  }
+}
+
+/**
+ * Generate a compact shareable URL with embedded code
+ * Uses compression for smaller URLs
+ */
+export function generateCompactShareUrl(code: string, baseUrl?: string): string {
+  const encoded = encodeCodeForSharing(code);
+  const base = baseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
+  return `${base}/designer?code=${encoded}`;
+}
+
+/**
+ * Parse code from a shared URL
+ */
+export function parseSharedUrl(url: string): string | null {
+  try {
+    const urlObj = new URL(url);
+    const encoded = urlObj.searchParams.get('code');
+    if (encoded) {
+      return decodeSharedCode(encoded);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Generate an embeddable iframe HTML for the code
+ */
+export function generateEmbedCode(
+  code: string,
+  options: { width?: string; height?: string; theme?: 'light' | 'dark' } = {}
+): string {
+  const { width = '100%', height = '400px', theme = 'light' } = options;
+  const encoded = encodeCodeForSharing(code);
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
+  return `<iframe
+  src="${baseUrl}/designer/embed?code=${encoded}&theme=${theme}"
+  width="${width}"
+  height="${height}"
+  style="border: 1px solid #e5e7eb; border-radius: 8px;"
+  loading="lazy"
+  sandbox="allow-scripts allow-same-origin"
+></iframe>`;
+}
+
+/**
+ * Export code as different file formats
+ */
+export function exportAsFormat(
+  code: string,
+  format: 'jsx' | 'tsx' | 'html' | 'json',
+  filename?: string
+): void {
+  let content = code;
+  let mimeType = 'text/plain';
+  const extension = format;
+
+  switch (format) {
+    case 'jsx':
+    case 'tsx':
+      mimeType = 'text/javascript';
+      break;
+    case 'html':
+      mimeType = 'text/html';
+      // Wrap JSX in HTML if needed
+      if (!code.includes('<!DOCTYPE') && !code.includes('<html')) {
+        content = wrapInHTML(code);
+      }
+      break;
+    case 'json':
+      mimeType = 'application/json';
+      content = JSON.stringify({ code, exportedAt: new Date().toISOString() }, null, 2);
+      break;
+  }
+
+  const finalFilename = filename || `component.${extension}`;
+  downloadFile(content, finalFilename, mimeType);
+}
+
+/**
+ * Wrap React code in a complete HTML document
+ */
+function wrapInHTML(reactCode: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>React Component</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+${reactCode}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+  </script>
+</body>
+</html>`;
+}
+
+/**
+ * Generate QR code data URL for sharing (requires external QR library)
+ * Returns the data that should be encoded in QR
+ */
+export function getQRCodeData(code: string): string {
+  const shareUrl = generateCompactShareUrl(code);
+  // Return URL for QR encoding - actual QR generation requires a library like 'qrcode'
+  return shareUrl;
+}
+
+/**
+ * Create a snippet for sharing on social platforms
+ */
+export function generateSocialShareLinks(code: string, title?: string): {
+  twitter: string;
+  linkedin: string;
+  reddit: string;
+} {
+  const shareUrl = encodeURIComponent(generateCompactShareUrl(code));
+  const shareTitle = encodeURIComponent(title || 'Check out this React component!');
+
+  return {
+    twitter: `https://twitter.com/intent/tweet?text=${shareTitle}&url=${shareUrl}`,
+    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`,
+    reddit: `https://www.reddit.com/submit?url=${shareUrl}&title=${shareTitle}`,
+  };
+}
+
 const exportUtils = {
   normalizeSandpackFiles,
   generateViteProject,
@@ -343,6 +580,16 @@ const exportUtils = {
   downloadFile,
   copyToClipboard,
   generateShareableUrl,
+  // New exports
+  createGitHubGist,
+  encodeCodeForSharing,
+  decodeSharedCode,
+  generateCompactShareUrl,
+  parseSharedUrl,
+  generateEmbedCode,
+  exportAsFormat,
+  getQRCodeData,
+  generateSocialShareLinks,
 };
 
 export default exportUtils;

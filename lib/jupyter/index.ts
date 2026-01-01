@@ -1,5 +1,54 @@
 /**
- * Jupyter notebook utilities
+ * Jupyter notebook utilities and kernel management
  */
 
-export * from './parser';
+// Parser utilities
+export {
+  parseNotebook,
+  getCellSource,
+  getCellTextOutput,
+  getCellHtmlOutput,
+  getCellImageOutput,
+  getCellLatexOutput,
+  getCellJsonOutput,
+  parseAnsiToHtml,
+  hasAnsiCodes,
+  getNotebookLanguage,
+  notebookToScript,
+  notebookToMarkdown,
+  createEmptyNotebook,
+  createCodeCell,
+  createMarkdownCell,
+  addCell,
+  removeCell,
+  moveCell,
+  updateCell,
+  clearAllOutputs,
+  serializeNotebook,
+  isValidNotebook,
+} from './parser';
+
+// Kernel service
+export {
+  kernelService,
+  isKernelAvailable,
+  createSession,
+  listSessions,
+  getSession,
+  deleteSession,
+  listKernels,
+  restartKernel,
+  interruptKernel,
+  execute,
+  quickExecute,
+  executeCell,
+  executeNotebook,
+  getVariables,
+  inspectVariable,
+  checkKernelAvailable,
+  ensureKernel,
+  shutdownAll,
+  onKernelStatus,
+  onKernelOutput,
+  onCellOutput,
+} from './kernel';
