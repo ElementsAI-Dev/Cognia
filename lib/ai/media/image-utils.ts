@@ -1,6 +1,17 @@
 /**
- * Image utilities for vision models
+ * Media utilities for vision models (images, audio, video)
  */
+
+import {
+  isAudioFile,
+  isVideoFile,
+  processAudioFile,
+  processVideoFile,
+  audioUrlToBase64,
+  videoUrlToBase64,
+  type AudioContent,
+  type VideoContent,
+} from './media-utils';
 
 /**
  * Convert a File or Blob to base64 data URL
@@ -148,22 +159,27 @@ export interface TextContent {
   text: string;
 }
 
-export type MessageContent = TextContent | ImageContent;
+// Re-export audio/video content types from media-utils
+export type { AudioContent, VideoContent } from './media-utils';
+
+export type MessageContent = TextContent | ImageContent | AudioContent | VideoContent;
 
 /**
  * Build multimodal message content from text and attachments
+ * Supports images, audio, and video files
  */
 export async function buildMultimodalContent(
   text: string,
-  attachments?: Array<{ url: string; mimeType: string; file?: File | Blob }>
+  attachments?: Array<{ url: string; mimeType: string; file?: File | Blob; type?: string }>
 ): Promise<MessageContent[]> {
   const content: MessageContent[] = [];
 
-  // Add images first
+  // Process attachments (images, audio, video)
   if (attachments) {
     for (const attachment of attachments) {
-      if (isImageFile(attachment.mimeType)) {
-        try {
+      try {
+        // Handle image files
+        if (isImageFile(attachment.mimeType)) {
           let base64: string;
 
           // If we have the file, resize if needed
@@ -180,9 +196,42 @@ export async function buildMultimodalContent(
             image: data,
             mimeType,
           });
-        } catch (error) {
-          console.error('Error processing image:', error);
         }
+        // Handle audio files
+        else if (isAudioFile(attachment.mimeType)) {
+          let audioData: { data: string; mimeType: string; format: string };
+
+          if (attachment.file) {
+            audioData = await processAudioFile(attachment.file);
+          } else {
+            audioData = await audioUrlToBase64(attachment.url);
+          }
+
+          content.push({
+            type: 'audio',
+            audio: audioData.data,
+            mimeType: audioData.mimeType,
+            format: audioData.format,
+          });
+        }
+        // Handle video files
+        else if (isVideoFile(attachment.mimeType)) {
+          let videoData: { dataUrl: string; mimeType: string };
+
+          if (attachment.file) {
+            videoData = await processVideoFile(attachment.file);
+          } else {
+            videoData = await videoUrlToBase64(attachment.url);
+          }
+
+          content.push({
+            type: 'video',
+            video: videoData.dataUrl,
+            mimeType: videoData.mimeType,
+          });
+        }
+      } catch (error) {
+        console.error(`Error processing ${attachment.mimeType} attachment:`, error);
       }
     }
   }

@@ -54,3 +54,7 @@ export { PendingMessagesQueue, type PendingMessage } from './pending-messages-qu
 
 // Reactions
 export { MessageReactions } from './message-reactions';
+
+// Summary components
+export { ChatSummaryDialog } from './chat-summary-dialog';
+export { AutoSummaryPrompt } from './auto-summary-prompt';

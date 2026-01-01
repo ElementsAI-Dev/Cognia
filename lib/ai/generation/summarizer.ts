@@ -5,6 +5,9 @@
  * - Summarize chat messages using AI or fallback extraction
  * - Summarize agent execution processes
  * - Extract key points and topics from conversations
+ * - AI-powered key point extraction and topic identification
+ * - Multi-language support with auto-detection
+ * - Incremental summarization for long conversations
  */
 
 import { generateText } from 'ai';
@@ -19,6 +22,9 @@ import type {
   AgentStepSummary,
   GenerateChatSummaryInput,
   GenerateAgentSummaryInput,
+  IncrementalSummaryInput,
+  ConversationAnalysis,
+  KeyPointCategory,
 } from '@/types/summary';
 import {
   DEFAULT_CHAT_SUMMARY_OPTIONS,
@@ -26,6 +32,15 @@ import {
 } from '@/types/summary';
 import { getProviderModel, type ProviderName } from '../core/client';
 import { countTokens } from '@/hooks/use-token-count';
+import {
+  buildSummaryPrompt as buildEnhancedSummaryPrompt,
+  buildKeyPointExtractionPrompt,
+  buildTopicIdentificationPrompt,
+  buildIncrementalSummaryPrompt,
+  buildConversationAnalysisPrompt,
+  detectConversationLanguage,
+  SUMMARY_TEMPLATES,
+} from '../prompts/summary-prompts';
 
 /**
  * Filter messages based on summary options
@@ -599,4 +614,434 @@ function formatDuration(ms: number): string {
   const minutes = Math.floor(ms / 60000);
   const seconds = Math.floor((ms % 60000) / 1000);
   return `${minutes}m ${seconds}s`;
+}
+
+/**
+ * Enhanced AI summary generation with style and template support
+ */
+export async function generateEnhancedChatSummary(
+  input: GenerateChatSummaryInput,
+  config: {
+    provider: ProviderName;
+    model: string;
+    apiKey: string;
+    baseURL?: string;
+  }
+): Promise<ChatSummaryResult> {
+  const { messages, sessionTitle, options, onProgress } = input;
+  const mergedOptions = { ...DEFAULT_CHAT_SUMMARY_OPTIONS, ...options };
+
+  onProgress?.({ stage: 'analyzing', progress: 10, message: 'Analyzing messages...' });
+
+  // Filter messages based on options
+  const filteredMessages = filterMessagesByOptions(messages, mergedOptions);
+  
+  if (filteredMessages.length === 0) {
+    return {
+      success: false,
+      summary: '',
+      keyPoints: [],
+      topics: [],
+      messageCount: 0,
+      sourceTokens: 0,
+      summaryTokens: 0,
+      compressionRatio: 1,
+      generatedAt: new Date(),
+      error: 'No messages to summarize',
+    };
+  }
+
+  const sourceTokens = filteredMessages.reduce((sum, m) => sum + countTokens(m.content), 0);
+
+  // Auto-detect language if enabled
+  let language = mergedOptions.language;
+  if (mergedOptions.autoDetectLanguage && !language) {
+    language = detectConversationLanguage(filteredMessages);
+  }
+
+  onProgress?.({ stage: 'extracting', progress: 30, message: 'Extracting key points...' });
+
+  // Extract key points (AI or simple based on options)
+  let keyPoints: KeyPoint[];
+  if (mergedOptions.aiKeyPoints) {
+    keyPoints = await extractKeyPointsWithAI(filteredMessages, config, language);
+  } else {
+    keyPoints = extractKeyPointsSimple(filteredMessages);
+  }
+
+  // Extract topics (AI or simple based on options)
+  let topics: ConversationTopic[];
+  if (mergedOptions.aiTopics) {
+    topics = await extractTopicsWithAI(filteredMessages, config, language);
+  } else {
+    topics = extractTopicsSimple(filteredMessages);
+  }
+
+  onProgress?.({ stage: 'summarizing', progress: 50, message: 'Generating summary...' });
+
+  try {
+    const modelInstance = getProviderModel(config.provider, config.model, config.apiKey, config.baseURL);
+    
+    // Use enhanced prompt builder with style and template support
+    const prompt = buildEnhancedSummaryPrompt({
+      messages: filteredMessages,
+      format: mergedOptions.format,
+      style: mergedOptions.style,
+      language,
+      maxLength: mergedOptions.maxLength,
+      includeCode: mergedOptions.includeCode,
+      includeToolCalls: mergedOptions.includeToolCalls,
+      sessionTitle,
+      customInstructions: mergedOptions.customInstructions,
+    });
+
+    const result = await generateText({
+      model: modelInstance,
+      prompt,
+      temperature: 0.3,
+      maxOutputTokens: mergedOptions.maxLength ? Math.ceil(mergedOptions.maxLength / 4) : 1500,
+    });
+
+    const summary = result.text.trim();
+    const summaryTokens = countTokens(summary);
+
+    onProgress?.({ stage: 'complete', progress: 100, message: 'Summary complete!' });
+
+    return {
+      success: true,
+      summary,
+      keyPoints,
+      topics,
+      messageCount: filteredMessages.length,
+      sourceTokens,
+      summaryTokens,
+      compressionRatio: sourceTokens > 0 ? summaryTokens / sourceTokens : 1,
+      generatedAt: new Date(),
+    };
+  } catch (error) {
+    // Fallback to simple summary on error
+    const summary = generateSimpleChatSummary(filteredMessages, mergedOptions);
+    const summaryTokens = countTokens(summary);
+
+    return {
+      success: true,
+      summary,
+      keyPoints,
+      topics,
+      messageCount: filteredMessages.length,
+      sourceTokens,
+      summaryTokens,
+      compressionRatio: sourceTokens > 0 ? summaryTokens / sourceTokens : 1,
+      generatedAt: new Date(),
+      error: `AI summarization failed, using fallback: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
+  }
+}
+
+/**
+ * Extract key points using AI
+ */
+export async function extractKeyPointsWithAI(
+  messages: UIMessage[],
+  config: {
+    provider: ProviderName;
+    model: string;
+    apiKey: string;
+    baseURL?: string;
+  },
+  language?: string
+): Promise<KeyPoint[]> {
+  try {
+    const modelInstance = getProviderModel(config.provider, config.model, config.apiKey, config.baseURL);
+    
+    const prompt = buildKeyPointExtractionPrompt({
+      messages,
+      maxPoints: 10,
+      language,
+    });
+
+    const result = await generateText({
+      model: modelInstance,
+      prompt,
+      temperature: 0.2,
+      maxOutputTokens: 2000,
+    });
+
+    // Parse JSON response
+    const jsonMatch = result.text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      return extractKeyPointsSimple(messages);
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]) as Array<{
+      content: string;
+      category: KeyPointCategory;
+      importance: number;
+      sourceRole?: string;
+    }>;
+
+    return parsed.map((kp, index) => ({
+      id: nanoid(),
+      content: kp.content,
+      sourceMessageId: messages[Math.min(index, messages.length - 1)]?.id || '',
+      category: kp.category,
+      importance: kp.importance,
+      sourceRole: kp.sourceRole as 'user' | 'assistant' | 'system' | undefined,
+    }));
+  } catch {
+    // Fallback to simple extraction
+    return extractKeyPointsSimple(messages);
+  }
+}
+
+/**
+ * Extract topics using AI
+ */
+export async function extractTopicsWithAI(
+  messages: UIMessage[],
+  config: {
+    provider: ProviderName;
+    model: string;
+    apiKey: string;
+    baseURL?: string;
+  },
+  language?: string
+): Promise<ConversationTopic[]> {
+  try {
+    const modelInstance = getProviderModel(config.provider, config.model, config.apiKey, config.baseURL);
+    
+    const prompt = buildTopicIdentificationPrompt({
+      messages,
+      maxTopics: 5,
+      language,
+    });
+
+    const result = await generateText({
+      model: modelInstance,
+      prompt,
+      temperature: 0.2,
+      maxOutputTokens: 1500,
+    });
+
+    // Parse JSON response
+    const jsonMatch = result.text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      return extractTopicsSimple(messages);
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]) as Array<{
+      name: string;
+      description: string;
+      keywords: string[];
+      coverage: number;
+    }>;
+
+    return parsed.map(topic => ({
+      name: topic.name,
+      messageIds: [], // Would need additional analysis to map topics to messages
+      description: topic.description,
+      keywords: topic.keywords,
+      coverage: topic.coverage,
+    }));
+  } catch {
+    // Fallback to simple extraction
+    return extractTopicsSimple(messages);
+  }
+}
+
+/**
+ * Generate incremental summary (building on previous summary)
+ */
+export async function generateIncrementalSummary(
+  input: IncrementalSummaryInput,
+  config: {
+    provider: ProviderName;
+    model: string;
+    apiKey: string;
+    baseURL?: string;
+  }
+): Promise<ChatSummaryResult> {
+  const { previousSummary, newMessages, options, onProgress } = input;
+  const mergedOptions = { ...DEFAULT_CHAT_SUMMARY_OPTIONS, ...options };
+
+  onProgress?.({ stage: 'analyzing', progress: 10, message: 'Analyzing new messages...' });
+
+  if (newMessages.length === 0) {
+    return {
+      success: true,
+      summary: previousSummary.summary,
+      keyPoints: previousSummary.keyPoints,
+      topics: previousSummary.topics,
+      messageCount: previousSummary.messageCount,
+      sourceTokens: previousSummary.sourceTokens,
+      summaryTokens: previousSummary.summaryTokens,
+      compressionRatio: previousSummary.compressionRatio,
+      generatedAt: new Date(),
+    };
+  }
+
+  const newSourceTokens = newMessages.reduce((sum, m) => sum + countTokens(m.content), 0);
+  const totalSourceTokens = previousSummary.sourceTokens + newSourceTokens;
+
+  onProgress?.({ stage: 'summarizing', progress: 50, message: 'Updating summary...' });
+
+  try {
+    const modelInstance = getProviderModel(config.provider, config.model, config.apiKey, config.baseURL);
+    
+    const prompt = buildIncrementalSummaryPrompt({
+      previousSummary: previousSummary.summary,
+      newMessages,
+      format: mergedOptions.format,
+      style: mergedOptions.style,
+      language: mergedOptions.language,
+    });
+
+    const result = await generateText({
+      model: modelInstance,
+      prompt,
+      temperature: 0.3,
+      maxOutputTokens: mergedOptions.maxLength ? Math.ceil(mergedOptions.maxLength / 4) : 1500,
+    });
+
+    const summary = result.text.trim();
+    const summaryTokens = countTokens(summary);
+
+    // Extract new key points and merge with existing
+    const newKeyPoints = extractKeyPointsSimple(newMessages);
+    const mergedKeyPoints = [...previousSummary.keyPoints, ...newKeyPoints].slice(0, 20);
+
+    // Extract new topics and merge
+    const newTopics = extractTopicsSimple(newMessages);
+    const mergedTopics = mergeTopics(previousSummary.topics, newTopics);
+
+    onProgress?.({ stage: 'complete', progress: 100, message: 'Summary updated!' });
+
+    return {
+      success: true,
+      summary,
+      keyPoints: mergedKeyPoints,
+      topics: mergedTopics,
+      messageCount: previousSummary.messageCount + newMessages.length,
+      sourceTokens: totalSourceTokens,
+      summaryTokens,
+      compressionRatio: totalSourceTokens > 0 ? summaryTokens / totalSourceTokens : 1,
+      generatedAt: new Date(),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      summary: previousSummary.summary,
+      keyPoints: previousSummary.keyPoints,
+      topics: previousSummary.topics,
+      messageCount: previousSummary.messageCount,
+      sourceTokens: totalSourceTokens,
+      summaryTokens: previousSummary.summaryTokens,
+      compressionRatio: previousSummary.compressionRatio,
+      generatedAt: new Date(),
+      error: `Incremental summary failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
+  }
+}
+
+/**
+ * Merge topics from previous and new extraction
+ */
+function mergeTopics(existing: ConversationTopic[], newTopics: ConversationTopic[]): ConversationTopic[] {
+  const topicMap = new Map<string, ConversationTopic>();
+  
+  // Add existing topics
+  existing.forEach(t => topicMap.set(t.name.toLowerCase(), t));
+  
+  // Merge or add new topics
+  newTopics.forEach(t => {
+    const key = t.name.toLowerCase();
+    const existingTopic = topicMap.get(key);
+    if (existingTopic) {
+      topicMap.set(key, {
+        ...existingTopic,
+        messageIds: [...new Set([...existingTopic.messageIds, ...t.messageIds])],
+        keywords: [...new Set([...(existingTopic.keywords || []), ...(t.keywords || [])])],
+      });
+    } else {
+      topicMap.set(key, t);
+    }
+  });
+  
+  return Array.from(topicMap.values()).slice(0, 10);
+}
+
+/**
+ * Analyze conversation quality and characteristics
+ */
+export async function analyzeConversation(
+  messages: UIMessage[],
+  config: {
+    provider: ProviderName;
+    model: string;
+    apiKey: string;
+    baseURL?: string;
+  },
+  language?: string
+): Promise<ConversationAnalysis> {
+  const defaultAnalysis: ConversationAnalysis = {
+    sentiment: {
+      overall: 'neutral',
+      userSentiment: 'neutral',
+      assistantTone: 'helpful',
+    },
+    quality: {
+      clarity: 0.7,
+      completeness: 0.7,
+      helpfulness: 0.7,
+    },
+    characteristics: {
+      isQA: true,
+      isTechnical: false,
+      isCreative: false,
+      isDebugSession: false,
+      hasCodingContent: false,
+    },
+    suggestions: [],
+  };
+
+  if (messages.length < 2) {
+    return defaultAnalysis;
+  }
+
+  try {
+    const modelInstance = getProviderModel(config.provider, config.model, config.apiKey, config.baseURL);
+    
+    const prompt = buildConversationAnalysisPrompt({ messages, language });
+
+    const result = await generateText({
+      model: modelInstance,
+      prompt,
+      temperature: 0.2,
+      maxOutputTokens: 1000,
+    });
+
+    // Parse JSON response
+    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return defaultAnalysis;
+    }
+
+    return JSON.parse(jsonMatch[0]) as ConversationAnalysis;
+  } catch {
+    return defaultAnalysis;
+  }
+}
+
+/**
+ * Get summary template by name
+ */
+export function getSummaryTemplate(templateName: keyof typeof SUMMARY_TEMPLATES) {
+  return SUMMARY_TEMPLATES[templateName];
+}
+
+/**
+ * Export all template names
+ */
+export function getAvailableTemplates() {
+  return Object.keys(SUMMARY_TEMPLATES) as Array<keyof typeof SUMMARY_TEMPLATES>;
 }

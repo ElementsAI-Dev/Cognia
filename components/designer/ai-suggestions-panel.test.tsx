@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { AISuggestionsPanel } from './ai-suggestions-panel';
+import { AISuggestionsPanel } from './ai/ai-suggestions-panel';
 
 // Mock scrollIntoView for jsdom
 Element.prototype.scrollIntoView = jest.fn();

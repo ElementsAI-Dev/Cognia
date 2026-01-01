@@ -9,4 +9,6 @@ export * from './searchapi';
 export * from './serpapi';
 export * from './bing';
 export * from './google';
+export * from './google-ai';
 export * from './brave';
+export * from './playwright-scraper';

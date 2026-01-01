@@ -11,6 +11,7 @@
  * - ChromaDB (embedded and server modes)
  * - Pinecone (serverless)
  * - Qdrant (local and cloud)
+ * - Milvus (self-hosted and Zilliz Cloud)
  */
 
 // Embedding utilities
@@ -30,6 +31,7 @@ export {
   listCollections as listChromaCollections,
   addDocuments as addChromaDocuments,
   updateDocuments as updateChromaDocuments,
+  upsertDocuments as upsertChromaDocuments,
   deleteDocuments as deleteChromaDocuments,
   queryCollection,
   getDocuments as getChromaDocuments,
@@ -91,6 +93,42 @@ export {
   scrollQdrantCollection,
 } from './qdrant-client';
 
+// Milvus client
+export {
+  type MilvusConfig,
+  type MilvusDocument,
+  type MilvusSearchResult,
+  type MilvusCollectionInfo,
+  type MilvusIndexInfo,
+  getMilvusClient,
+  resetMilvusClient,
+  milvusCollectionExists,
+  createMilvusCollection,
+  deleteMilvusCollection,
+  listMilvusCollections,
+  getMilvusCollectionInfo,
+  upsertMilvusDocuments,
+  insertMilvusDocuments,
+  queryMilvus,
+  searchMilvusByVector,
+  deleteMilvusDocuments,
+  deleteMilvusByFilter,
+  getMilvusDocuments,
+  queryMilvusByFilter,
+  countMilvusDocuments,
+  createMilvusIndex,
+  dropMilvusIndex,
+  loadMilvusCollection,
+  releaseMilvusCollection,
+  flushMilvusCollection,
+  getMilvusLoadingProgress,
+  compactMilvusCollection,
+  createMilvusPartition,
+  dropMilvusPartition,
+  listMilvusPartitions,
+  hybridSearchMilvus,
+} from './milvus-client';
+
 // Unified vector store interface
 export {
   type VectorStoreProvider,
@@ -111,6 +149,7 @@ export {
   NativeVectorStore,
   ChromaVectorStore,
   QdrantVectorStore,
+  MilvusVectorStore,
   createVectorStore,
   getSupportedVectorStoreProviders,
 } from './store';

@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { VersionHistoryPanel } from './version-history-panel';
+import { VersionHistoryPanel } from './panels/version-history-panel';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

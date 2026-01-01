@@ -6,7 +6,7 @@
 import type { EmbeddingModelConfig } from './embedding';
 import { generateEmbedding, generateEmbeddings } from './embedding';
 
-export type VectorStoreProvider = 'chroma' | 'pinecone' | 'qdrant' | 'native';
+export type VectorStoreProvider = 'chroma' | 'pinecone' | 'qdrant' | 'milvus' | 'native';
 
 export interface VectorDocument {
   id: string;
@@ -37,6 +37,13 @@ export interface VectorStoreConfig {
   qdrantUrl?: string;
   qdrantApiKey?: string;
   qdrantCollectionName?: string;
+  // Milvus-specific
+  milvusAddress?: string;
+  milvusToken?: string;
+  milvusUsername?: string;
+  milvusPassword?: string;
+  milvusSsl?: boolean;
+  milvusCollectionName?: string;
   // Native (Tauri) local store
   native?: Record<string, never>;
 }
@@ -837,6 +844,246 @@ export class QdrantVectorStore implements IVectorStore {
 }
 
 /**
+ * Milvus Vector Store implementation
+ */
+export class MilvusVectorStore implements IVectorStore {
+  readonly provider: VectorStoreProvider = 'milvus';
+  private config: VectorStoreConfig;
+  private milvusClient: import('@zilliz/milvus2-sdk-node').MilvusClient | null = null;
+
+  constructor(config: VectorStoreConfig) {
+    this.config = config;
+  }
+
+  private async getClient(): Promise<import('@zilliz/milvus2-sdk-node').MilvusClient> {
+    if (!this.milvusClient) {
+      const { MilvusClient } = await import('@zilliz/milvus2-sdk-node');
+      this.milvusClient = new MilvusClient({
+        address: this.config.milvusAddress!,
+        token: this.config.milvusToken,
+        username: this.config.milvusUsername,
+        password: this.config.milvusPassword,
+        ssl: this.config.milvusSsl,
+      });
+    }
+    return this.milvusClient;
+  }
+
+  async addDocuments(collectionName: string, documents: VectorDocument[]): Promise<void> {
+    const client = await this.getClient();
+    const { generateEmbeddings } = await import('./embedding');
+
+    const needsEmbedding = documents.some((doc) => !doc.embedding);
+    let embeddings: number[][] | undefined;
+
+    if (needsEmbedding) {
+      const textsToEmbed = documents.filter((doc) => !doc.embedding).map((doc) => doc.content);
+      if (textsToEmbed.length > 0) {
+        const result = await generateEmbeddings(textsToEmbed, this.config.embeddingConfig, this.config.embeddingApiKey);
+        let embeddingIndex = 0;
+        embeddings = documents.map((doc) => {
+          if (doc.embedding) return doc.embedding;
+          return result.embeddings[embeddingIndex++];
+        });
+      }
+    } else {
+      embeddings = documents.map((doc) => doc.embedding!);
+    }
+
+    const data = documents.map((doc, i) => {
+      const baseData: Record<string, unknown> = {
+        id: doc.id,
+        vector: embeddings![i],
+        content: doc.content,
+      };
+      if (doc.metadata) {
+        Object.entries(doc.metadata).forEach(([key, value]) => {
+          if (key !== 'id' && key !== 'vector' && key !== 'content') {
+            baseData[key] = value;
+          }
+        });
+      }
+      return baseData;
+    });
+
+    const batchSize = 1000;
+    for (let i = 0; i < data.length; i += batchSize) {
+      await client.upsert({ collection_name: collectionName, data: data.slice(i, i + batchSize) });
+    }
+  }
+
+  async updateDocuments(collectionName: string, documents: VectorDocument[]): Promise<void> {
+    await this.addDocuments(collectionName, documents);
+  }
+
+  async deleteDocuments(collectionName: string, ids: string[]): Promise<void> {
+    const client = await this.getClient();
+    const idsStr = ids.map((id) => `"${id}"`).join(', ');
+    await client.delete({ collection_name: collectionName, filter: `id in [${idsStr}]` });
+  }
+
+  async searchDocuments(
+    collectionName: string,
+    query: string,
+    options: SearchOptions = {}
+  ): Promise<VectorSearchResult[]> {
+    const client = await this.getClient();
+    const { generateEmbedding } = await import('./embedding');
+    const { topK = 5, filter, threshold } = options;
+
+    const queryResult = await generateEmbedding(query, this.config.embeddingConfig, this.config.embeddingApiKey);
+
+    const searchResponse = await client.search({
+      collection_name: collectionName,
+      vector: queryResult.embedding,
+      limit: topK,
+      filter: filter ? JSON.stringify(filter) : undefined,
+      output_fields: ['content', '*'],
+    });
+
+    return searchResponse.results
+      .filter((r: Record<string, unknown>) => threshold === undefined || (r.score as number) >= threshold)
+      .map((result: Record<string, unknown>) => ({
+        id: String(result.id),
+        content: (result.content as string) || '',
+        metadata: Object.fromEntries(
+          Object.entries(result).filter(([key]) => !['id', 'score', 'vector'].includes(key))
+        ),
+        score: result.score as number,
+      }));
+  }
+
+  async getDocuments(collectionName: string, ids: string[]): Promise<VectorDocument[]> {
+    const client = await this.getClient();
+    const idsStr = ids.map((id) => `"${id}"`).join(', ');
+
+    const queryResponse = await client.query({
+      collection_name: collectionName,
+      filter: `id in [${idsStr}]`,
+      output_fields: ['id', 'content', 'vector', '*'],
+    });
+
+    return queryResponse.data.map((item: Record<string, unknown>) => ({
+      id: String(item.id),
+      content: (item.content as string) || '',
+      metadata: Object.fromEntries(
+        Object.entries(item).filter(([key]) => !['id', 'content', 'vector'].includes(key))
+      ),
+      embedding: item.vector as number[] | undefined,
+    }));
+  }
+
+  async createCollection(
+    name: string,
+    options?: { dimension?: number; metadata?: Record<string, unknown> }
+  ): Promise<void> {
+    const client = await this.getClient();
+    const { DataType } = await import('@zilliz/milvus2-sdk-node');
+
+    const exists = await client.hasCollection({ collection_name: name });
+    if (exists.value) return;
+
+    const dimension = options?.dimension || this.config.embeddingConfig.dimensions || 1536;
+
+    await client.createCollection({
+      collection_name: name,
+      fields: [
+        { name: 'id', data_type: DataType.VarChar, is_primary_key: true, max_length: 512 },
+        { name: 'vector', data_type: DataType.FloatVector, dim: dimension },
+        { name: 'content', data_type: DataType.VarChar, max_length: 65535 },
+      ],
+      enable_dynamic_field: true,
+    });
+
+    await client.createIndex({
+      collection_name: name,
+      field_name: 'vector',
+      index_type: 'HNSW',
+      metric_type: 'COSINE',
+      params: { M: 16, efConstruction: 256 },
+    });
+
+    await client.loadCollection({ collection_name: name });
+  }
+
+  async deleteCollection(name: string): Promise<void> {
+    const client = await this.getClient();
+    const exists = await client.hasCollection({ collection_name: name });
+    if (exists.value) {
+      await client.dropCollection({ collection_name: name });
+    }
+  }
+
+  async listCollections(): Promise<VectorCollectionInfo[]> {
+    const client = await this.getClient();
+    const { DataType } = await import('@zilliz/milvus2-sdk-node');
+    const response = await client.listCollections();
+    const infos: VectorCollectionInfo[] = [];
+
+    for (const collectionName of response.data) {
+      try {
+        const describeResponse = await client.describeCollection({ collection_name: collectionName });
+        const statsResponse = await client.getCollectionStatistics({ collection_name: collectionName });
+
+        let dimension = 0;
+        for (const field of describeResponse.schema.fields) {
+          if (field.data_type === DataType.FloatVector || field.data_type === 'FloatVector') {
+            dimension = Number(field.type_params?.find((p: { key: string; value: string }) => p.key === 'dim')?.value) || 0;
+            break;
+          }
+        }
+
+        let documentCount = 0;
+        const rowCountStat = statsResponse.stats?.find((s: { key: string; value: string }) => s.key === 'row_count');
+        if (rowCountStat) {
+          documentCount = parseInt(rowCountStat.value, 10) || 0;
+        }
+
+        infos.push({
+          name: collectionName,
+          documentCount,
+          dimension,
+          description: describeResponse.schema.description,
+        });
+      } catch {
+        infos.push({ name: collectionName, documentCount: 0 });
+      }
+    }
+
+    return infos;
+  }
+
+  async getCollectionInfo(name: string): Promise<VectorCollectionInfo> {
+    const client = await this.getClient();
+    const { DataType } = await import('@zilliz/milvus2-sdk-node');
+
+    const describeResponse = await client.describeCollection({ collection_name: name });
+    const statsResponse = await client.getCollectionStatistics({ collection_name: name });
+
+    let dimension = 0;
+    for (const field of describeResponse.schema.fields) {
+      if (field.data_type === DataType.FloatVector || field.data_type === 'FloatVector') {
+        dimension = Number(field.type_params?.find((p: { key: string; value: string }) => p.key === 'dim')?.value) || 0;
+        break;
+      }
+    }
+
+    let documentCount = 0;
+    const rowCountStat = statsResponse.stats?.find((s: { key: string; value: string }) => s.key === 'row_count');
+    if (rowCountStat) {
+      documentCount = parseInt(rowCountStat.value, 10) || 0;
+    }
+
+    return {
+      name,
+      documentCount,
+      dimension,
+      description: describeResponse.schema.description,
+    };
+  }
+}
+
+/**
  * Create a vector store instance based on provider
  */
 export function createVectorStore(config: VectorStoreConfig): IVectorStore {
@@ -854,6 +1101,11 @@ export function createVectorStore(config: VectorStoreConfig): IVectorStore {
         throw new Error('Qdrant URL is required');
       }
       return new QdrantVectorStore(config);
+    case 'milvus':
+      if (!config.milvusAddress) {
+        throw new Error('Milvus address is required');
+      }
+      return new MilvusVectorStore(config);
     case 'native':
       return new NativeVectorStore(config);
     default:
@@ -865,5 +1117,5 @@ export function createVectorStore(config: VectorStoreConfig): IVectorStore {
  * Get supported vector store providers
  */
 export function getSupportedVectorStoreProviders(): VectorStoreProvider[] {
-  return ['chroma', 'pinecone', 'qdrant', 'native'];
+  return ['chroma', 'pinecone', 'qdrant', 'milvus', 'native'];
 }

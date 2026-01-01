@@ -20,15 +20,15 @@ import {
   Flashcard,
   FlashcardFromTool,
   FlashcardDeckFromTool,
-} from '@/components/ai-elements/flashcard';
+} from '@/components/learning/flashcard';
 import {
   QuizFromTool,
   QuizQuestionFromTool,
-} from '@/components/ai-elements/quiz';
+} from '@/components/learning/quiz';
 import {
   ReviewSessionFromTool,
   ProgressSummaryFromTool,
-} from '@/components/ai-elements/review-session';
+} from '@/components/learning/review-session';
 import type {
   LearningToolOutput,
   FlashcardToolOutput,

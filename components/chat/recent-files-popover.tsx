@@ -22,6 +22,8 @@ import {
   X,
   Search,
   Trash2,
+  Music,
+  Video,
 } from 'lucide-react';
 import { useRecentFilesStore, type RecentFile } from '@/stores/recent-files-store';
 import { cn } from '@/lib/utils';
@@ -58,6 +60,10 @@ function getFileIcon(type: RecentFile['type']) {
   switch (type) {
     case 'image':
       return <ImageIcon className="h-4 w-4 text-blue-500" />;
+    case 'audio':
+      return <Music className="h-4 w-4 text-purple-500" />;
+    case 'video':
+      return <Video className="h-4 w-4 text-pink-500" />;
     case 'document':
       return <FileText className="h-4 w-4 text-orange-500" />;
     default:

@@ -120,7 +120,7 @@ export type MessagePart =
 export interface Attachment {
   id: string;
   name: string;
-  type: 'image' | 'file' | 'document';
+  type: 'image' | 'audio' | 'video' | 'file' | 'document';
   url: string;
   size: number;
   mimeType: string;

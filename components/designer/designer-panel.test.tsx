@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { DesignerPanel } from './designer-panel';
+import { DesignerPanel } from './core/designer-panel';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
@@ -76,7 +76,7 @@ jest.mock('@/components/ui/resizable', () => ({
   ResizablePanelGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-jest.mock('./designer-toolbar', () => ({
+jest.mock('./toolbar/designer-toolbar', () => ({
   DesignerToolbar: ({ onAIEdit, onExport }: { onAIEdit?: () => void; onExport?: () => void }) => (
     <div data-testid="designer-toolbar">
       <button onClick={onAIEdit}>AI Edit</button>
@@ -85,23 +85,23 @@ jest.mock('./designer-toolbar', () => ({
   ),
 }));
 
-jest.mock('./designer-preview', () => ({
+jest.mock('./preview/designer-preview', () => ({
   DesignerPreview: () => <div data-testid="designer-preview" />,
 }));
 
-jest.mock('./element-tree', () => ({
+jest.mock('./panels/element-tree', () => ({
   ElementTree: () => <div data-testid="element-tree" />,
 }));
 
-jest.mock('./style-panel', () => ({
+jest.mock('./panels/style-panel', () => ({
   StylePanel: () => <div data-testid="style-panel" />,
 }));
 
-jest.mock('./version-history-panel', () => ({
+jest.mock('./panels/version-history-panel', () => ({
   VersionHistoryPanel: () => <div data-testid="version-history-panel" />,
 }));
 
-jest.mock('./ai-chat-panel', () => ({
+jest.mock('./ai/ai-chat-panel', () => ({
   AIChatPanel: () => <div data-testid="ai-chat-panel" />,
 }));
 

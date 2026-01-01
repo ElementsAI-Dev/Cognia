@@ -229,6 +229,22 @@ html.tauri-app [data-slot="sidebar-wrapper"] {
   height: calc(100vh - 32px) !important;
 }
 
+/* Touch and pen input support for drag regions (Windows) */
+*[data-tauri-drag-region] {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+/* Ensure interactive elements within drag regions are not draggable */
+*[data-tauri-drag-region] button,
+*[data-tauri-drag-region] a,
+*[data-tauri-drag-region] input,
+*[data-tauri-drag-region] select,
+*[data-tauri-drag-region] [data-no-drag] {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
 /* SidebarInset (main content area) positioning */
 html.tauri-app [data-slot="sidebar-inset"] {
   height: calc(100vh - 32px) !important;

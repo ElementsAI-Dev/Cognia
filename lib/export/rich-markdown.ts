@@ -295,11 +295,21 @@ function renderAttachments(attachments: Attachment[]): string {
   lines.push('');
 
   for (const attachment of attachments) {
+    const icon = attachment.type === 'image' ? '🖼️' : 
+                 attachment.type === 'audio' ? '🎵' : 
+                 attachment.type === 'video' ? '🎬' : '📎';
+    
     if (attachment.type === 'image') {
-      lines.push(`- **${attachment.name}** (${formatBytes(attachment.size)})`);
+      lines.push(`- ${icon} **${attachment.name}** (${formatBytes(attachment.size)})`);
       lines.push(`  ![${attachment.name}](${attachment.url})`);
+    } else if (attachment.type === 'audio') {
+      lines.push(`- ${icon} **${attachment.name}** (${attachment.mimeType}, ${formatBytes(attachment.size)})`);
+      lines.push(`  <audio controls src="${attachment.url}"></audio>`);
+    } else if (attachment.type === 'video') {
+      lines.push(`- ${icon} **${attachment.name}** (${attachment.mimeType}, ${formatBytes(attachment.size)})`);
+      lines.push(`  <video controls src="${attachment.url}" style="max-width: 400px;"></video>`);
     } else {
-      lines.push(`- **${attachment.name}** (${attachment.mimeType}, ${formatBytes(attachment.size)})`);
+      lines.push(`- ${icon} **${attachment.name}** (${attachment.mimeType}, ${formatBytes(attachment.size)})`);
     }
   }
 

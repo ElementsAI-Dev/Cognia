@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { DesignerPreview } from './designer-preview';
+import { DesignerPreview } from './preview/designer-preview';
 
 // Mock stores
 const mockSelectElement = jest.fn();

@@ -47,7 +47,7 @@ import {
   type ToolExecution,
   type ToolApprovalRequest,
 } from '@/components/agent';
-import { PPTPreview } from '@/components/ai-elements/ppt-preview';
+import { PPTPreview } from '@/components/learning/ppt-preview';
 import { SkillSuggestions } from '@/components/skills';
 import { LearningModePanel, LearningStartDialog } from '@/components/learning';
 import { useSkillStore } from '@/stores/skill-store';
@@ -74,7 +74,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useMessages, useAgent, useProjectContext, calculateTokenBreakdown } from '@/hooks';
 import type { ParsedToolCall, ToolCallResult } from '@/types/mcp';
-import { useAIChat, useAutoRouter, type ProviderName, isVisionModel, buildMultimodalContent, type MultimodalMessage } from '@/lib/ai';
+import { useAIChat, useAutoRouter, type ProviderName, isVisionModel, buildMultimodalContent, type MultimodalMessage, isAudioModel, isVideoModel } from '@/lib/ai';
 import { messageRepository } from '@/lib/db';
 import { PROVIDERS } from '@/types/provider';
 import type { ChatMode, UIMessage } from '@/types';
@@ -799,7 +799,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
         attachments: attachments?.map(a => ({
           id: a.id,
           name: a.name,
-          type: a.type as 'image' | 'file' | 'document',
+          type: a.type as 'image' | 'audio' | 'video' | 'file' | 'document',
           url: a.url,
           size: a.size,
           mimeType: a.mimeType,
@@ -820,22 +820,39 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
         console.log('Auto-selected:', selection.reason);
       }
 
-      // Check if we have image attachments and the model supports vision
+      // Check if we have media attachments and the model supports them
       const imageAttachments = attachments?.filter((a) => a.type === 'image') || [];
+      const audioAttachments = attachments?.filter((a) => a.type === 'audio') || [];
+      const videoAttachments = attachments?.filter((a) => a.type === 'video') || [];
+      
       const hasImages = imageAttachments.length > 0;
+      const hasAudio = audioAttachments.length > 0;
+      const hasVideo = videoAttachments.length > 0;
+      const hasMediaAttachments = hasImages || hasAudio || hasVideo;
+      
       const modelSupportsVision = isVisionModel(actualModel);
+      const modelSupportsAudio = isAudioModel(actualModel);
+      const modelSupportsVideo = isVideoModel(actualModel);
 
-      // Build messages for AI - use multimodal format if we have images
+      // Build messages for AI - use multimodal format if we have supported media
       let coreMessages: MultimodalMessage[];
 
-      if (hasImages && modelSupportsVision) {
+      // Filter attachments to only include supported media types for the model
+      const supportedAttachments = [
+        ...(hasImages && modelSupportsVision ? imageAttachments : []),
+        ...(hasAudio && modelSupportsAudio ? audioAttachments : []),
+        ...(hasVideo && modelSupportsVideo ? videoAttachments : []),
+      ];
+
+      if (supportedAttachments.length > 0) {
         // Build multimodal content for the last user message
         const multimodalContent = await buildMultimodalContent(
           content,
-          imageAttachments.map((a) => ({
+          supportedAttachments.map((a) => ({
             url: a.url,
             mimeType: a.mimeType,
             file: a.file,
+            type: a.type,
           }))
         );
 
@@ -850,6 +867,24 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
           role: 'user',
           content: multimodalContent,
         });
+
+        // Log unsupported media types for debugging
+        if (hasImages && !modelSupportsVision) {
+          console.warn(`Model ${actualModel} does not support vision/images`);
+        }
+        if (hasAudio && !modelSupportsAudio) {
+          console.warn(`Model ${actualModel} does not support audio input`);
+        }
+        if (hasVideo && !modelSupportsVideo) {
+          console.warn(`Model ${actualModel} does not support video input`);
+        }
+      } else if (hasMediaAttachments) {
+        // Has media but model doesn't support any of them - fall back to text only
+        console.warn(`Model ${actualModel} does not support the attached media types`);
+        coreMessages = [...messages, userMessage].map((m) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        }));
       } else {
         // Text-only messages
         coreMessages = [...messages, userMessage].map((m) => ({
@@ -983,6 +1018,8 @@ Be thorough in your thinking but concise in your final answer.`;
           presencePenalty: session?.presencePenalty,
           sessionId: currentSessionId!,
           messageId: assistantMessage.id,
+          // Per-session streaming override (undefined = use global setting)
+          streaming: session?.streamingEnabled,
         },
         // Streaming callback
         (chunk) => {
@@ -1272,8 +1309,14 @@ Be thorough in your thinking but concise in your final answer.`;
         onOpenAISettings={() => setShowAISettings(true)}
         webSearchEnabled={webSearchEnabled}
         thinkingEnabled={thinkingEnabled}
+        streamingEnabled={session?.streamingEnabled}
         onWebSearchChange={handleWebSearchChange}
         onThinkingChange={handleThinkingChange}
+        onStreamingChange={(enabled) => {
+          if (session) {
+            updateSession(session.id, { streamingEnabled: enabled });
+          }
+        }}
         modelName={currentModel}
         modeName={currentMode === 'chat' ? 'Chat' : currentMode === 'agent' ? 'Agent' : 'Research'}
         onModeClick={() => {

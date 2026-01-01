@@ -280,6 +280,53 @@ export async function getDocuments(
 }
 
 /**
+ * Upsert documents (add or update)
+ */
+export async function upsertDocuments(
+  collection: Collection,
+  documents: DocumentChunk[],
+  config: ChromaConfig
+): Promise<void> {
+  const ids = documents.map((doc) => doc.id);
+  const contents = documents.map((doc) => doc.content);
+  const metadatas = documents.map((doc) => doc.metadata || {});
+
+  const needsEmbedding = documents.some((doc) => !doc.embedding);
+  let embeddings: number[][] | undefined;
+
+  if (needsEmbedding) {
+    const textsToEmbed = documents
+      .filter((doc) => !doc.embedding)
+      .map((doc) => doc.content);
+
+    if (textsToEmbed.length > 0) {
+      const result = await generateEmbeddings(
+        textsToEmbed,
+        config.embeddingConfig,
+        config.apiKey
+      );
+
+      let embeddingIndex = 0;
+      embeddings = documents.map((doc) => {
+        if (doc.embedding) {
+          return doc.embedding;
+        }
+        return result.embeddings[embeddingIndex++];
+      });
+    }
+  } else {
+    embeddings = documents.map((doc) => doc.embedding!);
+  }
+
+  await collection.upsert({
+    ids,
+    documents: contents,
+    metadatas,
+    embeddings,
+  });
+}
+
+/**
  * Get collection count
  */
 export async function getCollectionCount(collection: Collection): Promise<number> {

@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { InlineTextEditor, useInlineTextEditor } from './inline-text-editor';
+import { InlineTextEditor, useInlineTextEditor } from './toolbar/inline-text-editor';
 import { renderHook, act } from '@testing-library/react';
 
 // Mock designer store

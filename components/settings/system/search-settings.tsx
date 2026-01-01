@@ -130,6 +130,7 @@ export function SearchSettings() {
     serpapi: false,
     bing: false,
     google: false,
+    'google-ai': false,
     brave: false,
   });
 
@@ -141,6 +142,7 @@ export function SearchSettings() {
     serpapi: { testing: false, result: null },
     bing: { testing: false, result: null },
     google: { testing: false, result: null },
+    'google-ai': { testing: false, result: null },
     brave: { testing: false, result: null },
   });
 
@@ -152,6 +154,7 @@ export function SearchSettings() {
     serpapi: false,
     bing: false,
     google: false,
+    'google-ai': false,
     brave: false,
   });
 

@@ -10,6 +10,17 @@ import { calculatorInputSchema, executeCalculator } from './calculator';
 import { ragSearchInputSchema, executeRAGSearch, type RAGSearchInput } from './rag-search';
 import type { RAGConfig } from '../rag';
 import { webSearchInputSchema, executeWebSearch } from './web-search';
+import {
+  webScraperInputSchema,
+  bulkWebScraperInputSchema,
+  searchAndScraperInputSchema,
+  executeWebScraper,
+  executeBulkWebScraper,
+  executeSearchAndScrape,
+  type WebScraperInput,
+  type BulkWebScraperInput,
+  type SearchAndScrapeInput,
+} from './web-scraper';
 import { 
   documentSummarizeInputSchema, 
   documentChunkInputSchema, 
@@ -363,6 +374,34 @@ function registerDefaultTools(registry: ToolRegistry): void {
     requiresApproval: true,
     category: 'file',
     create: () => executeFileAppend,
+  });
+
+  // Web scraper tools
+  registry.register({
+    name: 'web_scraper',
+    description: 'Scrape and extract content from a web page. Supports both static HTML and JavaScript-rendered dynamic pages (using Playwright). Use this to get full text content from a specific URL.',
+    parameters: webScraperInputSchema,
+    requiresApproval: false,
+    category: 'search',
+    create: () => (input: unknown) => executeWebScraper(input as WebScraperInput),
+  });
+
+  registry.register({
+    name: 'bulk_web_scraper',
+    description: 'Scrape and extract content from multiple web pages in parallel. Limited to 10 URLs per request. Useful for gathering information from multiple sources at once.',
+    parameters: bulkWebScraperInputSchema,
+    requiresApproval: false,
+    category: 'search',
+    create: () => (input: unknown) => executeBulkWebScraper(input as BulkWebScraperInput),
+  });
+
+  registry.register({
+    name: 'search_and_scrape',
+    description: 'Search the web and scrape the full content of top results. Combines web search with content extraction for comprehensive information gathering.',
+    parameters: searchAndScraperInputSchema,
+    requiresApproval: false,
+    category: 'search',
+    create: (config) => (input: unknown) => executeSearchAndScrape(input as SearchAndScrapeInput, config as { apiKey?: string; provider?: string }),
   });
 
   // Video generation tools

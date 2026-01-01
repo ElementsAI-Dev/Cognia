@@ -6,6 +6,9 @@
  * - Generate agent summaries
  * - Generate Mermaid diagrams for visualization
  * - Export summaries and diagrams
+ * - Persist summaries to database
+ * - Incremental summarization for long conversations
+ * - Conversation analysis
  */
 
 import { useState, useCallback } from 'react';
@@ -21,20 +24,31 @@ import type {
   SummaryProgress,
   SummaryWithDiagram,
   SummaryExportOptions,
+  StoredSummary,
+  ConversationAnalysis,
+  SummaryTemplate,
 } from '@/types/summary';
 import {
   generateChatSummary,
   generateChatSummaryWithAI,
   generateAgentSummary,
+  generateEnhancedChatSummary,
+  generateIncrementalSummary,
+  analyzeConversation,
+  getSummaryTemplate,
+  getAvailableTemplates,
 } from '@/lib/ai/generation/summarizer';
 import { generateChatDiagram } from '@/lib/export/chat-diagram';
 import { generateAgentDiagram } from '@/lib/export/agent-diagram';
 import { downloadFile, generateFilename } from '@/lib/export';
 import type { ProviderName } from '@/lib/ai/core/client';
+import { useSummaryStore } from '@/stores/summary-store';
 
 export interface UseSummaryOptions {
   /** Use AI for summarization */
   useAI?: boolean;
+  /** Use enhanced AI summarization with style/template support */
+  useEnhanced?: boolean;
   /** AI provider configuration */
   aiConfig?: {
     provider: ProviderName;
@@ -42,6 +56,10 @@ export interface UseSummaryOptions {
     apiKey: string;
     baseURL?: string;
   };
+  /** Session ID for persistence */
+  sessionId?: string;
+  /** Auto-persist summaries to database */
+  autoPersist?: boolean;
 }
 
 export interface UseSummaryReturn {
@@ -52,6 +70,10 @@ export interface UseSummaryReturn {
   agentSummary: AgentSummaryResult | null;
   diagram: DiagramResult | null;
   error: string | null;
+  
+  // Stored summaries
+  storedSummaries: StoredSummary[];
+  latestStoredSummary: StoredSummary | undefined;
 
   // Actions
   generateChatSummary: (messages: UIMessage[], options?: Partial<ChatSummaryOptions>, sessionTitle?: string) => Promise<ChatSummaryResult>;
@@ -60,6 +82,21 @@ export interface UseSummaryReturn {
   generateAgentDiagram: (agent: BackgroundAgent, options?: Partial<DiagramOptions>) => DiagramResult;
   generateChatSummaryWithDiagram: (messages: UIMessage[], summaryOptions?: Partial<ChatSummaryOptions>, diagramOptions?: Partial<DiagramOptions>, sessionTitle?: string) => Promise<SummaryWithDiagram>;
   generateAgentSummaryWithDiagram: (agent: BackgroundAgent, summaryOptions?: Partial<AgentSummaryOptions>, diagramOptions?: Partial<DiagramOptions>) => Promise<SummaryWithDiagram>;
+  
+  // Enhanced features
+  generateEnhancedSummary: (messages: UIMessage[], options?: Partial<ChatSummaryOptions>, sessionTitle?: string) => Promise<ChatSummaryResult>;
+  generateIncrementalSummary: (newMessages: UIMessage[], options?: Partial<ChatSummaryOptions>) => Promise<ChatSummaryResult>;
+  analyzeConversation: (messages: UIMessage[]) => Promise<ConversationAnalysis>;
+  
+  // Persistence
+  saveSummary: (sessionId: string) => Promise<StoredSummary | null>;
+  loadSummaries: (sessionId: string) => Promise<void>;
+  deleteSummary: (summaryId: string) => Promise<void>;
+  
+  // Utilities
+  getTemplate: (name: SummaryTemplate) => { name: string; description: string; prompt: string } | undefined;
+  getAvailableTemplates: () => SummaryTemplate[];
+  
   exportSummary: (options: SummaryExportOptions) => void;
   reset: () => void;
 }
@@ -68,7 +105,12 @@ export interface UseSummaryReturn {
  * Hook for generating summaries and diagrams
  */
 export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryReturn {
-  const { useAI = false, aiConfig } = hookOptions;
+  const { useAI = false, aiConfig, sessionId, autoPersist = false } = hookOptions;
+  
+  // Summary store for persistence
+  const summaryStore = useSummaryStore();
+  const storedSummaries = sessionId ? summaryStore.getSummariesForSession(sessionId) : [];
+  const latestStoredSummary = sessionId ? summaryStore.getLatestSummary(sessionId) : undefined;
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState<SummaryProgress | null>(null);
@@ -333,6 +375,193 @@ export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryRetur
     [chatSummary, agentSummary, diagram]
   );
 
+  // Enhanced summary generation
+  const handleGenerateEnhancedSummary = useCallback(
+    async (
+      messages: UIMessage[],
+      options: Partial<ChatSummaryOptions> = {},
+      sessionTitle?: string
+    ): Promise<ChatSummaryResult> => {
+      if (!aiConfig) {
+        throw new Error('AI config required for enhanced summary');
+      }
+      
+      setIsGenerating(true);
+      setError(null);
+
+      const mergedOptions: ChatSummaryOptions = {
+        scope: 'all',
+        format: 'detailed',
+        style: 'professional',
+        includeCode: true,
+        includeToolCalls: true,
+        maxLength: 2000,
+        autoDetectLanguage: true,
+        ...options,
+      };
+
+      try {
+        const result = await generateEnhancedChatSummary(
+          { messages, sessionTitle, options: mergedOptions, onProgress: setProgress },
+          aiConfig
+        );
+        setChatSummary(result);
+        setIsGenerating(false);
+        
+        // Auto-persist if enabled
+        if (autoPersist && sessionId && result.success) {
+          await summaryStore.createSummary({
+            sessionId,
+            type: 'chat',
+            summary: result.summary,
+            keyPoints: result.keyPoints,
+            topics: result.topics,
+            messageRange: { startIndex: 0, endIndex: messages.length - 1 },
+            messageCount: result.messageCount,
+            sourceTokens: result.sourceTokens,
+            summaryTokens: result.summaryTokens,
+            compressionRatio: result.compressionRatio,
+            format: mergedOptions.format,
+            style: mergedOptions.style,
+            usedAI: true,
+          });
+        }
+        
+        return result;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to generate enhanced summary';
+        setError(errorMsg);
+        setIsGenerating(false);
+        throw err;
+      }
+    },
+    [aiConfig, autoPersist, sessionId, summaryStore]
+  );
+
+  // Incremental summary generation
+  const handleGenerateIncrementalSummary = useCallback(
+    async (
+      newMessages: UIMessage[],
+      options: Partial<ChatSummaryOptions> = {}
+    ): Promise<ChatSummaryResult> => {
+      if (!aiConfig) {
+        throw new Error('AI config required for incremental summary');
+      }
+      if (!latestStoredSummary) {
+        throw new Error('No previous summary to build upon');
+      }
+      
+      setIsGenerating(true);
+      setError(null);
+
+      const mergedOptions: ChatSummaryOptions = {
+        scope: 'all',
+        format: latestStoredSummary.format,
+        style: latestStoredSummary.style,
+        includeCode: true,
+        includeToolCalls: true,
+        maxLength: 2000,
+        ...options,
+      };
+
+      try {
+        const result = await generateIncrementalSummary(
+          { previousSummary: latestStoredSummary, newMessages, options: mergedOptions, onProgress: setProgress },
+          aiConfig
+        );
+        setChatSummary(result);
+        setIsGenerating(false);
+        return result;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to generate incremental summary';
+        setError(errorMsg);
+        setIsGenerating(false);
+        throw err;
+      }
+    },
+    [aiConfig, latestStoredSummary]
+  );
+
+  // Conversation analysis
+  const handleAnalyzeConversation = useCallback(
+    async (messages: UIMessage[]): Promise<ConversationAnalysis> => {
+      if (!aiConfig) {
+        throw new Error('AI config required for conversation analysis');
+      }
+      
+      try {
+        return await analyzeConversation(messages, aiConfig);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to analyze conversation';
+        setError(errorMsg);
+        throw err;
+      }
+    },
+    [aiConfig]
+  );
+
+  // Save current summary to store
+  const handleSaveSummary = useCallback(
+    async (targetSessionId: string): Promise<StoredSummary | null> => {
+      if (!chatSummary) {
+        setError('No summary to save');
+        return null;
+      }
+      
+      try {
+        const stored = await summaryStore.createSummary({
+          sessionId: targetSessionId,
+          type: 'chat',
+          summary: chatSummary.summary,
+          keyPoints: chatSummary.keyPoints,
+          topics: chatSummary.topics,
+          diagram: diagram?.mermaidCode,
+          diagramType: diagram?.type,
+          messageRange: { startIndex: 0, endIndex: chatSummary.messageCount - 1 },
+          messageCount: chatSummary.messageCount,
+          sourceTokens: chatSummary.sourceTokens,
+          summaryTokens: chatSummary.summaryTokens,
+          compressionRatio: chatSummary.compressionRatio,
+          format: 'detailed',
+          usedAI: useAI,
+        });
+        return stored;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to save summary';
+        setError(errorMsg);
+        return null;
+      }
+    },
+    [chatSummary, diagram, summaryStore, useAI]
+  );
+
+  // Load summaries for session
+  const handleLoadSummaries = useCallback(
+    async (targetSessionId: string): Promise<void> => {
+      await summaryStore.loadSummariesForSession(targetSessionId);
+    },
+    [summaryStore]
+  );
+
+  // Delete summary
+  const handleDeleteSummary = useCallback(
+    async (summaryId: string): Promise<void> => {
+      await summaryStore.deleteSummary(summaryId);
+    },
+    [summaryStore]
+  );
+
+  // Template utilities
+  const handleGetTemplate = useCallback(
+    (name: SummaryTemplate) => getSummaryTemplate(name as keyof typeof import('@/lib/ai/prompts/summary-prompts').SUMMARY_TEMPLATES),
+    []
+  );
+
+  const handleGetAvailableTemplates = useCallback(
+    () => getAvailableTemplates() as SummaryTemplate[],
+    []
+  );
+
   return {
     isGenerating,
     progress,
@@ -340,12 +569,22 @@ export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryRetur
     agentSummary,
     diagram,
     error,
+    storedSummaries,
+    latestStoredSummary,
     generateChatSummary: handleGenerateChatSummary,
     generateAgentSummary: handleGenerateAgentSummary,
     generateChatDiagram: handleGenerateChatDiagram,
     generateAgentDiagram: handleGenerateAgentDiagram,
     generateChatSummaryWithDiagram: handleGenerateChatSummaryWithDiagram,
     generateAgentSummaryWithDiagram: handleGenerateAgentSummaryWithDiagram,
+    generateEnhancedSummary: handleGenerateEnhancedSummary,
+    generateIncrementalSummary: handleGenerateIncrementalSummary,
+    analyzeConversation: handleAnalyzeConversation,
+    saveSummary: handleSaveSummary,
+    loadSummaries: handleLoadSummaries,
+    deleteSummary: handleDeleteSummary,
+    getTemplate: handleGetTemplate,
+    getAvailableTemplates: handleGetAvailableTemplates,
     exportSummary: handleExportSummary,
     reset,
   };

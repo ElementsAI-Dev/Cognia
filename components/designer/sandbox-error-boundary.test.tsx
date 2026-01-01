@@ -9,7 +9,7 @@ import {
   SandboxErrorBoundary,
   useErrorBoundaryReset,
   useConsoleErrorInterceptor,
-} from './sandbox-error-boundary';
+} from './editor/sandbox-error-boundary';
 
 // Component that throws an error
 function ThrowError({ shouldThrow }: { shouldThrow: boolean }) {

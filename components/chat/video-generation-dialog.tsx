@@ -59,7 +59,7 @@ import {
   saveVideoToFile,
   getAvailableVideoModelsForUI,
 } from '@/lib/ai/media/video-generation';
-import { Video } from '@/components/ai-elements/video';
+import { Video } from '@/components/learning/video';
 import type {
   VideoProvider,
   VideoModel,

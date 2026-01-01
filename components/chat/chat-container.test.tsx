@@ -344,7 +344,7 @@ jest.mock('@/components/agent/workflow-selector', () => ({
     open ? <div data-testid="workflow-selector">Workflow</div> : null,
 }));
 
-jest.mock('@/components/ai-elements/ppt-preview', () => ({
+jest.mock('@/components/learning/ppt-preview', () => ({
   PPTPreview: () => <div data-testid="ppt-preview">PPT</div>,
 }));
 

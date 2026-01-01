@@ -276,6 +276,8 @@
     "toggleWebSearch": "Toggle Web Search",
     "think": "Think",
     "extendedThinking": "Extended Thinking Mode",
+    "stream": "Stream",
+    "toggleStreaming": "Toggle streaming responses (show text as it generates)",
     "contextSettings": "Context Settings",
     "aiSettings": "AI Settings",
     "contextWindowUsage": "Context window usage",

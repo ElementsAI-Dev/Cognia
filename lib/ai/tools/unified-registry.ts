@@ -422,7 +422,7 @@ export function inferToolCategory(name: string, description: string): ToolCatego
   const lowerName = name.toLowerCase();
   const lowerDesc = description.toLowerCase();
 
-  if (lowerName.includes('search') || lowerName.includes('rag') || lowerDesc.includes('search')) {
+  if (lowerName.includes('search') || lowerName.includes('rag') || lowerName.includes('scrape') || lowerDesc.includes('search') || lowerDesc.includes('scrape')) {
     return 'search';
   }
   if (lowerName.includes('calc') || lowerName.includes('code') || lowerDesc.includes('calculate') || lowerDesc.includes('execute')) {

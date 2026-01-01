@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { StylePanel } from './style-panel';
+import { StylePanel } from './panels/style-panel';
 
 // Mock stores
 const mockUpdateElementStyle = jest.fn();

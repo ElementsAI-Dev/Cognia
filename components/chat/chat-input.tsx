@@ -14,7 +14,7 @@
 
 import { useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { Send, Paperclip, Square, Loader2, Mic, X, FileIcon, ImageIcon, Archive, Wand2, Zap, Globe, Brain, Settings2 } from 'lucide-react';
+import { Send, Paperclip, Square, Loader2, Mic, X, FileIcon, ImageIcon, Archive, Wand2, Zap, Globe, Brain, Settings2, Radio, Music, Video } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { Button } from '@/components/ui/button';
 // TooltipProvider is now at app level in providers.tsx
@@ -90,7 +90,7 @@ function getCaretCoordinates(textarea: HTMLTextAreaElement): DOMRect | null {
 export interface Attachment {
   id: string;
   name: string;
-  type: 'image' | 'file' | 'archive';
+  type: 'image' | 'audio' | 'video' | 'file' | 'archive';
   url: string;
   size: number;
   mimeType: string;
@@ -173,8 +173,10 @@ interface ChatInputProps {
   onOpenAISettings?: () => void;
   webSearchEnabled?: boolean;
   thinkingEnabled?: boolean;
+  streamingEnabled?: boolean;
   onWebSearchChange?: (enabled: boolean) => void;
   onThinkingChange?: (enabled: boolean) => void;
+  onStreamingChange?: (enabled: boolean) => void;
   modelName?: string;
   modeName?: string;
   // Model selection (controlled by parent)
@@ -195,8 +197,10 @@ function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-function getFileType(mimeType: string): 'image' | 'archive' | 'file' {
+function getFileType(mimeType: string): 'image' | 'audio' | 'video' | 'archive' | 'file' {
   if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  if (mimeType.startsWith('video/')) return 'video';
   if (
     mimeType.includes('zip') ||
     mimeType.includes('tar') ||
@@ -209,10 +213,14 @@ function getFileType(mimeType: string): 'image' | 'archive' | 'file' {
   return 'file';
 }
 
-function getFileIcon(type: 'image' | 'archive' | 'file') {
+function getFileIcon(type: 'image' | 'audio' | 'video' | 'archive' | 'file') {
   switch (type) {
     case 'image':
       return <ImageIcon className="h-4 w-4" />;
+    case 'audio':
+      return <Music className="h-4 w-4" />;
+    case 'video':
+      return <Video className="h-4 w-4" />;
     case 'archive':
       return <Archive className="h-4 w-4" />;
     default:
@@ -237,8 +245,10 @@ export function ChatInput({
   onOpenAISettings,
   webSearchEnabled = false,
   thinkingEnabled = false,
+  streamingEnabled,
   onWebSearchChange,
   onThinkingChange,
+  onStreamingChange,
   modelName = 'GPT-4o',
   modeName: _modeName,
   onModelClick,
@@ -470,11 +480,15 @@ export function ChatInput({
       };
       newAttachments.push(attachment);
 
-      // Track in recent files
+      // Track in recent files with proper type
+      const fileType = getFileType(file.type);
+      const recentFileType = fileType === 'image' ? 'image' : 
+                             fileType === 'audio' ? 'audio' : 
+                             fileType === 'video' ? 'video' : 'file';
       addRecentFile({
         name: file.name,
         path: file.name,
-        type: getFileType(file.type) === 'image' ? 'image' : 'file',
+        type: recentFileType,
         mimeType: file.type,
         size: file.size,
         url: attachment.url,
@@ -674,6 +688,14 @@ export function ChatInput({
                       alt={attachment.name}
                       className="h-8 w-8 rounded object-cover"
                     />
+                  ) : attachment.type === 'video' ? (
+                    <div className="relative h-8 w-8 rounded bg-muted flex items-center justify-center overflow-hidden">
+                      <Video className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  ) : attachment.type === 'audio' ? (
+                    <div className="relative h-8 w-8 rounded bg-muted flex items-center justify-center">
+                      <Music className="h-4 w-4 text-muted-foreground" />
+                    </div>
                   ) : (
                     getFileIcon(attachment.type)
                   )}
@@ -993,6 +1015,28 @@ export function ChatInput({
                 <TooltipContent>{t('extendedThinking')}</TooltipContent>
               </Tooltip>
 
+              {/* Streaming Mode toggle */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      'h-6 sm:h-7 gap-1 sm:gap-1.5 px-1.5 sm:px-2 text-[10px] sm:text-xs font-normal',
+                      streamingEnabled !== false
+                        ? 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20' 
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                    onClick={() => onStreamingChange?.(streamingEnabled === false)}
+                  >
+                    <Radio className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">{t('stream') || 'Stream'}</span>
+                    {streamingEnabled !== false && <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('toggleStreaming') || 'Toggle streaming responses'}</TooltipContent>
+              </Tooltip>
+
               {/* AI Settings */}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -1094,6 +1138,35 @@ export function ChatInput({
                 alt={previewAttachment.name}
                 className="max-h-[60vh] max-w-full rounded-lg object-contain"
               />
+            ) : previewAttachment?.type === 'audio' ? (
+              <div className="flex flex-col items-center gap-4 py-4 w-full">
+                <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+                  <Music className="h-8 w-8 text-primary" />
+                </div>
+                <audio
+                  controls
+                  className="w-full max-w-md"
+                  src={previewAttachment.url}
+                >
+                  Your browser does not support audio playback.
+                </audio>
+                <span className="text-sm text-muted-foreground">
+                  {previewAttachment.mimeType} • {formatFileSize(previewAttachment.size)}
+                </span>
+              </div>
+            ) : previewAttachment?.type === 'video' ? (
+              <div className="flex flex-col items-center gap-4 w-full">
+                <video
+                  controls
+                  className="max-h-[60vh] max-w-full rounded-lg"
+                  src={previewAttachment.url}
+                >
+                  Your browser does not support video playback.
+                </video>
+                <span className="text-sm text-muted-foreground">
+                  {previewAttachment.mimeType} • {formatFileSize(previewAttachment.size)}
+                </span>
+              </div>
             ) : (
               <div className="flex flex-col items-center gap-2 py-8">
                 {getFileIcon(previewAttachment?.type || 'file')}

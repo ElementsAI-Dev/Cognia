@@ -60,8 +60,5 @@ export * from './context';
 // OpenIn integrations
 export * from './open-in-chat';
 
-// Presentation components
-export * from './ppt-preview';
-
 // Web preview
 export * from './web-preview';

@@ -34,6 +34,8 @@ export interface PineconeIndexInfo {
   dimension: number;
   metric: string;
   host: string;
+  deletionProtection?: 'enabled' | 'disabled';
+  tags?: Record<string, string>;
   status: {
     ready: boolean;
     state: string;
@@ -82,6 +84,8 @@ export async function listPineconeIndexes(
     dimension: index.dimension ?? 0,
     metric: index.metric,
     host: index.host,
+    deletionProtection: index.deletionProtection as 'enabled' | 'disabled' | undefined,
+    tags: index.tags,
     status: {
       ready: index.status?.ready ?? false,
       state: index.status?.state ?? 'unknown',
@@ -98,11 +102,23 @@ export async function createPineconeIndex(
   dimension: number,
   options: {
     metric?: 'cosine' | 'euclidean' | 'dotproduct';
-    cloud?: string;
+    cloud?: 'aws' | 'gcp' | 'azure';
     region?: string;
+    waitUntilReady?: boolean;
+    suppressConflicts?: boolean;
+    deletionProtection?: 'enabled' | 'disabled';
+    tags?: Record<string, string>;
   } = {}
 ): Promise<void> {
-  const { metric = 'cosine', cloud = 'aws', region = 'us-east-1' } = options;
+  const { 
+    metric = 'cosine', 
+    cloud = 'aws', 
+    region = 'us-east-1',
+    waitUntilReady = true,
+    suppressConflicts = false,
+    deletionProtection = 'disabled',
+    tags,
+  } = options;
   
   await client.createIndex({
     name,
@@ -110,10 +126,54 @@ export async function createPineconeIndex(
     metric,
     spec: {
       serverless: {
-        cloud: cloud as 'aws' | 'gcp' | 'azure',
+        cloud,
         region,
       },
     },
+    waitUntilReady,
+    suppressConflicts,
+    deletionProtection,
+    tags,
+  });
+}
+
+/**
+ * Describe an index
+ */
+export async function describePineconeIndex(
+  client: Pinecone,
+  name: string
+): Promise<PineconeIndexInfo> {
+  const index = await client.describeIndex(name);
+  
+  return {
+    name: index.name,
+    dimension: index.dimension ?? 0,
+    metric: index.metric,
+    host: index.host,
+    deletionProtection: index.deletionProtection as 'enabled' | 'disabled' | undefined,
+    tags: index.tags,
+    status: {
+      ready: index.status?.ready ?? false,
+      state: index.status?.state ?? 'unknown',
+    },
+  };
+}
+
+/**
+ * Configure index (update deletionProtection or tags)
+ */
+export async function configurePineconeIndex(
+  client: Pinecone,
+  name: string,
+  options: {
+    deletionProtection?: 'enabled' | 'disabled';
+    tags?: Record<string, string>;
+  }
+): Promise<void> {
+  await client.configureIndex(name, {
+    deletionProtection: options.deletionProtection,
+    tags: options.tags,
   });
 }
 

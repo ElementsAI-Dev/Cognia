@@ -71,7 +71,7 @@ import { useCopy } from '@/hooks/use-copy';
 import { useSummary, type UseSummaryOptions } from '@/hooks/use-summary';
 import { MermaidBlock } from './renderers/mermaid-block';
 import type { UIMessage } from '@/types/message';
-import type { DiagramType, SummaryFormat } from '@/types/summary';
+import type { DiagramType, SummaryFormat, SummaryStyle, SummaryTemplate } from '@/types/summary';
 import { toast } from 'sonner';
 
 interface ChatSummaryDialogProps {
@@ -101,6 +101,24 @@ const SUMMARY_FORMATS: Array<{ value: SummaryFormat; label: string }> = [
   { value: 'detailed', label: 'Detailed' },
   { value: 'bullets', label: 'Bullet Points' },
   { value: 'structured', label: 'Structured' },
+];
+
+// Style options for enhanced summaries (used in options UI)
+const _SUMMARY_STYLES: Array<{ value: SummaryStyle; label: string; description: string }> = [
+  { value: 'professional', label: 'Professional', description: 'Formal, business-appropriate' },
+  { value: 'concise', label: 'Concise', description: 'Brief and to-the-point' },
+  { value: 'detailed', label: 'Detailed', description: 'Comprehensive coverage' },
+  { value: 'academic', label: 'Academic', description: 'Scholarly analysis' },
+  { value: 'casual', label: 'Casual', description: 'Informal and easy to read' },
+];
+
+// Template presets for different use cases (used in options UI)
+const _SUMMARY_TEMPLATES: Array<{ value: SummaryTemplate; label: string; description: string }> = [
+  { value: 'default', label: 'Default', description: 'Standard summary' },
+  { value: 'meeting', label: 'Meeting Notes', description: 'With action items' },
+  { value: 'technical', label: 'Technical', description: 'Code-focused summary' },
+  { value: 'learning', label: 'Learning', description: 'Educational content' },
+  { value: 'debugging', label: 'Debug Session', description: 'Problem-solving focused' },
 ];
 
 export function ChatSummaryDialog({
@@ -135,9 +153,13 @@ export function ChatSummaryDialog({
   const [activeTab, setActiveTab] = useState<'summary' | 'diagram'>('summary');
   const [diagramType, setDiagramType] = useState<DiagramType>('flowchart');
   const [summaryFormat, setSummaryFormat] = useState<SummaryFormat>('detailed');
+  const [summaryStyle, _setSummaryStyle] = useState<SummaryStyle>('professional');
+  const [summaryTemplate, _setSummaryTemplate] = useState<SummaryTemplate>('default');
   const [includeCode, setIncludeCode] = useState(true);
   const [includeToolCalls, setIncludeToolCalls] = useState(true);
   const [showOptions, setShowOptions] = useState(false);
+  const [aiKeyPoints, _setAiKeyPoints] = useState(false);
+  const [aiTopics, _setAiTopics] = useState(false);
 
   // Copy hook
   const { copy: copySummary, isCopying: isCopyingSummary } = useCopy({
@@ -161,14 +183,18 @@ export function ChatSummaryDialog({
     try {
       await generateChatSummary(messages, {
         format: summaryFormat,
+        style: summaryStyle,
+        template: summaryTemplate,
         includeCode,
         includeToolCalls,
+        aiKeyPoints,
+        aiTopics,
       }, sessionTitle);
       toast.success(t('summaryGenerated'));
     } catch (_err) {
       toast.error(t('summaryFailed'));
     }
-  }, [messages, summaryFormat, includeCode, includeToolCalls, sessionTitle, generateChatSummary, t]);
+  }, [messages, summaryFormat, summaryStyle, summaryTemplate, includeCode, includeToolCalls, aiKeyPoints, aiTopics, sessionTitle, generateChatSummary, t]);
 
   // Generate diagram
   const handleGenerateDiagram = useCallback(() => {

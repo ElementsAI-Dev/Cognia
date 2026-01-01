@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ElementTree } from './element-tree';
+import { ElementTree } from './panels/element-tree';
 import type { DesignerElement } from '@/types/designer';
 
 // Mock stores

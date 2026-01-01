@@ -10,7 +10,7 @@ export interface RecentFile {
   id: string;
   name: string;
   path: string;
-  type: 'image' | 'file' | 'document';
+  type: 'image' | 'audio' | 'video' | 'file' | 'document';
   mimeType: string;
   size: number;
   url?: string;

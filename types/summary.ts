@@ -15,6 +15,41 @@ import type { SubAgent } from './sub-agent';
 export type SummaryScope = 'all' | 'selected' | 'range';
 
 /**
+ * Summary style - tone and approach
+ */
+export type SummaryStyle = 
+  | 'professional'  // Formal, business-appropriate
+  | 'concise'       // Brief, to-the-point
+  | 'detailed'      // Comprehensive with context
+  | 'academic'      // Scholarly, analytical
+  | 'casual';       // Informal, conversational
+
+/**
+ * Key point category for classification
+ */
+export type KeyPointCategory = 
+  | 'question'      // User questions
+  | 'answer'        // Assistant answers
+  | 'decision'      // Decisions made
+  | 'action'        // Action items
+  | 'insight'       // Key insights
+  | 'code'          // Code-related points
+  | 'tool'          // Tool usage
+  | 'summary'       // General summary point
+  | 'issue'         // Problems or issues
+  | 'solution';     // Solutions provided
+
+/**
+ * Summary template type
+ */
+export type SummaryTemplate = 
+  | 'default'
+  | 'meeting'       // Meeting notes style
+  | 'technical'     // Technical discussion
+  | 'learning'      // Learning session
+  | 'debugging';    // Debug session
+
+/**
  * Diagram type for visualization
  */
 export type DiagramType = 
@@ -55,14 +90,26 @@ export interface ChatSummaryOptions {
   selectedIds?: string[];
   /** Summary format */
   format: SummaryFormat;
+  /** Summary style/tone */
+  style?: SummaryStyle;
+  /** Summary template preset */
+  template?: SummaryTemplate;
   /** Include code snippets in summary */
   includeCode?: boolean;
   /** Include tool calls in summary */
   includeToolCalls?: boolean;
   /** Maximum summary length (characters) */
   maxLength?: number;
-  /** Language for summary */
+  /** Language for summary (auto-detect if not specified) */
   language?: string;
+  /** Auto-detect language from conversation */
+  autoDetectLanguage?: boolean;
+  /** Custom instructions for summarization */
+  customInstructions?: string;
+  /** Use AI for key point extraction */
+  aiKeyPoints?: boolean;
+  /** Use AI for topic identification */
+  aiTopics?: boolean;
 }
 
 /**
@@ -120,9 +167,13 @@ export interface KeyPoint {
   /** Source message ID */
   sourceMessageId: string;
   /** Category/topic */
-  category?: string;
+  category?: KeyPointCategory;
   /** Importance score (0-1) */
   importance?: number;
+  /** Source role (user/assistant) */
+  sourceRole?: 'user' | 'assistant' | 'system';
+  /** Timestamp of the source message */
+  timestamp?: Date;
 }
 
 /**
@@ -133,6 +184,8 @@ export interface ConversationTopic {
   name: string;
   /** Message IDs related to this topic */
   messageIds: string[];
+  /** Coverage percentage (0-1) */
+  coverage?: number;
   /** Brief description */
   description?: string;
   /** Keywords associated */
@@ -354,9 +407,13 @@ export interface GenerateDiagramInput {
 export const DEFAULT_CHAT_SUMMARY_OPTIONS: ChatSummaryOptions = {
   scope: 'all',
   format: 'detailed',
+  style: 'professional',
   includeCode: true,
   includeToolCalls: true,
   maxLength: 2000,
+  autoDetectLanguage: true,
+  aiKeyPoints: false,
+  aiTopics: false,
 };
 
 export const DEFAULT_AGENT_SUMMARY_OPTIONS: AgentSummaryOptions = {
@@ -379,3 +436,140 @@ export const DEFAULT_DIAGRAM_OPTIONS: DiagramOptions = {
   expandToolCalls: true,
   groupByTopic: false,
 };
+
+/**
+ * Stored summary - for persistence
+ */
+export interface StoredSummary {
+  /** Unique identifier */
+  id: string;
+  /** Session ID this summary belongs to */
+  sessionId: string;
+  /** Summary type */
+  type: 'chat' | 'agent' | 'incremental';
+  /** Summary text */
+  summary: string;
+  /** Extracted key points */
+  keyPoints: KeyPoint[];
+  /** Identified topics */
+  topics: ConversationTopic[];
+  /** Mermaid diagram code */
+  diagram?: string;
+  /** Diagram type if present */
+  diagramType?: DiagramType;
+  /** Message range summarized */
+  messageRange: {
+    startMessageId?: string;
+    endMessageId?: string;
+    startIndex: number;
+    endIndex: number;
+  };
+  /** Number of messages summarized */
+  messageCount: number;
+  /** Source tokens */
+  sourceTokens: number;
+  /** Summary tokens */
+  summaryTokens: number;
+  /** Compression ratio */
+  compressionRatio: number;
+  /** Language of the summary */
+  language?: string;
+  /** Format used */
+  format: SummaryFormat;
+  /** Style used */
+  style?: SummaryStyle;
+  /** Template used */
+  template?: SummaryTemplate;
+  /** Whether AI was used */
+  usedAI: boolean;
+  /** Creation timestamp */
+  createdAt: Date;
+  /** Last updated timestamp */
+  updatedAt: Date;
+}
+
+/**
+ * Conversation analysis result
+ */
+export interface ConversationAnalysis {
+  /** Sentiment analysis */
+  sentiment: {
+    overall: 'positive' | 'neutral' | 'negative';
+    userSentiment: 'positive' | 'neutral' | 'negative';
+    assistantTone: 'helpful' | 'formal' | 'casual' | 'technical';
+  };
+  /** Quality metrics */
+  quality: {
+    clarity: number;
+    completeness: number;
+    helpfulness: number;
+  };
+  /** Conversation characteristics */
+  characteristics: {
+    isQA: boolean;
+    isTechnical: boolean;
+    isCreative: boolean;
+    isDebugSession: boolean;
+    hasCodingContent: boolean;
+  };
+  /** Improvement suggestions */
+  suggestions: string[];
+}
+
+/**
+ * Auto-summary suggestion config
+ */
+export interface AutoSummaryConfig {
+  /** Enable auto-summary suggestions */
+  enabled: boolean;
+  /** Minimum messages before suggesting */
+  minMessages: number;
+  /** Minimum tokens before suggesting */
+  minTokens: number;
+  /** Auto-summarize on session end */
+  autoOnSessionEnd: boolean;
+  /** Default format for auto summaries */
+  defaultFormat: SummaryFormat;
+  /** Default style for auto summaries */
+  defaultStyle: SummaryStyle;
+}
+
+/**
+ * Default auto-summary config
+ */
+export const DEFAULT_AUTO_SUMMARY_CONFIG: AutoSummaryConfig = {
+  enabled: true,
+  minMessages: 20,
+  minTokens: 5000,
+  autoOnSessionEnd: false,
+  defaultFormat: 'bullets',
+  defaultStyle: 'concise',
+};
+
+/**
+ * Summary statistics for a session
+ */
+export interface SummaryStats {
+  /** Total summaries generated */
+  totalSummaries: number;
+  /** Last summary date */
+  lastSummaryAt?: Date;
+  /** Total messages summarized */
+  totalMessagesSummarized: number;
+  /** Average compression ratio */
+  avgCompressionRatio: number;
+}
+
+/**
+ * Input for incremental summary
+ */
+export interface IncrementalSummaryInput {
+  /** Previous summary to build upon */
+  previousSummary: StoredSummary;
+  /** New messages since last summary */
+  newMessages: UIMessage[];
+  /** Summary options */
+  options: ChatSummaryOptions;
+  /** Progress callback */
+  onProgress?: (progress: SummaryProgress) => void;
+}

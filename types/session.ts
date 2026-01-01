@@ -51,6 +51,10 @@ export interface Session {
   enableResearch?: boolean;
   webSearchEnabled?: boolean;
   thinkingEnabled?: boolean;
+  
+  // Response mode (streaming vs blocking)
+  // undefined = use global setting, true = streaming, false = blocking
+  streamingEnabled?: boolean;
 
   // Preset reference
   presetId?: string;
@@ -107,6 +111,7 @@ export interface UpdateSessionInput {
   projectId?: string;
   webSearchEnabled?: boolean;
   thinkingEnabled?: boolean;
+  streamingEnabled?: boolean;
   presetId?: string;
   compressionOverrides?: SessionCompressionOverrides;
   virtualEnvId?: string;

@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { DesignerBrowser } from './designer-browser';
+import { DesignerBrowser } from './core/designer-browser';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

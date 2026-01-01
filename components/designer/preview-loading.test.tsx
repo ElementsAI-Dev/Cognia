@@ -4,156 +4,89 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { renderHook, act } from '@testing-library/react';
-import { PreviewLoading, usePreviewStatus } from './preview-loading';
+import { PreviewLoading, usePreviewStatus } from './preview/preview-loading';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+// Mock Progress component
+jest.mock('@/components/ui/progress', () => ({
+  Progress: ({ value, className }: { value: number; className?: string }) => (
+    <div data-testid="progress" data-value={value} className={className} />
+  ),
+}));
+
 describe('PreviewLoading', () => {
-  describe('default variant', () => {
-    it('should render loading status by default', () => {
-      render(<PreviewLoading />);
-      expect(screen.getByText('loading')).toBeInTheDocument();
-    });
-
-    it('should render loading icon', () => {
-      render(<PreviewLoading status="loading" />);
-      // Check that an animated icon is present
-      const icon = document.querySelector('svg.animate-spin');
-      expect(icon).toBeInTheDocument();
-    });
-
-    it('should render compiling status', () => {
-      render(<PreviewLoading status="compiling" />);
-      expect(screen.getByText('compiling')).toBeInTheDocument();
-    });
-
-    it('should render compiling icon', () => {
-      render(<PreviewLoading status="compiling" />);
-      // Check that an SVG icon is present
-      const icon = document.querySelector('svg');
-      expect(icon).toBeInTheDocument();
-    });
-
-    it('should render bundling status', () => {
-      render(<PreviewLoading status="bundling" />);
-      expect(screen.getByText('bundling')).toBeInTheDocument();
-    });
-
-    it('should render bundling icon', () => {
-      render(<PreviewLoading status="bundling" />);
-      const icon = document.querySelector('svg.lucide-box');
-      expect(icon).toBeInTheDocument();
-    });
-
-    it('should render ready status', () => {
-      render(<PreviewLoading status="ready" />);
-      expect(screen.getByText('ready')).toBeInTheDocument();
-    });
-
-    it('should render ready icon', () => {
-      render(<PreviewLoading status="ready" />);
-      const icon = document.querySelector('svg.lucide-refresh-cw');
-      expect(icon).toBeInTheDocument();
-    });
-
-    it('should render error status', () => {
-      render(<PreviewLoading status="error" />);
-      expect(screen.getByText('error')).toBeInTheDocument();
-    });
-
-    it('should render error icon', () => {
-      render(<PreviewLoading status="error" />);
-      const icon = document.querySelector('svg.lucide-refresh-cw');
-      expect(icon).toBeInTheDocument();
-    });
-
-    it('should show description for loading status', () => {
-      render(<PreviewLoading status="loading" />);
-      expect(screen.getByText('loadingDesc')).toBeInTheDocument();
-    });
-
-    it('should show description for compiling status', () => {
-      render(<PreviewLoading status="compiling" />);
-      expect(screen.getByText('compilingDesc')).toBeInTheDocument();
-    });
-
-    it('should show description for bundling status', () => {
-      render(<PreviewLoading status="bundling" />);
-      expect(screen.getByText('bundlingDesc')).toBeInTheDocument();
-    });
-
-    it('should show description for ready status', () => {
-      render(<PreviewLoading status="ready" />);
-      expect(screen.getByText('readyDesc')).toBeInTheDocument();
-    });
-
-    it('should show description for error status', () => {
-      render(<PreviewLoading status="error" />);
-      expect(screen.getByText('errorDesc')).toBeInTheDocument();
-    });
-
-    it('should show progress bar for loading states', () => {
-      const { container } = render(<PreviewLoading status="loading" />);
-      const progressBar = container.querySelector('.bg-primary.rounded-full');
-      expect(progressBar).toBeInTheDocument();
-    });
-
-    it('should not show progress bar for ready state', () => {
-      const { container } = render(<PreviewLoading status="ready" />);
-      const progressBar = container.querySelector('.w-48.h-1');
-      expect(progressBar).not.toBeInTheDocument();
-    });
-
-    it('should not show progress bar for error state', () => {
-      const { container } = render(<PreviewLoading status="error" />);
-      const progressBar = container.querySelector('.w-48.h-1');
-      expect(progressBar).not.toBeInTheDocument();
-    });
-
-    it('should apply custom className', () => {
-      const { container } = render(<PreviewLoading className="custom-class" />);
-      expect(container.firstChild).toHaveClass('custom-class');
-    });
+  it('should render loading status by default', () => {
+    render(<PreviewLoading />);
+    const icon = document.querySelector('svg.animate-spin');
+    expect(icon).toBeInTheDocument();
   });
 
-  describe('skeleton variant', () => {
-    it('should render skeleton layout', () => {
-      const { container } = render(<PreviewLoading variant="skeleton" />);
-      expect(container.firstChild).toHaveClass('animate-pulse');
-    });
-
-    it('should render header skeleton elements', () => {
-      const { container } = render(<PreviewLoading variant="skeleton" />);
-      const skeletonElements = container.querySelectorAll('.bg-muted');
-      expect(skeletonElements.length).toBeGreaterThan(0);
-    });
-
-    it('should apply custom className', () => {
-      const { container } = render(<PreviewLoading variant="skeleton" className="custom-class" />);
-      expect(container.firstChild).toHaveClass('custom-class');
-    });
+  it('should render compiling status', () => {
+    render(<PreviewLoading status="compiling" />);
+    const icon = document.querySelector('svg.animate-pulse');
+    expect(icon).toBeInTheDocument();
   });
 
-  describe('minimal variant', () => {
-    it('should render minimal loader', () => {
-      render(<PreviewLoading variant="minimal" />);
-      // Check that an SVG icon is present
-      const icon = document.querySelector('svg');
-      expect(icon).toBeInTheDocument();
-    });
+  it('should render rendering status', () => {
+    render(<PreviewLoading status="rendering" />);
+    const icon = document.querySelector('svg.animate-spin');
+    expect(icon).toBeInTheDocument();
+  });
 
-    it('should not render status text in minimal variant', () => {
-      render(<PreviewLoading variant="minimal" />);
-      expect(screen.queryByText('loading')).not.toBeInTheDocument();
-    });
+  it('should render done status', () => {
+    render(<PreviewLoading status="done" />);
+    const icon = document.querySelector('svg');
+    expect(icon).toBeInTheDocument();
+  });
 
-    it('should apply custom className', () => {
-      const { container } = render(<PreviewLoading variant="minimal" className="custom-class" />);
-      expect(container.firstChild).toHaveClass('custom-class');
-    });
+  it('should render error status', () => {
+    render(<PreviewLoading status="error" />);
+    const icon = document.querySelector('svg');
+    expect(icon).toBeInTheDocument();
+  });
+
+  it('should show progress bar for loading states', () => {
+    render(<PreviewLoading status="loading" />);
+    expect(screen.getByTestId('progress')).toBeInTheDocument();
+  });
+
+  it('should show progress bar for compiling state', () => {
+    render(<PreviewLoading status="compiling" />);
+    expect(screen.getByTestId('progress')).toBeInTheDocument();
+  });
+
+  it('should show progress bar for rendering state', () => {
+    render(<PreviewLoading status="rendering" />);
+    expect(screen.getByTestId('progress')).toBeInTheDocument();
+  });
+
+  it('should not show progress bar for done state', () => {
+    render(<PreviewLoading status="done" />);
+    expect(screen.queryByTestId('progress')).not.toBeInTheDocument();
+  });
+
+  it('should not show progress bar for error state', () => {
+    render(<PreviewLoading status="error" />);
+    expect(screen.queryByTestId('progress')).not.toBeInTheDocument();
+  });
+
+  it('should display error message when provided', () => {
+    render(<PreviewLoading status="error" errorMessage="Test error" />);
+    expect(screen.getByText('Test error')).toBeInTheDocument();
+  });
+
+  it('should display custom message', () => {
+    render(<PreviewLoading message="Custom message" />);
+    expect(screen.getByText('Custom message')).toBeInTheDocument();
+  });
+
+  it('should apply custom className', () => {
+    const { container } = render(<PreviewLoading className="custom-class" />);
+    expect(container.firstChild).toHaveClass('custom-class');
   });
 });
 
@@ -161,55 +94,86 @@ describe('usePreviewStatus hook', () => {
   it('should initialize with loading status', () => {
     const { result } = renderHook(() => usePreviewStatus());
     expect(result.current.status).toBe('loading');
+    expect(result.current.progress).toBe(0);
   });
 
-  it('should set loading status', () => {
+  it('should start loading', () => {
     const { result } = renderHook(() => usePreviewStatus());
     
     act(() => {
-      result.current.setCompiling();
+      result.current.startCompiling();
     });
     expect(result.current.status).toBe('compiling');
     
     act(() => {
-      result.current.setLoading();
+      result.current.startLoading('Loading...');
     });
     expect(result.current.status).toBe('loading');
+    expect(result.current.progress).toBe(0);
+    expect(result.current.message).toBe('Loading...');
   });
 
-  it('should set compiling status', () => {
+  it('should start compiling', () => {
     const { result } = renderHook(() => usePreviewStatus());
     
     act(() => {
-      result.current.setCompiling();
+      result.current.startCompiling('Compiling...');
     });
     expect(result.current.status).toBe('compiling');
+    expect(result.current.progress).toBe(25);
+    expect(result.current.message).toBe('Compiling...');
   });
 
-  it('should set bundling status', () => {
+  it('should start rendering', () => {
     const { result } = renderHook(() => usePreviewStatus());
     
     act(() => {
-      result.current.setBundling();
+      result.current.startRendering('Rendering...');
     });
-    expect(result.current.status).toBe('bundling');
+    expect(result.current.status).toBe('rendering');
+    expect(result.current.progress).toBe(75);
   });
 
-  it('should set ready status', () => {
+  it('should set done status', () => {
     const { result } = renderHook(() => usePreviewStatus());
     
     act(() => {
-      result.current.setReady();
+      result.current.setDone('Done!');
     });
-    expect(result.current.status).toBe('ready');
+    expect(result.current.status).toBe('done');
+    expect(result.current.progress).toBe(100);
   });
 
   it('should set error status', () => {
     const { result } = renderHook(() => usePreviewStatus());
     
     act(() => {
-      result.current.setError();
+      result.current.setError('Something went wrong');
     });
     expect(result.current.status).toBe('error');
+    expect(result.current.errorMessage).toBe('Something went wrong');
+  });
+
+  it('should update progress', () => {
+    const { result } = renderHook(() => usePreviewStatus());
+    
+    act(() => {
+      result.current.updateProgress(50);
+    });
+    expect(result.current.progress).toBe(50);
+  });
+
+  it('should clamp progress to 0-100', () => {
+    const { result } = renderHook(() => usePreviewStatus());
+    
+    act(() => {
+      result.current.updateProgress(150);
+    });
+    expect(result.current.progress).toBe(100);
+    
+    act(() => {
+      result.current.updateProgress(-10);
+    });
+    expect(result.current.progress).toBe(0);
   });
 });

@@ -14,6 +14,7 @@ export type SearchProviderType =
   | 'serpapi'
   | 'bing'
   | 'google'
+  | 'google-ai'
   | 'brave';
 
 /**
@@ -342,6 +343,30 @@ export const SEARCH_PROVIDERS: Record<SearchProviderType, SearchProviderConfig> 
       pricePerSearch: 0.003,
     },
   },
+  'google-ai': {
+    id: 'google-ai',
+    name: 'Google AI Search',
+    description: 'Gemini grounding with Google Search for real-time web data',
+    apiKeyRequired: true,
+    apiKeyPlaceholder: 'AIzaXXXXXXXXXXXX',
+    apiKeyPrefix: 'AIza',
+    docsUrl: 'https://ai.google.dev/gemini-api/docs/google-search',
+    features: {
+      aiAnswer: true,
+      newsSearch: true,
+      academicSearch: false,
+      imageSearch: false,
+      videoSearch: false,
+      domainFilter: false,
+      recencyFilter: true,
+      countryFilter: false,
+      contentExtraction: false,
+      streaming: true,
+    },
+    pricing: {
+      pricePerSearch: 0.0035,
+    },
+  },
 };
 
 /**
@@ -395,6 +420,12 @@ export const DEFAULT_SEARCH_PROVIDER_SETTINGS: Record<SearchProviderType, Search
     apiKey: '',
     enabled: false,
     priority: 8,
+  },
+  'google-ai': {
+    providerId: 'google-ai',
+    apiKey: '',
+    enabled: false,
+    priority: 9,
   },
 };
 

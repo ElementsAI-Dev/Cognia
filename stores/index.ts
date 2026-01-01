@@ -177,3 +177,21 @@ export {
   type ClipboardTemplate,
   type TransformAction,
 } from './clipboard-context-store';
+export {
+  useWindowStore,
+  selectWindowState,
+  selectWindowPreferences,
+  selectWindowSize,
+  selectWindowPosition,
+  selectWindowConstraints,
+  selectIsMaximized,
+  selectIsFullscreen,
+  selectIsAlwaysOnTop,
+  type CursorIcon,
+  type UserAttentionType,
+  type WindowSize,
+  type WindowPosition,
+  type WindowConstraints,
+  type WindowState,
+  type WindowPreferences,
+} from './window-store';

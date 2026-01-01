@@ -275,6 +275,8 @@
     "toggleWebSearch": "切换网络搜索",
     "think": "思考",
     "extendedThinking": "扩展思考模式",
+    "stream": "流式",
+    "toggleStreaming": "切换流式响应（逐字显示生成内容）",
     "contextSettings": "上下文设置",
     "aiSettings": "AI 设置",
     "contextWindowUsage": "上下文窗口使用量",

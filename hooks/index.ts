@@ -284,3 +284,15 @@ export {
   type ClipboardTemplate,
   type TransformActionInfo,
 } from './use-clipboard-context';
+export {
+  useWindowControls,
+  type UseWindowControlsReturn,
+} from './use-window-controls';
+export {
+  useSummary,
+  type UseSummaryOptions,
+  type UseSummaryReturn,
+} from './use-summary';
+export {
+  useSummaryShortcuts,
+} from './use-summary-shortcuts';

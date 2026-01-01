@@ -3,6 +3,23 @@
  */
 
 export { webSearchTool, executeWebSearch, webSearchInputSchema, type WebSearchToolInput, type WebSearchResult, type WebSearchConfig } from './web-search';
+export {
+  webScraperTool,
+  bulkWebScraperTool,
+  searchAndScrapeTool,
+  executeWebScraper,
+  executeBulkWebScraper,
+  executeSearchAndScrape,
+  webScraperInputSchema,
+  bulkWebScraperInputSchema,
+  searchAndScraperInputSchema,
+  type WebScraperInput,
+  type BulkWebScraperInput,
+  type SearchAndScrapeInput,
+  type WebScraperResult,
+  type BulkWebScraperResult,
+  type SearchAndScrapeResult,
+} from './web-scraper';
 export { type ToolDefinition, type ToolRegistry, type ToolFunction, createToolRegistry, getGlobalToolRegistry } from './registry';
 export { ragSearchTool, executeRAGSearch, ragSearchInputSchema, type RAGSearchInput, type RAGSearchResult } from './rag-search';
 export { calculatorTool, executeCalculator, calculatorInputSchema, convertUnit, unitConversions, type CalculatorInput, type CalculatorResult } from './calculator';

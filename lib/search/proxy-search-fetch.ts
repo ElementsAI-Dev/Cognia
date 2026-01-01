@@ -56,6 +56,7 @@ export function createSearchProviderFetch(providerName: string) {
 export const braveFetch = createSearchProviderFetch('Brave');
 export const bingFetch = createSearchProviderFetch('Bing');
 export const googleFetch = createSearchProviderFetch('Google');
+export const googleAIFetch = createSearchProviderFetch('GoogleAI');
 export const serpApiFetch = createSearchProviderFetch('SerpAPI');
 export const searchApiFetch = createSearchProviderFetch('SearchAPI');
 export const exaFetch = createSearchProviderFetch('Exa');

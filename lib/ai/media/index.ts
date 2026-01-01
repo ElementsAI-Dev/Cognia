@@ -37,6 +37,31 @@ export {
   type MessageContent,
 } from './image-utils';
 
+// Audio/Video utilities
+export {
+  isAudioFile,
+  isVideoFile,
+  isAudioModel,
+  isVideoModel,
+  isSupportedAudioFormat,
+  isSupportedVideoFormat,
+  getAudioFormat,
+  processAudioFile,
+  processVideoFile,
+  audioUrlToBase64,
+  videoUrlToBase64,
+  isYouTubeUrl,
+  getMediaFileSizeLimit,
+  validateMediaFileSize,
+  estimateVideoDuration,
+  SUPPORTED_AUDIO_FORMATS,
+  SUPPORTED_VIDEO_FORMATS,
+  type AudioContent,
+  type VideoContent,
+  type SupportedAudioFormat,
+  type SupportedVideoFormat,
+} from './media-utils';
+
 // Legacy image generation
 export * from './image-generation';
 

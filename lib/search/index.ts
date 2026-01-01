@@ -10,3 +10,20 @@ export {
   extractContentWithTavily,
   getAnswerFromTavily,
 } from './providers/tavily';
+
+export {
+  scrapePageWithPlaywright,
+  scrapePagesWithPlaywright,
+  fetchPageContent,
+  smartFetchContent,
+  searchAndScrapeWithBing,
+  isPlaywrightAvailable,
+  testPlaywrightConnection,
+  type PlaywrightScraperOptions,
+  type ScrapedPage,
+  type PageMetadata,
+  type PageImage,
+  type PageLink,
+  type BingScraperSearchOptions,
+  type BingScraperSearchResult,
+} from './providers/playwright-scraper';

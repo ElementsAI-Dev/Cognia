@@ -535,7 +535,11 @@ function generateAttachmentsHTML(attachments: Array<{ name: string; type: string
         <div class="attachment">
           ${a.type === 'image' && a.url ? 
             `<img src="${escapeHtml(a.url)}" alt="${escapeHtml(a.name)}" loading="lazy">` :
-            `<span class="attachment-icon">📎</span><span class="attachment-name">${escapeHtml(a.name)}</span>`
+            a.type === 'audio' && a.url ?
+            `<audio controls src="${escapeHtml(a.url)}" title="${escapeHtml(a.name)}"></audio>` :
+            a.type === 'video' && a.url ?
+            `<video controls src="${escapeHtml(a.url)}" title="${escapeHtml(a.name)}" style="max-width: 400px; max-height: 300px;"></video>` :
+            `<span class="attachment-icon">${a.type === 'audio' ? '🎵' : a.type === 'video' ? '🎬' : '📎'}</span><span class="attachment-name">${escapeHtml(a.name)}</span>`
           }
         </div>
       `).join('')}

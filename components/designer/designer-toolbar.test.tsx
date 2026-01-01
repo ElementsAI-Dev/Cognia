@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { DesignerToolbar } from './designer-toolbar';
+import { DesignerToolbar } from './toolbar/designer-toolbar';
 
 // Mock stores
 const mockSetMode = jest.fn();

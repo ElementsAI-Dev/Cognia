@@ -25,6 +25,61 @@ export type SpeechLanguageCode = typeof SPEECH_LANGUAGES[number]['code'];
 // Speech recognition provider types
 export type SpeechProvider = 'system' | 'openai';
 
+// TTS Provider types
+export type TTSProvider = 'system' | 'openai' | 'gemini' | 'edge';
+
+// OpenAI TTS voices
+export const OPENAI_TTS_VOICES = [
+  { id: 'alloy', name: 'Alloy', description: 'Neutral and balanced' },
+  { id: 'echo', name: 'Echo', description: 'Warm and engaging' },
+  { id: 'fable', name: 'Fable', description: 'Expressive and dynamic' },
+  { id: 'onyx', name: 'Onyx', description: 'Deep and authoritative' },
+  { id: 'nova', name: 'Nova', description: 'Friendly and upbeat' },
+  { id: 'shimmer', name: 'Shimmer', description: 'Clear and pleasant' },
+] as const;
+
+export type OpenAITTSVoice = typeof OPENAI_TTS_VOICES[number]['id'];
+
+// Gemini TTS voices
+export const GEMINI_TTS_VOICES = [
+  { id: 'Zephyr', name: 'Zephyr', description: 'Bright' },
+  { id: 'Puck', name: 'Puck', description: 'Upbeat' },
+  { id: 'Charon', name: 'Charon', description: 'Informative' },
+  { id: 'Kore', name: 'Kore', description: 'Firm' },
+  { id: 'Fenrir', name: 'Fenrir', description: 'Excitable' },
+  { id: 'Aoede', name: 'Aoede', description: 'Breezy' },
+  { id: 'Enceladus', name: 'Enceladus', description: 'Breathy' },
+  { id: 'Iapetus', name: 'Iapetus', description: 'Clear' },
+  { id: 'Achernar', name: 'Achernar', description: 'Soft' },
+  { id: 'Schedar', name: 'Schedar', description: 'Even' },
+  { id: 'Gacrux', name: 'Gacrux', description: 'Mature' },
+  { id: 'Sulafat', name: 'Sulafat', description: 'Warm' },
+] as const;
+
+export type GeminiTTSVoice = typeof GEMINI_TTS_VOICES[number]['id'];
+
+// Edge TTS popular voices
+export const EDGE_TTS_VOICES = [
+  // Chinese
+  { id: 'zh-CN-XiaoxiaoNeural', name: 'Xiaoxiao (女)', language: 'zh-CN', gender: 'Female' },
+  { id: 'zh-CN-YunxiNeural', name: 'Yunxi (男)', language: 'zh-CN', gender: 'Male' },
+  { id: 'zh-CN-YunyangNeural', name: 'Yunyang (男)', language: 'zh-CN', gender: 'Male' },
+  { id: 'zh-TW-HsiaoChenNeural', name: 'HsiaoChen (女)', language: 'zh-TW', gender: 'Female' },
+  // English
+  { id: 'en-US-JennyNeural', name: 'Jenny (Female)', language: 'en-US', gender: 'Female' },
+  { id: 'en-US-GuyNeural', name: 'Guy (Male)', language: 'en-US', gender: 'Male' },
+  { id: 'en-US-AriaNeural', name: 'Aria (Female)', language: 'en-US', gender: 'Female' },
+  { id: 'en-GB-SoniaNeural', name: 'Sonia (Female)', language: 'en-GB', gender: 'Female' },
+  // Japanese
+  { id: 'ja-JP-NanamiNeural', name: 'Nanami (Female)', language: 'ja-JP', gender: 'Female' },
+  { id: 'ja-JP-KeitaNeural', name: 'Keita (Male)', language: 'ja-JP', gender: 'Male' },
+  // Korean
+  { id: 'ko-KR-SunHiNeural', name: 'SunHi (Female)', language: 'ko-KR', gender: 'Female' },
+  { id: 'ko-KR-InJoonNeural', name: 'InJoon (Male)', language: 'ko-KR', gender: 'Male' },
+] as const;
+
+export type EdgeTTSVoice = typeof EDGE_TTS_VOICES[number]['id'];
+
 // Speech recognition settings interface
 export interface SpeechSettings {
   // STT (Speech-to-Text) settings
@@ -38,11 +93,25 @@ export interface SpeechSettings {
   
   // TTS (Text-to-Speech) settings
   ttsEnabled: boolean;
-  ttsVoice: string;
+  ttsProvider: TTSProvider;
+  ttsVoice: string; // System voice name
   ttsRate: number; // 0.1 - 10
   ttsPitch: number; // 0 - 2
   ttsVolume: number; // 0 - 1
   ttsAutoPlay: boolean; // Auto-play AI responses
+  
+  // OpenAI TTS settings
+  openaiTtsVoice: OpenAITTSVoice;
+  openaiTtsModel: 'tts-1' | 'tts-1-hd';
+  openaiTtsSpeed: number; // 0.25 - 4.0
+  
+  // Gemini TTS settings
+  geminiTtsVoice: GeminiTTSVoice;
+  
+  // Edge TTS settings
+  edgeTtsVoice: EdgeTTSVoice;
+  edgeTtsRate: string; // e.g., '+0%', '-10%', '+20%'
+  edgeTtsPitch: string; // e.g., '+0Hz', '-10Hz', '+20Hz'
 }
 
 // Default speech settings
@@ -58,11 +127,25 @@ export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = {
   
   // TTS defaults
   ttsEnabled: false,
+  ttsProvider: 'system',
   ttsVoice: '',
   ttsRate: 1.0,
   ttsPitch: 1.0,
   ttsVolume: 1.0,
   ttsAutoPlay: false,
+  
+  // OpenAI TTS defaults
+  openaiTtsVoice: 'alloy',
+  openaiTtsModel: 'tts-1',
+  openaiTtsSpeed: 1.0,
+  
+  // Gemini TTS defaults
+  geminiTtsVoice: 'Kore',
+  
+  // Edge TTS defaults
+  edgeTtsVoice: 'zh-CN-XiaoxiaoNeural',
+  edgeTtsRate: '+0%',
+  edgeTtsPitch: '+0Hz',
 };
 
 // Speech recognition result

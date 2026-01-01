@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ElementActionsPopover } from './element-actions-popover';
+import { ElementActionsPopover } from './panels/element-actions-popover';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

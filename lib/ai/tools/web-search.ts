@@ -69,7 +69,7 @@ export const webSearchInputSchema = z.object({
     .default(5)
     .describe('Maximum number of search results to return'),
   provider: z
-    .enum(['tavily', 'perplexity', 'exa', 'searchapi', 'serpapi', 'bing', 'google', 'brave'])
+    .enum(['tavily', 'perplexity', 'exa', 'searchapi', 'serpapi', 'bing', 'google', 'google-ai', 'brave'])
     .optional()
     .describe('Search provider to use (optional, uses default if not specified)'),
   searchDepth: z

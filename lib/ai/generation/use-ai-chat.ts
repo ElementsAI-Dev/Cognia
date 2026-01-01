@@ -69,7 +69,20 @@ export interface VisionTextContent {
   text: string;
 }
 
-export type MultimodalContent = VisionImageContent | VisionTextContent;
+export interface VisionAudioContent {
+  type: 'audio';
+  audio: string; // base64 data
+  mimeType: string;
+  format: string; // Audio format like 'wav', 'mp3', etc.
+}
+
+export interface VisionVideoContent {
+  type: 'video';
+  video: string; // base64 data URL or URL
+  mimeType: string;
+}
+
+export type MultimodalContent = VisionImageContent | VisionTextContent | VisionAudioContent | VisionVideoContent;
 
 // Message with optional multimodal content
 export interface MultimodalMessage {
@@ -89,6 +102,8 @@ interface SendMessageOptions {
   messageId?: string;
   tools?: Record<string, unknown>;
   toolChoice?: 'auto' | 'none' | 'required' | { type: 'tool'; toolName: string };
+  // Per-request streaming override (undefined = use global setting)
+  streaming?: boolean;
 }
 
 export function useAIChat({
@@ -177,7 +192,10 @@ export function useAIChat({
 
       abortControllerRef.current = new AbortController();
 
-      const { messages, systemPrompt, temperature = 0.7, maxTokens, topP, frequencyPenalty, presencePenalty, sessionId, messageId } = options;
+      const { messages, systemPrompt, temperature = 0.7, maxTokens, topP, frequencyPenalty, presencePenalty, sessionId, messageId, streaming } = options;
+
+      // Determine effective streaming setting: per-request override > global setting
+      const useStreaming = streaming !== undefined ? streaming : streamingEnabled;
 
       // Auto-detect memories from user messages using two-phase pipeline
       if (memorySettings.enabled && memorySettings.autoInfer) {
@@ -315,16 +333,38 @@ export function useAIChat({
         }
 
         // Multimodal content - convert to AI SDK format
-        const parts: (TextPart | ImagePart)[] = msg.content.map((part) => {
+        // Note: AI SDK uses different part types for different media
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const parts: any[] = msg.content.map((part) => {
           if (part.type === 'text') {
             return { type: 'text', text: part.text } as TextPart;
           }
-          // Image part - AI SDK expects image as base64 string or URL
-          return {
-            type: 'image',
-            image: part.image, // base64 string
-            mimeType: part.mimeType,
-          } as ImagePart;
+          if (part.type === 'image') {
+            // Image part - AI SDK expects image as base64 string or URL
+            return {
+              type: 'image',
+              image: part.image, // base64 string
+              mimeType: part.mimeType,
+            } as ImagePart;
+          }
+          if (part.type === 'audio') {
+            // Audio part - OpenRouter uses input_audio format
+            // For providers like OpenAI/OpenRouter
+            return {
+              type: 'file',
+              data: part.audio,
+              mimeType: part.mimeType,
+            };
+          }
+          if (part.type === 'video') {
+            // Video part - can be URL or base64 data URL
+            return {
+              type: 'file',
+              data: part.video,
+              mimeType: part.mimeType,
+            };
+          }
+          return part;
         });
 
         return {
@@ -402,7 +442,7 @@ export function useAIChat({
       };
 
       try {
-        if (streamingEnabled && onChunk) {
+        if (useStreaming && onChunk) {
           onStreamStart?.();
           reasoningRef.current = '';
 

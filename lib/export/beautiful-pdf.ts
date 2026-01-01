@@ -475,7 +475,7 @@ function generateAttachmentsHTML(attachments: Array<{ name: string; type: string
   return `
     <div class="attachments">
       ${nonImageAttachments.map(a => `
-        <span class="attachment">📎 ${escapeHtml(a.name)}</span>
+        <span class="attachment">${a.type === 'audio' ? '🎵' : a.type === 'video' ? '🎬' : '📎'} ${escapeHtml(a.name)}</span>
       `).join('')}
     </div>
   `;

@@ -126,6 +126,29 @@ export interface DBWorkflowExecution {
   completedAt?: Date;
 }
 
+export interface DBSummary {
+  id: string;
+  sessionId: string;
+  type: string; // 'chat' | 'agent' | 'incremental'
+  summary: string;
+  keyPoints?: string; // JSON serialized KeyPoint[]
+  topics?: string; // JSON serialized ConversationTopic[]
+  diagram?: string; // Mermaid code
+  diagramType?: string;
+  messageRange?: string; // JSON serialized { startMessageId, endMessageId, startIndex, endIndex }
+  messageCount: number;
+  sourceTokens: number;
+  summaryTokens: number;
+  compressionRatio: number;
+  language?: string;
+  format: string;
+  style?: string;
+  template?: string;
+  usedAI: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Database class
 class CogniaDB extends Dexie {
   sessions!: EntityTable<DBSession, 'id'>;
@@ -136,6 +159,7 @@ class CogniaDB extends Dexie {
   knowledgeFiles!: EntityTable<DBKnowledgeFile, 'id'>;
   workflows!: EntityTable<DBWorkflow, 'id'>;
   workflowExecutions!: EntityTable<DBWorkflowExecution, 'id'>;
+  summaries!: EntityTable<DBSummary, 'id'>;
 
   constructor() {
     super('CogniaDB');
@@ -175,6 +199,19 @@ class CogniaDB extends Dexie {
       knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
       workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
       workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
+    });
+
+    // Version 5: Add summaries table for chat summary persistence
+    this.version(5).stores({
+      sessions: 'id, title, provider, projectId, createdAt, updatedAt',
+      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
+      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
+      mcpServers: 'id, name, url, connected',
+      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
+      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
+      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
+      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
+      summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
     });
   }
 }

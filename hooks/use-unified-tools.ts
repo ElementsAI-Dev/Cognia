@@ -50,6 +50,8 @@ export interface UseUnifiedToolsOptions {
   enableMcpTools?: boolean;
   /** Enable RAG search tool */
   enableRAG?: boolean;
+  /** Enable web scraper tools */
+  enableWebScraper?: boolean;
   /** Custom tools to include */
   customTools?: Record<string, AgentTool>;
   /** Auto-sync with stores */
@@ -99,6 +101,7 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
     enableSkillTools = true,
     enableMcpTools = true,
     enableRAG = true,
+    enableWebScraper = true,
     customTools = {},
     autoSync = true,
   } = options;
@@ -132,6 +135,7 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
     const builtinTools = initializeAgentTools({
       tavilyApiKey,
       enableWebSearch: !!tavilyApiKey,
+      enableWebScraper,
       enableCalculator: true,
       enableRAGSearch: false, // We handle RAG separately
     });
@@ -141,7 +145,7 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
     
     // Register new builtin tools
     registerBuiltinTools(registry, builtinTools);
-  }, [enableBuiltinTools, providerSettings.tavily?.apiKey, registry]);
+  }, [enableBuiltinTools, enableWebScraper, providerSettings.tavily?.apiKey, registry]);
 
   // Sync skill tools
   const syncSkillTools = useCallback(() => {

@@ -19,6 +19,7 @@ import { searchWithSearchAPI, testSearchAPIConnection } from './providers/search
 import { searchWithSerpAPI, testSerpAPIConnection } from './providers/serpapi';
 import { searchWithBing, testBingConnection } from './providers/bing';
 import { searchWithGoogle, testGoogleConnection } from './providers/google';
+import { searchWithGoogleAI, testGoogleAIConnection } from './providers/google-ai';
 import { searchWithBrave, testBraveConnection } from './providers/brave';
 
 export interface UnifiedSearchOptions extends SearchOptions {
@@ -54,6 +55,8 @@ async function executeProviderSearch(
       return searchWithBing(query, apiKey, options);
     case 'google':
       return searchWithGoogle(query, apiKey, options);
+    case 'google-ai':
+      return searchWithGoogleAI(query, apiKey, options);
     case 'brave':
       return searchWithBrave(query, apiKey, options);
     default:
@@ -174,6 +177,8 @@ export async function testProviderConnection(
         return await testBingConnection(apiKey);
       case 'google':
         return await testGoogleConnection(apiKey, '');
+      case 'google-ai':
+        return await testGoogleAIConnection(apiKey);
       case 'brave':
         return await testBraveConnection(apiKey);
       default:

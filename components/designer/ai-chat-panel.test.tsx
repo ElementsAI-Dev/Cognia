@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AIChatPanel } from './ai-chat-panel';
+import { AIChatPanel } from './ai/ai-chat-panel';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

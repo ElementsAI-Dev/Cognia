@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { 
   Pin, 
@@ -22,7 +21,13 @@ import {
   Move,
   FolderKanban,
   Wand2,
-  ExternalLink
+  ExternalLink,
+  Shield,
+  Eye,
+  EyeOff,
+  MonitorSmartphone,
+  Square,
+  Layers,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -39,117 +44,104 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
   DropdownMenuLabel,
+  DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
-import { useSessionStore, useSettingsStore } from '@/stores';
+import { useSessionStore, useSettingsStore, useWindowStore } from '@/stores';
+import { useWindowControls } from '@/hooks';
 import { useRouter } from 'next/navigation';
 
 export function TitleBar() {
-  const [isMaximized, setIsMaximized] = useState(false);
-  const [isTauri, setIsTauri] = useState(false);
-  const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const router = useRouter();
   
+  // Window controls hook
+  const {
+    isTauri,
+    isMaximized,
+    isFullscreen,
+    isAlwaysOnTop,
+    minimize,
+    toggleMaximize,
+    close,
+    toggleFullscreen,
+    toggleAlwaysOnTop,
+    center,
+    setResizable,
+    setContentProtected,
+    setSkipTaskbar,
+    setVisibleOnAllWorkspaces,
+    setShadow,
+    handleDragMouseDown,
+    requestUserAttention,
+  } = useWindowControls();
+
+  // Window store for additional state
+  const {
+    contentProtected,
+    skipTaskbar,
+    shadow,
+    visibleOnAllWorkspaces,
+    isResizable,
+    preferences,
+    setContentProtected: setContentProtectedStore,
+    setSkipTaskbar: setSkipTaskbarStore,
+    setShadow: setShadowStore,
+    setVisibleOnAllWorkspaces: setVisibleOnAllWorkspacesStore,
+    setIsResizable,
+    setEnableDoubleClickMaximize,
+    setEnableDragToMove,
+  } = useWindowStore();
+
+  // Settings store
   const theme = useSettingsStore((state) => state.theme);
   const setTheme = useSettingsStore((state) => state.setTheme);
   const createSession = useSessionStore((state) => state.createSession);
 
+  // Setup Tauri-specific document classes
   useEffect(() => {
-    const checkTauri = async () => {
-      if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) {
-        setIsTauri(false);
-        return;
-      }
-
-      try {
-        setIsTauri(true);
-        document.documentElement.style.setProperty('--titlebar-height', '32px');
-        document.documentElement.classList.add('tauri-app');
-        
-        const appWindow = getCurrentWindow();
-        const maximized = await appWindow.isMaximized();
-        setIsMaximized(maximized);
-
-        const unlisten = await appWindow.onResized(() => {
-          appWindow.isMaximized().then(setIsMaximized);
-        });
-
-        return () => {
-          unlisten();
-          document.documentElement.style.removeProperty('--titlebar-height');
-          document.documentElement.classList.remove('tauri-app');
-        };
-      } catch {
-        setIsTauri(false);
-        document.documentElement.style.removeProperty('--titlebar-height');
-        document.documentElement.classList.remove('tauri-app');
-      }
+    if (isTauri) {
+      document.documentElement.style.setProperty('--titlebar-height', '32px');
+      document.documentElement.classList.add('tauri-app');
+    }
+    return () => {
+      document.documentElement.style.removeProperty('--titlebar-height');
+      document.documentElement.classList.remove('tauri-app');
     };
+  }, [isTauri]);
 
-    checkTauri();
-  }, []);
+  // Window property toggle handlers
+  const handleToggleContentProtected = useCallback(async () => {
+    const newValue = !contentProtected;
+    await setContentProtected(newValue);
+    setContentProtectedStore(newValue);
+  }, [contentProtected, setContentProtected, setContentProtectedStore]);
 
-  const handleMinimize = useCallback(async () => {
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.minimize();
-    } catch (error) {
-      console.error('Failed to minimize window:', error);
-    }
-  }, []);
+  const handleToggleSkipTaskbar = useCallback(async () => {
+    const newValue = !skipTaskbar;
+    await setSkipTaskbar(newValue);
+    setSkipTaskbarStore(newValue);
+  }, [skipTaskbar, setSkipTaskbar, setSkipTaskbarStore]);
 
-  const handleMaximize = useCallback(async () => {
-    try {
-      const appWindow = getCurrentWindow();
-      if (isMaximized) {
-        await appWindow.unmaximize();
-      } else {
-        await appWindow.maximize();
-      }
-    } catch (error) {
-      console.error('Failed to toggle maximize:', error);
-    }
-  }, [isMaximized]);
+  const handleToggleShadow = useCallback(async () => {
+    const newValue = !shadow;
+    await setShadow(newValue);
+    setShadowStore(newValue);
+  }, [shadow, setShadow, setShadowStore]);
 
-  const handleClose = useCallback(async () => {
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.close();
-    } catch (error) {
-      console.error('Failed to close window:', error);
-    }
-  }, []);
+  const handleToggleVisibleOnAllWorkspaces = useCallback(async () => {
+    const newValue = !visibleOnAllWorkspaces;
+    await setVisibleOnAllWorkspaces(newValue);
+    setVisibleOnAllWorkspacesStore(newValue);
+  }, [visibleOnAllWorkspaces, setVisibleOnAllWorkspaces, setVisibleOnAllWorkspacesStore]);
 
-  const handleToggleAlwaysOnTop = useCallback(async () => {
-    try {
-      const appWindow = getCurrentWindow();
-      const newValue = !isAlwaysOnTop;
-      await appWindow.setAlwaysOnTop(newValue);
-      setIsAlwaysOnTop(newValue);
-    } catch (error) {
-      console.error('Failed to toggle always on top:', error);
-    }
-  }, [isAlwaysOnTop]);
+  const handleToggleResizable = useCallback(async () => {
+    const newValue = !isResizable;
+    await setResizable(newValue);
+    setIsResizable(newValue);
+  }, [isResizable, setResizable, setIsResizable]);
 
-  const handleToggleFullscreen = useCallback(async () => {
-    try {
-      const appWindow = getCurrentWindow();
-      const newValue = !isFullscreen;
-      await appWindow.setFullscreen(newValue);
-      setIsFullscreen(newValue);
-    } catch (error) {
-      console.error('Failed to toggle fullscreen:', error);
-    }
-  }, [isFullscreen]);
-
-  const handleCenterWindow = useCallback(async () => {
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.center();
-    } catch (error) {
-      console.error('Failed to center window:', error);
-    }
-  }, []);
+  const handleRequestAttention = useCallback(async () => {
+    await requestUserAttention('informational');
+  }, [requestUserAttention]);
 
   const handleReload = useCallback(() => {
     window.location.reload();
@@ -185,13 +177,21 @@ export function TitleBar() {
     return null;
   }
 
+  // Determine if we should use manual drag handling
+  const shouldUseManualDrag = preferences.enableDragToMove && preferences.enableDoubleClickMaximize;
+
   return (
     <div
       className="fixed top-0 left-0 right-0 z-50 flex h-8 select-none items-center bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/40"
       data-tauri-drag-region
+      onMouseDown={shouldUseManualDrag ? handleDragMouseDown : undefined}
     >
       {/* App Logo & Title - left side */}
-      <div className="flex items-center gap-2 px-3 h-full" data-tauri-drag-region>
+      <div 
+        className="flex items-center gap-2 px-3 h-full" 
+        data-tauri-drag-region
+        onMouseDown={shouldUseManualDrag ? handleDragMouseDown : undefined}
+      >
         <div className="w-4 h-4 rounded bg-primary flex items-center justify-center">
           <span className="text-[10px] font-bold text-primary-foreground">C</span>
         </div>
@@ -220,11 +220,12 @@ export function TitleBar() {
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              onClick={handleToggleAlwaysOnTop}
+              onClick={toggleAlwaysOnTop}
               className={`flex h-6 w-6 items-center justify-center rounded transition-colors hover:bg-accent hover:text-accent-foreground ${
                 isAlwaysOnTop ? 'text-primary bg-primary/10' : ''
               }`}
               type="button"
+              data-no-drag
             >
               {isAlwaysOnTop ? (
                 <PinOff className="h-3.5 w-3.5" />
@@ -242,11 +243,12 @@ export function TitleBar() {
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              onClick={handleToggleFullscreen}
+              onClick={toggleFullscreen}
               className={`flex h-6 w-6 items-center justify-center rounded transition-colors hover:bg-accent hover:text-accent-foreground ${
                 isFullscreen ? 'text-primary bg-primary/10' : ''
               }`}
               type="button"
+              data-no-drag
             >
               {isFullscreen ? (
                 <Minimize2 className="h-3.5 w-3.5" />
@@ -325,15 +327,15 @@ export function TitleBar() {
               More Options
             </TooltipContent>
           </Tooltip>
-          <DropdownMenuContent align="start" className="w-52">
+          <DropdownMenuContent align="start" className="w-56">
             <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Window
+              Window Controls
             </DropdownMenuLabel>
-            <DropdownMenuItem onClick={handleCenterWindow}>
+            <DropdownMenuItem onClick={center}>
               <Move className="mr-2 h-4 w-4" />
               Center Window
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleToggleFullscreen}>
+            <DropdownMenuItem onClick={toggleFullscreen}>
               {isFullscreen ? (
                 <>
                   <Minimize2 className="mr-2 h-4 w-4" />
@@ -346,7 +348,7 @@ export function TitleBar() {
                 </>
               )}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleToggleAlwaysOnTop}>
+            <DropdownMenuItem onClick={toggleAlwaysOnTop}>
               {isAlwaysOnTop ? (
                 <>
                   <PinOff className="mr-2 h-4 w-4" />
@@ -359,6 +361,67 @@ export function TitleBar() {
                 </>
               )}
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleRequestAttention}>
+              <MonitorSmartphone className="mr-2 h-4 w-4" />
+              Flash Taskbar
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              Window Properties
+            </DropdownMenuLabel>
+            <DropdownMenuCheckboxItem
+              checked={isResizable}
+              onCheckedChange={handleToggleResizable}
+            >
+              <Maximize2 className="mr-2 h-4 w-4" />
+              Resizable
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={shadow}
+              onCheckedChange={handleToggleShadow}
+            >
+              <Square className="mr-2 h-4 w-4" />
+              Window Shadow
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={contentProtected}
+              onCheckedChange={handleToggleContentProtected}
+            >
+              <Shield className="mr-2 h-4 w-4" />
+              Content Protected
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={skipTaskbar}
+              onCheckedChange={handleToggleSkipTaskbar}
+            >
+              {skipTaskbar ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
+              Hide from Taskbar
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={visibleOnAllWorkspaces}
+              onCheckedChange={handleToggleVisibleOnAllWorkspaces}
+            >
+              <Layers className="mr-2 h-4 w-4" />
+              All Workspaces
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              Drag Behavior
+            </DropdownMenuLabel>
+            <DropdownMenuCheckboxItem
+              checked={preferences.enableDragToMove}
+              onCheckedChange={(checked) => setEnableDragToMove(checked)}
+            >
+              <Move className="mr-2 h-4 w-4" />
+              Drag to Move
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={preferences.enableDoubleClickMaximize}
+              onCheckedChange={(checked) => setEnableDoubleClickMaximize(checked)}
+            >
+              <Maximize2 className="mr-2 h-4 w-4" />
+              Double-click Maximize
+            </DropdownMenuCheckboxItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-xs text-muted-foreground">
               Theme
@@ -423,7 +486,11 @@ export function TitleBar() {
       </div>
 
       {/* Drag region - takes all available space */}
-      <div className="flex-1 h-full" data-tauri-drag-region />
+      <div 
+        className="flex-1 h-full" 
+        data-tauri-drag-region
+        onMouseDown={shouldUseManualDrag ? handleDragMouseDown : undefined}
+      />
 
       {/* Status indicator when pinned */}
       {isAlwaysOnTop && (
@@ -434,14 +501,15 @@ export function TitleBar() {
       )}
 
       {/* Window controls */}
-      <div className="flex h-full items-center">
+      <div className="flex h-full items-center" data-no-drag>
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              onClick={handleMinimize}
+              onClick={minimize}
               className="flex h-full w-11 items-center justify-center transition-colors hover:bg-accent hover:text-accent-foreground"
               aria-label="Minimize"
               type="button"
+              data-no-drag
             >
               <Minus className="h-3.5 w-3.5" />
             </button>
@@ -454,10 +522,11 @@ export function TitleBar() {
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              onClick={handleMaximize}
+              onClick={toggleMaximize}
               className="flex h-full w-11 items-center justify-center transition-colors hover:bg-accent hover:text-accent-foreground"
               aria-label={isMaximized ? 'Restore' : 'Maximize'}
               type="button"
+              data-no-drag
             >
               {isMaximized ? (
                 <Copy className="h-3.5 w-3.5" />
@@ -474,10 +543,11 @@ export function TitleBar() {
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              onClick={handleClose}
+              onClick={close}
               className="flex h-full w-11 items-center justify-center transition-colors hover:bg-destructive hover:text-destructive-foreground"
               aria-label="Close"
               type="button"
+              data-no-drag
             >
               <X className="h-3.5 w-3.5" />
             </button>

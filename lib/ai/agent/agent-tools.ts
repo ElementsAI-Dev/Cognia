@@ -15,6 +15,15 @@ import {
   executeRAGSearch,
   ragSearchInputSchema,
   type RAGSearchInput,
+  executeWebScraper,
+  executeBulkWebScraper,
+  executeSearchAndScrape,
+  webScraperInputSchema,
+  bulkWebScraperInputSchema,
+  searchAndScraperInputSchema,
+  type WebScraperInput,
+  type BulkWebScraperInput,
+  type SearchAndScrapeInput,
 } from '../tools';
 import type { RAGConfig } from '../rag';
 import type { Skill } from '@/types/skill';
@@ -31,6 +40,7 @@ import { getJupyterTools, getJupyterToolsSystemPrompt } from './jupyter-tools';
 export interface AgentToolsConfig {
   tavilyApiKey?: string;
   enableWebSearch?: boolean;
+  enableWebScraper?: boolean;
   enableCalculator?: boolean;
   enableRAGSearch?: boolean;
   enableFileTools?: boolean;
@@ -97,6 +107,54 @@ export function createWebSearchTool(apiKey: string): AgentTool {
     execute: async (args) => {
       const input = args as z.infer<typeof webSearchInputSchema>;
       return executeWebSearch(input, { apiKey });
+    },
+    requiresApproval: false,
+  };
+}
+
+/**
+ * Create web scraper tool for agent
+ */
+export function createWebScraperTool(): AgentTool {
+  return {
+    name: 'web_scraper',
+    description: 'Scrape and extract content from a web page. Supports both static HTML and JavaScript-rendered dynamic pages (using Playwright). Use this to get full text content from a specific URL.',
+    parameters: webScraperInputSchema,
+    execute: async (args) => {
+      const input = args as WebScraperInput;
+      return executeWebScraper(input);
+    },
+    requiresApproval: false,
+  };
+}
+
+/**
+ * Create bulk web scraper tool for agent
+ */
+export function createBulkWebScraperTool(): AgentTool {
+  return {
+    name: 'bulk_web_scraper',
+    description: 'Scrape and extract content from multiple web pages in parallel. Limited to 10 URLs per request.',
+    parameters: bulkWebScraperInputSchema,
+    execute: async (args) => {
+      const input = args as BulkWebScraperInput;
+      return executeBulkWebScraper(input);
+    },
+    requiresApproval: false,
+  };
+}
+
+/**
+ * Create search and scrape tool for agent
+ */
+export function createSearchAndScrapeTool(config?: { apiKey?: string; provider?: string }): AgentTool {
+  return {
+    name: 'search_and_scrape',
+    description: 'Search the web and scrape the full content of top results. Combines web search with content extraction.',
+    parameters: searchAndScraperInputSchema,
+    execute: async (args) => {
+      const input = args as SearchAndScrapeInput;
+      return executeSearchAndScrape(input, config);
     },
     requiresApproval: false,
   };
@@ -261,6 +319,15 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
   // Web search (requires API key)
   if (config.enableWebSearch !== false && config.tavilyApiKey) {
     tools.web_search = createWebSearchTool(config.tavilyApiKey);
+  }
+
+  // Web scraper tools
+  if (config.enableWebScraper !== false) {
+    tools.web_scraper = createWebScraperTool();
+    tools.bulk_web_scraper = createBulkWebScraperTool();
+    if (config.tavilyApiKey) {
+      tools.search_and_scrape = createSearchAndScrapeTool({ apiKey: config.tavilyApiKey });
+    }
   }
 
   // RAG search (uses real implementation)
