@@ -4,7 +4,7 @@
 
 import { parseMarkdown, extractEmbeddableContent as extractMarkdownContent } from './parsers/markdown-parser';
 import { parseCode, extractCodeEmbeddableContent, detectLanguage } from './parsers/code-parser';
-import { chunkDocument, type ChunkingOptions, type DocumentChunk } from '@/lib/ai/chunking';
+import { chunkDocument, type ChunkingOptions, type DocumentChunk } from '@/lib/ai/embedding/chunking';
 
 // Types imported statically, implementations loaded dynamically to reduce bundle size
 import type { PDFParseResult } from './parsers/pdf-parser';

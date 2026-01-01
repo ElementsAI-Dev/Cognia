@@ -11,6 +11,41 @@
 const fs = require('fs');
 const path = require('path');
 
+// Parse CLI arguments
+const args = process.argv.slice(2);
+const cliOptions = {
+  verbose: args.includes('--verbose'),
+  json: args.includes('--json'),
+  quiet: args.includes('--quiet'),
+  namespace: args.find((a, i) => args[i - 1] === '--namespace'),
+  directory: args.find((a, i) => args[i - 1] === '--directory'),
+  help: args.includes('--help') || args.includes('-h'),
+};
+
+// Show help
+if (cliOptions.help) {
+  console.log(`
+i18n String Extraction Script
+
+Usage: node scripts/i18n-extract.js [options]
+
+Options:
+  --verbose           Show detailed output for each file
+  --json              Output results as JSON to stdout
+  --quiet             Suppress progress output
+  --namespace <ns>    Only extract from specific namespace
+  --directory <dir>   Only scan specific directory
+  --help, -h          Show this help message
+
+Examples:
+  node scripts/i18n-extract.js
+  node scripts/i18n-extract.js --verbose
+  node scripts/i18n-extract.js --namespace chat
+  node scripts/i18n-extract.js --directory components/settings
+`);
+  process.exit(0);
+}
+
 // Load configuration
 const configPath = path.join(__dirname, 'i18n-config.json');
 const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
@@ -38,6 +73,23 @@ const flattenKeys = (obj, prefix = '') => {
     }
   }
   return keys;
+};
+
+// Check if string contains Chinese characters
+const containsChinese = (str) => {
+  return /[\u4e00-\u9fff]/.test(str);
+};
+
+// Check if string is a valid user-facing text
+const isUserFacingText = (str) => {
+  // Must contain at least one letter
+  if (!/[a-zA-Z\u4e00-\u9fff]/.test(str)) return false;
+  
+  // Skip if mostly numbers/symbols
+  const letterCount = (str.match(/[a-zA-Z\u4e00-\u9fff]/g) || []).length;
+  if (letterCount < str.length * 0.3) return false;
+  
+  return true;
 };
 
 // Check if a string should be extracted
@@ -71,9 +123,30 @@ const shouldExtractString = (str) => {
       return false;
     }
     // Skip file extensions
-    if (/\.(css|scss|less|json|md|txt|html|js|jsx|ts|tsx)$/.test(str)) {
+    if (/\.(css|scss|less|json|md|txt|html|js|jsx|ts|tsx|svg|png|jpg|jpeg|gif|ico|woff|woff2)$/.test(str)) {
       return false;
     }
+    // Skip hex colors
+    if (/^#[0-9a-fA-F]{3,8}$/.test(str)) {
+      return false;
+    }
+    // Skip CSS values
+    if (/^\d+(\.\d+)?(px|em|rem|%|vh|vw|deg|ms|s)$/.test(str)) {
+      return false;
+    }
+    // Skip JSON-like strings
+    if (str.startsWith('{') && str.endsWith('}')) {
+      return false;
+    }
+    // Skip array-like strings
+    if (str.startsWith('[') && str.endsWith(']')) {
+      return false;
+    }
+  }
+
+  // Must be user-facing text
+  if (!isUserFacingText(str)) {
+    return false;
   }
 
   return true;
@@ -100,20 +173,47 @@ const extractStringsFromFile = (filePath) => {
           const str = match.trim();
           // Skip if it looks like HTML attribute
           if (str.includes('=')) return false;
+          // Skip whitespace-only
+          if (!str || str.length === 0) return false;
           return shouldExtractString(str);
         }
       },
-      // String literals in props: title="text"
+      // String literals in props: title="text" or placeholder="text"
       {
-        regex: /=["']([^"']+)["']/g,
+        regex: /(?:title|label|placeholder|description|message|text|tooltip|aria-label)=["']([^"']+)["']/gi,
         type: 'PropString',
         filter: (match) => {
-          // Skip common props that don't need translation
-          const parentContext = content.substring(Math.max(0, content.indexOf(match) - 50), content.indexOf(match) + match.length + 10);
-          if (/className|id=|style=|data-|aria-|key=|ref=|type=|name=|placeholder=|href|src=|alt=/.test(parentContext)) {
-            return false;
-          }
           return shouldExtractString(match);
+        }
+      },
+      // Button/link text: <Button>text</Button>
+      {
+        regex: /<(?:Button|button|Link|a)[^>]*>([^<{]+)</g,
+        type: 'ButtonText',
+        filter: (match) => {
+          const str = match.trim();
+          if (!str || str.length === 0) return false;
+          return shouldExtractString(str);
+        }
+      },
+      // Heading text: <h1>text</h1>
+      {
+        regex: /<h[1-6][^>]*>([^<{]+)</g,
+        type: 'HeadingText',
+        filter: (match) => {
+          const str = match.trim();
+          if (!str || str.length === 0) return false;
+          return shouldExtractString(str);
+        }
+      },
+      // Label text: <Label>text</Label> or <label>text</label>
+      {
+        regex: /<[Ll]abel[^>]*>([^<{]+)</g,
+        type: 'LabelText',
+        filter: (match) => {
+          const str = match.trim();
+          if (!str || str.length === 0) return false;
+          return shouldExtractString(str);
         }
       },
       // Template literals: `text`
@@ -123,6 +223,24 @@ const extractStringsFromFile = (filePath) => {
         filter: (match) => {
           // Skip if contains expressions
           if (match.includes('${')) return false;
+          // Skip if looks like code
+          if (match.includes('=>') || match.includes('function')) return false;
+          return shouldExtractString(match);
+        }
+      },
+      // Error messages: throw new Error('message')
+      {
+        regex: /(?:Error|throw)\s*\(?["']([^"']+)["']/g,
+        type: 'ErrorMessage',
+        filter: (match) => {
+          return shouldExtractString(match);
+        }
+      },
+      // Toast/notification messages: toast('message') or toast.success('message')
+      {
+        regex: /toast(?:\.\w+)?\(["']([^"']+)["']/g,
+        type: 'ToastMessage',
+        filter: (match) => {
           return shouldExtractString(match);
         }
       }
@@ -366,23 +484,36 @@ const main = () => {
   fs.writeFileSync(mdPath, mdContent);
   console.log(`✅ Markdown report saved: ${mdPath}`);
 
-  // Print summary
-  console.log('\n📊 Extraction Summary:');
-  console.log(`   Total files scanned: ${results.summary.totalFiles}`);
-  console.log(`   Files with i18n hook: ${results.summary.filesWithI18n}`);
-  console.log(`   Files with hardcoded strings: ${results.summary.filesWithHardcodedStrings}`);
-  console.log(`   Total hardcoded strings found: ${results.summary.totalHardcodedStrings}`);
-  console.log('\n📋 Top 10 Components by Hardcoded Strings:');
-  results.components.slice(0, 10).forEach((comp, i) => {
-    console.log(`   ${i + 1}. ${comp.file} (${comp.hardcodedStrings.length} strings)`);
-  });
-
-  console.log('\n📋 By Namespace:');
-  for (const [namespace, data] of Object.entries(results.byNamespace)) {
-    console.log(`   ${namespace}: ${data.totalComponents} components, ${data.totalStrings} strings`);
+  // JSON output mode
+  if (cliOptions.json) {
+    console.log(JSON.stringify(results, null, 2));
+    return;
   }
 
-  console.log('\n✨ Extraction complete! Check i18n-reports/ directory for detailed reports.\n');
+  // Print summary (unless quiet mode)
+  if (!cliOptions.quiet) {
+    console.log('\n📊 Extraction Summary:');
+    console.log(`   Total files scanned: ${results.summary.totalFiles}`);
+    console.log(`   Files with i18n hook: ${results.summary.filesWithI18n}`);
+    console.log(`   Files with hardcoded strings: ${results.summary.filesWithHardcodedStrings}`);
+    console.log(`   Total hardcoded strings found: ${results.summary.totalHardcodedStrings}`);
+    
+    if (results.components.length > 0) {
+      console.log('\n📋 Top 10 Components by Hardcoded Strings:');
+      results.components.slice(0, 10).forEach((comp, i) => {
+        console.log(`   ${i + 1}. ${comp.file} (${comp.hardcodedStrings.length} strings)`);
+      });
+    }
+
+    if (Object.keys(results.byNamespace).length > 0) {
+      console.log('\n📋 By Namespace:');
+      for (const [namespace, data] of Object.entries(results.byNamespace)) {
+        console.log(`   ${namespace}: ${data.totalComponents} components, ${data.totalStrings} strings`);
+      }
+    }
+
+    console.log('\n✨ Extraction complete! Check i18n-reports/ directory for detailed reports.\n');
+  }
 };
 
 // Generate markdown report

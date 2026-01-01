@@ -7,7 +7,7 @@ import {
   generateEmbedding as generateAiEmbedding,
   generateEmbeddings as generateAiEmbeddings,
   cosineSimilarity as cosineSimilarityAi,
-} from '@/lib/ai/embedding';
+} from '@/lib/ai/embedding/embedding';
 import type { ProviderName } from '@/types/provider';
 
 export type EmbeddingProvider = 'openai' | 'google' | 'cohere' | 'mistral';

@@ -32,7 +32,17 @@ jest.mock('@/lib/mcp/marketplace', () => ({
   }),
 }));
 
+// Mock the marketplace-utils for caching
+jest.mock('@/lib/mcp/marketplace-utils', () => ({
+  getCachedDetails: jest.fn(),
+  setCachedDetails: jest.fn(),
+}));
+
 import { fetchMcpMarketplace, downloadMcpServer } from '@/lib/mcp/marketplace';
+import { getCachedDetails, setCachedDetails } from '@/lib/mcp/marketplace-utils';
+
+const mockGetCachedDetails = getCachedDetails as jest.MockedFunction<typeof getCachedDetails>;
+const mockSetCachedDetails = setCachedDetails as jest.MockedFunction<typeof setCachedDetails>;
 
 const mockFetchMcpMarketplace = fetchMcpMarketplace as jest.MockedFunction<typeof fetchMcpMarketplace>;
 const mockDownloadMcpServer = downloadMcpServer as jest.MockedFunction<typeof downloadMcpServer>;
@@ -291,6 +301,7 @@ describe('useMcpMarketplaceStore', () => {
         readmeContent: '# README',
         requiresApiKey: false,
       };
+      mockGetCachedDetails.mockReturnValueOnce(null);
       mockDownloadMcpServer.mockResolvedValueOnce(mockDetails);
 
       let result;
@@ -302,6 +313,52 @@ describe('useMcpMarketplaceStore', () => {
       const state = useMcpMarketplaceStore.getState();
       expect(state.downloadDetails).toEqual(mockDetails);
       expect(state.isLoadingDetails).toBe(false);
+      expect(mockSetCachedDetails).toHaveBeenCalledWith('test-server', mockDetails);
+    });
+
+    it('returns cached details without API call', async () => {
+      const cachedDetails = {
+        mcpId: 'cached-server',
+        githubUrl: 'https://github.com/test/cached',
+        name: 'Cached Server',
+        author: 'test',
+        description: 'Cached description',
+        readmeContent: '# Cached README',
+        requiresApiKey: false,
+      };
+      mockGetCachedDetails.mockReturnValueOnce(cachedDetails);
+
+      let result;
+      await act(async () => {
+        result = await useMcpMarketplaceStore.getState().fetchItemDetails('cached-server');
+      });
+
+      expect(result).toEqual(cachedDetails);
+      expect(mockDownloadMcpServer).not.toHaveBeenCalled();
+      const state = useMcpMarketplaceStore.getState();
+      expect(state.downloadDetails).toEqual(cachedDetails);
+      expect(state.isLoadingDetails).toBe(false);
+    });
+
+    it('does not cache details with errors', async () => {
+      const errorDetails = {
+        mcpId: 'error-server',
+        githubUrl: 'https://github.com/test/error',
+        name: 'Error Server',
+        author: 'test',
+        description: 'Error description',
+        readmeContent: '',
+        requiresApiKey: false,
+        error: 'Failed to fetch',
+      };
+      mockGetCachedDetails.mockReturnValueOnce(null);
+      mockDownloadMcpServer.mockResolvedValueOnce(errorDetails);
+
+      await act(async () => {
+        await useMcpMarketplaceStore.getState().fetchItemDetails('error-server');
+      });
+
+      expect(mockSetCachedDetails).not.toHaveBeenCalled();
     });
   });
 

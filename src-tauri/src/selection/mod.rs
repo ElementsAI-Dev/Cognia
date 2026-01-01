@@ -12,6 +12,7 @@ mod mouse_hook;
 mod toolbar_window;
 mod history;
 mod clipboard_history;
+mod clipboard_context;
 mod smart_selection;
 
 pub use detector::SelectionDetector;
@@ -20,6 +21,10 @@ pub use mouse_hook::{MouseHook, MouseEvent};
 pub use toolbar_window::ToolbarWindow;
 pub use history::{SelectionHistory, SelectionHistoryEntry, SelectionHistoryStats};
 pub use clipboard_history::{ClipboardHistory, ClipboardEntry, ClipboardContentType};
+pub use clipboard_context::{
+    ClipboardContextAnalyzer, ClipboardAnalysis, ContentCategory, DetectedLanguage,
+    ExtractedEntity, SuggestedAction, ContentStats, FormattingHints,
+};
 pub use smart_selection::{SmartSelection, SelectionMode, SelectionExpansion, SelectionContext};
 
 use serde::{Deserialize, Serialize};
@@ -110,6 +115,8 @@ pub struct SelectionManager {
     pub clipboard_history: Arc<ClipboardHistory>,
     /// Smart selection engine
     pub smart_selection: Arc<SmartSelection>,
+    /// Clipboard context analyzer
+    pub clipboard_analyzer: Arc<ClipboardContextAnalyzer>,
     app_handle: tauri::AppHandle,
 }
 
@@ -123,6 +130,7 @@ impl SelectionManager {
         let history = Arc::new(SelectionHistory::new());
         let clipboard_history = Arc::new(ClipboardHistory::new());
         let smart_selection = Arc::new(SmartSelection::new());
+        let clipboard_analyzer = Arc::new(ClipboardContextAnalyzer::new());
 
         Self {
             config,
@@ -136,6 +144,7 @@ impl SelectionManager {
             history,
             clipboard_history,
             smart_selection,
+            clipboard_analyzer,
             app_handle,
         }
     }

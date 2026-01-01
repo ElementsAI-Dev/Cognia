@@ -11,7 +11,7 @@ jest.mock('next-intl', () => ({
 }));
 
 // Mock OAuth utilities
-jest.mock('@/lib/ai/oauth', () => ({
+jest.mock('@/lib/ai/providers/oauth', () => ({
   buildOAuthUrl: jest.fn(),
   getOAuthState: jest.fn(),
   clearOAuthState: jest.fn(),

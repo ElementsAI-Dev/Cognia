@@ -24,6 +24,7 @@ import {
   Sparkles,
   Loader2,
   BookOpen,
+  FolderOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -49,8 +50,9 @@ import {
   ArtifactClose,
 } from '@/components/ai-elements/artifact';
 import { CodeBlock } from '@/components/ai-elements/code-block';
-import { useArtifactStore, useSettingsStore } from '@/stores';
+import { useArtifactStore, useSettingsStore, useNativeStore } from '@/stores';
 import { FileCode } from 'lucide-react';
+import { opener } from '@/lib/native';
 import { V0Designer } from '@/components/designer';
 import { Palette } from 'lucide-react';
 import type { BundledLanguage } from 'shiki';
@@ -199,18 +201,34 @@ export function ArtifactPanel() {
     }
   };
 
+  const isDesktop = useNativeStore((state) => state.isDesktop);
+  const [lastDownloadPath, setLastDownloadPath] = useState<string | null>(null);
+
   const handleDownload = () => {
     if (activeArtifact) {
       const blob = new Blob([activeArtifact.content], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${activeArtifact.title}.${getExtension(activeArtifact)}`;
+      const filename = `${activeArtifact.title}.${getExtension(activeArtifact)}`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      // Track download path for reveal functionality (downloads folder)
+      if (isDesktop) {
+        setLastDownloadPath(filename);
+      }
     }
+  };
+
+  const handleRevealInExplorer = async () => {
+    if (!isDesktop || !lastDownloadPath) return;
+    // Note: Browser downloads go to default downloads folder
+    // We can open the downloads folder but not select the specific file
+    // since we don't have the exact path from browser download API
+    await opener.openUrl('file:///');
   };
 
   const canPreview = activeArtifact?.type === 'html' ||
@@ -290,6 +308,13 @@ export function ArtifactPanel() {
                       icon={Download}
                       onClick={handleDownload}
                     />
+                    {isDesktop && lastDownloadPath && (
+                      <ArtifactAction
+                        tooltip={t('revealInExplorer')}
+                        icon={FolderOpen}
+                        onClick={handleRevealInExplorer}
+                      />
+                    )}
                     <ArtifactAction
                       tooltip={t('editInCanvas')}
                       icon={FileCode}

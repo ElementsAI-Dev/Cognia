@@ -12,7 +12,7 @@
 
 import { generateText, stepCountIs } from 'ai';
 import { z } from 'zod';
-import { getProviderModel, type ProviderName } from '../client';
+import { getProviderModel, type ProviderName } from '../core/client';
 import {
   type StopCondition as FunctionalStopCondition,
   type StopConditionResult,

@@ -17,7 +17,7 @@ import {
   SentimentAnalysisSchema,
   TextClassificationSchema,
   CodeAnalysisSchema,
-} from '@/lib/ai/structured-output';
+} from '@/lib/ai/generation/structured-output';
 import { z } from 'zod';
 
 // Summary schema for summarization

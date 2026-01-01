@@ -6,32 +6,19 @@
  */
 
 import { createContext, useContext, useCallback, useEffect, useMemo, ReactNode, useRef } from 'react';
+import type {
+  CacheEntry,
+  CacheStats,
+  CacheConfig,
+} from '@/types';
+import { DEFAULT_CACHE_CONFIG } from '@/types';
 
-// Cache entry structure
-export interface CacheEntry<T = unknown> {
-  value: T;
-  timestamp: number;
-  ttl?: number; // Time to live in milliseconds
-  hits: number;
-}
-
-// Cache statistics
-export interface CacheStats {
-  size: number;
-  hits: number;
-  misses: number;
-  hitRate: number;
-  totalRequests: number;
-}
-
-// Cache configuration
-export interface CacheConfig {
-  defaultTTL?: number; // Default time to live in milliseconds (0 = no expiry)
-  maxSize?: number; // Maximum number of entries
-  persistToStorage?: boolean; // Whether to persist cache to localStorage
-  storageKey?: string; // Key for localStorage persistence
-  cleanupInterval?: number; // Cleanup interval in milliseconds
-}
+// Re-export types for backward compatibility
+export type {
+  CacheEntry,
+  CacheStats,
+  CacheConfig,
+} from '@/types';
 
 // Cache context value
 interface CacheContextValue {
@@ -60,14 +47,8 @@ interface CacheContextValue {
 // Create context
 const CacheContext = createContext<CacheContextValue | undefined>(undefined);
 
-// Default configuration
-const DEFAULT_CONFIG: Required<CacheConfig> = {
-  defaultTTL: 5 * 60 * 1000, // 5 minutes
-  maxSize: 1000,
-  persistToStorage: false,
-  storageKey: 'app-cache',
-  cleanupInterval: 60 * 1000, // 1 minute
-};
+// Default configuration (use centralized constant)
+const DEFAULT_CONFIG = DEFAULT_CACHE_CONFIG;
 
 interface CacheProviderProps {
   children: ReactNode;

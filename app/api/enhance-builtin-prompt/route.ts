@@ -10,7 +10,7 @@ import {
   getProviderModelFromConfig, 
   isValidProvider,
   type ProviderName 
-} from '@/lib/ai/client';
+} from '@/lib/ai/core/client';
 
 const EnhancedPromptsSchema = z.object({
   prompts: z.array(z.object({

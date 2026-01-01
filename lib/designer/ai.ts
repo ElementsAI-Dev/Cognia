@@ -9,7 +9,7 @@
 
 import { generateText, generateObject } from 'ai';
 import { z } from 'zod';
-import { getProviderModel, type ProviderName } from '@/lib/ai/client';
+import { getProviderModel, type ProviderName } from '@/lib/ai/core/client';
 
 export interface DesignerAIConfig {
   provider: ProviderName;

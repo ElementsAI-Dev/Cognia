@@ -30,7 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader } from '@/components/ai-elements/loader';
 import { cn } from '@/lib/utils';
 import { useSettingsStore, useSessionStore } from '@/stores';
-import { optimizePrompt } from '@/lib/ai/prompt-optimizer';
+import { optimizePrompt } from '@/lib/ai/generation/prompt-optimizer';
 import type { PromptOptimizationStyle, OptimizedPrompt } from '@/types/prompt';
 import { PROVIDERS } from '@/types/provider';
 import {

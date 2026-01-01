@@ -22,6 +22,17 @@ jest.mock('@/stores', () => ({
     };
     return selector(state);
   },
+  useNativeStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      isDesktop: false,
+    };
+    return selector(state);
+  },
+}));
+
+// Mock deep-link module
+jest.mock('@/lib/native/deep-link', () => ({
+  createDeepLink: jest.fn().mockReturnValue('cognia://chat/open?id=test'),
 }));
 
 // Mock UI components

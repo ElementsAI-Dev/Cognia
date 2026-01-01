@@ -10,7 +10,7 @@ import {
   getProviderModelFromConfig, 
   isValidProvider,
   type ProviderName 
-} from '@/lib/ai/client';
+} from '@/lib/ai/core/client';
 
 const PresetSuggestionSchema = z.object({
   name: z.string().describe('A concise, descriptive name for the preset'),

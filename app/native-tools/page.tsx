@@ -16,11 +16,15 @@ import {
   Wrench,
   Activity,
   Terminal,
+  Sparkles,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ClipboardHistoryPanel,
+  ClipboardContextPanel,
+  ClipboardTemplatesPanel,
   ScreenshotPanel,
   FocusTrackerPanel,
   ContextPanel,
@@ -73,10 +77,18 @@ export default function NativeToolsPage() {
 
       <div className="flex-1 overflow-hidden p-2 sm:p-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-          <TabsList className="grid w-full max-w-2xl grid-cols-6 shrink-0">
+          <TabsList className="grid w-full max-w-4xl grid-cols-8 shrink-0">
             <TabsTrigger value="clipboard" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
               <Clipboard className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs sm:text-sm">Clipboard</span>
+              <span className="hidden sm:inline text-xs sm:text-sm">History</span>
+            </TabsTrigger>
+            <TabsTrigger value="clipboard-context" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
+              <Sparkles className="h-4 w-4" />
+              <span className="hidden sm:inline text-xs sm:text-sm">Smart</span>
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline text-xs sm:text-sm">Templates</span>
             </TabsTrigger>
             <TabsTrigger value="screenshot" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
               <Camera className="h-4 w-4" />
@@ -104,6 +116,18 @@ export default function NativeToolsPage() {
             <TabsContent value="clipboard" className="h-full m-0 data-[state=active]:flex data-[state=active]:flex-col">
               <div className="h-full border rounded-lg overflow-hidden">
                 <ClipboardHistoryPanel className="h-full" />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="clipboard-context" className="h-full m-0 data-[state=active]:flex data-[state=active]:flex-col">
+              <div className="h-full border rounded-lg overflow-hidden">
+                <ClipboardContextPanel className="h-full" />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="templates" className="h-full m-0 data-[state=active]:flex data-[state=active]:flex-col">
+              <div className="h-full border rounded-lg overflow-hidden">
+                <ClipboardTemplatesPanel className="h-full" />
               </div>
             </TabsContent>
 

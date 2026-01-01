@@ -689,6 +689,45 @@ export function getProviderConfig(providerId: string): ProviderConfig | undefine
   return PROVIDERS[providerId];
 }
 
+// ============================================================================
+// Provider Context Types (from provider-context.tsx)
+// ============================================================================
+
+// Provider health status
+export type ProviderHealthStatus = 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+
+// Provider metadata for context
+export interface ProviderMetadata {
+  id: string;
+  name: string;
+  description: string;
+  website?: string;
+  requiresApiKey: boolean;
+  supportsStreaming: boolean;
+  supportsVision: boolean;
+  supportsTools: boolean;
+  maxTokens?: number;
+  pricingUrl?: string;
+  icon?: string;
+}
+
+// Provider health info
+export interface ProviderHealth {
+  status: ProviderHealthStatus;
+  lastCheck: Date | null;
+  latency?: number;
+  errorRate?: number;
+  lastError?: string;
+}
+
+// Provider with metadata and health
+export interface EnhancedProvider {
+  settings: UserProviderSettings;
+  metadata: ProviderMetadata;
+  health: ProviderHealth;
+  isCustom: boolean;
+}
+
 export function getModelConfig(
   providerId: string,
   modelId: string

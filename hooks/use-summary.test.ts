@@ -8,7 +8,7 @@ import type { UIMessage } from '@/types/message';
 import type { BackgroundAgent } from '@/types/background-agent';
 
 // Mock the dependencies
-jest.mock('@/lib/ai/summarizer', () => ({
+jest.mock('@/lib/ai/generation/summarizer', () => ({
   generateChatSummary: jest.fn().mockImplementation(({ messages, onProgress }) => {
     onProgress?.({ stage: 'analyzing', progress: 20, message: 'Analyzing...' });
     onProgress?.({ stage: 'complete', progress: 100, message: 'Done' });
@@ -357,7 +357,7 @@ describe('useSummary', () => {
   describe('with AI enabled', () => {
     it('should use AI summarization when enabled', async () => {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { generateChatSummaryWithAI } = require('@/lib/ai/summarizer');
+      const { generateChatSummaryWithAI } = require('@/lib/ai/generation/summarizer');
       
       const { result } = renderHook(() => useSummary({
         useAI: true,
@@ -380,7 +380,7 @@ describe('useSummary', () => {
   describe('error handling', () => {
     it('should handle errors gracefully', async () => {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { generateChatSummary } = require('@/lib/ai/summarizer');
+      const { generateChatSummary } = require('@/lib/ai/generation/summarizer');
       generateChatSummary.mockImplementationOnce(() => {
         throw new Error('Test error');
       });

@@ -659,3 +659,366 @@ export async function appendTextFile(
 export function isInTauri(): boolean {
   return isTauri;
 }
+
+/**
+ * Base directory enum for file operations
+ * These map to standard system directories
+ */
+export enum BaseDirectory {
+  Audio = 1,
+  Cache = 2,
+  Config = 3,
+  Data = 4,
+  LocalData = 5,
+  Document = 6,
+  Download = 7,
+  Picture = 8,
+  Public = 9,
+  Video = 10,
+  Resource = 11,
+  Temp = 12,
+  AppConfig = 13,
+  AppData = 14,
+  AppLocalData = 15,
+  AppCache = 16,
+  AppLog = 17,
+  Desktop = 18,
+  Executable = 19,
+  Font = 20,
+  Home = 21,
+  Runtime = 22,
+  Template = 23,
+}
+
+export interface WatchOptions {
+  recursive?: boolean;
+  delayMs?: number;
+  baseDir?: BaseDirectory;
+}
+
+export interface WatchEvent {
+  type: 'create' | 'modify' | 'remove' | 'rename' | 'any';
+  paths: string[];
+}
+
+type WatchCallback = (event: WatchEvent) => void;
+
+/**
+ * Watch a file or directory for changes
+ * Debounced version - only emits after a delay
+ * @param path - The path to watch
+ * @param callback - Callback function when changes occur
+ * @param options - Watch options
+ * @returns Unwatch function or null on error
+ */
+export async function watchPath(
+  path: string,
+  callback: WatchCallback,
+  options?: WatchOptions
+): Promise<(() => Promise<void>) | null> {
+  if (!isTauri) {
+    console.warn('File watching requires Tauri desktop environment');
+    return null;
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fs = await import('@tauri-apps/plugin-fs') as any;
+    const unwatch = await fs.watch(
+      path,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (event: any) => {
+        callback({
+          type: event.type as WatchEvent['type'],
+          paths: event.paths as string[],
+        });
+      },
+      {
+        recursive: options?.recursive ?? false,
+        delayMs: options?.delayMs ?? 500,
+        baseDir: options?.baseDir,
+      }
+    );
+    return unwatch;
+  } catch (error) {
+    console.error('Failed to watch path:', error);
+    return null;
+  }
+}
+
+/**
+ * Watch a file or directory for changes (immediate)
+ * Notifies immediately without debouncing
+ * @param path - The path to watch
+ * @param callback - Callback function when changes occur
+ * @param options - Watch options
+ * @returns Unwatch function or null on error
+ */
+export async function watchPathImmediate(
+  path: string,
+  callback: WatchCallback,
+  options?: WatchOptions
+): Promise<(() => Promise<void>) | null> {
+  if (!isTauri) {
+    console.warn('File watching requires Tauri desktop environment');
+    return null;
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fs = await import('@tauri-apps/plugin-fs') as any;
+    const unwatch = await fs.watchImmediate(
+      path,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (event: any) => {
+        callback({
+          type: event.type as WatchEvent['type'],
+          paths: event.paths as string[],
+        });
+      },
+      {
+        recursive: options?.recursive ?? false,
+        baseDir: options?.baseDir,
+      }
+    );
+    return unwatch;
+  } catch (error) {
+    console.error('Failed to watch path:', error);
+    return null;
+  }
+}
+
+/**
+ * Truncate a file to a specified length
+ * @param path - The path to the file
+ * @param length - The length to truncate to (defaults to 0)
+ * @param baseDir - Optional base directory
+ */
+export async function truncateFile(
+  path: string,
+  length = 0,
+  baseDir?: BaseDirectory
+): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  if (!isTauri) {
+    return {
+      success: false,
+      error: 'File operations require Tauri desktop environment',
+    };
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fs = await import('@tauri-apps/plugin-fs') as any;
+    await fs.truncate(path, length, { baseDir });
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to truncate file',
+    };
+  }
+}
+
+/**
+ * Get file information without following symlinks (lstat)
+ * Unlike stat, this returns info about the symlink itself
+ * @param path - The path to the file or symlink
+ */
+export async function lstat(path: string): Promise<{
+  success: boolean;
+  info?: FileInfo & { isSymlink: boolean };
+  error?: string;
+}> {
+  if (!isTauri) {
+    return {
+      success: false,
+      error: 'File operations require Tauri desktop environment',
+    };
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fs = await import('@tauri-apps/plugin-fs') as any;
+    const fileStats = await fs.lstat(path);
+    const filename = path.split('/').pop() || path.split('\\').pop() || path;
+    const isDir = fileStats.isDirectory;
+    const isSymlink = fileStats.isSymlink;
+
+    return {
+      success: true,
+      info: {
+        name: filename,
+        path,
+        isDirectory: isDir,
+        isSymlink,
+        size: fileStats.size,
+        modifiedAt: fileStats.mtime ? new Date(fileStats.mtime) : undefined,
+        createdAt: fileStats.birthtime ? new Date(fileStats.birthtime) : undefined,
+        extension: isDir ? undefined : getExtension(filename),
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get file info',
+    };
+  }
+}
+
+/**
+ * Read a text file from a base directory
+ * @param path - Relative path from the base directory
+ * @param baseDir - The base directory
+ */
+export async function readTextFileFromBaseDir(
+  path: string,
+  baseDir: BaseDirectory
+): Promise<FileReadResult> {
+  if (!isTauri) {
+    return {
+      success: false,
+      error: 'File operations require Tauri desktop environment',
+      path,
+    };
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fs = await import('@tauri-apps/plugin-fs') as any;
+    const content = await fs.readTextFile(path, { baseDir });
+
+    return {
+      success: true,
+      content,
+      path,
+      size: new Blob([content]).size,
+      mimeType: getMimeType(path),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to read file',
+      path,
+    };
+  }
+}
+
+/**
+ * Write a text file to a base directory
+ * @param path - Relative path from the base directory
+ * @param content - Content to write
+ * @param baseDir - The base directory
+ */
+export async function writeTextFileToBaseDir(
+  path: string,
+  content: string,
+  baseDir: BaseDirectory
+): Promise<FileWriteResult> {
+  if (!isTauri) {
+    return {
+      success: false,
+      error: 'File operations require Tauri desktop environment',
+      path,
+    };
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fs = await import('@tauri-apps/plugin-fs') as any;
+    await fs.writeTextFile(path, content, { baseDir });
+
+    return {
+      success: true,
+      path,
+      bytesWritten: new Blob([content]).size,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to write file',
+      path,
+    };
+  }
+}
+
+/**
+ * Check if a file exists in a base directory
+ */
+export async function existsInBaseDir(
+  path: string,
+  baseDir: BaseDirectory
+): Promise<boolean> {
+  if (!isTauri) return false;
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fs = await import('@tauri-apps/plugin-fs') as any;
+    return await fs.exists(path, { baseDir });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Create a directory in a base directory
+ */
+export async function createDirectoryInBaseDir(
+  path: string,
+  baseDir: BaseDirectory,
+  recursive = true
+): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  if (!isTauri) {
+    return {
+      success: false,
+      error: 'File operations require Tauri desktop environment',
+    };
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fs = await import('@tauri-apps/plugin-fs') as any;
+    await fs.mkdir(path, { baseDir, recursive });
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create directory',
+    };
+  }
+}
+
+/**
+ * Delete a file in a base directory
+ */
+export async function deleteFileInBaseDir(
+  path: string,
+  baseDir: BaseDirectory
+): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  if (!isTauri) {
+    return {
+      success: false,
+      error: 'File operations require Tauri desktop environment',
+    };
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fs = await import('@tauri-apps/plugin-fs') as any;
+    await fs.remove(path, { baseDir });
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete file',
+    };
+  }
+}

@@ -11,6 +11,45 @@
 const fs = require('fs');
 const path = require('path');
 
+// Parse CLI arguments
+const args = process.argv.slice(2);
+const cliOptions = {
+  ci: args.includes('--ci'),
+  verbose: args.includes('--verbose'),
+  strict: args.includes('--strict'),
+  fix: args.includes('--fix'),
+  namespace: args.find((a, i) => args[i - 1] === '--namespace'),
+  help: args.includes('--help') || args.includes('-h'),
+};
+
+// Show help
+if (cliOptions.help) {
+  console.log(`
+i18n Validation Script
+
+Usage: node scripts/i18n-validate.js [options]
+
+Options:
+  --ci                CI mode - exit with code 1 if errors found
+  --strict            Strict mode - treat warnings as errors
+  --verbose           Show detailed output
+  --fix               Attempt to auto-fix issues
+  --namespace <ns>    Only validate specific namespace
+  --help, -h          Show this help message
+
+Examples:
+  node scripts/i18n-validate.js
+  node scripts/i18n-validate.js --ci --strict
+  node scripts/i18n-validate.js --verbose
+  node scripts/i18n-validate.js --namespace chat
+
+Exit Codes:
+  0  - All validations passed
+  1  - Errors found (in CI mode)
+`);
+  process.exit(0);
+}
+
 // Load configuration
 const configPath = path.join(__dirname, 'i18n-config.json');
 const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
@@ -431,12 +470,25 @@ const main = () => {
   console.log(`   Potentially orphaned keys: ${results.summary.orphanedKeysCount}`);
   console.log(`   Consistency issues: ${results.summary.consistencyIssues}`);
 
-  if (results.summary.filesWithI18n === results.summary.totalFiles &&
-      results.summary.filesWithHardcodedStrings === 0 &&
-      missingZh.length === 0) {
+  // Determine exit status
+  const hasErrors = missingZh.length > 0;
+  const hasWarnings = results.summary.filesWithHardcodedStrings > 0 || 
+                      results.summary.orphanedKeysCount > 0;
+  
+  const shouldFail = cliOptions.ci && (hasErrors || (cliOptions.strict && hasWarnings));
+
+  if (!hasErrors && !hasWarnings) {
     console.log('\n✅ All validations passed!\n');
+  } else if (hasErrors) {
+    console.log('\n❌ Validation errors found. Check i18n-reports/validation-report.md for details.\n');
   } else {
-    console.log('\n⚠️  Issues found. Check i18n-reports/validation-report.md for details.\n');
+    console.log('\n⚠️  Validation warnings found. Check i18n-reports/validation-report.md for details.\n');
+  }
+
+  // CI mode exit code
+  if (cliOptions.ci) {
+    console.log(`CI Mode: ${shouldFail ? 'FAILED' : 'PASSED'}`);
+    process.exit(shouldFail ? 1 : 0);
   }
 };
 

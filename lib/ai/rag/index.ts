@@ -98,3 +98,6 @@ export {
   createKnowledgeBaseManagementTools,
   combineTools,
 } from './rag-tools';
+
+// Core RAG Service
+export * from './rag';

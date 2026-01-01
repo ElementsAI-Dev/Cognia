@@ -59,8 +59,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMcpMarketplaceStore } from '@/stores/mcp-marketplace-store';
 import { useMcpStore } from '@/stores/mcp-store';
-import type { McpMarketplaceItem, McpMarketplaceSource } from '@/types/mcp-marketplace';
+import type { McpMarketplaceItem } from '@/types/mcp-marketplace';
 import { formatDownloadCount, formatStarCount, formatRelativeTime, parseInstallationConfig } from '@/lib/mcp/marketplace';
+import { getSourceColor, checkMcpEnvironment, type EnvironmentCheckResult } from '@/lib/mcp/marketplace-utils';
 
 interface McpMarketplaceDetailDialogProps {
   open: boolean;
@@ -69,16 +70,6 @@ interface McpMarketplaceDetailDialogProps {
   isInstalled: boolean;
   isFavorite?: boolean;
   onToggleFavorite?: (mcpId: string) => void;
-}
-
-/** Get source color for badge */
-function getSourceColor(source: McpMarketplaceSource): string {
-  switch (source) {
-    case 'cline': return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
-    case 'smithery': return 'bg-purple-500/10 text-purple-600 border-purple-500/20';
-    case 'glama': return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
-    default: return '';
-  }
 }
 
 export function McpMarketplaceDetailDialog({
@@ -108,6 +99,18 @@ export function McpMarketplaceDetailDialog({
   const [activeTab, setActiveTab] = useState<'overview' | 'readme' | 'install'>('overview');
   const [envValues, setEnvValues] = useState<Record<string, string>>({});
   const [imageError, setImageError] = useState(false);
+  const [envCheck, setEnvCheck] = useState<EnvironmentCheckResult | null>(null);
+  const [isCheckingEnv, setIsCheckingEnv] = useState(false);
+
+  // Check environment when dialog opens for stdio connections
+  useEffect(() => {
+    if (open && item && !item.remote) {
+      setIsCheckingEnv(true);
+      checkMcpEnvironment()
+        .then(setEnvCheck)
+        .finally(() => setIsCheckingEnv(false));
+    }
+  }, [open, item]);
 
   // Parse installation configuration from readme or llms content
   const installConfig = useMemo(() => {
@@ -540,6 +543,42 @@ export function McpMarketplaceDetailDialog({
                 <TabsContent value="install" className="flex-1 mt-4">
                   <ScrollArea className="h-[300px]">
                     <div className="space-y-4 pr-4">
+                      {/* Environment Check Warning */}
+                      {!item?.remote && (
+                        isCheckingEnv ? (
+                          <Alert>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <AlertDescription className="text-xs">
+                              {t('checkingEnvironment')}
+                            </AlertDescription>
+                          </Alert>
+                        ) : envCheck && !envCheck.supported ? (
+                          <Alert variant="destructive">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription className="text-xs">
+                              {envCheck.message || t('environmentNotSupported')}
+                              {envCheck.missingDeps.length > 0 && (
+                                <span className="block mt-1 font-mono text-[10px]">
+                                  {t('missingDeps')}: {envCheck.missingDeps.join(', ')}
+                                </span>
+                              )}
+                            </AlertDescription>
+                          </Alert>
+                        ) : envCheck?.supported ? (
+                          <Alert className="border-green-500/50 bg-green-500/10">
+                            <Check className="h-4 w-4 text-green-500" />
+                            <AlertDescription className="text-xs">
+                              {t('environmentReady')}
+                              {envCheck.nodeVersion && (
+                                <span className="ml-1 font-mono text-[10px]">
+                                  (Node {envCheck.nodeVersion})
+                                </span>
+                              )}
+                            </AlertDescription>
+                          </Alert>
+                        ) : null
+                      )}
+
                       {/* Environment Variables Form */}
                       {installConfig?.envKeys && installConfig.envKeys.length > 0 ? (
                         <div className="space-y-3">

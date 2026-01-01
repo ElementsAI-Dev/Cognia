@@ -98,7 +98,7 @@ import {
   downloadVideoAsBlob,
   saveVideoToFile,
   getAvailableVideoModelsForUI,
-} from '@/lib/ai/video-generation';
+} from '@/lib/ai/media/video-generation';
 import {
   estimateVideoCost,
   type VideoProvider,

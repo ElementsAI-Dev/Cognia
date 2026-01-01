@@ -69,7 +69,7 @@ export default function WorkflowsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<string | null>(null);
   
-  const { loadWorkflow, createWorkflow, currentWorkflow } = useWorkflowEditorStore();
+  const { loadWorkflow, createWorkflow, currentWorkflow, saveWorkflow: saveWorkflowState } = useWorkflowEditorStore();
 
   // Load workflows from database
   const loadWorkflows = useCallback(async () => {
@@ -216,6 +216,8 @@ export default function WorkflowsPage() {
           viewport: currentWorkflow.viewport,
         });
       }
+      // Reset isDirty state after successful save
+      saveWorkflowState();
     }
   };
 

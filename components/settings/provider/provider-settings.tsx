@@ -88,8 +88,8 @@ import { ProviderHealthStatus } from './provider-health-status';
 import { OllamaModelManager } from './ollama-model-manager';
 import { OpenRouterSettings } from './openrouter-settings';
 import { OpenRouterKeyManagement } from './openrouter-key-management';
-import { testProviderConnection, type ApiTestResult } from '@/lib/ai/api-test';
-import { maskApiKey } from '@/lib/ai/api-key-rotation';
+import { testProviderConnection, type ApiTestResult } from '@/lib/ai/infrastructure/api-test';
+import { maskApiKey } from '@/lib/ai/infrastructure/api-key-rotation';
 
 // Helper to get dashboard URL for each provider
 function getProviderDashboardUrl(providerId: string): string {

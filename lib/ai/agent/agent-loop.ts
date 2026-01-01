@@ -3,7 +3,7 @@
  */
 
 import { executeAgent, type AgentTool } from './agent-executor';
-import type { ProviderName } from '../client';
+import type { ProviderName } from '../core/client';
 
 export interface AgentTask {
   id: string;

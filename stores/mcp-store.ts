@@ -1,4 +1,4 @@
-﻿/**
+/**
  * MCP Store - Zustand state management for MCP servers
  */
 

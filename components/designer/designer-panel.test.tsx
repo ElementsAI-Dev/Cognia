@@ -5,9 +5,29 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DesignerPanel } from './designer-panel';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 // Mock stores
 const mockSetCode = jest.fn();
 const mockParseCodeToElements = jest.fn();
+
+jest.mock('@/stores', () => ({
+  useSettingsStore: () => ({
+    activeProvider: 'openai',
+    activeModel: 'gpt-4',
+  }),
+  useArtifactStore: () => ({
+    getArtifact: jest.fn(),
+  }),
+}));
+
+jest.mock('@/lib/designer', () => ({
+  executeDesignerAIEdit: jest.fn(),
+  getDesignerAIConfig: jest.fn().mockReturnValue({ provider: 'openai', model: 'gpt-4' }),
+}));
 
 jest.mock('@/stores/designer-store', () => ({
   useDesignerStore: (selector: (state: Record<string, unknown>) => unknown) => {
@@ -34,6 +54,9 @@ jest.mock('@/components/ui/sheet', () => ({
   ),
   SheetContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="sheet-content">{children}</div>
+  ),
+  SheetTitle: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="sheet-title">{children}</div>
   ),
 }));
 
@@ -72,6 +95,19 @@ jest.mock('./element-tree', () => ({
 
 jest.mock('./style-panel', () => ({
   StylePanel: () => <div data-testid="style-panel" />,
+}));
+
+jest.mock('./version-history-panel', () => ({
+  VersionHistoryPanel: () => <div data-testid="version-history-panel" />,
+}));
+
+jest.mock('./ai-chat-panel', () => ({
+  AIChatPanel: () => <div data-testid="ai-chat-panel" />,
+}));
+
+jest.mock('./dnd', () => ({
+  DesignerDndProvider: ({ children }: { children: React.ReactNode }) => <div data-testid="dnd-provider">{children}</div>,
+  SelectionOverlay: () => <div data-testid="selection-overlay" />,
 }));
 
 // Mock Monaco Editor
@@ -124,7 +160,8 @@ describe('DesignerPanel', () => {
   it('shows AI input when AI Edit button is clicked', () => {
     render(<DesignerPanel {...defaultProps} />);
     fireEvent.click(screen.getByText('AI Edit'));
-    expect(screen.getByPlaceholderText(/Describe what you want/)).toBeInTheDocument();
+    // The placeholder uses the mocked translation key
+    expect(screen.getByPlaceholderText('aiPlaceholder')).toBeInTheDocument();
   });
 
   it('calls onOpenChange when close button is clicked', () => {

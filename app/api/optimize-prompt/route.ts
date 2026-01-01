@@ -9,7 +9,7 @@ import {
   getProviderModelFromConfig, 
   isValidProvider,
   type ProviderName 
-} from '@/lib/ai/client';
+} from '@/lib/ai/core/client';
 
 const OPTIMIZE_PROMPT = `You are an expert prompt engineer. Your task is to optimize and enhance the given system prompt to make it more effective, clear, and comprehensive.
 

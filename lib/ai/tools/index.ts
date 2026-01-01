@@ -99,6 +99,48 @@ export {
   type ImageToolResult,
 } from './image-tool';
 
+// Learning tools for generative UI
+export {
+  learningTools,
+  executeDisplayFlashcard,
+  executeDisplayFlashcardDeck,
+  executeDisplayQuiz,
+  executeDisplayQuizQuestion,
+  executeDisplayReviewSession,
+  executeDisplayProgressSummary,
+  executeDisplayConceptExplanation,
+  flashcardSchema,
+  quizQuestionSchema,
+  quizSchema,
+  reviewSessionSchema,
+  displayFlashcardInputSchema,
+  displayFlashcardDeckInputSchema,
+  displayQuizInputSchema,
+  displayQuizQuestionInputSchema,
+  displayReviewSessionInputSchema,
+  displayProgressSummaryInputSchema,
+  displayConceptExplanationInputSchema,
+  type FlashcardData,
+  type QuizQuestionData,
+  type QuizData,
+  type ReviewSessionData,
+  type DisplayFlashcardInput,
+  type DisplayFlashcardDeckInput,
+  type DisplayQuizInput,
+  type DisplayQuizQuestionInput,
+  type DisplayReviewSessionInput,
+  type DisplayProgressSummaryInput,
+  type DisplayConceptExplanationInput,
+  type FlashcardToolOutput,
+  type FlashcardDeckToolOutput,
+  type QuizToolOutput,
+  type QuizQuestionToolOutput,
+  type ReviewSessionToolOutput,
+  type ProgressSummaryToolOutput,
+  type ConceptExplanationToolOutput,
+  type LearningToolOutput,
+} from './learning-tools';
+
 // Unified Tool Registry
 export {
   UnifiedToolRegistry,

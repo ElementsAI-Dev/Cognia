@@ -24,7 +24,7 @@ jest.mock('ai', () => ({
   generateObject: jest.fn(),
 }));
 
-jest.mock('@/lib/ai/client', () => ({
+jest.mock('@/lib/ai/core/client', () => ({
   getProviderModel: jest.fn(() => ({})),
 }));
 

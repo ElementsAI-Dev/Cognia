@@ -12,7 +12,7 @@ import {
   estimateTokenCount,
 } from './document-processor';
 
-jest.mock('@/lib/ai/chunking', () => ({
+jest.mock('@/lib/ai/embedding/chunking', () => ({
   chunkDocument: jest.fn((content: string) => {
     const chunks = content.length > 100
       ? [

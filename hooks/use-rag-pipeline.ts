@@ -18,7 +18,7 @@ import {
   type RAGPipelineConfig,
   type RAGPipelineContext,
 } from '@/lib/ai/rag/index';
-import { chunkDocument, chunkDocumentSmart, chunkDocumentRecursive, type ChunkingResult } from '@/lib/ai/chunking';
+import { chunkDocument, chunkDocumentSmart, chunkDocumentRecursive, type ChunkingResult } from '@/lib/ai/embedding/chunking';
 
 export interface UseRAGPipelineOptions {
   collectionName?: string;

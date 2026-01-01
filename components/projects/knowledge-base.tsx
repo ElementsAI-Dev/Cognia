@@ -20,7 +20,10 @@ import {
   FileType,
   Globe,
   Loader2,
+  ExternalLink,
 } from 'lucide-react';
+import { opener } from '@/lib/native';
+import { useNativeStore } from '@/stores';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -138,9 +141,20 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const isDesktop = useNativeStore((state) => state.isDesktop);
   const project = useProjectStore((state) => state.getProject(projectId));
   const addKnowledgeFile = useProjectStore((state) => state.addKnowledgeFile);
   const removeKnowledgeFile = useProjectStore((state) => state.removeKnowledgeFile);
+
+  // Open file content with default application (creates temp file)
+  const handleOpenFile = useCallback(async (file: KnowledgeFile) => {
+    if (!isDesktop) return;
+    
+    // Create a blob URL and open it
+    const blob = new Blob([file.content], { type: file.mimeType || 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    await opener.openUrl(url);
+  }, [isDesktop]);
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -344,6 +358,17 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
+                  {isDesktop && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleOpenFile(file)}
+                      title={t('openWithDefault')}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"

@@ -285,4 +285,130 @@ describe('useWorkflowEditorStore', () => {
       expect(Array.isArray(result.current.validationErrors)).toBe(true);
     });
   });
+
+  describe('debug mode', () => {
+    it('should initialize with debug mode off', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      expect(result.current.isDebugMode).toBe(false);
+      expect(result.current.breakpoints.size).toBe(0);
+      expect(result.current.debugStepIndex).toBe(-1);
+      expect(result.current.isPausedAtBreakpoint).toBe(false);
+    });
+
+    it('should toggle debug mode', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      act(() => {
+        result.current.toggleDebugMode();
+      });
+
+      expect(result.current.isDebugMode).toBe(true);
+
+      act(() => {
+        result.current.toggleDebugMode();
+      });
+
+      expect(result.current.isDebugMode).toBe(false);
+    });
+
+    it('should reset debug state when toggling off', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      act(() => {
+        result.current.toggleDebugMode();
+        result.current.setBreakpoint('node-1');
+      });
+
+      expect(result.current.isDebugMode).toBe(true);
+      expect(result.current.breakpoints.has('node-1')).toBe(true);
+
+      act(() => {
+        result.current.toggleDebugMode();
+      });
+
+      expect(result.current.isDebugMode).toBe(false);
+      expect(result.current.debugStepIndex).toBe(-1);
+      expect(result.current.isPausedAtBreakpoint).toBe(false);
+    });
+
+    it('should set breakpoint', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      act(() => {
+        result.current.setBreakpoint('node-1');
+      });
+
+      expect(result.current.breakpoints.has('node-1')).toBe(true);
+    });
+
+    it('should remove breakpoint', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      act(() => {
+        result.current.setBreakpoint('node-1');
+        result.current.setBreakpoint('node-2');
+      });
+
+      expect(result.current.breakpoints.size).toBe(2);
+
+      act(() => {
+        result.current.removeBreakpoint('node-1');
+      });
+
+      expect(result.current.breakpoints.has('node-1')).toBe(false);
+      expect(result.current.breakpoints.has('node-2')).toBe(true);
+    });
+
+    it('should clear all breakpoints', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      act(() => {
+        result.current.setBreakpoint('node-1');
+        result.current.setBreakpoint('node-2');
+        result.current.setBreakpoint('node-3');
+      });
+
+      expect(result.current.breakpoints.size).toBe(3);
+
+      act(() => {
+        result.current.clearBreakpoints();
+      });
+
+      expect(result.current.breakpoints.size).toBe(0);
+    });
+
+    it('should have stepOver function', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      expect(typeof result.current.stepOver).toBe('function');
+    });
+
+    it('should have stepInto function', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      expect(typeof result.current.stepInto).toBe('function');
+    });
+
+    it('should have continueExecution function', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      expect(typeof result.current.continueExecution).toBe('function');
+    });
+
+    it('should reset isPausedAtBreakpoint on continueExecution', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      act(() => {
+        result.current.toggleDebugMode();
+      });
+
+      // continueExecution should reset isPausedAtBreakpoint
+      act(() => {
+        result.current.continueExecution();
+      });
+
+      expect(result.current.isPausedAtBreakpoint).toBe(false);
+    });
+  });
 });

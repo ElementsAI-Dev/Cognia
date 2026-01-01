@@ -11,7 +11,7 @@ import {
   recordApiKeySuccess,
   recordApiKeyError,
   getDefaultUsageStats,
-} from '@/lib/ai/api-key-rotation';
+} from '@/lib/ai/infrastructure/api-key-rotation';
 import type { ColorThemePreset, UICustomization, BorderRadiusSize, SpacingSize, ShadowIntensity } from '@/lib/themes';
 import { DEFAULT_UI_CUSTOMIZATION } from '@/lib/themes';
 import type { SearchProviderType, SearchProviderSettings } from '@/types/search';

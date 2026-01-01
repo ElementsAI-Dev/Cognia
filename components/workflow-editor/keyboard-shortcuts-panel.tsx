@@ -79,8 +79,12 @@ const SHORTCUTS: ShortcutItem[] = [
   // Execution
   { id: 'run', keys: ['F5'], description: 'Run workflow', category: 'Execution', icon: Play },
   { id: 'stop', keys: ['Shift', 'F5'], description: 'Stop execution', category: 'Execution', icon: Square },
+  { id: 'pause', keys: ['Ctrl', 'F5'], description: 'Pause execution', category: 'Execution' },
   { id: 'stepOver', keys: ['F10'], description: 'Step over (debug)', category: 'Execution' },
   { id: 'stepInto', keys: ['F11'], description: 'Step into (debug)', category: 'Execution' },
+  { id: 'continue', keys: ['F8'], description: 'Continue (debug)', category: 'Execution' },
+  { id: 'toggleBreakpoint', keys: ['F9'], description: 'Toggle breakpoint', category: 'Execution' },
+  { id: 'toggleDebug', keys: ['Ctrl', 'Shift', 'D'], description: 'Toggle debug mode', category: 'Execution' },
   
   // Layout
   { id: 'autoLayout', keys: ['Ctrl', 'L'], description: 'Auto layout', category: 'Layout', icon: LayoutGrid },

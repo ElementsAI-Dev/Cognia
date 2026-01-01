@@ -21,8 +21,8 @@ import type {
   CreateMemoryInput,
   UpdateMemoryInput,
 } from '@/types';
-import { generateEmbedding, cosineSimilarity } from '@/lib/ai/embedding';
-import type { EmbeddingConfig } from '@/lib/ai/embedding';
+import { generateEmbedding, cosineSimilarity } from '@/lib/ai/embedding/embedding';
+import type { EmbeddingConfig } from '@/lib/ai/embedding/embedding';
 
 export interface MemorySearchOptions {
   query: string;

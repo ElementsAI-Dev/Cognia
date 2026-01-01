@@ -15,7 +15,7 @@ import {
   getAvailableVideoModelsForUI,
   downloadVideoAsBlob,
   saveVideoToFile,
-} from '@/lib/ai/video-generation';
+} from '@/lib/ai/media/video-generation';
 import type {
   VideoProvider,
   VideoModel,

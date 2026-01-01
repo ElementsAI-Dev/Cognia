@@ -14,12 +14,12 @@ export type {
   ActionDefinition,
   ToolbarTheme,
   LanguageOption,
-} from "./types";
+} from "@/types";
 export { 
-  DEFAULT_CONFIG, 
+  DEFAULT_SELECTION_CONFIG, 
   TOOLBAR_THEMES, 
   ACTION_LABELS, 
   ACTION_SHORT_LABELS,
   LANGUAGES,
   getLanguageName,
-} from "./types";
+} from "@/types";

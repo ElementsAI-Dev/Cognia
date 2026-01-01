@@ -59,7 +59,7 @@ jest.mock('@/types/mcp', () => ({
 }));
 
 // Mock API test
-jest.mock('@/lib/ai/api-test', () => ({
+jest.mock('@/lib/ai/infrastructure/api-test', () => ({
   testProviderConnection: jest.fn().mockResolvedValue({
     success: true,
     message: 'Connection successful',

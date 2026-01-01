@@ -4,11 +4,11 @@
 
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useOllama } from './use-ollama';
-import * as ollamaApi from '@/lib/ai/ollama';
+import * as ollamaApi from '@/lib/ai/providers/ollama';
 import type { OllamaPullProgress, OllamaModelInfo } from '@/types/ollama';
 
 // Mock the ollama API module
-jest.mock('@/lib/ai/ollama', () => ({
+jest.mock('@/lib/ai/providers/ollama', () => ({
   getOllamaStatus: jest.fn(),
   listOllamaModels: jest.fn(),
   showOllamaModel: jest.fn(),

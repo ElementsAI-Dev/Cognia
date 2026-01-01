@@ -50,7 +50,7 @@ jest.mock('@/stores', () => ({
 }));
 
 // Mock AI lib
-jest.mock('@/lib/ai/prompt-optimizer', () => ({
+jest.mock('@/lib/ai/generation/prompt-optimizer', () => ({
   optimizePrompt: jest.fn().mockResolvedValue({
     success: true,
     optimizedPrompt: {

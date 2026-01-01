@@ -10,7 +10,7 @@
 
 import { nanoid } from 'nanoid';
 import { generateText } from 'ai';
-import { getProviderModel, type ProviderName } from '../client';
+import { getProviderModel, type ProviderName } from '../core/client';
 import { type AgentResult, type AgentTool, type ToolCall } from './agent-executor';
 import {
   createSubAgent,

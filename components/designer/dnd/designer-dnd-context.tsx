@@ -25,19 +25,10 @@ import {
 import { nanoid } from 'nanoid';
 import { useDesignerStore } from '@/stores/designer-store';
 import type { DesignerElement } from '@/types/designer';
+import type { DragItem } from '@/types';
 
-// Drag item types
-export type DragItemType = 'component' | 'element';
-
-export interface DragItem {
-  id: UniqueIdentifier;
-  type: DragItemType;
-  // For component library items
-  componentCode?: string;
-  componentName?: string;
-  // For existing elements
-  elementId?: string;
-}
+// Re-export types for backward compatibility
+export type { DragItemType, DragItem } from '@/types';
 
 interface DesignerDndContextValue {
   activeItem: DragItem | null;

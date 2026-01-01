@@ -62,7 +62,7 @@ import {
   formatCredits,
   maskApiKey,
   OpenRouterError,
-} from '@/lib/ai/openrouter';
+} from '@/lib/ai/providers/openrouter';
 
 const BYOK_PROVIDERS: { id: BYOKProvider; name: string; description: string; configType: 'simple' | 'azure' | 'bedrock' | 'vertex' }[] = [
   { id: 'openai', name: 'OpenAI', description: 'GPT-4, GPT-4o, o1 models', configType: 'simple' },

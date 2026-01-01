@@ -26,34 +26,102 @@ const API_URLS = {
 /** Request timeout in milliseconds */
 const REQUEST_TIMEOUT = 15000;
 
+/** Maximum retry attempts */
+const MAX_RETRIES = 3;
+
+/** Base delay for exponential backoff (ms) */
+const BASE_RETRY_DELAY = 1000;
+
 /** User agent for API requests */
 const USER_AGENT = 'cognia-app';
 
 interface FetchOptions extends RequestInit {
   timeout?: number;
+  retries?: number;
 }
 
 /**
- * Fetch with timeout support
+ * Check if error is retryable
+ */
+function isRetryableError(error: Error, status?: number): boolean {
+  const message = error.message.toLowerCase();
+  // Retry on network errors
+  if (
+    message.includes('network') ||
+    message.includes('timeout') ||
+    message.includes('aborted') ||
+    message.includes('fetch')
+  ) {
+    return true;
+  }
+  // Retry on 5xx server errors
+  if (status && status >= 500 && status < 600) {
+    return true;
+  }
+  // Retry on rate limiting
+  if (status === 429) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Calculate delay with exponential backoff and jitter
+ */
+function calculateRetryDelay(attempt: number): number {
+  const exponentialDelay = BASE_RETRY_DELAY * Math.pow(2, attempt);
+  const jitter = Math.random() * 1000;
+  return Math.min(exponentialDelay + jitter, 10000); // Cap at 10 seconds
+}
+
+/**
+ * Fetch with timeout and retry support
  */
 async function fetchWithTimeout(
   url: string,
   options: FetchOptions = {}
 ): Promise<Response> {
-  const { timeout = REQUEST_TIMEOUT, ...fetchOptions } = options;
+  const { timeout = REQUEST_TIMEOUT, retries = MAX_RETRIES, ...fetchOptions } = options;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  let lastError: Error | null = null;
 
-  try {
-    const response = await fetch(url, {
-      ...fetchOptions,
-      signal: controller.signal,
-    });
-    return response;
-  } finally {
-    clearTimeout(timeoutId);
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(url, {
+        ...fetchOptions,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      // Check for retryable HTTP errors
+      if (!response.ok && isRetryableError(new Error(response.statusText), response.status)) {
+        if (attempt < retries) {
+          const delay = calculateRetryDelay(attempt);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+      }
+
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Check if we should retry
+      if (attempt < retries && isRetryableError(lastError)) {
+        const delay = calculateRetryDelay(attempt);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+
+      throw lastError;
+    }
   }
+
+  throw lastError || new Error('Max retries exceeded');
 }
 
 // =============================================================================

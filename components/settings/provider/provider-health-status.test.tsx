@@ -11,7 +11,7 @@ jest.mock('next-intl', () => ({
 }));
 
 // Mock API test
-jest.mock('@/lib/ai/api-test', () => ({
+jest.mock('@/lib/ai/infrastructure/api-test', () => ({
   testProviderConnection: jest.fn().mockResolvedValue({ success: true, latency_ms: 100 }),
 }));
 

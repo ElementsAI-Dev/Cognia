@@ -16,7 +16,7 @@ import {
   type ImageQuality,
   type ImageStyle,
   type GeneratedImage,
-} from '@/lib/ai/image-generation';
+} from '@/lib/ai/media/image-generation';
 
 export interface UseImageGenerationOptions {
   defaultSize?: ImageSize;

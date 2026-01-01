@@ -61,7 +61,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useSkillStore } from '@/stores/skill-store';
 import { downloadSkillAsMarkdown } from '@/lib/skills/packager';
-import { processSelectionWithAI } from '@/lib/ai/selection-ai';
+import { processSelectionWithAI } from '@/lib/ai/generation/selection-ai';
 import { SkillCard } from './skill-card';
 import { SkillDetail } from './skill-detail';
 import { SkillEditor } from './skill-editor';

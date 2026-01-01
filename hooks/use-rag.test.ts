@@ -5,7 +5,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { useRAG } from './use-rag';
 import * as ragLib from '@/lib/ai/rag';
-import * as chunkingLib from '@/lib/ai/chunking';
+import * as chunkingLib from '@/lib/ai/embedding/chunking';
 
 // Mock dependencies
 jest.mock('@/lib/ai/rag', () => ({
@@ -19,7 +19,7 @@ jest.mock('@/lib/ai/rag', () => ({
   })),
 }));
 
-jest.mock('@/lib/ai/chunking', () => ({
+jest.mock('@/lib/ai/embedding/chunking', () => ({
   chunkDocument: jest.fn().mockReturnValue({
     chunks: [{ text: 'chunk1', index: 0 }],
     metadata: { totalChunks: 1 },

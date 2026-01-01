@@ -35,7 +35,7 @@ import type { RecentFile } from '@/stores/recent-files-store';
 import type { MentionItem, SelectedMention, ParsedToolCall } from '@/types/mcp';
 import { useMention, useSpeech } from '@/hooks';
 import { cn } from '@/lib/utils';
-import { transcribeViaApi, formatDuration } from '@/lib/ai/speech-api';
+import { transcribeViaApi, formatDuration } from '@/lib/ai/media/speech-api';
 import { getLanguageFlag } from '@/types/speech';
 import { nanoid } from 'nanoid';
 

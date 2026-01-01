@@ -17,7 +17,7 @@ import {
   generateVideo,
   checkVideoGenerationStatus,
   getAvailableVideoModelsForUI,
-} from '../video-generation';
+} from '../media/video-generation';
 import type {
   VideoProvider,
   VideoModel,

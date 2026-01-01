@@ -167,12 +167,12 @@ jest.mock('@/lib/ai/agent', () => ({
   initializeAgentTools: jest.fn(() => ({})),
 }));
 
-jest.mock('@/lib/ai/suggestion-generator', () => ({
+jest.mock('@/lib/ai/generation/suggestion-generator', () => ({
   generateSuggestions: jest.fn(),
   getDefaultSuggestions: jest.fn(() => []),
 }));
 
-jest.mock('@/lib/ai/translate', () => ({
+jest.mock('@/lib/ai/generation/translate', () => ({
   translateText: jest.fn(),
 }));
 

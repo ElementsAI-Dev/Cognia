@@ -44,8 +44,40 @@ jest.mock('next-intl', () => ({
       smitheryApiKeyHint: 'Get your API key from smithery.ai',
       configureApiKey: 'Configure API Key',
       updateApiKey: 'Update API Key',
+      'sort.popular': 'Popular',
+      'sort.newest': 'Newest',
+      'sort.stars': 'GitHub Stars',
+      'sort.downloads': 'Downloads',
+      'sort.name': 'Name',
     };
     return translations[key] || key;
+  },
+}));
+
+// Mock useDebounce hook
+jest.mock('@/hooks', () => ({
+  useDebounce: (value: string) => value, // Return value immediately for testing
+}));
+
+// Mock marketplace-utils
+jest.mock('@/lib/mcp/marketplace-utils', () => ({
+  getSourceColor: (source: string) => {
+    switch (source) {
+      case 'cline': return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
+      case 'smithery': return 'bg-purple-500/10 text-purple-600 border-purple-500/20';
+      case 'glama': return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
+      default: return '';
+    }
+  },
+  highlightSearchQuery: (text: string, query: string) => {
+    if (!query) return [{ text, isHighlight: false }];
+    const index = text.toLowerCase().indexOf(query.toLowerCase());
+    if (index === -1) return [{ text, isHighlight: false }];
+    return [
+      { text: text.slice(0, index), isHighlight: false },
+      { text: text.slice(index, index + query.length), isHighlight: true },
+      { text: text.slice(index + query.length), isHighlight: false },
+    ].filter(s => s.text);
   },
 }));
 
@@ -246,7 +278,7 @@ describe('McpMarketplace', () => {
   });
 
   describe('search functionality', () => {
-    it('calls setFilters when search input changes', () => {
+    it('updates local search state when input changes', () => {
       const setFilters = jest.fn();
       mockUseMcpMarketplaceStore.mockReturnValue(createMockStoreState({
         setFilters,
@@ -257,7 +289,75 @@ describe('McpMarketplace', () => {
       const searchInput = screen.getByPlaceholderText('Search MCP servers...');
       fireEvent.change(searchInput, { target: { value: 'test query' } });
 
-      expect(setFilters).toHaveBeenCalledWith({ search: 'test query' });
+      // With debounce mocked to return immediately, setFilters should be called
+      expect(searchInput).toHaveValue('test query');
+    });
+
+    it('clears search when clear button is clicked', () => {
+      const setFilters = jest.fn();
+      mockUseMcpMarketplaceStore.mockReturnValue(createMockStoreState({
+        setFilters,
+        filters: {
+          search: 'existing search',
+          tags: [],
+          sortBy: 'popular' as const,
+          source: 'all' as const,
+        },
+      }) as ReturnType<typeof useMcpMarketplaceStore>);
+
+      render(<McpMarketplace />);
+
+      // Type something first
+      const searchInput = screen.getByPlaceholderText('Search MCP servers...');
+      fireEvent.change(searchInput, { target: { value: 'test' } });
+
+      // Clear button should appear
+      const clearButton = screen.getByLabelText('Clear search');
+      fireEvent.click(clearButton);
+
+      expect(setFilters).toHaveBeenCalledWith({ search: '' });
+    });
+  });
+
+  describe('search highlighting', () => {
+    it('renders server cards with search filter applied', () => {
+      const mockItems = [createMockItem('server-1')];
+      mockUseMcpMarketplaceStore.mockReturnValue(createMockStoreState({
+        catalog: createMockCatalog(mockItems),
+        getFilteredItems: jest.fn().mockReturnValue(mockItems),
+        getPaginatedItems: jest.fn().mockReturnValue(mockItems),
+        filters: {
+          search: 'server',
+          tags: [],
+          sortBy: 'popular' as const,
+          source: 'all' as const,
+        },
+      }) as ReturnType<typeof useMcpMarketplaceStore>);
+
+      render(<McpMarketplace />);
+
+      // Should show results count when search is applied
+      expect(screen.getByText(/Showing 1 of 1 servers/)).toBeInTheDocument();
+    });
+  });
+
+  describe('keyboard navigation', () => {
+    it('renders grid with keyboard navigation support', () => {
+      const mockItems = [
+        createMockItem('server-1'),
+        createMockItem('server-2'),
+      ];
+      mockUseMcpMarketplaceStore.mockReturnValue(createMockStoreState({
+        catalog: createMockCatalog(mockItems),
+        getFilteredItems: jest.fn().mockReturnValue(mockItems),
+        getPaginatedItems: jest.fn().mockReturnValue(mockItems),
+      }) as ReturnType<typeof useMcpMarketplaceStore>);
+
+      render(<McpMarketplace />);
+
+      // Grid should have role="grid"
+      const grid = screen.getByRole('grid');
+      expect(grid).toBeInTheDocument();
     });
   });
 

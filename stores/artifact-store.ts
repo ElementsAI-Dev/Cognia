@@ -198,7 +198,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
       // Auto-detection and creation
       autoCreateFromContent: async ({ sessionId, messageId, content, config }) => {
         // Import detection logic dynamically to avoid circular deps
-        const { detectArtifacts, DEFAULT_DETECTION_CONFIG } = await import('@/lib/ai/artifact-detector');
+        const { detectArtifacts, DEFAULT_DETECTION_CONFIG } = await import('@/lib/ai/generation/artifact-detector');
         const finalConfig = { ...DEFAULT_DETECTION_CONFIG, ...config };
         const detected: DetectedArtifact[] = detectArtifacts(content, finalConfig);
 

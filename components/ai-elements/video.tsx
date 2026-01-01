@@ -65,7 +65,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import type { GeneratedVideo, VideoStatus } from '@/types/video';
-import { downloadVideoAsBlob, saveVideoToFile, base64ToVideoDataUrl } from '@/lib/ai/video-generation';
+import { downloadVideoAsBlob, saveVideoToFile, base64ToVideoDataUrl } from '@/lib/ai/media/video-generation';
 
 // Playback speed options
 const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];

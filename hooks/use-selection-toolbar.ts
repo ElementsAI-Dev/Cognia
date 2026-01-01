@@ -8,11 +8,11 @@ import {
   SelectionMode,
   TextType,
   getLanguageName,
-} from "@/components/selection-toolbar/types";
+} from "@/types";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useSettingsStore } from "@/stores/settings-store";
-import { useAIChat } from "@/lib/ai/use-ai-chat";
-import type { ProviderName } from "@/lib/ai/client";
+import { useAIChat } from "@/lib/ai/generation/use-ai-chat";
+import type { ProviderName } from "@/lib/ai/core/client";
 
 const initialState: ToolbarState = {
   isVisible: false,

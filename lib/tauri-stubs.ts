@@ -23,6 +23,20 @@ export const stat = notInTauriError;
 export const exists = notInTauriError;
 export const create = notInTauriError;
 export const truncate = notInTauriError;
+export const lstat = notInTauriError;
+export const watch = notInTauriError;
+export const watchImmediate = notInTauriError;
+
+// @tauri-apps/plugin-opener stubs
+export const openPath = notInTauriError;
+export const openUrl = notInTauriError;
+export const revealItemInDir = notInTauriError;
+
+// @tauri-apps/plugin-deep-link stubs
+export const getDeepLinkCurrent = notInTauriError;
+export const onDeepLinkOpenUrl = notInTauriError;
+export const isDeepLinkRegistered = notInTauriError;
+export const registerDeepLink = notInTauriError;
 
 // @tauri-apps/plugin-dialog stubs
 export const open = notInTauriError;
@@ -70,6 +84,8 @@ export const readText = notInTauriError;
 export const writeText = notInTauriError;
 export const readImage = notInTauriError;
 export const writeImage = notInTauriError;
+export const writeHtml = notInTauriError;
+export const clear = notInTauriError;
 
 // @tauri-apps/plugin-geolocation stubs
 export const getCurrentPosition = notInTauriError;

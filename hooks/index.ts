@@ -2,6 +2,7 @@
  * Hooks module - exports all custom hooks
  */
 
+export { useDebounce, useDebouncedCallback } from './use-debounce';
 export { useIsMobile } from './use-mobile';
 export { useMessages } from './use-messages';
 export {
@@ -110,6 +111,11 @@ export {
   useIsLearningMode,
   type UseLearningModeReturn,
 } from './use-learning-mode';
+export {
+  useLearningTools,
+  type UseLearningToolsOptions,
+  type UseLearningToolsReturn,
+} from './use-learning-tools';
 export {
   useSubAgent,
   type UseSubAgentOptions,
@@ -263,3 +269,18 @@ export {
   type UseLocaleDetectionState,
   type UseLocaleDetectionReturn,
 } from './use-geolocation';
+export {
+  useClipboardContext,
+  CATEGORY_INFO,
+  LANGUAGE_INFO,
+  TRANSFORM_ACTIONS,
+  type ClipboardAnalysis,
+  type ContentCategory,
+  type DetectedLanguage,
+  type ExtractedEntity,
+  type SuggestedAction,
+  type ContentStats,
+  type TransformAction,
+  type ClipboardTemplate,
+  type TransformActionInfo,
+} from './use-clipboard-context';

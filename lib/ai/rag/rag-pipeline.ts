@@ -10,11 +10,11 @@
  */
 
 import type { LanguageModel } from 'ai';
-import type { DocumentChunk, ChunkingOptions } from '../chunking';
-import { chunkDocument } from '../chunking';
+import type { DocumentChunk, ChunkingOptions } from '../embedding/chunking';
+import { chunkDocument } from '../embedding/chunking';
 import type { EmbeddingModelConfig } from '@/lib/vector/embedding';
 import { generateEmbedding, generateEmbeddings } from '@/lib/vector/embedding';
-import { cosineSimilarity } from '@/lib/ai/embedding';
+import { cosineSimilarity } from '@/lib/ai/embedding/embedding';
 
 import {
   HybridSearchEngine,

@@ -74,7 +74,7 @@ import {
   deleteApiKey,
   formatCredits,
   OpenRouterError,
-} from '@/lib/ai/openrouter';
+} from '@/lib/ai/providers/openrouter';
 
 interface OpenRouterKeyManagementProps {
   className?: string;

@@ -41,7 +41,7 @@ pub fn run() {
         builder = builder.plugin(devtools);
     }
 
-    // Single instance plugin - prevents multiple instances of the app
+    // Single instance plugin with deep-link integration - prevents multiple instances
     // Can be disabled by compiling with --no-default-features or removing "single-instance" feature
     #[cfg(feature = "single-instance")]
     {
@@ -57,6 +57,16 @@ pub fn run() {
                 let _ = window.show();
                 let _ = window.set_focus();
                 let _ = window.unminimize();
+            }
+            
+            // Check for deep link URLs in arguments (cognia://)
+            for arg in &argv {
+                if arg.starts_with("cognia://") {
+                    log::info!("Deep link detected: {}", arg);
+                    let _ = app.emit("deep-link-open", serde_json::json!({
+                        "url": arg
+                    }));
+                }
             }
             
             // Emit event to frontend so it can handle the arguments if needed
@@ -78,6 +88,8 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_geolocation::init())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(build_log_plugin());
 
     // Autostart plugin - only available on desktop platforms
@@ -303,6 +315,20 @@ pub fn run() {
             commands::selection::clipboard_clear_all,
             commands::selection::clipboard_copy_entry,
             commands::selection::clipboard_check_update,
+            // Clipboard context awareness commands
+            commands::selection::clipboard_analyze_content,
+            commands::selection::clipboard_get_current_with_analysis,
+            commands::selection::clipboard_transform_content,
+            commands::selection::clipboard_write_text,
+            commands::selection::clipboard_read_text,
+            commands::selection::clipboard_write_html,
+            commands::selection::clipboard_clear,
+            commands::selection::clipboard_get_suggested_actions,
+            commands::selection::clipboard_extract_entities,
+            commands::selection::clipboard_check_sensitive,
+            commands::selection::clipboard_get_stats,
+            commands::selection::clipboard_detect_category,
+            commands::selection::clipboard_detect_language,
             // Smart selection commands
             commands::selection::selection_smart_expand,
             commands::selection::selection_auto_expand,

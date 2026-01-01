@@ -67,12 +67,12 @@ jest.mock('@/types/provider', () => ({
 }));
 
 // Mock API test
-jest.mock('@/lib/ai/api-test', () => ({
+jest.mock('@/lib/ai/infrastructure/api-test', () => ({
   testProviderConnection: jest.fn().mockResolvedValue({ success: true, latency_ms: 100 }),
 }));
 
 // Mock API key rotation
-jest.mock('@/lib/ai/api-key-rotation', () => ({
+jest.mock('@/lib/ai/infrastructure/api-key-rotation', () => ({
   maskApiKey: (key: string) => key ? `${key.slice(0, 4)}...${key.slice(-4)}` : '',
 }));
 

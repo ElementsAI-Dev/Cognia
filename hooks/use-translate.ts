@@ -15,7 +15,7 @@ import {
   type LanguageCode,
   type TranslationResult,
   type TranslationConfig,
-} from '@/lib/ai/translate';
+} from '@/lib/ai/generation/translate';
 
 export type LanguageDetectionResult = { code: LanguageCode; confidence: number };
 

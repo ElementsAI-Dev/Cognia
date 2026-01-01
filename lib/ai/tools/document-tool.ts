@@ -4,7 +4,7 @@
 
 import { z } from 'zod';
 import { processDocument, extractSummary, isTextFile } from '@/lib/document/document-processor';
-import { chunkDocument } from '@/lib/ai/chunking';
+import { chunkDocument } from '@/lib/ai/embedding/chunking';
 
 export const documentReadInputSchema = z.object({
   documentId: z.string().describe('The ID of the document to read'),

@@ -14,12 +14,12 @@ import type {
   PPTSlideImageResult,
   PPTEnhancedSlide,
 } from '@/types/workflow';
-import type { ImageProvider } from '../image-generation';
+import type { ImageProvider } from '../media/image-generation';
 import {
   generateSlideImage,
   generateSlideImagesBatch,
   type SlideImageOptions,
-} from '../image-generation';
+} from '../media/image-generation';
 
 // =====================
 // Input Schemas

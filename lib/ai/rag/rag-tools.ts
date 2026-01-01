@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { createTool, combineTools } from '@/lib/ai/tool-utils';
+import { createTool, combineTools } from '@/lib/ai/tools/tool-utils';
 import type { RAGPipeline } from './rag-pipeline';
 
 export interface RAGToolsConfig {

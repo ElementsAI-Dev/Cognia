@@ -12,7 +12,7 @@ import {
   listRunningModels,
   stopOllamaModel,
   DEFAULT_OLLAMA_URL,
-} from '@/lib/ai/ollama';
+} from '@/lib/ai/providers/ollama';
 import type {
   OllamaModel,
   OllamaServerStatus,

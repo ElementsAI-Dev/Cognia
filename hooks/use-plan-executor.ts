@@ -7,7 +7,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { generateText } from 'ai';
 import { useAgentStore, useSettingsStore, useSessionStore } from '@/stores';
-import { getProviderModel, type ProviderName } from '@/lib/ai/client';
+import { getProviderModel, type ProviderName } from '@/lib/ai/core/client';
 import type { AgentPlan, PlanStep } from '@/types/agent';
 
 export interface PlanExecutionOptions {

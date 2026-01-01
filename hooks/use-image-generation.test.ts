@@ -4,10 +4,10 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { useImageGeneration } from './use-image-generation';
-import * as imageGenLib from '@/lib/ai/image-generation';
+import * as imageGenLib from '@/lib/ai/media/image-generation';
 
 // Mock dependencies
-jest.mock('@/lib/ai/image-generation', () => ({
+jest.mock('@/lib/ai/media/image-generation', () => ({
   generateImage: jest.fn(),
   editImage: jest.fn(),
   createImageVariation: jest.fn(),

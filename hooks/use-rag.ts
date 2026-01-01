@@ -26,7 +26,7 @@ import {
   createRAGTools,
   type RAGToolsConfig,
 } from '@/lib/ai/rag/index';
-import { chunkDocument, type ChunkingOptions, type ChunkingResult } from '@/lib/ai/chunking';
+import { chunkDocument, type ChunkingOptions, type ChunkingResult } from '@/lib/ai/embedding/chunking';
 
 export interface UseRAGOptions {
   collectionName?: string;

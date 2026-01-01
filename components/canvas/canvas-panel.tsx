@@ -50,8 +50,8 @@ import {
   executeCanvasAction,
   applyCanvasActionResult,
   type CanvasActionType,
-} from '@/lib/ai/canvas-actions';
-import type { ProviderName } from '@/lib/ai/client';
+} from '@/lib/ai/generation/canvas-actions';
+import type { ProviderName } from '@/lib/ai/core/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { V0Designer } from '@/components/designer';

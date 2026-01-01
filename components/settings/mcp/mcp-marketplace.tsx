@@ -6,7 +6,7 @@
  * Supports: Cline, Smithery, Glama
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback, memo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Search,
@@ -76,8 +76,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useMcpMarketplaceStore } from '@/stores/mcp-marketplace-store';
 import { useMcpStore } from '@/stores/mcp-store';
 import type { McpMarketplaceItem, McpMarketplaceSortOption, McpMarketplaceSource } from '@/types/mcp-marketplace';
-import { MARKETPLACE_SORT_OPTIONS, getSortLabel, MARKETPLACE_SOURCES } from '@/types/mcp-marketplace';
+import { MARKETPLACE_SORT_OPTIONS, MARKETPLACE_SOURCES } from '@/types/mcp-marketplace';
 import { formatDownloadCount, formatStarCount } from '@/lib/mcp/marketplace';
+import { getSourceColor, highlightSearchQuery, type HighlightSegment } from '@/lib/mcp/marketplace-utils';
+import { useDebounce } from '@/hooks';
 import { McpMarketplaceDetailDialog } from './mcp-marketplace-detail-dialog';
 
 function MarketplaceCardSkeleton() {
@@ -113,24 +115,35 @@ interface MarketplaceCardProps {
   item: McpMarketplaceItem;
   isInstalled: boolean;
   installStatus: string;
+  searchQuery: string;
+  isFocused: boolean;
   onSelect: () => void;
   onInstall: () => void;
 }
 
-/** Get source color for badge */
-function getSourceColor(source: McpMarketplaceSource): string {
-  switch (source) {
-    case 'cline': return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
-    case 'smithery': return 'bg-purple-500/10 text-purple-600 border-purple-500/20';
-    case 'glama': return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
-    default: return '';
-  }
+/** Render highlighted text */
+function HighlightedText({ segments }: { segments: HighlightSegment[] }) {
+  return (
+    <>
+      {segments.map((segment, i) =>
+        segment.isHighlight ? (
+          <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 rounded px-0.5">
+            {segment.text}
+          </mark>
+        ) : (
+          <span key={i}>{segment.text}</span>
+        )
+      )}
+    </>
+  );
 }
 
-function MarketplaceCard({
+const MarketplaceCard = memo(function MarketplaceCard({
   item,
   isInstalled,
   installStatus,
+  searchQuery,
+  isFocused,
   onSelect,
   onInstall,
 }: MarketplaceCardProps) {
@@ -138,13 +151,33 @@ function MarketplaceCard({
 
   const isInstalling = installStatus === 'installing';
 
+  // Memoize highlighted segments
+  const nameSegments = useMemo(
+    () => highlightSearchQuery(item.name, searchQuery),
+    [item.name, searchQuery]
+  );
+  const descSegments = useMemo(
+    () => highlightSearchQuery(item.description, searchQuery),
+    [item.description, searchQuery]
+  );
+
   return (
-    <Card className="flex flex-col hover:shadow-md transition-shadow cursor-pointer" onClick={onSelect}>
+    <Card 
+      className={`flex flex-col hover:shadow-md transition-shadow cursor-pointer ${isFocused ? 'ring-2 ring-primary' : ''}`}
+      onClick={onSelect}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+    >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-0.5 min-w-0 flex-1">
             <CardTitle className="text-sm font-medium truncate flex items-center gap-1.5">
-              {item.name}
+              <HighlightedText segments={nameSegments} />
               {item.verified && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -182,7 +215,9 @@ function MarketplaceCard({
         </div>
       </CardHeader>
       <CardContent className="pb-2 flex-1">
-        <p className="text-xs text-muted-foreground line-clamp-2">{item.description}</p>
+        <p className="text-xs text-muted-foreground line-clamp-2">
+          <HighlightedText segments={descSegments} />
+        </p>
         <div className="flex flex-wrap gap-1 mt-2">
           {item.tags.slice(0, 3).map((tag) => (
             <Badge key={tag} variant="outline" className="text-[10px]">
@@ -253,7 +288,7 @@ function MarketplaceCard({
       </CardFooter>
     </Card>
   );
-}
+});
 
 export function McpMarketplace() {
   const t = useTranslations('mcpMarketplace');
@@ -296,46 +331,104 @@ export function McpMarketplace() {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState(smitheryApiKey || '');
+  const [localSearch, setLocalSearch] = useState(filters.search);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  // Debounce search input
+  const debouncedSearch = useDebounce(localSearch, 300);
+
+  // Sync debounced search to store
+  useEffect(() => {
+    if (debouncedSearch !== filters.search) {
+      setFilters({ search: debouncedSearch });
+    }
+  }, [debouncedSearch, filters.search, setFilters]);
 
   // Fetch catalog on mount
   useEffect(() => {
     fetchCatalog();
   }, [fetchCatalog]);
 
-  // Get filtered and paginated items
-  const filteredItems = getFilteredItems();
-  const paginatedItems = getPaginatedItems();
-  const totalPages = getTotalPages();
-  const availableTags = getUniqueTags();
-  const favoritesCount = getFavoritesCount();
+  // Memoize filtered and paginated items
+  const filteredItems = useMemo(() => getFilteredItems(), [getFilteredItems]);
+  const paginatedItems = useMemo(() => getPaginatedItems(), [getPaginatedItems]);
+  const totalPages = useMemo(() => getTotalPages(), [getTotalPages]);
+  const availableTags = useMemo(() => getUniqueTags(), [getUniqueTags]);
+  const favoritesCount = useMemo(() => getFavoritesCount(), [getFavoritesCount]);
 
   // Check if an item is installed by matching mcpId with server names
-  const isItemInstalled = (mcpId: string): boolean => {
+  const isItemInstalled = useCallback((mcpId: string): boolean => {
     return servers.some((server) => server.id === mcpId || server.name === mcpId);
-  };
+  }, [servers]);
 
-  const handleSelectItem = (item: McpMarketplaceItem) => {
+  const handleSelectItem = useCallback((item: McpMarketplaceItem) => {
     selectItem(item);
     setDetailDialogOpen(true);
-  };
+  }, [selectItem]);
 
-  const handleInstall = async (item: McpMarketplaceItem) => {
+  const handleInstall = useCallback(async (item: McpMarketplaceItem) => {
     setInstallStatus(item.mcpId, 'installing');
     // The actual installation will be handled by the detail dialog
     selectItem(item);
     setDetailDialogOpen(true);
-  };
+  }, [selectItem, setInstallStatus]);
 
-  const handleTagToggle = (tag: string) => {
+  const handleTagToggle = useCallback((tag: string) => {
     const newTags = filters.tags.includes(tag)
       ? filters.tags.filter((t) => t !== tag)
       : [...filters.tags, tag];
     setFilters({ tags: newTags });
-  };
+  }, [filters.tags, setFilters]);
 
-  const handleSourceChange = (source: McpMarketplaceSource) => {
+  const handleSourceChange = useCallback((source: McpMarketplaceSource) => {
     setFilters({ source });
-  };
+  }, [setFilters]);
+
+  // Keyboard navigation handler
+  const handleGridKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const itemCount = paginatedItems.length;
+    if (itemCount === 0) return;
+
+    // Calculate columns based on viewport
+    const columnsPerRow = window.innerWidth >= 1024 ? 3 : window.innerWidth >= 640 ? 2 : 1;
+    let newIndex = focusedIndex;
+
+    switch (e.key) {
+      case 'ArrowRight':
+        newIndex = Math.min(focusedIndex + 1, itemCount - 1);
+        break;
+      case 'ArrowLeft':
+        newIndex = Math.max(focusedIndex - 1, 0);
+        break;
+      case 'ArrowDown':
+        newIndex = Math.min(focusedIndex + columnsPerRow, itemCount - 1);
+        break;
+      case 'ArrowUp':
+        newIndex = Math.max(focusedIndex - columnsPerRow, 0);
+        break;
+      case 'Home':
+        newIndex = 0;
+        break;
+      case 'End':
+        newIndex = itemCount - 1;
+        break;
+      case 'Enter':
+      case ' ':
+        if (focusedIndex >= 0 && focusedIndex < itemCount) {
+          e.preventDefault();
+          handleSelectItem(paginatedItems[focusedIndex]);
+        }
+        return;
+      default:
+        return;
+    }
+
+    if (newIndex !== focusedIndex) {
+      e.preventDefault();
+      setFocusedIndex(newIndex);
+    }
+  }, [focusedIndex, paginatedItems, handleSelectItem]);
 
   const hasActiveFilters = filters.search || filters.tags.length > 0 || filters.requiresApiKey !== undefined || filters.verified !== undefined || filters.remote !== undefined || showFavoritesOnly;
 
@@ -390,15 +483,18 @@ export function McpMarketplace() {
               </InputGroupAddon>
               <InputGroupInput
                 placeholder={t('searchPlaceholder')}
-                value={filters.search}
-                onChange={(e) => setFilters({ search: e.target.value })}
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
                 className="text-sm"
               />
-              {filters.search && (
+              {localSearch && (
                 <InputGroupAddon align="inline-end">
                   <InputGroupButton
                     size="icon-xs"
-                    onClick={() => setFilters({ search: '' })}
+                    onClick={() => {
+                      setLocalSearch('');
+                      setFilters({ search: '' });
+                    }}
                     aria-label="Clear search"
                   >
                     <X className="h-3.5 w-3.5" />
@@ -421,7 +517,7 @@ export function McpMarketplace() {
               <SelectContent>
                 {MARKETPLACE_SORT_OPTIONS.map((option) => (
                   <SelectItem key={option} value={option}>
-                    {getSortLabel(option)}
+                    {t(`sort.${option}`)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -687,16 +783,24 @@ export function McpMarketplace() {
 
         {/* Marketplace Grid */}
         {!isLoading && paginatedItems.length > 0 && (
-          <div className={viewMode === 'grid' 
-            ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" 
-            : "flex flex-col gap-2"
-          }>
-            {paginatedItems.map((item) => (
+          <div 
+            ref={gridRef}
+            className={viewMode === 'grid' 
+              ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" 
+              : "flex flex-col gap-2"
+            }
+            onKeyDown={handleGridKeyDown}
+            role="grid"
+            aria-label={t('title')}
+          >
+            {paginatedItems.map((item, index) => (
               <MarketplaceCard
                 key={item.mcpId}
                 item={item}
                 isInstalled={isItemInstalled(item.mcpId)}
                 installStatus={getInstallStatus(item.mcpId)}
+                searchQuery={debouncedSearch}
+                isFocused={focusedIndex === index}
                 onSelect={() => handleSelectItem(item)}
                 onInstall={() => handleInstall(item)}
               />

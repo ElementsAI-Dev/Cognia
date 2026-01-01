@@ -7,7 +7,7 @@ import {
 } from './slide-image-tool';
 
 // Mock the image generation module
-jest.mock('../image-generation', () => ({
+jest.mock('../media/image-generation', () => ({
   generateSlideImage: jest.fn().mockResolvedValue({
     success: true,
     imageUrl: 'https://example.com/image.png',

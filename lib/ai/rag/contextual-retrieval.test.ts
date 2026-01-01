@@ -9,7 +9,7 @@ import {
   enrichChunkWithEntities,
   type ContextCache,
 } from './contextual-retrieval';
-import type { DocumentChunk } from '../chunking';
+import type { DocumentChunk } from '../embedding/chunking';
 
 describe('createContextCache', () => {
   let cache: ContextCache;

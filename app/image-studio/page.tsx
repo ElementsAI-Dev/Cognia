@@ -42,6 +42,11 @@ import {
   MoreHorizontal,
   PanelLeftClose,
   PanelLeft,
+  Crop,
+  SlidersHorizontal,
+  ZoomIn,
+  Eraser,
+  Wand2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -88,7 +93,15 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useSettingsStore } from '@/stores';
+import { useSettingsStore, useImageStudioStore } from '@/stores';
+import {
+  MaskCanvas,
+  ImageCropper,
+  ImageAdjustmentsPanel,
+  ImageUpscaler,
+  BackgroundRemover,
+  BatchExportDialog,
+} from '@/components/image-studio';
 import { proxyFetch } from '@/lib/proxy-fetch';
 import {
   generateImage,
@@ -192,6 +205,15 @@ export default function ImageStudioPage() {
   const [filterFavorites, setFilterFavorites] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(2); // Index into ZOOM_LEVELS (default M)
   const [showMoreTemplates, setShowMoreTemplates] = useState(false);
+
+  // Advanced editing state
+  const [editingImage, setEditingImage] = useState<GeneratedImageWithMeta | null>(null);
+  const [editMode, setEditMode] = useState<'mask' | 'crop' | 'adjust' | 'upscale' | 'remove-bg' | null>(null);
+  const [maskDataUrl, setMaskDataUrl] = useState<string | null>(null);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+
+  // Image Studio Store integration
+  const studioStore = useImageStudioStore();
 
   // Version history tracking
   const [versionHistory, setVersionHistory] = useState<Array<{
@@ -561,6 +583,22 @@ export default function ImageStudioPage() {
             <History className="h-4 w-4 mr-2" />
             {generatedImages.length}
           </Button>
+
+          {/* Export */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowExportDialog(true)}
+                disabled={generatedImages.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Export multiple images</TooltipContent>
+          </Tooltip>
 
           {/* View mode toggle */}
           <div className="flex items-center border rounded-md">
@@ -1088,11 +1126,32 @@ export default function ImageStudioPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleUseForEdit(image)}>
                               <Brush className="h-4 w-4 mr-2" />
-                              Edit this image
+                              Inpaint (Upload Mask)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setEditingImage(image); setEditMode('mask'); }}>
+                              <Wand2 className="h-4 w-4 mr-2" />
+                              Draw Mask & Inpaint
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleUseForVariation(image)}>
                               <Layers className="h-4 w-4 mr-2" />
                               Create variations
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => { setEditingImage(image); setEditMode('crop'); }}>
+                              <Crop className="h-4 w-4 mr-2" />
+                              Crop & Transform
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setEditingImage(image); setEditMode('adjust'); }}>
+                              <SlidersHorizontal className="h-4 w-4 mr-2" />
+                              Adjust Colors
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setEditingImage(image); setEditMode('upscale'); }}>
+                              <ZoomIn className="h-4 w-4 mr-2" />
+                              Upscale
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setEditingImage(image); setEditMode('remove-bg'); }}>
+                              <Eraser className="h-4 w-4 mr-2" />
+                              Remove Background
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
@@ -1224,6 +1283,187 @@ export default function ImageStudioPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Advanced Editing Dialog */}
+      <Dialog open={!!editingImage && !!editMode} onOpenChange={() => { setEditingImage(null); setEditMode(null); }}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="p-4 border-b">
+            <DialogTitle className="flex items-center gap-2">
+              {editMode === 'mask' && <><Brush className="h-5 w-5" /> Draw Mask for Inpainting</>}
+              {editMode === 'crop' && <><Crop className="h-5 w-5" /> Crop & Transform</>}
+              {editMode === 'adjust' && <><SlidersHorizontal className="h-5 w-5" /> Adjust Image</>}
+              {editMode === 'upscale' && <><ZoomIn className="h-5 w-5" /> Upscale Image</>}
+              {editMode === 'remove-bg' && <><Eraser className="h-5 w-5" /> Remove Background</>}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-4 overflow-auto max-h-[calc(90vh-80px)]">
+            {editingImage?.url && editMode === 'mask' && (
+              <MaskCanvas
+                imageUrl={editingImage.url}
+                onMaskChange={(base64) => setMaskDataUrl(base64)}
+                className="w-full"
+              />
+            )}
+            {editingImage?.url && editMode === 'crop' && (
+              <ImageCropper
+                imageUrl={editingImage.url}
+                onApply={(result) => {
+                  const newImage: GeneratedImageWithMeta = {
+                    ...editingImage,
+                    id: `crop-${Date.now()}`,
+                    url: result.dataUrl,
+                    timestamp: Date.now(),
+                    parentId: editingImage.id,
+                    version: (editingImage.version || 1) + 1,
+                  };
+                  setGeneratedImages(prev => [newImage, ...prev]);
+                  setSelectedImage(newImage);
+                  setEditingImage(null);
+                  setEditMode(null);
+                  studioStore.addToHistory({
+                    type: 'crop',
+                    imageId: newImage.id,
+                    description: 'Cropped image',
+                  });
+                }}
+                onCancel={() => { setEditingImage(null); setEditMode(null); }}
+              />
+            )}
+            {editingImage?.url && editMode === 'adjust' && (
+              <ImageAdjustmentsPanel
+                imageUrl={editingImage.url}
+                onApply={(dataUrl) => {
+                  const newImage: GeneratedImageWithMeta = {
+                    ...editingImage,
+                    id: `adjust-${Date.now()}`,
+                    url: dataUrl,
+                    timestamp: Date.now(),
+                    parentId: editingImage.id,
+                    version: (editingImage.version || 1) + 1,
+                  };
+                  setGeneratedImages(prev => [newImage, ...prev]);
+                  setSelectedImage(newImage);
+                  setEditingImage(null);
+                  setEditMode(null);
+                }}
+                onCancel={() => { setEditingImage(null); setEditMode(null); }}
+              />
+            )}
+            {editingImage?.url && editMode === 'upscale' && (
+              <ImageUpscaler
+                imageUrl={editingImage.url}
+                onUpscale={(result) => {
+                  const newImage: GeneratedImageWithMeta = {
+                    ...editingImage,
+                    id: `upscale-${Date.now()}`,
+                    url: result.dataUrl,
+                    timestamp: Date.now(),
+                    parentId: editingImage.id,
+                    version: (editingImage.version || 1) + 1,
+                  };
+                  setGeneratedImages(prev => [newImage, ...prev]);
+                  setSelectedImage(newImage);
+                  setEditingImage(null);
+                  setEditMode(null);
+                }}
+                onCancel={() => { setEditingImage(null); setEditMode(null); }}
+              />
+            )}
+            {editingImage?.url && editMode === 'remove-bg' && (
+              <BackgroundRemover
+                imageUrl={editingImage.url}
+                onRemove={(result) => {
+                  const newImage: GeneratedImageWithMeta = {
+                    ...editingImage,
+                    id: `remove-bg-${Date.now()}`,
+                    url: result.dataUrl,
+                    timestamp: Date.now(),
+                    parentId: editingImage.id,
+                    version: (editingImage.version || 1) + 1,
+                  };
+                  setGeneratedImages(prev => [newImage, ...prev]);
+                  setSelectedImage(newImage);
+                  setEditingImage(null);
+                  setEditMode(null);
+                }}
+                onCancel={() => { setEditingImage(null); setEditMode(null); }}
+              />
+            )}
+          </div>
+          {/* Mask mode has special Apply button for inpainting */}
+          {editMode === 'mask' && maskDataUrl && (
+            <div className="p-4 border-t flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Mask ready. Use this mask to regenerate the marked areas.
+              </p>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => { setEditingImage(null); setEditMode(null); setMaskDataUrl(null); }}>
+                  Cancel
+                </Button>
+                <Button onClick={async () => {
+                  if (!editingImage?.url || !maskDataUrl || !openaiApiKey) return;
+                  setEditingImage(null);
+                  setEditMode(null);
+                  setIsGenerating(true);
+                  try {
+                    const imgResponse = await proxyFetch(editingImage.url);
+                    const imgBlob = await imgResponse.blob();
+                    const imgFile = new File([imgBlob], 'image.png', { type: 'image/png' });
+                    
+                    const maskBlob = await (await fetch(maskDataUrl)).blob();
+                    const maskFile = new File([maskBlob], 'mask.png', { type: 'image/png' });
+                    
+                    const result = await editImage(openaiApiKey, {
+                      image: imgFile,
+                      mask: maskFile,
+                      prompt: prompt || 'Continue the image naturally',
+                      size: '1024x1024',
+                    });
+                    
+                    const newImages: GeneratedImageWithMeta[] = result.images.map((img, index) => ({
+                      ...img,
+                      id: `inpaint-${Date.now()}-${index}`,
+                      prompt: prompt || 'Inpainted',
+                      model: 'dall-e-2',
+                      timestamp: Date.now(),
+                      settings: { size: '1024x1024' as ImageSize, quality, style },
+                      parentId: editingImage.id,
+                      version: (editingImage.version || 1) + 1,
+                    }));
+                    
+                    setGeneratedImages(prev => [...newImages, ...prev]);
+                    if (newImages.length > 0) setSelectedImage(newImages[0]);
+                    setMaskDataUrl(null);
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Inpainting failed');
+                  } finally {
+                    setIsGenerating(false);
+                  }
+                }}>
+                  <Wand2 className="h-4 w-4 mr-2" />
+                  Apply Inpainting
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Export Dialog */}
+      <BatchExportDialog
+        open={showExportDialog}
+        onOpenChange={setShowExportDialog}
+        images={generatedImages.map(img => ({
+          id: img.id,
+          url: img.url,
+          base64: img.base64,
+          prompt: img.prompt,
+          timestamp: img.timestamp,
+        }))}
+        onExport={(count) => {
+          console.log(`Exported ${count} images`);
+        }}
+      />
     </div>
   );
 }

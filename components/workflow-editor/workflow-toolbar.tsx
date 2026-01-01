@@ -54,6 +54,9 @@ import { ExecutionStatisticsPanel } from './execution-statistics-panel';
 import { VariableManagerPanel } from './variable-manager-panel';
 import { KeyboardShortcutsPanel } from './keyboard-shortcuts-panel';
 import { WorkflowSettingsPanel } from './workflow-settings-panel';
+import { WorkflowInputTestPanel } from './workflow-input-test-panel';
+import { DebugToolbar } from './debug-toolbar';
+import { NodeSearchPanel } from './node-search-panel';
 
 interface WorkflowToolbarProps {
   onFitView?: () => void;
@@ -77,6 +80,7 @@ export function WorkflowToolbar({
     currentWorkflow,
     isDirty,
     isExecuting,
+    executionState,
     selectedNodes,
     history,
     historyIndex,
@@ -93,11 +97,14 @@ export function WorkflowToolbar({
     validate,
     startExecution,
     pauseExecution,
+    resumeExecution,
     cancelExecution,
     toggleNodePalette,
     toggleConfigPanel,
     toggleMinimap,
   } = useWorkflowEditorStore();
+
+  const isPaused = executionState?.status === 'paused';
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1;
@@ -168,6 +175,7 @@ export function WorkflowToolbar({
 
           <VersionHistoryPanel />
           <ExecutionStatisticsPanel />
+          <WorkflowInputTestPanel />
         </div>
 
         <Separator orientation="vertical" className="h-6 mx-1" />
@@ -346,6 +354,9 @@ export function WorkflowToolbar({
           </Tooltip>
         </div>
 
+        {/* Node search */}
+        <NodeSearchPanel />
+
         {/* Spacer */}
         <div className="flex-1" />
 
@@ -373,9 +384,14 @@ export function WorkflowToolbar({
 
         <Separator orientation="vertical" className="h-6 mx-1" />
 
+        {/* Debug toolbar */}
+        <DebugToolbar />
+
+        <Separator orientation="vertical" className="h-6 mx-1" />
+
         {/* Execution controls */}
         <div className="flex items-center gap-1">
-          {!isExecuting ? (
+          {!isExecuting && !isPaused ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -391,6 +407,37 @@ export function WorkflowToolbar({
               </TooltipTrigger>
               <TooltipContent>{t('runWorkflow')}</TooltipContent>
             </Tooltip>
+          ) : isPaused ? (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="h-8 gap-1"
+                    onClick={resumeExecution}
+                  >
+                    <Play className="h-4 w-4" />
+                    {t('resume')}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('resumeWorkflow')}</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={cancelExecution}
+                  >
+                    <Square className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('stop')}</TooltipContent>
+              </Tooltip>
+            </>
           ) : (
             <>
               <Tooltip>

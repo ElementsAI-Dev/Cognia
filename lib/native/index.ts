@@ -20,3 +20,5 @@ export * as sandbox from './sandbox';
 export * as sandboxDb from './sandbox-db';
 export * as environment from './environment';
 export * as proxy from './proxy';
+export * as opener from './opener';
+export * as deepLink from './deep-link';

@@ -19,7 +19,7 @@ jest.mock('ai', () => ({
 }));
 
 // Mock client
-jest.mock('../client', () => ({
+jest.mock('../core/client', () => ({
   getProviderModel: jest.fn(() => 'mock-model'),
 }));
 

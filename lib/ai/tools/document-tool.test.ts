@@ -18,7 +18,7 @@ import {
 
 // Mock dependencies
 import * as documentProcessorModule from '@/lib/document/document-processor';
-import * as chunkingModule from '@/lib/ai/chunking';
+import * as chunkingModule from '@/lib/ai/embedding/chunking';
 
 jest.mock('@/lib/document/document-processor', () => ({
   processDocument: jest.fn((id, filename, content) => ({
@@ -40,7 +40,7 @@ jest.mock('@/lib/document/document-processor', () => ({
   }),
 }));
 
-jest.mock('@/lib/ai/chunking', () => ({
+jest.mock('@/lib/ai/embedding/chunking', () => ({
   chunkDocument: jest.fn((content, options) => ({
     chunks: [
       {

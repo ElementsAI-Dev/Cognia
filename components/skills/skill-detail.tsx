@@ -54,7 +54,7 @@ import { SkillEditor } from './skill-editor';
 import { useSkillStore } from '@/stores/skill-store';
 import { estimateSkillTokens } from '@/lib/skills/executor';
 import { downloadSkillAsMarkdown, downloadSkillAsPackage } from '@/lib/skills/packager';
-import { processSelectionWithAI } from '@/lib/ai/selection-ai';
+import { processSelectionWithAI } from '@/lib/ai/generation/selection-ai';
 import type { Skill, SkillCategory } from '@/types/skill';
 
 const CATEGORY_ICONS: Record<SkillCategory, React.ReactNode> = {

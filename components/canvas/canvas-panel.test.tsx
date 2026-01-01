@@ -110,7 +110,7 @@ jest.mock('@monaco-editor/react', () => ({
 }));
 
 // Mock canvas actions
-jest.mock('@/lib/ai/canvas-actions', () => ({
+jest.mock('@/lib/ai/generation/canvas-actions', () => ({
   executeCanvasAction: jest.fn().mockResolvedValue({ success: true, result: 'Test result' }),
   applyCanvasActionResult: jest.fn((content) => content),
 }));

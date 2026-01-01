@@ -58,8 +58,8 @@ import {
   generateSuggestions,
   getDefaultSuggestions,
   type GeneratedSuggestion,
-} from '@/lib/ai/suggestion-generator';
-import { translateText } from '@/lib/ai/translate';
+} from '@/lib/ai/generation/suggestion-generator';
+import { translateText } from '@/lib/ai/generation/translate';
 import type { SearchResponse, SearchResult } from '@/types/search';
 import { useSessionStore, useSettingsStore, usePresetStore, useMcpStore, useAgentStore, useProjectStore, useQuoteStore, useLearningStore, useArtifactStore } from '@/stores';
 import {

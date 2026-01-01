@@ -4,11 +4,11 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { useVideoGeneration } from './use-video-generation';
-import * as videoGeneration from '@/lib/ai/video-generation';
+import * as videoGeneration from '@/lib/ai/media/video-generation';
 import type { VideoGenerationResult, GeneratedVideo } from '@/types/video';
 
 // Mock the video generation module
-jest.mock('@/lib/ai/video-generation', () => ({
+jest.mock('@/lib/ai/media/video-generation', () => ({
   generateVideo: jest.fn(),
   checkVideoGenerationStatus: jest.fn(),
   cancelVideoGeneration: jest.fn(),

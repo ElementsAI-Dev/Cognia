@@ -6,34 +6,23 @@
  */
 
 import { createContext, useContext, useCallback, useEffect, ReactNode, useRef, useState } from 'react';
+import type {
+  ConnectionState,
+  WebSocketMessage,
+  WebSocketEventType,
+  WebSocketEventHandler,
+  WebSocketConfig,
+} from '@/types';
+import { DEFAULT_WEBSOCKET_CONFIG } from '@/types';
 
-// WebSocket connection state
-export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error' | 'reconnecting';
-
-// WebSocket message event
-export interface WebSocketMessage<T = unknown> {
-  type: string;
-  data: T;
-  timestamp: Date;
-}
-
-// WebSocket event types
-export type WebSocketEventType = 'open' | 'close' | 'error' | 'message';
-
-// WebSocket event handler
-export type WebSocketEventHandler<T = unknown> = (data: T) => void;
-
-// WebSocket configuration
-export interface WebSocketConfig {
-  url: string;
-  protocols?: string | string[];
-  reconnectInterval?: number; // Milliseconds between reconnection attempts
-  maxReconnectAttempts?: number;
-  heartbeatInterval?: number; // Milliseconds between heartbeat messages
-  heartbeatMessage?: string; // Message to send as heartbeat
-  enableReconnect?: boolean;
-  debug?: boolean;
-}
+// Re-export types for backward compatibility
+export type {
+  ConnectionState,
+  WebSocketMessage,
+  WebSocketEventType,
+  WebSocketEventHandler,
+  WebSocketConfig,
+} from '@/types';
 
 // WebSocket context value
 interface WebSocketContextValue {
@@ -73,15 +62,8 @@ interface WebSocketContextValue {
 // Create context
 const WebSocketContext = createContext<WebSocketContextValue | undefined>(undefined);
 
-// Default configuration
-const DEFAULT_CONFIG: Required<Omit<WebSocketConfig, 'url' | 'protocols'>> = {
-  reconnectInterval: 3000,
-  maxReconnectAttempts: 10,
-  heartbeatInterval: 30000,
-  heartbeatMessage: 'ping',
-  enableReconnect: true,
-  debug: false,
-};
+// Default configuration (use centralized constant)
+const DEFAULT_CONFIG = DEFAULT_WEBSOCKET_CONFIG;
 
 interface WebSocketProviderProps {
   children: ReactNode;

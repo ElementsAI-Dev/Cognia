@@ -6,7 +6,7 @@
 
 import { generateText } from 'ai';
 import { nanoid } from 'nanoid';
-import { getProviderModel, type ProviderName } from '../client';
+import { getProviderModel, type ProviderName } from '../core/client';
 import { getGlobalToolRegistry } from '../tools/registry';
 import { getGlobalWorkflowRegistry } from './registry';
 import type {

@@ -4,10 +4,12 @@
 
 import {
   validateNode,
+  validateWorkflowStructure,
   getFieldError,
   getFieldWarning,
   hasFieldError,
   hasFieldWarning,
+  getValidationSummary,
 } from './validation';
 import type {
   AINodeData,
@@ -650,5 +652,301 @@ describe('helper functions', () => {
     it('should return false for field without warning', () => {
       expect(hasFieldWarning(mockResult, 'field1')).toBe(false);
     });
+  });
+});
+
+describe('validateWorkflowStructure', () => {
+  const createNode = (id: string, type: string, label: string) => ({
+    id,
+    type,
+    data: {
+      label,
+      nodeType: type,
+      executionStatus: 'idle' as const,
+      isConfigured: true,
+      hasError: false,
+    } as Parameters<typeof validateWorkflowStructure>[0][0]['data'],
+  });
+
+  describe('start node validation', () => {
+    it('should return error when no start node exists', () => {
+      const nodes = [
+        createNode('end-1', 'end', 'End'),
+      ];
+      const edges: { id: string; source: string; target: string }[] = [];
+
+      const result = validateWorkflowStructure(nodes, edges);
+      
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          code: 'MISSING_START',
+        })
+      );
+    });
+
+    it('should return error when multiple start nodes exist', () => {
+      const nodes = [
+        createNode('start-1', 'start', 'Start 1'),
+        createNode('start-2', 'start', 'Start 2'),
+        createNode('end-1', 'end', 'End'),
+      ];
+      const edges = [
+        { id: 'e1', source: 'start-1', target: 'end-1' },
+      ];
+
+      const result = validateWorkflowStructure(nodes, edges);
+      
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          code: 'MULTIPLE_START',
+        })
+      );
+    });
+  });
+
+  describe('end node validation', () => {
+    it('should return error when no end node exists', () => {
+      const nodes = [
+        createNode('start-1', 'start', 'Start'),
+      ];
+      const edges: { id: string; source: string; target: string }[] = [];
+
+      const result = validateWorkflowStructure(nodes, edges);
+      
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          code: 'MISSING_END',
+        })
+      );
+    });
+  });
+
+  describe('orphan node detection', () => {
+    it('should warn about orphan nodes', () => {
+      const nodes = [
+        createNode('start-1', 'start', 'Start'),
+        createNode('ai-1', 'ai', 'AI Node'),
+        createNode('end-1', 'end', 'End'),
+      ];
+      const edges = [
+        { id: 'e1', source: 'start-1', target: 'end-1' },
+      ];
+
+      const result = validateWorkflowStructure(nodes, edges);
+      
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          code: 'ORPHAN_NODE',
+          nodeId: 'ai-1',
+        })
+      );
+    });
+
+    it('should not warn about annotation nodes without connections', () => {
+      const nodes = [
+        createNode('start-1', 'start', 'Start'),
+        createNode('annotation-1', 'annotation', 'Note'),
+        createNode('end-1', 'end', 'End'),
+      ];
+      const edges = [
+        { id: 'e1', source: 'start-1', target: 'end-1' },
+      ];
+
+      const result = validateWorkflowStructure(nodes, edges);
+      
+      const annotationWarning = result.warnings.find(
+        w => w.nodeId === 'annotation-1' && w.code === 'ORPHAN_NODE'
+      );
+      expect(annotationWarning).toBeUndefined();
+    });
+  });
+
+  describe('dead end detection', () => {
+    it('should warn about nodes with no outgoing connections', () => {
+      const nodes = [
+        createNode('start-1', 'start', 'Start'),
+        createNode('ai-1', 'ai', 'AI Node'),
+        createNode('end-1', 'end', 'End'),
+      ];
+      const edges = [
+        { id: 'e1', source: 'start-1', target: 'ai-1' },
+        { id: 'e2', source: 'start-1', target: 'end-1' },
+      ];
+
+      const result = validateWorkflowStructure(nodes, edges);
+      
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          code: 'DEAD_END',
+          nodeId: 'ai-1',
+        })
+      );
+    });
+  });
+
+  describe('unreachable node detection', () => {
+    it('should warn about unreachable nodes', () => {
+      const nodes = [
+        createNode('start-1', 'start', 'Start'),
+        createNode('ai-1', 'ai', 'AI Node'),
+        createNode('end-1', 'end', 'End'),
+      ];
+      const edges = [
+        { id: 'e1', source: 'start-1', target: 'end-1' },
+        { id: 'e2', source: 'ai-1', target: 'end-1' },
+      ];
+
+      const result = validateWorkflowStructure(nodes, edges);
+      
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          code: 'UNREACHABLE',
+          nodeId: 'ai-1',
+        })
+      );
+    });
+  });
+
+  describe('conditional node validation', () => {
+    it('should warn when conditional node has less than 2 branches', () => {
+      const nodes = [
+        createNode('start-1', 'start', 'Start'),
+        createNode('cond-1', 'conditional', 'Condition'),
+        createNode('end-1', 'end', 'End'),
+      ];
+      const edges = [
+        { id: 'e1', source: 'start-1', target: 'cond-1' },
+        { id: 'e2', source: 'cond-1', target: 'end-1' },
+      ];
+
+      const result = validateWorkflowStructure(nodes, edges);
+      
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          code: 'INCOMPLETE_CONDITIONAL',
+          nodeId: 'cond-1',
+        })
+      );
+    });
+  });
+
+  describe('parallel node validation', () => {
+    it('should warn when parallel node has less than 2 branches', () => {
+      const nodes = [
+        createNode('start-1', 'start', 'Start'),
+        createNode('parallel-1', 'parallel', 'Parallel'),
+        createNode('end-1', 'end', 'End'),
+      ];
+      const edges = [
+        { id: 'e1', source: 'start-1', target: 'parallel-1' },
+        { id: 'e2', source: 'parallel-1', target: 'end-1' },
+      ];
+
+      const result = validateWorkflowStructure(nodes, edges);
+      
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          code: 'SINGLE_BRANCH_PARALLEL',
+          nodeId: 'parallel-1',
+        })
+      );
+    });
+  });
+
+  describe('merge node validation', () => {
+    it('should warn when merge node has less than 2 incoming branches', () => {
+      const nodes = [
+        createNode('start-1', 'start', 'Start'),
+        createNode('merge-1', 'merge', 'Merge'),
+        createNode('end-1', 'end', 'End'),
+      ];
+      const edges = [
+        { id: 'e1', source: 'start-1', target: 'merge-1' },
+        { id: 'e2', source: 'merge-1', target: 'end-1' },
+      ];
+
+      const result = validateWorkflowStructure(nodes, edges);
+      
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          code: 'SINGLE_BRANCH_MERGE',
+          nodeId: 'merge-1',
+        })
+      );
+    });
+  });
+
+  describe('valid workflow', () => {
+    it('should pass validation for a valid workflow', () => {
+      const nodes = [
+        createNode('start-1', 'start', 'Start'),
+        createNode('ai-1', 'ai', 'AI Node'),
+        createNode('end-1', 'end', 'End'),
+      ];
+      const edges = [
+        { id: 'e1', source: 'start-1', target: 'ai-1' },
+        { id: 'e2', source: 'ai-1', target: 'end-1' },
+      ];
+
+      const result = validateWorkflowStructure(nodes, edges);
+      
+      expect(result.isValid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+  });
+});
+
+describe('getValidationSummary', () => {
+  it('should return valid message when no errors or warnings', () => {
+    const result = {
+      isValid: true,
+      errors: [],
+      warnings: [],
+    };
+
+    expect(getValidationSummary(result)).toBe('Workflow is valid');
+  });
+
+  it('should return error count when errors exist', () => {
+    const result = {
+      isValid: false,
+      errors: [
+        { type: 'structure' as const, message: 'Error 1', code: 'E1' },
+        { type: 'structure' as const, message: 'Error 2', code: 'E2' },
+      ],
+      warnings: [],
+    };
+
+    expect(getValidationSummary(result)).toBe('2 error(s)');
+  });
+
+  it('should return warning count when warnings exist', () => {
+    const result = {
+      isValid: true,
+      errors: [],
+      warnings: [
+        { type: 'structure' as const, message: 'Warning 1', code: 'W1' },
+      ],
+    };
+
+    expect(getValidationSummary(result)).toBe('1 warning(s)');
+  });
+
+  it('should return both counts when errors and warnings exist', () => {
+    const result = {
+      isValid: false,
+      errors: [
+        { type: 'structure' as const, message: 'Error 1', code: 'E1' },
+      ],
+      warnings: [
+        { type: 'structure' as const, message: 'Warning 1', code: 'W1' },
+        { type: 'structure' as const, message: 'Warning 2', code: 'W2' },
+      ],
+    };
+
+    expect(getValidationSummary(result)).toBe('1 error(s), 2 warning(s)');
   });
 });

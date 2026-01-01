@@ -54,23 +54,25 @@ import {
 } from '@/components/ai-elements/queue';
 import type { ToolState } from '@/types/message';
 
+// Component-specific ToolExecution with timeline-specific fields
 export interface ToolExecution {
   id: string;
   toolName: string;
   state: ToolState;
-  startTime: number;
-  endTime?: number;
-  error?: string;
+  args?: Record<string, unknown>;
   result?: unknown;
-  isCheckpoint?: boolean;
+  error?: string;
+  startTime?: Date;
+  endTime?: Date;
   checkpointLabel?: string;
+  isCheckpoint?: boolean;
 }
 
 export interface PendingTool {
   id: string;
   toolName: string;
   estimatedDuration?: number;
-  priority?: number;
+  position: number;
 }
 
 interface ToolTimelineProps {

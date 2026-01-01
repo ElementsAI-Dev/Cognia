@@ -19,7 +19,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { SelectionAction, ACTION_LABELS } from "./types";
+import { SelectionAction, ACTION_LABELS } from "@/types";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,

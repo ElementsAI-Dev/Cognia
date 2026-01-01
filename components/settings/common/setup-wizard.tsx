@@ -59,7 +59,7 @@ import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
 import { useMcpStore } from '@/stores/mcp-store';
 import { PROVIDERS } from '@/types/provider';
-import { testProviderConnection } from '@/lib/ai/api-test';
+import { testProviderConnection } from '@/lib/ai/infrastructure/api-test';
 import { MCP_SERVER_TEMPLATES, createDefaultServerConfig } from '@/types/mcp';
 import type { Theme, Language } from '@/stores/settings-store';
 

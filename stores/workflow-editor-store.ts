@@ -75,6 +75,12 @@ interface WorkflowEditorState {
   isExecuting: boolean;
   executionState: WorkflowExecutionState | null;
   
+  // Debug mode
+  isDebugMode: boolean;
+  breakpoints: Set<string>;
+  debugStepIndex: number;
+  isPausedAtBreakpoint: boolean;
+  
   // UI state
   showNodePalette: boolean;
   showConfigPanel: boolean;
@@ -170,6 +176,15 @@ interface WorkflowEditorActions {
   addExecutionLog: (log: ExecutionLog) => void;
   clearExecutionState: () => void;
   
+  // Debug mode
+  toggleDebugMode: () => void;
+  setBreakpoint: (nodeId: string) => void;
+  removeBreakpoint: (nodeId: string) => void;
+  clearBreakpoints: () => void;
+  stepOver: () => void;
+  stepInto: () => void;
+  continueExecution: () => void;
+  
   // UI state
   toggleNodePalette: () => void;
   toggleConfigPanel: () => void;
@@ -221,6 +236,10 @@ const initialState: WorkflowEditorState = {
   isDirty: false,
   isExecuting: false,
   executionState: null,
+  isDebugMode: false,
+  breakpoints: new Set<string>(),
+  debugStepIndex: -1,
+  isPausedAtBreakpoint: false,
   showNodePalette: true,
   showConfigPanel: true,
   showExecutionPanel: false,
@@ -1395,6 +1414,80 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
         set({
           isExecuting: false,
           executionState: null,
+        });
+      },
+
+      // Debug mode
+      toggleDebugMode: () => {
+        set(state => ({ 
+          isDebugMode: !state.isDebugMode,
+          debugStepIndex: -1,
+          isPausedAtBreakpoint: false,
+        }));
+      },
+
+      setBreakpoint: (nodeId) => {
+        set(state => {
+          const newBreakpoints = new Set(state.breakpoints);
+          newBreakpoints.add(nodeId);
+          return { breakpoints: newBreakpoints };
+        });
+      },
+
+      removeBreakpoint: (nodeId) => {
+        set(state => {
+          const newBreakpoints = new Set(state.breakpoints);
+          newBreakpoints.delete(nodeId);
+          return { breakpoints: newBreakpoints };
+        });
+      },
+
+      clearBreakpoints: () => {
+        set({ breakpoints: new Set<string>() });
+      },
+
+      stepOver: () => {
+        const { executionState, currentWorkflow, isDebugMode, addExecutionLog } = get();
+        if (!isDebugMode || !executionState || !currentWorkflow) return;
+
+        // Find next node to execute
+        const pendingNodes = currentWorkflow.nodes.filter(
+          n => n.type !== 'start' && n.type !== 'end' &&
+          executionState.nodeStates[n.id]?.status === 'pending'
+        );
+
+        if (pendingNodes.length > 0) {
+          const nextNode = pendingNodes[0];
+          addExecutionLog({
+            timestamp: new Date(),
+            level: 'info',
+            message: `Debug: Stepping to node "${nextNode.data.label}" (${nextNode.id})`,
+          });
+          
+          set(state => ({
+            debugStepIndex: state.debugStepIndex + 1,
+            isPausedAtBreakpoint: false,
+          }));
+        }
+      },
+
+      stepInto: () => {
+        // Same as stepOver for now - could be extended for subworkflows
+        get().stepOver();
+      },
+
+      continueExecution: () => {
+        const { isDebugMode, addExecutionLog } = get();
+        if (!isDebugMode) return;
+
+        addExecutionLog({
+          timestamp: new Date(),
+          level: 'info',
+          message: 'Debug: Continuing execution until next breakpoint',
+        });
+
+        set({
+          isPausedAtBreakpoint: false,
         });
       },
 

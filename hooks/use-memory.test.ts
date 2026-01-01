@@ -7,7 +7,7 @@ import { useMemory } from './use-memory';
 import { useMemoryStore } from '@/stores';
 
 // Mock the embedding module
-jest.mock('@/lib/ai/embedding', () => ({
+jest.mock('@/lib/ai/embedding/embedding', () => ({
   generateEmbedding: jest.fn().mockResolvedValue({ embedding: [0.1, 0.2, 0.3] }),
   cosineSimilarity: jest.fn().mockReturnValue(0.8),
 }));

@@ -8,7 +8,7 @@
  */
 
 import type { LanguageModel } from 'ai';
-import type { DocumentChunk } from '../chunking';
+import type { DocumentChunk } from '../embedding/chunking';
 
 export interface ContextualChunk extends DocumentChunk {
   contextPrefix: string;

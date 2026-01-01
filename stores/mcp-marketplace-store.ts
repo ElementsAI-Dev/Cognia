@@ -21,6 +21,7 @@ import {
   filterMarketplaceItems,
   getUniqueTags,
 } from '@/lib/mcp/marketplace';
+import { getCachedDetails, setCachedDetails } from '@/lib/mcp/marketplace-utils';
 
 interface McpMarketplaceState {
   // State
@@ -232,10 +233,21 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
       },
 
       fetchItemDetails: async (mcpId) => {
+        // Check cache first
+        const cached = getCachedDetails<McpDownloadResponse>(mcpId);
+        if (cached) {
+          set({ downloadDetails: cached, isLoadingDetails: false });
+          return cached;
+        }
+
         set({ isLoadingDetails: true });
 
         try {
           const details = await downloadMcpServer(mcpId);
+          // Cache the result
+          if (!details.error) {
+            setCachedDetails(mcpId, details);
+          }
           set({ downloadDetails: details, isLoadingDetails: false });
           return details;
         } catch (_error) {

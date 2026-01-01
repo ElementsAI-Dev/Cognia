@@ -10,7 +10,7 @@
 
 import { nanoid } from 'nanoid';
 import { executeAgent, type AgentConfig, type AgentResult, type AgentTool } from './agent-executor';
-import type { ProviderName } from '../client';
+import type { ProviderName } from '../core/client';
 import {
   DEFAULT_SUB_AGENT_CONFIG,
   type SubAgent,

@@ -663,10 +663,278 @@ export function hasFieldWarning(result: ValidationResult, field: string): boolea
   return result.warnings.some(w => w.field === field);
 }
 
+/**
+ * Workflow structure validation result
+ */
+export interface WorkflowValidationResult {
+  isValid: boolean;
+  errors: WorkflowStructureError[];
+  warnings: WorkflowStructureWarning[];
+}
+
+export interface WorkflowStructureError {
+  type: 'structure' | 'node' | 'edge';
+  nodeId?: string;
+  edgeId?: string;
+  message: string;
+  code: string;
+}
+
+export interface WorkflowStructureWarning {
+  type: 'structure' | 'node' | 'edge';
+  nodeId?: string;
+  edgeId?: string;
+  message: string;
+  code: string;
+}
+
+/**
+ * Validate entire workflow structure
+ */
+export function validateWorkflowStructure(
+  nodes: { id: string; type: string; data: WorkflowNodeData }[],
+  edges: { id: string; source: string; target: string }[]
+): WorkflowValidationResult {
+  const errors: WorkflowStructureError[] = [];
+  const warnings: WorkflowStructureWarning[] = [];
+
+  // Check for start node
+  const startNodes = nodes.filter(n => n.type === 'start');
+  if (startNodes.length === 0) {
+    errors.push({
+      type: 'structure',
+      message: 'Workflow must have a Start node',
+      code: 'MISSING_START',
+    });
+  } else if (startNodes.length > 1) {
+    errors.push({
+      type: 'structure',
+      message: 'Workflow can only have one Start node',
+      code: 'MULTIPLE_START',
+    });
+  }
+
+  // Check for end node
+  const endNodes = nodes.filter(n => n.type === 'end');
+  if (endNodes.length === 0) {
+    errors.push({
+      type: 'structure',
+      message: 'Workflow must have an End node',
+      code: 'MISSING_END',
+    });
+  }
+
+  // Check for orphan nodes (no connections)
+  const connectedNodeIds = new Set<string>();
+  edges.forEach(e => {
+    connectedNodeIds.add(e.source);
+    connectedNodeIds.add(e.target);
+  });
+
+  const orphanNodes = nodes.filter(n => 
+    n.type !== 'annotation' && 
+    n.type !== 'group' && 
+    !connectedNodeIds.has(n.id)
+  );
+  
+  orphanNodes.forEach(node => {
+    warnings.push({
+      type: 'node',
+      nodeId: node.id,
+      message: `Node "${node.data.label}" is not connected to the workflow`,
+      code: 'ORPHAN_NODE',
+    });
+  });
+
+  // Check for nodes with no outgoing edges (except end nodes)
+  const nodesWithOutgoing = new Set(edges.map(e => e.source));
+  const deadEndNodes = nodes.filter(n => 
+    n.type !== 'end' && 
+    n.type !== 'annotation' && 
+    n.type !== 'group' &&
+    connectedNodeIds.has(n.id) &&
+    !nodesWithOutgoing.has(n.id)
+  );
+
+  deadEndNodes.forEach(node => {
+    warnings.push({
+      type: 'node',
+      nodeId: node.id,
+      message: `Node "${node.data.label}" has no outgoing connections`,
+      code: 'DEAD_END',
+    });
+  });
+
+  // Check for nodes with no incoming edges (except start nodes)
+  const nodesWithIncoming = new Set(edges.map(e => e.target));
+  const unreachableNodes = nodes.filter(n => 
+    n.type !== 'start' && 
+    n.type !== 'annotation' && 
+    n.type !== 'group' &&
+    connectedNodeIds.has(n.id) &&
+    !nodesWithIncoming.has(n.id)
+  );
+
+  unreachableNodes.forEach(node => {
+    warnings.push({
+      type: 'node',
+      nodeId: node.id,
+      message: `Node "${node.data.label}" is unreachable from Start`,
+      code: 'UNREACHABLE',
+    });
+  });
+
+  // Check for cycles (basic detection)
+  const hasCycle = detectCycle(nodes, edges);
+  if (hasCycle) {
+    warnings.push({
+      type: 'structure',
+      message: 'Workflow contains a cycle - ensure loop nodes are used correctly',
+      code: 'CYCLE_DETECTED',
+    });
+  }
+
+  // Check conditional nodes have both branches
+  const conditionalNodes = nodes.filter(n => n.type === 'conditional');
+  conditionalNodes.forEach(node => {
+    const outgoingEdges = edges.filter(e => e.source === node.id);
+    if (outgoingEdges.length < 2) {
+      warnings.push({
+        type: 'node',
+        nodeId: node.id,
+        message: `Conditional node "${node.data.label}" should have both true and false branches`,
+        code: 'INCOMPLETE_CONDITIONAL',
+      });
+    }
+  });
+
+  // Check parallel nodes have multiple outgoing edges
+  const parallelNodes = nodes.filter(n => n.type === 'parallel');
+  parallelNodes.forEach(node => {
+    const outgoingEdges = edges.filter(e => e.source === node.id);
+    if (outgoingEdges.length < 2) {
+      warnings.push({
+        type: 'node',
+        nodeId: node.id,
+        message: `Parallel node "${node.data.label}" should have multiple branches`,
+        code: 'SINGLE_BRANCH_PARALLEL',
+      });
+    }
+  });
+
+  // Check merge nodes have multiple incoming edges
+  const mergeNodes = nodes.filter(n => n.type === 'merge');
+  mergeNodes.forEach(node => {
+    const incomingEdges = edges.filter(e => e.target === node.id);
+    if (incomingEdges.length < 2) {
+      warnings.push({
+        type: 'node',
+        nodeId: node.id,
+        message: `Merge node "${node.data.label}" should have multiple incoming branches`,
+        code: 'SINGLE_BRANCH_MERGE',
+      });
+    }
+  });
+
+  // Validate individual nodes
+  nodes.forEach(node => {
+    if (node.type === 'annotation' || node.type === 'group') return;
+    
+    const result = validateNode(node.type as WorkflowNodeType, node.data);
+    result.errors.forEach(err => {
+      errors.push({
+        type: 'node',
+        nodeId: node.id,
+        message: `${node.data.label}: ${err.message}`,
+        code: err.code,
+      });
+    });
+    result.warnings.forEach(warn => {
+      warnings.push({
+        type: 'node',
+        nodeId: node.id,
+        message: `${node.data.label}: ${warn.message}`,
+        code: warn.code,
+      });
+    });
+  });
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
+
+/**
+ * Detect cycles in workflow graph using DFS
+ */
+function detectCycle(
+  nodes: { id: string; type: string }[],
+  edges: { source: string; target: string }[]
+): boolean {
+  const nodeIds = new Set(nodes.filter(n => n.type !== 'loop').map(n => n.id));
+  const adjacency: Record<string, string[]> = {};
+  
+  nodeIds.forEach(id => {
+    adjacency[id] = [];
+  });
+  
+  edges.forEach(e => {
+    if (adjacency[e.source]) {
+      adjacency[e.source].push(e.target);
+    }
+  });
+
+  const visited = new Set<string>();
+  const recStack = new Set<string>();
+
+  function dfs(nodeId: string): boolean {
+    if (recStack.has(nodeId)) return true;
+    if (visited.has(nodeId)) return false;
+
+    visited.add(nodeId);
+    recStack.add(nodeId);
+
+    for (const neighbor of adjacency[nodeId] || []) {
+      if (dfs(neighbor)) return true;
+    }
+
+    recStack.delete(nodeId);
+    return false;
+  }
+
+  for (const nodeId of nodeIds) {
+    if (dfs(nodeId)) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Get validation summary text
+ */
+export function getValidationSummary(result: WorkflowValidationResult): string {
+  if (result.isValid && result.warnings.length === 0) {
+    return 'Workflow is valid';
+  }
+  
+  const parts: string[] = [];
+  if (result.errors.length > 0) {
+    parts.push(`${result.errors.length} error(s)`);
+  }
+  if (result.warnings.length > 0) {
+    parts.push(`${result.warnings.length} warning(s)`);
+  }
+  return parts.join(', ');
+}
+
 export const validationUtils = {
   validateNode,
+  validateWorkflowStructure,
   getFieldError,
   getFieldWarning,
   hasFieldError,
   hasFieldWarning,
+  getValidationSummary,
 };

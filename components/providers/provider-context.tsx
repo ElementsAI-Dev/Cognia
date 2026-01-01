@@ -7,42 +7,21 @@
 
 import { createContext, useContext, useCallback, useEffect, useState, useRef, ReactNode } from 'react';
 import { useSettingsStore } from '@/stores/settings-store';
-import type { UserProviderSettings } from '@/types/provider';
+import type { 
+  UserProviderSettings,
+  ProviderHealthStatus,
+  ProviderMetadata,
+  ProviderHealth,
+  EnhancedProvider,
+} from '@/types/provider';
 
-// Provider health status
-export type ProviderHealthStatus = 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
-
-// Provider metadata
-export interface ProviderMetadata {
-  id: string;
-  name: string;
-  description: string;
-  website?: string;
-  requiresApiKey: boolean;
-  supportsStreaming: boolean;
-  supportsVision: boolean;
-  supportsTools: boolean;
-  maxTokens?: number;
-  pricingUrl?: string;
-  icon?: string;
-}
-
-// Provider health info
-export interface ProviderHealth {
-  status: ProviderHealthStatus;
-  lastCheck: Date | null;
-  latency?: number;
-  errorRate?: number;
-  lastError?: string;
-}
-
-// Provider with metadata and health
-export interface EnhancedProvider {
-  settings: UserProviderSettings;
-  metadata: ProviderMetadata;
-  health: ProviderHealth;
-  isCustom: boolean;
-}
+// Re-export types for backward compatibility
+export type {
+  ProviderHealthStatus,
+  ProviderMetadata,
+  ProviderHealth,
+  EnhancedProvider,
+} from '@/types/provider';
 
 // Provider context value
 export interface ProviderContextValue {

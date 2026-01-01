@@ -5,7 +5,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SelectionToolbarSettings } from './settings-panel';
 import { useSelectionStore } from '@/stores/selection-store';
-import { DEFAULT_CONFIG } from './types';
+import { DEFAULT_SELECTION_CONFIG } from '@/types';
 
 // Mock ResizeObserver
 class ResizeObserverMock {
@@ -43,7 +43,7 @@ describe('SelectionToolbarSettings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseSelectionStore.mockReturnValue({
-      config: DEFAULT_CONFIG,
+      config: DEFAULT_SELECTION_CONFIG,
       isEnabled: true,
       updateConfig: mockUpdateConfig,
       resetConfig: mockResetConfig,
@@ -75,7 +75,7 @@ describe('SelectionToolbarSettings', () => {
 
     it('shows Disabled status when disabled', () => {
       mockUseSelectionStore.mockReturnValue({
-        config: DEFAULT_CONFIG,
+        config: DEFAULT_SELECTION_CONFIG,
         isEnabled: false,
         updateConfig: mockUpdateConfig,
         resetConfig: mockResetConfig,
@@ -241,7 +241,7 @@ describe('SelectionToolbarSettings', () => {
   describe('disabled state', () => {
     it('disables preset buttons when toolbar is disabled', () => {
       mockUseSelectionStore.mockReturnValue({
-        config: DEFAULT_CONFIG,
+        config: DEFAULT_SELECTION_CONFIG,
         isEnabled: false,
         updateConfig: mockUpdateConfig,
         resetConfig: mockResetConfig,
@@ -256,7 +256,7 @@ describe('SelectionToolbarSettings', () => {
 
     it('settings sections show disabled state when disabled', () => {
       mockUseSelectionStore.mockReturnValue({
-        config: DEFAULT_CONFIG,
+        config: DEFAULT_SELECTION_CONFIG,
         isEnabled: false,
         updateConfig: mockUpdateConfig,
         resetConfig: mockResetConfig,

@@ -40,11 +40,6 @@ const createMockItem = (
 describe('MCP Marketplace API', () => {
   beforeEach(() => {
     mockFetch.mockClear();
-    jest.useFakeTimers();
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
   });
 
   describe('fetchClineMarketplace', () => {
@@ -240,11 +235,28 @@ describe('MCP Marketplace API', () => {
     });
 
     it('handles 500 error', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
-      });
+      // Mock multiple responses for retry mechanism
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+        });
 
       const result = await downloadMcpServer('test-server');
 

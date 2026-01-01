@@ -39,7 +39,7 @@ import {
 import { useEffect, useCallback, useState, useRef } from "react";
 import { ToolbarButton } from "./toolbar-button";
 import { ResultPanel } from "./result-panel";
-import { SelectionAction, ActionDefinition, ActionCategory, SelectionMode } from "./types";
+import { SelectionAction, ActionDefinition, ActionCategory, SelectionMode } from "@/types";
 import { useSelectionToolbar } from "@/hooks/use-selection-toolbar";
 import { useSelectionStore } from "@/stores/selection-store";
 import { TooltipProvider } from "@/components/ui/tooltip";

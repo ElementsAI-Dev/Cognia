@@ -7,8 +7,8 @@ import {
   TextType,
   SelectionItem,
   ReferenceResource,
-  DEFAULT_CONFIG,
-} from "@/components/selection-toolbar/types";
+  DEFAULT_SELECTION_CONFIG,
+} from "@/types";
 
 export interface SelectionHistoryItem {
   id: string;
@@ -91,7 +91,7 @@ export const useSelectionStore = create<SelectionStore>()(
   persist(
     (set, get) => ({
       // Initial state
-      config: DEFAULT_CONFIG,
+      config: DEFAULT_SELECTION_CONFIG,
       isEnabled: true,
       isToolbarVisible: false,
       selectedText: "",
@@ -122,7 +122,7 @@ export const useSelectionStore = create<SelectionStore>()(
 
       resetConfig: () =>
         set({
-          config: DEFAULT_CONFIG,
+          config: DEFAULT_SELECTION_CONFIG,
         }),
 
       setEnabled: (enabled: boolean) =>

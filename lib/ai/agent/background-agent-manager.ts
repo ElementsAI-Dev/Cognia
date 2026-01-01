@@ -10,7 +10,7 @@
  */
 
 import { nanoid } from 'nanoid';
-import type { ProviderName } from '../client';
+import type { ProviderName } from '../core/client';
 import {
   AgentOrchestrator,
   type OrchestratorConfig,

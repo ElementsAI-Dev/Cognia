@@ -15,7 +15,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { buildOAuthUrl, getOAuthState, clearOAuthState } from '@/lib/ai/oauth';
+import { buildOAuthUrl, getOAuthState, clearOAuthState } from '@/lib/ai/providers/oauth';
 import { useSettingsStore } from '@/stores';
 import { PROVIDERS } from '@/types/provider';
 

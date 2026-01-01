@@ -44,7 +44,7 @@ import type {
   MemoryUpdateDecision,
 } from '@/types';
 import { DEFAULT_PIPELINE_CONFIG } from '@/types/memory-provider';
-import type { EmbeddingConfig } from '@/lib/ai/embedding';
+import type { EmbeddingConfig } from '@/lib/ai/embedding/embedding';
 
 export interface UseMemoryProviderOptions {
   /** Session ID for scoped memories */

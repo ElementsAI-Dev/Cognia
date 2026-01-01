@@ -36,7 +36,7 @@ import {
   FileText,
 } from "lucide-react";
 import { useState } from "react";
-import { SelectionAction, LANGUAGES } from "./types";
+import { SelectionAction, LANGUAGES } from "@/types";
 
 const THEMES = [
   { value: "auto", label: "Auto (System)", description: "Follow system theme" },

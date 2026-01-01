@@ -6,40 +6,24 @@
  */
 
 import { createContext, useContext, useCallback, ReactNode, useState, useMemo } from 'react';
+import type {
+  AppLogLevel,
+  LogEntry,
+  LoggerConfig,
+  LogTransport,
+} from '@/types';
+import { LOG_LEVEL_PRIORITY } from '@/types';
 
-// Log levels
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+// Re-export types for backward compatibility
+export type {
+  AppLogLevel,
+  LogEntry,
+  LoggerConfig,
+  LogTransport,
+} from '@/types';
 
-// Log entry structure
-export interface LogEntry {
-  id: string;
-  timestamp: Date;
-  level: LogLevel;
-  message: string;
-  data?: unknown;
-  context?: Record<string, unknown>;
-  stack?: string;
-  userId?: string;
-  sessionId?: string;
-}
-
-// Logger configuration
-export interface LoggerConfig {
-  minLevel: LogLevel;
-  enableConsole: boolean;
-  enableStorage: boolean;
-  enableRemote: boolean;
-  remoteEndpoint?: string;
-  maxStorageEntries: number;
-  includeStackTrace: boolean;
-}
-
-// Log transport interface
-export interface LogTransport {
-  name: string;
-  log: (entry: LogEntry) => void | Promise<void>;
-  flush?: () => void | Promise<void>;
-}
+// Alias for backward compatibility
+export type LogLevel = AppLogLevel;
 
 // Logger context value
 interface LoggerContextValue {
@@ -68,14 +52,7 @@ interface LoggerContextValue {
 // Create context
 const LoggerContext = createContext<LoggerContextValue | undefined>(undefined);
 
-// Log level priority (higher = more severe)
-const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
-  debug: 0,
-  info: 1,
-  warn: 2,
-  error: 3,
-  fatal: 4,
-};
+// Log level priority uses imported constant from @/types
 
 // Default configuration
 const DEFAULT_CONFIG: LoggerConfig = {

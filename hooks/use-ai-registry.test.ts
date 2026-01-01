@@ -30,7 +30,7 @@ jest.mock('@/stores', () => ({
 }));
 
 // Mock the AI registry
-jest.mock('@/lib/ai/ai-registry', () => ({
+jest.mock('@/lib/ai/core/ai-registry', () => ({
   createAIRegistry: jest.fn(() => ({
     languageModel: jest.fn((provider, modelId) => {
       // Only return model for configured providers
@@ -70,7 +70,7 @@ jest.mock('@/lib/ai/ai-registry', () => ({
 }));
 
 // Mock rate limit
-jest.mock('@/lib/ai/rate-limit', () => ({
+jest.mock('@/lib/ai/infrastructure/rate-limit', () => ({
   checkRateLimit: jest.fn(() => ({ 
     success: true, 
     remaining: 10, 
@@ -80,7 +80,7 @@ jest.mock('@/lib/ai/rate-limit', () => ({
 }));
 
 // Mock cache middleware
-jest.mock('@/lib/ai/cache-middleware', () => ({
+jest.mock('@/lib/ai/infrastructure/cache-middleware', () => ({
   createSimpleCacheMiddleware: jest.fn(() => ({
     wrapGenerate: jest.fn(),
     wrapStream: jest.fn(),
@@ -88,7 +88,7 @@ jest.mock('@/lib/ai/cache-middleware', () => ({
 }));
 
 // Mock middleware
-jest.mock('@/lib/ai/middleware', () => ({
+jest.mock('@/lib/ai/core/middleware', () => ({
   withDefaultSettings: jest.fn((model) => model),
   withMiddlewares: jest.fn((model) => model),
 }));

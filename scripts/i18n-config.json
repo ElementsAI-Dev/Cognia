@@ -1,18 +1,40 @@
 {
   "targetDirectories": [
+    "components/agent",
+    "components/ai-elements",
+    "components/artifacts",
+    "components/canvas",
     "components/chat",
+    "components/designer",
+    "components/export",
+    "components/image-studio",
+    "components/jupyter",
+    "components/layout",
+    "components/learning",
+    "components/native",
+    "components/presets",
+    "components/projects",
+    "components/providers",
+    "components/sandbox",
+    "components/screen-recording",
+    "components/selection-toolbar",
     "components/settings",
     "components/sidebar",
-    "components/projects",
-    "components/export",
-    "components/agent",
-    "components/presets",
+    "components/skills",
+    "components/ui",
     "components/workflow-editor",
-    "components/canvas",
-    "components/designer",
-    "components/learning",
-    "components/artifacts",
-    "app"
+    "app/(chat)",
+    "app/designer",
+    "app/image-studio",
+    "app/native-tools",
+    "app/projects",
+    "app/selection-toolbar",
+    "app/settings",
+    "app/skills",
+    "app/splashscreen",
+    "app/video-editor",
+    "app/video-studio",
+    "app/workflows"
   ],
   "excludePatterns": [
     "node_modules",
@@ -22,14 +44,23 @@
     "out",
     "coverage",
     "__tests__",
+    "__mocks__",
     "\\.test\\.",
-    "\\.spec\\."
+    "\\.spec\\.",
+    "\\.stories\\.",
+    "\\.d\\.ts$"
   ],
   "extractionRules": {
     "includeStrings": [
       "JSXText",
       "StringLiteral in JSX",
-      "TemplateLiteral in JSX"
+      "TemplateLiteral in JSX",
+      "PlaceholderText",
+      "TooltipText",
+      "ButtonText",
+      "LabelText",
+      "ErrorMessage",
+      "SuccessMessage"
     ],
     "excludePatterns": [
       "^console\\.",
@@ -40,7 +71,7 @@
       "^export\\s",
       "^from\\s",
       "^require\\(",
-      "\\.(css|scss|less|sass|json|md|txt|html)$",
+      "\\.(css|scss|less|sass|json|md|txt|html|svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot)$",
       "^__[A-Z_]+__",
       "^data-[a-z-]+",
       "^aria-[a-z-]+",
@@ -48,30 +79,62 @@
       "^id$",
       "^key$",
       "^ref$",
-      "^type$"
+      "^type$",
+      "^name$",
+      "^value$",
+      "^onChange$",
+      "^onClick$",
+      "^onSubmit$",
+      "^[a-z]+[A-Z][a-zA-Z]*$",
+      "^#[0-9a-fA-F]{3,8}$",
+      "^rgb\\(",
+      "^rgba\\(",
+      "^hsl\\(",
+      "^var\\(--",
+      "^[0-9]+\\.?[0-9]*(px|em|rem|%|vh|vw|deg|ms|s)?$"
     ],
     "minLength": 2,
-    "maxLength": 200,
+    "maxLength": 500,
     "excludeTechnicalStrings": true,
     "excludeDebugStrings": true,
-    "excludeLogStrings": true
+    "excludeLogStrings": true,
+    "excludeCodeIdentifiers": true
   },
   "namespaceMapping": {
+    "components/agent": "agent",
+    "components/ai-elements": "aiElements",
+    "components/artifacts": "artifacts",
+    "components/canvas": "canvas",
     "components/chat": "chat",
+    "components/designer": "designer",
+    "components/export": "export",
+    "components/image-studio": "imageStudio",
+    "components/jupyter": "jupyter",
+    "components/layout": "layout",
+    "components/learning": "learningMode",
+    "components/native": "native",
+    "components/presets": "presets",
+    "components/projects": "projects",
+    "components/providers": "providers",
+    "components/sandbox": "sandbox",
+    "components/screen-recording": "screenRecording",
+    "components/selection-toolbar": "selectionToolbar",
     "components/settings": "settings",
     "components/sidebar": "sidebar",
-    "components/projects": "projects",
-    "components/export": "export",
-    "components/agent": "agent",
-    "components/presets": "presets",
+    "components/skills": "skills",
+    "components/ui": "ui",
     "components/workflow-editor": "workflowEditor",
-    "components/canvas": "canvas",
-    "components/designer": "designer",
-    "components/learning": "learningMode",
-    "components/artifacts": "artifacts",
     "app/(chat)": "chat",
-    "app/settings": "settings",
+    "app/designer": "designer",
+    "app/image-studio": "imageStudio",
+    "app/native-tools": "nativeTools",
     "app/projects": "projects",
+    "app/selection-toolbar": "selectionToolbar",
+    "app/settings": "settings",
+    "app/skills": "skills",
+    "app/splashscreen": "splashscreen",
+    "app/video-editor": "videoEditor",
+    "app/video-studio": "videoStudio",
     "app/workflows": "workflowEditor"
   },
   "keyGenerationRules": {
@@ -80,15 +143,36 @@
     "prefixWithNamespace": false,
     "removeSpecialChars": true,
     "preserveNumbers": true,
-    "conflictResolution": "suffix-number"
+    "conflictResolution": "suffix-number",
+    "wordSeparator": "_"
   },
   "outputFormats": {
     "json": true,
     "csv": true,
-    "markdown": true
+    "markdown": true,
+    "html": false
   },
   "existingTranslations": {
     "enPath": "lib/i18n/messages/en.json",
     "zhCNPath": "lib/i18n/messages/zh-CN.json"
+  },
+  "backupSettings": {
+    "enabled": true,
+    "maxBackups": 5,
+    "backupDir": "i18n-backups"
+  },
+  "validation": {
+    "strictMode": false,
+    "warnOnMissingKeys": true,
+    "warnOnOrphanedKeys": true,
+    "errorOnMissingTranslations": false,
+    "checkPlaceholders": true,
+    "checkInterpolation": true
+  },
+  "cliOptions": {
+    "verbose": false,
+    "dryRun": false,
+    "interactive": true,
+    "autoFix": false
   }
 }

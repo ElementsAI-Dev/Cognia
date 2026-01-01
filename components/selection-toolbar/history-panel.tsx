@@ -42,7 +42,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SelectionAction } from "./types";
+import { SelectionAction } from "@/types";
 
 const ACTION_LABELS: Record<string, string> = {
   explain: "Explained",

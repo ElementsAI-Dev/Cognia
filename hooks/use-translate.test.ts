@@ -4,10 +4,10 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { useTranslate } from './use-translate';
-import * as translateLib from '@/lib/ai/translate';
+import * as translateLib from '@/lib/ai/generation/translate';
 
 // Mock dependencies
-jest.mock('@/lib/ai/translate', () => ({
+jest.mock('@/lib/ai/generation/translate', () => ({
   translateText: jest.fn(),
   detectLanguage: jest.fn(),
   SUPPORTED_LANGUAGES: {

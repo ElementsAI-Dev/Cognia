@@ -20,7 +20,7 @@ import {
   createImageVariation,
   estimateImageCost,
   getAvailableImageModels,
-} from '../image-generation';
+} from '../media/image-generation';
 import type {
   ImageProvider,
   ImageSize,
@@ -29,7 +29,7 @@ import type {
   ImageOutputFormat,
   ImageGenerationResult,
   GeneratedImage,
-} from '../image-generation';
+} from '../media/image-generation';
 
 /**
  * Image generation input schema

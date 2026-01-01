@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
-import { testProviderConnection } from '@/lib/ai/api-test';
+import { testProviderConnection } from '@/lib/ai/infrastructure/api-test';
 
 interface ProviderHealthStatusProps {
   providerId: string;

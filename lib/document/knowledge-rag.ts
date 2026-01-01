@@ -6,7 +6,7 @@
 
 import type { KnowledgeFile, Project } from '@/types';
 import type { RAGDocument } from '@/lib/ai/rag';
-import { chunkDocument, type ChunkingOptions, type DocumentChunk } from '@/lib/ai/chunking';
+import { chunkDocument, type ChunkingOptions, type DocumentChunk } from '@/lib/ai/embedding/chunking';
 import { projectRepository } from '@/lib/db/repositories/project-repository';
 
 /**

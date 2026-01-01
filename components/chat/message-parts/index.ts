@@ -8,3 +8,4 @@ export { TextPart } from './text-part';
 export { ReasoningPart } from './reasoning-part';
 export { ToolPart } from './tool-part';
 export { SourcesPart } from './sources-part';
+export { LearningToolPart, isLearningTool, LEARNING_TOOL_NAMES } from './learning-tool-part';

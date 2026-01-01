@@ -5,10 +5,10 @@
 import { renderHook, act } from '@testing-library/react';
 import { useStructuredOutput } from './use-structured-output';
 import { z } from 'zod';
-import * as structuredOutputLib from '@/lib/ai/structured-output';
+import * as structuredOutputLib from '@/lib/ai/generation/structured-output';
 
 // Mock dependencies
-jest.mock('@/lib/ai/structured-output', () => ({
+jest.mock('@/lib/ai/generation/structured-output', () => ({
   generateStructuredObject: jest.fn(),
   streamStructuredObject: jest.fn(),
   generateStructuredArray: jest.fn(),

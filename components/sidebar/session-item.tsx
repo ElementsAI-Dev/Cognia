@@ -6,7 +6,9 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { MessageSquare, MoreHorizontal, Pencil, Trash2, Copy } from 'lucide-react';
+import { MessageSquare, MoreHorizontal, Pencil, Trash2, Copy, Link2, Check } from 'lucide-react';
+import { createDeepLink } from '@/lib/native/deep-link';
+import { useNativeStore } from '@/stores';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -31,11 +33,20 @@ export function SessionItem({ session, isActive, collapsed = false }: SessionIte
   const t = useTranslations('sidebar');
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(session.title);
+  const [linkCopied, setLinkCopied] = useState(false);
 
+  const isDesktop = useNativeStore((state) => state.isDesktop);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
   const updateSession = useSessionStore((state) => state.updateSession);
   const deleteSession = useSessionStore((state) => state.deleteSession);
   const duplicateSession = useSessionStore((state) => state.duplicateSession);
+
+  const handleCopyLink = async () => {
+    const deepLink = createDeepLink('chat/open', { id: session.id });
+    await navigator.clipboard.writeText(deepLink);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  };
 
   const handleClick = () => {
     setActiveSession(session.id);
@@ -134,6 +145,16 @@ export function SessionItem({ session, isActive, collapsed = false }: SessionIte
             <Copy className="mr-2 h-4 w-4" />
             {t('duplicate')}
           </DropdownMenuItem>
+          {isDesktop && (
+            <DropdownMenuItem onClick={handleCopyLink}>
+              {linkCopied ? (
+                <Check className="mr-2 h-4 w-4 text-green-500" />
+              ) : (
+                <Link2 className="mr-2 h-4 w-4" />
+              )}
+              {linkCopied ? t('linkCopied') : t('copyLink')}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={handleDelete}

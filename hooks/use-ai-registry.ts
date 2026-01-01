@@ -20,19 +20,19 @@ import {
   type AIRegistry,
   type AIRegistryConfig,
   MODEL_ALIASES,
-} from '@/lib/ai/ai-registry';
+} from '@/lib/ai/core/ai-registry';
 import {
   createSimpleCacheMiddleware,
-} from '@/lib/ai/cache-middleware';
+} from '@/lib/ai/infrastructure/cache-middleware';
 import {
   checkRateLimit,
   type RateLimitResult,
-} from '@/lib/ai/rate-limit';
+} from '@/lib/ai/infrastructure/rate-limit';
 import {
   withDefaultSettings,
   withMiddlewares,
   type DefaultModelSettings,
-} from '@/lib/ai/middleware';
+} from '@/lib/ai/core/middleware';
 import type { ProviderName } from '@/types/provider';
 import type { LanguageModel, LanguageModelMiddleware } from 'ai';
 
