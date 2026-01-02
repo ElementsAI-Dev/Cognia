@@ -1,20 +1,51 @@
 # React Hooks Reference
 
-This page documents all custom React hooks used in the Cognia application. Each hook provides reusable stateful logic for specific functionality.
+This page documents all custom React hooks used in the Cognia application. Each hook provides reusable stateful logic for specific functionality. Hooks are organized by category in the `hooks/` directory.
 
 ## Table of Contents
 
+### AI/Agent Hooks (`hooks/ai/`)
+
 - [useAgent](#useagent) - Multi-step AI agent execution
+- [useBackgroundAgent](#usebackgroundagent) - Background agent management
+- [useSubAgent](#usesubagent) - Sub-agent orchestration
+- [useSkills](#useskills) - Skills system integration
+- [useStructuredOutput](#usestructuredoutput) - Zod-structured output
+- [useUnifiedTools](#useunifiedtools) - Unified tool system
+- [usePlanExecutor](#useplanexecutor) - Plan execution
+- [useOllama](#useollama) - Ollama integration
+- [useAIRegistry](#useairegistry) - AI model registry
+
+### Chat Hooks (`hooks/chat/`)
+
 - [useMessages](#usemessages) - Message state management
+- [useArtifactDetection](#useartifactdetection) - Artifact detection
+
+### RAG/Vector Hooks (`hooks/rag/`)
+
 - [useVectorDB](#usevectordb) - Vector database operations
 - [useRAG](#userag) - Retrieval Augmented Generation
-- [useSessionSearch](#usesessionsearch) - Session search functionality
-- [useKeyboardShortcuts](#usekeyboardshortcuts) - Global keyboard shortcuts
+- [useMemory](#usememory) - Memory management
+- [useMemoryProvider](#usememoryprovider) - Memory provider
+- [useRAGPipeline](#useragpipeline) - RAG pipeline
+
+### Context Hooks (`hooks/context/`)
+
+- [useAwareness](#useawareness) - Context awareness
+
+### Media Hooks (`hooks/media/`)
+
 - [useSpeech](#usespeech) - Voice input and text-to-speech
+- [useTTS](#usetts) - Text-to-speech synthesis
+
+### UI Hooks (`hooks/ui/`)
+
+- [useKeyboardShortcuts](#usekeyboardshortcuts) - Global keyboard shortcuts
+
+### Other Hooks
+
 - [useLearningMode](#uselearningmode) - Learning mode management
 - [useWorkflow](#useworkflow) - Workflow automation
-- [useSkills](#useskills) - Skills system
-- [useStructuredOutput](#usestructuredoutput) - Zod-structured output
 - [useTranslate](#usetranslate) - Translation services
 
 ---
@@ -963,21 +994,322 @@ function ChatWithShortcuts() {
 
 ---
 
+## useBackgroundAgent
+
+**Location**: `hooks/ai/use-background-agent.ts`
+
+Hook for managing background agents that execute autonomously with queue management and notifications.
+
+### TypeScript Interface
+
+```typescript
+interface UseBackgroundAgentOptions {
+  sessionId?: string;
+}
+
+interface UseBackgroundAgentReturn {
+  // State
+  agents: BackgroundAgent[];
+  runningAgents: BackgroundAgent[];
+  queuedAgents: BackgroundAgent[];
+  completedAgents: BackgroundAgent[];
+  selectedAgent: BackgroundAgent | null;
+  isPanelOpen: boolean;
+  unreadNotificationCount: number;
+  queueState: {
+    items: number;
+    maxConcurrent: number;
+    currentlyRunning: number;
+    isPaused: boolean;
+  };
+
+  // Agent CRUD
+  createAgent: (input: Omit<CreateBackgroundAgentInput, 'sessionId'>) => BackgroundAgent;
+  updateAgent: (id: string, updates: UpdateBackgroundAgentInput) => void;
+  deleteAgent: (id: string) => void;
+
+  // Execution
+  startAgent: (agentId: string, options?: BackgroundAgentExecutionOptions) => Promise<void>;
+  queueAgent: (agentId: string) => void;
+  pauseAgent: (agentId: string) => void;
+  resumeAgent: (agentId: string) => void;
+  cancelAgent: (agentId: string) => void;
+  cancelAll: () => void;
+
+  // Queue management
+  pauseQueue: () => void;
+  resumeQueue: () => void;
+
+  // Notifications
+  markNotificationRead: (agentId: string, notificationId: string) => void;
+  markAllNotificationsRead: () => void;
+
+  // UI
+  openPanel: () => void;
+  closePanel: () => void;
+  togglePanel: () => void;
+  selectAgent: (id: string | null) => void;
+
+  // Cleanup
+  clearCompleted: () => void;
+}
+```
+
+### Usage Example
+
+```typescript
+import { useBackgroundAgent } from '@/hooks/ai';
+
+function BackgroundAgentPanel() {
+  const {
+    agents,
+    runningAgents,
+    queueState,
+    createAgent,
+    startAgent,
+    pauseQueue,
+    resumeQueue,
+  } = useBackgroundAgent();
+
+  const handleCreateAgent = () => {
+    const agent = createAgent({
+      name: 'Research Task',
+      task: 'Research the latest AI developments',
+      mode: 'research',
+    });
+    startAgent(agent.id);
+  };
+
+  return (
+    <div>
+      <p>Running: {runningAgents.length}</p>
+      <p>Queue: {queueState.items}</p>
+      <button onClick={handleCreateAgent}>Create Agent</button>
+      <button onClick={queueState.isPaused ? resumeQueue : pauseQueue}>
+        {queueState.isPaused ? 'Resume' : 'Pause'} Queue
+      </button>
+    </div>
+  );
+}
+```
+
+---
+
+## useSubAgent
+
+**Location**: `hooks/ai/use-sub-agent.ts`
+
+Hook for managing sub-agents with parallel/sequential execution and dependency management.
+
+### TypeScript Interface
+
+```typescript
+interface UseSubAgentOptions {
+  parentAgentId: string;
+  maxConcurrency?: number;
+}
+
+interface UseSubAgentReturn {
+  // State
+  subAgents: SubAgent[];
+  activeSubAgents: SubAgent[];
+  completedSubAgents: SubAgent[];
+  failedSubAgents: SubAgent[];
+  isExecuting: boolean;
+  progress: number;
+
+  // Actions
+  createSubAgent: (input: Omit<CreateSubAgentInput, 'parentAgentId'>) => SubAgent;
+  updateSubAgent: (id: string, updates: Partial<SubAgent>) => void;
+  deleteSubAgent: (id: string) => void;
+  
+  // Execution
+  executeOne: (subAgentId: string, options?: SubAgentExecutionOptions) => Promise<SubAgentResult>;
+  executeAll: (mode?: SubAgentExecutionMode, options?: SubAgentExecutionOptions) => Promise<SubAgentOrchestrationResult>;
+  cancelAll: () => void;
+  
+  // Utilities
+  reorder: (orderedIds: string[]) => void;
+  clearCompleted: () => void;
+}
+
+type SubAgentExecutionMode = 'parallel' | 'sequential';
+```
+
+### Usage Example
+
+```typescript
+import { useSubAgent } from '@/hooks/ai';
+
+function SubAgentOrchestrator({ parentAgentId }: { parentAgentId: string }) {
+  const {
+    subAgents,
+    progress,
+    isExecuting,
+    createSubAgent,
+    executeAll,
+  } = useSubAgent({ parentAgentId, maxConcurrency: 3 });
+
+  const handleAddSubTask = (task: string) => {
+    createSubAgent({
+      name: task,
+      task,
+      mode: 'general',
+    });
+  };
+
+  const handleExecute = async () => {
+    const result = await executeAll('parallel');
+    console.log('Orchestration complete:', result);
+  };
+
+  return (
+    <div>
+      <p>Sub-agents: {subAgents.length}</p>
+      <p>Progress: {progress}%</p>
+      <button onClick={handleExecute} disabled={isExecuting}>
+        Execute All
+      </button>
+    </div>
+  );
+}
+```
+
+---
+
+## useUnifiedTools
+
+**Location**: `hooks/ai/use-unified-tools.ts`
+
+Hook for unified tool management across built-in tools, skills, and MCP servers.
+
+### TypeScript Interface
+
+```typescript
+interface UseUnifiedToolsOptions {
+  enableBuiltinTools?: boolean;
+  enableSkillTools?: boolean;
+  enableMcpTools?: boolean;
+  enableRAG?: boolean;
+  enableWebScraper?: boolean;
+  customTools?: Record<string, AgentTool>;
+  autoSync?: boolean;
+}
+
+interface UseUnifiedToolsReturn {
+  // Registry
+  registry: UnifiedToolRegistry;
+  
+  // Tools
+  tools: Record<string, AgentTool>;
+  registeredTools: RegisteredTool[];
+  
+  // Filtering
+  filter: (options: ToolFilterOptions) => RegisteredTool[];
+  getToolsBySource: (source: ToolSource) => RegisteredTool[];
+  getToolsByCategory: (category: ToolCategory) => RegisteredTool[];
+  searchTools: (query: string) => RegisteredTool[];
+  
+  // Management
+  enableTool: (name: string) => void;
+  disableTool: (name: string) => void;
+  toggleTool: (name: string) => void;
+  
+  // Sync
+  syncWithStores: () => void;
+  refreshTools: () => void;
+}
+
+type ToolSource = 'builtin' | 'skill' | 'mcp' | 'custom';
+type ToolCategory = 'search' | 'code' | 'data' | 'media' | 'utility';
+```
+
+### Usage Example
+
+```typescript
+import { useUnifiedTools } from '@/hooks/ai';
+
+function ToolSelector() {
+  const {
+    registeredTools,
+    getToolsBySource,
+    searchTools,
+    toggleTool,
+  } = useUnifiedTools({
+    enableBuiltinTools: true,
+    enableSkillTools: true,
+    enableMcpTools: true,
+    autoSync: true,
+  });
+
+  const mcpTools = getToolsBySource('mcp');
+  const searchResults = searchTools('web');
+
+  return (
+    <div>
+      <h3>Available Tools ({registeredTools.length})</h3>
+      {registeredTools.map((tool) => (
+        <div key={tool.name}>
+          <span>{tool.name}</span>
+          <button onClick={() => toggleTool(tool.name)}>
+            {tool.enabled ? 'Disable' : 'Enable'}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+---
+
 ## Hook Reference Summary
+
+### AI/Agent Hooks
 
 | Hook | Purpose | Key Features |
 |------|---------|--------------|
 | useAgent | Multi-step AI execution | Tool calling, planning mode, skills integration |
-| useMessages | Message management | IndexedDB persistence, branching, streaming |
-| useVectorDB | Vector database | ChromaDB integration, search, filtering |
-| useRAG | Retrieval Augmented Generation | Context retrieval, prompt augmentation |
-| useSessionSearch | Session search | Full-text search across conversations |
-| useKeyboardShortcuts | Global shortcuts | Register/unregister, key combinations |
-| useSpeech | Voice I/O | Speech-to-text, text-to-speech |
-| useLearningMode | Learning mode | Socratic method, skill progression |
-| useWorkflow | Workflow automation | Multi-step task execution |
+| useBackgroundAgent | Background agent management | Queue management, notifications, state persistence |
+| useSubAgent | Sub-agent orchestration | Parallel/sequential execution, dependencies |
 | useSkills | Skills system | Register, execute, manage skills |
 | useStructuredOutput | Structured output | Zod schema validation |
+| useUnifiedTools | Unified tool system | MCP tools, built-in tools, skill tools |
+| usePlanExecutor | Plan execution | Step-by-step plan execution |
+| useOllama | Ollama integration | Local model management, model selection |
+| useAIRegistry | AI model registry | Provider/model discovery, capabilities |
+
+### Chat/Message Hooks
+
+| Hook | Purpose | Key Features |
+|------|---------|--------------|
+| useMessages | Message management | IndexedDB persistence, branching, streaming |
+| useArtifactDetection | Artifact detection | Auto-detect artifacts in messages |
+
+### RAG/Vector Hooks
+
+| Hook | Purpose | Key Features |
+|------|---------|--------------|
+| useVectorDB | Vector database | Search, filtering, collection management |
+| useRAG | Retrieval Augmented Generation | Context retrieval, prompt augmentation |
+| useMemory | Memory management | Cross-session memory, retrieval |
+| useMemoryProvider | Memory provider | Provider-agnostic memory interface |
+| useRAGPipeline | RAG pipeline | End-to-end RAG workflow |
+
+### Media/UI Hooks
+
+| Hook | Purpose | Key Features |
+|------|---------|--------------|
+| useSpeech | Voice I/O | Speech-to-text, text-to-speech |
+| useKeyboardShortcuts | Global shortcuts | Register/unregister, key combinations |
+
+### Other Hooks
+
+| Hook | Purpose | Key Features |
+|------|---------|--------------|
+| useSessionSearch | Session search | Full-text search across conversations |
+| useLearningMode | Learning mode | Socratic method, skill progression |
+| useWorkflow | Workflow automation | Multi-step task execution |
 | useTranslate | Translation | Multi-language support |
 
 ## Related Documentation

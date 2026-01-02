@@ -30,18 +30,21 @@ Projects are organizational containers that group related chat sessions together
 ### Project Details
 
 **Basic Information**:
+
 - Name and description
 - Icon and color for visual identification
 - Creation and last access timestamps
 - Session and message counts
 
 **Default Settings**:
+
 - Default provider (OpenAI, Anthropic, etc.)
 - Default model
 - Default mode (Chat, Agent, Research, Learning)
 - Custom instructions
 
 **Organization**:
+
 - Tags for categorization
 - Archive status
 - Project color coding
@@ -51,26 +54,31 @@ Projects are organizational containers that group related chat sessions together
 Quick-start with pre-configured templates:
 
 **Software Development**:
+
 - Icon: Code
 - Color: Blue
 - Instructions: "You are working on a software project. Focus on clean code, best practices, and documentation."
 
 **Research Project**:
+
 - Icon: GraduationCap
 - Color: Purple
 - Instructions: "This is a research project. Cite sources, provide evidence, and maintain academic rigor."
 
 **Content Creation**:
+
 - Icon: PenTool
 - Color: Pink
 - Instructions: "Focus on creating engaging, well-structured content with clear messaging."
 
 **Client Work**:
+
 - Icon: Briefcase
 - Color: Green
 - Instructions: "Professional communication for client work. Maintain business-appropriate tone."
 
 **Personal Learning**:
+
 - Icon: BookOpen
 - Color: Orange
 - Instructions: "Supportive tutor mode. Explain concepts clearly, provide examples, and encourage questions."
@@ -82,6 +90,7 @@ Knowledge bases store reference documents and files that provide context for AI 
 ### Supported File Types
 
 **Documents**:
+
 - PDF (.pdf)
 - Microsoft Word (.docx)
 - Plain text (.txt)
@@ -89,17 +98,20 @@ Knowledge bases store reference documents and files that provide context for AI 
 - Rich Text (.rtf)
 
 **Spreadsheets & Data**:
+
 - CSV (.csv)
 - Microsoft Excel (.xlsx)
 - JSON (.json)
 - XML (.xml)
 
 **Code**:
+
 - All programming languages (.js, .py, .ts, etc.)
 - Jupyter notebooks (.ipynb)
 - Configuration files (.yaml, .toml, .env)
 
 **Web**:
+
 - HTML (.html)
 - CSS (.css)
 - JavaScript (.js)
@@ -116,12 +128,14 @@ Knowledge bases store reference documents and files that provide context for AI 
 ### File Processing
 
 **Text Extraction**:
+
 - PDF text extraction
 - Word document parsing
 - Spreadsheet data extraction
 - Code syntax highlighting
 
 **File Metadata**:
+
 - Original filename
 - File size
 - Page count (for PDFs)
@@ -129,6 +143,7 @@ Knowledge bases store reference documents and files that provide context for AI 
 - Content preview
 
 **Storage**:
+
 - Files stored in IndexedDB
 - Compressed to save space
 - Full-text search capability
@@ -137,12 +152,14 @@ Knowledge bases store reference documents and files that provide context for AI 
 ### Knowledge Base Features
 
 **Search Knowledge Base**:
+
 - Full-text search across all files
 - Filter by file type
 - Sort by name/date/size
 - Preview file contents
 
 **File Actions**:
+
 - **View**: Open file in viewer
 - **Download**: Save to local device
 - **Delete**: Remove from knowledge base
@@ -150,6 +167,7 @@ Knowledge bases store reference documents and files that provide context for AI 
 - **Replace**: Upload new version
 
 **RAG Integration**:
+
 - Knowledge base files indexed for RAG search
 - AI can reference uploaded documents
 - Context-aware responses
@@ -158,18 +176,21 @@ Knowledge bases store reference documents and files that provide context for AI 
 ### Best Practices for Knowledge Bases
 
 **File Organization**:
+
 - Group related documents
 - Use descriptive filenames
 - Keep files current
 - Remove outdated content
 
 **File Selection**:
+
 - Add reference documentation
 - Include style guides
 - Upload code examples
 - Add project specifications
 
 **Size Management**:
+
 - Compress large PDFs
 - Split very large files
 - Monitor storage usage
@@ -192,12 +213,14 @@ Sessions can belong to multiple projects simultaneously.
 ### Creating Sessions in Projects
 
 **From Project View**:
+
 1. Open project
 2. Click **New Chat in Project** button
 3. Session automatically linked to project
 4. Project context applied automatically
 
 **From Chat Interface**:
+
 1. Start new session
 2. Click **More** menu
 3. Select **Link to Project**
@@ -209,18 +232,21 @@ Sessions can belong to multiple projects simultaneously.
 When a session is linked to a project:
 
 **Automatic Context**:
+
 - Project custom instructions applied
 - Knowledge base files accessible
 - Project settings used (provider, model)
 - Project icon shown in chat header
 
 **AI Awareness**:
+
 - AI knows about project context
 - References knowledge base files
 - Follows project instructions
 - Maintains project consistency
 
 **Visual Indicators**:
+
 - Project badge in chat header
 - Project name in session list
 - Color-coded project indicator
@@ -231,12 +257,14 @@ When a session is linked to a project:
 ### Project List View
 
 **All Projects Page**:
+
 - Grid or list view toggle
 - Search and filter projects
 - Sort by name/date/accessed
 - Quick actions menu
 
 **Project Cards Display**:
+
 - Project icon and color
 - Name and description
 - Session count
@@ -244,6 +272,7 @@ When a session is linked to a project:
 - Tags display
 
 **Project Actions**:
+
 - Open project
 - Edit project
 - Archive project
@@ -265,18 +294,21 @@ When a session is linked to a project:
 ### Project Tags
 
 **Predefined Tags**:
+
 - Work, Personal, Learning
 - Research, Development
 - Writing, Design
 - Important, Urgent
 
 **Custom Tags**:
+
 - Create project-specific tags
 - Color-coded tags
 - Multi-tag support
 - Filter by tags
 
 **Tag Management**:
+
 - Add tags when creating/editing project
 - Remove tags from edit view
 - Filter projects by tag in list view
@@ -291,12 +323,14 @@ Archive completed or inactive projects:
 4. Project moved to archive
 
 **Archived Projects**:
+
 - Not shown in main list
 - Accessible from "Archived" filter
 - Can be restored anytime
 - Data preserved
 
 **Restore Archive**:
+
 1. Filter by "Archived"
 2. Click restore icon
 3. Project moved back to active list
@@ -304,12 +338,14 @@ Archive completed or inactive projects:
 ### Deleting Projects
 
 **Soft Delete** (Recommended):
+
 1. Open project
 2. Click **More** menu
 3. Select **Archive**
 4. Project preserved but hidden
 
 **Permanent Delete**:
+
 1. Open project
 2. Click **More** menu
 3. Select **Delete Project**
@@ -323,16 +359,19 @@ Archive completed or inactive projects:
 Track project activity:
 
 **Session Count**:
+
 - Total sessions in project
 - Active sessions
 - Archived sessions
 
 **Message Count**:
+
 - Total messages across all sessions
 - User messages
 - AI responses
 
 **Activity Timeline**:
+
 - Project creation date
 - Last session created
 - Last message sent
@@ -349,11 +388,13 @@ Cognia includes several project templates:
 **Purpose**: Build and maintain software projects
 
 **Configuration**:
+
 - Icon: Code
 - Color: Blue (#3B82F6)
 - Mode: Chat
 - Provider: Auto
 - Instructions:
+
 ```
 You are working on a software development project. Focus on:
 - Writing clean, maintainable code
@@ -365,6 +406,7 @@ You are working on a software development project. Focus on:
 ```
 
 **Recommended Knowledge Base**:
+
 - Coding style guides
 - API documentation
 - Architecture diagrams
@@ -375,11 +417,13 @@ You are working on a software development project. Focus on:
 **Purpose**: Conduct academic or professional research
 
 **Configuration**:
+
 - Icon: GraduationCap
 - Color: Purple (#8B5CF6)
 - Mode: Research
 - Provider: Auto
 - Instructions:
+
 ```
 This is a research project. When helping:
 - Find and cite credible sources
@@ -391,6 +435,7 @@ This is a research project. When helping:
 ```
 
 **Recommended Knowledge Base**:
+
 - Research papers
 - Reference materials
 - Citation style guides
@@ -401,11 +446,13 @@ This is a research project. When helping:
 **Purpose**: Write articles, blog posts, marketing copy
 
 **Configuration**:
+
 - Icon: PenTool
 - Color: Pink (#EC4899)
 - Mode: Chat
 - Provider: Auto
 - Instructions:
+
 ```
 You are assisting with content creation. Focus on:
 - Creating engaging, clear content
@@ -417,6 +464,7 @@ You are assisting with content creation. Focus on:
 ```
 
 **Recommended Knowledge Base**:
+
 - Style guides
 - Brand guidelines
 - Target audience profiles
@@ -427,11 +475,13 @@ You are assisting with content creation. Focus on:
 **Purpose**: Manage client projects and communications
 
 **Configuration**:
+
 - Icon: Briefcase
 - Color: Green (#22C55E)
 - Mode: Chat
 - Provider: Auto
 - Instructions:
+
 ```
 This is client work. Maintain professionalism by:
 - Using formal, business-appropriate language
@@ -443,6 +493,7 @@ This is client work. Maintain professionalism by:
 ```
 
 **Recommended Knowledge Base**:
+
 - Contracts and agreements
 - Client requirements
 - Project timelines
@@ -453,11 +504,13 @@ This is client work. Maintain professionalism by:
 **Purpose**: Learn new skills or subjects
 
 **Configuration**:
+
 - Icon: BookOpen
 - Color: Orange (#F97316)
 - Mode: Learning
 - Provider: Auto
 - Instructions:
+
 ```
 You are supporting learning. When teaching:
 - Explain concepts clearly and gradually
@@ -469,6 +522,7 @@ You are supporting learning. When teaching:
 ```
 
 **Recommended Knowledge Base**:
+
 - Learning materials
 - Practice problems
 - Reference sheets
@@ -485,6 +539,7 @@ Save project configurations as templates:
 5. Template available for future projects
 
 Templates include:
+
 - Icon and color
 - Custom instructions
 - Default settings
@@ -509,6 +564,7 @@ Templates include:
 6. Click **Export**
 
 Export includes:
+
 - Project metadata
 - Custom instructions
 - All linked sessions
@@ -524,6 +580,7 @@ Export includes:
 5. Click **Import Project**
 
 Import supports:
+
 - Previously exported Cognia projects
 - Compatible JSON formats
 - Session data
@@ -532,11 +589,13 @@ Import supports:
 ### Backup and Restore
 
 **Full Backup**:
+
 - Export all projects
 - Download as archive
 - Store safely
 
 **Restore from Backup**:
+
 1. Click **Import** on Projects page
 2. Select backup archive
 3. Choose projects to restore
@@ -547,21 +606,25 @@ Import supports:
 ### Project Organization
 
 **By Client**:
+
 - Create one project per client
 - All client work in one place
 - Easy client handoff
 
 **By Technology**:
+
 - React projects
 - Python projects
 - Infrastructure projects
 
 **By Domain**:
+
 - Machine learning
 - Web development
 - Data analysis
 
 **By Lifecycle**:
+
 - Active development
 - Maintenance mode
 - Completed projects
@@ -569,33 +632,39 @@ Import supports:
 ### Naming Conventions
 
 **Use Clear Names**:
+
 - "Client X - Website Redesign"
 - "Personal - Learning TypeScript"
 - "Research - AI Trends 2024"
 
 **Include Identifiers**:
+
 - Client names
 - Technology stack
 - Year or quarter
 - Project phase
 
 **Avoid Vague Names**:
+
 - Instead of "My Project"
 - Use "E-commerce Platform - Frontend"
 
 ### Knowledge Base Management
 
 **Keep Focused**:
+
 - Only relevant documents
 - Remove outdated files
 - Update regularly
 
 **Organize Files**:
+
 - Descriptive filenames
 - Logical grouping
 - Version control
 
 **Monitor Size**:
+
 - Check storage usage
 - Archive old projects
 - Compress large files
@@ -603,16 +672,19 @@ Import supports:
 ### Session Management
 
 **Link Relevant Sessions**:
+
 - All related work in one project
 - Easy context switching
 - Better organization
 
 **Remove Orphaned Sessions**:
+
 - Sessions not linked to projects
 - Create appropriate projects
 - Or archive individually
 
 **Use Branches**:
+
 - Experiment within sessions
 - Don't create new sessions for variations
 - Keep related work together
@@ -650,11 +722,13 @@ Import supports:
 ### Project Not Showing in List
 
 **Check**:
+
 - Not archived (check archived filter)
 - Not deleted
 - Proper permissions
 
 **Solutions**:
+
 - Clear archive filter
 - Check "All Projects" view
 - Refresh page
@@ -662,11 +736,13 @@ Import supports:
 ### Knowledge Base File Not Processing
 
 **Check**:
+
 - File size within limits
 - Supported file format
 - Browser storage available
 
 **Solutions**:
+
 - Compress large files
 - Convert to supported format
 - Clear browser storage
@@ -674,11 +750,13 @@ Import supports:
 ### Sessions Not Linking
 
 **Check**:
+
 - Session exists
 - Project not archived
 - Sufficient permissions
 
 **Solutions**:
+
 - Create new session in project
 - Unarchive project
 - Check error messages
@@ -686,11 +764,13 @@ Import supports:
 ### Storage Quota Exceeded
 
 **Check**:
+
 - Project storage usage
 - Knowledge base file sizes
 - IndexedDB limits
 
 **Solutions**:
+
 - Remove old knowledge base files
 - Archive old projects
 - Compress files before upload
@@ -699,11 +779,13 @@ Import supports:
 ### Import Failing
 
 **Check**:
+
 - Correct file format (.json)
 - Valid Cognia export
 - File not corrupted
 
 **Solutions**:
+
 - Verify file format
 - Re-export from source
 - Check file size

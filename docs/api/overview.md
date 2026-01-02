@@ -15,9 +15,11 @@ This section provides comprehensive documentation for all APIs in the Cognia app
 Cognia's API is organized into several categories:
 
 ### 1. Server API Routes
+
 **Location**: `app/api/`
 
 RESTful API endpoints for server-side operations:
+
 - Web search with multiple providers
 - Speech transcription
 - OAuth integration
@@ -27,9 +29,11 @@ RESTful API endpoints for server-side operations:
 **Documentation**: [routes.md](routes.md)
 
 ### 2. React Hooks
+
 **Location**: `hooks/`
 
 Custom React hooks for reusable stateful logic:
+
 - AI agent execution
 - Message management
 - Vector database operations
@@ -40,9 +44,11 @@ Custom React hooks for reusable stateful logic:
 **Documentation**: [hooks.md](hooks.md)
 
 ### 3. Zustand Stores
+
 **Location**: `stores/`
 
 Global state management with persistence:
+
 - Settings and preferences
 - Chat sessions
 - Artifacts and canvas
@@ -52,9 +58,11 @@ Global state management with persistence:
 **Documentation**: [stores.md](stores.md)
 
 ### 4. Components
+
 **Location**: `components/`
 
 React components organized by feature:
+
 - Chat interface
 - AI elements
 - Settings panels
@@ -64,9 +72,11 @@ React components organized by feature:
 **Documentation**: [components.md](components.md)
 
 ### 5. Utility Functions
+
 **Location**: `lib/`
 
 Pure functions and helper utilities:
+
 - AI client creation
 - Auto-routing logic
 - Export functionality

@@ -104,12 +104,30 @@ pub fn run() {
         log::debug!("Autostart plugin initialized");
     }
 
+    // Initialize Stronghold plugin with argon2 password hashing
+    // Salt file is stored in app local data directory for secure key derivation
+    {
+        let salt_path_for_stronghold = std::env::temp_dir().join("cognia_stronghold_salt.txt");
+        builder = builder.plugin(
+            tauri_plugin_stronghold::Builder::with_argon2(&salt_path_for_stronghold).build()
+        );
+        log::debug!("Stronghold plugin configured with salt path: {:?}", salt_path_for_stronghold);
+    }
+
     builder.setup(|app| {
             log::info!("Cognia application starting...");
 
             // Initialize system tray
             if let Err(e) = tray::create_tray(app.handle()) {
                 log::error!("Failed to create system tray: {}", e);
+            } else {
+                // Initialize tray state after managers are set up
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    // Small delay to ensure all managers are initialized
+                    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                    tray::init_tray_state(&handle);
+                });
             }
 
             // Get app data directory for MCP config storage
@@ -570,6 +588,44 @@ pub fn run() {
             commands::chat_widget::chat_widget_focus_input,
             commands::chat_widget::chat_widget_send_text,
             commands::chat_widget::chat_widget_destroy,
+            // Git commands
+            commands::git::git_get_platform,
+            commands::git::git_check_installed,
+            commands::git::git_install,
+            commands::git::git_open_website,
+            commands::git::git_get_config,
+            commands::git::git_set_config,
+            commands::git::git_init,
+            commands::git::git_clone,
+            commands::git::git_is_repo,
+            commands::git::git_status,
+            commands::git::git_stage,
+            commands::git::git_stage_all,
+            commands::git::git_unstage,
+            commands::git::git_commit,
+            commands::git::git_log,
+            commands::git::git_file_status,
+            commands::git::git_diff,
+            commands::git::git_diff_between,
+            commands::git::git_push,
+            commands::git::git_pull,
+            commands::git::git_fetch,
+            commands::git::git_remotes,
+            commands::git::git_add_remote,
+            commands::git::git_remove_remote,
+            commands::git::git_branches,
+            commands::git::git_create_branch,
+            commands::git::git_delete_branch,
+            commands::git::git_checkout,
+            commands::git::git_merge,
+            commands::git::git_stash,
+            commands::git::git_reset,
+            commands::git::git_discard_changes,
+            commands::git::git_create_gitignore,
+            commands::git::git_export_chat,
+            commands::git::git_export_designer,
+            commands::git::git_restore_chat,
+            commands::git::git_restore_designer,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

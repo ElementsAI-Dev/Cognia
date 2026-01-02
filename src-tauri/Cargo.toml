@@ -37,6 +37,7 @@ tauri-plugin-single-instance = "2"
 tauri-plugin-devtools = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-deep-link = "2"
+tauri-plugin-stronghold = "2"
 
 # MCP support dependencies
 tokio = { version = "1", features = ["full", "process", "sync", "io-util"] }
@@ -101,3 +102,7 @@ single-instance = []
 
 [dev-dependencies]
 tempfile = "3.8"
+
+# Optimize scrypt for stronghold (recommended by tauri docs)
+[profile.dev.package.scrypt]
+opt-level = 3

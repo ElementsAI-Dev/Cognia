@@ -178,6 +178,7 @@ pnpm tauri build --target x86_64-unknown-linux-gnu # Linux
 ### Build Output Locations
 
 **Windows**:
+
 ```
 src-tauri/target/release/bundle/
 ├── msi/
@@ -188,6 +189,7 @@ src-tauri/target/release/bundle/
 ```
 
 **macOS**:
+
 ```
 src-tauri/target/release/bundle/
 ├── dmg/
@@ -198,6 +200,7 @@ src-tauri/target/release/bundle/
 ```
 
 **Linux**:
+
 ```
 src-tauri/target/release/bundle/
 ├── appimage/
@@ -283,11 +286,13 @@ build-tauri:
 #### Manual Cross-Platform Builds
 
 **Building on Windows for Windows**:
+
 ```bash
 pnpm tauri build --target x86_64-pc-windows-msvc
 ```
 
 **Building on macOS for macOS**:
+
 ```bash
 # Intel build
 pnpm tauri build --target x86_64-apple-darwin
@@ -300,6 +305,7 @@ pnpm tauri build --target aarch64-apple-darwin
 ```
 
 **Building on Linux for Linux**:
+
 ```bash
 pnpm tauri build --target x86_64-unknown-linux-gnu
 ```
@@ -612,6 +618,7 @@ netlify deploy --prod --dir=out
 #### Static CDN
 
 **AWS S3 + CloudFront**:
+
 ```bash
 # Upload to S3
 aws s3 sync out/ s3://my-bucket --delete
@@ -621,6 +628,7 @@ aws cloudfront create-invalidation --distribution-id YOUR_ID --paths "/*"
 ```
 
 **Azure Static Web Apps**:
+
 ```bash
 # Deploy using Azure CLI
 az staticwebapp deploy \
@@ -630,6 +638,7 @@ az staticwebapp deploy \
 ```
 
 **GitHub Pages**:
+
 ```bash
 # Deploy using gh-pages
 pnpm build
@@ -677,10 +686,12 @@ scp src-tauri/target/release/bundle/msi/*.msi user@server:/var/www/downloads/
 #### App Stores
 
 **Microsoft Store**:
+
 - Requires Windows app packaging
 - See: [Tauri MSIX Packaging](https://tauri.app/v1/guides/distribution/msix)
 
 **Mac App Store**:
+
 - Requires Apple Developer account
 - See: [Tauri Mac App Store](https://tauri.app/v1/guides/distribution/mac-app-store)
 

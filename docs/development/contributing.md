@@ -130,6 +130,7 @@ Use the following prefixes:
 - `chore/` - Routine tasks, dependencies
 
 **Examples**:
+
 ```
 feature/add-dark-mode
 fix/resolve-memory-leak
@@ -217,6 +218,7 @@ Before submitting, test:
 ### Creating a Pull Request
 
 1. **Push your changes**:
+
    ```bash
    git push origin feature/your-feature-name
    ```
@@ -227,6 +229,7 @@ Before submitting, test:
    - Base: `develop` ← Compare: `feature/your-feature-name`
 
 3. **Fill PR template**:
+
    ```markdown
    ## Description
    Brief description of changes
@@ -326,31 +329,37 @@ git push origin feature/your-feature-name
 ### Review Checklist
 
 **Functionality**:
+
 - [ ] Does it work as intended?
 - [ ] Are edge cases handled?
 - [ ] Is error handling appropriate?
 
 **Code Quality**:
+
 - [ ] Is code readable and maintainable?
 - [ ] Are functions focused and reusable?
 - [ ] Is naming clear and consistent?
 
 **Testing**:
+
 - [ ] Are tests comprehensive?
 - [ ] Do tests cover edge cases?
 - [ ] Is test coverage adequate?
 
 **Documentation**:
+
 - [ ] Is code documented?
 - [ ] Are comments clear?
 - [ ] Is user documentation updated?
 
 **Performance**:
+
 - [ ] Are there performance concerns?
 - [ ] Is memory usage appropriate?
 - [ ] Are there optimizations needed?
 
 **Security**:
+
 - [ ] Are inputs validated?
 - [ ] Are secrets protected?
 - [ ] Are there security vulnerabilities?
@@ -370,6 +379,7 @@ Update documentation when:
 ### Documentation Files
 
 **Project Documentation** (`llmdoc/`):
+
 ```
 llmdoc/
 ├── index.md              # Documentation index
@@ -380,6 +390,7 @@ llmdoc/
 ```
 
 **Development Guides** (`docs/development/`):
+
 ```
 docs/development/
 ├── getting-started.md    # Setup and installation
@@ -393,11 +404,13 @@ docs/development/
 ### Writing Documentation
 
 **Use clear language**:
+
 - Explain technical concepts clearly
 - Provide examples for complex topics
 - Use code blocks for examples
 
 **Include diagrams**:
+
 ```
 ## Architecture Flow
 
@@ -405,6 +418,7 @@ User → Component → Store → API → Backend
 ```
 
 **Add code examples**:
+
 ```typescript
 // Usage example
 const { addMessage } = useMessages();
@@ -496,9 +510,11 @@ Brief description of your question
 ```
 
 ## Environment
+
 - OS: [e.g., Windows 11]
 - Node.js: [e.g., v20.x.x]
 - Browser: [e.g., Chrome 120]
+
 ```
 
 ## Recognition

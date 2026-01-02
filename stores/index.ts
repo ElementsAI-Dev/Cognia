@@ -242,3 +242,16 @@ export {
   selectActivePresentation,
   useWorkflowEditorStore,
 } from './workflow';
+
+// Git stores
+export {
+  useGitStore,
+  selectGitStatus,
+  selectIsGitInstalled,
+  selectCurrentRepo,
+  selectBranches,
+  selectCommits,
+  selectFileStatus,
+  selectOperationStatus,
+  selectLastError,
+} from './git';

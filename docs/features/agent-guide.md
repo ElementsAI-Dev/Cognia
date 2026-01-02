@@ -21,22 +21,26 @@ Cognia provides 8 built-in agent modes optimized for different tasks:
 **Purpose**: All-purpose assistance for everyday tasks
 
 **Best For**:
+
 - General questions and advice
 - Multi-step tasks without specific requirements
 - Exploratory conversations
 - Tasks that don't fit other categories
 
 **Tools Available**:
+
 - Calculator
 - Web Search
 
 **How to Use**:
+
 1. Select **Agent** mode from chat header
 2. Select **General** from agent mode dropdown
 3. Describe your task
 4. Agent will plan and execute steps
 
 **Example Prompt**:
+
 ```
 Help me plan a weekend trip to San Francisco. Find attractions,
 restaurants, and create a rough itinerary.
@@ -47,12 +51,14 @@ restaurants, and create a rough itinerary.
 **Purpose**: Generate and preview web interfaces with React and Tailwind CSS
 
 **Best For**:
+
 - Creating landing pages
 - Designing UI components
 - Prototyping web applications
 - Generating responsive layouts
 
 **Tools Available**:
+
 - Code Interpreter (JavaScript/TypeScript)
 - Web Preview (live preview)
 - Designer (opens full designer panel)
@@ -60,12 +66,14 @@ restaurants, and create a rough itinerary.
 **Output Format**: React code with Tailwind CSS
 
 **How to Use**:
+
 1. Select **Agent** mode
 2. Select **Web Designer** from agent mode dropdown
 3. Describe the interface you want
 4. Agent generates code and shows live preview
 
 **Example Prompt**:
+
 ```
 Create a modern landing page for a SaaS product with:
 - Hero section with CTA
@@ -76,6 +84,7 @@ Use a blue color scheme.
 ```
 
 **Preview Capabilities**:
+
 - Live preview of generated code
 - Interactive components
 - Responsive design preview
@@ -86,6 +95,7 @@ Use a blue color scheme.
 **Purpose**: Write, explain, and refactor code across multiple languages
 
 **Best For**:
+
 - Writing new code from specifications
 - Explaining existing code
 - Refactoring for best practices
@@ -93,11 +103,13 @@ Use a blue color scheme.
 - Code review and optimization
 
 **Tools Available**:
+
 - Code Interpreter
 - File operations (read, write, list)
 - Web Search (for documentation lookup)
 
 **Supported Languages**:
+
 - JavaScript/TypeScript
 - Python
 - Java
@@ -109,12 +121,14 @@ Use a blue color scheme.
 - And more...
 
 **How to Use**:
+
 1. Select **Agent** mode
 2. Select **Code Generator** from agent mode dropdown
 3. Provide requirements or paste existing code
 4. Agent writes code with explanations
 
 **Example Prompts**:
+
 ```
 Write a TypeScript function that validates email addresses using regex,
 with proper error handling and unit tests.
@@ -126,6 +140,7 @@ Review this code and suggest refactoring improvements for better performance:
 ```
 
 **Code Features**:
+
 - Syntax highlighting
 - Type annotations
 - Error handling
@@ -137,6 +152,7 @@ Review this code and suggest refactoring improvements for better performance:
 **Purpose**: Analyze data and create visualizations
 
 **Best For**:
+
 - CSV/data analysis
 - Statistical calculations
 - Chart generation
@@ -144,23 +160,27 @@ Review this code and suggest refactoring improvements for better performance:
 - Report generation
 
 **Tools Available**:
+
 - Code Interpreter (Python, JavaScript)
 - File operations (read CSV, Excel, JSON)
 - Calculator
 
 **Supported Formats**:
+
 - CSV files
 - Excel spreadsheets
 - JSON data
 - SQL queries
 
 **How to Use**:
+
 1. Select **Agent** mode
 2. Select **Data Analyst** from agent mode dropdown
 3. Upload data file or describe analysis
 4. Agent analyzes and creates visualizations
 
 **Example Prompt**:
+
 ```
 Analyze the uploaded sales.csv file and:
 1. Calculate total sales by month
@@ -170,6 +190,7 @@ Analyze the uploaded sales.csv file and:
 ```
 
 **Output Types**:
+
 - Statistical summaries
 - Charts (bar, line, pie, scatter)
 - Tables and pivot tables
@@ -181,6 +202,7 @@ Analyze the uploaded sales.csv file and:
 **Purpose**: Content creation and editing assistance
 
 **Best For**:
+
 - Blog posts and articles
 - Marketing copy
 - Social media content
@@ -188,18 +210,21 @@ Analyze the uploaded sales.csv file and:
 - Creative writing
 
 **Tools Available**:
+
 - Web Search (for research)
 - Calculator (word count, reading time)
 
 **Output Format**: Markdown or plain text
 
 **How to Use**:
+
 1. Select **Agent** mode
 2. Select **Writing Assistant** from agent mode dropdown
 3. Provide topic or existing text
 4. Agent creates or improves content
 
 **Example Prompts**:
+
 ```
 Write a 1000-word blog post about the benefits of meditation for productivity.
 Include an engaging introduction, 3 main points, and a conclusion with a CTA.
@@ -211,6 +236,7 @@ Edit this email to be more professional and concise:
 ```
 
 **Writing Features**:
+
 - Tone adjustment
 - Grammar and style correction
 - SEO optimization
@@ -222,6 +248,7 @@ Edit this email to be more professional and concise:
 **Purpose**: Information gathering and synthesis from multiple sources
 
 **Best For**:
+
 - Academic research
 - Competitive analysis
 - Market research
@@ -229,22 +256,26 @@ Edit this email to be more professional and concise:
 - Fact-checking
 
 **Tools Available**:
+
 - Web Search (Tavily, Brave, Google)
 - RAG Search (knowledge base)
 - Document operations
 
 **Search Providers**:
+
 - Tavily (default) - Optimized for AI research
 - Brave Search - Privacy-focused
 - Google Search - Comprehensive results
 
 **How to Use**:
+
 1. Select **Agent** mode
 2. Select **Research Assistant** from agent mode dropdown
 3. Ask research question
 4. Agent searches, reads sources, and synthesizes
 
 **Example Prompt**:
+
 ```
 Research and compare the performance characteristics of PostgreSQL vs MySQL
 for read-heavy workloads. Include sources from the last 12 months and cite
@@ -252,6 +283,7 @@ specific benchmarks.
 ```
 
 **Research Features**:
+
 - Source citation
 - Multi-source synthesis
 - Reference management
@@ -263,6 +295,7 @@ specific benchmarks.
 **Purpose**: Create PowerPoint-style presentations
 
 **Best For**:
+
 - Business presentations
 - Educational slides
 - Pitch decks
@@ -270,6 +303,7 @@ specific benchmarks.
 - Conference talks
 
 **Tools Available**:
+
 - Slide Generator (DALL-E images)
 - Code Interpreter (for content generation)
 - Web Search (for research)
@@ -277,12 +311,14 @@ specific benchmarks.
 **Output Format**: PPTX with images and content
 
 **How to Use**:
+
 1. Select **Agent** mode
 2. Select **Presentation Generator** from agent mode dropdown
 3. Describe presentation topic and structure
 4. Agent generates slides with images
 
 **Example Prompt**:
+
 ```
 Create a 10-slide presentation on "The Future of Remote Work":
 - Slide 1: Title slide
@@ -296,6 +332,7 @@ Include relevant images for each slide.
 ```
 
 **Slide Features**:
+
 - Automatic image generation (DALL-E)
 - Multiple layout options
 - Style modifiers (photorealistic, illustration, minimalist)
@@ -308,6 +345,7 @@ Include relevant images for each slide.
 **Purpose**: Execute predefined multi-step workflows
 
 **Best For**:
+
 - Repetitive tasks
 - Standard operating procedures
 - Automated processes
@@ -315,15 +353,18 @@ Include relevant images for each slide.
 - Deployment pipelines
 
 **Tools Available**:
+
 - All tools (configurable per workflow step)
 
 **How to Use**:
+
 1. Select **Agent** mode
 2. Select **Workflow Executor** from agent mode dropdown
 3. Describe workflow or load saved workflow
 4. Agent executes each step sequentially
 
 **Example Prompt**:
+
 ```
 Execute this workflow for code review:
 1. Read the file: src/components/Button.tsx
@@ -334,6 +375,7 @@ Execute this workflow for code review:
 ```
 
 **Workflow Features**:
+
 - Step-by-step execution
 - Conditional branching
 - Error handling per step
@@ -347,6 +389,7 @@ Agents can use tools from multiple sources:
 ### Built-in Tools
 
 **Calculator** - Mathematical calculations
+
 ```
 Agent: "What's 15% of $350?"
 Tool: calculator({ expression: "350 * 0.15" })
@@ -354,6 +397,7 @@ Result: 52.5
 ```
 
 **Web Search** - Online information retrieval
+
 ```
 Agent: "What are the latest React features?"
 Tool: web_search({ query: "React latest features 2024" })
@@ -361,6 +405,7 @@ Result: List of articles and summaries
 ```
 
 **Code Interpreter** - Execute JavaScript/TypeScript code
+
 ```
 Agent: "Calculate fibonacci sequence"
 Tool: execute_code({ code: "function fib(n) {...}" })
@@ -368,6 +413,7 @@ Result: Computed values
 ```
 
 **RAG Search** - Search your knowledge base
+
 ```
 Agent: "What did we decide about the API design?"
 Tool: rag_search({ query: "API design decision", top_k: 5 })
@@ -375,6 +421,7 @@ Result: Relevant documents from knowledge base
 ```
 
 **File Operations** - Read, write, list files
+
 ```
 Agent: "Read the configuration file"
 Tool: read_file({ path: "./config.json" })
@@ -382,6 +429,7 @@ Result: File contents
 ```
 
 **Document Tools** - Process uploaded documents
+
 ```
 Agent: "Summarize this PDF"
 Tool: summarize_document({ file_id: "..." })
@@ -393,12 +441,14 @@ Result: Document summary
 Active Skills are automatically converted to agent tools:
 
 **How it Works**:
+
 1. Enable Skills in Settings → Skills
 2. Activate the Skills you want agents to use
 3. Agents automatically have access to Skill tools
 4. Skill resources included in agent context
 
 **Example**:
+
 ```
 Enabled Skill: "Python Code Generator"
 Agent Tool: python_generator({ prompt: "Create a REST API" })
@@ -410,18 +460,21 @@ Result: Generated Python code
 Model Context Protocol (MCP) servers provide custom tools:
 
 **Built-in MCP Tools**:
+
 - Database queries
 - API integrations
 - Custom scripts
 - Third-party services
 
 **Configuration**:
+
 1. Go to Settings → MCP Servers
 2. Add MCP server URL
 3. Configure authentication
 4. Tools automatically available to agents
 
 **Example**:
+
 ```
 MCP Server: "company-database"
 Agent Tool: company_db.query({ sql: "SELECT * FROM users" })
@@ -435,18 +488,21 @@ Run long tasks in the background while you continue working.
 ### Creating Background Agents
 
 **Method 1: From Chat**:
+
 1. Run agent in Agent mode
 2. Click "Run in Background" button
 3. Agent continues execution in background
 4. You can close the chat or work on other tasks
 
 **Method 2: From Background Panel**:
+
 1. Open Background Agents panel
 2. Click "Create Agent"
 3. Configure task and settings
 4. Click "Start"
 
 **Method 3: From useAgent Hook**:
+
 ```typescript
 const { runInBackground } = useAgent();
 runInBackground({
@@ -462,12 +518,14 @@ runInBackground({
 ### Background Agent Features
 
 **Queue Management**:
+
 - Priority-based scheduling (1=highest, 5=lowest)
 - Max 3 concurrent agents
 - Pause/resume queue
 - Automatic retry on failure
 
 **Agent Lifecycle**:
+
 ```
 idle → queued → initializing → running → completed/failed/cancelled
                                     ↓
@@ -475,6 +533,7 @@ idle → queued → initializing → running → completed/failed/cancelled
 ```
 
 **Notifications**:
+
 - Agent started
 - Progress updates (25%, 50%, 75%)
 - Step completed
@@ -485,6 +544,7 @@ idle → queued → initializing → running → completed/failed/cancelled
 - Cancelled
 
 **State Persistence**:
+
 - Agents survive page refresh
 - Queued agents restored on restart
 - Execution logs preserved
@@ -493,11 +553,13 @@ idle → queued → initializing → running → completed/failed/cancelled
 ### Managing Background Agents
 
 **View Running Agents**:
+
 1. Click background agent indicator (status bar)
 2. Background Agent Panel opens
 3. See all agents with status
 
 **Agent Actions**:
+
 - **Pause** - Temporarily halt execution
 - **Resume** - Continue paused agent
 - **Cancel** - Stop agent execution
@@ -506,6 +568,7 @@ idle → queued → initializing → running → completed/failed/cancelled
 - **View Results** - Show agent output
 
 **Queue Controls**:
+
 - **Pause Queue** - Pause all queued agents
 - **Resume Queue** - Resume processing queue
 - **Clear Completed** - Remove all completed agents
@@ -513,6 +576,7 @@ idle → queued → initializing → running → completed/failed/cancelled
 ### Background Agent Configuration
 
 **Notification Settings**:
+
 ```typescript
 {
   notifyOnProgress: boolean,    // Notify at 25%, 50%, 75%
@@ -522,6 +586,7 @@ idle → queued → initializing → running → completed/failed/cancelled
 ```
 
 **Retry Settings**:
+
 ```typescript
 {
   autoRetry: boolean,           // Automatically retry on failure
@@ -531,6 +596,7 @@ idle → queued → initializing → running → completed/failed/cancelled
 ```
 
 **Execution Settings**:
+
 ```typescript
 {
   timeout: number,              // Execution timeout (ms)
@@ -546,6 +612,7 @@ Complex tasks can be broken down into multiple sub-agents working together.
 ### Sub-Agent Execution Modes
 
 **Sequential Mode** - Execute one after another:
+
 ```
 Sub-Agent 1: Research topic
   ↓
@@ -555,6 +622,7 @@ Sub-Agent 3: Proofread and edit
 ```
 
 **Parallel Mode** - Execute simultaneously:
+
 ```
 Sub-Agent 1: Research aspect A
 Sub-Agent 2: Research aspect B
@@ -564,6 +632,7 @@ Combine results
 ```
 
 **Conditional Mode** - Execute based on conditions:
+
 ```
 Sub-Agent 1: Analyze data
   ↓
@@ -582,6 +651,7 @@ When you provide a complex task, agents automatically:
 5. **Aggregate Results** - Combine sub-agent outputs
 
 **Example**:
+
 ```
 User: "Research AI trends, write an article, and create social media posts"
 
@@ -598,6 +668,7 @@ Execution: Sequential (1 → 2 → 3,4,5 parallel)
 ### Sub-Agent Configuration
 
 **Priority Levels**:
+
 - `critical` - Highest priority
 - `high` - High priority
 - `normal` - Default priority
@@ -605,6 +676,7 @@ Execution: Sequential (1 → 2 → 3,4,5 parallel)
 - `background` - Lowest priority
 
 **Dependencies**:
+
 ```typescript
 {
   dependencies: ['agent-1-id', 'agent-2-id'],
@@ -613,6 +685,7 @@ Execution: Sequential (1 → 2 → 3,4,5 parallel)
 ```
 
 **Context Sharing**:
+
 ```typescript
 {
   inheritParentContext: true,  // Get parent's conversation history
@@ -627,6 +700,7 @@ Create structured plans before execution for better control.
 ### Manual Plan Creation
 
 **Create Plan in Editor**:
+
 1. Open Agent Plan Editor (chat header → "Plan")
 2. Add steps with descriptions
 3. Define step dependencies
@@ -634,6 +708,7 @@ Create structured plans before execution for better control.
 5. Approve and execute plan
 
 **Plan Structure**:
+
 ```typescript
 {
   name: 'Data Migration Plan',
@@ -669,6 +744,7 @@ Create structured plans before execution for better control.
 ### Executing Plans
 
 **Execute Plan**:
+
 1. Create or load plan
 2. Review steps and dependencies
 3. Click "Execute Plan"
@@ -676,6 +752,7 @@ Create structured plans before execution for better control.
 5. View results after completion
 
 **Plan Status**:
+
 - `draft` - Plan being created
 - `approved` - Ready to execute
 - `executing` - Currently running
@@ -684,6 +761,7 @@ Create structured plans before execution for better control.
 - `cancelled` - Execution cancelled
 
 **Step Status**:
+
 - `pending` - Waiting to execute
 - `in_progress` - Currently executing
 - `completed` - Finished successfully
@@ -697,6 +775,7 @@ Monitor agent execution in real-time.
 ### Agent Steps Panel
 
 **What it Shows**:
+
 - Current step number (e.g., "Step 3 of 5")
 - Progress bar with percentage
 - List of all steps with status icons
@@ -705,12 +784,14 @@ Monitor agent execution in real-time.
 - Error messages (if any)
 
 **Status Indicators**:
+
 - ⚪ **Circle** - Pending
 - 🔵 **Spinner** - In Progress
 - ✅ **Check** - Completed
 - ❌ **X** - Failed
 
 **Tool Call Cards**:
+
 - Tool name
 - Input parameters
 - Output results
@@ -718,12 +799,14 @@ Monitor agent execution in real-time.
 - Error details (if failed)
 
 **Opening the Panel**:
+
 - Automatically appears during agent execution
 - Or click "Agent Steps" button in chat header
 
 ### Background Agent Panel
 
 **Panel Features**:
+
 - List of all background agents
 - Agent cards with status badges
 - Queue controls (pause/resume)
@@ -732,6 +815,7 @@ Monitor agent execution in real-time.
 - Agent detail view
 
 **Agent Card**:
+
 - Agent name and mode
 - Status badge (queued, running, completed, failed)
 - Progress bar
@@ -740,6 +824,7 @@ Monitor agent execution in real-time.
 - Action buttons (pause, resume, cancel, delete)
 
 **Agent Flow Visualizer**:
+
 - Visual representation of execution flow
 - Sub-agent relationships
 - Dependency graph
@@ -748,11 +833,13 @@ Monitor agent execution in real-time.
 ### Background Agent Indicator
 
 **Status Bar Indicator**:
+
 - Shows count of running agents
 - Badge with number of unread notifications
 - Click to open Background Agent Panel
 
 **Indicator States**:
+
 - Gray - No agents
 - Blue - Agents queued
 - Green - Agents running
@@ -764,10 +851,12 @@ Monitor agent execution in real-time.
 ### Agent Settings
 
 **Access Settings**:
+
 1. Go to Settings → Agent
 2. Configure default behavior
 
 **Default Settings**:
+
 ```typescript
 {
   maxSteps: 10,                  // Max steps per agent execution
@@ -781,6 +870,7 @@ Monitor agent execution in real-time.
 ```
 
 **Stop Conditions**:
+
 - `stepCount` - Stop after maxSteps
 - `hasToolCall` - Stop when tool call made
 - `noToolCalls` - Stop when no more tool calls
@@ -797,6 +887,7 @@ Agent: "I need to search the web for 'latest AI trends'. Allow?"
 ```
 
 **Configure Approval**:
+
 1. Go to Settings → Agent → Tool Approval
 2. Toggle "Require Approval"
 3. Choose which tools require approval:
@@ -807,6 +898,7 @@ Agent: "I need to search the web for 'latest AI trends'. Allow?"
 ### Creating Custom Agent Modes
 
 **Create Custom Mode**:
+
 1. Go to Agent mode selector
 2. Click "Create Custom Mode"
 3. Configure:
@@ -818,6 +910,7 @@ Agent: "I need to search the web for 'latest AI trends'. Allow?"
 4. Save custom mode
 
 **Example Custom Mode**:
+
 ```typescript
 {
   name: 'SEO Writer',
@@ -835,18 +928,21 @@ Agent: "I need to search the web for 'latest AI trends'. Allow?"
 ### For Better Results
 
 **1. Be Specific with Tasks**:
+
 ```
 Bad: "Write code"
 Good: "Write a TypeScript function that validates email addresses using regex, with error handling and JSDoc comments"
 ```
 
 **2. Provide Context**:
+
 ```
 Bad: "Fix this bug"
 Good: "Fix the bug in the login form where users with special characters in passwords can't log in. The error occurs at line 42 in LoginForm.tsx"
 ```
 
 **3. Use Appropriate Modes**:
+
 - Web Designer → UI/UX tasks
 - Code Generator → Programming tasks
 - Data Analyst → Data analysis
@@ -856,12 +952,14 @@ Good: "Fix the bug in the login form where users with special characters in pass
 - Workflow Executor → Multi-step procedures
 
 **4. Leverage Tools**:
+
 - Upload files for analysis
 - Enable relevant Skills
 - Configure MCP servers for custom tools
 - Use RAG with your knowledge base
 
 **5. Monitor Execution**:
+
 - Watch Agent Steps panel for progress
 - Check tool call results
 - Review errors and adjust
@@ -870,6 +968,7 @@ Good: "Fix the bug in the login form where users with special characters in pass
 ### For Complex Tasks
 
 **Break Down Large Tasks**:
+
 ```
 Instead of: "Build a full e-commerce site"
 Try:
@@ -879,16 +978,19 @@ Try:
 ```
 
 **Use Background Mode**:
+
 - For long-running tasks (research, large code generation)
 - When you need to continue working
 - For automated workflows
 
 **Leverage Sub-Agents**:
+
 - Let agent plan sub-tasks automatically
 - Or manually create plan for more control
 - Use parallel execution for independent tasks
 
 **Set Appropriate Timeouts**:
+
 - Simple tasks: 1-2 minutes
 - Complex tasks: 5-10 minutes
 - Background tasks: 30+ minutes
@@ -896,16 +998,19 @@ Try:
 ### For Productivity
 
 **Keyboard Shortcuts**:
+
 - `Ctrl/Cmd+Shift+A` - Open Background Agent Panel
 - `Ctrl/Cmd+K` - Focus agent mode selector
 - `Escape` - Close agent panels
 
 **Quick Actions**:
+
 - Pin frequently used agent modes
 - Save commonly used plans
 - Create custom modes for repetitive tasks
 
 **Batch Operations**:
+
 - Queue multiple similar tasks
 - Use parallel sub-agents
 - Set appropriate priorities
@@ -917,6 +1022,7 @@ Try:
 **Problem**: Agent doesn't execute when you send message
 
 **Solutions**:
+
 1. Check if Agent mode is selected (not Chat mode)
 2. Verify provider API key is valid
 3. Ensure selected model supports tool calling
@@ -928,6 +1034,7 @@ Try:
 **Problem**: Agent keeps calling tools without finishing
 
 **Solutions**:
+
 1. Set `maxSteps` limit in agent settings
 2. Change `stopWhen` condition to `noToolCalls`
 3. Click "Stop" to halt execution
@@ -939,6 +1046,7 @@ Try:
 **Problem**: Agent can't access certain tools
 
 **Solutions**:
+
 1. Check if tools are enabled in agent settings
 2. Verify MCP servers are connected
 3. Ensure Skills are activated
@@ -950,6 +1058,7 @@ Try:
 **Problem**: Background agent shows failed status
 
 **Solutions**:
+
 1. View agent logs for error details
 2. Check if provider API rate limit was hit
 3. Verify task timeout isn't too short
@@ -961,6 +1070,7 @@ Try:
 **Problem**: Agent taking too long to complete
 
 **Solutions**:
+
 1. Use faster model (e.g., GPT-4o Mini instead of GPT-4o)
 2. Reduce `maxSteps` limit
 3. Disable unnecessary tools
@@ -972,6 +1082,7 @@ Try:
 **Problem**: Agent using too much context or tokens
 
 **Solutions**:
+
 1. Reduce context length in settings
 2. Disable verbose logging
 3. Use fewer tools (less system prompt)

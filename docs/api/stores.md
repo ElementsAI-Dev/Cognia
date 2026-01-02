@@ -1,19 +1,72 @@
 # Zustand Stores Reference
 
-This page documents all Zustand stores used for state management in the Cognia application. All stores use the `persist` middleware for localStorage persistence.
+This page documents all Zustand stores used for state management in the Cognia application. Stores are organized by category in the `stores/` directory and use the `persist` middleware for localStorage persistence.
 
 ## Table of Contents
 
 - [Overview](#overview)
-- [Settings Store](#settings-store)
-- [Session Store](#session-store)
-- [Artifact Store](#artifact-store)
-- [Agent Store](#agent-store)
-- [Memory Store](#memory-store)
-- [Project Store](#project-store)
-- [Preset Store](#preset-store)
-- [Usage Store](#usage-store)
-- [MCP Store](#mcp-store)
+
+### Agent Stores (`stores/agent/`)
+
+- [Agent Store](#agent-store) - Agent execution tracking
+- [Background Agent Store](#background-agent-store) - Background agent management
+- [Sub-Agent Store](#sub-agent-store) - Sub-agent orchestration
+- [Skill Store](#skill-store) - Skills state management
+
+### Chat Stores (`stores/chat/`)
+
+- [Chat Store](#chat-store) - Chat state management
+- [Session Store](#session-store) - Session and branch management
+- [Quote Store](#quote-store) - Text quotation management
+- [Summary Store](#summary-store) - Summary generation
+- [Chat Widget Store](#chat-widget-store) - Widget state
+
+### Context Stores (`stores/context/`)
+
+- [Clipboard Context Store](#clipboard-context-store) - Clipboard monitoring
+- [Selection Store](#selection-store) - Text selection state
+
+### Data Stores (`stores/data/`)
+
+- [Memory Store](#memory-store) - Cross-session memory
+- [Vector Store](#vector-store) - Vector database state
+
+### Media Stores (`stores/media/`)
+
+- [Media Store](#media-store) - Image/video management
+- [Image Studio Store](#image-studio-store) - Image editor state
+- [Screen Recording Store](#screen-recording-store) - Screen recording
+
+### Settings Stores (`stores/settings/`)
+
+- [Settings Store](#settings-store) - User settings
+- [Preset Store](#preset-store) - Preset management
+- [Custom Theme Store](#custom-theme-store) - Custom themes
+
+### System Stores (`stores/system/`)
+
+- [UI Store](#ui-store) - UI state management
+- [Usage Store](#usage-store) - Token and cost tracking
+- [Environment Store](#environment-store) - Environment state
+- [Proxy Store](#proxy-store) - Proxy configuration
+- [Window Store](#window-store) - Window state
+
+### Tools Stores (`stores/tools/`)
+
+- [Jupyter Store](#jupyter-store) - Jupyter session management
+- [PPT Editor Store](#ppt-editor-store) - PPT editor state
+- [Template Store](#template-store) - Template management
+
+### Workflow Stores (`stores/workflow/`)
+
+- [Workflow Store](#workflow-store) - Workflow execution
+- [Workflow Editor Store](#workflow-editor-store) - Editor state
+
+### Other Stores
+
+- [MCP Store](#mcp-store) - MCP server management
+- [Project Store](#project-store) - Project management
+- [Artifact Store](#artifact-store) - Artifact management
 
 ---
 

@@ -7,6 +7,9 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 import type { ProviderName } from '@/types';
 
+// Message feedback type
+export type MessageFeedback = 'like' | 'dislike' | null;
+
 // Chat widget message
 export interface ChatWidgetMessage {
   id: string;
@@ -15,6 +18,9 @@ export interface ChatWidgetMessage {
   timestamp: Date;
   isStreaming?: boolean;
   error?: string;
+  feedback?: MessageFeedback;
+  isEdited?: boolean;
+  originalContent?: string;
 }
 
 // Chat widget configuration
@@ -69,8 +75,11 @@ interface ChatWidgetActions {
   addMessage: (message: Omit<ChatWidgetMessage, 'id' | 'timestamp'>) => string;
   updateMessage: (id: string, updates: Partial<ChatWidgetMessage>) => void;
   deleteMessage: (id: string) => void;
+  deleteMessagesAfter: (id: string) => void;
   clearMessages: () => void;
   setStreaming: (id: string, isStreaming: boolean) => void;
+  setFeedback: (id: string, feedback: MessageFeedback) => void;
+  editMessage: (id: string, newContent: string) => void;
 
   // Input
   setInputValue: (value: string) => void;
@@ -169,6 +178,13 @@ export const useChatWidgetStore = create<ChatWidgetStore>()(
           messages: state.messages.filter((m) => m.id !== id),
         })),
 
+      deleteMessagesAfter: (id) =>
+        set((state) => {
+          const index = state.messages.findIndex((m) => m.id === id);
+          if (index === -1) return state;
+          return { messages: state.messages.slice(0, index + 1) };
+        }),
+
       clearMessages: () =>
         set({
           messages: [],
@@ -181,6 +197,27 @@ export const useChatWidgetStore = create<ChatWidgetStore>()(
             m.id === id ? { ...m, isStreaming } : m
           ),
           isStreaming,
+        })),
+
+      setFeedback: (id, feedback) =>
+        set((state) => ({
+          messages: state.messages.map((m) =>
+            m.id === id ? { ...m, feedback } : m
+          ),
+        })),
+
+      editMessage: (id, newContent) =>
+        set((state) => ({
+          messages: state.messages.map((m) =>
+            m.id === id
+              ? {
+                  ...m,
+                  content: newContent,
+                  isEdited: true,
+                  originalContent: m.originalContent || m.content,
+                }
+              : m
+          ),
         })),
 
       // Input

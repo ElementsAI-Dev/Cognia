@@ -4,124 +4,126 @@ This document provides comprehensive information about the CI/CD pipeline config
 
 ## Overview
 
-The CI/CD pipeline is implemented using GitHub Actions and includes the following jobs:
+The CI/CD pipeline is implemented using GitHub Actions with a **modular workflow architecture**. Each workflow focuses on a specific concern for better maintainability and faster feedback.
 
-1. **Code Quality & Security** - Linting, type checking, and security audits
-2. **Test Suite** - Unit tests with coverage reporting
-3. **Deploy Preview** - Automatic preview deployments for pull requests
-4. **Deploy Production** - Production deployments (disabled by default)
-5. **Build Tauri** - Cross-platform desktop application builds
-6. **Create Release** - Automated GitHub releases for tagged versions
+### Workflow Files
+
+| Workflow | File | Purpose | Trigger |
+|----------|------|---------|---------|
+| **CI** | `ci.yml` | Core checks (lint, test, build) | All pushes & PRs |
+| **Lint** | `lint.yml` | Extended code quality & security | All pushes & PRs |
+| **Unit Tests** | `test.yml` | Jest tests with coverage | All pushes & PRs |
+| **E2E Tests** | `e2e.yml` | Playwright browser tests | All pushes & PRs |
+| **Build** | `build.yml` | Next.js build & deploy options | All pushes & PRs |
+| **Tauri** | `tauri.yml` | Desktop app builds | Main branch & manual |
+| **Release** | `release.yml` | GitHub releases | Tags (`v*`) & manual |
 
 ## Workflow Triggers
 
-The pipeline runs on:
+Different workflows have different triggers:
 
-- **Push** to `main` or `develop` branches
-- **Pull requests** to `main` or `develop` branches
-- **Tags** starting with `v` (for releases)
+- **CI, Lint, Test, E2E, Build**: Push to `main`/`develop`, PRs to `main`/`develop`
+- **Tauri**: Push to `main`, PRs to `main`, manual dispatch
+- **Release**: Tags starting with `v` (e.g., `v1.0.0`), manual dispatch
 
-## Jobs Overview
+## Workflow Details
 
-### 1. Code Quality & Security
+### CI Workflow (`ci.yml`)
 
 **Runs on:** All pushes and pull requests  
-**Duration:** ~2-3 minutes
+**Duration:** ~5-10 minutes
 
-This job performs:
+The main CI workflow runs three parallel jobs:
+
+1. **Lint & Type Check** - ESLint and TypeScript validation
+2. **Unit Tests** - Jest tests with coverage reporting
+3. **Build** - Next.js production build verification
+
+A final `ci-complete` job aggregates results for branch protection rules.
+
+### Lint Workflow (`lint.yml`)
+
+**Runs on:** All pushes and pull requests  
+**Duration:** ~3-5 minutes
+
+Extended code quality checks:
 
 - ESLint code linting
 - TypeScript type checking (`tsc --noEmit`)
 - Security audit of dependencies (`pnpm audit`)
 - Check for outdated dependencies
 
-**Note:** Some steps continue on error to avoid blocking the pipeline for warnings.
-
-### 2. Test Suite
+### Unit Tests Workflow (`test.yml`)
 
 **Runs on:** All pushes and pull requests  
-**Duration:** ~3-5 minutes
+**Duration:** ~5-10 minutes
 
-This job performs:
+Comprehensive test execution:
 
 - Runs all Jest tests with coverage
-- Generates multiple coverage report formats (HTML, LCOV, Cobertura, JUnit)
-- Uploads coverage to Codecov (if configured)
-- Posts coverage summary as PR comment
-- Publishes test results with annotations
-- Builds the Next.js application
-- Checks bundle size
+- Generates coverage reports (HTML, LCOV, Cobertura, JUnit)
+- Uploads coverage artifacts
+- Publishes test results as PR comments
 
-**Coverage Thresholds:**
+**Coverage Thresholds (from jest.config.ts):**
 
-- Branches: 60%
-- Functions: 60%
-- Lines: 70%
-- Statements: 70%
+- Branches: 50%
+- Functions: 40%
+- Lines: 55%
+- Statements: 55%
 
-### 3. Deploy Preview
+### E2E Tests Workflow (`e2e.yml`)
 
-**Runs on:** Pull requests only  
-**Duration:** ~2-3 minutes
+**Runs on:** All pushes and pull requests  
+**Duration:** ~10-20 minutes
 
-Automatically deploys preview versions of the application for pull requests.
+Playwright browser testing:
 
-**Required Secrets:**
+- Installs Chromium browser
+- Builds application
+- Runs E2E test suite
+- Uploads Playwright report artifacts
+- **Sharded execution** on main branch (4 parallel shards)
+
+**Playwright Projects:**
+
+- `unit-like` - Store and core tests
+- `features` - Feature-specific tests
+- `integration` - Integration tests (depends on unit-like)
+
+### Build Workflow (`build.yml`)
+
+**Runs on:** All pushes and pull requests  
+**Duration:** ~5-10 minutes
+
+Next.js build and optional deployments:
+
+- Production build verification
+- Bundle size analysis
+- Build artifact upload
+
+**Optional Deployments (disabled by default):**
+
+- Vercel Preview deployments (PRs)
+- Vercel Production deployments (main branch)
+
+To enable, uncomment the deployment jobs and configure secrets:
 
 - `VERCEL_TOKEN` - Vercel deployment token
 - `VERCEL_ORG_ID` - Vercel organization ID
 - `VERCEL_PROJECT_ID` - Vercel project ID
 
-**Setup Instructions:**
+### Tauri Workflow (`tauri.yml`)
 
-1. Install Vercel CLI: `npm i -g vercel`
-2. Run `vercel login` and authenticate
-3. Run `vercel link` in your project directory
-4. Get your tokens:
+**Runs on:** Push to `main`, PRs to `main`, manual dispatch  
+**Duration:** ~15-30 minutes per platform
 
-   ```bash
-   vercel whoami
-   cat .vercel/project.json
-   ```
+Features:
 
-5. Add secrets to GitHub repository settings
-
-### 4. Deploy Production (DISABLED BY DEFAULT)
-
-**Runs on:** Pushes to `main` branch (when enabled)  
-**Duration:** ~2-3 minutes
-
-⚠️ **This job is commented out by default for safety.**
-
-**To Enable Production Deployments:**
-
-1. **Set up GitHub Environment Protection:**
-   - Go to `Settings > Environments`
-   - Create a new environment named `production`
-   - Add required reviewers (recommended)
-   - Add deployment branch restrictions (optional)
-   - Add environment secrets
-
-2. **Configure Required Secrets:**
-   - `VERCEL_TOKEN`
-   - `VERCEL_ORG_ID`
-   - `VERCEL_PROJECT_ID`
-
-3. **Uncomment the job** in `.github/workflows/ci.yml`
-
-4. **Update the environment URL** to match your production domain
-
-**Additional Safety Measures:**
-
-- Consider requiring specific labels on commits
-- Only deploy on tagged releases
-- Add time-based deployment windows
-- Require manual approval via GitHub Environments
-
-### 5. Build Tauri Desktop Application
-
-**Runs on:** All pushes and pull requests  
-**Duration:** ~10-20 minutes per platform
+- **Smart change detection** - Only builds when Tauri-related files change
+- **Configuration validation** - Validates `tauri.conf.json` before building
+- **Multi-platform matrix** - Builds for Linux, Windows, macOS (x64 & ARM64)
+- **Build summary** - Aggregates results in workflow summary
 
 Builds cross-platform desktop applications for:
 
@@ -133,87 +135,39 @@ Builds cross-platform desktop applications for:
 
 #### Linux (Ubuntu)
 
-No additional setup required. System dependencies are installed automatically:
+System dependencies are installed automatically:
 
-- libgtk-3-dev
-- libwebkit2gtk-4.1-dev
-- libappindicator3-dev
-- librsvg2-dev
-- patchelf
-- libssl-dev
+- libgtk-3-dev, libwebkit2gtk-4.1-dev
+- libappindicator3-dev, librsvg2-dev
+- patchelf, libssl-dev
 
 #### Windows
 
 **Optional Code Signing:**
 
-To enable code signing, add these secrets:
-
 - `WINDOWS_CERTIFICATE` - Base64-encoded PFX certificate
 - `WINDOWS_CERTIFICATE_PASSWORD` - Certificate password
-
-**How to prepare certificate:**
-
-```powershell
-# Convert PFX to base64
-$bytes = [System.IO.File]::ReadAllBytes("certificate.pfx")
-$base64 = [System.Convert]::ToBase64String($bytes)
-$base64 | Out-File certificate.txt
-```
 
 #### macOS
 
 **Optional Code Signing and Notarization:**
 
-To enable code signing and notarization, add these secrets:
-
 - `APPLE_CERTIFICATE` - Base64-encoded .p12 certificate
 - `APPLE_CERTIFICATE_PASSWORD` - Certificate password
 - `APPLE_SIGNING_IDENTITY` - Developer ID Application identity
-- `APPLE_ID` - Apple ID email
-- `APPLE_PASSWORD` - App-specific password
-- `APPLE_TEAM_ID` - Apple Developer Team ID
+- `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`
 
-**How to prepare certificate:**
+### Release Workflow (`release.yml`)
 
-```bash
-# Export certificate from Keychain as .p12
-# Then convert to base64
-base64 -i certificate.p12 -o certificate.txt
-```
+**Runs on:** Tags starting with `v`, manual dispatch  
+**Duration:** ~30-45 minutes
 
-**How to create app-specific password:**
+Features:
 
-1. Go to <https://appleid.apple.com>
-2. Sign in with your Apple ID
-3. Go to Security > App-Specific Passwords
-4. Generate a new password
-
-**Tauri Configuration:**
-
-Update `src-tauri/tauri.conf.json` for code signing:
-
-```json
-{
-  "bundle": {
-    "macOS": {
-      "signingIdentity": "Developer ID Application: Your Name (TEAM_ID)",
-      "entitlements": "path/to/entitlements.plist"
-    },
-    "windows": {
-      "certificateThumbprint": null,
-      "digestAlgorithm": "sha256",
-      "timestampUrl": "http://timestamp.digicert.com"
-    }
-  }
-}
-```
-
-### 6. Create Release
-
-**Runs on:** Tags starting with `v` (e.g., `v1.0.0`)  
-**Duration:** ~1-2 minutes
-
-Automatically creates a GitHub release with all built artifacts when you push a version tag.
+- **Quality gate** - Runs lint, type check, and tests before building
+- **Multi-platform builds** - Builds all platforms with release optimizations
+- **Automatic changelog** - Generates changelog from commits
+- **Draft releases** - Creates draft for review before publishing
 
 **How to Create a Release:**
 
@@ -223,13 +177,15 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
+**Manual Release:**
+
+You can also trigger releases manually via GitHub Actions UI with custom tag names.
+
 The release will be created as a **draft** with:
 
-- Auto-generated release notes
+- Auto-generated changelog from commits
 - All platform-specific installers attached
-- Changelog based on commits since last tag
-
-**Review and publish the draft release manually** after verifying the artifacts.
+- Pre-release flag for tags containing `-` (e.g., `v1.0.0-beta.1`)
 
 ## Caching Strategy
 

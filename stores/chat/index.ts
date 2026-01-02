@@ -43,4 +43,5 @@ export {
   selectChatWidgetIsLoading,
   type ChatWidgetMessage,
   type ChatWidgetConfig,
+  type MessageFeedback,
 } from './chat-widget-store';

@@ -10,3 +10,4 @@ export { KnowledgeBase } from './knowledge-base';
 export { ImportExportDialog } from './import-export-dialog';
 export { ProjectActivity, useProjectActivity, type ActivityType, type ProjectActivityItem } from './project-activity';
 export { ProjectTemplatesDialog, PROJECT_TEMPLATES, type ProjectTemplate } from './project-templates';
+export { ProjectGitPanel } from './project-git-panel';

@@ -98,3 +98,16 @@ export const requestPermissions = notInTauriError;
 export const enable = notInTauriError;
 export const disable = notInTauriError;
 export const isEnabled = notInTauriError;
+
+// @tauri-apps/plugin-stronghold stubs
+export const Stronghold = class {
+  constructor() {
+    throw new Error('Tauri APIs are not available in this environment');
+  }
+  static load = notInTauriError;
+};
+export const Client = class {
+  constructor() {
+    throw new Error('Tauri APIs are not available in this environment');
+  }
+};

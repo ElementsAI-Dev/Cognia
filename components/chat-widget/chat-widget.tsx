@@ -8,6 +8,7 @@ import { ChatWidgetHeader } from "./chat-widget-header";
 import { ChatWidgetMessages } from "./chat-widget-messages";
 import { ChatWidgetInput } from "./chat-widget-input";
 import { ChatWidgetSettings } from "./chat-widget-settings";
+import { ChatWidgetSuggestions } from "./chat-widget-suggestions";
 
 interface ChatWidgetProps {
   className?: string;
@@ -17,6 +18,8 @@ export function ChatWidget({ className }: ChatWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const resetConfig = useChatWidgetStore((state) => state.resetConfig);
+  const setFeedback = useChatWidgetStore((state) => state.setFeedback);
+  const editMessage = useChatWidgetStore((state) => state.editMessage);
   
   const {
     isVisible,
@@ -35,6 +38,7 @@ export function ChatWidget({ className }: ChatWidgetProps) {
     updateConfig,
     setPinned,
     stop,
+    regenerate,
   } = useChatWidget();
 
   // Handle window dragging
@@ -81,11 +85,24 @@ export function ChatWidget({ className }: ChatWidgetProps) {
       {/* Header with drag region */}
       <ChatWidgetHeader
         config={config}
+        messages={messages}
         onClose={hide}
         onNewSession={newSession}
         onClearMessages={clearMessages}
         onTogglePin={() => setPinned(!config.pinned)}
         onSettings={() => setSettingsOpen(true)}
+        onExport={() => {
+          const content = messages
+            .map((m) => `${m.role === "user" ? "👤 用户" : "🤖 助手"}:\n${m.content}`)
+            .join("\n\n---\n\n");
+          const blob = new Blob([content], { type: "text/markdown" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `chat-export-${new Date().toISOString().slice(0, 10)}.md`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }}
       />
 
       {/* Messages area */}
@@ -93,7 +110,30 @@ export function ChatWidget({ className }: ChatWidgetProps) {
         messages={messages}
         isLoading={isLoading}
         error={error}
+        showTimestamps={config.showTimestamps}
+        onRegenerate={regenerate}
+        onFeedback={(messageId, feedback) => setFeedback(messageId, feedback)}
+        onEdit={(messageId, newContent) => {
+          editMessage(messageId, newContent);
+          // Re-submit to get new response after editing
+          handleSubmit();
+        }}
+        onContinue={() => {
+          // Continue generation by sending a "continue" message
+          setInputValue("请继续");
+          handleSubmit();
+        }}
       />
+
+      {/* Quick suggestions - show when empty */}
+      {messages.length === 0 && !isLoading && (
+        <ChatWidgetSuggestions
+          onSelect={(prompt) => {
+            setInputValue(prompt);
+            inputRef.current?.focus();
+          }}
+        />
+      )}
 
       {/* Input area */}
       <ChatWidgetInput

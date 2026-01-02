@@ -34,6 +34,7 @@ import {
   ArchiveRestore,
   Tag,
   History,
+  GitBranch,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,6 +53,7 @@ import {
 import { KnowledgeBase } from './knowledge-base';
 import { CreateProjectDialog } from './create-project-dialog';
 import { ProjectActivity } from './project-activity';
+import { ProjectGitPanel } from './project-git-panel';
 import { useProjectStore, useSessionStore, useProjectActivityStore } from '@/stores';
 import type { CreateProjectInput } from '@/types';
 
@@ -317,6 +319,10 @@ export function ProjectDetail({
             <FileText className="h-4 w-4" />
             {t('knowledgeBase')}
           </TabsTrigger>
+          <TabsTrigger value="git" className="flex items-center gap-2">
+            <GitBranch className="h-4 w-4" />
+            {t('versionControl')}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="sessions" className="mt-4">
@@ -380,6 +386,10 @@ export function ProjectDetail({
 
         <TabsContent value="knowledge" className="mt-4">
           <KnowledgeBase projectId={projectId} />
+        </TabsContent>
+
+        <TabsContent value="git" className="mt-4">
+          <ProjectGitPanel projectId={projectId} />
         </TabsContent>
       </Tabs>
 

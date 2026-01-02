@@ -64,6 +64,7 @@ Access and manipulate local files.
 **Purpose**: Read, write, and manage files on your local filesystem
 
 **Installation**:
+
 ```bash
 Command: npx
 Args: -y @modelcontextprotocol/server-filesystem
@@ -72,6 +73,7 @@ Args: -y @modelcontextprotocol/server-filesystem
 **Environment Variables**: None required
 
 **Tools Provided**:
+
 - `read_file`: Read file contents
 - `write_file`: Write content to file
 - `create_directory`: Create directory
@@ -80,12 +82,14 @@ Args: -y @modelcontextprotocol/server-filesystem
 - `search_files`: Search for files by name/content
 
 **Use Cases**:
+
 - Reading configuration files
 - Writing generated code to files
 - Project file management
 - Log file analysis
 
 **Example Prompt**:
+
 ```
 Read the package.json file and update the dependencies to their latest versions.
 ```
@@ -97,15 +101,18 @@ Interact with GitHub repositories.
 **Purpose**: Access GitHub repos, issues, pull requests
 
 **Installation**:
+
 ```bash
 Command: npx
 Args: -y @modelcontextprotocol/server-github
 ```
 
 **Environment Variables**:
+
 - `GITHUB_PERSONAL_ACCESS_TOKEN`: Your GitHub PAT
 
 **Tools Provided**:
+
 - `create_issue`: Create GitHub issue
 - `create_pull_request`: Create PR
 - `fork_repository`: Fork a repository
@@ -114,12 +121,14 @@ Args: -y @modelcontextprotocol/server-github
 - `search_issues_and_prs`: Search issues and PRs
 
 **Use Cases**:
+
 - Create issues from bugs
 - Generate pull requests
 - Review code changes
 - Search repositories
 
 **Example Prompt**:
+
 ```
 Search for open issues in the facebook/react repository related to hooks.
 ```
@@ -131,26 +140,31 @@ Query PostgreSQL databases.
 **Purpose**: Execute SQL queries on PostgreSQL databases
 
 **Installation**:
+
 ```bash
 Command: npx
 Args: -y @modelcontextprotocol/server-postgres
 ```
 
 **Environment Variables**:
+
 - `CONNECTION_STRING`: PostgreSQL connection string
 
 **Tools Provided**:
+
 - `query`: Execute SQL query
 - `analyze_table`: Get table schema
 - `list_tables`: List all tables
 
 **Use Cases**:
+
 - Query databases
 - Analyze data
 - Generate reports
 - Database exploration
 
 **Example Prompt**:
+
 ```
 Connect to my database and find the top 10 customers by revenue.
 ```
@@ -162,6 +176,7 @@ Query SQLite database files.
 **Purpose**: Execute SQL on local SQLite files
 
 **Installation**:
+
 ```bash
 Command: npx
 Args: -y @modelcontextprotocol/server-sqlite
@@ -170,15 +185,18 @@ Args: -y @modelcontextprotocol/server-sqlite
 **Environment Variables**: None (path provided in query)
 
 **Tools Provided**:
+
 - `query`: Execute SQL query
 - `schema`: Get database schema
 
 **Use Cases**:
+
 - Analyze local databases
 - Query app data
 - Generate reports from SQLite
 
 **Example Prompt**:
+
 ```
 Open the database.db file and show me all users created this month.
 ```
@@ -190,24 +208,29 @@ Web search using Brave Search API.
 **Purpose**: Search the web using Brave's search API
 
 **Installation**:
+
 ```bash
 Command: npx
 Args: -y @modelcontextprotocol/server-brave-search
 ```
 
 **Environment Variables**:
+
 - `BRAVE_API_KEY`: Your Brave Search API key
 
 **Tools Provided**:
+
 - `brave_search`: Execute web search
 - `brave_web_search`: Search with advanced options
 
 **Use Cases**:
+
 - Web search integration
 - Current information retrieval
 - Source gathering
 
 **Example Prompt**:
+
 ```
 Search for recent articles about TypeScript performance optimization.
 ```
@@ -219,6 +242,7 @@ Persistent memory storage across sessions.
 **Purpose**: Store and retrieve information across conversations
 
 **Installation**:
+
 ```bash
 Command: npx
 Args: -y @modelcontextprotocol/server-memory
@@ -227,18 +251,21 @@ Args: -y @modelcontextprotocol/server-memory
 **Environment Variables**: None
 
 **Tools Provided**:
+
 - `create_memory`: Create new memory
 - `get_memory`: Retrieve memories
 - `search_memories`: Search by keyword
 - `delete_memory`: Remove memory
 
 **Use Cases**:
+
 - Cross-session memory
 - User preferences
 - Learning tracking
 - Fact storage
 
 **Example Prompt**:
+
 ```
 Remember that I prefer TypeScript over JavaScript for all future projects.
 ```
@@ -250,6 +277,7 @@ Browser automation and web scraping.
 **Purpose**: Automate browser actions, scrape websites
 
 **Installation**:
+
 ```bash
 Command: npx
 Args: -y @modelcontextprotocol/server-puppeteer
@@ -258,6 +286,7 @@ Args: -y @modelcontextprotocol/server-puppeteer
 **Environment Variables**: None
 
 **Tools Provided**:
+
 - `navigate_to`: Navigate to URL
 - `screenshot`: Capture page screenshot
 - `click`: Click element
@@ -266,12 +295,14 @@ Args: -y @modelcontextprotocol/server-puppeteer
 - `execute_script`: Run JavaScript
 
 **Use Cases**:
+
 - Web scraping
 - Automated testing
 - Screenshot capture
 - Form automation
 
 **Example Prompt**:
+
 ```
 Navigate to example.com, take a screenshot, and extract the article text.
 ```
@@ -283,27 +314,32 @@ Interact with Slack workspaces.
 **Purpose**: Send messages, read channels, manage Slack
 
 **Installation**:
+
 ```bash
 Command: npx
 Args: -y @modelcontextprotocol/server-slack
 ```
 
 **Environment Variables**:
+
 - `SLACK_BOT_TOKEN`: Slack bot token
 - `SLACK_TEAM_ID`: Team ID
 
 **Tools Provided**:
+
 - `post_message`: Post to channel
 - `read_channel`: Read channel messages
 - `list_channels`: List all channels
 - `search_messages`: Search messages
 
 **Use Cases**:
+
 - Automated notifications
 - Message analysis
 - Channel monitoring
 
 **Example Prompt**:
+
 ```
 Read the last 50 messages from #general and summarize key points.
 ```
@@ -319,6 +355,7 @@ Read the last 50 messages from #general and summarize key points.
 **Best for**: Local servers, Node.js scripts, Python scripts
 
 **Configuration**:
+
 ```json
 {
   "name": "my-server",
@@ -332,11 +369,13 @@ Read the last 50 messages from #general and summarize key points.
 ```
 
 **Pros**:
+
 - Simple setup
 - Good for local tools
 - No network required
 
 **Cons**:
+
 - Server must be on same machine
 - Can't access remote services
 
@@ -347,6 +386,7 @@ Read the last 50 messages from #general and summarize key points.
 **Best for**: Remote servers, cloud services, web APIs
 
 **Configuration**:
+
 ```json
 {
   "name": "remote-server",
@@ -359,11 +399,13 @@ Read the last 50 messages from #general and summarize key points.
 ```
 
 **Pros**:
+
 - Remote server access
 - Cloud integration
 - Shared servers
 
 **Cons**:
+
 - Requires network
 - More complex setup
 
@@ -372,12 +414,14 @@ Read the last 50 messages from #general and summarize key points.
 Set environment variables for MCP servers:
 
 **In Settings UI**:
+
 1. Go to **Settings** > **MCP**
 2. Edit server configuration
 3. Add environment variables
 4. Format: `KEY=value`
 
 **Common Variables**:
+
 - `API_KEY`: Authentication tokens
 - `CONNECTION_STRING`: Database connections
 - `GITHUB_PERSONAL_ACCESS_TOKEN`: GitHub access
@@ -387,21 +431,25 @@ Set environment variables for MCP servers:
 ### Server Lifecycle
 
 **Auto-Start**:
+
 - Enable in server configuration
 - Server starts when Cognia launches
 - Faster access to tools
 
 **Manual Start**:
+
 - Click **Start** button in server list
 - Server starts on demand
 - Saves resources
 
 **Auto-Restart**:
+
 - Server crashes trigger auto-restart
 - Configurable retry attempts
 - Exponential backoff
 
 **Stop Server**:
+
 - Click **Stop** button
 - Graceful shutdown
 - Resources freed
@@ -443,6 +491,7 @@ View all available tools:
 Each tool has defined parameters:
 
 **Example**: `read_file` tool
+
 ```json
 {
   "path": {
@@ -473,16 +522,19 @@ Resources are data sources that AI can query:
 ### Types of Resources
 
 **Static Resources**:
+
 - Files (file://)
 - Configuration data
 - Documentation
 
 **Dynamic Resources**:
+
 - Database queries
 - API responses
 - Live data
 
 **Subscribable Resources**:
+
 - Real-time updates
 - Change notifications
 - Event streams
@@ -525,18 +577,21 @@ AI: [Invokes memory.create_prompt]
 Common prompt templates:
 
 **Summarization Prompt**:
+
 ```
 Summarize the following text:
 {content}
 ```
 
 **Code Review Prompt**:
+
 ```
 Review this code for issues:
 {code}
 ```
 
 **Documentation Prompt**:
+
 ```
 Generate documentation for:
 {code}
@@ -557,17 +612,20 @@ Create custom prompts in server configuration:
 ### Server Management
 
 **View All Servers**:
+
 - Settings > MCP
 - Server list with status
 - Tools, resources, prompts count
 
 **Server Status**:
+
 - Green: Connected and running
 - Yellow: Connecting
 - Red: Error
 - Gray: Disconnected
 
 **Server Actions**:
+
 - Start/Stop
 - Restart
 - Edit configuration
@@ -577,17 +635,20 @@ Create custom prompts in server configuration:
 ### Server Configuration Options
 
 **General Settings**:
+
 - Name: Display name
 - Command: Executable command
 - Args: Command arguments
 - Connection Type: stdio or SSE
 
 **Environment Variables**:
+
 - Key-value pairs
 - Auto-populated for templates
 - Secure storage
 
 **Behavior**:
+
 - Auto-start: Start with Cognia
 - Auto-restart: Restart on failure
 - Retry attempts: Number of retries
@@ -596,16 +657,19 @@ Create custom prompts in server configuration:
 ### MCP Permissions
 
 **Filesystem Access**:
+
 - Allowed directories
 - File operations (read/write)
 - Path restrictions
 
 **Network Access**:
+
 - Allowed domains
 - API rate limits
 - Request timeout
 
 **Data Access**:
+
 - Database connections
 - Query restrictions
 - Data retention
@@ -613,11 +677,13 @@ Create custom prompts in server configuration:
 ### Logging and Debugging
 
 **Enable Logging**:
+
 - Settings > MCP > Logging
 - Choose log level (debug, info, error)
 - View logs in console
 
 **Debug Mode**:
+
 - Detailed request/response logging
 - Error stack traces
 - Performance metrics
@@ -627,12 +693,14 @@ Create custom prompts in server configuration:
 ### Server Won't Start
 
 **Check**:
+
 - Command is correct
 - Package is installed (`npx -y @package/name`)
 - Environment variables set
 - Port not in use (for SSE)
 
 **Solutions**:
+
 - Run command manually to test
 - Check npm package exists
 - Verify environment variables
@@ -641,11 +709,13 @@ Create custom prompts in server configuration:
 ### Tools Not Available
 
 **Check**:
+
 - Server is connected (green status)
 - Tools initialized properly
 - Server capabilities include tools
 
 **Solutions**:
+
 - Restart server
 - Refresh MCP connection
 - Check server logs
@@ -654,11 +724,13 @@ Create custom prompts in server configuration:
 ### Permission Errors
 
 **Common Issues**:
+
 - Filesystem access denied
 - Invalid API key
 - Insufficient permissions
 
 **Solutions**:
+
 - Check file permissions
 - Verify API keys
 - Update allowed directories
@@ -667,12 +739,14 @@ Create custom prompts in server configuration:
 ### Connection Issues (SSE)
 
 **Check**:
+
 - URL is correct and reachable
 - Network connectivity
 - Firewall settings
 - SSL certificate valid
 
 **Solutions**:
+
 - Test URL in browser
 - Check network connection
 - Disable firewall temporarily
@@ -681,11 +755,13 @@ Create custom prompts in server configuration:
 ### Performance Issues
 
 **Symptoms**:
+
 - Slow tool responses
 - High memory usage
 - CPU spikes
 
 **Solutions**:
+
 - Reduce tool call frequency
 - Limit concurrent requests
 - Increase timeout values
@@ -732,6 +808,7 @@ Create custom prompts in server configuration:
 Create your own MCP server:
 
 **Node.js Server Template**:
+
 ```javascript
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -762,6 +839,7 @@ await server.connect(transport);
 ```
 
 **Python Server Template**:
+
 ```python
 from mcp.server import Server
 import asyncio
@@ -790,18 +868,21 @@ asyncio.run(main())
 ### Integration Patterns
 
 **Multi-Tool Workflows**:
+
 - Chain multiple tools
 - Pass results between tools
 - Handle tool failures
 - Retry logic
 
 **Error Handling**:
+
 - Graceful degradation
 - Fallback options
 - User notifications
 - Logging errors
 
 **Caching Strategy**:
+
 - Cache tool results
 - Invalidate on changes
 - Respect TTL
@@ -812,18 +893,22 @@ asyncio.run(main())
 ### Risk Assessment
 
 **Filesystem Server**:
+
 - Risk: Data loss, unauthorized access
 - Mitigation: Limit directories, read-only when possible
 
 **GitHub Server**:
+
 - Risk: Repo modifications, exposure
 - Mitigation: Use PAT with limited scope
 
 **Database Servers**:
+
 - Risk: Data leaks, modification
 - Mitigation: Read-only user, query limits
 
 **Puppeteer**:
+
 - Risk: Malicious sites, data exposure
 - Mitigation: Block domains, sandbox
 

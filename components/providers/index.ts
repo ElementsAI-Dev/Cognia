@@ -105,3 +105,10 @@ export {
 
 // Locale initialization
 export { LocaleInitializer } from './locale-initializer';
+
+// Secure storage
+export {
+  StrongholdProvider,
+  useStrongholdContext,
+  useStrongholdOptional,
+} from './stronghold-provider';

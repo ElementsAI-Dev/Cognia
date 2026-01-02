@@ -341,7 +341,27 @@
     "unpin": "取消置顶",
     "pinToTop": "置顶",
     "workflows": "工作流",
-    "nativeTools": "原生工具"
+    "nativeTools": "原生工具",
+    "sessionArtifacts": "会话制品",
+    "usageStats": "用量统计",
+    "todayTokens": "今日：{count} 令牌",
+    "requests": "请求",
+    "backgroundTasks": "后台任务",
+    "tasksRunning": "{count} 运行中",
+    "queued": "排队中",
+    "quickActions": "快捷操作",
+    "imageStudio": "图像工作室",
+    "imageStudioDesc": "使用AI生成和编辑图像",
+    "videoStudio": "视频工作室",
+    "videoStudioDesc": "创建AI生成的视频",
+    "videoEditor": "视频编辑器",
+    "videoEditorDesc": "编辑屏幕录制",
+    "selectionToolbar": "选择工具栏",
+    "selectionToolbarDesc": "选中文本的快捷操作",
+    "recentFiles": "最近文件",
+    "filesCount": "{count} 个文件",
+    "copyLink": "复制链接",
+    "linkCopied": "链接已复制！"
   },
   "settings": {
     "title": "设置",
@@ -383,7 +403,45 @@
     "quickActive": "{count} 个已启用",
     "quickCustomShortcuts": "{count} 个自定义快捷键",
     "enabled": "已启用",
-    "disabled": "已禁用"
+    "disabled": "已禁用",
+    "git": {
+      "installation": {
+        "title": "Git 安装",
+        "description": "用于跟踪更改的分布式版本控制系统",
+        "installed": "已安装",
+        "notInstalled": "Git 未安装",
+        "installPrompt": "版本控制功能需要 Git。安装 Git 以启用项目版本控制。",
+        "install": "安装 Git",
+        "installing": "安装中...",
+        "website": "官网",
+        "lastChecked": "上次检查"
+      },
+      "config": {
+        "title": "Git 配置",
+        "description": "配置您的全局 Git 设置",
+        "userName": "用户名",
+        "userNamePlaceholder": "您的名字",
+        "userEmail": "邮箱",
+        "userEmailPlaceholder": "your@email.com",
+        "defaultBranch": "默认分支",
+        "save": "保存配置"
+      },
+      "autoCommit": {
+        "title": "自动提交设置",
+        "description": "为您的项目配置自动提交",
+        "enable": "启用自动提交",
+        "enableDescription": "根据触发条件自动提交更改",
+        "triggers": "提交触发器",
+        "onSessionEnd": "会话结束时",
+        "onExport": "导出数据时",
+        "onInterval": "定时提交",
+        "intervalMinutes": "间隔（分钟）"
+      },
+      "trackedRepos": {
+        "title": "已跟踪仓库",
+        "description": "正在跟踪 {count} 个仓库"
+      }
+    }
   },
   "providers": {
     "title": "AI 服务商",
@@ -834,7 +892,8 @@
     "delete": "删除",
     "removeSession": "移除会话",
     "removeSessionConfirmation": "从项目中移除此会话？会话不会被删除，只是取消与此项目的关联。",
-    "remove": "移除"
+    "remove": "移除",
+    "versionControl": "版本控制"
   },
   "nodeQuickConfig": {
     "quickAIConfig": "快速 AI 配置",
@@ -3702,6 +3761,63 @@
       "maxDurationUnlimited": "无限制",
       "saveDirectory": "保存目录",
       "selectDirectory": "选择目录"
+    }
+  },
+  "projectGit": {
+    "notInstalled": {
+      "title": "Git 未安装",
+      "description": "安装 Git 以启用此项目的版本控制。"
+    },
+    "notConfigured": {
+      "title": "版本控制未配置",
+      "description": "启用 Git 来跟踪更改并维护此项目的版本历史。"
+    },
+    "checkAgain": "重新检查",
+    "enableGit": "启用版本控制",
+    "hasRemote": "远程",
+    "localOnly": "仅本地",
+    "loadingStatus": "正在加载仓库状态...",
+    "status": {
+      "clean": "干净",
+      "dirty": "已修改",
+      "detached": "游离 HEAD"
+    },
+    "initDialog": {
+      "title": "初始化 Git 仓库",
+      "description": "为此项目创建 Git 仓库以跟踪更改并维护版本历史。",
+      "repoPath": "仓库路径",
+      "repoPathPlaceholder": "输入或选择文件夹路径",
+      "repoPathHint": "此文件夹将被初始化为 Git 仓库",
+      "initialize": "初始化"
+    },
+    "repoStatus": {
+      "title": "仓库状态"
+    },
+    "quickActions": {
+      "title": "快捷操作",
+      "commit": "提交",
+      "push": "推送",
+      "pull": "拉取",
+      "fetch": "获取"
+    },
+    "commitDialog": {
+      "title": "提交更改",
+      "description": "创建包含更改的新提交",
+      "changes": "待提交的更改",
+      "message": "提交信息",
+      "messagePlaceholder": "描述您的更改...",
+      "commit": "提交"
+    },
+    "recentCommits": {
+      "title": "最近提交"
+    },
+    "settings": {
+      "title": "项目 Git 设置",
+      "autoCommit": "自动提交",
+      "autoCommitDescription": "定期自动提交更改",
+      "commitOnSessionEnd": "会话结束时提交",
+      "commitOnSessionEndDescription": "聊天会话结束时创建提交",
+      "disableGit": "禁用版本控制"
     }
   },
   "videoEditor": {

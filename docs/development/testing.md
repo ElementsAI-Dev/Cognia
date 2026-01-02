@@ -642,6 +642,7 @@ pnpm test:e2e --debug
 ### CI/CD Tests
 
 Tests run automatically on:
+
 - Pull requests
 - Push to main/develop branches
 
@@ -670,6 +671,7 @@ describe('Feature', () => {
 ### Testing Best Practices
 
 1. **Test behavior, not implementation**
+
    ```typescript
    // ✅ Good: Tests user behavior
    it('displays error when API key is missing', () => {
@@ -686,6 +688,7 @@ describe('Feature', () => {
    ```
 
 2. **Use descriptive test names**
+
    ```typescript
    // ✅ Good: Clear description
    it('should add message to store when user submits valid input', () => {});
@@ -695,6 +698,7 @@ describe('Feature', () => {
    ```
 
 3. **Test edge cases**
+
    ```typescript
    it('handles empty input', () => {});
    it('handles null input', () => {});
@@ -703,6 +707,7 @@ describe('Feature', () => {
    ```
 
 4. **Keep tests independent**
+
    ```typescript
    beforeEach(() => {
      // Reset state before each test
@@ -711,6 +716,7 @@ describe('Feature', () => {
    ```
 
 5. **Use waitFor for async operations**
+
    ```typescript
    it('updates message after API call', async () => {
      render(<MessageComponent />);

@@ -6,6 +6,7 @@ pub mod chat_widget;
 pub mod clipboard;
 pub mod context;
 pub mod environment;
+pub mod git;
 pub mod jupyter;
 pub mod mcp;
 pub mod ollama;

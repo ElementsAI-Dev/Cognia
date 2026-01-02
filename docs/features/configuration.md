@@ -91,12 +91,12 @@ Navigate to **Settings > Providers** to configure AI providers.
 
 | Provider | API Key Dashboard |
 |----------|-------------------|
-| OpenAI | https://platform.openai.com/api-keys |
-| Anthropic | https://console.anthropic.com/settings/keys |
-| Google AI | https://aistudio.google.com/app/apikey |
-| DeepSeek | https://platform.deepseek.com/api_keys |
-| Groq | https://console.groq.com/keys |
-| Mistral | https://console.mistral.ai/api-keys/ |
+| OpenAI | <https://platform.openai.com/api-keys> |
+| Anthropic | <https://console.anthropic.com/settings/keys> |
+| Google AI | <https://aistudio.google.com/app/apikey> |
+| DeepSeek | <https://platform.deepseek.com/api_keys> |
+| Groq | <https://console.groq.com/keys> |
+| Mistral | <https://console.mistral.ai/api-keys/> |
 
 ### Default Configuration
 
@@ -235,6 +235,7 @@ For advanced customization, use the built-in theme editor:
 ### Default Mode
 
 Set the default chat mode:
+
 - **Chat** - Standard conversation
 - **Agent** - Tool-using agent
 - **Research** - Web search integrated
@@ -389,7 +390,7 @@ Configure default sources for Research mode:
 
 ### Tavily API
 
-1. Get API key from https://tavily.com
+1. Get API key from <https://tavily.com>
 2. Add to Settings > Providers
 3. Configure search depth:
    - **Basic** - Fast, top results
@@ -398,6 +399,7 @@ Configure default sources for Research mode:
 ### Search Result Limits
 
 Set maximum results per search:
+
 - Minimum: 3
 - Maximum: 20
 - Default: 10
@@ -543,6 +545,7 @@ Configure cross-session AI memory:
 #### Quick Install Templates
 
 Built-in templates for:
+
 - Filesystem
 - GitHub
 - PostgreSQL

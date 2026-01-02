@@ -34,3 +34,6 @@ export * from './utils';
 
 // Chat/Messages related hooks
 export * from './chat';
+
+// Image Studio related hooks
+export * from './image-studio';

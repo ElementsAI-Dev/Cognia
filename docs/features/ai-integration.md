@@ -7,6 +7,7 @@ Cognia provides comprehensive AI provider integration with support for 14+ provi
 ### Cloud Providers
 
 #### OpenAI
+
 - **Models**: GPT-4o, GPT-4o Mini, o1, o1 Mini
 - **Features**: Tool calling, vision support, streaming
 - **Pricing** (per 1M tokens):
@@ -17,6 +18,7 @@ Cognia provides comprehensive AI provider integration with support for 14+ provi
 - **API Key**: Get from [platform.openai.com](https://platform.openai.com/api-keys)
 
 #### Anthropic
+
 - **Models**: Claude Sonnet 4, Claude Opus 4, Claude 3.5 Haiku
 - **Features**: Tool calling, vision support, streaming
 - **Pricing** (per 1M tokens):
@@ -27,6 +29,7 @@ Cognia provides comprehensive AI provider integration with support for 14+ provi
 - **API Key**: Get from [console.anthropic.com](https://console.anthropic.com/settings/keys)
 
 #### Google AI
+
 - **Models**: Gemini 2.0 Flash, Gemini 1.5 Pro, Gemini 1.5 Flash
 - **Features**: Tool calling, vision support, streaming
 - **Pricing** (per 1M tokens):
@@ -37,6 +40,7 @@ Cognia provides comprehensive AI provider integration with support for 14+ provi
 - **API Key**: Get from [aistudio.google.com](https://aistudio.google.com/apikey)
 
 #### DeepSeek
+
 - **Models**: DeepSeek Chat, DeepSeek Reasoner
 - **Features**: Tool calling (Chat only), streaming
 - **Pricing** (per 1M tokens):
@@ -46,6 +50,7 @@ Cognia provides comprehensive AI provider integration with support for 14+ provi
 - **API Key**: Get from [platform.deepseek.com](https://platform.deepseek.com/api_keys)
 
 #### Groq
+
 - **Models**: Llama 3.3 70B, Mixtral 8x7B
 - **Features**: Tool calling, ultra-fast inference, streaming
 - **Pricing** (per 1M tokens):
@@ -55,6 +60,7 @@ Cognia provides comprehensive AI provider integration with support for 14+ provi
 - **API Key**: Get from [console.groq.com](https://console.groq.com/keys)
 
 #### Mistral AI
+
 - **Models**: Mistral Large, Mistral Small
 - **Features**: Tool calling, streaming
 - **Pricing** (per 1M tokens):
@@ -64,6 +70,7 @@ Cognia provides comprehensive AI provider integration with support for 14+ provi
 - **API Key**: Get from [console.mistral.ai](https://console.mistral.ai/api-keys)
 
 #### xAI (Grok)
+
 - **Models**: Grok 3, Grok 3 Mini
 - **Features**: Tool calling, vision support (Grok 3), streaming
 - **Pricing** (per 1M tokens):
@@ -73,6 +80,7 @@ Cognia provides comprehensive AI provider integration with support for 14+ provi
 - **API Key**: Get from [x.ai](https://x.ai/api)
 
 #### Together AI
+
 - **Models**: Llama 3.3 70B Turbo, Qwen 2.5 72B Turbo, DeepSeek V3
 - **Features**: Tool calling, streaming
 - **Pricing** (per 1M tokens): Starting at $0.50-$1.20
@@ -80,6 +88,7 @@ Cognia provides comprehensive AI provider integration with support for 14+ provi
 - **API Key**: Get from [api.together.xyz](https://api.together.xyz/settings/api-keys)
 
 #### OpenRouter
+
 - **Models**: Access to 200+ models including Claude, GPT-4o, Gemini Flash (free)
 - **Features**: OAuth login, tool calling, vision support, streaming
 - **Pricing**: Varies by model (some free options available)
@@ -87,6 +96,7 @@ Cognia provides comprehensive AI provider integration with support for 14+ provi
 - **API Key**: Get from [openrouter.ai/keys](https://openrouter.ai/keys)
 
 #### Cohere
+
 - **Models**: Command R+, Command R, Command A
 - **Features**: Tool calling, streaming
 - **Pricing** (per 1M tokens):
@@ -96,6 +106,7 @@ Cognia provides comprehensive AI provider integration with support for 14+ provi
 - **API Key**: Get from [dashboard.cohere.com](https://dashboard.cohere.com/api-keys)
 
 #### Fireworks AI
+
 - **Models**: Llama 3.3 70B, Qwen 2.5 72B, DeepSeek V3
 - **Features**: Tool calling, streaming
 - **Pricing** (per 1M tokens): $0.90
@@ -103,6 +114,7 @@ Cognia provides comprehensive AI provider integration with support for 14+ provi
 - **API Key**: Get from [fireworks.ai](https://fireworks.ai/account/api-keys)
 
 #### Cerebras
+
 - **Models**: Llama 3.3 70B, Llama 3.1 8B
 - **Features**: Fastest inference, streaming
 - **Pricing** (per 1M tokens):
@@ -112,6 +124,7 @@ Cognia provides comprehensive AI provider integration with support for 14+ provi
 - **API Key**: Get from [cloud.cerebras.ai](https://cloud.cerebras.ai/platform)
 
 #### SambaNova
+
 - **Models**: Llama 3.3 70B, DeepSeek R1 Distill 70B, Qwen 2.5 72B
 - **Features**: Tool calling, streaming, free tier available
 - **Pricing**: Free tier available
@@ -121,6 +134,7 @@ Cognia provides comprehensive AI provider integration with support for 14+ provi
 ### Local Providers
 
 #### Ollama
+
 - **Models**: Llama 3.2, Qwen 2.5, Mistral, and more
 - **Features**: Tool calling, streaming, completely local
 - **Context Length**: Varies by model
@@ -229,6 +243,7 @@ Best for: Complex reasoning, debugging, architecture design, analysis
 The Auto-Router recognizes these patterns:
 
 **Complex Tasks**:
+
 - "Write code", "implement", "create function"
 - "Analyze data", "research", "investigate"
 - "Explain in detail", "comprehensive"
@@ -236,12 +251,14 @@ The Auto-Router recognizes these patterns:
 - "Debug", "fix bug", "troubleshoot"
 
 **Reasoning Tasks**:
+
 - "Why", "how does", "explain reasoning"
 - "Prove", "derive", "calculate"
 - "Logic", "mathematical", "theorem"
 - "Think through", "reason about"
 
 **Simple Tasks**:
+
 - "What is", "define", "meaning of"
 - "Translate", "convert"
 - "Summarize", "brief"
@@ -252,26 +269,31 @@ The Auto-Router recognizes these patterns:
 ### Choosing the Right Model
 
 #### For Coding
+
 - **Recommended**: Claude Sonnet 4, GPT-4o, DeepSeek Chat
 - **Why**: Strong code generation, good explanations
 - **Use when**: Writing, debugging, or refactoring code
 
 #### For Writing & Creativity
+
 - **Recommended**: GPT-4o, Claude Sonnet 4, Gemini 1.5 Pro
 - **Why**: Creative language capabilities, diverse styles
 - **Use when**: Writing articles, stories, marketing copy
 
 #### For Analysis & Research
+
 - **Recommended**: Claude Opus 4, o1, DeepSeek Reasoner
 - **Why**: Deep reasoning, systematic analysis
 - **Use when**: Complex problems, data analysis, research
 
 #### For Speed & Cost Efficiency
+
 - **Recommended**: Gemini 2.0 Flash, GPT-4o Mini, Groq Llama 3.3
 - **Why**: Fast responses, low cost
 - **Use when**: Simple queries, quick answers
 
 #### For Vision/Image Tasks
+
 - **Recommended**: GPT-4o, Claude Sonnet 4, Gemini 1.5 Pro
 - **Why**: Strong multimodal understanding
 - **Use when**: Analyzing images, screenshots, diagrams
@@ -300,6 +322,7 @@ The Auto-Router recognizes these patterns:
 3. Responses will appear in real-time as they're generated
 
 ### Benefits
+
 - Faster perceived response time
 - Early access to partial answers
 - Better user experience for long responses
@@ -370,6 +393,7 @@ Vision capabilities allow models to analyze and understand images.
    - "Analyze this chart"
 
 ### Supported Image Formats
+
 - PNG
 - JPEG/JPG
 - GIF
@@ -431,21 +455,25 @@ Set in **Settings** > **Chat Behavior** > **Context Length**
 ### Common Issues
 
 **"API Key Invalid" Error**
+
 - Verify API key is correct
 - Check key hasn't been revoked
 - Ensure key has required permissions
 
 **Rate Limit Errors**
+
 - Switch to a different provider/model
 - Enable API key rotation
 - Reduce request frequency
 
 **Model Not Available**
+
 - Check provider account status
 - Verify model access tier
 - Try alternative model
 
 **Slow Responses**
+
 - Switch to faster tier models
 - Check internet connection
 - Reduce context length
@@ -453,6 +481,7 @@ Set in **Settings** > **Chat Behavior** > **Context Length**
 ### Checking Provider Status
 
 View provider health and availability in **Settings** > **Providers**:
+
 - Green indicator: Healthy
 - Yellow indicator: Degraded
 - Red indicator: Error
@@ -460,6 +489,7 @@ View provider health and availability in **Settings** > **Providers**:
 ### Usage Tracking
 
 Monitor token usage and costs in **Settings** > **Usage**:
+
 - Total tokens by provider
 - Cost estimates
 - Request counts

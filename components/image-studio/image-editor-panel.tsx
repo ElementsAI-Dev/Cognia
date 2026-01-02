@@ -20,12 +20,18 @@ import {
   Eraser,
   Brush,
   X,
+  Type,
+  Pencil,
+  Sparkles,
 } from 'lucide-react';
 import { MaskCanvas } from './mask-canvas';
 import { ImageCropper } from './image-cropper';
 import { ImageAdjustmentsPanel } from './image-adjustments';
 import { ImageUpscaler } from './image-upscaler';
 import { BackgroundRemover } from './background-remover';
+import { TextOverlay } from './text-overlay';
+import { DrawingTools } from './drawing-tools';
+import { FiltersGallery } from './filters-gallery';
 
 import type { EditorMode } from '@/types';
 
@@ -65,6 +71,24 @@ const EDITOR_TABS: EditorTab[] = [
     label: 'Adjust',
     icon: <SlidersHorizontal className="h-4 w-4" />,
     description: 'Brightness, contrast, etc.',
+  },
+  {
+    id: 'filters',
+    label: 'Filters',
+    icon: <Sparkles className="h-4 w-4" />,
+    description: 'Apply filter presets',
+  },
+  {
+    id: 'text',
+    label: 'Text',
+    icon: <Type className="h-4 w-4" />,
+    description: 'Add text and watermarks',
+  },
+  {
+    id: 'draw',
+    label: 'Draw',
+    icon: <Pencil className="h-4 w-4" />,
+    description: 'Annotate with shapes',
   },
   {
     id: 'upscale',
@@ -109,6 +133,18 @@ export function ImageEditorPanel({
 
   const handleRemoveBgApply = (result: { dataUrl: string }) => {
     onSave?.({ dataUrl: result.dataUrl, mode: 'remove-bg' });
+  };
+
+  const handleTextApply = (result: { dataUrl: string }) => {
+    onSave?.({ dataUrl: result.dataUrl, mode: 'text' });
+  };
+
+  const handleDrawApply = (result: { dataUrl: string }) => {
+    onSave?.({ dataUrl: result.dataUrl, mode: 'draw' });
+  };
+
+  const handleFiltersApply = (result: { dataUrl: string }) => {
+    onSave?.({ dataUrl: result.dataUrl, mode: 'filters' });
   };
 
   return (
@@ -177,6 +213,33 @@ export function ImageEditorPanel({
           <BackgroundRemover
             imageUrl={imageUrl}
             onRemove={handleRemoveBgApply}
+            onCancel={onCancel}
+            className="h-full"
+          />
+        )}
+
+        {activeMode === 'text' && (
+          <TextOverlay
+            imageUrl={imageUrl}
+            onApply={handleTextApply}
+            onCancel={onCancel}
+            className="h-full"
+          />
+        )}
+
+        {activeMode === 'draw' && (
+          <DrawingTools
+            imageUrl={imageUrl}
+            onApply={handleDrawApply}
+            onCancel={onCancel}
+            className="h-full"
+          />
+        )}
+
+        {activeMode === 'filters' && (
+          <FiltersGallery
+            imageUrl={imageUrl}
+            onApply={handleFiltersApply}
             onCancel={onCancel}
             className="h-full"
           />

@@ -880,6 +880,7 @@ Handles OAuth callback for OpenRouter authentication.
 | error | string | Error code if authorization failed |
 
 **Response:** HTML page with JavaScript that:
+
 1. Extracts OAuth parameters from URL
 2. Redirects to `/settings?tab=providers`
 3. Passes parameters via URL query strings
@@ -1083,7 +1084,7 @@ async function sha256(plain: string): Promise<string> {
 - OpenRouter uses a simplified PKCE flow where the authorization code IS the API key
 - No additional token exchange endpoint is needed
 - The code returned in the OAuth callback can be used directly as the API key
-- Reference: https://openrouter.ai/docs/use-cases/oauth-pkce
+- Reference: <https://openrouter.ai/docs/use-cases/oauth-pkce>
 
 ---
 
@@ -1223,6 +1224,7 @@ const results = await invoke('search_web', {
 ### Best Practices
 
 1. **Implement Client-Side Caching**
+
    ```typescript
    const searchCache = new Map<string, SearchResponse>();
 
@@ -1238,6 +1240,7 @@ const results = await invoke('search_web', {
    ```
 
 2. **Use Debouncing for Search Input**
+
    ```typescript
    import { debounce } from 'lodash';
 
@@ -1248,6 +1251,7 @@ const results = await invoke('search_web', {
    ```
 
 3. **Handle Rate Limit Errors**
+
    ```typescript
    async function searchWithRetry(query: string, maxRetries = 3) {
      for (let i = 0; i < maxRetries; i++) {
@@ -1266,6 +1270,7 @@ const results = await invoke('search_web', {
    ```
 
 4. **Validate Input Before API Calls**
+
    ```typescript
    function validateSearchQuery(query: string): boolean {
      if (!query || query.trim().length < 2) {
@@ -1290,6 +1295,7 @@ const results = await invoke('search_web', {
    - Implement server-side proxy routes for sensitive operations
 
 2. **Validate API Keys Server-Side**
+
    ```typescript
    // Route handler validation
    if (!apiKey || !apiKey.startsWith('tvly-')) {
@@ -1301,6 +1307,7 @@ const results = await invoke('search_web', {
    ```
 
 3. **Implement Request Signing for Production**
+
    ```typescript
    import { signRequest } from '@/lib/security';
 

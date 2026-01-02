@@ -132,6 +132,10 @@
     "deep-link:default",
     "deep-link:allow-get-current",
     "deep-link:allow-is-registered",
-    "deep-link:allow-register"
+    "deep-link:allow-register",
+    "stronghold:default",
+    "stronghold:allow-destroy",
+    "stronghold:allow-remove-secret",
+    "stronghold:allow-remove-store-record"
   ]
 }

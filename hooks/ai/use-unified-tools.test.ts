@@ -9,6 +9,15 @@ jest.mock('@/stores', () => ({
   useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       ragEnabled: false,
+      providerSettings: {
+        tavily: { apiKey: '' },
+        firecrawl: { apiKey: '' },
+        openai: { apiKey: '' },
+      },
+      vectorSettings: {
+        embeddingProvider: 'openai',
+        embeddingModel: 'text-embedding-3-small',
+      },
     };
     return typeof selector === 'function' ? selector(state) : state;
   },
@@ -29,6 +38,10 @@ jest.mock('@/stores', () => ({
   useVectorStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       collections: [],
+      settings: {
+        embeddingProvider: 'openai',
+        embeddingModel: 'text-embedding-3-small',
+      },
     };
     return typeof selector === 'function' ? selector(state) : state;
   },
@@ -43,23 +56,33 @@ jest.mock('@/stores', () => ({
 }));
 
 // Mock AI tools
+const mockRegistry = {
+  getAll: jest.fn(() => []),
+  filter: jest.fn(() => []),
+  getBySource: jest.fn(() => []),
+  getByCategory: jest.fn(() => []),
+  getToolsRecord: jest.fn(() => ({})),
+  search: jest.fn(() => []),
+  getStats: jest.fn(() => ({ total: 0, enabled: 0, disabled: 0, bySource: {}, byCategory: {} })),
+  enable: jest.fn(),
+  disable: jest.fn(),
+  toggle: jest.fn(),
+  clear: jest.fn(),
+  register: jest.fn(),
+  subscribe: jest.fn(() => jest.fn()),
+  unsubscribe: jest.fn(),
+  unregisterBySource: jest.fn(),
+  registerBatch: jest.fn(),
+  get: jest.fn(),
+  has: jest.fn(() => false),
+  unregister: jest.fn(),
+  setEnabled: jest.fn(),
+  isEnabled: jest.fn(() => true),
+};
+
 jest.mock('@/lib/ai/tools', () => ({
-  UnifiedToolRegistry: jest.fn().mockImplementation(() => ({
-    getAll: () => [],
-    filter: () => [],
-    getBySource: () => [],
-    getByCategory: () => [],
-    getToolsRecord: () => ({}),
-    search: () => [],
-  })),
-  getUnifiedToolRegistry: jest.fn(() => ({
-    getAll: () => [],
-    filter: () => [],
-    getBySource: () => [],
-    getByCategory: () => [],
-    getToolsRecord: () => ({}),
-    search: () => [],
-  })),
+  UnifiedToolRegistry: jest.fn().mockImplementation(() => mockRegistry),
+  getUnifiedToolRegistry: jest.fn(() => mockRegistry),
   registerBuiltinTools: jest.fn(),
   registerSkillTools: jest.fn(),
   registerMcpTools: jest.fn(),

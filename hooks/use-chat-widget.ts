@@ -38,6 +38,11 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const deleteMessage = useChatWidgetStore((state) => state.deleteMessage);
+
+  // History navigation state
+  const historyIndexRef = useRef<number>(-1);
+  const tempInputRef = useRef<string>('');
 
   // Listen for Tauri events
   useEffect(() => {
@@ -132,7 +137,7 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
           { role: 'user' as const, content: text },
         ];
 
-        const response = await fetch('/api/chat', {
+        const response = await fetch('/api/chat-widget', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -144,27 +149,36 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
         });
 
         if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `API error: ${response.status}`);
         }
 
         // Handle streaming response
         const reader = response.body?.getReader();
         if (!reader) throw new Error('No response body');
 
-        const assistantMessageId = addMessage({ role: 'assistant', content: '' });
+        const assistantMessageId = addMessage({ role: 'assistant', content: '', isStreaming: true });
         const decoder = new TextDecoder();
         let fullContent = '';
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-          const chunk = decoder.decode(value, { stream: true });
-          fullContent += chunk;
+            const chunk = decoder.decode(value, { stream: true });
+            fullContent += chunk;
 
-          // Update the assistant message with accumulated content
+            // Update the assistant message with accumulated content
+            useChatWidgetStore.getState().updateMessage(assistantMessageId, {
+              content: fullContent,
+              isStreaming: true,
+            });
+          }
+        } finally {
+          // Mark streaming as complete
           useChatWidgetStore.getState().updateMessage(assistantMessageId, {
-            content: fullContent,
+            isStreaming: false,
           });
         }
 
@@ -192,18 +206,70 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
     [inputValue, sendMessage]
   );
 
-  // Handle key down
+  // Get user messages for history navigation
+  const userMessages = messages.filter((m) => m.role === 'user');
+
+  // Handle key down with history navigation
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
+        historyIndexRef.current = -1;
+        tempInputRef.current = '';
         handleSubmit();
+        return;
       }
+
       if (e.key === 'Escape') {
         hide();
+        return;
+      }
+
+      // History navigation with up/down arrows
+      if (e.key === 'ArrowUp' && userMessages.length > 0) {
+        const textarea = e.target as HTMLTextAreaElement;
+        const cursorAtStart = textarea.selectionStart === 0 && textarea.selectionEnd === 0;
+        
+        if (cursorAtStart || !inputValue) {
+          e.preventDefault();
+          
+          // Save current input if starting navigation
+          if (historyIndexRef.current === -1) {
+            tempInputRef.current = inputValue;
+          }
+          
+          // Navigate to previous message
+          const newIndex = Math.min(historyIndexRef.current + 1, userMessages.length - 1);
+          if (newIndex !== historyIndexRef.current) {
+            historyIndexRef.current = newIndex;
+            const historyMessage = userMessages[userMessages.length - 1 - newIndex];
+            setInputValue(historyMessage.content);
+          }
+        }
+      }
+
+      if (e.key === 'ArrowDown' && historyIndexRef.current >= 0) {
+        const textarea = e.target as HTMLTextAreaElement;
+        const cursorAtEnd = textarea.selectionStart === inputValue.length;
+        
+        if (cursorAtEnd) {
+          e.preventDefault();
+          
+          const newIndex = historyIndexRef.current - 1;
+          if (newIndex >= 0) {
+            historyIndexRef.current = newIndex;
+            const historyMessage = userMessages[userMessages.length - 1 - newIndex];
+            setInputValue(historyMessage.content);
+          } else {
+            // Return to original input
+            historyIndexRef.current = -1;
+            setInputValue(tempInputRef.current);
+            tempInputRef.current = '';
+          }
+        }
       }
     },
-    [handleSubmit, hide]
+    [handleSubmit, hide, inputValue, setInputValue, userMessages]
   );
 
   // Stop generation
@@ -214,6 +280,32 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
       setLoading(false);
     }
   }, [setLoading]);
+
+  // Regenerate last assistant response
+  const regenerate = useCallback(
+    async (messageId: string) => {
+      // Find the message to regenerate and the previous user message
+      const messageIndex = messages.findIndex((m) => m.id === messageId);
+      if (messageIndex === -1) return;
+
+      // Find the previous user message
+      let userMessageIndex = messageIndex - 1;
+      while (userMessageIndex >= 0 && messages[userMessageIndex].role !== 'user') {
+        userMessageIndex--;
+      }
+
+      if (userMessageIndex < 0) return;
+
+      const userMessage = messages[userMessageIndex];
+
+      // Delete the assistant message
+      deleteMessage(messageId);
+
+      // Resend the user message
+      await sendMessage(userMessage.content);
+    },
+    [messages, deleteMessage, sendMessage]
+  );
 
   // Tauri commands
   const tauriShow = useCallback(async () => {
@@ -276,6 +368,7 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
     updateConfig,
     setPinned,
     stop,
+    regenerate,
   };
 }
 

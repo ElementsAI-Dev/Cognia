@@ -49,6 +49,7 @@ Native tools work across different platforms with varying feature support:
 | Basic OCR | ✅ Basic | ✅ Basic | ✅ Basic |
 
 **Legend**:
+
 - ✅ Full - All features available
 - ⚠️ Partial - Some features limited
 - ❌ No - Feature not available
@@ -60,6 +61,7 @@ Native tools work across different platforms with varying feature support:
 **What it does**: Intelligently expands text selections and provides quick AI actions
 
 **Key capabilities**:
+
 - 12 smart selection modes (word, sentence, paragraph, code block, function, etc.)
 - Floating toolbar with quick actions
 - AI-powered explain, translate, and summarize
@@ -67,6 +69,7 @@ Native tools work across different platforms with varying feature support:
 - Clipboard history management
 
 **Use cases**:
+
 - Quickly explain code snippets
 - Translate text without leaving your app
 - Summarize selected content
@@ -79,6 +82,7 @@ Native tools work across different platforms with varying feature support:
 **What it does**: Monitors your system and tracks your productivity
 
 **Key capabilities**:
+
 - Real-time CPU, memory, disk, and battery monitoring
 - Activity tracking (text selection, screenshots, app switches, etc.)
 - Smart suggestions based on system state
@@ -86,6 +90,7 @@ Native tools work across different platforms with varying feature support:
 - Application usage statistics
 
 **Use cases**:
+
 - Monitor system resources
 - Track your focus sessions
 - Get productivity insights
@@ -99,6 +104,7 @@ Native tools work across different platforms with varying feature support:
 **What it does**: Automatically detects and understands your current environment
 
 **Key capabilities**:
+
 - Active window and application detection
 - File context (for code editors)
 - Browser context (URL, domain, security)
@@ -106,6 +112,7 @@ Native tools work across different platforms with varying feature support:
 - 500ms caching for optimal performance
 
 **Use cases**:
+
 - AI understands what you're working on
 - Context-aware suggestions
 - Automatic project detection
@@ -118,6 +125,7 @@ Native tools work across different platforms with varying feature support:
 **What it does**: Advanced screenshot capture with OCR text extraction
 
 **Key capabilities**:
+
 - Multiple capture modes (fullscreen, window, region)
 - OCR text extraction (basic + Windows OCR)
 - Searchable screenshot history
@@ -125,6 +133,7 @@ Native tools work across different platforms with varying feature support:
 - Export and share screenshots
 
 **Use cases**:
+
 - Capture error messages with automatic text extraction
 - Save important information from any app
 - Search screenshots by content
@@ -147,6 +156,7 @@ All native tools can be configured through the settings panel:
 ### Configuration Options
 
 #### Selection Settings
+
 - **Enable/Disable** - Turn smart selection on/off
 - **Trigger Mode** - Auto-show or manual trigger
 - **Text Length Limits** - Min/max text length for toolbar
@@ -154,6 +164,7 @@ All native tools can be configured through the settings panel:
 - **Auto-hide** - Automatically hide toolbar after action
 
 #### Awareness Settings
+
 - **Enable Monitoring** - Turn system monitoring on/off
 - **Refresh Interval** - How often to update system state
 - **Activity Tracking** - Enable/disable activity recording
@@ -161,6 +172,7 @@ All native tools can be configured through the settings panel:
 - **Privacy Controls** - Choose what data to record
 
 #### Screenshot Settings
+
 - **Capture Format** - PNG, JPG, or WebP
 - **Image Quality** - Quality level for JPG/WebP
 - **Include Cursor** - Show mouse cursor in screenshots
@@ -184,6 +196,7 @@ All native tools data is stored **locally on your device**:
 You can manage your data at any time:
 
 **Clear History**:
+
 - Selection history
 - Clipboard history
 - Activity logs
@@ -191,12 +204,14 @@ You can manage your data at any time:
 - Focus tracking data
 
 **Export Data**:
+
 - Selection history as JSON
 - Screenshot metadata
 - Activity statistics
 - Productivity reports
 
 **Privacy Controls**:
+
 - Disable specific features
 - Choose what data to record
 - Exclude sensitive applications
@@ -205,12 +220,14 @@ You can manage your data at any time:
 ### Security Considerations
 
 **What native tools need**:
+
 - Clipboard access (for clipboard history)
 - Screen capture (for screenshots)
 - Window information (for context detection)
 - Global mouse events (for selection detection)
 
 **How we protect you**:
+
 - All processing happens locally
 - No data leaves your device
 - No network access for native features
@@ -250,6 +267,7 @@ Native tools are designed to have minimal performance impact:
 **Problem**: Clipboard history not recording entries
 
 **Solutions**:
+
 1. Check if clipboard monitoring is enabled in settings
 2. Ensure Cognia desktop app is running
 3. Restart the desktop app
@@ -260,6 +278,7 @@ Native tools are designed to have minimal performance impact:
 **Problem**: Screenshots fail to save
 
 **Solutions**:
+
 1. Check screenshot directory in settings
 2. Ensure write permissions for the directory
 3. Check available disk space
@@ -270,6 +289,7 @@ Native tools are designed to have minimal performance impact:
 **Problem**: Context shows generic information
 
 **Solutions**:
+
 1. Context detection is Windows-only for browser/editor features
 2. Make sure you're using a supported application
 3. Restart the desktop app
@@ -280,6 +300,7 @@ Native tools are designed to have minimal performance impact:
 **Problem**: System stats showing incorrect values
 
 **Solutions**:
+
 1. Refresh interval may be too long - decrease it in settings
 2. Some features (battery) are platform-specific
 3. Restart the desktop app to reset monitoring
@@ -336,6 +357,7 @@ Native tools seamlessly integrate with Cognia's AI capabilities:
 ### Context-Aware Responses
 
 The AI uses context detection to provide better responses:
+
 - Knows what file you're editing
 - Understands your current project
 - Aware of browser context
@@ -344,6 +366,7 @@ The AI uses context detection to provide better responses:
 ### Selection Actions
 
 Selected text can be sent to AI with full context:
+
 - Explains code with language detection
 - Translates with source language awareness
 - Summarizes with document type consideration
@@ -351,6 +374,7 @@ Selected text can be sent to AI with full context:
 ### Screenshot AI
 
 Screenshots shared with AI include:
+
 - Extracted text from OCR
 - Capture context (window, app, website)
 - Timestamp and metadata

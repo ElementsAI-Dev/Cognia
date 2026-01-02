@@ -25,26 +25,32 @@ import {
   Settings,
   Sparkles,
   GripHorizontal,
+  Download,
 } from "lucide-react";
-import type { ChatWidgetConfig } from "@/stores/chat";
+import type { ChatWidgetConfig, ChatWidgetMessage } from "@/stores/chat";
+import { ChatWidgetShortcuts } from "./chat-widget-shortcuts";
 
 interface ChatWidgetHeaderProps {
   config: ChatWidgetConfig;
+  messages?: ChatWidgetMessage[];
   onClose: () => void;
   onNewSession: () => void;
   onClearMessages: () => void;
   onTogglePin: () => void;
   onSettings?: () => void;
+  onExport?: () => void;
   className?: string;
 }
 
 export function ChatWidgetHeader({
   config,
+  messages,
   onClose,
   onNewSession,
   onClearMessages,
   onTogglePin,
   onSettings,
+  onExport,
   className,
 }: ChatWidgetHeaderProps) {
   return (
@@ -66,6 +72,11 @@ export function ChatWidgetHeader({
         <div className="flex items-center gap-1.5">
           <Sparkles className="h-4 w-4 text-primary" />
           <span className="text-sm font-medium">Cognia</span>
+          {messages && messages.length > 0 && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+              {messages.length}
+            </span>
+          )}
         </div>
         {config.pinned && (
           <Pin className="h-3 w-3 text-muted-foreground ml-1" />
@@ -92,7 +103,7 @@ export function ChatWidgetHeader({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              {config.pinned ? "Unpin window" : "Pin window on top"}
+              {config.pinned ? "取消置顶" : "窗口置顶"}
             </TooltipContent>
           </Tooltip>
 
@@ -106,17 +117,26 @@ export function ChatWidgetHeader({
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem onClick={onNewSession}>
                 <RotateCcw className="h-4 w-4 mr-2" />
-                New Session
+                新会话
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onClearMessages}>
                 <Trash2 className="h-4 w-4 mr-2" />
-                Clear Messages
+                清空消息
               </DropdownMenuItem>
+              {onExport && messages && messages.length > 0 && (
+                <DropdownMenuItem onClick={onExport}>
+                  <Download className="h-4 w-4 mr-2" />
+                  导出对话
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <ChatWidgetShortcuts />
+              </DropdownMenuItem>
               {onSettings && (
                 <DropdownMenuItem onClick={onSettings}>
                   <Settings className="h-4 w-4 mr-2" />
-                  Settings
+                  设置
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -135,7 +155,7 @@ export function ChatWidgetHeader({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              Close (Esc)
+              关闭 (Esc)
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

@@ -42,6 +42,10 @@ import { useSessionStore, useSettingsStore } from '@/stores';
 import { ArtifactListCompact } from '@/components/artifacts';
 import { messageRepository } from '@/lib/db';
 import { KeyboardShortcutsDialog } from '@/components/layout/keyboard-shortcuts-dialog';
+import { SidebarUsageStats } from './sidebar-usage-stats';
+import { SidebarBackgroundTasks } from './sidebar-background-tasks';
+import { SidebarQuickActions } from './sidebar-quick-actions';
+import { SidebarRecentFiles } from './sidebar-recent-files';
 import type { Session } from '@/types';
 
 // Search result type
@@ -369,6 +373,32 @@ export function AppSidebar() {
       <SidebarSeparator />
 
       <SidebarFooter>
+        {/* Usage Stats Widget */}
+        {!isCollapsed && (
+          <div className="px-2 pb-2">
+            <SidebarUsageStats />
+          </div>
+        )}
+
+        {/* Background Tasks Widget */}
+        <div className={isCollapsed ? 'px-1 pb-1' : 'px-2 pb-2'}>
+          <SidebarBackgroundTasks collapsed={isCollapsed} />
+        </div>
+
+        {/* Quick Actions Widget */}
+        {!isCollapsed && (
+          <div className="px-2 pb-2 border-t border-border/50 pt-2">
+            <SidebarQuickActions defaultOpen={false} />
+          </div>
+        )}
+
+        {/* Recent Files Widget */}
+        {!isCollapsed && (
+          <div className="px-2 pb-2">
+            <SidebarRecentFiles defaultOpen={false} limit={5} />
+          </div>
+        )}
+
         {/* Session Artifacts - quick access */}
         {!isCollapsed && activeSessionId && (
           <div className="px-2 pb-2 border-b border-border/50">

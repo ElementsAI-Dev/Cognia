@@ -35,3 +35,13 @@ export {
   useNotification,
   type UseNotificationReturn,
 } from './use-notification';
+export {
+  useStronghold,
+  type StrongholdState,
+  type UseStrongholdReturn,
+} from './use-stronghold';
+export {
+  useGit,
+  type UseGitOptions,
+  type UseGitReturn,
+} from './use-git';

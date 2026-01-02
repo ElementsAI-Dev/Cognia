@@ -24,6 +24,25 @@ export type { ImageEditorPanelProps } from './image-editor-panel';
 export { BatchExportDialog } from './batch-export-dialog';
 export type { BatchExportDialogProps } from './batch-export-dialog';
 
+// New components
+export { TextOverlay } from './text-overlay';
+export type { TextOverlayProps, TextLayer } from './text-overlay';
+
+export { DrawingTools } from './drawing-tools';
+export type { DrawingToolsProps, DrawingShape, ShapeType } from './drawing-tools';
+
+export { ImageComparison } from './image-comparison';
+export type { ImageComparisonProps, ComparisonMode } from './image-comparison';
+
+export { LayersPanel } from './layers-panel';
+export type { LayersPanelProps, Layer, LayerType, BlendMode } from './layers-panel';
+
+export { HistoryPanel } from './history-panel';
+export type { HistoryPanelProps, HistoryEntry, HistoryOperationType } from './history-panel';
+
+export { FiltersGallery } from './filters-gallery';
+export type { FiltersGalleryProps, FilterPreset as GalleryFilterPreset } from './filters-gallery';
+
 // Re-export types from centralized types
 export type {
   CropRegion,
@@ -36,6 +55,11 @@ export type {
   EditorMode,
   ExportFormat,
   ExportableImage,
+  TextLayerConfig,
+  DrawingShapeConfig,
+  DrawingShapeType,
+  LayerConfig,
+  HistoryEntryConfig,
 } from '@/types';
 
 export { DEFAULT_IMAGE_ADJUSTMENTS } from '@/types';

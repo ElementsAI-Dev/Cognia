@@ -10,7 +10,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Send, Square } from "lucide-react";
+import { Send, Square, Mic, MicOff } from "lucide-react";
+import { useSpeech } from "@/hooks/media/use-speech";
 
 interface ChatWidgetInputProps {
   value: string;
@@ -22,6 +23,7 @@ interface ChatWidgetInputProps {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  showVoiceInput?: boolean;
 }
 
 export const ChatWidgetInput = forwardRef<
@@ -38,10 +40,34 @@ export const ChatWidgetInput = forwardRef<
     disabled,
     placeholder = "Type a message...",
     className,
+    showVoiceInput = true,
   },
   ref
 ) {
   const formRef = useRef<HTMLFormElement>(null);
+
+  // Voice input using existing useSpeech hook
+  const {
+    isListening,
+    startListening,
+    stopListening,
+    sttSupported,
+    interimTranscript,
+  } = useSpeech({
+    onResult: (text, isFinal) => {
+      if (isFinal && text.trim()) {
+        onChange(value + (value ? ' ' : '') + text);
+      }
+    },
+  });
+
+  const toggleVoice = useCallback(() => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  }, [isListening, startListening, stopListening]);
 
   // Auto-resize textarea
   const handleInput = useCallback(
@@ -82,7 +108,7 @@ export const ChatWidgetInput = forwardRef<
           placeholder={placeholder}
           disabled={disabled}
           className={cn(
-            "min-h-[40px] max-h-[120px] py-2.5 px-3",
+            "min-h-[40px] max-h-[120px] py-2.5 px-3 pr-12",
             "resize-none overflow-y-auto",
             "bg-background border-border/50",
             "focus-visible:ring-1 focus-visible:ring-primary/50",
@@ -90,10 +116,52 @@ export const ChatWidgetInput = forwardRef<
           )}
           rows={1}
         />
+        {/* Character counter */}
+        {value.length > 0 && (
+          <span className={cn(
+            "absolute right-2 bottom-1.5 text-[10px] text-muted-foreground/60",
+            value.length > 4000 && "text-destructive"
+          )}>
+            {value.length}
+          </span>
+        )}
       </div>
 
       <TooltipProvider delayDuration={300}>
         <div className="flex items-center gap-1">
+          {/* Voice input button */}
+          {showVoiceInput && sttSupported && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "h-9 w-9 shrink-0 transition-colors",
+                    isListening && "bg-red-500/20 text-red-500 animate-pulse"
+                  )}
+                  onClick={toggleVoice}
+                  disabled={disabled || isLoading}
+                >
+                  {isListening ? (
+                    <MicOff className="h-4 w-4" />
+                  ) : (
+                    <Mic className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                {isListening ? "停止录音" : "语音输入"}
+                {interimTranscript && (
+                  <span className="block text-xs opacity-70 mt-1">
+                    {interimTranscript}
+                  </span>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          )}
+
           {/* Stop button (when loading) */}
           {isLoading && onStop ? (
             <Tooltip>
@@ -108,7 +176,7 @@ export const ChatWidgetInput = forwardRef<
                   <Square className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top">Stop generating</TooltipContent>
+              <TooltipContent side="top">停止生成</TooltipContent>
             </Tooltip>
           ) : (
             /* Send button */
@@ -124,7 +192,7 @@ export const ChatWidgetInput = forwardRef<
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="top">
-                Send message (Enter)
+                发送消息 (Enter)
               </TooltipContent>
             </Tooltip>
           )}

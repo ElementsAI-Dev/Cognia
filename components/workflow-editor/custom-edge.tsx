@@ -71,7 +71,7 @@ const EDGE_STYLES = {
   },
 };
 
-function EnhancedEdgeComponent({
+function CustomEdgeComponent({
   id,
   sourceX,
   sourceY,
@@ -329,5 +329,5 @@ function EnhancedEdgeComponent({
   );
 }
 
-export const CustomEdge = memo(EnhancedEdgeComponent);
+export const CustomEdge = memo(CustomEdgeComponent);
 export default CustomEdge;

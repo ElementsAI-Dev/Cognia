@@ -1,0 +1,95 @@
+name: Unit Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Jest Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests with coverage
+        run: pnpm test:coverage
+
+      - name: Generate coverage summary
+        if: always()
+        run: |
+          echo "## 📊 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f coverage/coverage-summary.json ]; then
+            echo "| Metric | Coverage |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|----------|" >> $GITHUB_STEP_SUMMARY
+            cat coverage/coverage-summary.json | jq -r '.total | to_entries | .[] | "| \(.key | ascii_upcase) | \(.value.pct)% |"' >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Coverage report generated" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Coverage report generated" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: coverage/junit.xml
+          retention-days: 30
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always() && github.event_name == 'pull_request'
+        with:
+          files: coverage/junit.xml
+          check_name: Test Results
+          comment_title: Test Results
+        continue-on-error: true
+
+      # Optional: Codecov integration
+      # Uncomment and add CODECOV_TOKEN secret to enable
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v4
+      #   if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+      #   with:
+      #     token: ${{ secrets.CODECOV_TOKEN }}
+      #     files: ./coverage/lcov.info
+      #     flags: unittests
+      #     fail_ci_if_error: false
+      #   continue-on-error: true

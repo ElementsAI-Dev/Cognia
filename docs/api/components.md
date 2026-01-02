@@ -1,15 +1,36 @@
 # Component API Reference
 
-This document provides a comprehensive reference for major components in the Cognia application. For each component, you'll find the props interface, usage examples, and links to related components.
+This document provides a comprehensive reference for major components in the Cognia application. Components are organized by feature area in the `components/` directory. For each component, you'll find the props interface, usage examples, and links to related components.
 
 ## Table of Contents
 
-- [Chat Components](#chat-components)
-- [AI Elements](#ai-elements)
-- [Artifacts Components](#artifacts-components)
-- [Settings Components](#settings-components)
-- [Project Components](#project-components)
-- [UI Components](#ui-components)
+### Core Components
+
+- [Chat Components](#chat-components) - Chat interface (121 items)
+- [AI Elements](#ai-elements) - AI-specific components (30+ items)
+- [Agent Components](#agent-components) - Agent mode UI (19 items)
+- [Artifacts Components](#artifacts-components) - Artifact system
+- [Canvas Components](#canvas-components) - Monaco-based canvas editor
+
+### Feature Components
+
+- [Chat Widget Components](#chat-widget-components) - Embeddable widget (8 items)
+- [Designer Components](#designer-components) - Visual designer (70 items)
+- [Image Studio Components](#image-studio-components) - Image editing (15 items)
+- [Jupyter Components](#jupyter-components) - Notebook integration (7 items)
+- [Learning Components](#learning-components) - Learning mode (23 items)
+- [Screen Recording Components](#screen-recording-components) - Recording UI (5 items)
+- [Skills Components](#skills-components) - Skills system (25 items)
+- [Workflow Editor Components](#workflow-editor-components) - Visual workflow editor (50 items)
+
+### Settings & Configuration
+
+- [Settings Components](#settings-components) - Settings pages (96 items)
+- [Project Components](#project-components) - Project management
+
+### Base Components
+
+- [UI Components](#ui-components) - shadcn/ui base components (41 items)
 
 ---
 

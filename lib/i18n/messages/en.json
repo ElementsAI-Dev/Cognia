@@ -19,7 +19,8 @@
     "previous": "Previous",
     "next": "Next",
     "preview": "Preview",
-    "clear": "Clear"
+    "clear": "Clear",
+    "dismiss": "Dismiss"
   },
   "chat": {
     "welcome": "Welcome to Cognia",
@@ -345,7 +346,24 @@
     "pinToTop": "Pin to top",
     "workflows": "Workflows",
     "nativeTools": "Native Tools",
-    "sessionArtifacts": "Session Artifacts"
+    "sessionArtifacts": "Session Artifacts",
+    "usageStats": "Usage Stats",
+    "todayTokens": "Today: {count} tokens",
+    "requests": "requests",
+    "backgroundTasks": "Background Tasks",
+    "tasksRunning": "{count} running",
+    "queued": "queued",
+    "quickActions": "Quick Actions",
+    "imageStudio": "Image Studio",
+    "imageStudioDesc": "Generate and edit images with AI",
+    "videoStudio": "Video Studio",
+    "videoStudioDesc": "Create AI-generated videos",
+    "videoEditor": "Video Editor",
+    "videoEditorDesc": "Edit screen recordings",
+    "selectionToolbar": "Selection Toolbar",
+    "selectionToolbarDesc": "Quick actions for selected text",
+    "recentFiles": "Recent Files",
+    "filesCount": "{count} files"
   },
   "settings": {
     "title": "Settings",
@@ -387,7 +405,45 @@
     "quickActive": "{count} active",
     "quickCustomShortcuts": "{count} custom shortcuts",
     "enabled": "Enabled",
-    "disabled": "Disabled"
+    "disabled": "Disabled",
+    "git": {
+      "installation": {
+        "title": "Git Installation",
+        "description": "Distributed version control system for tracking changes",
+        "installed": "Installed",
+        "notInstalled": "Git is not installed",
+        "installPrompt": "Git is required for version control features. Install it to enable project versioning.",
+        "install": "Install Git",
+        "installing": "Installing...",
+        "website": "Website",
+        "lastChecked": "Last checked"
+      },
+      "config": {
+        "title": "Git Configuration",
+        "description": "Configure your global Git settings",
+        "userName": "User Name",
+        "userNamePlaceholder": "Your Name",
+        "userEmail": "User Email",
+        "userEmailPlaceholder": "your@email.com",
+        "defaultBranch": "Default Branch",
+        "save": "Save Configuration"
+      },
+      "autoCommit": {
+        "title": "Auto-Commit Settings",
+        "description": "Configure automatic commits for your projects",
+        "enable": "Enable Auto-Commit",
+        "enableDescription": "Automatically commit changes based on triggers",
+        "triggers": "Commit Triggers",
+        "onSessionEnd": "When chat session ends",
+        "onExport": "When exporting data",
+        "onInterval": "At regular intervals",
+        "intervalMinutes": "Interval (minutes)"
+      },
+      "trackedRepos": {
+        "title": "Tracked Repositories",
+        "description": "{count} repositories being tracked"
+      }
+    }
   },
   "providers": {
     "title": "AI Providers",
@@ -841,7 +897,8 @@
     "delete": "Delete",
     "removeSession": "Remove Session",
     "removeSessionConfirmation": "Remove this session from the project? The session will not be deleted, just unlinked from this project.",
-    "remove": "Remove"
+    "remove": "Remove",
+    "versionControl": "Version Control"
   },
   "nodeQuickConfig": {
     "quickAIConfig": "Quick AI Config",
@@ -3709,6 +3766,63 @@
       "maxDurationUnlimited": "Unlimited",
       "saveDirectory": "Save Directory",
       "selectDirectory": "Select Directory"
+    }
+  },
+  "projectGit": {
+    "notInstalled": {
+      "title": "Git Not Installed",
+      "description": "Install Git to enable version control for this project."
+    },
+    "notConfigured": {
+      "title": "Version Control Not Configured",
+      "description": "Enable Git to track changes and maintain version history for this project."
+    },
+    "checkAgain": "Check Again",
+    "enableGit": "Enable Version Control",
+    "hasRemote": "Remote",
+    "localOnly": "Local Only",
+    "loadingStatus": "Loading repository status...",
+    "status": {
+      "clean": "Clean",
+      "dirty": "Modified",
+      "detached": "Detached HEAD"
+    },
+    "initDialog": {
+      "title": "Initialize Git Repository",
+      "description": "Create a Git repository for this project to track changes and maintain version history.",
+      "repoPath": "Repository Path",
+      "repoPathPlaceholder": "Enter or select a folder path",
+      "repoPathHint": "This folder will be initialized as a Git repository",
+      "initialize": "Initialize"
+    },
+    "repoStatus": {
+      "title": "Repository Status"
+    },
+    "quickActions": {
+      "title": "Quick Actions",
+      "commit": "Commit",
+      "push": "Push",
+      "pull": "Pull",
+      "fetch": "Fetch"
+    },
+    "commitDialog": {
+      "title": "Commit Changes",
+      "description": "Create a new commit with your changes",
+      "changes": "Changes to commit",
+      "message": "Commit Message",
+      "messagePlaceholder": "Describe your changes...",
+      "commit": "Commit"
+    },
+    "recentCommits": {
+      "title": "Recent Commits"
+    },
+    "settings": {
+      "title": "Project Git Settings",
+      "autoCommit": "Auto-Commit",
+      "autoCommitDescription": "Automatically commit changes periodically",
+      "commitOnSessionEnd": "Commit on Session End",
+      "commitOnSessionEndDescription": "Create a commit when chat session ends",
+      "disableGit": "Disable Version Control"
     }
   },
   "videoEditor": {

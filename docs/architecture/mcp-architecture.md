@@ -20,6 +20,7 @@ Cognia implements comprehensive Model Context Protocol (MCP) support, enabling A
 ### What is MCP?
 
 The Model Context Protocol (MCP) is an open standard that enables AI models to:
+
 - **Call tools**: Execute functions on external servers
 - **Access resources**: Read data from files, APIs, databases
 - **Use prompts**: Reusable prompt templates with parameters
@@ -260,6 +261,7 @@ struct ServerInstance {
 **Use Case**: Locally installed MCP servers (npm, python, standalone executables).
 
 **Architecture**:
+
 ```
 +------------------+     Spawn      +------------------+
 |  MCP Manager     | ------------> |  Child Process   |
@@ -275,6 +277,7 @@ struct ServerInstance {
 ```
 
 **Implementation**:
+
 ```rust
 pub struct StdioTransport {
     child: Arc<Mutex<Child>>,
@@ -332,6 +335,7 @@ impl StdioTransport {
 **Use Case**: Remote MCP servers or Docker containers.
 
 **Architecture**:
+
 ```
 +------------------+     GET /sse    +------------------+
 |  MCP Manager     | <--------------|  MCP Server      |
@@ -347,6 +351,7 @@ impl StdioTransport {
 ```
 
 **Implementation**:
+
 ```rust
 pub struct SseTransport {
     client: reqwest::Client,

@@ -49,6 +49,7 @@ const mcpTools = createMcpToolsFromStore(servers, callTool, {
 ```
 
 **Features:**
+
 - JSON Schema to Zod conversion for parameter validation
 - Automatic tool naming with server prefix
 - Timeout handling
@@ -67,6 +68,7 @@ const ragTool = createRAGSearchTool(ragConfig);
 ```
 
 **Features:**
+
 - Auto-configuration from vector store settings
 - Support for multiple embedding providers
 - Semantic search with similarity threshold
@@ -89,6 +91,7 @@ const skillsPrompt = buildMultiSkillSystemPrompt(activeSkills, {
 ```
 
 **Features:**
+
 - Progressive disclosure based on token budget
 - Resource inclusion
 - Multi-skill system prompt generation
@@ -115,6 +118,7 @@ const searchTools = registry.filter({ categories: ['search'] });
 ```
 
 **Features:**
+
 - Tool categorization (search, compute, file, document, etc.)
 - Source tracking (builtin, skill, mcp, custom)
 - Enable/disable individual tools

@@ -7,12 +7,14 @@ Cognia's context awareness and screenshot capture features provide intelligent e
 This guide covers two related native features:
 
 **Context Awareness**:
+
 - Automatic window and application detection
 - File context for code editors
 - Browser context (URL, domain, security)
 - Editor context (language, line numbers, git branch)
 
 **Screenshot Capture**:
+
 - Multiple capture modes (fullscreen, window, region)
 - OCR text extraction
 - Searchable screenshot history
@@ -25,6 +27,7 @@ This guide covers two related native features:
 ### Why Desktop Only?
 
 These features need access to:
+
 - Window information and titles
 - Process information
 - Screen capture APIs
@@ -38,6 +41,7 @@ These features need access to:
 #### Window Information
 
 Current active window details:
+
 - **Window Title** - Title of the window
 - **Application Name** - App that owns the window
 - **Process ID** - System process identifier
@@ -49,26 +53,32 @@ Current active window details:
 Automatic application type detection:
 
 **Browser**
+
 - Chrome, Firefox, Edge, Safari
 - Provides URL, domain, security info
 
 **Code Editor**
+
 - VS Code, IntelliJ, Vim, Emacs
 - Provides file info, language, git branch
 
 **Terminal**
+
 - Terminal, PowerShell, iTerm2
 - Provides command shell context
 
 **Text Editor**
+
 - Notepad, TextEdit, Sublime Text
 - Provides file information
 
 **IDE**
+
 - Visual Studio, Xcode, PyCharm
 - Provides project context
 
 **Design Tool**
+
 - Figma, Adobe Suite, Blender
 - Provides design context
 
@@ -77,6 +87,7 @@ Automatic application type detection:
 When working in code editors or text editors:
 
 **File Information**:
+
 - File path and name
 - File extension
 - Programming language (if code)
@@ -84,17 +95,20 @@ When working in code editors or text editors:
 - Encoding
 
 **Project Information** (when available):
+
 - Project name
 - Project root path
 - Project type (npm, cargo, maven, etc.)
 
 **Git Information** (when available):
+
 - Current branch
 - Repository name
 - Commit hash
 - Working tree status (clean, modified)
 
 **Editor State** (when available):
+
 - Current line number
 - Current column
 - Cursor offset
@@ -105,21 +119,25 @@ When working in code editors or text editors:
 When using web browsers:
 
 **URL Information**:
+
 - Full URL
 - Protocol (http, https)
 - Domain name
 - Path
 
 **Security Status**:
+
 - HTTPS secure indicator
 - Certificate validity
 - Mixed content warnings
 
 **Page Information**:
+
 - Page title
 - Page type classification
 
 **Tab Information**:
+
 - Current tab
 - Tab index
 
@@ -128,16 +146,19 @@ When using web browsers:
 For code editors and IDEs:
 
 **Language Detection**:
+
 - Programming language
 - Dialect (TypeScript, JSX, etc.)
 - File extension association
 
 **Cursor Position**:
+
 - Line number
 - Column number
 - Character offset
 
 **Selection**:
+
 - Start position (line, column)
 - End position (line, column)
 - Selected text
@@ -149,6 +170,7 @@ For code editors and IDEs:
 Context awareness makes AI smarter:
 
 **Example 1 - Code Context**:
+
 ```
 You're editing: use-selection.ts
 Line 42
@@ -161,6 +183,7 @@ the handleAction function at line 42?"
 ```
 
 **Example 2 - Browser Context**:
+
 ```
 You're viewing: https://github.com/username/repo/issues/123
 Domain: github.com
@@ -172,6 +195,7 @@ generating a fix?"
 ```
 
 **Example 3 - File Context**:
+
 ```
 You're editing: /home/user/project/src/utils.ts
 Project: my-project
@@ -186,15 +210,18 @@ your project. What would you like to work on?"
 Context data is cached for **500 milliseconds** to optimize performance:
 
 **Benefits**:
+
 - Reduces system calls
 - Improves responsiveness
 - Lower CPU usage
 
 **Trade-off**:
+
 - Slightly delayed updates (max 500ms)
 - Acceptable for most use cases
 
 **Configure Cache**:
+
 1. Go to Settings → Native Tools → Context
 2. Adjust "Cache Duration"
 3. Options: 100ms, 500ms (default), 1000ms
@@ -213,6 +240,7 @@ Context detection varies by platform:
 | Git Integration | ✅ Full | ⚠️ Partial | ⚠️ Partial |
 
 **Legend**:
+
 - ✅ Full - All features available
 - ⚠️ Partial - Some features limited
 - ❌ No - Feature not available
@@ -220,6 +248,7 @@ Context detection varies by platform:
 ### Configuring Context
 
 **Enable/Disable Context Detection**:
+
 1. Go to Settings → Native Tools → Context
 2. Toggle "Enable Context Detection"
 3. Choose which context types to enable:
@@ -230,12 +259,14 @@ Context detection varies by platform:
    - Editor Context
 
 **Refresh Settings**:
+
 - **Refresh Interval** (Default: 5 seconds)
   - How often to update context
   - Lower = more accurate, higher CPU
   - Higher = less accurate, lower CPU
 
 **Privacy Settings**:
+
 - **Capture Window Titles** (Default: On)
 - **Capture URLs** (Default: Off - privacy)
 - **Capture File Paths** (Default: Off - privacy)
@@ -249,16 +280,19 @@ Context detection varies by platform:
 Capture your entire screen or all screens.
 
 **How to Use**:
+
 1. Open Native Tools → Screenshot tab
 2. Click "Full Screen" button
 3. Screenshot captured immediately
 4. OCR processed automatically (if enabled)
 
 **Multi-Monitor Support**:
+
 - Captures all monitors by default
 - Or select specific monitor from dropdown
 
 **Use Cases**:
+
 - Capture full workspace
 - Document entire state
 - Create visual records
@@ -269,16 +303,19 @@ Capture your entire screen or all screens.
 Capture the currently active window.
 
 **How to Use**:
+
 1. Switch to the window you want to capture
 2. Open Native Tools → Screenshot tab
 3. Click "Window" button
 4. Active window captured
 
 **Options**:
+
 - Include window decorations (title bar, borders)
 - Capture specific window by handle
 
 **Use Cases**:
+
 - Capture error dialogs
 - Document application states
 - Save window configurations
@@ -289,6 +326,7 @@ Capture the currently active window.
 Capture a specific region of the screen.
 
 **Interactive Mode**:
+
 1. Open Native Tools → Screenshot tab
 2. Click "Region" button
 3. Screen dims
@@ -296,12 +334,14 @@ Capture a specific region of the screen.
 5. Release to capture
 
 **Precise Mode**:
+
 1. Click region settings
 2. Enter exact coordinates
 3. Specify width and height
 4. Click capture
 
 **Use Cases**:
+
 - Capture specific UI elements
 - Select portions of documents
 - Crop screenshots precisely
@@ -314,12 +354,14 @@ Screenshots are automatically processed with OCR to extract text.
 #### Basic OCR
 
 Cross-platform OCR engine:
+
 - **Languages**: Major Latin scripts
 - **Accuracy**: Good for clear text
 - **Speed**: Fast processing
 - **Platforms**: All platforms
 
 **Use For**:
+
 - General text extraction
 - Quick text searches
 - Mixed-language content
@@ -327,6 +369,7 @@ Cross-platform OCR engine:
 #### Windows OCR (Windows Only)
 
 Enhanced OCR for Windows:
+
 - **Languages**: 100+ languages
 - **Accuracy**: Excellent
 - **Speed**: Fast with GPU acceleration
@@ -337,12 +380,14 @@ Enhanced OCR for Windows:
   - Multiple text blocks
 
 **Use For**:
+
 - Accurate text extraction
 - Non-Latin languages (Chinese, Japanese, etc.)
 - Complex layouts
 - Low-quality images
 
 **Choosing OCR Engine**:
+
 1. Go to Settings → Native Tools → Screenshot
 2. Select "OCR Engine"
 3. Options:
@@ -356,6 +401,7 @@ All screenshots are automatically saved and searchable.
 #### History Entry
 
 Each screenshot includes:
+
 - **Timestamp** - When captured
 - **File Path** - Location on disk
 - **Dimensions** - Width and height
@@ -372,18 +418,21 @@ Each screenshot includes:
 Full-text search across all screenshots:
 
 **Search by Text**:
+
 1. Open Native Tools → Screenshot tab
 2. Enter search query in search box
 3. Results appear instantly
 4. Shows matched text and context
 
 **Search Filters**:
+
 - **Date Range** - Filter by capture date
 - **Application** - Filter by app
 - **Tags** - Filter by tags
 - **Pinned Only** - Show only pinned
 
 **Use Cases**:
+
 - Find error message screenshots
 - Locate diagram with specific text
 - Search for documentation screenshots
@@ -394,16 +443,19 @@ Full-text search across all screenshots:
 Pin important screenshots to keep them indefinitely:
 
 **How to Pin**:
+
 1. Find screenshot in history
 2. Click pin icon
 3. Screenshot is protected from cleanup
 
 **Unpinning**:
+
 1. Click pin icon again
 2. Screenshot is unpinned
 3. Subject to normal cleanup
 
 **Use For**:
+
 - Important error messages
 - Reference diagrams
 - Documentation screenshots
@@ -412,16 +464,19 @@ Pin important screenshots to keep them indefinitely:
 #### Export & Import
 
 **Export Screenshot**:
+
 1. Right-click screenshot
 2. Choose "Export"
 3. Save to external location
 
 **Export History**:
+
 1. Click export button in screenshot tab
 2. Choose format (JSON with metadata)
 3. Save to file
 
 **Import History**:
+
 1. Click import button
 2. Select previously exported JSON
 3. History is restored
@@ -431,20 +486,24 @@ Pin important screenshots to keep them indefinitely:
 #### Capture Settings
 
 **Default Format**:
+
 - PNG - Lossless, larger files
 - JPG - Lossy, smaller files
 - WebP - Modern format, good compression
 
 **Quality** (for JPG/WebP):
+
 - Range: 1-100
 - Higher = better quality, larger file
 - Recommended: 85-95
 
 **Include Cursor**:
+
 - Show mouse cursor in screenshots
 - Useful for tutorials and demos
 
 **Auto-Save Directory**:
+
 - Where screenshots are saved
 - Default: User's Pictures folder
 - Customizable location
@@ -452,32 +511,39 @@ Pin important screenshots to keep them indefinitely:
 #### OCR Settings
 
 **Enable Auto OCR** (Default: On):
+
 - Automatically extract text after capture
 - Disable to save processing time
 
 **OCR Language**:
+
 - Auto-detect (default)
 - Or specify language (e.g., English, Chinese)
 
 **Preferred Engine**:
+
 - Basic OCR (all platforms)
 - Windows OCR (Windows only, more accurate)
 
 **Copy Text to Clipboard**:
+
 - Automatically copy extracted text
 - Quick paste into other apps
 
 #### History Settings
 
 **Max History Size** (Default: 500):
+
 - Maximum screenshots to keep
 - Older screenshots removed when limit reached
 
 **Auto-Cleanup** (Default: On):
+
 - Automatically delete old screenshots
 - Pinned screenshots always kept
 
 **Search Indexing**:
+
 - Index screenshots for search
 - Disable to save disk space
 
@@ -486,12 +552,14 @@ Pin important screenshots to keep them indefinitely:
 #### Adding Tags
 
 Organize screenshots with tags:
+
 1. Click screenshot in history
 2. Click "Add Tag"
 3. Enter tag name
 4. Press Enter
 
 **Common Tags**:
+
 - #bugs - Error messages
 - #docs - Documentation
 - #refs - Reference material
@@ -501,12 +569,14 @@ Organize screenshots with tags:
 #### Adding Notes
 
 Add notes to screenshots:
+
 1. Click screenshot
 2. Click "Add Note"
 3. Enter note text
 4. Save
 
 **Use For**:
+
 - Context information
 - Action items
 - Reminders
@@ -519,6 +589,7 @@ Add notes to screenshots:
 Send screenshots to AI with context:
 
 **Share with AI**:
+
 1. Capture screenshot
 2. Click "Share with Chat"
 3. AI receives:
@@ -528,6 +599,7 @@ Send screenshots to AI with context:
    - Timestamp
 
 **Example Interactions**:
+
 ```
 User: [Shares screenshot of error message]
 AI: "I can see an error message: 'Cannot find
@@ -654,6 +726,7 @@ this code or help modify it?"
 **Problem**: Context shows generic information
 
 **Solutions**:
+
 1. Check if context detection is enabled
 2. Verify you're using supported application
 3. Restart desktop app
@@ -662,6 +735,7 @@ this code or help modify it?"
 **Problem**: Context not updating
 
 **Solutions**:
+
 1. Check refresh interval (may be too long)
 2. Verify window is actually focused
 3. Restart the application
@@ -672,6 +746,7 @@ this code or help modify it?"
 **Problem**: Screenshot not saving
 
 **Solutions**:
+
 1. Check save directory permissions
 2. Verify available disk space
 3. Try different save location
@@ -680,6 +755,7 @@ this code or help modify it?"
 **Problem**: OCR not working
 
 **Solutions**:
+
 1. Ensure auto-OCR is enabled
 2. Try Windows OCR engine (if on Windows)
 3. Check image quality (too blurry?)
@@ -688,6 +764,7 @@ this code or help modify it?"
 **Problem**: Can't find old screenshot
 
 **Solutions**:
+
 1. Use search with extracted text
 2. Check date filters
 3. Verify not deleted by cleanup
@@ -698,6 +775,7 @@ this code or help modify it?"
 **Problem**: System slow after many screenshots
 
 **Solutions**:
+
 1. Reduce history limit
 2. Disable search indexing
 3. Export and clear history

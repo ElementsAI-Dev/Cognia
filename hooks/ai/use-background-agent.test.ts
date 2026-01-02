@@ -6,7 +6,6 @@ import { renderHook, act } from '@testing-library/react';
 import { useBackgroundAgentStore } from '@/stores/agent';
 
 // Mock the stores before importing the hook
-jest.mock('@/stores/agent');
 jest.mock('@/stores/settings', () => ({
   useSettingsStore: jest.fn((selector) => {
     if (typeof selector !== 'function') return {};
@@ -39,6 +38,7 @@ jest.mock('@/stores/agent', () => ({
     };
     return selector(state);
   }),
+  useBackgroundAgentStore: jest.fn(),
 }));
 
 jest.mock('@/stores/mcp', () => ({
@@ -61,17 +61,20 @@ jest.mock('@/stores/data', () => ({
 }));
 
 // Mock the background agent manager
+const mockManager = {
+  createAgent: jest.fn(() => ({ id: 'managed-agent-1' })),
+  startAgent: jest.fn().mockResolvedValue(undefined),
+  setProviders: jest.fn(),
+  pauseAgent: jest.fn(),
+  resumeAgent: jest.fn(),
+  cancelAgent: jest.fn(),
+  cancelAll: jest.fn(),
+};
+
 jest.mock('@/lib/ai/agent/background-agent-manager', () => ({
   BackgroundAgentManager: jest.fn(),
-  createBackgroundAgentManager: jest.fn(() => ({
-    createAgent: jest.fn(() => ({ id: 'managed-agent-1' })),
-    startAgent: jest.fn().mockResolvedValue(undefined),
-    setProviders: jest.fn(),
-    pauseAgent: jest.fn(),
-    resumeAgent: jest.fn(),
-    cancelAgent: jest.fn(),
-    cancelAll: jest.fn(),
-  })),
+  createBackgroundAgentManager: jest.fn(() => mockManager),
+  getBackgroundAgentManager: jest.fn(() => mockManager),
 }));
 
 // Import after mocks

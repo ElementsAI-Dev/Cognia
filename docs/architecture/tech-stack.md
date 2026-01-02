@@ -25,6 +25,7 @@ This document provides a comprehensive overview of the technologies used in Cogn
 Next.js is a React framework that provides features like routing, code splitting, and server-side rendering.
 
 **Why Next.js?**
+
 - File-based routing with App Router
 - Built-in optimizations (code splitting, tree shaking)
 - Static site generation (`output: "export"`)
@@ -33,11 +34,13 @@ Next.js is a React framework that provides features like routing, code splitting
 
 **Version Choice:**
 Next.js 16 is the latest version with:
+
 - Improved Turbopack bundler
 - Better React 19 integration
 - Enhanced static export support
 
 **Usage in Cognia:**
+
 ```typescript
 // app/(chat)/page.tsx - Chat interface route
 // app/settings/page.tsx - Settings route
@@ -45,6 +48,7 @@ Next.js 16 is the latest version with:
 ```
 
 **Key Configuration:**
+
 ```typescript
 // next.config.ts
 const nextConfig: NextConfig = {
@@ -63,6 +67,7 @@ const nextConfig: NextConfig = {
 React is a JavaScript library for building user interfaces with components.
 
 **Why React?**
+
 - Component-based architecture
 - Virtual DOM for performance
 - Large ecosystem and community
@@ -70,12 +75,14 @@ React is a JavaScript library for building user interfaces with components.
 
 **Version Choice:**
 React 19.2 includes:
+
 - Improved concurrent rendering
 - Better Suspense support
 - Enhanced form handling
 - Server Actions (not used due to static export)
 
 **Usage in Cognia:**
+
 ```typescript
 // Functional components with hooks
 export function ChatContainer() {
@@ -94,6 +101,7 @@ export function ChatContainer() {
 Tailwind CSS is a utility-first CSS framework for rapidly building custom designs.
 
 **Why Tailwind CSS?**
+
 - Rapid UI development without writing CSS files
 - Consistent design system
 - Responsive design utilities
@@ -102,12 +110,14 @@ Tailwind CSS is a utility-first CSS framework for rapidly building custom design
 
 **Version Choice:**
 Tailwind CSS v4 is the latest major version with:
+
 - Inline theme configuration with CSS variables
 - No configuration file needed
 - Improved performance
 - Better TypeScript support
 
 **Usage in Cognia:**
+
 ```css
 /* app/globals.css */
 @theme inline {
@@ -133,6 +143,7 @@ shadcn/ui is a collection of re-usable components built with Radix UI and Tailwi
 Radix UI provides unstyled, accessible components that serve as the foundation for shadcn/ui.
 
 **Why shadcn/ui?**
+
 - Copy-paste components (not npm package dependency)
 - Full customization control
 - Accessibility built-in (ARIA attributes, keyboard navigation)
@@ -140,6 +151,7 @@ Radix UI provides unstyled, accessible components that serve as the foundation f
 - Active maintenance
 
 **Usage in Cognia:**
+
 ```bash
 # Add new components
 pnpm dlx shadcn@latest add command
@@ -158,6 +170,7 @@ import { Dialog, DialogContent, DialogHeader } from '@/components/ui/dialog';
 ```
 
 **Components Used (50+):**
+
 - Button, Input, Textarea
 - Dialog, Dropdown Menu, Popover
 - Tabs, Accordion, Scroll Area
@@ -172,12 +185,14 @@ import { Dialog, DialogContent, DialogHeader } from '@/components/ui/dialog';
 Lucide React is a collection of 1000+ icons as React components.
 
 **Why Lucide?**
+
 - Tree-shakeable (only import used icons)
 - Consistent stroke width
 - Customizable via props (size, color, stroke)
 - Active maintenance
 
 **Usage in Cognia:**
+
 ```typescript
 import { Send, Mic, Paperclip } from 'lucide-react';
 
@@ -190,11 +205,13 @@ import { Send, Mic, Paperclip } from 'lucide-react';
 CVA is a library for creating variant-based component APIs with Tailwind CSS.
 
 **Why CVA?**
+
 - Type-safe variant props
 - Composable styles
 - Used by shadcn/ui for component variants
 
 **Usage in Cognia:**
+
 ```typescript
 const buttonVariants = cva({
   base: "inline-flex items-center justify-center rounded-md font-medium",
@@ -223,6 +240,7 @@ const buttonVariants = cva({
 Zustand is a small, fast, and scalable state management solution using simplified flux principles.
 
 **Why Zustand over Redux/Context?**
+
 - Minimal boilerplate
 - No Provider components needed
 - Built-in TypeScript support
@@ -232,11 +250,13 @@ Zustand is a small, fast, and scalable state management solution using simplifie
 
 **Version Choice:**
 Zustand v5 includes:
+
 - Improved TypeScript types
 - Better devtools integration
 - Enhanced persist middleware
 
 **Usage in Cognia:**
+
 ```typescript
 // stores/session-store.ts
 export const useSessionStore = create<SessionState>()(
@@ -260,6 +280,7 @@ const createSession = useSessionStore(state => state.createSession);
 ```
 
 **Stores in Cognia:**
+
 | Store | Key | Purpose |
 |-------|-----|---------|
 | `artifact-store.ts` | cognia-artifacts | Artifacts, canvas, version history |
@@ -280,6 +301,7 @@ const createSession = useSessionStore(state => state.createSession);
 Dexie is a wrapper around IndexedDB that provides a more intuitive API and better TypeScript support.
 
 **Why Dexie over raw IndexedDB?**
+
 - Promise-based API (vs. event-based)
 - Type-safe schema definitions
 - Query methods similar to SQL
@@ -288,11 +310,13 @@ Dexie is a wrapper around IndexedDB that provides a more intuitive API and bette
 
 **Version Choice:**
 Dexie v4 provides:
+
 - Improved TypeScript inference
 - Better async/await support
 - Enhanced observability
 
 **Usage in Cognia:**
+
 ```typescript
 // lib/db/schema.ts
 export const db = new Dexie('CogniaDB');
@@ -327,6 +351,7 @@ const messages = useLiveQuery(() => db.messages
 ```
 
 **Schema:**
+
 ```typescript
 // Tables and indexes
 sessions:      '++id, title, createdAt, updatedAt'
@@ -342,16 +367,19 @@ knowledgeFiles: '++id, projectId, filename, path, uploadedAt'
 Browser API for storing key-value pairs persistently.
 
 **Why localStorage?**
+
 - Simple API for key-value data
 - Synchronous access (faster for small data)
 - Works well with Zustand persist middleware
 - Survives browser restarts
 
 **Usage in Cognia:**
+
 - Zustand store persistence (via `createJSONStorage()`)
 - Simple settings that don't require IndexedDB complexity
 
 **Limitations:**
+
 - 5-10MB storage limit (vs. IndexedDB's ~1GB)
 - Synchronous operations can block main thread
 - No structured queries
@@ -364,6 +392,7 @@ Browser API for storing key-value pairs persistently.
 The AI SDK is a TypeScript toolkit for building AI-powered applications with streaming, tool calling, and multi-provider support.
 
 **Why Vercel AI SDK?**
+
 - Unified API for multiple AI providers
 - Built-in streaming support
 - Tool calling framework
@@ -373,12 +402,14 @@ The AI SDK is a TypeScript toolkit for building AI-powered applications with str
 
 **Version Choice:**
 AI SDK v5 provides:
+
 - Improved streaming performance
 - Better error handling
 - Enhanced tool calling
 - React 19 support
 
 **Usage in Cognia:**
+
 ```typescript
 import { generateText, streamText } from 'ai';
 import { openai } from '@ai-sdk/openai';
@@ -401,6 +432,7 @@ for await (const chunk of result.textStream) {
 ```
 
 **Supported Providers (7 total):**
+
 | Provider | Package | Models Used |
 |----------|---------|-------------|
 | OpenAI | `@ai-sdk/openai` v2.0.88 | GPT-4o, GPT-4o Mini, o1, o1 Mini |
@@ -414,22 +446,26 @@ for await (const chunk of result.textStream) {
 ### Custom AI Features
 
 **Auto-Router** (`lib/ai/auto-router.ts`):
+
 - Classifies task complexity (simple/moderate/complex)
 - Selects optimal model from tiers (fast/balanced/powerful)
 - Considers vision, tool, and reasoning requirements
 - Fallback mechanisms
 
 **Memory Injection** (`lib/ai/use-ai-chat.ts`):
+
 - Auto-detects memories from user messages
 - Injects relevant memories into system prompt
 - Cross-session memory persistence
 
 **API Key Rotation**:
+
 - Multiple API keys per provider
 - Round-robin or usage-based rotation
 - Automatic failover on rate limits
 
 **Usage Tracking**:
+
 - Token counting per message
 - Cost estimation
 - Provider usage statistics
@@ -442,6 +478,7 @@ for await (const chunk of result.textStream) {
 Tauri is a framework for building tiny, fast binaries for all major desktop platforms.
 
 **Why Tauri over Electron?**
+
 - **Smaller bundle size**: ~3MB vs. ~150MB for Electron
 - **Better security**: Rust-based backend, no Chromium vulnerabilities
 - **Lower memory usage**: 10-20x less than Electron
@@ -450,12 +487,14 @@ Tauri is a framework for building tiny, fast binaries for all major desktop plat
 
 **Version Choice:**
 Tauri 2.9 provides:
+
 - Stable v2 API
 - Improved plugin system
 - Better Windows support
 - Enhanced security model
 
 **Usage in Cognia:**
+
 ```rust
 // src-tauri/src/main.rs
 fn main() {
@@ -477,6 +516,7 @@ fn main() {
 ```
 
 **Tauri Plugins Used:**
+
 - `@tauri-apps/plugin-fs`: File system access
 - `@tauri-apps/plugin-dialog`: Native file dialogs
 - `@tauri-apps/plugin-shell`: Open URLs, execute commands
@@ -485,6 +525,7 @@ fn main() {
 - `@tauri-apps/plugin-updater`: Auto-update functionality
 
 **Configuration:**
+
 ```json
 // src-tauri/tauri.conf.json
 {
@@ -507,12 +548,14 @@ fn main() {
 ### Rust Backend
 
 **Why Rust for MCP?**
+
 - Process management: Spawning stdio child processes
 - Performance: Low overhead for JSON-RPC communication
 - Safety: Memory safe for concurrent server connections
 - Async runtime: Tokio for efficient async I/O
 
 **Key Dependencies:**
+
 ```toml
 # src-tauri/Cargo.toml
 [dependencies]
@@ -532,6 +575,7 @@ chrono = "0.4"
 Monaco Editor is the code editor that powers VS Code.
 
 **Why Monaco Editor?**
+
 - Feature-rich (IntelliSense, syntax highlighting, multi-cursor)
 - 30+ language support out of the box
 - Diff view for version comparison
@@ -539,6 +583,7 @@ Monaco Editor is the code editor that powers VS Code.
 - Active development by Microsoft
 
 **Usage in Cognia:**
+
 ```typescript
 import Editor from '@monaco-editor/react';
 
@@ -558,6 +603,7 @@ import Editor from '@monaco-editor/react';
 ```
 
 **Shiki 3.20.0:**
+
 - Syntax highlighting library used for message code blocks
 - 30+ language support
 - VS Code-quality highlighting
@@ -571,6 +617,7 @@ import Editor from '@monaco-editor/react';
 Jest is a JavaScript testing framework with built-in assertions, mocking, and test runners.
 
 **Why Jest?**
+
 - Zero configuration required
 - Built-in assertions and mocking
 - Snapshot testing
@@ -579,6 +626,7 @@ Jest is a JavaScript testing framework with built-in assertions, mocking, and te
 - React Testing Library integration
 
 **Configuration:**
+
 ```typescript
 // jest.config.ts
 export default {
@@ -611,6 +659,7 @@ export default {
 Playwright is a Node.js library for end-to-end testing across Chromium, Firefox, and WebKit.
 
 **Why Playwright?**
+
 - Cross-browser testing (Chrome, Firefox, Safari)
 - Auto-waiting for elements
 - Network interception
@@ -619,6 +668,7 @@ Playwright is a Node.js library for end-to-end testing across Chromium, Firefox,
 - Parallel execution
 
 **Usage in Cognia:**
+
 ```typescript
 // e2e/chat.spec.ts
 test('can send a message and receive response', async ({ page }) => {
@@ -630,6 +680,7 @@ test('can send a message and receive response', async ({ page }) => {
 ```
 
 **Excluded from Coverage:**
+
 - `lib/search/` - External search APIs
 - `lib/vector/` - Vector DB clients
 - `lib/native/` - Tauri runtime
@@ -643,6 +694,7 @@ test('can send a message and receive response', async ({ page }) => {
 Turbopack is a bundler written in Rust, replacing Webpack in Next.js 16.
 
 **Benefits:**
+
 - 700x faster updates than Webpack
 - 10x faster cold starts
 - Native Rust performance
@@ -654,6 +706,7 @@ Turbopack is a bundler written in Rust, replacing Webpack in Next.js 16.
 TypeScript is a typed superset of JavaScript that compiles to plain JavaScript.
 
 **Why TypeScript?**
+
 - Catch errors at compile time
 - Better IDE support (autocomplete, refactoring)
 - Self-documenting code
@@ -661,6 +714,7 @@ TypeScript is a typed superset of JavaScript that compiles to plain JavaScript.
 - Improved developer experience
 
 **Configuration:**
+
 ```json
 // tsconfig.json
 {
@@ -686,6 +740,7 @@ TypeScript is a typed superset of JavaScript that compiles to plain JavaScript.
 pnpm is a fast, disk space efficient package manager.
 
 **Why pnpm over npm/yarn?**
+
 - Efficient disk usage (hard links)
 - Faster installations
 - Strict dependency handling
@@ -700,12 +755,14 @@ pnpm is a fast, disk space efficient package manager.
 Zod is a TypeScript-first schema validation library.
 
 **Why Zod?**
+
 - Runtime type validation
 - Automatic TypeScript type inference
 - Used for API request/response validation
 - MCP protocol schema validation
 
 **Usage in Cognia:**
+
 ```typescript
 import { z } from 'zod';
 

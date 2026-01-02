@@ -79,4 +79,5 @@ export {
   SpeechSettings,
   SandboxSettings,
   SearchSettings,
+  GitSettings,
 } from './system';

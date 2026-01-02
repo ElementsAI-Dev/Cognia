@@ -5,6 +5,7 @@ Welcome to the official Cognia documentation. This section provides comprehensiv
 ## Quick Navigation
 
 ### For Users
+
 - [Features Overview](features/) - User guides for all Cognia features
   - [AI Integration](features/ai-integration.md) - Provider setup and model selection
   - [Chat Features](features/chat-features.md) - Chat modes, branching, and advanced features
@@ -20,6 +21,7 @@ Welcome to the official Cognia documentation. This section provides comprehensiv
     - [Native Context & Screenshot](features/native-context-screenshot.md) - Context detection and screenshots
 
 ### For Developers
+
 - [Getting Started](development/getting-started.md) - Installation and setup
 - [Architecture Overview](architecture/overview.md) - System design and technology choices
 - [Project Structure](development/project-structure.md) - Directory organization and file conventions
@@ -66,7 +68,9 @@ docs/
 ## Key Concepts
 
 ### Architecture
+
 Cognia uses a hybrid web/desktop architecture:
+
 - **Web**: Next.js 16 with React 19.2, deployed as static HTML
 - **Desktop**: Tauri 2.9 wrapper with Rust backend for native capabilities
 - **State**: Zustand stores organized in modular directories with localStorage persistence
@@ -84,10 +88,17 @@ Cognia uses a hybrid web/desktop architecture:
 
 - **Artifacts**: AI-generated standalone content (code, documents, charts)
 - **Canvas Editor**: Monaco editor with AI suggestions and version history
-- **Agent System**: Autonomous AI agents with tool calling, planning, and background execution
+- **Agent System**: Autonomous AI agents with tool calling, planning, background execution, and sub-agent orchestration
+- **Background Agents**: Queue-based agent execution with notifications and persistence
+- **Sub-Agent Orchestration**: Parallel/sequential sub-agent execution with dependencies
 - **MCP**: Full Model Context Protocol support for extended capabilities
-- **Workflow Editor**: Visual workflow editor with React Flow for creating automation workflows
-- **Skills System**: Custom skill framework for extending AI capabilities
+- **Workflow Editor**: Visual workflow editor with React Flow (50+ components) for creating automation workflows
+- **Skills System**: Custom skill framework for extending AI capabilities (25 components)
+- **Learning Mode**: Flashcards, quizzes, video learning, and PPT generation (23 components)
+- **Image Studio**: Background removal, image adjustments, cropping, upscaling, and mask painting (15 components)
+- **Jupyter Integration**: Interactive notebook interface with kernel management (7 components)
+- **Screen Recording**: Desktop screen recording with region selection
+- **Chat Widget**: Embeddable chat widget for external integration (8 components)
 - **Projects**: Organize conversations with knowledge bases
 - **Multi-Mode**: Chat, Agent, and Research modes
 - **Native Tools** (Desktop Only): Smart selection, system monitoring, screenshots with OCR, context awareness
@@ -95,6 +106,7 @@ Cognia uses a hybrid web/desktop architecture:
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js 20.x or later
 - pnpm 8.x or later
 - Rust 1.70+ (for desktop development)
@@ -128,6 +140,7 @@ pnpm tauri build
 ## Documentation Guide
 
 ### Audience
+
 This documentation serves different audiences:
 
 **Users**: Focus on the [Features](features/) section for guides on using Cognia's capabilities.
@@ -137,6 +150,7 @@ This documentation serves different audiences:
 **Contributors**: Read [Contributing](development/contributing.md) to understand the workflow and standards.
 
 ### Conventions
+
 - All code examples use TypeScript
 - File paths are relative to project root
 - Code blocks include proper syntax highlighting
@@ -144,7 +158,9 @@ This documentation serves different audiences:
 - Package manager commands use pnpm
 
 ### Contributing to Documentation
+
 To improve the documentation:
+
 1. Edit the relevant markdown file in `docs/`
 2. Follow the existing format and structure
 3. Include code examples for any API changes
@@ -161,10 +177,11 @@ To improve the documentation:
 ## Support
 
 For questions, issues, or contributions:
+
 - Open an issue on GitHub
 - Check existing documentation first
 - Review the [Contributing Guide](development/contributing.md)
 
 ---
 
-**Last Updated**: January 2, 2026
+**Last Updated**: January 3, 2026

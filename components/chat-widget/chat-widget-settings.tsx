@@ -87,11 +87,40 @@ export function ChatWidgetSettings({
   onUpdateConfig,
   onResetConfig,
 }: ChatWidgetSettingsProps) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-[400px] sm:max-w-[400px]">
+        {open && (
+          <ChatWidgetSettingsContent
+            config={config}
+            onUpdateConfig={onUpdateConfig}
+            onResetConfig={onResetConfig}
+            onClose={() => onOpenChange(false)}
+          />
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+interface ChatWidgetSettingsContentProps {
+  config: ChatWidgetConfig;
+  onUpdateConfig: (config: Partial<ChatWidgetConfig>) => void;
+  onResetConfig: () => void;
+  onClose: () => void;
+}
+
+function ChatWidgetSettingsContent({
+  config,
+  onUpdateConfig,
+  onResetConfig,
+  onClose,
+}: ChatWidgetSettingsContentProps) {
   const [localConfig, setLocalConfig] = useState(config);
 
   const handleSave = () => {
     onUpdateConfig(localConfig);
-    onOpenChange(false);
+    onClose();
   };
 
   const handleProviderChange = (provider: ProviderName) => {
@@ -105,167 +134,165 @@ export function ChatWidgetSettings({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[400px] sm:max-w-[400px]">
-        <SheetHeader>
-          <SheetTitle>助手设置</SheetTitle>
-          <SheetDescription>
-            配置 AI 助手的模型和行为
-          </SheetDescription>
-        </SheetHeader>
+    <>
+      <SheetHeader>
+        <SheetTitle>助手设置</SheetTitle>
+        <SheetDescription>
+          配置 AI 助手的模型和行为
+        </SheetDescription>
+      </SheetHeader>
 
-        <ScrollArea className="h-[calc(100vh-180px)] mt-4 pr-4">
-          <div className="space-y-6">
-            {/* Provider Selection */}
-            <div className="space-y-2">
-              <Label>AI 提供商</Label>
-              <Select
-                value={localConfig.provider}
-                onValueChange={(v) => handleProviderChange(v as ProviderName)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="选择提供商" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROVIDERS.map((p) => (
-                    <SelectItem key={p.value} value={p.value}>
-                      {p.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      <ScrollArea className="h-[calc(100vh-180px)] mt-4 pr-4">
+        <div className="space-y-6">
+          {/* Provider Selection */}
+          <div className="space-y-2">
+            <Label>AI 提供商</Label>
+            <Select
+              value={localConfig.provider}
+              onValueChange={(v) => handleProviderChange(v as ProviderName)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="选择提供商" />
+              </SelectTrigger>
+              <SelectContent>
+                {PROVIDERS.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-            {/* Model Selection */}
-            <div className="space-y-2">
-              <Label>模型</Label>
-              <Select
-                value={localConfig.model}
-                onValueChange={(v) =>
-                  setLocalConfig((prev) => ({ ...prev, model: v }))
+          {/* Model Selection */}
+          <div className="space-y-2">
+            <Label>模型</Label>
+            <Select
+              value={localConfig.model}
+              onValueChange={(v) =>
+                setLocalConfig((prev) => ({ ...prev, model: v }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="选择模型" />
+              </SelectTrigger>
+              <SelectContent>
+                {MODELS[localConfig.provider]?.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Separator />
+
+          {/* System Prompt */}
+          <div className="space-y-2">
+            <Label>系统提示词</Label>
+            <Textarea
+              value={localConfig.systemPrompt}
+              onChange={(e) =>
+                setLocalConfig((prev) => ({
+                  ...prev,
+                  systemPrompt: e.target.value,
+                }))
+              }
+              placeholder="设置 AI 的角色和行为..."
+              rows={4}
+            />
+          </div>
+
+          <Separator />
+
+          {/* Behavior Settings */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-medium">行为设置</h4>
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="pinned" className="text-sm">
+                窗口置顶
+              </Label>
+              <Switch
+                id="pinned"
+                checked={localConfig.pinned}
+                onCheckedChange={(checked) =>
+                  setLocalConfig((prev) => ({ ...prev, pinned: checked }))
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="选择模型" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MODELS[localConfig.provider]?.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>
-                      {m.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Separator />
-
-            {/* System Prompt */}
-            <div className="space-y-2">
-              <Label>系统提示词</Label>
-              <Textarea
-                value={localConfig.systemPrompt}
-                onChange={(e) =>
-                  setLocalConfig((prev) => ({
-                    ...prev,
-                    systemPrompt: e.target.value,
-                  }))
-                }
-                placeholder="设置 AI 的角色和行为..."
-                rows={4}
               />
             </div>
 
-            <Separator />
-
-            {/* Behavior Settings */}
-            <div className="space-y-4">
-              <h4 className="text-sm font-medium">行为设置</h4>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="pinned" className="text-sm">
-                  窗口置顶
-                </Label>
-                <Switch
-                  id="pinned"
-                  checked={localConfig.pinned}
-                  onCheckedChange={(checked) =>
-                    setLocalConfig((prev) => ({ ...prev, pinned: checked }))
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="autoFocus" className="text-sm">
-                  自动聚焦输入框
-                </Label>
-                <Switch
-                  id="autoFocus"
-                  checked={localConfig.autoFocus}
-                  onCheckedChange={(checked) =>
-                    setLocalConfig((prev) => ({ ...prev, autoFocus: checked }))
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="showTimestamps" className="text-sm">
-                  显示时间戳
-                </Label>
-                <Switch
-                  id="showTimestamps"
-                  checked={localConfig.showTimestamps}
-                  onCheckedChange={(checked) =>
-                    setLocalConfig((prev) => ({
-                      ...prev,
-                      showTimestamps: checked,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="rememberPosition" className="text-sm">
-                  记住窗口位置
-                </Label>
-                <Switch
-                  id="rememberPosition"
-                  checked={localConfig.rememberPosition}
-                  onCheckedChange={(checked) =>
-                    setLocalConfig((prev) => ({
-                      ...prev,
-                      rememberPosition: checked,
-                    }))
-                  }
-                />
-              </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="autoFocus" className="text-sm">
+                自动聚焦输入框
+              </Label>
+              <Switch
+                id="autoFocus"
+                checked={localConfig.autoFocus}
+                onCheckedChange={(checked) =>
+                  setLocalConfig((prev) => ({ ...prev, autoFocus: checked }))
+                }
+              />
             </div>
 
-            <Separator />
+            <div className="flex items-center justify-between">
+              <Label htmlFor="showTimestamps" className="text-sm">
+                显示时间戳
+              </Label>
+              <Switch
+                id="showTimestamps"
+                checked={localConfig.showTimestamps}
+                onCheckedChange={(checked) =>
+                  setLocalConfig((prev) => ({
+                    ...prev,
+                    showTimestamps: checked,
+                  }))
+                }
+              />
+            </div>
 
-            {/* Shortcut Info */}
-            <div className="space-y-2">
-              <Label>快捷键</Label>
-              <div className="text-sm text-muted-foreground">
-                <kbd className="px-2 py-1 bg-muted rounded text-xs">
-                  {localConfig.shortcut.replace("CommandOrControl", "Ctrl")}
-                </kbd>
-                <span className="ml-2">唤起/隐藏助手</span>
-              </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="rememberPosition" className="text-sm">
+                记住窗口位置
+              </Label>
+              <Switch
+                id="rememberPosition"
+                checked={localConfig.rememberPosition}
+                onCheckedChange={(checked) =>
+                  setLocalConfig((prev) => ({
+                    ...prev,
+                    rememberPosition: checked,
+                  }))
+                }
+              />
             </div>
           </div>
-        </ScrollArea>
 
-        {/* Actions */}
-        <div className="flex gap-2 mt-4">
-          <Button variant="outline" className="flex-1" onClick={onResetConfig}>
-            重置
-          </Button>
-          <Button className="flex-1" onClick={handleSave}>
-            保存
-          </Button>
+          <Separator />
+
+          {/* Shortcut Info */}
+          <div className="space-y-2">
+            <Label>快捷键</Label>
+            <div className="text-sm text-muted-foreground">
+              <kbd className="px-2 py-1 bg-muted rounded text-xs">
+                {localConfig.shortcut.replace("CommandOrControl", "Ctrl")}
+              </kbd>
+              <span className="ml-2">唤起/隐藏助手</span>
+            </div>
+          </div>
         </div>
-      </SheetContent>
-    </Sheet>
+      </ScrollArea>
+
+      {/* Actions */}
+      <div className="flex gap-2 mt-4">
+        <Button variant="outline" className="flex-1" onClick={onResetConfig}>
+          重置
+        </Button>
+        <Button className="flex-1" onClick={handleSave}>
+          保存
+        </Button>
+      </div>
+    </>
   );
 }

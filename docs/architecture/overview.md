@@ -18,12 +18,14 @@ Cognia is a hybrid web/desktop AI chat application that combines the modern Reac
 Cognia operates in two distinct modes:
 
 ### Development Mode (Web)
+
 - Runs as a standard Next.js development server
 - Accessible at `http://localhost:3001`
 - Full hot-reload and Fast Refresh support
 - Uses Turbopack for optimized builds
 
 ### Production Mode (Desktop)
+
 - Next.js builds to static HTML/CSS/JS (`output: "export"`)
 - Static files emitted to `out/` directory
 - Tauri bundles static files into a native desktop application
@@ -55,6 +57,7 @@ The most critical architectural constraint is the static export requirement:
 - **Browser Compatibility**: All code must work in the browser environment
 
 This constraint drives many architectural decisions:
+
 - Client-led state management (Zustand stores)
 - Browser storage APIs (localStorage, IndexedDB)
 - Direct API calls to AI providers from the client
@@ -76,25 +79,25 @@ Cognia's architecture follows a layered approach with clear separation of concer
                             v
 +---------------------------------------------------------------+
 |                    Business Logic Layer                       |
-|  Custom Hooks (hooks/)                                        |
-|  - useAIChat                                                 |
-|  - useMessages                                               |
-|  - useSessionSearch                                          |
-|  - Keyboard shortcuts                                        |
+|  Custom Hooks (hooks/) - organized by category                |
+|  - ai/: useAgent, useBackgroundAgent, useSubAgent, useSkills  |
+|  - chat/: useMessages, useArtifactDetection                   |
+|  - rag/: useRAG, useVectorDB, useMemory, useRAGPipeline       |
+|  - media/: useSpeech, useTTS                                  |
+|  - ui/: useKeyboardShortcuts                                  |
 +---------------------------+-----------------------------------+
                             |
                             v
 +---------------------------------------------------------------+
 |                     State Management Layer                    |
-|  Zustand Stores (stores/)                                    |
-|  - artifact-store.ts                                         |
-|  - session-store.ts                                          |
-|  - settings-store.ts                                         |
-|  - mcp-store.ts                                              |
-|  - memory-store.ts                                           |
-|  - project-store.ts                                          |
-|  - usage-store.ts                                            |
-|  - preset-store.ts                                           |
+|  Zustand Stores (stores/) - organized by category             |
+|  - agent/: agent, background-agent, sub-agent, skill stores   |
+|  - chat/: chat, session, quote, summary, widget stores        |
+|  - media/: media, image-studio, screen-recording stores       |
+|  - settings/: settings, preset, custom-theme stores           |
+|  - system/: ui, usage, environment, proxy, window stores      |
+|  - tools/: jupyter, ppt-editor, template stores               |
+|  - workflow/: workflow, workflow-editor stores                |
 +---------------------------+-----------------------------------+
                             |
                             v
@@ -120,30 +123,35 @@ Cognia's architecture follows a layered approach with clear separation of concer
 ### Layer Responsibilities
 
 **Presentation Layer**
+
 - Pure UI components using React 19.2
 - Composition of shadcn/ui primitives
 - Display data from stores
 - Emit user actions to hooks
 
 **Business Logic Layer**
+
 - Custom hooks encapsulate business logic
 - Orchestrate interactions between stores
 - Handle side effects (API calls, persistence)
 - Reusable across components
 
 **State Management Layer**
+
 - Zustand stores manage application state
 - Persistent storage via localStorage
 - Type-safe actions and selectors
 - Cross-component state sharing
 
 **Data Access Layer**
+
 - Dexie wraps IndexedDB for structured data
 - localStorage for simple key-value storage
 - Tauri commands for native operations
 - Repository pattern for data access
 
 **Integration / Native Layer**
+
 - Rust backend for desktop-specific features
 - MCP server lifecycle management
 - System-level operations
@@ -167,12 +175,14 @@ const result = await streamText({
 ```
 
 **Benefits:**
+
 - Simpler deployment (no backend servers)
 - Reduced latency (no server round-trips)
 - Offline capability
 - Privacy (data stays local)
 
 **Trade-offs:**
+
 - API keys stored in browser (unencrypted)
 - No server-side validation
 - Limited by browser resources
@@ -195,6 +205,7 @@ components/
 ```
 
 Each feature directory contains:
+
 - React components
 - Feature-specific hooks
 - Sub-components
@@ -291,6 +302,7 @@ export const useSessionStore = create<SessionState>()(
 ```
 
 **Features:**
+
 - Minimal boilerplate
 - Built-in persistence via middleware
 - TypeScript-first design
@@ -319,6 +331,7 @@ export const messageRepository = {
 ```
 
 **Benefits:**
+
 - Centralized data access logic
 - Easy to swap storage implementations
 - Testable (can mock repositories)
@@ -348,6 +361,7 @@ const addServer = async (id: string, config: McpServerConfig) => {
 ```
 
 **Benefits:**
+
 - Type-safe invocation (with tauri-cli codegen)
 - Async/await on both sides
 - Error propagation across FFI boundary
@@ -374,6 +388,7 @@ useEffect(() => {
 ```
 
 **Use Cases:**
+
 - MCP server state changes
 - Tool call progress updates
 - Notification delivery
@@ -403,6 +418,7 @@ const getProviderModel = (
 ```
 
 **Benefits:**
+
 - Easy to add new providers
 - Consistent API across providers
 - Auto-routing can select optimal provider
@@ -518,12 +534,14 @@ app/(chat)/page.tsx
 ### Props vs Store Access
 
 **Props for:**
+
 - Component-specific configuration
 - Event handlers
 - Derived data
 - UI state (open/closed, selected)
 
 **Store for:**
+
 - Application state (sessions, messages)
 - User settings (providers, theme)
 - Cross-component data (artifacts, MCP servers)
@@ -591,3 +609,5 @@ The static-first constraint drives many architectural decisions, resulting in a 
 - [MCP Architecture](./mcp-architecture.md) - MCP system design
 
 **File Path**: `d:\Project\Cognia\docs\architecture\overview.md`
+
+**Last Updated**: January 3, 2026

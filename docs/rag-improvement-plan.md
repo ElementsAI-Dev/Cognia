@@ -70,6 +70,7 @@ lib/ai/
 **背景**: AI SDK 提供了 `cosineSimilarity` 函数，当前代码有多处自定义实现。
 
 **AI SDK API**:
+
 ```typescript
 import { cosineSimilarity } from 'ai';
 
@@ -80,6 +81,7 @@ const similarity = cosineSimilarity(embedding1, embedding2);
 **需要修改的文件**:
 
 #### `lib/ai/embedding.ts` (320-337行)
+
 ```typescript
 // 删除自定义实现:
 // export function cosineSimilarity(a: number[], b: number[]): number { ... }
@@ -90,6 +92,7 @@ export const cosineSimilarity = aiCosineSimilarity;
 ```
 
 #### `lib/ai/rag/rag-pipeline.ts` (471-481行)
+
 ```typescript
 // 删除私有方法 cosineSimilarity
 // 使用导入:
@@ -97,6 +100,7 @@ import { cosineSimilarity } from '@/lib/ai/embedding';
 ```
 
 #### `lib/ai/rag/reranker.ts` (296-306行)
+
 ```typescript
 // 删除局部函数 cosineSimilarity
 // 使用导入:
@@ -110,6 +114,7 @@ import { cosineSimilarity } from '@/lib/ai/embedding';
 **背景**: AI SDK 的 `embedMany` 支持 `maxParallelCalls` 参数控制并发请求数。
 
 **AI SDK API**:
+
 ```typescript
 const { embeddings, usage } = await embedMany({
   model: openai.textEmbeddingModel('text-embedding-3-small'),
@@ -159,6 +164,7 @@ export async function generateEmbeddings(
 **背景**: AI SDK 提供 `wrapEmbeddingModel` 和 `defaultEmbeddingSettingsMiddleware` 用于设置默认配置。
 
 **AI SDK API**:
+
 ```typescript
 import { wrapEmbeddingModel, defaultEmbeddingSettingsMiddleware } from 'ai';
 
@@ -316,6 +322,7 @@ function buildProviderOptions(config: EmbeddingModelFactoryConfig): Record<strin
 **背景**: AI SDK 支持通过 `tool()` 定义工具，可在 `streamText` 中自动调用。
 
 **AI SDK API**:
+
 ```typescript
 import { tool, streamText, UIMessage, stepCountIs } from 'ai';
 import { z } from 'zod';
@@ -1113,23 +1120,27 @@ export async function generateEmbedding(
 建议按以下顺序实施：
 
 ### 阶段 1: 基础改进 (低风险)
+
 1. ✅ 使用 AI SDK 原生 `cosineSimilarity`
 2. ✅ 添加 `maxParallelCalls` 支持
 3. ✅ 增强错误处理和重试机制
 
 ### 阶段 2: 新功能 (中等风险)
-4. 新建 `findRelevantContent` API
-5. 新建 RAG Tools
-6. 添加更多 embedding provider
+
+1. 新建 `findRelevantContent` API
+2. 新建 RAG Tools
+3. 添加更多 embedding provider
 
 ### 阶段 3: 高级功能 (需要更多测试)
-7. 使用 `wrapEmbeddingModel` 中间件
-8. 实现持久化缓存
-9. 添加 `providerOptions` 支持
+
+1. 使用 `wrapEmbeddingModel` 中间件
+2. 实现持久化缓存
+3. 添加 `providerOptions` 支持
 
 ### 阶段 4: 测试和文档
-10. 更新所有测试用例
-11. 更新文档
+
+1. 更新所有测试用例
+2. 更新文档
 
 ---
 

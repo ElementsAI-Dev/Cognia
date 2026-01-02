@@ -24,12 +24,14 @@ This guide will help you set up your development environment for the Cognia proj
 #### For Web Development
 
 - **Node.js** 20.x or later
+
   ```bash
   # Check version
   node --version  # Should be v20.x.x or higher
   ```
 
 - **pnpm** 8.x or later (required package manager)
+
   ```bash
   # Install pnpm globally
   npm install -g pnpm@latest
@@ -43,6 +45,7 @@ This guide will help you set up your development environment for the Cognia proj
 If you plan to build or run the desktop application, you need additional tools:
 
 - **Rust** 1.70 or later
+
   ```bash
   # Check version
   rustc --version  # Should be 1.70 or higher
@@ -59,11 +62,13 @@ If you plan to build or run the desktop application, you need additional tools:
   - Select "Desktop development with C++" during installation
 
   **macOS**:
+
   ```bash
   xcode-select --install
   ```
 
   **Linux** (Ubuntu/Debian):
+
   ```bash
   sudo apt update
   sudo apt install libwebkit2gtk-4.1-dev \
@@ -80,6 +85,7 @@ If you plan to build or run the desktop application, you need additional tools:
 ### Optional Tools
 
 - **Git**: For version control
+
   ```bash
   git --version
   ```
@@ -111,6 +117,7 @@ pnpm install
 ```
 
 This will:
+
 - Install all Node.js dependencies
 - Set up Husky git hooks
 - Prepare the development environment
@@ -240,12 +247,14 @@ pnpm dev
 ```
 
 **Server Details**:
-- URL: http://localhost:3000
+
+- URL: <http://localhost:3000>
 - Hot reload enabled
 - Fast refresh supported
 - TypeScript checking enabled
 
 **Expected Output**:
+
 ```
   ▲ Next.js 16.0.0
   - Local:        http://localhost:3000
@@ -271,12 +280,14 @@ pnpm tauri dev
 ```
 
 **What Happens**:
+
 1. Starts Next.js dev server on port 3001
 2. Compiles Rust backend
 3. Opens desktop application window
 4. Enables hot reload for both frontend and backend
 
 **Expected Output**:
+
 ```
 Finished dev [unoptimized + debuginfo] target(s) in X.XXs
 Running `BeforeDevCommand` (`pnpm dev -p 3001`)
@@ -284,6 +295,7 @@ Finished dev [unoptimized + debuginfo] target(s) in X.XXs
 ```
 
 **Desktop Window**:
+
 - Title: "Cognia"
 - Opens automatically
 - DevTools available (F12 or Right Click > Inspect)
@@ -293,7 +305,7 @@ Finished dev [unoptimized + debuginfo] target(s) in X.XXs
 #### Typical Web Development
 
 1. Start dev server: `pnpm dev`
-2. Open browser: http://localhost:3000
+2. Open browser: <http://localhost:3000>
 3. Make changes in `app/`, `components/`, `lib/`
 4. Browser auto-refreshes with changes
 5. Check console for errors
@@ -366,7 +378,7 @@ pnpm tauri build --debug
 
 Once the dev server is running:
 
-#### Web Interface (http://localhost:3000)
+#### Web Interface (<http://localhost:3000>)
 
 1. **Welcome Page Loads**: Application starts successfully
 2. **Settings Page**: Navigate to settings, verify provider configuration UI
@@ -385,6 +397,7 @@ Once the dev server is running:
 ### Port Already in Use
 
 #### Error Message
+
 ```
 Port 3000 is already in use
 ```
@@ -412,6 +425,7 @@ pnpm dev -- -p 3001
 ### Module Not Found Errors
 
 #### Error Message
+
 ```
 Module not found: Can't resolve '@/components/...'
 ```
@@ -433,6 +447,7 @@ pnpm dev
 ### TypeScript Errors
 
 #### Error Message
+
 ```
 TypeScript error: Cannot find module ...
 ```
