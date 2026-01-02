@@ -199,11 +199,155 @@ jest.mock('@/stores', () => {
       presentations: {},
       activePresentationId: null,
     }),
+    // Additional agent stores
+    useBackgroundAgentStore: createMockSelector({
+      agents: [],
+      queue: [],
+      isPanelOpen: false,
+      selectedAgentId: null,
+    }),
+    useSubAgentStore: createMockSelector({
+      subAgents: [],
+      groups: [],
+      activeParentId: null,
+    }),
+    useSkillStore: createMockSelector({
+      skills: [],
+      getActiveSkills: jest.fn(() => []),
+      loading: false,
+      error: null,
+    }),
+    // Chat stores
+    useSummaryStore: createMockSelector({
+      summaries: {},
+      autoSummaryConfig: { enabled: true },
+      updateAutoSummaryConfig: jest.fn(),
+    }),
+    useChatWidgetStore: createMockSelector({
+      isOpen: false,
+      position: { x: 0, y: 0 },
+    }),
+    // Context stores
+    useClipboardContextStore: createMockSelector({
+      currentContent: null,
+      currentAnalysis: null,
+      templates: [],
+      isMonitoring: false,
+    }),
+    useSelectionStore: createMockSelector({
+      selectedText: '',
+      selectionPosition: null,
+    }),
+    // Data stores
+    useMemoryStore: createMockSelector({
+      memories: [],
+    }),
+    useVectorStore: createMockSelector({
+      collections: [],
+    }),
+    // Designer stores
+    useDesignerStore: createMockSelector({
+      components: [],
+      selectedComponentId: null,
+    }),
+    useDesignerHistoryStore: createMockSelector({
+      history: [],
+      currentIndex: -1,
+    }),
+    // Document stores
+    useDocumentStore: createMockSelector({
+      documents: [],
+      activeDocumentId: null,
+    }),
+    // MCP stores
+    useMcpMarketplaceStore: createMockSelector({
+      packages: [],
+      installedPackages: [],
+    }),
+    // Media stores
+    useMediaStore: createMockSelector({
+      images: [],
+      videos: [],
+    }),
+    useImageStudioStore: createMockSelector({
+      studioImages: [],
+      selectedImage: null,
+      isEditing: false,
+      hasUnsavedChanges: false,
+    }),
+    useScreenRecordingStore: createMockSelector({
+      isRecording: false,
+      recordingStatus: 'idle',
+    }),
+    // Project stores
+    useProjectActivityStore: createMockSelector({
+      activities: [],
+    }),
+    // System stores
+    useUIStore: createMockSelector({
+      sidebarOpen: true,
+      activeModal: null,
+      commandPaletteOpen: false,
+    }),
+    useUsageStore: createMockSelector({
+      usage: {},
+    }),
+    useRecentFilesStore: createMockSelector({
+      recentFiles: [],
+    }),
+    useNativeStore: createMockSelector({
+      isNative: false,
+    }),
+    useEnvironmentStore: createMockSelector({
+      platform: 'web',
+      tools: {},
+      refreshing: false,
+      installing: false,
+    }),
+    useProxyStore: createMockSelector({
+      config: null,
+      status: 'disconnected',
+      mode: 'direct',
+      enabled: false,
+      detectedProxies: [],
+      detecting: false,
+      testing: false,
+    }),
+    useWindowStore: createMockSelector({
+      windowState: {},
+      windowPreferences: {},
+      windowSize: { width: 1200, height: 800 },
+      windowPosition: { x: 0, y: 0 },
+      windowConstraints: {},
+      isMaximized: false,
+      isFullscreen: false,
+      isAlwaysOnTop: false,
+    }),
+    useVirtualEnvStore: createMockSelector({
+      envs: [],
+      activeEnv: null,
+    }),
+    // Tools stores
+    useJupyterStore: createMockSelector({
+      sessions: [],
+      activeSession: null,
+      activeKernel: null,
+      executionState: 'idle',
+    }),
+    usePPTEditorStore: createMockSelector({
+      slides: [],
+      activeSlideId: null,
+    }),
+    // Workflow stores
+    useWorkflowEditorStore: createMockSelector({
+      nodes: [],
+      edges: [],
+    }),
   };
 });
 
 // Mock skill store separately (different import path)
-jest.mock('@/stores/skill-store', () => ({
+jest.mock('@/stores/agent/skill-store', () => ({
   useSkillStore: (selector: (state: unknown) => unknown) => {
     const state = {
       getActiveSkills: jest.fn(() => []),

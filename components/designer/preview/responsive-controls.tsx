@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { useDesignerStore } from '@/stores/designer-store';
+import { useDesignerStore } from '@/stores/designer';
 
 interface DevicePreset {
   id: string;

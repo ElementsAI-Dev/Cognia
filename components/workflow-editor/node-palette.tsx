@@ -63,7 +63,7 @@ import {
 } from 'lucide-react';
 import { NODE_CATEGORIES, NODE_TYPE_COLORS, type WorkflowNodeType } from '@/types/workflow-editor';
 import { NodeTemplatePanel } from './node-template-manager';
-import { useWorkflowEditorStore } from '@/stores/workflow-editor-store';
+import { useWorkflowEditorStore } from '@/stores/workflow';
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   Play,

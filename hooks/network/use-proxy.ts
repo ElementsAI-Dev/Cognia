@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useRef } from 'react';
-import { useProxyStore } from '@/stores/proxy-store';
+import { useProxyStore } from '@/stores/system';
 import { proxyService, isProxyAvailable } from '@/lib/native/proxy';
 import type {
   ProxyMode,

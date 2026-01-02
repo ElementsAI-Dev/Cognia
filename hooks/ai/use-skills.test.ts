@@ -38,7 +38,7 @@ const mockGetSkillsByCategory = jest.fn(() => [mockSkill]);
 const mockGetSkill = jest.fn(() => mockSkill);
 const mockRecordSkillUsage = jest.fn();
 
-jest.mock('@/stores/skill-store', () => ({
+jest.mock('@/stores/agent', () => ({
   useSkillStore: () => ({
     skills: { 'skill-1': mockSkill },
     activeSkillIds: ['skill-1'],

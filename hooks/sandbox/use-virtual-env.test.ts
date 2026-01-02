@@ -46,7 +46,7 @@ const mockStoreState = {
   deselectAllEnvs: jest.fn(),
 };
 
-jest.mock('@/stores/virtual-env-store', () => ({
+jest.mock('@/stores/system', () => ({
   useVirtualEnvStore: jest.fn((selector) => {
     if (typeof selector === 'function') {
       return selector(mockStoreState);
@@ -135,9 +135,8 @@ describe('useVirtualEnv', () => {
 
     const { result } = renderHook(() => useVirtualEnv());
 
-    let createdEnv;
     await act(async () => {
-      createdEnv = await result.current.createEnvironment({
+      await result.current.createEnvironment({
         name: 'new-test',
         pythonVersion: '3.12',
       });
@@ -151,9 +150,8 @@ describe('useVirtualEnv', () => {
 
     const { result } = renderHook(() => useVirtualEnv());
 
-    let deleted;
     await act(async () => {
-      deleted = await result.current.deleteEnvironment('env-1');
+      await result.current.deleteEnvironment('env-1');
     });
 
     expect(mockVirtualEnvService.deleteEnvironment).toHaveBeenCalledWith('env-1');
@@ -168,9 +166,8 @@ describe('useVirtualEnv', () => {
 
     const { result } = renderHook(() => useVirtualEnv());
 
-    let packages;
     await act(async () => {
-      packages = await result.current.loadPackages('/path/to/env');
+      await result.current.loadPackages('/path/to/env');
     });
 
     expect(mockVirtualEnvService.listPackages).toHaveBeenCalledWith('/path/to/env', undefined);
@@ -181,9 +178,8 @@ describe('useVirtualEnv', () => {
 
     const { result } = renderHook(() => useVirtualEnv());
 
-    let installed;
     await act(async () => {
-      installed = await result.current.installPackages('/path/to/env', ['numpy', 'pandas']);
+      await result.current.installPackages('/path/to/env', ['numpy', 'pandas']);
     });
 
     expect(mockVirtualEnvService.installPackages).toHaveBeenCalled();
@@ -206,9 +202,8 @@ describe('useVirtualEnv', () => {
 
     const { result } = renderHook(() => useVirtualEnv());
 
-    let requirements;
     await act(async () => {
-      requirements = await result.current.exportRequirements('/path/to/env');
+      await result.current.exportRequirements('/path/to/env');
     });
 
     expect(mockVirtualEnvService.exportRequirements).toHaveBeenCalled();
@@ -231,9 +226,8 @@ describe('useVirtualEnv', () => {
 
     const { result } = renderHook(() => useVirtualEnv());
 
-    let output;
     await act(async () => {
-      output = await result.current.runCommand('/path/to/env', 'pip list');
+      await result.current.runCommand('/path/to/env', 'pip list');
     });
 
     expect(mockVirtualEnvService.runCommand).toHaveBeenCalled();

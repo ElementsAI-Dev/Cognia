@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { useDesignerStore } from '@/stores/designer-store';
+import { useDesignerStore } from '@/stores/designer';
 
 export type ResizeHandle =
   | 'n' | 's' | 'e' | 'w'  // Cardinal directions

@@ -6,11 +6,11 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
 import { SkillProvider, useInitializeSkills, initializeSkillsSync } from './skill-provider';
-import { useSkillStore } from '@/stores/skill-store';
+import { useSkillStore } from '@/stores/agent';
 import * as builtinSkills from '@/lib/skills/builtin';
 
 // Mock the skill store
-jest.mock('@/stores/skill-store', () => ({
+jest.mock('@/stores/agent', () => ({
   useSkillStore: Object.assign(
     jest.fn(() => ({
       importBuiltinSkills: jest.fn(),

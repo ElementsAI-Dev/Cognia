@@ -14,13 +14,22 @@ import {
   useSandpack,
 } from '@codesandbox/sandpack-react';
 import { cn } from '@/lib/utils';
-import { useDesignerStore } from '@/stores/designer-store';
+import { useDesignerStore } from '@/stores/designer';
 import { useSettingsStore } from '@/stores';
+import type { FrameworkType } from '@/lib/designer';
 
-interface ReactSandboxProps {
+export type { FrameworkType };
+
+export interface ReactSandboxProps {
   className?: string;
   showEditor?: boolean;
   showPreview?: boolean;
+  code?: string;
+  onCodeChange?: (code: string) => void;
+  showFileExplorer?: boolean;
+  showConsole?: boolean;
+  framework?: FrameworkType;
+  onAIEdit?: () => void;
 }
 
 // Default App.tsx template
@@ -73,8 +82,15 @@ export function ReactSandbox({
   className,
   showEditor = true,
   showPreview = true,
+  code: propCode,
+  onCodeChange: _onCodeChange,
+  showFileExplorer: _showFileExplorer,
+  showConsole: _showConsole,
+  framework: _framework,
+  onAIEdit: _onAIEdit,
 }: ReactSandboxProps) {
-  const code = useDesignerStore((state) => state.code);
+  const storeCode = useDesignerStore((state) => state.code);
+  const code = propCode ?? storeCode;
   const theme = useSettingsStore((state) => state.theme);
 
   // Build files object for Sandpack

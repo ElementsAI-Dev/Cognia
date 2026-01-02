@@ -47,7 +47,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { useLearningMode } from '@/hooks/ui';
-import { useLearningStore } from '@/stores/learning-store';
+import { useLearningStore } from '@/stores/learning';
 import { LearningStatisticsPanel } from './learning-statistics-panel';
 import { LearningNotesPanel } from './learning-notes-panel';
 import { LearningHistoryPanel } from './learning-history-panel';

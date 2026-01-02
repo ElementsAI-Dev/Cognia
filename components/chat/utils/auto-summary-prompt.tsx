@@ -15,7 +15,7 @@ import { X, Sparkles, FileText, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useSummaryStore } from '@/stores/summary-store';
+import { useSummaryStore } from '@/stores/chat';
 
 interface AutoSummaryPromptProps {
   /** Whether to show the prompt */

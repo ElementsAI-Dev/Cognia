@@ -15,7 +15,7 @@ import {
 import { ReactNode } from 'react';
 
 // Mock the settings store
-jest.mock('@/stores/settings-store', () => ({
+jest.mock('@/stores/settings', () => ({
   useSettingsStore: jest.fn((selector) =>
     selector({
       speechSettings: {

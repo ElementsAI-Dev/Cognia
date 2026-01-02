@@ -25,7 +25,7 @@ import {
   Music,
   Video,
 } from 'lucide-react';
-import { useRecentFilesStore, type RecentFile } from '@/stores/recent-files-store';
+import { useRecentFilesStore, type RecentFile } from '@/stores/system';
 import { cn } from '@/lib/utils';
 
 interface RecentFilesPopoverProps {

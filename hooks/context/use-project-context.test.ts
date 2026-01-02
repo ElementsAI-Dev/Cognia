@@ -34,7 +34,7 @@ jest.mock('@/stores', () => ({
 }));
 
 jest.mock('@/lib/document/knowledge-rag', () => ({
-  buildProjectContext: jest.fn((project, query, options) => ({
+  buildProjectContext: jest.fn((project, _query, _options) => ({
     systemPrompt: `System prompt for ${project.name}`,
     knowledgeContext: 'Knowledge context',
     filesUsed: ['doc1.md'],
@@ -42,7 +42,7 @@ jest.mock('@/lib/document/knowledge-rag', () => ({
   getRelevantKnowledge: jest.fn((knowledgeBase, query, maxFiles) => 
     knowledgeBase.slice(0, maxFiles)
   ),
-  searchKnowledgeFiles: jest.fn((knowledgeBase, query, options) => 
+  searchKnowledgeFiles: jest.fn((knowledgeBase, query, _options) => 
     knowledgeBase.filter((f: { name: string }) => f.name.includes(query.slice(0, 3)))
   ),
   getKnowledgeBaseStats: jest.fn((knowledgeBase) => ({

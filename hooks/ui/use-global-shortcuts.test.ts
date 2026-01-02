@@ -22,7 +22,7 @@ const mockShortcuts = [
   { id: '3', action: 'OPEN_SETTINGS', shortcut: 'Ctrl+,', enabled: false },
 ];
 
-jest.mock('@/stores/native-store', () => ({
+jest.mock('@/stores/system', () => ({
   useNativeStore: jest.fn(() => ({
     shortcuts: mockShortcuts,
     shortcutsEnabled: true,

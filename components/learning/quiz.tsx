@@ -31,7 +31,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { useLearningStore } from '@/stores/learning-store';
+import { useLearningStore } from '@/stores/learning';
 import type {
   QuizData,
   QuizQuestionData,

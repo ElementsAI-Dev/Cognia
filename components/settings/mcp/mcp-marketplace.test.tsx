@@ -5,8 +5,8 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { McpMarketplace } from './mcp-marketplace';
-import { useMcpMarketplaceStore } from '@/stores/mcp-marketplace-store';
-import { useMcpStore } from '@/stores/mcp-store';
+import { useMcpMarketplaceStore } from '@/stores/mcp';
+import { useMcpStore } from '@/stores/mcp';
 import type { McpMarketplaceItem, McpMarketplaceCatalog } from '@/types/mcp-marketplace';
 
 // Mock next-intl
@@ -82,8 +82,8 @@ jest.mock('@/lib/mcp/marketplace-utils', () => ({
 }));
 
 // Mock the stores
-jest.mock('@/stores/mcp-marketplace-store');
-jest.mock('@/stores/mcp-store');
+jest.mock('@/stores/mcp');
+jest.mock('@/stores/mcp');
 
 const mockUseMcpMarketplaceStore = useMcpMarketplaceStore as jest.MockedFunction<typeof useMcpMarketplaceStore>;
 const mockUseMcpStore = useMcpStore as jest.MockedFunction<typeof useMcpStore>;

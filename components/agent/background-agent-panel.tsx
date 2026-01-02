@@ -552,7 +552,7 @@ export function BackgroundAgentPanel() {
 
   return (
     <Sheet open={isPanelOpen} onOpenChange={(open) => !open && closePanel()}>
-      <SheetContent side="right" className="w-full sm:max-w-xl p-0">
+      <SheetContent side="right" className="w-full sm:max-w-xl p-0" showCloseButton={false}>
         <SheetHeader className="p-4 border-b">
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2">

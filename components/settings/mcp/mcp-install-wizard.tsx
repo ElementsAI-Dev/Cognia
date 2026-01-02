@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useMcpStore } from '@/stores/mcp-store';
+import { useMcpStore } from '@/stores/mcp';
 import { MCP_SERVER_TEMPLATES, createDefaultServerConfig } from '@/types/mcp';
 
 interface McpInstallWizardProps {

@@ -9,8 +9,8 @@ import {
   TextType,
   getLanguageName,
 } from "@/types";
-import { useSelectionStore } from "@/stores/selection-store";
-import { useSettingsStore } from "@/stores/settings-store";
+import { useSelectionStore } from "@/stores/context";
+import { useSettingsStore } from "@/stores/settings";
 import { useAIChat } from "@/lib/ai/generation/use-ai-chat";
 import type { ProviderName } from "@/lib/ai/core/client";
 

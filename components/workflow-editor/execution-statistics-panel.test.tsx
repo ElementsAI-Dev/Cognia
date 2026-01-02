@@ -30,7 +30,7 @@ const mockGetWorkflowStatistics = jest.fn(() => ({
 }));
 
 // Mock workflow editor store
-jest.mock('@/stores/workflow-editor-store', () => ({
+jest.mock('@/stores/workflow', () => ({
   useWorkflowEditorStore: () => ({
     currentWorkflow: { id: 'workflow-1', name: 'Test Workflow' },
     getWorkflowStatistics: mockGetWorkflowStatistics,

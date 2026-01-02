@@ -27,7 +27,7 @@ const mockSelectedElement = {
   children: [],
 };
 
-jest.mock('@/stores/designer-store', () => ({
+jest.mock('@/stores/designer', () => ({
   useDesignerStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       selectedElementId: 'element-1',

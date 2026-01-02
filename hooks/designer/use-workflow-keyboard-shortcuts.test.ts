@@ -16,7 +16,7 @@ const mockClearSelection = jest.fn();
 const mockDeleteNodes = jest.fn();
 const mockDuplicateNode = jest.fn();
 
-jest.mock('@/stores/workflow-editor-store', () => ({
+jest.mock('@/stores/workflow', () => ({
   useWorkflowEditorStore: Object.assign(
     jest.fn(() => ({
       selectedNodes: ['node-1'],

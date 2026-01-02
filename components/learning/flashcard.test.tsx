@@ -61,7 +61,7 @@ jest.mock('@/components/ui/card', () => ({
 const mockRecordAnswer = jest.fn();
 const mockUpdateReviewItem = jest.fn();
 
-jest.mock('@/stores/learning-store', () => ({
+jest.mock('@/stores/learning', () => ({
   useLearningStore: () => ({
     recordAnswer: mockRecordAnswer,
     updateReviewItem: mockUpdateReviewItem,

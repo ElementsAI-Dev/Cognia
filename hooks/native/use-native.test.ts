@@ -44,7 +44,7 @@ const mockSetUpdateAvailable = jest.fn();
 const mockSetUpdateDownloading = jest.fn();
 const mockSetUpdateProgress = jest.fn();
 
-jest.mock('@/stores/native-store', () => ({
+jest.mock('@/stores/system', () => ({
   useNativeStore: () => ({
     platform: 'windows',
     appVersion: '1.0.0',

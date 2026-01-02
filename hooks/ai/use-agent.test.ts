@@ -44,7 +44,7 @@ jest.mock('@/stores', () => ({
   }),
 }));
 
-jest.mock('@/stores/background-agent-store', () => ({
+jest.mock('@/stores/agent', () => ({
   useBackgroundAgentStore: jest.fn((selector) => {
     const state = {
       createAgent: jest.fn(() => ({

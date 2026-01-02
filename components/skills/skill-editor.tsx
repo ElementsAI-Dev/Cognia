@@ -92,7 +92,7 @@ import {
 } from '@/components/ui/card';
 import { parseSkillMd } from '@/lib/skills/parser';
 import { estimateSkillTokens } from '@/lib/skills/executor';
-import { useSettingsStore, selectTheme } from '@/stores/settings-store';
+import { useSettingsStore, selectTheme } from '@/stores/settings';
 import { downloadSkillAsMarkdown, downloadSkillAsPackage } from '@/lib/skills/packager';
 import { SkillMarkdownPreview, SkillMarkdownStyles } from './skill-markdown-preview';
 import { SkillResourceManager } from './skill-resource-manager';

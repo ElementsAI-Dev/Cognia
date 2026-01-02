@@ -3,7 +3,7 @@
  */
 
 import { useCallback, useEffect, useRef } from 'react';
-import { useChatWidgetStore } from '@/stores/chat-widget-store';
+import { useChatWidgetStore } from '@/stores/chat';
 
 interface UseChatWidgetOptions {
   onShow?: () => void;

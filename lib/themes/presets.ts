@@ -341,6 +341,20 @@ export function removeCustomThemeColors(): void {
 export type BorderRadiusSize = 'none' | 'sm' | 'md' | 'lg' | 'xl' | 'full';
 export type SpacingSize = 'compact' | 'comfortable' | 'spacious';
 export type ShadowIntensity = 'none' | 'subtle' | 'medium' | 'strong';
+export type MessageDensity = 'compact' | 'default' | 'relaxed';
+export type AvatarStyle = 'circle' | 'rounded' | 'square' | 'hidden';
+export type TimestampFormat = 'relative' | 'absolute' | 'both' | 'hidden';
+export type UIFontFamily = 'system' | 'inter' | 'roboto' | 'open-sans' | 'lato' | 'poppins' | 'nunito';
+
+export const UI_FONT_OPTIONS: { value: UIFontFamily; label: string; fontFamily: string }[] = [
+  { value: 'system', label: 'System Default', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' },
+  { value: 'inter', label: 'Inter', fontFamily: '"Inter", sans-serif' },
+  { value: 'roboto', label: 'Roboto', fontFamily: '"Roboto", sans-serif' },
+  { value: 'open-sans', label: 'Open Sans', fontFamily: '"Open Sans", sans-serif' },
+  { value: 'lato', label: 'Lato', fontFamily: '"Lato", sans-serif' },
+  { value: 'poppins', label: 'Poppins', fontFamily: '"Poppins", sans-serif' },
+  { value: 'nunito', label: 'Nunito', fontFamily: '"Nunito", sans-serif' },
+];
 
 export interface UICustomization {
   borderRadius: BorderRadiusSize;
@@ -350,6 +364,17 @@ export interface UICustomization {
   enableBlur: boolean;
   sidebarWidth: number; // in pixels
   chatMaxWidth: number; // in pixels, 0 for full width
+  // Message options
+  messageDensity: MessageDensity;
+  avatarStyle: AvatarStyle;
+  timestampFormat: TimestampFormat;
+  showAvatars: boolean;
+  showUserAvatar: boolean;
+  showAssistantAvatar: boolean;
+  messageAlignment: 'left' | 'alternate'; // left = all left, alternate = user right/ai left
+  inputPosition: 'bottom' | 'floating'; // input box position style
+  // Font options
+  uiFontFamily: UIFontFamily;
 }
 
 export const DEFAULT_UI_CUSTOMIZATION: UICustomization = {
@@ -360,6 +385,17 @@ export const DEFAULT_UI_CUSTOMIZATION: UICustomization = {
   enableBlur: true,
   sidebarWidth: 280,
   chatMaxWidth: 900,
+  // Message defaults
+  messageDensity: 'default',
+  avatarStyle: 'circle',
+  timestampFormat: 'relative',
+  showAvatars: true,
+  showUserAvatar: false,
+  showAssistantAvatar: true,
+  messageAlignment: 'alternate',
+  inputPosition: 'bottom',
+  // Font default
+  uiFontFamily: 'system',
 };
 
 export const BORDER_RADIUS_VALUES: Record<BorderRadiusSize, string> = {
@@ -420,6 +456,20 @@ export function applyUICustomization(customization: UICustomization): void {
   } else {
     root.style.removeProperty('--blur-amount');
   }
+  
+  // Font family
+  const fontOption = UI_FONT_OPTIONS.find(f => f.value === customization.uiFontFamily);
+  if (fontOption) {
+    root.style.setProperty('--font-ui', fontOption.fontFamily);
+  }
+  
+  // Message density
+  const densityValues: Record<MessageDensity, string> = {
+    compact: '0.5rem',
+    default: '1rem',
+    relaxed: '1.5rem',
+  };
+  root.style.setProperty('--message-spacing', densityValues[customization.messageDensity]);
 }
 
 /**
@@ -431,6 +481,7 @@ export function removeUICustomization(): void {
     '--radius', '--spacing-base', '--spacing-gap',
     '--shadow-card', '--sidebar-width', '--chat-max-width',
     '--animation-duration', '--blur-amount',
+    '--font-ui', '--message-spacing',
   ];
   varNames.forEach(name => root.style.removeProperty(name));
 }

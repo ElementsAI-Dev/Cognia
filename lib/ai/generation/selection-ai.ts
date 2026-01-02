@@ -9,7 +9,7 @@ import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { useSettingsStore } from "@/stores/settings-store";
+import { useSettingsStore } from "@/stores/settings";
 import type { ProviderName } from "@/types/provider";
 
 export type SelectionAIAction =

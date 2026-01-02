@@ -22,7 +22,7 @@ import { Panel } from '@/components/ai-elements/panel';
 import '@xyflow/react/dist/style.css';
 
 import { cn } from '@/lib/utils';
-import { useWorkflowEditorStore } from '@/stores/workflow-editor-store';
+import { useWorkflowEditorStore } from '@/stores/workflow';
 import { useWorkflowKeyboardShortcuts } from '@/hooks';
 import { nodeTypes } from './nodes';
 import { NodePalette } from './node-palette';

@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useMcpStore } from '@/stores/mcp-store';
+import { useMcpStore } from '@/stores/mcp';
 import type {
   MentionItem,
   SelectedMention,

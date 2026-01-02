@@ -31,7 +31,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useSkillStore } from '@/stores/skill-store';
+import { useSkillStore } from '@/stores/agent';
 import { findMatchingSkills } from '@/lib/skills/executor';
 import type { Skill, SkillCategory } from '@/types/skill';
 

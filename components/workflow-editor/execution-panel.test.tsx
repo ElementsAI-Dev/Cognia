@@ -17,7 +17,7 @@ const mockCancelExecution = jest.fn();
 const mockClearExecutionState = jest.fn();
 
 // Mock workflow editor store
-jest.mock('@/stores/workflow-editor-store', () => ({
+jest.mock('@/stores/workflow', () => ({
   useWorkflowEditorStore: () => ({
     currentWorkflow: {
       id: 'workflow-1',
@@ -203,7 +203,7 @@ describe('ExecutionPanel without execution state', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
-    jest.doMock('@/stores/workflow-editor-store', () => ({
+    jest.doMock('@/stores/workflow', () => ({
       useWorkflowEditorStore: () => ({
         currentWorkflow: null,
         executionState: null,
@@ -217,7 +217,7 @@ describe('ExecutionPanel without execution state', () => {
 
   it('displays no execution message when not executing', () => {
     // Reset mock to return no execution state
-    jest.doMock('@/stores/workflow-editor-store', () => ({
+    jest.doMock('@/stores/workflow', () => ({
       useWorkflowEditorStore: () => ({
         currentWorkflow: null,
         executionState: null,

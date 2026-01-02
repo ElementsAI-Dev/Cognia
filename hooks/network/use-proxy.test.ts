@@ -6,7 +6,7 @@ import { renderHook, act } from '@testing-library/react';
 import { useProxy } from './use-proxy';
 
 // Mock dependencies
-jest.mock('@/stores/proxy-store', () => ({
+jest.mock('@/stores/system', () => ({
   useProxyStore: jest.fn(() => ({
     config: {
       mode: 'auto',
@@ -53,7 +53,7 @@ jest.mock('@/types/proxy', () => ({
   buildProxyUrl: jest.fn((config) => `http://${config.host}:${config.port}`),
 }));
 
-import { useProxyStore } from '@/stores/proxy-store';
+import { useProxyStore } from '@/stores/system';
 import { proxyService, isProxyAvailable } from '@/lib/native/proxy';
 import { buildProxyUrl } from '@/types/proxy';
 

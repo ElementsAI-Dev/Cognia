@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useDesignerStore } from '@/stores/designer-store';
+import { useDesignerStore } from '@/stores/designer';
 import { useSettingsStore } from '@/stores';
 
 interface MonacoSandpackEditorProps {
@@ -42,6 +42,7 @@ export function MonacoSandpackEditor({
     const initMonaco = async () => {
       try {
         // Dynamically import Monaco
+        // @ts-expect-error - monaco-editor types handled by stub in browser builds
         const monaco = await import('monaco-editor');
         
         if (!mounted || !editorRef.current) return;
@@ -95,6 +96,7 @@ export function MonacoSandpackEditor({
         (monacoEditorRef.current as { dispose: () => void }).dispose();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Update editor value when code changes externally
@@ -110,6 +112,7 @@ export function MonacoSandpackEditor({
   // Update theme
   useEffect(() => {
     if (monacoEditorRef.current) {
+      // @ts-expect-error - monaco-editor types handled by stub in browser builds
       import('monaco-editor').then((monaco) => {
         monaco.editor.setTheme(theme === 'dark' ? 'vs-dark' : 'vs');
       });

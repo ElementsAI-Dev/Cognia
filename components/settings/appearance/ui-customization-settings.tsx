@@ -7,7 +7,7 @@
 
 import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { Sliders, RotateCcw, Layout, Sparkles } from 'lucide-react';
+import { Sliders, RotateCcw, Layout, Sparkles, MessageSquare, User, Clock } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,11 @@ import {
   type BorderRadiusSize,
   type SpacingSize,
   type ShadowIntensity,
+  type MessageDensity,
+  type AvatarStyle,
+  type TimestampFormat,
+  type UIFontFamily,
+  UI_FONT_OPTIONS,
   applyUICustomization,
 } from '@/lib/themes';
 import { cn } from '@/lib/utils';
@@ -57,6 +62,26 @@ const shadowOptions: { value: ShadowIntensity; label: string }[] = [
   { value: 'strong', label: 'Strong' },
 ];
 
+const messageDensityOptions: { value: MessageDensity; label: string; desc: string }[] = [
+  { value: 'compact', label: 'Compact', desc: 'Minimal spacing' },
+  { value: 'default', label: 'Default', desc: 'Balanced layout' },
+  { value: 'relaxed', label: 'Relaxed', desc: 'More breathing room' },
+];
+
+const avatarStyleOptions: { value: AvatarStyle; label: string }[] = [
+  { value: 'circle', label: 'Circle' },
+  { value: 'rounded', label: 'Rounded' },
+  { value: 'square', label: 'Square' },
+  { value: 'hidden', label: 'Hidden' },
+];
+
+const timestampOptions: { value: TimestampFormat; label: string }[] = [
+  { value: 'relative', label: 'Relative (2m ago)' },
+  { value: 'absolute', label: 'Absolute (14:30)' },
+  { value: 'both', label: 'Both' },
+  { value: 'hidden', label: 'Hidden' },
+];
+
 export function UICustomizationSettings() {
   const t = useTranslations('settings');
 
@@ -68,6 +93,7 @@ export function UICustomizationSettings() {
   const setEnableBlur = useSettingsStore((state) => state.setEnableBlur);
   const setSidebarWidth = useSettingsStore((state) => state.setSidebarWidth);
   const setChatMaxWidth = useSettingsStore((state) => state.setChatMaxWidth);
+  const setUICustomization = useSettingsStore((state) => state.setUICustomization);
   const resetUICustomization = useSettingsStore((state) => state.resetUICustomization);
 
   // Apply UI customization when it changes
@@ -267,6 +293,223 @@ export function UICustomizationSettings() {
             />
             <p className="text-xs text-muted-foreground">
               {t('chatMaxWidthDescription') || 'Set to 0 for full width'}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Chat Messages */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            <CardTitle>{t('chatMessages') || 'Chat Messages'}</CardTitle>
+          </div>
+          <CardDescription>
+            {t('chatMessagesDescription') || 'Customize message appearance'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Message Density */}
+          <div className="space-y-3">
+            <Label>{t('messageDensity') || 'Message Density'}</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {messageDensityOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setUICustomization({ messageDensity: option.value })}
+                  className={cn(
+                    'flex flex-col items-center gap-1 rounded-lg border-2 p-3 transition-colors',
+                    uiCustomization.messageDensity === option.value
+                      ? 'border-primary bg-primary/5'
+                      : 'border-transparent bg-muted hover:bg-muted/80'
+                  )}
+                >
+                  <span className="text-xs font-medium">{option.label}</span>
+                  <span className="text-[10px] text-muted-foreground">{option.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Message Alignment */}
+          <div className="space-y-3">
+            <Label>{t('messageAlignment') || 'Message Alignment'}</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setUICustomization({ messageAlignment: 'alternate' })}
+                className={cn(
+                  'flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-colors',
+                  uiCustomization.messageAlignment === 'alternate'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-transparent bg-muted hover:bg-muted/80'
+                )}
+              >
+                <div className="flex flex-col gap-1 w-full">
+                  <div className="h-2 w-8 rounded bg-primary/50 self-end" />
+                  <div className="h-2 w-12 rounded bg-muted-foreground/30 self-start" />
+                </div>
+                <span className="text-xs font-medium">Alternate</span>
+              </button>
+              <button
+                onClick={() => setUICustomization({ messageAlignment: 'left' })}
+                className={cn(
+                  'flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-colors',
+                  uiCustomization.messageAlignment === 'left'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-transparent bg-muted hover:bg-muted/80'
+                )}
+              >
+                <div className="flex flex-col gap-1 w-full">
+                  <div className="h-2 w-8 rounded bg-primary/50 self-start" />
+                  <div className="h-2 w-12 rounded bg-muted-foreground/30 self-start" />
+                </div>
+                <span className="text-xs font-medium">All Left</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Timestamp Format */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <Label>{t('timestampFormat') || 'Timestamp Format'}</Label>
+            </div>
+            <Select
+              value={uiCustomization.timestampFormat}
+              onValueChange={(value: TimestampFormat) => setUICustomization({ timestampFormat: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {timestampOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Avatars */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            <CardTitle>{t('avatars') || 'Avatars'}</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Avatar Style */}
+          <div className="space-y-3">
+            <Label>{t('avatarStyle') || 'Avatar Style'}</Label>
+            <div className="grid grid-cols-4 gap-2">
+              {avatarStyleOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setUICustomization({ avatarStyle: option.value })}
+                  className={cn(
+                    'flex flex-col items-center gap-2 rounded-lg border-2 p-2 transition-colors',
+                    uiCustomization.avatarStyle === option.value
+                      ? 'border-primary bg-primary/5'
+                      : 'border-transparent bg-muted hover:bg-muted/80'
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'h-6 w-6 bg-primary/50',
+                      option.value === 'circle' && 'rounded-full',
+                      option.value === 'rounded' && 'rounded-md',
+                      option.value === 'square' && 'rounded-none',
+                      option.value === 'hidden' && 'opacity-30'
+                    )}
+                  />
+                  <span className="text-[10px] font-medium">{option.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Avatar Visibility */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>{t('showUserAvatar') || 'Show User Avatar'}</Label>
+                <p className="text-xs text-muted-foreground">
+                  {t('showUserAvatarDescription') || 'Display your avatar in messages'}
+                </p>
+              </div>
+              <Switch
+                checked={uiCustomization.showUserAvatar}
+                onCheckedChange={(checked) => setUICustomization({ showUserAvatar: checked })}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>{t('showAssistantAvatar') || 'Show AI Avatar'}</Label>
+                <p className="text-xs text-muted-foreground">
+                  {t('showAssistantAvatarDescription') || 'Display AI avatar in messages'}
+                </p>
+              </div>
+              <Switch
+                checked={uiCustomization.showAssistantAvatar}
+                onCheckedChange={(checked) => setUICustomization({ showAssistantAvatar: checked })}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Typography */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Sliders className="h-5 w-5" />
+            <CardTitle>{t('typography') || 'Typography'}</CardTitle>
+          </div>
+          <CardDescription>
+            {t('typographyDescription') || 'Customize font settings'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* UI Font Family */}
+          <div className="space-y-3">
+            <Label>{t('uiFontFamily') || 'UI Font Family'}</Label>
+            <Select
+              value={uiCustomization.uiFontFamily}
+              onValueChange={(value: UIFontFamily) => setUICustomization({ uiFontFamily: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {UI_FONT_OPTIONS.map((option) => (
+                  <SelectItem 
+                    key={option.value} 
+                    value={option.value}
+                    style={{ fontFamily: option.fontFamily }}
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {t('uiFontFamilyDescription') || 'Select the font used throughout the interface'}
+            </p>
+          </div>
+
+          {/* Font Preview */}
+          <div 
+            className="p-3 rounded-lg border bg-muted/30"
+            style={{ fontFamily: UI_FONT_OPTIONS.find(f => f.value === uiCustomization.uiFontFamily)?.fontFamily }}
+          >
+            <p className="text-sm font-medium mb-1">Font Preview</p>
+            <p className="text-xs text-muted-foreground">
+              The quick brown fox jumps over the lazy dog. 0123456789
             </p>
           </div>
         </CardContent>

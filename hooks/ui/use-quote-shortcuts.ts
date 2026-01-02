@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useCallback } from 'react';
-import { useQuoteStore } from '@/stores/quote-store';
+import { useQuoteStore } from '@/stores/chat';
 import { toast } from 'sonner';
 
 interface UseQuoteShortcutsOptions {

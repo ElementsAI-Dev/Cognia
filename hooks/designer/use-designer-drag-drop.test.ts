@@ -2,11 +2,11 @@
  * useDesignerDragDrop Hook Tests
  */
 
-import { renderHook, act } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { useDesignerDragDrop } from './use-designer-drag-drop';
 
 // Mock dependencies
-jest.mock('@/stores/designer-store', () => ({
+jest.mock('@/stores/designer', () => ({
   useDesignerStore: jest.fn(() => ({
     elements: {},
     addElement: jest.fn(),

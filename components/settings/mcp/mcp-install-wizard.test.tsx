@@ -28,7 +28,7 @@ jest.mock('next-intl', () => ({
 const mockAddServer = jest.fn();
 const mockConnectServer = jest.fn();
 
-jest.mock('@/stores/mcp-store', () => ({
+jest.mock('@/stores/mcp', () => ({
   useMcpStore: () => ({
     addServer: mockAddServer,
     connectServer: mockConnectServer,

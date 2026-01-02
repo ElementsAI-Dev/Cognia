@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { X, Edit2, Check, Zap, AlertTriangle } from 'lucide-react';
-import { useWorkflowEditorStore } from '@/stores/workflow-editor-store';
+import { useWorkflowEditorStore } from '@/stores/workflow';
 import { cn } from '@/lib/utils';
 
 export interface CustomEdgeData {

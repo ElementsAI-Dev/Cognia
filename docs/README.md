@@ -69,7 +69,8 @@ docs/
 Cognia uses a hybrid web/desktop architecture:
 - **Web**: Next.js 16 with React 19.2, deployed as static HTML
 - **Desktop**: Tauri 2.9 wrapper with Rust backend for native capabilities
-- **State**: Zustand for client state, localStorage for persistence
+- **State**: Zustand stores organized in modular directories with localStorage persistence
+- **Hooks**: Custom hooks organized in modular directories by feature
 - **Database**: Dexie (IndexedDB wrapper) for message storage
 
 ### AI Integration
@@ -85,6 +86,8 @@ Cognia uses a hybrid web/desktop architecture:
 - **Canvas Editor**: Monaco editor with AI suggestions and version history
 - **Agent System**: Autonomous AI agents with tool calling, planning, and background execution
 - **MCP**: Full Model Context Protocol support for extended capabilities
+- **Workflow Editor**: Visual workflow editor with React Flow for creating automation workflows
+- **Skills System**: Custom skill framework for extending AI capabilities
 - **Projects**: Organize conversations with knowledge bases
 - **Multi-Mode**: Chat, Agent, and Research modes
 - **Native Tools** (Desktop Only): Smart selection, system monitoring, screenshots with OCR, context awareness
@@ -164,4 +167,4 @@ For questions, issues, or contributions:
 
 ---
 
-**Last Updated**: December 26, 2024
+**Last Updated**: January 2, 2026

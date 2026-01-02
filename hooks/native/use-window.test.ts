@@ -46,7 +46,7 @@ const mockSetStoreAlwaysOnTop = jest.fn();
 const mockSetStoreFullscreen = jest.fn();
 const mockSetStoreMaximized = jest.fn();
 
-jest.mock('@/stores/native-store', () => ({
+jest.mock('@/stores/system', () => ({
   useNativeStore: () => ({
     isAlwaysOnTop: false,
     isFullscreen: false,

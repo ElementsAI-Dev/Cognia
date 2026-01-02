@@ -2,10 +2,10 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NodeSearchPanel } from './node-search-panel';
-import { useWorkflowEditorStore } from '@/stores/workflow-editor-store';
+import { useWorkflowEditorStore } from '@/stores/workflow';
 import { NextIntlClientProvider } from 'next-intl';
 
-jest.mock('@/stores/workflow-editor-store');
+jest.mock('@/stores/workflow');
 
 const mockUseWorkflowEditorStore = useWorkflowEditorStore as jest.MockedFunction<typeof useWorkflowEditorStore>;
 

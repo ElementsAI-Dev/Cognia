@@ -235,7 +235,7 @@ export const ImageBlock = memo(function ImageBlock({
 
       {/* Lightbox Dialog */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 overflow-hidden">
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 overflow-hidden" showCloseButton={false}>
           <DialogHeader className="absolute top-0 left-0 right-0 z-10 flex flex-row items-center justify-between p-3 bg-gradient-to-b from-black/60 to-transparent">
             <DialogTitle className="text-white text-sm truncate max-w-[60%]">
               {title || alt || 'Image'}

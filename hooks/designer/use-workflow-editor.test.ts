@@ -6,7 +6,7 @@ import { renderHook, act } from '@testing-library/react';
 import { useWorkflowEditor } from './use-workflow-editor';
 
 // Mock dependencies
-jest.mock('@/stores/workflow-editor-store', () => ({
+jest.mock('@/stores/workflow', () => ({
   useWorkflowEditorStore: jest.fn(() => ({
     currentWorkflow: null,
     isDirty: false,
@@ -44,7 +44,7 @@ jest.mock('@/lib/workflow-editor/converter', () => ({
   })),
 }));
 
-import { useWorkflowEditorStore } from '@/stores/workflow-editor-store';
+import { useWorkflowEditorStore } from '@/stores/workflow';
 import { useWorkflow } from '@/hooks/designer';
 
 const mockUseWorkflowEditorStore = useWorkflowEditorStore as jest.MockedFunction<typeof useWorkflowEditorStore>;
@@ -143,9 +143,8 @@ describe('useWorkflowEditor', () => {
 
     const { result } = renderHook(() => useWorkflowEditor());
 
-    let execution;
     await act(async () => {
-      execution = await result.current.executeWorkflow({ input: 'test' });
+      await result.current.executeWorkflow({ input: 'test' });
     });
 
     expect(mockStoreFunctions.startExecution).toHaveBeenCalled();

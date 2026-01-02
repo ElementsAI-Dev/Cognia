@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useCallback, useRef } from 'react';
-import { useNativeStore, type ShortcutConfig } from '@/stores/native-store';
+import { useNativeStore, type ShortcutConfig } from '@/stores/system';
 import { isTauri } from '@/lib/native/utils';
 import {
   registerShortcut,

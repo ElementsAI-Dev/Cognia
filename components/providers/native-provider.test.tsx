@@ -5,14 +5,14 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { NativeProvider } from './native-provider';
-import { useNativeStore } from '@/stores/native-store';
+import { useNativeStore } from '@/stores/system';
 import * as nativeUtils from '@/lib/native/utils';
 import * as systemApi from '@/lib/native/system';
 import * as notificationApi from '@/lib/native/notification';
 import * as updaterApi from '@/lib/native/updater';
 
 // Mock the native store
-jest.mock('@/stores/native-store', () => ({
+jest.mock('@/stores/system', () => ({
   useNativeStore: {
     getState: jest.fn(() => ({
       setIsDesktop: jest.fn(),

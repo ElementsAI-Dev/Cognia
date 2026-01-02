@@ -18,7 +18,7 @@ jest.mock('@tauri-apps/plugin-shell', () => ({
 }));
 
 // Mock the screen recording store
-jest.mock('@/stores/screen-recording-store', () => ({
+jest.mock('@/stores/media', () => ({
   useScreenRecordingStore: jest.fn(() => ({
     history: [],
     isInitialized: true,

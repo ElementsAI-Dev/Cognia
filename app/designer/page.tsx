@@ -8,7 +8,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useSettingsStore, useArtifactStore } from '@/stores';
-import { useDesignerStore } from '@/stores/designer-store';
+import { useDesignerStore } from '@/stores/designer';
 import {
   ReactSandbox,
   ElementTree,

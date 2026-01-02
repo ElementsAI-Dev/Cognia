@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useChatWidget } from "@/hooks/use-chat-widget";
-import { useChatWidgetStore } from "@/stores/chat-widget-store";
+import { useChatWidgetStore } from "@/stores/chat";
 import { ChatWidgetHeader } from "./chat-widget-header";
 import { ChatWidgetMessages } from "./chat-widget-messages";
 import { ChatWidgetInput } from "./chat-widget-input";

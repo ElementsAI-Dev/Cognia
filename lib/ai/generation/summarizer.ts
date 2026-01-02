@@ -31,7 +31,7 @@ import {
   DEFAULT_AGENT_SUMMARY_OPTIONS,
 } from '@/types/summary';
 import { getProviderModel, type ProviderName } from '../core/client';
-import { countTokens } from '@/hooks/use-token-count';
+import { countTokens } from '@/hooks/chat/use-token-count';
 import {
   buildSummaryPrompt as buildEnhancedSummaryPrompt,
   buildKeyPointExtractionPrompt,

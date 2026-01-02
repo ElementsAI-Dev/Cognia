@@ -30,6 +30,8 @@ import { THEME_PRESETS, type ColorThemePreset } from '@/lib/themes';
 import { localeNames, localeFlags, autoDetectLocale, type Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { ThemeEditor } from './theme-editor';
+import { ThemeImportExport } from './theme-import-export';
+import { ThemeSchedule } from './theme-schedule';
 import { UICustomizationSettings } from './ui-customization-settings';
 import { useAutostart } from '@/hooks/native';
 
@@ -321,18 +323,21 @@ export function AppearanceSettings() {
             </div>
           )}
 
-          {/* Create Custom Theme Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setEditingThemeId(null);
-              setShowThemeEditor(true);
-            }}
-          >
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            {t('createCustomTheme')}
-          </Button>
+          {/* Create Custom Theme Button & Import/Export */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setEditingThemeId(null);
+                setShowThemeEditor(true);
+              }}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              {t('createCustomTheme')}
+            </Button>
+            <ThemeImportExport />
+          </div>
         </CardContent>
       </Card>
 
@@ -496,6 +501,9 @@ export function AppearanceSettings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Theme Schedule */}
+      <ThemeSchedule />
 
       {/* UI Customization */}
       <UICustomizationSettings />

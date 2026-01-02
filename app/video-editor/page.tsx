@@ -76,7 +76,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
-import { useScreenRecordingStore } from '@/stores/screen-recording-store';
+import { useScreenRecordingStore } from '@/stores/media';
 import {
   formatDuration,
   formatFileSize,

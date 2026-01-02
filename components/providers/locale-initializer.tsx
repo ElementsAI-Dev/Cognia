@@ -8,7 +8,7 @@
 import { useEffect, useRef } from 'react';
 import { useSettingsStore } from '@/stores';
 import { autoDetectLocale, getSystemTimezone } from '@/lib/i18n';
-import type { Language } from '@/stores/settings-store';
+import type { Language } from '@/stores/settings';
 
 export function LocaleInitializer() {
   const initializedRef = useRef(false);

@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/select';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useDesignerStore } from '@/stores/designer-store';
+import { useDesignerStore } from '@/stores/designer';
 
 type ExportFormat = 'react' | 'html' | 'jsx' | 'vue' | 'svelte';
 type ExportStyle = 'tailwind' | 'css' | 'inline';

@@ -53,7 +53,7 @@ import { cn } from '@/lib/utils';
 import { messageRepository } from '@/lib/db';
 import type { Session, UIMessage } from '@/types';
 import { type SyntaxThemeName, getAvailableSyntaxThemes } from '@/lib/export/syntax-themes';
-import { useCustomThemeStore } from '@/stores/custom-theme-store';
+import { useCustomThemeStore } from '@/stores/settings';
 import { CustomThemeEditor } from './custom-theme-editor';
 
 type ExportFormat = 'beautiful-html' | 'pdf' | 'markdown' | 'word' | 'excel' | 'csv' | 'animated-html' | 'json';

@@ -30,7 +30,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { useNativeStore } from '@/stores/native-store';
+import { useNativeStore } from '@/stores/system';
 import { useWindow } from '@/hooks/native';
 import { isTauri } from '@/lib/native/utils';
 import {

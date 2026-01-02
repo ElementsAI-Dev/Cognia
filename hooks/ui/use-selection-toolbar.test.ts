@@ -6,7 +6,7 @@ import { renderHook, act } from '@testing-library/react';
 import { useSelectionToolbar } from './use-selection-toolbar';
 
 // Mock dependencies
-jest.mock('@/stores/selection-store', () => ({
+jest.mock('@/stores/context', () => ({
   useSelectionStore: jest.fn(() => ({
     config: {
       enabled: true,
@@ -18,7 +18,7 @@ jest.mock('@/stores/selection-store', () => ({
   })),
 }));
 
-jest.mock('@/stores/settings-store', () => ({
+jest.mock('@/stores/settings', () => ({
   useSettingsStore: jest.fn((selector) => {
     const state = {
       defaultProvider: 'openai',

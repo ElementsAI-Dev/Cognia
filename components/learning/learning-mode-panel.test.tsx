@@ -40,7 +40,7 @@ jest.mock('@/hooks/use-learning-mode');
 const mockUseLearningMode = useLearningMode as jest.MockedFunction<typeof useLearningMode>;
 
 // Mock the learning store
-jest.mock('@/stores/learning-store', () => ({
+jest.mock('@/stores/learning', () => ({
   useLearningStore: jest.fn(() => ({
     getAchievements: jest.fn().mockReturnValue([]),
   })),

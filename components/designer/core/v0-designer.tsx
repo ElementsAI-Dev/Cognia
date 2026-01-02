@@ -59,9 +59,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ReactSandbox } from './react-sandbox';
-import { DesignerDndProvider } from './dnd';
-import { AIChatPanel } from './ai-chat-panel';
+import { ReactSandbox } from '../editor';
+import { DesignerDndProvider } from '../dnd';
+import { AIChatPanel } from '../ai';
 import {
   ResizableHandle,
   ResizablePanel,
@@ -241,6 +241,7 @@ export function V0Designer({
       <SheetContent
         side="right"
         className="w-full sm:w-[95vw] sm:max-w-[1600px] p-0 flex flex-col"
+        showCloseButton={false}
       >
         <SheetTitle className="sr-only">V0 Designer</SheetTitle>
         <TooltipProvider>

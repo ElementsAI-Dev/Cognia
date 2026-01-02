@@ -6,12 +6,12 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { LearningHistoryPanel } from './learning-history-panel';
-import { useLearningStore } from '@/stores/learning-store';
+import { useLearningStore } from '@/stores/learning';
 import type { LearningSession, LearningAchievement } from '@/types/learning';
 import { DEFAULT_LEARNING_STATISTICS } from '@/types/learning';
 
 // Mock the learning store
-jest.mock('@/stores/learning-store', () => ({
+jest.mock('@/stores/learning', () => ({
   useLearningStore: jest.fn(),
 }));
 

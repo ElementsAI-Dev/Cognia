@@ -103,7 +103,7 @@ jest.mock('@/stores', () => ({
   },
 }));
 
-jest.mock('@/stores/skill-store', () => ({
+jest.mock('@/stores/agent', () => ({
   useSkillStore: (selector: (state: unknown) => unknown) => {
     const state = {
       getActiveSkills: jest.fn(() => []),
@@ -112,7 +112,7 @@ jest.mock('@/stores/skill-store', () => ({
   },
 }));
 
-jest.mock('@/stores/workflow-store', () => ({
+jest.mock('@/stores/workflow', () => ({
   useWorkflowStore: (selector: (state: unknown) => unknown) => {
     const state = {
       presentations: {},

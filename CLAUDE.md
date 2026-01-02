@@ -65,20 +65,52 @@ Cognia is a hybrid web/desktop application that:
 
 ### Project Structure
 
-- `app/` — Next.js App Router: `(chat)/`, `settings/`, `designer/`, `projects/`, `native-tools/`, `image-studio/`, `api/`
+- `app/` — Next.js App Router: `(chat)/`, `settings/`, `designer/`, `projects/`, `native-tools/`, `image-studio/`, `video-editor/`, `workflows/`, `api/`
 - `components/` — Feature-based:
   - `ui/` — shadcn/Radix components (50+)
   - `chat/`, `sidebar/`, `settings/`, `artifacts/`, `canvas/`, `designer/`, `projects/`, `presets/`
   - `agent/` — Agent mode components (workflow selector, plan editor, execution steps)
   - `ai-elements/` — 30+ AI-specific components (message, code block, reasoning, artifact, plan)
   - `native/` — Native feature UI: clipboard, screenshot, focus tracking, context awareness
-  - `export/`, `layout/`, `providers/`, `skills/`, `learning/`
+  - `workflow-editor/` — Visual workflow editor with React Flow (nodes, edges, panels, toolbar)
+  - `export/`, `layout/`, `providers/`, `skills/`, `learning/`, `screen-recording/`, `selection-toolbar/`
 - `lib/` — Domain utilities:
-  - `ai/` — AI integration (client, chat, auto-router, image, agent tools, workflows)
-  - `db/`, `document/`, `export/`, `file/`, `i18n/`, `search/`, `themes/`, `vector/`
-  - `native/` — Tauri native API bindings
-- `hooks/` — Custom hooks: agent, messages, awareness, context, screenshot, selection, workflow, skills
-- `stores/` — Zustand stores: settings, session, artifact, agent, memory, project, usage, preset, mcp, selection, workflow, learning, designer, media, skill, virtual-env
+  - `ai/` — AI integration organized in subdirectories:
+    - `agent/` — Agent executor, loop, orchestrator, tools
+    - `chat/` — Chat utilities
+    - `generation/` — Content generation (selection AI, etc.)
+    - `memory/` — Memory providers
+    - `tools/` — Tool definitions
+    - `workflows/` — Workflow definitions
+  - `db/`, `document/`, `export/`, `file/`, `i18n/`, `search/`, `themes/`, `vector/`, `native/`, `skills/`, `learning/`, `designer/`
+- `hooks/` — Modular hook directories:
+  - `ai/` — `use-agent`, `use-background-agent`, `use-skills`, `use-sub-agent`
+  - `chat/` — `use-summary`, chat utilities
+  - `context/` — `use-clipboard-context`, `use-project-context`
+  - `designer/` — `use-designer-drag-drop`, `use-workflow-editor`, `use-workflow-execution`, `use-workflow-keyboard-shortcuts`
+  - `media/` — `use-speech`
+  - `native/` — `use-native`, `use-notification`, `use-window`
+  - `network/` — `use-proxy`
+  - `rag/` — RAG-related hooks
+  - `sandbox/` — `use-environment`, `use-jupyter-kernel`, `use-session-env`, `use-virtual-env`
+  - `ui/` — `use-global-shortcuts`, `use-learning-mode`, `use-learning-tools`, `use-mention`, `use-quote-shortcuts`, `use-selection-toolbar`
+  - `utils/` — `use-element-resize`
+- `stores/` — Modular store directories:
+  - `agent/` — Agent execution tracking
+  - `artifact/` — Artifacts, canvas, versions
+  - `chat/` — Chat widget state
+  - `context/` — Clipboard context, quote state
+  - `data/` — Recent files, templates, vectors
+  - `designer/` — Designer state, history
+  - `document/` — Document management
+  - `learning/` — Learning mode state
+  - `mcp/` — MCP servers, marketplace
+  - `media/` — Media, screen recording
+  - `project/` — Projects, activities
+  - `settings/` — User settings, presets, custom themes
+  - `system/` — Native state, proxy, usage, window
+  - `tools/` — Skills
+  - `workflow/` — Workflow definitions and execution
 - `types/` — TypeScript definitions: provider, message, artifact, session, memory, project, preset, usage, mcp, agent, workflow, learning, skill, environment, summary
 - `src-tauri/` — Rust backend: `awareness/`, `context/`, `screenshot/`, `selection/`, `mcp/`, `sandbox/`, `commands/`
 
@@ -88,26 +120,25 @@ Cognia is a hybrid web/desktop application that:
 
 ## Store Architecture
 
-All Zustand stores use localStorage persistence with the `persist` middleware:
+All Zustand stores use localStorage persistence with the `persist` middleware. Stores are organized in modular directories:
 
-| Store | Key | Purpose |
-|-------|-----|---------|
-| `artifact-store.ts` | `cognia-artifacts` | Artifacts, canvas documents, version history |
-| `settings-store.ts` | `cognia-settings` | Provider config, theme, custom instructions |
-| `session-store.ts` | `cognia-sessions` | Chat sessions with branching support |
-| `agent-store.ts` | `cognia-agents` | Agent execution tracking, tool invocations |
-| `memory-store.ts` | `cognia-memory` | Cross-session AI memory |
-| `project-store.ts` | `cognia-projects` | Project organization with knowledge bases |
-| `usage-store.ts` | `cognia-usage` | Token and cost tracking |
-| `preset-store.ts` | `cognia-presets` | Chat configuration presets |
-| `mcp-store.ts` | `cognia-mcp` | MCP server management (state only, config in Rust) |
-| `selection-store.ts` | `cognia-selection` | Selection toolbar state, selection history (desktop only) |
-| `workflow-store.ts` | `cognia-workflows` | Workflow definitions and execution |
-| `learning-store.ts` | `cognia-learning` | Learning mode state |
-| `designer-store.ts` | `cognia-designer` | V0-style designer state, components, preview |
-| `media-store.ts` | `cognia-media` | Video/image generation state |
-| `skill-store.ts` | `cognia-skills` | Custom skills and suggestions |
-| `virtual-env-store.ts` | `cognia-virtual-env` | Virtual environment management |
+| Directory | Stores | Purpose |
+|-----------|--------|---------|
+| `stores/agent/` | `agent-store` | Agent execution tracking, tool invocations |
+| `stores/artifact/` | `artifact-store` | Artifacts, canvas documents, version history |
+| `stores/chat/` | `chat-store`, `chat-widget-store` | Chat sessions, widget state |
+| `stores/context/` | `clipboard-context-store`, `quote-store` | Clipboard context, quoted content |
+| `stores/data/` | `recent-files-store`, `template-store`, `vector-store` | Recent files, templates, vector data |
+| `stores/designer/` | `designer-store`, `designer-history-store` | Designer state, undo/redo history |
+| `stores/document/` | `document-store` | Document management |
+| `stores/learning/` | `learning-store` | Learning mode state |
+| `stores/mcp/` | `mcp-store`, `mcp-marketplace-store` | MCP servers, marketplace |
+| `stores/media/` | `media-store`, `screen-recording-store` | Video/image, screen recording |
+| `stores/project/` | `project-store`, `project-activity-store` | Projects, knowledge bases, activities |
+| `stores/settings/` | `settings-store`, `preset-store`, `custom-theme-store` | User preferences, presets, themes |
+| `stores/system/` | `native-store`, `proxy-store`, `usage-store`, `window-store` | Native state, proxy, usage tracking |
+| `stores/tools/` | `skill-store` | Custom skills and suggestions |
+| `stores/workflow/` | `workflow-store`, `workflow-editor-store` | Workflow definitions and execution |
 
 **Note**: Native tools features (selection, awareness, context, screenshot) are only available in Tauri desktop builds.
 
@@ -171,8 +202,9 @@ Three-tier intelligent routing:
 - `lib/ai/agent/background-agent-manager.ts` — Queue and persistence
 - `lib/ai/agent/agent-tools.ts` — Built-in tool definitions
 - `lib/ai/agent/environment-tools.ts` — Environment/sandbox tools
-- `hooks/use-agent.ts` — React hook for agent mode
-- `hooks/use-background-agent.ts` — Background agent execution
+- `hooks/ai/use-agent.ts` — React hook for agent mode
+- `hooks/ai/use-background-agent.ts` — Background agent execution
+- `hooks/ai/use-sub-agent.ts` — Sub-agent management
 
 ## MCP (Model Context Protocol)
 
@@ -184,11 +216,12 @@ Three-tier intelligent routing:
 - `protocol/` — Tools, resources, prompts protocols
 
 ### Frontend
-- `stores/mcp-store.ts` — Zustand store for MCP state
+- `stores/mcp/mcp-store.ts` — Zustand store for MCP state
+- `stores/mcp/mcp-marketplace-store.ts` — MCP marketplace state
 - `lib/ai/agent/mcp-tools.ts` — MCP tool integration for agents
-- `components/settings/mcp-settings.tsx` — MCP management UI
-- `components/settings/mcp-server-dialog.tsx` — Add/edit server dialog
-- `components/settings/mcp-install-wizard.tsx` — Quick install wizard
+- `components/settings/mcp/mcp-settings.tsx` — MCP management UI
+- `components/settings/mcp/mcp-server-dialog.tsx` — Add/edit server dialog
+- `components/settings/mcp/mcp-install-wizard.tsx` — Quick install wizard
 
 ### Server Templates
 
@@ -212,7 +245,7 @@ Built-in quick install templates: Filesystem, GitHub, PostgreSQL, SQLite, Brave 
 ### Key Files
 
 - Rust: `src-tauri/src/awareness/`, `src-tauri/src/context/`, `src-tauri/src/screenshot/`, `src-tauri/src/selection/`
-- Frontend: `lib/native/`, `hooks/use-*.ts`, `stores/selection-store.ts`, `components/native/`
+- Frontend: `lib/native/`, `hooks/native/use-*.ts`, `stores/system/native-store.ts`, `components/native/`
 
 ## Designer System
 
@@ -226,11 +259,14 @@ V0-style visual web page designer with AI-powered editing:
 
 ### Key Files
 
-- `components/designer/v0-designer.tsx` — Main designer component
-- `components/designer/ai-chat-panel.tsx` — AI chat for design assistance
-- `components/designer/element-tree.tsx` — Component hierarchy view
-- `components/designer/style-panel.tsx` — Visual style editor
-- `stores/designer-store.ts` — Designer state management
+- `components/designer/core/designer-panel.tsx` — Main designer component
+- `components/designer/panels/element-tree.tsx` — Component hierarchy view
+- `components/designer/panels/style-panel.tsx` — Visual style editor
+- `components/designer/preview/designer-preview.tsx` — Live preview
+- `components/designer/toolbar/designer-toolbar.tsx` — Toolbar controls
+- `components/designer/dnd/designer-dnd-context.tsx` — Drag-and-drop context
+- `stores/designer/designer-store.ts` — Designer state management
+- `stores/designer/designer-history-store.ts` — Undo/redo history
 - `lib/designer/` — AI, export, templates utilities
 
 ## Export System
@@ -246,15 +282,57 @@ Multi-format export capabilities in `lib/export/`:
 | Excel | `excel-export.ts` | XLSX via SheetJS |
 | Diagrams | `chat-diagram.ts`, `agent-diagram.ts` | Visual conversation/agent flow |
 
+## Workflow Editor System
+
+Visual workflow editor for creating and executing automation workflows:
+
+- **Visual Editor**: React Flow-based node graph editor with drag-drop nodes
+- **Node Types**: Annotation nodes, group nodes, custom nodes for different operations
+- **Execution Engine**: Step-by-step workflow execution with debug support
+- **Variable Management**: Global and local variables with scope management
+
+### Key Files
+
+- `components/workflow-editor/workflow-editor-panel.tsx` — Main editor component
+- `components/workflow-editor/node-palette.tsx` — Available node types
+- `components/workflow-editor/custom-edge.tsx` — Custom edge rendering
+- `components/workflow-editor/debug-panel.tsx` — Debug visualization
+- `components/workflow-editor/execution-panel.tsx` — Execution monitoring
+- `stores/workflow/` — Workflow state management
+- `hooks/designer/use-workflow-*.ts` — Workflow hooks
+
+## Skills System
+
+Custom skill framework for extending AI capabilities:
+
+- **Skill Definition**: Define custom skills with parameters and execution logic
+- **Skill Suggestions**: AI-powered skill recommendations based on context
+- **Skill Analytics**: Usage tracking and performance metrics
+- **Skill Wizard**: Guided skill creation interface
+
+### Key Files
+
+- `components/skills/skill-panel.tsx` — Main skill management
+- `components/skills/skill-editor.tsx` — Skill editing interface
+- `components/skills/skill-wizard.tsx` — Guided creation
+- `components/skills/skill-suggestions.tsx` — AI recommendations
+- `stores/tools/skill-store.ts` — Skill state management
+- `lib/skills/` — Skill execution framework
+- `hooks/ai/use-skills.ts` — Skills React hook
+
 ## Learning Mode
 
 Interactive learning system for educational content:
 
 - `components/learning/learning-mode-panel.tsx` — Main learning interface
-- `components/learning/learning-start-dialog.tsx` — Session setup
+- `components/learning/flashcard.tsx` — Flashcard component
+- `components/learning/quiz.tsx` — Quiz component
+- `components/learning/review-session.tsx` — Review sessions
 - `components/learning/learning-history-panel.tsx` — Learning history
-- `components/learning/learning-statistics-panel.tsx` — Progress stats
-- `stores/learning-store.ts` — Learning state
+- `components/learning/learning-notes-panel.tsx` — Notes management
+- `stores/learning/learning-store.ts` — Learning state
+- `hooks/ui/use-learning-mode.ts` — Learning mode hook
+- `hooks/ui/use-learning-tools.ts` — Learning tools hook
 - `lib/learning/prompts.ts` — Learning-specific prompts
 
 ## Sandbox System (Code Execution)

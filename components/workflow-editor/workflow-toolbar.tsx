@@ -48,7 +48,7 @@ import {
   PanelRight,
   Map,
 } from 'lucide-react';
-import { useWorkflowEditorStore } from '@/stores/workflow-editor-store';
+import { useWorkflowEditorStore } from '@/stores/workflow';
 import { VersionHistoryPanel, ImportExportDialog } from './version-history-panel';
 import { ExecutionStatisticsPanel } from './execution-statistics-panel';
 import { VariableManagerPanel } from './variable-manager-panel';

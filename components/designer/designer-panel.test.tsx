@@ -29,7 +29,7 @@ jest.mock('@/lib/designer', () => ({
   getDesignerAIConfig: jest.fn().mockReturnValue({ provider: 'openai', model: 'gpt-4' }),
 }));
 
-jest.mock('@/stores/designer-store', () => ({
+jest.mock('@/stores/designer', () => ({
   useDesignerStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       mode: 'preview',
@@ -175,7 +175,7 @@ describe('DesignerPanel', () => {
 
   it('calls onCodeChange when code changes', () => {
     const onCodeChange = jest.fn();
-    jest.doMock('@/stores/designer-store', () => ({
+    jest.doMock('@/stores/designer', () => ({
       useDesignerStore: (selector: (state: Record<string, unknown>) => unknown) => {
         const state = {
           mode: 'code',

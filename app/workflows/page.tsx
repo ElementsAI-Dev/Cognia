@@ -36,7 +36,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { workflowRepository } from '@/lib/db/repositories';
-import { useWorkflowEditorStore } from '@/stores/workflow-editor-store';
+import { useWorkflowEditorStore } from '@/stores/workflow';
 import { workflowEditorTemplates } from '@/lib/workflow-editor/templates';
 import type { VisualWorkflow, WorkflowEditorTemplate } from '@/types/workflow-editor';
 import {

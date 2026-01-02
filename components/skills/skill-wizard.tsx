@@ -42,7 +42,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { useSkillStore } from '@/stores/skill-store';
+import { useSkillStore } from '@/stores/agent';
 import { getAllTemplates } from '@/lib/skills/templates';
 import { parseSkillMd } from '@/lib/skills/parser';
 import { SkillMarkdownPreview, SkillMarkdownStyles } from './skill-markdown-preview';

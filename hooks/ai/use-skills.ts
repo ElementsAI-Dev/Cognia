@@ -7,7 +7,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
-import { useSkillStore } from '@/stores/skill-store';
+import { useSkillStore } from '@/stores/agent';
 import {
   buildSkillSystemPrompt,
   buildMultiSkillSystemPrompt,

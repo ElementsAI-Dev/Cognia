@@ -13,7 +13,7 @@ jest.mock('next-intl', () => ({
 
 // Mock workflow editor store
 const mockAddNodeFromTemplate = jest.fn();
-jest.mock('@/stores/workflow-editor-store', () => ({
+jest.mock('@/stores/workflow', () => ({
   useWorkflowEditorStore: () => ({
     addNodeFromTemplate: mockAddNodeFromTemplate,
     nodeTemplates: [],
@@ -225,7 +225,7 @@ describe('NodePalette with Templates', () => {
   });
 
   it('shows template count when templates exist', () => {
-    jest.doMock('@/stores/workflow-editor-store', () => ({
+    jest.doMock('@/stores/workflow', () => ({
       useWorkflowEditorStore: () => ({
         addNodeFromTemplate: mockAddNodeFromTemplate,
         nodeTemplates: [

@@ -56,7 +56,7 @@ import {
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { useSessionStore, usePresetStore, useArtifactStore, useChatStore, useProjectStore } from '@/stores';
-import { MODE_CONFIGS } from '@/stores/session-store';
+import { MODE_CONFIGS } from '@/stores/chat';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';

@@ -24,7 +24,7 @@ jest.mock('@/lib/native/notification', () => ({
 // Mock native store
 const mockSetNotificationPermission = jest.fn();
 
-jest.mock('@/stores/native-store', () => ({
+jest.mock('@/stores/system', () => ({
   useNativeStore: () => ({
     notificationsEnabled: true,
     notificationPermission: true,
@@ -155,7 +155,7 @@ describe('useNotification - disabled notifications', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Re-mock with notifications disabled
-    jest.doMock('@/stores/native-store', () => ({
+    jest.doMock('@/stores/system', () => ({
       useNativeStore: () => ({
         notificationsEnabled: false,
         notificationPermission: true,

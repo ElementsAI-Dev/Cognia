@@ -8,7 +8,6 @@
 import { createContext, useContext, useCallback, useEffect, ReactNode, useRef, useState } from 'react';
 import type {
   ConnectionState,
-  WebSocketMessage,
   WebSocketEventType,
   WebSocketEventHandler,
   WebSocketConfig,

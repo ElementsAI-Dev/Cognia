@@ -2,7 +2,7 @@
 
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { useTranslations } from 'next-intl';
-import { useSelectionStore, type SelectionHistoryItem } from "@/stores/selection-store";
+import { useSelectionStore, type SelectionHistoryItem } from "@/stores/context";
 import { 
   Clock, 
   Trash2, 

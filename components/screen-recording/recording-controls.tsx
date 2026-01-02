@@ -50,7 +50,7 @@ import {
   useScreenRecordingStore,
   useIsRecording,
   type RecordingMode,
-} from '@/stores/screen-recording-store';
+} from '@/stores/media';
 import { formatDuration, type RecordingRegion } from '@/lib/native/screen-recording';
 import { isTauri } from '@/lib/native/utils';
 import { RegionSelector } from './region-selector';

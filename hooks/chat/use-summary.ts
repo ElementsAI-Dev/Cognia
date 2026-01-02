@@ -42,7 +42,7 @@ import { generateChatDiagram } from '@/lib/export/chat-diagram';
 import { generateAgentDiagram } from '@/lib/export/agent-diagram';
 import { downloadFile, generateFilename } from '@/lib/export';
 import type { ProviderName } from '@/lib/ai/core/client';
-import { useSummaryStore } from '@/stores/summary-store';
+import { useSummaryStore } from '@/stores/chat';
 
 export interface UseSummaryOptions {
   /** Use AI for summarization */

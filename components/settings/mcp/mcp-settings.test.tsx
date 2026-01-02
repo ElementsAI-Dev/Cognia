@@ -14,7 +14,7 @@ const mockRemoveServer = jest.fn();
 const mockUpdateServer = jest.fn();
 const mockClearError = jest.fn();
 
-jest.mock('@/stores/mcp-store', () => ({
+jest.mock('@/stores/mcp', () => ({
   useMcpStore: () => ({
     servers: [],
     isLoading: false,
@@ -132,7 +132,7 @@ describe('McpSettings with servers', () => {
 
   it('displays server list when servers exist', () => {
     // Override the mock for this test
-    jest.doMock('@/stores/mcp-store', () => ({
+    jest.doMock('@/stores/mcp', () => ({
       useMcpStore: () => ({
         servers: [
           {

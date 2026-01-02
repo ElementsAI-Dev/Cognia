@@ -5,14 +5,14 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { SelectionToolbar } from './toolbar';
 import { useSelectionToolbar } from '@/hooks/ui';
-import { useSelectionStore } from '@/stores/selection-store';
+import { useSelectionStore } from '@/stores/context';
 
 // Mock the hooks
 jest.mock('@/hooks/use-selection-toolbar', () => ({
   useSelectionToolbar: jest.fn(),
 }));
 
-jest.mock('@/stores/selection-store', () => ({
+jest.mock('@/stores/context', () => ({
   useSelectionStore: jest.fn(),
 }));
 

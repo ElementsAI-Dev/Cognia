@@ -21,7 +21,7 @@ jest.mock('@/components/chat/markdown-renderer', () => ({
 }));
 
 // Mock settings store
-jest.mock('@/stores/settings-store', () => ({
+jest.mock('@/stores/settings', () => ({
   useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       enableMathRendering: false,

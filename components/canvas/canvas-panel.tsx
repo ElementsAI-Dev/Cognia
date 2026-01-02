@@ -335,7 +335,7 @@ export function CanvasPanel() {
 
   return (
     <Sheet open={panelOpen && panelView === 'canvas'} onOpenChange={(open) => !open && closePanel()}>
-      <SheetContent side="right" className="w-full sm:w-[700px] sm:max-w-[700px] p-0 flex flex-col">
+      <SheetContent side="right" className="w-full sm:w-[700px] sm:max-w-[700px] p-0 flex flex-col" showCloseButton={false}>
         <SheetTitle className="sr-only">Canvas Panel</SheetTitle>
         {activeDocument ? (
           <>

@@ -30,7 +30,7 @@ import { useSettingsStore, useRecentFilesStore, usePresetStore, useSessionStore 
 import { RecentFilesPopover, MentionPopover } from './popovers';
 import { PresetQuickPrompts } from '@/components/presets/preset-quick-prompts';
 import { PresetQuickSwitcher } from '@/components/presets/preset-quick-switcher';
-import type { RecentFile } from '@/stores/recent-files-store';
+import type { RecentFile } from '@/stores/system';
 import type { MentionItem, SelectedMention, ParsedToolCall } from '@/types/mcp';
 import { useMention, useSpeech } from '@/hooks';
 import { cn } from '@/lib/utils';

@@ -6,7 +6,7 @@
  */
 
 import { createContext, useContext, useCallback, useEffect, ReactNode, useRef, useState, useMemo } from 'react';
-import { useSettingsStore } from '@/stores/settings-store';
+import { useSettingsStore } from '@/stores/settings';
 import type {
   RecordingState,
   PlaybackState,

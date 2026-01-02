@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { useSkillStore } from '@/stores/skill-store';
+import { useSkillStore } from '@/stores/agent';
 import { getAllBuiltinSkills } from '@/lib/skills/builtin';
 import type { CreateSkillInput } from '@/types/skill';
 

@@ -4,7 +4,7 @@
  * SkeletonVariants - Common skeleton loading patterns
  */
 
-import { Skeleton } from './skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 interface SkeletonCardProps {

@@ -51,7 +51,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SkillMarkdownPreview, SkillMarkdownStyles } from './skill-markdown-preview';
 import { SkillResourceManager } from './skill-resource-manager';
 import { SkillEditor } from './skill-editor';
-import { useSkillStore } from '@/stores/skill-store';
+import { useSkillStore } from '@/stores/agent';
 import { estimateSkillTokens } from '@/lib/skills/executor';
 import { downloadSkillAsMarkdown, downloadSkillAsPackage } from '@/lib/skills/packager';
 import { processSelectionWithAI } from '@/lib/ai/generation/selection-ai';

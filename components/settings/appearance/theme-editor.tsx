@@ -4,10 +4,10 @@
  * ThemeEditor - Create and edit custom color themes
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import { useTranslations } from 'next-intl';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Copy, Palette, AlertTriangle, CheckCircle2, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +22,21 @@ import {
 } from '@/components/ui/dialog';
 import { useSettingsStore } from '@/stores';
 import { cn } from '@/lib/utils';
+import {
+  checkContrast,
+  getPaletteSuggestions,
+  generatePaletteFromColor,
+  type ColorPalette,
+  type ContrastLevel,
+} from '@/lib/themes/color-utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ThemeEditorProps {
   open: boolean;
@@ -56,14 +71,28 @@ const defaultDarkColors: ThemeColors = {
   muted: '#1e293b',
 };
 
-const colorLabels: { key: keyof ThemeColors; labelKey: string }[] = [
-  { key: 'primary', labelKey: 'primary' },
-  { key: 'secondary', labelKey: 'secondary' },
-  { key: 'accent', labelKey: 'accent' },
-  { key: 'background', labelKey: 'background' },
-  { key: 'foreground', labelKey: 'foreground' },
-  { key: 'muted', labelKey: 'muted' },
+const colorLabels: { key: keyof ThemeColors; labelKey: string; description: string }[] = [
+  { key: 'primary', labelKey: 'primary', description: 'Buttons, links, highlights' },
+  { key: 'secondary', labelKey: 'secondary', description: 'Secondary backgrounds' },
+  { key: 'accent', labelKey: 'accent', description: 'Hover states, accents' },
+  { key: 'background', labelKey: 'background', description: 'Main background' },
+  { key: 'foreground', labelKey: 'foreground', description: 'Main text color' },
+  { key: 'muted', labelKey: 'muted', description: 'Muted backgrounds' },
 ];
+
+const contrastLevelColors: Record<ContrastLevel, string> = {
+  'fail': 'text-red-500',
+  'AA-large': 'text-yellow-500',
+  'AA': 'text-green-500',
+  'AAA': 'text-green-600',
+};
+
+const contrastLevelLabels: Record<ContrastLevel, string> = {
+  'fail': 'Fails WCAG',
+  'AA-large': 'AA Large Text',
+  'AA': 'AA Normal Text',
+  'AAA': 'AAA (Best)',
+};
 
 export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorProps) {
   const t = useTranslations('themeEditor');
@@ -80,6 +109,22 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
   const [colors, setColors] = useState<ThemeColors>(defaultLightColors);
   const [activeColor, setActiveColor] = useState<keyof ThemeColors>('primary');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [activeTab, setActiveTab] = useState<'colors' | 'palettes'>('colors');
+
+  // Calculate contrast ratios
+  const contrastResults = useMemo(() => {
+    return {
+      primaryOnBg: checkContrast(colors.primary, colors.background),
+      foregroundOnBg: checkContrast(colors.foreground, colors.background),
+      foregroundOnSecondary: checkContrast(colors.foreground, colors.secondary),
+      foregroundOnMuted: checkContrast(colors.foreground, colors.muted),
+    };
+  }, [colors]);
+
+  // Get palette suggestions based on dark mode
+  const paletteSuggestions = useMemo(() => {
+    return getPaletteSuggestions(isDark);
+  }, [isDark]);
 
   // Load theme data when editing - use microtask to avoid synchronous setState
   useEffect(() => {
@@ -100,6 +145,7 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
         }
         setActiveColor('primary');
         setShowDeleteConfirm(false);
+        setActiveTab('colors');
       });
     }
   }, [open, editingThemeId, customThemes]);
@@ -118,6 +164,26 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
       ...prev,
       [activeColor]: color,
     }));
+  };
+
+  const handleApplyPalette = (palette: ColorPalette) => {
+    setColors(palette.colors);
+    setName(name || palette.name);
+  };
+
+  const handleGenerateFromPrimary = () => {
+    const generated = generatePaletteFromColor(colors.primary, isDark);
+    setColors(generated.colors);
+  };
+
+  const handleDuplicateTheme = () => {
+    const newId = createCustomTheme({
+      name: `${name} (Copy)`,
+      isDark,
+      colors,
+    });
+    setActiveCustomTheme(newId);
+    onOpenChange(false);
   };
 
   const handleSave = () => {
@@ -150,6 +216,28 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
 
   const isEditing = !!editingThemeId;
 
+  const renderContrastBadge = (result: ReturnType<typeof checkContrast>) => {
+    const Icon = result.level === 'fail' ? AlertTriangle : CheckCircle2;
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={cn('inline-flex items-center gap-1 text-xs', contrastLevelColors[result.level])}>
+              <Icon className="h-3 w-3" />
+              {result.ratio.toFixed(1)}:1
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{contrastLevelLabels[result.level]}</p>
+            <p className="text-xs text-muted-foreground">
+              {result.passes.normalText ? '✓ Normal text' : '✗ Normal text'}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -162,97 +250,164 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          {/* Theme Name */}
-          <div className="space-y-2">
-            <Label htmlFor="theme-name">{t('themeName')}</Label>
-            <Input
-              id="theme-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t('themeNamePlaceholder')}
-            />
-          </div>
-
-          {/* Dark Mode Toggle */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>{t('darkTheme')}</Label>
-              <p className="text-sm text-muted-foreground">
-                {t('darkThemeDescription')}
-              </p>
-            </div>
-            <Switch checked={isDark} onCheckedChange={setIsDark} />
-          </div>
-
-          {/* Color Selection */}
-          <div className="space-y-4">
-            <Label>{t('colors')}</Label>
-
-            {/* Color Swatches */}
-            <div className="grid grid-cols-3 gap-2">
-              {colorLabels.map(({ key, labelKey }) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveColor(key)}
-                  className={cn(
-                    'flex items-center gap-2 rounded-lg border-2 p-2 transition-colors',
-                    activeColor === key
-                      ? 'border-primary bg-primary/5'
-                      : 'border-transparent bg-muted hover:bg-muted/80'
-                  )}
-                >
-                  <div
-                    className="h-6 w-6 rounded-full border shadow-sm"
-                    style={{ backgroundColor: colors[key] }}
-                  />
-                  <span className="text-xs font-medium">{t(labelKey)}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Color Picker */}
-            <div className="flex flex-col items-center gap-4 rounded-lg border bg-muted/50 p-4">
-              <HexColorPicker
-                color={colors[activeColor]}
-                onChange={handleColorChange}
-                style={{ width: '100%', maxWidth: '280px' }}
+        <div className="space-y-4 py-4">
+          {/* Theme Name & Dark Mode Row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="theme-name" className="text-xs">{t('themeName')}</Label>
+              <Input
+                id="theme-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t('themeNamePlaceholder')}
+                className="h-8"
               />
-              <div className="flex items-center gap-2">
-                <Label className="text-sm">{t('hexValue')}:</Label>
-                <div className="flex items-center gap-1">
-                  <span className="text-muted-foreground">#</span>
-                  <HexColorInput
-                    color={colors[activeColor]}
-                    onChange={handleColorChange}
-                    className="w-24 rounded border bg-background px-2 py-1 text-sm uppercase"
-                    prefixed={false}
-                  />
+            </div>
+            <div className="flex items-end justify-between rounded-lg border px-3 py-2">
+              <Label className="text-xs">{t('darkTheme')}</Label>
+              <Switch checked={isDark} onCheckedChange={setIsDark} />
+            </div>
+          </div>
+
+          {/* Tabs: Colors / Palettes */}
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'colors' | 'palettes')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="colors" className="text-xs">
+                <Palette className="h-3.5 w-3.5 mr-1.5" />
+                Custom Colors
+              </TabsTrigger>
+              <TabsTrigger value="palettes" className="text-xs">
+                <Wand2 className="h-3.5 w-3.5 mr-1.5" />
+                Palette Suggestions
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="colors" className="space-y-4 mt-3">
+              {/* Color Swatches */}
+              <div className="grid grid-cols-3 gap-2">
+                {colorLabels.map(({ key, labelKey, description }) => (
+                  <TooltipProvider key={key}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => setActiveColor(key)}
+                          className={cn(
+                            'flex items-center gap-2 rounded-lg border-2 p-2 transition-colors',
+                            activeColor === key
+                              ? 'border-primary bg-primary/5'
+                              : 'border-transparent bg-muted hover:bg-muted/80'
+                          )}
+                        >
+                          <div
+                            className="h-5 w-5 rounded-full border shadow-sm flex-shrink-0"
+                            style={{ backgroundColor: colors[key] }}
+                          />
+                          <span className="text-xs font-medium truncate">{t(labelKey)}</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p className="text-xs">{description}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ))}
+              </div>
+
+              {/* Color Picker */}
+              <div className="flex flex-col items-center gap-3 rounded-lg border bg-muted/50 p-3">
+                <HexColorPicker
+                  color={colors[activeColor]}
+                  onChange={handleColorChange}
+                  style={{ width: '100%', maxWidth: '240px', height: '160px' }}
+                />
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs">{t('hexValue')}:</Label>
+                  <div className="flex items-center gap-1">
+                    <span className="text-muted-foreground text-xs">#</span>
+                    <HexColorInput
+                      color={colors[activeColor]}
+                      onChange={handleColorChange}
+                      className="w-20 rounded border bg-background px-2 py-1 text-xs uppercase"
+                      prefixed={false}
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={handleGenerateFromPrimary}
+                  >
+                    <Wand2 className="h-3 w-3 mr-1" />
+                    Auto-fill
+                  </Button>
                 </div>
               </div>
-            </div>
-          </div>
+
+              {/* Contrast Check */}
+              <div className="rounded-lg border p-3 space-y-2">
+                <Label className="text-xs flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Contrast Check (WCAG)
+                </Label>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-center justify-between p-2 rounded bg-muted/50">
+                    <span className="text-muted-foreground">Text on Background</span>
+                    {renderContrastBadge(contrastResults.foregroundOnBg)}
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded bg-muted/50">
+                    <span className="text-muted-foreground">Text on Secondary</span>
+                    {renderContrastBadge(contrastResults.foregroundOnSecondary)}
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="palettes" className="mt-3">
+              <ScrollArea className="h-[280px] pr-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {paletteSuggestions.map((palette) => (
+                    <button
+                      key={palette.name}
+                      onClick={() => handleApplyPalette(palette)}
+                      className="flex flex-col gap-2 rounded-lg border p-3 hover:bg-muted/50 transition-colors text-left"
+                    >
+                      <span className="text-xs font-medium">{palette.name}</span>
+                      <div className="flex gap-1">
+                        {Object.values(palette.colors).slice(0, 4).map((color, i) => (
+                          <div
+                            key={i}
+                            className="h-5 w-5 rounded-full border shadow-sm"
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
 
           {/* Preview */}
           <div className="space-y-2">
-            <Label>{t('preview')}</Label>
+            <Label className="text-xs">{t('preview')}</Label>
             <div
-              className="rounded-lg border p-4"
+              className="rounded-lg border p-3"
               style={{
                 backgroundColor: colors.background,
                 color: colors.foreground,
               }}
             >
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <div
-                    className="h-8 w-8 rounded-full"
+                    className="h-6 w-6 rounded-full"
                     style={{ backgroundColor: colors.primary }}
                   />
                   <div>
-                    <p className="font-semibold">{t('previewTitle')}</p>
+                    <p className="text-sm font-semibold">{t('previewTitle')}</p>
                     <p
-                      className="text-sm"
+                      className="text-xs"
                       style={{ color: colors.muted }}
                     >
                       {t('previewSubtitle')}
@@ -260,20 +415,20 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
                   </div>
                 </div>
                 <div
-                  className="rounded-md p-3"
+                  className="rounded-md p-2"
                   style={{ backgroundColor: colors.secondary }}
                 >
-                  <p className="text-sm">{t('previewContent')}</p>
+                  <p className="text-xs">{t('previewContent')}</p>
                 </div>
                 <div className="flex gap-2">
                   <button
-                    className="rounded-md px-3 py-1.5 text-sm font-medium text-white"
+                    className="rounded-md px-2 py-1 text-xs font-medium text-white"
                     style={{ backgroundColor: colors.primary }}
                   >
                     {t('previewButton')}
                   </button>
                   <button
-                    className="rounded-md px-3 py-1.5 text-sm font-medium"
+                    className="rounded-md px-2 py-1 text-xs font-medium"
                     style={{
                       backgroundColor: colors.accent,
                       color: colors.foreground,
@@ -311,14 +466,23 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
                   </Button>
                 </div>
               ) : (
-                <Button
-                  variant="ghost"
-                  className="mr-auto text-destructive hover:text-destructive"
-                  onClick={() => setShowDeleteConfirm(true)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  {tc('delete')}
-                </Button>
+                <div className="flex items-center gap-2 mr-auto">
+                  <Button
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    {tc('delete')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={handleDuplicateTheme}
+                  >
+                    <Copy className="h-4 w-4 mr-1" />
+                    Duplicate
+                  </Button>
+                </div>
               )}
             </>
           )}

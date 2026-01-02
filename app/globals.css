@@ -198,11 +198,20 @@
     scrollbar-gutter: stable;
     overflow: hidden;
     --titlebar-height: 0px;
+    /* UI Customization CSS Variables */
+    --spacing-base: 1rem;
+    --spacing-gap: 0.5rem;
+    --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --sidebar-width: 280px;
+    --chat-max-width: 900px;
+    --message-spacing: 1rem;
+    --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
   body {
     @apply bg-background text-foreground;
     overflow: hidden;
     height: 100%;
+    font-family: var(--font-ui);
   }
   
 }

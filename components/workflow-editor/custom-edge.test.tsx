@@ -9,7 +9,7 @@ import { Position } from '@xyflow/react';
 // Mock the workflow editor store
 const mockDeleteEdge = jest.fn();
 
-jest.mock('@/stores/workflow-editor-store', () => ({
+jest.mock('@/stores/workflow', () => ({
   useWorkflowEditorStore: () => ({
     deleteEdge: mockDeleteEdge,
   }),

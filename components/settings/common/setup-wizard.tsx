@@ -57,11 +57,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
-import { useMcpStore } from '@/stores/mcp-store';
+import { useMcpStore } from '@/stores/mcp';
 import { PROVIDERS } from '@/types/provider';
 import { testProviderConnection } from '@/lib/ai/infrastructure/api-test';
 import { MCP_SERVER_TEMPLATES, createDefaultServerConfig } from '@/types/mcp';
-import type { Theme, Language } from '@/stores/settings-store';
+import type { Theme, Language } from '@/stores/settings';
 
 interface SetupWizardProps {
   open: boolean;

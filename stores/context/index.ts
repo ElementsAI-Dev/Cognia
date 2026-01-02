@@ -1,0 +1,46 @@
+/**
+ * Context stores index
+ */
+
+export {
+  useClipboardContextStore,
+  useCurrentClipboardContent,
+  useCurrentClipboardAnalysis,
+  useClipboardTemplates,
+  useIsClipboardMonitoring,
+  type ContentCategory,
+  type DetectedLanguage,
+  type ExtractedEntity,
+  type SuggestedAction,
+  type ContentStats,
+  type FormattingHints,
+  type ClipboardAnalysis,
+  type ClipboardTemplate,
+  type TransformAction,
+} from './clipboard-context-store';
+
+export {
+  useSelectionStore,
+  selectConfig,
+  selectIsEnabled,
+  selectIsToolbarVisible,
+  selectSelectedText,
+  selectIsProcessing,
+  selectIsStreaming as selectSelectionIsStreaming,
+  selectStreamingResult,
+  selectResult,
+  selectError as selectSelectionError,
+  selectHistory,
+  selectSelectionMode,
+  selectFavoriteHistory,
+  selectRecentHistory,
+  selectHistoryByAction,
+  selectSelections,
+  selectIsMultiSelectMode,
+  selectSelectionsCount,
+  selectReferences,
+  selectReferencesCount,
+  type SelectionHistoryItem,
+  type SelectionState,
+  type SelectionActions,
+} from './selection-store';

@@ -26,7 +26,7 @@ import {
   Sparkles,
   GripHorizontal,
 } from "lucide-react";
-import type { ChatWidgetConfig } from "@/stores/chat-widget-store";
+import type { ChatWidgetConfig } from "@/stores/chat";
 
 interface ChatWidgetHeaderProps {
   config: ChatWidgetConfig;

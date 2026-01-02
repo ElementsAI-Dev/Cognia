@@ -1,13 +1,13 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SkillWizard } from './skill-wizard';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { useSkillStore } from '@/stores/skill-store';
+import { useSkillStore } from '@/stores/agent';
 
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(<TooltipProvider>{ui}</TooltipProvider>);
 };
 
-jest.mock('@/stores/skill-store', () => ({
+jest.mock('@/stores/agent', () => ({
   useSkillStore: jest.fn(),
 }));
 jest.mock('@/lib/skills/templates', () => ({

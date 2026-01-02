@@ -1,4 +1,4 @@
-﻿/**
+/**
  * MCP (Model Context Protocol) TypeScript types
  *
  * These types mirror the Rust types in src-tauri/src/mcp/types.rs

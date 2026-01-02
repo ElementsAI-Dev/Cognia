@@ -22,7 +22,7 @@ Object.assign(navigator, {
   },
 });
 
-jest.mock('@/stores/designer-store', () => ({
+jest.mock('@/stores/designer', () => ({
   useDesignerStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       mode: 'preview',

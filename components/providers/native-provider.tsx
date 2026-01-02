@@ -7,7 +7,7 @@
 
 import { useEffect, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { useNativeStore } from '@/stores/native-store';
+import { useNativeStore } from '@/stores/system';
 import { isTauri } from '@/lib/native/utils';
 import { getSystemInfo } from '@/lib/native/system';
 import { isNotificationPermissionGranted } from '@/lib/native/notification';

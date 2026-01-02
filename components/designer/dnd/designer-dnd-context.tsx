@@ -23,7 +23,7 @@ import {
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { nanoid } from 'nanoid';
-import { useDesignerStore } from '@/stores/designer-store';
+import { useDesignerStore } from '@/stores/designer';
 import type { DesignerElement } from '@/types/designer';
 import type { DragItem } from '@/types';
 

@@ -11,13 +11,13 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { usePPTEditorStore } from '@/stores/ppt-editor-store';
+import { usePPTEditorStore } from '@/stores/tools/ppt-editor-store';
 import type { PPTSlide, PPTSlideElement, PPTTheme, PPTSlideLayout } from '@/types/workflow';
 import { SLIDE_LAYOUT_INFO } from '@/types/workflow';
 import {
   Plus,
   Type,
-  Image,
+  Image as ImageIcon,
   Square,
   BarChart3,
   Table,
@@ -432,7 +432,7 @@ export function SlideEditor({
                 className="justify-start"
                 onClick={() => handleAddElement('image')}
               >
-                <Image className="h-4 w-4 mr-2" />
+                <ImageIcon className="h-4 w-4 mr-2" />
                 {t('image')}
               </Button>
               <Button
@@ -552,7 +552,7 @@ function SlideElement({
               />
             ) : (
               <div className="text-center text-muted-foreground">
-                <Image className="h-8 w-8 mx-auto mb-2" />
+                <ImageIcon className="h-8 w-8 mx-auto mb-2" />
                 <span className="text-sm">Click to add image</span>
               </div>
             )}
@@ -577,7 +577,7 @@ function SlideElement({
           <div className="w-full h-full flex items-center justify-center bg-muted/30 rounded border border-dashed">
             <div className="text-center text-muted-foreground">
               <BarChart3 className="h-8 w-8 mx-auto mb-2" />
-              <span className="text-sm">{element.metadata?.chartType || 'Chart'}</span>
+              <span className="text-sm">{String(element.metadata?.chartType || 'Chart')}</span>
             </div>
           </div>
         );

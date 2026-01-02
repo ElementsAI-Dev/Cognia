@@ -5,8 +5,8 @@
  */
 
 import { useCallback, useMemo } from 'react';
-import { useSubAgentStore } from '@/stores/sub-agent-store';
-import { useSettingsStore } from '@/stores/settings-store';
+import { useSubAgentStore } from '@/stores/agent';
+import { useSettingsStore } from '@/stores/settings';
 import {
   executeSubAgent,
   executeSubAgentsParallel,

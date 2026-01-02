@@ -10,7 +10,7 @@ const mockSelectElement = jest.fn();
 const mockHoverElement = jest.fn();
 const mockParseCodeToElements = jest.fn();
 
-jest.mock('@/stores/designer-store', () => ({
+jest.mock('@/stores/designer', () => ({
   useDesignerStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       mode: 'preview',
@@ -79,7 +79,7 @@ describe('DesignerPreview', () => {
 
 describe('DesignerPreview with different viewports', () => {
   it('renders mobile viewport', () => {
-    jest.doMock('@/stores/designer-store', () => ({
+    jest.doMock('@/stores/designer', () => ({
       useDesignerStore: (selector: (state: Record<string, unknown>) => unknown) => {
         const state = {
           mode: 'preview',
@@ -107,7 +107,7 @@ describe('DesignerPreview with design mode', () => {
   });
 
   it('renders in design mode', () => {
-    jest.doMock('@/stores/designer-store', () => ({
+    jest.doMock('@/stores/designer', () => ({
       useDesignerStore: (selector: (state: Record<string, unknown>) => unknown) => {
         const state = {
           mode: 'design',

@@ -48,7 +48,7 @@ import {
   cancelVisualWorkflow,
   validateVisualWorkflow,
 } from '@/lib/workflow-editor';
-import { useSettingsStore } from './settings-store';
+import { useSettingsStore } from '../settings';
 import type { ProviderName } from '@/types/provider';
 
 interface WorkflowEditorState {

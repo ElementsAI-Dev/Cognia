@@ -6,12 +6,12 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { useLearningMode, useIsLearningMode } from './use-learning-mode';
-import { useLearningStore } from '@/stores/learning-store';
-import { useSessionStore } from '@/stores/session-store';
+import { useLearningStore } from '@/stores/learning';
+import { useSessionStore } from '@/stores/chat';
 
 // Mock the stores
-jest.mock('@/stores/learning-store');
-jest.mock('@/stores/session-store');
+jest.mock('@/stores/learning');
+jest.mock('@/stores/chat');
 
 const mockUseLearningStore = useLearningStore as jest.MockedFunction<typeof useLearningStore>;
 const mockUseSessionStore = useSessionStore as jest.MockedFunction<typeof useSessionStore>;

@@ -24,7 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useQuoteStore, type QuotedText, type ExportFormat } from '@/stores/quote-store';
+import { useQuoteStore, type QuotedText, type ExportFormat } from '@/stores/chat';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 

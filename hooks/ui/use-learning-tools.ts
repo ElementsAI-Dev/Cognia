@@ -8,8 +8,8 @@
  */
 
 import { useMemo, useCallback } from 'react';
-import { useLearningStore } from '@/stores/learning-store';
-import { useSessionStore } from '@/stores/session-store';
+import { useLearningStore } from '@/stores/learning';
+import { useSessionStore } from '@/stores/chat';
 import {
   learningTools,
   executeDisplayFlashcard,

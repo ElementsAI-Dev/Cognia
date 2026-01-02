@@ -15,7 +15,7 @@ const mockDeactivateSkill = jest.fn();
 const mockClearError = jest.fn();
 const mockImportSkill = jest.fn();
 
-jest.mock('@/stores/skill-store', () => ({
+jest.mock('@/stores/agent', () => ({
   useSkillStore: () => ({
     skills: {
       'skill-1': {

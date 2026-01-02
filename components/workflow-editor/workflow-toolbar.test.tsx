@@ -26,7 +26,7 @@ const mockToggleConfigPanel = jest.fn();
 const mockToggleMinimap = jest.fn();
 const mockDuplicateNode = jest.fn();
 
-jest.mock('@/stores/workflow-editor-store', () => ({
+jest.mock('@/stores/workflow', () => ({
   useWorkflowEditorStore: Object.assign(
     () => ({
       currentWorkflow: { id: 'workflow-1', name: 'Test Workflow', nodes: [] },
@@ -280,7 +280,7 @@ describe('WorkflowToolbar with Errors', () => {
     jest.clearAllMocks();
     
     // Mock store with validation errors
-    jest.doMock('@/stores/workflow-editor-store', () => ({
+    jest.doMock('@/stores/workflow', () => ({
       useWorkflowEditorStore: Object.assign(
         () => ({
           currentWorkflow: { id: 'workflow-1', name: 'Test Workflow', nodes: [] },

@@ -18,7 +18,7 @@ import type {
   SessionCompressionOverrides,
 } from '@/types/compression';
 import { DEFAULT_COMPRESSION_SETTINGS } from '@/types/compression';
-import { calculateTokenBreakdown, countTokens } from '@/hooks/use-token-count';
+import { calculateTokenBreakdown, countTokens } from '@/hooks/chat/use-token-count';
 import { nanoid } from 'nanoid';
 
 /**

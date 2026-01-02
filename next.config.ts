@@ -12,20 +12,43 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  // Mark Tauri plugins as external for server - they only work in Tauri runtime
+  // Mark Tauri plugins and Node.js-only packages as external for server
   serverExternalPackages: [
     '@tauri-apps/plugin-fs',
     '@tauri-apps/plugin-dialog', 
     '@tauri-apps/plugin-shell',
     '@tauri-apps/api',
+    '@zilliz/milvus2-sdk-node',
+    'monaco-editor',
   ],
-  // Turbopack config - alias Tauri plugins to stubs for browser/SSR builds
+  // Turbopack config - alias Tauri plugins and Node.js-only packages to stubs for browser/SSR builds
   turbopack: {
     resolveAlias: {
       '@tauri-apps/plugin-fs': './lib/tauri-stubs.ts',
       '@tauri-apps/plugin-dialog': './lib/tauri-stubs.ts',
       '@tauri-apps/plugin-shell': './lib/tauri-stubs.ts',
+      '@zilliz/milvus2-sdk-node': './lib/milvus-stub.ts',
+      'monaco-editor': './lib/monaco-stub.ts',
     },
+  },
+  // Webpack config for production builds (non-Turbopack)
+  webpack: (config, { isServer }) => {
+    // Handle Node.js-only packages for client-side builds
+    if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        '@zilliz/milvus2-sdk-node': require.resolve('./lib/milvus-stub.ts'),
+        'monaco-editor': require.resolve('./lib/monaco-stub.ts'),
+      };
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+      };
+    }
+    return config;
   },
   // Remove assetPrefix entirely - it's not needed for Tauri development
   // and causes CORS issues when ports don't match

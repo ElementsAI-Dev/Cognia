@@ -62,7 +62,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useMcpStore } from '@/stores/mcp-store';
+import { useMcpStore } from '@/stores/mcp';
 import { McpServerDialog } from './mcp-server-dialog';
 import { McpInstallWizard } from './mcp-install-wizard';
 import { McpMarketplace } from './mcp-marketplace';

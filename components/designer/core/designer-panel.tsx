@@ -19,7 +19,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
-import { useDesignerStore } from '@/stores/designer-store';
+import { useDesignerStore } from '@/stores/designer';
 import { DesignerToolbar } from '../toolbar/designer-toolbar';
 import { DesignerPreview } from '../preview/designer-preview';
 import { ElementTree } from '../panels/element-tree';
@@ -208,6 +208,7 @@ export function DesignerPanel({
       <SheetContent
         side="right"
         className="w-full sm:w-[90vw] sm:max-w-[1400px] p-0 flex flex-col"
+        showCloseButton={false}
       >
         <SheetTitle className="sr-only">Designer Panel</SheetTitle>
         <DesignerDndProvider>

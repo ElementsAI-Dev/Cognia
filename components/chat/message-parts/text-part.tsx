@@ -5,7 +5,7 @@
  * Supports: Mermaid diagrams, LaTeX math, VegaLite charts
  */
 
-import { useSettingsStore } from '@/stores/settings-store';
+import { useSettingsStore } from '@/stores/settings';
 import { MarkdownRenderer } from '@/components/chat/utils';
 import { cn } from '@/lib/utils';
 import type { TextPart as TextPartType } from '@/types/message';

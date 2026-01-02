@@ -8,12 +8,12 @@
  */
 
 import { useCallback, useMemo, useEffect, useRef } from 'react';
-import { useBackgroundAgentStore } from '@/stores/background-agent-store';
-import { useSettingsStore } from '@/stores/settings-store';
-import { useSessionStore } from '@/stores/session-store';
-import { useSkillStore } from '@/stores/skill-store';
-import { useMcpStore } from '@/stores/mcp-store';
-import { useVectorStore } from '@/stores/vector-store';
+import { useBackgroundAgentStore } from '@/stores/agent';
+import { useSettingsStore } from '@/stores/settings';
+import { useSessionStore } from '@/stores/chat';
+import { useSkillStore } from '@/stores/agent';
+import { useMcpStore } from '@/stores/mcp';
+import { useVectorStore } from '@/stores/data';
 import {
   BackgroundAgentManager,
   getBackgroundAgentManager,

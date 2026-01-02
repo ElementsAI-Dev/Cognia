@@ -4,7 +4,7 @@
 
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SelectionToolbarSettings } from './settings-panel';
-import { useSelectionStore } from '@/stores/selection-store';
+import { useSelectionStore } from '@/stores/context';
 import { DEFAULT_SELECTION_CONFIG } from '@/types';
 
 // Mock ResizeObserver
@@ -16,7 +16,7 @@ class ResizeObserverMock {
 global.ResizeObserver = ResizeObserverMock;
 
 // Mock the selection store
-jest.mock('@/stores/selection-store', () => ({
+jest.mock('@/stores/context', () => ({
   useSelectionStore: jest.fn(),
 }));
 

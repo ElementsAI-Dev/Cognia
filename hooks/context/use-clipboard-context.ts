@@ -16,7 +16,7 @@ import {
   type ContentStats,
   type TransformAction,
   type ClipboardTemplate,
-} from '@/stores/clipboard-context-store';
+} from '@/stores/context';
 
 export type {
   ClipboardAnalysis,

@@ -6,8 +6,8 @@ import { renderHook } from '@testing-library/react';
 import { useClipboardContext, CATEGORY_INFO, LANGUAGE_INFO, TRANSFORM_ACTIONS } from './use-clipboard-context';
 
 // Mock the store
-jest.mock('@/stores/clipboard-context-store', () => {
-  const actual = jest.requireActual('@/stores/clipboard-context-store');
+jest.mock('@/stores/context', () => {
+  const actual = jest.requireActual('@/stores/context');
   return {
     ...actual,
     useClipboardContextStore: jest.fn(() => ({

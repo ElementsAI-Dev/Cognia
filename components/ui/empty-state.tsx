@@ -1,108 +1,66 @@
 'use client';
 
-/**
- * EmptyState - Reusable empty state component with consistent styling
- */
-
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import type { LucideIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface EmptyStateAction {
   label: string;
   onClick: () => void;
-  variant?: 'default' | 'outline' | 'secondary' | 'ghost';
   icon?: LucideIcon;
+  variant?: 'default' | 'secondary' | 'outline' | 'ghost';
 }
 
-interface EmptyStateProps {
-  icon: LucideIcon;
+export interface EmptyStateProps {
+  icon?: LucideIcon | React.ReactNode;
   title: string;
   description?: string;
+  action?: React.ReactNode;
   actions?: EmptyStateAction[];
   className?: string;
-  iconClassName?: string;
   compact?: boolean;
 }
 
-export function EmptyState({
-  icon: Icon,
-  title,
-  description,
-  actions,
-  className,
-  iconClassName,
-  compact = false,
-}: EmptyStateProps) {
+export function EmptyState({ icon: Icon, title, description, action, actions, className, compact }: EmptyStateProps) {
+  const renderIcon = () => {
+    if (!Icon) return null;
+    if (typeof Icon === 'function') {
+      const IconComponent = Icon as LucideIcon;
+      return <IconComponent className={compact ? 'h-8 w-8' : 'h-12 w-12'} />;
+    }
+    return Icon;
+  };
+
   return (
     <div
       className={cn(
         'flex flex-col items-center justify-center text-center',
-        compact ? 'py-8 px-4' : 'py-16 px-6',
+        compact ? 'py-6 px-3' : 'py-12 px-4',
         className
       )}
     >
-      <div
-        className={cn(
-          'flex items-center justify-center rounded-full bg-muted/50',
-          compact ? 'h-12 w-12 mb-3' : 'h-16 w-16 mb-4',
-          'animate-in fade-in-0 zoom-in-95 duration-300'
-        )}
-      >
-        <Icon
-          className={cn(
-            'text-muted-foreground/70',
-            compact ? 'h-6 w-6' : 'h-8 w-8',
-            iconClassName
-          )}
-        />
-      </div>
-
-      <h3
-        className={cn(
-          'font-semibold text-foreground',
-          compact ? 'text-base' : 'text-lg',
-          'animate-in fade-in-0 slide-in-from-bottom-2 duration-300'
-        )}
-        style={{ animationDelay: '50ms' }}
-      >
-        {title}
-      </h3>
-
-      {description && (
-        <p
-          className={cn(
-            'text-muted-foreground max-w-sm',
-            compact ? 'text-sm mt-1' : 'text-sm mt-2',
-            'animate-in fade-in-0 slide-in-from-bottom-2 duration-300'
-          )}
-          style={{ animationDelay: '100ms' }}
-        >
-          {description}
-        </p>
+      {Icon && (
+        <div className="mb-4 text-muted-foreground">
+          {renderIcon()}
+        </div>
       )}
-
+      <h3 className="text-lg font-semibold">{title}</h3>
+      {description && (
+        <p className="mt-2 text-sm text-muted-foreground max-w-sm">{description}</p>
+      )}
+      {action && <div className="mt-4">{action}</div>}
       {actions && actions.length > 0 && (
-        <div
-          className={cn(
-            'flex flex-wrap gap-2 justify-center',
-            compact ? 'mt-3' : 'mt-4',
-            'animate-in fade-in-0 slide-in-from-bottom-2 duration-300'
-          )}
-          style={{ animationDelay: '150ms' }}
-        >
-          {actions.map((action, index) => {
-            const ActionIcon = action.icon;
+        <div className="mt-4 flex flex-wrap gap-2 justify-center">
+          {actions.map((act, idx) => {
+            const ActionIcon = act.icon;
             return (
               <Button
-                key={index}
-                variant={action.variant || 'default'}
-                size={compact ? 'sm' : 'default'}
-                onClick={action.onClick}
-                className="gap-2"
+                key={idx}
+                variant={act.variant ?? 'default'}
+                onClick={act.onClick}
               >
-                {ActionIcon && <ActionIcon className="h-4 w-4" />}
-                {action.label}
+                {ActionIcon && <ActionIcon className="h-4 w-4 mr-2" />}
+                {act.label}
               </Button>
             );
           })}

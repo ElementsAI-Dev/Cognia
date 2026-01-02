@@ -56,7 +56,7 @@ import {
 } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { useDesignerStore } from '@/stores/designer-store';
+import { useDesignerStore } from '@/stores/designer';
 
 // Common Tailwind class suggestions
 const TAILWIND_SUGGESTIONS: Record<string, string[]> = {

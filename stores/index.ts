@@ -1,26 +1,8 @@
 /**
- * Stores index - re-export all stores
+ * Stores index - re-export all stores from subfolders
  */
 
-export { useChatStore, selectMessages, selectIsLoading, selectIsStreaming, selectError } from './chat-store';
-export { useSessionStore, selectSessions, selectActiveSessionId } from './session-store';
-export {
-  useSettingsStore,
-  selectTheme,
-  selectColorTheme,
-  selectLanguage,
-  selectDefaultProvider,
-  selectSidebarCollapsed,
-  selectSearchEnabled,
-  type Theme,
-  type Language,
-  type CustomTheme,
-  type CustomProviderSettings,
-  type CodeTheme,
-  type FontFamily,
-  type MessageBubbleStyle,
-} from './settings-store';
-export { useUIStore, selectSidebarOpen, selectActiveModal, selectCommandPaletteOpen, type ModalType } from './ui-store';
+// Agent stores
 export {
   useAgentStore,
   selectIsAgentRunning,
@@ -28,49 +10,78 @@ export {
   selectToolExecutions,
   selectCurrentToolId,
   selectAgentProgress,
-} from './agent-store';
-export { useArtifactStore } from './artifact-store';
-export { useMemoryStore } from './memory-store';
-export { useProjectStore, selectProjects, selectActiveProjectId } from './project-store';
-export { useUsageStore } from './usage-store';
-export { usePresetStore, selectPresets, selectSelectedPresetId } from './preset-store';
-export { useMcpStore, installNpmPackage, installPipPackage, checkCommandExists } from './mcp-store';
-export { useRecentFilesStore, selectRecentFiles } from './recent-files-store';
-export { useDesignerStore } from './designer-store';
-export { useTemplateStore } from './template-store';
-export { useVectorStore } from './vector-store';
-export { useDocumentStore } from './document-store';
-export { useDesignerHistoryStore, type DesignerHistoryEntry } from './designer-history-store';
-export { 
-  useProjectActivityStore, 
-  getActivityDescription,
-  type ActivityType as ProjectActivityType,
-  type ProjectActivity,
-} from './project-activity-store';
-export {
-  useNativeStore,
-  type ShortcutConfig,
-  type NativeState,
-  type NativeActions,
-} from './native-store';
-export { useQuoteStore, selectQuotedTexts, selectHasQuotes, type QuotedText } from './quote-store';
-export {
-  useWorkflowStore,
-  selectActiveExecution,
-  selectExecutionProgress,
-  selectIsExecuting,
-  selectActivePresentation,
-} from './workflow-store';
-export {
+  useBackgroundAgentStore,
+  selectAgents,
+  selectQueue,
+  selectIsPanelOpen,
+  selectSelectedAgentId,
+  useSubAgentStore,
+  selectSubAgents,
+  selectGroups,
+  selectActiveParentId,
+  selectSubAgentCount,
+  selectActiveSubAgentCount,
+  selectCompletedSubAgentCount,
   useSkillStore,
   selectAllSkills,
   selectActiveSkills,
   selectEnabledSkills,
   selectSkillById,
   selectSkillsByCategory,
-  selectIsLoading as selectSkillsLoading,
-  selectError as selectSkillsError,
-} from './skill-store';
+  selectSkillsLoading,
+  selectSkillsError,
+} from './agent';
+
+// Artifact stores
+export { useArtifactStore } from './artifact';
+
+// Chat stores
+export {
+  useChatStore,
+  selectMessages,
+  selectIsLoading,
+  selectIsStreaming,
+  selectError,
+  useSessionStore,
+  selectSessions,
+  selectActiveSessionId,
+  useQuoteStore,
+  selectQuotedTexts,
+  selectHasQuotes,
+  useSummaryStore,
+  useChatWidgetStore,
+  type QuotedText,
+} from './chat';
+
+// Context stores
+export {
+  useClipboardContextStore,
+  useCurrentClipboardContent,
+  useCurrentClipboardAnalysis,
+  useClipboardTemplates,
+  useIsClipboardMonitoring,
+  useSelectionStore,
+  type ContentCategory as ClipboardContentCategory,
+  type DetectedLanguage as ClipboardDetectedLanguage,
+  type ExtractedEntity as ClipboardExtractedEntity,
+  type SuggestedAction as ClipboardSuggestedAction,
+  type ContentStats as ClipboardContentStats,
+  type FormattingHints as ClipboardFormattingHints,
+  type ClipboardAnalysis,
+  type ClipboardTemplate,
+  type TransformAction,
+} from './context';
+
+// Data stores
+export { useMemoryStore, useVectorStore } from './data';
+
+// Designer stores
+export { useDesignerStore, useDesignerHistoryStore, type DesignerHistoryEntry } from './designer';
+
+// Document stores
+export { useDocumentStore } from './document';
+
+// Learning stores
 export {
   useLearningStore,
   selectLearningSession,
@@ -80,28 +91,12 @@ export {
   selectCurrentPhase,
   selectSubQuestions,
   selectLearningGoals,
-} from './learning-store';
-export {
-  useSubAgentStore,
-  selectSubAgents,
-  selectGroups,
-  selectActiveParentId,
-  selectSubAgentCount,
-  selectActiveSubAgentCount,
-  selectCompletedSubAgentCount,
-} from './sub-agent-store';
-export {
-  useBackgroundAgentStore,
-  selectAgents,
-  selectQueue,
-  selectIsPanelOpen,
-  selectSelectedAgentId,
-} from './background-agent-store';
-export {
-  useCustomThemeStore,
-  createDefaultThemeTemplate,
-  type CustomSyntaxTheme,
-} from './custom-theme-store';
+} from './learning';
+
+// MCP stores
+export { useMcpStore, installNpmPackage, installPipPackage, checkCommandExists, useMcpMarketplaceStore } from './mcp';
+
+// Media stores
 export {
   useMediaStore,
   selectImages,
@@ -111,43 +106,20 @@ export {
   selectFavoriteImages,
   selectFavoriteVideos,
   selectPendingVideos,
+  useImageStudioStore,
+  selectStudioImages,
+  selectSelectedImage,
+  selectStudioFavoriteImages,
+  selectFilteredImages,
+  selectIsEditing,
+  selectHasUnsavedChanges,
+  useScreenRecordingStore,
+  useIsRecording,
+  useRecordingStatus,
   type GeneratedImageRecord,
   type GeneratedVideoRecord,
   type MediaStats,
   type MediaFilter,
-} from './media-store';
-export {
-  useEnvironmentStore,
-  useEnvironmentPlatform,
-  useToolStatus,
-  useInstallProgress,
-  useIsToolInstalled,
-  useEnvironmentRefreshing,
-  useEnvironmentInstalling,
-  type EnvironmentState,
-  type EnvironmentActions,
-} from './environment-store';
-export {
-  useProxyStore,
-  useProxyConfig,
-  useProxyStatus,
-  useProxyMode,
-  useProxyEnabled,
-  useDetectedProxies,
-  useProxyDetecting,
-  useProxyTesting,
-  getActiveProxyUrl,
-  type ProxyState,
-  type ProxyActions,
-} from './proxy-store';
-export {
-  useImageStudioStore,
-  selectImages as selectStudioImages,
-  selectSelectedImage,
-  selectFavoriteImages as selectStudioFavoriteImages,
-  selectFilteredImages,
-  selectIsEditing,
-  selectHasUnsavedChanges,
   type EditingTool,
   type ImageAdjustments as StudioImageAdjustments,
   type CropRegion,
@@ -160,24 +132,69 @@ export {
   type BrushSettings,
   type ExportSettings,
   type ViewState,
-} from './image-studio-store';
+} from './media';
+
+// Project stores
 export {
-  useClipboardContextStore,
-  useCurrentClipboardContent,
-  useCurrentClipboardAnalysis,
-  useClipboardTemplates,
-  useIsClipboardMonitoring,
-  type ContentCategory as ClipboardContentCategory,
-  type DetectedLanguage as ClipboardDetectedLanguage,
-  type ExtractedEntity as ClipboardExtractedEntity,
-  type SuggestedAction as ClipboardSuggestedAction,
-  type ContentStats as ClipboardContentStats,
-  type FormattingHints as ClipboardFormattingHints,
-  type ClipboardAnalysis,
-  type ClipboardTemplate,
-  type TransformAction,
-} from './clipboard-context-store';
+  useProjectStore,
+  selectProjects,
+  selectActiveProjectId,
+  useProjectActivityStore,
+  getActivityDescription,
+  type ActivityType as ProjectActivityType,
+  type ProjectActivity,
+} from './project';
+
+// Settings stores
 export {
+  useSettingsStore,
+  selectTheme,
+  selectColorTheme,
+  selectLanguage,
+  selectDefaultProvider,
+  selectSidebarCollapsed,
+  selectSearchEnabled,
+  usePresetStore,
+  selectPresets,
+  selectSelectedPresetId,
+  useCustomThemeStore,
+  createDefaultThemeTemplate,
+  type Theme,
+  type Language,
+  type CustomTheme,
+  type CustomProviderSettings,
+  type CodeTheme,
+  type FontFamily,
+  type MessageBubbleStyle,
+  type CustomSyntaxTheme,
+} from './settings';
+
+// System stores
+export {
+  useUIStore,
+  selectSidebarOpen,
+  selectActiveModal,
+  selectCommandPaletteOpen,
+  useUsageStore,
+  useRecentFilesStore,
+  selectRecentFiles,
+  useNativeStore,
+  useEnvironmentStore,
+  useEnvironmentPlatform,
+  useToolStatus,
+  useInstallProgress,
+  useIsToolInstalled,
+  useEnvironmentRefreshing,
+  useEnvironmentInstalling,
+  useProxyStore,
+  useProxyConfig,
+  useProxyStatus,
+  useProxyMode,
+  useProxyEnabled,
+  useDetectedProxies,
+  useProxyDetecting,
+  useProxyTesting,
+  getActiveProxyUrl,
   useWindowStore,
   selectWindowState,
   selectWindowPreferences,
@@ -187,6 +204,15 @@ export {
   selectIsMaximized,
   selectIsFullscreen,
   selectIsAlwaysOnTop,
+  useVirtualEnvStore,
+  type ModalType,
+  type ShortcutConfig,
+  type NativeState,
+  type NativeActions,
+  type EnvironmentState,
+  type EnvironmentActions,
+  type ProxyState,
+  type ProxyActions,
   type CursorIcon,
   type UserAttentionType,
   type WindowSize,
@@ -194,4 +220,25 @@ export {
   type WindowConstraints,
   type WindowState,
   type WindowPreferences,
-} from './window-store';
+} from './system';
+
+// Tools stores
+export {
+  useJupyterStore,
+  useActiveSession,
+  useActiveKernel,
+  useExecutionState,
+  useJupyterSessionForChat,
+  usePPTEditorStore,
+  useTemplateStore,
+} from './tools';
+
+// Workflow stores
+export {
+  useWorkflowStore,
+  selectActiveExecution,
+  selectExecutionProgress,
+  selectIsExecuting,
+  selectActivePresentation,
+  useWorkflowEditorStore,
+} from './workflow';

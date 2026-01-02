@@ -7,7 +7,7 @@
 
 import { useCallback, useState, useRef } from 'react';
 import { nanoid } from 'nanoid';
-import { useDesignerStore } from '@/stores/designer-store';
+import { useDesignerStore } from '@/stores/designer';
 import type { DesignerElement } from '@/types/designer';
 
 // Drag data types

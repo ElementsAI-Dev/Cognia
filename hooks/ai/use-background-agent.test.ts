@@ -3,11 +3,11 @@
  */
 
 import { renderHook, act } from '@testing-library/react';
-import { useBackgroundAgentStore } from '@/stores/background-agent-store';
+import { useBackgroundAgentStore } from '@/stores/agent';
 
 // Mock the stores before importing the hook
-jest.mock('@/stores/background-agent-store');
-jest.mock('@/stores/settings-store', () => ({
+jest.mock('@/stores/agent');
+jest.mock('@/stores/settings', () => ({
   useSettingsStore: jest.fn((selector) => {
     if (typeof selector !== 'function') return {};
     const state = {
@@ -22,7 +22,7 @@ jest.mock('@/stores/settings-store', () => ({
     return selector(state);
   }),
 }));
-jest.mock('@/stores/session-store', () => ({
+jest.mock('@/stores/chat', () => ({
   useSessionStore: jest.fn((selector) => {
     const state = {
       getActiveSession: () => ({ id: 'session-1' }),
@@ -31,7 +31,7 @@ jest.mock('@/stores/session-store', () => ({
   }),
 }));
 
-jest.mock('@/stores/skill-store', () => ({
+jest.mock('@/stores/agent', () => ({
   useSkillStore: jest.fn((selector) => {
     const state = {
       skills: [],
@@ -41,7 +41,7 @@ jest.mock('@/stores/skill-store', () => ({
   }),
 }));
 
-jest.mock('@/stores/mcp-store', () => ({
+jest.mock('@/stores/mcp', () => ({
   useMcpStore: jest.fn((selector) => {
     const state = {
       servers: [],
@@ -51,7 +51,7 @@ jest.mock('@/stores/mcp-store', () => ({
   }),
 }));
 
-jest.mock('@/stores/vector-store', () => ({
+jest.mock('@/stores/data', () => ({
   useVectorStore: jest.fn((selector) => {
     const state = {
       settings: {},

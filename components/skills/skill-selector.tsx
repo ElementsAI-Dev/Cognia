@@ -36,7 +36,7 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
-import { useSkillStore } from '@/stores/skill-store';
+import { useSkillStore } from '@/stores/agent';
 import type { Skill, SkillCategory } from '@/types/skill';
 
 const CATEGORY_LABEL_KEYS: Record<SkillCategory, string> = {

@@ -3,6 +3,7 @@
  * Supports both self-hosted and Zilliz Cloud deployments
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { MilvusClient, DataType } from '@zilliz/milvus2-sdk-node';
 import type { EmbeddingModelConfig } from './embedding';
 import { generateEmbeddings, generateEmbedding } from './embedding';
@@ -90,7 +91,7 @@ export async function milvusCollectionExists(
   name: string
 ): Promise<boolean> {
   const response = await client.hasCollection({ collection_name: name });
-  return response.value;
+  return Boolean(response.value);
 }
 
 /**
@@ -190,7 +191,8 @@ export async function listMilvusCollections(
   const response = await client.listCollections();
   const infos: MilvusCollectionInfo[] = [];
 
-  for (const collectionName of response.data) {
+  for (const collection of response.data) {
+    const collectionName = typeof collection === 'string' ? collection : collection.name;
     try {
       const info = await getMilvusCollectionInfo(client, collectionName);
       infos.push(info);
@@ -226,8 +228,9 @@ export async function getMilvusCollectionInfo(
   // Find vector field dimension
   let vectorSize = 0;
   for (const field of describeResponse.schema.fields) {
+    // @ts-expect-error - DataType enum comparison with string
     if (field.data_type === DataType.FloatVector || field.data_type === 'FloatVector') {
-      vectorSize = Number(field.type_params?.find((p: { key: string; value: string }) => p.key === 'dim')?.value) || 0;
+      vectorSize = Number((field.type_params as any[])?.find((p) => p.key === 'dim')?.value) || 0;
       break;
     }
   }
@@ -242,9 +245,9 @@ export async function getMilvusCollectionInfo(
     if (indexResponse.index_descriptions && indexResponse.index_descriptions.length > 0) {
       const indexParams = indexResponse.index_descriptions[0].params;
       if (indexParams) {
-        const metricParam = indexParams.find((p: { key: string; value: string }) => p.key === 'metric_type');
+        const metricParam = (indexParams as any[]).find((p) => p.key === 'metric_type');
         if (metricParam) {
-          metricType = metricParam.value;
+          metricType = String(metricParam.value);
         }
       }
     }
@@ -254,9 +257,9 @@ export async function getMilvusCollectionInfo(
 
   // Parse row count from statistics
   let vectorsCount = 0;
-  const rowCountStat = statsResponse.stats?.find((s: { key: string; value: string }) => s.key === 'row_count');
+  const rowCountStat = (statsResponse.stats as any[])?.find((s) => s.key === 'row_count');
   if (rowCountStat) {
-    vectorsCount = parseInt(rowCountStat.value, 10) || 0;
+    vectorsCount = parseInt(String(rowCountStat.value), 10) || 0;
   }
 
   return {
@@ -331,7 +334,7 @@ export async function upsertMilvusDocuments(
     const batch = data.slice(i, i + batchSize);
     await client.upsert({
       collection_name: collectionName,
-      data: batch,
+      data: batch as any,
     });
   }
 }
@@ -398,7 +401,7 @@ export async function insertMilvusDocuments(
     const batch = data.slice(i, i + batchSize);
     await client.insert({
       collection_name: collectionName,
-      data: batch,
+      data: batch as any,
     });
   }
 }
@@ -428,14 +431,14 @@ export async function queryMilvus(
 
   const searchResponse = await client.search({
     collection_name: collectionName,
-    vector: queryResult.embedding,
+    data: [queryResult.embedding],
     limit: topK,
     filter,
     output_fields: outputFields,
     params: searchParams,
-  });
+  } as any);
 
-  return searchResponse.results.map((result: Record<string, unknown>) => ({
+  return (searchResponse.results as any[]).map((result: Record<string, unknown>) => ({
     id: result.id as string | number,
     content: (result.content as string) || '',
     metadata: Object.fromEntries(
@@ -465,14 +468,14 @@ export async function searchMilvusByVector(
 
   const searchResponse = await client.search({
     collection_name: collectionName,
-    vector,
+    data: [vector],
     limit: topK,
     filter,
     output_fields: outputFields,
     params: searchParams,
-  });
+  } as any);
 
-  return searchResponse.results.map((result: Record<string, unknown>) => ({
+  return (searchResponse.results as any[]).map((result: Record<string, unknown>) => ({
     id: result.id as string | number,
     content: (result.content as string) || '',
     metadata: Object.fromEntries(
@@ -675,7 +678,7 @@ export async function getMilvusLoadingProgress(
   const response = await client.getLoadingProgress({
     collection_name: collectionName,
   });
-  return response.progress || 0;
+  return Number(response.progress) || 0;
 }
 
 /**
@@ -772,7 +775,7 @@ export async function hybridSearchMilvus(
     limit: topK,
   }));
 
-  const response = await client.hybridSearch({
+  const response = await (client.hybridSearch as any)({
     collection_name: collectionName,
     search: searchRequests,
     rerank: {

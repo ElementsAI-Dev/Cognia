@@ -11,7 +11,7 @@ import { renderHook, act } from '@testing-library/react';
 const mockUpdateElementText = jest.fn();
 const mockSyncCodeFromElements = jest.fn();
 
-jest.mock('@/stores/designer-store', () => ({
+jest.mock('@/stores/designer', () => ({
   useDesignerStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       updateElementText: mockUpdateElementText,

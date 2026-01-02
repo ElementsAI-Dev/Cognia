@@ -72,7 +72,7 @@ jest.mock('@/lib/native/system', () => ({
 }));
 
 // Mock stores
-jest.mock('@/stores/native-store', () => ({
+jest.mock('@/stores/system', () => ({
   useNativeStore: () => ({
     platform: 'web',
     appVersion: '1.0.0',

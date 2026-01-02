@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import type { ChatWidgetConfig } from "@/stores/chat-widget-store";
+import type { ChatWidgetConfig } from "@/stores/chat";
 import type { ProviderName } from "@/types";
 
 interface ChatWidgetSettingsProps {

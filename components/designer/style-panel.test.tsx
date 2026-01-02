@@ -21,7 +21,7 @@ const mockSelectedElement = {
   children: [],
 };
 
-jest.mock('@/stores/designer-store', () => ({
+jest.mock('@/stores/designer', () => ({
   useDesignerStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       selectedElementId: 'element-1',
@@ -179,7 +179,7 @@ describe('StylePanel empty state', () => {
   });
 
   it('renders empty state when no element selected', () => {
-    jest.doMock('@/stores/designer-store', () => ({
+    jest.doMock('@/stores/designer', () => ({
       useDesignerStore: (selector: (state: Record<string, unknown>) => unknown) => {
         const state = {
           selectedElementId: null,

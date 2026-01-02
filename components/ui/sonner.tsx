@@ -7,7 +7,7 @@
  */
 
 import { Toaster as Sonner, toast } from 'sonner';
-import { useSettingsStore } from '@/stores/settings-store';
+import { useSettingsStore } from '@/stores/settings';
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 

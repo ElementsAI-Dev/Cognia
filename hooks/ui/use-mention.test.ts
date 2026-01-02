@@ -24,7 +24,7 @@ const mockServers = [
   },
 ];
 
-jest.mock('@/stores/mcp-store', () => ({
+jest.mock('@/stores/mcp', () => ({
   useMcpStore: (selector: (state: unknown) => unknown) => {
     const state = {
       servers: mockServers,

@@ -16,7 +16,7 @@ jest.mock('next-intl', () => ({
 const mockSetViewport = jest.fn();
 const mockSetZoom = jest.fn();
 
-jest.mock('@/stores/designer-store', () => ({
+jest.mock('@/stores/designer', () => ({
   useDesignerStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       viewport: 'desktop',

@@ -44,7 +44,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { cn } from '@/lib/utils';
-import { usePPTEditorStore } from '@/stores/ppt-editor-store';
+import { usePPTEditorStore } from '@/stores/tools/ppt-editor-store';
 import type { PPTPresentation, PPTSlide, PPTSlideLayout } from '@/types/workflow';
 import { SLIDE_LAYOUT_INFO, DEFAULT_PPT_THEMES } from '@/types/workflow';
 import { SlideEditor } from './slide-editor';

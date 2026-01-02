@@ -23,7 +23,7 @@ import {
   type AgentLoopResult,
 } from '@/lib/ai/agent';
 import { buildMultiSkillSystemPrompt, createSkillTools } from '@/lib/skills/executor';
-import { useBackgroundAgentStore } from '@/stores/background-agent-store';
+import { useBackgroundAgentStore } from '@/stores/agent';
 import type { BackgroundAgent } from '@/types/background-agent';
 
 export interface UseAgentOptions {

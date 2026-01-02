@@ -10,7 +10,7 @@ import {
   useJupyterStore,
   useActiveSession,
   useActiveKernel,
-} from '@/stores/jupyter-store';
+} from '@/stores/tools';
 import type {
   JupyterSession,
   KernelInfo,

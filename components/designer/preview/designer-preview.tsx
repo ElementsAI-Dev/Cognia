@@ -10,7 +10,7 @@ import { useTranslations } from 'next-intl';
 import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useDesignerStore } from '@/stores/designer-store';
+import { useDesignerStore } from '@/stores/designer';
 import { useSettingsStore } from '@/stores';
 import type { ViewportSize } from '@/types/designer';
 

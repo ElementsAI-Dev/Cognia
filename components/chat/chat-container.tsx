@@ -46,9 +46,9 @@ import {
 import { PPTPreview } from '@/components/learning/ppt-preview';
 import { SkillSuggestions } from '@/components/skills';
 import { LearningModePanel, LearningStartDialog } from '@/components/learning';
-import { useSkillStore } from '@/stores/skill-store';
+import { useSkillStore } from '@/stores/agent';
 import { buildProgressiveSkillsPrompt } from '@/lib/skills/executor';
-import { useWorkflowStore } from '@/stores/workflow-store';
+import { useWorkflowStore } from '@/stores/workflow';
 import { initializeAgentTools } from '@/lib/ai/agent';
 import {
   generateSuggestions,

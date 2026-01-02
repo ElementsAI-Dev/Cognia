@@ -85,7 +85,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { useSkillStore } from '@/stores/skill-store';
+import { useSkillStore } from '@/stores/agent';
 import { getAllTemplates, getTemplateById } from '@/lib/skills/templates';
 import { parseSkillMd, toHyphenCase } from '@/lib/skills/parser';
 // Download functions available for future export button integration

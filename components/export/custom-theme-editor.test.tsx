@@ -14,7 +14,7 @@ const mockGetTheme = jest.fn();
 const mockExportTheme = jest.fn();
 const mockImportTheme = jest.fn();
 
-jest.mock('@/stores/custom-theme-store', () => ({
+jest.mock('@/stores/settings', () => ({
   useCustomThemeStore: () => ({
     addTheme: mockAddTheme,
     updateTheme: mockUpdateTheme,

@@ -3,10 +3,10 @@
  */
 
 import { renderHook, act } from '@testing-library/react';
-import { useElementResize, type ResizeHandle } from './use-element-resize';
+import { useElementResize } from './use-element-resize';
 
 // Mock designer store
-jest.mock('@/stores/designer-store', () => ({
+jest.mock('@/stores/designer', () => ({
   useDesignerStore: jest.fn((selector) => {
     const state = {
       updateElementStyle: jest.fn(),

@@ -45,7 +45,7 @@ const mockHistory = [
   },
 ];
 
-jest.mock('@/stores/designer-store', () => ({
+jest.mock('@/stores/designer', () => ({
   useDesignerStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       history: mockHistory,

@@ -6,7 +6,7 @@ import { renderHook, act } from '@testing-library/react';
 import { useEnvironment } from './use-environment';
 
 // Mock dependencies
-jest.mock('@/stores/environment-store', () => ({
+jest.mock('@/stores/system', () => ({
   useEnvironmentStore: jest.fn(() => ({
     platform: 'darwin',
     tools: {},
@@ -39,7 +39,7 @@ jest.mock('@/lib/native/environment', () => ({
   isEnvironmentAvailable: jest.fn(() => true),
 }));
 
-import { useEnvironmentStore } from '@/stores/environment-store';
+import { useEnvironmentStore } from '@/stores/system';
 import { environmentService, isEnvironmentAvailable } from '@/lib/native/environment';
 
 const mockUseEnvironmentStore = useEnvironmentStore as jest.MockedFunction<typeof useEnvironmentStore>;

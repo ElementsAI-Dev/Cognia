@@ -41,7 +41,7 @@ import { ToolbarButton } from "./toolbar-button";
 import { ResultPanel } from "./result-panel";
 import { SelectionAction, ActionDefinition, ActionCategory, SelectionMode } from "@/types";
 import { useSelectionToolbar } from '@/hooks/ui';
-import { useSelectionStore } from "@/stores/selection-store";
+import { useSelectionStore } from "@/stores/context";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

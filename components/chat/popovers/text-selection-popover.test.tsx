@@ -5,10 +5,10 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { TextSelectionPopover } from './text-selection-popover';
-import { useQuoteStore } from '@/stores/quote-store';
+import { useQuoteStore } from '@/stores/chat';
 
 // Mock the quote store
-jest.mock('@/stores/quote-store', () => ({
+jest.mock('@/stores/chat', () => ({
   useQuoteStore: jest.fn(),
 }));
 

@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useRef } from 'react';
-import { useVirtualEnvStore, selectActiveEnv } from '@/stores/virtual-env-store';
+import { useVirtualEnvStore, selectActiveEnv } from '@/stores/system';
 import {
   virtualEnvService,
   isEnvironmentAvailable,

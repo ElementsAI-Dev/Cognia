@@ -1,14 +1,14 @@
 import { render, screen } from '@testing-library/react';
 import { SkillAnalytics } from './skill-analytics';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { useSkillStore } from '@/stores/skill-store';
+import { useSkillStore } from '@/stores/agent';
 import type { Skill, SkillUsageStats } from '@/types/skill';
 
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(<TooltipProvider>{ui}</TooltipProvider>);
 };
 
-jest.mock('@/stores/skill-store', () => ({
+jest.mock('@/stores/agent', () => ({
   useSkillStore: jest.fn(),
 }));
 jest.mock('@/lib/skills/executor', () => ({

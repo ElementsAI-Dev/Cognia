@@ -27,7 +27,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { useSkillStore } from '@/stores/skill-store';
+import { useSkillStore } from '@/stores/agent';
 import { estimateSkillTokens } from '@/lib/skills/executor';
 import type { Skill, SkillUsageStats } from '@/types/skill';
 

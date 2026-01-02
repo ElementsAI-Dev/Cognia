@@ -5,7 +5,7 @@
 import { renderHook, act } from '@testing-library/react';
 
 // Mock settings store before importing hook
-jest.mock('@/stores/settings-store', () => ({
+jest.mock('@/stores/settings', () => ({
   useSettingsStore: jest.fn((selector) => {
     const state = {
       speechSettings: {

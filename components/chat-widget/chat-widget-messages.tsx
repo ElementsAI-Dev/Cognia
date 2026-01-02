@@ -12,7 +12,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Bot, User, AlertCircle, Loader2, Copy, Check } from "lucide-react";
-import type { ChatWidgetMessage } from "@/stores/chat-widget-store";
+import type { ChatWidgetMessage } from "@/stores/chat";
 
 interface ChatWidgetMessagesProps {
   messages: ChatWidgetMessage[];

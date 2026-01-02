@@ -10,11 +10,11 @@ import {
   useAvailableProviders,
   useProviderModels,
 } from './provider-context';
-import { useSettingsStore } from '@/stores/settings-store';
+import { useSettingsStore } from '@/stores/settings';
 import { ReactNode } from 'react';
 
 // Mock the settings store
-jest.mock('@/stores/settings-store', () => ({
+jest.mock('@/stores/settings', () => ({
   useSettingsStore: jest.fn(),
 }));
 

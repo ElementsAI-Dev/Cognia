@@ -1,10 +1,10 @@
 import { screen, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '@/test-utils/render-with-providers';
 import { RecordingControls } from './recording-controls';
-import { useScreenRecordingStore, useIsRecording } from '@/stores/screen-recording-store';
+import { useScreenRecordingStore, useIsRecording } from '@/stores/media';
 
 // Mock the screen recording store
-jest.mock('@/stores/screen-recording-store', () => ({
+jest.mock('@/stores/media', () => ({
   useScreenRecordingStore: jest.fn(),
   useIsRecording: jest.fn(),
 }));

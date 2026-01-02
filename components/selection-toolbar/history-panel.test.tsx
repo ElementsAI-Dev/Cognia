@@ -4,10 +4,10 @@
 
 import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import { SelectionHistoryPanel } from './history-panel';
-import { useSelectionStore, SelectionHistoryItem } from '@/stores/selection-store';
+import { useSelectionStore, SelectionHistoryItem } from '@/stores/context';
 
 // Mock the selection store
-jest.mock('@/stores/selection-store', () => ({
+jest.mock('@/stores/context', () => ({
   useSelectionStore: jest.fn(),
 }));
 

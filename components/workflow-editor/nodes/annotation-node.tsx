@@ -24,7 +24,7 @@ import {
   StickyNote,
   Check,
 } from 'lucide-react';
-import { useWorkflowEditorStore } from '@/stores/workflow-editor-store';
+import { useWorkflowEditorStore } from '@/stores/workflow';
 
 export interface AnnotationNodeData {
   [key: string]: unknown;

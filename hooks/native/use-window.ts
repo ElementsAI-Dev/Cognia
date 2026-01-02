@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { useNativeStore } from '@/stores/native-store';
+import { useNativeStore } from '@/stores/system';
 import { isTauri } from '@/lib/native/utils';
 import {
   setAlwaysOnTop,

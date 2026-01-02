@@ -22,7 +22,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Palette, Save, RotateCcw, Download, Upload } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { useCustomThemeStore, createDefaultThemeTemplate } from '@/stores/custom-theme-store';
+import { useCustomThemeStore, createDefaultThemeTemplate } from '@/stores/settings';
 import type { SyntaxTheme } from '@/lib/export/syntax-themes';
 
 interface CustomThemeEditorProps {

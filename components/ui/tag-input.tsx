@@ -1,160 +1,90 @@
 'use client';
 
-/**
- * TagInput Component - input for adding and managing tags
- */
-
-import { useState, useRef, useCallback, type KeyboardEvent } from 'react';
-import { X, Plus } from 'lucide-react';
+import * as React from 'react';
+import { X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { SUGGESTED_TAGS } from '@/types/project';
 
-export interface TagInputProps {
+interface TagInputProps {
   value: string[];
   onChange: (tags: string[]) => void;
   placeholder?: string;
-  suggestions?: string[];
-  maxTags?: number;
   className?: string;
   disabled?: boolean;
+  maxTags?: number;
 }
 
 export function TagInput({
-  value,
+  value = [],
   onChange,
-  placeholder = 'Add a tag...',
-  suggestions = SUGGESTED_TAGS,
-  maxTags = 10,
+  placeholder = 'Add tag...',
   className,
   disabled = false,
+  maxTags,
 }: TagInputProps) {
-  const [inputValue, setInputValue] = useState('');
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [inputValue, setInputValue] = React.useState('');
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
-  const filteredSuggestions = suggestions.filter(
-    (tag) =>
-      !value.includes(tag) &&
-      tag.toLowerCase().includes(inputValue.toLowerCase())
-  );
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag();
+    } else if (e.key === 'Backspace' && inputValue === '' && value.length > 0) {
+      removeTag(value.length - 1);
+    }
+  };
 
-  const addTag = useCallback(
-    (tag: string) => {
-      const trimmedTag = tag.trim().toLowerCase();
-      if (
-        trimmedTag &&
-        !value.includes(trimmedTag) &&
-        value.length < maxTags
-      ) {
-        onChange([...value, trimmedTag]);
-        setInputValue('');
-        setShowSuggestions(false);
-      }
-    },
-    [value, onChange, maxTags]
-  );
+  const addTag = () => {
+    const trimmed = inputValue.trim();
+    if (trimmed && !value.includes(trimmed)) {
+      if (maxTags && value.length >= maxTags) return;
+      onChange([...value, trimmed]);
+      setInputValue('');
+    }
+  };
 
-  const removeTag = useCallback(
-    (tagToRemove: string) => {
-      onChange(value.filter((tag) => tag !== tagToRemove));
-    },
-    [value, onChange]
-  );
-
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        addTag(inputValue);
-      } else if (e.key === 'Backspace' && !inputValue && value.length > 0) {
-        removeTag(value[value.length - 1]);
-      } else if (e.key === 'Escape') {
-        setShowSuggestions(false);
-      }
-    },
-    [inputValue, value, addTag, removeTag]
-  );
+  const removeTag = (index: number) => {
+    onChange(value.filter((_, i) => i !== index));
+  };
 
   return (
-    <div className={cn('space-y-2', className)}>
-      {/* Tags display */}
-      {value.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {value.map((tag) => (
-            <Badge
-              key={tag}
-              variant="secondary"
-              className="gap-1 pr-1"
+    <div
+      className={cn(
+        'flex flex-wrap gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
+        disabled && 'cursor-not-allowed opacity-50',
+        className
+      )}
+      onClick={() => inputRef.current?.focus()}
+    >
+      {value.map((tag, index) => (
+        <Badge key={index} variant="secondary" className="gap-1 pr-1">
+          {tag}
+          {!disabled && (
+            <button
+              type="button"
+              className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              onClick={(e) => {
+                e.stopPropagation();
+                removeTag(index);
+              }}
             >
-              {tag}
-              {!disabled && (
-                <button
-                  type="button"
-                  onClick={() => removeTag(tag)}
-                  className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </Badge>
-          ))}
-        </div>
-      )}
-
-      {/* Input */}
-      {!disabled && value.length < maxTags && (
-        <div className="relative">
-          <Input
-            ref={inputRef}
-            value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              setShowSuggestions(true);
-            }}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            className="pr-10"
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-            onClick={() => addTag(inputValue)}
-            disabled={!inputValue.trim()}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-
-          {/* Suggestions dropdown */}
-          {showSuggestions && filteredSuggestions.length > 0 && (
-            <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover p-1 shadow-md">
-              {filteredSuggestions.slice(0, 6).map((suggestion) => (
-                <button
-                  key={suggestion}
-                  type="button"
-                  className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
-                  onClick={() => addTag(suggestion)}
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
+              <X className="h-3 w-3" />
+            </button>
           )}
-        </div>
-      )}
-
-      {/* Max tags indicator */}
-      {value.length >= maxTags && (
-        <p className="text-xs text-muted-foreground">
-          Maximum {maxTags} tags reached
-        </p>
-      )}
+        </Badge>
+      ))}
+      <Input
+        ref={inputRef}
+        type="text"
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={addTag}
+        placeholder={value.length === 0 ? placeholder : ''}
+        disabled={disabled || (maxTags !== undefined && value.length >= maxTags)}
+        className="flex-1 border-0 bg-transparent p-0 text-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+      />
     </div>
   );
 }

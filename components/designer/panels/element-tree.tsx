@@ -42,7 +42,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { cn } from '@/lib/utils';
-import { useDesignerStore } from '@/stores/designer-store';
+import { useDesignerStore } from '@/stores/designer';
 import { useDesignerDnd, type DragItem } from '../dnd';
 import type { DesignerElement } from '@/types/designer';
 

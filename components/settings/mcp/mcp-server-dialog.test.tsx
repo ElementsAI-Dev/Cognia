@@ -30,7 +30,7 @@ jest.mock('next-intl', () => ({
 const mockAddServer = jest.fn();
 const mockUpdateServer = jest.fn();
 
-jest.mock('@/stores/mcp-store', () => ({
+jest.mock('@/stores/mcp', () => ({
   useMcpStore: () => ({
     addServer: mockAddServer,
     updateServer: mockUpdateServer,

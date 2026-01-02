@@ -30,7 +30,7 @@ import {
   FolderOpen,
   Folder,
 } from 'lucide-react';
-import { useWorkflowEditorStore } from '@/stores/workflow-editor-store';
+import { useWorkflowEditorStore } from '@/stores/workflow';
 
 export interface GroupNodeData {
   [key: string]: unknown;

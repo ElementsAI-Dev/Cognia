@@ -19,7 +19,7 @@ const mockQuoteStore = {
   exportSelected: jest.fn(() => 'selected text'),
 };
 
-jest.mock('@/stores/quote-store', () => ({
+jest.mock('@/stores/chat', () => ({
   useQuoteStore: jest.fn((selector) => selector(mockQuoteStore)),
 }));
 

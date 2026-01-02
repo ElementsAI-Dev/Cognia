@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useEffect } from 'react';
-import { useWorkflowEditorStore } from '@/stores/workflow-editor-store';
+import { useWorkflowEditorStore } from '@/stores/workflow';
 import type { WorkflowExecutionState, ExecutionLog, NodeExecutionState } from '@/types/workflow-editor';
 
 // Execution result type

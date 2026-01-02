@@ -29,7 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { useWorkflow } from '@/hooks/designer';
-import { useWorkflowStore } from '@/stores/workflow-store';
+import { useWorkflowStore } from '@/stores/workflow';
 import type {
   WorkflowDefinition,
   WorkflowTemplate,

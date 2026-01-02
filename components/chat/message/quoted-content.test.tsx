@@ -5,15 +5,15 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QuotedContent } from './quoted-content';
-import { useQuoteStore } from '@/stores/quote-store';
+import { useQuoteStore } from '@/stores/chat';
 
 // Mock the quote store
-jest.mock('@/stores/quote-store', () => ({
+jest.mock('@/stores/chat', () => ({
   useQuoteStore: jest.fn(),
 }));
 
 // Mock settings store
-jest.mock('@/stores/settings-store', () => ({
+jest.mock('@/stores/settings', () => ({
   useSettingsStore: jest.fn((selector) => {
     const state = {
       fontSize: 'medium',

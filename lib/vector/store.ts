@@ -3,6 +3,7 @@
  * Provides a consistent API across different vector database backends
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { EmbeddingModelConfig } from './embedding';
 import { generateEmbedding, generateEmbeddings } from './embedding';
 
@@ -221,7 +222,6 @@ export class NativeVectorStore implements IVectorStore {
       throw new Error('Native vector store is only available in Tauri environment');
     }
     const { invoke } = await import('@tauri-apps/api/core');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return invoke<T>(cmd, payload as any);
   }
 
@@ -908,7 +908,7 @@ export class MilvusVectorStore implements IVectorStore {
 
     const batchSize = 1000;
     for (let i = 0; i < data.length; i += batchSize) {
-      await client.upsert({ collection_name: collectionName, data: data.slice(i, i + batchSize) });
+      await client.upsert({ collection_name: collectionName, data: data.slice(i, i + batchSize) as any });
     }
   }
 
@@ -935,13 +935,13 @@ export class MilvusVectorStore implements IVectorStore {
 
     const searchResponse = await client.search({
       collection_name: collectionName,
-      vector: queryResult.embedding,
+      data: [queryResult.embedding],
       limit: topK,
       filter: filter ? JSON.stringify(filter) : undefined,
       output_fields: ['content', '*'],
-    });
+    } as any);
 
-    return searchResponse.results
+    return (searchResponse.results as any[])
       .filter((r: Record<string, unknown>) => threshold === undefined || (r.score as number) >= threshold)
       .map((result: Record<string, unknown>) => ({
         id: String(result.id),
@@ -1020,27 +1020,29 @@ export class MilvusVectorStore implements IVectorStore {
     const response = await client.listCollections();
     const infos: VectorCollectionInfo[] = [];
 
-    for (const collectionName of response.data) {
+    for (const collection of response.data) {
+      const collectionName = typeof collection === 'string' ? collection : (collection as any).name;
       try {
         const describeResponse = await client.describeCollection({ collection_name: collectionName });
         const statsResponse = await client.getCollectionStatistics({ collection_name: collectionName });
 
         let dimension = 0;
         for (const field of describeResponse.schema.fields) {
+          // @ts-expect-error - DataType enum comparison with string
           if (field.data_type === DataType.FloatVector || field.data_type === 'FloatVector') {
-            dimension = Number(field.type_params?.find((p: { key: string; value: string }) => p.key === 'dim')?.value) || 0;
+            dimension = Number((field.type_params as any[])?.find((p) => p.key === 'dim')?.value) || 0;
             break;
           }
         }
 
         let documentCount = 0;
-        const rowCountStat = statsResponse.stats?.find((s: { key: string; value: string }) => s.key === 'row_count');
+        const rowCountStat = (statsResponse.stats as any[])?.find((s) => s.key === 'row_count');
         if (rowCountStat) {
-          documentCount = parseInt(rowCountStat.value, 10) || 0;
+          documentCount = parseInt(String(rowCountStat.value), 10) || 0;
         }
 
         infos.push({
-          name: collectionName,
+          name: String(collectionName),
           documentCount,
           dimension,
           description: describeResponse.schema.description,
@@ -1062,16 +1064,17 @@ export class MilvusVectorStore implements IVectorStore {
 
     let dimension = 0;
     for (const field of describeResponse.schema.fields) {
+      // @ts-expect-error - DataType enum comparison with string
       if (field.data_type === DataType.FloatVector || field.data_type === 'FloatVector') {
-        dimension = Number(field.type_params?.find((p: { key: string; value: string }) => p.key === 'dim')?.value) || 0;
+        dimension = Number((field.type_params as any[])?.find((p) => p.key === 'dim')?.value) || 0;
         break;
       }
     }
 
     let documentCount = 0;
-    const rowCountStat = statsResponse.stats?.find((s: { key: string; value: string }) => s.key === 'row_count');
+    const rowCountStat = (statsResponse.stats as any[])?.find((s) => s.key === 'row_count');
     if (rowCountStat) {
-      documentCount = parseInt(rowCountStat.value, 10) || 0;
+      documentCount = parseInt(String(rowCountStat.value), 10) || 0;
     }
 
     return {

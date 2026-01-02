@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useCallback } from 'react';
-import { useWorkflowEditorStore } from '@/stores/workflow-editor-store';
+import { useWorkflowEditorStore } from '@/stores/workflow';
 
 interface UseWorkflowKeyboardShortcutsOptions {
   enabled?: boolean;

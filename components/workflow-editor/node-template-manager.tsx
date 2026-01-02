@@ -32,7 +32,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { useWorkflowEditorStore } from '@/stores/workflow-editor-store';
+import { useWorkflowEditorStore } from '@/stores/workflow';
 import { NODE_TYPE_COLORS } from '@/types/workflow-editor';
 import type { NodeTemplate } from '@/types/workflow-editor';
 import {

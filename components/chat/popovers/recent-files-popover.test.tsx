@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { RecentFilesPopover } from './recent-files-popover';
-import type { RecentFile } from '@/stores/recent-files-store';
+import type { RecentFile } from '@/stores/system';
 
 // Mock stores
 const mockRecentFiles: RecentFile[] = [
@@ -16,7 +16,7 @@ const mockRecentFiles: RecentFile[] = [
 const mockRemoveFile = jest.fn();
 const mockClearFiles = jest.fn();
 
-jest.mock('@/stores/recent-files-store', () => ({
+jest.mock('@/stores/system', () => ({
   useRecentFilesStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       recentFiles: mockRecentFiles,

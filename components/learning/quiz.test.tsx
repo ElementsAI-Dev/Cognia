@@ -116,7 +116,7 @@ jest.mock('@/components/ui/progress', () => ({
 // Mock learning store
 const mockRecordAnswer = jest.fn();
 
-jest.mock('@/stores/learning-store', () => ({
+jest.mock('@/stores/learning', () => ({
   useLearningStore: () => ({
     recordAnswer: mockRecordAnswer,
   }),

@@ -8,7 +8,7 @@
  * In Tauri desktop, we use environment variables or custom fetch.
  */
 
-import { useProxyStore, getActiveProxyUrl } from '@/stores/proxy-store';
+import { useProxyStore, getActiveProxyUrl } from '@/stores/system';
 
 export interface ProxyFetchOptions extends RequestInit {
   /** Skip proxy for this request */

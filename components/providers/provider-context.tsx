@@ -6,9 +6,8 @@
  */
 
 import { createContext, useContext, useCallback, useEffect, useState, useRef, ReactNode } from 'react';
-import { useSettingsStore } from '@/stores/settings-store';
+import { useSettingsStore } from '@/stores/settings';
 import type { 
-  UserProviderSettings,
   ProviderHealthStatus,
   ProviderMetadata,
   ProviderHealth,

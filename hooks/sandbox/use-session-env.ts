@@ -6,8 +6,8 @@
  */
 
 import { useMemo, useCallback } from 'react';
-import { useSessionStore } from '@/stores/session-store';
-import { useVirtualEnvStore } from '@/stores/virtual-env-store';
+import { useSessionStore } from '@/stores/chat';
+import { useVirtualEnvStore } from '@/stores/system';
 import type { VirtualEnvInfo } from '@/types/environment';
 
 export interface SessionEnvContext {

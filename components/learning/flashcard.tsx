@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { useLearningStore } from '@/stores/learning-store';
+import { useLearningStore } from '@/stores/learning';
 import type {
   FlashcardData,
   FlashcardToolOutput,

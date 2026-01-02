@@ -24,7 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { useLearningStore } from '@/stores/learning-store';
+import { useLearningStore } from '@/stores/learning';
 import type { LearningNote } from '@/types/learning';
 
 interface LearningNotesPanelProps {

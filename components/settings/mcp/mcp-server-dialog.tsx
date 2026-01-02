@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useMcpStore } from '@/stores/mcp-store';
+import { useMcpStore } from '@/stores/mcp';
 import type {
   McpServerState,
   McpServerConfig,

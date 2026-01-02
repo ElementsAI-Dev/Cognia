@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useRef } from 'react';
-import { useEnvironmentStore } from '@/stores/environment-store';
+import { useEnvironmentStore } from '@/stores/system';
 import {
   environmentService,
   isEnvironmentAvailable,

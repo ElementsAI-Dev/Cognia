@@ -3,11 +3,11 @@
  */
 
 import { renderHook, act } from '@testing-library/react';
-import { useSubAgentStore } from '@/stores/sub-agent-store';
+import { useSubAgentStore } from '@/stores/agent';
 
 // Mock the stores before importing the hook
-jest.mock('@/stores/sub-agent-store');
-jest.mock('@/stores/settings-store', () => ({
+jest.mock('@/stores/agent');
+jest.mock('@/stores/settings', () => ({
   useSettingsStore: jest.fn((selector) => {
     if (typeof selector !== 'function') return {};
     const state = {
