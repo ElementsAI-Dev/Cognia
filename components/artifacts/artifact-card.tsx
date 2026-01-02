@@ -5,18 +5,7 @@
  */
 
 import { useTranslations } from 'next-intl';
-import {
-  Code,
-  FileText,
-  Image as ImageIcon,
-  BarChart,
-  GitBranch,
-  Sparkles,
-  Calculator,
-  ExternalLink,
-  Eye,
-  BookOpen,
-} from 'lucide-react';
+import { ExternalLink, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +18,8 @@ import {
 import { cn } from '@/lib/utils';
 import { useArtifactStore } from '@/stores';
 import type { Artifact, ArtifactType } from '@/types';
+import { ARTIFACT_COLORS } from '@/lib/artifacts';
+import { getArtifactTypeIcon } from './artifact-icons';
 
 interface ArtifactCardProps {
   artifact: Artifact;
@@ -37,18 +28,7 @@ interface ArtifactCardProps {
   showPreview?: boolean;
 }
 
-const typeIcons: Record<ArtifactType, React.ReactNode> = {
-  code: <Code className="h-4 w-4" />,
-  document: <FileText className="h-4 w-4" />,
-  svg: <ImageIcon className="h-4 w-4" />,
-  html: <Code className="h-4 w-4" />,
-  react: <Sparkles className="h-4 w-4" />,
-  mermaid: <GitBranch className="h-4 w-4" />,
-  chart: <BarChart className="h-4 w-4" />,
-  math: <Calculator className="h-4 w-4" />,
-  jupyter: <BookOpen className="h-4 w-4" />,
-};
-
+// i18n keys for artifact type labels
 const typeLabelKeys: Record<ArtifactType, string> = {
   code: 'typeCode',
   document: 'typeDocument',
@@ -61,17 +41,8 @@ const typeLabelKeys: Record<ArtifactType, string> = {
   jupyter: 'typeJupyter',
 };
 
-const typeColors: Record<ArtifactType, string> = {
-  code: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  document: 'bg-green-500/10 text-green-600 dark:text-green-400',
-  svg: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
-  html: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
-  react: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400',
-  mermaid: 'bg-pink-500/10 text-pink-600 dark:text-pink-400',
-  chart: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
-  math: 'bg-red-500/10 text-red-600 dark:text-red-400',
-  jupyter: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-};
+// Use centralized colors
+const typeColors = ARTIFACT_COLORS;
 
 export function ArtifactCard({
   artifact,
@@ -107,7 +78,7 @@ export function ArtifactCard({
               )}
               onClick={handleOpen}
             >
-              {typeIcons[artifact.type]}
+              {getArtifactTypeIcon(artifact.type)}
               <span className="max-w-[120px] truncate">{artifact.title}</span>
             </Button>
           </TooltipTrigger>
@@ -137,7 +108,7 @@ export function ArtifactCard({
             'shrink-0 p-2 rounded-lg',
             typeColors[artifact.type]
           )}>
-            {typeIcons[artifact.type]}
+            {getArtifactTypeIcon(artifact.type)}
           </div>
 
           {/* Content */}
@@ -211,7 +182,7 @@ export function ArtifactInlineRef({
         openPanel('artifact');
       }}
     >
-      {typeIcons[artifact.type]}
+      {getArtifactTypeIcon(artifact.type)}
       <span className="font-medium">{artifact.title}</span>
       <ExternalLink className="h-3 w-3 opacity-50" />
     </button>

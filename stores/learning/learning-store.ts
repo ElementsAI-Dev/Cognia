@@ -1127,7 +1127,7 @@ export const useLearningStore = create<LearningState>()(
 export const selectLearningSession = (learningSessionId: string) => (state: LearningState) =>
   state.sessions[learningSessionId];
 
-export const selectActiveLearningSes = (state: LearningState) =>
+export const selectActiveLearningSession = (state: LearningState) =>
   state.activeSessionId ? state.sessions[state.activeSessionId] : undefined;
 
 export const selectLearningConfig = (state: LearningState) => state.config;

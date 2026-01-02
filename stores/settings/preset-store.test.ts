@@ -220,6 +220,74 @@ describe('usePresetStore', () => {
     });
   });
 
+  describe('toggleFavorite', () => {
+    it('should toggle favorite status', () => {
+      let preset;
+      act(() => {
+        preset = usePresetStore.getState().createPreset({
+          name: 'Test',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+      });
+
+      expect(usePresetStore.getState().presets[0].isFavorite).toBeFalsy();
+
+      act(() => {
+        usePresetStore.getState().toggleFavorite(preset!.id);
+      });
+
+      expect(usePresetStore.getState().presets[0].isFavorite).toBe(true);
+
+      act(() => {
+        usePresetStore.getState().toggleFavorite(preset!.id);
+      });
+
+      expect(usePresetStore.getState().presets[0].isFavorite).toBe(false);
+    });
+  });
+
+  describe('reorderPresets', () => {
+    it('should reorder presets by swapping positions', () => {
+      let preset1, _preset2, preset3;
+      act(() => {
+        preset1 = usePresetStore.getState().createPreset({ name: 'First', provider: 'openai', model: 'gpt-4' });
+        _preset2 = usePresetStore.getState().createPreset({ name: 'Second', provider: 'openai', model: 'gpt-4' });
+        preset3 = usePresetStore.getState().createPreset({ name: 'Third', provider: 'openai', model: 'gpt-4' });
+      });
+
+      const activeId = preset3!.id;
+      const overId = preset1!.id;
+
+      // Move preset3 to position of preset1
+      act(() => {
+        usePresetStore.getState().reorderPresets(activeId, overId);
+      });
+
+      const presets = usePresetStore.getState().presets;
+      // After reorder, preset3 should be first
+      expect(presets[0].name).toBe('Third');
+    });
+  });
+
+  describe('learning mode preset', () => {
+    it('should create preset with learning mode', () => {
+      let preset;
+      act(() => {
+        preset = usePresetStore.getState().createPreset({
+          name: 'Learning Preset',
+          provider: 'openai',
+          model: 'gpt-4',
+          mode: 'learning',
+          systemPrompt: 'You are a tutor',
+        });
+      });
+
+      expect(preset!.mode).toBe('learning');
+      expect(preset!.systemPrompt).toBe('You are a tutor');
+    });
+  });
+
   describe('selectors', () => {
     beforeEach(() => {
       act(() => {
@@ -284,6 +352,17 @@ describe('usePresetStore', () => {
       });
 
       expect(selectSelectedPresetId(usePresetStore.getState())).toBe(id);
+    });
+
+    it('should get favorite presets', () => {
+      const id = usePresetStore.getState().presets[0].id;
+      act(() => {
+        usePresetStore.getState().toggleFavorite(id);
+      });
+
+      const favorites = usePresetStore.getState().presets.filter(p => p.isFavorite);
+      expect(favorites).toHaveLength(1);
+      expect(favorites[0].id).toBe(id);
     });
   });
 });

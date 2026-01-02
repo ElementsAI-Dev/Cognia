@@ -11,6 +11,7 @@ import { useLearningStore } from '@/stores/learning';
 import { useSessionStore } from '@/stores/chat';
 import {
   buildLearningSystemPrompt,
+  buildAdaptiveLearningPrompt,
   analyzeLearnerResponse,
   detectPhaseTransition,
   extractSubQuestions,
@@ -18,6 +19,12 @@ import {
   generateProgressSummary,
   formatProgressReport,
   formatSessionSummary,
+  formatStatusLine,
+  formatLearningGoals,
+  formatSubQuestionsList,
+  generateCelebrationMessage,
+  getEncouragementMessage,
+  generateContextualHint,
 } from '@/lib/learning';
 import type {
   LearningSession,
@@ -75,6 +82,21 @@ export interface UseLearningModeReturn {
   getProgressReport: () => string;
   getSessionSummary: () => string;
   getProgressSummary: () => string;
+  getStatusLine: () => string;
+  getFormattedGoals: () => string;
+  getFormattedSubQuestions: () => string;
+
+  // Adaptive prompts
+  getAdaptivePrompt: (options?: {
+    scenario?: string;
+    understandingLevel?: string;
+    customContext?: string;
+  }) => string;
+
+  // Celebration and encouragement
+  getCelebrationMessage: (type: 'concept_mastered' | 'question_solved' | 'phase_complete' | 'session_complete') => string;
+  getEncouragement: (type: 'struggling' | 'goodProgress' | 'breakthrough' | 'completion') => string;
+  getContextualHint: (attemptCount: number) => string;
 
   // Configuration
   updateConfig: (config: Partial<LearningModeConfig>) => void;
@@ -287,6 +309,54 @@ export function useLearningMode(): UseLearningModeReturn {
     return generateProgressSummary(learningSession);
   }, [learningSession]);
 
+  const getStatusLine = useCallback(() => {
+    if (!learningSession) return '';
+    return formatStatusLine(learningSession);
+  }, [learningSession]);
+
+  const getFormattedGoals = useCallback(() => {
+    if (!learningSession) return '';
+    return formatLearningGoals(learningSession.learningGoals);
+  }, [learningSession]);
+
+  const getFormattedSubQuestions = useCallback(() => {
+    if (!learningSession) return '';
+    return formatSubQuestionsList(learningSession.subQuestions);
+  }, [learningSession]);
+
+  // Adaptive prompts
+  const getAdaptivePrompt = useCallback(
+    (options?: { scenario?: string; understandingLevel?: string; customContext?: string }) => {
+      if (!learningSession) return '';
+      return buildAdaptiveLearningPrompt(learningSession, options as Parameters<typeof buildAdaptiveLearningPrompt>[1]);
+    },
+    [learningSession]
+  );
+
+  // Celebration and encouragement
+  const getCelebrationMessage = useCallback(
+    (type: 'concept_mastered' | 'question_solved' | 'phase_complete' | 'session_complete') => {
+      if (!learningSession) return '';
+      return generateCelebrationMessage(type, learningSession);
+    },
+    [learningSession]
+  );
+
+  const getEncouragement = useCallback(
+    (type: 'struggling' | 'goodProgress' | 'breakthrough' | 'completion') => {
+      return getEncouragementMessage(type);
+    },
+    []
+  );
+
+  const getContextualHint = useCallback(
+    (attemptCount: number) => {
+      if (!learningSession) return '';
+      return generateContextualHint(learningSession, attemptCount);
+    },
+    [learningSession]
+  );
+
   // Configuration
   const updateConfig = useCallback(
     (config: Partial<LearningModeConfig>) => {
@@ -342,6 +412,17 @@ export function useLearningMode(): UseLearningModeReturn {
     getProgressReport,
     getSessionSummary,
     getProgressSummary,
+    getStatusLine,
+    getFormattedGoals,
+    getFormattedSubQuestions,
+
+    // Adaptive prompts
+    getAdaptivePrompt,
+
+    // Celebration and encouragement
+    getCelebrationMessage,
+    getEncouragement,
+    getContextualHint,
 
     // Configuration
     updateConfig,

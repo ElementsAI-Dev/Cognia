@@ -5,7 +5,7 @@
 export {
   useLearningStore,
   selectLearningSession,
-  selectActiveLearningSes,
+  selectActiveLearningSession,
   selectLearningConfig,
   selectLearningProgress,
   selectCurrentPhase,

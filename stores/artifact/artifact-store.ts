@@ -18,6 +18,50 @@ import type {
   DetectedArtifact,
 } from '@/types';
 
+/**
+ * Helper to ensure Date objects are properly parsed from storage
+ */
+function ensureDate(date: Date | string): Date {
+  return date instanceof Date ? date : new Date(date);
+}
+
+/**
+ * Rehydrate artifact dates from storage
+ */
+function rehydrateArtifact(artifact: Artifact): Artifact {
+  return {
+    ...artifact,
+    createdAt: ensureDate(artifact.createdAt),
+    updatedAt: ensureDate(artifact.updatedAt),
+  };
+}
+
+/**
+ * Rehydrate canvas document dates from storage
+ * @internal Reserved for future canvas document getters
+ */
+function _rehydrateCanvasDocument(doc: CanvasDocument): CanvasDocument {
+  return {
+    ...doc,
+    createdAt: ensureDate(doc.createdAt),
+    updatedAt: ensureDate(doc.updatedAt),
+    versions: doc.versions?.map(v => ({
+      ...v,
+      createdAt: ensureDate(v.createdAt),
+    })),
+  };
+}
+
+/**
+ * Rehydrate analysis result dates from storage
+ */
+function rehydrateAnalysisResult(result: AnalysisResult): AnalysisResult {
+  return {
+    ...result,
+    createdAt: ensureDate(result.createdAt),
+  };
+}
+
 interface ArtifactState {
   // Artifacts
   artifacts: Record<string, Artifact>;
@@ -108,6 +152,15 @@ interface ArtifactActions {
 
   // Utility
   clearSessionData: (sessionId: string) => void;
+  
+  // Batch operations
+  deleteArtifacts: (ids: string[]) => void;
+  duplicateArtifact: (id: string) => Artifact | null;
+  
+  // Search and filter
+  searchArtifacts: (query: string, sessionId?: string) => Artifact[];
+  filterArtifactsByType: (type: ArtifactType, sessionId?: string) => Artifact[];
+  getRecentArtifacts: (limit?: number) => Artifact[];
 }
 
 const initialState: ArtifactState = {
@@ -181,11 +234,15 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
         });
       },
 
-      getArtifact: (id) => get().artifacts[id],
+      getArtifact: (id) => {
+        const artifact = get().artifacts[id];
+        return artifact ? rehydrateArtifact(artifact) : undefined;
+      },
 
       getSessionArtifacts: (sessionId) =>
         Object.values(get().artifacts)
           .filter((a) => a.sessionId === sessionId)
+          .map(rehydrateArtifact)
           .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
 
       setActiveArtifact: (id) => {
@@ -303,7 +360,9 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
       getArtifactVersions: (id) => {
         const versions = get().artifactVersions[id];
         if (!versions) return [];
-        return [...versions].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        return [...versions]
+          .map(v => ({ ...v, createdAt: ensureDate(v.createdAt) }))
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       },
 
       // Canvas actions
@@ -534,9 +593,9 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
       getCanvasVersions: (documentId) => {
         const doc = get().canvasDocuments[documentId];
         if (!doc || !doc.versions) return [];
-        return [...doc.versions].sort(
-          (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
-        );
+        return [...doc.versions]
+          .map(v => ({ ...v, createdAt: ensureDate(v.createdAt) }))
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       },
 
       compareVersions: (documentId, versionId1, versionId2) => {
@@ -572,12 +631,90 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
       getMessageAnalysis: (messageId) =>
         Object.values(get().analysisResults)
           .filter((r) => r.messageId === messageId)
+          .map(rehydrateAnalysisResult)
           .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
 
       // Panel actions
       openPanel: (view = 'artifact') => set({ panelOpen: true, panelView: view }),
       closePanel: () => set({ panelOpen: false }),
       setPanelView: (view) => set({ panelView: view }),
+
+      // Batch operations
+      deleteArtifacts: (ids) => {
+        set((state) => {
+          const artifacts = { ...state.artifacts };
+          const artifactVersions = { ...state.artifactVersions };
+          
+          for (const id of ids) {
+            delete artifacts[id];
+            delete artifactVersions[id];
+          }
+          
+          return {
+            artifacts,
+            artifactVersions,
+            activeArtifactId: ids.includes(state.activeArtifactId || '')
+              ? null
+              : state.activeArtifactId,
+          };
+        });
+      },
+
+      duplicateArtifact: (id) => {
+        const state = get();
+        const original = state.artifacts[id];
+        if (!original) return null;
+
+        const duplicated: Artifact = {
+          ...rehydrateArtifact(original),
+          id: nanoid(),
+          title: `${original.title} (Copy)`,
+          version: 1,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        set((state) => ({
+          artifacts: { ...state.artifacts, [duplicated.id]: duplicated },
+          activeArtifactId: duplicated.id,
+          panelOpen: true,
+          panelView: 'artifact',
+        }));
+
+        return duplicated;
+      },
+
+      // Search and filter
+      searchArtifacts: (query, sessionId) => {
+        const lowerQuery = query.toLowerCase();
+        return Object.values(get().artifacts)
+          .filter((a) => {
+            if (sessionId && a.sessionId !== sessionId) return false;
+            return (
+              a.title.toLowerCase().includes(lowerQuery) ||
+              a.content.toLowerCase().includes(lowerQuery) ||
+              a.type.toLowerCase().includes(lowerQuery) ||
+              (a.language && a.language.toLowerCase().includes(lowerQuery))
+            );
+          })
+          .map(rehydrateArtifact)
+          .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+      },
+
+      filterArtifactsByType: (type, sessionId) =>
+        Object.values(get().artifacts)
+          .filter((a) => {
+            if (sessionId && a.sessionId !== sessionId) return false;
+            return a.type === type;
+          })
+          .map(rehydrateArtifact)
+          .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()),
+
+      getRecentArtifacts: (limit = 10) =>
+        Object.values(get().artifacts)
+          .map(rehydrateArtifact)
+          .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+          .slice(0, limit),
 
       // Utility
       clearSessionData: (sessionId) => {

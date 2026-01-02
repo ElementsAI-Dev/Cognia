@@ -198,6 +198,9 @@ const config: Config = {
     
     // Mock katex ESM module
     "^katex$": "<rootDir>/__mocks__/katex.js",
+    
+    // Mock artifact-icons for component tests
+    "(.*)components/artifacts/artifact-icons(.*)$": "<rootDir>/__mocks__/artifact-icons.js",
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader

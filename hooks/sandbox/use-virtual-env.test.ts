@@ -58,18 +58,22 @@ jest.mock('@/stores/system', () => ({
 
 jest.mock('@/lib/native/environment', () => ({
   virtualEnvService: {
-    listEnvironments: jest.fn().mockResolvedValue([]),
-    createEnvironment: jest.fn(),
-    deleteEnvironment: jest.fn(),
+    isAvailable: jest.fn(() => true),
+    list: jest.fn().mockResolvedValue([]),
+    create: jest.fn(),
+    delete: jest.fn(),
     listPackages: jest.fn().mockResolvedValue([]),
     installPackages: jest.fn(),
-    uninstallPackages: jest.fn(),
-    exportRequirements: jest.fn(),
-    importRequirements: jest.fn(),
     runCommand: jest.fn(),
     getAvailablePythonVersions: jest.fn().mockResolvedValue(['3.10', '3.11', '3.12']),
     installPythonVersion: jest.fn(),
     onProgress: jest.fn().mockResolvedValue(() => {}),
+    executePython: jest.fn(),
+    executePythonStream: jest.fn(),
+    executePythonFile: jest.fn(),
+    getPythonInfo: jest.fn(),
+    onPythonExecutionOutput: jest.fn().mockResolvedValue(() => {}),
+    generateExecutionId: jest.fn(() => 'exec-123'),
   },
   isEnvironmentAvailable: jest.fn(() => true),
 }));

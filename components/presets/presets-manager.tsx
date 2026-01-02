@@ -114,6 +114,9 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
         maxTokens: p.maxTokens,
         webSearchEnabled: p.webSearchEnabled,
         thinkingEnabled: p.thinkingEnabled,
+        isFavorite: p.isFavorite,
+        isDefault: p.isDefault,
+        sortOrder: p.sortOrder,
       })),
     };
 
@@ -139,9 +142,9 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
         const data = JSON.parse(e.target?.result as string);
         if (data.presets && Array.isArray(data.presets)) {
           let imported = 0;
-          data.presets.forEach((p: CreatePresetInput) => {
+          data.presets.forEach((p: CreatePresetInput & { isFavorite?: boolean; isDefault?: boolean }) => {
             if (p.name && p.provider && p.model) {
-              createPreset({
+              const newPreset = createPreset({
                 name: p.name,
                 description: p.description,
                 icon: p.icon,
@@ -155,11 +158,15 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
                 maxTokens: p.maxTokens,
                 webSearchEnabled: p.webSearchEnabled,
                 thinkingEnabled: p.thinkingEnabled,
+                isDefault: p.isDefault,
               });
+              if (p.isFavorite && newPreset) {
+                usePresetStore.getState().toggleFavorite(newPreset.id);
+              }
               imported++;
             }
           });
-          toast.success(`Successfully imported ${imported} presets.`);
+          toast.success(t('importSuccess', { count: imported }));
         } else {
           toast.error('Invalid preset file format.');
         }
@@ -222,9 +229,14 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
           thinkingEnabled: preset.thinkingEnabled,
         });
         setAiDescription('');
+        toast.success(t('aiGenerateSuccess'));
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || 'Failed to generate preset');
       }
     } catch (error) {
       console.error('Failed to generate preset:', error);
+      toast.error('Failed to generate preset. Please try again.');
     } finally {
       setIsGenerating(false);
     }

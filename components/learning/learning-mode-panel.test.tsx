@@ -36,7 +36,9 @@ jest.mock('next-intl', () => ({
 }));
 
 // Mock the useLearningMode hook
-jest.mock('@/hooks/use-learning-mode');
+jest.mock('@/hooks/ui', () => ({
+  useLearningMode: jest.fn(),
+}));
 const mockUseLearningMode = useLearningMode as jest.MockedFunction<typeof useLearningMode>;
 
 // Mock the learning store
@@ -120,9 +122,16 @@ const createMockHookReturn = (overrides?: Partial<ReturnType<typeof useLearningM
   checkPhaseTransition: jest.fn(),
   extractQuestionsFromResponse: jest.fn(),
   checkShouldHint: jest.fn(),
-  getProgressReport: jest.fn(),
-  getSessionSummary: jest.fn(),
-  getProgressSummary: jest.fn(),
+  getProgressReport: jest.fn().mockReturnValue(''),
+  getSessionSummary: jest.fn().mockReturnValue(''),
+  getProgressSummary: jest.fn().mockReturnValue(''),
+  getStatusLine: jest.fn().mockReturnValue('Exploring • 50%'),
+  getFormattedGoals: jest.fn().mockReturnValue(''),
+  getFormattedSubQuestions: jest.fn().mockReturnValue(''),
+  getAdaptivePrompt: jest.fn().mockReturnValue(''),
+  getCelebrationMessage: jest.fn().mockReturnValue('Great job!'),
+  getEncouragement: jest.fn().mockReturnValue("You're on the right track!"),
+  getContextualHint: jest.fn().mockReturnValue(''),
   updateConfig: jest.fn(),
   ...overrides,
 });

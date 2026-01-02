@@ -185,13 +185,18 @@ export function CreatePresetDialog({
           })));
         }
         setAiDescription('');
+        toast.success(t('aiGenerateSuccess') || 'Preset generated successfully!');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || 'Failed to generate preset');
       }
     } catch (error) {
       console.error('Failed to generate preset:', error);
+      toast.error('Failed to generate preset. Please try again.');
     } finally {
       setIsGeneratingPreset(false);
     }
-  }, [aiDescription, getApiSettings]);
+  }, [aiDescription, getApiSettings, t]);
 
   // AI Optimize system prompt
   const handleOptimizePrompt = useCallback(async () => {
@@ -219,13 +224,18 @@ export function CreatePresetDialog({
       if (response.ok) {
         const data = await response.json();
         setSystemPrompt(data.optimizedPrompt);
+        toast.success(t('optimizeSuccess'));
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || 'Failed to optimize prompt');
       }
     } catch (error) {
       console.error('Failed to optimize prompt:', error);
+      toast.error('Failed to optimize prompt. Please try again.');
     } finally {
       setIsOptimizingPrompt(false);
     }
-  }, [systemPrompt, provider, getApiSettings]);
+  }, [systemPrompt, provider, getApiSettings, t]);
 
   // AI Generate builtin prompts
   const handleGenerateBuiltinPrompts = useCallback(async () => {
@@ -264,13 +274,18 @@ export function CreatePresetDialog({
           description: p.description || '',
         }));
         setBuiltinPrompts(prev => [...prev, ...newPrompts]);
+        toast.success(t('generatePromptsSuccess'));
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || 'Failed to generate prompts');
       }
     } catch (error) {
       console.error('Failed to generate prompts:', error);
+      toast.error('Failed to generate prompts. Please try again.');
     } finally {
       setIsGeneratingPrompts(false);
     }
-  }, [name, description, systemPrompt, builtinPrompts, provider, getApiSettings]);
+  }, [name, description, systemPrompt, builtinPrompts, provider, getApiSettings, t]);
 
   // Add manual builtin prompt
   const handleAddBuiltinPrompt = useCallback(() => {
@@ -304,7 +319,14 @@ export function CreatePresetDialog({
     .map(([name]) => name as ProviderName);
 
   const handleSubmit = () => {
-    if (!name.trim()) return;
+    if (!name.trim()) {
+      toast.error('Please enter a preset name');
+      return;
+    }
+    if (!model.trim()) {
+      toast.error('Please select a model');
+      return;
+    }
 
     if (editPreset) {
       updatePreset(editPreset.id, {
@@ -478,7 +500,7 @@ export function CreatePresetDialog({
             <TabsContent value="model" className="space-y-4 pt-4">
               <div className="space-y-2">
                 <Label>{t('mode')}</Label>
-                <Select value={mode} onValueChange={(v) => setMode(v as 'chat' | 'agent' | 'research')}>
+                <Select value={mode} onValueChange={(v) => setMode(v as 'chat' | 'agent' | 'research' | 'learning')}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -486,6 +508,7 @@ export function CreatePresetDialog({
                     <SelectItem value="chat">{tChat('modeChat')}</SelectItem>
                     <SelectItem value="agent">{tChat('modeAgent')}</SelectItem>
                     <SelectItem value="research">{tChat('modeResearch')}</SelectItem>
+                    <SelectItem value="learning">{tChat('modeLearning')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -5,7 +5,7 @@
  * Includes version history support
  */
 
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import {
@@ -24,6 +24,16 @@ import {
   Save,
   Palette,
   ExternalLink,
+  Eye,
+  HelpCircle,
+  Code,
+  Copy,
+  Check,
+  Download,
+  Settings2,
+  WrapText,
+  Map,
+  Hash,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -55,6 +65,29 @@ import type { ProviderName } from '@/lib/ai/core/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { V0Designer } from '@/components/designer';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 // Dynamically import Monaco to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
@@ -78,14 +111,29 @@ const canvasActions: Array<{ type: CanvasActionType; labelKey: string; icon: str
 ];
 
 const actionIcons: Record<string, React.ReactNode> = {
-  review: <Wand2 className="h-4 w-4" />,
+  review: <Eye className="h-4 w-4" />,
   fix: <Bug className="h-4 w-4" />,
   improve: <Sparkles className="h-4 w-4" />,
+  explain: <HelpCircle className="h-4 w-4" />,
   translate: <Languages className="h-4 w-4" />,
   simplify: <ArrowDownToLine className="h-4 w-4" />,
   expand: <ArrowUpFromLine className="h-4 w-4" />,
+  format: <Code className="h-4 w-4" />,
   run: <Play className="h-4 w-4" />,
 };
+
+const TRANSLATE_LANGUAGES = [
+  { value: 'english', label: 'English' },
+  { value: 'chinese', label: '中文 (Chinese)' },
+  { value: 'japanese', label: '日本語 (Japanese)' },
+  { value: 'korean', label: '한국어 (Korean)' },
+  { value: 'spanish', label: 'Español (Spanish)' },
+  { value: 'french', label: 'Français (French)' },
+  { value: 'german', label: 'Deutsch (German)' },
+  { value: 'russian', label: 'Русский (Russian)' },
+  { value: 'portuguese', label: 'Português (Portuguese)' },
+  { value: 'arabic', label: 'العربية (Arabic)' },
+];
 
 export function CanvasPanel() {
   const t = useTranslations('canvas');
@@ -110,10 +158,31 @@ export function CanvasPanel() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionResult, setActionResult] = useState<string | null>(null);
   const [designerOpen, setDesignerOpen] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [showTranslateDialog, setShowTranslateDialog] = useState(false);
+  const [targetLanguage, setTargetLanguage] = useState('english');
+  const [copied, setCopied] = useState(false);
+
+  // Editor settings state
+  const [editorSettings, setEditorSettings] = useState({
+    wordWrap: false,
+    minimap: true,
+    lineNumbers: true,
+  });
+  const [showEditorSettings, setShowEditorSettings] = useState(false);
 
   // Check if current document can be opened in Designer
   const canOpenInDesigner = activeDocument && 
     ['jsx', 'tsx', 'html', 'javascript', 'typescript'].includes(activeDocument.language);
+
+  // Calculate document statistics
+  const documentStats = useMemo(() => {
+    if (!localContent) return { lines: 0, words: 0, chars: 0 };
+    const lines = localContent.split('\n').length;
+    const words = localContent.trim() ? localContent.trim().split(/\s+/).length : 0;
+    const chars = localContent.length;
+    return { lines, words, chars };
+  }, [localContent]);
 
   // Handle Designer code changes
   const handleDesignerCodeChange = useCallback((newCode: string) => {
@@ -132,6 +201,64 @@ export function CanvasPanel() {
       window.open(`/designer?key=${key}`, '_blank');
     }
   }, [activeDocument, localContent]);
+
+  // Handle close with unsaved changes confirmation
+  const handleClose = useCallback(() => {
+    if (hasUnsavedChanges) {
+      setShowCloseConfirm(true);
+    } else {
+      closePanel();
+    }
+  }, [hasUnsavedChanges, closePanel]);
+
+  // Copy action result to clipboard
+  const handleCopyResult = useCallback(async () => {
+    if (actionResult) {
+      try {
+        await navigator.clipboard.writeText(actionResult);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error('Failed to copy:', err);
+      }
+    }
+  }, [actionResult]);
+
+  // Export canvas document
+  const handleExport = useCallback(() => {
+    if (!activeDocument) return;
+
+    const extensionMap: Record<string, string> = {
+      javascript: 'js',
+      typescript: 'ts',
+      python: 'py',
+      html: 'html',
+      css: 'css',
+      json: 'json',
+      markdown: 'md',
+      jsx: 'jsx',
+      tsx: 'tsx',
+      sql: 'sql',
+      bash: 'sh',
+      yaml: 'yaml',
+      xml: 'xml',
+    };
+
+    const ext = extensionMap[activeDocument.language] || 'txt';
+    const filename = `${activeDocument.title.replace(/[^a-zA-Z0-9]/g, '_')}.${ext}`;
+    const blob = new Blob([localContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [activeDocument, localContent]);
+
+  // Handle translate action with language selection (defined after handleAction)
+  const handleTranslateRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   // Auto-save timer ref
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -227,7 +354,7 @@ export function CanvasPanel() {
     }
   }, [activeCanvasId, hasUnsavedChanges, saveCanvasVersion, localContent]);
 
-  const handleAction = useCallback(async (action: { type: CanvasActionType; labelKey?: string; label?: string; icon?: string; shortcut?: string }) => {
+  const handleAction = useCallback(async (action: { type: CanvasActionType; labelKey?: string; label?: string; icon?: string; shortcut?: string }, translateTargetLang?: string) => {
     if (!activeDocument) return;
 
     setIsProcessing(true);
@@ -259,6 +386,7 @@ export function CanvasPanel() {
         {
           language: activeDocument.language,
           selection: selection || undefined,
+          targetLanguage: translateTargetLang,
         }
       );
 
@@ -298,6 +426,15 @@ export function CanvasPanel() {
     window.addEventListener('canvas-action', handleCanvasAction);
     return () => window.removeEventListener('canvas-action', handleCanvasAction);
   }, [isProcessing, handleAction]);
+
+  // Update handleTranslate ref after handleAction is defined
+  useEffect(() => {
+    handleTranslateRef.current = async () => {
+      if (!activeDocument) return;
+      setShowTranslateDialog(false);
+      await handleAction({ type: 'translate', labelKey: 'actionTranslate' }, targetLanguage);
+    };
+  }, [activeDocument, targetLanguage, handleAction]);
 
   const getEditorTheme = () => {
     if (theme === 'dark') return 'vs-dark';
@@ -419,7 +556,17 @@ export function CanvasPanel() {
                   </div>
                 )}
 
-                <Button variant="ghost" size="icon" onClick={closePanel}>
+                {/* Export Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={handleExport}>
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('export')}</TooltipContent>
+                </Tooltip>
+
+                <Button variant="ghost" size="icon" onClick={handleClose}>
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -474,6 +621,14 @@ export function CanvasPanel() {
                     ))}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
+                      onClick={() => setShowTranslateDialog(true)}
+                      disabled={isProcessing}
+                    >
+                      <Languages className="h-4 w-4" />
+                      <span className="ml-2">{t('actionTranslate')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
                       onClick={() => handleAction({ type: 'run', label: 'Run', icon: 'play' })}
                       disabled={isProcessing || activeDocument.language !== 'python'}
                     >
@@ -492,6 +647,51 @@ export function CanvasPanel() {
               </TooltipProvider>
             </div>
 
+            {/* Quick actions for selected text */}
+            {selection && selection.length > 0 && !isProcessing && (
+              <div className="flex items-center gap-1 px-4 py-1.5 bg-primary/5 border-b">
+                <span className="text-xs text-muted-foreground mr-2">
+                  {t('selectedText')}:
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => handleAction({ type: 'explain', labelKey: 'actionExplain' })}
+                >
+                  <HelpCircle className="h-3 w-3 mr-1" />
+                  {t('actionExplain')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => handleAction({ type: 'fix', labelKey: 'actionFix' })}
+                >
+                  <Bug className="h-3 w-3 mr-1" />
+                  {t('actionFix')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => handleAction({ type: 'improve', labelKey: 'actionImprove' })}
+                >
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  {t('actionImprove')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => setShowTranslateDialog(true)}
+                >
+                  <Languages className="h-3 w-3 mr-1" />
+                  {t('actionTranslate')}
+                </Button>
+              </div>
+            )}
+
             {/* Error display */}
             {actionError && (
               <Alert variant="destructive" className="mx-4 mt-2">
@@ -509,11 +709,11 @@ export function CanvasPanel() {
                 value={localContent}
                 onChange={handleEditorChange}
                 options={{
-                  minimap: { enabled: true, scale: 1 },
+                  minimap: { enabled: editorSettings.minimap, scale: 1 },
                   fontSize: 14,
-                  lineNumbers: 'on',
+                  lineNumbers: editorSettings.lineNumbers ? 'on' : 'off',
                   scrollBeyondLastLine: false,
-                  wordWrap: activeDocument.type === 'text' ? 'on' : 'off',
+                  wordWrap: editorSettings.wordWrap ? 'on' : 'off',
                   automaticLayout: true,
                   tabSize: 2,
                   padding: { top: 16, bottom: 16 },
@@ -531,19 +731,84 @@ export function CanvasPanel() {
               />
             </div>
 
+            {/* Footer with stats and settings */}
+            <div className="flex items-center justify-between border-t px-4 py-1.5 text-xs text-muted-foreground bg-muted/30">
+              <div className="flex items-center gap-4">
+                <span>{documentStats.lines} {t('lines')}</span>
+                <span>{documentStats.words} {t('words')}</span>
+                <span>{documentStats.chars} {t('characters')}</span>
+                {selection && (
+                  <span className="text-primary">
+                    {t('selectedChars', { count: selection.length })}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                <DropdownMenu open={showEditorSettings} onOpenChange={setShowEditorSettings}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 px-2">
+                      <Settings2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem
+                      onClick={() => setEditorSettings(s => ({ ...s, wordWrap: !s.wordWrap }))}
+                    >
+                      <WrapText className="h-4 w-4 mr-2" />
+                      <span className="flex-1">{t('wordWrap')}</span>
+                      {editorSettings.wordWrap && <Check className="h-4 w-4 ml-2" />}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setEditorSettings(s => ({ ...s, minimap: !s.minimap }))}
+                    >
+                      <Map className="h-4 w-4 mr-2" />
+                      <span className="flex-1">{t('minimap')}</span>
+                      {editorSettings.minimap && <Check className="h-4 w-4 ml-2" />}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setEditorSettings(s => ({ ...s, lineNumbers: !s.lineNumbers }))}
+                    >
+                      <Hash className="h-4 w-4 mr-2" />
+                      <span className="flex-1">{t('lineNumbers')}</span>
+                      {editorSettings.lineNumbers && <Check className="h-4 w-4 ml-2" />}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+
             {/* Action result panel (for review/explain/run) */}
             {actionResult && (
               <div className="border-t max-h-[200px] overflow-auto">
                 <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/50">
                   <span className="text-sm font-medium">{t('aiResponse')}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={() => setActionResult(null)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={handleCopyResult}
+                        >
+                          {copied ? (
+                            <Check className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{copied ? t('copied') : t('copy')}</TooltipContent>
+                    </Tooltip>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setActionResult(null)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
                 <ScrollArea className="p-4">
                   <pre className="text-sm whitespace-pre-wrap">{actionResult}</pre>
@@ -558,6 +823,75 @@ export function CanvasPanel() {
                 suggestions={activeDocument.aiSuggestions}
               />
             )}
+
+            {/* Unsaved changes confirmation dialog */}
+            <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('unsavedChanges')}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t('unsavedChangesDescription')}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      saveCanvasVersion(activeCanvasId!, undefined, false);
+                      closePanel();
+                    }}
+                    className="bg-primary"
+                  >
+                    {t('saveAndClose')}
+                  </AlertDialogAction>
+                  <AlertDialogAction
+                    onClick={() => closePanel()}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {t('discardAndClose')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Translate language selection dialog */}
+            <Dialog open={showTranslateDialog} onOpenChange={setShowTranslateDialog}>
+              <DialogContent className="sm:max-w-[400px]">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Languages className="h-5 w-5" />
+                    {t('selectTargetLanguage')}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <Select value={targetLanguage} onValueChange={setTargetLanguage}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('selectLanguage')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TRANSLATE_LANGUAGES.map((lang) => (
+                        <SelectItem key={lang.value} value={lang.value}>
+                          {lang.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setShowTranslateDialog(false)}>
+                      {t('cancel')}
+                    </Button>
+                    <Button onClick={() => handleTranslateRef.current()} disabled={isProcessing}>
+                      {isProcessing ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Languages className="h-4 w-4 mr-2" />
+                      )}
+                      {t('translate')}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </>
         ) : (
           <div className="flex h-full items-center justify-center text-muted-foreground">

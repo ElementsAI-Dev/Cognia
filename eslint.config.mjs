@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Tauri build artifacts
     "src-tauri/target/**",
+    // Test coverage reports
+    "coverage/**",
   ]),
   {
     rules: {

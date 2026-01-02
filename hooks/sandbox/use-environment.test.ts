@@ -89,8 +89,8 @@ describe('useEnvironment', () => {
 
   it('should refresh tool statuses', async () => {
     const mockStatuses = [
-      { tool: 'node', status: 'installed', installed: true, version: '18.0.0' },
-      { tool: 'python', status: 'not_installed', installed: false },
+      { tool: 'uv' as const, status: 'installed' as const, installed: true, version: '18.0.0', path: '/usr/bin/uv', error: null, lastChecked: new Date().toISOString() },
+      { tool: 'nvm' as const, status: 'not_installed' as const, installed: false, version: null, path: null, error: null, lastChecked: new Date().toISOString() },
     ];
     mockEnvironmentService.checkAllTools.mockResolvedValue(mockStatuses);
 
@@ -119,18 +119,18 @@ describe('useEnvironment', () => {
   });
 
   it('should check a specific tool', async () => {
-    const mockStatus = { tool: 'node', status: 'installed', installed: true, version: '18.0.0' };
+    const mockStatus = { tool: 'uv' as const, status: 'installed' as const, installed: true, version: '18.0.0', path: '/usr/bin/uv', error: null, lastChecked: new Date().toISOString() };
     mockEnvironmentService.checkTool.mockResolvedValue(mockStatus);
 
     const { result } = renderHook(() => useEnvironment());
 
     let status;
     await act(async () => {
-      status = await result.current.checkTool('node');
+      status = await result.current.checkTool('uv');
     });
 
-    expect(mockStoreFunctions.setToolStatus).toHaveBeenCalledWith('node', { status: 'checking' });
-    expect(mockEnvironmentService.checkTool).toHaveBeenCalledWith('node');
+    expect(mockStoreFunctions.setToolStatus).toHaveBeenCalledWith('uv', { status: 'checking' });
+    expect(mockEnvironmentService.checkTool).toHaveBeenCalledWith('uv');
     expect(status).toEqual(mockStatus);
   });
 
@@ -140,29 +140,29 @@ describe('useEnvironment', () => {
     const { result } = renderHook(() => useEnvironment());
 
     const status = await act(async () => {
-      return await result.current.checkTool('node');
+      return await result.current.checkTool('uv');
     });
 
     expect(status).toBeNull();
-    expect(mockStoreFunctions.setToolStatus).toHaveBeenCalledWith('node', {
+    expect(mockStoreFunctions.setToolStatus).toHaveBeenCalledWith('uv', {
       status: 'error',
       error: 'Check failed',
     });
   });
 
   it('should install a tool', async () => {
-    mockEnvironmentService.installTool.mockResolvedValue({ installed: true });
+    mockEnvironmentService.installTool.mockResolvedValue({ tool: 'uv' as const, status: 'installed' as const, installed: true, version: '0.5.0', path: '/usr/bin/uv', error: null, lastChecked: new Date().toISOString() });
 
     const { result } = renderHook(() => useEnvironment());
 
     let success;
     await act(async () => {
-      success = await result.current.installTool('node');
+      success = await result.current.installTool('uv');
     });
 
-    expect(mockStoreFunctions.startInstallation).toHaveBeenCalledWith('node');
-    expect(mockEnvironmentService.installTool).toHaveBeenCalledWith('node');
-    expect(mockStoreFunctions.completeInstallation).toHaveBeenCalledWith('node', true, undefined);
+    expect(mockStoreFunctions.startInstallation).toHaveBeenCalledWith('uv');
+    expect(mockEnvironmentService.installTool).toHaveBeenCalledWith('uv');
+    expect(mockStoreFunctions.completeInstallation).toHaveBeenCalledWith('uv', true, undefined);
     expect(success).toBe(true);
   });
 
@@ -172,11 +172,11 @@ describe('useEnvironment', () => {
     const { result } = renderHook(() => useEnvironment());
 
     const success = await act(async () => {
-      return await result.current.installTool('node');
+      return await result.current.installTool('uv');
     });
 
     expect(success).toBe(false);
-    expect(mockStoreFunctions.completeInstallation).toHaveBeenCalledWith('node', false, 'Install failed');
+    expect(mockStoreFunctions.completeInstallation).toHaveBeenCalledWith('uv', false, 'Install failed');
   });
 
   it('should uninstall a tool', async () => {
@@ -186,10 +186,10 @@ describe('useEnvironment', () => {
 
     let success;
     await act(async () => {
-      success = await result.current.uninstallTool('node');
+      success = await result.current.uninstallTool('uv');
     });
 
-    expect(mockEnvironmentService.uninstallTool).toHaveBeenCalledWith('node');
+    expect(mockEnvironmentService.uninstallTool).toHaveBeenCalledWith('uv');
     expect(success).toBe(true);
   });
 
@@ -199,7 +199,7 @@ describe('useEnvironment', () => {
     const { result } = renderHook(() => useEnvironment());
 
     const success = await act(async () => {
-      return await result.current.uninstallTool('node');
+      return await result.current.uninstallTool('uv');
     });
 
     expect(success).toBe(false);
@@ -210,10 +210,10 @@ describe('useEnvironment', () => {
     const { result } = renderHook(() => useEnvironment());
 
     await act(async () => {
-      await result.current.openToolWebsite('node');
+      await result.current.openToolWebsite('uv');
     });
 
-    expect(mockEnvironmentService.openToolWebsite).toHaveBeenCalledWith('node');
+    expect(mockEnvironmentService.openToolWebsite).toHaveBeenCalledWith('uv');
   });
 
   it('should clear error', () => {
@@ -238,17 +238,17 @@ describe('useEnvironment', () => {
     expect(mockEnvironmentService.checkAllTools).not.toHaveBeenCalled();
 
     const toolStatus = await act(async () => {
-      return await result.current.checkTool('node');
+      return await result.current.checkTool('uv');
     });
     expect(toolStatus).toBeNull();
 
     const installResult = await act(async () => {
-      return await result.current.installTool('node');
+      return await result.current.installTool('uv');
     });
     expect(installResult).toBe(false);
 
     const uninstallResult = await act(async () => {
-      return await result.current.uninstallTool('node');
+      return await result.current.uninstallTool('uv');
     });
     expect(uninstallResult).toBe(false);
   });

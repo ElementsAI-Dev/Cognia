@@ -7,17 +7,7 @@
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { formatDistanceToNow } from 'date-fns';
-import {
-  Code,
-  FileText,
-  Image as ImageIcon,
-  BarChart,
-  GitBranch,
-  Sparkles,
-  Calculator,
-  Trash2,
-  BookOpen,
-} from 'lucide-react';
+import { Trash2, Code } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -30,7 +20,9 @@ import {
 } from '@/components/ui/context-menu';
 import { cn } from '@/lib/utils';
 import { useArtifactStore, useSessionStore } from '@/stores';
-import type { Artifact, ArtifactType } from '@/types';
+import type { Artifact } from '@/types';
+import { ARTIFACT_TYPE_KEYS } from '@/lib/artifacts';
+import { getArtifactTypeIcon } from './artifact-icons';
 
 interface ArtifactListProps {
   sessionId?: string;
@@ -39,29 +31,8 @@ interface ArtifactListProps {
   onArtifactClick?: (artifact: Artifact) => void;
 }
 
-const typeIcons: Record<ArtifactType, React.ReactNode> = {
-  code: <Code className="h-4 w-4" />,
-  document: <FileText className="h-4 w-4" />,
-  svg: <ImageIcon className="h-4 w-4" />,
-  html: <Code className="h-4 w-4" />,
-  react: <Sparkles className="h-4 w-4" />,
-  mermaid: <GitBranch className="h-4 w-4" />,
-  chart: <BarChart className="h-4 w-4" />,
-  math: <Calculator className="h-4 w-4" />,
-  jupyter: <BookOpen className="h-4 w-4" />,
-};
-
-const TYPE_LABEL_KEYS: Record<ArtifactType, string> = {
-  code: 'code',
-  document: 'document',
-  svg: 'svg',
-  html: 'html',
-  react: 'react',
-  mermaid: 'mermaid',
-  chart: 'chart',
-  math: 'math',
-  jupyter: 'jupyter',
-};
+// Use centralized type label keys
+const TYPE_LABEL_KEYS = ARTIFACT_TYPE_KEYS;
 
 export function ArtifactList({
   sessionId,
@@ -135,7 +106,7 @@ export function ArtifactList({
                 >
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <span className="text-muted-foreground shrink-0">
-                      {typeIcons[artifact.type]}
+                      {getArtifactTypeIcon(artifact.type)}
                     </span>
                     <div className="flex-1 min-w-0 text-left">
                       <p className="text-sm font-medium truncate">
@@ -221,7 +192,7 @@ export function ArtifactListCompact({
           }}
         >
           <span className="text-muted-foreground">
-            {typeIcons[artifact.type]}
+            {getArtifactTypeIcon(artifact.type)}
           </span>
           <span className="truncate text-xs">{artifact.title}</span>
         </Button>

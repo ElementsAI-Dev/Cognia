@@ -85,7 +85,7 @@ export { useDocumentStore } from './document';
 export {
   useLearningStore,
   selectLearningSession,
-  selectActiveLearningSes,
+  selectActiveLearningSession,
   selectLearningConfig,
   selectLearningProgress,
   selectCurrentPhase,

@@ -25,8 +25,12 @@ const createMockSession = (overrides: Partial<JupyterSession> = {}): JupyterSess
 const createMockKernel = (overrides: Partial<KernelInfo> = {}): KernelInfo => ({
   id: 'kernel-1',
   name: 'python3',
-  language: 'python',
+  envPath: '/path/to/env',
   status: 'idle',
+  pythonVersion: '3.11',
+  executionCount: 0,
+  createdAt: new Date().toISOString(),
+  lastActivityAt: null,
   ...overrides,
 });
 

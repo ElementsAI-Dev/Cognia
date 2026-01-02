@@ -33,4 +33,5 @@ export {
   formatSubQuestionsList,
   formatProgressReport,
   formatSessionSummary,
+  formatStatusLine,
 } from './formatters';

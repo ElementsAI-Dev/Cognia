@@ -48,6 +48,8 @@ export function PresetCard({
         return tChat('modeAgent');
       case 'research':
         return tChat('modeResearch');
+      case 'learning':
+        return tChat('modeLearning');
       default:
         return mode;
     }

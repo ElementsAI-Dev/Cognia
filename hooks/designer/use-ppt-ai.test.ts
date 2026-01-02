@@ -7,7 +7,13 @@ const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 // Mock settings store
-const mockProviderSettings = {
+const mockProviderSettings: {
+  openai: {
+    apiKey: string;
+    baseURL: string | undefined;
+    defaultModel: string;
+  };
+} = {
   openai: {
     apiKey: 'test-api-key',
     baseURL: undefined,
@@ -35,6 +41,7 @@ const mockSlide: PPTSlide = {
   bullets: ['Point 1', 'Point 2', 'Point 3'],
   notes: 'Original notes',
   order: 0,
+  elements: [],
 };
 
 const mockPresentation: PPTPresentation = {
@@ -43,15 +50,21 @@ const mockPresentation: PPTPresentation = {
   description: 'A test presentation',
   slides: [mockSlide],
   theme: {
+    id: 'default',
     name: 'default',
     primaryColor: '#007bff',
     secondaryColor: '#6c757d',
+    accentColor: '#0056b3',
     backgroundColor: '#ffffff',
     textColor: '#212529',
-    fontFamily: 'Arial',
+    headingFont: 'Arial',
+    bodyFont: 'Arial',
+    codeFont: 'Consolas',
   },
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+  totalSlides: 1,
+  aspectRatio: '16:9',
+  createdAt: new Date(),
+  updatedAt: new Date(),
 };
 
 describe('usePPTAI', () => {
@@ -583,6 +596,7 @@ describe('usePPTAI', () => {
         id: 'empty',
         layout: 'blank',
         order: 0,
+        elements: [],
       };
 
       mockFetch.mockResolvedValueOnce({

@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { CanvasPanel } from './canvas-panel';
 
 // Mock stores
@@ -55,6 +55,9 @@ jest.mock('@/components/ui/sheet', () => ({
   SheetContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="sheet-content">{children}</div>
   ),
+  SheetTitle: ({ children }: { children: React.ReactNode }) => (
+    <h2>{children}</h2>
+  ),
 }));
 
 jest.mock('@/components/ui/button', () => ({
@@ -93,8 +96,83 @@ jest.mock('@/components/ui/alert', () => ({
   AlertDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
 }));
 
+jest.mock('@/components/ui/alert-dialog', () => ({
+  AlertDialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
+    open ? <div data-testid="alert-dialog">{children}</div> : null
+  ),
+  AlertDialogAction: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+    <button onClick={onClick}>{children}</button>
+  ),
+  AlertDialogCancel: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
+  AlertDialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+  AlertDialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
+}));
+
+jest.mock('@/components/ui/dialog', () => ({
+  Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
+    open ? <div data-testid="dialog">{children}</div> : null
+  ),
+  DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
+}));
+
+jest.mock('@/components/ui/select', () => ({
+  Select: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => (
+    <option value={value}>{children}</option>
+  ),
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SelectValue: ({ placeholder }: { placeholder?: string }) => <span>{placeholder}</span>,
+}));
+
 jest.mock('./version-history-panel', () => ({
   VersionHistoryPanel: () => <div data-testid="version-history-panel" />,
+}));
+
+jest.mock('@/components/designer', () => ({
+  V0Designer: () => <div data-testid="v0-designer" />,
+}));
+
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      actionReview: 'Review',
+      actionFix: 'Fix Issues',
+      actionImprove: 'Improve',
+      actionExplain: 'Explain',
+      actionSimplify: 'Simplify',
+      actionExpand: 'Expand',
+      actionTranslate: 'Translate',
+      actionFormat: 'Format',
+      more: 'More',
+      processing: 'Processing...',
+      noDocument: 'No document selected',
+      saveVersion: 'Save Version',
+      unsaved: 'Unsaved',
+      aiResponse: 'AI Response',
+      copy: 'Copy',
+      copied: 'Copied',
+      export: 'Export',
+      preview: 'Preview',
+      openInDesigner: 'Open in Designer',
+      openInFullDesigner: 'Open in Full Designer',
+      runCode: 'Run Code',
+      unsavedChanges: 'Unsaved Changes',
+      unsavedChangesDescription: 'You have unsaved changes.',
+      cancel: 'Cancel',
+      saveAndClose: 'Save & Close',
+      discardAndClose: 'Discard',
+      selectTargetLanguage: 'Select Target Language',
+      selectLanguage: 'Select Language',
+      translate: 'Translate',
+    };
+    return translations[key] || key;
+  },
 }));
 
 // Mock Monaco Editor
@@ -120,33 +198,45 @@ describe('CanvasPanel', () => {
     jest.clearAllMocks();
   });
 
-  it('renders when panel is open', () => {
-    render(<CanvasPanel />);
+  it('renders when panel is open', async () => {
+    await act(async () => {
+      render(<CanvasPanel />);
+    });
     expect(screen.getByTestId('sheet')).toBeInTheDocument();
   });
 
-  it('displays document title', () => {
-    render(<CanvasPanel />);
+  it('displays document title', async () => {
+    await act(async () => {
+      render(<CanvasPanel />);
+    });
     expect(screen.getByText('Test Document')).toBeInTheDocument();
   });
 
-  it('displays document language', () => {
-    render(<CanvasPanel />);
+  it('displays document language', async () => {
+    await act(async () => {
+      render(<CanvasPanel />);
+    });
     expect(screen.getByText('javascript')).toBeInTheDocument();
   });
 
-  it('renders Monaco editor', () => {
-    render(<CanvasPanel />);
+  it('renders Monaco editor', async () => {
+    await act(async () => {
+      render(<CanvasPanel />);
+    });
     expect(screen.getByTestId('monaco-editor')).toBeInTheDocument();
   });
 
-  it('renders version history panel', () => {
-    render(<CanvasPanel />);
+  it('renders version history panel', async () => {
+    await act(async () => {
+      render(<CanvasPanel />);
+    });
     expect(screen.getByTestId('version-history-panel')).toBeInTheDocument();
   });
 
-  it('renders action buttons', () => {
-    render(<CanvasPanel />);
+  it('renders action buttons', async () => {
+    await act(async () => {
+      render(<CanvasPanel />);
+    });
     expect(screen.getAllByText('Review').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Fix Issues').length).toBeGreaterThan(0);
   });

@@ -117,6 +117,7 @@
     "modeChat": "Chat",
     "modeAgent": "Agent",
     "modeResearch": "Research",
+    "modeLearning": "Learning",
     "temperature": "Temperature",
     "features": "Features",
     "webSearch": "Web Search",
@@ -1536,7 +1537,12 @@
     "preview": "Preview",
     "quick": "Quick",
     "quickPrompts": "Quick Prompts",
-    "quickPromptsHint": "Click to insert into your message"
+    "quickPromptsHint": "Click to insert into your message",
+    "aiGenerateSuccess": "Preset generated successfully!",
+    "exportSuccess": "Presets exported successfully",
+    "importSuccess": "Successfully imported {count} presets",
+    "optimizeSuccess": "Prompt optimized successfully!",
+    "generatePromptsSuccess": "Quick prompts generated successfully!"
   },
   "knowledgeBase": {
     "title": "Knowledge Base",

@@ -5,7 +5,7 @@
  */
 
 import { GeolocationService, geolocationService } from './geolocation';
-import { GeolocationErrorCode } from './types';
+import { GeolocationErrorCode } from '@/types/geolocation';
 
 // Mock navigator.geolocation
 const mockGeolocation = {

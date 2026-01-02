@@ -6,6 +6,12 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { ArtifactCard, ArtifactInlineRef, MessageArtifacts } from './artifact-card';
 import type { Artifact } from '@/types';
 
+// Mock artifact-icons
+jest.mock('./artifact-icons', () => ({
+  getArtifactTypeIcon: (type: string) => React.createElement('span', { 'data-testid': `icon-${type}` }, type),
+  ARTIFACT_TYPE_ICONS: {},
+}));
+
 // Mock stores
 const mockSetActiveArtifact = jest.fn();
 const mockOpenPanel = jest.fn();
@@ -110,7 +116,8 @@ describe('ArtifactCard', () => {
 
   it('renders language info when available', () => {
     render(<ArtifactCard artifact={mockArtifact} />);
-    expect(screen.getByText('html')).toBeInTheDocument();
+    // Multiple 'html' elements: icon mock and language label
+    expect(screen.getAllByText('html').length).toBeGreaterThanOrEqual(1);
   });
 
   it('calls setActiveArtifact and openPanel when clicked', () => {

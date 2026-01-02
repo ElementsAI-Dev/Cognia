@@ -117,6 +117,7 @@
     "modeChat": "聊天",
     "modeAgent": "智能体",
     "modeResearch": "研究",
+    "modeLearning": "学习",
     "temperature": "温度",
     "features": "功能",
     "webSearch": "网络搜索",
@@ -1529,7 +1530,12 @@
     "preview": "预览",
     "quick": "快捷",
     "quickPrompts": "快捷提示",
-    "quickPromptsHint": "点击插入到您的消息中"
+    "quickPromptsHint": "点击插入到您的消息中",
+    "aiGenerateSuccess": "预设生成成功！",
+    "exportSuccess": "预设导出成功",
+    "importSuccess": "成功导入 {count} 个预设",
+    "optimizeSuccess": "提示词优化成功！",
+    "generatePromptsSuccess": "快捷提示生成成功！"
   },
   "knowledgeBase": {
     "title": "知识库",

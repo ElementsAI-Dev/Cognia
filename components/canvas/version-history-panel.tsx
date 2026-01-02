@@ -14,6 +14,8 @@ import {
   ChevronDown,
   Save,
   Eye,
+  GitCompare,
+  Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -50,6 +52,7 @@ import { Input } from '@/components/ui/input';
 import { useArtifactStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import type { CanvasDocumentVersion } from '@/types';
+import { VersionDiffView } from './version-diff-view';
 
 interface VersionHistoryPanelProps {
   documentId: string;
@@ -67,6 +70,9 @@ export function VersionHistoryPanel({
   const [saveDescription, setSaveDescription] = useState('');
   const [previewVersion, setPreviewVersion] = useState<CanvasDocumentVersion | null>(null);
   const [deleteVersion, setDeleteVersion] = useState<CanvasDocumentVersion | null>(null);
+  const [compareMode, setCompareMode] = useState(false);
+  const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
+  const [showDiff, setShowDiff] = useState(false);
 
   const canvasDocuments = useArtifactStore((state) => state.canvasDocuments);
   const getCanvasVersions = useArtifactStore((state) => state.getCanvasVersions);
@@ -92,6 +98,44 @@ export function VersionHistoryPanel({
       deleteCanvasVersionAction(documentId, deleteVersion.id);
       setDeleteVersion(null);
     }
+  };
+
+  const handleToggleCompareMode = () => {
+    if (compareMode) {
+      setCompareMode(false);
+      setSelectedVersions([]);
+      setShowDiff(false);
+    } else {
+      setCompareMode(true);
+    }
+  };
+
+  const handleSelectVersion = (versionId: string) => {
+    if (!compareMode) return;
+    
+    setSelectedVersions((prev) => {
+      if (prev.includes(versionId)) {
+        return prev.filter((id) => id !== versionId);
+      }
+      if (prev.length >= 2) {
+        return [prev[1], versionId];
+      }
+      return [...prev, versionId];
+    });
+  };
+
+  const handleCompare = () => {
+    if (selectedVersions.length === 2) {
+      setShowDiff(true);
+    }
+  };
+
+  const getCompareVersions = () => {
+    if (selectedVersions.length !== 2) return null;
+    const v1 = versions.find((v) => v.id === selectedVersions[0]);
+    const v2 = versions.find((v) => v.id === selectedVersions[1]);
+    if (!v1 || !v2) return null;
+    return { v1, v2 };
   };
 
   const formatDate = (date: Date) => {
@@ -151,15 +195,43 @@ export function VersionHistoryPanel({
           </SheetHeader>
 
           <div className="mt-4 space-y-4">
-            {/* Save current version */}
-            <Button
-              onClick={() => setSaveDialogOpen(true)}
-              className="w-full"
-              variant="outline"
-            >
-              <Save className="mr-2 h-4 w-4" />
-              {t('saveVersion')}
-            </Button>
+            {/* Action buttons */}
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setSaveDialogOpen(true)}
+                className="flex-1"
+                variant="outline"
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {t('saveVersion')}
+              </Button>
+              {versions.length >= 2 && (
+                <Button
+                  onClick={handleToggleCompareMode}
+                  variant={compareMode ? 'default' : 'outline'}
+                  className="shrink-0"
+                >
+                  <GitCompare className="mr-2 h-4 w-4" />
+                  {compareMode ? t('cancelCompare') : t('compare')}
+                </Button>
+              )}
+            </div>
+
+            {/* Compare mode instructions */}
+            {compareMode && (
+              <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">
+                {t('compareInstructions')}
+                {selectedVersions.length === 2 && (
+                  <Button
+                    size="sm"
+                    className="mt-2 w-full"
+                    onClick={handleCompare}
+                  >
+                    {t('viewDiff')}
+                  </Button>
+                )}
+              </div>
+            )}
 
             {/* Version list */}
             <ScrollArea className="h-[calc(100vh-200px)]">
@@ -192,6 +264,9 @@ export function VersionHistoryPanel({
                             onDelete={() => setDeleteVersion(version)}
                             formatDate={formatDate}
                             t={t}
+                            compareMode={compareMode}
+                            isSelected={selectedVersions.includes(version.id)}
+                            onSelect={() => handleSelectVersion(version.id)}
                           />
                         ))}
                       </CollapsibleContent>
@@ -290,6 +365,32 @@ export function VersionHistoryPanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Diff View Dialog */}
+      <Dialog open={showDiff} onOpenChange={() => setShowDiff(false)}>
+        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GitCompare className="h-5 w-5" />
+              {t('versionComparison')}
+            </DialogTitle>
+          </DialogHeader>
+          {getCompareVersions() && (
+            <VersionDiffView
+              oldContent={getCompareVersions()!.v1.content}
+              newContent={getCompareVersions()!.v2.content}
+              oldLabel={getCompareVersions()!.v1.description || formatDate(getCompareVersions()!.v1.createdAt)}
+              newLabel={getCompareVersions()!.v2.description || formatDate(getCompareVersions()!.v2.createdAt)}
+              className="flex-1 min-h-[400px] border rounded-md overflow-hidden"
+            />
+          )}
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setShowDiff(false)}>
+              {tCommon('close')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -303,6 +404,9 @@ interface VersionItemProps {
   onDelete: () => void;
   formatDate: (date: Date) => string;
   t: ReturnType<typeof useTranslations>;
+  compareMode?: boolean;
+  isSelected?: boolean;
+  onSelect?: () => void;
 }
 
 function VersionItem({
@@ -313,13 +417,20 @@ function VersionItem({
   onDelete,
   formatDate,
   t,
+  compareMode,
+  isSelected,
+  onSelect,
 }: VersionItemProps) {
   return (
     <div
       className={cn(
-        'rounded-lg border p-3 transition-colors hover:bg-muted/50',
-        isCurrent && 'border-primary bg-primary/5'
+        'rounded-lg border p-3 transition-colors',
+        isCurrent && 'border-primary bg-primary/5',
+        compareMode && 'cursor-pointer',
+        compareMode && !isSelected && 'hover:bg-muted/50',
+        isSelected && 'ring-2 ring-primary bg-primary/10'
       )}
+      onClick={compareMode ? onSelect : undefined}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
@@ -349,26 +460,37 @@ function VersionItem({
           </p>
         </div>
       </div>
-      <div className="mt-2 flex gap-1">
-        <Button variant="ghost" size="sm" onClick={onPreview}>
-          <Eye className="h-3.5 w-3.5 mr-1" />
-          {t('previewAction')}
-        </Button>
-        {!isCurrent && (
-          <Button variant="ghost" size="sm" onClick={onRestore}>
-            <RotateCcw className="h-3.5 w-3.5 mr-1" />
-            {t('restore')}
+      {compareMode ? (
+        <div className="mt-2 flex items-center justify-end">
+          {isSelected && (
+            <Badge variant="default" className="text-xs">
+              <Check className="h-3 w-3 mr-1" />
+              {t('selected')}
+            </Badge>
+          )}
+        </div>
+      ) : (
+        <div className="mt-2 flex gap-1">
+          <Button variant="ghost" size="sm" onClick={onPreview}>
+            <Eye className="h-3.5 w-3.5 mr-1" />
+            {t('previewAction')}
           </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onDelete}
-          className="text-destructive hover:text-destructive"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
-      </div>
+          {!isCurrent && (
+            <Button variant="ghost" size="sm" onClick={onRestore}>
+              <RotateCcw className="h-3.5 w-3.5 mr-1" />
+              {t('restore')}
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDelete}
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

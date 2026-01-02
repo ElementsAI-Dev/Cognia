@@ -21,7 +21,12 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useArtifactStore, useSessionStore } from '@/stores';
-import type { ArtifactType, ArtifactLanguage } from '@/types';
+import type { ArtifactType } from '@/types';
+import {
+  mapToArtifactLanguage,
+  matchesTypePatterns,
+  getLanguageDisplayName,
+} from '@/lib/artifacts';
 
 interface ArtifactCreateButtonProps {
   content: string;
@@ -32,77 +37,42 @@ interface ArtifactCreateButtonProps {
   variant?: 'icon' | 'button' | 'dropdown';
 }
 
-// Map common language strings to artifact types
+/**
+ * Detect artifact type from language and content
+ * Uses centralized detection patterns from lib/artifacts
+ */
 function detectArtifactType(language?: string, content?: string): ArtifactType {
   if (!language) return 'code';
   
   const lang = language.toLowerCase();
   
-  // Check for specific types
+  // Direct language mappings
   if (lang === 'mermaid') return 'mermaid';
   if (lang === 'latex' || lang === 'tex' || lang === 'math') return 'math';
   if (lang === 'markdown' || lang === 'md') return 'document';
   if (lang === 'html') return 'html';
   if (lang === 'svg') return 'svg';
+  
+  // JSX/TSX - check for React patterns
   if (lang === 'jsx' || lang === 'tsx') {
-    // Check if it looks like a React component
-    if (content?.includes('export') || content?.includes('function') || content?.includes('const')) {
+    if (content && matchesTypePatterns(content, 'react')) {
       return 'react';
     }
   }
-  if (lang === 'json') {
-    // Check if it looks like chart data
-    try {
-      const parsed = JSON.parse(content || '');
-      if (Array.isArray(parsed) && parsed.length > 0 && 'name' in parsed[0] && 'value' in parsed[0]) {
-        return 'chart';
-      }
-      if (parsed.type && parsed.data) {
-        return 'chart';
-      }
-    } catch {
-      // Not valid JSON, treat as code
+  
+  // JSON - check for chart data patterns
+  if (lang === 'json' && content) {
+    if (matchesTypePatterns(content, 'chart')) {
+      return 'chart';
     }
   }
   
   return 'code';
 }
 
-// Map language strings to ArtifactLanguage
-function mapToArtifactLanguage(language?: string): ArtifactLanguage | undefined {
-  if (!language) return undefined;
-  
-  const languageMap: Record<string, ArtifactLanguage> = {
-    js: 'javascript',
-    javascript: 'javascript',
-    ts: 'typescript',
-    typescript: 'typescript',
-    py: 'python',
-    python: 'python',
-    html: 'html',
-    css: 'css',
-    json: 'json',
-    md: 'markdown',
-    markdown: 'markdown',
-    jsx: 'jsx',
-    tsx: 'tsx',
-    sql: 'sql',
-    bash: 'bash',
-    sh: 'bash',
-    shell: 'bash',
-    yaml: 'yaml',
-    yml: 'yaml',
-    xml: 'xml',
-    svg: 'svg',
-    mermaid: 'mermaid',
-    latex: 'latex',
-    tex: 'latex',
-  };
-  
-  return languageMap[language.toLowerCase()];
-}
-
-// Generate a title from content
+/**
+ * Generate a title from content
+ */
 function generateTitle(content: string, language?: string): string {
   // Try to extract function/component name
   const functionMatch = content.match(/(?:function|const|class)\s+(\w+)/);
@@ -116,12 +86,8 @@ function generateTitle(content: string, language?: string): string {
     return exportMatch[1];
   }
   
-  // Use language as fallback
-  if (language) {
-    return `${language.charAt(0).toUpperCase() + language.slice(1)} Code`;
-  }
-  
-  return 'Code Artifact';
+  // Use language display name as fallback
+  return language ? `${getLanguageDisplayName(language)} Code` : 'Code Artifact';
 }
 
 export function ArtifactCreateButton({

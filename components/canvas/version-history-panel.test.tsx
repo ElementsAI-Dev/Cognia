@@ -108,9 +108,24 @@ jest.mock('next-intl', () => ({
       confirmDelete: 'Are you sure?',
       deleteDescription: 'This action cannot be undone.',
       versionPreview: 'Version Preview',
+      compare: 'Compare',
+      cancelCompare: 'Cancel',
+      compareInstructions: 'Select two versions to compare',
+      viewDiff: 'View Diff',
+      selected: 'Selected',
+      versionComparison: 'Version Comparison',
     };
     return translations[key] || key;
   },
+}));
+
+jest.mock('./version-diff-view', () => ({
+  VersionDiffView: ({ oldContent, newContent }: { oldContent: string; newContent: string }) => (
+    <div data-testid="version-diff-view">
+      <span>Old: {oldContent.substring(0, 20)}</span>
+      <span>New: {newContent.substring(0, 20)}</span>
+    </div>
+  ),
 }));
 
 describe('VersionHistoryPanel', () => {

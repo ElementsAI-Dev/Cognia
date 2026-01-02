@@ -719,6 +719,7 @@ function PresetEditForm({
                 <SelectItem value="chat">{t('modeChat')}</SelectItem>
                 <SelectItem value="agent">{t('modeAgent')}</SelectItem>
                 <SelectItem value="research">{t('modeResearch')}</SelectItem>
+                <SelectItem value="learning">{t('modeLearning')}</SelectItem>
               </SelectContent>
             </Select>
           </div>

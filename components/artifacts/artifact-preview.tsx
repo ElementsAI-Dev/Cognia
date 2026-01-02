@@ -4,9 +4,9 @@
  * ArtifactPreview - Live preview for HTML, React, SVG, Mermaid, Chart, Math, and Markdown
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, Component, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Artifact } from '@/types';
@@ -23,20 +23,90 @@ interface ArtifactPreviewProps {
   className?: string;
 }
 
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback?: ReactNode;
+  onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+/**
+ * Error boundary for artifact preview components
+ */
+class PreviewErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Artifact preview error:', error, errorInfo);
+    this.props.onError?.(error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+      return (
+        <div className="flex flex-col items-center justify-center gap-2 p-4 text-destructive">
+          <AlertCircle className="h-5 w-5" />
+          <p className="text-sm">Preview failed to render</p>
+          <p className="text-xs text-muted-foreground">{this.state.error?.message}</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/**
+ * Loading spinner component
+ */
+function PreviewLoading({ message }: { message?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
+      <Loader2 className="h-6 w-6 animate-spin" />
+      <p className="text-sm">{message || 'Loading preview...'}</p>
+    </div>
+  );
+}
+
 export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
   const t = useTranslations('artifactPreview');
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [key, setKey] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Check if this type needs iframe rendering
   const needsIframe = ['html', 'svg', 'react'].includes(artifact.type);
 
   useEffect(() => {
-    if (!needsIframe) return;
+    if (!needsIframe) {
+      setIsLoading(false);
+      return;
+    }
     
     setError(null);
-    doRenderPreview();
+    setIsLoading(true);
+    
+    // Small delay to ensure iframe is ready
+    const timer = setTimeout(() => {
+      doRenderPreview();
+      setIsLoading(false);
+    }, 100);
+    
+    return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [artifact.content, artifact.type, key, needsIframe]);
 
@@ -73,51 +143,66 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
   // Render specialized components for non-iframe types
   if (artifact.type === 'mermaid') {
     return (
-      <div className={cn('h-full w-full overflow-auto bg-background', className)}>
-        <MermaidRenderer content={artifact.content} className="min-h-full" />
-      </div>
+      <PreviewErrorBoundary>
+        <div className={cn('h-full w-full overflow-auto bg-background', className)}>
+          <MermaidRenderer content={artifact.content} className="min-h-full" />
+        </div>
+      </PreviewErrorBoundary>
     );
   }
 
   if (artifact.type === 'chart') {
     return (
-      <div className={cn('h-full w-full overflow-auto bg-background p-4', className)}>
-        <ChartRenderer
-          content={artifact.content}
-          chartType={artifact.metadata?.chartType}
-          className="min-h-[300px]"
-        />
-      </div>
+      <PreviewErrorBoundary>
+        <div className={cn('h-full w-full overflow-auto bg-background p-4', className)}>
+          <ChartRenderer
+            content={artifact.content}
+            chartType={artifact.metadata?.chartType}
+            className="min-h-[300px]"
+          />
+        </div>
+      </PreviewErrorBoundary>
     );
   }
 
   if (artifact.type === 'math') {
     return (
-      <div className={cn('h-full w-full overflow-auto bg-background', className)}>
-        <MathRenderer content={artifact.content} className="min-h-full" />
-      </div>
+      <PreviewErrorBoundary>
+        <div className={cn('h-full w-full overflow-auto bg-background', className)}>
+          <MathRenderer content={artifact.content} className="min-h-full" />
+        </div>
+      </PreviewErrorBoundary>
     );
   }
 
   if (artifact.type === 'jupyter') {
     return (
-      <div className={cn('h-full w-full overflow-hidden bg-background', className)}>
-        <JupyterRenderer content={artifact.content} className="h-full" />
-      </div>
+      <PreviewErrorBoundary>
+        <div className={cn('h-full w-full overflow-hidden bg-background', className)}>
+          <JupyterRenderer content={artifact.content} className="h-full" />
+        </div>
+      </PreviewErrorBoundary>
     );
   }
 
   if (artifact.type === 'document') {
     return (
-      <div className={cn('h-full w-full overflow-auto bg-background', className)}>
-        <MarkdownRenderer content={artifact.content} className="min-h-full" />
-      </div>
+      <PreviewErrorBoundary>
+        <div className={cn('h-full w-full overflow-auto bg-background', className)}>
+          <MarkdownRenderer content={artifact.content} className="min-h-full" />
+        </div>
+      </PreviewErrorBoundary>
     );
   }
 
   // Default: iframe-based rendering for HTML, SVG, React
   return (
     <div className={cn('relative h-full w-full', className)}>
+      {isLoading && (
+        <div className="absolute inset-0 z-20 bg-background/80 backdrop-blur-sm">
+          <PreviewLoading message={t('loadingPreview')} />
+        </div>
+      )}
       {error && (
         <div className="absolute top-2 left-2 right-2 z-10 flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-destructive text-sm">
           <AlertCircle className="h-4 w-4 shrink-0" />
@@ -133,6 +218,11 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
         className="h-full w-full border-0 bg-white"
         sandbox="allow-scripts allow-same-origin"
         title={t('previewTitle', { title: artifact.title })}
+        onLoad={() => setIsLoading(false)}
+        onError={() => {
+          setIsLoading(false);
+          setError(t('iframeLoadError'));
+        }}
       />
     </div>
   );

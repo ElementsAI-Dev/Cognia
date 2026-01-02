@@ -88,6 +88,9 @@ export const LearningModePanel = memo(function LearningModePanel({
     learningGoals,
     advancePhase,
     endLearning,
+    getStatusLine,
+    getCelebrationMessage,
+    getEncouragement,
   } = useLearningMode();
 
   const [isGoalsExpanded, setIsGoalsExpanded] = useState(true);
@@ -138,6 +141,9 @@ export const LearningModePanel = memo(function LearningModePanel({
         <CardDescription className="line-clamp-2">
           {learningSession.topic}
         </CardDescription>
+        <p className="text-xs text-muted-foreground mt-1">
+          {getStatusLine()}
+        </p>
       </CardHeader>
 
       <CardContent className="flex-1 flex flex-col gap-2 overflow-hidden p-0">
@@ -170,6 +176,16 @@ export const LearningModePanel = memo(function LearningModePanel({
                   <span className="font-medium">{progress}%</span>
                 </div>
                 <Progress value={progress} className="h-2" />
+                {progress >= 50 && progress < 100 && (
+                  <p className="text-xs text-green-600 italic">
+                    {getEncouragement('goodProgress')}
+                  </p>
+                )}
+                {progress === 100 && (
+                  <p className="text-xs text-primary font-medium">
+                    {getCelebrationMessage('session_complete')}
+                  </p>
+                )}
               </div>
 
               {/* Phase Timeline */}

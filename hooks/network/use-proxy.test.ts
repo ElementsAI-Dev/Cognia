@@ -120,7 +120,7 @@ describe('useProxy', () => {
 
   it('should detect proxies', async () => {
     const mockProxies = [
-      { software: 'clash', running: true, host: '127.0.0.1', port: 7890 },
+      { software: 'clash' as const, name: 'Clash', icon: '⚔️', running: true, httpPort: 7890 },
     ];
     mockProxyService.detectAll.mockResolvedValue(mockProxies);
 
@@ -138,7 +138,7 @@ describe('useProxy', () => {
 
   it('should auto-select first running proxy', async () => {
     const mockProxies = [
-      { software: 'clash', running: true, host: '127.0.0.1', port: 7890 },
+      { software: 'clash' as const, name: 'Clash', icon: '⚔️', running: true, httpPort: 7890 },
     ];
     mockProxyService.detectAll.mockResolvedValue(mockProxies);
 
@@ -164,7 +164,7 @@ describe('useProxy', () => {
   });
 
   it('should test current proxy in manual mode', async () => {
-    const manualConfig = { host: '127.0.0.1', port: 8080 };
+    const manualConfig = { protocol: 'http' as const, host: '127.0.0.1', port: 8080 };
     mockUseProxyStore.mockReturnValue({
       ...mockStoreFunctions,
       config: {
@@ -230,7 +230,7 @@ describe('useProxy', () => {
   });
 
   it('should test manual proxy', async () => {
-    const manualConfig = { host: '192.168.1.1', port: 1080 };
+    const manualConfig = { protocol: 'http' as const, host: '192.168.1.1', port: 1080 };
     mockBuildProxyUrl.mockReturnValue('http://192.168.1.1:1080');
     mockProxyService.test.mockResolvedValue({ success: true, latency: 200 });
 
@@ -251,7 +251,7 @@ describe('useProxy', () => {
       config: {
         ...mockStoreFunctions.config,
         mode: 'manual',
-        manual: { host: '127.0.0.1', port: 8080 },
+        manual: { protocol: 'http' as const, host: '127.0.0.1', port: 8080 },
       },
     });
     mockBuildProxyUrl.mockReturnValue('http://127.0.0.1:8080');

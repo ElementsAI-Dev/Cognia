@@ -12,19 +12,13 @@ import {
   Copy,
   Download,
   ExternalLink,
-  Code,
-  FileText,
-  Image as ImageIcon,
-  BarChart,
   Pencil,
   Save,
   X,
-  GitBranch,
-  Calculator,
-  Sparkles,
   Loader2,
-  BookOpen,
   FolderOpen,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -56,43 +50,21 @@ import { opener } from '@/lib/native';
 import { V0Designer } from '@/components/designer';
 import { Palette } from 'lucide-react';
 import type { BundledLanguage } from 'shiki';
-import type { Artifact as ArtifactType, ArtifactType as ArtType } from '@/types';
+import type { Artifact as ArtifactType } from '@/types';
 import { ArtifactPreview } from './artifact-preview';
+import {
+  getShikiLanguage as getShikiLang,
+  getMonacoLanguage,
+  getArtifactExtension,
+  canPreview,
+  canDesign,
+} from '@/lib/artifacts';
+import { getArtifactTypeIcon } from './artifact-icons';
 
-// Map artifact languages to shiki languages
+// Use centralized language mapping
 function getShikiLanguage(lang?: string): BundledLanguage {
-  const languageMap: Record<string, BundledLanguage> = {
-    javascript: 'javascript',
-    typescript: 'typescript',
-    python: 'python',
-    html: 'html',
-    css: 'css',
-    json: 'json',
-    markdown: 'markdown',
-    jsx: 'jsx',
-    tsx: 'tsx',
-    sql: 'sql',
-    bash: 'bash',
-    yaml: 'yaml',
-    xml: 'xml',
-    svg: 'xml',
-    mermaid: 'markdown',
-    latex: 'latex',
-  };
-  return languageMap[lang || ''] || 'text';
+  return getShikiLang(lang) as BundledLanguage;
 }
-
-const typeIcons: Record<ArtType, React.ReactNode> = {
-  code: <Code className="h-4 w-4" />,
-  document: <FileText className="h-4 w-4" />,
-  svg: <ImageIcon className="h-4 w-4" />,
-  html: <Code className="h-4 w-4" />,
-  react: <Sparkles className="h-4 w-4" />,
-  mermaid: <GitBranch className="h-4 w-4" />,
-  chart: <BarChart className="h-4 w-4" />,
-  math: <Calculator className="h-4 w-4" />,
-  jupyter: <BookOpen className="h-4 w-4" />,
-};
 
 export function ArtifactPanel() {
   const t = useTranslations('artifacts');
@@ -112,6 +84,7 @@ export function ArtifactPanel() {
   const [designerOpen, setDesignerOpen] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Canvas integration
   const createCanvasDocument = useArtifactStore((state) => state.createCanvasDocument);
@@ -172,26 +145,12 @@ export function ArtifactPanel() {
 
   const getEditorLanguage = () => {
     if (!activeArtifact) return 'plaintext';
-    const languageMap: Record<string, string> = {
-      javascript: 'javascript',
-      typescript: 'typescript',
-      python: 'python',
-      html: 'html',
-      css: 'css',
-      json: 'json',
-      markdown: 'markdown',
-      jsx: 'javascript',
-      tsx: 'typescript',
-      sql: 'sql',
-      bash: 'shell',
-      yaml: 'yaml',
-      xml: 'xml',
-      svg: 'xml',
-      mermaid: 'markdown',
-      latex: 'latex',
-    };
-    return languageMap[activeArtifact.language || ''] || 'plaintext';
+    return getMonacoLanguage(activeArtifact.language);
   };
+
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen(prev => !prev);
+  }, []);
 
   const handleCopy = async () => {
     if (activeArtifact) {
@@ -231,29 +190,22 @@ export function ArtifactPanel() {
     await opener.openUrl('file:///');
   };
 
-  const canPreview = activeArtifact?.type === 'html' ||
-                     activeArtifact?.type === 'react' ||
-                     activeArtifact?.type === 'svg' ||
-                     activeArtifact?.type === 'mermaid' ||
-                     activeArtifact?.type === 'chart' ||
-                     activeArtifact?.type === 'math' ||
-                     activeArtifact?.type === 'document' ||
-                     activeArtifact?.type === 'jupyter';
-  
-  // Designer is only available for HTML/React/SVG
-  const canDesign = activeArtifact?.type === 'html' ||
-                    activeArtifact?.type === 'react' ||
-                    activeArtifact?.type === 'svg';
+  const isPreviewable = activeArtifact ? canPreview(activeArtifact.type) : false;
+  const isDesignable = activeArtifact ? canDesign(activeArtifact.type) : false;
+
+  const panelWidth = isFullscreen 
+    ? 'w-full sm:w-full sm:max-w-full' 
+    : 'w-full sm:w-[600px] sm:max-w-[600px]';
 
   return (
     <Sheet open={panelOpen && panelView === 'artifact'} onOpenChange={(open) => !open && closePanel()}>
-      <SheetContent side="right" className="w-full sm:w-[600px] sm:max-w-[600px] p-0">
+      <SheetContent side="right" className={`${panelWidth} p-0 transition-all duration-200`}>
         <SheetTitle className="sr-only">Artifact Panel</SheetTitle>
         {activeArtifact ? (
           <Artifact className="h-full border-0 rounded-none">
             <ArtifactHeader>
               <div className="flex items-center gap-2">
-                {typeIcons[activeArtifact.type]}
+                {getArtifactTypeIcon(activeArtifact.type)}
                 <div>
                   <ArtifactTitle>{activeArtifact.title}</ArtifactTitle>
                   <span className="text-xs text-muted-foreground">
@@ -288,7 +240,7 @@ export function ArtifactPanel() {
                     <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'code' | 'preview')}>
                       <TabsList className="h-8">
                         <TabsTrigger value="code" className="text-xs px-2">{t('code')}</TabsTrigger>
-                        {canPreview && (
+                        {isPreviewable && (
                           <TabsTrigger value="preview" className="text-xs px-2">{t('preview')}</TabsTrigger>
                         )}
                       </TabsList>
@@ -320,7 +272,12 @@ export function ArtifactPanel() {
                       icon={FileCode}
                       onClick={handleOpenInCanvas}
                     />
-                    {canDesign && (
+                    <ArtifactAction
+                      tooltip={isFullscreen ? t('exitFullscreen') : t('fullscreen')}
+                      icon={isFullscreen ? Minimize2 : Maximize2}
+                      onClick={toggleFullscreen}
+                    />
+                    {isDesignable && (
                       <>
                         <ArtifactAction
                           tooltip={t('previewInDesigner')}
@@ -352,7 +309,7 @@ export function ArtifactPanel() {
                   value={editContent}
                   onChange={handleEditorChange}
                   options={{
-                    minimap: { enabled: false },
+                    minimap: { enabled: isFullscreen },
                     fontSize: 14,
                     lineNumbers: 'on',
                     scrollBeyondLastLine: false,
@@ -362,7 +319,7 @@ export function ArtifactPanel() {
                     padding: { top: 16, bottom: 16 },
                   }}
                 />
-              ) : viewMode === 'code' || !canPreview ? (
+              ) : viewMode === 'code' || !isPreviewable ? (
                 <ScrollArea className="h-full">
                   <div className="p-4">
                     <CodeBlock
@@ -383,7 +340,7 @@ export function ArtifactPanel() {
         )}
 
         {/* Designer Panel */}
-        {activeArtifact && canDesign && (
+        {activeArtifact && isDesignable && (
           <ArtifactDesignerWrapper
             artifact={activeArtifact}
             open={designerOpen}
@@ -396,18 +353,7 @@ export function ArtifactPanel() {
 }
 
 function getExtension(artifact: ArtifactType): string {
-  const extensions: Record<ArtType, string> = {
-    code: artifact.language || 'txt',
-    document: 'md',
-    svg: 'svg',
-    html: 'html',
-    react: 'tsx',
-    mermaid: 'mmd',
-    chart: 'json',
-    math: 'tex',
-    jupyter: 'ipynb',
-  };
-  return extensions[artifact.type] || 'txt';
+  return getArtifactExtension(artifact.type, artifact.language);
 }
 
 // Designer Panel integration

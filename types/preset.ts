@@ -166,6 +166,7 @@ export const DEFAULT_PRESETS: Omit<Preset, 'id' | 'createdAt' | 'updatedAt' | 'u
     mode: 'agent',
     systemPrompt: 'You are an expert at complex reasoning and analysis. Break down problems systematically, consider multiple perspectives, and provide well-reasoned conclusions.',
     temperature: 0.5,
+    thinkingEnabled: true,
   },
   {
     name: 'Quick Helper',
@@ -187,5 +188,17 @@ export const DEFAULT_PRESETS: Omit<Preset, 'id' | 'createdAt' | 'updatedAt' | 'u
     mode: 'research',
     systemPrompt: 'You are a research assistant. Help the user find accurate information, cite sources when possible, and provide comprehensive analysis of topics.',
     temperature: 0.4,
+    webSearchEnabled: true,
+  },
+  {
+    name: 'Learning Tutor',
+    description: 'Interactive learning and tutoring',
+    icon: '🎓',
+    color: '#8b5cf6',
+    provider: 'auto',
+    model: 'gpt-4o',
+    mode: 'learning',
+    systemPrompt: 'You are an expert tutor. Help the user learn new concepts by breaking them down into understandable pieces, asking clarifying questions, providing examples, and testing understanding with practice problems.',
+    temperature: 0.6,
   },
 ];

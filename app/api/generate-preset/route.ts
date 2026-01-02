@@ -19,7 +19,7 @@ const PresetSuggestionSchema = z.object({
   color: z.string().describe('A hex color code for the preset theme'),
   systemPrompt: z.string().describe('A well-crafted system prompt for this use case'),
   temperature: z.number().min(0).max(2).describe('Recommended temperature setting'),
-  mode: z.enum(['chat', 'agent', 'research']).describe('The recommended chat mode'),
+  mode: z.enum(['chat', 'agent', 'research', 'learning']).describe('The recommended chat mode'),
   webSearchEnabled: z.boolean().describe('Whether web search should be enabled'),
   thinkingEnabled: z.boolean().describe('Whether extended thinking should be enabled'),
   builtinPrompts: z.array(z.object({

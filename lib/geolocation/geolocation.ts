@@ -10,7 +10,7 @@ import {
   GeolocationOptions,
   GeolocationPermissionStatus,
   PermissionState,
-} from './types';
+} from '@/types/geolocation';
 
 const isTauri = (): boolean => {
   return typeof window !== 'undefined' && '__TAURI__' in window;

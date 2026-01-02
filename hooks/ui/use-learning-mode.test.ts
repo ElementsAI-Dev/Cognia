@@ -363,6 +363,206 @@ describe('useLearningMode', () => {
       expect(mockLearningStore.updateConfig).toHaveBeenCalledWith({ maxHintsPerQuestion: 5 });
     });
   });
+
+  describe('Formatting', () => {
+    it('should return empty string for getStatusLine when no session', () => {
+      mockLearningStore.getLearningSessionByChat.mockReturnValue(undefined);
+
+      const { result } = renderHook(() => useLearningMode());
+
+      expect(result.current.getStatusLine()).toBe('');
+    });
+
+    it('should return status line when session exists', () => {
+      const mockSession = {
+        id: 'learning-1',
+        sessionId: 'session-1',
+        topic: 'Test Topic',
+        currentPhase: 'questioning' as const,
+        progress: 50,
+        subQuestions: [
+          { id: 'sq-1', status: 'resolved' as const },
+          { id: 'sq-2', status: 'pending' as const },
+        ],
+        learningGoals: [],
+        totalHintsProvided: 0,
+        startedAt: new Date(),
+        lastActivityAt: new Date(),
+      };
+      mockLearningStore.getLearningSessionByChat.mockReturnValue(mockSession);
+
+      const { result } = renderHook(() => useLearningMode());
+      const statusLine = result.current.getStatusLine();
+
+      expect(statusLine).toContain('Exploring');
+      expect(statusLine).toContain('50%');
+    });
+
+    it('should return empty string for getFormattedGoals when no session', () => {
+      mockLearningStore.getLearningSessionByChat.mockReturnValue(undefined);
+
+      const { result } = renderHook(() => useLearningMode());
+
+      expect(result.current.getFormattedGoals()).toBe('');
+    });
+
+    it('should return formatted goals when session exists', () => {
+      const mockSession = {
+        id: 'learning-1',
+        sessionId: 'session-1',
+        topic: 'Test Topic',
+        currentPhase: 'questioning' as const,
+        progress: 50,
+        subQuestions: [],
+        learningGoals: [
+          { id: 'g1', description: 'Understand basics', achieved: true },
+          { id: 'g2', description: 'Apply concepts', achieved: false },
+        ],
+        totalHintsProvided: 0,
+        startedAt: new Date(),
+        lastActivityAt: new Date(),
+      };
+      mockLearningStore.getLearningSessionByChat.mockReturnValue(mockSession);
+
+      const { result } = renderHook(() => useLearningMode());
+      const formattedGoals = result.current.getFormattedGoals();
+
+      expect(formattedGoals).toContain('Understand basics');
+      expect(formattedGoals).toContain('Apply concepts');
+    });
+
+    it('should return empty string for getFormattedSubQuestions when no session', () => {
+      mockLearningStore.getLearningSessionByChat.mockReturnValue(undefined);
+
+      const { result } = renderHook(() => useLearningMode());
+
+      expect(result.current.getFormattedSubQuestions()).toBe('');
+    });
+  });
+
+  describe('Adaptive Prompts', () => {
+    it('should return empty string for getAdaptivePrompt when no session', () => {
+      mockLearningStore.getLearningSessionByChat.mockReturnValue(undefined);
+
+      const { result } = renderHook(() => useLearningMode());
+
+      expect(result.current.getAdaptivePrompt()).toBe('');
+    });
+
+    it('should return adaptive prompt when session exists', () => {
+      const mockSession = {
+        id: 'learning-1',
+        sessionId: 'session-1',
+        topic: 'Test Topic',
+        currentPhase: 'questioning' as const,
+        progress: 50,
+        subQuestions: [],
+        learningGoals: [],
+        totalHintsProvided: 0,
+        startedAt: new Date(),
+        lastActivityAt: new Date(),
+        currentDifficulty: 'intermediate' as const,
+        engagementScore: 50,
+        consecutiveCorrect: 0,
+        consecutiveIncorrect: 0,
+        notes: [],
+        concepts: [],
+        statistics: {
+          totalTimeSpentMs: 0,
+          activeTimeSpentMs: 0,
+          questionsAnswered: 0,
+          correctAnswers: 0,
+          hintsUsed: 0,
+          conceptsLearned: 0,
+          averageResponseTimeMs: 0,
+          streakDays: 0,
+          longestStreak: 0,
+          phaseCompletionTimes: {},
+        },
+        reviewItems: [],
+        adaptiveAdjustments: 0,
+      };
+      mockLearningStore.getLearningSessionByChat.mockReturnValue(mockSession);
+
+      const { result } = renderHook(() => useLearningMode());
+      const prompt = result.current.getAdaptivePrompt();
+
+      expect(prompt).toBeTruthy();
+      expect(prompt.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Celebration and Encouragement', () => {
+    it('should return empty string for getCelebrationMessage when no session', () => {
+      mockLearningStore.getLearningSessionByChat.mockReturnValue(undefined);
+
+      const { result } = renderHook(() => useLearningMode());
+
+      expect(result.current.getCelebrationMessage('question_solved')).toBe('');
+    });
+
+    it('should return celebration message when session exists', () => {
+      const mockSession = {
+        id: 'learning-1',
+        sessionId: 'session-1',
+        topic: 'Test Topic',
+        currentPhase: 'questioning' as const,
+        progress: 50,
+        subQuestions: [],
+        learningGoals: [],
+        totalHintsProvided: 0,
+        startedAt: new Date(),
+        lastActivityAt: new Date(),
+      };
+      mockLearningStore.getLearningSessionByChat.mockReturnValue(mockSession);
+
+      const { result } = renderHook(() => useLearningMode());
+      const message = result.current.getCelebrationMessage('question_solved');
+
+      expect(message).toBeTruthy();
+      expect(message.length).toBeGreaterThan(0);
+    });
+
+    it('should return encouragement message', () => {
+      mockLearningStore.getLearningSessionByChat.mockReturnValue(undefined);
+
+      const { result } = renderHook(() => useLearningMode());
+      const message = result.current.getEncouragement('goodProgress');
+
+      expect(message).toBeTruthy();
+      expect(message.length).toBeGreaterThan(0);
+    });
+
+    it('should return empty string for getContextualHint when no session', () => {
+      mockLearningStore.getLearningSessionByChat.mockReturnValue(undefined);
+
+      const { result } = renderHook(() => useLearningMode());
+
+      expect(result.current.getContextualHint(3)).toBe('');
+    });
+
+    it('should return contextual hint when session exists', () => {
+      const mockSession = {
+        id: 'learning-1',
+        sessionId: 'session-1',
+        topic: 'Test Topic',
+        currentPhase: 'questioning' as const,
+        progress: 50,
+        subQuestions: [],
+        learningGoals: [],
+        totalHintsProvided: 0,
+        startedAt: new Date(),
+        lastActivityAt: new Date(),
+      };
+      mockLearningStore.getLearningSessionByChat.mockReturnValue(mockSession);
+
+      const { result } = renderHook(() => useLearningMode());
+      const hint = result.current.getContextualHint(3);
+
+      expect(hint).toBeTruthy();
+      expect(hint.length).toBeGreaterThan(0);
+    });
+  });
 });
 
 describe('useIsLearningMode', () => {

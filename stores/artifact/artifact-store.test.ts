@@ -386,4 +386,215 @@ describe('useArtifactStore', () => {
       expect(Object.values(state.canvasDocuments)).toHaveLength(0);
     });
   });
+
+  describe('batch operations', () => {
+    it('should delete multiple artifacts', () => {
+      let artifact1: { id: string } | undefined;
+      let artifact2: { id: string } | undefined;
+      let artifact3: { id: string } | undefined;
+
+      act(() => {
+        artifact1 = useArtifactStore.getState().createArtifact({
+          sessionId: 'session-1',
+          messageId: 'msg-1',
+          type: 'code',
+          title: 'Artifact 1',
+          content: 'test 1',
+        });
+        artifact2 = useArtifactStore.getState().createArtifact({
+          sessionId: 'session-1',
+          messageId: 'msg-2',
+          type: 'html',
+          title: 'Artifact 2',
+          content: 'test 2',
+        });
+        artifact3 = useArtifactStore.getState().createArtifact({
+          sessionId: 'session-1',
+          messageId: 'msg-3',
+          type: 'react',
+          title: 'Artifact 3',
+          content: 'test 3',
+        });
+      });
+
+      expect(Object.keys(useArtifactStore.getState().artifacts)).toHaveLength(3);
+
+      act(() => {
+        useArtifactStore.getState().deleteArtifacts([artifact1!.id, artifact2!.id]);
+      });
+
+      const state = useArtifactStore.getState();
+      expect(Object.keys(state.artifacts)).toHaveLength(1);
+      expect(state.artifacts[artifact3!.id]).toBeDefined();
+      expect(state.artifacts[artifact1!.id]).toBeUndefined();
+      expect(state.artifacts[artifact2!.id]).toBeUndefined();
+    });
+
+    it('should duplicate artifact', () => {
+      let original: { id: string; title: string } | undefined;
+
+      act(() => {
+        original = useArtifactStore.getState().createArtifact({
+          sessionId: 'session-1',
+          messageId: 'msg-1',
+          type: 'code',
+          title: 'Original',
+          content: 'original content',
+          language: 'javascript',
+        });
+      });
+
+      let duplicate: { id: string; title: string } | null = null;
+      act(() => {
+        duplicate = useArtifactStore.getState().duplicateArtifact(original!.id);
+      });
+
+      expect(duplicate).not.toBeNull();
+      expect(duplicate!.id).not.toBe(original!.id);
+      expect(duplicate!.title).toBe('Original (Copy)');
+      expect(Object.keys(useArtifactStore.getState().artifacts)).toHaveLength(2);
+    });
+
+    it('should return null when duplicating non-existent artifact', () => {
+      let result: { id: string } | null = null;
+      act(() => {
+        result = useArtifactStore.getState().duplicateArtifact('non-existent');
+      });
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('search and filter', () => {
+    beforeEach(() => {
+      act(() => {
+        useArtifactStore.getState().createArtifact({
+          sessionId: 'session-1',
+          messageId: 'msg-1',
+          type: 'code',
+          title: 'JavaScript Function',
+          content: 'function hello() { return "world"; }',
+          language: 'javascript',
+        });
+        useArtifactStore.getState().createArtifact({
+          sessionId: 'session-1',
+          messageId: 'msg-2',
+          type: 'html',
+          title: 'HTML Page',
+          content: '<html><body>Hello World</body></html>',
+        });
+        useArtifactStore.getState().createArtifact({
+          sessionId: 'session-2',
+          messageId: 'msg-3',
+          type: 'code',
+          title: 'Python Script',
+          content: 'print("Hello World")',
+          language: 'python',
+        });
+        useArtifactStore.getState().createArtifact({
+          sessionId: 'session-1',
+          messageId: 'msg-4',
+          type: 'react',
+          title: 'React Component',
+          content: 'function App() { return <div>Hello</div>; }',
+        });
+      });
+    });
+
+    it('should search artifacts by title', () => {
+      const results = useArtifactStore.getState().searchArtifacts('JavaScript');
+      expect(results).toHaveLength(1);
+      expect(results[0].title).toBe('JavaScript Function');
+    });
+
+    it('should search artifacts by content', () => {
+      const results = useArtifactStore.getState().searchArtifacts('Hello World');
+      expect(results.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should search case-insensitively', () => {
+      const results = useArtifactStore.getState().searchArtifacts('javascript');
+      expect(results).toHaveLength(1);
+    });
+
+    it('should filter search by sessionId', () => {
+      const results = useArtifactStore.getState().searchArtifacts('Hello', 'session-1');
+      const session2Results = results.filter(a => a.sessionId === 'session-2');
+      expect(session2Results).toHaveLength(0);
+    });
+
+    it('should filter artifacts by type', () => {
+      const codeArtifacts = useArtifactStore.getState().filterArtifactsByType('code');
+      expect(codeArtifacts).toHaveLength(2);
+      expect(codeArtifacts.every(a => a.type === 'code')).toBe(true);
+    });
+
+    it('should filter artifacts by type and sessionId', () => {
+      const codeArtifacts = useArtifactStore.getState().filterArtifactsByType('code', 'session-1');
+      expect(codeArtifacts).toHaveLength(1);
+      expect(codeArtifacts[0].language).toBe('javascript');
+    });
+
+    it('should get recent artifacts', () => {
+      const recent = useArtifactStore.getState().getRecentArtifacts(2);
+      expect(recent).toHaveLength(2);
+      // Most recent should be first
+      expect(recent[0].createdAt.getTime()).toBeGreaterThanOrEqual(recent[1].createdAt.getTime());
+    });
+
+    it('should get all recent artifacts with default limit', () => {
+      const recent = useArtifactStore.getState().getRecentArtifacts();
+      expect(recent.length).toBeLessThanOrEqual(10);
+    });
+  });
+
+  describe('date rehydration', () => {
+    it('should return Date objects from getArtifact', () => {
+      let artifact: { id: string } | undefined;
+      act(() => {
+        artifact = useArtifactStore.getState().createArtifact({
+          sessionId: 'session-1',
+          messageId: 'msg-1',
+          type: 'code',
+          title: 'Test',
+          content: 'test',
+        });
+      });
+
+      const retrieved = useArtifactStore.getState().getArtifact(artifact!.id);
+      expect(retrieved?.createdAt).toBeInstanceOf(Date);
+      expect(retrieved?.updatedAt).toBeInstanceOf(Date);
+    });
+
+    it('should return Date objects from getSessionArtifacts', () => {
+      act(() => {
+        useArtifactStore.getState().createArtifact({
+          sessionId: 'session-1',
+          messageId: 'msg-1',
+          type: 'code',
+          title: 'Test',
+          content: 'test',
+        });
+      });
+
+      const artifacts = useArtifactStore.getState().getSessionArtifacts('session-1');
+      expect(artifacts[0].createdAt).toBeInstanceOf(Date);
+      expect(artifacts[0].updatedAt).toBeInstanceOf(Date);
+    });
+
+    it('should return Date objects from searchArtifacts', () => {
+      act(() => {
+        useArtifactStore.getState().createArtifact({
+          sessionId: 'session-1',
+          messageId: 'msg-1',
+          type: 'code',
+          title: 'Searchable Test',
+          content: 'test',
+        });
+      });
+
+      const results = useArtifactStore.getState().searchArtifacts('Searchable');
+      expect(results[0].createdAt).toBeInstanceOf(Date);
+      expect(results[0].updatedAt).toBeInstanceOf(Date);
+    });
+  });
 });
