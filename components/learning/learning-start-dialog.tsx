@@ -37,7 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useLearningMode } from '@/hooks/use-learning-mode';
+import { useLearningMode } from '@/hooks/ui';
 import type { DifficultyLevel, LearningStyle } from '@/types/learning';
 
 interface LearningStartDialogProps {

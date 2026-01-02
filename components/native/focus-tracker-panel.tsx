@@ -1,6 +1,6 @@
 'use client';
 
-import { useFocusTracking, AppUsageStats, FocusSession } from '@/hooks/use-awareness';
+import { useFocusTracking, AppUsageStats, FocusSession } from '@/hooks/context';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';

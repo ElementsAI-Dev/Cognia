@@ -62,8 +62,8 @@ jest.mock('@/components/artifacts/jupyter-renderer', () => ({
   ),
 }));
 
-import { useJupyterKernel } from '@/hooks/use-jupyter-kernel';
-import { useVirtualEnv } from '@/hooks/use-virtual-env';
+import { useJupyterKernel } from '@/hooks/sandbox';
+import { useVirtualEnv } from '@/hooks/sandbox';
 
 const mockUseJupyterKernel = useJupyterKernel as jest.Mock;
 const mockUseVirtualEnv = useVirtualEnv as jest.Mock;

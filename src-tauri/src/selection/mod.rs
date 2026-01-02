@@ -6,8 +6,11 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
+mod types;
+mod extractor;
+mod analyzer;
+mod expander;
 mod detector;
-mod enhanced_detector;
 mod mouse_hook;
 mod toolbar_window;
 mod history;
@@ -15,8 +18,11 @@ mod clipboard_history;
 mod clipboard_context;
 mod smart_selection;
 
+pub use types::{Selection, TextType, SourceAppInfo};
+pub use extractor::TextExtractor;
+pub use analyzer::TextAnalyzer;
+pub use expander::SelectionExpander;
 pub use detector::SelectionDetector;
-pub use enhanced_detector::{EnhancedSelection, EnhancedSelectionDetector, TextType, SourceAppInfo};
 pub use mouse_hook::{MouseHook, MouseEvent};
 pub use toolbar_window::ToolbarWindow;
 pub use history::{SelectionHistory, SelectionHistoryEntry, SelectionHistoryStats};
@@ -101,7 +107,6 @@ pub struct SelectionStatus {
 pub struct SelectionManager {
     pub config: Arc<RwLock<SelectionConfig>>,
     pub detector: Arc<SelectionDetector>,
-    pub enhanced_detector: Arc<EnhancedSelectionDetector>,
     pub mouse_hook: Arc<MouseHook>,
     pub toolbar_window: Arc<ToolbarWindow>,
     pub is_running: Arc<RwLock<bool>>,
@@ -122,9 +127,9 @@ pub struct SelectionManager {
 
 impl SelectionManager {
     pub fn new(app_handle: tauri::AppHandle) -> Self {
+        log::info!("[SelectionManager] Creating new instance");
         let config = Arc::new(RwLock::new(SelectionConfig::default()));
         let detector = Arc::new(SelectionDetector::new());
-        let enhanced_detector = Arc::new(EnhancedSelectionDetector::new());
         let mouse_hook = Arc::new(MouseHook::new());
         let toolbar_window = Arc::new(ToolbarWindow::new(app_handle.clone()));
         let history = Arc::new(SelectionHistory::new());
@@ -132,10 +137,10 @@ impl SelectionManager {
         let smart_selection = Arc::new(SmartSelection::new());
         let clipboard_analyzer = Arc::new(ClipboardContextAnalyzer::new());
 
+        log::debug!("[SelectionManager] All components initialized");
         Self {
             config,
             detector,
-            enhanced_detector,
             mouse_hook,
             toolbar_window,
             is_running: Arc::new(RwLock::new(false)),
@@ -151,29 +156,32 @@ impl SelectionManager {
 
     /// Start the selection detection service
     pub async fn start(&self) -> Result<(), String> {
+        log::debug!("[SelectionManager] start() called");
         {
             let is_running = self.is_running.read();
             if *is_running {
-                log::warn!("Selection manager already running");
+                log::warn!("[SelectionManager] Already running, skipping start");
                 return Ok(());
             }
         }
 
         // Create cancellation token for this session
+        log::trace!("[SelectionManager] Creating cancellation token");
         let cancel_token = CancellationToken::new();
         *self.cancellation_token.write() = Some(cancel_token.clone());
 
         // Create event channel
+        log::trace!("[SelectionManager] Creating event channel");
         let (tx, mut rx) = mpsc::unbounded_channel::<MouseEvent>();
         self.mouse_hook.set_event_sender(tx);
 
         // Start mouse hook
+        log::debug!("[SelectionManager] Starting mouse hook");
         self.mouse_hook.start()?;
 
         // Clone necessary references for the event loop
         let config = self.config.clone();
         let detector = self.detector.clone();
-        let enhanced_detector = self.enhanced_detector.clone();
         let toolbar_window = self.toolbar_window.clone();
         let app_handle = self.app_handle.clone();
         let is_running = self.is_running.clone();
@@ -181,22 +189,24 @@ impl SelectionManager {
         let history = self.history.clone();
 
         // Spawn event processing task with cancellation support
+        log::debug!("[SelectionManager] Spawning event processing task");
         tauri::async_runtime::spawn(async move {
-            log::info!("Selection event loop started");
+            log::info!("[SelectionManager] Event loop started");
             
             loop {
                 tokio::select! {
                     // Check for cancellation
                     _ = cancel_token.cancelled() => {
-                        log::info!("Selection event loop cancelled");
+                        log::info!("[SelectionManager] Event loop cancelled by token");
                         break;
                     }
                     // Process mouse events
                     event = rx.recv() => {
                         let Some(event) = event else {
-                            log::info!("Selection event channel closed");
+                            log::info!("[SelectionManager] Event channel closed");
                             break;
                         };
+                        log::trace!("[SelectionManager] Received mouse event: {:?}", event);
 
                         // Check if still running
                         if !*is_running.read() {
@@ -211,6 +221,7 @@ impl SelectionManager {
 
                         // Only process in auto mode
                         if cfg.trigger_mode != "auto" {
+                            log::trace!("[SelectionManager] Skipping event: trigger_mode={}", cfg.trigger_mode);
                             continue;
                         }
 
@@ -230,10 +241,13 @@ impl SelectionManager {
                             Ok(Some(text)) if !text.is_empty() => {
                                 // Check text length
                                 if text.len() < cfg.min_text_length || text.len() > cfg.max_text_length {
-                                    log::debug!("Text length {} outside bounds [{}, {}]", 
+                                    log::debug!("[SelectionManager] Text length {} outside bounds [{}, {}]", 
                                         text.len(), cfg.min_text_length, cfg.max_text_length);
                                     continue;
                                 }
+                                
+                                log::debug!("[SelectionManager] Processing selection: {} chars at ({}, {})", 
+                                    text.len(), x, y);
 
                                 let timestamp = chrono::Utc::now().timestamp_millis();
                                 
@@ -241,7 +255,7 @@ impl SelectionManager {
                                 *last_selection_timestamp.write() = Some(timestamp);
 
                                 // Analyze text and record to history
-                                let analysis = enhanced_detector.analyze(&text, None);
+                                let analysis = detector.analyze(&text, None);
                                 let mut history_entry = SelectionHistoryEntry::new(text.clone(), x as i32, y as i32);
                                 history_entry = history_entry.with_type_info(
                                     Some(format!("{:?}", analysis.text_type)),
@@ -251,7 +265,7 @@ impl SelectionManager {
 
                                 // Show toolbar
                                 if let Err(e) = toolbar_window.show(x as i32, y as i32, text.clone()) {
-                                    log::error!("Failed to show toolbar: {}", e);
+                                    log::error!("[SelectionManager] Failed to show toolbar: {}", e);
                                     // Emit error event to frontend
                                     let _ = app_handle.emit("selection-error", serde_json::json!({
                                         "error": e,
@@ -269,60 +283,68 @@ impl SelectionManager {
                                 };
 
                                 if let Err(e) = app_handle.emit("selection-detected", &payload) {
-                                    log::error!("Failed to emit selection event: {}", e);
+                                    log::error!("[SelectionManager] Failed to emit selection event: {}", e);
+                                } else {
+                                    log::trace!("[SelectionManager] Selection event emitted successfully");
                                 }
                             }
                             Ok(_) => {
                                 // No text selected or empty, hide toolbar if visible
                                 if toolbar_window.is_visible() {
+                                    log::trace!("[SelectionManager] No text selected, hiding toolbar");
                                     let _ = toolbar_window.hide();
                                 }
                             }
                             Err(e) => {
-                                log::debug!("Failed to get selected text: {}", e);
+                                log::debug!("[SelectionManager] Failed to get selected text: {}", e);
                             }
                         }
                     }
                 }
             }
             
-            log::info!("Selection event loop exited");
+            log::info!("[SelectionManager] Event loop exited");
         });
 
         *self.is_running.write() = true;
-        log::info!("Selection manager started");
+        log::info!("[SelectionManager] Started successfully");
         Ok(())
     }
 
     /// Stop the selection detection service
     pub fn stop(&self) -> Result<(), String> {
+        log::debug!("[SelectionManager] stop() called");
         {
             let is_running = self.is_running.read();
             if !*is_running {
-                log::debug!("Selection manager already stopped");
+                log::debug!("[SelectionManager] Already stopped");
                 return Ok(());
             }
         }
 
         // Cancel the event loop task
+        log::trace!("[SelectionManager] Cancelling event loop");
         if let Some(token) = self.cancellation_token.read().as_ref() {
             token.cancel();
         }
         *self.cancellation_token.write() = None;
 
         // Stop mouse hook
+        log::trace!("[SelectionManager] Stopping mouse hook");
         self.mouse_hook.stop()?;
 
         // Hide toolbar if visible
+        log::trace!("[SelectionManager] Hiding toolbar");
         let _ = self.toolbar_window.hide();
 
         *self.is_running.write() = false;
-        log::info!("Selection manager stopped");
+        log::info!("[SelectionManager] Stopped successfully");
         Ok(())
     }
 
     /// Restart the selection detection service
     pub async fn restart(&self) -> Result<(), String> {
+        log::info!("[SelectionManager] Restarting service");
         self.stop()?;
         // Small delay to ensure cleanup
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
@@ -331,6 +353,7 @@ impl SelectionManager {
 
     /// Update configuration
     pub fn update_config(&self, new_config: SelectionConfig) {
+        log::debug!("[SelectionManager] update_config called");
         let old_config = self.config.read().clone();
         
         // Update config
@@ -348,14 +371,16 @@ impl SelectionManager {
                 // Hide toolbar when disabled
                 let _ = self.toolbar_window.hide();
             }
-            log::info!("Selection toolbar {}", if new_config.enabled { "enabled" } else { "disabled" });
+            log::info!("[SelectionManager] Selection toolbar {}", if new_config.enabled { "enabled" } else { "disabled" });
         }
 
-        log::debug!("Selection config updated");
+        log::debug!("[SelectionManager] Config updated: enabled={}, trigger_mode={}, delay={}ms", 
+            new_config.enabled, new_config.trigger_mode, new_config.delay_ms);
     }
 
     /// Set enabled state
     pub fn set_enabled(&self, enabled: bool) {
+        log::debug!("[SelectionManager] set_enabled({})", enabled);
         let mut config = self.config.write();
         if config.enabled != enabled {
             config.enabled = enabled;
@@ -364,7 +389,9 @@ impl SelectionManager {
                 let _ = self.toolbar_window.hide();
             }
             let _ = self.app_handle.emit("selection-enabled-changed", enabled);
-            log::info!("Selection toolbar {}", if enabled { "enabled" } else { "disabled" });
+            log::info!("[SelectionManager] Selection toolbar {}", if enabled { "enabled" } else { "disabled" });
+        } else {
+            log::trace!("[SelectionManager] Enabled state unchanged ({})", enabled);
         }
     }
 
@@ -397,24 +424,32 @@ impl SelectionManager {
 
     /// Manually trigger selection detection
     pub fn trigger(&self) -> Result<Option<SelectionPayload>, String> {
+        log::debug!("[SelectionManager] trigger() called");
         let cfg = self.config.read().clone();
         if !cfg.enabled {
+            log::debug!("[SelectionManager] Trigger ignored: selection disabled");
             return Ok(None);
         }
 
         // Get selected text
+        log::trace!("[SelectionManager] Getting selected text");
         let text = match self.detector.get_selected_text()? {
             Some(t) if !t.is_empty() => t,
-            _ => return Ok(None),
+            _ => {
+                log::debug!("[SelectionManager] Trigger: no text selected");
+                return Ok(None);
+            }
         };
 
         // Check text length
         if text.len() < cfg.min_text_length || text.len() > cfg.max_text_length {
+            log::debug!("[SelectionManager] Trigger: text length {} outside bounds", text.len());
             return Ok(None);
         }
 
         // Get mouse position
         let (x, y) = get_mouse_position();
+        log::debug!("[SelectionManager] Manual trigger: {} chars at ({}, {})", text.len(), x, y);
 
         // Create payload
         let payload = SelectionPayload {
@@ -432,6 +467,7 @@ impl SelectionManager {
             .emit("selection-detected", &payload)
             .map_err(|e| format!("Failed to emit event: {}", e))?;
 
+        log::info!("[SelectionManager] Manual trigger successful");
         Ok(Some(payload))
     }
 }

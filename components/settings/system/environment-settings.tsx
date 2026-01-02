@@ -51,7 +51,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useEnvironment } from '@/hooks/use-environment';
+import { useEnvironment } from '@/hooks/sandbox';
 import { TOOL_INFO, type EnvironmentTool, type ToolStatus } from '@/types/environment';
 import { VirtualEnvPanel } from './virtual-env-panel';
 import { ProjectEnvConfigPanel } from './project-env-config';

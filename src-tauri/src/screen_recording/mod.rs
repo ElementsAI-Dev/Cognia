@@ -141,6 +141,8 @@ pub struct ScreenRecordingManager {
 
 impl ScreenRecordingManager {
     pub fn new(app_handle: AppHandle) -> Self {
+        info!("[ScreenRecording] Initializing ScreenRecordingManager");
+        
         // Get app data directory for recordings
         let recordings_dir = app_handle
             .path()
@@ -150,16 +152,24 @@ impl ScreenRecordingManager {
 
         // Create recordings directory if it doesn't exist
         if let Some(ref dir) = recordings_dir {
-            let _ = std::fs::create_dir_all(dir);
+            match std::fs::create_dir_all(dir) {
+                Ok(_) => info!("[ScreenRecording] Recordings directory created/verified: {:?}", dir),
+                Err(e) => warn!("[ScreenRecording] Failed to create recordings directory: {}", e),
+            }
+        } else {
+            warn!("[ScreenRecording] Could not determine app data directory for recordings");
         }
 
         let config = RecordingConfig {
             save_directory: recordings_dir.map(|p| p.to_string_lossy().to_string()),
             ..Default::default()
         };
+        
+        debug!("[ScreenRecording] Default config: format={}, codec={}, fps={}, quality={}",
+            config.format, config.codec, config.frame_rate, config.quality);
 
         Self {
-            config: Arc::new(RwLock::new(config)),
+            config: Arc::new(RwLock::new(config.clone())),
             recorder: ScreenRecorder::new(app_handle.clone()),
             history: RecordingHistory::new(),
             app_handle,
@@ -168,6 +178,10 @@ impl ScreenRecordingManager {
 
     /// Update configuration
     pub fn update_config(&self, config: RecordingConfig) {
+        info!("[ScreenRecording] Updating configuration: format={}, codec={}, fps={}, quality={}, audio={}, mic={}",
+            config.format, config.codec, config.frame_rate, config.quality,
+            config.capture_system_audio, config.capture_microphone);
+        debug!("[ScreenRecording] Full config update: {:?}", config);
         *self.config.write() = config;
     }
 
@@ -183,46 +197,118 @@ impl ScreenRecordingManager {
 
     /// Start recording fullscreen
     pub async fn start_fullscreen(&self, monitor_index: Option<usize>) -> Result<String, String> {
+        info!("[ScreenRecording] Starting fullscreen recording, monitor_index={:?}", monitor_index);
         let config = self.config.read().clone();
-        self.recorder.start_fullscreen(monitor_index, config).await
+        match self.recorder.start_fullscreen(monitor_index, config).await {
+            Ok(id) => {
+                info!("[ScreenRecording] Fullscreen recording started successfully, id={}", id);
+                Ok(id)
+            }
+            Err(e) => {
+                error!("[ScreenRecording] Failed to start fullscreen recording: {}", e);
+                Err(e)
+            }
+        }
     }
 
     /// Start recording a window
     pub async fn start_window(&self, window_title: Option<String>) -> Result<String, String> {
+        info!("[ScreenRecording] Starting window recording, title={:?}", window_title);
         let config = self.config.read().clone();
-        self.recorder.start_window(window_title, config).await
+        match self.recorder.start_window(window_title, config).await {
+            Ok(id) => {
+                info!("[ScreenRecording] Window recording started successfully, id={}", id);
+                Ok(id)
+            }
+            Err(e) => {
+                error!("[ScreenRecording] Failed to start window recording: {}", e);
+                Err(e)
+            }
+        }
     }
 
     /// Start recording a region
     pub async fn start_region(&self, region: RecordingRegion) -> Result<String, String> {
+        info!("[ScreenRecording] Starting region recording: x={}, y={}, {}x{}",
+            region.x, region.y, region.width, region.height);
         let config = self.config.read().clone();
-        self.recorder.start_region(region, config).await
+        match self.recorder.start_region(region, config).await {
+            Ok(id) => {
+                info!("[ScreenRecording] Region recording started successfully, id={}", id);
+                Ok(id)
+            }
+            Err(e) => {
+                error!("[ScreenRecording] Failed to start region recording: {}", e);
+                Err(e)
+            }
+        }
     }
 
     /// Pause recording
     pub fn pause(&self) -> Result<(), String> {
-        self.recorder.pause()
+        info!("[ScreenRecording] Pausing recording");
+        match self.recorder.pause() {
+            Ok(_) => {
+                info!("[ScreenRecording] Recording paused successfully");
+                Ok(())
+            }
+            Err(e) => {
+                error!("[ScreenRecording] Failed to pause recording: {}", e);
+                Err(e)
+            }
+        }
     }
 
     /// Resume recording
     pub fn resume(&self) -> Result<(), String> {
-        self.recorder.resume()
+        info!("[ScreenRecording] Resuming recording");
+        match self.recorder.resume() {
+            Ok(_) => {
+                info!("[ScreenRecording] Recording resumed successfully");
+                Ok(())
+            }
+            Err(e) => {
+                error!("[ScreenRecording] Failed to resume recording: {}", e);
+                Err(e)
+            }
+        }
     }
 
     /// Stop recording
     pub async fn stop(&self) -> Result<RecordingMetadata, String> {
-        let metadata = self.recorder.stop().await?;
-        
-        // Add to history
-        let entry = RecordingHistoryEntry::from_metadata(&metadata);
-        self.history.add(entry);
-        
-        Ok(metadata)
+        info!("[ScreenRecording] Stopping recording");
+        match self.recorder.stop().await {
+            Ok(metadata) => {
+                info!("[ScreenRecording] Recording stopped successfully: id={}, duration={}ms, size={} bytes, path={:?}",
+                    metadata.id, metadata.duration_ms, metadata.file_size, metadata.file_path);
+                
+                // Add to history
+                let entry = RecordingHistoryEntry::from_metadata(&metadata);
+                self.history.add(entry);
+                debug!("[ScreenRecording] Recording added to history");
+                
+                Ok(metadata)
+            }
+            Err(e) => {
+                error!("[ScreenRecording] Failed to stop recording: {}", e);
+                Err(e)
+            }
+        }
     }
 
     /// Cancel recording (discard without saving)
     pub fn cancel(&self) -> Result<(), String> {
-        self.recorder.cancel()
+        info!("[ScreenRecording] Cancelling recording");
+        match self.recorder.cancel() {
+            Ok(_) => {
+                info!("[ScreenRecording] Recording cancelled successfully");
+                Ok(())
+            }
+            Err(e) => {
+                error!("[ScreenRecording] Failed to cancel recording: {}", e);
+                Err(e)
+            }
+        }
     }
 
     /// Get current recording duration in milliseconds
@@ -237,12 +323,24 @@ impl ScreenRecordingManager {
 
     /// Delete recording from history
     pub fn delete_recording(&self, id: &str) -> Result<(), String> {
-        self.history.delete(id)
+        info!("[ScreenRecording] Deleting recording from history: id={}", id);
+        match self.history.delete(id) {
+            Ok(_) => {
+                info!("[ScreenRecording] Recording deleted successfully: id={}", id);
+                Ok(())
+            }
+            Err(e) => {
+                error!("[ScreenRecording] Failed to delete recording: {}", e);
+                Err(e)
+            }
+        }
     }
 
     /// Clear recording history
     pub fn clear_history(&self) {
-        self.history.clear()
+        info!("[ScreenRecording] Clearing recording history");
+        self.history.clear();
+        info!("[ScreenRecording] Recording history cleared");
     }
 
     /// Get available monitors
@@ -252,7 +350,13 @@ impl ScreenRecordingManager {
 
     /// Check if FFmpeg is available
     pub fn check_ffmpeg(&self) -> bool {
-        self.recorder.check_ffmpeg()
+        let available = self.recorder.check_ffmpeg();
+        if available {
+            info!("[ScreenRecording] FFmpeg is available");
+        } else {
+            warn!("[ScreenRecording] FFmpeg is NOT available - screen recording will not work");
+        }
+        available
     }
 
     /// Get available audio devices
@@ -289,6 +393,7 @@ pub struct AudioDevice {
     pub is_default: bool,
 }
 
+use log::{debug, error, info, warn};
 use tauri::Manager;
 
 #[cfg(test)]

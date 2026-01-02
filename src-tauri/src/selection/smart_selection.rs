@@ -86,6 +86,7 @@ pub struct SmartSelection {
 
 impl SmartSelection {
     pub fn new() -> Self {
+        log::debug!("[SmartSelection] Creating new instance");
         Self {
             bracket_pairs: vec![
                 ('(', ')'),
@@ -196,6 +197,7 @@ impl SmartSelection {
             end += 1;
         }
 
+        log::trace!("[SmartSelection] expand_word: result=({}, {})", start, end);
         (start, end)
     }
 
@@ -218,6 +220,7 @@ impl SmartSelection {
             end += 1;
         }
 
+        log::trace!("[SmartSelection] expand_line: result=({}, {})", start, end);
         (start, end)
     }
 
@@ -254,6 +257,7 @@ impl SmartSelection {
             start += 1;
         }
 
+        log::trace!("[SmartSelection] expand_sentence: result=({}, {})", start, end);
         (start, end)
     }
 
@@ -287,6 +291,7 @@ impl SmartSelection {
             start += 1;
         }
 
+        log::trace!("[SmartSelection] expand_paragraph: result=({}, {})", start, end);
         (start, end)
     }
 
@@ -350,6 +355,7 @@ impl SmartSelection {
             }
         }
 
+        log::trace!("[SmartSelection] expand_code_block: result=({}, {})", start, end);
         (start, end)
     }
 
@@ -407,6 +413,7 @@ impl SmartSelection {
                     }
                 }
                 
+                log::trace!("[SmartSelection] expand_function: result=({}, {})", start, close_pos + 1);
                 return (start, close_pos + 1);
             }
         }
@@ -428,11 +435,13 @@ impl SmartSelection {
         for (open, close) in &self.bracket_pairs {
             if current_char == *open {
                 if let Some(close_pos) = self.find_matching_bracket(chars, cursor) {
+                    log::trace!("[SmartSelection] expand_bracket: found matching bracket ({}, {})", cursor, close_pos + 1);
                     return (cursor, close_pos + 1);
                 }
             }
             if current_char == *close {
                 if let Some(open_pos) = self.find_matching_bracket_reverse(chars, cursor) {
+                    log::trace!("[SmartSelection] expand_bracket: found matching bracket ({}, {})", open_pos, cursor + 1);
                     return (open_pos, cursor + 1);
                 }
             }
@@ -440,6 +449,7 @@ impl SmartSelection {
 
         // Search for enclosing brackets
         if let Some((start, end)) = self.find_enclosing_brackets(chars, cursor) {
+            log::trace!("[SmartSelection] expand_bracket: found enclosing brackets ({}, {})", start, end + 1);
             return (start, end + 1);
         }
 
@@ -454,6 +464,7 @@ impl SmartSelection {
 
         for quote in &self.quote_chars {
             if let Some((start, end)) = self.find_enclosing_quotes(chars, cursor, *quote) {
+                log::trace!("[SmartSelection] expand_quote: found enclosing quotes ({}, {})", start, end + 1);
                 return (start, end + 1);
             }
         }
@@ -487,6 +498,7 @@ impl SmartSelection {
         // Verify it looks like a URL
         let text: String = chars[start..end].iter().collect();
         if text.contains("://") || text.starts_with("www.") {
+            log::trace!("[SmartSelection] expand_url: found URL ({}, {})", start, end);
             (start, end)
         } else {
             (cursor, cursor)
@@ -521,6 +533,7 @@ impl SmartSelection {
         if text.contains('@') && text.contains('.') {
             let parts: Vec<&str> = text.split('@').collect();
             if parts.len() == 2 && !parts[0].is_empty() && parts[1].contains('.') {
+                log::trace!("[SmartSelection] expand_email: found email ({}, {})", start, end);
                 return (start, end);
             }
         }
@@ -555,6 +568,7 @@ impl SmartSelection {
         let text: String = chars[start..end].iter().collect();
         if text.contains('/') || text.contains('\\') || 
            (text.len() >= 3 && text.chars().nth(1) == Some(':')) {
+            log::trace!("[SmartSelection] expand_file_path: found file path ({}, {})", start, end);
             (start, end)
         } else {
             (cursor, cursor)
@@ -767,6 +781,7 @@ impl SmartSelection {
 
 impl Default for SmartSelection {
     fn default() -> Self {
+        log::debug!("[SmartSelection] Creating default instance");
         Self::new()
     }
 }

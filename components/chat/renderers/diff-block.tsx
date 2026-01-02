@@ -27,7 +27,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useCopy } from '@/hooks/use-copy';
+import { useCopy } from '@/hooks/ui';
 
 interface DiffLine {
   type: 'add' | 'remove' | 'context' | 'info';

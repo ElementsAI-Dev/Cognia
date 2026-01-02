@@ -8,7 +8,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useClipboardContext, type ClipboardTemplate } from '@/hooks/use-clipboard-context';
+import { useClipboardContext, type ClipboardTemplate } from '@/hooks/context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

@@ -3,6 +3,7 @@
 //! This is the main entry point for the Tauri desktop application.
 
 mod awareness;
+mod chat_widget;
 mod commands;
 mod context;
 mod http;
@@ -15,6 +16,7 @@ mod selection;
 mod tray;
 
 use awareness::AwarenessManager;
+use chat_widget::ChatWidgetWindow;
 use commands::jupyter::JupyterState;
 use context::ContextManager;
 use mcp::McpManager;
@@ -168,6 +170,38 @@ pub fn run() {
             // Initialize Awareness Manager
             let awareness_manager = AwarenessManager::new();
             app.manage(awareness_manager);
+
+            // Initialize Chat Widget Window
+            let chat_widget_window = ChatWidgetWindow::new(app.handle().clone());
+            app.manage(chat_widget_window);
+            log::info!("Chat widget window manager initialized");
+
+            // Register global shortcut for chat widget toggle
+            let app_handle_for_shortcut = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+                
+                // Parse the shortcut
+                let shortcut: Shortcut = "CommandOrControl+Shift+Space".parse().unwrap();
+                
+                // Register the shortcut
+                if let Err(e) = app_handle_for_shortcut.global_shortcut().on_shortcut(shortcut, move |app, _shortcut, _event| {
+                    if let Some(manager) = app.try_state::<ChatWidgetWindow>() {
+                        match manager.toggle() {
+                            Ok(visible) => {
+                                log::debug!("Chat widget toggled via shortcut: {}", if visible { "shown" } else { "hidden" });
+                            }
+                            Err(e) => {
+                                log::error!("Failed to toggle chat widget: {}", e);
+                            }
+                        }
+                    }
+                }) {
+                    log::error!("Failed to register chat widget shortcut: {}", e);
+                } else {
+                    log::info!("Global shortcut registered: Ctrl+Shift+Space for chat widget");
+                }
+            });
 
             // Initialize Jupyter State
             let jupyter_state = JupyterState::new();
@@ -365,6 +399,13 @@ pub fn run() {
             commands::screenshot::screenshot_capture_fullscreen_with_history,
             commands::screenshot::screenshot_capture_window_with_history,
             commands::screenshot::screenshot_capture_region_with_history,
+            // Window management commands
+            commands::screenshot::screenshot_get_windows,
+            commands::screenshot::screenshot_get_windows_with_thumbnails,
+            commands::screenshot::screenshot_capture_window_by_hwnd,
+            commands::screenshot::screenshot_capture_window_by_hwnd_with_history,
+            commands::screenshot::screenshot_calculate_snap,
+            commands::screenshot::screenshot_get_snap_config,
             // Context commands
             commands::context::context_get_full,
             commands::context::context_get_window,
@@ -516,6 +557,19 @@ pub fn run() {
             commands::screen_recording::recording_get_history,
             commands::screen_recording::recording_delete,
             commands::screen_recording::recording_clear_history,
+            // Chat widget commands
+            commands::chat_widget::chat_widget_show,
+            commands::chat_widget::chat_widget_hide,
+            commands::chat_widget::chat_widget_toggle,
+            commands::chat_widget::chat_widget_is_visible,
+            commands::chat_widget::chat_widget_get_status,
+            commands::chat_widget::chat_widget_get_config,
+            commands::chat_widget::chat_widget_update_config,
+            commands::chat_widget::chat_widget_set_pinned,
+            commands::chat_widget::chat_widget_set_position,
+            commands::chat_widget::chat_widget_focus_input,
+            commands::chat_widget::chat_widget_send_text,
+            commands::chat_widget::chat_widget_destroy,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
@@ -582,6 +636,7 @@ fn build_log_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
         .level_for("app_lib::sandbox", log::LevelFilter::Debug)
         .level_for("app_lib::awareness", log::LevelFilter::Debug)
         .level_for("app_lib::context", log::LevelFilter::Debug)
+        .level_for("app_lib::screen_recording", log::LevelFilter::Debug)
         // Filter out noisy third-party crate logs
         .level_for("hyper", log::LevelFilter::Warn)
         .level_for("reqwest", log::LevelFilter::Warn)

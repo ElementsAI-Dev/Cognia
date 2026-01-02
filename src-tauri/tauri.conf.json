@@ -46,6 +46,23 @@
         "resizable": false,
         "focus": false,
         "shadow": false
+      },
+      {
+        "label": "chat-widget",
+        "title": "Cognia Assistant",
+        "url": "chat-widget",
+        "width": 420,
+        "height": 600,
+        "minWidth": 320,
+        "minHeight": 400,
+        "visible": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": false,
+        "resizable": true,
+        "center": true,
+        "shadow": true
       }
     ],
     "trayIcon": {

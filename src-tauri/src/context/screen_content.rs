@@ -2,6 +2,7 @@
 //!
 //! Provides functionality for analyzing screen content using OCR and image analysis.
 
+use log::{debug, trace, warn, error};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use parking_lot::RwLock;
@@ -87,6 +88,7 @@ pub struct ScreenContentAnalyzer {
 
 impl ScreenContentAnalyzer {
     pub fn new() -> Self {
+        debug!("Creating new ScreenContentAnalyzer with 1000ms cache duration");
         Self {
             last_analysis: Arc::new(RwLock::new(None)),
             cache_duration_ms: 1000, // 1 second cache
@@ -95,27 +97,38 @@ impl ScreenContentAnalyzer {
 
     /// Analyze screen content from screenshot
     pub fn analyze(&self, image_data: &[u8], width: u32, height: u32) -> Result<ScreenContent, String> {
+        trace!("analyze called for image: {}x{}, {} bytes", width, height, image_data.len());
+        
         // Check cache
         {
             let cached = self.last_analysis.read();
             if let Some(ref content) = *cached {
                 let now = chrono::Utc::now().timestamp_millis();
-                if now - content.timestamp < self.cache_duration_ms as i64 {
+                let age_ms = now - content.timestamp;
+                if age_ms < self.cache_duration_ms as i64 {
+                    trace!("Returning cached analysis (age: {}ms)", age_ms);
                     return Ok(content.clone());
                 }
+                trace!("Cache expired (age: {}ms, max: {}ms)", age_ms, self.cache_duration_ms);
             }
         }
 
         // Perform analysis
+        debug!("Performing screen content analysis for {}x{} image", width, height);
         let content = self.perform_analysis(image_data, width, height)?;
         
         // Update cache
         *self.last_analysis.write() = Some(content.clone());
+        debug!(
+            "Analysis complete: {} text blocks, {} UI elements, confidence: {:.2}",
+            content.text_blocks.len(), content.ui_elements.len(), content.confidence
+        );
         
         Ok(content)
     }
 
     fn perform_analysis(&self, _image_data: &[u8], width: u32, height: u32) -> Result<ScreenContent, String> {
+        trace!("perform_analysis: placeholder implementation for {}x{}", width, height);
         // This is a placeholder implementation
         // In production, this would use Windows OCR API or Tesseract
         
@@ -136,36 +149,53 @@ impl ScreenContentAnalyzer {
         use windows::Win32::System::Com::{CoInitializeEx, CoCreateInstance, COINIT_APARTMENTTHREADED, CLSCTX_INPROC_SERVER};
         use windows::Win32::UI::Accessibility::{CUIAutomation, IUIAutomation, TreeScope_Children, TreeScope_Subtree};
 
+        debug!("Starting UI Automation analysis");
         let mut elements = Vec::new();
 
         unsafe {
             // Initialize COM
+            trace!("Initializing COM for UI Automation");
             let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
 
             // Create UI Automation instance
+            trace!("Creating UI Automation instance");
             let automation: IUIAutomation = match CoCreateInstance(
                 &CUIAutomation,
                 None,
                 CLSCTX_INPROC_SERVER,
             ) {
                 Ok(a) => a,
-                Err(e) => return Err(format!("Failed to create UI Automation: {}", e)),
+                Err(e) => {
+                    error!("Failed to create UI Automation: {}", e);
+                    return Err(format!("Failed to create UI Automation: {}", e));
+                }
             };
 
             // Get root element (desktop)
+            trace!("Getting root UI element");
             let _root = match automation.GetRootElement() {
                 Ok(r) => r,
-                Err(e) => return Err(format!("Failed to get root element: {}", e)),
+                Err(e) => {
+                    error!("Failed to get root element: {}", e);
+                    return Err(format!("Failed to get root element: {}", e));
+                }
             };
 
             // Get focused element
+            trace!("Getting focused UI element");
             if let Ok(focused) = automation.GetFocusedElement() {
                 // Get element info
                 if let Ok(name) = focused.CurrentName() {
                     let name_str = name.to_string();
                     if !name_str.is_empty() {
+                        debug!("Found focused element: '{}'", name_str);
                         // Get bounding rectangle
                         if let Ok(rect) = focused.CurrentBoundingRectangle() {
+                            trace!(
+                                "Element bounds: x={}, y={}, w={}, h={}",
+                                rect.left, rect.top,
+                                rect.right - rect.left, rect.bottom - rect.top
+                            );
                             elements.push(UiElement {
                                 element_type: UiElementType::Unknown,
                                 text: Some(name_str),
@@ -178,52 +208,71 @@ impl ScreenContentAnalyzer {
                         }
                     }
                 }
+            } else {
+                trace!("No focused element found");
             }
         }
 
+        debug!("UI Automation analysis complete: {} elements found", elements.len());
         Ok(elements)
     }
 
     #[cfg(not(target_os = "windows"))]
     pub fn analyze_ui_automation(&self) -> Result<Vec<UiElement>, String> {
+        debug!("analyze_ui_automation called on non-Windows platform");
         Ok(Vec::new())
     }
 
     /// Get text at specific screen coordinates
     pub fn get_text_at(&self, x: i32, y: i32) -> Option<String> {
+        trace!("get_text_at: x={}, y={}", x, y);
         let analysis = self.last_analysis.read();
         if let Some(ref content) = *analysis {
             for block in &content.text_blocks {
                 if x >= block.x && x <= block.x + block.width as i32 &&
                    y >= block.y && y <= block.y + block.height as i32 {
+                    debug!("Found text at ({}, {}): '{}'", x, y, block.text);
                     return Some(block.text.clone());
                 }
             }
+            trace!("No text found at ({}, {}) in {} blocks", x, y, content.text_blocks.len());
+        } else {
+            trace!("No cached analysis available");
         }
         None
     }
 
     /// Get UI element at specific screen coordinates
     pub fn get_element_at(&self, x: i32, y: i32) -> Option<UiElement> {
+        trace!("get_element_at: x={}, y={}", x, y);
         let analysis = self.last_analysis.read();
         if let Some(ref content) = *analysis {
             for element in &content.ui_elements {
                 if x >= element.x && x <= element.x + element.width as i32 &&
                    y >= element.y && y <= element.y + element.height as i32 {
+                    debug!(
+                        "Found element at ({}, {}): {:?} - {:?}",
+                        x, y, element.element_type, element.text
+                    );
                     return Some(element.clone());
                 }
             }
+            trace!("No element found at ({}, {}) in {} elements", x, y, content.ui_elements.len());
+        } else {
+            trace!("No cached analysis available");
         }
         None
     }
 
     /// Clear analysis cache
     pub fn clear_cache(&self) {
+        debug!("Clearing screen content analysis cache");
         *self.last_analysis.write() = None;
     }
 
     /// Set cache duration
     pub fn set_cache_duration(&mut self, ms: u64) {
+        debug!("Cache duration changed: {}ms -> {}ms", self.cache_duration_ms, ms);
         self.cache_duration_ms = ms;
     }
 }

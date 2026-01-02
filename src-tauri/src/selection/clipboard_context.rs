@@ -193,6 +193,7 @@ pub struct ClipboardContextAnalyzer {
 
 impl ClipboardContextAnalyzer {
     pub fn new() -> Self {
+        log::debug!("[ClipboardContextAnalyzer] Creating new instance");
         let mut language_patterns: HashMap<DetectedLanguage, Vec<&'static str>> = HashMap::new();
         
         language_patterns.insert(DetectedLanguage::JavaScript, vec![
@@ -268,6 +269,7 @@ impl ClipboardContextAnalyzer {
 
     /// Analyze clipboard content and return detailed analysis
     pub fn analyze(&self, content: &str) -> ClipboardAnalysis {
+        log::debug!("[ClipboardContextAnalyzer] Analyzing {} chars", content.len());
         let stats = self.compute_stats(content);
         let entities = self.extract_entities(content);
         let (category, secondary, confidence) = self.detect_category(content, &entities);
@@ -275,6 +277,9 @@ impl ClipboardContextAnalyzer {
         let is_sensitive = self.check_sensitive(content);
         let suggested_actions = self.generate_actions(&category, &entities, &language);
         let formatting = self.compute_formatting(&category, &language, &stats);
+
+        log::debug!("[ClipboardContextAnalyzer] Analysis complete: type={:?}, language={:?}, actions={} confidence={}",
+            category, language, suggested_actions.len(), confidence);
 
         ClipboardAnalysis {
             category,
@@ -316,6 +321,7 @@ impl ClipboardContextAnalyzer {
     }
 
     fn extract_entities(&self, content: &str) -> Vec<ExtractedEntity> {
+        log::debug!("[ClipboardContextAnalyzer] Extracting entities from {} chars", content.len());
         let mut entities = Vec::new();
 
         // Extract URLs
@@ -398,6 +404,7 @@ impl ClipboardContextAnalyzer {
 
         // Sort by position
         entities.sort_by_key(|e| e.start);
+        log::debug!("[ClipboardContextAnalyzer] Extracted {} entities", entities.len());
         entities
     }
 
@@ -406,6 +413,7 @@ impl ClipboardContextAnalyzer {
         content: &str,
         entities: &[ExtractedEntity],
     ) -> (ContentCategory, Vec<ContentCategory>, f32) {
+        log::debug!("[ClipboardContextAnalyzer] Detecting category for {} chars", content.len());
         let trimmed = content.trim();
         let mut scores: HashMap<ContentCategory, f32> = HashMap::new();
 
@@ -540,10 +548,12 @@ impl ClipboardContextAnalyzer {
             .map(|(c, _)| (*c).clone())
             .collect();
 
+        log::debug!("[ClipboardContextAnalyzer] Detected category: {:?} with confidence: {}", primary, confidence);
         (primary, secondary, confidence)
     }
 
     fn detect_language(&self, content: &str, category: &ContentCategory) -> Option<DetectedLanguage> {
+        log::debug!("[ClipboardContextAnalyzer] Detecting language for {} chars", content.len());
         if !matches!(category, ContentCategory::Code | ContentCategory::Markup | ContentCategory::Sql) {
             return None;
         }
@@ -561,6 +571,7 @@ impl ClipboardContextAnalyzer {
     }
 
     fn check_sensitive(&self, content: &str) -> bool {
+        log::debug!("[ClipboardContextAnalyzer] Checking for sensitive content in {} chars", content.len());
         // Check for credit card patterns
         if CREDIT_CARD_REGEX.is_match(content) {
             return true;
@@ -585,6 +596,7 @@ impl ClipboardContextAnalyzer {
         entities: &[ExtractedEntity],
         language: &Option<DetectedLanguage>,
     ) -> Vec<SuggestedAction> {
+        log::debug!("[ClipboardContextAnalyzer] Generating actions for {} entities", entities.len());
         let mut actions = Vec::new();
 
         // Base copy action
@@ -713,6 +725,7 @@ impl ClipboardContextAnalyzer {
 
         // Sort by priority
         actions.sort_by(|a, b| b.priority.cmp(&a.priority));
+        log::debug!("[ClipboardContextAnalyzer] Generated {} actions", actions.len());
         actions
     }
 
@@ -722,6 +735,7 @@ impl ClipboardContextAnalyzer {
         language: &Option<DetectedLanguage>,
         stats: &ContentStats,
     ) -> FormattingHints {
+        log::debug!("[ClipboardContextAnalyzer] Computing formatting hints for {} chars", stats.char_count);
         let syntax_highlight = matches!(
             category,
             ContentCategory::Code | ContentCategory::Json | ContentCategory::Sql |
@@ -769,6 +783,7 @@ impl ClipboardContextAnalyzer {
 
     /// Transform content based on action
     pub fn transform(&self, content: &str, action: &str) -> Result<String, String> {
+        log::debug!("[ClipboardContextAnalyzer] Transforming content with action: {}", action);
         match action {
             "format_json" => {
                 let value: serde_json::Value = serde_json::from_str(content)
@@ -843,6 +858,7 @@ impl ClipboardContextAnalyzer {
 
 impl Default for ClipboardContextAnalyzer {
     fn default() -> Self {
+        log::debug!("[ClipboardContextAnalyzer] Creating default instance");
         Self::new()
     }
 }

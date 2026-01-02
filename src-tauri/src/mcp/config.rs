@@ -25,12 +25,20 @@ impl McpConfig {
 
     /// Add or update a server configuration
     pub fn set_server(&mut self, id: String, config: McpServerConfig) {
+        log::debug!("Setting server configuration: id='{}', name='{}'", id, config.name);
         self.mcp_servers.insert(id, config);
     }
 
     /// Remove a server configuration
     pub fn remove_server(&mut self, id: &str) -> Option<McpServerConfig> {
-        self.mcp_servers.remove(id)
+        log::debug!("Removing server configuration: id='{}'", id);
+        let removed = self.mcp_servers.remove(id);
+        if removed.is_some() {
+            log::trace!("Server '{}' removed from configuration", id);
+        } else {
+            log::trace!("Server '{}' not found in configuration", id);
+        }
+        removed
     }
 
     /// Get a server configuration
@@ -68,6 +76,7 @@ impl McpConfigManager {
     /// Create a new configuration manager
     pub fn new(app_data_dir: PathBuf) -> Self {
         let config_path = app_data_dir.join("mcp_servers.json");
+        log::debug!("Creating MCP config manager with path: {:?}", config_path);
         Self {
             config_path,
             config: parking_lot::RwLock::new(McpConfig::new()),
@@ -81,23 +90,43 @@ impl McpConfigManager {
 
     /// Load configuration from disk
     pub async fn load(&self) -> McpResult<()> {
+        log::debug!("Loading MCP configuration from: {:?}", self.config_path);
+        
         if !self.config_path.exists() {
-            log::info!("No MCP config file found, using defaults");
+            log::info!("No MCP config file found at {:?}, using defaults", self.config_path);
             return Ok(());
         }
 
+        log::trace!("Reading config file content");
         let content = tokio::fs::read_to_string(&self.config_path)
             .await
-            .map_err(|e| McpError::ConfigPathError(format!("Failed to read config: {}", e)))?;
+            .map_err(|e| {
+                log::error!("Failed to read MCP config file: {}", e);
+                McpError::ConfigPathError(format!("Failed to read config: {}", e))
+            })?;
 
+        log::trace!("Parsing config JSON ({}  bytes)", content.len());
         let config: McpConfig = serde_json::from_str(&content).map_err(|e| {
+            log::error!("Failed to parse MCP config JSON: {}", e);
             McpError::ConfigPathError(format!("Failed to parse config: {}", e))
         })?;
 
         log::info!(
-            "Loaded MCP config with {} servers",
-            config.mcp_servers.len()
+            "Loaded MCP config with {} servers from {:?}",
+            config.mcp_servers.len(),
+            self.config_path
         );
+        
+        for (id, server_config) in &config.mcp_servers {
+            log::debug!(
+                "  Server '{}': name='{}', type={:?}, enabled={}, auto_start={}",
+                id,
+                server_config.name,
+                server_config.connection_type,
+                server_config.enabled,
+                server_config.auto_start
+            );
+        }
 
         *self.config.write() = config;
         Ok(())
@@ -105,21 +134,30 @@ impl McpConfigManager {
 
     /// Save configuration to disk
     pub async fn save(&self) -> McpResult<()> {
+        log::debug!("Saving MCP configuration to: {:?}", self.config_path);
+        
         // Ensure parent directory exists
         if let Some(parent) = self.config_path.parent() {
+            log::trace!("Ensuring config directory exists: {:?}", parent);
             tokio::fs::create_dir_all(parent).await.map_err(|e| {
+                log::error!("Failed to create config directory {:?}: {}", parent, e);
                 McpError::ConfigPathError(format!("Failed to create config directory: {}", e))
             })?;
         }
 
         let config = self.config.read().clone();
+        let server_count = config.mcp_servers.len();
         let content = serde_json::to_string_pretty(&config)?;
 
+        log::trace!("Writing {} bytes to config file", content.len());
         tokio::fs::write(&self.config_path, content)
             .await
-            .map_err(|e| McpError::ConfigPathError(format!("Failed to write config: {}", e)))?;
+            .map_err(|e| {
+                log::error!("Failed to write MCP config to {:?}: {}", self.config_path, e);
+                McpError::ConfigPathError(format!("Failed to write config: {}", e))
+            })?;
 
-        log::info!("Saved MCP config to {:?}", self.config_path);
+        log::info!("Saved MCP config ({} servers) to {:?}", server_count, self.config_path);
         Ok(())
     }
 
@@ -130,12 +168,27 @@ impl McpConfigManager {
 
     /// Add or update a server
     pub fn set_server(&self, id: String, config: McpServerConfig) {
+        log::info!("Adding/updating MCP server: id='{}', name='{}'", id, config.name);
+        log::debug!(
+            "Server config: type={:?}, command='{}', enabled={}, auto_start={}",
+            config.connection_type,
+            config.command,
+            config.enabled,
+            config.auto_start
+        );
         self.config.write().set_server(id, config);
     }
 
     /// Remove a server
     pub fn remove_server(&self, id: &str) -> Option<McpServerConfig> {
-        self.config.write().remove_server(id)
+        log::info!("Removing MCP server: id='{}'", id);
+        let result = self.config.write().remove_server(id);
+        if result.is_some() {
+            log::debug!("Server '{}' removed successfully", id);
+        } else {
+            log::warn!("Attempted to remove non-existent server: '{}'", id);
+        }
+        result
     }
 
     /// Get a server configuration
@@ -150,11 +203,17 @@ impl McpConfigManager {
 
     /// Get servers marked for auto-start
     pub fn get_auto_start_servers(&self) -> Vec<(String, McpServerConfig)> {
-        self.config
+        let servers: Vec<_> = self.config
             .read()
             .auto_start_servers()
             .map(|(id, config)| (id.clone(), config.clone()))
-            .collect()
+            .collect();
+        
+        log::debug!("Found {} servers marked for auto-start", servers.len());
+        for (id, _) in &servers {
+            log::trace!("  Auto-start server: '{}'", id);
+        }
+        servers
     }
 
     /// Check if a server exists
@@ -164,22 +223,28 @@ impl McpConfigManager {
 
     /// Update a server's enabled status
     pub fn set_server_enabled(&self, id: &str, enabled: bool) -> bool {
+        log::debug!("Setting server '{}' enabled status to: {}", id, enabled);
         let mut config = self.config.write();
         if let Some(server) = config.mcp_servers.get_mut(id) {
             server.enabled = enabled;
+            log::info!("Server '{}' {} successfully", id, if enabled { "enabled" } else { "disabled" });
             true
         } else {
+            log::warn!("Cannot set enabled status: server '{}' not found", id);
             false
         }
     }
 
     /// Update a server's auto-start status
     pub fn set_server_auto_start(&self, id: &str, auto_start: bool) -> bool {
+        log::debug!("Setting server '{}' auto-start status to: {}", id, auto_start);
         let mut config = self.config.write();
         if let Some(server) = config.mcp_servers.get_mut(id) {
             server.auto_start = auto_start;
+            log::info!("Server '{}' auto-start {}", id, if auto_start { "enabled" } else { "disabled" });
             true
         } else {
+            log::warn!("Cannot set auto-start status: server '{}' not found", id);
             false
         }
     }

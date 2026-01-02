@@ -7,7 +7,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { LearningModePanel } from './learning-mode-panel';
-import { useLearningMode } from '@/hooks/use-learning-mode';
+import { useLearningMode } from '@/hooks/ui';
 import type { LearningSession, LearningPhase } from '@/types/learning';
 import { DEFAULT_LEARNING_STATISTICS } from '@/types/learning';
 

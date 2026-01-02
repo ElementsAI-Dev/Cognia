@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { useScreenshot, useScreenshotHistory, ScreenshotHistoryEntry } from '@/hooks/use-screenshot';
+import { useScreenshot, useScreenshotHistory, ScreenshotHistoryEntry, WindowInfo } from '@/hooks/native/use-screenshot';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
@@ -27,8 +27,10 @@ import {
   X,
   RefreshCw,
   FileText,
+  AppWindow,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { WindowSelectorDialog } from './window-selector-dialog';
 
 interface ScreenshotPanelProps {
   className?: string;
@@ -48,6 +50,7 @@ export function ScreenshotPanel({
     startRegionSelection,
     captureRegion,
     extractText,
+    captureWindowByHwnd,
   } = useScreenshot();
 
   const {
@@ -64,6 +67,7 @@ export function ScreenshotPanel({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ScreenshotHistoryEntry[] | null>(null);
   const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null);
+  const [windowSelectorOpen, setWindowSelectorOpen] = useState(false);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
@@ -103,6 +107,14 @@ export function ScreenshotPanel({
         onScreenshotTaken?.(result.image_base64);
         fetchHistory();
       }
+    }
+  };
+
+  const handleCaptureSelectedWindow = async (window: WindowInfo) => {
+    const result = await captureWindowByHwnd(window.hwnd);
+    if (result) {
+      onScreenshotTaken?.(result.image_base64);
+      fetchHistory();
     }
   };
 
@@ -163,6 +175,17 @@ export function ScreenshotPanel({
             <Square className="h-4 w-4 mr-1" />
             <span className="hidden xs:inline">{t('region')}</span>
             <span className="xs:hidden">R</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setWindowSelectorOpen(true)}
+            disabled={isCapturing}
+            className="flex-1 min-w-[80px]"
+          >
+            <AppWindow className="h-4 w-4 mr-1" />
+            <span className="hidden xs:inline">{t('selectWindow')}</span>
+            <span className="xs:hidden">S</span>
           </Button>
         </div>
       </div>
@@ -288,6 +311,12 @@ export function ScreenshotPanel({
           {t('clearHistory')}
         </Button>
       </div>
+
+      <WindowSelectorDialog
+        open={windowSelectorOpen}
+        onOpenChange={setWindowSelectorOpen}
+        onCaptureWindow={handleCaptureSelectedWindow}
+      />
     </div>
   );
 }

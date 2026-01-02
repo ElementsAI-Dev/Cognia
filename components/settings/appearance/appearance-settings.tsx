@@ -31,7 +31,7 @@ import { localeNames, localeFlags, autoDetectLocale, type Locale } from '@/lib/i
 import { cn } from '@/lib/utils';
 import { ThemeEditor } from './theme-editor';
 import { UICustomizationSettings } from './ui-customization-settings';
-import { useAutostart } from '@/hooks/use-autostart';
+import { useAutostart } from '@/hooks/native';
 
 const themeOptions: { value: Theme; labelKey: string; icon: React.ReactNode }[] = [
   { value: 'light', labelKey: 'themeLight', icon: <Sun className="h-4 w-4" /> },

@@ -2,6 +2,7 @@
 //!
 //! Extracts browser-related context from window information.
 
+use log::{debug, trace};
 use super::WindowInfo;
 use serde::{Deserialize, Serialize};
 
@@ -73,25 +74,39 @@ pub enum PageType {
 impl BrowserContext {
     /// Create browser context from window information
     pub fn from_window_info(window: &WindowInfo) -> Result<Self, String> {
+        trace!("Creating BrowserContext from window: process='{}', title='{}'", window.process_name, window.title);
+        
         let process_name = window.process_name.to_lowercase();
         
         // Check if this is a browser
         let browser = Self::detect_browser(&process_name)?;
+        debug!("Detected browser: {}", browser);
         
         let title = &window.title;
         
         // Parse title to extract page info
         // Common format: "Page Title - Browser Name" or "Page Title — Browser Name"
         let (page_title, url, domain) = Self::parse_browser_title(title, &browser);
+        trace!("Parsed title: page_title={:?}, domain={:?}", page_title, domain);
         
         // Detect tab info
         let tab_info = Self::detect_tab_info(title, &page_title);
+        trace!(
+            "Tab info: new_tab={}, settings={}, dev_tools={}, extension={}",
+            tab_info.is_new_tab, tab_info.is_settings, tab_info.is_dev_tools, tab_info.is_extension
+        );
         
         // Detect page type
         let page_type = Self::detect_page_type(&page_title, &domain);
+        debug!("Page type: {:?} for domain: {:?}", page_type, domain);
         
         // Detect if secure (limited without actual URL)
         let is_secure = domain.as_ref().map(|_| true); // Assume HTTPS for known domains
+        
+        debug!(
+            "Browser context created: {} - {:?} (type: {:?})",
+            browser, page_title, page_type
+        );
         
         Ok(Self {
             browser,
@@ -106,6 +121,7 @@ impl BrowserContext {
 
     /// Detect browser from process name
     fn detect_browser(process_name: &str) -> Result<String, String> {
+        trace!("Detecting browser from process: {}", process_name);
         if process_name.contains("chrome") || process_name.contains("chromium") {
             Ok("Google Chrome".to_string())
         } else if process_name.contains("firefox") || process_name.contains("mozilla") {
@@ -123,6 +139,7 @@ impl BrowserContext {
         } else if process_name.contains("arc") {
             Ok("Arc".to_string())
         } else {
+            trace!("Process '{}' is not a recognized browser", process_name);
             Err("Not a recognized browser".to_string())
         }
     }
@@ -170,6 +187,7 @@ impl BrowserContext {
 
     /// Try to extract domain from page title
     fn extract_domain_from_title(title: &str) -> Option<String> {
+        trace!("Extracting domain from title: '{}'", title);
         // Common patterns where domain appears in title
         // NOTE: More specific matches MUST come before more general ones
         // e.g., "Google Drive" before "Google", "Yahoo Mail" before "Yahoo"
@@ -252,7 +270,11 @@ impl BrowserContext {
 
         // Try to find domain pattern in title (e.g., "example.com")
         let domain_regex = regex::Regex::new(r"([a-zA-Z0-9][-a-zA-Z0-9]*\.)+[a-zA-Z]{2,}").ok()?;
-        domain_regex.find(title).map(|m| m.as_str().to_lowercase())
+        let result = domain_regex.find(title).map(|m| m.as_str().to_lowercase());
+        if let Some(ref domain) = result {
+            trace!("Extracted domain from regex: {}", domain);
+        }
+        result
     }
 
     /// Detect tab information

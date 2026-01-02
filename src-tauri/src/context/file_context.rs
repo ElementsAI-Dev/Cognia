@@ -2,6 +2,7 @@
 //!
 //! Extracts file-related context from window information.
 
+use log::{debug, trace, warn};
 use super::WindowInfo;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -57,10 +58,17 @@ pub enum FileType {
 impl FileContext {
     /// Create file context from window information
     pub fn from_window_info(window: &WindowInfo) -> Result<Self, String> {
+        trace!("Creating FileContext from window title: '{}'", window.title);
+        
         let title = &window.title;
         
         // Try to extract file path from window title
         let (path, name, extension) = Self::extract_file_info(title);
+        if let Some(ref n) = name {
+            debug!("Extracted file info: name='{}', ext={:?}, path={:?}", n, extension, path);
+        } else {
+            trace!("No file info extracted from title");
+        }
         
         // Detect if file is modified (common indicators)
         // Patterns: "*file.rs", "●file.rs", "file.rs*", "file.rs [Modified]", "file.rs - Modified"
@@ -71,19 +79,39 @@ impl FileContext {
             || title.ends_with('*')
             || title.contains("* -")  // "file.rs* - project"
             || title.contains("*-");   // "file.rs*- project"
+        
+        if is_modified {
+            trace!("File detected as modified");
+        }
 
         // Detect programming language from extension
         let language = extension.as_ref().and_then(|ext| Self::detect_language(ext));
+        if let Some(ref lang) = language {
+            debug!("Detected language: {} (from extension: {:?})", lang, extension);
+        }
 
         // Determine file type
         let file_type = extension
             .as_ref()
             .map(|ext| Self::detect_file_type(ext))
             .unwrap_or(FileType::Unknown);
+        trace!("File type: {:?}", file_type);
 
         // Try to detect project root and git branch
         let project_root = path.as_ref().and_then(|p| Self::find_project_root(p));
+        if let Some(ref root) = project_root {
+            debug!("Detected project root: {}", root);
+        }
+        
         let git_branch = project_root.as_ref().and_then(|root| Self::get_git_branch(root));
+        if let Some(ref branch) = git_branch {
+            debug!("Detected git branch: {}", branch);
+        }
+
+        debug!(
+            "File context created: {:?} (type: {:?}, lang: {:?}, modified: {})",
+            name, file_type, language, is_modified
+        );
 
         Ok(Self {
             path,
@@ -99,6 +127,7 @@ impl FileContext {
 
     /// Extract file information from window title
     fn extract_file_info(title: &str) -> (Option<String>, Option<String>, Option<String>) {
+        trace!("Extracting file info from title: '{}'", title);
         // Clean up title (remove modification indicators)
         let clean_title = title
             .trim_start_matches('*')
@@ -167,6 +196,7 @@ impl FileContext {
 
     /// Detect programming language from file extension
     fn detect_language(extension: &str) -> Option<String> {
+        trace!("Detecting language from extension: {}", extension);
         let lang = match extension.to_lowercase().as_str() {
             // JavaScript/TypeScript
             "js" => "JavaScript",
@@ -337,6 +367,7 @@ impl FileContext {
 
     /// Find project root directory
     fn find_project_root(file_path: &str) -> Option<String> {
+        trace!("Finding project root for file: {}", file_path);
         let path = PathBuf::from(file_path);
         let mut current = path.parent()?;
 
@@ -380,9 +411,11 @@ impl FileContext {
 
     /// Get current git branch
     fn get_git_branch(project_root: &str) -> Option<String> {
+        trace!("Getting git branch for project: {}", project_root);
         let git_head = PathBuf::from(project_root).join(".git").join("HEAD");
         
         if let Ok(content) = std::fs::read_to_string(&git_head) {
+            trace!("Read .git/HEAD content: '{}'", content.trim());
             // Parse "ref: refs/heads/branch-name"
             if content.starts_with("ref: refs/heads/") {
                 return Some(content.trim_start_matches("ref: refs/heads/").trim().to_string());

@@ -58,13 +58,23 @@ pub struct McpManager {
 impl McpManager {
     /// Create a new MCP manager
     pub fn new(app_handle: AppHandle, app_data_dir: std::path::PathBuf) -> Self {
+        log::info!("Creating MCP manager with data dir: {:?}", app_data_dir);
         let config_manager = Arc::new(McpConfigManager::new(app_data_dir));
+
+        let reconnect_config = ReconnectConfig::default();
+        log::debug!(
+            "Reconnect config: enabled={}, max_attempts={}, initial_delay={}ms, max_delay={}ms",
+            reconnect_config.enabled,
+            reconnect_config.max_attempts,
+            reconnect_config.initial_delay_ms,
+            reconnect_config.max_delay_ms
+        );
 
         Self {
             config_manager,
             servers: Arc::new(RwLock::new(HashMap::new())),
             app_handle,
-            reconnect_config: ReconnectConfig::default(),
+            reconnect_config,
         }
     }
 
@@ -75,13 +85,23 @@ impl McpManager {
         config: &McpServerConfig,
         notification_tx: mpsc::Sender<JsonRpcNotification>,
     ) -> McpResult<McpClient> {
+        log::debug!(
+            "Creating MCP client: type={:?}, name='{}'",
+            config.connection_type,
+            config.name
+        );
         match config.connection_type {
             McpConnectionType::Stdio => {
+                log::trace!("Using stdio transport: command='{}', args={:?}", config.command, config.args);
                 McpClient::connect_stdio(&config.command, &config.args, &config.env, notification_tx)
                     .await
             }
             McpConnectionType::Sse => {
-                let url = config.url.as_ref().ok_or(McpError::MissingUrl)?;
+                let url = config.url.as_ref().ok_or_else(|| {
+                    log::error!("SSE connection requires URL but none provided for server '{}'", config.name);
+                    McpError::MissingUrl
+                })?;
+                log::trace!("Using SSE transport: url='{}'", url);
                 McpClient::connect_sse(url, notification_tx).await
             }
         }
@@ -93,11 +113,17 @@ impl McpManager {
         server_id: &str,
         error: &McpError,
     ) {
+        log::warn!("Connection error for server '{}': {}", server_id, error);
         let mut servers_lock = servers.write().await;
         if let Some(instance) = servers_lock.get_mut(server_id) {
             instance.state.status = McpServerStatus::Error(error.to_string());
             instance.state.error_message = Some(error.to_string());
             instance.state.reconnect_attempts += 1;
+            log::debug!(
+                "Server '{}' error state updated, reconnect attempts: {}",
+                server_id,
+                instance.state.reconnect_attempts
+            );
         }
     }
 
@@ -113,6 +139,19 @@ impl McpManager {
         prompts: Vec<McpPrompt>,
         stop_tx: mpsc::Sender<()>,
     ) {
+        log::info!(
+            "Server '{}' connected successfully: {} tools, {} resources, {} prompts",
+            server_id,
+            tools.len(),
+            resources.len(),
+            prompts.len()
+        );
+        log::debug!(
+            "Server '{}' protocol version: {}",
+            server_id,
+            init_result.protocol_version
+        );
+        
         let mut servers_lock = servers.write().await;
         if let Some(instance) = servers_lock.get_mut(server_id) {
             instance.state.status = McpServerStatus::Connected;
@@ -136,17 +175,26 @@ impl McpManager {
     ) {
         let servers_lock = servers.read().await;
         if let Some(instance) = servers_lock.get(server_id) {
+            log::trace!(
+                "Emitting server state update for '{}': status={:?}",
+                server_id,
+                instance.state.status
+            );
             let _ = app_handle.emit(events::SERVER_UPDATE, &instance.state);
         }
     }
 
     /// Initialize the manager - load config and start auto-start servers
     pub async fn initialize(&self) -> McpResult<()> {
+        log::info!("Initializing MCP manager");
+        
         // Load configuration
+        log::debug!("Loading MCP server configurations");
         self.config_manager.load().await?;
 
         // Initialize server states from config
         let configs = self.config_manager.get_all_servers();
+        log::info!("Found {} MCP servers in configuration", configs.len());
         let mut servers = self.servers.write().await;
 
         for (id, config) in configs {
@@ -168,27 +216,35 @@ impl McpManager {
 
         // Auto-connect servers marked for auto-start
         let auto_start = self.config_manager.get_auto_start_servers();
-        for (id, _) in auto_start {
-            log::info!("Auto-starting MCP server: {}", id);
+        log::info!("Auto-starting {} MCP servers", auto_start.len());
+        for (id, config) in auto_start {
+            log::info!("Auto-starting MCP server: '{}' ({})", id, config.name);
             if let Err(e) = self.connect_server(&id).await {
-                log::error!("Failed to auto-start server {}: {}", id, e);
+                log::error!("Failed to auto-start server '{}': {}", id, e);
             }
         }
 
+        log::info!("MCP manager initialization completed");
         Ok(())
     }
 
     /// Reload configuration from disk
     pub async fn reload_config(&self) -> McpResult<()> {
+        log::info!("Reloading MCP configuration from disk");
         self.config_manager.load().await?;
 
         // Update server states
         let configs = self.config_manager.get_all_servers();
         let mut servers = self.servers.write().await;
+        
+        let current_count = servers.len();
+        let config_count = configs.len();
+        log::debug!("Current servers: {}, config servers: {}", current_count, config_count);
 
         // Add new servers
         for (id, config) in &configs {
             if !servers.contains_key(id) {
+                log::info!("Adding new server from config: '{}' ({})", id, config.name);
                 let state = McpServerState::new(id.clone(), config.clone());
                 servers.insert(
                     id.clone(),
@@ -205,16 +261,30 @@ impl McpManager {
         }
 
         // Remove servers no longer in config
+        let removed: Vec<_> = servers.keys().filter(|id| !configs.contains_key(*id)).cloned().collect();
+        for id in &removed {
+            log::info!("Removing server no longer in config: '{}'", id);
+        }
         servers.retain(|id, _| configs.contains_key(id));
 
         drop(servers);
 
+        log::info!("Configuration reload completed");
         self.emit_servers_changed().await;
         Ok(())
     }
 
     /// Add a new server
     pub async fn add_server(&self, id: String, config: McpServerConfig) -> McpResult<()> {
+        log::info!("Adding new MCP server: id='{}', name='{}'", id, config.name);
+        log::debug!(
+            "Server details: type={:?}, command='{}', enabled={}, auto_start={}",
+            config.connection_type,
+            config.command,
+            config.enabled,
+            config.auto_start
+        );
+        
         // Add to config
         self.config_manager.set_server(id.clone(), config.clone());
         self.config_manager.save().await?;
@@ -236,13 +306,17 @@ impl McpManager {
 
         drop(servers);
 
+        log::info!("Server '{}' added successfully", id);
         self.emit_servers_changed().await;
         Ok(())
     }
 
     /// Remove a server
     pub async fn remove_server(&self, id: &str) -> McpResult<()> {
+        log::info!("Removing MCP server: '{}'", id);
+        
         // Disconnect first if connected
+        log::debug!("Disconnecting server '{}' before removal", id);
         self.disconnect_server(id).await.ok();
 
         // Remove from config
@@ -255,14 +329,18 @@ impl McpManager {
 
         drop(servers);
 
+        log::info!("Server '{}' removed successfully", id);
         self.emit_servers_changed().await;
         Ok(())
     }
 
     /// Update a server configuration
     pub async fn update_server(&self, id: &str, config: McpServerConfig) -> McpResult<()> {
+        log::info!("Updating MCP server configuration: '{}'", id);
+        
         // Check if server exists
         if !self.config_manager.has_server(id) {
+            log::error!("Cannot update server '{}': not found", id);
             return Err(McpError::ServerNotFound(id.to_string()));
         }
 
@@ -276,6 +354,7 @@ impl McpManager {
         };
 
         if was_connected {
+            log::debug!("Disconnecting server '{}' before update", id);
             self.disconnect_server(id).await.ok();
         }
 
@@ -292,6 +371,7 @@ impl McpManager {
 
         drop(servers);
 
+        log::info!("Server '{}' configuration updated successfully", id);
         self.emit_server_update(id).await;
         Ok(())
     }
@@ -309,6 +389,7 @@ impl McpManager {
         }
 
         // Update status to connecting
+        log::debug!("Setting server '{}' status to Connecting", id);
         {
             let mut servers = self.servers.write().await;
             if let Some(instance) = servers.get_mut(id) {
@@ -318,12 +399,15 @@ impl McpManager {
         self.emit_server_update(id).await;
 
         // Create notification channel
+        log::trace!("Creating notification channel for server '{}'", id);
         let (notification_tx, notification_rx) = mpsc::channel(100);
 
         // Create client using helper method
+        log::debug!("Creating MCP client for server '{}'", id);
         let client = match Self::create_client(&config, notification_tx).await {
             Ok(c) => c,
             Err(e) => {
+                log::error!("Failed to create client for server '{}': {}", id, e);
                 Self::handle_connection_error(&self.servers, id, &e).await;
                 self.emit_server_update(id).await;
                 self.schedule_reconnection(id.to_string()).await;
@@ -332,12 +416,15 @@ impl McpManager {
         };
 
         // Start receive loop
+        log::debug!("Starting receive loop for server '{}'", id);
         client.start_receive_loop().await;
 
         // Initialize connection
+        log::debug!("Initializing MCP connection for server '{}'", id);
         let init_result = match client.initialize(ClientInfo::default()).await {
             Ok(r) => r,
             Err(e) => {
+                log::error!("Failed to initialize connection to server '{}': {}", id, e);
                 client.close().await.ok();
                 Self::handle_connection_error(&self.servers, id, &e).await;
                 self.emit_server_update(id).await;
@@ -347,9 +434,17 @@ impl McpManager {
         };
 
         // Fetch tools, resources, prompts
+        log::debug!("Fetching capabilities from server '{}'", id);
         let tools = client.list_tools().await.unwrap_or_default();
         let resources = client.list_resources().await.unwrap_or_default();
         let prompts = client.list_prompts().await.unwrap_or_default();
+        log::debug!(
+            "Server '{}' capabilities: {} tools, {} resources, {} prompts",
+            id,
+            tools.len(),
+            resources.len(),
+            prompts.len()
+        );
 
         // Create stop channel for background tasks
         let (stop_tx, stop_rx) = mpsc::channel(1);
@@ -378,33 +473,44 @@ impl McpManager {
 
     /// Disconnect from a server
     pub async fn disconnect_server(&self, id: &str) -> McpResult<()> {
+        log::info!("Disconnecting from MCP server: '{}'", id);
+        
         let mut servers = self.servers.write().await;
         let instance = servers
             .get_mut(id)
-            .ok_or_else(|| McpError::ServerNotFound(id.to_string()))?;
+            .ok_or_else(|| {
+                log::error!("Cannot disconnect server '{}': not found", id);
+                McpError::ServerNotFound(id.to_string())
+            })?;
 
         // Send stop signal to background tasks
         if let Some(stop_tx) = instance.stop_tx.take() {
+            log::debug!("Sending stop signal to background tasks for server '{}'", id);
             let _ = stop_tx.send(()).await;
         }
 
         // Abort background tasks
         if let Some(task) = instance.notification_task.take() {
+            log::trace!("Aborting notification task for server '{}'", id);
             task.abort();
         }
         if let Some(task) = instance.health_task.take() {
+            log::trace!("Aborting health check task for server '{}'", id);
             task.abort();
         }
         if let Some(task) = instance.reconnect_task.take() {
+            log::trace!("Aborting reconnect task for server '{}'", id);
             task.abort();
         }
 
         // Close client if connected
         if let Some(client) = instance.client.take() {
+            log::debug!("Closing client connection for server '{}'", id);
             client.close().await.ok();
         }
 
         // Update state
+        log::trace!("Clearing server '{}' state", id);
         instance.state.status = McpServerStatus::Disconnected;
         instance.state.connected_at = None;
         instance.state.tools.clear();
@@ -415,7 +521,7 @@ impl McpManager {
 
         self.emit_server_update(id).await;
 
-        log::info!("Disconnected from MCP server: {}", id);
+        log::info!("Disconnected from MCP server '{}' successfully", id);
         Ok(())
     }
 
@@ -426,8 +532,12 @@ impl McpManager {
         tool_name: &str,
         arguments: serde_json::Value,
     ) -> McpResult<ToolCallResult> {
+        log::info!("Calling tool '{}' on server '{}'", tool_name, server_id);
+        log::debug!("Tool arguments: {}", arguments);
+        
         let call_id = uuid::Uuid::new_v4().to_string();
         let started_at = chrono::Utc::now().timestamp_millis();
+        log::trace!("Tool call ID: {}", call_id);
 
         // Emit progress start
         let progress = ToolCallProgress {
@@ -446,18 +556,25 @@ impl McpManager {
         let servers = self.servers.read().await;
         let instance = servers
             .get(server_id)
-            .ok_or_else(|| McpError::ServerNotFound(server_id.to_string()))?;
+            .ok_or_else(|| {
+                log::error!("Tool call failed: server '{}' not found", server_id);
+                McpError::ServerNotFound(server_id.to_string())
+            })?;
 
-        let client = instance.client.as_ref().ok_or(McpError::NotConnected)?;
+        let client = instance.client.as_ref().ok_or_else(|| {
+            log::error!("Tool call failed: server '{}' not connected", server_id);
+            McpError::NotConnected
+        })?;
 
         let result = client.call_tool(tool_name, arguments).await;
         let ended_at = chrono::Utc::now().timestamp_millis();
+        let duration_ms = ended_at - started_at;
 
         // Emit progress end
         let progress = ToolCallProgress {
             server_id: server_id.to_string(),
             tool_name: tool_name.to_string(),
-            call_id,
+            call_id: call_id.clone(),
             state: if result.is_ok() { ToolCallState::Completed } else { ToolCallState::Failed },
             progress: Some(1.0),
             message: None,
@@ -466,6 +583,21 @@ impl McpManager {
             ended_at: Some(ended_at),
         };
         let _ = self.app_handle.emit(events::TOOL_CALL_PROGRESS, &progress);
+
+        match &result {
+            Ok(res) => {
+                log::info!(
+                    "Tool '{}' on server '{}' completed in {}ms, {} content items",
+                    tool_name, server_id, duration_ms, res.content.len()
+                );
+            }
+            Err(e) => {
+                log::error!(
+                    "Tool '{}' on server '{}' failed after {}ms: {}",
+                    tool_name, server_id, duration_ms, e
+                );
+            }
+        }
 
         result
     }
@@ -476,14 +608,34 @@ impl McpManager {
         server_id: &str,
         uri: &str,
     ) -> McpResult<ResourceContent> {
+        log::info!("Reading resource '{}' from server '{}'", uri, server_id);
+        
         let servers = self.servers.read().await;
         let instance = servers
             .get(server_id)
-            .ok_or_else(|| McpError::ServerNotFound(server_id.to_string()))?;
+            .ok_or_else(|| {
+                log::error!("Resource read failed: server '{}' not found", server_id);
+                McpError::ServerNotFound(server_id.to_string())
+            })?;
 
-        let client = instance.client.as_ref().ok_or(McpError::NotConnected)?;
+        let client = instance.client.as_ref().ok_or_else(|| {
+            log::error!("Resource read failed: server '{}' not connected", server_id);
+            McpError::NotConnected
+        })?;
 
-        client.read_resource(uri).await
+        let result = client.read_resource(uri).await;
+        match &result {
+            Ok(content) => {
+                log::debug!(
+                    "Resource '{}' read successfully from server '{}', {} items",
+                    uri, server_id, content.contents.len()
+                );
+            }
+            Err(e) => {
+                log::error!("Failed to read resource '{}' from server '{}': {}", uri, server_id, e);
+            }
+        }
+        result
     }
 
     /// Get a prompt from a connected server
@@ -493,42 +645,84 @@ impl McpManager {
         name: &str,
         arguments: Option<serde_json::Value>,
     ) -> McpResult<PromptContent> {
+        log::info!("Getting prompt '{}' from server '{}'", name, server_id);
+        log::debug!("Prompt arguments: {:?}", arguments);
+        
         let servers = self.servers.read().await;
         let instance = servers
             .get(server_id)
-            .ok_or_else(|| McpError::ServerNotFound(server_id.to_string()))?;
+            .ok_or_else(|| {
+                log::error!("Prompt get failed: server '{}' not found", server_id);
+                McpError::ServerNotFound(server_id.to_string())
+            })?;
 
-        let client = instance.client.as_ref().ok_or(McpError::NotConnected)?;
+        let client = instance.client.as_ref().ok_or_else(|| {
+            log::error!("Prompt get failed: server '{}' not connected", server_id);
+            McpError::NotConnected
+        })?;
 
-        client.get_prompt(name, arguments).await
+        let result = client.get_prompt(name, arguments).await;
+        match &result {
+            Ok(content) => {
+                log::debug!(
+                    "Prompt '{}' retrieved from server '{}', {} messages",
+                    name, server_id, content.messages.len()
+                );
+            }
+            Err(e) => {
+                log::error!("Failed to get prompt '{}' from server '{}': {}", name, server_id, e);
+            }
+        }
+        result
     }
 
     /// Ping a connected server
     pub async fn ping_server(&self, server_id: &str) -> McpResult<u64> {
+        log::trace!("Pinging server '{}'", server_id);
         let start = std::time::Instant::now();
         
         let servers = self.servers.read().await;
         let instance = servers
             .get(server_id)
-            .ok_or_else(|| McpError::ServerNotFound(server_id.to_string()))?;
+            .ok_or_else(|| {
+                log::warn!("Ping failed: server '{}' not found", server_id);
+                McpError::ServerNotFound(server_id.to_string())
+            })?;
 
-        let client = instance.client.as_ref().ok_or(McpError::NotConnected)?;
+        let client = instance.client.as_ref().ok_or_else(|| {
+            log::warn!("Ping failed: server '{}' not connected", server_id);
+            McpError::NotConnected
+        })?;
 
         client.ping().await?;
+        let latency = start.elapsed().as_millis() as u64;
+        log::debug!("Server '{}' ping latency: {}ms", server_id, latency);
         
-        Ok(start.elapsed().as_millis() as u64)
+        Ok(latency)
     }
 
     /// Set log level for a connected server
     pub async fn set_log_level(&self, server_id: &str, level: LogLevel) -> McpResult<()> {
+        log::info!("Setting log level to {:?} for server '{}'", level, server_id);
+        
         let servers = self.servers.read().await;
         let instance = servers
             .get(server_id)
-            .ok_or_else(|| McpError::ServerNotFound(server_id.to_string()))?;
+            .ok_or_else(|| {
+                log::error!("Set log level failed: server '{}' not found", server_id);
+                McpError::ServerNotFound(server_id.to_string())
+            })?;
 
-        let client = instance.client.as_ref().ok_or(McpError::NotConnected)?;
+        let client = instance.client.as_ref().ok_or_else(|| {
+            log::error!("Set log level failed: server '{}' not connected", server_id);
+            McpError::NotConnected
+        })?;
 
-        client.set_log_level(level).await
+        let result = client.set_log_level(level).await;
+        if result.is_ok() {
+            log::debug!("Log level set successfully for server '{}'", server_id);
+        }
+        result
     }
 
     /// Get all server states
@@ -545,6 +739,7 @@ impl McpManager {
 
     /// Get all tools from all connected servers
     pub async fn get_all_tools(&self) -> Vec<(String, McpTool)> {
+        log::trace!("Getting all tools from connected servers");
         let servers = self.servers.read().await;
         let mut all_tools = Vec::new();
 
@@ -556,6 +751,7 @@ impl McpManager {
             }
         }
 
+        log::debug!("Found {} total tools across all connected servers", all_tools.len());
         all_tools
     }
 
@@ -566,11 +762,13 @@ impl McpManager {
         mut notification_rx: mpsc::Receiver<JsonRpcNotification>,
         mut stop_rx: mpsc::Receiver<()>,
     ) {
+        log::debug!("Spawning notification handler for server '{}'", server_id);
         let app_handle = self.app_handle.clone();
         let servers = self.servers.clone();
         let server_id_clone = server_id.clone();
 
         let task = tokio::spawn(async move {
+            log::trace!("Notification handler task started for server '{}'", server_id);
             loop {
                 tokio::select! {
                     _ = stop_rx.recv() => {

@@ -79,7 +79,7 @@ import {
 } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { useVirtualEnv } from '@/hooks/use-virtual-env';
+import { useVirtualEnv } from '@/hooks/sandbox';
 import type { VirtualEnvInfo, VirtualEnvType, PackageInfo } from '@/types/environment';
 import { ENV_PRESETS, type EnvPresetTemplate } from '@/types/environment';
 import { Checkbox } from '@/components/ui/checkbox';

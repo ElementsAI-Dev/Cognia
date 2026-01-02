@@ -21,6 +21,7 @@ pub use browser_context::BrowserContext;
 pub use editor_context::EditorContext;
 pub use screen_content::{ScreenContentAnalyzer, ScreenContent, TextBlock, UiElement, UiElementType};
 
+use log::{debug, trace, warn};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use parking_lot::RwLock;
@@ -51,6 +52,7 @@ pub struct ContextManager {
 
 impl ContextManager {
     pub fn new() -> Self {
+        debug!("Creating new ContextManager with 500ms cache duration");
         Self {
             window_manager: WindowManager::new(),
             last_context: Arc::new(RwLock::new(None)),
@@ -60,49 +62,116 @@ impl ContextManager {
 
     /// Get current full context
     pub fn get_context(&self) -> Result<FullContext, String> {
+        trace!("get_context called");
+        
         // Check cache
         {
             let cached = self.last_context.read();
             if let Some(ctx) = cached.as_ref() {
                 let now = chrono::Utc::now().timestamp_millis();
-                if now - ctx.timestamp < self.cache_duration_ms as i64 {
+                let age_ms = now - ctx.timestamp;
+                if age_ms < self.cache_duration_ms as i64 {
+                    trace!("Returning cached context (age: {}ms)", age_ms);
                     return Ok(ctx.clone());
                 }
+                trace!("Cache expired (age: {}ms, max: {}ms)", age_ms, self.cache_duration_ms);
             }
         }
 
         // Gather fresh context
+        debug!("Gathering fresh context");
         let context = self.gather_context()?;
         
         // Update cache
         *self.last_context.write() = Some(context.clone());
+        trace!("Context cached successfully");
         
         Ok(context)
     }
 
     /// Gather all context information
     fn gather_context(&self) -> Result<FullContext, String> {
+        trace!("Starting context gathering");
+        
         let window = self.window_manager.get_active_window().ok();
+        if let Some(ref w) = window {
+            debug!(
+                "Active window: '{}' (process: {}, class: {})",
+                w.title, w.process_name, w.class_name
+            );
+        } else {
+            trace!("No active window detected");
+        }
         
         let app = window.as_ref().and_then(|w| {
-            AppContext::from_window_info(w).ok()
+            match AppContext::from_window_info(w) {
+                Ok(ctx) => {
+                    debug!("App context: {:?} - {}", ctx.app_type, ctx.app_name);
+                    Some(ctx)
+                }
+                Err(e) => {
+                    trace!("Failed to get app context: {}", e);
+                    None
+                }
+            }
         });
 
         let file = window.as_ref().and_then(|w| {
-            FileContext::from_window_info(w).ok()
+            match FileContext::from_window_info(w) {
+                Ok(ctx) => {
+                    if ctx.name.is_some() {
+                        debug!(
+                            "File context: {:?} (type: {:?}, modified: {})",
+                            ctx.name, ctx.file_type, ctx.is_modified
+                        );
+                    }
+                    Some(ctx)
+                }
+                Err(e) => {
+                    trace!("Failed to get file context: {}", e);
+                    None
+                }
+            }
         });
 
         let browser = window.as_ref().and_then(|w| {
-            BrowserContext::from_window_info(w).ok()
+            match BrowserContext::from_window_info(w) {
+                Ok(ctx) => {
+                    debug!(
+                        "Browser context: {} - page: {:?} (type: {:?})",
+                        ctx.browser, ctx.page_title, ctx.page_type
+                    );
+                    Some(ctx)
+                }
+                Err(e) => {
+                    trace!("Failed to get browser context (not a browser): {}", e);
+                    None
+                }
+            }
         });
 
         // Get editor context if this is a code editor
         let editor = if app.as_ref().map(|a| a.app_type == AppType::CodeEditor).unwrap_or(false) {
-            window.as_ref().and_then(|w| EditorContext::from_window_info(w).ok())
+            window.as_ref().and_then(|w| {
+                match EditorContext::from_window_info(w) {
+                    Ok(ctx) => {
+                        debug!(
+                            "Editor context: {} - file: {:?} (lang: {:?}, branch: {:?})",
+                            ctx.editor_name, ctx.file_name, ctx.language, ctx.git_branch
+                        );
+                        Some(ctx)
+                    }
+                    Err(e) => {
+                        trace!("Failed to get editor context: {}", e);
+                        None
+                    }
+                }
+            })
         } else {
             None
         };
 
+        trace!("Context gathering complete");
         Ok(FullContext {
             window,
             app,
@@ -115,56 +184,98 @@ impl ContextManager {
 
     /// Get only window information
     pub fn get_window_info(&self) -> Result<WindowInfo, String> {
-        self.window_manager.get_active_window()
+        trace!("get_window_info called");
+        let result = self.window_manager.get_active_window();
+        if let Ok(ref w) = result {
+            debug!("Window info retrieved: '{}' ({})", w.title, w.process_name);
+        }
+        result
     }
 
     /// Get application context
     pub fn get_app_context(&self) -> Result<AppContext, String> {
+        trace!("get_app_context called");
         let window = self.window_manager.get_active_window()?;
-        AppContext::from_window_info(&window)
+        let result = AppContext::from_window_info(&window);
+        if let Ok(ref ctx) = result {
+            debug!("App context: {:?} - {}", ctx.app_type, ctx.app_name);
+        }
+        result
     }
 
     /// Get file context
     pub fn get_file_context(&self) -> Result<FileContext, String> {
+        trace!("get_file_context called");
         let window = self.window_manager.get_active_window()?;
-        FileContext::from_window_info(&window)
+        let result = FileContext::from_window_info(&window);
+        if let Ok(ref ctx) = result {
+            debug!("File context: {:?} (type: {:?})", ctx.name, ctx.file_type);
+        }
+        result
     }
 
     /// Get browser context
     pub fn get_browser_context(&self) -> Result<BrowserContext, String> {
+        trace!("get_browser_context called");
         let window = self.window_manager.get_active_window()?;
-        BrowserContext::from_window_info(&window)
+        let result = BrowserContext::from_window_info(&window);
+        if let Ok(ref ctx) = result {
+            debug!("Browser context: {} - {:?}", ctx.browser, ctx.page_title);
+        }
+        result
     }
 
     /// Get editor context
     pub fn get_editor_context(&self) -> Result<EditorContext, String> {
+        trace!("get_editor_context called");
         let window = self.window_manager.get_active_window()?;
-        EditorContext::from_window_info(&window)
+        let result = EditorContext::from_window_info(&window);
+        if let Ok(ref ctx) = result {
+            debug!("Editor context: {} - {:?}", ctx.editor_name, ctx.file_name);
+        }
+        result
     }
 
     /// Set cache duration
     pub fn set_cache_duration(&mut self, ms: u64) {
+        debug!("Cache duration changed: {}ms -> {}ms", self.cache_duration_ms, ms);
         self.cache_duration_ms = ms;
     }
 
     /// Clear context cache
     pub fn clear_cache(&self) {
+        debug!("Context cache cleared");
         *self.last_context.write() = None;
     }
 
     /// Get list of all windows
     pub fn get_all_windows(&self) -> Result<Vec<WindowInfo>, String> {
-        self.window_manager.get_all_windows()
+        trace!("get_all_windows called");
+        let result = self.window_manager.get_all_windows();
+        if let Ok(ref windows) = result {
+            debug!("Retrieved {} windows", windows.len());
+        }
+        result
     }
 
     /// Find windows by title
     pub fn find_windows_by_title(&self, pattern: &str) -> Result<Vec<WindowInfo>, String> {
-        self.window_manager.find_windows_by_title(pattern)
+        debug!("Finding windows by title pattern: '{}'", pattern);
+        let result = self.window_manager.find_windows_by_title(pattern);
+        if let Ok(ref windows) = result {
+            debug!("Found {} windows matching title '{}'", windows.len(), pattern);
+        }
+        result
     }
 
     /// Find windows by process name
     pub fn find_windows_by_process(&self, process_name: &str) -> Result<Vec<WindowInfo>, String> {
-        self.window_manager.find_windows_by_process(process_name)
+        debug!("Finding windows by process: '{}'", process_name);
+        let result = self.window_manager.find_windows_by_process(process_name);
+        if let Ok(ref windows) = result {
+            debug!("Found {} windows for process '{}'", windows.len(), process_name);
+        }
+        result
     }
 }
 

@@ -40,7 +40,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
-import { useCopy } from '@/hooks/use-copy';
+import { useCopy } from '@/hooks/ui';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Lazy load Sandpack to reduce initial bundle size

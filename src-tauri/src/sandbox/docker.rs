@@ -22,6 +22,7 @@ pub struct DockerRuntime {
 
 impl DockerRuntime {
     pub fn new() -> Self {
+        log::trace!("Creating new DockerRuntime instance");
         Self {
             docker_path: PathBuf::from("docker"),
         }
@@ -127,17 +128,21 @@ impl SandboxRuntime for DockerRuntime {
     }
 
     async fn is_available(&self) -> bool {
-        Command::new(&self.docker_path)
+        log::trace!("Checking Docker availability...");
+        let result = Command::new(&self.docker_path)
             .arg("version")
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status()
             .await
             .map(|s| s.success())
-            .unwrap_or(false)
+            .unwrap_or(false);
+        log::trace!("Docker availability check result: {}", result);
+        result
     }
 
     async fn get_version(&self) -> Result<String, SandboxError> {
+        log::trace!("Getting Docker version...");
         let output = Command::new(&self.docker_path)
             .arg("version")
             .arg("--format")
@@ -146,11 +151,13 @@ impl SandboxRuntime for DockerRuntime {
             .await?;
 
         if output.status.success() {
-            Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+            let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            log::debug!("Docker version: {}", version);
+            Ok(version)
         } else {
-            Err(SandboxError::RuntimeNotAvailable(
-                String::from_utf8_lossy(&output.stderr).to_string(),
-            ))
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            log::warn!("Failed to get Docker version: {}", stderr);
+            Err(SandboxError::RuntimeNotAvailable(stderr))
         }
     }
 
@@ -160,33 +167,50 @@ impl SandboxRuntime for DockerRuntime {
         language_config: &LanguageConfig,
         exec_config: &ExecutionConfig,
     ) -> Result<ExecutionResult, SandboxError> {
+        log::debug!("Docker execute: id={}, language={}, image={}",
+            request.id, request.language, language_config.docker_image);
+        
         let start = Instant::now();
 
         // Create temporary directory for code
         let temp_dir = tempfile::tempdir()?;
         let work_dir = temp_dir.path().to_path_buf();
+        log::trace!("Created temp directory: {:?}", work_dir);
 
         // Write main code file
         let code_path = work_dir.join(language_config.file_name);
+        log::trace!("Writing code to {:?} ({} bytes)", code_path, request.code.len());
         tokio::fs::write(&code_path, &request.code).await?;
 
         // Write additional files
+        if !request.files.is_empty() {
+            log::debug!("Writing {} additional file(s)", request.files.len());
+        }
         for (name, content) in &request.files {
             let file_path = work_dir.join(name);
             if let Some(parent) = file_path.parent() {
                 tokio::fs::create_dir_all(parent).await?;
             }
+            log::trace!("Writing additional file: {} ({} bytes)", name, content.len());
             tokio::fs::write(&file_path, content).await?;
         }
 
         // Build and run command
+        log::debug!("Building Docker command with memory={}MB, cpu={}%, timeout={}s, network={}",
+            exec_config.memory_limit_mb, exec_config.cpu_limit_percent,
+            exec_config.timeout.as_secs(), exec_config.network_enabled);
+        
         let mut cmd = self.build_command(request, language_config, exec_config, &work_dir);
+        
+        log::info!("Starting Docker container for execution: id={}", request.id);
         let mut child = cmd.spawn().map_err(|e| {
+            log::error!("Failed to spawn Docker process: {}", e);
             SandboxError::ContainerError(format!("Failed to start Docker container: {}", e))
         })?;
 
         // Write stdin if provided
         if let Some(stdin_data) = &request.stdin {
+            log::trace!("Writing {} bytes to stdin", stdin_data.len());
             if let Some(mut stdin) = child.stdin.take() {
                 let _ = stdin.write_all(stdin_data.as_bytes()).await;
                 drop(stdin);
@@ -194,41 +218,58 @@ impl SandboxRuntime for DockerRuntime {
         }
 
         // Wait with timeout
+        log::trace!("Waiting for execution with timeout: {}s", exec_config.timeout.as_secs());
         let result = timeout(exec_config.timeout, child.wait_with_output()).await;
 
         let execution_time_ms = start.elapsed().as_millis() as u64;
+        log::debug!("Docker execution completed in {}ms", execution_time_ms);
 
         match result {
             Ok(Ok(output)) => {
+                let exit_code = output.status.code().unwrap_or(-1);
                 let mut stdout = String::from_utf8_lossy(&output.stdout).to_string();
                 let mut stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
+                log::debug!("Docker execution result: id={}, exit_code={}, stdout_len={}, stderr_len={}",
+                    request.id, exit_code, stdout.len(), stderr.len());
+
                 // Truncate output if too large
                 if stdout.len() > exec_config.max_output_size {
+                    log::debug!("Truncating stdout from {} to {} bytes", stdout.len(), exec_config.max_output_size);
                     stdout.truncate(exec_config.max_output_size);
                     stdout.push_str("\n... [output truncated]");
                 }
                 if stderr.len() > exec_config.max_output_size {
+                    log::debug!("Truncating stderr from {} to {} bytes", stderr.len(), exec_config.max_output_size);
                     stderr.truncate(exec_config.max_output_size);
                     stderr.push_str("\n... [output truncated]");
+                }
+
+                if exit_code != 0 {
+                    log::debug!("Execution finished with non-zero exit code: {}", exit_code);
                 }
 
                 Ok(ExecutionResult::success(
                     request.id.clone(),
                     stdout,
                     stderr,
-                    output.status.code().unwrap_or(-1),
+                    exit_code,
                     execution_time_ms,
                     RuntimeType::Docker,
                     request.language.clone(),
                 ))
             }
-            Ok(Err(e)) => Err(SandboxError::ExecutionFailed(e.to_string())),
+            Ok(Err(e)) => {
+                log::error!("Docker execution error: id={}, error={}", request.id, e);
+                Err(SandboxError::ExecutionFailed(e.to_string()))
+            }
             Err(_) => {
+                log::warn!("Docker execution timeout: id={}, timeout={}s", request.id, exec_config.timeout.as_secs());
                 // Timeout - kill the container
+                log::debug!("Attempting to kill timed-out container: cognia-sandbox-{}", &request.id[..8.min(request.id.len())]);
                 let _ = Command::new(&self.docker_path)
                     .arg("kill")
-                    .arg(format!("cognia-sandbox-{}", &request.id[..8]))
+                    .arg(format!("cognia-sandbox-{}", &request.id[..8.min(request.id.len())]))
                     .output()
                     .await;
 
@@ -245,30 +286,53 @@ impl SandboxRuntime for DockerRuntime {
     }
 
     async fn cleanup(&self) -> Result<(), SandboxError> {
+        log::debug!("Docker cleanup: pruning orphaned containers with label cognia-sandbox");
         // Clean up any orphaned containers
-        let _ = Command::new(&self.docker_path)
+        let result = Command::new(&self.docker_path)
             .args(["container", "prune", "-f", "--filter", "label=cognia-sandbox"])
             .output()
             .await;
+        
+        match result {
+            Ok(output) if output.status.success() => {
+                log::trace!("Docker container prune successful");
+            }
+            Ok(output) => {
+                log::debug!("Docker container prune returned non-zero: {}", 
+                    String::from_utf8_lossy(&output.stderr));
+            }
+            Err(e) => {
+                log::debug!("Docker container prune command failed: {}", e);
+            }
+        }
         Ok(())
     }
 
     async fn prepare_image(&self, language: &str) -> Result<(), SandboxError> {
+        log::info!("Docker: preparing image for language '{}'", language);
+        
         let config = super::languages::get_language_config(language)
-            .ok_or_else(|| SandboxError::LanguageNotSupported(language.to_string()))?;
+            .ok_or_else(|| {
+                log::warn!("Cannot prepare image - language not supported: {}", language);
+                SandboxError::LanguageNotSupported(language.to_string())
+            })?;
 
+        log::info!("Docker: pulling image '{}' for language '{}'", config.docker_image, language);
         let output = Command::new(&self.docker_path)
             .args(["pull", config.docker_image])
             .output()
             .await?;
 
         if output.status.success() {
+            log::info!("Docker: image '{}' pulled successfully", config.docker_image);
             Ok(())
         } else {
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            log::error!("Docker: failed to pull image '{}': {}", config.docker_image, stderr);
             Err(SandboxError::ContainerError(format!(
                 "Failed to pull image {}: {}",
                 config.docker_image,
-                String::from_utf8_lossy(&output.stderr)
+                stderr
             )))
         }
     }

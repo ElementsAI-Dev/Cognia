@@ -111,6 +111,7 @@ pub struct SelectionHistory {
 
 impl SelectionHistory {
     pub fn new() -> Self {
+        log::debug!("[SelectionHistory] Creating new instance with max_size={}", MAX_HISTORY_SIZE);
         Self {
             entries: Arc::new(RwLock::new(VecDeque::with_capacity(MAX_HISTORY_SIZE))),
             max_size: MAX_HISTORY_SIZE,
@@ -118,6 +119,7 @@ impl SelectionHistory {
     }
 
     pub fn with_max_size(max_size: usize) -> Self {
+        log::debug!("[SelectionHistory] Creating new instance with custom max_size={}", max_size);
         Self {
             entries: Arc::new(RwLock::new(VecDeque::with_capacity(max_size))),
             max_size,
@@ -126,28 +128,42 @@ impl SelectionHistory {
 
     /// Add a new entry to history
     pub fn add(&self, entry: SelectionHistoryEntry) {
+        let text_len = entry.text.len();
+        log::trace!("[SelectionHistory] add: {} chars, app={:?}", text_len, entry.app_name);
+        
         let mut entries = self.entries.write();
         
         // Check for duplicate (same text within last 5 seconds)
         if let Some(last) = entries.front() {
             if last.text == entry.text && 
                (entry.timestamp - last.timestamp).abs() < 5000 {
+                log::trace!("[SelectionHistory] Skipping duplicate entry (same text within 5s)");
                 return; // Skip duplicate
             }
         }
 
         entries.push_front(entry);
+        let new_len = entries.len();
         
         // Trim to max size
+        let mut trimmed = 0;
         while entries.len() > self.max_size {
             entries.pop_back();
+            trimmed += 1;
         }
+        
+        if trimmed > 0 {
+            log::trace!("[SelectionHistory] Trimmed {} old entries, current size={}", trimmed, entries.len());
+        }
+        log::debug!("[SelectionHistory] Entry added: {} chars, history_size={}", text_len, new_len.min(self.max_size));
     }
 
     /// Get recent entries
     pub fn get_recent(&self, count: usize) -> Vec<SelectionHistoryEntry> {
         let entries = self.entries.read();
-        entries.iter().take(count).cloned().collect()
+        let result: Vec<_> = entries.iter().take(count).cloned().collect();
+        log::trace!("[SelectionHistory] get_recent({}): returned {} entries", count, result.len());
+        result
     }
 
     /// Get all entries
@@ -157,20 +173,24 @@ impl SelectionHistory {
 
     /// Search history by text content
     pub fn search(&self, query: &str) -> Vec<SelectionHistoryEntry> {
+        log::debug!("[SelectionHistory] search: query='{}'", query);
         let query_lower = query.to_lowercase();
         let entries = self.entries.read();
-        entries
+        let results: Vec<_> = entries
             .iter()
             .filter(|e| e.text.to_lowercase().contains(&query_lower))
             .cloned()
-            .collect()
+            .collect();
+        log::debug!("[SelectionHistory] search: found {} matches", results.len());
+        results
     }
 
     /// Search by application
     pub fn search_by_app(&self, app_name: &str) -> Vec<SelectionHistoryEntry> {
+        log::debug!("[SelectionHistory] search_by_app: app='{}'", app_name);
         let app_lower = app_name.to_lowercase();
         let entries = self.entries.read();
-        entries
+        let results: Vec<_> = entries
             .iter()
             .filter(|e| {
                 e.app_name
@@ -179,13 +199,16 @@ impl SelectionHistory {
                     .unwrap_or(false)
             })
             .cloned()
-            .collect()
+            .collect();
+        log::debug!("[SelectionHistory] search_by_app: found {} matches", results.len());
+        results
     }
 
     /// Search by text type
     pub fn search_by_type(&self, text_type: &str) -> Vec<SelectionHistoryEntry> {
+        log::debug!("[SelectionHistory] search_by_type: type='{}'", text_type);
         let entries = self.entries.read();
-        entries
+        let results: Vec<_> = entries
             .iter()
             .filter(|e| {
                 e.text_type
@@ -194,17 +217,22 @@ impl SelectionHistory {
                     .unwrap_or(false)
             })
             .cloned()
-            .collect()
+            .collect();
+        log::debug!("[SelectionHistory] search_by_type: found {} matches", results.len());
+        results
     }
 
     /// Search by time range
     pub fn search_by_time(&self, start: i64, end: i64) -> Vec<SelectionHistoryEntry> {
+        log::debug!("[SelectionHistory] search_by_time: range=[{}, {}]", start, end);
         let entries = self.entries.read();
-        entries
+        let results: Vec<_> = entries
             .iter()
             .filter(|e| e.timestamp >= start && e.timestamp <= end)
             .cloned()
-            .collect()
+            .collect();
+        log::debug!("[SelectionHistory] search_by_time: found {} matches", results.len());
+        results
     }
 
     /// Get entry by index
@@ -219,7 +247,9 @@ impl SelectionHistory {
 
     /// Clear all history
     pub fn clear(&self) {
+        let prev_len = self.entries.read().len();
         self.entries.write().clear();
+        log::info!("[SelectionHistory] Cleared {} entries", prev_len);
     }
 
     /// Get history size
@@ -296,13 +326,21 @@ impl SelectionHistory {
     /// Export history to JSON
     pub fn export_json(&self) -> Result<String, String> {
         let entries = self.get_all();
-        serde_json::to_string_pretty(&entries).map_err(|e| e.to_string())
+        log::debug!("[SelectionHistory] Exporting {} entries to JSON", entries.len());
+        serde_json::to_string_pretty(&entries).map_err(|e| {
+            log::error!("[SelectionHistory] JSON export failed: {}", e);
+            e.to_string()
+        })
     }
 
     /// Import history from JSON
     pub fn import_json(&self, json: &str) -> Result<usize, String> {
+        log::debug!("[SelectionHistory] Importing from JSON ({} bytes)", json.len());
         let imported: Vec<SelectionHistoryEntry> = 
-            serde_json::from_str(json).map_err(|e| e.to_string())?;
+            serde_json::from_str(json).map_err(|e| {
+                log::error!("[SelectionHistory] JSON import parse failed: {}", e);
+                e.to_string()
+            })?;
         
         let count = imported.len();
         let mut entries = self.entries.write();
@@ -312,10 +350,13 @@ impl SelectionHistory {
         }
 
         // Trim to max size
+        let mut trimmed = 0;
         while entries.len() > self.max_size {
             entries.pop_back();
+            trimmed += 1;
         }
 
+        log::info!("[SelectionHistory] Imported {} entries (trimmed {})", count, trimmed);
         Ok(count)
     }
 }

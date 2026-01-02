@@ -50,14 +50,17 @@ export type PPTExportFormat = 'marp' | 'html' | 'reveal' | 'pdf' | 'pptx';
 export interface PPTPreviewProps {
   presentation: PPTPresentation;
   onEdit?: (slideIndex: number) => void;
+  onOpenEditor?: (presentation: PPTPresentation) => void;
   onExport?: (format: PPTExportFormat) => void;
   onThemeChange?: (themeId: string) => void;
+  onPresentationChange?: (presentation: PPTPresentation) => void;
   className?: string;
 }
 
 export function PPTPreview({
   presentation,
   onEdit,
+  onOpenEditor,
   onExport,
   onThemeChange,
   className,
@@ -291,6 +294,24 @@ export function PPTPreview({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Open Editor button */}
+          {onOpenEditor && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onOpenEditor(presentation)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('openEditor')}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
 
           {/* Export menu */}
           <DropdownMenu>

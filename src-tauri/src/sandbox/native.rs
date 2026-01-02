@@ -107,6 +107,7 @@ pub struct NativeRuntime {
 
 impl NativeRuntime {
     pub fn new() -> Self {
+        log::trace!("Creating new NativeRuntime instance");
         Self {
             _available_languages: Vec::new(),
         }
@@ -115,9 +116,11 @@ impl NativeRuntime {
     /// Check which languages are available natively
     #[allow(dead_code)]
     pub async fn detect_available_languages(&mut self) {
+        log::debug!("Detecting available native languages...");
         self._available_languages.clear();
         
         for (lang, cmd) in NATIVE_COMMANDS.iter() {
+            log::trace!("Checking native support for {}: {} {:?}", lang, cmd.check_cmd, cmd.check_args);
             let result = Command::new(cmd.check_cmd)
                 .args(cmd.check_args)
                 .stdout(Stdio::null())
@@ -126,9 +129,15 @@ impl NativeRuntime {
                 .await;
 
             if result.map(|s| s.success()).unwrap_or(false) {
+                log::debug!("Native runtime available for: {}", lang);
                 self._available_languages.push(lang.to_string());
+            } else {
+                log::trace!("Native runtime not available for: {}", lang);
             }
         }
+        
+        log::info!("Detected {} native language runtime(s): {:?}", 
+            self._available_languages.len(), self._available_languages);
     }
 
     #[allow(dead_code)]
@@ -151,10 +160,12 @@ impl SandboxRuntime for NativeRuntime {
 
     async fn is_available(&self) -> bool {
         // Native runtime is always "available" but may have limited language support
+        log::trace!("Native runtime availability check: always true");
         true
     }
 
     async fn get_version(&self) -> Result<String, SandboxError> {
+        log::trace!("Native runtime version: native-1.0");
         Ok("native-1.0".to_string())
     }
 
@@ -164,35 +175,48 @@ impl SandboxRuntime for NativeRuntime {
         language_config: &LanguageConfig,
         exec_config: &ExecutionConfig,
     ) -> Result<ExecutionResult, SandboxError> {
+        log::debug!("Native execute: id={}, language={}", request.id, request.language);
+        
         let native_cmd = NATIVE_COMMANDS.get(language_config.id).ok_or_else(|| {
+            log::warn!("Language '{}' is not supported in native mode", language_config.name);
             SandboxError::LanguageNotSupported(format!(
                 "{} is not supported in native mode",
                 language_config.name
             ))
         })?;
 
+        log::debug!("Native command config: check={}, compile={:?}, run={}",
+            native_cmd.check_cmd, native_cmd.compile_cmd, native_cmd.run_cmd);
+
         let start = Instant::now();
 
         // Create temporary directory
         let temp_dir = tempfile::tempdir()?;
         let work_dir = temp_dir.path().to_path_buf();
+        log::trace!("Created temp directory: {:?}", work_dir);
 
         // Write code file
         let code_path = work_dir.join(language_config.file_name);
+        log::trace!("Writing code to {:?} ({} bytes)", code_path, request.code.len());
         tokio::fs::write(&code_path, &request.code).await?;
 
         // Write additional files
+        if !request.files.is_empty() {
+            log::debug!("Writing {} additional file(s)", request.files.len());
+        }
         for (name, content) in &request.files {
             let file_path = work_dir.join(name);
             if let Some(parent) = file_path.parent() {
                 tokio::fs::create_dir_all(parent).await?;
             }
+            log::trace!("Writing additional file: {} ({} bytes)", name, content.len());
             tokio::fs::write(&file_path, content).await?;
         }
 
         // Compile if needed
         let mut output_path = code_path.clone();
         if let Some(compile) = native_cmd.compile_cmd {
+            log::debug!("Compiling code using native compiler: {}", compile);
             let parts: Vec<&str> = compile.split_whitespace().collect();
             let mut compile_cmd = Command::new(parts[0]);
             
@@ -207,22 +231,30 @@ impl SandboxRuntime for NativeRuntime {
                 compile_cmd.arg("-o").arg(&output_path);
             }
 
+            log::trace!("Running compilation command...");
             let compile_result = timeout(exec_config.timeout, compile_cmd.output()).await;
 
             match compile_result {
                 Ok(Ok(output)) if !output.status.success() => {
+                    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                    log::debug!("Compilation failed: exit_code={:?}, stderr_len={}",
+                        output.status.code(), stderr.len());
                     return Ok(ExecutionResult::success(
                         request.id.clone(),
                         String::new(),
-                        String::from_utf8_lossy(&output.stderr).to_string(),
+                        stderr,
                         output.status.code().unwrap_or(1),
                         start.elapsed().as_millis() as u64,
                         RuntimeType::Native,
                         request.language.clone(),
                     ));
                 }
-                Ok(Err(e)) => return Err(SandboxError::ExecutionFailed(e.to_string())),
+                Ok(Err(e)) => {
+                    log::error!("Compilation error: {}", e);
+                    return Err(SandboxError::ExecutionFailed(e.to_string()));
+                }
                 Err(_) => {
+                    log::warn!("Compilation timeout after {}s", exec_config.timeout.as_secs());
                     return Ok(ExecutionResult::timeout(
                         request.id.clone(),
                         String::new(),
@@ -232,11 +264,14 @@ impl SandboxRuntime for NativeRuntime {
                         request.language.clone(),
                     ));
                 }
-                _ => {}
+                Ok(Ok(_)) => {
+                    log::debug!("Compilation successful");
+                }
             }
         }
 
         // Run
+        log::debug!("Running code with command: {}", native_cmd.run_cmd);
         let run_parts: Vec<&str> = native_cmd.run_cmd.split_whitespace().collect();
         let mut run_cmd = if run_parts.is_empty() {
             Command::new(&output_path)
@@ -259,68 +294,96 @@ impl SandboxRuntime for NativeRuntime {
         run_cmd.stderr(Stdio::piped());
 
         // Set environment variables
+        if !request.env.is_empty() {
+            log::trace!("Setting {} environment variable(s)", request.env.len());
+        }
         for (key, value) in &request.env {
             run_cmd.env(key, value);
         }
 
         // Add arguments
+        if !request.args.is_empty() {
+            log::trace!("Adding {} argument(s)", request.args.len());
+        }
         for arg in &request.args {
             run_cmd.arg(arg);
         }
 
+        log::info!("Starting native process for execution: id={}", request.id);
         let mut child = run_cmd.spawn().map_err(|e| {
+            log::error!("Failed to spawn native process: {}", e);
             SandboxError::ExecutionFailed(format!("Failed to start process: {}", e))
         })?;
 
         // Write stdin
         if let Some(stdin_data) = &request.stdin {
+            log::trace!("Writing {} bytes to stdin", stdin_data.len());
             if let Some(mut stdin) = child.stdin.take() {
                 let _ = stdin.write_all(stdin_data.as_bytes()).await;
                 drop(stdin);
             }
         }
 
+        log::trace!("Waiting for execution with timeout: {}s", exec_config.timeout.as_secs());
         let result = timeout(exec_config.timeout, child.wait_with_output()).await;
         let execution_time_ms = start.elapsed().as_millis() as u64;
+        log::debug!("Native execution completed in {}ms", execution_time_ms);
 
         match result {
             Ok(Ok(output)) => {
+                let exit_code = output.status.code().unwrap_or(-1);
                 let mut stdout = String::from_utf8_lossy(&output.stdout).to_string();
                 let mut stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
+                log::debug!("Native execution result: id={}, exit_code={}, stdout_len={}, stderr_len={}",
+                    request.id, exit_code, stdout.len(), stderr.len());
+
                 if stdout.len() > exec_config.max_output_size {
+                    log::debug!("Truncating stdout from {} to {} bytes", stdout.len(), exec_config.max_output_size);
                     stdout.truncate(exec_config.max_output_size);
                     stdout.push_str("\n... [output truncated]");
                 }
                 if stderr.len() > exec_config.max_output_size {
+                    log::debug!("Truncating stderr from {} to {} bytes", stderr.len(), exec_config.max_output_size);
                     stderr.truncate(exec_config.max_output_size);
                     stderr.push_str("\n... [output truncated]");
+                }
+
+                if exit_code != 0 {
+                    log::debug!("Execution finished with non-zero exit code: {}", exit_code);
                 }
 
                 Ok(ExecutionResult::success(
                     request.id.clone(),
                     stdout,
                     stderr,
-                    output.status.code().unwrap_or(-1),
+                    exit_code,
                     execution_time_ms,
                     RuntimeType::Native,
                     request.language.clone(),
                 ))
             }
-            Ok(Err(e)) => Err(SandboxError::ExecutionFailed(e.to_string())),
-            Err(_) => Ok(ExecutionResult::timeout(
-                request.id.clone(),
-                String::new(),
-                String::new(),
-                exec_config.timeout.as_secs(),
-                RuntimeType::Native,
-                request.language.clone(),
-            )),
+            Ok(Err(e)) => {
+                log::error!("Native execution error: id={}, error={}", request.id, e);
+                Err(SandboxError::ExecutionFailed(e.to_string()))
+            }
+            Err(_) => {
+                log::warn!("Native execution timeout: id={}, timeout={}s", request.id, exec_config.timeout.as_secs());
+                Ok(ExecutionResult::timeout(
+                    request.id.clone(),
+                    String::new(),
+                    String::new(),
+                    exec_config.timeout.as_secs(),
+                    RuntimeType::Native,
+                    request.language.clone(),
+                ))
+            }
         }
     }
 
     async fn cleanup(&self) -> Result<(), SandboxError> {
         // Native runtime cleanup is handled by tempfile
+        log::trace!("Native runtime cleanup (handled by tempfile)");
         Ok(())
     }
 }

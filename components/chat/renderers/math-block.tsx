@@ -42,7 +42,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useCopy } from '@/hooks/use-copy';
+import { useCopy } from '@/hooks/ui';
 import { exportMath, generateMathFilename } from '@/lib/export/math-export';
 import { toast } from 'sonner';
 import katex from 'katex';

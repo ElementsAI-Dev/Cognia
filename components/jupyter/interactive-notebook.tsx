@@ -25,8 +25,8 @@ import {
 import { JupyterRenderer } from '@/components/artifacts/jupyter-renderer';
 import { KernelStatus } from './kernel-status';
 import { VariableInspector } from './variable-inspector';
-import { useJupyterKernel } from '@/hooks/use-jupyter-kernel';
-import { useVirtualEnv } from '@/hooks/use-virtual-env';
+import { useJupyterKernel } from '@/hooks/sandbox';
+import { useVirtualEnv } from '@/hooks/sandbox';
 import type { VirtualEnvInfo } from '@/types/environment';
 
 interface InteractiveNotebookProps {

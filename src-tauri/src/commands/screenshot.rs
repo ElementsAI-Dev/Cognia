@@ -4,7 +4,7 @@
 
 use crate::screenshot::{
     CaptureRegion, MonitorInfo, ScreenshotConfig, ScreenshotManager, ScreenshotMetadata,
-    ScreenshotHistoryEntry, WinOcrResult,
+    ScreenshotHistoryEntry, WinOcrResult, WindowInfo, SnapConfig, SnapResult,
 };
 use tauri::State;
 
@@ -251,6 +251,78 @@ pub struct ScreenshotResult {
 }
 
 use base64::Engine;
+
+// ============== Window Management Commands ==============
+
+/// Get list of all visible windows
+#[tauri::command]
+pub async fn screenshot_get_windows(
+    manager: State<'_, ScreenshotManager>,
+) -> Result<Vec<WindowInfo>, String> {
+    Ok(manager.get_windows())
+}
+
+/// Get list of all visible windows with thumbnails
+#[tauri::command]
+pub async fn screenshot_get_windows_with_thumbnails(
+    manager: State<'_, ScreenshotManager>,
+    thumbnail_size: Option<u32>,
+) -> Result<Vec<WindowInfo>, String> {
+    Ok(manager.get_windows_with_thumbnails(thumbnail_size.unwrap_or(160)))
+}
+
+/// Capture a specific window by its HWND
+#[tauri::command]
+pub async fn screenshot_capture_window_by_hwnd(
+    manager: State<'_, ScreenshotManager>,
+    hwnd: isize,
+) -> Result<ScreenshotResult, String> {
+    let result = manager.capture_window_by_hwnd(hwnd)?;
+    Ok(ScreenshotResult {
+        image_base64: base64::engine::general_purpose::STANDARD.encode(&result.image_data),
+        metadata: result.metadata,
+    })
+}
+
+/// Capture a specific window by HWND and add to history
+#[tauri::command]
+pub async fn screenshot_capture_window_by_hwnd_with_history(
+    manager: State<'_, ScreenshotManager>,
+    hwnd: isize,
+) -> Result<ScreenshotResult, String> {
+    let result = manager.capture_window_by_hwnd_with_history(hwnd).await?;
+    Ok(ScreenshotResult {
+        image_base64: base64::engine::general_purpose::STANDARD.encode(&result.image_data),
+        metadata: result.metadata,
+    })
+}
+
+/// Calculate snap position for window movement
+#[tauri::command]
+pub async fn screenshot_calculate_snap(
+    manager: State<'_, ScreenshotManager>,
+    window_hwnd: isize,
+    proposed_x: i32,
+    proposed_y: i32,
+    window_width: u32,
+    window_height: u32,
+) -> Result<SnapResult, String> {
+    Ok(manager.calculate_snap_position(
+        window_hwnd,
+        proposed_x,
+        proposed_y,
+        window_width,
+        window_height,
+    ))
+}
+
+/// Get current snap configuration
+#[tauri::command]
+pub async fn screenshot_get_snap_config(
+    manager: State<'_, ScreenshotManager>,
+) -> Result<SnapConfig, String> {
+    Ok(manager.get_snap_config())
+}
 
 #[cfg(test)]
 mod tests {

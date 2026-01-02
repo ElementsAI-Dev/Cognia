@@ -22,6 +22,7 @@ pub struct PodmanRuntime {
 
 impl PodmanRuntime {
     pub fn new() -> Self {
+        log::trace!("Creating new PodmanRuntime instance");
         Self {
             podman_path: PathBuf::from("podman"),
         }
@@ -115,17 +116,21 @@ impl SandboxRuntime for PodmanRuntime {
     }
 
     async fn is_available(&self) -> bool {
-        Command::new(&self.podman_path)
+        log::trace!("Checking Podman availability...");
+        let result = Command::new(&self.podman_path)
             .arg("version")
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status()
             .await
             .map(|s| s.success())
-            .unwrap_or(false)
+            .unwrap_or(false);
+        log::trace!("Podman availability check result: {}", result);
+        result
     }
 
     async fn get_version(&self) -> Result<String, SandboxError> {
+        log::trace!("Getting Podman version...");
         let output = Command::new(&self.podman_path)
             .arg("version")
             .arg("--format")
@@ -134,11 +139,13 @@ impl SandboxRuntime for PodmanRuntime {
             .await?;
 
         if output.status.success() {
-            Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+            let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            log::debug!("Podman version: {}", version);
+            Ok(version)
         } else {
-            Err(SandboxError::RuntimeNotAvailable(
-                String::from_utf8_lossy(&output.stderr).to_string(),
-            ))
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            log::warn!("Failed to get Podman version: {}", stderr);
+            Err(SandboxError::RuntimeNotAvailable(stderr))
         }
     }
 
@@ -148,97 +155,155 @@ impl SandboxRuntime for PodmanRuntime {
         language_config: &LanguageConfig,
         exec_config: &ExecutionConfig,
     ) -> Result<ExecutionResult, SandboxError> {
+        log::debug!("Podman execute: id={}, language={}, image={}",
+            request.id, request.language, language_config.docker_image);
+        
         let start = Instant::now();
 
         let temp_dir = tempfile::tempdir()?;
         let work_dir = temp_dir.path().to_path_buf();
+        log::trace!("Created temp directory: {:?}", work_dir);
 
         let code_path = work_dir.join(language_config.file_name);
+        log::trace!("Writing code to {:?} ({} bytes)", code_path, request.code.len());
         tokio::fs::write(&code_path, &request.code).await?;
 
+        if !request.files.is_empty() {
+            log::debug!("Writing {} additional file(s)", request.files.len());
+        }
         for (name, content) in &request.files {
             let file_path = work_dir.join(name);
             if let Some(parent) = file_path.parent() {
                 tokio::fs::create_dir_all(parent).await?;
             }
+            log::trace!("Writing additional file: {} ({} bytes)", name, content.len());
             tokio::fs::write(&file_path, content).await?;
         }
 
+        log::debug!("Building Podman command with memory={}MB, cpu={}%, timeout={}s, network={}",
+            exec_config.memory_limit_mb, exec_config.cpu_limit_percent,
+            exec_config.timeout.as_secs(), exec_config.network_enabled);
+        
         let mut cmd = self.build_command(request, language_config, exec_config, &work_dir);
+        
+        log::info!("Starting Podman container for execution: id={}", request.id);
         let mut child = cmd.spawn().map_err(|e| {
+            log::error!("Failed to spawn Podman process: {}", e);
             SandboxError::ContainerError(format!("Failed to start Podman container: {}", e))
         })?;
 
         if let Some(stdin_data) = &request.stdin {
+            log::trace!("Writing {} bytes to stdin", stdin_data.len());
             if let Some(mut stdin) = child.stdin.take() {
                 let _ = stdin.write_all(stdin_data.as_bytes()).await;
                 drop(stdin);
             }
         }
 
+        log::trace!("Waiting for execution with timeout: {}s", exec_config.timeout.as_secs());
         let result = timeout(exec_config.timeout, child.wait_with_output()).await;
         let execution_time_ms = start.elapsed().as_millis() as u64;
+        log::debug!("Podman execution completed in {}ms", execution_time_ms);
 
         match result {
             Ok(Ok(output)) => {
+                let exit_code = output.status.code().unwrap_or(-1);
                 let mut stdout = String::from_utf8_lossy(&output.stdout).to_string();
                 let mut stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
+                log::debug!("Podman execution result: id={}, exit_code={}, stdout_len={}, stderr_len={}",
+                    request.id, exit_code, stdout.len(), stderr.len());
+
                 if stdout.len() > exec_config.max_output_size {
+                    log::debug!("Truncating stdout from {} to {} bytes", stdout.len(), exec_config.max_output_size);
                     stdout.truncate(exec_config.max_output_size);
                     stdout.push_str("\n... [output truncated]");
                 }
                 if stderr.len() > exec_config.max_output_size {
+                    log::debug!("Truncating stderr from {} to {} bytes", stderr.len(), exec_config.max_output_size);
                     stderr.truncate(exec_config.max_output_size);
                     stderr.push_str("\n... [output truncated]");
+                }
+
+                if exit_code != 0 {
+                    log::debug!("Execution finished with non-zero exit code: {}", exit_code);
                 }
 
                 Ok(ExecutionResult::success(
                     request.id.clone(),
                     stdout,
                     stderr,
-                    output.status.code().unwrap_or(-1),
+                    exit_code,
                     execution_time_ms,
                     RuntimeType::Podman,
                     request.language.clone(),
                 ))
             }
-            Ok(Err(e)) => Err(SandboxError::ExecutionFailed(e.to_string())),
-            Err(_) => Ok(ExecutionResult::timeout(
-                request.id.clone(),
-                String::new(),
-                String::new(),
-                exec_config.timeout.as_secs(),
-                RuntimeType::Podman,
-                request.language.clone(),
-            )),
+            Ok(Err(e)) => {
+                log::error!("Podman execution error: id={}, error={}", request.id, e);
+                Err(SandboxError::ExecutionFailed(e.to_string()))
+            }
+            Err(_) => {
+                log::warn!("Podman execution timeout: id={}, timeout={}s", request.id, exec_config.timeout.as_secs());
+                Ok(ExecutionResult::timeout(
+                    request.id.clone(),
+                    String::new(),
+                    String::new(),
+                    exec_config.timeout.as_secs(),
+                    RuntimeType::Podman,
+                    request.language.clone(),
+                ))
+            }
         }
     }
 
     async fn cleanup(&self) -> Result<(), SandboxError> {
-        let _ = Command::new(&self.podman_path)
+        log::debug!("Podman cleanup: pruning stopped containers");
+        let result = Command::new(&self.podman_path)
             .args(["container", "prune", "-f"])
             .output()
             .await;
+        
+        match result {
+            Ok(output) if output.status.success() => {
+                log::trace!("Podman container prune successful");
+            }
+            Ok(output) => {
+                log::debug!("Podman container prune returned non-zero: {}", 
+                    String::from_utf8_lossy(&output.stderr));
+            }
+            Err(e) => {
+                log::debug!("Podman container prune command failed: {}", e);
+            }
+        }
         Ok(())
     }
 
     async fn prepare_image(&self, language: &str) -> Result<(), SandboxError> {
+        log::info!("Podman: preparing image for language '{}'", language);
+        
         let config = super::languages::get_language_config(language)
-            .ok_or_else(|| SandboxError::LanguageNotSupported(language.to_string()))?;
+            .ok_or_else(|| {
+                log::warn!("Cannot prepare image - language not supported: {}", language);
+                SandboxError::LanguageNotSupported(language.to_string())
+            })?;
 
+        log::info!("Podman: pulling image '{}' for language '{}'", config.docker_image, language);
         let output = Command::new(&self.podman_path)
             .args(["pull", config.docker_image])
             .output()
             .await?;
 
         if output.status.success() {
+            log::info!("Podman: image '{}' pulled successfully", config.docker_image);
             Ok(())
         } else {
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            log::error!("Podman: failed to pull image '{}': {}", config.docker_image, stderr);
             Err(SandboxError::ContainerError(format!(
                 "Failed to pull image {}: {}",
                 config.docker_image,
-                String::from_utf8_lossy(&output.stderr)
+                stderr
             )))
         }
     }

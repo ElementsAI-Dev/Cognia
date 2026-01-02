@@ -20,7 +20,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useCopy, type CopyFormat, addToCopyHistory } from '@/hooks/use-copy';
+import { useCopy, type CopyFormat, addToCopyHistory } from '@/hooks/ui';
 
 type ButtonProps = React.ComponentProps<typeof Button>;
 

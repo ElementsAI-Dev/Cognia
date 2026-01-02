@@ -50,7 +50,14 @@ impl McpClient {
         env: &HashMap<String, String>,
         notification_tx: mpsc::Sender<JsonRpcNotification>,
     ) -> McpResult<Self> {
+        log::debug!(
+            "Creating stdio MCP client: command='{}', args={:?}, env_vars={}",
+            command,
+            args,
+            env.len()
+        );
         let transport = StdioTransport::spawn(command, args, env, None).await?;
+        log::info!("Stdio transport created successfully for command: {}", command);
         Self::new(Arc::new(transport), notification_tx)
     }
 
@@ -59,7 +66,9 @@ impl McpClient {
         url: &str,
         notification_tx: mpsc::Sender<JsonRpcNotification>,
     ) -> McpResult<Self> {
+        log::debug!("Creating SSE MCP client: url='{}'", url);
         let transport = SseTransport::connect(url).await?;
+        log::info!("SSE transport connected successfully to: {}", url);
         Self::new(Arc::new(transport), notification_tx)
     }
 
@@ -68,6 +77,7 @@ impl McpClient {
         transport: Arc<dyn Transport>,
         notification_tx: mpsc::Sender<JsonRpcNotification>,
     ) -> McpResult<Self> {
+        log::trace!("Initializing MCP client internal state");
         let pending_requests = Arc::new(TokioMutex::new(HashMap::new()));
 
         let client = Self {
@@ -80,16 +90,19 @@ impl McpClient {
             receive_task: TokioMutex::new(None),
         };
 
+        log::debug!("MCP client instance created successfully");
         Ok(client)
     }
 
     /// Start the background receive loop
     pub async fn start_receive_loop(&self) {
+        log::debug!("Starting MCP client receive loop");
         let transport = self.transport.clone();
         let pending_requests = self.pending_requests.clone();
         let notification_tx = self.notification_tx.clone();
 
         let handle = tokio::spawn(async move {
+            log::trace!("Receive loop task started");
             loop {
                 match transport.receive().await {
                     Ok(message) => {
@@ -138,6 +151,7 @@ impl McpClient {
         });
 
         *self.receive_task.lock().await = Some(handle);
+        log::info!("MCP client receive loop started successfully");
     }
 
     /// Send a request and wait for response
@@ -147,6 +161,8 @@ impl McpClient {
         params: Option<serde_json::Value>,
     ) -> McpResult<serde_json::Value> {
         let id = self.request_counter.fetch_add(1, Ordering::SeqCst);
+        log::debug!("Sending JSON-RPC request: id={}, method='{}'", id, method);
+        log::trace!("Request params: {:?}", params);
 
         let request = JsonRpcRequest::new(id, method, params);
         let message = serde_json::to_string(&request)?;
@@ -164,11 +180,20 @@ impl McpClient {
         self.transport.send(&message).await?;
 
         // Wait for response with timeout
+        log::trace!("Waiting for response to request id={} with 30s timeout", id);
         match tokio::time::timeout(std::time::Duration::from_secs(30), rx).await {
-            Ok(Ok(result)) => result,
-            Ok(Err(_)) => Err(McpError::ChannelClosed),
+            Ok(Ok(result)) => {
+                log::debug!("Received successful response for request id={}, method='{}'", id, method);
+                log::trace!("Response result: {:?}", result);
+                result
+            }
+            Ok(Err(_)) => {
+                log::error!("Channel closed while waiting for response to request id={}", id);
+                Err(McpError::ChannelClosed)
+            }
             Err(_) => {
                 // Clean up pending request on timeout
+                log::error!("Request timeout for id={}, method='{}' after 30s", id, method);
                 let mut pending = self.pending_requests.lock().await;
                 pending.remove(&id);
                 Err(McpError::ConnectionTimeout)
@@ -182,6 +207,8 @@ impl McpClient {
         method: &str,
         params: Option<serde_json::Value>,
     ) -> McpResult<()> {
+        log::debug!("Sending JSON-RPC notification: method='{}'", method);
+        log::trace!("Notification params: {:?}", params);
         let notification = JsonRpcNotification::new(method, params);
         let message = serde_json::to_string(&notification)?;
         self.transport.send(&message).await
@@ -189,6 +216,12 @@ impl McpClient {
 
     /// Initialize the MCP connection
     pub async fn initialize(&self, client_info: ClientInfo) -> McpResult<InitializeResult> {
+        log::info!(
+            "Initializing MCP connection: client='{}' v{}, protocol='{}'",
+            client_info.name,
+            client_info.version,
+            MCP_PROTOCOL_VERSION
+        );
         let params = serde_json::json!({
             "protocolVersion": MCP_PROTOCOL_VERSION,
             "capabilities": {
@@ -203,6 +236,21 @@ impl McpClient {
         // Store capabilities and server info
         *self.capabilities.lock().await = Some(init_result.capabilities.clone());
         *self.server_info.lock().await = init_result.server_info.clone();
+        
+        if let Some(ref server_info) = init_result.server_info {
+            log::info!(
+                "Connected to MCP server: '{}' v{}",
+                server_info.name,
+                server_info.version.as_deref().unwrap_or("unknown")
+            );
+        }
+        log::debug!(
+            "Server capabilities: tools={}, resources={}, prompts={}, logging={}",
+            init_result.capabilities.tools.is_some(),
+            init_result.capabilities.resources.is_some(),
+            init_result.capabilities.prompts.is_some(),
+            init_result.capabilities.logging.is_some()
+        );
 
         // Send initialized notification
         self.send_notification(methods::INITIALIZED, None).await?;
@@ -227,8 +275,13 @@ impl McpClient {
 
     /// List available tools
     pub async fn list_tools(&self) -> McpResult<Vec<McpTool>> {
+        log::debug!("Listing available tools from MCP server");
         let result = self.send_request(methods::TOOLS_LIST, None).await?;
         let response: ToolsListResponse = serde_json::from_value(result)?;
+        log::info!("Retrieved {} tools from MCP server", response.tools.len());
+        for tool in &response.tools {
+            log::trace!("  Tool: '{}' - {}", tool.name, tool.description.as_deref().unwrap_or("(no description)"));
+        }
         Ok(response.tools)
     }
 
@@ -238,31 +291,49 @@ impl McpClient {
         name: &str,
         arguments: serde_json::Value,
     ) -> McpResult<ToolCallResult> {
+        log::info!("Calling MCP tool: '{}'", name);
+        log::debug!("Tool arguments: {}", arguments);
         let params = ToolsCallParams {
             name: name.to_string(),
             arguments,
         };
 
+        let start = std::time::Instant::now();
         let result = self
             .send_request(methods::TOOLS_CALL, Some(serde_json::to_value(params)?))
             .await?;
         let response: ToolCallResult = serde_json::from_value(result)?;
+        let elapsed = start.elapsed();
+        
+        if response.is_error {
+            log::warn!("Tool '{}' returned error after {:?}", name, elapsed);
+        } else {
+            log::info!("Tool '{}' completed successfully in {:?}", name, elapsed);
+        }
+        log::debug!("Tool '{}' returned {} content items", name, response.content.len());
         Ok(response)
     }
 
     /// List available resources
     pub async fn list_resources(&self) -> McpResult<Vec<McpResource>> {
+        log::debug!("Listing available resources from MCP server");
         let result = self.send_request(methods::RESOURCES_LIST, None).await?;
         let response: ResourcesListResponse = serde_json::from_value(result)?;
+        log::info!("Retrieved {} resources from MCP server", response.resources.len());
+        for resource in &response.resources {
+            log::trace!("  Resource: '{}' ({})", resource.name, resource.uri);
+        }
         Ok(response.resources)
     }
 
     /// Read a resource
     pub async fn read_resource(&self, uri: &str) -> McpResult<ResourceContent> {
+        log::info!("Reading MCP resource: '{}'", uri);
         let params = ResourcesReadParams {
             uri: uri.to_string(),
         };
 
+        let start = std::time::Instant::now();
         let result = self
             .send_request(
                 methods::RESOURCES_READ,
@@ -270,29 +341,45 @@ impl McpClient {
             )
             .await?;
         let response: ResourceContent = serde_json::from_value(result)?;
+        let elapsed = start.elapsed();
+        log::debug!(
+            "Resource '{}' read successfully in {:?}, {} content items",
+            uri,
+            elapsed,
+            response.contents.len()
+        );
         Ok(response)
     }
 
     /// Subscribe to resource updates
     pub async fn subscribe_resource(&self, uri: &str) -> McpResult<()> {
+        log::info!("Subscribing to resource updates: '{}'", uri);
         let params = serde_json::json!({ "uri": uri });
         self.send_request(methods::RESOURCES_SUBSCRIBE, Some(params))
             .await?;
+        log::debug!("Successfully subscribed to resource: '{}'", uri);
         Ok(())
     }
 
     /// Unsubscribe from resource updates
     pub async fn unsubscribe_resource(&self, uri: &str) -> McpResult<()> {
+        log::info!("Unsubscribing from resource updates: '{}'", uri);
         let params = serde_json::json!({ "uri": uri });
         self.send_request(methods::RESOURCES_UNSUBSCRIBE, Some(params))
             .await?;
+        log::debug!("Successfully unsubscribed from resource: '{}'", uri);
         Ok(())
     }
 
     /// List available prompts
     pub async fn list_prompts(&self) -> McpResult<Vec<McpPrompt>> {
+        log::debug!("Listing available prompts from MCP server");
         let result = self.send_request(methods::PROMPTS_LIST, None).await?;
         let response: PromptsListResponse = serde_json::from_value(result)?;
+        log::info!("Retrieved {} prompts from MCP server", response.prompts.len());
+        for prompt in &response.prompts {
+            log::trace!("  Prompt: '{}' - {}", prompt.name, prompt.description.as_deref().unwrap_or("(no description)"));
+        }
         Ok(response.prompts)
     }
 
@@ -302,53 +389,80 @@ impl McpClient {
         name: &str,
         arguments: Option<serde_json::Value>,
     ) -> McpResult<PromptContent> {
+        log::info!("Getting MCP prompt: '{}'", name);
+        log::debug!("Prompt arguments: {:?}", arguments);
         let params = PromptsGetParams {
             name: name.to_string(),
             arguments,
         };
 
+        let start = std::time::Instant::now();
         let result = self
             .send_request(methods::PROMPTS_GET, Some(serde_json::to_value(params)?))
             .await?;
         let response: PromptContent = serde_json::from_value(result)?;
+        let elapsed = start.elapsed();
+        log::debug!(
+            "Prompt '{}' retrieved in {:?}, {} messages",
+            name,
+            elapsed,
+            response.messages.len()
+        );
         Ok(response)
     }
 
     /// Set log level on the server
     pub async fn set_log_level(&self, level: crate::mcp::types::LogLevel) -> McpResult<()> {
+        log::info!("Setting MCP server log level to: {:?}", level);
         let params = serde_json::json!({
             "level": level
         });
         self.send_request(methods::LOGGING_SET_LEVEL, Some(params)).await?;
+        log::debug!("Server log level set successfully");
         Ok(())
     }
 
-        /// Send a ping to check connection
+    /// Send a ping to check connection
     pub async fn ping(&self) -> McpResult<()> {
+        log::trace!("Sending ping to MCP server");
+        let start = std::time::Instant::now();
         self.send_request(methods::PING, None).await?;
+        let elapsed = start.elapsed();
+        log::trace!("Ping response received in {:?}", elapsed);
         Ok(())
     }
 
     /// Close the connection
     pub async fn close(&self) -> McpResult<()> {
+        log::info!("Closing MCP client connection");
+        
         // Cancel receive task
         if let Some(handle) = self.receive_task.lock().await.take() {
+            log::debug!("Aborting receive loop task");
             handle.abort();
         }
 
         // Close transport
+        log::debug!("Closing transport layer");
         self.transport.close().await?;
 
         // Clear pending requests
         let mut pending = self.pending_requests.lock().await;
+        let pending_count = pending.len();
+        if pending_count > 0 {
+            log::warn!("Clearing {} pending requests on connection close", pending_count);
+        }
         pending.clear();
 
+        log::info!("MCP client connection closed successfully");
         Ok(())
     }
 
     /// Check if the client is connected
     pub fn is_connected(&self) -> bool {
-        self.transport.is_connected()
+        let connected = self.transport.is_connected();
+        log::trace!("MCP client connection status: {}", connected);
+        connected
     }
 }
 

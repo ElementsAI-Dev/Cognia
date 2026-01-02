@@ -29,6 +29,14 @@ impl StdioTransport {
         env: &HashMap<String, String>,
         working_dir: Option<&str>,
     ) -> McpResult<Self> {
+        log::debug!(
+            "Spawning stdio transport: command='{}', args={:?}, env_vars={}, working_dir={:?}",
+            command,
+            args,
+            env.len(),
+            working_dir
+        );
+        
         let mut cmd = Command::new(command);
         cmd.args(args)
             .stdin(Stdio::piped())
@@ -38,11 +46,13 @@ impl StdioTransport {
 
         // Set environment variables
         for (key, value) in env {
+            log::trace!("Setting env var: {}={}", key, if key.to_lowercase().contains("key") || key.to_lowercase().contains("secret") || key.to_lowercase().contains("token") { "[REDACTED]" } else { value });
             cmd.env(key, value);
         }
 
         // Set working directory if specified
         if let Some(dir) = working_dir {
+            log::trace!("Setting working directory: {}", dir);
             cmd.current_dir(dir);
         }
 
@@ -54,14 +64,27 @@ impl StdioTransport {
             cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
         }
 
+        log::debug!("Executing spawn command");
         let mut child = cmd
             .spawn()
-            .map_err(|e| McpError::SpawnFailed(format!("{}: {}", command, e)))?;
+            .map_err(|e| {
+                log::error!("Failed to spawn process '{}': {}", command, e);
+                McpError::SpawnFailed(format!("{}: {}", command, e))
+            })?;
 
-        let stdin = child.stdin.take().ok_or(McpError::StdinUnavailable)?;
-        let stdout = child.stdout.take().ok_or(McpError::StdoutUnavailable)?;
+        let pid = child.id();
+        log::debug!("Process spawned with PID: {:?}", pid);
 
-        log::info!("Spawned MCP server process: {} {:?}", command, args);
+        let stdin = child.stdin.take().ok_or_else(|| {
+            log::error!("Failed to capture stdin for process '{}'", command);
+            McpError::StdinUnavailable
+        })?;
+        let stdout = child.stdout.take().ok_or_else(|| {
+            log::error!("Failed to capture stdout for process '{}'", command);
+            McpError::StdoutUnavailable
+        })?;
+
+        log::info!("Spawned MCP server process: {} {:?} (PID: {:?})", command, args, pid);
 
         Ok(Self {
             child: TokioMutex::new(child),
@@ -75,17 +98,20 @@ impl StdioTransport {
     pub async fn check_process(&self) -> bool {
         let mut child = self.child.lock().await;
         match child.try_wait() {
-            Ok(Some(_status)) => {
+            Ok(Some(status)) => {
                 // Process has exited
+                log::debug!("Process exited with status: {:?}", status);
                 self.connected.store(false, Ordering::SeqCst);
                 false
             }
             Ok(None) => {
                 // Process is still running
+                log::trace!("Process is still running");
                 true
             }
-            Err(_) => {
+            Err(e) => {
                 // Error checking status
+                log::warn!("Error checking process status: {}", e);
                 self.connected.store(false, Ordering::SeqCst);
                 false
             }
@@ -103,8 +129,12 @@ impl StdioTransport {
 impl Transport for StdioTransport {
     async fn send(&self, message: &str) -> McpResult<()> {
         if !self.is_connected() {
+            log::warn!("Attempted to send message on disconnected stdio transport");
             return Err(McpError::NotConnected);
         }
+
+        let msg_len = message.len();
+        log::trace!("Sending {} bytes via stdio", msg_len);
 
         let mut stdin = self.stdin.lock().await;
 
@@ -112,57 +142,76 @@ impl Transport for StdioTransport {
         stdin
             .write_all(message.as_bytes())
             .await
-            .map_err(McpError::IoError)?;
+            .map_err(|e| {
+                log::error!("Failed to write to stdin: {}", e);
+                McpError::IoError(e)
+            })?;
 
         stdin
             .write_all(b"\n")
             .await
-            .map_err(McpError::IoError)?;
+            .map_err(|e| {
+                log::error!("Failed to write newline to stdin: {}", e);
+                McpError::IoError(e)
+            })?;
 
-        stdin.flush().await.map_err(McpError::IoError)?;
+        stdin.flush().await.map_err(|e| {
+            log::error!("Failed to flush stdin: {}", e);
+            McpError::IoError(e)
+        })?;
 
-        log::trace!("Sent message: {}", message);
+        log::trace!("Sent message ({} bytes): {}", msg_len, if msg_len > 500 { &message[..500] } else { message });
 
         Ok(())
     }
 
     async fn receive(&self) -> McpResult<String> {
         if !self.is_connected() {
+            log::warn!("Attempted to receive message on disconnected stdio transport");
             return Err(McpError::NotConnected);
         }
 
         let mut stdout = self.stdout.lock().await;
         let mut line = String::new();
 
+        log::trace!("Waiting to receive message from stdout");
         let bytes_read = stdout
             .read_line(&mut line)
             .await
-            .map_err(McpError::IoError)?;
+            .map_err(|e| {
+                log::error!("Failed to read from stdout: {}", e);
+                McpError::IoError(e)
+            })?;
 
         if bytes_read == 0 {
             // EOF - process closed stdout
+            log::warn!("EOF received on stdout, process likely terminated");
             self.connected.store(false, Ordering::SeqCst);
             return Err(McpError::TransportError("Connection closed".to_string()));
         }
 
         let trimmed = line.trim().to_string();
-        log::trace!("Received message: {}", trimmed);
+        let msg_len = trimmed.len();
+        log::trace!("Received message ({} bytes): {}", msg_len, if msg_len > 500 { &trimmed[..500] } else { &trimmed });
 
         Ok(trimmed)
     }
 
     async fn close(&self) -> McpResult<()> {
+        log::debug!("Closing stdio transport");
         self.connected.store(false, Ordering::SeqCst);
 
         let mut child = self.child.lock().await;
+        let pid = child.id();
 
         // Try to kill the process gracefully
+        log::debug!("Terminating child process (PID: {:?})", pid);
         match child.kill().await {
             Ok(_) => {
-                log::info!("MCP server process terminated");
+                log::info!("MCP server process terminated successfully (PID: {:?})", pid);
             }
             Err(e) => {
-                log::warn!("Failed to kill MCP server process: {}", e);
+                log::warn!("Failed to kill MCP server process (PID: {:?}): {}", pid, e);
             }
         }
 
@@ -170,12 +219,15 @@ impl Transport for StdioTransport {
     }
 
     fn is_connected(&self) -> bool {
-        self.connected.load(Ordering::SeqCst)
+        let connected = self.connected.load(Ordering::SeqCst);
+        log::trace!("Stdio transport connection status: {}", connected);
+        connected
     }
 }
 
 impl Drop for StdioTransport {
     fn drop(&mut self) {
+        log::debug!("Dropping stdio transport, marking as disconnected");
         self.connected.store(false, Ordering::SeqCst);
         // Child process will be killed on drop due to kill_on_drop(true)
     }

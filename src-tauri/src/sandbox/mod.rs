@@ -150,18 +150,33 @@ pub struct SandboxState {
 impl SandboxState {
     /// Create new sandbox state
     pub async fn new(config_path: PathBuf) -> Result<Self, SandboxError> {
+        log::info!("Initializing SandboxState with config path: {:?}", config_path);
+        
         // Load or create config
         let config = if config_path.exists() {
+            log::debug!("Loading existing sandbox config from {:?}", config_path);
             let content = tokio::fs::read_to_string(&config_path)
                 .await
-                .map_err(|e| SandboxError::Config(format!("Failed to read config: {}", e)))?;
+                .map_err(|e| {
+                    log::error!("Failed to read sandbox config file: {}", e);
+                    SandboxError::Config(format!("Failed to read config: {}", e))
+                })?;
             serde_json::from_str(&content)
-                .map_err(|e| SandboxError::Config(format!("Failed to parse config: {}", e)))?
+                .map_err(|e| {
+                    log::error!("Failed to parse sandbox config JSON: {}", e);
+                    SandboxError::Config(format!("Failed to parse config: {}", e))
+                })?
         } else {
+            log::info!("No existing config found, using default sandbox configuration");
             SandboxConfig::default()
         };
 
+        log::debug!("Sandbox config loaded: preferred_runtime={:?}, docker={}, podman={}, native={}, timeout={}s, memory={}MB",
+            config.preferred_runtime, config.enable_docker, config.enable_podman, 
+            config.enable_native, config.default_timeout_secs, config.default_memory_limit_mb);
+
         // Create manager
+        log::debug!("Creating SandboxManager...");
         let manager = SandboxManager::new(config.clone()).await?;
 
         // Initialize database
@@ -169,9 +184,15 @@ impl SandboxState {
             .parent()
             .map(|p| p.join("sandbox.db"))
             .unwrap_or_else(|| PathBuf::from("sandbox.db"));
-        let db = SandboxDb::new(db_path)
-            .map_err(|e| SandboxError::Config(format!("Failed to initialize database: {}", e)))?;
+        log::debug!("Initializing sandbox database at {:?}", db_path);
+        let db = SandboxDb::new(db_path.clone())
+            .map_err(|e| {
+                log::error!("Failed to initialize sandbox database at {:?}: {}", db_path, e);
+                SandboxError::Config(format!("Failed to initialize database: {}", e))
+            })?;
+        log::info!("Sandbox database initialized successfully");
 
+        log::info!("SandboxState initialization complete");
         Ok(Self {
             config: Arc::new(RwLock::new(config)),
             manager: Arc::new(RwLock::new(manager)),
@@ -183,32 +204,49 @@ impl SandboxState {
 
     /// Save configuration to disk
     pub async fn save_config(&self) -> Result<(), SandboxError> {
+        log::debug!("Saving sandbox configuration to {:?}", self.config_path);
         let config = self.config.read().await;
         let content = serde_json::to_string_pretty(&*config)
-            .map_err(|e| SandboxError::Config(format!("Failed to serialize config: {}", e)))?;
+            .map_err(|e| {
+                log::error!("Failed to serialize sandbox config: {}", e);
+                SandboxError::Config(format!("Failed to serialize config: {}", e))
+            })?;
 
         // Ensure parent directory exists
         if let Some(parent) = self.config_path.parent() {
             tokio::fs::create_dir_all(parent)
                 .await
-                .map_err(|e| SandboxError::Config(format!("Failed to create config dir: {}", e)))?;
+                .map_err(|e| {
+                    log::error!("Failed to create config directory {:?}: {}", parent, e);
+                    SandboxError::Config(format!("Failed to create config dir: {}", e))
+                })?;
         }
 
-        tokio::fs::write(&self.config_path, content)
+        tokio::fs::write(&self.config_path, &content)
             .await
-            .map_err(|e| SandboxError::Config(format!("Failed to write config: {}", e)))?;
+            .map_err(|e| {
+                log::error!("Failed to write sandbox config to {:?}: {}", self.config_path, e);
+                SandboxError::Config(format!("Failed to write config: {}", e))
+            })?;
 
+        log::info!("Sandbox configuration saved successfully");
         Ok(())
     }
 
     /// Update configuration
     pub async fn update_config(&self, new_config: SandboxConfig) -> Result<(), SandboxError> {
+        log::info!("Updating sandbox configuration");
+        log::debug!("New config: preferred_runtime={:?}, docker={}, podman={}, native={}",
+            new_config.preferred_runtime, new_config.enable_docker, 
+            new_config.enable_podman, new_config.enable_native);
+        
         {
             let mut config = self.config.write().await;
             *config = new_config.clone();
         }
 
         // Reinitialize manager with new config
+        log::debug!("Reinitializing SandboxManager with updated configuration");
         {
             let mut manager = self.manager.write().await;
             *manager = SandboxManager::new(new_config).await?;
@@ -229,14 +267,33 @@ impl SandboxState {
         tags: &[String],
         save_to_history: bool,
     ) -> Result<ExecutionResult, SandboxError> {
+        log::info!("Executing code: language={}, id={}, code_length={} bytes", 
+            request.language, request.id, request.code.len());
+        log::debug!("Execution request details: timeout={:?}s, memory={:?}MB, runtime={:?}, stdin={}",
+            request.timeout_secs, request.memory_limit_mb, request.runtime,
+            request.stdin.as_ref().map(|s| format!("{} bytes", s.len())).unwrap_or_else(|| "none".to_string()));
+        
         let manager = self.manager.read().await;
         let code = request.code.clone();
         let stdin = request.stdin.clone();
+        let execution_id = request.id.clone();
+        let language = request.language.clone();
+        
         let result = manager.execute(request).await?;
+
+        log::info!("Execution completed: id={}, language={}, status={:?}, exit_code={:?}, time={}ms",
+            execution_id, language, result.status, result.exit_code, result.execution_time_ms);
+        
+        if !result.stderr.is_empty() {
+            log::debug!("Execution stderr (first 500 chars): {}", 
+                result.stderr.chars().take(500).collect::<String>());
+        }
 
         // Save to history if enabled
         if save_to_history {
             let session_id = self.current_session.read().await.clone();
+            log::debug!("Saving execution to history: id={}, session={:?}, tags={:?}",
+                execution_id, session_id, tags);
             if let Err(e) = self.db.save_execution(
                 &result,
                 &code,
@@ -286,14 +343,26 @@ impl SandboxState {
 
     /// Cleanup all runtimes
     pub async fn cleanup_all(&self) -> Result<(), SandboxError> {
+        log::info!("Cleaning up all sandbox runtimes");
         let manager = self.manager.read().await;
-        manager.cleanup_all().await
+        let result = manager.cleanup_all().await;
+        match &result {
+            Ok(_) => log::info!("Sandbox runtime cleanup completed successfully"),
+            Err(e) => log::error!("Sandbox runtime cleanup failed: {}", e),
+        }
+        result
     }
 
     /// Prepare image for a language
     pub async fn prepare_language(&self, language: &str) -> Result<(), SandboxError> {
+        log::info!("Preparing sandbox image for language: {}", language);
         let manager = self.manager.read().await;
-        manager.prepare_language(language).await
+        let result = manager.prepare_language(language).await;
+        match &result {
+            Ok(_) => log::info!("Image prepared successfully for language: {}", language),
+            Err(e) => log::error!("Failed to prepare image for language {}: {}", language, e),
+        }
+        result
     }
 
     /// Execute code with specific timeout and memory limits
@@ -318,14 +387,20 @@ impl SandboxState {
         name: &str,
         description: Option<&str>,
     ) -> Result<ExecutionSession, SandboxError> {
+        log::info!("Starting new sandbox session: name='{}', description={:?}", name, description);
+        
         let session = self
             .db
             .create_session(name, description)
-            .map_err(|e| SandboxError::Config(format!("Failed to create session: {}", e)))?;
+            .map_err(|e| {
+                log::error!("Failed to create session '{}': {}", name, e);
+                SandboxError::Config(format!("Failed to create session: {}", e))
+            })?;
 
         let mut current = self.current_session.write().await;
         *current = Some(session.id.clone());
 
+        log::info!("Session started successfully: id={}, name='{}'", session.id, name);
         Ok(session)
     }
 
@@ -348,9 +423,16 @@ impl SandboxState {
         };
 
         if let Some(id) = session_id {
+            log::info!("Ending sandbox session: id={}", id);
             self.db
                 .close_session(&id)
-                .map_err(|e| SandboxError::Config(format!("Failed to close session: {}", e)))?;
+                .map_err(|e| {
+                    log::error!("Failed to close session {}: {}", id, e);
+                    SandboxError::Config(format!("Failed to close session: {}", e))
+                })?;
+            log::debug!("Session {} closed successfully", id);
+        } else {
+            log::debug!("No active session to end");
         }
 
         Ok(())
@@ -379,17 +461,26 @@ impl SandboxState {
         id: &str,
         delete_executions: bool,
     ) -> Result<(), SandboxError> {
+        log::info!("Deleting sandbox session: id={}, delete_executions={}", id, delete_executions);
+        
         // Clear current session if it matches
         {
             let mut current = self.current_session.write().await;
             if current.as_deref() == Some(id) {
+                log::debug!("Clearing current session reference as it matches deleted session");
                 *current = None;
             }
         }
 
         self.db
             .delete_session(id, delete_executions)
-            .map_err(|e| SandboxError::Config(format!("Failed to delete session: {}", e)))
+            .map_err(|e| {
+                log::error!("Failed to delete session {}: {}", id, e);
+                SandboxError::Config(format!("Failed to delete session: {}", e))
+            })?;
+        
+        log::info!("Session {} deleted successfully", id);
+        Ok(())
     }
 
     // ==================== Execution History ====================
@@ -460,18 +551,31 @@ impl SandboxState {
         &self,
         before_date: Option<chrono::DateTime<chrono::Utc>>,
     ) -> Result<u64, SandboxError> {
-        self.db
+        log::info!("Clearing execution history: before_date={:?}", before_date);
+        let deleted = self.db
             .clear_executions(before_date)
-            .map_err(|e| SandboxError::Config(format!("Failed to clear history: {}", e)))
+            .map_err(|e| {
+                log::error!("Failed to clear execution history: {}", e);
+                SandboxError::Config(format!("Failed to clear history: {}", e))
+            })?;
+        log::info!("Cleared {} execution records from history", deleted);
+        Ok(deleted)
     }
 
     // ==================== Code Snippets ====================
 
     /// Create a new code snippet
     pub async fn create_snippet(&self, snippet: &CodeSnippet) -> Result<CodeSnippet, SandboxError> {
-        self.db
+        log::debug!("Creating code snippet: id={}, title='{}', language={}", 
+            snippet.id, snippet.title, snippet.language);
+        let result = self.db
             .create_snippet(snippet)
-            .map_err(|e| SandboxError::Config(format!("Failed to create snippet: {}", e)))
+            .map_err(|e| {
+                log::error!("Failed to create snippet '{}': {}", snippet.title, e);
+                SandboxError::Config(format!("Failed to create snippet: {}", e))
+            })?;
+        log::info!("Code snippet created: id={}, title='{}'", result.id, result.title);
+        Ok(result)
     }
 
     /// Get snippet by ID
@@ -521,13 +625,22 @@ impl SandboxState {
 
     /// Execute a snippet
     pub async fn execute_snippet(&self, id: &str) -> Result<ExecutionResult, SandboxError> {
+        log::info!("Executing code snippet: id={}", id);
         let snippet = self
             .get_snippet(id)
             .await?
-            .ok_or_else(|| SandboxError::Config(format!("Snippet {} not found", id)))?;
+            .ok_or_else(|| {
+                log::warn!("Snippet not found: id={}", id);
+                SandboxError::Config(format!("Snippet {} not found", id))
+            })?;
+
+        log::debug!("Found snippet: title='{}', language={}, code_length={} bytes",
+            snippet.title, snippet.language, snippet.code.len());
 
         // Increment usage count
-        let _ = self.db.increment_snippet_usage(id);
+        if let Err(e) = self.db.increment_snippet_usage(id) {
+            log::warn!("Failed to increment snippet usage count for {}: {}", id, e);
+        }
 
         let request = ExecutionRequest::new(snippet.language, snippet.code);
         self.execute_with_history(request, &snippet.tags, true).await
@@ -601,9 +714,15 @@ impl SandboxState {
 
     /// Vacuum database
     pub async fn vacuum_db(&self) -> Result<(), SandboxError> {
+        log::info!("Vacuuming sandbox database");
         self.db
             .vacuum()
-            .map_err(|e| SandboxError::Config(format!("Failed to vacuum: {}", e)))
+            .map_err(|e| {
+                log::error!("Failed to vacuum sandbox database: {}", e);
+                SandboxError::Config(format!("Failed to vacuum: {}", e))
+            })?;
+        log::info!("Sandbox database vacuum completed");
+        Ok(())
     }
 }
 

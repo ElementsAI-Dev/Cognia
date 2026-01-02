@@ -43,7 +43,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useCopy } from '@/hooks/use-copy';
+import { useCopy } from '@/hooks/ui';
 import { exportDiagram, generateDiagramFilename } from '@/lib/export/diagram-export';
 import { toast } from 'sonner';
 import { LoadingAnimation } from './loading-animation';

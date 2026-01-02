@@ -4,9 +4,12 @@
  * Features:
  * - Queue management for background agents
  * - Priority-based scheduling
- * - Pause/Resume/Cancel operations
+ * - Pause/Resume/Cancel operations with checkpoint support
  * - State persistence and recovery
  * - Notification system
+ * - Execution timeout handling
+ * - Health monitoring and stall detection
+ * - Event-driven state synchronization
  */
 
 import { nanoid } from 'nanoid';
@@ -37,10 +40,33 @@ import type { AgentTool } from './agent-executor';
 import type { Skill } from '@/types/skill';
 import { createSkillTools, buildMultiSkillSystemPrompt } from '@/lib/skills/executor';
 import type { McpServerState, ToolCallResult } from '@/types/mcp';
+import {
+  getBackgroundAgentEventEmitter,
+  type BackgroundAgentEventEmitter,
+  type AgentCheckpoint,
+  type HealthWarning,
+} from './background-agent-events';
 
 /**
  * Background Agent Manager class
  */
+/**
+ * Health check configuration
+ */
+export interface HealthCheckConfig {
+  enabled: boolean;
+  intervalMs: number;
+  stallThresholdMs: number;
+  slowProgressThresholdMs: number;
+}
+
+const DEFAULT_HEALTH_CHECK_CONFIG: HealthCheckConfig = {
+  enabled: true,
+  intervalMs: 30000, // 30 seconds
+  stallThresholdMs: 120000, // 2 minutes
+  slowProgressThresholdMs: 60000, // 1 minute
+};
+
 export class BackgroundAgentManager {
   private agents: Map<string, BackgroundAgent> = new Map();
   private queue: BackgroundAgentQueueState = {
@@ -53,14 +79,249 @@ export class BackgroundAgentManager {
   private executionOptions: Map<string, BackgroundAgentExecutionOptions> = new Map();
   private persistenceKey = 'cognia-background-agents';
 
+  // Checkpoint storage for pause/resume
+  private checkpoints: Map<string, AgentCheckpoint> = new Map();
+
+  // Timeout handlers
+  private timeoutHandlers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+
+  // Health check
+  private healthCheckInterval: ReturnType<typeof setInterval> | null = null;
+  private healthCheckConfig: HealthCheckConfig = DEFAULT_HEALTH_CHECK_CONFIG;
+  private lastActivityTimes: Map<string, number> = new Map();
+
+  // Event emitter
+  private eventEmitter: BackgroundAgentEventEmitter;
+
   // External dependencies for Skills, RAG, and MCP integration
   private skillsProvider?: () => { skills: Record<string, Skill>; activeSkillIds: string[] };
   private mcpProvider?: () => { servers: McpServerState[]; callTool: (serverId: string, toolName: string, args: Record<string, unknown>) => Promise<ToolCallResult> };
   private vectorSettingsProvider?: () => { mode: 'embedded' | 'server'; serverUrl: string; embeddingProvider: string; embeddingModel: string };
   private apiKeyProvider?: (provider: string) => string;
 
-  constructor(maxConcurrent: number = 3) {
+  constructor(maxConcurrent: number = 3, healthCheckConfig?: Partial<HealthCheckConfig>) {
     this.queue.maxConcurrent = maxConcurrent;
+    this.eventEmitter = getBackgroundAgentEventEmitter();
+    
+    if (healthCheckConfig) {
+      this.healthCheckConfig = { ...DEFAULT_HEALTH_CHECK_CONFIG, ...healthCheckConfig };
+    }
+    
+    // Start health check if enabled
+    if (this.healthCheckConfig.enabled) {
+      this.startHealthCheck();
+    }
+  }
+
+  /**
+   * Get the event emitter for subscribing to events
+   */
+  getEventEmitter(): BackgroundAgentEventEmitter {
+    return this.eventEmitter;
+  }
+
+  /**
+   * Start health check interval
+   */
+  private startHealthCheck(): void {
+    if (this.healthCheckInterval) return;
+
+    this.healthCheckInterval = setInterval(() => {
+      this.performHealthCheck();
+    }, this.healthCheckConfig.intervalMs);
+  }
+
+  /**
+   * Stop health check interval
+   */
+  stopHealthCheck(): void {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = null;
+    }
+  }
+
+  /**
+   * Perform health check on all running agents
+   */
+  private performHealthCheck(): void {
+    const now = Date.now();
+    const runningAgents = this.getRunningAgents();
+
+    for (const agent of runningAgents) {
+      const lastActivity = this.lastActivityTimes.get(agent.id) ?? agent.startedAt?.getTime() ?? now;
+      const timeSinceActivity = now - lastActivity;
+
+      // Check for stalled agent
+      if (timeSinceActivity > this.healthCheckConfig.stallThresholdMs) {
+        const warning: HealthWarning = {
+          type: 'stalled',
+          message: `Agent "${agent.name}" has been inactive for ${Math.round(timeSinceActivity / 1000)}s`,
+          timestamp: new Date(),
+          metrics: { inactiveMs: timeSinceActivity, progress: agent.progress },
+        };
+        this.eventEmitter.emit('agent:health_warning', { agent, warning });
+        this.addLog(agent, 'warn', warning.message, 'system');
+      }
+      // Check for slow progress
+      else if (timeSinceActivity > this.healthCheckConfig.slowProgressThresholdMs && agent.progress < 50) {
+        const warning: HealthWarning = {
+          type: 'slow_progress',
+          message: `Agent "${agent.name}" is making slow progress (${agent.progress}%)`,
+          timestamp: new Date(),
+          metrics: { inactiveMs: timeSinceActivity, progress: agent.progress },
+        };
+        this.eventEmitter.emit('agent:health_warning', { agent, warning });
+      }
+
+      // Check for high retry count
+      if (agent.retryCount >= 2) {
+        const warning: HealthWarning = {
+          type: 'high_retry_count',
+          message: `Agent "${agent.name}" has retried ${agent.retryCount} times`,
+          timestamp: new Date(),
+          metrics: { retryCount: agent.retryCount },
+        };
+        this.eventEmitter.emit('agent:health_warning', { agent, warning });
+      }
+    }
+  }
+
+  /**
+   * Update last activity time for an agent
+   */
+  private updateActivityTime(agentId: string): void {
+    this.lastActivityTimes.set(agentId, Date.now());
+  }
+
+  /**
+   * Set up execution timeout for an agent
+   */
+  private setupTimeout(agent: BackgroundAgent): void {
+    if (!agent.config.timeout) return;
+
+    // Clear existing timeout
+    this.clearTimeout(agent.id);
+
+    const timeoutHandler = setTimeout(() => {
+      if (agent.status === 'running') {
+        this.handleTimeout(agent);
+      }
+    }, agent.config.timeout);
+
+    this.timeoutHandlers.set(agent.id, timeoutHandler);
+  }
+
+  /**
+   * Clear timeout for an agent
+   */
+  private clearTimeout(agentId: string): void {
+    const handler = this.timeoutHandlers.get(agentId);
+    if (handler) {
+      clearTimeout(handler);
+      this.timeoutHandlers.delete(agentId);
+    }
+  }
+
+  /**
+   * Handle agent timeout
+   */
+  private handleTimeout(agent: BackgroundAgent): void {
+    const duration = agent.startedAt ? Date.now() - agent.startedAt.getTime() : 0;
+
+    // Cancel the orchestrator
+    const orchestrator = this.orchestrators.get(agent.id);
+    if (orchestrator) {
+      orchestrator.cancel();
+    }
+
+    // Update agent state
+    agent.status = 'timeout';
+    agent.completedAt = new Date();
+    agent.error = `Execution timeout after ${Math.round(duration / 1000)}s`;
+    agent.result = {
+      success: false,
+      finalResponse: '',
+      steps: agent.steps,
+      totalSteps: agent.steps.length,
+      duration,
+      retryCount: agent.retryCount,
+      error: agent.error,
+    };
+
+    this.addLog(agent, 'error', agent.error, 'system');
+    
+    if (agent.config.notifyOnError) {
+      this.addNotification(agent, 'failed', 'Agent Timeout', agent.error);
+    }
+
+    // Emit timeout event
+    this.eventEmitter.emit('agent:timeout', { agent, duration });
+
+    // Notify via callback
+    const options = this.executionOptions.get(agent.id);
+    options?.onError?.(agent, agent.error);
+
+    // Cleanup
+    this.cleanupAgent(agent.id);
+    this.queue.currentlyRunning--;
+    this.processQueue();
+  }
+
+  /**
+   * Create a checkpoint for pause/resume
+   */
+  createCheckpoint(agent: BackgroundAgent): AgentCheckpoint {
+    const checkpoint: AgentCheckpoint = {
+      id: nanoid(),
+      agentId: agent.id,
+      timestamp: new Date(),
+      currentStep: agent.executionState.currentStep,
+      currentPhase: agent.executionState.currentPhase as 'planning' | 'executing' | 'summarizing',
+      completedSubAgents: [...agent.executionState.completedSubAgents],
+      pendingSubAgents: agent.subAgents
+        .filter(sa => sa.status === 'pending' || sa.status === 'running')
+        .map(sa => sa.id),
+      accumulatedContext: {},
+      partialResults: {},
+      conversationHistory: [],
+    };
+
+    // Store completed sub-agent results
+    agent.subAgents
+      .filter(sa => sa.status === 'completed' && sa.result)
+      .forEach(sa => {
+        checkpoint.partialResults[sa.id] = sa.result;
+      });
+
+    this.checkpoints.set(agent.id, checkpoint);
+    this.eventEmitter.emit('agent:checkpoint', { agent, checkpoint });
+
+    return checkpoint;
+  }
+
+  /**
+   * Get checkpoint for an agent
+   */
+  getCheckpoint(agentId: string): AgentCheckpoint | undefined {
+    return this.checkpoints.get(agentId);
+  }
+
+  /**
+   * Clear checkpoint for an agent
+   */
+  clearCheckpoint(agentId: string): void {
+    this.checkpoints.delete(agentId);
+  }
+
+  /**
+   * Cleanup resources for an agent
+   */
+  private cleanupAgent(agentId: string): void {
+    this.clearTimeout(agentId);
+    this.orchestrators.delete(agentId);
+    this.executionOptions.delete(agentId);
+    this.lastActivityTimes.delete(agentId);
   }
 
   /**
@@ -201,6 +462,9 @@ export class BackgroundAgentManager {
 
     this.agents.set(agent.id, agent);
     this.addLog(agent, 'info', 'Background agent created', 'system');
+    
+    // Emit created event
+    this.eventEmitter.emit('agent:created', { agent });
 
     return agent;
   }
@@ -274,6 +538,9 @@ export class BackgroundAgentManager {
     agent.logs.push(log);
     agent.executionState.lastActivity = new Date();
 
+    // Emit log event
+    this.eventEmitter.emit('agent:log', { agent, log });
+
     // Notify via callback
     const options = this.executionOptions.get(agent.id);
     options?.onLog?.(agent, log);
@@ -304,6 +571,9 @@ export class BackgroundAgentManager {
       actions,
     };
     agent.notifications.push(notification);
+
+    // Emit notification event
+    this.eventEmitter.emit('agent:notification', { agent, notification });
 
     // Notify via callback
     const options = this.executionOptions.get(agent.id);
@@ -381,6 +651,15 @@ export class BackgroundAgentManager {
     this.queue.items.sort((a, b) => a.priority - b.priority);
 
     this.addLog(agent, 'info', 'Agent queued for execution', 'system');
+    
+    // Emit queued event with position
+    const position = this.queue.items.findIndex(item => item.agentId === agentId) + 1;
+    this.eventEmitter.emit('agent:queued', { agent, position });
+    this.eventEmitter.emit('queue:updated', {
+      queueLength: this.queue.items.length,
+      running: this.queue.currentlyRunning,
+      maxConcurrent: this.queue.maxConcurrent,
+    });
 
     // Try to start execution
     this.processQueue();
@@ -425,7 +704,12 @@ export class BackgroundAgentManager {
     agent.executionState.currentPhase = 'planning';
     agent.progress = 0;
 
+    // Set up timeout
+    this.setupTimeout(agent);
+    this.updateActivityTime(agent.id);
+
     this.addLog(agent, 'info', 'Starting background agent execution', 'system');
+    this.eventEmitter.emit('agent:started', { agent });
     options.onStart?.(agent);
 
     if (agent.config.notifyOnProgress) {
@@ -469,12 +753,15 @@ export class BackgroundAgentManager {
         onSubAgentCreate: (subAgent) => {
           agent.subAgents.push(subAgent);
           this.addLog(agent, 'info', `Sub-agent created: ${subAgent.name}`, 'sub-agent', subAgent.id);
+          this.eventEmitter.emit('subagent:created', { agent, subAgent });
           options.onSubAgentCreate?.(agent, subAgent);
         },
         onSubAgentStart: (subAgent) => {
           agent.executionState.activeSubAgents.push(subAgent.id);
           const step = this.addStep(agent, 'sub_agent', subAgent.name, subAgent.description);
           this.updateStep(agent, step.id, { status: 'running', subAgentId: subAgent.id });
+          this.updateActivityTime(agent.id);
+          this.eventEmitter.emit('subagent:started', { agent, subAgent });
         },
         onSubAgentComplete: (subAgent, subResult) => {
           agent.executionState.activeSubAgents = agent.executionState.activeSubAgents.filter(id => id !== subAgent.id);
@@ -489,10 +776,14 @@ export class BackgroundAgentManager {
             });
           }
 
+          // Update activity time
+          this.updateActivityTime(agent.id);
+
           // Update progress
           const total = agent.subAgents.length;
           const completed = agent.executionState.completedSubAgents.length;
           agent.progress = Math.round((completed / total) * 90);
+          this.eventEmitter.emit('agent:progress', { agent, progress: agent.progress, phase: 'executing' });
           options.onProgress?.(agent, agent.progress);
           options.onSubAgentComplete?.(agent, subAgent, subResult);
         },
@@ -505,14 +796,20 @@ export class BackgroundAgentManager {
             this.updateStep(agent, step.id, { status: 'failed', error });
           }
 
+          this.updateActivityTime(agent.id);
           this.addLog(agent, 'error', `Sub-agent failed: ${error}`, 'sub-agent', subAgent.id);
+          this.eventEmitter.emit('subagent:failed', { agent, subAgent, error });
         },
         onToolCall: (toolCall) => {
+          this.updateActivityTime(agent.id);
           this.addLog(agent, 'info', `Tool call: ${toolCall.name}`, 'tool', toolCall.id);
+          this.eventEmitter.emit('tool:called', { agent, toolCall });
           options.onToolCall?.(agent, toolCall);
         },
         onToolResult: (toolCall) => {
+          this.updateActivityTime(agent.id);
           this.addLog(agent, 'info', `Tool result: ${toolCall.name}`, 'tool', toolCall.id);
+          this.eventEmitter.emit('tool:result', { agent, toolCall });
           options.onToolResult?.(agent, toolCall);
         },
         onProgress: (progress) => {
@@ -547,6 +844,7 @@ export class BackgroundAgentManager {
         if (agent.config.notifyOnComplete) {
           this.addNotification(agent, 'completed', 'Agent Completed', `${agent.name} has completed successfully.`);
         }
+        this.eventEmitter.emit('agent:completed', { agent, result: agentResult });
         options.onComplete?.(agent, agentResult);
       } else {
         agent.error = result.error;
@@ -554,6 +852,7 @@ export class BackgroundAgentManager {
         if (agent.config.notifyOnError) {
           this.addNotification(agent, 'failed', 'Agent Failed', `${agent.name} failed: ${result.error}`);
         }
+        this.eventEmitter.emit('agent:failed', { agent, error: result.error || 'Unknown error' });
         options.onError?.(agent, result.error || 'Unknown error');
       }
 
@@ -594,13 +893,16 @@ export class BackgroundAgentManager {
       }
       options.onError?.(agent, errorMessage);
     } finally {
+      // Clear timeout
+      this.clearTimeout(agent.id);
+
       // Persist state if configured
       if (agent.config.persistState) {
         this.persistState();
       }
 
-      // Clean up orchestrator
-      this.orchestrators.delete(agent.id);
+      // Clean up resources
+      this.cleanupAgent(agent.id);
     }
   }
 
@@ -627,44 +929,77 @@ export class BackgroundAgentManager {
   }
 
   /**
-   * Pause a running agent
+   * Pause a running agent with checkpoint
    */
   pauseAgent(agentId: string): boolean {
     const agent = this.agents.get(agentId);
     if (!agent || agent.status !== 'running') return false;
 
+    // Create checkpoint before pausing
+    const checkpoint = this.createCheckpoint(agent);
+
     agent.status = 'paused';
     agent.executionState.pausedAt = new Date();
     
-    // Pause orchestrator
+    // Clear timeout
+    this.clearTimeout(agentId);
+    
+    // Cancel orchestrator
     const orchestrator = this.orchestrators.get(agentId);
     if (orchestrator) {
       orchestrator.cancel();
     }
 
-    this.addLog(agent, 'info', 'Agent paused', 'system');
+    // Update queue count
+    this.queue.currentlyRunning = Math.max(0, this.queue.currentlyRunning - 1);
+
+    this.addLog(agent, 'info', 'Agent paused with checkpoint', 'system');
+    this.eventEmitter.emit('agent:paused', { agent, checkpoint });
+    
     const options = this.executionOptions.get(agentId);
     options?.onPause?.(agent);
+
+    // Process next in queue
+    this.processQueue();
 
     return true;
   }
 
   /**
-   * Resume a paused agent
+   * Resume a paused agent from checkpoint
    */
   resumeAgent(agentId: string): boolean {
     const agent = this.agents.get(agentId);
     if (!agent || agent.status !== 'paused') return false;
 
+    const checkpoint = this.getCheckpoint(agentId);
+    const hasCheckpoint = !!checkpoint;
+
     agent.status = 'queued';
     agent.executionState.resumedAt = new Date();
     
-    this.addLog(agent, 'info', 'Agent resumed', 'system');
+    this.addLog(agent, 'info', `Agent resumed ${hasCheckpoint ? 'from checkpoint' : 'without checkpoint'}`, 'system');
+    this.eventEmitter.emit('agent:resumed', { agent, fromCheckpoint: hasCheckpoint });
+    
     const options = this.executionOptions.get(agentId);
     options?.onResume?.(agent);
 
-    // Re-queue for execution
-    this.queueAgent(agentId, options || {});
+    // Add to queue with high priority
+    this.queue.items.unshift({
+      agentId,
+      priority: Math.max(0, agent.priority - 1), // Boost priority for resumed agents
+      queuedAt: new Date(),
+    });
+
+    // Emit queue update
+    this.eventEmitter.emit('queue:updated', {
+      queueLength: this.queue.items.length,
+      running: this.queue.currentlyRunning,
+      maxConcurrent: this.queue.maxConcurrent,
+    });
+
+    // Try to process immediately
+    this.processQueue();
 
     return true;
   }
@@ -676,24 +1011,40 @@ export class BackgroundAgentManager {
     const agent = this.agents.get(agentId);
     if (!agent) return false;
 
+    const wasRunning = agent.status === 'running';
+
     if (agent.status === 'queued') {
       this.queue.items = this.queue.items.filter(item => item.agentId !== agentId);
     }
 
-    if (agent.status === 'running') {
+    if (wasRunning) {
       const orchestrator = this.orchestrators.get(agentId);
       if (orchestrator) {
         orchestrator.cancel();
       }
-      this.queue.currentlyRunning--;
+      this.queue.currentlyRunning = Math.max(0, this.queue.currentlyRunning - 1);
     }
 
     agent.status = 'cancelled';
     agent.completedAt = new Date();
     
+    // Clear timeout and checkpoint
+    this.clearTimeout(agentId);
+    this.clearCheckpoint(agentId);
+    
     this.addLog(agent, 'info', 'Agent cancelled', 'system');
+    this.eventEmitter.emit('agent:cancelled', { agent });
+    
     const options = this.executionOptions.get(agentId);
     options?.onCancel?.(agent);
+
+    // Clean up resources
+    this.cleanupAgent(agentId);
+
+    // Process next in queue if we freed a slot
+    if (wasRunning) {
+      this.processQueue();
+    }
 
     return true;
   }
@@ -859,6 +1210,111 @@ export class BackgroundAgentManager {
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem(this.persistenceKey);
     }
+  }
+
+  /**
+   * Get execution statistics for an agent
+   */
+  getExecutionStatistics(agentId: string): {
+    agentId: string;
+    totalDuration: number;
+    totalSteps: number;
+    completedSteps: number;
+    failedSteps: number;
+    totalSubAgents: number;
+    completedSubAgents: number;
+    failedSubAgents: number;
+    totalToolCalls: number;
+    retryCount: number;
+    averageStepDuration: number;
+    tokenUsage?: {
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+    };
+  } | undefined {
+    const agent = this.agents.get(agentId);
+    if (!agent) return undefined;
+
+    const completedSteps = agent.steps.filter(s => s.status === 'completed').length;
+    const failedSteps = agent.steps.filter(s => s.status === 'failed').length;
+    const totalDuration = agent.result?.duration ?? 
+      (agent.startedAt ? Date.now() - agent.startedAt.getTime() : 0);
+    
+    const stepDurations = agent.steps
+      .filter(s => s.duration)
+      .map(s => s.duration!);
+    const averageStepDuration = stepDurations.length > 0
+      ? stepDurations.reduce((a, b) => a + b, 0) / stepDurations.length
+      : 0;
+
+    // Count tool calls from logs
+    const toolCalls = agent.logs.filter(l => l.source === 'tool' && l.message.startsWith('Tool call:')).length;
+
+    return {
+      agentId: agent.id,
+      totalDuration,
+      totalSteps: agent.steps.length,
+      completedSteps,
+      failedSteps,
+      totalSubAgents: agent.subAgents.length,
+      completedSubAgents: agent.executionState.completedSubAgents.length,
+      failedSubAgents: agent.executionState.failedSubAgents.length,
+      totalToolCalls: toolCalls,
+      retryCount: agent.retryCount,
+      averageStepDuration,
+      tokenUsage: agent.result?.tokenUsage,
+    };
+  }
+
+  /**
+   * Get aggregated statistics for all agents
+   */
+  getAggregatedStatistics(): {
+    totalAgents: number;
+    runningAgents: number;
+    queuedAgents: number;
+    completedAgents: number;
+    failedAgents: number;
+    pausedAgents: number;
+    totalExecutionTime: number;
+    averageExecutionTime: number;
+    totalRetries: number;
+    successRate: number;
+  } {
+    const agents = Array.from(this.agents.values());
+    const completed = agents.filter(a => a.status === 'completed');
+    const failed = agents.filter(a => a.status === 'failed');
+    const running = agents.filter(a => a.status === 'running');
+    const queued = agents.filter(a => a.status === 'queued');
+    const paused = agents.filter(a => a.status === 'paused');
+
+    const executionTimes = agents
+      .filter(a => a.result?.duration)
+      .map(a => a.result!.duration);
+    const totalExecutionTime = executionTimes.reduce((a, b) => a + b, 0);
+    const averageExecutionTime = executionTimes.length > 0
+      ? totalExecutionTime / executionTimes.length
+      : 0;
+
+    const totalRetries = agents.reduce((sum, a) => sum + a.retryCount, 0);
+    const finishedCount = completed.length + failed.length;
+    const successRate = finishedCount > 0
+      ? (completed.length / finishedCount) * 100
+      : 0;
+
+    return {
+      totalAgents: agents.length,
+      runningAgents: running.length,
+      queuedAgents: queued.length,
+      completedAgents: completed.length,
+      failedAgents: failed.length,
+      pausedAgents: paused.length,
+      totalExecutionTime,
+      averageExecutionTime,
+      totalRetries,
+      successRate,
+    };
   }
 }
 

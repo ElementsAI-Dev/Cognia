@@ -31,21 +31,32 @@ pub struct SseTransport {
 impl SseTransport {
     /// Connect to an SSE endpoint
     pub async fn connect(url: &str) -> McpResult<Self> {
+        log::info!("Connecting to SSE endpoint: {}", url);
+        
+        log::debug!("Creating HTTP client with 30s timeout");
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(30))
             .build()
-            .map_err(McpError::RequestError)?;
+            .map_err(|e| {
+                log::error!("Failed to create HTTP client: {}", e);
+                McpError::RequestError(e)
+            })?;
 
         let (event_tx, event_rx) = mpsc::channel(100);
+        log::trace!("Created event channel with capacity 100");
 
         // Start SSE connection
         let sse_url = url.to_string();
         let tx = event_tx.clone();
         let connected_flag = Arc::new(AtomicBool::new(false));
         let connected_flag_clone = connected_flag.clone();
+        let sse_url_for_log = sse_url.clone();
 
+        log::debug!("Spawning SSE event listener task");
         tokio::spawn(async move {
+            log::trace!("SSE listener task started for {}", sse_url);
             let mut es = EventSource::get(&sse_url);
+            let mut message_count: u64 = 0;
 
             while let Some(event) = es.next().await {
                 match event {
@@ -54,25 +65,33 @@ impl SseTransport {
                         connected_flag_clone.store(true, Ordering::SeqCst);
                     }
                     Ok(Event::Message(message)) => {
-                        log::trace!("SSE message received: {}", message.data);
+                        message_count += 1;
+                        let data_len = message.data.len();
+                        log::trace!(
+                            "SSE message #{} received ({} bytes): {}",
+                            message_count,
+                            data_len,
+                            if data_len > 500 { &message.data[..500] } else { &message.data }
+                        );
                         if tx.send(message.data).await.is_err() {
-                            log::warn!("Failed to send SSE message to channel");
+                            log::warn!("Failed to send SSE message to channel, receiver dropped");
                             break;
                         }
                     }
                     Err(err) => {
-                        log::error!("SSE error: {:?}", err);
+                        log::error!("SSE connection error for {}: {:?}", sse_url, err);
                         connected_flag_clone.store(false, Ordering::SeqCst);
                         break;
                     }
                 }
             }
 
-            log::info!("SSE connection closed");
+            log::info!("SSE connection closed for {} (received {} messages total)", sse_url, message_count);
             connected_flag_clone.store(false, Ordering::SeqCst);
         });
 
         // Wait a bit for connection to establish
+        log::trace!("Waiting 100ms for SSE connection to establish");
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
         // Extract message endpoint from URL (typically same base with /message suffix)
@@ -81,6 +100,8 @@ impl SseTransport {
         } else {
             Some(format!("{}/message", url.trim_end_matches('/')))
         };
+        log::debug!("Derived message URL: {:?}", message_url);
+        log::info!("SSE transport created for {} (message endpoint: {:?})", sse_url_for_log, message_url);
 
         Ok(Self {
             base_url: url.to_string(),
@@ -94,6 +115,7 @@ impl SseTransport {
 
     /// Set the message endpoint URL
     pub fn set_message_url(&mut self, url: String) {
+        log::debug!("Setting custom message URL: {}", url);
         self.message_url = Some(url);
     }
 }
@@ -102,16 +124,27 @@ impl SseTransport {
 impl Transport for SseTransport {
     async fn send(&self, message: &str) -> McpResult<()> {
         if !self.is_connected() {
+            log::warn!("Attempted to send message on disconnected SSE transport");
             return Err(McpError::NotConnected);
         }
 
         let url = self
             .message_url
             .as_ref()
-            .ok_or_else(|| McpError::TransportError("Message URL not configured".to_string()))?;
+            .ok_or_else(|| {
+                log::error!("Cannot send SSE message: message URL not configured");
+                McpError::TransportError("Message URL not configured".to_string())
+            })?;
 
-        log::trace!("Sending SSE message to {}: {}", url, message);
+        let msg_len = message.len();
+        log::trace!(
+            "Sending HTTP POST to {} ({} bytes): {}",
+            url,
+            msg_len,
+            if msg_len > 500 { &message[..500] } else { message }
+        );
 
+        let start = std::time::Instant::now();
         let response = self
             .client
             .post(url)
@@ -119,30 +152,51 @@ impl Transport for SseTransport {
             .body(message.to_string())
             .send()
             .await
-            .map_err(McpError::RequestError)?;
+            .map_err(|e| {
+                log::error!("HTTP POST request failed to {}: {}", url, e);
+                McpError::RequestError(e)
+            })?;
 
-        if !response.status().is_success() {
-            let status = response.status();
+        let elapsed = start.elapsed();
+        let status = response.status();
+
+        if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
+            log::error!(
+                "HTTP POST to {} failed with status {} after {:?}: {}",
+                url, status, elapsed, body
+            );
             return Err(McpError::TransportError(format!(
                 "HTTP error {}: {}",
                 status, body
             )));
         }
 
+        log::trace!("HTTP POST to {} completed with status {} in {:?}", url, status, elapsed);
         Ok(())
     }
 
     async fn receive(&self) -> McpResult<String> {
         if !self.is_connected() {
+            log::warn!("Attempted to receive message on disconnected SSE transport");
             return Err(McpError::NotConnected);
         }
 
         let mut rx = self.event_rx.lock().await;
+        log::trace!("Waiting to receive SSE event");
 
         match rx.recv().await {
-            Some(message) => Ok(message),
+            Some(message) => {
+                let msg_len = message.len();
+                log::trace!(
+                    "Received SSE event ({} bytes): {}",
+                    msg_len,
+                    if msg_len > 500 { &message[..500] } else { &message }
+                );
+                Ok(message)
+            }
             None => {
+                log::warn!("SSE event channel closed unexpectedly");
                 self.connected.store(false, Ordering::SeqCst);
                 Err(McpError::TransportError("SSE channel closed".to_string()))
             }
@@ -150,13 +204,17 @@ impl Transport for SseTransport {
     }
 
     async fn close(&self) -> McpResult<()> {
+        log::debug!("Closing SSE transport for {}", self.base_url);
         self.connected.store(false, Ordering::SeqCst);
         // EventSource will be dropped when the spawned task ends
+        log::info!("SSE transport closed for {}", self.base_url);
         Ok(())
     }
 
     fn is_connected(&self) -> bool {
-        self.connected.load(Ordering::SeqCst)
+        let connected = self.connected.load(Ordering::SeqCst);
+        log::trace!("SSE transport connection status for {}: {}", self.base_url, connected);
+        connected
     }
 }
 

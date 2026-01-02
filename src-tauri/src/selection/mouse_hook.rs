@@ -50,6 +50,7 @@ pub struct MouseHook {
 
 impl MouseHook {
     pub fn new() -> Self {
+        log::debug!("[MouseHook] Creating new instance");
         Self {
             is_running: Arc::new(AtomicBool::new(false)),
             stop_requested: Arc::new(AtomicBool::new(false)),
@@ -64,13 +65,16 @@ impl MouseHook {
 
     /// Start the mouse hook
     pub fn start(&self) -> Result<(), String> {
+        log::debug!("[MouseHook] start() called");
+        
         // Check if already running
         if self.is_running.load(Ordering::SeqCst) {
-            log::warn!("Mouse hook already running, skipping start");
+            log::warn!("[MouseHook] Already running, skipping start");
             return Ok(());
         }
 
         // Reset stop flag
+        log::trace!("[MouseHook] Resetting stop flag");
         self.stop_requested.store(false, Ordering::SeqCst);
 
         let is_running = self.is_running.clone();
@@ -83,7 +87,7 @@ impl MouseHook {
 
         let handle = thread::spawn(move || {
             is_running.store(true, Ordering::SeqCst);
-            log::info!("Mouse hook thread started");
+            log::info!("[MouseHook] Hook thread started, listening for mouse events");
 
             let callback = move |event: Event| {
                 // Check if stop was requested
@@ -96,6 +100,7 @@ impl MouseHook {
                         left_button_down.store(true, Ordering::SeqCst);
                         let (x, y) = get_mouse_position();
                         *last_position.write() = (x, y);
+                        log::trace!("[MouseHook] Left button pressed at ({:.0}, {:.0})", x, y);
                     }
                     EventType::ButtonRelease(rdev::Button::Left) => {
                         left_button_down.store(false, Ordering::SeqCst);
@@ -105,8 +110,10 @@ impl MouseHook {
                         let mut count = click_count.write();
 
                         // Check for multi-click (within timeout)
-                        if now.duration_since(*last_time).as_millis() < MULTI_CLICK_TIMEOUT_MS {
+                        let time_since_last = now.duration_since(*last_time).as_millis();
+                        if time_since_last < MULTI_CLICK_TIMEOUT_MS {
                             *count = (*count + 1).min(3);
+                            log::trace!("[MouseHook] Multi-click detected: count={}, time_since_last={}ms", *count, time_since_last);
                         } else {
                             *count = 1;
                         }
@@ -122,20 +129,35 @@ impl MouseHook {
 
                         let mouse_event = if is_drag {
                             // Drag selection completed
+                            log::debug!("[MouseHook] Drag detected: ({:.0}, {:.0}) -> ({:.0}, {:.0}), distance={:.1}px", 
+                                last_x, last_y, x, y, distance);
                             MouseEvent::DragEnd { x, y, start_x: last_x, start_y: last_y }
                         } else {
                             match *count {
-                                2 => MouseEvent::DoubleClick { x, y },
-                                3 => MouseEvent::TripleClick { x, y },
-                                _ => MouseEvent::LeftButtonUp { x, y },
+                                2 => {
+                                    log::debug!("[MouseHook] Double-click at ({:.0}, {:.0})", x, y);
+                                    MouseEvent::DoubleClick { x, y }
+                                },
+                                3 => {
+                                    log::debug!("[MouseHook] Triple-click at ({:.0}, {:.0})", x, y);
+                                    MouseEvent::TripleClick { x, y }
+                                },
+                                _ => {
+                                    log::trace!("[MouseHook] Left button released at ({:.0}, {:.0})", x, y);
+                                    MouseEvent::LeftButtonUp { x, y }
+                                },
                             }
                         };
 
                         // Send event if we have a receiver
                         if let Some(tx) = event_tx.read().as_ref() {
-                            if let Err(e) = tx.send(mouse_event) {
-                                log::debug!("Failed to send mouse event: {}", e);
+                            if let Err(e) = tx.send(mouse_event.clone()) {
+                                log::debug!("[MouseHook] Failed to send mouse event: {}", e);
+                            } else {
+                                log::trace!("[MouseHook] Mouse event sent: {:?}", mouse_event);
                             }
+                        } else {
+                            log::trace!("[MouseHook] No event receiver configured");
                         }
                     }
                     _ => {}
@@ -145,16 +167,17 @@ impl MouseHook {
             // Start listening (this blocks until error or process exit)
             // Note: rdev::listen is blocking and cannot be gracefully stopped
             // We use the stop_requested flag to ignore events after stop is called
+            log::debug!("[MouseHook] Starting rdev listener (blocking)");
             if let Err(e) = rdev::listen(callback) {
-                log::error!("Mouse hook error: {:?}", e);
+                log::error!("[MouseHook] rdev listener error: {:?}", e);
             }
 
             is_running.store(false, Ordering::SeqCst);
-            log::info!("Mouse hook thread exited");
+            log::info!("[MouseHook] Hook thread exited");
         });
 
         *self.thread_handle.write() = Some(handle);
-        log::info!("Mouse hook started successfully");
+        log::info!("[MouseHook] Started successfully");
         Ok(())
     }
 
@@ -162,37 +185,44 @@ impl MouseHook {
     /// Note: Due to rdev limitations, the listener thread cannot be forcefully terminated.
     /// This method sets a flag to ignore future events and marks the hook as stopped.
     pub fn stop(&self) -> Result<(), String> {
+        log::debug!("[MouseHook] stop() called");
+        
         if !self.is_running.load(Ordering::SeqCst) {
-            log::debug!("Mouse hook already stopped");
+            log::debug!("[MouseHook] Already stopped");
             return Ok(());
         }
 
         // Set stop flag to ignore future events
+        log::trace!("[MouseHook] Setting stop flag");
         self.stop_requested.store(true, Ordering::SeqCst);
         self.is_running.store(false, Ordering::SeqCst);
         
         // Clear the event sender to prevent any pending events
+        log::trace!("[MouseHook] Clearing event sender");
         *self.event_tx.write() = None;
         
         // Reset click state
+        log::trace!("[MouseHook] Resetting click state");
         *self.click_count.write() = 0;
         self.left_button_down.store(false, Ordering::SeqCst);
         
-        log::info!("Mouse hook stopped (events will be ignored)");
+        log::info!("[MouseHook] Stopped (events will be ignored)");
         Ok(())
     }
 
     /// Reset the hook state without stopping
     pub fn reset(&self) {
+        log::debug!("[MouseHook] Resetting state");
         *self.click_count.write() = 0;
         *self.last_click_time.write() = Instant::now();
         self.left_button_down.store(false, Ordering::SeqCst);
         *self.last_position.write() = (0.0, 0.0);
-        log::debug!("Mouse hook state reset");
+        log::debug!("[MouseHook] State reset complete");
     }
 
     /// Set the event sender
     pub fn set_event_sender(&self, tx: mpsc::UnboundedSender<MouseEvent>) {
+        log::debug!("[MouseHook] Event sender configured");
         *self.event_tx.write() = Some(tx);
     }
 

@@ -282,40 +282,58 @@ pub struct SandboxManager {
 impl SandboxManager {
     /// Create a new sandbox manager
     pub async fn new(config: SandboxConfig) -> Result<Self, SandboxError> {
+        log::info!("Initializing SandboxManager");
+        log::debug!("SandboxManager config: preferred_runtime={:?}, docker_enabled={}, podman_enabled={}, native_enabled={}",
+            config.preferred_runtime, config.enable_docker, config.enable_podman, config.enable_native);
+        
         let mut available_runtimes = Vec::new();
 
         // Initialize Docker runtime if enabled
         let docker = if config.enable_docker {
+            log::debug!("Checking Docker runtime availability...");
             let runtime = DockerRuntime::new();
             if runtime.is_available().await {
+                match runtime.get_version().await {
+                    Ok(version) => log::info!("Docker runtime available: version {}", version),
+                    Err(_) => log::info!("Docker runtime available (version unknown)"),
+                }
                 available_runtimes.push(RuntimeType::Docker);
                 Some(runtime)
             } else {
-                log::warn!("Docker runtime not available");
+                log::warn!("Docker runtime not available - docker command not found or not running");
                 None
             }
         } else {
+            log::debug!("Docker runtime disabled in configuration");
             None
         };
 
         // Initialize Podman runtime if enabled
         let podman = if config.enable_podman {
+            log::debug!("Checking Podman runtime availability...");
             let runtime = PodmanRuntime::new();
             if runtime.is_available().await {
+                match runtime.get_version().await {
+                    Ok(version) => log::info!("Podman runtime available: version {}", version),
+                    Err(_) => log::info!("Podman runtime available (version unknown)"),
+                }
                 available_runtimes.push(RuntimeType::Podman);
                 Some(runtime)
             } else {
-                log::warn!("Podman runtime not available");
+                log::warn!("Podman runtime not available - podman command not found or not running");
                 None
             }
         } else {
+            log::debug!("Podman runtime disabled in configuration");
             None
         };
 
         // Initialize Native runtime if enabled
         let native = if config.enable_native {
+            log::debug!("Checking Native runtime availability...");
             let runtime = NativeRuntime::new();
             if runtime.is_available().await {
+                log::info!("Native runtime available");
                 available_runtimes.push(RuntimeType::Native);
                 Some(runtime)
             } else {
@@ -323,11 +341,15 @@ impl SandboxManager {
                 None
             }
         } else {
+            log::debug!("Native runtime disabled in configuration (recommended for security)");
             None
         };
 
         if available_runtimes.is_empty() {
-            log::warn!("No sandbox runtimes available. Enable native runtime or install Docker/Podman for code execution.");
+            log::warn!("No sandbox runtimes available! Enable native runtime or install Docker/Podman for code execution.");
+        } else {
+            log::info!("SandboxManager initialized with {} available runtime(s): {:?}", 
+                available_runtimes.len(), available_runtimes);
         }
 
         Ok(Self {
@@ -381,14 +403,24 @@ impl SandboxManager {
 
     /// Execute code
     pub async fn execute(&self, request: ExecutionRequest) -> Result<ExecutionResult, SandboxError> {
+        log::debug!("SandboxManager.execute: language={}, id={}, preferred_runtime={:?}",
+            request.language, request.id, request.runtime);
+        
         // Get language configuration
         let language_config = LANGUAGE_CONFIGS
             .iter()
             .find(|l| l.id == request.language || l.aliases.contains(&request.language.as_str()))
-            .ok_or_else(|| SandboxError::LanguageNotSupported(request.language.clone()))?;
+            .ok_or_else(|| {
+                log::warn!("Language not supported: {}", request.language);
+                SandboxError::LanguageNotSupported(request.language.clone())
+            })?;
+
+        log::debug!("Language config found: id={}, name={}, image={}, category={:?}",
+            language_config.id, language_config.name, language_config.docker_image, language_config.category);
 
         // Check if language is enabled
         if !self.config.enabled_languages.contains(&language_config.id.to_string()) {
+            log::warn!("Language '{}' is disabled in configuration", language_config.name);
             return Err(SandboxError::LanguageNotSupported(format!(
                 "{} is disabled in configuration",
                 language_config.name
@@ -398,32 +430,49 @@ impl SandboxManager {
         // Get runtime
         let runtime = self
             .get_runtime(request.runtime)
-            .ok_or_else(|| SandboxError::RuntimeNotAvailable("No runtime available".to_string()))?;
+            .ok_or_else(|| {
+                log::error!("No runtime available for execution (requested: {:?})", request.runtime);
+                SandboxError::RuntimeNotAvailable("No runtime available".to_string())
+            })?;
+
+        log::debug!("Selected runtime: {:?}", runtime.runtime_type());
 
         // Build execution config
+        let timeout_secs = request.timeout_secs.unwrap_or(self.config.default_timeout_secs);
+        let memory_mb = request.memory_limit_mb.unwrap_or(self.config.default_memory_limit_mb);
+        let cpu_percent = request.cpu_limit_percent.unwrap_or(self.config.default_cpu_limit_percent);
+        let network = request.network_enabled.unwrap_or(self.config.network_enabled);
+        
         let exec_config = ExecutionConfig {
-            timeout: Duration::from_secs(
-                request.timeout_secs.unwrap_or(self.config.default_timeout_secs),
-            ),
-            memory_limit_mb: request
-                .memory_limit_mb
-                .unwrap_or(self.config.default_memory_limit_mb),
-            cpu_limit_percent: request
-                .cpu_limit_percent
-                .unwrap_or(self.config.default_cpu_limit_percent),
-            network_enabled: request.network_enabled.unwrap_or(self.config.network_enabled),
+            timeout: Duration::from_secs(timeout_secs),
+            memory_limit_mb: memory_mb,
+            cpu_limit_percent: cpu_percent,
+            network_enabled: network,
             max_output_size: self.config.max_output_size,
         };
 
+        log::debug!("Execution config: timeout={}s, memory={}MB, cpu={}%, network={}, max_output={}",
+            timeout_secs, memory_mb, cpu_percent, network, self.config.max_output_size);
+
         // Execute and handle errors
+        log::info!("Starting execution: id={}, language={}, runtime={:?}",
+            request.id, request.language, runtime.runtime_type());
+        
         match runtime.execute(&request, language_config, &exec_config).await {
-            Ok(result) => Ok(result),
-            Err(e) => Ok(ExecutionResult::error(
-                request.id.clone(),
-                e.to_string(),
-                runtime.runtime_type(),
-                request.language.clone(),
-            )),
+            Ok(result) => {
+                log::debug!("Execution succeeded: id={}, status={:?}, exit_code={:?}, time={}ms",
+                    result.id, result.status, result.exit_code, result.execution_time_ms);
+                Ok(result)
+            },
+            Err(e) => {
+                log::error!("Execution failed: id={}, error={}", request.id, e);
+                Ok(ExecutionResult::error(
+                    request.id.clone(),
+                    e.to_string(),
+                    runtime.runtime_type(),
+                    request.language.clone(),
+                ))
+            }
         }
     }
 
@@ -436,27 +485,70 @@ impl SandboxManager {
 
     /// Cleanup all runtimes
     pub async fn cleanup_all(&self) -> Result<(), SandboxError> {
+        log::info!("Cleaning up all sandbox runtimes");
+        
         if let Some(ref docker) = self.docker {
-            docker.cleanup().await?;
+            log::debug!("Cleaning up Docker runtime...");
+            if let Err(e) = docker.cleanup().await {
+                log::warn!("Docker cleanup error: {}", e);
+            } else {
+                log::debug!("Docker runtime cleaned up successfully");
+            }
         }
         if let Some(ref podman) = self.podman {
-            podman.cleanup().await?;
+            log::debug!("Cleaning up Podman runtime...");
+            if let Err(e) = podman.cleanup().await {
+                log::warn!("Podman cleanup error: {}", e);
+            } else {
+                log::debug!("Podman runtime cleaned up successfully");
+            }
         }
         if let Some(ref native) = self.native {
-            native.cleanup().await?;
+            log::debug!("Cleaning up Native runtime...");
+            if let Err(e) = native.cleanup().await {
+                log::warn!("Native cleanup error: {}", e);
+            } else {
+                log::debug!("Native runtime cleaned up successfully");
+            }
         }
+        
+        log::info!("All sandbox runtimes cleanup completed");
         Ok(())
     }
 
     /// Prepare image for a language
     pub async fn prepare_language(&self, language: &str) -> Result<(), SandboxError> {
+        log::info!("Preparing container image for language: {}", language);
+        
         // Try Docker first, then Podman
         if let Some(ref docker) = self.docker {
-            return docker.prepare_image(language).await;
+            log::debug!("Pulling image using Docker runtime for language: {}", language);
+            match docker.prepare_image(language).await {
+                Ok(_) => {
+                    log::info!("Docker image prepared successfully for language: {}", language);
+                    return Ok(());
+                }
+                Err(e) => {
+                    log::error!("Failed to prepare Docker image for {}: {}", language, e);
+                    return Err(e);
+                }
+            }
         }
         if let Some(ref podman) = self.podman {
-            return podman.prepare_image(language).await;
+            log::debug!("Pulling image using Podman runtime for language: {}", language);
+            match podman.prepare_image(language).await {
+                Ok(_) => {
+                    log::info!("Podman image prepared successfully for language: {}", language);
+                    return Ok(());
+                }
+                Err(e) => {
+                    log::error!("Failed to prepare Podman image for {}: {}", language, e);
+                    return Err(e);
+                }
+            }
         }
+        
+        log::debug!("No container runtime available for image preparation (language: {})", language);
         Ok(())
     }
 

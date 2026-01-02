@@ -68,8 +68,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { useCopy } from '@/hooks/use-copy';
-import { useSummary } from '@/hooks/use-summary';
+import { useCopy } from '@/hooks/ui';
+import { useSummary } from '@/hooks/chat';
 import { MermaidBlock } from '@/components/chat/renderers/mermaid-block';
 import type { BackgroundAgent } from '@/types/background-agent';
 import type { DiagramType } from '@/types/summary';

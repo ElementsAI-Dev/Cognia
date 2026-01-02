@@ -27,8 +27,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useSettingsStore, useRecentFilesStore, usePresetStore, useSessionStore } from '@/stores';
-import { RecentFilesPopover } from './recent-files-popover';
-import { MentionPopover } from './mention-popover';
+import { RecentFilesPopover, MentionPopover } from './popovers';
 import { PresetQuickPrompts } from '@/components/presets/preset-quick-prompts';
 import { PresetQuickSwitcher } from '@/components/presets/preset-quick-switcher';
 import type { RecentFile } from '@/stores/recent-files-store';

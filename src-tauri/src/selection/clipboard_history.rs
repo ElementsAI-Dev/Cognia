@@ -167,6 +167,7 @@ pub struct ClipboardHistory {
 
 impl ClipboardHistory {
     pub fn new() -> Self {
+        log::debug!("[ClipboardHistory] Creating new instance with max_size={}", MAX_CLIPBOARD_HISTORY);
         Self {
             entries: Arc::new(RwLock::new(VecDeque::with_capacity(MAX_CLIPBOARD_HISTORY))),
             max_size: MAX_CLIPBOARD_HISTORY,
@@ -176,6 +177,9 @@ impl ClipboardHistory {
 
     /// Add a new entry to history
     pub fn add(&self, entry: ClipboardEntry) {
+        log::trace!("[ClipboardHistory] add: type={:?}, preview='{}'", entry.content_type, 
+            entry.preview.chars().take(50).collect::<String>());
+        
         let mut entries = self.entries.write();
 
         // Check for duplicate based on content
@@ -198,27 +202,39 @@ impl ClipboardHistory {
         }).unwrap_or(false);
 
         if is_duplicate {
+            log::trace!("[ClipboardHistory] Skipping duplicate entry");
             return;
         }
 
         entries.push_front(entry);
+        let current_len = entries.len();
 
         // Remove old non-pinned entries if over limit
+        let mut removed = 0;
         while entries.len() > self.max_size {
             // Find last non-pinned entry to remove
             if let Some(pos) = entries.iter().rposition(|e| !e.is_pinned) {
                 entries.remove(pos);
+                removed += 1;
             } else {
                 // All entries are pinned, remove oldest anyway
                 entries.pop_back();
+                removed += 1;
             }
         }
+        
+        if removed > 0 {
+            log::trace!("[ClipboardHistory] Removed {} old entries", removed);
+        }
+        log::debug!("[ClipboardHistory] Entry added, history_size={}", current_len.min(self.max_size));
     }
 
     /// Get recent entries
     pub fn get_recent(&self, count: usize) -> Vec<ClipboardEntry> {
         let entries = self.entries.read();
-        entries.iter().take(count).cloned().collect()
+        let result: Vec<_> = entries.iter().take(count).cloned().collect();
+        log::trace!("[ClipboardHistory] get_recent({}): returned {} entries", count, result.len());
+        result
     }
 
     /// Get all entries
@@ -234,9 +250,10 @@ impl ClipboardHistory {
 
     /// Search by text content
     pub fn search(&self, query: &str) -> Vec<ClipboardEntry> {
+        log::debug!("[ClipboardHistory] search: query='{}'", query);
         let query_lower = query.to_lowercase();
         let entries = self.entries.read();
-        entries
+        let results: Vec<_> = entries
             .iter()
             .filter(|e| {
                 e.text
@@ -246,7 +263,9 @@ impl ClipboardHistory {
                     || e.preview.to_lowercase().contains(&query_lower)
             })
             .cloned()
-            .collect()
+            .collect();
+        log::debug!("[ClipboardHistory] search: found {} matches", results.len());
+        results
     }
 
     /// Get entry by ID
@@ -257,33 +276,42 @@ impl ClipboardHistory {
 
     /// Pin an entry by ID
     pub fn pin_entry(&self, id: &str) -> bool {
+        log::debug!("[ClipboardHistory] pin_entry: id={}", id);
         let mut entries = self.entries.write();
         if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
             entry.pin();
+            log::info!("[ClipboardHistory] Entry pinned: {}", id);
             true
         } else {
+            log::warn!("[ClipboardHistory] Entry not found for pinning: {}", id);
             false
         }
     }
 
     /// Unpin an entry by ID
     pub fn unpin_entry(&self, id: &str) -> bool {
+        log::debug!("[ClipboardHistory] unpin_entry: id={}", id);
         let mut entries = self.entries.write();
         if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
             entry.unpin();
+            log::info!("[ClipboardHistory] Entry unpinned: {}", id);
             true
         } else {
+            log::warn!("[ClipboardHistory] Entry not found for unpinning: {}", id);
             false
         }
     }
 
     /// Delete an entry by ID
     pub fn delete_entry(&self, id: &str) -> bool {
+        log::debug!("[ClipboardHistory] delete_entry: id={}", id);
         let mut entries = self.entries.write();
         if let Some(pos) = entries.iter().position(|e| e.id == id) {
             entries.remove(pos);
+            log::info!("[ClipboardHistory] Entry deleted: {}", id);
             true
         } else {
+            log::warn!("[ClipboardHistory] Entry not found for deletion: {}", id);
             false
         }
     }
@@ -291,12 +319,17 @@ impl ClipboardHistory {
     /// Clear all non-pinned entries
     pub fn clear_unpinned(&self) {
         let mut entries = self.entries.write();
+        let before = entries.len();
         entries.retain(|e| e.is_pinned);
+        let removed = before - entries.len();
+        log::info!("[ClipboardHistory] Cleared {} unpinned entries, {} pinned remain", removed, entries.len());
     }
 
     /// Clear all entries
     pub fn clear_all(&self) {
+        let count = self.entries.read().len();
         self.entries.write().clear();
+        log::info!("[ClipboardHistory] Cleared all {} entries", count);
     }
 
     /// Get history size
@@ -315,7 +348,11 @@ impl ClipboardHistory {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
 
-        let mut clipboard = Clipboard::new().map_err(|e| e.to_string())?;
+        log::trace!("[ClipboardHistory] check_and_update: checking clipboard");
+        let mut clipboard = Clipboard::new().map_err(|e| {
+            log::warn!("[ClipboardHistory] Failed to access clipboard: {}", e);
+            e.to_string()
+        })?;
 
         // Try to get text
         if let Ok(text) = clipboard.get_text() {
@@ -328,6 +365,7 @@ impl ClipboardHistory {
                 // Check if changed
                 let mut last_hash = self.last_content_hash.write();
                 if *last_hash != Some(hash) {
+                    log::debug!("[ClipboardHistory] New text content detected ({} chars)", text.len());
                     *last_hash = Some(hash);
                     drop(last_hash);
 
@@ -350,6 +388,7 @@ impl ClipboardHistory {
 
             let mut last_hash = self.last_content_hash.write();
             if *last_hash != Some(hash) {
+                log::debug!("[ClipboardHistory] New image content detected ({}x{})", image.width, image.height);
                 *last_hash = Some(hash);
                 drop(last_hash);
 
@@ -367,6 +406,7 @@ impl ClipboardHistory {
             }
         }
 
+        log::trace!("[ClipboardHistory] check_and_update: no changes detected");
         Ok(false)
     }
 
@@ -374,13 +414,24 @@ impl ClipboardHistory {
     pub fn copy_to_clipboard(&self, id: &str) -> Result<(), String> {
         use arboard::Clipboard;
 
-        let entry = self.get_by_id(id).ok_or("Entry not found")?;
-        let mut clipboard = Clipboard::new().map_err(|e| e.to_string())?;
+        log::debug!("[ClipboardHistory] copy_to_clipboard: id={}", id);
+        let entry = self.get_by_id(id).ok_or_else(|| {
+            log::warn!("[ClipboardHistory] Entry not found: {}", id);
+            "Entry not found"
+        })?;
+        let mut clipboard = Clipboard::new().map_err(|e| {
+            log::error!("[ClipboardHistory] Failed to access clipboard: {}", e);
+            e.to_string()
+        })?;
 
         match entry.content_type {
             ClipboardContentType::Text | ClipboardContentType::Html => {
                 if let Some(text) = entry.text {
-                    clipboard.set_text(text).map_err(|e| e.to_string())?;
+                    log::debug!("[ClipboardHistory] Restoring text to clipboard ({} chars)", text.len());
+                    clipboard.set_text(text).map_err(|e| {
+                        log::error!("[ClipboardHistory] Failed to set clipboard text: {}", e);
+                        e.to_string()
+                    })?;
                 }
             }
             ClipboardContentType::Image => {
@@ -389,19 +440,25 @@ impl ClipboardHistory {
                         &base64::engine::general_purpose::STANDARD,
                         &base64_data,
                     )
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| {
+                        log::error!("[ClipboardHistory] Failed to decode image: {}", e);
+                        e.to_string()
+                    })?;
 
                     // This is a simplified version - actual implementation would need
                     // to decode the image format properly
-                    log::warn!("Image clipboard restore not fully implemented");
+                    log::warn!("[ClipboardHistory] Image clipboard restore not fully implemented");
                 }
             }
             ClipboardContentType::Files => {
-                log::warn!("File clipboard restore not implemented");
+                log::warn!("[ClipboardHistory] File clipboard restore not implemented");
             }
-            ClipboardContentType::Unknown => {}
+            ClipboardContentType::Unknown => {
+                log::trace!("[ClipboardHistory] Unknown content type, nothing to restore");
+            }
         }
 
+        log::info!("[ClipboardHistory] Entry {} restored to clipboard", id);
         Ok(())
     }
 }

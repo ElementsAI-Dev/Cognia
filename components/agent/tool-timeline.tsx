@@ -152,7 +152,7 @@ export function ToolTimeline({
   const statistics = useMemo(() => {
     const totalDuration = executions.reduce((acc, exec) => {
       if (exec.endTime && exec.startTime) {
-        return acc + (exec.endTime - exec.startTime);
+        return acc + (exec.endTime.getTime() - exec.startTime.getTime());
       }
       return acc;
     }, 0);
@@ -328,8 +328,8 @@ export function ToolTimeline({
         {executions.map((execution, index) => {
           const config = stateConfig[execution.state];
           const Icon = config.icon;
-          const duration = execution.endTime
-            ? execution.endTime - execution.startTime
+          const duration = execution.endTime && execution.startTime
+            ? execution.endTime.getTime() - execution.startTime.getTime()
             : null;
           const isLast = index === executions.length - 1;
           const isRunning =

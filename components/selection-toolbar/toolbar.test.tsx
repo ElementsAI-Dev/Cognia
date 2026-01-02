@@ -4,7 +4,7 @@
 
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { SelectionToolbar } from './toolbar';
-import { useSelectionToolbar } from '@/hooks/use-selection-toolbar';
+import { useSelectionToolbar } from '@/hooks/ui';
 import { useSelectionStore } from '@/stores/selection-store';
 
 // Mock the hooks

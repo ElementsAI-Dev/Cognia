@@ -58,7 +58,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useOllama } from '@/hooks/use-ollama';
+import { useOllama } from '@/hooks/ai';
 import {
   formatModelSize,
   formatPullProgress,

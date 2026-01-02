@@ -2,6 +2,7 @@
 //!
 //! Identifies the type of application and provides relevant context.
 
+use log::{debug, trace};
 use super::WindowInfo;
 use serde::{Deserialize, Serialize};
 
@@ -72,11 +73,17 @@ pub struct AppContext {
 impl AppContext {
     /// Create app context from window information
     pub fn from_window_info(window: &WindowInfo) -> Result<Self, String> {
+        trace!(
+            "Creating AppContext from window: process='{}', title='{}', class='{}'",
+            window.process_name, window.title, window.class_name
+        );
+        
         let process_name = window.process_name.to_lowercase();
         let title = window.title.to_lowercase();
         let class_name = window.class_name.to_lowercase();
 
         let (app_type, app_name) = Self::detect_app_type(&process_name, &title, &class_name);
+        debug!("Detected app type: {:?} ({})", app_type, app_name);
         
         let (supports_text_input, supports_rich_text, is_dev_tool) = match app_type {
             AppType::Browser => (true, true, false),
@@ -101,6 +108,10 @@ impl AppContext {
         };
 
         let suggested_actions = Self::get_suggested_actions(&app_type);
+        trace!(
+            "App capabilities: text_input={}, rich_text={}, dev_tool={}, actions={}",
+            supports_text_input, supports_rich_text, is_dev_tool, suggested_actions.len()
+        );
 
         Ok(Self {
             app_type,
@@ -116,6 +127,8 @@ impl AppContext {
 
     /// Detect application type from process and window information
     fn detect_app_type(process_name: &str, title: &str, class_name: &str) -> (AppType, String) {
+        trace!("Detecting app type from process='{}', title='{}', class='{}'", process_name, title, class_name);
+        
         // Browsers
         if process_name.contains("chrome") || process_name.contains("chromium") {
             return (AppType::Browser, "Google Chrome".to_string());
@@ -403,6 +416,7 @@ impl AppContext {
         }
 
         // Default
+        trace!("No specific app type matched, returning Unknown for process: {}", process_name);
         (AppType::Unknown, process_name.to_string())
     }
 

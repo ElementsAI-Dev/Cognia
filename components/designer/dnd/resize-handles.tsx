@@ -7,7 +7,7 @@
 
 import { memo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { useElementResize, type ResizeHandle } from '@/hooks/use-element-resize';
+import { useElementResize, type ResizeHandle } from '@/hooks/utils';
 
 interface ResizeHandlesProps {
   elementId: string;

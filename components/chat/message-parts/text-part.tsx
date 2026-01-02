@@ -6,7 +6,7 @@
  */
 
 import { useSettingsStore } from '@/stores/settings-store';
-import { MarkdownRenderer } from '@/components/chat/markdown-renderer';
+import { MarkdownRenderer } from '@/components/chat/utils';
 import { cn } from '@/lib/utils';
 import type { TextPart as TextPartType } from '@/types/message';
 

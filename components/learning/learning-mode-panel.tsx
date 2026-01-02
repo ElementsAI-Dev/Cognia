@@ -46,7 +46,7 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { useLearningMode } from '@/hooks/use-learning-mode';
+import { useLearningMode } from '@/hooks/ui';
 import { useLearningStore } from '@/stores/learning-store';
 import { LearningStatisticsPanel } from './learning-statistics-panel';
 import { LearningNotesPanel } from './learning-notes-panel';

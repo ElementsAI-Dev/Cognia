@@ -8,7 +8,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Copy, Check, Pencil, RotateCcw, Languages, Bookmark, BookmarkCheck, Volume2, VolumeX, Share2 } from 'lucide-react';
+import { Copy, Check, Pencil, RotateCcw, Languages, Bookmark, BookmarkCheck, Volume2, VolumeX, Share2, Loader2 } from 'lucide-react';
 import {
   Conversation,
   ConversationContent,
@@ -22,23 +22,19 @@ import {
   MessageAction,
 } from '@/components/ai-elements/message';
 import { Loader } from '@/components/ai-elements/loader';
-import { ErrorMessage } from './error-message';
+import { ErrorMessage } from './message';
 import { ChatHeader } from './chat-header';
 import { ChatInput, type Attachment } from './chat-input';
-import { ContextSettingsDialog } from './context-settings-dialog';
-import { AISettingsDialog, type AISettings } from './ai-settings-dialog';
-import { ModelPickerDialog } from './model-picker-dialog';
+import { ContextSettingsDialog, AISettingsDialog, type AISettings, ModelPickerDialog, PromptOptimizerDialog, PresetManagerDialog } from './dialogs';
 import { WelcomeState } from './welcome-state';
-import { BranchButton } from './branch-selector';
-import { TextSelectionPopover } from './text-selection-popover';
-import { QuotedContent } from './quoted-content';
+import { BranchButton } from './selectors';
+import { TextSelectionPopover } from './popovers';
+import { QuotedContent } from './message';
 import { TextPart, ReasoningPart, ToolPart, SourcesPart } from './message-parts';
-import { MessageReactions } from './message-reactions';
+import { MessageReactions } from './message';
 import { MessageArtifacts } from '@/components/artifacts';
 import type { EmojiReaction } from '@/types/message';
 import type { MessagePart } from '@/types/message';
-import { PromptOptimizerDialog } from './prompt-optimizer-dialog';
-import { PresetManagerDialog } from './preset-manager-dialog';
 import { Suggestions, Suggestion } from '@/components/ai-elements/suggestion';
 import {
   ToolTimeline,
@@ -72,7 +68,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useMessages, useAgent, useProjectContext, calculateTokenBreakdown } from '@/hooks';
+import { useMessages, useAgent, useProjectContext, calculateTokenBreakdown, useTTS } from '@/hooks';
 import type { ParsedToolCall, ToolCallResult } from '@/types/mcp';
 import { useAIChat, useAutoRouter, type ProviderName, isVisionModel, buildMultimodalContent, type MultimodalMessage, isAudioModel, isVideoModel } from '@/lib/ai';
 import { messageRepository } from '@/lib/db';
@@ -407,8 +403,8 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
              exec.status === 'error' ? 'output-error' as const :
              exec.status === 'running' ? 'input-available' as const :
              'input-streaming' as const,
-      startTime: exec.startedAt?.getTime() || Date.now(),
-      endTime: exec.completedAt?.getTime(),
+      startTime: exec.startedAt ?? new Date(),
+      endTime: exec.completedAt,
       error: exec.error,
     }));
   }, [agentToolExecutions]);
@@ -1591,9 +1587,12 @@ function ChatMessageItem({
   const [copied, setCopied] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(message.isBookmarked || false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [reactions, setReactions] = useState<EmojiReaction[]>(message.reactions || []);
   const messageContentRef = useRef<HTMLDivElement>(null);
+  
+  // TTS hook for multi-provider text-to-speech
+  const { speak, stop: stopTTS, isPlaying: isSpeaking, isLoading: isTTSLoading } = useTTS();
+  const ttsTooltip = isTTSLoading ? 'Loading...' : isSpeaking ? 'Stop speaking' : 'Read aloud';
 
   const handleReaction = async (emoji: string) => {
     setReactions(prev => {
@@ -1645,14 +1644,9 @@ function ChatMessageItem({
 
   const handleSpeak = () => {
     if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
+      stopTTS();
     } else {
-      const utterance = new SpeechSynthesisUtterance(message.content);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
-      window.speechSynthesis.speak(utterance);
-      setIsSpeaking(true);
+      speak(message.content);
     }
   };
 
@@ -1774,10 +1768,11 @@ function ChatMessageItem({
                 {isBookmarked ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
               </MessageAction>
               <MessageAction
-                tooltip={isSpeaking ? 'Stop speaking' : 'Read aloud'}
+                tooltip={ttsTooltip}
                 onClick={handleSpeak}
+                disabled={isTTSLoading}
               >
-                {isSpeaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                {isTTSLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : isSpeaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
               </MessageAction>
               <MessageAction
                 tooltip="Share"

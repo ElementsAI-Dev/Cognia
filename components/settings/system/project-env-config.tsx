@@ -66,7 +66,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useVirtualEnv } from '@/hooks/use-virtual-env';
+import { useVirtualEnv } from '@/hooks/sandbox';
 import type { ProjectEnvConfig, VirtualEnvInfo } from '@/types/environment';
 
 interface EnvVarRowProps {

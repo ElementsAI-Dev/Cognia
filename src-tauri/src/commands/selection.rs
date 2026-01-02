@@ -4,7 +4,7 @@
 
 use crate::selection::{
     SelectionConfig, SelectionManager, SelectionPayload, SelectionStatus, 
-    EnhancedSelection, SourceAppInfo, SelectionHistoryEntry, SelectionHistoryStats,
+    Selection, SourceAppInfo, SelectionHistoryEntry, SelectionHistoryStats,
     ClipboardEntry, SelectionMode, SelectionExpansion, SelectionContext,
     ClipboardAnalysis, ContentCategory, DetectedLanguage, ExtractedEntity,
     SuggestedAction, ContentStats,
@@ -207,7 +207,7 @@ pub async fn selection_get_enhanced(
     app_name: Option<String>,
     process_name: Option<String>,
     window_title: Option<String>,
-) -> Result<EnhancedSelection, String> {
+) -> Result<Selection, String> {
     let source_app = if app_name.is_some() || process_name.is_some() || window_title.is_some() {
         Some(SourceAppInfo {
             name: app_name.clone().unwrap_or_default(),
@@ -219,20 +219,20 @@ pub async fn selection_get_enhanced(
         None
     };
 
-    Ok(manager.enhanced_detector.analyze(&text, source_app))
+    Ok(manager.detector.analyze(&text, source_app))
 }
 
 /// Analyze current selection with enhanced detection
 #[tauri::command]
 pub async fn selection_analyze_current(
     manager: State<'_, SelectionManager>,
-) -> Result<Option<EnhancedSelection>, String> {
+) -> Result<Option<Selection>, String> {
     let text = match manager.detector.get_selected_text()? {
         Some(t) if !t.is_empty() => t,
         _ => return Ok(None),
     };
 
-    Ok(Some(manager.enhanced_detector.analyze(&text, None)))
+    Ok(Some(manager.detector.analyze(&text, None)))
 }
 
 /// Expand selection to word at cursor position
@@ -242,7 +242,7 @@ pub async fn selection_expand_to_word(
     text: String,
     cursor_pos: usize,
 ) -> Result<(usize, usize, String), String> {
-    let (start, end) = manager.enhanced_detector.expand_to_word(&text, cursor_pos);
+    let (start, end) = manager.detector.expand_to_word(&text, cursor_pos);
     let expanded_text = if start < end && end <= text.len() {
         text.chars().skip(start).take(end - start).collect()
     } else {
@@ -258,7 +258,7 @@ pub async fn selection_expand_to_sentence(
     text: String,
     cursor_pos: usize,
 ) -> Result<(usize, usize, String), String> {
-    let (start, end) = manager.enhanced_detector.expand_to_sentence(&text, cursor_pos);
+    let (start, end) = manager.detector.expand_to_sentence(&text, cursor_pos);
     let expanded_text = if start < end && end <= text.len() {
         text.chars().skip(start).take(end - start).collect()
     } else {
@@ -274,7 +274,7 @@ pub async fn selection_expand_to_line(
     text: String,
     cursor_pos: usize,
 ) -> Result<(usize, usize, String), String> {
-    let (start, end) = manager.enhanced_detector.expand_to_line(&text, cursor_pos);
+    let (start, end) = manager.detector.expand_to_line(&text, cursor_pos);
     let expanded_text = if start < end && end <= text.len() {
         text.chars().skip(start).take(end - start).collect()
     } else {
@@ -290,7 +290,7 @@ pub async fn selection_expand_to_paragraph(
     text: String,
     cursor_pos: usize,
 ) -> Result<(usize, usize, String), String> {
-    let (start, end) = manager.enhanced_detector.expand_to_paragraph(&text, cursor_pos);
+    let (start, end) = manager.detector.expand_to_paragraph(&text, cursor_pos);
     let expanded_text = if start < end && end <= text.len() {
         text.chars().skip(start).take(end - start).collect()
     } else {

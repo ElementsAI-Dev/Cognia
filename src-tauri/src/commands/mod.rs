@@ -2,6 +2,7 @@
 
 pub mod api;
 pub mod awareness;
+pub mod chat_widget;
 pub mod clipboard;
 pub mod context;
 pub mod environment;

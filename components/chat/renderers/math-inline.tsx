@@ -15,7 +15,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useCopy } from '@/hooks/use-copy';
+import { useCopy } from '@/hooks/ui';
 import { Check, Copy } from 'lucide-react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';

@@ -15,7 +15,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { useKeyboardShortcuts, formatShortcut } from '@/hooks/use-keyboard-shortcuts';
+import { useKeyboardShortcuts, formatShortcut } from '@/hooks/ui';
 import { useUIStore } from '@/stores';
 
 interface KeyboardShortcutsDialogProps {

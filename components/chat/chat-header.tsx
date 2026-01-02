@@ -29,14 +29,14 @@ import {
   FileText,
   Film,
 } from 'lucide-react';
-import { ConversationSearch } from './conversation-search';
+import { ConversationSearch, SessionStats } from './utils';
 import { useMessages } from '@/hooks';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { BatchCopyDialog } from './batch-copy-dialog';
+import { BatchCopyDialog, ExportDialog, ChatSummaryDialog } from './dialogs';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -60,7 +60,6 @@ import { MODE_CONFIGS } from '@/stores/session-store';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { ExportDialog } from './export-dialog';
 import { BeautifulExportDialog } from '@/components/export';
 import { 
   OpenIn, 
@@ -74,13 +73,10 @@ import {
   OpenInv0,
   OpenInCursor,
 } from '@/components/ai-elements/open-in-chat';
-import { BranchSelector } from './branch-selector';
-import { ChatSummaryDialog } from './chat-summary-dialog';
-import { SessionStats } from './session-stats';
+import { BranchSelector, SessionEnvSelector } from './selectors';
 import { PresetSelector, CreatePresetDialog, PresetsManager } from '@/components/presets';
 import { ActiveSkillsIndicator } from '@/components/skills';
 import { BackgroundAgentIndicator, AgentModeSelector } from '@/components/agent';
-import { SessionEnvSelector } from './session-env-selector';
 import type { AgentModeConfig } from '@/types/agent-mode';
 import {
   Dialog,

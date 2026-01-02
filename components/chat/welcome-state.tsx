@@ -31,7 +31,7 @@ import {
   Target,
 } from 'lucide-react';
 import Link from 'next/link';
-import { TemplateSelector } from './template-selector';
+import { TemplateSelector } from './selectors';
 import { Button } from '@/components/ui/button';
 import type { ChatTemplate } from '@/types/template';
 import { cn } from '@/lib/utils';

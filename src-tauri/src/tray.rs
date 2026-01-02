@@ -2,6 +2,7 @@
 //!
 //! Provides system tray functionality with menu items for common actions.
 
+use crate::chat_widget::ChatWidgetWindow;
 use crate::selection::SelectionManager;
 use tauri::{AppHandle, Manager};
 use tauri::menu::{Menu, MenuItem, CheckMenuItem, Submenu};
@@ -12,6 +13,13 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
     // Create menu items
     let show_item = MenuItem::with_id(app, "show-window", "显示窗口", true, None::<&str>)?;
     let hide_item = MenuItem::with_id(app, "hide-window", "隐藏窗口", true, None::<&str>)?;
+    let chat_widget_item = MenuItem::with_id(
+        app,
+        "toggle-chat-widget",
+        "AI 助手 (Ctrl+Shift+Space)",
+        true,
+        None::<&str>,
+    )?;
     let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
     
     // Create selection toolbar submenu items
@@ -65,6 +73,7 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
         &[
             &show_item,
             &hide_item,
+            &chat_widget_item,
             &selection_submenu,
             &quit_item,
         ],
@@ -122,6 +131,19 @@ pub fn handle_tray_menu_event(app: &AppHandle, item_id: String) {
         "hide-window" => {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.hide();
+            }
+        }
+        "toggle-chat-widget" => {
+            // Toggle chat widget visibility
+            if let Some(manager) = app.try_state::<ChatWidgetWindow>() {
+                match manager.toggle() {
+                    Ok(visible) => {
+                        log::info!("Chat widget toggled: {}", if visible { "shown" } else { "hidden" });
+                    }
+                    Err(e) => {
+                        log::error!("Failed to toggle chat widget: {}", e);
+                    }
+                }
             }
         }
         "selection-enabled" => {

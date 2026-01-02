@@ -8,7 +8,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useClipboardContext, CATEGORY_INFO, TRANSFORM_ACTIONS } from '@/hooks/use-clipboard-context';
+import { useClipboardContext, CATEGORY_INFO, TRANSFORM_ACTIONS } from '@/hooks/context';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';

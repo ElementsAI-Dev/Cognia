@@ -49,6 +49,7 @@ pub struct ToolbarWindow {
 
 impl ToolbarWindow {
     pub fn new(app_handle: AppHandle) -> Self {
+        log::debug!("[ToolbarWindow] Creating new instance");
         Self {
             app_handle,
             is_visible: Arc::new(AtomicBool::new(false)),
@@ -64,7 +65,7 @@ impl ToolbarWindow {
     /// Set auto-hide timeout (0 to disable)
     pub fn set_auto_hide_timeout(&self, ms: u64) {
         *self.auto_hide_ms.write() = ms;
-        log::debug!("Auto-hide timeout set to {}ms", ms);
+        log::debug!("[ToolbarWindow] Auto-hide timeout set to {}ms", ms);
     }
 
     /// Get auto-hide timeout
@@ -74,12 +75,15 @@ impl ToolbarWindow {
 
     /// Set hover state (called from frontend)
     pub fn set_hovered(&self, hovered: bool) {
+        log::trace!("[ToolbarWindow] set_hovered: {}", hovered);
         self.is_hovered.store(hovered, Ordering::SeqCst);
         if hovered {
             // Cancel any pending auto-hide when mouse enters
+            log::trace!("[ToolbarWindow] Mouse entered, cancelling auto-hide");
             self.cancel_auto_hide();
         } else if self.is_visible() {
             // Restart auto-hide timer when mouse leaves
+            log::trace!("[ToolbarWindow] Mouse left, scheduling auto-hide");
             self.schedule_auto_hide();
         }
     }
@@ -87,6 +91,7 @@ impl ToolbarWindow {
     /// Cancel pending auto-hide
     fn cancel_auto_hide(&self) {
         if let Some(token) = self.auto_hide_cancel.write().take() {
+            log::trace!("[ToolbarWindow] Cancelling auto-hide timer");
             token.cancel();
         }
     }
@@ -95,9 +100,11 @@ impl ToolbarWindow {
     fn schedule_auto_hide(&self) {
         let timeout_ms = *self.auto_hide_ms.read();
         if timeout_ms == 0 {
+            log::trace!("[ToolbarWindow] Auto-hide disabled (timeout=0)");
             return;
         }
 
+        log::trace!("[ToolbarWindow] Scheduling auto-hide in {}ms", timeout_ms);
         // Cancel any existing timer
         self.cancel_auto_hide();
 
@@ -125,7 +132,7 @@ impl ToolbarWindow {
                         is_visible.store(false, Ordering::SeqCst);
                         *selected_text.write() = None;
                         let _ = app_handle.emit("selection-toolbar-auto-hidden", ());
-                        log::debug!("Toolbar auto-hidden after {}ms", timeout_ms);
+                        log::debug!("[ToolbarWindow] Auto-hidden after {}ms", timeout_ms);
                     }
                     // Clear the cancel token
                     *auto_hide_cancel.write() = None;
@@ -137,8 +144,11 @@ impl ToolbarWindow {
     /// Create the toolbar window if it doesn't exist
     pub fn ensure_window_exists(&self) -> Result<(), String> {
         if self.app_handle.get_webview_window(TOOLBAR_WINDOW_LABEL).is_some() {
+            log::trace!("[ToolbarWindow] Window already exists");
             return Ok(());
         }
+
+        log::debug!("[ToolbarWindow] Creating toolbar window");
 
         let window = WebviewWindowBuilder::new(
             &self.app_handle,
@@ -163,21 +173,28 @@ impl ToolbarWindow {
         // provide the necessary behavior for a floating toolbar
         let _ = window;
 
-        log::info!("Toolbar window created");
+        log::info!("[ToolbarWindow] Window created successfully ({}x{})", TOOLBAR_WIDTH, TOOLBAR_HEIGHT);
         Ok(())
     }
 
     /// Show the toolbar at the specified position
     pub fn show(&self, x: i32, y: i32, text: String) -> Result<(), String> {
+        let text_len = text.len();
+        log::debug!("[ToolbarWindow] show() called at ({}, {}) with {} chars", x, y, text_len);
+        
         self.ensure_window_exists()?;
 
         let window = self
             .app_handle
             .get_webview_window(TOOLBAR_WINDOW_LABEL)
-            .ok_or("Toolbar window not found")?;
+            .ok_or_else(|| {
+                log::error!("[ToolbarWindow] Window not found after ensure_window_exists");
+                "Toolbar window not found"
+            })?;
 
         // Calculate position (above the mouse cursor with some offset)
         let (adjusted_x, adjusted_y) = self.calculate_position(x, y);
+        log::trace!("[ToolbarWindow] Position adjusted: ({}, {}) -> ({}, {})", x, y, adjusted_x, adjusted_y);
 
         // Update state
         *self.position.write() = (adjusted_x, adjusted_y);
@@ -190,11 +207,17 @@ impl ToolbarWindow {
                 x: adjusted_x,
                 y: adjusted_y,
             }))
-            .map_err(|e| format!("Failed to set position: {}", e))?;
+            .map_err(|e| {
+                log::error!("[ToolbarWindow] Failed to set position: {}", e);
+                format!("Failed to set position: {}", e)
+            })?;
 
         window
             .show()
-            .map_err(|e| format!("Failed to show window: {}", e))?;
+            .map_err(|e| {
+                log::error!("[ToolbarWindow] Failed to show window: {}", e);
+                format!("Failed to show window: {}", e)
+            })?;
 
         // Bring to front
         let _ = window.set_focus();
@@ -210,22 +233,28 @@ impl ToolbarWindow {
                     "textLength": text.len(),
                 }),
             )
-            .map_err(|e| format!("Failed to emit event: {}", e))?;
+            .map_err(|e| {
+                log::error!("[ToolbarWindow] Failed to emit show event: {}", e);
+                format!("Failed to emit event: {}", e)
+            })?;
 
         self.is_visible.store(true, Ordering::SeqCst);
         
         // Schedule auto-hide if enabled
         self.schedule_auto_hide();
         
-        log::debug!("Toolbar shown at ({}, {}) with {} chars", adjusted_x, adjusted_y, text.len());
+        log::info!("[ToolbarWindow] Shown at ({}, {}) with {} chars", adjusted_x, adjusted_y, text_len);
         Ok(())
     }
 
     /// Update toolbar position without changing text
     pub fn update_position(&self, x: i32, y: i32) -> Result<(), String> {
         if !self.is_visible() {
+            log::trace!("[ToolbarWindow] update_position: toolbar not visible, skipping");
             return Ok(());
         }
+        
+        log::trace!("[ToolbarWindow] update_position to ({}, {})", x, y);
 
         let window = self
             .app_handle
@@ -240,24 +269,35 @@ impl ToolbarWindow {
                 x: adjusted_x,
                 y: adjusted_y,
             }))
-            .map_err(|e| format!("Failed to set position: {}", e))?;
+            .map_err(|e| {
+                log::error!("[ToolbarWindow] Failed to update position: {}", e);
+                format!("Failed to set position: {}", e)
+            })?;
 
+        log::trace!("[ToolbarWindow] Position updated to ({}, {})", adjusted_x, adjusted_y);
         Ok(())
     }
 
     /// Internal hide implementation
     fn hide_internal(&self, reason: &str) -> Result<(), String> {
         if !self.is_visible.load(Ordering::SeqCst) {
+            log::trace!("[ToolbarWindow] hide_internal: already hidden");
             return Ok(());
         }
 
+        log::debug!("[ToolbarWindow] Hiding toolbar (reason: {})", reason);
         // Cancel any pending auto-hide
         self.cancel_auto_hide();
 
         if let Some(window) = self.app_handle.get_webview_window(TOOLBAR_WINDOW_LABEL) {
             window
                 .hide()
-                .map_err(|e| format!("Failed to hide window: {}", e))?;
+                .map_err(|e| {
+                    log::error!("[ToolbarWindow] Failed to hide window: {}", e);
+                    format!("Failed to hide window: {}", e)
+                })?;
+        } else {
+            log::trace!("[ToolbarWindow] Window not found, nothing to hide");
         }
 
         // Get the text that was selected before clearing
@@ -274,7 +314,7 @@ impl ToolbarWindow {
         *self.selected_text.write() = None;
         self.is_hovered.store(false, Ordering::SeqCst);
         
-        log::debug!("Toolbar hidden (reason: {})", reason);
+        log::info!("[ToolbarWindow] Hidden (reason: {})", reason);
         Ok(())
     }
 
@@ -290,8 +330,11 @@ impl ToolbarWindow {
 
     /// Calculate the best position for the toolbar
     fn calculate_position(&self, mouse_x: i32, mouse_y: i32) -> (i32, i32) {
+        log::trace!("[ToolbarWindow] calculate_position for mouse ({}, {})", mouse_x, mouse_y);
         // Get screen dimensions for the monitor containing the cursor
         let (screen_width, screen_height, screen_x, screen_y) = self.get_monitor_at_point(mouse_x, mouse_y);
+        log::trace!("[ToolbarWindow] Monitor info: size={}x{}, offset=({}, {})", 
+            screen_width, screen_height, screen_x, screen_y);
 
         // Position toolbar above and centered on the mouse cursor
         let toolbar_x = (mouse_x as f64 - TOOLBAR_WIDTH / 2.0) as i32;

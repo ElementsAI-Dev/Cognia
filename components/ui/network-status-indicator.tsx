@@ -10,7 +10,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useNetworkStatus } from '@/hooks/use-network-status';
+import { useNetworkStatus } from '@/hooks/network';
 import { cn } from '@/lib/utils';
 
 interface NetworkStatusIndicatorProps {

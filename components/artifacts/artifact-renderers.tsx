@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 import { MermaidBlock } from '@/components/chat/renderers/mermaid-block';
 import { MathBlock } from '@/components/chat/renderers/math-block';
 import { CodeBlock } from '@/components/chat/renderers/code-block';
-import { MarkdownRenderer as ChatMarkdownRenderer } from '@/components/chat/markdown-renderer';
+import { MarkdownRenderer as ChatMarkdownRenderer } from '@/components/chat/utils';
 import {
   LineChart,
   Line,
@@ -51,7 +51,7 @@ export { MathBlock as MathRenderer } from '@/components/chat/renderers/math-bloc
 export { CodeBlock as CodeRenderer } from '@/components/chat/renderers/code-block';
 
 // Re-export MarkdownRenderer from chat module for full markdown support
-export { MarkdownRenderer } from '@/components/chat/markdown-renderer';
+export { MarkdownRenderer } from '@/components/chat/utils';
 
 interface RendererProps {
   content: string;

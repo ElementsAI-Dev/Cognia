@@ -2,6 +2,7 @@
 //!
 //! Provides detailed context for code editors and IDEs.
 
+use log::{debug, trace};
 use super::WindowInfo;
 use serde::{Deserialize, Serialize};
 
@@ -48,17 +49,33 @@ pub struct EditorContext {
 impl EditorContext {
     /// Create editor context from window information
     pub fn from_window_info(window: &WindowInfo) -> Result<Self, String> {
+        trace!("Creating EditorContext from window: process='{}', title='{}'", window.process_name, window.title);
+        
         let process_name = window.process_name.to_lowercase();
         let title = &window.title;
 
         // Detect editor type
         let editor_name = Self::detect_editor_name(&process_name);
+        debug!("Detected editor: {}", editor_name);
         
         // Parse title for file information
         let (file_path, file_name, file_extension, project_name, is_modified, git_branch, line_col) = 
             Self::parse_editor_title(&editor_name, title);
+        
+        trace!(
+            "Parsed editor title: file={:?}, ext={:?}, project={:?}, modified={}, branch={:?}",
+            file_name, file_extension, project_name, is_modified, git_branch
+        );
 
         let language = file_extension.as_ref().and_then(|ext| Self::extension_to_language(ext));
+        if let Some(ref lang) = language {
+            debug!("Detected language: {} (from extension: {:?})", lang, file_extension);
+        }
+
+        debug!(
+            "Editor context created: {} - {:?} (lang: {:?}, branch: {:?}, modified: {})",
+            editor_name, file_name, language, git_branch, is_modified
+        );
 
         Ok(Self {
             editor_name,
@@ -76,6 +93,7 @@ impl EditorContext {
     }
 
     fn detect_editor_name(process_name: &str) -> String {
+        trace!("Detecting editor from process: {}", process_name);
         if process_name.contains("code") {
             "Visual Studio Code".to_string()
         } else if process_name.contains("cursor") {
@@ -99,11 +117,13 @@ impl EditorContext {
         } else if process_name.contains("zed") {
             "Zed".to_string()
         } else {
+            trace!("Unknown editor for process: {}", process_name);
             "Unknown Editor".to_string()
         }
     }
 
     fn parse_editor_title(editor_name: &str, title: &str) -> ParsedTitleInfo {
+        trace!("Parsing editor title: '{}' for editor: {}", title, editor_name);
         let is_modified = title.contains("●") || title.contains("*") || title.contains("[Modified]");
         
         // VS Code style: "filename.ext - folder - Visual Studio Code"
@@ -294,6 +314,7 @@ impl EditorContext {
 
     /// Map file extension to programming language
     fn extension_to_language(ext: &str) -> Option<String> {
+        trace!("Mapping extension to language: {}", ext);
         let lang = match ext.to_lowercase().as_str() {
             // Rust
             "rs" => "Rust",

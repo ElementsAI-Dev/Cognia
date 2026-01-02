@@ -33,7 +33,7 @@ import {
   useKeyboardShortcuts,
   formatShortcut,
   type KeyboardShortcut,
-} from '@/hooks/use-keyboard-shortcuts';
+} from '@/hooks/ui';
 import { useSettingsStore } from '@/stores';
 
 

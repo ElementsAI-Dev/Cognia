@@ -25,21 +25,21 @@ describe('ToolTimeline', () => {
       id: 'exec-1',
       toolName: 'web_search',
       state: 'output-available',
-      startTime: 1000,
-      endTime: 2500,
+      startTime: new Date(1000),
+      endTime: new Date(2500),
     },
     {
       id: 'exec-2',
       toolName: 'file-read',
       state: 'input-available',
-      startTime: 2500,
+      startTime: new Date(2500),
     },
     {
       id: 'exec-3',
       toolName: 'api_call',
       state: 'output-error',
-      startTime: 3000,
-      endTime: 3500,
+      startTime: new Date(3000),
+      endTime: new Date(3500),
       error: 'Connection failed',
     },
   ];
@@ -101,7 +101,7 @@ describe('ToolTimeline', () => {
   describe('State configurations', () => {
     it('renders input-streaming state correctly', () => {
       const streamingExec: ToolExecution[] = [
-        { id: '1', toolName: 'test', state: 'input-streaming', startTime: 0 },
+        { id: '1', toolName: 'test', state: 'input-streaming', startTime: new Date(0) },
       ];
       render(<ToolTimeline executions={streamingExec} />);
       expect(screen.getByText('Preparing')).toBeInTheDocument();
@@ -109,7 +109,7 @@ describe('ToolTimeline', () => {
 
     it('renders approval-requested state correctly', () => {
       const approvalExec: ToolExecution[] = [
-        { id: '1', toolName: 'test', state: 'approval-requested', startTime: 0 },
+        { id: '1', toolName: 'test', state: 'approval-requested', startTime: new Date(0) },
       ];
       render(<ToolTimeline executions={approvalExec} />);
       expect(screen.getByText('Awaiting Approval')).toBeInTheDocument();
@@ -117,7 +117,7 @@ describe('ToolTimeline', () => {
 
     it('renders approval-responded state correctly', () => {
       const respondedExec: ToolExecution[] = [
-        { id: '1', toolName: 'test', state: 'approval-responded', startTime: 0 },
+        { id: '1', toolName: 'test', state: 'approval-responded', startTime: new Date(0) },
       ];
       render(<ToolTimeline executions={respondedExec} />);
       expect(screen.getByText('Approved')).toBeInTheDocument();
@@ -125,7 +125,7 @@ describe('ToolTimeline', () => {
 
     it('renders output-denied state correctly', () => {
       const deniedExec: ToolExecution[] = [
-        { id: '1', toolName: 'test', state: 'output-denied', startTime: 0 },
+        { id: '1', toolName: 'test', state: 'output-denied', startTime: new Date(0) },
       ];
       render(<ToolTimeline executions={deniedExec} />);
       expect(screen.getByText('Denied')).toBeInTheDocument();
@@ -135,7 +135,7 @@ describe('ToolTimeline', () => {
   describe('Duration formatting', () => {
     it('formats milliseconds correctly', () => {
       const shortExec: ToolExecution[] = [
-        { id: '1', toolName: 'test', state: 'output-available', startTime: 0, endTime: 500 },
+        { id: '1', toolName: 'test', state: 'output-available', startTime: new Date(0), endTime: new Date(500) },
       ];
       render(<ToolTimeline executions={shortExec} />);
       expect(screen.getByText('500ms')).toBeInTheDocument();
@@ -143,7 +143,7 @@ describe('ToolTimeline', () => {
 
     it('formats seconds correctly', () => {
       const secExec: ToolExecution[] = [
-        { id: '1', toolName: 'test', state: 'output-available', startTime: 0, endTime: 5500 },
+        { id: '1', toolName: 'test', state: 'output-available', startTime: new Date(0), endTime: new Date(5500) },
       ];
       render(<ToolTimeline executions={secExec} />);
       expect(screen.getByText('5.5s')).toBeInTheDocument();
@@ -151,7 +151,7 @@ describe('ToolTimeline', () => {
 
     it('formats minutes correctly', () => {
       const minExec: ToolExecution[] = [
-        { id: '1', toolName: 'test', state: 'output-available', startTime: 0, endTime: 125000 },
+        { id: '1', toolName: 'test', state: 'output-available', startTime: new Date(0), endTime: new Date(125000) },
       ];
       render(<ToolTimeline executions={minExec} />);
       expect(screen.getByText('2m 5s')).toBeInTheDocument();
@@ -161,7 +161,7 @@ describe('ToolTimeline', () => {
   describe('Single execution', () => {
     it('displays singular "tool" for single execution', () => {
       const singleExec: ToolExecution[] = [
-        { id: '1', toolName: 'test', state: 'output-available', startTime: 0, endTime: 1000 },
+        { id: '1', toolName: 'test', state: 'output-available', startTime: new Date(0), endTime: new Date(1000) },
       ];
       const { container } = render(<ToolTimeline executions={singleExec} />);
       // Check that the component renders with at least one execution

@@ -8,7 +8,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LearningStartDialog } from './learning-start-dialog';
-import { useLearningMode } from '@/hooks/use-learning-mode';
+import { useLearningMode } from '@/hooks/ui';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

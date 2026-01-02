@@ -48,7 +48,7 @@ import {
   RadioGroupItem,
 } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
-import { useProxy } from '@/hooks/use-proxy';
+import { useProxy } from '@/hooks/network';
 import {
   PROXY_SOFTWARE_INFO,
   type ProxyMode,

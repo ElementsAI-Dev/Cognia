@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { useClipboardHistory, ClipboardEntry } from '@/hooks/use-selection-history';
+import { useClipboardHistory, ClipboardEntry } from '@/hooks/ui';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {

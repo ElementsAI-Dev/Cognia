@@ -141,27 +141,40 @@ pub struct SandboxDb {
 impl SandboxDb {
     /// Create a new database connection
     pub fn new(db_path: PathBuf) -> Result<Self, DbError> {
+        log::debug!("Opening sandbox database at {:?}", db_path);
+        
         // Ensure parent directory exists
         if let Some(parent) = db_path.parent() {
-            std::fs::create_dir_all(parent).ok();
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                log::warn!("Failed to create parent directory {:?}: {}", parent, e);
+            }
         }
 
-        let conn = Connection::open(&db_path)?;
+        let conn = Connection::open(&db_path).map_err(|e| {
+            log::error!("Failed to open database at {:?}: {}", db_path, e);
+            e
+        })?;
+        
         let db = Self {
             conn: Mutex::new(conn),
         };
+        
+        log::trace!("Initializing database schema...");
         db.initialize_schema()?;
+        log::info!("Sandbox database opened successfully at {:?}", db_path);
         Ok(db)
     }
 
     /// Create an in-memory database (for testing)
     #[allow(dead_code)]
     pub fn in_memory() -> Result<Self, DbError> {
+        log::debug!("Creating in-memory sandbox database");
         let conn = Connection::open_in_memory()?;
         let db = Self {
             conn: Mutex::new(conn),
         };
         db.initialize_schema()?;
+        log::trace!("In-memory database created successfully");
         Ok(db)
     }
 
@@ -271,13 +284,22 @@ impl SandboxDb {
         session_id: Option<&str>,
         tags: &[String],
     ) -> Result<ExecutionRecord, DbError> {
-        let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
+        log::debug!("Saving execution to database: id={}, language={}, status={:?}",
+            result.id, result.language, result.status);
+        
+        let conn = self.conn.lock().map_err(|e| {
+            log::error!("Failed to acquire database lock: {}", e);
+            DbError::Lock(e.to_string())
+        })?;
         let now = Utc::now();
         let status_str = serde_json::to_string(&result.status)
             .map_err(|e| DbError::Serialization(e.to_string()))?
             .trim_matches('"')
             .to_string();
         let runtime_str = result.runtime.to_string();
+        
+        log::trace!("Execution details: exit_code={:?}, time={}ms, code_len={}, session={:?}, tags={:?}",
+            result.exit_code, result.execution_time_ms, code.len(), session_id, tags);
 
         conn.execute(
             r#"INSERT INTO executions 
@@ -321,6 +343,7 @@ impl SandboxDb {
         // Update language statistics
         self.update_language_stats_internal(&conn, &result.language, result)?;
 
+        log::debug!("Execution saved successfully: id={}", result.id);
         Ok(ExecutionRecord {
             id: result.id.clone(),
             session_id: session_id.map(String::from),
@@ -385,6 +408,7 @@ impl SandboxDb {
 
     /// Get execution by ID
     pub fn get_execution(&self, id: &str) -> Result<Option<ExecutionRecord>, DbError> {
+        log::trace!("Getting execution by id: {}", id);
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
 
         let mut stmt = conn.prepare(
@@ -464,6 +488,8 @@ impl SandboxDb {
 
     /// Query executions with filter
     pub fn query_executions(&self, filter: &ExecutionFilter) -> Result<Vec<ExecutionRecord>, DbError> {
+        log::trace!("Querying executions with filter: language={:?}, status={:?}, limit={:?}",
+            filter.language, filter.status, filter.limit);
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
 
         let mut sql = String::from(
@@ -580,13 +606,20 @@ impl SandboxDb {
             results.push(row??);
         }
 
+        log::trace!("Query returned {} execution(s)", results.len());
         Ok(results)
     }
 
     /// Delete an execution
     pub fn delete_execution(&self, id: &str) -> Result<bool, DbError> {
+        log::debug!("Deleting execution: id={}", id);
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
         let deleted = conn.execute("DELETE FROM executions WHERE id = ?1", params![id])?;
+        if deleted > 0 {
+            log::debug!("Execution deleted: id={}", id);
+        } else {
+            log::trace!("No execution found to delete: id={}", id);
+        }
         Ok(deleted > 0)
     }
 
@@ -633,6 +666,7 @@ impl SandboxDb {
 
     /// Clear execution history (with optional filter)
     pub fn clear_executions(&self, before_date: Option<DateTime<Utc>>) -> Result<u64, DbError> {
+        log::info!("Clearing executions: before_date={:?}", before_date);
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
         
         let deleted = if let Some(date) = before_date {
@@ -644,6 +678,7 @@ impl SandboxDb {
             conn.execute("DELETE FROM executions WHERE is_favorite = 0", [])?
         };
 
+        log::info!("Cleared {} execution record(s)", deleted);
         Ok(deleted as u64)
     }
 
@@ -651,6 +686,8 @@ impl SandboxDb {
 
     /// Create a new code snippet
     pub fn create_snippet(&self, snippet: &CodeSnippet) -> Result<CodeSnippet, DbError> {
+        log::debug!("Creating snippet: id={}, title='{}', language={}", 
+            snippet.id, snippet.title, snippet.language);
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
 
         conn.execute(
@@ -679,11 +716,13 @@ impl SandboxDb {
             )?;
         }
 
+        log::debug!("Snippet created: id={}", snippet.id);
         Ok(snippet.clone())
     }
 
     /// Get snippet by ID
     pub fn get_snippet(&self, id: &str) -> Result<Option<CodeSnippet>, DbError> {
+        log::trace!("Getting snippet by id: {}", id);
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
 
         let mut stmt = conn.prepare(
@@ -735,6 +774,8 @@ impl SandboxDb {
 
     /// Query snippets with filter
     pub fn query_snippets(&self, filter: &SnippetFilter) -> Result<Vec<CodeSnippet>, DbError> {
+        log::trace!("Querying snippets with filter: language={:?}, category={:?}, limit={:?}",
+            filter.language, filter.category, filter.limit);
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
 
         let mut sql = String::from(
@@ -823,11 +864,13 @@ impl SandboxDb {
             results.push(row??);
         }
 
+        log::trace!("Query returned {} snippet(s)", results.len());
         Ok(results)
     }
 
     /// Update a snippet
     pub fn update_snippet(&self, snippet: &CodeSnippet) -> Result<(), DbError> {
+        log::debug!("Updating snippet: id={}, title='{}'", snippet.id, snippet.title);
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
         let now = Utc::now();
 
@@ -857,13 +900,20 @@ impl SandboxDb {
             )?;
         }
 
+        log::debug!("Snippet updated: id={}", snippet.id);
         Ok(())
     }
 
     /// Delete a snippet
     pub fn delete_snippet(&self, id: &str) -> Result<bool, DbError> {
+        log::debug!("Deleting snippet: id={}", id);
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
         let deleted = conn.execute("DELETE FROM snippets WHERE id = ?1", params![id])?;
+        if deleted > 0 {
+            log::debug!("Snippet deleted: id={}", id);
+        } else {
+            log::trace!("No snippet found to delete: id={}", id);
+        }
         Ok(deleted > 0)
     }
 
@@ -912,6 +962,7 @@ impl SandboxDb {
 
     /// Create a new session
     pub fn create_session(&self, name: &str, description: Option<&str>) -> Result<ExecutionSession, DbError> {
+        log::debug!("Creating session: name='{}', description={:?}", name, description);
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
         let now = Utc::now();
         let id = uuid::Uuid::new_v4().to_string();
@@ -919,9 +970,10 @@ impl SandboxDb {
         conn.execute(
             r#"INSERT INTO sessions (id, name, description, created_at, updated_at, execution_count, is_active)
                VALUES (?1, ?2, ?3, ?4, ?5, 0, 1)"#,
-            params![id, name, description, now.to_rfc3339(), now.to_rfc3339()],
+            params![&id, name, description, now.to_rfc3339(), now.to_rfc3339()],
         )?;
 
+        log::info!("Session created: id={}, name='{}'", id, name);
         Ok(ExecutionSession {
             id,
             name: name.to_string(),
@@ -1019,25 +1071,31 @@ impl SandboxDb {
 
     /// Close a session (mark as inactive)
     pub fn close_session(&self, id: &str) -> Result<(), DbError> {
+        log::debug!("Closing session: id={}", id);
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
         conn.execute(
             "UPDATE sessions SET is_active = 0, updated_at = ?1 WHERE id = ?2",
             params![Utc::now().to_rfc3339(), id],
         )?;
+        log::debug!("Session closed: id={}", id);
         Ok(())
     }
 
     /// Delete a session and its executions
     pub fn delete_session(&self, id: &str, delete_executions: bool) -> Result<(), DbError> {
+        log::info!("Deleting session: id={}, delete_executions={}", id, delete_executions);
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
         
         if delete_executions {
-            conn.execute("DELETE FROM executions WHERE session_id = ?1", params![id])?;
+            let exec_deleted = conn.execute("DELETE FROM executions WHERE session_id = ?1", params![id])?;
+            log::debug!("Deleted {} execution(s) from session {}", exec_deleted, id);
         } else {
-            conn.execute("UPDATE executions SET session_id = NULL WHERE session_id = ?1", params![id])?;
+            let exec_orphaned = conn.execute("UPDATE executions SET session_id = NULL WHERE session_id = ?1", params![id])?;
+            log::debug!("Orphaned {} execution(s) from session {}", exec_orphaned, id);
         }
 
         conn.execute("DELETE FROM sessions WHERE id = ?1", params![id])?;
+        log::info!("Session deleted: id={}", id);
         Ok(())
     }
 
@@ -1139,6 +1197,7 @@ impl SandboxDb {
 
     /// Get overall sandbox statistics
     pub fn get_sandbox_stats(&self) -> Result<SandboxStats, DbError> {
+        log::trace!("Getting sandbox statistics");
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
 
         // Get aggregate stats
@@ -1181,6 +1240,9 @@ impl SandboxDb {
         drop(conn);
         let languages = self.get_all_language_stats()?;
 
+        log::debug!("Sandbox stats: executions={}, snippets={}, sessions={}, most_used={:?}",
+            total, total_snippets, total_sessions, most_used);
+        
         Ok(SandboxStats {
             total_executions: total as u64,
             successful_executions: success as u64,
@@ -1224,10 +1286,14 @@ impl SandboxDb {
 
     /// Export all data to JSON
     pub fn export_to_json(&self) -> Result<String, DbError> {
+        log::info!("Exporting sandbox data to JSON");
         let executions = self.query_executions(&ExecutionFilter::default())?;
         let snippets = self.query_snippets(&SnippetFilter::default())?;
         let sessions = self.list_sessions(false)?;
-        let stats = self.get_sandbox_stats()?;
+        let stats = self.get_sandbox_stats()?
+        ;
+        log::debug!("Export data: {} executions, {} snippets, {} sessions",
+            executions.len(), snippets.len(), sessions.len());
 
         let export = serde_json::json!({
             "version": "1.0",
@@ -1238,7 +1304,9 @@ impl SandboxDb {
             "stats": stats,
         });
 
-        serde_json::to_string_pretty(&export).map_err(|e| DbError::Serialization(e.to_string()))
+        let result = serde_json::to_string_pretty(&export).map_err(|e| DbError::Serialization(e.to_string()))?;
+        log::info!("Export completed: {} bytes", result.len());
+        Ok(result)
     }
 
     /// Get database file size
@@ -1249,13 +1317,16 @@ impl SandboxDb {
             [],
             |row| row.get(0),
         )?;
+        log::trace!("Database size: {} bytes", size);
         Ok(size as u64)
     }
 
     /// Vacuum database to reclaim space
     pub fn vacuum(&self) -> Result<(), DbError> {
+        log::info!("Vacuuming sandbox database");
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
         conn.execute("VACUUM", [])?;
+        log::info!("Database vacuum completed");
         Ok(())
     }
 

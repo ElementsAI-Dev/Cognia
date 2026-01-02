@@ -55,7 +55,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useCopy } from '@/hooks/use-copy';
+import { useCopy } from '@/hooks/ui';
 import type { TableData } from '@/lib/export/excel-export';
 
 interface EnhancedTableProps {

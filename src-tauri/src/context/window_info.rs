@@ -2,6 +2,7 @@
 //!
 //! Provides functionality to get information about windows on the system.
 
+use log::{debug, error, trace, warn};
 use serde::{Deserialize, Serialize};
 
 /// Information about a window
@@ -43,6 +44,7 @@ pub struct WindowManager {
 
 impl WindowManager {
     pub fn new() -> Self {
+        trace!("Creating new WindowManager");
         Self {
             #[cfg(target_os = "windows")]
             _marker: std::marker::PhantomData,
@@ -62,11 +64,14 @@ impl WindowManager {
             PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_NAME_WIN32,
         };
 
+        trace!("Getting active (foreground) window");
         unsafe {
             let hwnd = GetForegroundWindow();
             if hwnd.0.is_null() {
+                debug!("No foreground window found");
                 return Err("No foreground window".to_string());
             }
+            trace!("Foreground window handle: {:?}", hwnd.0);
 
             self.get_window_info(hwnd)
         }
@@ -84,32 +89,53 @@ impl WindowManager {
             PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_NAME_WIN32,
         };
 
+        trace!("Getting window info for handle: {:?}", hwnd.0);
         unsafe {
             // Get window title
             let mut title_buf = [0u16; 512];
             let title_len = GetWindowTextW(hwnd, &mut title_buf);
             let title = String::from_utf16_lossy(&title_buf[..title_len as usize]);
+            trace!("Window title: '{}'", title);
 
             // Get class name
             let mut class_buf = [0u16; 256];
             let class_len = GetClassNameW(hwnd, &mut class_buf);
             let class_name = String::from_utf16_lossy(&class_buf[..class_len as usize]);
+            trace!("Window class: '{}'", class_name);
 
             // Get process ID
             let mut process_id: u32 = 0;
             GetWindowThreadProcessId(hwnd, Some(&mut process_id));
+            trace!("Process ID: {}", process_id);
 
             // Get process name and path
             let (process_name, exe_path) = self.get_process_info(process_id);
+            trace!("Process name: '{}', exe_path: {:?}", process_name, exe_path);
 
             // Get window rect
             let mut rect = RECT::default();
             let _ = GetWindowRect(hwnd, &mut rect);
+            trace!(
+                "Window rect: x={}, y={}, width={}, height={}",
+                rect.left, rect.top,
+                rect.right - rect.left, rect.bottom - rect.top
+            );
 
             // Get window state
             let is_minimized = IsIconic(hwnd).as_bool();
             let is_maximized = IsZoomed(hwnd).as_bool();
             let is_visible = IsWindowVisible(hwnd).as_bool();
+            trace!(
+                "Window state: minimized={}, maximized={}, visible={}",
+                is_minimized, is_maximized, is_visible
+            );
+
+            debug!(
+                "Window info retrieved: '{}' ({}) [{}x{}] process={}",
+                title, class_name,
+                (rect.right - rect.left), (rect.bottom - rect.top),
+                process_name
+            );
 
             Ok(WindowInfo {
                 handle: hwnd.0 as u64,
@@ -138,6 +164,7 @@ impl WindowManager {
             PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_NAME_WIN32,
         };
 
+        trace!("Getting process info for PID: {}", process_id);
         unsafe {
             let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, process_id);
             if let Ok(handle) = handle {
@@ -152,11 +179,16 @@ impl WindowManager {
                         .unwrap_or_default();
                     
                     let _ = CloseHandle(handle);
+                    trace!("Process info: name='{}', path='{}'", name, path);
                     return (name, Some(path));
                 }
                 let _ = CloseHandle(handle);
+                warn!("Failed to query process image name for PID: {}", process_id);
+            } else {
+                warn!("Failed to open process for PID: {}", process_id);
             }
             
+            debug!("Could not get process info for PID: {}, returning 'Unknown'", process_id);
             ("Unknown".to_string(), None)
         }
     }
@@ -167,6 +199,7 @@ impl WindowManager {
         use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
         use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, IsWindowVisible, GetWindowTextLengthW};
 
+        debug!("Enumerating all visible windows");
         let mut windows = Vec::new();
 
         unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
@@ -190,51 +223,70 @@ impl WindowManager {
             );
         }
 
+        debug!("Enumerated {} visible windows with titles", windows.len());
         Ok(windows)
     }
 
     /// Find windows by title (partial match)
     #[cfg(target_os = "windows")]
     pub fn find_windows_by_title(&self, title_pattern: &str) -> Result<Vec<WindowInfo>, String> {
+        debug!("Finding windows by title pattern: '{}'", title_pattern);
         let all_windows = self.get_all_windows()?;
         let pattern = title_pattern.to_lowercase();
         
-        Ok(all_windows
+        let matched: Vec<WindowInfo> = all_windows
             .into_iter()
             .filter(|w| w.title.to_lowercase().contains(&pattern))
-            .collect())
+            .collect();
+        
+        debug!("Found {} windows matching title pattern '{}'", matched.len(), title_pattern);
+        for w in &matched {
+            trace!("  - '{}' ({})", w.title, w.process_name);
+        }
+        Ok(matched)
     }
 
     /// Find windows by process name
     #[cfg(target_os = "windows")]
     pub fn find_windows_by_process(&self, process_name: &str) -> Result<Vec<WindowInfo>, String> {
+        debug!("Finding windows by process name: '{}'", process_name);
         let all_windows = self.get_all_windows()?;
         let name = process_name.to_lowercase();
         
-        Ok(all_windows
+        let matched: Vec<WindowInfo> = all_windows
             .into_iter()
             .filter(|w| w.process_name.to_lowercase().contains(&name))
-            .collect())
+            .collect();
+        
+        debug!("Found {} windows for process '{}'", matched.len(), process_name);
+        for w in &matched {
+            trace!("  - '{}' ({})", w.title, w.process_name);
+        }
+        Ok(matched)
     }
 
     // Non-Windows implementations
     #[cfg(not(target_os = "windows"))]
     pub fn get_active_window(&self) -> Result<WindowInfo, String> {
+        debug!("get_active_window called on non-Windows platform");
         Err("Window info not available on this platform".to_string())
     }
 
     #[cfg(not(target_os = "windows"))]
     pub fn get_all_windows(&self) -> Result<Vec<WindowInfo>, String> {
+        debug!("get_all_windows called on non-Windows platform");
         Ok(Vec::new())
     }
 
     #[cfg(not(target_os = "windows"))]
     pub fn find_windows_by_title(&self, _title_pattern: &str) -> Result<Vec<WindowInfo>, String> {
+        debug!("find_windows_by_title called on non-Windows platform");
         Ok(Vec::new())
     }
 
     #[cfg(not(target_os = "windows"))]
     pub fn find_windows_by_process(&self, _process_name: &str) -> Result<Vec<WindowInfo>, String> {
+        debug!("find_windows_by_process called on non-Windows platform");
         Ok(Vec::new())
     }
 }

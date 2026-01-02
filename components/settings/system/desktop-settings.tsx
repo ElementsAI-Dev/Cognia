@@ -31,7 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { useNativeStore } from '@/stores/native-store';
-import { useWindow } from '@/hooks/use-window';
+import { useWindow } from '@/hooks/native';
 import { isTauri } from '@/lib/native/utils';
 import {
   requestNotificationPermission,

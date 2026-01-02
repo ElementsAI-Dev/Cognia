@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useVectorStore } from '@/stores';
-import { useVectorDB } from '@/hooks/use-vector-db';
+import { useVectorDB } from '@/hooks/rag';
 import { getSupportedVectorStoreProviders } from '@/lib/vector';
 import { cn } from '@/lib/utils';
 import { VectorManager } from './vector-manager';

@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Mic, Volume2, Languages, Zap, Settings2, Play, Square } from 'lucide-react';
+import { Mic, Volume2, Languages, Zap, Settings2, Play, Square, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import {
   Card,
@@ -34,7 +34,12 @@ import {
   getLanguageFlag,
   type SpeechLanguageCode,
   type SpeechProvider,
+  type TTSProvider,
+  OPENAI_TTS_VOICES,
+  GEMINI_TTS_VOICES,
+  EDGE_TTS_VOICES,
 } from '@/types/speech';
+import { useTTS } from '@/hooks';
 
 export function SpeechSettings() {
   const t = useTranslations('speechSettings');
@@ -52,15 +57,18 @@ export function SpeechSettings() {
   const setTtsAutoPlay = useSettingsStore((state) => state.setTtsAutoPlay);
   const setSpeechSettings = useSettingsStore((state) => state.setSpeechSettings);
 
-  // Check for OpenAI API key
+  // Check for API keys
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const hasOpenAIKey = !!providerSettings.openai?.apiKey;
+  const hasGoogleKey = !!providerSettings.google?.apiKey;
+  
+  // TTS hook for testing
+  const { speak: testSpeak, stop: testStop, isPlaying: isTestPlaying, isLoading: isTestLoading } = useTTS();
 
   // Browser support detection - initialize synchronously
   const [sttSupported] = useState(() => isSpeechRecognitionSupported());
   const [ttsSupported] = useState(() => isSpeechSynthesisSupported());
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [isTestPlaying, setIsTestPlaying] = useState(false);
 
   // Load available voices
   useEffect(() => {
@@ -77,13 +85,10 @@ export function SpeechSettings() {
     };
   }, [ttsSupported]);
 
-  // Test TTS
+  // Test TTS with current provider
   const handleTestTts = () => {
-    if (!ttsSupported) return;
-
     if (isTestPlaying) {
-      speechSynthesis.cancel();
-      setIsTestPlaying(false);
+      testStop();
       return;
     }
 
@@ -93,23 +98,13 @@ export function SpeechSettings() {
       ? 'こんにちは、これはテスト音声です。'
       : 'Hello, this is a test of the text-to-speech feature.';
 
-    const utterance = new SpeechSynthesisUtterance(testText);
-    
-    if (speechSettings.ttsVoice) {
-      const voice = voices.find((v) => v.name === speechSettings.ttsVoice);
-      if (voice) utterance.voice = voice;
-    }
-    
-    utterance.rate = speechSettings.ttsRate;
-    utterance.pitch = speechSettings.ttsPitch;
-    utterance.volume = speechSettings.ttsVolume;
-    
-    utterance.onstart = () => setIsTestPlaying(true);
-    utterance.onend = () => setIsTestPlaying(false);
-    utterance.onerror = () => setIsTestPlaying(false);
-
-    speechSynthesis.speak(utterance);
+    testSpeak(testText);
   };
+
+  // Get Edge voices filtered by language
+  const filteredEdgeVoices = EDGE_TTS_VOICES.filter((v) =>
+    v.language.startsWith(speechSettings.sttLanguage.split('-')[0])
+  );
 
   // Filter voices by language
   const filteredVoices = voices.filter((v) =>
@@ -283,11 +278,6 @@ export function SpeechSettings() {
           <CardTitle className="flex items-center gap-2 text-base">
             <Volume2 className="h-4 w-4 text-muted-foreground" />
             {t('textToSpeech')}
-            {!ttsSupported && (
-              <Badge variant="destructive" className="text-[10px]">
-                {t('notSupported')}
-              </Badge>
-            )}
           </CardTitle>
           <CardDescription className="text-xs">
             {t('ttsDescription')}
@@ -305,52 +295,232 @@ export function SpeechSettings() {
             <Switch
               checked={speechSettings.ttsEnabled}
               onCheckedChange={setTtsEnabled}
-              disabled={!ttsSupported}
             />
           </div>
 
-          {/* Voice Selection */}
+          {/* TTS Provider Selection */}
           <div className="space-y-2">
-            <Label className="text-sm">{t('voice')}</Label>
+            <Label className="text-sm flex items-center gap-2">
+              <Zap className="h-3.5 w-3.5" />
+              {t('ttsProvider')}
+            </Label>
             <Select
-              value={speechSettings.ttsVoice}
-              onValueChange={setTtsVoice}
+              value={speechSettings.ttsProvider}
+              onValueChange={(v) => setSpeechSettings({ ttsProvider: v as TTSProvider })}
               disabled={!speechSettings.ttsEnabled}
             >
               <SelectTrigger className="w-full sm:w-[300px]">
-                <SelectValue placeholder={t('selectVoice')} />
+                <SelectValue />
               </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                {filteredVoices.length > 0 ? (
-                  filteredVoices.map((voice) => (
-                    <SelectItem key={voice.name} value={voice.name}>
-                      <span className="flex items-center gap-2">
-                        <span className="truncate max-w-[200px]">{voice.name}</span>
-                        {voice.default && (
-                          <Badge variant="secondary" className="text-[10px]">
-                            {t('default')}
-                          </Badge>
-                        )}
-                      </span>
-                    </SelectItem>
-                  ))
-                ) : voices.length > 0 ? (
-                  voices.slice(0, 20).map((voice) => (
-                    <SelectItem key={voice.name} value={voice.name}>
-                      <span className="flex items-center gap-2">
-                        <span className="truncate max-w-[200px]">{voice.name}</span>
-                        <span className="text-xs text-muted-foreground">({voice.lang})</span>
-                      </span>
-                    </SelectItem>
-                  ))
-                ) : (
-                  <SelectItem value="" disabled>
-                    {t('noVoices')}
-                  </SelectItem>
-                )}
+              <SelectContent>
+                <SelectItem value="system">
+                  <span className="flex items-center gap-2">
+                    <span>🌐</span>
+                    <span>{t('systemTts')}</span>
+                  </span>
+                </SelectItem>
+                <SelectItem value="openai" disabled={!hasOpenAIKey}>
+                  <span className="flex items-center gap-2">
+                    <span>🤖</span>
+                    <span>OpenAI TTS</span>
+                    {!hasOpenAIKey && (
+                      <Badge variant="outline" className="text-[10px] ml-1">
+                        {t('needsApiKey')}
+                      </Badge>
+                    )}
+                  </span>
+                </SelectItem>
+                <SelectItem value="gemini" disabled={!hasGoogleKey}>
+                  <span className="flex items-center gap-2">
+                    <span>✨</span>
+                    <span>Gemini TTS</span>
+                    {!hasGoogleKey && (
+                      <Badge variant="outline" className="text-[10px] ml-1">
+                        {t('needsApiKey')}
+                      </Badge>
+                    )}
+                  </span>
+                </SelectItem>
+                <SelectItem value="edge">
+                  <span className="flex items-center gap-2">
+                    <span>🔊</span>
+                    <span>Edge TTS ({t('free')})</span>
+                  </span>
+                </SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              {speechSettings.ttsProvider === 'system' && t('systemTtsDesc')}
+              {speechSettings.ttsProvider === 'openai' && t('openaiTtsDesc')}
+              {speechSettings.ttsProvider === 'gemini' && t('geminiTtsDesc')}
+              {speechSettings.ttsProvider === 'edge' && t('edgeTtsDesc')}
+            </p>
           </div>
+
+          {/* System Voice Selection */}
+          {speechSettings.ttsProvider === 'system' && (
+            <div className="space-y-2">
+              <Label className="text-sm">{t('voice')}</Label>
+              <Select
+                value={speechSettings.ttsVoice}
+                onValueChange={setTtsVoice}
+                disabled={!speechSettings.ttsEnabled}
+              >
+                <SelectTrigger className="w-full sm:w-[300px]">
+                  <SelectValue placeholder={t('selectVoice')} />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {filteredVoices.length > 0 ? (
+                    filteredVoices.map((voice) => (
+                      <SelectItem key={voice.name} value={voice.name}>
+                        <span className="flex items-center gap-2">
+                          <span className="truncate max-w-[200px]">{voice.name}</span>
+                          {voice.default && (
+                            <Badge variant="secondary" className="text-[10px]">
+                              {t('default')}
+                            </Badge>
+                          )}
+                        </span>
+                      </SelectItem>
+                    ))
+                  ) : voices.length > 0 ? (
+                    voices.slice(0, 20).map((voice) => (
+                      <SelectItem key={voice.name} value={voice.name}>
+                        <span className="flex items-center gap-2">
+                          <span className="truncate max-w-[200px]">{voice.name}</span>
+                          <span className="text-xs text-muted-foreground">({voice.lang})</span>
+                        </span>
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="" disabled>
+                      {t('noVoices')}
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* OpenAI Voice Selection */}
+          {speechSettings.ttsProvider === 'openai' && (
+            <>
+              <div className="space-y-2">
+                <Label className="text-sm">{t('voice')}</Label>
+                <Select
+                  value={speechSettings.openaiTtsVoice}
+                  onValueChange={(v) => setSpeechSettings({ openaiTtsVoice: v as typeof speechSettings.openaiTtsVoice })}
+                  disabled={!speechSettings.ttsEnabled}
+                >
+                  <SelectTrigger className="w-full sm:w-[300px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {OPENAI_TTS_VOICES.map((voice) => (
+                      <SelectItem key={voice.id} value={voice.id}>
+                        <span className="flex items-center gap-2">
+                          <span>{voice.name}</span>
+                          <span className="text-xs text-muted-foreground">({voice.description})</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">{t('model')}</Label>
+                <Select
+                  value={speechSettings.openaiTtsModel}
+                  onValueChange={(v) => setSpeechSettings({ openaiTtsModel: v as typeof speechSettings.openaiTtsModel })}
+                  disabled={!speechSettings.ttsEnabled}
+                >
+                  <SelectTrigger className="w-full sm:w-[300px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tts-1">TTS-1 ({t('standard')})</SelectItem>
+                    <SelectItem value="tts-1-hd">TTS-1 HD ({t('highQuality')})</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">{t('speed')}: {speechSettings.openaiTtsSpeed.toFixed(1)}x</Label>
+                </div>
+                <Slider
+                  value={[speechSettings.openaiTtsSpeed * 10]}
+                  onValueChange={([v]) => setSpeechSettings({ openaiTtsSpeed: v / 10 })}
+                  min={2.5}
+                  max={40}
+                  step={2.5}
+                  disabled={!speechSettings.ttsEnabled}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Gemini Voice Selection */}
+          {speechSettings.ttsProvider === 'gemini' && (
+            <div className="space-y-2">
+              <Label className="text-sm">{t('voice')}</Label>
+              <Select
+                value={speechSettings.geminiTtsVoice}
+                onValueChange={(v) => setSpeechSettings({ geminiTtsVoice: v as typeof speechSettings.geminiTtsVoice })}
+                disabled={!speechSettings.ttsEnabled}
+              >
+                <SelectTrigger className="w-full sm:w-[300px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {GEMINI_TTS_VOICES.map((voice) => (
+                    <SelectItem key={voice.id} value={voice.id}>
+                      <span className="flex items-center gap-2">
+                        <span>{voice.name}</span>
+                        <span className="text-xs text-muted-foreground">({voice.description})</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Edge Voice Selection */}
+          {speechSettings.ttsProvider === 'edge' && (
+            <div className="space-y-2">
+              <Label className="text-sm">{t('voice')}</Label>
+              <Select
+                value={speechSettings.edgeTtsVoice}
+                onValueChange={(v) => setSpeechSettings({ edgeTtsVoice: v as typeof speechSettings.edgeTtsVoice })}
+                disabled={!speechSettings.ttsEnabled}
+              >
+                <SelectTrigger className="w-full sm:w-[300px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {filteredEdgeVoices.length > 0 ? (
+                    filteredEdgeVoices.map((voice) => (
+                      <SelectItem key={voice.id} value={voice.id}>
+                        <span className="flex items-center gap-2">
+                          <span>{voice.name}</span>
+                          <span className="text-xs text-muted-foreground">({voice.gender})</span>
+                        </span>
+                      </SelectItem>
+                    ))
+                  ) : (
+                    EDGE_TTS_VOICES.map((voice) => (
+                      <SelectItem key={voice.id} value={voice.id}>
+                        <span className="flex items-center gap-2">
+                          <span>{voice.name}</span>
+                          <span className="text-xs text-muted-foreground">({voice.language})</span>
+                        </span>
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Speech Rate */}
           <div className="space-y-2">
@@ -421,10 +591,15 @@ export function SpeechSettings() {
               variant="outline"
               size="sm"
               onClick={handleTestTts}
-              disabled={!speechSettings.ttsEnabled || !ttsSupported}
+              disabled={!speechSettings.ttsEnabled || isTestLoading}
               className="gap-2"
             >
-              {isTestPlaying ? (
+              {isTestLoading ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  {t('loading')}
+                </>
+              ) : isTestPlaying ? (
                 <>
                   <Square className="h-3.5 w-3.5" />
                   {t('stopTest')}

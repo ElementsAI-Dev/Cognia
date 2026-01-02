@@ -168,11 +168,37 @@ Provide a unified response that:
 /**
  * Agent Orchestrator class
  */
+/**
+ * Orchestrator state for pause/resume
+ */
+export interface OrchestratorState {
+  phase: 'idle' | 'planning' | 'executing' | 'aggregating' | 'completed' | 'paused' | 'cancelled';
+  task: string;
+  plan?: SubAgentPlan;
+  completedSubAgentIds: string[];
+  pendingSubAgentIds: string[];
+  partialResults: Record<string, SubAgentResult>;
+  startTime: number;
+  pausedAt?: number;
+  totalPausedDuration: number;
+}
+
 export class AgentOrchestrator {
   private config: OrchestratorConfig;
   private subAgents: Map<string, SubAgent> = new Map();
   private isRunning: boolean = false;
   private isCancelled: boolean = false;
+  private isPaused: boolean = false;
+  private pauseResolve: (() => void) | null = null;
+  private state: OrchestratorState = {
+    phase: 'idle',
+    task: '',
+    completedSubAgentIds: [],
+    pendingSubAgentIds: [],
+    partialResults: {},
+    startTime: 0,
+    totalPausedDuration: 0,
+  };
 
   constructor(config: OrchestratorConfig) {
     this.config = {
@@ -379,7 +405,19 @@ export class AgentOrchestrator {
     const startTime = Date.now();
     this.isRunning = true;
     this.isCancelled = false;
+    this.isPaused = false;
     this.subAgents.clear();
+    
+    // Initialize state
+    this.state = {
+      phase: 'planning',
+      task,
+      completedSubAgentIds: [],
+      pendingSubAgentIds: [],
+      partialResults: {},
+      startTime,
+      totalPausedDuration: 0,
+    };
 
     options.onStart?.();
 
@@ -420,7 +458,14 @@ export class AgentOrchestrator {
         throw new Error('Execution cancelled');
       }
 
+      // Check for pause
+      await this.waitIfPaused();
+      if (this.isCancelled) {
+        throw new Error('Execution cancelled');
+      }
+
       // Phase 2: Create sub-agents
+      this.state.phase = 'executing';
       const parentAgentId = nanoid();
       const subAgents = this.createSubAgentsFromPlan(plan, parentAgentId);
       
@@ -441,7 +486,14 @@ export class AgentOrchestrator {
         throw new Error('Execution cancelled');
       }
 
+      // Check for pause before aggregation
+      await this.waitIfPaused();
+      if (this.isCancelled) {
+        throw new Error('Execution cancelled');
+      }
+
       // Phase 4: Aggregate results
+      this.state.phase = 'aggregating';
       options.onProgress?.({
         phase: 'aggregating',
         totalSubAgents: subAgents.length,
@@ -516,7 +568,96 @@ export class AgentOrchestrator {
    */
   cancel(): void {
     this.isCancelled = true;
+    this.state.phase = 'cancelled';
+    
+    // Resume if paused so it can exit
+    if (this.isPaused && this.pauseResolve) {
+      this.pauseResolve();
+      this.pauseResolve = null;
+    }
+    
     cancelAllSubAgents(Array.from(this.subAgents.values()));
+  }
+
+  /**
+   * Pause the current execution
+   */
+  pause(): boolean {
+    if (!this.isRunning || this.isPaused || this.isCancelled) {
+      return false;
+    }
+
+    this.isPaused = true;
+    this.state.pausedAt = Date.now();
+    this.state.phase = 'paused';
+    
+    // Store current progress
+    this.state.completedSubAgentIds = Array.from(this.subAgents.values())
+      .filter(sa => sa.status === 'completed')
+      .map(sa => sa.id);
+    
+    this.state.pendingSubAgentIds = Array.from(this.subAgents.values())
+      .filter(sa => sa.status === 'pending' || sa.status === 'running')
+      .map(sa => sa.id);
+    
+    // Store partial results
+    Array.from(this.subAgents.values())
+      .filter(sa => sa.status === 'completed' && sa.result)
+      .forEach(sa => {
+        this.state.partialResults[sa.id] = sa.result!;
+      });
+
+    return true;
+  }
+
+  /**
+   * Resume a paused execution
+   */
+  resume(): boolean {
+    if (!this.isPaused) {
+      return false;
+    }
+
+    this.isPaused = false;
+    
+    // Calculate paused duration
+    if (this.state.pausedAt) {
+      this.state.totalPausedDuration += Date.now() - this.state.pausedAt;
+      this.state.pausedAt = undefined;
+    }
+
+    // Resume execution
+    if (this.pauseResolve) {
+      this.pauseResolve();
+      this.pauseResolve = null;
+    }
+
+    return true;
+  }
+
+  /**
+   * Wait if paused
+   */
+  private async waitIfPaused(): Promise<void> {
+    if (this.isPaused) {
+      await new Promise<void>(resolve => {
+        this.pauseResolve = resolve;
+      });
+    }
+  }
+
+  /**
+   * Get current orchestrator state
+   */
+  getState(): OrchestratorState {
+    return { ...this.state };
+  }
+
+  /**
+   * Check if orchestrator is paused
+   */
+  getIsPaused(): boolean {
+    return this.isPaused;
   }
 
   /**

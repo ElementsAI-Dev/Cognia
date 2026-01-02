@@ -50,7 +50,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useBackgroundAgent } from '@/hooks/use-background-agent';
+import { useBackgroundAgent } from '@/hooks/ai';
 import { AgentFlowVisualizer } from './agent-flow-visualizer';
 import type { BackgroundAgent, BackgroundAgentStatus, BackgroundAgentLog } from '@/types/background-agent';
 
