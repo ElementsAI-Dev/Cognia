@@ -12,7 +12,7 @@
  */
 
 import { createOpenAI } from '@ai-sdk/openai';
-import { proxyFetch, isProxyEnabled } from '@/lib/proxy-fetch';
+import { proxyFetch, isProxyEnabled } from '@/lib/network/proxy-fetch';
 
 /**
  * Custom error class for image generation failures

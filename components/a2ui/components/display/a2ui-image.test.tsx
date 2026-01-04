@@ -1,0 +1,83 @@
+/**
+ * A2UI Image Component Tests
+ */
+
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import { A2UIImage } from './a2ui-image';
+import type { A2UIImageComponent, A2UIComponentProps } from '@/types/a2ui';
+
+// Mock the A2UI context
+jest.mock('../../a2ui-context', () => ({
+  useA2UIContext: () => ({
+    dataModel: {},
+    resolveString: (value: string | { path: string }) =>
+      typeof value === 'string' ? value : '',
+  }),
+}));
+
+// Mock next/image
+jest.mock('next/image', () => ({
+  __esModule: true,
+  default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img {...props} alt={props.alt || ''} />
+  ),
+}));
+
+describe('A2UIImage', () => {
+  const mockOnAction = jest.fn();
+  const mockOnDataChange = jest.fn();
+  const mockRenderChild = jest.fn(() => null);
+
+  const createProps = (component: A2UIImageComponent): A2UIComponentProps<A2UIImageComponent> => ({
+    component,
+    surfaceId: 'test-surface',
+    dataModel: {},
+    onAction: mockOnAction,
+    onDataChange: mockOnDataChange,
+    renderChild: mockRenderChild,
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should render an image with src', () => {
+    const component: A2UIImageComponent = {
+      id: 'img-1',
+      component: 'Image',
+      src: 'https://example.com/image.jpg',
+      alt: 'Test Image',
+    };
+
+    render(<A2UIImage {...createProps(component)} />);
+    const img = screen.getByRole('img');
+    expect(img).toHaveAttribute('src', 'https://example.com/image.jpg');
+    expect(img).toHaveAttribute('alt', 'Test Image');
+  });
+
+  it('should show fallback icon when no src provided', () => {
+    const component: A2UIImageComponent = {
+      id: 'img-2',
+      component: 'Image',
+      src: '',
+    };
+
+    const { container } = render(<A2UIImage {...createProps(component)} />);
+    expect(container.querySelector('svg')).toBeInTheDocument();
+  });
+
+  it('should apply custom className', () => {
+    const component: A2UIImageComponent = {
+      id: 'img-3',
+      component: 'Image',
+      src: 'https://example.com/image.jpg',
+      alt: 'Test',
+      className: 'custom-class',
+    };
+
+    render(<A2UIImage {...createProps(component)} />);
+    expect(screen.getByRole('img')).toHaveClass('custom-class');
+  });
+});

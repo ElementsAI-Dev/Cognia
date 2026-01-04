@@ -13,6 +13,7 @@
 import { generateText, stepCountIs } from 'ai';
 import { z } from 'zod';
 import { getProviderModel, type ProviderName } from '../core/client';
+import { isMcpTool, extractMcpServerInfo } from './mcp-tools';
 import {
   type StopCondition as FunctionalStopCondition,
   type StopConditionResult,
@@ -41,6 +42,10 @@ export interface ToolCall {
   error?: string;
   startedAt?: Date;
   completedAt?: Date;
+  /** MCP server ID if this is an MCP tool call */
+  mcpServerId?: string;
+  /** MCP server display name */
+  mcpServerName?: string;
 }
 
 export interface AgentExecutionState {
@@ -135,6 +140,9 @@ function createSDKTool(
   onToolResult?: (toolCall: ToolCall) => void,
   requireApproval?: (toolCall: ToolCall) => Promise<boolean>
 ) {
+  // Extract MCP server info if this is an MCP tool
+  const mcpInfo = isMcpTool(name) ? extractMcpServerInfo(name) : null;
+
   return {
     description: agentTool.description,
     parameters: agentTool.parameters,
@@ -146,6 +154,8 @@ function createSDKTool(
         args: args as Record<string, unknown>,
         status: 'pending',
         startedAt: new Date(),
+        // Include MCP server info if available
+        mcpServerId: mcpInfo?.serverId,
       };
 
       toolCallTracker.set(toolCallId, toolCall);

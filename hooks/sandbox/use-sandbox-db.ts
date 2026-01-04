@@ -21,7 +21,7 @@ import type {
 } from '@/types/sandbox';
 
 // Check if we're in Tauri environment
-const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 // Dynamic import for Tauri API
 const getSandboxApi = async () => {

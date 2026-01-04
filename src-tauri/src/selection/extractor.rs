@@ -3,7 +3,7 @@
 //! Platform-specific text extraction using UI Automation (Windows) and clipboard fallback.
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use parking_lot::RwLock;
 
 #[cfg(target_os = "windows")]
@@ -16,10 +16,13 @@ use windows::{
 };
 
 /// Maximum retries for clipboard fallback
-const MAX_CLIPBOARD_RETRIES: u32 = 3;
+const MAX_CLIPBOARD_RETRIES: u32 = 2;
 
 /// Delay between clipboard retries in milliseconds
 const CLIPBOARD_RETRY_DELAY_MS: u64 = 50;
+
+/// Minimum interval between clipboard copy simulations (debounce) in milliseconds
+const CLIPBOARD_DEBOUNCE_MS: u64 = 500;
 
 /// Text extractor for retrieving selected text from applications
 pub struct TextExtractor {
@@ -31,6 +34,8 @@ pub struct TextExtractor {
     detection_attempts: Arc<AtomicU32>,
     /// Successful detection counter
     successful_detections: Arc<AtomicU32>,
+    /// Last clipboard copy simulation timestamp (for debouncing)
+    last_clipboard_copy_time: Arc<AtomicU64>,
     /// Whether COM is initialized (Windows only)
     #[cfg(target_os = "windows")]
     com_initialized: Arc<RwLock<bool>>,
@@ -44,6 +49,7 @@ impl TextExtractor {
             last_detection_time: Arc::new(RwLock::new(None)),
             detection_attempts: Arc::new(AtomicU32::new(0)),
             successful_detections: Arc::new(AtomicU32::new(0)),
+            last_clipboard_copy_time: Arc::new(AtomicU64::new(0)),
             #[cfg(target_os = "windows")]
             com_initialized: Arc::new(RwLock::new(false)),
         }
@@ -261,6 +267,18 @@ impl TextExtractor {
         use arboard::Clipboard;
         log::trace!("[TextExtractor] get_text_via_clipboard: starting");
 
+        // Check debounce - prevent rapid-fire clipboard copy simulations
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        let last_copy = self.last_clipboard_copy_time.load(Ordering::Relaxed);
+        if last_copy > 0 && now_ms.saturating_sub(last_copy) < CLIPBOARD_DEBOUNCE_MS {
+            log::trace!("[TextExtractor] Clipboard copy debounced ({}ms since last)", now_ms.saturating_sub(last_copy));
+            // Return last text instead of triggering another copy
+            return Ok(self.last_text.read().clone());
+        }
+
         // Save current clipboard content
         let mut clipboard = Clipboard::new().map_err(|e| {
             log::warn!("[TextExtractor] Failed to create clipboard instance: {}", e);
@@ -309,6 +327,8 @@ impl TextExtractor {
                 })?;
 
             thread::sleep(Duration::from_millis(80));
+            // Update last copy time after successful simulation
+            self.last_clipboard_copy_time.store(now_ms, Ordering::Relaxed);
             log::trace!("[TextExtractor] Ctrl+C simulation complete");
         }
 

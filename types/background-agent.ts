@@ -120,10 +120,14 @@ export interface BackgroundAgentLog {
   timestamp: Date;
   level: 'debug' | 'info' | 'warn' | 'error';
   message: string;
-  source: 'agent' | 'sub-agent' | 'tool' | 'system';
+  source: 'agent' | 'sub-agent' | 'tool' | 'mcp' | 'system';
   sourceId?: string;
   data?: unknown;
   stepNumber?: number;
+  /** MCP server ID if source is 'mcp' or 'tool' from MCP */
+  mcpServerId?: string;
+  /** MCP server name for display */
+  mcpServerName?: string;
 }
 
 /**

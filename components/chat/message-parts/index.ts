@@ -9,3 +9,4 @@ export { ReasoningPart } from './reasoning-part';
 export { ToolPart } from './tool-part';
 export { SourcesPart } from './sources-part';
 export { LearningToolPart, isLearningTool, LEARNING_TOOL_NAMES } from './learning-tool-part';
+export { A2UIPart } from './a2ui-part';

@@ -35,10 +35,15 @@ import {
   Globe,
   ClipboardList,
   StickyNote,
+  Keyboard,
 } from "lucide-react";
 import { useEffect, useCallback, useState, useRef } from "react";
 import { ToolbarButton } from "./toolbar-button";
 import { ResultPanel } from "./result-panel";
+import { ShortcutHints } from "./shortcut-hints";
+import { ClipboardPanel } from "./clipboard-panel";
+import { OCRPanel } from "./ocr-panel";
+import { TemplatesPanel } from "./templates-panel";
 import { SelectionAction, ActionDefinition, ActionCategory, SelectionMode } from "@/types";
 import { useSelectionToolbar } from '@/hooks/ui';
 import { useSelectionStore } from "@/stores/context";
@@ -123,6 +128,10 @@ export function SelectionToolbar() {
   const [showModeSelector, setShowModeSelector] = useState(false);
   const [showReferences, setShowReferences] = useState(false);
   const [showExpandedView, setShowExpandedView] = useState(false);
+  const [showShortcutHints, setShowShortcutHints] = useState(false);
+  const [showClipboardPanel, setShowClipboardPanel] = useState(false);
+  const [showOCRPanel, setShowOCRPanel] = useState(false);
+  const [showTemplatesPanel, setShowTemplatesPanel] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
   // Multi-selection and references from store
@@ -395,6 +404,50 @@ export function SelectionToolbar() {
             description="View all available actions"
             onClick={() => setShowMoreMenu(!showMoreMenu)}
             isActive={showMoreMenu}
+          />
+
+          {/* Divider */}
+          <Separator orientation="vertical" className="h-6 bg-white/6 mx-0.5" />
+
+          {/* Templates */}
+          <ToolbarButton
+            icon={FileText}
+            label="Templates"
+            description="Use prompt templates"
+            size="sm"
+            onClick={() => setShowTemplatesPanel(!showTemplatesPanel)}
+            isActive={showTemplatesPanel}
+          />
+
+          {/* Clipboard History */}
+          <ToolbarButton
+            icon={ClipboardList}
+            label="Clipboard"
+            description="View clipboard history"
+            size="sm"
+            onClick={() => setShowClipboardPanel(!showClipboardPanel)}
+            isActive={showClipboardPanel}
+          />
+
+          {/* OCR */}
+          <ToolbarButton
+            icon={Type}
+            label="OCR"
+            description="Extract text from image"
+            size="sm"
+            onClick={() => setShowOCRPanel(!showOCRPanel)}
+            isActive={showOCRPanel}
+          />
+
+          {/* Keyboard Shortcuts Help */}
+          <ToolbarButton
+            icon={Keyboard}
+            label="Shortcuts"
+            shortcut="?"
+            description="View keyboard shortcuts"
+            size="sm"
+            onClick={() => setShowShortcutHints(!showShortcutHints)}
+            isActive={showShortcutHints}
           />
 
           {/* Expand/Fullscreen */}
@@ -746,6 +799,63 @@ export function SelectionToolbar() {
           isLoading={state.isLoading}
           onClose={clearResult}
           onCopy={copyResult}
+        />
+
+        {/* Shortcut Hints Panel */}
+        <ShortcutHints
+          isOpen={showShortcutHints}
+          onClose={() => setShowShortcutHints(false)}
+        />
+
+        {/* Clipboard Panel */}
+        <ClipboardPanel
+          isOpen={showClipboardPanel}
+          onClose={() => setShowClipboardPanel(false)}
+          onAction={(action, _content) => {
+            // Handle clipboard action
+            if (action === "translate" || action === "explain" || action === "summarize") {
+              executeAction(action as SelectionAction);
+            }
+          }}
+          position={state.position}
+        />
+
+        {/* OCR Panel */}
+        <OCRPanel
+          isOpen={showOCRPanel}
+          onClose={() => setShowOCRPanel(false)}
+          onTextExtracted={(text) => {
+            // Could update selected text or trigger action
+            console.log("OCR extracted:", text);
+          }}
+          onAction={(action, text) => {
+            if (action === "send-to-chat") {
+              // Emit to chat
+              if (typeof window !== "undefined" && window.__TAURI__) {
+                import("@tauri-apps/api/event").then(({ emit }) => {
+                  emit("selection-send-to-chat", { text });
+                });
+              }
+            } else {
+              executeAction(action as SelectionAction);
+            }
+          }}
+        />
+
+        {/* Templates Panel */}
+        <TemplatesPanel
+          isOpen={showTemplatesPanel}
+          onClose={() => setShowTemplatesPanel(false)}
+          selectedText={state.selectedText}
+          onApplyTemplate={(template, text) => {
+            // Apply template and execute
+            const prompt = template.prompt.replace("{{text}}", text);
+            if (typeof window !== "undefined" && window.__TAURI__) {
+              import("@tauri-apps/api/event").then(({ emit }) => {
+                emit("selection-custom-prompt", { prompt, text });
+              });
+            }
+          }}
         />
 
         {/* Selected Text Preview (when long) */}

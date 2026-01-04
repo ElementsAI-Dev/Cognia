@@ -18,6 +18,9 @@ mod annotator;
 mod windows_ocr;
 mod screenshot_history;
 mod window_manager;
+pub mod ocr_provider;
+pub mod ocr_manager;
+pub mod providers;
 
 pub use capture::{ScreenshotCapture, CaptureMode, ScreenshotResult};
 pub use region_selector::RegionSelector;
@@ -26,6 +29,15 @@ pub use annotator::ScreenshotAnnotator;
 pub use windows_ocr::{WindowsOcr, WinOcrResult, OcrLine, OcrWord, OcrBounds};
 pub use screenshot_history::{ScreenshotHistory, ScreenshotHistoryEntry};
 pub use window_manager::{WindowManager, WindowInfo, SnapConfig, SnapResult};
+pub use ocr_provider::{
+    OcrProvider, OcrProviderType, OcrProviderConfig, OcrProviderInfo,
+    OcrResult as UnifiedOcrResult, OcrOptions, OcrError, OcrRegion, OcrBounds as UnifiedOcrBounds,
+};
+pub use ocr_manager::OcrManager;
+pub use providers::{
+    AzureVisionProvider, GoogleVisionProvider, OllamaVisionProvider, 
+    OpenAiVisionProvider, TesseractProvider, WindowsOcrProvider,
+};
 
 use serde::{Deserialize, Serialize};
 

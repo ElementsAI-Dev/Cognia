@@ -9,6 +9,8 @@ pub mod environment;
 pub mod git;
 pub mod jupyter;
 pub mod mcp;
+pub mod model_download;
+pub mod ocr;
 pub mod ollama;
 pub mod proxy;
 pub mod sandbox;

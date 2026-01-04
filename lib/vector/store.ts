@@ -214,7 +214,7 @@ export class NativeVectorStore implements IVectorStore {
   }
 
   private isInTauri(): boolean {
-    return typeof window !== 'undefined' && '__TAURI__' in window;
+    return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
   }
 
   private async invoke<T>(cmd: string, payload?: Record<string, unknown>): Promise<T> {

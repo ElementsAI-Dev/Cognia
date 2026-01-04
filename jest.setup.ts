@@ -27,6 +27,13 @@ if (typeof structuredClone === 'undefined') {
   global.structuredClone = <T>(obj: T): T => JSON.parse(JSON.stringify(obj));
 }
 
+// Mock ResizeObserver for components using it (like Radix UI ScrollArea)
+global.ResizeObserver = class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+
 // Mock window.matchMedia for components using media queries
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

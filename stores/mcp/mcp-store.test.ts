@@ -6,6 +6,12 @@ import { useMcpStore } from './mcp-store';
 import { act } from '@testing-library/react';
 import type { McpServerConfig, McpServerState, McpServerStatus } from '@/types/mcp';
 
+// Mock Tauri environment
+Object.defineProperty(window, '__TAURI_INTERNALS__', {
+  value: {},
+  writable: true,
+});
+
 // Mock Tauri APIs
 jest.mock('@tauri-apps/api/core', () => ({
   invoke: jest.fn(),

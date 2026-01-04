@@ -22,7 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { EmptyState } from '@/components/ui/empty-state';
+import { EmptyState } from '@/components/layout/empty-state';
 import {
   Copy,
   RefreshCw,
@@ -307,6 +307,7 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
                   <Button
                     key={action.action_id}
                     variant="outline"
+                    data-testid={`suggested-action-${action.action_id}`}
                     className="w-full justify-start text-left h-auto py-2"
                     onClick={() => executeAction(action.action_id)}
                   >

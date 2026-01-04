@@ -94,6 +94,14 @@ windows = { version = "0.58", features = [
     "Win32_System_ProcessStatus",
     "Win32_System_Threading",
     "Win32_Storage_FileSystem",
+    # Windows OCR (WinRT) features
+    "Media_Ocr",
+    "Graphics_Imaging",
+    "Storage_Streams",
+    "Foundation",
+    "Foundation_Collections",
+    "Globalization",
+    "Win32_System_WinRT",
 ] }
 
 [features]

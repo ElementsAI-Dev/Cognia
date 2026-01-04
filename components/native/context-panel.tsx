@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { EmptyState } from '@/components/ui/empty-state';
+import { EmptyState } from '@/components/layout/empty-state';
 import {
   Monitor,
   AppWindow,

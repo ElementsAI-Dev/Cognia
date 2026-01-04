@@ -335,6 +335,11 @@ function AgentLogsViewer({ logs, maxHeight = 300 }: { logs: BackgroundAgentLog[]
                   <span className="text-muted-foreground shrink-0">
                     {formatTime(log.timestamp)}
                   </span>
+                  {log.mcpServerId && (
+                    <Badge variant="outline" className="text-[9px] h-4 px-1 shrink-0">
+                      {log.mcpServerName || log.mcpServerId}
+                    </Badge>
+                  )}
                   <span className="flex-1 break-all">{log.message}</span>
                 </div>
               );

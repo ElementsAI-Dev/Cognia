@@ -821,6 +821,13 @@ pub async fn git_commit(options: GitCommitOptions) -> GitOperationResult<GitComm
             args.push(format!("{} <{}>", author, email));
         }
     }
+
+    if let Some(files) = &options.files {
+        if !files.is_empty() {
+            args.push("--".to_string());
+            args.extend(files.iter().cloned());
+        }
+    }
     
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     
@@ -1164,6 +1171,16 @@ pub async fn git_create_branch(options: GitBranchOptions) -> GitOperationResult<
 /// Delete branch
 #[tauri::command]
 pub async fn git_delete_branch(options: GitBranchOptions) -> GitOperationResult<()> {
+    if !options.delete.unwrap_or(false) {
+        log::warn!(
+            "git_delete_branch called for '{}' without delete flag; refusing to proceed",
+            options.name
+        );
+        return GitOperationResult::error(
+            "Delete flag not set; refusing to delete branch".to_string(),
+        );
+    }
+
     let flag = if options.force.unwrap_or(false) { "-D" } else { "-d" };
     
     match run_git_command(&["branch", flag, &options.name], Some(&options.repo_path)) {

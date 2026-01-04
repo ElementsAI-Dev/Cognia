@@ -7,7 +7,7 @@
 
 import React, { useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { useA2UI } from '@/hooks/use-a2ui';
+import { useA2UI } from '@/hooks/a2ui';
 import { parseA2UIMessages, detectA2UIContent } from '@/lib/a2ui/parser';
 import { A2UISurface } from './a2ui-surface';
 import type { A2UIUserAction, A2UIDataModelChange, A2UIServerMessage } from '@/types/a2ui';

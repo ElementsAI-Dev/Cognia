@@ -178,10 +178,34 @@ export async function extractTextWindows(
 }
 
 /**
- * Get available OCR languages
+ * Extract text using Windows OCR with specified language
+ */
+export async function extractTextWithLanguage(
+  imageBase64: string,
+  language?: string
+): Promise<WinOcrResult> {
+  return invoke("screenshot_ocr_with_language", { imageBase64, language });
+}
+
+/**
+ * Get available OCR languages installed on the system
  */
 export async function getOcrLanguages(): Promise<string[]> {
   return invoke("screenshot_get_ocr_languages");
+}
+
+/**
+ * Check if OCR is available on this system
+ */
+export async function isOcrAvailable(): Promise<boolean> {
+  return invoke("screenshot_ocr_is_available");
+}
+
+/**
+ * Check if a specific OCR language is available
+ */
+export async function isOcrLanguageAvailable(language: string): Promise<boolean> {
+  return invoke("screenshot_ocr_is_language_available", { language });
 }
 
 // ============== History Functions ==============

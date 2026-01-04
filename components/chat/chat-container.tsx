@@ -30,7 +30,8 @@ import { WelcomeState } from './welcome-state';
 import { BranchButton } from './selectors';
 import { TextSelectionPopover } from './popovers';
 import { QuotedContent } from './message';
-import { TextPart, ReasoningPart, ToolPart, SourcesPart } from './message-parts';
+import { TextPart, ReasoningPart, ToolPart, SourcesPart, A2UIPart } from './message-parts';
+import { A2UIEnhancedMessage, hasA2UIContent, useA2UIMessageIntegration } from '@/components/a2ui';
 import { MessageReactions } from './message';
 import { MessageArtifacts } from '@/components/artifacts';
 import type { EmojiReaction } from '@/types/message';
@@ -43,7 +44,7 @@ import {
   type ToolExecution,
   type ToolApprovalRequest,
 } from '@/components/agent';
-import { PPTPreview } from '@/components/learning/ppt-preview';
+import { PPTPreview } from '@/components/ppt';
 import { SkillSuggestions } from '@/components/skills';
 import { LearningModePanel, LearningStartDialog } from '@/components/learning';
 import { useSkillStore } from '@/stores/agent';
@@ -122,6 +123,9 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   // Artifact store for auto-creating artifacts from AI responses
   const autoCreateFromContent = useArtifactStore((state) => state.autoCreateFromContent);
+
+  // A2UI message integration for processing A2UI content from AI responses
+  const { processMessage: processA2UIMessage } = useA2UIMessageIntegration();
 
   // Message persistence with IndexedDB (branch-aware)
   const {
@@ -1051,6 +1055,15 @@ Be thorough in your thinking but concise in your final answer.`;
         } catch (artifactError) {
           console.warn('Failed to auto-create artifacts:', artifactError);
         }
+
+        // Process A2UI content if detected in the response
+        if (hasA2UIContent(finalContent)) {
+          try {
+            processA2UIMessage(finalContent, assistantMessage.id);
+          } catch (a2uiError) {
+            console.warn('Failed to process A2UI content:', a2uiError);
+          }
+        }
       }
     } catch (err) {
       console.error('Chat error:', err);
@@ -1060,7 +1073,7 @@ Be thorough in your thinking but concise in your final answer.`;
     } finally {
       setIsLoading(false);
     }
-  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, appendToMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes, getActiveSkills, getLearningSessionByChat, autoCreateFromContent]);
+  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, appendToMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes, getActiveSkills, getLearningSessionByChat, autoCreateFromContent, processA2UIMessage]);
 
   const handleStop = useCallback(() => {
     aiStop();
@@ -1537,12 +1550,21 @@ function MessagePartsRenderer({ parts, content, isError }: MessagePartsRendererP
               <ToolPart
                 key={`tool-${part.toolCallId}`}
                 part={part}
+                serverId={part.mcpServerId}
+                serverName={part.mcpServerName}
               />
             );
           case 'sources':
             return (
               <SourcesPart
                 key={`sources-${index}`}
+                part={part}
+              />
+            );
+          case 'a2ui':
+            return (
+              <A2UIPart
+                key={`a2ui-${index}`}
                 part={part}
               />
             );
@@ -1707,6 +1729,18 @@ function ChatMessageItem({
           <div ref={messageContentRef}>
             {message.role === 'user' ? (
               <p className="whitespace-pre-wrap">{message.content}</p>
+            ) : hasA2UIContent(message.content) ? (
+              <A2UIEnhancedMessage
+                content={message.content}
+                messageId={message.id}
+                textRenderer={(text) => (
+                  <MessagePartsRenderer
+                    parts={message.parts}
+                    content={text}
+                    isError={!!message.error}
+                  />
+                )}
+              />
             ) : (
               <MessagePartsRenderer
                 parts={message.parts}

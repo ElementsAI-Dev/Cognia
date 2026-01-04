@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { ToolCallResult, ContentItem } from '@/types/mcp';
+import { A2UIToolOutput, hasA2UIToolOutput } from '@/components/a2ui';
 
 interface ToolResultDisplayProps {
   /** Server ID */
@@ -113,21 +114,30 @@ export function ToolResultDisplay({
       {/* Content */}
       {isExpanded && (
         <div className="px-3 py-2 text-sm">
-          {result.content.map((item, index) => (
-            <ContentItemDisplay key={index} item={item} t={t} />
-          ))}
+          {/* Check if result contains A2UI content and render accordingly */}
+          {hasA2UIToolOutput(result) ? (
+            <A2UIToolOutput
+              toolId={`${serverId}-${toolName}`}
+              toolName={toolName}
+              output={result}
+            />
+          ) : (
+            result.content.map((item, index) => (
+              <ContentItemDisplay key={index} item={item} t={t} />
+            ))
+          )}
         </div>
       )}
     </div>
   );
 }
 
-interface ContentItemDisplayProps {
+export interface ContentItemDisplayProps {
   item: ContentItem;
-  t: ReturnType<typeof useTranslations>;
+  t?: ReturnType<typeof useTranslations>;
 }
 
-function ContentItemDisplay({ item, t }: ContentItemDisplayProps) {
+export function ContentItemDisplay({ item, t }: ContentItemDisplayProps) {
   if (item.type === 'text') {
     return (
       <pre className="whitespace-pre-wrap font-mono text-xs bg-muted/50 rounded p-2 overflow-x-auto">
@@ -153,7 +163,7 @@ function ContentItemDisplay({ item, t }: ContentItemDisplayProps) {
     return (
       <div className="my-2 p-2 bg-muted/50 rounded">
         <div className="text-xs text-muted-foreground mb-1">
-          {t('resource')}: {item.resource.uri}
+          {t ? t('resource') : 'Resource'}: {item.resource.uri}
         </div>
         {item.resource.text && (
           <pre className="whitespace-pre-wrap font-mono text-xs overflow-x-auto">
@@ -164,7 +174,7 @@ function ContentItemDisplay({ item, t }: ContentItemDisplayProps) {
     );
   }
 
-  return <div className="text-muted-foreground text-xs">{t('unknownType')}</div>;
+  return <div className="text-muted-foreground text-xs">{t ? t('unknownType') : 'Unknown type'}</div>;
 }
 
 function formatResultAsText(result: ToolCallResult): string {

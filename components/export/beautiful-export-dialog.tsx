@@ -291,14 +291,23 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
         }
 
         case 'word': {
-          const { exportChatToWord, downloadWord } = await import('@/lib/export/word-export');
-          const result = await exportChatToWord(session, messages, undefined, {
+          const { generateWordDocument, downloadWordDocument } = await import('@/lib/export/word-document-generator');
+          const result = await generateWordDocument(session, messages, {
             includeMetadata: true,
             includeTimestamps: options.showTimestamps,
             includeTokens: options.showTokens,
+            showThinkingProcess: options.showThinkingProcess,
+            showToolCalls: options.showToolCalls,
+            includeCoverPage: options.includeCoverPage,
+            tableOfContents: options.includeTableOfContents ? {
+              enabled: true,
+              title: 'Table of Contents',
+              levels: 3,
+              showPageNumbers: true,
+            } : undefined,
           });
           if (result.success && result.blob && result.filename) {
-            downloadWord(result.blob, result.filename);
+            downloadWordDocument(result.blob, result.filename);
           } else {
             throw new Error(result.error || 'Word export failed');
           }
@@ -577,6 +586,71 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                           </div>
                         </div>
                       </div>
+
+                      {/* Word Document Options */}
+                      {selectedFormat === 'word' && (
+                        <div className="space-y-4">
+                          <Label className="text-sm font-medium">{t('wordOptions')}</Label>
+                          
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <Label htmlFor="wordCover" className="text-sm">{t('coverPage')}</Label>
+                                <p className="text-xs text-muted-foreground">{t('coverPageDesc')}</p>
+                              </div>
+                              <Switch
+                                id="wordCover"
+                                checked={options.includeCoverPage}
+                                onCheckedChange={(checked) =>
+                                  setOptions(prev => ({ ...prev, includeCoverPage: checked }))
+                                }
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <Label htmlFor="wordToc" className="text-sm">{t('tableOfContents')}</Label>
+                                <p className="text-xs text-muted-foreground">{t('tableOfContentsDesc')}</p>
+                              </div>
+                              <Switch
+                                id="wordToc"
+                                checked={options.includeTableOfContents}
+                                onCheckedChange={(checked) =>
+                                  setOptions(prev => ({ ...prev, includeTableOfContents: checked }))
+                                }
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <Label htmlFor="wordThinking" className="text-sm">{t('showThinking')}</Label>
+                                <p className="text-xs text-muted-foreground">{t('showThinkingDesc')}</p>
+                              </div>
+                              <Switch
+                                id="wordThinking"
+                                checked={options.showThinkingProcess}
+                                onCheckedChange={(checked) =>
+                                  setOptions(prev => ({ ...prev, showThinkingProcess: checked }))
+                                }
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <Label htmlFor="wordTools" className="text-sm">{t('showToolCalls')}</Label>
+                                <p className="text-xs text-muted-foreground">{t('showToolCallsDesc')}</p>
+                              </div>
+                              <Switch
+                                id="wordTools"
+                                checked={options.showToolCalls}
+                                onCheckedChange={(checked) =>
+                                  setOptions(prev => ({ ...prev, showToolCalls: checked }))
+                                }
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Document Options */}
                       {(selectedFormat === 'beautiful-html' || selectedFormat === 'pdf') && (

@@ -11,7 +11,7 @@ import type {
   A2UIComponent,
   A2UIComponentCatalog,
 } from '@/types/a2ui';
-import { useA2UIStore } from '@/stores/a2ui-store';
+import { useA2UIStore } from '@/stores/a2ui';
 import {
   resolveStringOrPath,
   resolveNumberOrPath,

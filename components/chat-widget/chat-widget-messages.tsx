@@ -15,7 +15,7 @@ import { Bot, User, AlertCircle, RefreshCw, Sparkles, Volume2, VolumeX, ThumbsUp
 import { Streamdown } from "streamdown";
 import { InlineCopyButton } from "@/components/chat/copy-button";
 import { LoadingAnimation } from "@/components/chat/renderers/loading-animation";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState } from "@/components/layout/empty-state";
 import { useSpeech } from "@/hooks/media/use-speech";
 import type { ChatWidgetMessage, MessageFeedback } from "@/stores/chat";
 

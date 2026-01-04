@@ -883,7 +883,20 @@ describe('validateWorkflowStructure', () => {
     it('should pass validation for a valid workflow', () => {
       const nodes = [
         createNode('start-1', 'start', 'Start'),
-        createNode('ai-1', 'ai', 'AI Node'),
+        {
+          id: 'ai-1',
+          type: 'ai',
+          data: {
+            label: 'AI Node',
+            nodeType: 'ai',
+            executionStatus: 'idle' as const,
+            isConfigured: true,
+            hasError: false,
+            aiPrompt: 'Process the input',
+            inputs: {},
+            outputs: {},
+          } as AINodeData,
+        },
         createNode('end-1', 'end', 'End'),
       ];
       const edges = [

@@ -3,6 +3,11 @@ export { ToolbarButton } from "./toolbar-button";
 export { ResultPanel } from "./result-panel";
 export { SelectionToolbarSettings } from "./settings-panel";
 export { SelectionHistoryPanel } from "./history-panel";
+export { ClipboardPanel } from "./clipboard-panel";
+export { ShortcutHints, ShortcutHintsBadge } from "./shortcut-hints";
+export { QuickActions } from "./quick-actions";
+export { OCRPanel } from "./ocr-panel";
+export { TemplatesPanel } from "./templates-panel";
 export type { 
   SelectionAction, 
   ToolbarState, 

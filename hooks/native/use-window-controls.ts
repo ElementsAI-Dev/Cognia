@@ -4,9 +4,26 @@
  */
 
 import { useCallback, useEffect, useRef } from 'react';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getCurrentWindow, currentMonitor, primaryMonitor, availableMonitors } from '@tauri-apps/api/window';
 import type { PhysicalSize, PhysicalPosition, ProgressBarStatus, CursorIcon as TauriCursorIcon } from '@tauri-apps/api/window';
+import { LogicalSize, LogicalPosition } from '@tauri-apps/api/dpi';
 import { useWindowStore, type UserAttentionType } from '@/stores';
+
+export interface ScreenInfo {
+  width: number;
+  height: number;
+  workAreaWidth: number;
+  workAreaHeight: number;
+  scaleFactor: number;
+  name: string | null;
+}
+
+export interface WindowSizePreset {
+  name: string;
+  width: number;
+  height: number;
+  description?: string;
+}
 
 interface UseWindowControlsOptions {
   syncState?: boolean;
@@ -542,8 +559,6 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
   const getMonitors = useCallback(async () => {
     if (!isTauri) return null;
     try {
-      // Monitor APIs are available from @tauri-apps/api/window module
-      const { currentMonitor, primaryMonitor, availableMonitors } = await import('@tauri-apps/api/window');
       const [current, primary, available] = await Promise.all([
         currentMonitor(),
         primaryMonitor(),
@@ -560,6 +575,236 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
       return null;
     }
   }, [isTauri]);
+
+  // Get current screen info
+  const getScreenInfo = useCallback(async (): Promise<ScreenInfo | null> => {
+    if (!isTauri) return null;
+    try {
+      const monitor = await currentMonitor();
+      if (!monitor) {
+        const primary = await primaryMonitor();
+        if (!primary) return null;
+        return {
+          width: primary.size.width,
+          height: primary.size.height,
+          workAreaWidth: primary.size.width,
+          workAreaHeight: primary.size.height,
+          scaleFactor: primary.scaleFactor,
+          name: primary.name,
+        };
+      }
+      return {
+        width: monitor.size.width,
+        height: monitor.size.height,
+        workAreaWidth: monitor.size.width,
+        workAreaHeight: monitor.size.height,
+        scaleFactor: monitor.scaleFactor,
+        name: monitor.name,
+      };
+    } catch (error) {
+      console.error('Failed to get screen info:', error);
+      return null;
+    }
+  }, [isTauri]);
+
+  // Calculate optimal window size based on screen
+  const calculateOptimalSize = useCallback(async (): Promise<{ width: number; height: number } | null> => {
+    const screenInfo = await getScreenInfo();
+    if (!screenInfo) return null;
+
+    const { workAreaWidth, workAreaHeight, scaleFactor } = screenInfo;
+    
+    // Calculate logical pixels
+    const logicalWidth = workAreaWidth / scaleFactor;
+    const logicalHeight = workAreaHeight / scaleFactor;
+
+    // Define size presets based on screen size
+    let width: number;
+    let height: number;
+
+    if (logicalWidth >= 2560) {
+      // 4K or larger displays: use 70% of screen
+      width = Math.floor(logicalWidth * 0.7);
+      height = Math.floor(logicalHeight * 0.8);
+    } else if (logicalWidth >= 1920) {
+      // Full HD displays: use 75% of screen
+      width = Math.floor(logicalWidth * 0.75);
+      height = Math.floor(logicalHeight * 0.85);
+    } else if (logicalWidth >= 1366) {
+      // HD displays: use 85% of screen
+      width = Math.floor(logicalWidth * 0.85);
+      height = Math.floor(logicalHeight * 0.9);
+    } else {
+      // Smaller displays: use 95% of screen
+      width = Math.floor(logicalWidth * 0.95);
+      height = Math.floor(logicalHeight * 0.95);
+    }
+
+    // Ensure minimum size
+    width = Math.max(width, 800);
+    height = Math.max(height, 600);
+
+    return { width, height };
+  }, [getScreenInfo]);
+
+  // Auto-fit window to screen
+  const autoFitToScreen = useCallback(async () => {
+    if (!isTauri) return;
+    try {
+      const optimalSize = await calculateOptimalSize();
+      if (optimalSize) {
+        const appWindow = getCurrentWindow();
+        await appWindow.setSize(new LogicalSize(optimalSize.width, optimalSize.height));
+        await appWindow.center();
+        setSize({ width: optimalSize.width, height: optimalSize.height });
+      }
+    } catch (error) {
+      console.error('Failed to auto-fit window:', error);
+    }
+  }, [isTauri, calculateOptimalSize, setSize]);
+
+  // Get predefined size presets
+  const getSizePresets = useCallback(async (): Promise<WindowSizePreset[]> => {
+    const screenInfo = await getScreenInfo();
+    const presets: WindowSizePreset[] = [
+      { name: 'Compact', width: 800, height: 600, description: 'Minimal size for focused work' },
+      { name: 'Default', width: 1200, height: 800, description: 'Standard comfortable size' },
+      { name: 'Large', width: 1400, height: 900, description: 'Expanded workspace' },
+    ];
+
+    if (screenInfo) {
+      const { workAreaWidth, workAreaHeight, scaleFactor } = screenInfo;
+      const logicalWidth = workAreaWidth / scaleFactor;
+      const logicalHeight = workAreaHeight / scaleFactor;
+
+      presets.push({
+        name: 'Optimal',
+        width: Math.floor(logicalWidth * 0.75),
+        height: Math.floor(logicalHeight * 0.85),
+        description: 'Best fit for your screen',
+      });
+
+      presets.push({
+        name: 'Full Screen',
+        width: Math.floor(logicalWidth),
+        height: Math.floor(logicalHeight),
+        description: 'Maximum window size',
+      });
+    }
+
+    return presets;
+  }, [getScreenInfo]);
+
+  // Apply a size preset
+  const applySizePreset = useCallback(async (preset: WindowSizePreset) => {
+    if (!isTauri) return;
+    try {
+      const appWindow = getCurrentWindow();
+      await appWindow.setSize(new LogicalSize(preset.width, preset.height));
+      await appWindow.center();
+      setSize({ width: preset.width, height: preset.height });
+    } catch (error) {
+      console.error('Failed to apply size preset:', error);
+    }
+  }, [isTauri, setSize]);
+
+  // Snap window to screen edge
+  const snapToEdge = useCallback(async (edge: 'left' | 'right' | 'top' | 'bottom') => {
+    if (!isTauri) return;
+    try {
+      const screenInfo = await getScreenInfo();
+      if (!screenInfo) return;
+
+      const appWindow = getCurrentWindow();
+      const { workAreaWidth, workAreaHeight, scaleFactor } = screenInfo;
+      const logicalWidth = workAreaWidth / scaleFactor;
+      const logicalHeight = workAreaHeight / scaleFactor;
+
+      let width: number;
+      let height: number;
+      let x: number;
+      let y: number;
+
+      switch (edge) {
+        case 'left':
+          width = Math.floor(logicalWidth / 2);
+          height = Math.floor(logicalHeight);
+          x = 0;
+          y = 0;
+          break;
+        case 'right':
+          width = Math.floor(logicalWidth / 2);
+          height = Math.floor(logicalHeight);
+          x = Math.floor(logicalWidth / 2);
+          y = 0;
+          break;
+        case 'top':
+          width = Math.floor(logicalWidth);
+          height = Math.floor(logicalHeight / 2);
+          x = 0;
+          y = 0;
+          break;
+        case 'bottom':
+          width = Math.floor(logicalWidth);
+          height = Math.floor(logicalHeight / 2);
+          x = 0;
+          y = Math.floor(logicalHeight / 2);
+          break;
+      }
+
+      await appWindow.setSize(new LogicalSize(width, height));
+      await appWindow.setPosition(new LogicalPosition(x, y));
+      setSize({ width, height });
+      setPosition({ x, y });
+    } catch (error) {
+      console.error('Failed to snap to edge:', error);
+    }
+  }, [isTauri, getScreenInfo, setSize, setPosition]);
+
+  // Snap to corner
+  const snapToCorner = useCallback(async (corner: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight') => {
+    if (!isTauri) return;
+    try {
+      const screenInfo = await getScreenInfo();
+      if (!screenInfo) return;
+
+      const appWindow = getCurrentWindow();
+      const { workAreaWidth, workAreaHeight, scaleFactor } = screenInfo;
+      const logicalWidth = workAreaWidth / scaleFactor;
+      const logicalHeight = workAreaHeight / scaleFactor;
+
+      const width = Math.floor(logicalWidth / 2);
+      const height = Math.floor(logicalHeight / 2);
+      let x: number;
+      let y: number;
+
+      switch (corner) {
+        case 'topLeft':
+          x = 0;
+          y = 0;
+          break;
+        case 'topRight':
+          x = Math.floor(logicalWidth / 2);
+          y = 0;
+          break;
+        case 'bottomLeft':
+          x = 0;
+          y = Math.floor(logicalHeight / 2);
+          break;
+        case 'bottomRight':
+          x = Math.floor(logicalWidth / 2);
+          y = Math.floor(logicalHeight / 2);
+          break;
+      }
+
+      await appWindow.setSize(new LogicalSize(width, height));
+      await appWindow.setPosition(new LogicalPosition(x, y));
+      setSize({ width, height });
+      setPosition({ x, y });
+    } catch (error) {
+      console.error('Failed to snap to corner:', error);
+    }
+  }, [isTauri, getScreenInfo, setSize, setPosition]);
 
   return {
     // State
@@ -624,6 +869,15 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
     // Info
     getWindowInfo,
     getMonitors,
+
+    // Screen & size management
+    getScreenInfo,
+    calculateOptimalSize,
+    autoFitToScreen,
+    getSizePresets,
+    applySizePreset,
+    snapToEdge,
+    snapToCorner,
   };
 }
 

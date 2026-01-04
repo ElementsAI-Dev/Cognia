@@ -5,7 +5,7 @@
  * that routes requests through the configured proxy.
  */
 
-import { proxyFetch, isProxyEnabled, getCurrentProxyUrl } from '@/lib/proxy-fetch';
+import { proxyFetch, isProxyEnabled, getCurrentProxyUrl } from '@/lib/network/proxy-fetch';
 
 /**
  * Search-specific fetch with proxy support

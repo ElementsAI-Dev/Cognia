@@ -37,6 +37,7 @@ import {
   NativeProvider,
 } from '@/components/providers';
 import { LocaleInitializer } from '@/components/providers/locale-initializer';
+import { ChatAssistantContainer } from '@/components/chat-widget';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -490,6 +491,7 @@ export function Providers({ children }: ProvidersProps) {
                     <CommandPalette />
                     <Toaster />
                     <KeyboardShortcutsDialog />
+                    <ChatAssistantContainer />
                   </TooltipProvider>
                 </ThemeProvider>
               </I18nProvider>

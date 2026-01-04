@@ -25,7 +25,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CopyButton } from '@/components/ui/copy-button';
+import { CopyButton } from '@/components/chat/copy-button';
 import {
   Collapsible,
   CollapsibleContent,
@@ -53,6 +53,9 @@ import {
   QueueItemContent,
 } from '@/components/ai-elements/queue';
 import type { ToolState } from '@/types/message';
+import type { McpServerStatus } from '@/types/mcp';
+import { A2UIToolOutput, hasA2UIToolOutput } from '@/components/a2ui';
+import { MCPServerBadge } from '@/components/mcp';
 
 // Component-specific ToolExecution with timeline-specific fields
 export interface ToolExecution {
@@ -66,6 +69,12 @@ export interface ToolExecution {
   endTime?: Date;
   checkpointLabel?: string;
   isCheckpoint?: boolean;
+  /** MCP server ID (if this is an MCP tool call) */
+  serverId?: string;
+  /** MCP server display name */
+  serverName?: string;
+  /** MCP server status */
+  serverStatus?: McpServerStatus;
 }
 
 export interface PendingTool {
@@ -81,6 +90,8 @@ interface ToolTimelineProps {
   onCheckpointRestore?: (executionId: string) => void;
   onCancelPending?: (toolId: string) => void;
   showStatistics?: boolean;
+  /** Group executions by MCP server */
+  groupByServer?: boolean;
   className?: string;
 }
 
@@ -141,9 +152,12 @@ export function ToolTimeline({
   onCheckpointRestore,
   onCancelPending,
   showStatistics = true,
+  groupByServer: _groupByServer = false,
   className 
 }: ToolTimelineProps) {
   const t = useTranslations('agent');
+  // Note: groupByServer and tMcp reserved for future server grouping feature
+  void _groupByServer;
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showQueue, setShowQueue] = useState(true);
   const [expandedResults, setExpandedResults] = useState<Set<string>>(new Set());
@@ -394,9 +408,21 @@ export function ToolTimeline({
                 <div className={cn('flex-1 pb-6', isLast && 'pb-0')}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm truncate">
-                        {formatToolName(execution.toolName)}
-                      </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium text-sm truncate">
+                          {formatToolName(execution.toolName)}
+                        </p>
+                        {/* MCP Server badge */}
+                        {execution.serverId && (
+                          <MCPServerBadge
+                            serverId={execution.serverId}
+                            serverName={execution.serverName}
+                            status={execution.serverStatus}
+                            size="sm"
+                            showStatus={false}
+                          />
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         {config.label}
                         {execution.error && (
@@ -445,17 +471,25 @@ export function ToolTimeline({
                     </div>
                   </div>
 
-                  {/* Inline result preview */}
+                  {/* Inline result preview - with A2UI support */}
                   {isExpanded && hasResult && (
                     <Collapsible open={isExpanded}>
                       <CollapsibleContent className="mt-2">
-                        <div className="rounded-lg bg-muted/50 p-2 text-xs font-mono overflow-x-auto max-h-40 overflow-y-auto">
-                          <pre className="whitespace-pre-wrap">
-                            {typeof execution.result === 'string' 
-                              ? execution.result 
-                              : JSON.stringify(execution.result, null, 2)}
-                          </pre>
-                        </div>
+                        {hasA2UIToolOutput(execution.result) ? (
+                          <A2UIToolOutput
+                            toolId={execution.id}
+                            toolName={execution.toolName}
+                            output={execution.result}
+                          />
+                        ) : (
+                          <div className="rounded-lg bg-muted/50 p-2 text-xs font-mono overflow-x-auto max-h-40 overflow-y-auto">
+                            <pre className="whitespace-pre-wrap">
+                              {typeof execution.result === 'string' 
+                                ? execution.result 
+                                : JSON.stringify(execution.result, null, 2)}
+                            </pre>
+                          </div>
+                        )}
                       </CollapsibleContent>
                     </Collapsible>
                   )}

@@ -97,7 +97,7 @@ export async function checkMcpEnvironment(): Promise<EnvironmentCheckResult> {
   };
 
   // Check if we're in a Tauri environment
-  const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
+  const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
   if (!isTauri) {
     // In web-only mode, we can't run stdio MCP servers

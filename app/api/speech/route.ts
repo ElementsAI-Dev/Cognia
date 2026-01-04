@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { proxyFetch } from '@/lib/proxy-fetch';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 
 // Whisper API endpoint
 const WHISPER_API_URL = 'https://api.openai.com/v1/audio/transcriptions';

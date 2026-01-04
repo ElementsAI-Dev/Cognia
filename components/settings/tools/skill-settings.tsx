@@ -39,7 +39,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group';
-import { EmptyState } from '@/components/ui/empty-state';
+import { EmptyState } from '@/components/layout/empty-state';
 import {
   Card,
   CardContent,

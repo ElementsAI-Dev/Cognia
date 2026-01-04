@@ -31,29 +31,58 @@ export {
   getRegisteredComponentTypes,
 } from './a2ui-renderer';
 
-// Base components
-export { A2UIFallback } from './components/a2ui-fallback';
-export { A2UIText } from './components/a2ui-text';
-export { A2UIRow } from './components/a2ui-row';
-export { A2UIColumn } from './components/a2ui-column';
+// Layout components
+export {
+  A2UIFallback,
+  A2UIRow,
+  A2UIColumn,
+  A2UICard,
+  A2UIDivider,
+  A2UISpacer,
+  A2UIDialog,
+} from './components/layout';
+
+// Display components
+export {
+  A2UIText,
+  A2UIImage,
+  A2UIIcon,
+  A2UILink,
+  A2UIBadge,
+  A2UIAlert,
+  A2UIProgress,
+  A2UILoading,
+  A2UIError,
+  A2UIEmpty,
+  type A2UILoadingComponent,
+  type A2UIErrorComponent,
+  type A2UIEmptyComponent,
+} from './components/display';
 
 // Form components
-export { A2UIButton } from './components/a2ui-button';
-export { A2UITextField } from './components/a2ui-textfield';
-export { A2UISelect } from './components/a2ui-select';
-export { A2UICheckbox } from './components/a2ui-checkbox';
-export { A2UIRadioGroup } from './components/a2ui-radio';
-export { A2UISlider } from './components/a2ui-slider';
-export { A2UIDatePicker } from './components/a2ui-datepicker';
-export { A2UICard } from './components/a2ui-card';
+export {
+  A2UIButton,
+  A2UITextField,
+  A2UITextArea,
+  A2UISelect,
+  A2UICheckbox,
+  A2UIRadioGroup,
+  A2UISlider,
+  A2UIDatePicker,
+  A2UITimePicker,
+  A2UIDateTimePicker,
+  A2UIFormGroup,
+  A2UISwitch,
+  type A2UIFormGroupComponent,
+  type A2UISwitchComponent,
+} from './components/form';
 
 // Data display components
-export { A2UIChart } from './components/a2ui-chart';
-export { A2UITable } from './components/a2ui-table';
-export { A2UIList } from './components/a2ui-list';
-export { A2UIAlert } from './components/a2ui-alert';
-export { A2UIProgress } from './components/a2ui-progress';
-export { A2UIBadge } from './components/a2ui-badge';
+export {
+  A2UIChart,
+  A2UITable,
+  A2UIList,
+} from './components/data';
 
 // Chat and tool integration
 export {
@@ -68,3 +97,20 @@ export {
   A2UIStructuredOutput,
   hasA2UIToolOutput,
 } from './a2ui-tool-output';
+
+// App Builder components
+export { QuickAppBuilder } from './quick-app-builder';
+export { AppGallery } from './app-gallery';
+
+// Hooks
+export {
+  useA2UIForm,
+  useA2UIKeyboard,
+  useA2UIFocusTrap,
+  useA2UIListNavigation,
+  type FormField,
+  type FormState,
+  type ValidationRule,
+  type UseA2UIFormOptions,
+  type KeyboardNavigationOptions,
+} from './hooks';

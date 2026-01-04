@@ -499,7 +499,7 @@ export class LocaleDetector {
   }
 
   async getSystemLocale(): Promise<string | null> {
-    if (typeof window !== 'undefined' && '__TAURI__' in window) {
+    if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
       try {
         const { locale } = await import('@tauri-apps/plugin-os');
         const systemLocale = await locale();

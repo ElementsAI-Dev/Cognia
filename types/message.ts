@@ -42,6 +42,11 @@ export interface ToolInvocationPart {
   duration?: number; // in milliseconds
   riskLevel?: 'low' | 'medium' | 'high';
   isApproved?: boolean;
+  // MCP server information
+  /** MCP server ID if this is an MCP tool call */
+  mcpServerId?: string;
+  /** MCP server display name */
+  mcpServerName?: string;
 }
 
 export interface SourcesPart {
@@ -108,6 +113,12 @@ export interface FilePart {
   attachment: Attachment;
 }
 
+export interface A2UIPart {
+  type: 'a2ui';
+  surfaceId: string;
+  content: string;
+}
+
 export type MessagePart =
   | TextPart
   | ReasoningPart
@@ -115,7 +126,8 @@ export type MessagePart =
   | SourcesPart
   | ImagePart
   | VideoPart
-  | FilePart;
+  | FilePart
+  | A2UIPart;
 
 export interface Attachment {
   id: string;

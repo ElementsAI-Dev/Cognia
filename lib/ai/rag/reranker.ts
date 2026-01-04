@@ -9,7 +9,7 @@
  */
 
 import type { LanguageModel } from 'ai';
-import { proxyFetch } from '@/lib/proxy-fetch';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { cosineSimilarity } from '@/lib/ai/embedding/embedding';
 
 export interface RerankDocument {

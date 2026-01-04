@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 // Check if we're in a Tauri environment
-const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 interface AutostartState {
   isEnabled: boolean;

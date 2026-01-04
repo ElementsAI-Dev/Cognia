@@ -17,7 +17,7 @@
 
 import OpenAI from 'openai';
 import type { PPTImageStyle, PPTSlideLayout, PPTTheme } from '@/types/workflow';
-import { proxyFetch } from '@/lib/proxy-fetch';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 
 export type ImageProvider = 'openai' | 'google-imagen' | 'stability';
 

@@ -63,3 +63,4 @@ export * from './project-activity';
 export * from './chat-input';
 export * from './geolocation';
 export * from './git';
+export * from './document-formatting';

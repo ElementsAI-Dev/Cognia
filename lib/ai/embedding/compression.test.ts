@@ -18,7 +18,7 @@ interface ExtendedUIMessage extends UIMessage {
 }
 
 // Mock dependencies before importing the module
-jest.mock('@/hooks/use-token-count', () => ({
+jest.mock('@/hooks/chat/use-token-count', () => ({
   countTokens: jest.fn((text: string) => Math.ceil(text.length / 4)),
   calculateTokenBreakdown: jest.fn(() => ({
     systemTokens: 100,
@@ -46,7 +46,7 @@ import {
   createCompressionHistoryEntry,
   getEffectiveCompressionSettings,
 } from './compression';
-import { calculateTokenBreakdown } from '@/hooks/use-token-count';
+import { calculateTokenBreakdown } from '@/hooks/chat/use-token-count';
 
 // Helper function to create mock messages
 function createMockMessage(

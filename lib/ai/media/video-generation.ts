@@ -14,7 +14,7 @@
  */
 
 import OpenAI from 'openai';
-import { proxyFetch } from '@/lib/proxy-fetch';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import type {
   VideoProvider,
   VideoModel,

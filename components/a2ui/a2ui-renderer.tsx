@@ -10,18 +10,40 @@ import type { A2UIComponent, A2UIComponentProps } from '@/types/a2ui';
 import { useA2UIContext, useA2UIVisibility, useA2UIDisabled } from './a2ui-context';
 import { getComponent } from '@/lib/a2ui/catalog';
 
-// Import base components
-import { A2UIFallback } from './components/a2ui-fallback';
-import { A2UIText } from './components/a2ui-text';
-import { A2UIRow } from './components/a2ui-row';
-import { A2UIColumn } from './components/a2ui-column';
-import { A2UIButton } from './components/a2ui-button';
-import { A2UITextField } from './components/a2ui-textfield';
-import { A2UISelect } from './components/a2ui-select';
-import { A2UICheckbox } from './components/a2ui-checkbox';
-import { A2UIRadioGroup } from './components/a2ui-radio';
-import { A2UISlider } from './components/a2ui-slider';
-import { A2UICard } from './components/a2ui-card';
+// Import layout components
+import { A2UIRow } from './components/layout/a2ui-row';
+import { A2UIColumn } from './components/layout/a2ui-column';
+import { A2UICard } from './components/layout/a2ui-card';
+import { A2UIDivider } from './components/layout/a2ui-divider';
+import { A2UISpacer } from './components/layout/a2ui-spacer';
+import { A2UIDialog } from './components/layout/a2ui-dialog';
+import { A2UIFallback } from './components/layout/a2ui-fallback';
+
+// Import display components
+import { A2UIText } from './components/display/a2ui-text';
+import { A2UIAlert } from './components/display/a2ui-alert';
+import { A2UIProgress } from './components/display/a2ui-progress';
+import { A2UIBadge } from './components/display/a2ui-badge';
+import { A2UIImage } from './components/display/a2ui-image';
+import { A2UIIcon } from './components/display/a2ui-icon';
+import { A2UILink } from './components/display/a2ui-link';
+
+// Import form components
+import { A2UIButton } from './components/form/a2ui-button';
+import { A2UITextField } from './components/form/a2ui-textfield';
+import { A2UITextArea } from './components/form/a2ui-textarea';
+import { A2UISelect } from './components/form/a2ui-select';
+import { A2UICheckbox } from './components/form/a2ui-checkbox';
+import { A2UIRadioGroup } from './components/form/a2ui-radio';
+import { A2UISlider } from './components/form/a2ui-slider';
+import { A2UIDatePicker } from './components/form/a2ui-datepicker';
+import { A2UITimePicker } from './components/form/a2ui-timepicker';
+import { A2UIDateTimePicker } from './components/form/a2ui-datetimepicker';
+
+// Import data components
+import { A2UIChart } from './components/data/a2ui-chart';
+import { A2UITable } from './components/data/a2ui-table';
+import { A2UIList } from './components/data/a2ui-list';
 
 /**
  * Component registry for built-in components
@@ -29,16 +51,39 @@ import { A2UICard } from './components/a2ui-card';
  * Using type assertion as components have specific props but are used generically
  */
 const builtInComponents: Record<string, React.ComponentType<A2UIComponentProps>> = {
-  Text: A2UIText as React.ComponentType<A2UIComponentProps>,
+  // Layout components
   Row: A2UIRow as React.ComponentType<A2UIComponentProps>,
   Column: A2UIColumn as React.ComponentType<A2UIComponentProps>,
+  Card: A2UICard as React.ComponentType<A2UIComponentProps>,
+  Divider: A2UIDivider as React.ComponentType<A2UIComponentProps>,
+  Spacer: A2UISpacer as React.ComponentType<A2UIComponentProps>,
+  Dialog: A2UIDialog as React.ComponentType<A2UIComponentProps>,
+
+  // Text and display components
+  Text: A2UIText as React.ComponentType<A2UIComponentProps>,
+  Image: A2UIImage as React.ComponentType<A2UIComponentProps>,
+  Icon: A2UIIcon as React.ComponentType<A2UIComponentProps>,
+  Link: A2UILink as React.ComponentType<A2UIComponentProps>,
+  Badge: A2UIBadge as React.ComponentType<A2UIComponentProps>,
+  Alert: A2UIAlert as React.ComponentType<A2UIComponentProps>,
+  Progress: A2UIProgress as React.ComponentType<A2UIComponentProps>,
+
+  // Form components
   Button: A2UIButton as React.ComponentType<A2UIComponentProps>,
   TextField: A2UITextField as React.ComponentType<A2UIComponentProps>,
+  TextArea: A2UITextArea as React.ComponentType<A2UIComponentProps>,
   Select: A2UISelect as React.ComponentType<A2UIComponentProps>,
   Checkbox: A2UICheckbox as React.ComponentType<A2UIComponentProps>,
   RadioGroup: A2UIRadioGroup as React.ComponentType<A2UIComponentProps>,
   Slider: A2UISlider as React.ComponentType<A2UIComponentProps>,
-  Card: A2UICard as React.ComponentType<A2UIComponentProps>,
+  DatePicker: A2UIDatePicker as React.ComponentType<A2UIComponentProps>,
+  TimePicker: A2UITimePicker as React.ComponentType<A2UIComponentProps>,
+  DateTimePicker: A2UIDateTimePicker as React.ComponentType<A2UIComponentProps>,
+
+  // Data display components
+  Chart: A2UIChart as React.ComponentType<A2UIComponentProps>,
+  Table: A2UITable as React.ComponentType<A2UIComponentProps>,
+  List: A2UIList as React.ComponentType<A2UIComponentProps>,
 };
 
 /**

@@ -25,6 +25,8 @@ use screen_recording::ScreenRecordingManager;
 use screenshot::ScreenshotManager;
 use selection::SelectionManager;
 use tauri::{Emitter, Manager, RunEvent, WindowEvent};
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+#[cfg(not(debug_assertions))]
 use tauri_plugin_log::{Target, TargetKind, RotationStrategy, TimezoneStrategy};
 use commands::vector::VectorStoreState;
 use std::sync::Arc;
@@ -38,9 +40,16 @@ pub fn run() {
     let mut builder = tauri::Builder::default();
 
     // Register DevTools plugin (only in development builds)
+    // Note: DevTools initializes its own logger, so we skip the log plugin when devtools is active
     #[cfg(debug_assertions)]
     {
         builder = builder.plugin(devtools);
+    }
+
+    // Register log plugin only in release builds (devtools handles logging in debug)
+    #[cfg(not(debug_assertions))]
+    {
+        builder = builder.plugin(build_log_plugin());
     }
 
     // Single instance plugin with deep-link integration - prevents multiple instances
@@ -91,8 +100,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_geolocation::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_deep_link::init())
-        .plugin(build_log_plugin());
+        .plugin(tauri_plugin_deep_link::init());
 
     // Autostart plugin - only available on desktop platforms
     #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
@@ -177,6 +185,11 @@ pub fn run() {
             let screenshot_manager = ScreenshotManager::new(app.handle().clone());
             app.manage(screenshot_manager);
 
+            // Initialize OCR Manager (multi-provider support)
+            let ocr_state = commands::ocr::OcrState::new();
+            app.manage(ocr_state);
+            log::info!("OCR manager initialized with Windows OCR provider");
+
             // Initialize Screen Recording Manager
             let screen_recording_manager = ScreenRecordingManager::new(app.handle().clone());
             app.manage(screen_recording_manager);
@@ -221,6 +234,90 @@ pub fn run() {
                 }
             });
 
+            // Register global shortcut for selection toolbar trigger (Alt+Space)
+            let app_handle_for_selection = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+                
+                // Alt+Space for selection toolbar trigger
+                let shortcut: Shortcut = "Alt+Space".parse().unwrap();
+                
+                if let Err(e) = app_handle_for_selection.global_shortcut().on_shortcut(shortcut, move |app, _shortcut, _event| {
+                    if let Some(manager) = app.try_state::<SelectionManager>() {
+                        // Trigger selection detection manually
+                        match manager.trigger() {
+                            Ok(Some(payload)) => {
+                                log::debug!("Selection toolbar triggered via shortcut: {} chars", payload.text.len());
+                            }
+                            Ok(None) => {
+                                log::debug!("Selection toolbar trigger: no text selected");
+                            }
+                            Err(e) => {
+                                log::error!("Failed to trigger selection toolbar: {}", e);
+                            }
+                        }
+                    }
+                }) {
+                    log::error!("Failed to register selection toolbar shortcut: {}", e);
+                } else {
+                    log::info!("Global shortcut registered: Alt+Space for selection toolbar");
+                }
+            });
+
+            // Register global shortcut for quick translate (Ctrl+Shift+T)
+            let app_handle_for_translate = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+                
+                let shortcut: Shortcut = "CommandOrControl+Shift+T".parse().unwrap();
+                
+                if let Err(e) = app_handle_for_translate.global_shortcut().on_shortcut(shortcut, move |app, _shortcut, _event| {
+                    if let Some(manager) = app.try_state::<SelectionManager>() {
+                        if let Ok(Some(text)) = manager.detector.get_selected_text() {
+                            if !text.is_empty() {
+                                // Emit quick translate event
+                                let _ = app.emit("selection-quick-translate", serde_json::json!({
+                                    "text": text,
+                                    "action": "translate"
+                                }));
+                                log::debug!("Quick translate triggered: {} chars", text.len());
+                            }
+                        }
+                    }
+                }) {
+                    log::error!("Failed to register quick translate shortcut: {}", e);
+                } else {
+                    log::info!("Global shortcut registered: Ctrl+Shift+T for quick translate");
+                }
+            });
+
+            // Register global shortcut for quick explain (Ctrl+Shift+E)
+            let app_handle_for_explain = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+                
+                let shortcut: Shortcut = "CommandOrControl+Shift+E".parse().unwrap();
+                
+                if let Err(e) = app_handle_for_explain.global_shortcut().on_shortcut(shortcut, move |app, _shortcut, _event| {
+                    if let Some(manager) = app.try_state::<SelectionManager>() {
+                        if let Ok(Some(text)) = manager.detector.get_selected_text() {
+                            if !text.is_empty() {
+                                // Emit quick explain event
+                                let _ = app.emit("selection-quick-action", serde_json::json!({
+                                    "text": text,
+                                    "action": "explain"
+                                }));
+                                log::debug!("Quick explain triggered: {} chars", text.len());
+                            }
+                        }
+                    }
+                }) {
+                    log::error!("Failed to register quick explain shortcut: {}", e);
+                } else {
+                    log::info!("Global shortcut registered: Ctrl+Shift+E for quick explain");
+                }
+            });
+
             // Initialize Jupyter State
             let jupyter_state = JupyterState::new();
             app.manage(jupyter_state);
@@ -256,10 +353,17 @@ pub fn run() {
                 }
             });
 
+            // Create window menu
+            if let Err(e) = create_window_menu(app.handle()) {
+                log::warn!("Failed to create window menu: {}", e);
+            }
+
             Ok(())
         })
         .on_menu_event(|app, event| {
-            tray::handle_tray_menu_event(app, event.id.0.to_string());
+            let id = event.id.0.to_string();
+            // Handle both window menu and tray menu events
+            handle_menu_event(app, &id);
         })
         .invoke_handler(tauri::generate_handler![
             // MCP commands
@@ -410,9 +514,22 @@ pub fn run() {
             commands::screenshot::screenshot_unpin,
             commands::screenshot::screenshot_delete,
             commands::screenshot::screenshot_clear_history,
-            // Windows OCR commands
+            // Windows OCR commands (legacy)
             commands::screenshot::screenshot_ocr_windows,
             commands::screenshot::screenshot_get_ocr_languages,
+            commands::screenshot::screenshot_ocr_is_available,
+            commands::screenshot::screenshot_ocr_is_language_available,
+            commands::screenshot::screenshot_ocr_with_language,
+            // Multi-provider OCR commands
+            commands::ocr::ocr_get_providers,
+            commands::ocr::ocr_set_default_provider,
+            commands::ocr::ocr_configure_provider,
+            commands::ocr::ocr_register_ollama,
+            commands::ocr::ocr_extract_text,
+            commands::ocr::ocr_extract_text_with_fallback,
+            commands::ocr::ocr_is_provider_available,
+            commands::ocr::ocr_get_provider_languages,
+            commands::ocr::ocr_clear_cache,
             // Capture with history commands
             commands::screenshot::screenshot_capture_fullscreen_with_history,
             commands::screenshot::screenshot_capture_window_with_history,
@@ -512,6 +629,16 @@ pub fn run() {
             commands::sandbox::sandbox_get_db_size,
             commands::sandbox::sandbox_vacuum_db,
             commands::sandbox::sandbox_execute_with_options,
+            // Model download commands
+            commands::model_download::model_list_available,
+            commands::model_download::model_list_installed,
+            commands::model_download::model_get_download_config,
+            commands::model_download::model_set_download_config,
+            commands::model_download::model_download,
+            commands::model_download::model_delete,
+            commands::model_download::model_get_sources,
+            commands::model_download::model_detect_proxy,
+            commands::model_download::model_test_proxy,
             // Environment commands
             commands::environment::environment_get_platform,
             commands::environment::environment_check_tool,
@@ -633,33 +760,24 @@ pub fn run() {
             match event {
                 RunEvent::WindowEvent {
                     label,
-                    event: WindowEvent::CloseRequested { .. },
+                    event: WindowEvent::CloseRequested { api, .. },
                     ..
                 } => {
                     if label == "main" {
-                        // Perform cleanup before window closes
-                        log::info!("Main window close requested, performing cleanup...");
-                        
-                        // Stop selection manager
-                        if let Some(manager) = app_handle.try_state::<SelectionManager>() {
-                            if let Err(e) = manager.stop() {
-                                log::warn!("Failed to stop selection manager: {}", e);
-                            }
+                        // Hide window instead of closing to keep tray icon active
+                        api.prevent_close();
+                        if let Some(window) = app_handle.get_webview_window("main") {
+                            let _ = window.hide();
                         }
-                        
-                        // Cleanup MCP manager
-                        if let Some(manager) = app_handle.try_state::<McpManager>() {
-                            tauri::async_runtime::block_on(async {
-                                manager.shutdown().await;
-                            });
-                        }
-                        
-                        log::info!("Cleanup completed");
+                        log::info!("Main window hidden (use tray to show or quit)");
                     }
                 }
-                RunEvent::ExitRequested { .. } => {
-                    // Allow the app to exit
-                    log::info!("Exit requested");
+                RunEvent::ExitRequested { api, .. } => {
+                    // Perform full cleanup before exit
+                    log::info!("Exit requested, performing full cleanup...");
+                    perform_full_cleanup(app_handle);
+                    // Don't prevent exit
+                    let _ = api;
                 }
                 RunEvent::Exit => {
                     log::info!("Application exiting");
@@ -675,6 +793,7 @@ pub fn run() {
 /// - Stdout: Console output for development
 /// - Webview: Browser console for debugging frontend-backend interaction
 /// - LogDir: Persistent log files with rotation for production debugging
+#[cfg(not(debug_assertions))]
 fn build_log_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
     tauri_plugin_log::Builder::new()
         // Set default log level based on build mode
@@ -727,5 +846,325 @@ fn build_log_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
             ))
         })
         .build()
+}
+
+/// Create the application window menu
+fn create_window_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
+    // File submenu
+    let file_submenu = Submenu::with_id_and_items(
+        app,
+        "file-menu",
+        "文件",
+        true,
+        &[
+            &MenuItem::with_id(app, "menu-new-chat", "新建对话\tCtrl+N", true, None::<&str>)?,
+            &MenuItem::with_id(app, "menu-open-project", "打开项目\tCtrl+O", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "menu-save", "保存\tCtrl+S", true, None::<&str>)?,
+            &MenuItem::with_id(app, "menu-export", "导出对话...", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "menu-settings", "设置\tCtrl+,", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "menu-quit", "退出\tCtrl+Q", true, None::<&str>)?,
+        ],
+    )?;
+
+    // Edit submenu with standard operations
+    let edit_submenu = Submenu::with_id_and_items(
+        app,
+        "edit-menu",
+        "编辑",
+        true,
+        &[
+            &PredefinedMenuItem::undo(app, Some("撤销"))?,
+            &PredefinedMenuItem::redo(app, Some("重做"))?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::cut(app, Some("剪切"))?,
+            &PredefinedMenuItem::copy(app, Some("复制"))?,
+            &PredefinedMenuItem::paste(app, Some("粘贴"))?,
+            &PredefinedMenuItem::select_all(app, Some("全选"))?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "menu-find", "查找\tCtrl+F", true, None::<&str>)?,
+        ],
+    )?;
+
+    // View submenu
+    let view_submenu = Submenu::with_id_and_items(
+        app,
+        "view-menu",
+        "视图",
+        true,
+        &[
+            &MenuItem::with_id(app, "menu-toggle-sidebar", "切换侧边栏\tCtrl+B", true, None::<&str>)?,
+            &MenuItem::with_id(app, "menu-toggle-fullscreen", "全屏\tF11", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "menu-zoom-in", "放大\tCtrl++", true, None::<&str>)?,
+            &MenuItem::with_id(app, "menu-zoom-out", "缩小\tCtrl+-", true, None::<&str>)?,
+            &MenuItem::with_id(app, "menu-zoom-reset", "重置缩放\tCtrl+0", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "menu-reload", "刷新\tCtrl+R", true, None::<&str>)?,
+            &MenuItem::with_id(app, "menu-devtools", "开发者工具\tF12", true, None::<&str>)?,
+        ],
+    )?;
+
+    // Tools submenu
+    let tools_submenu = Submenu::with_id_and_items(
+        app,
+        "tools-menu",
+        "工具",
+        true,
+        &[
+            &MenuItem::with_id(app, "menu-screenshot", "截图\tCtrl+Shift+S", true, None::<&str>)?,
+            &MenuItem::with_id(app, "menu-ocr", "文字识别 (OCR)", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "menu-chat-widget", "AI 助手\tCtrl+Shift+Space", true, None::<&str>)?,
+            &MenuItem::with_id(app, "menu-clipboard-history", "剪贴板历史\tCtrl+Shift+V", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "menu-mcp-servers", "MCP 服务器管理", true, None::<&str>)?,
+            &MenuItem::with_id(app, "menu-sandbox", "代码沙箱", true, None::<&str>)?,
+        ],
+    )?;
+
+    // Window submenu
+    let window_submenu = Submenu::with_id_and_items(
+        app,
+        "window-menu",
+        "窗口",
+        true,
+        &[
+            &MenuItem::with_id(app, "menu-minimize", "最小化\tCtrl+M", true, None::<&str>)?,
+            &MenuItem::with_id(app, "menu-maximize", "最大化", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "menu-close-window", "关闭窗口\tCtrl+W", true, None::<&str>)?,
+        ],
+    )?;
+
+    // Help submenu
+    let help_submenu = Submenu::with_id_and_items(
+        app,
+        "help-menu",
+        "帮助",
+        true,
+        &[
+            &MenuItem::with_id(app, "menu-docs", "文档", true, None::<&str>)?,
+            &MenuItem::with_id(app, "menu-shortcuts", "快捷键参考", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "menu-check-update", "检查更新", true, None::<&str>)?,
+            &MenuItem::with_id(app, "menu-feedback", "反馈", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "menu-about", "关于 Cognia", true, None::<&str>)?,
+        ],
+    )?;
+
+    // Build main menu
+    let menu = Menu::with_items(
+        app,
+        &[
+            &file_submenu,
+            &edit_submenu,
+            &view_submenu,
+            &tools_submenu,
+            &window_submenu,
+            &help_submenu,
+        ],
+    )?;
+
+    // Set as app menu
+    app.set_menu(menu)?;
+    log::info!("Window menu created successfully");
+    Ok(())
+}
+
+/// Handle menu events from both window menu and tray menu
+fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
+    log::debug!("Menu event received: {}", id);
+
+    match id {
+        // File menu
+        "menu-new-chat" => {
+            let _ = app.emit("menu-new-chat", ());
+        }
+        "menu-open-project" => {
+            let _ = app.emit("menu-open-project", ());
+        }
+        "menu-save" => {
+            let _ = app.emit("menu-save", ());
+        }
+        "menu-export" => {
+            let _ = app.emit("menu-export", ());
+        }
+        "menu-settings" => {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+            let _ = app.emit("navigate-to-settings", ());
+        }
+        "menu-quit" => {
+            log::info!("Quit requested from menu");
+            perform_full_cleanup(app);
+            app.exit(0);
+        }
+
+        // View menu
+        "menu-toggle-sidebar" => {
+            let _ = app.emit("menu-toggle-sidebar", ());
+        }
+        "menu-toggle-fullscreen" => {
+            if let Some(window) = app.get_webview_window("main") {
+                if let Ok(is_fullscreen) = window.is_fullscreen() {
+                    let _ = window.set_fullscreen(!is_fullscreen);
+                }
+            }
+        }
+        "menu-zoom-in" => {
+            let _ = app.emit("menu-zoom-in", ());
+        }
+        "menu-zoom-out" => {
+            let _ = app.emit("menu-zoom-out", ());
+        }
+        "menu-zoom-reset" => {
+            let _ = app.emit("menu-zoom-reset", ());
+        }
+        "menu-reload" => {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.eval("location.reload()");
+            }
+        }
+        "menu-devtools" => {
+            #[cfg(debug_assertions)]
+            if let Some(window) = app.get_webview_window("main") {
+                if window.is_devtools_open() {
+                    window.close_devtools();
+                } else {
+                    window.open_devtools();
+                }
+            }
+        }
+        "menu-find" => {
+            let _ = app.emit("menu-find", ());
+        }
+
+        // Tools menu
+        "menu-screenshot" => {
+            let _ = app.emit("start-region-screenshot", ());
+        }
+        "menu-ocr" => {
+            let _ = app.emit("start-ocr-screenshot", ());
+        }
+        "menu-chat-widget" => {
+            if let Some(manager) = app.try_state::<ChatWidgetWindow>() {
+                let _ = manager.toggle();
+            }
+        }
+        "menu-clipboard-history" => {
+            let _ = app.emit("show-clipboard-history", ());
+        }
+        "menu-mcp-servers" => {
+            let _ = app.emit("navigate-to-mcp", ());
+        }
+        "menu-sandbox" => {
+            let _ = app.emit("navigate-to-sandbox", ());
+        }
+
+        // Window menu
+        "menu-minimize" => {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.minimize();
+            }
+        }
+        "menu-maximize" => {
+            if let Some(window) = app.get_webview_window("main") {
+                if let Ok(is_maximized) = window.is_maximized() {
+                    if is_maximized {
+                        let _ = window.unmaximize();
+                    } else {
+                        let _ = window.maximize();
+                    }
+                }
+            }
+        }
+        "menu-close-window" => {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.hide();
+            }
+        }
+
+        // Help menu
+        "menu-docs" => {
+            let _ = open::that("https://github.com/ElementsAI-Dev/Cognia/wiki");
+        }
+        "menu-shortcuts" => {
+            let _ = app.emit("show-shortcuts-dialog", ());
+        }
+        "menu-check-update" => {
+            let _ = app.emit("check-for-updates", ());
+        }
+        "menu-feedback" => {
+            let _ = open::that("https://github.com/ElementsAI-Dev/Cognia/issues");
+        }
+        "menu-about" => {
+            tray::show_about_dialog_public(app);
+        }
+
+        // Pass to tray handler for tray-specific menu items
+        _ => {
+            tray::handle_tray_menu_event(app, id.to_string());
+        }
+    }
+}
+
+/// Perform full cleanup before application exit
+fn perform_full_cleanup(app: &tauri::AppHandle) {
+    log::info!("Performing full application cleanup...");
+
+    // 1. Unregister all global shortcuts
+    {
+        use tauri_plugin_global_shortcut::GlobalShortcutExt;
+        if let Err(e) = app.global_shortcut().unregister_all() {
+            log::warn!("Failed to unregister global shortcuts: {}", e);
+        } else {
+            log::debug!("Global shortcuts unregistered");
+        }
+    }
+
+    // 2. Stop selection manager (stops mouse hook)
+    if let Some(manager) = app.try_state::<SelectionManager>() {
+        if let Err(e) = manager.stop() {
+            log::warn!("Failed to stop selection manager: {}", e);
+        } else {
+            log::debug!("Selection manager stopped");
+        }
+    }
+
+    // 3. Stop screen recording if active
+    if app.try_state::<ScreenRecordingManager>().is_some() {
+        let app_clone = app.clone();
+        tauri::async_runtime::block_on(async {
+            if let Some(mgr) = app_clone.try_state::<ScreenRecordingManager>() {
+                let _ = mgr.stop().await;
+            }
+        });
+        log::debug!("Screen recording stopped");
+    }
+
+    // 4. Shutdown MCP manager
+    if let Some(manager) = app.try_state::<McpManager>() {
+        tauri::async_runtime::block_on(async {
+            manager.shutdown().await;
+        });
+        log::debug!("MCP manager shutdown");
+    }
+
+    // 5. Remove tray icon
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        let _ = tray.set_visible(false);
+        log::debug!("Tray icon hidden");
+    }
+
+    // Small delay to ensure async cleanup completes
+    std::thread::sleep(std::time::Duration::from_millis(100));
+
+    log::info!("Full cleanup completed");
 }
 

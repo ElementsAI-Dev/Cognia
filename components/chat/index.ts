@@ -84,4 +84,4 @@ export {
 } from './utils';
 
 // Message parts (for rendering different message content types)
-export { TextPart, ReasoningPart, ToolPart, SourcesPart } from './message-parts';
+export { TextPart, ReasoningPart, ToolPart, SourcesPart, A2UIPart } from './message-parts';

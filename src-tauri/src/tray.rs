@@ -14,6 +14,7 @@ use crate::screenshot::ScreenshotManager;
 use crate::selection::SelectionManager;
 use parking_lot::RwLock;
 use std::sync::Arc;
+use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::{MouseButton, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager};
@@ -293,8 +294,20 @@ pub fn create_tray(app: &AppHandle) -> Result<(), tauri::Error> {
     // Build dynamic tooltip
     let tooltip = build_tooltip();
 
+    // Load tray icon from app's default window icon
+    let icon = app.default_window_icon()
+        .cloned()
+        .unwrap_or_else(|| {
+            // Last resort: create a simple 1x1 icon
+            log::warn!("Failed to load tray icon, using placeholder");
+            Image::new(&[255u8, 255, 255, 255], 1, 1)
+        });
+
     TrayIconBuilder::with_id("main-tray")
+        .icon(icon)
+        .icon_as_template(false)
         .menu(&menu)
+        .show_menu_on_left_click(false)
         .tooltip(&tooltip)
         .on_tray_icon_event(|tray, event| {
             match event {
@@ -664,21 +677,7 @@ pub fn handle_tray_menu_event(app: &AppHandle, item_id: String) {
         // ═══════════════════════════════════════════════════════════════════
         "quit" => {
             log::info!("Application quit requested from tray");
-            // Graceful shutdown
-            if let Some(manager) = app.try_state::<SelectionManager>() {
-                let _ = manager.stop();
-            }
-            if app.try_state::<ScreenRecordingManager>().is_some() {
-                let app_clone = app.clone();
-                tauri::async_runtime::spawn(async move {
-                    if let Some(mgr) = app_clone.try_state::<ScreenRecordingManager>() {
-                        let _ = mgr.stop().await;
-                    }
-                });
-            }
-            // Give async tasks a moment to complete
-            std::thread::sleep(std::time::Duration::from_millis(100));
-            app.exit(0);
+            perform_graceful_shutdown(app);
         }
 
         _ => {
@@ -746,8 +745,60 @@ fn open_logs_directory(app: &AppHandle) {
     }
 }
 
-/// Show about dialog
+/// Perform graceful shutdown with full cleanup
+fn perform_graceful_shutdown(app: &AppHandle) {
+    log::info!("Performing graceful shutdown...");
+
+    // 1. Unregister all global shortcuts
+    {
+        use tauri_plugin_global_shortcut::GlobalShortcutExt;
+        if let Err(e) = app.global_shortcut().unregister_all() {
+            log::warn!("Failed to unregister global shortcuts: {}", e);
+        } else {
+            log::debug!("Global shortcuts unregistered");
+        }
+    }
+
+    // 2. Stop selection manager (stops mouse hook)
+    if let Some(manager) = app.try_state::<SelectionManager>() {
+        if let Err(e) = manager.stop() {
+            log::warn!("Failed to stop selection manager: {}", e);
+        } else {
+            log::debug!("Selection manager stopped");
+        }
+    }
+
+    // 3. Stop screen recording if active
+    if app.try_state::<ScreenRecordingManager>().is_some() {
+        let app_clone = app.clone();
+        tauri::async_runtime::block_on(async {
+            if let Some(mgr) = app_clone.try_state::<ScreenRecordingManager>() {
+                let _ = mgr.stop().await;
+            }
+        });
+        log::debug!("Screen recording stopped");
+    }
+
+    // 4. Hide tray icon before exit
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        let _ = tray.set_visible(false);
+        log::debug!("Tray icon hidden");
+    }
+
+    // Small delay for cleanup
+    std::thread::sleep(std::time::Duration::from_millis(100));
+
+    log::info!("Graceful shutdown completed, exiting...");
+    app.exit(0);
+}
+
+/// Show about dialog (internal)
 fn show_about_dialog(app: &AppHandle) {
+    show_about_dialog_public(app);
+}
+
+/// Show about dialog (public, callable from lib.rs)
+pub fn show_about_dialog_public(app: &AppHandle) {
     let version = env!("CARGO_PKG_VERSION");
     let about_info = serde_json::json!({
         "name": "Cognia",
@@ -761,6 +812,7 @@ fn show_about_dialog(app: &AppHandle) {
 }
 
 /// Tray icon state
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TrayIconState {
     /// Normal idle state
@@ -775,6 +827,7 @@ pub enum TrayIconState {
 
 /// Update tray icon based on state
 /// Note: This requires different icon files to be present in the icons directory
+#[allow(dead_code)]
 pub fn update_tray_icon(app: &AppHandle, state: TrayIconState) {
     // In Tauri 2.x, icon changes require loading the icon as bytes
     // For now, we just log the state change - icon switching can be implemented
@@ -795,6 +848,7 @@ pub fn update_tray_icon(app: &AppHandle, state: TrayIconState) {
 }
 
 /// Refresh the tray menu (useful after state changes)
+#[allow(dead_code)]
 pub fn refresh_tray_menu(app: &AppHandle) {
     if let Some(tray) = app.tray_by_id("main-tray") {
         if let Ok(menu) = create_tray_menu(app) {

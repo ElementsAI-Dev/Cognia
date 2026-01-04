@@ -37,3 +37,9 @@ export * from './chat';
 
 // Image Studio related hooks
 export * from './image-studio';
+
+// PPT Generation related hooks
+export * from './ppt';
+
+// A2UI hooks
+export * from './a2ui';

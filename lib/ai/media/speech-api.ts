@@ -3,7 +3,7 @@
  */
 
 import type { WhisperTranscriptionResponse, SpeechLanguageCode } from '@/types/speech';
-import { proxyFetch } from '@/lib/proxy-fetch';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 
 // Whisper API endpoint
 const WHISPER_API_URL = 'https://api.openai.com/v1/audio/transcriptions';

@@ -3,7 +3,7 @@
  */
 
 export { CodeExecutor } from './code-executor';
-export { ToolResultDisplay, ToolMentionInline, ToolExecutionStatus } from './tool-result-display';
+export { ToolResultDisplay, ToolMentionInline, ToolExecutionStatus, ContentItemDisplay } from './tool-result-display';
 export { ConversationSearch } from './conversation-search';
 export { MarkdownRenderer } from './markdown-renderer';
 export { AutoSummaryPrompt } from './auto-summary-prompt';

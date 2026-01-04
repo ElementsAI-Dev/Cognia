@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ChevronsLeft, ChevronsRight } from 'lucide-react';
-import { NetworkStatusIndicator, OfflineBanner } from '@/components/ui/network-status-indicator';
+import { NetworkStatusIndicator, OfflineBanner } from '@/components/layout/network-status-indicator';
 
 interface AppShellProps {
   children: React.ReactNode;

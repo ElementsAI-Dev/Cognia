@@ -18,11 +18,11 @@ import {
 } from './video-generation';
 
 // Mock proxy-fetch
-jest.mock('@/lib/proxy-fetch', () => ({
+jest.mock('@/lib/network/proxy-fetch', () => ({
   proxyFetch: jest.fn(),
 }));
 
-import { proxyFetch } from '@/lib/proxy-fetch';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 const mockProxyFetch = proxyFetch as jest.MockedFunction<typeof proxyFetch>;
 
 // Mock OpenAI

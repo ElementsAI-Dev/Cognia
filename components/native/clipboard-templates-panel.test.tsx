@@ -26,7 +26,7 @@ const mockUseClipboardContext = {
   searchTemplates: jest.fn().mockReturnValue([]),
 };
 
-jest.mock('@/hooks/use-clipboard-context', () => ({
+jest.mock('@/hooks/context', () => ({
   useClipboardContext: () => mockUseClipboardContext,
 }));
 
@@ -104,7 +104,9 @@ describe('ClipboardTemplatesPanel', () => {
     const plusButton = buttons.find(btn => btn.querySelector('.lucide-plus'));
     if (plusButton) {
       fireEvent.click(plusButton);
-      expect(screen.getByText('Create Template')).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: 'Create Template' })
+      ).toBeInTheDocument();
     }
   });
 
@@ -354,7 +356,7 @@ describe('ClipboardTemplatesPanel', () => {
       fireEvent.click(plusButton);
       
       // Try to submit without filling required fields
-      const createButton = screen.getByText('Create Template');
+      const createButton = screen.getByRole('button', { name: 'Create Template' });
       expect(createButton).toBeDisabled();
     }
   });
@@ -375,7 +377,7 @@ describe('ClipboardTemplatesPanel', () => {
       fireEvent.change(nameInput, { target: { value: 'Test Template' } });
       fireEvent.change(contentInput, { target: { value: 'Test content' } });
       
-      const createButton = screen.getByText('Create Template');
+      const createButton = screen.getByRole('button', { name: 'Create Template' });
       expect(createButton).not.toBeDisabled();
     }
   });

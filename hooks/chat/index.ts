@@ -39,3 +39,15 @@ export {
   type LanguageDetectionResult,
   SUPPORTED_LANGUAGES,
 } from './use-translate';
+export {
+  useFloatingPosition,
+  type FabPosition,
+  type PanelExpandDirection,
+} from './use-floating-position';
+export {
+  useDraggableFab,
+} from './use-draggable-fab';
+export {
+  useChatWidget,
+  type UseChatWidgetReturn,
+} from './use-chat-widget';

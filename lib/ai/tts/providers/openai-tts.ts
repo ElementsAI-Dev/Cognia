@@ -5,7 +5,7 @@
 
 import type { TTSResponse, OpenAITTSVoice, OpenAITTSModel } from '@/types/tts';
 import { getTTSError, TTS_PROVIDERS } from '@/types/tts';
-import { proxyFetch } from '@/lib/proxy-fetch';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 
 const OPENAI_TTS_URL = 'https://api.openai.com/v1/audio/speech';
 

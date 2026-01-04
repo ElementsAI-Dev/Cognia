@@ -38,6 +38,7 @@ import { cn } from '@/lib/utils';
 import type { ChatMode } from '@/types';
 import type { AgentModeConfig } from '@/types/agent-mode';
 import { AgentModeSelector } from '@/components/agent';
+import { WelcomeA2UIDemo } from './welcome-a2ui-demo';
 
 interface WelcomeStateProps {
   mode: ChatMode;
@@ -281,6 +282,15 @@ export function WelcomeState({
               </div>
             </Link>
           </div>
+        </div>
+
+        {/* A2UI Interactive Demo - Desktop only */}
+        <div className="hidden sm:block">
+          <WelcomeA2UIDemo
+            onSuggestionClick={onSuggestionClick}
+            showSettings={false}
+            className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500"
+          />
         </div>
 
         {/* Suggestions - simplified on small screens */}

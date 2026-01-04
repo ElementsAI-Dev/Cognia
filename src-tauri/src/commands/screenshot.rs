@@ -191,12 +191,48 @@ pub async fn screenshot_ocr_windows(
     manager.extract_text_windows(&image_data)
 }
 
-/// Get available OCR languages
+/// Get available OCR languages installed on the system
 #[tauri::command]
 pub async fn screenshot_get_ocr_languages(
     manager: State<'_, ScreenshotManager>,
 ) -> Result<Vec<String>, String> {
     Ok(manager.get_ocr_languages())
+}
+
+/// Check if OCR is available on this system
+#[tauri::command]
+pub async fn screenshot_ocr_is_available() -> Result<bool, String> {
+    use crate::screenshot::WindowsOcr;
+    Ok(WindowsOcr::is_available())
+}
+
+/// Check if a specific OCR language is available
+#[tauri::command]
+pub async fn screenshot_ocr_is_language_available(
+    language: String,
+) -> Result<bool, String> {
+    use crate::screenshot::WindowsOcr;
+    Ok(WindowsOcr::is_language_available(&language))
+}
+
+/// Extract text using Windows OCR with language parameter
+#[tauri::command]
+pub async fn screenshot_ocr_with_language(
+    _manager: State<'_, ScreenshotManager>,
+    image_base64: String,
+    language: Option<String>,
+) -> Result<WinOcrResult, String> {
+    let image_data = base64::engine::general_purpose::STANDARD
+        .decode(&image_base64)
+        .map_err(|e| format!("Failed to decode image: {}", e))?;
+    
+    // Create a temporary OCR engine with the specified language
+    let mut ocr = crate::screenshot::WindowsOcr::new();
+    if let Some(lang) = language {
+        ocr.set_language(&lang);
+    }
+    
+    ocr.extract_text(&image_data)
 }
 
 // ============== Capture with History Commands ==============

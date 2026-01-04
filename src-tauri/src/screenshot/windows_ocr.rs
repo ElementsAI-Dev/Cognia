@@ -1,8 +1,17 @@
 //! Windows OCR integration
 //!
 //! Uses Windows Runtime OCR API for text extraction from images.
+//! Requires Windows 10+ with OCR language packs installed.
 
 use serde::{Deserialize, Serialize};
+
+#[cfg(target_os = "windows")]
+use windows::{
+    core::{Interface, HSTRING},
+    Graphics::Imaging::{BitmapPixelFormat, SoftwareBitmap, BitmapBufferAccessMode},
+    Globalization::Language,
+    Media::Ocr::OcrEngine as WinOcrEngine,
+};
 
 /// OCR result with text and bounding boxes
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -13,7 +22,7 @@ pub struct WinOcrResult {
     pub lines: Vec<OcrLine>,
     /// Detected language
     pub language: Option<String>,
-    /// Overall confidence
+    /// Overall confidence (estimated from word count and structure)
     pub confidence: f64,
 }
 
@@ -35,7 +44,7 @@ pub struct OcrWord {
     pub text: String,
     /// Bounding box
     pub bounds: OcrBounds,
-    /// Confidence for this word
+    /// Confidence for this word (estimated)
     pub confidence: f64,
 }
 
@@ -48,9 +57,9 @@ pub struct OcrBounds {
     pub height: f64,
 }
 
-/// Windows OCR Engine
+/// Windows OCR Engine wrapper
 pub struct WindowsOcr {
-    /// Preferred language for OCR
+    /// Preferred language for OCR (BCP-47 format)
     language: String,
 }
 
@@ -67,37 +76,84 @@ impl WindowsOcr {
         }
     }
 
-    /// Set the OCR language
+    /// Set the OCR language (BCP-47 format, e.g., "en-US", "zh-Hans", "ja")
     pub fn set_language(&mut self, language: &str) {
         self.language = language.to_string();
     }
 
-    /// Extract text from PNG image data
+    /// Get current language
+    pub fn get_language(&self) -> &str {
+        &self.language
+    }
+
+    /// Extract text from PNG image data using Windows OCR
     #[cfg(target_os = "windows")]
     pub fn extract_text(&self, image_data: &[u8]) -> Result<WinOcrResult, String> {
-        // Decode PNG to get raw pixels
+        // Decode PNG to get raw BGRA pixels
         let decoder = png::Decoder::new(std::io::Cursor::new(image_data));
-        let mut reader = decoder.read_info().map_err(|e| format!("Failed to decode PNG: {}", e))?;
+        let mut reader = decoder
+            .read_info()
+            .map_err(|e| format!("Failed to decode PNG: {}", e))?;
         let mut buf = vec![0; reader.output_buffer_size()];
-        let info = reader.next_frame(&mut buf).map_err(|e| format!("Failed to read PNG frame: {}", e))?;
-        
+        let info = reader
+            .next_frame(&mut buf)
+            .map_err(|e| format!("Failed to read PNG frame: {}", e))?;
+
         let width = info.width;
         let height = info.height;
+        let color_type = info.color_type;
         let pixels = &buf[..info.buffer_size()];
 
-        // For now, return a placeholder result
-        // Full Windows Runtime OCR integration requires the windows crate with WinRT features
-        // which adds significant compile time and complexity
-        
-        log::info!("OCR requested for {}x{} image", width, height);
-        
-        // Placeholder - in production, use Windows.Media.Ocr API
-        Ok(WinOcrResult {
-            text: String::new(),
-            lines: Vec::new(),
-            language: Some(self.language.clone()),
-            confidence: 0.0,
-        })
+        // Convert to BGRA if needed
+        let bgra_pixels = match color_type {
+            png::ColorType::Rgba => {
+                // RGBA -> BGRA conversion
+                let mut bgra = Vec::with_capacity(pixels.len());
+                for chunk in pixels.chunks(4) {
+                    bgra.push(chunk[2]); // B
+                    bgra.push(chunk[1]); // G
+                    bgra.push(chunk[0]); // R
+                    bgra.push(chunk[3]); // A
+                }
+                bgra
+            }
+            png::ColorType::Rgb => {
+                // RGB -> BGRA conversion
+                let mut bgra = Vec::with_capacity((pixels.len() / 3) * 4);
+                for chunk in pixels.chunks(3) {
+                    bgra.push(chunk[2]); // B
+                    bgra.push(chunk[1]); // G
+                    bgra.push(chunk[0]); // R
+                    bgra.push(255);      // A
+                }
+                bgra
+            }
+            png::ColorType::Grayscale => {
+                // Grayscale -> BGRA conversion
+                let mut bgra = Vec::with_capacity(pixels.len() * 4);
+                for &gray in pixels {
+                    bgra.push(gray); // B
+                    bgra.push(gray); // G
+                    bgra.push(gray); // R
+                    bgra.push(255);  // A
+                }
+                bgra
+            }
+            png::ColorType::GrayscaleAlpha => {
+                // GrayscaleAlpha -> BGRA conversion
+                let mut bgra = Vec::with_capacity(pixels.len() * 2);
+                for chunk in pixels.chunks(2) {
+                    bgra.push(chunk[0]); // B
+                    bgra.push(chunk[0]); // G
+                    bgra.push(chunk[0]); // R
+                    bgra.push(chunk[1]); // A
+                }
+                bgra
+            }
+            _ => return Err(format!("Unsupported color type: {:?}", color_type)),
+        };
+
+        self.extract_text_from_bgra_pixels(&bgra_pixels, width, height)
     }
 
     #[cfg(not(target_os = "windows"))]
@@ -107,49 +163,107 @@ impl WindowsOcr {
 
     /// Extract text from raw RGBA pixels
     #[cfg(target_os = "windows")]
-    pub fn extract_text_from_pixels(&self, pixels: &[u8], width: u32, height: u32) -> Result<WinOcrResult, String> {
-        log::info!("OCR requested for {}x{} pixels", width, height);
-        
-        // Placeholder
-        Ok(WinOcrResult {
-            text: String::new(),
-            lines: Vec::new(),
-            language: Some(self.language.clone()),
-            confidence: 0.0,
+    pub fn extract_text_from_pixels(
+        &self,
+        pixels: &[u8],
+        width: u32,
+        height: u32,
+    ) -> Result<WinOcrResult, String> {
+        // Convert RGBA to BGRA
+        let mut bgra = Vec::with_capacity(pixels.len());
+        for chunk in pixels.chunks(4) {
+            if chunk.len() == 4 {
+                bgra.push(chunk[2]); // B
+                bgra.push(chunk[1]); // G
+                bgra.push(chunk[0]); // R
+                bgra.push(chunk[3]); // A
+            }
+        }
+        self.extract_text_from_bgra_pixels(&bgra, width, height)
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    pub fn extract_text_from_pixels(
+        &self,
+        _pixels: &[u8],
+        _width: u32,
+        _height: u32,
+    ) -> Result<WinOcrResult, String> {
+        Err("Windows OCR is only available on Windows".to_string())
+    }
+
+    /// Extract text from BGRA pixels using Windows OCR API
+    #[cfg(target_os = "windows")]
+    fn extract_text_from_bgra_pixels(
+        &self,
+        bgra_pixels: &[u8],
+        width: u32,
+        height: u32,
+    ) -> Result<WinOcrResult, String> {
+        use std::sync::mpsc;
+        use std::thread;
+
+        // Windows OCR requires running on a thread with COM initialized
+        let pixels = bgra_pixels.to_vec();
+        let language = self.language.clone();
+
+        let (tx, rx) = mpsc::channel();
+
+        thread::spawn(move || {
+            let result = perform_ocr_sync(&pixels, width, height, &language);
+            let _ = tx.send(result);
+        });
+
+        rx.recv()
+            .map_err(|e| format!("OCR thread communication error: {}", e))?
+    }
+
+    /// Get available OCR languages installed on the system
+    #[cfg(target_os = "windows")]
+    pub fn get_available_languages() -> Vec<String> {
+        get_installed_ocr_languages().unwrap_or_else(|_| {
+            // Fallback to common languages
+            vec![
+                "en-US".to_string(),
+                "zh-Hans".to_string(),
+                "zh-Hant".to_string(),
+                "ja".to_string(),
+                "ko".to_string(),
+            ]
         })
     }
 
     #[cfg(not(target_os = "windows"))]
-    pub fn extract_text_from_pixels(&self, _pixels: &[u8], _width: u32, _height: u32) -> Result<WinOcrResult, String> {
-        Err("Windows OCR is only available on Windows".to_string())
-    }
-
-    /// Get available OCR languages
     pub fn get_available_languages() -> Vec<String> {
-        vec![
-            "en-US".to_string(),
-            "zh-Hans".to_string(),
-            "zh-Hant".to_string(),
-            "ja".to_string(),
-            "ko".to_string(),
-            "de-DE".to_string(),
-            "fr-FR".to_string(),
-            "es-ES".to_string(),
-            "it-IT".to_string(),
-            "pt-BR".to_string(),
-            "ru-RU".to_string(),
-        ]
+        vec![]
     }
 
-    /// Check if OCR is available
+    /// Check if OCR is available on this system
     #[cfg(target_os = "windows")]
     pub fn is_available() -> bool {
-        // Windows 10+ has built-in OCR
-        true
+        // Check if at least one OCR language is available
+        WinOcrEngine::AvailableRecognizerLanguages()
+            .map(|langs| langs.Size().unwrap_or(0) > 0)
+            .unwrap_or(false)
     }
 
     #[cfg(not(target_os = "windows"))]
     pub fn is_available() -> bool {
+        false
+    }
+
+    /// Check if a specific language is available for OCR
+    #[cfg(target_os = "windows")]
+    pub fn is_language_available(language: &str) -> bool {
+        let lang = match Language::CreateLanguage(&HSTRING::from(language)) {
+            Ok(l) => l,
+            Err(_) => return false,
+        };
+        WinOcrEngine::IsLanguageSupported(&lang).unwrap_or(false)
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    pub fn is_language_available(_language: &str) -> bool {
         false
     }
 }
@@ -158,6 +272,226 @@ impl Default for WindowsOcr {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Perform OCR synchronously (called from a separate thread)
+#[cfg(target_os = "windows")]
+fn perform_ocr_sync(
+    bgra_pixels: &[u8],
+    width: u32,
+    height: u32,
+    language: &str,
+) -> Result<WinOcrResult, String> {
+    // Validate dimensions
+    if width == 0 || height == 0 {
+        return Err("Invalid image dimensions".to_string());
+    }
+
+    // Windows OCR has minimum size requirements (40x40 recommended)
+    if width < 20 || height < 20 {
+        return Ok(WinOcrResult {
+            text: String::new(),
+            lines: Vec::new(),
+            language: Some(language.to_string()),
+            confidence: 0.0,
+        });
+    }
+
+    let expected_size = (width * height * 4) as usize;
+    if bgra_pixels.len() != expected_size {
+        return Err(format!(
+            "Pixel buffer size mismatch: expected {}, got {}",
+            expected_size,
+            bgra_pixels.len()
+        ));
+    }
+
+    // Create SoftwareBitmap from BGRA pixels
+    let bitmap = SoftwareBitmap::Create(BitmapPixelFormat::Bgra8, width as i32, height as i32)
+        .map_err(|e| format!("Failed to create SoftwareBitmap: {}", e))?;
+
+    // Copy pixel data to bitmap using CopyFromBuffer
+    {
+        let buffer = bitmap
+            .LockBuffer(BitmapBufferAccessMode::Write)
+            .map_err(|e| format!("Failed to lock bitmap buffer: {}", e))?;
+
+        let reference = buffer
+            .CreateReference()
+            .map_err(|e| format!("Failed to create buffer reference: {}", e))?;
+
+        // Use the IMemoryBufferByteAccess interface to get raw pointer
+        unsafe {
+            use windows::Win32::System::WinRT::IMemoryBufferByteAccess;
+            
+            let byte_access: IMemoryBufferByteAccess = reference.cast()
+                .map_err(|e| format!("Failed to cast to IMemoryBufferByteAccess: {}", e))?;
+
+            let mut data_ptr: *mut u8 = std::ptr::null_mut();
+            let mut capacity: u32 = 0;
+            byte_access.GetBuffer(&mut data_ptr, &mut capacity)
+                .map_err(|e| format!("Failed to get buffer pointer: {}", e))?;
+
+            if !data_ptr.is_null() && capacity as usize >= bgra_pixels.len() {
+                std::ptr::copy_nonoverlapping(
+                    bgra_pixels.as_ptr(),
+                    data_ptr,
+                    bgra_pixels.len(),
+                );
+            } else {
+                return Err("Buffer too small or null".to_string());
+            }
+        }
+    }
+
+    // Create OCR engine with the specified language
+    // Note: TryCreateFromUserProfileLanguages and TryCreateFromLanguage return OcrEngine directly,
+    // not Option<OcrEngine>. They return an error if no engine is available.
+    let engine = if language == "auto" || language.is_empty() {
+        // Use user's preferred language
+        WinOcrEngine::TryCreateFromUserProfileLanguages()
+            .map_err(|e| format!("Failed to create OCR engine: {}", e))?
+    } else {
+        let lang = Language::CreateLanguage(&HSTRING::from(language))
+            .map_err(|e| format!("Failed to create language '{}': {}", language, e))?;
+
+        if !WinOcrEngine::IsLanguageSupported(&lang).unwrap_or(false) {
+            // Fall back to user profile languages if specified language not available
+            log::warn!(
+                "Language '{}' not supported, falling back to user profile",
+                language
+            );
+            WinOcrEngine::TryCreateFromUserProfileLanguages()
+                .map_err(|e| format!("Failed to create OCR engine: {}", e))?
+        } else {
+            WinOcrEngine::TryCreateFromLanguage(&lang)
+                .map_err(|e| format!("Failed to create OCR engine for '{}': {}", language, e))?
+        }
+    };
+
+    // Perform OCR recognition
+    let ocr_result = engine
+        .RecognizeAsync(&bitmap)
+        .map_err(|e| format!("Failed to start OCR recognition: {}", e))?
+        .get()
+        .map_err(|e| format!("OCR recognition failed: {}", e))?;
+
+    // Extract results
+    let full_text = ocr_result
+        .Text()
+        .map(|s| s.to_string())
+        .unwrap_or_default();
+
+    let mut lines = Vec::new();
+    let mut total_words = 0;
+
+    if let Ok(ocr_lines) = ocr_result.Lines() {
+        for line in ocr_lines {
+            let line_text = line.Text().map(|s| s.to_string()).unwrap_or_default();
+
+            let mut words = Vec::new();
+            if let Ok(line_words) = line.Words() {
+                for word in line_words {
+                    let word_text = word.Text().map(|s| s.to_string()).unwrap_or_default();
+
+                    let word_bounds = if let Ok(rect) = word.BoundingRect() {
+                        OcrBounds {
+                            x: rect.X as f64,
+                            y: rect.Y as f64,
+                            width: rect.Width as f64,
+                            height: rect.Height as f64,
+                        }
+                    } else {
+                        OcrBounds {
+                            x: 0.0,
+                            y: 0.0,
+                            width: 0.0,
+                            height: 0.0,
+                        }
+                    };
+
+                    words.push(OcrWord {
+                        text: word_text,
+                        bounds: word_bounds,
+                        confidence: 0.9, // Windows OCR doesn't provide per-word confidence
+                    });
+                    total_words += 1;
+                }
+            }
+
+            // Calculate line bounds from words
+            let line_bounds = if !words.is_empty() {
+                let min_x = words.iter().map(|w| w.bounds.x).fold(f64::MAX, f64::min);
+                let min_y = words.iter().map(|w| w.bounds.y).fold(f64::MAX, f64::min);
+                let max_x = words
+                    .iter()
+                    .map(|w| w.bounds.x + w.bounds.width)
+                    .fold(0.0, f64::max);
+                let max_y = words
+                    .iter()
+                    .map(|w| w.bounds.y + w.bounds.height)
+                    .fold(0.0, f64::max);
+
+                OcrBounds {
+                    x: min_x,
+                    y: min_y,
+                    width: max_x - min_x,
+                    height: max_y - min_y,
+                }
+            } else {
+                OcrBounds {
+                    x: 0.0,
+                    y: 0.0,
+                    width: 0.0,
+                    height: 0.0,
+                }
+            };
+
+            lines.push(OcrLine {
+                text: line_text,
+                words,
+                bounds: line_bounds,
+            });
+        }
+    }
+
+    // Estimate confidence based on result quality
+    let confidence = if full_text.is_empty() {
+        0.0
+    } else if total_words > 0 {
+        0.85 + (0.1 * (total_words.min(10) as f64 / 10.0)) // 0.85-0.95 based on word count
+    } else {
+        0.5
+    };
+
+    // Get detected language
+    let detected_language = ocr_result
+        .Text()
+        .ok()
+        .map(|_| language.to_string());
+
+    Ok(WinOcrResult {
+        text: full_text,
+        lines,
+        language: detected_language,
+        confidence,
+    })
+}
+
+/// Get list of installed OCR languages
+#[cfg(target_os = "windows")]
+fn get_installed_ocr_languages() -> Result<Vec<String>, String> {
+    let languages = WinOcrEngine::AvailableRecognizerLanguages()
+        .map_err(|e| format!("Failed to get available languages: {}", e))?;
+
+    let mut result = Vec::new();
+    for lang in languages {
+        if let Ok(tag) = lang.LanguageTag() {
+            result.push(tag.to_string());
+        }
+    }
+
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -421,28 +755,37 @@ mod tests {
         assert_eq!(ocr.language, "ko");
     }
 
+    #[cfg(target_os = "windows")]
     #[test]
     fn test_windows_ocr_get_available_languages() {
         let languages = WindowsOcr::get_available_languages();
-        
+        // On Windows, should return at least one installed language
+        // The actual languages depend on what's installed on the system
         assert!(!languages.is_empty());
-        assert!(languages.contains(&"en-US".to_string()));
-        assert!(languages.contains(&"zh-Hans".to_string()));
-        assert!(languages.contains(&"zh-Hant".to_string()));
-        assert!(languages.contains(&"ja".to_string()));
-        assert!(languages.contains(&"ko".to_string()));
-        assert!(languages.contains(&"de-DE".to_string()));
-        assert!(languages.contains(&"fr-FR".to_string()));
-        assert!(languages.contains(&"es-ES".to_string()));
-        assert!(languages.contains(&"it-IT".to_string()));
-        assert!(languages.contains(&"pt-BR".to_string()));
-        assert!(languages.contains(&"ru-RU".to_string()));
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn test_windows_ocr_get_available_languages_not_windows() {
+        let languages = WindowsOcr::get_available_languages();
+        // On non-Windows, returns empty list
+        assert!(languages.is_empty());
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn test_windows_ocr_is_language_available() {
+        // en-US is typically always available on Windows
+        let is_available = WindowsOcr::is_language_available("en-US");
+        // This may or may not be true depending on system configuration
+        // Just verify the function doesn't panic
+        let _ = is_available;
     }
 
     #[test]
-    fn test_windows_ocr_available_languages_count() {
-        let languages = WindowsOcr::get_available_languages();
-        assert_eq!(languages.len(), 11);
+    fn test_windows_ocr_get_language() {
+        let ocr = WindowsOcr::with_language("de-DE");
+        assert_eq!(ocr.get_language(), "de-DE");
     }
 
     #[cfg(target_os = "windows")]

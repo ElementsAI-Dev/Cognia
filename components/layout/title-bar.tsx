@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import Link from 'next/link';
 import { 
   Pin, 
   PinOff, 
   Plus, 
-  Settings, 
   Moon, 
   Sun, 
   Monitor,
@@ -28,7 +27,15 @@ import {
   MonitorSmartphone,
   Square,
   Layers,
+  Settings,
+  PanelLeft,
+  PanelRight,
+  PanelTop,
+  PanelBottom,
+  Grid2X2,
+  Scaling,
 } from 'lucide-react';
+import { DebugButton } from './debug-button';
 import {
   Tooltip,
   TooltipContent,
@@ -49,9 +56,11 @@ import {
 import { useSessionStore, useSettingsStore, useWindowStore } from '@/stores';
 import { useWindowControls } from '@/hooks';
 import { useRouter } from 'next/navigation';
+import { isMainWindow } from '@/lib/native/utils';
 
 export function TitleBar() {
   const router = useRouter();
+  const [isMain, setIsMain] = useState<boolean | null>(null);
   
   // Window controls hook
   const {
@@ -72,7 +81,21 @@ export function TitleBar() {
     setShadow,
     handleDragMouseDown,
     requestUserAttention,
+    autoFitToScreen,
+    snapToEdge,
+    snapToCorner,
   } = useWindowControls();
+
+  // Check if this is the main window
+  useEffect(() => {
+    if (!isTauri) return;
+    
+    let mounted = true;
+    isMainWindow().then((result) => {
+      if (mounted) setIsMain(result);
+    });
+    return () => { mounted = false; };
+  }, [isTauri]);
 
   // Window store for additional state
   const {
@@ -173,7 +196,12 @@ export function TitleBar() {
     return 'System';
   }, [theme]);
 
-  if (!isTauri) {
+  if (!isTauri || isMain === false) {
+    return null;
+  }
+
+  // Still loading window label check, don't render yet
+  if (isMain === null) {
     return null;
   }
 
@@ -278,6 +306,9 @@ export function TitleBar() {
           </TooltipContent>
         </Tooltip>
 
+        {/* Debug Button (Dev Only) */}
+        <DebugButton />
+
         {/* Divider */}
         <div className="h-4 w-px bg-border/50 mx-1" />
 
@@ -335,6 +366,54 @@ export function TitleBar() {
               <Move className="mr-2 h-4 w-4" />
               Center Window
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={autoFitToScreen}>
+              <Scaling className="mr-2 h-4 w-4" />
+              Auto Fit to Screen
+            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <PanelLeft className="mr-2 h-4 w-4" />
+                <span>Snap to Edge</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem onClick={() => snapToEdge('left')}>
+                  <PanelLeft className="mr-2 h-4 w-4" />
+                  Left Half
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => snapToEdge('right')}>
+                  <PanelRight className="mr-2 h-4 w-4" />
+                  Right Half
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => snapToEdge('top')}>
+                  <PanelTop className="mr-2 h-4 w-4" />
+                  Top Half
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => snapToEdge('bottom')}>
+                  <PanelBottom className="mr-2 h-4 w-4" />
+                  Bottom Half
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Grid2X2 className="mr-2 h-4 w-4" />
+                <span>Snap to Corner</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem onClick={() => snapToCorner('topLeft')}>
+                  Top Left
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => snapToCorner('topRight')}>
+                  Top Right
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => snapToCorner('bottomLeft')}>
+                  Bottom Left
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => snapToCorner('bottomRight')}>
+                  Bottom Right
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuItem onClick={toggleFullscreen}>
               {isFullscreen ? (
                 <>

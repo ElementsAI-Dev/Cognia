@@ -368,6 +368,153 @@ describe('useAgent', () => {
 
       expect(result.current.getLastResponse()).toBe('');
     });
+
+    it('should return finalSummary from AgentLoopResult', async () => {
+      const mockLoopResult = {
+        success: true,
+        tasks: [],
+        totalSteps: 3,
+        duration: 500,
+        finalSummary: 'Task summary here',
+      };
+      mockExecuteAgentLoop.mockResolvedValueOnce(mockLoopResult);
+
+      const { result } = renderHook(() => useAgent());
+
+      await act(async () => {
+        await result.current.runWithPlanning('Complete task');
+      });
+
+      expect(result.current.getLastResponse()).toBe('Task summary here');
+    });
+
+    it('should return empty string when finalSummary is undefined', async () => {
+      const mockLoopResult = {
+        success: true,
+        tasks: [],
+        totalSteps: 3,
+        duration: 500,
+      };
+      mockExecuteAgentLoop.mockResolvedValueOnce(mockLoopResult);
+
+      const { result } = renderHook(() => useAgent());
+
+      await act(async () => {
+        await result.current.runWithPlanning('Complete task');
+      });
+
+      expect(result.current.getLastResponse()).toBe('');
+    });
+  });
+
+  describe('error handling edge cases', () => {
+    it('should handle non-Error exception in run', async () => {
+      mockExecuteAgent.mockRejectedValueOnce('String error');
+
+      const { result } = renderHook(() => useAgent());
+
+      await act(async () => {
+        await result.current.run('Hello');
+      });
+
+      expect(result.current.error).toBe('Agent execution failed');
+    });
+
+    it('should handle non-Error exception in runWithPlanning', async () => {
+      mockExecuteAgentLoop.mockRejectedValueOnce('String error');
+
+      const { result } = renderHook(() => useAgent());
+
+      await act(async () => {
+        await result.current.runWithPlanning('Complete task');
+      });
+
+      expect(result.current.error).toBe('Agent loop failed');
+    });
+
+    it('should set error when runWithPlanning result is not successful', async () => {
+      const mockLoopResult = {
+        success: false,
+        tasks: [],
+        totalSteps: 1,
+        duration: 100,
+        error: 'Loop execution failed',
+      };
+      mockExecuteAgentLoop.mockResolvedValueOnce(mockLoopResult);
+
+      const { result } = renderHook(() => useAgent());
+
+      await act(async () => {
+        await result.current.runWithPlanning('Complete task');
+      });
+
+      expect(result.current.error).toBe('Loop execution failed');
+    });
+
+    it('should use default error message when result has no error', async () => {
+      const mockResult = {
+        success: false,
+        finalResponse: '',
+        steps: [],
+        totalSteps: 1,
+        duration: 100,
+      };
+      mockExecuteAgent.mockResolvedValueOnce(mockResult);
+
+      const { result } = renderHook(() => useAgent());
+
+      await act(async () => {
+        await result.current.run('Hello');
+      });
+
+      expect(result.current.error).toBe('Agent execution failed');
+    });
+  });
+
+  describe('multiple tool registrations', () => {
+    it('should register multiple tools', () => {
+      const { result } = renderHook(() => useAgent());
+
+      act(() => {
+        result.current.registerTool('tool1', {
+          name: 'tool1',
+          description: 'Tool 1',
+          parameters: z.object({}),
+          execute: async () => 'result1',
+        });
+        result.current.registerTool('tool2', {
+          name: 'tool2',
+          description: 'Tool 2',
+          parameters: z.object({}),
+          execute: async () => 'result2',
+        });
+      });
+
+      expect(result.current.getRegisteredTools()).toContain('tool1');
+      expect(result.current.getRegisteredTools()).toContain('tool2');
+      expect(result.current.getRegisteredTools()).toHaveLength(2);
+    });
+
+    it('should overwrite existing tool with same name', () => {
+      const { result } = renderHook(() => useAgent());
+
+      act(() => {
+        result.current.registerTool('tool1', {
+          name: 'tool1',
+          description: 'Original',
+          parameters: z.object({}),
+          execute: async () => 'original',
+        });
+        result.current.registerTool('tool1', {
+          name: 'tool1',
+          description: 'Updated',
+          parameters: z.object({}),
+          execute: async () => 'updated',
+        });
+      });
+
+      expect(result.current.getRegisteredTools()).toHaveLength(1);
+    });
   });
 });
 

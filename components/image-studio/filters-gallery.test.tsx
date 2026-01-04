@@ -1,5 +1,9 @@
 /**
  * Tests for FiltersGallery component
+ * 
+ * Note: This component uses complex canvas operations that are difficult to mock
+ * in unit tests. Canvas interaction tests are covered in E2E tests.
+ * These unit tests focus on component exports and basic structure.
  */
 
 import { FiltersGallery } from './filters-gallery';

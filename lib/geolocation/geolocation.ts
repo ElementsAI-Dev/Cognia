@@ -13,7 +13,7 @@ import {
 } from '@/types/geolocation';
 
 const isTauri = (): boolean => {
-  return typeof window !== 'undefined' && '__TAURI__' in window;
+  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 };
 
 const DEFAULT_OPTIONS: GeolocationOptions = {

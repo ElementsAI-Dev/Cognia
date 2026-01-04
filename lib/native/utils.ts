@@ -4,9 +4,53 @@
 
 /**
  * Check if running in Tauri environment
+ * Note: Tauri v2 uses __TAURI_INTERNALS__ instead of __TAURI__
  */
 export function isTauri(): boolean {
-  return typeof window !== 'undefined' && '__TAURI__' in window;
+  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+}
+
+/**
+ * Window label constants
+ */
+export const WINDOW_LABELS = {
+  MAIN: 'main',
+  CHAT_WIDGET: 'chat-widget',
+  SELECTION_TOOLBAR: 'selection-toolbar',
+  SPLASHSCREEN: 'splashscreen',
+} as const;
+
+export type WindowLabel = typeof WINDOW_LABELS[keyof typeof WINDOW_LABELS];
+
+/**
+ * Get the current window label
+ */
+export async function getWindowLabel(): Promise<string | null> {
+  if (!isTauri()) return null;
+  
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    const window = getCurrentWindow();
+    return window.label;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if current window is the main window
+ */
+export async function isMainWindow(): Promise<boolean> {
+  const label = await getWindowLabel();
+  return label === WINDOW_LABELS.MAIN;
+}
+
+/**
+ * Check if current window is a popup window (chat-widget or selection-toolbar)
+ */
+export async function isPopupWindow(): Promise<boolean> {
+  const label = await getWindowLabel();
+  return label === WINDOW_LABELS.CHAT_WIDGET || label === WINDOW_LABELS.SELECTION_TOOLBAR;
 }
 
 /**

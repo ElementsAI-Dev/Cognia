@@ -1,5 +1,5 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { usePPTAI } from './use-ppt-ai';
+import { usePPTAI, type AISlideResult, type AIContentResult, type AISuggestionsResult } from './use-ppt-ai';
 import type { PPTSlide, PPTPresentation } from '@/types/workflow';
 
 // Mock fetch
@@ -108,7 +108,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: AISlideResult | undefined;
       await act(async () => {
         response = await result.current.regenerateSlide({ slide: mockSlide });
       });
@@ -181,7 +181,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: AISlideResult | undefined;
       await act(async () => {
         response = await result.current.regenerateSlide({ slide: mockSlide });
       });
@@ -203,7 +203,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: AISlideResult | undefined;
       await act(async () => {
         response = await result.current.regenerateSlide({ slide: mockSlide });
       });
@@ -229,7 +229,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: AIContentResult | undefined;
       await act(async () => {
         response = await result.current.optimizeContent({
           content: 'Original content',
@@ -311,7 +311,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: AIContentResult | undefined;
       await act(async () => {
         response = await result.current.optimizeContent({
           content: 'Test',
@@ -343,7 +343,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: AISuggestionsResult | undefined;
       await act(async () => {
         response = await result.current.generateSuggestions({
           slide: mockSlide,
@@ -393,7 +393,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: AISuggestionsResult | undefined;
       await act(async () => {
         response = await result.current.generateSuggestions({
           slide: mockSlide,
@@ -426,7 +426,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: { success: boolean; outline?: unknown[]; error?: string } | undefined;
       await act(async () => {
         response = await result.current.generateOutline('AI in Healthcare', 5);
       });
@@ -478,7 +478,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: { success: boolean; outline?: unknown[]; error?: string } | undefined;
       await act(async () => {
         response = await result.current.generateOutline('Test', 1);
       });
@@ -491,7 +491,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: { success: boolean; outline?: unknown[]; error?: string } | undefined;
       await act(async () => {
         response = await result.current.generateOutline('Test', 5);
       });
@@ -516,7 +516,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: { success: boolean; bullets?: string[]; error?: string } | undefined;
       await act(async () => {
         response = await result.current.expandBullets(['Point 1', 'Point 2', 'Point 3'], 5);
       });
@@ -555,7 +555,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: { success: boolean; bullets?: string[]; error?: string } | undefined;
       await act(async () => {
         response = await result.current.expandBullets(['Test'], 5);
       });
@@ -580,7 +580,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: { success: boolean; notes?: string; error?: string } | undefined;
       await act(async () => {
         response = await result.current.improveSlideNotes(mockSlide);
       });
@@ -624,7 +624,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: { success: boolean; notes?: string; error?: string } | undefined;
       await act(async () => {
         response = await result.current.improveSlideNotes(mockSlide);
       });
@@ -642,7 +642,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: AISlideResult | undefined;
       await act(async () => {
         response = await result.current.regenerateSlide({ slide: mockSlide });
       });
@@ -806,7 +806,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: AISlideResult | undefined;
       await act(async () => {
         response = await result.current.regenerateSlide({ slide: mockSlide });
       });
@@ -825,7 +825,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: AISlideResult | undefined;
       await act(async () => {
         response = await result.current.regenerateSlide({ slide: mockSlide });
       });
@@ -841,7 +841,7 @@ describe('usePPTAI', () => {
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response;
+      let response: AISlideResult | undefined;
       await act(async () => {
         response = await result.current.regenerateSlide({ slide: mockSlide });
       });

@@ -255,3 +255,16 @@ export {
   selectOperationStatus,
   selectLastError,
 } from './git';
+
+// A2UI stores
+export {
+  useA2UIStore,
+  selectSurface,
+  selectActiveSurface,
+  selectSurfaceComponents,
+  selectSurfaceDataModel,
+  selectIsSurfaceLoading,
+  selectSurfaceError,
+  selectEventHistory,
+  selectRecentEvents,
+} from './a2ui';

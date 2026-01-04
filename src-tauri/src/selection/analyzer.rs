@@ -257,8 +257,12 @@ impl TextAnalyzer {
         }
 
         let first_line = text.lines().next().unwrap_or("");
-        if first_line.len() > 10 {
-            let start = &first_line[..10.min(first_line.len())];
+        // Use char_indices to safely slice UTF-8 strings at character boundaries
+        let char_count = first_line.chars().count();
+        if char_count > 10 {
+            // Get the byte index of the 10th character (or end of string)
+            let end_byte = first_line.char_indices().nth(10).map(|(i, _)| i).unwrap_or(first_line.len());
+            let start = &first_line[..end_byte];
             if start.contains('-') && start.chars().filter(|c| c.is_numeric()).count() >= 4 {
                 return true;
             }

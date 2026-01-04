@@ -9,7 +9,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createMistral } from '@ai-sdk/mistral';
-import { proxyFetch, isProxyEnabled, getCurrentProxyUrl } from '@/lib/proxy-fetch';
+import { proxyFetch, isProxyEnabled, getCurrentProxyUrl } from '@/lib/network/proxy-fetch';
 import type { ProviderName } from '@/types/provider';
 
 export interface ProxyProviderOptions {

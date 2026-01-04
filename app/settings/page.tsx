@@ -146,7 +146,7 @@ export default function SettingsPage() {
   // Detect Tauri environment - using useMemo to avoid SSR hydration issues
   const isDesktop = useMemo(() => {
     if (typeof window === 'undefined') return false;
-    return '__TAURI__' in window;
+    return '__TAURI_INTERNALS__' in window;
   }, []);
 
   const handleResetSettings = () => {

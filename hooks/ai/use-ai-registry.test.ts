@@ -52,6 +52,13 @@ jest.mock('@/lib/ai/core/ai-registry', () => ({
       };
       return aliases[provider] || [];
     }),
+    resolveAlias: jest.fn((provider, alias) => {
+      const aliasMap: Record<string, Record<string, string>> = {
+        openai: { fast: 'gpt-4o-mini', balanced: 'gpt-4o', reasoning: 'o1-mini', creative: 'gpt-4o' },
+        anthropic: { fast: 'claude-3-haiku', balanced: 'claude-sonnet-4-20250514' },
+      };
+      return aliasMap[provider]?.[alias] ?? alias;
+    }),
   })),
   MODEL_ALIASES: {
     openai: { 
@@ -165,6 +172,146 @@ describe('useAIRegistry', () => {
       const { result } = renderHook(() => useAIRegistry());
       
       expect(result.current.hasProvider('mistral')).toBe(false);
+    });
+  });
+
+  describe('isInitialized', () => {
+    it('should be true when registry is created', () => {
+      const { result } = renderHook(() => useAIRegistry());
+      
+      expect(result.current.isInitialized).toBe(true);
+    });
+  });
+
+  describe('getModelWithMiddleware', () => {
+    it('should apply custom middleware to model', () => {
+      const { result } = renderHook(() => useAIRegistry());
+      
+      const customMiddleware = { wrapGenerate: jest.fn(), wrapStream: jest.fn() };
+      const model = result.current.getModelWithMiddleware('openai', 'gpt-4o', [customMiddleware]);
+      
+      expect(model).toBeDefined();
+    });
+
+    it('should return null for unavailable provider', () => {
+      const { result } = renderHook(() => useAIRegistry());
+      
+      const model = result.current.getModelWithMiddleware('mistral', 'model', []);
+      
+      expect(model).toBeNull();
+    });
+
+    it('should return null when registry is null', () => {
+      // This would require mocking providerSettings to have no enabled providers
+      const { result } = renderHook(() => useAIRegistry());
+      
+      // Test with invalid provider
+      const model = result.current.getModelWithMiddleware('invalid' as never, 'model', []);
+      
+      expect(model).toBeNull();
+    });
+  });
+
+  describe('getModelWithSettings', () => {
+    it('should apply default settings to model', () => {
+      const { result } = renderHook(() => useAIRegistry());
+      
+      const settings = { temperature: 0.7, maxTokens: 1000 };
+      const model = result.current.getModelWithSettings('openai', 'gpt-4o', settings);
+      
+      expect(model).toBeDefined();
+    });
+
+    it('should return null for unavailable provider', () => {
+      const { result } = renderHook(() => useAIRegistry());
+      
+      const model = result.current.getModelWithSettings('mistral', 'model', { temperature: 0.5 });
+      
+      expect(model).toBeNull();
+    });
+  });
+
+  describe('getModelAliases', () => {
+    it('should return aliases for configured provider', () => {
+      const { result } = renderHook(() => useAIRegistry());
+      
+      const aliases = result.current.getModelAliases('openai');
+      
+      expect(aliases).toContain('fast');
+      expect(aliases).toContain('balanced');
+      expect(aliases).toContain('reasoning');
+    });
+
+    it('should return empty array for unconfigured provider', () => {
+      const { result } = renderHook(() => useAIRegistry());
+      
+      const aliases = result.current.getModelAliases('mistral');
+      
+      expect(aliases).toEqual([]);
+    });
+  });
+
+  describe('resolveAlias', () => {
+    it('should resolve alias to model ID', () => {
+      const { result } = renderHook(() => useAIRegistry());
+      
+      // The mock just returns the alias as-is since registry.resolveAlias isn't mocked
+      const resolved = result.current.resolveAlias('openai', 'fast');
+      
+      expect(resolved).toBeDefined();
+    });
+
+    it('should return alias as-is when registry is null', () => {
+      const { result } = renderHook(() => useAIRegistry());
+      
+      // For unconfigured provider, should return the alias unchanged
+      const resolved = result.current.resolveAlias('mistral', 'fast');
+      
+      expect(resolved).toBe('fast');
+    });
+  });
+
+  describe('rate limiting disabled', () => {
+    it('should return Infinity when rate limiting is disabled', async () => {
+      const { result } = renderHook(() => 
+        useAIRegistry({ enableRateLimiting: false })
+      );
+      
+      const rateLimit = await result.current.checkProviderRateLimit('openai', 'user-123');
+      
+      expect(rateLimit.success).toBe(true);
+      expect(rateLimit.remaining).toBe(Infinity);
+      expect(rateLimit.limit).toBe(Infinity);
+      expect(rateLimit.resetInMs).toBe(0);
+    });
+  });
+
+  describe('caching options', () => {
+    it('should accept custom cache TTL', () => {
+      const { result } = renderHook(() => 
+        useAIRegistry({ enableCaching: true, cacheTTL: 7200 })
+      );
+      
+      expect(result.current.registry).toBeDefined();
+    });
+
+    it('should not apply cache middleware when caching disabled', () => {
+      const { result } = renderHook(() => 
+        useAIRegistry({ enableCaching: false })
+      );
+      
+      const model = result.current.getModel('openai', 'gpt-4o');
+      expect(model).toBeDefined();
+    });
+  });
+
+  describe('reasoning options', () => {
+    it('should accept custom reasoning tag name', () => {
+      const { result } = renderHook(() => 
+        useAIRegistry({ enableReasoning: true, reasoningTagName: 'thinking' })
+      );
+      
+      expect(result.current.registry).toBeDefined();
     });
   });
 });

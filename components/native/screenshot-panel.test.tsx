@@ -90,7 +90,7 @@ const mockHistoryItems = [
   },
 ];
 
-jest.mock('@/hooks/use-screenshot', () => ({
+jest.mock('@/hooks/native/use-screenshot', () => ({
   useScreenshot: () => ({
     isCapturing: false,
     lastScreenshot: mockLastScreenshot,

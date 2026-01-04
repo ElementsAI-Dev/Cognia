@@ -46,7 +46,7 @@ jest.mock('@/components/chat/renderers/loading-animation', () => ({
 }));
 
 // Mock empty state
-jest.mock('@/components/ui/empty-state', () => ({
+jest.mock('@/components/layout/empty-state', () => ({
   EmptyState: ({ title, description }: { title: string; description: string }) => (
     <div data-testid="empty-state">
       <h3>{title}</h3>

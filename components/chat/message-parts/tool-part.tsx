@@ -35,9 +35,20 @@ import {
   Check,
 } from 'lucide-react';
 import type { ToolInvocationPart, ToolState } from '@/types/message';
+import type { McpServerStatus } from '@/types/mcp';
+import { A2UIToolOutput, hasA2UIToolOutput } from '@/components/a2ui';
+import { MCPServerBadge } from '@/components/mcp';
 
 interface ToolPartProps {
   part: ToolInvocationPart;
+  /** MCP server ID (if this is an MCP tool call) */
+  serverId?: string;
+  /** MCP server display name */
+  serverName?: string;
+  /** MCP server status */
+  serverStatus?: McpServerStatus;
+  /** Show detailed view with tabs */
+  showDetails?: boolean;
   onRetry?: () => void;
   onApprove?: () => void;
   onDeny?: () => void;
@@ -114,8 +125,18 @@ function StateIndicator({ state }: { state: ToolState }) {
   );
 }
 
-export function ToolPart({ part, onRetry, onApprove, onDeny }: ToolPartProps) {
+export function ToolPart({ 
+  part, 
+  serverId,
+  serverName,
+  serverStatus,
+  showDetails = false,
+  onRetry, 
+  onApprove, 
+  onDeny 
+}: ToolPartProps) {
   const t = useTranslations('toolStatus');
+  const tMcp = useTranslations('mcp');
   const [copied, setCopied] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   
@@ -166,6 +187,21 @@ export function ToolPart({ part, onRetry, onApprove, onDeny }: ToolPartProps) {
         type="tool-invocation"
         state={mapToolState(part.state)}
       />
+      {/* MCP Server badge - show when server info is available */}
+      {serverId && (
+        <div className="px-4 py-1.5 border-b border-border/30 bg-muted/10">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{tMcp('server')}:</span>
+            <MCPServerBadge
+              serverId={serverId}
+              serverName={serverName}
+              status={serverStatus}
+              size="sm"
+              showStatus={!!serverStatus}
+            />
+          </div>
+        </div>
+      )}
       <ToolContent>
         {/* Enhanced metadata bar */}
         <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-border/30 bg-muted/20">
@@ -177,6 +213,20 @@ export function ToolPart({ part, onRetry, onApprove, onDeny }: ToolPartProps) {
               <span className="text-xs text-muted-foreground font-mono">
                 {formatDuration(displayTime)}
               </span>
+            )}
+            
+            {/* Tool call ID for debugging */}
+            {showDetails && (
+              <Tooltip>
+                <TooltipTrigger>
+                  <span className="text-[10px] text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded">
+                    {part.toolCallId.slice(0, 8)}...
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <span className="font-mono text-xs">{part.toolCallId}</span>
+                </TooltipContent>
+              </Tooltip>
             )}
             
             {/* Risk level indicator */}
@@ -293,7 +343,15 @@ export function ToolPart({ part, onRetry, onApprove, onDeny }: ToolPartProps) {
         ) : null}
         
         {isComplete && part.result !== undefined ? (
-          <ToolOutput output={part.result} errorText={part.errorText} />
+          hasA2UIToolOutput(part.result) ? (
+            <A2UIToolOutput
+              toolId={part.toolCallId}
+              toolName={part.toolName}
+              output={part.result}
+            />
+          ) : (
+            <ToolOutput output={part.result} errorText={part.errorText} />
+          )
         ) : null}
       </ToolContent>
     </Tool>

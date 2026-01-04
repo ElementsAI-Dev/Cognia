@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 // Check if we're in a Tauri environment (evaluated at runtime)
-const checkIsTauri = () => typeof window !== 'undefined' && '__TAURI__' in window;
+const checkIsTauri = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 export interface StrongholdState {
   isInitialized: boolean;

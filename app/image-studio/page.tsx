@@ -102,7 +102,7 @@ import {
   BackgroundRemover,
   BatchExportDialog,
 } from '@/components/image-studio';
-import { proxyFetch } from '@/lib/proxy-fetch';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import {
   generateImage,
   editImage,

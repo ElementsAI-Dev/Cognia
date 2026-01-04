@@ -92,6 +92,13 @@ const createMockHookReturn = (overrides?: Partial<ReturnType<typeof useLearningM
   getProgressReport: jest.fn(),
   getSessionSummary: jest.fn(),
   getProgressSummary: jest.fn(),
+  getStatusLine: jest.fn().mockReturnValue(''),
+  getFormattedGoals: jest.fn().mockReturnValue(''),
+  getFormattedSubQuestions: jest.fn().mockReturnValue(''),
+  getAdaptivePrompt: jest.fn().mockReturnValue(''),
+  getCelebrationMessage: jest.fn().mockReturnValue(''),
+  getEncouragement: jest.fn().mockReturnValue(''),
+  getContextualHint: jest.fn().mockReturnValue(''),
   updateConfig: jest.fn(),
   ...overrides,
 });

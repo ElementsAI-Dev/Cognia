@@ -22,7 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CopyButton } from '@/components/ui/copy-button';
+import { CopyButton } from '@/components/chat/copy-button';
 import { Separator } from '@/components/ui/separator';
 import {
   ResizableHandle,

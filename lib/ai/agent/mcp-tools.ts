@@ -103,6 +103,32 @@ export function formatMcpToolResult(result: ToolCallResult): string {
 }
 
 /**
+ * Check if a tool name is an MCP tool
+ */
+export function isMcpTool(toolName: string): boolean {
+  return toolName.startsWith('mcp_');
+}
+
+/**
+ * Extract MCP server info from tool name
+ * MCP tools follow the pattern: mcp_${serverId}_${toolName}
+ */
+export function extractMcpServerInfo(toolName: string): { serverId: string; originalToolName: string } | null {
+  if (!isMcpTool(toolName)) return null;
+  
+  // Remove 'mcp_' prefix and split by underscore
+  const withoutPrefix = toolName.slice(4); // Remove 'mcp_'
+  const firstUnderscoreIdx = withoutPrefix.indexOf('_');
+  
+  if (firstUnderscoreIdx === -1) return null;
+  
+  return {
+    serverId: withoutPrefix.slice(0, firstUnderscoreIdx),
+    originalToolName: withoutPrefix.slice(firstUnderscoreIdx + 1),
+  };
+}
+
+/**
  * Convert a single MCP tool to AgentTool format
  */
 export function convertMcpToolToAgentTool(

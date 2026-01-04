@@ -138,7 +138,7 @@ impl ChatWidgetWindow {
         .decorations(false)
         .transparent(true)
         .always_on_top(config.pinned)
-        .skip_taskbar(false)
+        .skip_taskbar(true)
         .resizable(true)
         .visible(false)
         .focused(true)

@@ -3,7 +3,7 @@
  * Supports multiple CDN providers: esm.sh, skypack, unpkg, jsdelivr
  */
 
-import { proxyFetch } from '@/lib/proxy-fetch';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 
 export type CDNProvider = 'esm.sh' | 'skypack' | 'unpkg' | 'jsdelivr';
 

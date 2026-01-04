@@ -15,8 +15,8 @@ use tokio_util::sync::CancellationToken;
 pub const TOOLBAR_WINDOW_LABEL: &str = "selection-toolbar";
 
 /// Toolbar window dimensions
-const TOOLBAR_WIDTH: f64 = 280.0;
-const TOOLBAR_HEIGHT: f64 = 56.0;
+const TOOLBAR_WIDTH: f64 = 520.0;
+const TOOLBAR_HEIGHT: f64 = 80.0;
 
 /// Default auto-hide timeout in milliseconds (0 = disabled)
 const DEFAULT_AUTO_HIDE_MS: u64 = 0;

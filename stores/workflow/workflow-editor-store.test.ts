@@ -38,7 +38,7 @@ jest.mock('@/lib/workflow-editor', () => ({
   validateVisualWorkflow: jest.fn(() => []),
 }));
 
-jest.mock('./settings-store', () => ({
+jest.mock('../settings/settings-store', () => ({
   useSettingsStore: {
     getState: () => ({
       defaultProvider: 'openai',

@@ -52,3 +52,10 @@ export {
   type UseLearningToolsOptions,
   type UseLearningToolsReturn,
 } from './use-learning-tools';
+export {
+  useClipboardMonitor,
+  type ClipboardContent,
+  type ClipboardAnalysis as ClipboardMonitorAnalysis,
+  type UseClipboardMonitorOptions,
+} from './use-clipboard-monitor';
+export { useMediaQuery } from './use-media-query';

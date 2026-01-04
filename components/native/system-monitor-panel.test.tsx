@@ -19,7 +19,7 @@ const mockSystemState = {
   network_connected: true,
 };
 
-jest.mock('@/hooks/use-awareness', () => ({
+jest.mock('@/hooks/context', () => ({
   useAwareness: () => ({
     systemState: mockSystemState,
     isLoading: false,

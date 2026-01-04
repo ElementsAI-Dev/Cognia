@@ -13,7 +13,7 @@ import type {
   A2UIUserAction,
   A2UIDataModelChange,
 } from '@/types/a2ui';
-import { useA2UIStore } from '@/stores/a2ui-store';
+import { useA2UIStore } from '@/stores/a2ui';
 import { globalEventEmitter } from '@/lib/a2ui/events';
 import { A2UIProvider } from './a2ui-context';
 import { A2UIRenderer } from './a2ui-renderer';

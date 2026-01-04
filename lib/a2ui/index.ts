@@ -80,3 +80,33 @@ export {
   type A2UIDataChangeHandler,
   type ValidationResult,
 } from './events';
+
+// App Templates
+export {
+  appTemplates,
+  getTemplateById,
+  getTemplatesByCategory,
+  searchTemplates,
+  createAppFromTemplate,
+  generateTemplateId,
+  templateCategories,
+  todoListTemplate,
+  calculatorTemplate,
+  surveyFormTemplate,
+  dataDashboardTemplate,
+  timerTemplate,
+  notesTemplate,
+  weatherTemplate,
+  contactFormTemplate,
+  type A2UIAppTemplate,
+} from './templates';
+
+// App Generator (AI-powered app generation)
+export {
+  generateAppFromDescription,
+  detectAppType,
+  extractAppName,
+  appPatterns,
+  type AppGenerationRequest,
+  type GeneratedApp,
+} from './app-generator';

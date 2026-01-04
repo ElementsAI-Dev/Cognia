@@ -14,7 +14,7 @@ const mockLanguages = [
 
 const mockRuntimes = ['docker'];
 
-jest.mock('@/hooks/use-sandbox', () => ({
+jest.mock('@/hooks/sandbox', () => ({
   useSandbox: () => ({
     isAvailable: true,
     isLoading: false,
@@ -23,9 +23,6 @@ jest.mock('@/hooks/use-sandbox', () => ({
     error: null,
     refreshStatus: mockRefreshStatus,
   }),
-}));
-
-jest.mock('@/hooks/use-sandbox-db', () => ({
   useCodeExecution: () => ({
     result: null,
     executing: false,

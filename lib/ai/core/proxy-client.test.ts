@@ -23,7 +23,7 @@ import {
 } from './proxy-client';
 
 // Mock proxy-fetch module
-jest.mock('@/lib/proxy-fetch', () => ({
+jest.mock('@/lib/network/proxy-fetch', () => ({
   proxyFetch: jest.fn(),
   isProxyEnabled: jest.fn(() => true),
   getCurrentProxyUrl: jest.fn(() => 'http://localhost:8080'),
@@ -352,7 +352,7 @@ describe('proxy-client', () => {
     });
 
     it('should log proxy disabled status when proxy is off', () => {
-      const { isProxyEnabled } = jest.requireMock('@/lib/proxy-fetch');
+      const { isProxyEnabled } = jest.requireMock('@/lib/network/proxy-fetch');
       isProxyEnabled.mockReturnValueOnce(false);
 
       logProxyStatus();

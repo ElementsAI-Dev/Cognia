@@ -38,7 +38,7 @@ import {
   InputGroupButton,
 } from '@/components/ui/input-group';
 import { Badge } from '@/components/ui/badge';
-import { EmptyState } from '@/components/ui/empty-state';
+import { EmptyState } from '@/components/layout/empty-state';
 import {
   DropdownMenu,
   DropdownMenuContent,

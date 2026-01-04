@@ -24,11 +24,11 @@ const nextConfig: NextConfig = {
   // Turbopack config - alias Tauri plugins and Node.js-only packages to stubs for browser/SSR builds
   turbopack: {
     resolveAlias: {
-      '@tauri-apps/plugin-fs': './lib/tauri-stubs.ts',
-      '@tauri-apps/plugin-dialog': './lib/tauri-stubs.ts',
-      '@tauri-apps/plugin-shell': './lib/tauri-stubs.ts',
-      '@zilliz/milvus2-sdk-node': './lib/milvus-stub.ts',
-      'monaco-editor': './lib/monaco-stub.ts',
+      '@tauri-apps/plugin-fs': './lib/stubs/tauri-stubs.ts',
+      '@tauri-apps/plugin-dialog': './lib/stubs/tauri-stubs.ts',
+      '@tauri-apps/plugin-shell': './lib/stubs/tauri-stubs.ts',
+      '@zilliz/milvus2-sdk-node': './lib/stubs/milvus-stub.ts',
+      'monaco-editor': './lib/stubs/monaco-stub.ts',
     },
   },
   // Webpack config for production builds (non-Turbopack)
@@ -37,8 +37,8 @@ const nextConfig: NextConfig = {
     if (!isServer) {
       config.resolve.alias = {
         ...config.resolve.alias,
-        '@zilliz/milvus2-sdk-node': require.resolve('./lib/milvus-stub.ts'),
-        'monaco-editor': require.resolve('./lib/monaco-stub.ts'),
+        '@zilliz/milvus2-sdk-node': require.resolve('./lib/stubs/milvus-stub.ts'),
+        'monaco-editor': require.resolve('./lib/stubs/monaco-stub.ts'),
       };
       config.resolve.fallback = {
         ...config.resolve.fallback,

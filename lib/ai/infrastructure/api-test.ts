@@ -3,7 +3,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import { proxyFetch } from '@/lib/proxy-fetch';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 
 export interface ApiTestResult {
   success: boolean;
@@ -16,7 +16,7 @@ export interface ApiTestResult {
  * Check if running in Tauri environment
  */
 function isInTauri(): boolean {
-  return typeof window !== 'undefined' && '__TAURI__' in window;
+  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
 
 /**

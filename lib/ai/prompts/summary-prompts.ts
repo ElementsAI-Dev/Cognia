@@ -428,8 +428,10 @@ export function detectConversationLanguage(messages: UIMessage[]): string {
   const _totalSpecialChars = chineseChars + japaneseChars + koreanChars + cyrillicChars + arabicChars;
   const threshold = sampleText.length * 0.1;
 
+  // Check Japanese first - hiragana/katakana are uniquely Japanese
+  // Japanese text may also contain Kanji (Chinese chars), but hiragana/katakana identify it as Japanese
+  if (japaneseChars > 0) return 'Japanese';
   if (chineseChars > threshold) return 'Chinese';
-  if (japaneseChars > threshold) return 'Japanese';
   if (koreanChars > threshold) return 'Korean';
   if (cyrillicChars > threshold) return 'Russian';
   if (arabicChars > threshold) return 'Arabic';

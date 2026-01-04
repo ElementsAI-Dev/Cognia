@@ -214,18 +214,42 @@ export function parseA2UIJsonl(content: string): A2UIParseResult {
 
 /**
  * Detect if content contains A2UI messages
+ * Supports multiple formats:
+ * - Standard A2UI protocol messages (createSurface, updateComponents, etc.)
+ * - Simplified A2UI format with "surface" and "components" keys
+ * - A2UI code blocks with ```a2ui language identifier
  */
 export function detectA2UIContent(content: string): boolean {
+  // Check for A2UI code blocks first (most explicit)
+  if (/```a2ui\s*\n/i.test(content)) {
+    return true;
+  }
+
   // Quick heuristic checks before attempting parse
-  if (!content.includes('"type"')) {
+  if (!content.includes('"')) {
     return false;
   }
 
+  // Check for standard A2UI protocol messages
   const a2uiTypes = ['createSurface', 'updateComponents', 'dataModelUpdate', 'deleteSurface', 'surfaceReady'];
-
   for (const type of a2uiTypes) {
     if (content.includes(`"${type}"`)) {
       return true;
+    }
+  }
+
+  // Check for simplified A2UI format (surface + components)
+  if (content.includes('"surface"') && content.includes('"components"')) {
+    return true;
+  }
+
+  // Check for component-only format (just components array with A2UI component types)
+  const componentTypes = ['Button', 'TextField', 'Select', 'Slider', 'Card', 'Row', 'Column', 'Chart', 'Table'];
+  if (content.includes('"component"')) {
+    for (const type of componentTypes) {
+      if (content.includes(`"${type}"`)) {
+        return true;
+      }
     }
   }
 
@@ -233,81 +257,165 @@ export function detectA2UIContent(content: string): boolean {
 }
 
 /**
+ * Parse simplified A2UI format into standard messages
+ * Simplified format: { surface: {...}, components: [...], dataModel?: {...} }
+ */
+function parseSimplifiedA2UI(json: Record<string, unknown>): A2UIServerMessage[] | null {
+  const surface = json.surface as Record<string, unknown> | undefined;
+  const components = json.components as A2UIComponent[] | undefined;
+  const dataModel = json.dataModel as Record<string, unknown> | undefined;
+
+  if (!components || !Array.isArray(components)) {
+    return null;
+  }
+
+  const surfaceId = (surface?.id as string) || `surface-${Date.now()}`;
+  const surfaceType = (surface?.type as 'inline' | 'dialog' | 'panel' | 'fullscreen') || 'inline';
+  const title = surface?.title as string | undefined;
+
+  const messages: A2UIServerMessage[] = [
+    {
+      type: 'createSurface',
+      surfaceId,
+      surfaceType,
+      title,
+    },
+    {
+      type: 'updateComponents',
+      surfaceId,
+      components,
+    },
+  ];
+
+  if (dataModel && Object.keys(dataModel).length > 0) {
+    messages.push({
+      type: 'dataModelUpdate',
+      surfaceId,
+      data: dataModel,
+    });
+  }
+
+  messages.push({
+    type: 'surfaceReady',
+    surfaceId,
+  });
+
+  return messages;
+}
+
+/**
  * Extract A2UI content from mixed AI response
  * Looks for JSON blocks that contain A2UI messages
+ * Supports multiple formats:
+ * - ```a2ui code blocks (preferred)
+ * - ```json code blocks with A2UI content
+ * - Simplified format: { surface: {...}, components: [...] }
+ * - Standard A2UI protocol messages
  */
 export function extractA2UIFromResponse(response: string): A2UIMessageContent | null {
-  // Try to find JSON code blocks
+  // Priority 1: Try to find A2UI-specific code blocks (```a2ui)
+  const a2uiBlockRegex = /```a2ui\s*\n?([\s\S]*?)\n?```/gi;
+  let match = a2uiBlockRegex.exec(response);
+  
+  if (match) {
+    const jsonContent = match[1].trim();
+    const result = tryParseA2UIContent(jsonContent);
+    if (result) return result;
+  }
+
+  // Priority 2: Try to find JSON code blocks
   const jsonBlockRegex = /```(?:json)?\s*\n?([\s\S]*?)\n?```/g;
-  let match;
 
   while ((match = jsonBlockRegex.exec(response)) !== null) {
     const jsonContent = match[1].trim();
     if (detectA2UIContent(jsonContent)) {
-      const parseResult = parseA2UIString(jsonContent);
-      if (parseResult.success && parseResult.messages.length > 0) {
-        // Extract surfaceId from first createSurface message or first message with surfaceId
-        let surfaceId = 'default';
-        for (const msg of parseResult.messages) {
-          if ('surfaceId' in msg) {
-            surfaceId = msg.surfaceId;
-            break;
-          }
-        }
-
-        return {
-          type: 'a2ui',
-          surfaceId,
-          messages: parseResult.messages,
-        };
-      }
+      const result = tryParseA2UIContent(jsonContent);
+      if (result) return result;
     }
   }
 
-  // Try parsing raw JSON if no code blocks found
+  // Priority 3: Try parsing raw JSON if no code blocks found
   if (detectA2UIContent(response)) {
-    // Try to extract JSON object or array
-    const jsonStart = response.indexOf('{');
-    const jsonArrayStart = response.indexOf('[');
-    const startIndex = jsonStart >= 0 && jsonArrayStart >= 0 
-      ? Math.min(jsonStart, jsonArrayStart)
-      : Math.max(jsonStart, jsonArrayStart);
+    const jsonContent = extractJsonFromText(response);
+    if (jsonContent) {
+      const result = tryParseA2UIContent(jsonContent);
+      if (result) return result;
+    }
+  }
 
-    if (startIndex >= 0) {
-      // Find matching end bracket
-      let depth = 0;
-      let endIndex = startIndex;
+  return null;
+}
 
-      for (let i = startIndex; i < response.length; i++) {
-        const char = response[i];
-        if (char === '{' || char === '[') depth++;
-        if (char === '}' || char === ']') depth--;
-        if (depth === 0) {
-          endIndex = i;
+/**
+ * Try to parse A2UI content from JSON string
+ */
+function tryParseA2UIContent(jsonContent: string): A2UIMessageContent | null {
+  try {
+    const json = JSON.parse(jsonContent);
+
+    // Try simplified format first
+    if (json.surface || json.components) {
+      const messages = parseSimplifiedA2UI(json);
+      if (messages && messages.length > 0) {
+        const surfaceId = messages.find(m => 'surfaceId' in m)?.surfaceId as string || 'default';
+        return {
+          type: 'a2ui',
+          surfaceId,
+          messages,
+        };
+      }
+    }
+
+    // Try standard A2UI protocol format
+    const parseResult = parseA2UIMessages(json);
+    if (parseResult.success && parseResult.messages.length > 0) {
+      let surfaceId = 'default';
+      for (const msg of parseResult.messages) {
+        if ('surfaceId' in msg) {
+          surfaceId = msg.surfaceId;
           break;
         }
       }
-
-      if (endIndex > startIndex) {
-        const jsonContent = response.substring(startIndex, endIndex + 1);
-        const parseResult = parseA2UIString(jsonContent);
-        if (parseResult.success && parseResult.messages.length > 0) {
-          let surfaceId = 'default';
-          for (const msg of parseResult.messages) {
-            if ('surfaceId' in msg) {
-              surfaceId = msg.surfaceId;
-              break;
-            }
-          }
-
-          return {
-            type: 'a2ui',
-            surfaceId,
-            messages: parseResult.messages,
-          };
-        }
-      }
+      return {
+        type: 'a2ui',
+        surfaceId,
+        messages: parseResult.messages,
+      };
     }
+  } catch {
+    // JSON parse failed, return null
+  }
+  return null;
+}
+
+/**
+ * Extract JSON object or array from text
+ */
+function extractJsonFromText(text: string): string | null {
+  const jsonStart = text.indexOf('{');
+  const jsonArrayStart = text.indexOf('[');
+  const startIndex = jsonStart >= 0 && jsonArrayStart >= 0 
+    ? Math.min(jsonStart, jsonArrayStart)
+    : Math.max(jsonStart, jsonArrayStart);
+
+  if (startIndex < 0) return null;
+
+  // Find matching end bracket
+  let depth = 0;
+  let endIndex = startIndex;
+
+  for (let i = startIndex; i < text.length; i++) {
+    const char = text[i];
+    if (char === '{' || char === '[') depth++;
+    if (char === '}' || char === ']') depth--;
+    if (depth === 0) {
+      endIndex = i;
+      break;
+    }
+  }
+
+  if (endIndex > startIndex) {
+    return text.substring(startIndex, endIndex + 1);
   }
 
   return null;
