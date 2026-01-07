@@ -22,6 +22,7 @@ import {
   Upload,
   Download,
   FolderGit2,
+  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +43,7 @@ import { useGit } from '@/hooks/native/use-git';
 import { GitBranchManager } from './git-branch-manager';
 import { GitCommitHistory } from './git-commit-history';
 import { GitFileTree } from './git-file-tree';
+import { GitStashPanel } from './git-stash-panel';
 import { formatCommitDate, formatCommitMessage } from '@/types/git';
 import { cn } from '@/lib/utils';
 
@@ -56,12 +58,14 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
   const tCommon = useTranslations('common');
 
   const {
+    isDesktopAvailable,
     isInstalled,
     isCheckingGit,
     currentRepo,
     branches,
     commits,
     fileStatus,
+    stashList,
     isOperating,
     error,
     installGit,
@@ -77,6 +81,11 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
     deleteBranch,
     checkout,
     discardChanges,
+    stashSave,
+    stashPop,
+    stashApply,
+    stashDrop,
+    stashClear,
     clearError,
   } = useGit({
     repoPath,
@@ -142,6 +151,25 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
   const loadBranches = useCallback(async () => {
     await refreshStatus();
   }, [refreshStatus]);
+
+  // Desktop not available (web mode)
+  if (!isDesktopAvailable) {
+    return (
+      <div className={cn('p-4', className)}>
+        <div className="text-center py-8">
+          <GitBranch className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+          <h3 className="font-medium mb-2">{t('desktopRequired.title')}</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            {t('desktopRequired.description')}
+          </p>
+          <Button variant="outline" onClick={openGitWebsite}>
+            <ExternalLink className="h-4 w-4 mr-2" />
+            {t('desktopRequired.learnMore')}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // Not installed state
   if (!isInstalled && !isCheckingGit) {
@@ -219,7 +247,7 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
           <div className="flex items-center gap-2 min-w-0">
             <FolderGit2 className="h-4 w-4 shrink-0" />
             <span className="font-medium text-sm truncate">
-              {currentRepo?.path?.split('/').pop() || t('repository')}
+              {currentRepo?.path?.split(/[\/]/).pop() || t('repository')}
             </span>
           </div>
           <Button
@@ -334,6 +362,11 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
           <TabsTrigger value="stash" className="text-xs">
             <Archive className="h-3 w-3 mr-1" />
             {t('tabs.stash')}
+            {stashList.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-4 text-xs">
+                {stashList.length}
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -371,10 +404,16 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
           </TabsContent>
 
           <TabsContent value="stash" className="p-2 m-0">
-            <div className="text-center py-8 text-muted-foreground">
-              <Archive className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-sm">{t('stash.comingSoon')}</p>
-            </div>
+            <GitStashPanel
+              stashes={stashList}
+              isLoading={isOperating}
+              onStashSave={stashSave}
+              onStashPop={stashPop}
+              onStashApply={stashApply}
+              onStashDrop={stashDrop}
+              onStashClear={stashClear}
+              onRefresh={refreshStatus}
+            />
           </TabsContent>
         </ScrollArea>
       </Tabs>

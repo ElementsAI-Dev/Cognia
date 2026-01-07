@@ -4,10 +4,10 @@
 
 #![allow(dead_code)]
 
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::RwLock;
 
 /// Focus session information
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,7 +94,7 @@ impl FocusTracker {
     pub fn stop_tracking(&self) {
         use std::sync::atomic::Ordering;
         self.is_tracking.store(false, Ordering::SeqCst);
-        
+
         // End current session
         self.end_current_session();
         log::info!("Focus tracking stopped");
@@ -114,9 +114,16 @@ impl FocusTracker {
         }
 
         let now = chrono::Utc::now().timestamp_millis();
-        log::debug!("Recording focus change: app='{}', process='{}', title='{}'", 
-            app_name, process_name, 
-            if window_title.len() > 50 { &window_title[..50] } else { window_title });
+        log::debug!(
+            "Recording focus change: app='{}', process='{}', title='{}'",
+            app_name,
+            process_name,
+            if window_title.len() > 50 {
+                &window_title[..50]
+            } else {
+                window_title
+            }
+        );
 
         // End current session
         self.end_current_session();
@@ -138,15 +145,18 @@ impl FocusTracker {
     /// End the current focus session
     fn end_current_session(&self) {
         let now = chrono::Utc::now().timestamp_millis();
-        
+
         let mut current = self.current_session.write();
         if let Some(mut session) = current.take() {
             session.end_time = Some(now);
             session.duration_ms = (now - session.start_time) as u64;
             session.is_active = false;
 
-            log::trace!("Ending focus session: app='{}', duration={}ms", 
-                session.app_name, session.duration_ms);
+            log::trace!(
+                "Ending focus session: app='{}', duration={}ms",
+                session.app_name,
+                session.duration_ms
+            );
 
             // Add to history
             let mut sessions = self.sessions.write();
@@ -202,7 +212,9 @@ impl FocusTracker {
         // Get common titles
         let mut title_counts: HashMap<String, usize> = HashMap::new();
         for session in &app_sessions {
-            *title_counts.entry(session.window_title.clone()).or_insert(0) += 1;
+            *title_counts
+                .entry(session.window_title.clone())
+                .or_insert(0) += 1;
         }
         let mut titles: Vec<_> = title_counts.into_iter().collect();
         titles.sort_by(|a, b| b.1.cmp(&a.1));
@@ -221,7 +233,7 @@ impl FocusTracker {
     /// Get all application statistics
     pub fn get_all_app_stats(&self) -> Vec<AppUsageStats> {
         let sessions = self.sessions.read();
-        
+
         // Group by app
         let mut app_sessions: HashMap<String, Vec<&FocusSession>> = HashMap::new();
         for session in sessions.iter() {
@@ -246,11 +258,14 @@ impl FocusTracker {
                 // Get common titles
                 let mut title_counts: HashMap<String, usize> = HashMap::new();
                 for session in &sessions {
-                    *title_counts.entry(session.window_title.clone()).or_insert(0) += 1;
+                    *title_counts
+                        .entry(session.window_title.clone())
+                        .or_insert(0) += 1;
                 }
                 let mut titles: Vec<_> = title_counts.into_iter().collect();
                 titles.sort_by(|a, b| b.1.cmp(&a.1));
-                let common_titles: Vec<String> = titles.into_iter().take(5).map(|(t, _)| t).collect();
+                let common_titles: Vec<String> =
+                    titles.into_iter().take(5).map(|(t, _)| t).collect();
 
                 AppUsageStats {
                     app_name,
@@ -271,7 +286,7 @@ impl FocusTracker {
     /// Get daily usage summary
     pub fn get_daily_summary(&self, date: &str) -> DailyUsageSummary {
         let sessions = self.sessions.read();
-        
+
         // Parse date to get start/end timestamps
         let date_start = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d")
             .map(|d| d.and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp_millis())
@@ -347,10 +362,10 @@ mod tests {
     #[test]
     fn test_start_stop_tracking() {
         let tracker = FocusTracker::new();
-        
+
         tracker.start_tracking();
         assert!(tracker.is_tracking());
-        
+
         tracker.stop_tracking();
         assert!(!tracker.is_tracking());
     }
@@ -359,12 +374,12 @@ mod tests {
     fn test_record_focus_change() {
         let tracker = FocusTracker::new();
         tracker.start_tracking();
-        
+
         tracker.record_focus_change("VSCode", "code.exe", "main.rs - Project");
-        
+
         let current = tracker.get_current_session();
         assert!(current.is_some());
-        
+
         let session = current.unwrap();
         assert_eq!(session.app_name, "VSCode");
         assert_eq!(session.process_name, "code.exe");
@@ -374,9 +389,9 @@ mod tests {
     #[test]
     fn test_record_focus_change_when_not_tracking() {
         let tracker = FocusTracker::new();
-        
+
         tracker.record_focus_change("VSCode", "code.exe", "main.rs");
-        
+
         assert!(tracker.get_current_session().is_none());
     }
 
@@ -384,15 +399,15 @@ mod tests {
     fn test_multiple_focus_changes() {
         let tracker = FocusTracker::new();
         tracker.start_tracking();
-        
+
         tracker.record_focus_change("App1", "app1.exe", "Window 1");
         std::thread::sleep(std::time::Duration::from_millis(10));
         tracker.record_focus_change("App2", "app2.exe", "Window 2");
-        
+
         let current = tracker.get_current_session();
         assert!(current.is_some());
         assert_eq!(current.unwrap().app_name, "App2");
-        
+
         // Previous session should be in history
         assert_eq!(tracker.session_count(), 1);
     }
@@ -401,7 +416,7 @@ mod tests {
     fn test_get_recent_sessions() {
         let tracker = FocusTracker::new();
         tracker.start_tracking();
-        
+
         for i in 0..5 {
             tracker.record_focus_change(
                 &format!("App{}", i),
@@ -410,7 +425,7 @@ mod tests {
             );
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
-        
+
         let recent = tracker.get_recent_sessions(3);
         assert_eq!(recent.len(), 3);
     }
@@ -419,7 +434,7 @@ mod tests {
     fn test_get_app_stats() {
         let tracker = FocusTracker::new();
         tracker.start_tracking();
-        
+
         tracker.record_focus_change("VSCode", "code.exe", "file1.rs");
         std::thread::sleep(std::time::Duration::from_millis(10));
         tracker.record_focus_change("Chrome", "chrome.exe", "Google");
@@ -427,10 +442,10 @@ mod tests {
         tracker.record_focus_change("VSCode", "code.exe", "file2.rs");
         std::thread::sleep(std::time::Duration::from_millis(10));
         tracker.stop_tracking();
-        
+
         let stats = tracker.get_app_stats("vscode");
         assert!(stats.is_some());
-        
+
         let stats = stats.unwrap();
         assert_eq!(stats.session_count, 2);
     }
@@ -439,13 +454,13 @@ mod tests {
     fn test_get_all_app_stats() {
         let tracker = FocusTracker::new();
         tracker.start_tracking();
-        
+
         tracker.record_focus_change("App1", "app1.exe", "Window 1");
         std::thread::sleep(std::time::Duration::from_millis(5));
         tracker.record_focus_change("App2", "app2.exe", "Window 2");
         std::thread::sleep(std::time::Duration::from_millis(5));
         tracker.stop_tracking();
-        
+
         let all_stats = tracker.get_all_app_stats();
         assert_eq!(all_stats.len(), 2);
     }
@@ -454,16 +469,16 @@ mod tests {
     fn test_get_daily_summary() {
         let tracker = FocusTracker::new();
         tracker.start_tracking();
-        
+
         tracker.record_focus_change("App1", "app1.exe", "Window 1");
         std::thread::sleep(std::time::Duration::from_millis(5));
         tracker.record_focus_change("App2", "app2.exe", "Window 2");
         std::thread::sleep(std::time::Duration::from_millis(5));
         tracker.stop_tracking();
-        
+
         let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
         let summary = tracker.get_daily_summary(&today);
-        
+
         assert_eq!(summary.date, today);
         assert!(summary.total_active_ms > 0 || !summary.by_app.is_empty());
     }
@@ -472,7 +487,7 @@ mod tests {
     fn test_get_today_summary() {
         let tracker = FocusTracker::new();
         let summary = tracker.get_today_summary();
-        
+
         let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
         assert_eq!(summary.date, today);
     }
@@ -481,13 +496,13 @@ mod tests {
     fn test_clear() {
         let tracker = FocusTracker::new();
         tracker.start_tracking();
-        
+
         tracker.record_focus_change("App1", "app1.exe", "Window 1");
         std::thread::sleep(std::time::Duration::from_millis(5));
         tracker.record_focus_change("App2", "app2.exe", "Window 2");
-        
+
         tracker.clear();
-        
+
         assert_eq!(tracker.session_count(), 0);
         assert!(tracker.get_current_session().is_none());
     }
@@ -496,7 +511,7 @@ mod tests {
     fn test_get_all_sessions() {
         let tracker = FocusTracker::new();
         tracker.start_tracking();
-        
+
         for i in 0..5 {
             tracker.record_focus_change(
                 &format!("App{}", i),
@@ -506,7 +521,7 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
         tracker.stop_tracking();
-        
+
         let all_sessions = tracker.get_all_sessions();
         assert_eq!(all_sessions.len(), 5);
     }
@@ -529,13 +544,13 @@ mod tests {
             duration_ms: 1000,
             is_active: false,
         };
-        
+
         let json = serde_json::to_string(&session);
         assert!(json.is_ok());
-        
+
         let parsed: Result<FocusSession, _> = serde_json::from_str(&json.unwrap());
         assert!(parsed.is_ok());
-        
+
         let parsed_session = parsed.unwrap();
         assert_eq!(parsed_session.app_name, "TestApp");
         assert_eq!(parsed_session.duration_ms, 1000);
@@ -552,7 +567,7 @@ mod tests {
             duration_ms: 0,
             is_active: true,
         };
-        
+
         assert!(session.is_active);
         assert!(session.end_time.is_none());
     }
@@ -567,10 +582,10 @@ mod tests {
             last_used: chrono::Utc::now().timestamp_millis(),
             common_titles: vec!["main.rs".to_string(), "lib.rs".to_string()],
         };
-        
+
         let json = serde_json::to_string(&stats);
         assert!(json.is_ok());
-        
+
         let parsed: Result<AppUsageStats, _> = serde_json::from_str(&json.unwrap());
         assert!(parsed.is_ok());
         assert_eq!(parsed.unwrap().session_count, 10);
@@ -593,10 +608,10 @@ mod tests {
             ],
             switch_count: 20,
         };
-        
+
         let json = serde_json::to_string(&summary);
         assert!(json.is_ok());
-        
+
         let parsed: Result<DailyUsageSummary, _> = serde_json::from_str(&json.unwrap());
         assert!(parsed.is_ok());
         assert_eq!(parsed.unwrap().date, "2024-01-01");
@@ -613,7 +628,7 @@ mod tests {
             duration_ms: 1000,
             is_active: false,
         };
-        
+
         let cloned = session.clone();
         assert_eq!(cloned.app_name, session.app_name);
         assert_eq!(cloned.duration_ms, session.duration_ms);
@@ -630,7 +645,7 @@ mod tests {
             duration_ms: 0,
             is_active: true,
         };
-        
+
         let debug_str = format!("{:?}", session);
         assert!(debug_str.contains("Debug"));
         assert!(debug_str.contains("is_active"));
@@ -647,15 +662,15 @@ mod tests {
     fn test_get_app_stats_case_insensitive() {
         let tracker = FocusTracker::new();
         tracker.start_tracking();
-        
+
         tracker.record_focus_change("VSCode", "code.exe", "file.rs");
         std::thread::sleep(std::time::Duration::from_millis(10));
         tracker.stop_tracking();
-        
+
         // Should work with different cases
         let stats = tracker.get_app_stats("vscode");
         assert!(stats.is_some());
-        
+
         let stats = tracker.get_app_stats("VSCODE");
         assert!(stats.is_some());
     }
@@ -664,7 +679,7 @@ mod tests {
     fn test_daily_summary_empty() {
         let tracker = FocusTracker::new();
         let summary = tracker.get_daily_summary("2024-01-01");
-        
+
         assert_eq!(summary.date, "2024-01-01");
         assert_eq!(summary.total_active_ms, 0);
         assert!(summary.by_app.is_empty());
@@ -675,7 +690,7 @@ mod tests {
     fn test_daily_summary_invalid_date() {
         let tracker = FocusTracker::new();
         let summary = tracker.get_daily_summary("invalid-date");
-        
+
         // Should handle invalid date gracefully
         assert_eq!(summary.date, "invalid-date");
         assert_eq!(summary.total_active_ms, 0);
@@ -684,12 +699,12 @@ mod tests {
     #[test]
     fn test_concurrent_tracking() {
         let tracker = FocusTracker::new();
-        
+
         // Start tracking multiple times (should be idempotent)
         tracker.start_tracking();
         tracker.start_tracking();
         assert!(tracker.is_tracking());
-        
+
         // Stop tracking multiple times
         tracker.stop_tracking();
         tracker.stop_tracking();
@@ -700,13 +715,13 @@ mod tests {
     fn test_session_duration_calculation() {
         let tracker = FocusTracker::new();
         tracker.start_tracking();
-        
+
         tracker.record_focus_change("App", "app.exe", "Window");
         std::thread::sleep(std::time::Duration::from_millis(50));
-        
+
         let current = tracker.get_current_session();
         assert!(current.is_some());
-        
+
         let session = current.unwrap();
         // Duration should be at least 50ms (with some tolerance)
         assert!(session.duration_ms >= 40);
@@ -716,7 +731,7 @@ mod tests {
     fn test_common_titles_in_stats() {
         let tracker = FocusTracker::new();
         tracker.start_tracking();
-        
+
         // Same app, different titles
         for _ in 0..3 {
             tracker.record_focus_change("VSCode", "code.exe", "file1.rs");
@@ -729,10 +744,10 @@ mod tests {
         tracker.record_focus_change("Other", "other.exe", "Other");
         std::thread::sleep(std::time::Duration::from_millis(5));
         tracker.stop_tracking();
-        
+
         let stats = tracker.get_app_stats("vscode");
         assert!(stats.is_some());
-        
+
         let stats = stats.unwrap();
         assert!(stats.common_titles.len() <= 5);
         // file1.rs should appear more often
@@ -745,7 +760,7 @@ mod tests {
     fn test_top_apps_sorted() {
         let tracker = FocusTracker::new();
         tracker.start_tracking();
-        
+
         // App1 used more
         for _ in 0..3 {
             tracker.record_focus_change("App1", "app1.exe", "Window");
@@ -755,10 +770,10 @@ mod tests {
         tracker.record_focus_change("App2", "app2.exe", "Window");
         std::thread::sleep(std::time::Duration::from_millis(5));
         tracker.stop_tracking();
-        
+
         let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
         let summary = tracker.get_daily_summary(&today);
-        
+
         if summary.top_apps.len() >= 2 {
             // App1 should have more time
             assert!(summary.top_apps[0].1 >= summary.top_apps[1].1);
@@ -769,20 +784,16 @@ mod tests {
     fn test_switch_count() {
         let tracker = FocusTracker::new();
         tracker.start_tracking();
-        
+
         for i in 0..5 {
-            tracker.record_focus_change(
-                &format!("App{}", i),
-                &format!("app{}.exe", i),
-                "Window",
-            );
+            tracker.record_focus_change(&format!("App{}", i), &format!("app{}.exe", i), "Window");
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
         tracker.stop_tracking();
-        
+
         let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
         let summary = tracker.get_daily_summary(&today);
-        
+
         // switch_count = sessions - 1
         assert_eq!(summary.switch_count, 4);
     }
@@ -798,20 +809,20 @@ mod tests {
     fn test_all_app_stats_sorted_by_time() {
         let tracker = FocusTracker::new();
         tracker.start_tracking();
-        
+
         // App1 - longer duration
         tracker.record_focus_change("App1", "app1.exe", "Window");
         std::thread::sleep(std::time::Duration::from_millis(30));
-        
+
         // App2 - shorter duration
         tracker.record_focus_change("App2", "app2.exe", "Window");
         std::thread::sleep(std::time::Duration::from_millis(10));
-        
+
         tracker.stop_tracking();
-        
+
         let all_stats = tracker.get_all_app_stats();
         assert_eq!(all_stats.len(), 2);
-        
+
         // Should be sorted by total_time_ms descending
         assert!(all_stats[0].total_time_ms >= all_stats[1].total_time_ms);
     }
@@ -820,7 +831,7 @@ mod tests {
     fn test_recent_sessions_order() {
         let tracker = FocusTracker::new();
         tracker.start_tracking();
-        
+
         tracker.record_focus_change("First", "first.exe", "Window");
         std::thread::sleep(std::time::Duration::from_millis(5));
         tracker.record_focus_change("Second", "second.exe", "Window");
@@ -828,7 +839,7 @@ mod tests {
         tracker.record_focus_change("Third", "third.exe", "Window");
         std::thread::sleep(std::time::Duration::from_millis(5));
         tracker.stop_tracking();
-        
+
         let recent = tracker.get_recent_sessions(2);
         assert_eq!(recent.len(), 2);
         // Most recent completed sessions should be first
@@ -845,7 +856,7 @@ mod tests {
             top_apps: Vec::new(),
             switch_count: 0,
         };
-        
+
         let cloned = summary.clone();
         assert_eq!(cloned.date, summary.date);
         assert_eq!(cloned.total_active_ms, summary.total_active_ms);
@@ -861,7 +872,7 @@ mod tests {
             last_used: 12345,
             common_titles: vec!["title1".to_string()],
         };
-        
+
         let cloned = stats.clone();
         assert_eq!(cloned.app_name, stats.app_name);
         assert_eq!(cloned.session_count, stats.session_count);
@@ -871,12 +882,12 @@ mod tests {
     fn test_stop_tracking_ends_current_session() {
         let tracker = FocusTracker::new();
         tracker.start_tracking();
-        
+
         tracker.record_focus_change("App", "app.exe", "Window");
         assert!(tracker.get_current_session().is_some());
-        
+
         tracker.stop_tracking();
-        
+
         // Current session should be ended and moved to history
         assert!(tracker.get_current_session().is_none());
         assert_eq!(tracker.session_count(), 1);

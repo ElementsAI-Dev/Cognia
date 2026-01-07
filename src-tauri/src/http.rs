@@ -76,10 +76,12 @@ pub fn create_client_with_proxy(
     timeout_secs: Option<u64>,
 ) -> Result<Client, reqwest::Error> {
     let proxy = reqwest::Proxy::all(proxy_url)?;
-    
+
     Client::builder()
         .proxy(proxy)
-        .timeout(Duration::from_secs(timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS)))
+        .timeout(Duration::from_secs(
+            timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS),
+        ))
         .connect_timeout(Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS))
         .pool_idle_timeout(Duration::from_secs(DEFAULT_POOL_IDLE_TIMEOUT_SECS))
         .build()

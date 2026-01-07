@@ -136,6 +136,7 @@ export function ModelPickerDialog({
 }: ModelPickerDialogProps) {
   const t = useTranslations('modelPicker');
   const tChat = useTranslations('chat');
+  const tCommon = useTranslations('common');
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<ProviderCategory>('all');
@@ -244,6 +245,8 @@ export function ModelPickerDialog({
               <button
                 onClick={() => setSearch('')}
                 className="text-muted-foreground hover:text-foreground p-2 -mr-2"
+                aria-label={tCommon('clear')}
+                title={tCommon('clear')}
               >
                 <X className="h-4 w-4 max-sm:h-5 max-sm:w-5" />
               </button>

@@ -3,6 +3,16 @@
  * 
  * Provides tool definitions for use with streamText and generateText.
  * Uses the createTool helper from tool-utils for consistent type handling.
+ * 
+ * NOTE: These tools are designed for use with RAGPipeline which provides
+ * advanced features like hybrid search, reranking, and query expansion.
+ * The pipeline stores data in-memory, so for persistent storage across
+ * sessions, use the simpler rag_search tool in agent-tools.ts which
+ * connects to ChromaDB/vector store.
+ * 
+ * For agent/chat integration, see:
+ * - lib/ai/agent/agent-tools.ts: createRAGSearchTool (persistent, Chroma-backed)
+ * - This file: createRAGTools (advanced features, in-memory pipeline)
  */
 
 import { z } from 'zod';

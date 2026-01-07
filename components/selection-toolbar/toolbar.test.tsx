@@ -2,13 +2,41 @@
  * Tests for SelectionToolbar component
  */
 
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { SelectionToolbar } from './toolbar';
 import { useSelectionToolbar } from '@/hooks/ui';
 import { useSelectionStore } from '@/stores/context';
 
+// Extend globalThis for Tauri detection in tests
+declare global {
+  var __TAURI__: Record<string, unknown> | undefined;
+}
+
+const mockInvoke = jest.fn().mockResolvedValue(undefined);
+const mockEmit = jest.fn().mockResolvedValue(undefined);
+const mockUnlisten = jest.fn();
+
+let focusChangeHandler: ((event: { payload: boolean }) => void) | null = null;
+
+jest.mock('@tauri-apps/api/core', () => ({
+  invoke: (...args: unknown[]) => mockInvoke(...args),
+}));
+
+jest.mock('@tauri-apps/api/event', () => ({
+  emit: (...args: unknown[]) => mockEmit(...args),
+}));
+
+jest.mock('@tauri-apps/api/window', () => ({
+  getCurrentWindow: () => ({
+    onFocusChanged: (cb: (event: { payload: boolean }) => void) => {
+      focusChangeHandler = cb;
+      return Promise.resolve(mockUnlisten);
+    },
+  }),
+}));
+
 // Mock the hooks
-jest.mock('@/hooks/use-selection-toolbar', () => ({
+jest.mock('@/hooks/ui', () => ({
   useSelectionToolbar: jest.fn(),
 }));
 
@@ -77,6 +105,8 @@ describe('SelectionToolbar', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    globalThis.__TAURI__ = undefined;
+    focusChangeHandler = null;
 
     mockUseSelectionToolbar.mockReturnValue({
       state: defaultToolbarState,
@@ -221,6 +251,36 @@ describe('SelectionToolbar', () => {
 
       expect(mockHideToolbar).toHaveBeenCalled();
     });
+
+    it('emits send-to-chat with references in Tauri mode', async () => {
+      globalThis.__TAURI__ = {};
+
+      mockUseSelectionStore.mockReturnValueOnce({
+        selections: [{ id: 'a', text: 'first', position: { x: 0, y: 0 } }],
+        isMultiSelectMode: true,
+        references: [{ id: 'ref-1', text: 'reference text', source: 'clipboard' }],
+        toggleMultiSelectMode: mockToggleMultiSelectMode,
+        addSelection: mockAddSelection,
+        removeSelection: mockRemoveSelection,
+        clearSelections: mockClearSelections,
+        addReference: mockAddReference,
+        removeReference: mockRemoveReference,
+        clearReferences: mockClearReferences,
+        getCombinedText: () => 'combined text',
+      } as unknown as ReturnType<typeof useSelectionStore>);
+
+      render(<SelectionToolbar />);
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Send to Chat' }));
+      });
+
+      expect(mockEmit).toHaveBeenCalledWith('selection-send-to-chat', {
+        text: 'combined text',
+        references: [{ id: 'ref-1', text: 'reference text', source: 'clipboard' }],
+      });
+      expect(mockHideToolbar).toHaveBeenCalled();
+    });
   });
 
   describe('loading state', () => {
@@ -254,6 +314,104 @@ describe('SelectionToolbar', () => {
 
       const translateButton = screen.getByRole('button', { name: 'Translate' });
       expect(translateButton).toBeDisabled();
+    });
+  });
+
+  describe('selection modes and references', () => {
+    it('changes selection mode and invokes smart expand', async () => {
+      globalThis.__TAURI__ = {};
+
+      render(<SelectionToolbar />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Selection Mode' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Word' }));
+
+      await waitFor(() => {
+        expect(mockInvoke).toHaveBeenCalledWith('selection_smart_expand', {
+          text: 'Test selected text',
+          cursorPos: 0,
+          mode: 'word',
+        });
+      });
+    });
+
+    it('opens references panel and adds clipboard reference', async () => {
+      const readText = jest.fn().mockResolvedValue('clip content');
+      Object.assign(navigator, {
+        clipboard: {
+          ...navigator.clipboard,
+          writeText: mockWriteText,
+          readText,
+        },
+      });
+
+      render(<SelectionToolbar />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Add Reference' }));
+      fireEvent.click(screen.getByRole('button', { name: 'From Clipboard' }));
+
+      await waitFor(() => expect(readText).toHaveBeenCalled());
+      expect(mockAddReference).toHaveBeenCalled();
+    });
+
+    it('adds current selection in multi-select panel', () => {
+      const addSelection = jest.fn();
+      mockUseSelectionStore.mockReturnValueOnce({
+        selections: [{ id: '1', text: 'existing', position: { x: 1, y: 1 } }],
+        isMultiSelectMode: true,
+        references: [],
+        toggleMultiSelectMode: mockToggleMultiSelectMode,
+        addSelection,
+        removeSelection: mockRemoveSelection,
+        clearSelections: mockClearSelections,
+        addReference: mockAddReference,
+        removeReference: mockRemoveReference,
+        clearReferences: mockClearReferences,
+        getCombinedText: mockGetCombinedText,
+      } as unknown as ReturnType<typeof useSelectionStore>);
+
+      mockUseSelectionToolbar.mockReturnValueOnce({
+        state: {
+          ...defaultToolbarState,
+          isMultiSelectMode: true,
+          selections: [{ id: '1', text: 'existing', position: { x: 1, y: 1 } }],
+          selectedText: 'Current selection',
+          position: { x: 4, y: 5 },
+        },
+        executeAction: mockExecuteAction,
+        copyResult: mockCopyResult,
+        clearResult: mockClearResult,
+        hideToolbar: mockHideToolbar,
+        config: {
+          enabled: true,
+          triggerMode: 'auto',
+          minTextLength: 1,
+          maxTextLength: 5000,
+          delayMs: 200,
+          targetLanguage: 'zh-CN',
+          excludedApps: [],
+          theme: 'glass',
+          position: 'cursor',
+          showShortcuts: true,
+          enableStreaming: true,
+          autoHideDelay: 0,
+          pinnedActions: ['explain', 'translate', 'summarize', 'copy', 'send-to-chat'],
+          customShortcuts: {} as Record<string, string>,
+        },
+        retryAction: jest.fn(),
+        showToolbar: jest.fn(),
+        setSelectionMode: jest.fn(),
+        provideFeedback: jest.fn(),
+        sendResultToChat: jest.fn(),
+        stop: jest.fn(),
+        addSelection,
+      } as unknown as ReturnType<typeof useSelectionToolbar>);
+
+      render(<SelectionToolbar />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Add current selection' }));
+
+      expect(addSelection).toHaveBeenCalledWith('Current selection', { x: 4, y: 5 });
     });
   });
 
@@ -318,6 +476,42 @@ describe('SelectionToolbar', () => {
       });
 
       expect(mockClearSelections).toHaveBeenCalled();
+    });
+  });
+
+  describe('window focus and hover handling', () => {
+    it('hides toolbar on blur in Tauri mode', async () => {
+      jest.useFakeTimers();
+      globalThis.__TAURI__ = {};
+
+      render(<SelectionToolbar />);
+
+      expect(focusChangeHandler).toBeTruthy();
+      await act(async () => {
+        focusChangeHandler?.({ payload: false });
+      });
+
+      // Blur hides after timeout
+      jest.runAllTimers();
+      expect(mockHideToolbar).toHaveBeenCalled();
+      jest.useRealTimers();
+    });
+
+    it('sets hovered state on enter/leave', async () => {
+      globalThis.__TAURI__ = {};
+
+      render(<SelectionToolbar />);
+      const toolbar = screen.getByRole('button', { name: 'Explain' }).closest('.selection-toolbar') as HTMLElement;
+
+      fireEvent.mouseEnter(toolbar);
+      await waitFor(() => {
+        expect(mockInvoke).toHaveBeenCalledWith('selection_set_toolbar_hovered', { hovered: true });
+      });
+
+      fireEvent.mouseLeave(toolbar);
+      await waitFor(() => {
+        expect(mockInvoke).toHaveBeenCalledWith('selection_set_toolbar_hovered', { hovered: false });
+      });
     });
   });
 

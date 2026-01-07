@@ -11,7 +11,7 @@
  * - Download and export
  */
 
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import {
@@ -47,6 +47,7 @@ import {
   ZoomIn,
   Eraser,
   Wand2,
+  Palette,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -94,6 +95,7 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useSettingsStore, useImageStudioStore } from '@/stores';
+import type { StudioImage as _StudioImage, EditOperation as _EditOperation } from '@/stores/media/image-studio-store';
 import {
   MaskCanvas,
   ImageCropper,
@@ -101,7 +103,10 @@ import {
   ImageUpscaler,
   BackgroundRemover,
   BatchExportDialog,
+  HistoryPanel,
+  FiltersGallery,
 } from '@/components/image-studio';
+import type { HistoryOperationType } from '@/components/image-studio';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
 import {
   generateImage,
@@ -188,42 +193,113 @@ interface GeneratedImageWithMeta extends GeneratedImage {
 export default function ImageStudioPage() {
   const t = useTranslations('imageGeneration');
   
-  // State
-  const [activeTab, setActiveTab] = useState<'generate' | 'edit' | 'variations'>('generate');
-  const [prompt, setPrompt] = useState('');
-  const [negativePrompt, setNegativePrompt] = useState('');
+  // Get store state and actions
+  const {
+    images: storeImages,
+    selectedImageId,
+    addImage,
+    updateImage: _updateImage,
+    deleteImage,
+    selectImage,
+    toggleFavorite,
+    editHistory,
+    historyIndex,
+    addToHistory,
+    undo: storeUndo,
+    redo: storeRedo,
+    canUndo,
+    canRedo,
+    prompt: storePrompt,
+    negativePrompt: storeNegativePrompt,
+    setPrompt: setStorePrompt,
+    setNegativePrompt: setStoreNegativePrompt,
+    generationSettings: _generationSettings,
+    updateGenerationSettings: _updateGenerationSettings,
+    activeTab: storeActiveTab,
+    setActiveTab: _setStoreActiveTab,
+    viewMode: storeViewMode,
+    setViewMode: setStoreViewMode,
+    showSidebar: storeShowSidebar,
+    toggleSidebar: _toggleSidebar,
+    filterFavorites: storeFilterFavorites,
+    setFilterFavorites: setStoreFilterFavorites,
+    gridZoomLevel,
+    setGridZoomLevel,
+    showSettings: storeShowSettings,
+    toggleSettings: _toggleSettings,
+  } = useImageStudioStore();
+
+  // Convert store images to component format for backwards compatibility
+  const generatedImages: GeneratedImageWithMeta[] = storeImages.map(img => ({
+    url: img.url,
+    base64: img.base64,
+    revisedPrompt: img.revisedPrompt,
+    id: img.id,
+    prompt: img.prompt,
+    model: img.model,
+    timestamp: img.timestamp,
+    settings: {
+      size: img.size,
+      quality: img.quality,
+      style: img.style,
+    },
+    isFavorite: img.isFavorite,
+    parentId: img.parentId,
+    version: img.version,
+  }));
+
+  const selectedImage = selectedImageId 
+    ? generatedImages.find(img => img.id === selectedImageId) || null 
+    : null;
+
+  // Sync local prompt state for controlled input
+  const [prompt, setPrompt] = useState(storePrompt);
+  const [negativePrompt, setNegativePrompt] = useState(storeNegativePrompt);
+  
+  // State for UI
+  const [activeTab, setActiveTab] = useState<'generate' | 'edit' | 'variations'>(
+    storeActiveTab === 'generate' || storeActiveTab === 'edit' || storeActiveTab === 'variations' 
+      ? storeActiveTab 
+      : 'generate'
+  );
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [generatedImages, setGeneratedImages] = useState<GeneratedImageWithMeta[]>([]);
-  const [selectedImage, setSelectedImage] = useState<GeneratedImageWithMeta | null>(null);
-  const [showSettings, setShowSettings] = useState(true);
+  const [showSettings, setShowSettings] = useState(storeShowSettings);
   const [showHistory, setShowHistory] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'single'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'single'>(storeViewMode);
   const [previewImage, setPreviewImage] = useState<GeneratedImageWithMeta | null>(null);
-  const [showSidebar, setShowSidebar] = useState(true);
-  const [filterFavorites, setFilterFavorites] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(2); // Index into ZOOM_LEVELS (default M)
+  const [showSidebar, setShowSidebar] = useState(storeShowSidebar);
+  const [filterFavorites, setFilterFavorites] = useState(storeFilterFavorites);
+  const [zoomLevel, setZoomLevel] = useState(gridZoomLevel ?? 2); // Index into ZOOM_LEVELS (default M)
   const [showMoreTemplates, setShowMoreTemplates] = useState(false);
+
+  // Sync with store when local state changes
+  useEffect(() => {
+    setStorePrompt(prompt);
+  }, [prompt, setStorePrompt]);
+
+  useEffect(() => {
+    setStoreNegativePrompt(negativePrompt);
+  }, [negativePrompt, setStoreNegativePrompt]);
+
+  useEffect(() => {
+    setStoreViewMode(viewMode);
+  }, [viewMode, setStoreViewMode]);
+
+  useEffect(() => {
+    setStoreFilterFavorites(filterFavorites);
+  }, [filterFavorites, setStoreFilterFavorites]);
+
+  useEffect(() => {
+    setGridZoomLevel(zoomLevel);
+  }, [zoomLevel, setGridZoomLevel]);
 
   // Advanced editing state
   const [editingImage, setEditingImage] = useState<GeneratedImageWithMeta | null>(null);
-  const [editMode, setEditMode] = useState<'mask' | 'crop' | 'adjust' | 'upscale' | 'remove-bg' | null>(null);
+  const [editMode, setEditMode] = useState<'mask' | 'crop' | 'adjust' | 'upscale' | 'remove-bg' | 'filter' | null>(null);
   const [maskDataUrl, setMaskDataUrl] = useState<string | null>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
-
-  // Image Studio Store integration
-  const studioStore = useImageStudioStore();
-
-  // Version history tracking
-  const [versionHistory, setVersionHistory] = useState<Array<{
-    id: string;
-    imageId: string;
-    prompt: string;
-    timestamp: number;
-    action: 'generate' | 'edit' | 'variation';
-  }>>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
 
   // Settings
   const [model, setModel] = useState<'dall-e-3' | 'dall-e-2'>('dall-e-3');
@@ -267,21 +343,30 @@ export default function ImageStudioPage() {
         n: model === 'dall-e-3' ? 1 : numberOfImages,
       });
 
-      const newImages: GeneratedImageWithMeta[] = result.images.map((img, index) => ({
-        ...img,
-        id: `${Date.now()}-${index}`,
-        prompt: prompt.trim(),
-        model,
-        timestamp: Date.now(),
-        settings: { size, quality, style },
-        version: 1,
-      }));
-
-      setGeneratedImages(prev => [...newImages, ...prev]);
+      // Add images to store
+      const newImageIds: string[] = [];
+      for (let i = 0; i < result.images.length; i++) {
+        const img = result.images[i];
+        const id = addImage({
+          url: img.url,
+          base64: img.base64,
+          revisedPrompt: img.revisedPrompt,
+          prompt: prompt.trim(),
+          model,
+          size,
+          quality,
+          style,
+        });
+        newImageIds.push(id);
+      }
       
-      if (newImages.length > 0) {
-        setSelectedImage(newImages[0]);
-        addToVersionHistory(newImages[0].id, prompt.trim(), 'generate');
+      if (newImageIds.length > 0) {
+        selectImage(newImageIds[0]);
+        addToHistory({
+          type: 'generate',
+          imageId: newImageIds[0],
+          description: `Generated: ${prompt.trim().substring(0, 50)}...`,
+        });
       }
     } catch (err) {
       console.error('Image generation error:', err);
@@ -313,19 +398,30 @@ export default function ImageStudioPage() {
         n: numberOfImages,
       });
 
-      const newImages: GeneratedImageWithMeta[] = result.images.map((img, index) => ({
-        ...img,
-        id: `edit-${Date.now()}-${index}`,
-        prompt: prompt.trim(),
-        model: 'dall-e-2',
-        timestamp: Date.now(),
-        settings: { size: size as ImageSize, quality, style },
-      }));
-
-      setGeneratedImages(prev => [...newImages, ...prev]);
+      // Add edited images to store
+      const newImageIds: string[] = [];
+      for (let i = 0; i < result.images.length; i++) {
+        const img = result.images[i];
+        const id = addImage({
+          url: img.url,
+          base64: img.base64,
+          revisedPrompt: img.revisedPrompt,
+          prompt: prompt.trim(),
+          model: 'dall-e-2',
+          size: size as ImageSize,
+          quality,
+          style,
+        });
+        newImageIds.push(id);
+      }
       
-      if (newImages.length > 0) {
-        setSelectedImage(newImages[0]);
+      if (newImageIds.length > 0) {
+        selectImage(newImageIds[0]);
+        addToHistory({
+          type: 'edit',
+          imageId: newImageIds[0],
+          description: `Edited: ${prompt.trim().substring(0, 50)}...`,
+        });
       }
     } catch (err) {
       console.error('Image edit error:', err);
@@ -333,7 +429,7 @@ export default function ImageStudioPage() {
     } finally {
       setIsGenerating(false);
     }
-  }, [editImageFile, maskFile, prompt, size, numberOfImages, openaiApiKey, t, quality, style]);
+  }, [editImageFile, maskFile, prompt, size, numberOfImages, openaiApiKey, t, quality, style, addImage, addToHistory, selectImage]);
 
   // Create variations
   const handleCreateVariations = useCallback(async () => {
@@ -354,19 +450,30 @@ export default function ImageStudioPage() {
         n: numberOfImages,
       });
 
-      const newImages: GeneratedImageWithMeta[] = result.images.map((img, index) => ({
-        ...img,
-        id: `var-${Date.now()}-${index}`,
-        prompt: 'Variation',
-        model: 'dall-e-2',
-        timestamp: Date.now(),
-        settings: { size: size as ImageSize, quality, style },
-      }));
-
-      setGeneratedImages(prev => [...newImages, ...prev]);
+      // Add variation images to store
+      const newImageIds: string[] = [];
+      for (let i = 0; i < result.images.length; i++) {
+        const img = result.images[i];
+        const id = addImage({
+          url: img.url,
+          base64: img.base64,
+          revisedPrompt: img.revisedPrompt,
+          prompt: 'Variation',
+          model: 'dall-e-2',
+          size: size as ImageSize,
+          quality,
+          style,
+        });
+        newImageIds.push(id);
+      }
       
-      if (newImages.length > 0) {
-        setSelectedImage(newImages[0]);
+      if (newImageIds.length > 0) {
+        selectImage(newImageIds[0]);
+        addToHistory({
+          type: 'variation',
+          imageId: newImageIds[0],
+          description: 'Created variation',
+        });
       }
     } catch (err) {
       console.error('Variation error:', err);
@@ -374,7 +481,7 @@ export default function ImageStudioPage() {
     } finally {
       setIsGenerating(false);
     }
-  }, [variationImage, size, numberOfImages, openaiApiKey, t, quality, style]);
+  }, [variationImage, size, numberOfImages, openaiApiKey, t, quality, style, addImage, addToHistory, selectImage]);
 
   // Download image
   const handleDownload = useCallback(async (image: GeneratedImageWithMeta) => {
@@ -397,59 +504,27 @@ export default function ImageStudioPage() {
 
   // Delete image
   const handleDeleteImage = useCallback((imageId: string) => {
-    setGeneratedImages(prev => prev.filter(img => img.id !== imageId));
-    if (selectedImage?.id === imageId) {
-      setSelectedImage(null);
-    }
-  }, [selectedImage]);
+    deleteImage(imageId);
+  }, [deleteImage]);
 
   // Toggle favorite
   const handleToggleFavorite = useCallback((imageId: string) => {
-    setGeneratedImages(prev => prev.map(img => 
-      img.id === imageId ? { ...img, isFavorite: !img.isFavorite } : img
-    ));
-  }, []);
+    toggleFavorite(imageId);
+  }, [toggleFavorite]);
 
-  // Add to version history
-  const addToVersionHistory = useCallback((imageId: string, prompt: string, action: 'generate' | 'edit' | 'variation') => {
-    const entry = {
-      id: `v-${Date.now()}`,
-      imageId,
-      prompt,
-      timestamp: Date.now(),
-      action,
-    };
-    setVersionHistory(prev => {
-      const newHistory = prev.slice(0, historyIndex + 1);
-      newHistory.push(entry);
-      return newHistory.slice(-50); // Keep last 50 entries
-    });
-    setHistoryIndex(prev => Math.min(prev + 1, 49));
-  }, [historyIndex]);
-
-  // Undo - go to previous version
+  // Undo - go to previous version (using store)
   const handleUndo = useCallback(() => {
-    if (historyIndex > 0) {
-      const prevEntry = versionHistory[historyIndex - 1];
-      const image = generatedImages.find(img => img.id === prevEntry.imageId);
-      if (image) {
-        setSelectedImage(image);
-      }
-      setHistoryIndex(historyIndex - 1);
+    if (canUndo()) {
+      storeUndo();
     }
-  }, [historyIndex, versionHistory, generatedImages]);
+  }, [canUndo, storeUndo]);
 
-  // Redo - go to next version
+  // Redo - go to next version (using store)
   const handleRedo = useCallback(() => {
-    if (historyIndex < versionHistory.length - 1) {
-      const nextEntry = versionHistory[historyIndex + 1];
-      const image = generatedImages.find(img => img.id === nextEntry.imageId);
-      if (image) {
-        setSelectedImage(image);
-      }
-      setHistoryIndex(historyIndex + 1);
+    if (canRedo()) {
+      storeRedo();
     }
-  }, [historyIndex, versionHistory, generatedImages]);
+  }, [canRedo, storeRedo]);
 
   // Use selected image for editing
   const handleUseForEdit = useCallback(async (image: GeneratedImageWithMeta) => {
@@ -536,7 +611,7 @@ export default function ImageStudioPage() {
                   size="icon"
                   className="h-8 w-8 rounded-r-none"
                   onClick={handleUndo}
-                  disabled={historyIndex <= 0}
+                  disabled={!canUndo()}
                 >
                   <Undo2 className="h-4 w-4" />
                 </Button>
@@ -550,7 +625,7 @@ export default function ImageStudioPage() {
                   size="icon"
                   className="h-8 w-8 rounded-l-none border-l"
                   onClick={handleRedo}
-                  disabled={historyIndex >= versionHistory.length - 1}
+                  disabled={!canRedo()}
                 >
                   <Redo2 className="h-4 w-4" />
                 </Button>
@@ -1038,7 +1113,7 @@ export default function ImageStudioPage() {
                       'group cursor-pointer overflow-hidden transition-all hover:shadow-lg',
                       selectedImage?.id === image.id && 'ring-2 ring-primary'
                     )}
-                    onClick={() => setSelectedImage(image)}
+                    onClick={() => selectImage(image.id)}
                   >
                     <div className="aspect-square relative">
                       {image.url && (
@@ -1153,6 +1228,10 @@ export default function ImageStudioPage() {
                               <Eraser className="h-4 w-4 mr-2" />
                               Remove Background
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setEditingImage(image); setEditMode('filter'); }}>
+                              <Palette className="h-4 w-4 mr-2" />
+                              Apply Filter
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               className="text-destructive"
@@ -1263,6 +1342,40 @@ export default function ImageStudioPage() {
             </div>
           )}
         </div>
+
+        {/* Right Panel - History */}
+        <div className={cn(
+          'border-l flex flex-col shrink-0 transition-all duration-300',
+          showHistory ? 'w-72' : 'w-0 overflow-hidden'
+        )}>
+          {showHistory && (
+            <HistoryPanel
+              entries={editHistory.map((entry, idx) => ({
+                id: `${entry.imageId}-${idx}`,
+                type: entry.type as HistoryOperationType,
+                description: entry.description,
+                timestamp: entry.timestamp,
+                thumbnail: storeImages.find(img => img.id === entry.imageId)?.url,
+              }))}
+              currentIndex={historyIndex}
+              onNavigate={(index) => {
+                // Navigate to specific history point
+                const targetEntry = editHistory[index];
+                if (targetEntry) {
+                  selectImage(targetEntry.imageId);
+                }
+              }}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              onClear={() => {
+                // Clear history is handled by store reset
+                // For now, we don't expose this functionality
+              }}
+              canUndo={canUndo()}
+              canRedo={canRedo()}
+            />
+          )}
+        </div>
       </div>
 
       {/* Preview Dialog */}
@@ -1294,6 +1407,7 @@ export default function ImageStudioPage() {
               {editMode === 'adjust' && <><SlidersHorizontal className="h-5 w-5" /> Adjust Image</>}
               {editMode === 'upscale' && <><ZoomIn className="h-5 w-5" /> Upscale Image</>}
               {editMode === 'remove-bg' && <><Eraser className="h-5 w-5" /> Remove Background</>}
+              {editMode === 'filter' && <><Palette className="h-5 w-5" /> Apply Filter</>}
             </DialogTitle>
           </DialogHeader>
           <div className="p-4 overflow-auto max-h-[calc(90vh-80px)]">
@@ -1308,21 +1422,21 @@ export default function ImageStudioPage() {
               <ImageCropper
                 imageUrl={editingImage.url}
                 onApply={(result) => {
-                  const newImage: GeneratedImageWithMeta = {
-                    ...editingImage,
-                    id: `crop-${Date.now()}`,
+                  const newImageId = addImage({
                     url: result.dataUrl,
-                    timestamp: Date.now(),
+                    prompt: editingImage.prompt,
+                    model: editingImage.model,
+                    size: editingImage.settings.size,
+                    quality: editingImage.settings.quality,
+                    style: editingImage.settings.style,
                     parentId: editingImage.id,
-                    version: (editingImage.version || 1) + 1,
-                  };
-                  setGeneratedImages(prev => [newImage, ...prev]);
-                  setSelectedImage(newImage);
+                  });
+                  selectImage(newImageId);
                   setEditingImage(null);
                   setEditMode(null);
-                  studioStore.addToHistory({
+                  addToHistory({
                     type: 'crop',
-                    imageId: newImage.id,
+                    imageId: newImageId,
                     description: 'Cropped image',
                   });
                 }}
@@ -1333,18 +1447,23 @@ export default function ImageStudioPage() {
               <ImageAdjustmentsPanel
                 imageUrl={editingImage.url}
                 onApply={(dataUrl) => {
-                  const newImage: GeneratedImageWithMeta = {
-                    ...editingImage,
-                    id: `adjust-${Date.now()}`,
+                  const newImageId = addImage({
                     url: dataUrl,
-                    timestamp: Date.now(),
+                    prompt: editingImage.prompt,
+                    model: editingImage.model,
+                    size: editingImage.settings.size,
+                    quality: editingImage.settings.quality,
+                    style: editingImage.settings.style,
                     parentId: editingImage.id,
-                    version: (editingImage.version || 1) + 1,
-                  };
-                  setGeneratedImages(prev => [newImage, ...prev]);
-                  setSelectedImage(newImage);
+                  });
+                  selectImage(newImageId);
                   setEditingImage(null);
                   setEditMode(null);
+                  addToHistory({
+                    type: 'adjust',
+                    imageId: newImageId,
+                    description: 'Adjusted image',
+                  });
                 }}
                 onCancel={() => { setEditingImage(null); setEditMode(null); }}
               />
@@ -1353,18 +1472,23 @@ export default function ImageStudioPage() {
               <ImageUpscaler
                 imageUrl={editingImage.url}
                 onUpscale={(result) => {
-                  const newImage: GeneratedImageWithMeta = {
-                    ...editingImage,
-                    id: `upscale-${Date.now()}`,
+                  const newImageId = addImage({
                     url: result.dataUrl,
-                    timestamp: Date.now(),
+                    prompt: editingImage.prompt,
+                    model: editingImage.model,
+                    size: editingImage.settings.size,
+                    quality: editingImage.settings.quality,
+                    style: editingImage.settings.style,
                     parentId: editingImage.id,
-                    version: (editingImage.version || 1) + 1,
-                  };
-                  setGeneratedImages(prev => [newImage, ...prev]);
-                  setSelectedImage(newImage);
+                  });
+                  selectImage(newImageId);
                   setEditingImage(null);
                   setEditMode(null);
+                  addToHistory({
+                    type: 'upscale',
+                    imageId: newImageId,
+                    description: 'Upscaled image',
+                  });
                 }}
                 onCancel={() => { setEditingImage(null); setEditMode(null); }}
               />
@@ -1373,18 +1497,48 @@ export default function ImageStudioPage() {
               <BackgroundRemover
                 imageUrl={editingImage.url}
                 onRemove={(result) => {
-                  const newImage: GeneratedImageWithMeta = {
-                    ...editingImage,
-                    id: `remove-bg-${Date.now()}`,
+                  const newImageId = addImage({
                     url: result.dataUrl,
-                    timestamp: Date.now(),
+                    prompt: editingImage.prompt,
+                    model: editingImage.model,
+                    size: editingImage.settings.size,
+                    quality: editingImage.settings.quality,
+                    style: editingImage.settings.style,
                     parentId: editingImage.id,
-                    version: (editingImage.version || 1) + 1,
-                  };
-                  setGeneratedImages(prev => [newImage, ...prev]);
-                  setSelectedImage(newImage);
+                  });
+                  selectImage(newImageId);
                   setEditingImage(null);
                   setEditMode(null);
+                  addToHistory({
+                    type: 'remove-bg',
+                    imageId: newImageId,
+                    description: 'Removed background',
+                  });
+                }}
+                onCancel={() => { setEditingImage(null); setEditMode(null); }}
+              />
+            )}
+            {editingImage?.url && editMode === 'filter' && (
+              <FiltersGallery
+                imageUrl={editingImage.url}
+                onApply={(result) => {
+                  const newImageId = addImage({
+                    url: result.dataUrl,
+                    prompt: editingImage.prompt,
+                    model: editingImage.model,
+                    size: editingImage.settings.size,
+                    quality: editingImage.settings.quality,
+                    style: editingImage.settings.style,
+                    parentId: editingImage.id,
+                  });
+                  selectImage(newImageId);
+                  setEditingImage(null);
+                  setEditMode(null);
+                  addToHistory({
+                    type: 'filter',
+                    imageId: newImageId,
+                    description: `Applied ${result.filter.name} filter`,
+                  });
                 }}
                 onCancel={() => { setEditingImage(null); setEditMode(null); }}
               />
@@ -1411,28 +1565,41 @@ export default function ImageStudioPage() {
                     const imgFile = new File([imgBlob], 'image.png', { type: 'image/png' });
                     
                     const maskBlob = await (await fetch(maskDataUrl)).blob();
-                    const maskFile = new File([maskBlob], 'mask.png', { type: 'image/png' });
+                    const maskFileData = new File([maskBlob], 'mask.png', { type: 'image/png' });
                     
                     const result = await editImage(openaiApiKey, {
                       image: imgFile,
-                      mask: maskFile,
+                      mask: maskFileData,
                       prompt: prompt || 'Continue the image naturally',
                       size: '1024x1024',
                     });
                     
-                    const newImages: GeneratedImageWithMeta[] = result.images.map((img, index) => ({
-                      ...img,
-                      id: `inpaint-${Date.now()}-${index}`,
-                      prompt: prompt || 'Inpainted',
-                      model: 'dall-e-2',
-                      timestamp: Date.now(),
-                      settings: { size: '1024x1024' as ImageSize, quality, style },
-                      parentId: editingImage.id,
-                      version: (editingImage.version || 1) + 1,
-                    }));
+                    // Add inpainted images to store
+                    const newImageIds: string[] = [];
+                    for (let i = 0; i < result.images.length; i++) {
+                      const img = result.images[i];
+                      const id = addImage({
+                        url: img.url,
+                        base64: img.base64,
+                        revisedPrompt: img.revisedPrompt,
+                        prompt: prompt || 'Inpainted',
+                        model: 'dall-e-2',
+                        size: '1024x1024' as ImageSize,
+                        quality,
+                        style,
+                        parentId: editingImage.id,
+                      });
+                      newImageIds.push(id);
+                    }
                     
-                    setGeneratedImages(prev => [...newImages, ...prev]);
-                    if (newImages.length > 0) setSelectedImage(newImages[0]);
+                    if (newImageIds.length > 0) {
+                      selectImage(newImageIds[0]);
+                      addToHistory({
+                        type: 'mask',
+                        imageId: newImageIds[0],
+                        description: 'Inpainted image',
+                      });
+                    }
                     setMaskDataUrl(null);
                   } catch (err) {
                     setError(err instanceof Error ? err.message : 'Inpainting failed');

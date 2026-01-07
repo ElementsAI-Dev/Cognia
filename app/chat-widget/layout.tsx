@@ -16,7 +16,7 @@ export default function ChatWidgetLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="bg-transparent overflow-hidden">
+      <body className="overflow-hidden chat-widget-window">
         <I18nProvider>
           <ThemeProvider
             attribute="class"

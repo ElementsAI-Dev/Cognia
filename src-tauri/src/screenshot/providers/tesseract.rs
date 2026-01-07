@@ -48,9 +48,7 @@ impl TesseractProvider {
 
     /// Get list of installed languages from tesseract
     fn get_installed_languages() -> Vec<String> {
-        let output = Command::new("tesseract")
-            .arg("--list-langs")
-            .output();
+        let output = Command::new("tesseract").arg("--list-langs").output();
 
         match output {
             Ok(o) if o.status.success() => {
@@ -145,10 +143,7 @@ impl OcrProvider for TesseractProvider {
 
         // Build tesseract command
         let mut cmd = Command::new("tesseract");
-        cmd.arg(&input_path)
-            .arg(&output_base)
-            .arg("-l")
-            .arg(&lang);
+        cmd.arg(&input_path).arg(&output_base).arg("-l").arg(&lang);
 
         // Add tessdata path if specified
         if let Some(ref tessdata) = self.tessdata_path {
@@ -203,7 +198,11 @@ impl OcrProvider for TesseractProvider {
         };
 
         let confidence = if regions.is_empty() {
-            if text.is_empty() { 0.0 } else { 0.85 }
+            if text.is_empty() {
+                0.0
+            } else {
+                0.85
+            }
         } else {
             let sum: f64 = regions.iter().map(|r| r.confidence).sum();
             sum / regions.len() as f64

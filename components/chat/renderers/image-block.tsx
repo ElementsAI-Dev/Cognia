@@ -334,23 +334,26 @@ export const ImageBlock = memo(function ImageBlock({
           </DialogHeader>
 
           {/* Image container with zoom/pan */}
+          { }
           <div
             className="flex items-center justify-center bg-black/90 overflow-auto"
-            style={{ height: 'calc(95vh - 60px)' }}
+            style={{ height: 'calc(95vh - 60px)' } as React.CSSProperties}
             onClick={(e) => {
               if (e.target === e.currentTarget) {
                 handleResetView();
               }
             }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+            { }
+            { }
+            {/* eslint-disable-next-line @next/next/no-img-element -- Using native img for zoom/rotation transforms that Next Image doesn't support */}
             <img
               src={src}
               alt={alt}
               className="max-w-none transition-transform duration-200"
               style={{
                 transform: `scale(${zoom}) rotate(${rotation}deg)`,
-              }}
+              } as React.CSSProperties}
               draggable={false}
             />
           </div>

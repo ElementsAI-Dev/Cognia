@@ -15,7 +15,9 @@ import {
   Database,
   Shield,
   AlertTriangle,
+  ChevronDown,
 } from 'lucide-react';
+import { SourceVerificationSettings } from './source-verification-settings';
 import {
   Card,
   CardContent,
@@ -29,6 +31,11 @@ import {
   AlertDescription,
   AlertTitle,
 } from '@/components/ui/alert';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { useSettingsStore } from '@/stores';
 
 interface ToolCategory {
@@ -202,6 +209,24 @@ export function ToolSettings() {
           </Card>
         ))}
       </div>
+
+      {/* Source Verification Settings - shown when web search is enabled */}
+      {enableWebSearch && (
+        <Collapsible defaultOpen={false} className="border rounded-lg">
+          <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-accent/50 transition-colors">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              <span className="text-sm font-medium">信源验证设置</span>
+            </div>
+            <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="border-t">
+            <div className="p-4">
+              <SourceVerificationSettings compact />
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
 
       {/* Desktop App Notice for File Tools */}
       {enableFileTools && (

@@ -5,9 +5,9 @@
 //! - Context-aware selection
 //! - Application-specific optimizations
 
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use parking_lot::RwLock;
 
 /// Smart selection mode
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -88,12 +88,7 @@ impl SmartSelection {
     pub fn new() -> Self {
         log::debug!("[SmartSelection] Creating new instance");
         Self {
-            bracket_pairs: vec![
-                ('(', ')'),
-                ('[', ']'),
-                ('{', '}'),
-                ('<', '>'),
-            ],
+            bracket_pairs: vec![('(', ')'), ('[', ']'), ('{', '}'), ('<', '>')],
             quote_chars: vec!['"', '\'', '`'],
         }
     }
@@ -102,14 +97,16 @@ impl SmartSelection {
     pub fn expand(&self, context: &SelectionContext, mode: SelectionMode) -> SelectionExpansion {
         let chars: Vec<char> = context.full_text.chars().collect();
         let cursor = context.cursor_pos.min(chars.len());
-        
+
         let (start, end) = match mode {
             SelectionMode::Word => self.expand_word(&chars, cursor),
             SelectionMode::Line => self.expand_line(&chars, cursor),
             SelectionMode::Sentence => self.expand_sentence(&chars, cursor),
             SelectionMode::Paragraph => self.expand_paragraph(&chars, cursor),
             SelectionMode::CodeBlock => self.expand_code_block(&chars, cursor),
-            SelectionMode::Function => self.expand_function(&chars, cursor, context.language.as_deref()),
+            SelectionMode::Function => {
+                self.expand_function(&chars, cursor, context.language.as_deref())
+            }
             SelectionMode::BracketMatch => self.expand_bracket(&chars, cursor),
             SelectionMode::QuoteMatch => self.expand_quote(&chars, cursor),
             SelectionMode::Url => self.expand_url(&chars, cursor),
@@ -231,7 +228,7 @@ impl SmartSelection {
         }
 
         let sentence_ends = ['.', '!', '?', '。', '！', '？', '；'];
-        
+
         let mut start = cursor;
         let mut end = cursor;
 
@@ -257,7 +254,11 @@ impl SmartSelection {
             start += 1;
         }
 
-        log::trace!("[SmartSelection] expand_sentence: result=({}, {})", start, end);
+        log::trace!(
+            "[SmartSelection] expand_sentence: result=({}, {})",
+            start,
+            end
+        );
         (start, end)
     }
 
@@ -291,7 +292,11 @@ impl SmartSelection {
             start += 1;
         }
 
-        log::trace!("[SmartSelection] expand_paragraph: result=({}, {})", start, end);
+        log::trace!(
+            "[SmartSelection] expand_paragraph: result=({}, {})",
+            start,
+            end
+        );
         (start, end)
     }
 
@@ -299,10 +304,10 @@ impl SmartSelection {
     fn expand_code_block(&self, chars: &[char], cursor: usize) -> (usize, usize) {
         // First, expand to current line
         let (line_start, line_end) = self.expand_line(chars, cursor);
-        
+
         // Get indentation of current line
         let current_indent = self.get_indentation(chars, line_start);
-        
+
         let mut start = line_start;
         let mut end = line_end;
 
@@ -314,9 +319,9 @@ impl SmartSelection {
             while prev_line_start > 0 && chars[prev_line_start - 1] != '\n' {
                 prev_line_start -= 1;
             }
-            
+
             let prev_indent = self.get_indentation(chars, prev_line_start);
-            
+
             // Check if line is empty or has same/greater indentation
             let is_empty = self.is_empty_line(chars, prev_line_start);
             if is_empty || prev_indent >= current_indent {
@@ -334,14 +339,14 @@ impl SmartSelection {
             if pos < chars.len() && chars[pos] == '\n' {
                 pos += 1;
             }
-            
+
             if pos >= chars.len() {
                 break;
             }
-            
+
             let next_indent = self.get_indentation(chars, pos);
             let is_empty = self.is_empty_line(chars, pos);
-            
+
             if is_empty || next_indent >= current_indent {
                 // Find end of this line
                 let mut next_line_end = pos;
@@ -355,16 +360,25 @@ impl SmartSelection {
             }
         }
 
-        log::trace!("[SmartSelection] expand_code_block: result=({}, {})", start, end);
+        log::trace!(
+            "[SmartSelection] expand_code_block: result=({}, {})",
+            start,
+            end
+        );
         (start, end)
     }
 
     /// Expand to function boundaries
-    fn expand_function(&self, chars: &[char], cursor: usize, language: Option<&str>) -> (usize, usize) {
+    fn expand_function(
+        &self,
+        chars: &[char],
+        cursor: usize,
+        language: Option<&str>,
+    ) -> (usize, usize) {
         // Find opening brace before cursor
         let mut brace_pos = None;
         let mut pos = cursor;
-        
+
         while pos > 0 {
             if chars[pos - 1] == '{' {
                 brace_pos = Some(pos - 1);
@@ -381,15 +395,17 @@ impl SmartSelection {
                 while start > 0 && chars[start - 1] != '\n' {
                     start -= 1;
                 }
-                
+
                 // Look for function keyword
                 let keywords = match language {
                     Some("rust") => vec!["fn ", "pub fn ", "async fn ", "pub async fn "],
-                    Some("javascript") | Some("typescript") => vec!["function ", "async function ", "const ", "let ", "var "],
+                    Some("javascript") | Some("typescript") => {
+                        vec!["function ", "async function ", "const ", "let ", "var "]
+                    }
                     Some("python") => vec!["def ", "async def "],
                     _ => vec!["function ", "fn ", "def "],
                 };
-                
+
                 // Search backwards for function keyword
                 let mut search_pos = start;
                 while search_pos > 0 {
@@ -398,7 +414,7 @@ impl SmartSelection {
                         start = search_pos;
                         break;
                     }
-                    
+
                     // Go to previous line
                     if search_pos > 0 {
                         search_pos -= 1;
@@ -406,14 +422,18 @@ impl SmartSelection {
                             search_pos -= 1;
                         }
                     }
-                    
+
                     // Don't search too far
                     if open_pos - search_pos > 500 {
                         break;
                     }
                 }
-                
-                log::trace!("[SmartSelection] expand_function: result=({}, {})", start, close_pos + 1);
+
+                log::trace!(
+                    "[SmartSelection] expand_function: result=({}, {})",
+                    start,
+                    close_pos + 1
+                );
                 return (start, close_pos + 1);
             }
         }
@@ -430,18 +450,26 @@ impl SmartSelection {
 
         // Check if cursor is on a bracket
         let current_char = chars[cursor];
-        
+
         // Check opening brackets
         for (open, close) in &self.bracket_pairs {
             if current_char == *open {
                 if let Some(close_pos) = self.find_matching_bracket(chars, cursor) {
-                    log::trace!("[SmartSelection] expand_bracket: found matching bracket ({}, {})", cursor, close_pos + 1);
+                    log::trace!(
+                        "[SmartSelection] expand_bracket: found matching bracket ({}, {})",
+                        cursor,
+                        close_pos + 1
+                    );
                     return (cursor, close_pos + 1);
                 }
             }
             if current_char == *close {
                 if let Some(open_pos) = self.find_matching_bracket_reverse(chars, cursor) {
-                    log::trace!("[SmartSelection] expand_bracket: found matching bracket ({}, {})", open_pos, cursor + 1);
+                    log::trace!(
+                        "[SmartSelection] expand_bracket: found matching bracket ({}, {})",
+                        open_pos,
+                        cursor + 1
+                    );
                     return (open_pos, cursor + 1);
                 }
             }
@@ -449,7 +477,11 @@ impl SmartSelection {
 
         // Search for enclosing brackets
         if let Some((start, end)) = self.find_enclosing_brackets(chars, cursor) {
-            log::trace!("[SmartSelection] expand_bracket: found enclosing brackets ({}, {})", start, end + 1);
+            log::trace!(
+                "[SmartSelection] expand_bracket: found enclosing brackets ({}, {})",
+                start,
+                end + 1
+            );
             return (start, end + 1);
         }
 
@@ -464,7 +496,11 @@ impl SmartSelection {
 
         for quote in &self.quote_chars {
             if let Some((start, end)) = self.find_enclosing_quotes(chars, cursor, *quote) {
-                log::trace!("[SmartSelection] expand_quote: found enclosing quotes ({}, {})", start, end + 1);
+                log::trace!(
+                    "[SmartSelection] expand_quote: found enclosing quotes ({}, {})",
+                    start,
+                    end + 1
+                );
                 return (start, end + 1);
             }
         }
@@ -478,9 +514,7 @@ impl SmartSelection {
             return (cursor, cursor);
         }
 
-        let url_chars = |c: char| {
-            c.is_alphanumeric() || "/:.-_~!$&'()*+,;=?@#%[]".contains(c)
-        };
+        let url_chars = |c: char| c.is_alphanumeric() || "/:.-_~!$&'()*+,;=?@#%[]".contains(c);
 
         let mut start = cursor;
         let mut end = cursor;
@@ -498,7 +532,11 @@ impl SmartSelection {
         // Verify it looks like a URL
         let text: String = chars[start..end].iter().collect();
         if text.contains("://") || text.starts_with("www.") {
-            log::trace!("[SmartSelection] expand_url: found URL ({}, {})", start, end);
+            log::trace!(
+                "[SmartSelection] expand_url: found URL ({}, {})",
+                start,
+                end
+            );
             (start, end)
         } else {
             (cursor, cursor)
@@ -511,9 +549,7 @@ impl SmartSelection {
             return (cursor, cursor);
         }
 
-        let email_chars = |c: char| {
-            c.is_alphanumeric() || ".@_+-".contains(c)
-        };
+        let email_chars = |c: char| c.is_alphanumeric() || ".@_+-".contains(c);
 
         let mut start = cursor;
         let mut end = cursor;
@@ -533,7 +569,11 @@ impl SmartSelection {
         if text.contains('@') && text.contains('.') {
             let parts: Vec<&str> = text.split('@').collect();
             if parts.len() == 2 && !parts[0].is_empty() && parts[1].contains('.') {
-                log::trace!("[SmartSelection] expand_email: found email ({}, {})", start, end);
+                log::trace!(
+                    "[SmartSelection] expand_email: found email ({}, {})",
+                    start,
+                    end
+                );
                 return (start, end);
             }
         }
@@ -547,9 +587,7 @@ impl SmartSelection {
             return (cursor, cursor);
         }
 
-        let path_chars = |c: char| {
-            c.is_alphanumeric() || "/\\:._-".contains(c)
-        };
+        let path_chars = |c: char| c.is_alphanumeric() || "/\\:._-".contains(c);
 
         let mut start = cursor;
         let mut end = cursor;
@@ -566,9 +604,15 @@ impl SmartSelection {
 
         // Verify it looks like a path
         let text: String = chars[start..end].iter().collect();
-        if text.contains('/') || text.contains('\\') || 
-           (text.len() >= 3 && text.chars().nth(1) == Some(':')) {
-            log::trace!("[SmartSelection] expand_file_path: found file path ({}, {})", start, end);
+        if text.contains('/')
+            || text.contains('\\')
+            || (text.len() >= 3 && text.chars().nth(1) == Some(':'))
+        {
+            log::trace!(
+                "[SmartSelection] expand_file_path: found file path ({}, {})",
+                start,
+                end
+            );
             (start, end)
         } else {
             (cursor, cursor)
@@ -604,7 +648,9 @@ impl SmartSelection {
 
     fn find_matching_bracket(&self, chars: &[char], open_pos: usize) -> Option<usize> {
         let open_char = chars[open_pos];
-        let close_char = self.bracket_pairs.iter()
+        let close_char = self
+            .bracket_pairs
+            .iter()
             .find(|(o, _)| *o == open_char)
             .map(|(_, c)| *c)?;
 
@@ -631,7 +677,9 @@ impl SmartSelection {
 
     fn find_matching_bracket_reverse(&self, chars: &[char], close_pos: usize) -> Option<usize> {
         let close_char = chars[close_pos];
-        let open_char = self.bracket_pairs.iter()
+        let open_char = self
+            .bracket_pairs
+            .iter()
             .find(|(_, c)| *c == close_char)
             .map(|(o, _)| *o)?;
 
@@ -659,7 +707,7 @@ impl SmartSelection {
             // Search backwards for opening bracket
             let mut pos = cursor;
             let mut depth = 0;
-            
+
             while pos > 0 {
                 pos -= 1;
                 if chars[pos] == *close {
@@ -681,7 +729,12 @@ impl SmartSelection {
         None
     }
 
-    fn find_enclosing_quotes(&self, chars: &[char], cursor: usize, quote: char) -> Option<(usize, usize)> {
+    fn find_enclosing_quotes(
+        &self,
+        chars: &[char],
+        cursor: usize,
+        quote: char,
+    ) -> Option<(usize, usize)> {
         // Count quotes before cursor
         let mut quote_positions: Vec<usize> = Vec::new();
         for (i, &c) in chars.iter().enumerate() {
@@ -795,7 +848,7 @@ mod tests {
         let smart = SmartSelection::new();
         let text = "hello world test";
         let chars: Vec<char> = text.chars().collect();
-        
+
         let (start, end) = smart.expand_word(&chars, 7); // cursor on 'o' in 'world'
         assert_eq!(&text[start..end], "world");
     }
@@ -805,7 +858,7 @@ mod tests {
         let smart = SmartSelection::new();
         let text = "visit https://example.com/path for more";
         let chars: Vec<char> = text.chars().collect();
-        
+
         let (start, end) = smart.expand_url(&chars, 15); // cursor in URL
         assert_eq!(&text[start..end], "https://example.com/path");
     }
@@ -815,7 +868,7 @@ mod tests {
         let smart = SmartSelection::new();
         let text = "function(arg1, arg2)";
         let chars: Vec<char> = text.chars().collect();
-        
+
         let (start, end) = smart.expand_bracket(&chars, 8); // cursor on '('
         assert_eq!(&text[start..end], "(arg1, arg2)");
     }
@@ -825,7 +878,7 @@ mod tests {
         let smart = SmartSelection::new();
         let text = "line 1\nline 2\nline 3";
         let chars: Vec<char> = text.chars().collect();
-        
+
         let (start, end) = smart.expand_line(&chars, 10); // cursor in "line 2"
         assert_eq!(&text[start..end], "line 2");
     }
@@ -835,7 +888,7 @@ mod tests {
         let smart = SmartSelection::new();
         let text = "First sentence. Second sentence. Third sentence.";
         let chars: Vec<char> = text.chars().collect();
-        
+
         let (start, end) = smart.expand_sentence(&chars, 20); // cursor in "Second"
         let sentence = &text[start..end];
         assert!(sentence.contains("Second"));
@@ -847,7 +900,7 @@ mod tests {
         let smart = SmartSelection::new();
         let text = "Para 1 line 1\nPara 1 line 2\n\nPara 2 line 1";
         let chars: Vec<char> = text.chars().collect();
-        
+
         let (start, end) = smart.expand_paragraph(&chars, 5); // cursor in first paragraph
         let para = &text[start..end];
         assert!(para.contains("Para 1"));
@@ -858,7 +911,7 @@ mod tests {
         let smart = SmartSelection::new();
         let text = "Contact us at user@example.com for more info";
         let chars: Vec<char> = text.chars().collect();
-        
+
         let (start, end) = smart.expand_email(&chars, 20); // cursor in email
         assert_eq!(&text[start..end], "user@example.com");
     }
@@ -868,7 +921,7 @@ mod tests {
         let smart = SmartSelection::new();
         let text = "Open the file C:/Users/test/file.txt to edit";
         let chars: Vec<char> = text.chars().collect();
-        
+
         let (start, end) = smart.expand_file_path(&chars, 20); // cursor in path
         let path = &text[start..end];
         assert!(path.contains("C:"));
@@ -880,7 +933,7 @@ mod tests {
         let smart = SmartSelection::new();
         let text = "fn main() {\n    let x = 5;\n    println!(\"{}\", x);\n}";
         let chars: Vec<char> = text.chars().collect();
-        
+
         let (start, end) = smart.expand_code_block(&chars, 20); // cursor inside function
         let block = &text[start..end];
         assert!(block.contains("let x"));
@@ -891,7 +944,7 @@ mod tests {
         let smart = SmartSelection::new();
         let text = r#"He said "hello world" to everyone"#;
         let chars: Vec<char> = text.chars().collect();
-        
+
         let (start, end) = smart.expand_quote(&chars, 15); // cursor inside quotes
         let quoted = &text[start..end];
         assert!(quoted.contains("hello world"));
@@ -909,7 +962,7 @@ mod tests {
             is_code: false,
             language: None,
         };
-        
+
         let expansion = smart.auto_expand(&context);
         assert_eq!(expansion.mode, SelectionMode::Url);
     }
@@ -926,7 +979,7 @@ mod tests {
             is_code: false,
             language: None,
         };
-        
+
         let expansion = smart.auto_expand(&context);
         assert_eq!(expansion.mode, SelectionMode::Email);
     }
@@ -943,7 +996,7 @@ mod tests {
             is_code: false,
             language: None,
         };
-        
+
         let expansion = smart.expand(&context, SelectionMode::Word);
         assert_eq!(expansion.expanded_text, "world");
         assert_eq!(expansion.mode, SelectionMode::Word);
@@ -966,7 +1019,7 @@ mod tests {
             SelectionMode::Email,
             SelectionMode::FilePath,
         ];
-        
+
         for mode in modes {
             let json = serde_json::to_string(&mode);
             assert!(json.is_ok());
@@ -984,10 +1037,10 @@ mod tests {
             mode: SelectionMode::Word,
             confidence: 0.95,
         };
-        
+
         let json = serde_json::to_string(&expansion);
         assert!(json.is_ok());
-        
+
         let parsed: Result<SelectionExpansion, _> = serde_json::from_str(&json.unwrap());
         assert!(parsed.is_ok());
     }
@@ -997,7 +1050,7 @@ mod tests {
         let smart = SmartSelection::new();
         let text = "outer(inner(deep))";
         let chars: Vec<char> = text.chars().collect();
-        
+
         // Cursor on outer opening bracket
         let (start, end) = smart.expand_bracket(&chars, 5);
         assert_eq!(&text[start..end], "(inner(deep))");
@@ -1008,7 +1061,7 @@ mod tests {
         let smart = SmartSelection::new();
         let text = "";
         let chars: Vec<char> = text.chars().collect();
-        
+
         let (start, end) = smart.expand_word(&chars, 0);
         assert_eq!(start, 0);
         assert_eq!(end, 0);
@@ -1019,7 +1072,7 @@ mod tests {
         let smart = SmartSelection::new();
         let text = "hello";
         let chars: Vec<char> = text.chars().collect();
-        
+
         let (start, end) = smart.expand_word(&chars, 10); // cursor beyond text
         assert_eq!(start, 10);
         assert_eq!(end, 10);
@@ -1030,7 +1083,7 @@ mod tests {
         let smart = SmartSelection::new();
         let text = "fn hello() {\n    println!(\"hi\");\n}";
         let chars: Vec<char> = text.chars().collect();
-        
+
         let (start, end) = smart.expand_function(&chars, 15, Some("rust"));
         let func = &text[start..end];
         assert!(func.contains("fn hello"));
@@ -1041,7 +1094,7 @@ mod tests {
         let smart = SmartSelection::default();
         let text = "test word";
         let chars: Vec<char> = text.chars().collect();
-        
+
         let (start, end) = smart.expand_word(&chars, 6);
         assert_eq!(&text[start..end], "word");
     }

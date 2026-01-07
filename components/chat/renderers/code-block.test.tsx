@@ -14,7 +14,7 @@ const customRender = (ui: React.ReactElement) =>
   render(ui, { wrapper: Wrapper });
 
 // Mock useCopy hook
-jest.mock('@/hooks/use-copy', () => ({
+jest.mock('@/hooks/ui/use-copy', () => ({
   useCopy: () => ({
     copy: jest.fn().mockResolvedValue({ success: true }),
     isCopying: false,

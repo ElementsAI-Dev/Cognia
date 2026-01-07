@@ -1,4 +1,4 @@
-﻿//! Tauri IPC commands for MCP functionality
+//! Tauri IPC commands for MCP functionality
 
 use tauri::State;
 
@@ -7,7 +7,9 @@ use crate::mcp::types::*;
 
 /// Get all MCP servers and their states
 #[tauri::command]
-pub async fn mcp_get_servers(manager: State<'_, McpManager>) -> Result<Vec<McpServerState>, String> {
+pub async fn mcp_get_servers(
+    manager: State<'_, McpManager>,
+) -> Result<Vec<McpServerState>, String> {
     Ok(manager.get_all_servers().await)
 }
 
@@ -35,10 +37,7 @@ pub async fn mcp_add_server(
 
 /// Remove an MCP server
 #[tauri::command]
-pub async fn mcp_remove_server(
-    manager: State<'_, McpManager>,
-    id: String,
-) -> Result<(), String> {
+pub async fn mcp_remove_server(manager: State<'_, McpManager>, id: String) -> Result<(), String> {
     manager.remove_server(&id).await.map_err(|e| e.to_string())
 }
 
@@ -57,14 +56,8 @@ pub async fn mcp_update_server(
 
 /// Connect to an MCP server
 #[tauri::command]
-pub async fn mcp_connect_server(
-    manager: State<'_, McpManager>,
-    id: String,
-) -> Result<(), String> {
-    manager
-        .connect_server(&id)
-        .await
-        .map_err(|e| e.to_string())
+pub async fn mcp_connect_server(manager: State<'_, McpManager>, id: String) -> Result<(), String> {
+    manager.connect_server(&id).await.map_err(|e| e.to_string())
 }
 
 /// Disconnect from an MCP server
@@ -216,7 +209,9 @@ pub async fn mcp_test_connection(
 ) -> Result<bool, String> {
     let servers = manager.get_all_servers().await;
     let server = servers.iter().find(|s| s.id == server_id);
-    Ok(server.map(|s| matches!(s.status, McpServerStatus::Connected)).unwrap_or(false))
+    Ok(server
+        .map(|s| matches!(s.status, McpServerStatus::Connected))
+        .unwrap_or(false))
 }
 
 /// Ping an MCP server to check connectivity
@@ -227,7 +222,9 @@ pub async fn mcp_ping_server(
 ) -> Result<bool, String> {
     let servers = manager.get_all_servers().await;
     let server = servers.iter().find(|s| s.id == server_id);
-    Ok(server.map(|s| matches!(s.status, McpServerStatus::Connected)).unwrap_or(false))
+    Ok(server
+        .map(|s| matches!(s.status, McpServerStatus::Connected))
+        .unwrap_or(false))
 }
 
 /// Set MCP server log level
@@ -251,13 +248,15 @@ pub async fn mcp_subscribe_resource(
     _uri: String,
 ) -> Result<(), String> {
     let servers = manager.get_all_servers().await;
-    let server = servers.iter().find(|s| s.id == server_id)
+    let server = servers
+        .iter()
+        .find(|s| s.id == server_id)
         .ok_or_else(|| format!("Server not found: {}", server_id))?;
-    
+
     if !matches!(server.status, McpServerStatus::Connected) {
         return Err("Server not connected".to_string());
     }
-    
+
     Ok(())
 }
 
@@ -269,13 +268,15 @@ pub async fn mcp_unsubscribe_resource(
     _uri: String,
 ) -> Result<(), String> {
     let servers = manager.get_all_servers().await;
-    let server = servers.iter().find(|s| s.id == server_id)
+    let server = servers
+        .iter()
+        .find(|s| s.id == server_id)
         .ok_or_else(|| format!("Server not found: {}", server_id))?;
-    
+
     if !matches!(server.status, McpServerStatus::Connected) {
         return Err("Server not connected".to_string());
     }
-    
+
     Ok(())
 }
 
@@ -290,7 +291,7 @@ mod tests {
         let connecting = McpServerStatus::Connecting;
         let connected = McpServerStatus::Connected;
         let error = McpServerStatus::Error("Connection failed".to_string());
-        
+
         assert!(matches!(disconnected, McpServerStatus::Disconnected));
         assert!(matches!(connecting, McpServerStatus::Connecting));
         assert!(matches!(connected, McpServerStatus::Connected));
@@ -309,7 +310,7 @@ mod tests {
                 }
             }),
         };
-        
+
         assert_eq!(tool.name, "read_file");
         assert!(tool.description.is_some());
     }
@@ -319,7 +320,7 @@ mod tests {
         let content = ContentItem::Text {
             text: "Hello World".to_string(),
         };
-        
+
         if let ContentItem::Text { text } = content {
             assert_eq!(text, "Hello World");
         } else {
@@ -335,7 +336,7 @@ mod tests {
             }],
             is_error: false,
         };
-        
+
         assert!(!result.is_error);
         assert_eq!(result.content.len(), 1);
     }
@@ -348,7 +349,7 @@ mod tests {
             }],
             is_error: true,
         };
-        
+
         assert!(result.is_error);
     }
 }

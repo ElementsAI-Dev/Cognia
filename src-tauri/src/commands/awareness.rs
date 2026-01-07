@@ -3,8 +3,8 @@
 //! Commands for system awareness and smart suggestions.
 
 use crate::awareness::{
-    ActivityType, AwarenessManager, AwarenessState, Suggestion,
-    SystemState, UserActivity, FocusSession, AppUsageStats, DailyUsageSummary,
+    ActivityType, AppUsageStats, AwarenessManager, AwarenessState, DailyUsageSummary, FocusSession,
+    Suggestion, SystemState, UserActivity,
 };
 use tauri::State;
 
@@ -51,7 +51,7 @@ pub async fn awareness_record_activity(
         duration_ms: None,
         metadata: metadata.unwrap_or_default(),
     };
-    
+
     manager.record_activity(activity);
     Ok(())
 }
@@ -75,18 +75,14 @@ pub async fn awareness_start_monitoring(
 
 /// Stop background monitoring
 #[tauri::command]
-pub async fn awareness_stop_monitoring(
-    manager: State<'_, AwarenessManager>,
-) -> Result<(), String> {
+pub async fn awareness_stop_monitoring(manager: State<'_, AwarenessManager>) -> Result<(), String> {
     manager.stop_monitoring();
     Ok(())
 }
 
 /// Clear activity history
 #[tauri::command]
-pub async fn awareness_clear_history(
-    manager: State<'_, AwarenessManager>,
-) -> Result<(), String> {
+pub async fn awareness_clear_history(manager: State<'_, AwarenessManager>) -> Result<(), String> {
     manager.clear_history();
     Ok(())
 }
@@ -217,40 +213,82 @@ mod tests {
 
     #[test]
     fn test_parse_activity_type_text_selection() {
-        assert!(matches!(parse_activity_type("text_selection"), ActivityType::TextSelection));
-        assert!(matches!(parse_activity_type("textselection"), ActivityType::TextSelection));
-        assert!(matches!(parse_activity_type("TEXT_SELECTION"), ActivityType::TextSelection));
+        assert!(matches!(
+            parse_activity_type("text_selection"),
+            ActivityType::TextSelection
+        ));
+        assert!(matches!(
+            parse_activity_type("textselection"),
+            ActivityType::TextSelection
+        ));
+        assert!(matches!(
+            parse_activity_type("TEXT_SELECTION"),
+            ActivityType::TextSelection
+        ));
     }
 
     #[test]
     fn test_parse_activity_type_screenshot() {
-        assert!(matches!(parse_activity_type("screenshot"), ActivityType::Screenshot));
-        assert!(matches!(parse_activity_type("SCREENSHOT"), ActivityType::Screenshot));
+        assert!(matches!(
+            parse_activity_type("screenshot"),
+            ActivityType::Screenshot
+        ));
+        assert!(matches!(
+            parse_activity_type("SCREENSHOT"),
+            ActivityType::Screenshot
+        ));
     }
 
     #[test]
     fn test_parse_activity_type_app_switch() {
-        assert!(matches!(parse_activity_type("app_switch"), ActivityType::AppSwitch));
-        assert!(matches!(parse_activity_type("appswitch"), ActivityType::AppSwitch));
+        assert!(matches!(
+            parse_activity_type("app_switch"),
+            ActivityType::AppSwitch
+        ));
+        assert!(matches!(
+            parse_activity_type("appswitch"),
+            ActivityType::AppSwitch
+        ));
     }
 
     #[test]
     fn test_parse_activity_type_file_operations() {
-        assert!(matches!(parse_activity_type("file_open"), ActivityType::FileOpen));
-        assert!(matches!(parse_activity_type("fileopen"), ActivityType::FileOpen));
-        assert!(matches!(parse_activity_type("file_save"), ActivityType::FileSave));
-        assert!(matches!(parse_activity_type("filesave"), ActivityType::FileSave));
+        assert!(matches!(
+            parse_activity_type("file_open"),
+            ActivityType::FileOpen
+        ));
+        assert!(matches!(
+            parse_activity_type("fileopen"),
+            ActivityType::FileOpen
+        ));
+        assert!(matches!(
+            parse_activity_type("file_save"),
+            ActivityType::FileSave
+        ));
+        assert!(matches!(
+            parse_activity_type("filesave"),
+            ActivityType::FileSave
+        ));
     }
 
     #[test]
     fn test_parse_activity_type_url_visit() {
-        assert!(matches!(parse_activity_type("url_visit"), ActivityType::UrlVisit));
-        assert!(matches!(parse_activity_type("urlvisit"), ActivityType::UrlVisit));
+        assert!(matches!(
+            parse_activity_type("url_visit"),
+            ActivityType::UrlVisit
+        ));
+        assert!(matches!(
+            parse_activity_type("urlvisit"),
+            ActivityType::UrlVisit
+        ));
     }
 
     #[test]
     fn test_parse_activity_type_search() {
-        assert!(matches!(parse_activity_type("search"), ActivityType::Search));
+        assert!(matches!(
+            parse_activity_type("search"),
+            ActivityType::Search
+        ));
     }
 
     #[test]
@@ -261,25 +299,46 @@ mod tests {
 
     #[test]
     fn test_parse_activity_type_ai_query() {
-        assert!(matches!(parse_activity_type("ai_query"), ActivityType::AiQuery));
-        assert!(matches!(parse_activity_type("aiquery"), ActivityType::AiQuery));
+        assert!(matches!(
+            parse_activity_type("ai_query"),
+            ActivityType::AiQuery
+        ));
+        assert!(matches!(
+            parse_activity_type("aiquery"),
+            ActivityType::AiQuery
+        ));
     }
 
     #[test]
     fn test_parse_activity_type_translation() {
-        assert!(matches!(parse_activity_type("translation"), ActivityType::Translation));
+        assert!(matches!(
+            parse_activity_type("translation"),
+            ActivityType::Translation
+        ));
     }
 
     #[test]
     fn test_parse_activity_type_code_action() {
-        assert!(matches!(parse_activity_type("code_action"), ActivityType::CodeAction));
-        assert!(matches!(parse_activity_type("codeaction"), ActivityType::CodeAction));
+        assert!(matches!(
+            parse_activity_type("code_action"),
+            ActivityType::CodeAction
+        ));
+        assert!(matches!(
+            parse_activity_type("codeaction"),
+            ActivityType::CodeAction
+        ));
     }
 
     #[test]
     fn test_parse_activity_type_document_action() {
-        assert!(matches!(parse_activity_type("document_action"), ActivityType::DocumentAction));
-        assert!(matches!(parse_activity_type("documentaction"), ActivityType::DocumentAction));
+        assert!(matches!(
+            parse_activity_type("document_action"),
+            ActivityType::DocumentAction
+        ));
+        assert!(matches!(
+            parse_activity_type("documentaction"),
+            ActivityType::DocumentAction
+        ));
     }
 
     #[test]
@@ -288,7 +347,7 @@ mod tests {
             ActivityType::Custom(s) => assert_eq!(s, "custom_type"),
             _ => panic!("Expected Custom variant"),
         }
-        
+
         match parse_activity_type("unknown_activity") {
             ActivityType::Custom(s) => assert_eq!(s, "unknown_activity"),
             _ => panic!("Expected Custom variant"),
@@ -299,6 +358,9 @@ mod tests {
     fn test_parse_activity_type_case_insensitive() {
         assert!(matches!(parse_activity_type("COPY"), ActivityType::Copy));
         assert!(matches!(parse_activity_type("Paste"), ActivityType::Paste));
-        assert!(matches!(parse_activity_type("SEARCH"), ActivityType::Search));
+        assert!(matches!(
+            parse_activity_type("SEARCH"),
+            ActivityType::Search
+        ));
     }
 }

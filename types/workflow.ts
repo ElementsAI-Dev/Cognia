@@ -52,13 +52,30 @@ export interface WorkflowIOSchema {
 }
 
 /**
+ * Workflow step types - maps to visual node types
+ */
+export type WorkflowStepType =
+  | 'ai'
+  | 'tool'
+  | 'human'
+  | 'conditional'
+  | 'parallel'
+  | 'code'
+  | 'transform'
+  | 'loop'
+  | 'webhook'
+  | 'delay'
+  | 'merge'
+  | 'subworkflow';
+
+/**
  * Workflow step definition
  */
 export interface WorkflowStepDefinition {
   id: string;
   name: string;
   description: string;
-  type: 'ai' | 'tool' | 'human' | 'conditional' | 'parallel';
+  type: WorkflowStepType;
   toolName?: string;
   aiPrompt?: string;
   inputs: Record<string, WorkflowIOSchema>;
@@ -68,6 +85,33 @@ export interface WorkflowStepDefinition {
   retryCount?: number;
   timeout?: number;
   condition?: string;
+  // Code step specific
+  code?: string;
+  language?: 'javascript' | 'typescript' | 'python';
+  // Transform step specific
+  transformType?: 'map' | 'filter' | 'reduce' | 'sort' | 'custom';
+  expression?: string;
+  // Loop step specific
+  loopType?: 'forEach' | 'while' | 'times';
+  iteratorVariable?: string;
+  collection?: string;
+  maxIterations?: number;
+  // Webhook step specific
+  webhookUrl?: string;
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  headers?: Record<string, string>;
+  body?: string;
+  // Delay step specific
+  delayType?: 'fixed' | 'until' | 'cron';
+  delayMs?: number;
+  untilTime?: string;
+  cronExpression?: string;
+  // Merge step specific
+  mergeStrategy?: 'concat' | 'merge' | 'first' | 'last' | 'custom';
+  // Subworkflow step specific
+  workflowId?: string;
+  inputMapping?: Record<string, string>;
+  outputMapping?: Record<string, string>;
 }
 
 /**

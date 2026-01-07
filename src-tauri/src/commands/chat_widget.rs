@@ -2,38 +2,30 @@
 //!
 //! Commands for controlling the AI chat widget floating window.
 
-use crate::chat_widget::{ChatWidgetWindow, ChatWidgetConfig, ChatWidgetStatus};
+use crate::chat_widget::{ChatWidgetConfig, ChatWidgetStatus, ChatWidgetWindow};
 use tauri::State;
 
 /// Show the chat widget window
 #[tauri::command]
-pub async fn chat_widget_show(
-    manager: State<'_, ChatWidgetWindow>,
-) -> Result<(), String> {
+pub async fn chat_widget_show(manager: State<'_, ChatWidgetWindow>) -> Result<(), String> {
     manager.show()
 }
 
 /// Hide the chat widget window
 #[tauri::command]
-pub async fn chat_widget_hide(
-    manager: State<'_, ChatWidgetWindow>,
-) -> Result<(), String> {
+pub async fn chat_widget_hide(manager: State<'_, ChatWidgetWindow>) -> Result<(), String> {
     manager.hide()
 }
 
 /// Toggle the chat widget window visibility
 #[tauri::command]
-pub async fn chat_widget_toggle(
-    manager: State<'_, ChatWidgetWindow>,
-) -> Result<bool, String> {
+pub async fn chat_widget_toggle(manager: State<'_, ChatWidgetWindow>) -> Result<bool, String> {
     manager.toggle()
 }
 
 /// Check if chat widget is visible
 #[tauri::command]
-pub async fn chat_widget_is_visible(
-    manager: State<'_, ChatWidgetWindow>,
-) -> Result<bool, String> {
+pub async fn chat_widget_is_visible(manager: State<'_, ChatWidgetWindow>) -> Result<bool, String> {
     Ok(manager.is_visible())
 }
 
@@ -84,9 +76,7 @@ pub async fn chat_widget_set_position(
 
 /// Focus the input field in chat widget
 #[tauri::command]
-pub async fn chat_widget_focus_input(
-    manager: State<'_, ChatWidgetWindow>,
-) -> Result<(), String> {
+pub async fn chat_widget_focus_input(manager: State<'_, ChatWidgetWindow>) -> Result<(), String> {
     manager.focus_input()
 }
 
@@ -101,8 +91,6 @@ pub async fn chat_widget_send_text(
 
 /// Destroy the chat widget window
 #[tauri::command]
-pub async fn chat_widget_destroy(
-    manager: State<'_, ChatWidgetWindow>,
-) -> Result<(), String> {
+pub async fn chat_widget_destroy(manager: State<'_, ChatWidgetWindow>) -> Result<(), String> {
     manager.destroy()
 }

@@ -24,6 +24,8 @@ export { ExecutionStatisticsPanel } from './execution-statistics-panel';
 export { VersionHistoryPanel } from './version-history-panel';
 export { WorkflowInputTestPanel } from './workflow-input-test-panel';
 export { NodeTemplatePanel } from './node-template-manager';
+export { WorkflowTriggerPanel, type TriggerType, type WorkflowTrigger, type TriggerConfig } from './workflow-trigger-panel';
+export { WorkflowExecutionHistoryPanel } from './workflow-execution-history-panel';
 
 // Utility components
 export { NodePreviewTooltip } from './node-preview-tooltip';

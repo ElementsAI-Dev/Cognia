@@ -2,6 +2,10 @@
  * Tests for summary-store
  */
 
+// Unmock the summary store so we test the real implementation
+jest.unmock('./summary-store');
+jest.unmock('@/stores/chat/summary-store');
+
 import { act, renderHook } from '@testing-library/react';
 import { useSummaryStore } from './summary-store';
 
@@ -24,9 +28,22 @@ jest.mock('@/lib/db/schema', () => ({
 
 describe('useSummaryStore', () => {
   beforeEach(() => {
+    // Clear localStorage to ensure clean state
+    localStorage.clear();
     // Reset the store before each test
     act(() => {
       useSummaryStore.getState().reset();
+      // Also ensure autoSummaryConfig is reset to defaults
+      useSummaryStore.setState({
+        autoSummaryConfig: {
+          enabled: true,
+          minMessages: 20,
+          minTokens: 5000,
+          autoOnSessionEnd: false,
+          defaultFormat: 'bullets',
+          defaultStyle: 'concise',
+        },
+      });
     });
   });
 

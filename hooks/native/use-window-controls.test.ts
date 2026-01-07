@@ -203,7 +203,7 @@ describe('useWindowControls', () => {
     });
 
     it('should toggle fullscreen off when already fullscreen', async () => {
-      mockWindowState.isFullscreen = true;
+      mockIsFullscreen.mockResolvedValue(true);
       const { result } = renderHook(() => useWindowControls({ syncState: false }));
 
       await act(async () => {

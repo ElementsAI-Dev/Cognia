@@ -1,41 +1,25 @@
 // Mock for @qdrant/js-client-rest ESM module
-class QdrantClient {
-  constructor(config) {
-    this.config = config;
-  }
-
-  async getCollections() {
-    return { collections: [] };
-  }
-
-  async createCollection() {
-    return { result: true };
-  }
-
-  async deleteCollection() {
-    return { result: true };
-  }
-
-  async upsert() {
-    return { result: { operation_id: 1, status: 'completed' } };
-  }
-
-  async search() {
-    return [];
-  }
-
-  async scroll() {
-    return { points: [], next_page_offset: null };
-  }
-
-  async delete() {
-    return { result: { operation_id: 1, status: 'completed' } };
-  }
-
-  async getCollection() {
-    return { result: { vectors_count: 0, points_count: 0 } };
-  }
-}
+const QdrantClient = jest.fn().mockImplementation((config) => ({
+  config,
+  getCollections: jest.fn().mockResolvedValue({ collections: [] }),
+  createCollection: jest.fn().mockResolvedValue({ result: true }),
+  deleteCollection: jest.fn().mockResolvedValue({ result: true }),
+  upsert: jest.fn().mockResolvedValue({ result: { operation_id: 1, status: 'completed' } }),
+  search: jest.fn().mockResolvedValue([]),
+  scroll: jest.fn().mockResolvedValue({ points: [], next_page_offset: null }),
+  delete: jest.fn().mockResolvedValue({ result: { operation_id: 1, status: 'completed' } }),
+  getCollection: jest.fn().mockResolvedValue({
+    indexed_vectors_count: 0,
+    points_count: 0,
+    status: 'green',
+    config: {
+      params: {
+        vectors: { size: 1536, distance: 'Cosine' },
+      },
+    },
+  }),
+  retrieve: jest.fn().mockResolvedValue([]),
+}));
 
 class QdrantClientConfigError extends Error {
   constructor(message) {

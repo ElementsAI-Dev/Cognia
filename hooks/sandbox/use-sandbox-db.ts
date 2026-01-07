@@ -60,7 +60,12 @@ export function useExecutionHistory(
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!isTauri) return;
+    if (!isTauri) {
+      setExecutions([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
@@ -178,7 +183,12 @@ export function useSnippets(options: UseSnippetsOptions = {}): UseSnippetsReturn
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!isTauri) return;
+    if (!isTauri) {
+      setSnippets([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
@@ -304,7 +314,13 @@ export function useSessions(options: UseSessionsOptions = {}): UseSessionsReturn
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!isTauri) return;
+    if (!isTauri) {
+      setSessions([]);
+      setCurrentSessionIdState(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
@@ -400,7 +416,14 @@ export function useSandboxStats(days: number = 30): UseSandboxStatsReturn {
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!isTauri) return;
+    if (!isTauri) {
+      setStats(null);
+      setLanguageStats([]);
+      setDailyCounts([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
@@ -516,7 +539,12 @@ export function useTagsCategories(): UseTagsCategoriesReturn {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    if (!isTauri) return;
+    if (!isTauri) {
+      setTags([]);
+      setCategories([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const api = await getSandboxApi();

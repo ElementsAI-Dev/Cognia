@@ -76,20 +76,20 @@ impl VectorStoreState {
         if let Some(parent) = self.path.parent() {
             fs::create_dir_all(parent)?;
         }
-        
+
         // Atomic write: write to temp file, then rename
         let temp_path = self.path.with_extension("tmp");
         let serialized = serde_json::to_string_pretty(data)?;
-        
+
         {
             let mut file = fs::File::create(&temp_path)?;
             file.write_all(serialized.as_bytes())?;
             file.sync_all()?; // Ensure data is flushed to disk
         }
-        
+
         // Atomic rename (on most filesystems)
         fs::rename(&temp_path, &self.path)?;
-        
+
         Ok(())
     }
 }
@@ -110,10 +110,7 @@ fn cosine_similarity(a: &[f64], b: &[f64]) -> f64 {
 }
 
 fn collection_count(name: &str, data: &VectorData) -> usize {
-    data.points
-        .get(name)
-        .map(|v| v.len())
-        .unwrap_or(0)
+    data.points.get(name).map(|v| v.len()).unwrap_or(0)
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -169,10 +166,7 @@ pub fn create_collection_impl(
     Ok(true)
 }
 
-pub fn delete_collection_impl(
-    state: &VectorStoreState,
-    name: String,
-) -> Result<bool, String> {
+pub fn delete_collection_impl(state: &VectorStoreState, name: String) -> Result<bool, String> {
     let mut data = state.data.lock();
     data.collections.remove(&name);
     data.points.remove(&name);
@@ -203,31 +197,31 @@ pub fn rename_collection_impl(
     new_name: String,
 ) -> Result<bool, String> {
     let mut data = state.data.lock();
-    
+
     // Check if old collection exists
     let mut meta = data
         .collections
         .get(&old_name)
         .cloned()
         .ok_or_else(|| "Collection not found".to_string())?;
-    
+
     // Check if new name already exists
     if data.collections.contains_key(&new_name) {
         return Err("Collection with new name already exists".to_string());
     }
-    
+
     // Update metadata
     meta.name = new_name.clone();
     meta.updated_at = default_timestamp();
-    
+
     // Move collection and points
     data.collections.remove(&old_name);
     data.collections.insert(new_name.clone(), meta);
-    
+
     if let Some(points) = data.points.remove(&old_name) {
         data.points.insert(new_name, points);
     }
-    
+
     state.persist(&data).map_err(|e| e.to_string())?;
     Ok(true)
 }
@@ -240,27 +234,24 @@ pub fn vector_truncate_collection(
     truncate_collection_impl(&state, name)
 }
 
-pub fn truncate_collection_impl(
-    state: &VectorStoreState,
-    name: String,
-) -> Result<bool, String> {
+pub fn truncate_collection_impl(state: &VectorStoreState, name: String) -> Result<bool, String> {
     let mut data = state.data.lock();
-    
+
     // Check if collection exists
     let mut meta = data
         .collections
         .get(&name)
         .cloned()
         .ok_or_else(|| "Collection not found".to_string())?;
-    
+
     // Update metadata
     meta.document_count = 0;
     meta.updated_at = default_timestamp();
     data.collections.insert(name.clone(), meta);
-    
+
     // Clear all points
     data.points.insert(name, Vec::new());
-    
+
     state.persist(&data).map_err(|e| e.to_string())?;
     Ok(true)
 }
@@ -289,12 +280,8 @@ pub fn export_collection_impl(
         .get(&name)
         .cloned()
         .ok_or_else(|| "Collection not found".to_string())?;
-    let points = data
-        .points
-        .get(&name)
-        .cloned()
-        .unwrap_or_default();
-    
+    let points = data.points.get(&name).cloned().unwrap_or_default();
+
     Ok(CollectionExport { meta, points })
 }
 
@@ -320,12 +307,12 @@ pub fn import_collection_impl(
 ) -> Result<bool, String> {
     let mut data = state.data.lock();
     let overwrite = overwrite.unwrap_or(false);
-    
+
     // Check if collection already exists
     if data.collections.contains_key(&import_data.meta.name) && !overwrite {
         return Err("Collection already exists. Use overwrite=true to replace".to_string());
     }
-    
+
     // Update timestamps
     let mut meta = import_data.meta;
     let now = default_timestamp();
@@ -335,11 +322,11 @@ pub fn import_collection_impl(
     }
     meta.updated_at = now;
     meta.document_count = import_data.points.len();
-    
+
     // Import collection and points
     data.collections.insert(collection_name.clone(), meta);
     data.points.insert(collection_name, import_data.points);
-    
+
     state.persist(&data).map_err(|e| e.to_string())?;
     Ok(true)
 }
@@ -351,9 +338,7 @@ pub fn vector_list_collections(
     list_collections_impl(&state)
 }
 
-pub fn list_collections_impl(
-    state: &VectorStoreState,
-) -> Result<Vec<CollectionMeta>, String> {
+pub fn list_collections_impl(state: &VectorStoreState) -> Result<Vec<CollectionMeta>, String> {
     let data = state.data.lock();
     let mut list: Vec<CollectionMeta> = Vec::new();
     for (name, meta) in data.collections.iter() {
@@ -405,10 +390,16 @@ pub fn vector_upsert_points(
 fn validate_vector(vector: &[f64], id: &str) -> Result<(), String> {
     for (i, &val) in vector.iter().enumerate() {
         if val.is_nan() {
-            return Err(format!("Vector for id '{}' contains NaN at index {}", id, i));
+            return Err(format!(
+                "Vector for id '{}' contains NaN at index {}",
+                id, i
+            ));
         }
         if val.is_infinite() {
-            return Err(format!("Vector for id '{}' contains Infinity at index {}", id, i));
+            return Err(format!(
+                "Vector for id '{}' contains Infinity at index {}",
+                id, i
+            ));
         }
     }
     Ok(())
@@ -420,14 +411,14 @@ pub fn upsert_points_impl(
     points: Vec<UpsertPoint>,
 ) -> Result<bool, String> {
     let mut data = state.data.lock();
-    
+
     // Check collection exists and get dimension
     let collection_meta = data
         .collections
         .get(&collection)
         .ok_or_else(|| "Collection not found".to_string())?;
     let expected_dimension = collection_meta.dimension;
-    
+
     // Validate dimensions and vector values
     for p in &points {
         if p.vector.len() != expected_dimension {
@@ -440,10 +431,10 @@ pub fn upsert_points_impl(
         }
         validate_vector(&p.vector, &p.id)?;
     }
-    
+
     let entry = data.points.entry(collection.clone()).or_default();
     let mut added_count = 0;
-    
+
     for p in points {
         if let Some(existing) = entry.iter_mut().find(|x| x.id == p.id) {
             existing.vector = p.vector;
@@ -457,7 +448,7 @@ pub fn upsert_points_impl(
             added_count += 1;
         }
     }
-    
+
     // Update document count and timestamp in collection metadata
     if added_count > 0 {
         let entry_len = entry.len();
@@ -466,11 +457,10 @@ pub fn upsert_points_impl(
             meta.updated_at = default_timestamp();
         }
     }
-    
+
     state.persist(&data).map_err(|e| e.to_string())?;
     Ok(true)
 }
-
 
 #[tauri::command]
 pub fn vector_delete_points(
@@ -491,7 +481,7 @@ pub fn delete_points_impl(
         let original_len = points.len();
         points.retain(|p| !ids.contains(&p.id));
         let deleted_count = original_len - points.len();
-        
+
         // Update document count and timestamp in collection metadata
         if deleted_count > 0 {
             let points_len = points.len();
@@ -501,7 +491,7 @@ pub fn delete_points_impl(
             }
         }
     }
-    
+
     state.persist(&data).map_err(|e| e.to_string())?;
     Ok(true)
 }
@@ -569,7 +559,7 @@ pub struct SearchResponse {
 
 fn matches_filter(payload_value: &Value, filter: &PayloadFilter) -> bool {
     let target_value = &filter.value;
-    
+
     match filter.operation.as_str() {
         "equals" => payload_value == target_value,
         "not_equals" => payload_value != target_value,
@@ -582,64 +572,66 @@ fn matches_filter(payload_value: &Value, filter: &PayloadFilter) -> bool {
                     } else {
                         false
                     }
-                },
+                }
                 Value::Array(arr) => arr.contains(target_value),
                 _ => false,
             }
-        },
-        "not_contains" => {
-            match payload_value {
-                Value::String(payload_str) => {
-                    if let Value::String(filter_str) = target_value {
-                        !payload_str.contains(filter_str)
-                    } else {
-                        true
-                    }
-                },
-                Value::Array(arr) => !arr.contains(target_value),
-                _ => true,
+        }
+        "not_contains" => match payload_value {
+            Value::String(payload_str) => {
+                if let Value::String(filter_str) = target_value {
+                    !payload_str.contains(filter_str)
+                } else {
+                    true
+                }
             }
+            Value::Array(arr) => !arr.contains(target_value),
+            _ => true,
         },
-        "greater_than" => {
-            match (payload_value, target_value) {
-                (Value::Number(p), Value::Number(f)) => p.as_f64().unwrap_or(0.0) > f.as_f64().unwrap_or(0.0),
-                _ => false,
+        "greater_than" => match (payload_value, target_value) {
+            (Value::Number(p), Value::Number(f)) => {
+                p.as_f64().unwrap_or(0.0) > f.as_f64().unwrap_or(0.0)
             }
+            _ => false,
         },
-        "greater_than_or_equals" => {
-            match (payload_value, target_value) {
-                (Value::Number(p), Value::Number(f)) => p.as_f64().unwrap_or(0.0) >= f.as_f64().unwrap_or(0.0),
-                _ => false,
+        "greater_than_or_equals" => match (payload_value, target_value) {
+            (Value::Number(p), Value::Number(f)) => {
+                p.as_f64().unwrap_or(0.0) >= f.as_f64().unwrap_or(0.0)
             }
+            _ => false,
         },
-        "less_than" => {
-            match (payload_value, target_value) {
-                (Value::Number(p), Value::Number(f)) => p.as_f64().unwrap_or(0.0) < f.as_f64().unwrap_or(0.0),
-                _ => false,
+        "less_than" => match (payload_value, target_value) {
+            (Value::Number(p), Value::Number(f)) => {
+                p.as_f64().unwrap_or(0.0) < f.as_f64().unwrap_or(0.0)
             }
+            _ => false,
         },
-        "less_than_or_equals" => {
-            match (payload_value, target_value) {
-                (Value::Number(p), Value::Number(f)) => p.as_f64().unwrap_or(0.0) <= f.as_f64().unwrap_or(0.0),
-                _ => false,
+        "less_than_or_equals" => match (payload_value, target_value) {
+            (Value::Number(p), Value::Number(f)) => {
+                p.as_f64().unwrap_or(0.0) <= f.as_f64().unwrap_or(0.0)
             }
+            _ => false,
         },
         "is_null" => payload_value.is_null(),
         "is_not_null" => !payload_value.is_null(),
         "starts_with" => {
-            if let (Value::String(payload_str), Value::String(filter_str)) = (payload_value, target_value) {
+            if let (Value::String(payload_str), Value::String(filter_str)) =
+                (payload_value, target_value)
+            {
                 payload_str.starts_with(filter_str)
             } else {
                 false
             }
-        },
+        }
         "ends_with" => {
-            if let (Value::String(payload_str), Value::String(filter_str)) = (payload_value, target_value) {
+            if let (Value::String(payload_str), Value::String(filter_str)) =
+                (payload_value, target_value)
+            {
                 payload_str.ends_with(filter_str)
             } else {
                 false
             }
-        },
+        }
         "in" => {
             // Check if payload_value is in target array
             if let Value::Array(arr) = target_value {
@@ -647,14 +639,14 @@ fn matches_filter(payload_value: &Value, filter: &PayloadFilter) -> bool {
             } else {
                 false
             }
-        },
+        }
         "not_in" => {
             if let Value::Array(arr) = target_value {
                 !arr.contains(payload_value)
             } else {
                 true
             }
-        },
+        }
         _ => false,
     }
 }
@@ -663,20 +655,20 @@ fn apply_payload_filters(point: &PointRecord, filters: &[PayloadFilter], mode: &
     if filters.is_empty() {
         return true;
     }
-    
+
     let Some(payload) = &point.payload else {
         return false; // No payload but filters specified
     };
-    
+
     let use_or = mode == "or";
-    
+
     for filter in filters {
         let matches = if let Some(payload_value) = payload.get(&filter.key) {
             matches_filter(payload_value, filter)
         } else {
             false // Key not found
         };
-        
+
         if use_or {
             // OR mode: return true if any filter matches
             if matches {
@@ -689,7 +681,7 @@ fn apply_payload_filters(point: &PointRecord, filters: &[PayloadFilter], mode: &
             }
         }
     }
-    
+
     // For OR mode, if we get here no filter matched
     // For AND mode, if we get here all filters matched
     !use_or
@@ -716,17 +708,19 @@ pub fn search_points_impl(
     let top_k = payload.top_k.unwrap_or(5);
     let offset = payload.offset.unwrap_or(0);
     let limit = payload.limit.unwrap_or(top_k);
-    
+
     // Apply filters first
     let filtered_points: Vec<&PointRecord> = if let Some(filters) = &payload.filters {
         points
             .iter()
-            .filter(|p| apply_payload_filters(p, filters, payload.filter_mode.as_deref().unwrap_or("and")))
+            .filter(|p| {
+                apply_payload_filters(p, filters, payload.filter_mode.as_deref().unwrap_or("and"))
+            })
             .collect()
     } else {
         points.iter().collect()
     };
-    
+
     // Calculate similarity scores
     let mut scored: Vec<SearchResult> = filtered_points
         .iter()
@@ -735,24 +729,43 @@ pub fn search_points_impl(
             score: cosine_similarity(&payload.vector, &p.vector),
             payload: p.payload.clone(),
         })
-        .filter(|r| payload.score_threshold.map(|t| r.score >= t).unwrap_or(true))
+        .filter(|r| {
+            payload
+                .score_threshold
+                .map(|t| r.score >= t)
+                .unwrap_or(true)
+        })
         .collect();
-        
+
     // Sort by score
-    scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-    
+    scored.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
     // Total before pagination
     let total = scored.len();
-    
+
     // Apply pagination
     if offset >= total {
-        return Ok(SearchResponse { results: vec![], total, offset, limit });
+        return Ok(SearchResponse {
+            results: vec![],
+            total,
+            offset,
+            limit,
+        });
     }
-    
+
     let end_index = std::cmp::min(offset + limit, total);
     let results = scored[offset..end_index].to_vec();
-    
-    Ok(SearchResponse { results, total, offset, limit })
+
+    Ok(SearchResponse {
+        results,
+        total,
+        offset,
+        limit,
+    })
 }
 
 // ============ Delete All Points ============
@@ -770,23 +783,23 @@ pub fn delete_all_points_impl(
     collection: String,
 ) -> Result<usize, String> {
     let mut data = state.data.lock();
-    
+
     // Check collection exists
     if !data.collections.contains_key(&collection) {
         return Err("Collection not found".to_string());
     }
-    
+
     let deleted_count = data.points.get(&collection).map(|v| v.len()).unwrap_or(0);
-    
+
     // Clear all points
     data.points.insert(collection.clone(), Vec::new());
-    
+
     // Update metadata
     if let Some(meta) = data.collections.get_mut(&collection) {
         meta.document_count = 0;
         meta.updated_at = default_timestamp();
     }
-    
+
     state.persist(&data).map_err(|e| e.to_string())?;
     Ok(deleted_count)
 }
@@ -802,22 +815,18 @@ pub struct VectorStats {
 }
 
 #[tauri::command]
-pub fn vector_stats(
-    state: tauri::State<Arc<VectorStoreState>>,
-) -> Result<VectorStats, String> {
+pub fn vector_stats(state: tauri::State<Arc<VectorStoreState>>) -> Result<VectorStats, String> {
     stats_impl(&state)
 }
 
 pub fn stats_impl(state: &VectorStoreState) -> Result<VectorStats, String> {
     let data = state.data.lock();
-    
+
     let collection_count = data.collections.len();
     let total_points: usize = data.points.values().map(|v| v.len()).sum();
     let storage_path = state.path.to_string_lossy().to_string();
-    let storage_size_bytes = fs::metadata(&state.path)
-        .map(|m| m.len())
-        .unwrap_or(0);
-    
+    let storage_size_bytes = fs::metadata(&state.path).map(|m| m.len()).unwrap_or(0);
+
     Ok(VectorStats {
         collection_count,
         total_points,
@@ -863,22 +872,24 @@ pub fn scroll_points_impl(
         .points
         .get(&payload.collection)
         .ok_or_else(|| "Collection not found".to_string())?;
-    
+
     let offset = payload.offset.unwrap_or(0);
     let limit = payload.limit.unwrap_or(100);
-    
+
     // Apply filters
     let filtered: Vec<&PointRecord> = if let Some(filters) = &payload.filters {
         points
             .iter()
-            .filter(|p| apply_payload_filters(p, filters, payload.filter_mode.as_deref().unwrap_or("and")))
+            .filter(|p| {
+                apply_payload_filters(p, filters, payload.filter_mode.as_deref().unwrap_or("and"))
+            })
             .collect()
     } else {
         points.iter().collect()
     };
-    
+
     let total = filtered.len();
-    
+
     if offset >= total {
         return Ok(ScrollResponse {
             points: vec![],
@@ -888,11 +899,14 @@ pub fn scroll_points_impl(
             has_more: false,
         });
     }
-    
+
     let end_index = std::cmp::min(offset + limit, total);
-    let result_points: Vec<PointRecord> = filtered[offset..end_index].iter().map(|p| (*p).clone()).collect();
+    let result_points: Vec<PointRecord> = filtered[offset..end_index]
+        .iter()
+        .map(|p| (*p).clone())
+        .collect();
     let has_more = end_index < total;
-    
+
     Ok(ScrollResponse {
         points: result_points,
         total,
@@ -901,4 +915,3 @@ pub fn scroll_points_impl(
         has_more,
     })
 }
-

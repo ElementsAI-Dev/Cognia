@@ -106,9 +106,7 @@ pub async fn environment_check_tool(tool: EnvironmentTool) -> Result<ToolStatus,
     match result {
         Ok(output) => {
             if output.status.success() {
-                let version = String::from_utf8_lossy(&output.stdout)
-                    .trim()
-                    .to_string();
+                let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
                 let path = get_tool_path(&tool);
 
                 Ok(ToolStatus {
@@ -183,12 +181,22 @@ pub async fn environment_install_tool(
     tool: EnvironmentTool,
 ) -> Result<ToolStatus, String> {
     // Emit progress: starting
-    emit_progress(&app, &tool, "downloading", 0, "Starting installation...", None);
+    emit_progress(
+        &app,
+        &tool,
+        "downloading",
+        0,
+        "Starting installation...",
+        None,
+    );
 
     let install_commands = get_install_commands(&tool);
 
     if install_commands.is_empty() {
-        return Err(format!("No installation commands available for {} on this platform", tool));
+        return Err(format!(
+            "No installation commands available for {} on this platform",
+            tool
+        ));
     }
 
     // Execute installation commands
@@ -219,7 +227,14 @@ pub async fn environment_install_tool(
     }
 
     // Verify installation
-    emit_progress(&app, &tool, "verifying", 95, "Verifying installation...", None);
+    emit_progress(
+        &app,
+        &tool,
+        "verifying",
+        95,
+        "Verifying installation...",
+        None,
+    );
 
     // Wait a moment for installation to complete
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
@@ -268,42 +283,36 @@ fn get_install_commands(tool: &EnvironmentTool) -> Vec<String> {
     #[cfg(target_os = "macos")]
     {
         match tool {
-            EnvironmentTool::Uv => vec![
-                "curl -LsSf https://astral.sh/uv/install.sh | sh".to_string(),
-            ],
+            EnvironmentTool::Uv => {
+                vec!["curl -LsSf https://astral.sh/uv/install.sh | sh".to_string()]
+            }
             EnvironmentTool::Nvm => vec![
-                "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash".to_string(),
+                "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash"
+                    .to_string(),
             ],
-            EnvironmentTool::Docker => vec![
-                "brew install --cask docker".to_string(),
-            ],
-            EnvironmentTool::Podman => vec![
-                "brew install podman".to_string(),
-            ],
-            EnvironmentTool::Ffmpeg => vec![
-                "brew install ffmpeg".to_string(),
-            ],
+            EnvironmentTool::Docker => vec!["brew install --cask docker".to_string()],
+            EnvironmentTool::Podman => vec!["brew install podman".to_string()],
+            EnvironmentTool::Ffmpeg => vec!["brew install ffmpeg".to_string()],
         }
     }
 
     #[cfg(target_os = "linux")]
     {
         match tool {
-            EnvironmentTool::Uv => vec![
-                "curl -LsSf https://astral.sh/uv/install.sh | sh".to_string(),
-            ],
+            EnvironmentTool::Uv => {
+                vec!["curl -LsSf https://astral.sh/uv/install.sh | sh".to_string()]
+            }
             EnvironmentTool::Nvm => vec![
-                "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash".to_string(),
+                "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash"
+                    .to_string(),
             ],
-            EnvironmentTool::Docker => vec![
-                "curl -fsSL https://get.docker.com | sh".to_string(),
-            ],
-            EnvironmentTool::Podman => vec![
-                "sudo apt-get update && sudo apt-get install -y podman".to_string(),
-            ],
-            EnvironmentTool::Ffmpeg => vec![
-                "sudo apt-get update && sudo apt-get install -y ffmpeg".to_string(),
-            ],
+            EnvironmentTool::Docker => vec!["curl -fsSL https://get.docker.com | sh".to_string()],
+            EnvironmentTool::Podman => {
+                vec!["sudo apt-get update && sudo apt-get install -y podman".to_string()]
+            }
+            EnvironmentTool::Ffmpeg => {
+                vec!["sudo apt-get update && sudo apt-get install -y ffmpeg".to_string()]
+            }
         }
     }
 
@@ -514,7 +523,9 @@ fn get_uninstall_command(tool: &EnvironmentTool) -> Option<String> {
     #[cfg(target_os = "linux")]
     {
         match tool {
-            EnvironmentTool::Docker => Some("sudo apt-get remove -y docker-ce docker-ce-cli containerd.io".to_string()),
+            EnvironmentTool::Docker => {
+                Some("sudo apt-get remove -y docker-ce docker-ce-cli containerd.io".to_string())
+            }
             EnvironmentTool::Podman => Some("sudo apt-get remove -y podman".to_string()),
             EnvironmentTool::Ffmpeg => Some("sudo apt-get remove -y ffmpeg".to_string()),
             _ => None,
@@ -545,13 +556,9 @@ pub async fn environment_open_tool_website(tool: EnvironmentTool) -> Result<(), 
 #[tauri::command]
 pub async fn environment_get_python_versions() -> Result<Vec<String>, String> {
     let output = if cfg!(target_os = "windows") {
-        Command::new("cmd")
-            .args(["/C", "uv python list"])
-            .output()
+        Command::new("cmd").args(["/C", "uv python list"]).output()
     } else {
-        Command::new("sh")
-            .args(["-c", "uv python list"])
-            .output()
+        Command::new("sh").args(["-c", "uv python list"]).output()
     };
 
     match output {
@@ -573,9 +580,7 @@ pub async fn environment_get_python_versions() -> Result<Vec<String>, String> {
 #[tauri::command]
 pub async fn environment_get_node_versions() -> Result<Vec<String>, String> {
     let output = if cfg!(target_os = "windows") {
-        Command::new("cmd")
-            .args(["/C", "nvm list"])
-            .output()
+        Command::new("cmd").args(["/C", "nvm list"]).output()
     } else {
         Command::new("bash")
             .args([
@@ -717,7 +722,8 @@ pub async fn environment_create_venv(
     });
 
     // Ensure base directory exists
-    std::fs::create_dir_all(&base_path).map_err(|e| format!("Failed to create base directory: {}", e))?;
+    std::fs::create_dir_all(&base_path)
+        .map_err(|e| format!("Failed to create base directory: {}", e))?;
 
     let env_path = format!("{}/{}", base_path, options.name);
 
@@ -725,16 +731,34 @@ pub async fn environment_create_venv(
 
     // Check if environment already exists
     if std::path::Path::new(&env_path).exists() {
-        return Err(format!("Environment '{}' already exists at {}", options.name, env_path));
+        return Err(format!(
+            "Environment '{}' already exists at {}",
+            options.name, env_path
+        ));
     }
 
-    emit_venv_progress(&app, "creating", 30, "Creating virtual environment...", None);
+    emit_venv_progress(
+        &app,
+        "creating",
+        30,
+        "Creating virtual environment...",
+        None,
+    );
 
     // Create virtual environment based on type
     let result = match options.env_type {
         VirtualEnvType::Uv => create_uv_venv(&env_path, options.python_version.as_deref()).await,
-        VirtualEnvType::Venv => create_python_venv(&env_path, options.python_version.as_deref(), options.system_site_packages.unwrap_or(false)).await,
-        VirtualEnvType::Conda => create_conda_env(&options.name, options.python_version.as_deref()).await,
+        VirtualEnvType::Venv => {
+            create_python_venv(
+                &env_path,
+                options.python_version.as_deref(),
+                options.system_site_packages.unwrap_or(false),
+            )
+            .await
+        }
+        VirtualEnvType::Conda => {
+            create_conda_env(&options.name, options.python_version.as_deref()).await
+        }
     };
 
     if let Err(e) = result {
@@ -755,7 +779,13 @@ pub async fn environment_create_venv(
     emit_venv_progress(&app, "done", 100, "Environment created successfully!", None);
 
     // Get environment info
-    let info = get_venv_info(&env_path, &options.name, &options.env_type, options.project_path).await?;
+    let info = get_venv_info(
+        &env_path,
+        &options.name,
+        &options.env_type,
+        options.project_path,
+    )
+    .await?;
 
     Ok(info)
 }
@@ -792,9 +822,15 @@ async fn create_uv_venv(path: &str, python_version: Option<&str>) -> Result<(), 
 }
 
 /// Create a venv using python -m venv
-async fn create_python_venv(path: &str, python_version: Option<&str>, system_site_packages: bool) -> Result<(), String> {
-    let python_cmd = python_version.map(|v| format!("python{}", v)).unwrap_or_else(|| "python".to_string());
-    
+async fn create_python_venv(
+    path: &str,
+    python_version: Option<&str>,
+    system_site_packages: bool,
+) -> Result<(), String> {
+    let python_cmd = python_version
+        .map(|v| format!("python{}", v))
+        .unwrap_or_else(|| "python".to_string());
+
     let mut args = vec!["-m", "venv"];
     if system_site_packages {
         args.push("--system-site-packages");
@@ -802,14 +838,10 @@ async fn create_python_venv(path: &str, python_version: Option<&str>, system_sit
 
     let output = if cfg!(target_os = "windows") {
         let venv_cmd = format!("{} {} \"{}\"", python_cmd, args.join(" "), path);
-        Command::new("cmd")
-            .args(["/C", &venv_cmd])
-            .output()
+        Command::new("cmd").args(["/C", &venv_cmd]).output()
     } else {
         let venv_cmd = format!("{} {} '{}'", python_cmd, args.join(" "), path);
-        Command::new("sh")
-            .args(["-c", &venv_cmd])
-            .output()
+        Command::new("sh").args(["-c", &venv_cmd]).output()
     };
 
     match output {
@@ -821,8 +853,10 @@ async fn create_python_venv(path: &str, python_version: Option<&str>, system_sit
 
 /// Create a conda environment
 async fn create_conda_env(name: &str, python_version: Option<&str>) -> Result<(), String> {
-    let python_arg = python_version.map(|v| format!("python={}", v)).unwrap_or_else(|| "python".to_string());
-    
+    let python_arg = python_version
+        .map(|v| format!("python={}", v))
+        .unwrap_or_else(|| "python".to_string());
+
     let output = if cfg!(target_os = "windows") {
         Command::new("cmd")
             .args(["/C", &format!("conda create -n {} {} -y", name, python_arg)])
@@ -841,29 +875,54 @@ async fn create_conda_env(name: &str, python_version: Option<&str>) -> Result<()
 }
 
 /// Install packages in an environment
-async fn install_packages_in_env(env_path: &str, packages: &[String], env_type: &VirtualEnvType) -> Result<(), String> {
+async fn install_packages_in_env(
+    env_path: &str,
+    packages: &[String],
+    env_type: &VirtualEnvType,
+) -> Result<(), String> {
     let packages_str = packages.join(" ");
 
     let output = match env_type {
         VirtualEnvType::Uv => {
             if cfg!(target_os = "windows") {
                 Command::new("cmd")
-                    .args(["/C", &format!("uv pip install {} --python \"{}\\Scripts\\python.exe\"", packages_str, env_path)])
+                    .args([
+                        "/C",
+                        &format!(
+                            "uv pip install {} --python \"{}\\Scripts\\python.exe\"",
+                            packages_str, env_path
+                        ),
+                    ])
                     .output()
             } else {
                 Command::new("sh")
-                    .args(["-c", &format!("uv pip install {} --python '{}/bin/python'", packages_str, env_path)])
+                    .args([
+                        "-c",
+                        &format!(
+                            "uv pip install {} --python '{}/bin/python'",
+                            packages_str, env_path
+                        ),
+                    ])
                     .output()
             }
         }
         VirtualEnvType::Venv => {
             if cfg!(target_os = "windows") {
                 Command::new("cmd")
-                    .args(["/C", &format!("\"{}\\Scripts\\pip.exe\" install {}", env_path, packages_str)])
+                    .args([
+                        "/C",
+                        &format!(
+                            "\"{}\\Scripts\\pip.exe\" install {}",
+                            env_path, packages_str
+                        ),
+                    ])
                     .output()
             } else {
                 Command::new("sh")
-                    .args(["-c", &format!("'{}/bin/pip' install {}", env_path, packages_str)])
+                    .args([
+                        "-c",
+                        &format!("'{}/bin/pip' install {}", env_path, packages_str),
+                    ])
                     .output()
             }
         }
@@ -874,11 +933,17 @@ async fn install_packages_in_env(env_path: &str, packages: &[String], env_type: 
                 .unwrap_or_default();
             if cfg!(target_os = "windows") {
                 Command::new("cmd")
-                    .args(["/C", &format!("conda install -n {} {} -y", env_name, packages_str)])
+                    .args([
+                        "/C",
+                        &format!("conda install -n {} {} -y", env_name, packages_str),
+                    ])
                     .output()
             } else {
                 Command::new("sh")
-                    .args(["-c", &format!("conda install -n {} {} -y", env_name, packages_str)])
+                    .args([
+                        "-c",
+                        &format!("conda install -n {} {} -y", env_name, packages_str),
+                    ])
                     .output()
             }
         }
@@ -914,7 +979,11 @@ async fn get_venv_info(
     let size = get_dir_size(path).ok();
 
     Ok(VirtualEnvInfo {
-        id: format!("venv-{}-{}", chrono::Utc::now().timestamp_millis(), &name[..name.len().min(6)]),
+        id: format!(
+            "venv-{}-{}",
+            chrono::Utc::now().timestamp_millis(),
+            &name[..name.len().min(6)]
+        ),
         name: name.to_string(),
         env_type: *env_type,
         path: path.to_string(),
@@ -956,18 +1025,25 @@ async fn get_python_version_from_path(python_path: &str) -> Option<String> {
 async fn count_packages(python_path: &str) -> Result<u32, String> {
     let output = if cfg!(target_os = "windows") {
         Command::new("cmd")
-            .args(["/C", &format!("\"{}\" -m pip list --format=json", python_path)])
+            .args([
+                "/C",
+                &format!("\"{}\" -m pip list --format=json", python_path),
+            ])
             .output()
     } else {
         Command::new("sh")
-            .args(["-c", &format!("'{}' -m pip list --format=json", python_path)])
+            .args([
+                "-c",
+                &format!("'{}' -m pip list --format=json", python_path),
+            ])
             .output()
     };
 
     match output {
         Ok(out) if out.status.success() => {
             let json_str = String::from_utf8_lossy(&out.stdout);
-            let packages: Vec<serde_json::Value> = serde_json::from_str(&json_str).unwrap_or_default();
+            let packages: Vec<serde_json::Value> =
+                serde_json::from_str(&json_str).unwrap_or_default();
             Ok(packages.len() as u32)
         }
         _ => Ok(0),
@@ -977,7 +1053,7 @@ async fn count_packages(python_path: &str) -> Result<u32, String> {
 /// Get directory size as human-readable string
 fn get_dir_size(path: &str) -> Result<String, String> {
     let mut total_size: u64 = 0;
-    
+
     fn walk_dir(dir: &std::path::Path, total: &mut u64) {
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
@@ -1010,7 +1086,9 @@ fn get_dir_size(path: &str) -> Result<String, String> {
 
 /// List all virtual environments
 #[tauri::command]
-pub async fn environment_list_venvs(base_path: Option<String>) -> Result<Vec<VirtualEnvInfo>, String> {
+pub async fn environment_list_venvs(
+    base_path: Option<String>,
+) -> Result<Vec<VirtualEnvInfo>, String> {
     let base = base_path.unwrap_or_else(|| {
         dirs::home_dir()
             .map(|p| p.join(".cognia").join("envs").to_string_lossy().to_string())
@@ -1023,19 +1101,17 @@ pub async fn environment_list_venvs(base_path: Option<String>) -> Result<Vec<Vir
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
-                let name = path.file_name()
+                let name = path
+                    .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_default();
-                
+
                 // Detect environment type
                 let env_type = detect_env_type(&path);
-                
-                if let Ok(info) = get_venv_info(
-                    &path.to_string_lossy(),
-                    &name,
-                    &env_type,
-                    None,
-                ).await {
+
+                if let Ok(info) =
+                    get_venv_info(&path.to_string_lossy(), &name, &env_type, None).await
+                {
                     envs.push(info);
                 }
             }
@@ -1057,12 +1133,12 @@ fn detect_env_type(path: &std::path::Path) -> VirtualEnvType {
         }
         return VirtualEnvType::Venv;
     }
-    
+
     // Check for conda
     if path.join("conda-meta").exists() {
         return VirtualEnvType::Conda;
     }
-    
+
     VirtualEnvType::Venv
 }
 
@@ -1074,7 +1150,7 @@ pub async fn environment_delete_venv(path: String) -> Result<bool, String> {
     }
 
     std::fs::remove_dir_all(&path).map_err(|e| format!("Failed to delete environment: {}", e))?;
-    
+
     Ok(true)
 }
 
@@ -1089,11 +1165,17 @@ pub async fn environment_list_packages(env_path: String) -> Result<Vec<PackageIn
 
     let output = if cfg!(target_os = "windows") {
         Command::new("cmd")
-            .args(["/C", &format!("\"{}\" -m pip list --format=json", python_path)])
+            .args([
+                "/C",
+                &format!("\"{}\" -m pip list --format=json", python_path),
+            ])
             .output()
     } else {
         Command::new("sh")
-            .args(["-c", &format!("'{}' -m pip list --format=json", python_path)])
+            .args([
+                "-c",
+                &format!("'{}' -m pip list --format=json", python_path),
+            ])
             .output()
     };
 
@@ -1102,7 +1184,7 @@ pub async fn environment_list_packages(env_path: String) -> Result<Vec<PackageIn
             let json_str = String::from_utf8_lossy(&out.stdout);
             let raw_packages: Vec<serde_json::Value> = serde_json::from_str(&json_str)
                 .map_err(|e| format!("Failed to parse package list: {}", e))?;
-            
+
             let packages: Vec<PackageInfo> = raw_packages
                 .into_iter()
                 .map(|p| PackageInfo {
@@ -1113,7 +1195,7 @@ pub async fn environment_list_packages(env_path: String) -> Result<Vec<PackageIn
                     location: None,
                 })
                 .collect();
-            
+
             Ok(packages)
         }
         Ok(out) => Err(String::from_utf8_lossy(&out.stderr).to_string()),
@@ -1135,18 +1217,40 @@ pub async fn environment_install_packages(
         format!("{}/bin/python", env_path)
     };
 
-    let upgrade_flag = if upgrade.unwrap_or(false) { "--upgrade " } else { "" };
+    let upgrade_flag = if upgrade.unwrap_or(false) {
+        "--upgrade "
+    } else {
+        ""
+    };
     let packages_str = packages.join(" ");
 
-    emit_venv_progress(&app, "installing", 50, &format!("Installing {}...", packages_str), None);
+    emit_venv_progress(
+        &app,
+        "installing",
+        50,
+        &format!("Installing {}...", packages_str),
+        None,
+    );
 
     let output = if cfg!(target_os = "windows") {
         Command::new("cmd")
-            .args(["/C", &format!("\"{}\" -m pip install {}{}", python_path, upgrade_flag, packages_str)])
+            .args([
+                "/C",
+                &format!(
+                    "\"{}\" -m pip install {}{}",
+                    python_path, upgrade_flag, packages_str
+                ),
+            ])
             .output()
     } else {
         Command::new("sh")
-            .args(["-c", &format!("'{}' -m pip install {}{}", python_path, upgrade_flag, packages_str)])
+            .args([
+                "-c",
+                &format!(
+                    "'{}' -m pip install {}{}",
+                    python_path, upgrade_flag, packages_str
+                ),
+            ])
             .output()
     };
 
@@ -1161,7 +1265,13 @@ pub async fn environment_install_packages(
             Err(error)
         }
         Err(e) => {
-            emit_venv_progress(&app, "error", 0, "Installation failed", Some(&e.to_string()));
+            emit_venv_progress(
+                &app,
+                "error",
+                0,
+                "Installation failed",
+                Some(&e.to_string()),
+            );
             Err(e.to_string())
         }
     }
@@ -1241,14 +1351,12 @@ pub async fn environment_get_available_python_versions() -> Result<Vec<String>, 
                 "3.9".to_string(),
             ])
         }
-        Err(_) => {
-            Ok(vec![
-                "3.12".to_string(),
-                "3.11".to_string(),
-                "3.10".to_string(),
-                "3.9".to_string(),
-            ])
-        }
+        Err(_) => Ok(vec![
+            "3.12".to_string(),
+            "3.11".to_string(),
+            "3.10".to_string(),
+            "3.9".to_string(),
+        ]),
     }
 }
 
@@ -1258,7 +1366,13 @@ pub async fn environment_install_python_version(
     app: AppHandle,
     version: String,
 ) -> Result<bool, String> {
-    emit_venv_progress(&app, "installing", 30, &format!("Installing Python {}...", version), None);
+    emit_venv_progress(
+        &app,
+        "installing",
+        30,
+        &format!("Installing Python {}...", version),
+        None,
+    );
 
     let output = if cfg!(target_os = "windows") {
         Command::new("cmd")
@@ -1272,7 +1386,13 @@ pub async fn environment_install_python_version(
 
     match output {
         Ok(out) if out.status.success() => {
-            emit_venv_progress(&app, "done", 100, &format!("Python {} installed successfully!", version), None);
+            emit_venv_progress(
+                &app,
+                "done",
+                100,
+                &format!("Python {} installed successfully!", version),
+                None,
+            );
             Ok(true)
         }
         Ok(out) => {
@@ -1281,7 +1401,13 @@ pub async fn environment_install_python_version(
             Err(error)
         }
         Err(e) => {
-            emit_venv_progress(&app, "error", 0, "Installation failed", Some(&e.to_string()));
+            emit_venv_progress(
+                &app,
+                "error",
+                0,
+                "Installation failed",
+                Some(&e.to_string()),
+            );
             Err(e.to_string())
         }
     }
@@ -1347,7 +1473,7 @@ pub struct PythonExecutionOptions {
 }
 
 /// Execute Python code safely in a virtual environment
-/// 
+///
 /// This command writes code to a temporary file and executes it using the
 /// virtual environment's Python interpreter, avoiding shell injection vulnerabilities.
 #[tauri::command]
@@ -1390,7 +1516,7 @@ pub async fn environment_execute_python(
     // Create temporary file for the code
     let temp_dir = std::env::temp_dir();
     let script_path = temp_dir.join(format!("cognia_exec_{}.py", execution_id));
-    
+
     if let Err(e) = std::fs::write(&script_path, &code) {
         return Ok(PythonExecutionResult {
             id: execution_id,
@@ -1407,7 +1533,7 @@ pub async fn environment_execute_python(
     // Build the command
     let mut cmd = Command::new(&python_path);
     cmd.arg(&script_path);
-    
+
     // Add arguments if provided
     if let Some(args) = &opts.args {
         for arg in args {
@@ -1467,10 +1593,14 @@ pub async fn environment_execute_python(
         loop {
             match child.try_wait() {
                 Ok(Some(status)) => {
-                    let stdout = child.stdout.take()
+                    let stdout = child
+                        .stdout
+                        .take()
                         .map(|s| std::io::read_to_string(s).unwrap_or_default())
                         .unwrap_or_default();
-                    let stderr = child.stderr.take()
+                    let stderr = child
+                        .stderr
+                        .take()
                         .map(|s| std::io::read_to_string(s).unwrap_or_default())
                         .unwrap_or_default();
                     return Ok((status.code(), stdout, stderr, false));
@@ -1485,7 +1615,8 @@ pub async fn environment_execute_python(
                 Err(e) => return Err(e.to_string()),
             }
         }
-    }).await;
+    })
+    .await;
 
     // Clean up temporary file
     let _ = std::fs::remove_file(&script_path);
@@ -1502,11 +1633,18 @@ pub async fn environment_execute_python(
                     stderr,
                     exit_code: None,
                     execution_time_ms,
-                    error: Some(format!("Execution timed out after {} seconds", opts.timeout_secs.unwrap_or(30))),
+                    error: Some(format!(
+                        "Execution timed out after {} seconds",
+                        opts.timeout_secs.unwrap_or(30)
+                    )),
                     env_path,
                 })
             } else {
-                let status = if exit_code == Some(0) { "completed" } else { "failed" };
+                let status = if exit_code == Some(0) {
+                    "completed"
+                } else {
+                    "failed"
+                };
                 Ok(PythonExecutionResult {
                     id: execution_id,
                     status: status.to_string(),
@@ -1519,35 +1657,31 @@ pub async fn environment_execute_python(
                 })
             }
         }
-        Ok(Err(e)) => {
-            Ok(PythonExecutionResult {
-                id: execution_id,
-                status: "error".to_string(),
-                stdout: String::new(),
-                stderr: String::new(),
-                exit_code: None,
-                execution_time_ms,
-                error: Some(e),
-                env_path,
-            })
-        }
-        Err(join_error) => {
-            Ok(PythonExecutionResult {
-                id: execution_id,
-                status: "error".to_string(),
-                stdout: String::new(),
-                stderr: String::new(),
-                exit_code: None,
-                execution_time_ms,
-                error: Some(format!("Task execution failed: {}", join_error)),
-                env_path,
-            })
-        }
+        Ok(Err(e)) => Ok(PythonExecutionResult {
+            id: execution_id,
+            status: "error".to_string(),
+            stdout: String::new(),
+            stderr: String::new(),
+            exit_code: None,
+            execution_time_ms,
+            error: Some(e),
+            env_path,
+        }),
+        Err(join_error) => Ok(PythonExecutionResult {
+            id: execution_id,
+            status: "error".to_string(),
+            stdout: String::new(),
+            stderr: String::new(),
+            exit_code: None,
+            execution_time_ms,
+            error: Some(format!("Task execution failed: {}", join_error)),
+            env_path,
+        }),
     }
 }
 
 /// Execute Python code with streaming output
-/// 
+///
 /// This command executes Python code and streams output in real-time via events.
 /// Events are emitted with the name "python-execution-output".
 #[tauri::command]
@@ -1575,28 +1709,34 @@ pub async fn environment_execute_python_stream(
 
     // Verify Python exists
     if !std::path::Path::new(&python_path).exists() {
-        let _ = app.emit("python-execution-output", PythonExecutionProgress {
-            id: execution_id.clone(),
-            output_type: "status".to_string(),
-            content: format!("Python executable not found at: {}", python_path),
-            done: true,
-            exit_code: None,
-        });
+        let _ = app.emit(
+            "python-execution-output",
+            PythonExecutionProgress {
+                id: execution_id.clone(),
+                output_type: "status".to_string(),
+                content: format!("Python executable not found at: {}", python_path),
+                done: true,
+                exit_code: None,
+            },
+        );
         return Err(format!("Python executable not found at: {}", python_path));
     }
 
     // Create temporary file for the code
     let temp_dir = std::env::temp_dir();
     let script_path = temp_dir.join(format!("cognia_exec_{}.py", execution_id));
-    
+
     if let Err(e) = std::fs::write(&script_path, &code) {
-        let _ = app.emit("python-execution-output", PythonExecutionProgress {
-            id: execution_id.clone(),
-            output_type: "status".to_string(),
-            content: format!("Failed to write temporary script: {}", e),
-            done: true,
-            exit_code: None,
-        });
+        let _ = app.emit(
+            "python-execution-output",
+            PythonExecutionProgress {
+                id: execution_id.clone(),
+                output_type: "status".to_string(),
+                content: format!("Failed to write temporary script: {}", e),
+                done: true,
+                exit_code: None,
+            },
+        );
         return Err(format!("Failed to write temporary script: {}", e));
     }
 
@@ -1604,7 +1744,7 @@ pub async fn environment_execute_python_stream(
     let mut cmd = Command::new(&python_path);
     cmd.arg("-u"); // Unbuffered output
     cmd.arg(&script_path);
-    
+
     if let Some(args) = &opts.args {
         for arg in args {
             cmd.arg(arg);
@@ -1632,13 +1772,16 @@ pub async fn environment_execute_python_stream(
         Ok(c) => c,
         Err(e) => {
             let _ = std::fs::remove_file(&script_path);
-            let _ = app.emit("python-execution-output", PythonExecutionProgress {
-                id: execution_id.clone(),
-                output_type: "status".to_string(),
-                content: format!("Failed to spawn process: {}", e),
-                done: true,
-                exit_code: None,
-            });
+            let _ = app.emit(
+                "python-execution-output",
+                PythonExecutionProgress {
+                    id: execution_id.clone(),
+                    output_type: "status".to_string(),
+                    content: format!("Failed to spawn process: {}", e),
+                    done: true,
+                    exit_code: None,
+                },
+            );
             return Err(format!("Failed to spawn process: {}", e));
         }
     };
@@ -1664,7 +1807,10 @@ pub async fn environment_execute_python_stream(
         std::thread::spawn(move || {
             let reader = BufReader::new(stdout);
             for line in reader.lines().map_while(Result::ok) {
-                if tx_stdout.blocking_send(("stdout".to_string(), line)).is_err() {
+                if tx_stdout
+                    .blocking_send(("stdout".to_string(), line))
+                    .is_err()
+                {
                     break;
                 }
             }
@@ -1677,7 +1823,10 @@ pub async fn environment_execute_python_stream(
         std::thread::spawn(move || {
             let reader = BufReader::new(stderr);
             for line in reader.lines().map_while(Result::ok) {
-                if tx_stderr.blocking_send(("stderr".to_string(), line)).is_err() {
+                if tx_stderr
+                    .blocking_send(("stderr".to_string(), line))
+                    .is_err()
+                {
                     break;
                 }
             }
@@ -1690,35 +1839,37 @@ pub async fn environment_execute_python_stream(
     let script_path_clone = script_path.clone();
     let app_clone = app.clone();
     let exec_id_clone = execution_id.clone();
-    
+
     tokio::spawn(async move {
         // Receive and emit output
         while let Some((output_type, content)) = rx.recv().await {
-            let _ = app_clone.emit("python-execution-output", PythonExecutionProgress {
-                id: exec_id_clone.clone(),
-                output_type,
-                content,
-                done: false,
-                exit_code: None,
-            });
+            let _ = app_clone.emit(
+                "python-execution-output",
+                PythonExecutionProgress {
+                    id: exec_id_clone.clone(),
+                    output_type,
+                    content,
+                    done: false,
+                    exit_code: None,
+                },
+            );
         }
 
         // Wait for process with timeout
-        let result = tokio::task::spawn_blocking(move || {
-            loop {
-                match child.try_wait() {
-                    Ok(Some(status)) => return Ok(status.code()),
-                    Ok(None) => {
-                        if start_time.elapsed() > timeout {
-                            let _ = child.kill();
-                            return Err("timeout".to_string());
-                        }
-                        std::thread::sleep(Duration::from_millis(50));
+        let result = tokio::task::spawn_blocking(move || loop {
+            match child.try_wait() {
+                Ok(Some(status)) => return Ok(status.code()),
+                Ok(None) => {
+                    if start_time.elapsed() > timeout {
+                        let _ = child.kill();
+                        return Err("timeout".to_string());
                     }
-                    Err(e) => return Err(e.to_string()),
+                    std::thread::sleep(Duration::from_millis(50));
                 }
+                Err(e) => return Err(e.to_string()),
             }
-        }).await;
+        })
+        .await;
 
         // Clean up
         let _ = std::fs::remove_file(&script_path_clone);
@@ -1731,13 +1882,16 @@ pub async fn environment_execute_python_stream(
             Err(join_error) => (None, Some(format!("Task failed: {}", join_error))),
         };
 
-        let _ = app_clone.emit("python-execution-output", PythonExecutionProgress {
-            id: exec_id_clone,
-            output_type: "status".to_string(),
-            content: error_content.unwrap_or_else(|| "Execution completed".to_string()),
-            done: true,
-            exit_code,
-        });
+        let _ = app_clone.emit(
+            "python-execution-output",
+            PythonExecutionProgress {
+                id: exec_id_clone,
+                output_type: "status".to_string(),
+                content: error_content.unwrap_or_else(|| "Execution completed".to_string()),
+                done: true,
+                exit_code,
+            },
+        );
     });
 
     Ok(())
@@ -1753,7 +1907,7 @@ pub async fn environment_execute_python_file(
     // Read the file content
     let code = std::fs::read_to_string(&file_path)
         .map_err(|e| format!("Failed to read file {}: {}", file_path, e))?;
-    
+
     // Use the same execution logic
     environment_execute_python(env_path, code, options).await
 }
@@ -1850,7 +2004,7 @@ mod tests {
         let tool = EnvironmentTool::Docker;
         let serialized = serde_json::to_string(&tool).unwrap();
         assert_eq!(serialized, r#""docker""#);
-        
+
         let deserialized: EnvironmentTool = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized, EnvironmentTool::Docker);
     }
@@ -1859,16 +2013,16 @@ mod tests {
     fn test_environment_tool_deserialization() {
         let uv: EnvironmentTool = serde_json::from_str(r#""uv""#).unwrap();
         assert_eq!(uv, EnvironmentTool::Uv);
-        
+
         let nvm: EnvironmentTool = serde_json::from_str(r#""nvm""#).unwrap();
         assert_eq!(nvm, EnvironmentTool::Nvm);
-        
+
         let docker: EnvironmentTool = serde_json::from_str(r#""docker""#).unwrap();
         assert_eq!(docker, EnvironmentTool::Docker);
-        
+
         let podman: EnvironmentTool = serde_json::from_str(r#""podman""#).unwrap();
         assert_eq!(podman, EnvironmentTool::Podman);
-        
+
         let ffmpeg: EnvironmentTool = serde_json::from_str(r#""ffmpeg""#).unwrap();
         assert_eq!(ffmpeg, EnvironmentTool::Ffmpeg);
     }
@@ -1878,7 +2032,7 @@ mod tests {
         let tool = EnvironmentTool::Ffmpeg;
         let serialized = serde_json::to_string(&tool).unwrap();
         assert_eq!(serialized, r#""ffmpeg""#);
-        
+
         let deserialized: EnvironmentTool = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized, EnvironmentTool::Ffmpeg);
     }
@@ -1894,7 +2048,7 @@ mod tests {
             error: None,
             last_checked: Some("2024-01-01T00:00:00Z".to_string()),
         };
-        
+
         assert_eq!(status.tool, EnvironmentTool::Ffmpeg);
         assert!(status.installed);
         assert_eq!(status.version, Some("6.1.1".to_string()));
@@ -1910,7 +2064,7 @@ mod tests {
             message: "Installing FFmpeg...".to_string(),
             error: None,
         };
-        
+
         assert_eq!(progress.tool, EnvironmentTool::Ffmpeg);
         assert_eq!(progress.stage, "installing");
         assert_eq!(progress.progress, 75);
@@ -1928,7 +2082,7 @@ mod tests {
             error: None,
             last_checked: Some("2024-01-01T00:00:00Z".to_string()),
         };
-        
+
         assert_eq!(status.tool, EnvironmentTool::Docker);
         assert!(status.installed);
         assert_eq!(status.version, Some("24.0.5".to_string()));
@@ -1946,10 +2100,10 @@ mod tests {
             error: Some("Command not found".to_string()),
             last_checked: None,
         };
-        
+
         let serialized = serde_json::to_string(&status).unwrap();
         let deserialized: ToolStatus = serde_json::from_str(&serialized).unwrap();
-        
+
         assert_eq!(status.tool, deserialized.tool);
         assert_eq!(status.installed, deserialized.installed);
         assert_eq!(status.error, deserialized.error);
@@ -1964,7 +2118,7 @@ mod tests {
             message: "Downloading...".to_string(),
             error: None,
         };
-        
+
         assert_eq!(progress.tool, EnvironmentTool::Nvm);
         assert_eq!(progress.stage, "downloading");
         assert_eq!(progress.progress, 50);
@@ -1980,7 +2134,7 @@ mod tests {
             message: "Installation failed".to_string(),
             error: Some("Permission denied".to_string()),
         };
-        
+
         assert_eq!(progress.error, Some("Permission denied".to_string()));
     }
 
@@ -1993,7 +2147,8 @@ mod tests {
 
     #[test]
     fn test_truncate_cmd_long() {
-        let cmd = "This is a very long command that exceeds fifty characters and should be truncated";
+        let cmd =
+            "This is a very long command that exceeds fifty characters and should be truncated";
         let truncated = truncate_cmd(cmd);
         assert!(truncated.len() <= 50);
         assert!(truncated.ends_with("..."));
@@ -2018,7 +2173,7 @@ mod tests {
         let env_type = VirtualEnvType::Uv;
         let serialized = serde_json::to_string(&env_type).unwrap();
         assert_eq!(serialized, r#""uv""#);
-        
+
         let deserialized: VirtualEnvType = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized, VirtualEnvType::Uv);
     }
@@ -2040,7 +2195,7 @@ mod tests {
             is_default: false,
             project_path: None,
         };
-        
+
         assert_eq!(info.name, "test-env");
         assert_eq!(info.env_type, VirtualEnvType::Venv);
         assert_eq!(info.packages, 25);
@@ -2057,11 +2212,14 @@ mod tests {
             packages: Some(vec!["numpy".to_string(), "pandas".to_string()]),
             system_site_packages: Some(false),
         };
-        
+
         assert_eq!(options.name, "my-env");
         assert_eq!(options.env_type, VirtualEnvType::Uv);
         assert_eq!(options.python_version, Some("3.12".to_string()));
-        assert_eq!(options.packages, Some(vec!["numpy".to_string(), "pandas".to_string()]));
+        assert_eq!(
+            options.packages,
+            Some(vec!["numpy".to_string(), "pandas".to_string()])
+        );
     }
 
     #[test]
@@ -2072,7 +2230,7 @@ mod tests {
             message: "Creating virtual environment...".to_string(),
             error: None,
         };
-        
+
         assert_eq!(progress.stage, "creating");
         assert_eq!(progress.progress, 30);
     }
@@ -2086,7 +2244,7 @@ mod tests {
             description: Some("Numerical Python".to_string()),
             location: Some("/path/to/site-packages".to_string()),
         };
-        
+
         assert_eq!(pkg.name, "numpy");
         assert_eq!(pkg.version, "1.24.0");
         assert_eq!(pkg.latest, Some("1.25.0".to_string()));
@@ -2097,15 +2255,15 @@ mod tests {
         let (cmd, arg) = get_check_command(&EnvironmentTool::Uv);
         assert_eq!(cmd, "uv");
         assert_eq!(arg, "--version");
-        
+
         let (cmd, arg) = get_check_command(&EnvironmentTool::Docker);
         assert_eq!(cmd, "docker");
         assert_eq!(arg, "--version");
-        
+
         let (cmd, arg) = get_check_command(&EnvironmentTool::Podman);
         assert_eq!(cmd, "podman");
         assert_eq!(arg, "--version");
-        
+
         let (cmd, arg) = get_check_command(&EnvironmentTool::Ffmpeg);
         assert_eq!(cmd, "ffmpeg");
         assert_eq!(arg, "-version");
@@ -2117,19 +2275,23 @@ mod tests {
         // Create a temp directory for testing
         let temp_dir = std::env::temp_dir().join("test_dir_size");
         let _ = std::fs::create_dir_all(&temp_dir);
-        
+
         // Write some test data
         let test_file = temp_dir.join("test.txt");
         std::fs::write(&test_file, "Hello, World!").ok();
-        
+
         let result = get_dir_size(temp_dir.to_str().unwrap());
         assert!(result.is_ok());
         let size_str = result.unwrap();
-        
+
         // Should have a unit suffix
-        assert!(size_str.contains("B") || size_str.contains("KB") || 
-                size_str.contains("MB") || size_str.contains("GB"));
-        
+        assert!(
+            size_str.contains("B")
+                || size_str.contains("KB")
+                || size_str.contains("MB")
+                || size_str.contains("GB")
+        );
+
         // Cleanup
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -2138,13 +2300,13 @@ mod tests {
     fn test_detect_env_type_venv() {
         let temp_dir = std::env::temp_dir().join("test_venv_detection");
         let _ = std::fs::create_dir_all(&temp_dir);
-        
+
         // Create pyvenv.cfg for venv detection
         std::fs::write(temp_dir.join("pyvenv.cfg"), "home = /usr/bin").ok();
-        
+
         let env_type = detect_env_type(&temp_dir);
         assert_eq!(env_type, VirtualEnvType::Venv);
-        
+
         // Cleanup
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -2153,13 +2315,13 @@ mod tests {
     fn test_detect_env_type_uv() {
         let temp_dir = std::env::temp_dir().join("test_uv_detection");
         let _ = std::fs::create_dir_all(&temp_dir);
-        
+
         // Create pyvenv.cfg with uv for uv detection
         std::fs::write(temp_dir.join("pyvenv.cfg"), "uv = 0.1.0\nhome = /usr/bin").ok();
-        
+
         let env_type = detect_env_type(&temp_dir);
         assert_eq!(env_type, VirtualEnvType::Uv);
-        
+
         // Cleanup
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -2168,13 +2330,13 @@ mod tests {
     fn test_detect_env_type_conda() {
         let temp_dir = std::env::temp_dir().join("test_conda_detection");
         let _ = std::fs::create_dir_all(&temp_dir);
-        
+
         // Create conda-meta directory
         let _ = std::fs::create_dir_all(temp_dir.join("conda-meta"));
-        
+
         let env_type = detect_env_type(&temp_dir);
         assert_eq!(env_type, VirtualEnvType::Conda);
-        
+
         // Cleanup
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -2182,13 +2344,13 @@ mod tests {
     #[test]
     fn test_environment_get_platform() {
         let platform = environment_get_platform();
-        
+
         #[cfg(target_os = "windows")]
         assert_eq!(platform, "windows");
-        
+
         #[cfg(target_os = "macos")]
         assert_eq!(platform, "macos");
-        
+
         #[cfg(target_os = "linux")]
         assert_eq!(platform, "linux");
     }
@@ -2217,15 +2379,20 @@ mod tests {
             stdin: Some("test input".to_string()),
             timeout_secs: Some(60),
             cwd: Some("/home/user/project".to_string()),
-            env: Some(std::collections::HashMap::from([
-                ("PYTHONPATH".to_string(), "/custom/path".to_string()),
-            ])),
-            args: Some(vec!["--verbose".to_string(), "-n".to_string(), "5".to_string()]),
+            env: Some(std::collections::HashMap::from([(
+                "PYTHONPATH".to_string(),
+                "/custom/path".to_string(),
+            )])),
+            args: Some(vec![
+                "--verbose".to_string(),
+                "-n".to_string(),
+                "5".to_string(),
+            ]),
         };
-        
+
         let serialized = serde_json::to_string(&options).unwrap();
         let deserialized: PythonExecutionOptions = serde_json::from_str(&serialized).unwrap();
-        
+
         assert_eq!(options.stdin, deserialized.stdin);
         assert_eq!(options.timeout_secs, deserialized.timeout_secs);
         assert_eq!(options.cwd, deserialized.cwd);
@@ -2244,7 +2411,7 @@ mod tests {
             error: None,
             env_path: "/path/to/venv".to_string(),
         };
-        
+
         assert_eq!(result.status, "completed");
         assert_eq!(result.exit_code, Some(0));
         assert!(result.error.is_none());
@@ -2263,7 +2430,7 @@ mod tests {
             error: Some("Script execution failed".to_string()),
             env_path: "/path/to/venv".to_string(),
         };
-        
+
         assert_eq!(result.status, "failed");
         assert_eq!(result.exit_code, Some(1));
         assert!(result.error.is_some());
@@ -2282,7 +2449,7 @@ mod tests {
             error: Some("Execution timed out after 30 seconds".to_string()),
             env_path: "/path/to/venv".to_string(),
         };
-        
+
         assert_eq!(result.status, "timeout");
         assert!(result.exit_code.is_none());
         assert!(result.error.is_some());
@@ -2300,10 +2467,10 @@ mod tests {
             error: None,
             env_path: "/venv".to_string(),
         };
-        
+
         let serialized = serde_json::to_string(&result).unwrap();
         let deserialized: PythonExecutionResult = serde_json::from_str(&serialized).unwrap();
-        
+
         assert_eq!(result.id, deserialized.id);
         assert_eq!(result.status, deserialized.status);
         assert_eq!(result.stdout, deserialized.stdout);
@@ -2319,7 +2486,7 @@ mod tests {
             done: false,
             exit_code: None,
         };
-        
+
         assert_eq!(progress.output_type, "stdout");
         assert!(!progress.done);
         assert!(progress.exit_code.is_none());
@@ -2334,7 +2501,7 @@ mod tests {
             done: false,
             exit_code: None,
         };
-        
+
         assert_eq!(progress.output_type, "stderr");
         assert!(progress.content.contains("Warning"));
     }
@@ -2348,7 +2515,7 @@ mod tests {
             done: true,
             exit_code: Some(0),
         };
-        
+
         assert!(progress.done);
         assert_eq!(progress.exit_code, Some(0));
     }
@@ -2362,10 +2529,10 @@ mod tests {
             done: false,
             exit_code: None,
         };
-        
+
         let serialized = serde_json::to_string(&progress).unwrap();
         let deserialized: PythonExecutionProgress = serde_json::from_str(&serialized).unwrap();
-        
+
         assert_eq!(progress.id, deserialized.id);
         assert_eq!(progress.output_type, deserialized.output_type);
         assert_eq!(progress.content, deserialized.content);
@@ -2384,7 +2551,7 @@ mod tests {
             ],
             platform: "Linux-5.15.0-x86_64-with-glibc2.35".to_string(),
         };
-        
+
         assert_eq!(info.version, "3.12.0");
         assert!(info.executable.contains("python"));
         assert_eq!(info.sys_path.len(), 2);
@@ -2400,10 +2567,10 @@ mod tests {
             sys_path: vec!["/venv/lib".to_string()],
             platform: "Windows-10".to_string(),
         };
-        
+
         let serialized = serde_json::to_string(&info).unwrap();
         let deserialized: PythonInterpreterInfo = serde_json::from_str(&serialized).unwrap();
-        
+
         assert_eq!(info.version, deserialized.version);
         assert_eq!(info.executable, deserialized.executable);
         assert_eq!(info.sys_path, deserialized.sys_path);
@@ -2413,14 +2580,14 @@ mod tests {
     fn test_python_executable_path_construction() {
         // Test the expected path construction logic for Python executables
         let env_path = std::path::Path::new("/home/user/.venvs/myenv");
-        
+
         #[cfg(target_os = "windows")]
         {
             let expected = env_path.join("Scripts").join("python.exe");
             assert!(expected.to_string_lossy().contains("Scripts"));
             assert!(expected.to_string_lossy().contains("python.exe"));
         }
-        
+
         #[cfg(not(target_os = "windows"))]
         {
             let expected = env_path.join("bin").join("python");

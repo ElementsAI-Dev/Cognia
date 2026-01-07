@@ -36,7 +36,7 @@ impl StdioTransport {
             env.len(),
             working_dir
         );
-        
+
         let mut cmd = Command::new(command);
         cmd.args(args)
             .stdin(Stdio::piped())
@@ -46,7 +46,18 @@ impl StdioTransport {
 
         // Set environment variables
         for (key, value) in env {
-            log::trace!("Setting env var: {}={}", key, if key.to_lowercase().contains("key") || key.to_lowercase().contains("secret") || key.to_lowercase().contains("token") { "[REDACTED]" } else { value });
+            log::trace!(
+                "Setting env var: {}={}",
+                key,
+                if key.to_lowercase().contains("key")
+                    || key.to_lowercase().contains("secret")
+                    || key.to_lowercase().contains("token")
+                {
+                    "[REDACTED]"
+                } else {
+                    value
+                }
+            );
             cmd.env(key, value);
         }
 
@@ -65,12 +76,10 @@ impl StdioTransport {
         }
 
         log::debug!("Executing spawn command");
-        let mut child = cmd
-            .spawn()
-            .map_err(|e| {
-                log::error!("Failed to spawn process '{}': {}", command, e);
-                McpError::SpawnFailed(format!("{}: {}", command, e))
-            })?;
+        let mut child = cmd.spawn().map_err(|e| {
+            log::error!("Failed to spawn process '{}': {}", command, e);
+            McpError::SpawnFailed(format!("{}: {}", command, e))
+        })?;
 
         let pid = child.id();
         log::debug!("Process spawned with PID: {:?}", pid);
@@ -84,7 +93,12 @@ impl StdioTransport {
             McpError::StdoutUnavailable
         })?;
 
-        log::info!("Spawned MCP server process: {} {:?} (PID: {:?})", command, args, pid);
+        log::info!(
+            "Spawned MCP server process: {} {:?} (PID: {:?})",
+            command,
+            args,
+            pid
+        );
 
         Ok(Self {
             child: TokioMutex::new(child),
@@ -139,28 +153,30 @@ impl Transport for StdioTransport {
         let mut stdin = self.stdin.lock().await;
 
         // Write message followed by newline
-        stdin
-            .write_all(message.as_bytes())
-            .await
-            .map_err(|e| {
-                log::error!("Failed to write to stdin: {}", e);
-                McpError::IoError(e)
-            })?;
+        stdin.write_all(message.as_bytes()).await.map_err(|e| {
+            log::error!("Failed to write to stdin: {}", e);
+            McpError::IoError(e)
+        })?;
 
-        stdin
-            .write_all(b"\n")
-            .await
-            .map_err(|e| {
-                log::error!("Failed to write newline to stdin: {}", e);
-                McpError::IoError(e)
-            })?;
+        stdin.write_all(b"\n").await.map_err(|e| {
+            log::error!("Failed to write newline to stdin: {}", e);
+            McpError::IoError(e)
+        })?;
 
         stdin.flush().await.map_err(|e| {
             log::error!("Failed to flush stdin: {}", e);
             McpError::IoError(e)
         })?;
 
-        log::trace!("Sent message ({} bytes): {}", msg_len, if msg_len > 500 { &message[..500] } else { message });
+        log::trace!(
+            "Sent message ({} bytes): {}",
+            msg_len,
+            if msg_len > 500 {
+                &message[..500]
+            } else {
+                message
+            }
+        );
 
         Ok(())
     }
@@ -175,13 +191,10 @@ impl Transport for StdioTransport {
         let mut line = String::new();
 
         log::trace!("Waiting to receive message from stdout");
-        let bytes_read = stdout
-            .read_line(&mut line)
-            .await
-            .map_err(|e| {
-                log::error!("Failed to read from stdout: {}", e);
-                McpError::IoError(e)
-            })?;
+        let bytes_read = stdout.read_line(&mut line).await.map_err(|e| {
+            log::error!("Failed to read from stdout: {}", e);
+            McpError::IoError(e)
+        })?;
 
         if bytes_read == 0 {
             // EOF - process closed stdout
@@ -192,7 +205,15 @@ impl Transport for StdioTransport {
 
         let trimmed = line.trim().to_string();
         let msg_len = trimmed.len();
-        log::trace!("Received message ({} bytes): {}", msg_len, if msg_len > 500 { &trimmed[..500] } else { &trimmed });
+        log::trace!(
+            "Received message ({} bytes): {}",
+            msg_len,
+            if msg_len > 500 {
+                &trimmed[..500]
+            } else {
+                &trimmed
+            }
+        );
 
         Ok(trimmed)
     }
@@ -208,7 +229,10 @@ impl Transport for StdioTransport {
         log::debug!("Terminating child process (PID: {:?})", pid);
         match child.kill().await {
             Ok(_) => {
-                log::info!("MCP server process terminated successfully (PID: {:?})", pid);
+                log::info!(
+                    "MCP server process terminated successfully (PID: {:?})",
+                    pid
+                );
             }
             Err(e) => {
                 log::warn!("Failed to kill MCP server process (PID: {:?}): {}", pid, e);
@@ -245,22 +269,25 @@ mod tests {
     async fn test_stdio_transport_creation() {
         // This test requires a simple echo command
         #[cfg(windows)]
-        let result = StdioTransport::spawn("cmd", &["/c".to_string(), "echo test".to_string()], &HashMap::new(), None).await;
+        let result = StdioTransport::spawn(
+            "cmd",
+            &["/c".to_string(), "echo test".to_string()],
+            &HashMap::new(),
+            None,
+        )
+        .await;
 
         #[cfg(not(windows))]
-        let result = StdioTransport::spawn("echo", &["test".to_string()], &HashMap::new(), None).await;
+        let result =
+            StdioTransport::spawn("echo", &["test".to_string()], &HashMap::new(), None).await;
 
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_stdio_transport_spawn_nonexistent_command() {
-        let result = StdioTransport::spawn(
-            "nonexistent_command_12345",
-            &[],
-            &HashMap::new(),
-            None,
-        ).await;
+        let result =
+            StdioTransport::spawn("nonexistent_command_12345", &[], &HashMap::new(), None).await;
 
         assert!(result.is_err());
     }
@@ -271,7 +298,13 @@ mod tests {
         env.insert("TEST_VAR".to_string(), "test_value".to_string());
 
         #[cfg(windows)]
-        let result = StdioTransport::spawn("cmd", &["/c".to_string(), "echo %TEST_VAR%".to_string()], &env, None).await;
+        let result = StdioTransport::spawn(
+            "cmd",
+            &["/c".to_string(), "echo %TEST_VAR%".to_string()],
+            &env,
+            None,
+        )
+        .await;
 
         #[cfg(not(windows))]
         let result = StdioTransport::spawn("echo", &["$TEST_VAR".to_string()], &env, None).await;
@@ -287,15 +320,11 @@ mod tests {
             &["/c".to_string(), "cd".to_string()],
             &HashMap::new(),
             Some("."),
-        ).await;
+        )
+        .await;
 
         #[cfg(not(windows))]
-        let result = StdioTransport::spawn(
-            "pwd",
-            &[],
-            &HashMap::new(),
-            Some("."),
-        ).await;
+        let result = StdioTransport::spawn("pwd", &[], &HashMap::new(), Some(".")).await;
 
         assert!(result.is_ok());
     }
@@ -307,10 +336,19 @@ mod tests {
     #[tokio::test]
     async fn test_stdio_transport_is_connected_initially() {
         #[cfg(windows)]
-        let transport = StdioTransport::spawn("cmd", &["/c".to_string(), "echo test".to_string()], &HashMap::new(), None).await.unwrap();
+        let transport = StdioTransport::spawn(
+            "cmd",
+            &["/c".to_string(), "echo test".to_string()],
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .unwrap();
 
         #[cfg(not(windows))]
-        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None).await.unwrap();
+        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None)
+            .await
+            .unwrap();
 
         assert!(transport.is_connected());
     }
@@ -318,10 +356,19 @@ mod tests {
     #[tokio::test]
     async fn test_stdio_transport_close() {
         #[cfg(windows)]
-        let transport = StdioTransport::spawn("cmd", &["/c".to_string(), "echo test".to_string()], &HashMap::new(), None).await.unwrap();
+        let transport = StdioTransport::spawn(
+            "cmd",
+            &["/c".to_string(), "echo test".to_string()],
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .unwrap();
 
         #[cfg(not(windows))]
-        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None).await.unwrap();
+        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None)
+            .await
+            .unwrap();
 
         let close_result = transport.close().await;
         assert!(close_result.is_ok());
@@ -335,10 +382,19 @@ mod tests {
     #[tokio::test]
     async fn test_stdio_transport_pid() {
         #[cfg(windows)]
-        let transport = StdioTransport::spawn("cmd", &["/c".to_string(), "echo test".to_string()], &HashMap::new(), None).await.unwrap();
+        let transport = StdioTransport::spawn(
+            "cmd",
+            &["/c".to_string(), "echo test".to_string()],
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .unwrap();
 
         #[cfg(not(windows))]
-        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None).await.unwrap();
+        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None)
+            .await
+            .unwrap();
 
         let pid = transport.pid().await;
         // PID should be available for a running process
@@ -348,10 +404,19 @@ mod tests {
     #[tokio::test]
     async fn test_stdio_transport_check_process() {
         #[cfg(windows)]
-        let transport = StdioTransport::spawn("cmd", &["/c".to_string(), "echo test".to_string()], &HashMap::new(), None).await.unwrap();
+        let transport = StdioTransport::spawn(
+            "cmd",
+            &["/c".to_string(), "echo test".to_string()],
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .unwrap();
 
         #[cfg(not(windows))]
-        let transport = StdioTransport::spawn("sleep", &["0.1".to_string()], &HashMap::new(), None).await.unwrap();
+        let transport = StdioTransport::spawn("sleep", &["0.1".to_string()], &HashMap::new(), None)
+            .await
+            .unwrap();
 
         // Process should be running initially or may have completed
         let _is_running = transport.check_process().await;
@@ -365,10 +430,19 @@ mod tests {
     #[tokio::test]
     async fn test_stdio_transport_send_when_not_connected() {
         #[cfg(windows)]
-        let transport = StdioTransport::spawn("cmd", &["/c".to_string(), "echo test".to_string()], &HashMap::new(), None).await.unwrap();
+        let transport = StdioTransport::spawn(
+            "cmd",
+            &["/c".to_string(), "echo test".to_string()],
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .unwrap();
 
         #[cfg(not(windows))]
-        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None).await.unwrap();
+        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None)
+            .await
+            .unwrap();
 
         transport.close().await.unwrap();
 
@@ -379,10 +453,19 @@ mod tests {
     #[tokio::test]
     async fn test_stdio_transport_receive_when_not_connected() {
         #[cfg(windows)]
-        let transport = StdioTransport::spawn("cmd", &["/c".to_string(), "echo test".to_string()], &HashMap::new(), None).await.unwrap();
+        let transport = StdioTransport::spawn(
+            "cmd",
+            &["/c".to_string(), "echo test".to_string()],
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .unwrap();
 
         #[cfg(not(windows))]
-        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None).await.unwrap();
+        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None)
+            .await
+            .unwrap();
 
         transport.close().await.unwrap();
 
@@ -408,10 +491,19 @@ mod tests {
     #[tokio::test]
     async fn test_stdio_transport_multiple_close_calls() {
         #[cfg(windows)]
-        let transport = StdioTransport::spawn("cmd", &["/c".to_string(), "echo test".to_string()], &HashMap::new(), None).await.unwrap();
+        let transport = StdioTransport::spawn(
+            "cmd",
+            &["/c".to_string(), "echo test".to_string()],
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .unwrap();
 
         #[cfg(not(windows))]
-        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None).await.unwrap();
+        let transport = StdioTransport::spawn("cat", &[], &HashMap::new(), None)
+            .await
+            .unwrap();
 
         // First close
         let result1 = transport.close().await;
@@ -430,7 +522,13 @@ mod tests {
         env.insert("VAR3".to_string(), "value3".to_string());
 
         #[cfg(windows)]
-        let result = StdioTransport::spawn("cmd", &["/c".to_string(), "echo test".to_string()], &env, None).await;
+        let result = StdioTransport::spawn(
+            "cmd",
+            &["/c".to_string(), "echo test".to_string()],
+            &env,
+            None,
+        )
+        .await;
 
         #[cfg(not(windows))]
         let result = StdioTransport::spawn("echo", &["test".to_string()], &env, None).await;

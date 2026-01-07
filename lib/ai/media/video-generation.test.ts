@@ -198,7 +198,7 @@ describe('video-generation', () => {
         ok: false,
         status: 400,
         text: jest.fn().mockResolvedValue('Bad request'),
-      });
+      } as unknown as Response);
 
       const result = await generateVideo('test-api-key', {
         prompt: 'A beautiful landscape',
@@ -220,7 +220,7 @@ describe('video-generation', () => {
         json: jest.fn().mockResolvedValue({
           name: 'operations/abc123',
         }),
-      });
+      } as unknown as Response);
 
       const result = await generateVideo('test-api-key', {
         prompt: 'A beautiful landscape',
@@ -247,7 +247,7 @@ describe('video-generation', () => {
             bytesBase64Encoded: 'dmlkZW9kYXRh',
           }],
         }),
-      });
+      } as unknown as Response);
 
       const result = await generateVideo('test-api-key', {
         prompt: 'A beautiful landscape',
@@ -270,7 +270,7 @@ describe('video-generation', () => {
           id: 'sora-job-123',
           status: 'processing',
         }),
-      });
+      } as unknown as Response);
 
       const result = await generateVideo('test-api-key', {
         prompt: 'A futuristic city',
@@ -319,7 +319,7 @@ describe('video-generation', () => {
             uri: 'https://storage.googleapis.com/video.mp4',
           }],
         }),
-      });
+      } as unknown as Response);
 
       const genResult = await generateVideo('test-api-key', {
         prompt: 'Test video',
@@ -396,7 +396,7 @@ describe('video-generation', () => {
         json: jest.fn().mockResolvedValue({
           videos: [{ uri: 'https://example.com/video.mp4' }],
         }),
-      });
+      } as unknown as Response);
 
       await generateVideo('test-api-key', {
         prompt: 'Test',
@@ -417,7 +417,7 @@ describe('video-generation', () => {
       const mockBlob = new Blob(['video data'], { type: 'video/mp4' });
       mockProxyFetch.mockResolvedValueOnce({
         blob: jest.fn().mockResolvedValue(mockBlob),
-      });
+      } as unknown as Response);
 
       const result = await downloadVideoAsBlob('https://example.com/video.mp4');
 
@@ -506,7 +506,7 @@ describe('video-generation', () => {
         json: jest.fn().mockResolvedValue({
           name: 'operations/img2vid',
         }),
-      });
+      } as unknown as Response);
 
       const result = await generateVideo('test-api-key', {
         prompt: 'Animate this image',
@@ -529,7 +529,7 @@ describe('video-generation', () => {
         json: jest.fn().mockResolvedValue({
           name: 'operations/img2vid',
         }),
-      });
+      } as unknown as Response);
 
       const result = await generateVideo('test-api-key', {
         prompt: 'Animate this image',
@@ -555,7 +555,7 @@ describe('video-generation', () => {
             uri: 'https://storage.googleapis.com/video-with-audio.mp4',
           }],
         }),
-      });
+      } as unknown as Response);
 
       const result = await generateVideo('test-api-key', {
         prompt: 'A person speaking',
@@ -580,7 +580,7 @@ describe('video-generation', () => {
         json: jest.fn().mockResolvedValue({
           name: 'operations/neg-prompt',
         }),
-      });
+      } as unknown as Response);
 
       await generateVideo('test-api-key', {
         prompt: 'A beautiful landscape',
@@ -591,7 +591,9 @@ describe('video-generation', () => {
 
       expect(mockProxyFetch).toHaveBeenCalled();
       const callArgs = mockProxyFetch.mock.calls[0];
-      const body = JSON.parse(callArgs[1].body);
+      const init = callArgs[1] as RequestInit | undefined;
+      expect(typeof init?.body).toBe('string');
+      const body = JSON.parse(init?.body as string);
       expect(body.parameters.negativePrompt).toBe('blurry, low quality');
 
       delete process.env.GOOGLE_CLOUD_PROJECT;
@@ -605,7 +607,7 @@ describe('video-generation', () => {
         json: jest.fn().mockResolvedValue({
           name: 'operations/seeded',
         }),
-      });
+      } as unknown as Response);
 
       await generateVideo('test-api-key', {
         prompt: 'A beautiful landscape',
@@ -615,7 +617,9 @@ describe('video-generation', () => {
       });
 
       const callArgs = mockProxyFetch.mock.calls[0];
-      const body = JSON.parse(callArgs[1].body);
+      const init = callArgs[1] as RequestInit | undefined;
+      expect(typeof init?.body).toBe('string');
+      const body = JSON.parse(init?.body as string);
       expect(body.parameters.seed).toBe(12345);
 
       delete process.env.GOOGLE_CLOUD_PROJECT;

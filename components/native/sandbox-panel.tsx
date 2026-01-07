@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useSandbox } from '@/hooks/sandbox';
-import { useCodeExecution } from '@/hooks/sandbox';
+import { useSandbox, useCodeExecution, useExecutionHistory, useSnippets } from '@/hooks/sandbox';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +26,8 @@ import {
   RefreshCw,
   Loader2,
   Code,
+  History,
+  BookOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -56,6 +57,14 @@ export function SandboxPanel({
     quickExecute,
     reset,
   } = useCodeExecution();
+
+  const { executions, loading: historyLoading } = useExecutionHistory({
+    filter: { limit: 5 },
+  });
+
+  const { snippets, loading: snippetsLoading } = useSnippets({
+    filter: { limit: 5 },
+  });
 
   const [selectedLanguage, setSelectedLanguage] = useState<string>('python');
   const [code, setCode] = useState<string>('');
@@ -115,6 +124,18 @@ export function SandboxPanel({
       julia: 'Julia',
     };
     return names[lang] || lang.charAt(0).toUpperCase() + lang.slice(1);
+  };
+
+  const handleRerunExecution = async (language: string, codeToRun: string) => {
+    setSelectedLanguage(language);
+    setCode(codeToRun);
+    await quickExecute(language, codeToRun);
+  };
+
+  const handleUseSnippet = async (language: string, snippetCode: string) => {
+    setSelectedLanguage(language);
+    setCode(snippetCode);
+    await quickExecute(language, snippetCode);
   };
 
   if (!isAvailable && !statusLoading) {
@@ -289,6 +310,110 @@ export function SandboxPanel({
               </CardContent>
             </Card>
           )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <History className="h-4 w-4" />
+                  Recent Runs
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {historyLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading recent runs...
+                  </div>
+                ) : executions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No executions yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {executions.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-start gap-2 rounded border p-2"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 text-sm font-medium">
+                            <span>{getLanguageDisplayName(item.language)}</span>
+                            <Badge variant="outline" className="text-[11px]">
+                              {item.status}
+                            </Badge>
+                          </div>
+                          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground font-mono whitespace-pre-wrap">
+                            {item.code}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="shrink-0"
+                          onClick={() => handleRerunExecution(item.language, item.code)}
+                          disabled={executing}
+                        >
+                          <Play className="h-3.5 w-3.5 mr-1" />
+                          Run again
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <BookOpen className="h-4 w-4" />
+                  Snippets
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {snippetsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading snippets...
+                  </div>
+                ) : snippets.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No snippets saved.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {snippets.map((snippet) => (
+                      <div
+                        key={snippet.id}
+                        className="flex items-start gap-2 rounded border p-2"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 text-sm font-medium">
+                            <span>{snippet.title}</span>
+                            <Badge variant="outline" className="text-[11px]">
+                              {getLanguageDisplayName(snippet.language)}
+                            </Badge>
+                          </div>
+                          {snippet.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2">
+                              {snippet.description}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="shrink-0"
+                          onClick={() => handleUseSnippet(snippet.language, snippet.code)}
+                          disabled={executing}
+                        >
+                          <Play className="h-3.5 w-3.5 mr-1" />
+                          Run
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </ScrollArea>
 

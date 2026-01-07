@@ -64,11 +64,14 @@ impl ScreenshotCapture {
     pub fn capture_screen(&self, monitor_index: Option<usize>) -> Result<ScreenshotResult, String> {
         use windows::Win32::Foundation::{HWND, RECT};
         use windows::Win32::Graphics::Gdi::{
-            BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject,
-            GetDC, GetDIBits, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER,
-            BI_RGB, DIB_RGB_COLORS, SRCCOPY,
+            BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC,
+            GetDIBits, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
+            DIB_RGB_COLORS, SRCCOPY,
         };
-        use windows::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN};
+        use windows::Win32::UI::WindowsAndMessaging::{
+            GetSystemMetrics, SM_CXSCREEN, SM_CXVIRTUALSCREEN, SM_CYSCREEN, SM_CYVIRTUALSCREEN,
+            SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
+        };
 
         unsafe {
             let (x, y, width, height) = if let Some(idx) = monitor_index {
@@ -96,7 +99,9 @@ impl ScreenshotCapture {
     #[cfg(target_os = "windows")]
     pub fn capture_active_window(&self) -> Result<ScreenshotResult, String> {
         use windows::Win32::Foundation::RECT;
-        use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowRect, GetWindowTextW};
+        use windows::Win32::UI::WindowsAndMessaging::{
+            GetForegroundWindow, GetWindowRect, GetWindowTextW,
+        };
 
         unsafe {
             let hwnd = GetForegroundWindow();
@@ -128,7 +133,13 @@ impl ScreenshotCapture {
 
     /// Capture specific region
     #[cfg(target_os = "windows")]
-    pub fn capture_region(&self, x: i32, y: i32, width: u32, height: u32) -> Result<ScreenshotResult, String> {
+    pub fn capture_region(
+        &self,
+        x: i32,
+        y: i32,
+        width: u32,
+        height: u32,
+    ) -> Result<ScreenshotResult, String> {
         self.capture_region_internal(x, y, width, height, CaptureMode::Region, None)
     }
 
@@ -144,9 +155,9 @@ impl ScreenshotCapture {
     ) -> Result<ScreenshotResult, String> {
         use windows::Win32::Foundation::HWND;
         use windows::Win32::Graphics::Gdi::{
-            BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject,
-            GetDC, GetDIBits, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER,
-            BI_RGB, DIB_RGB_COLORS, SRCCOPY,
+            BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC,
+            GetDIBits, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
+            DIB_RGB_COLORS, SRCCOPY,
         };
 
         if width == 0 || height == 0 {
@@ -177,7 +188,17 @@ impl ScreenshotCapture {
             let old_bitmap = SelectObject(mem_dc, bitmap);
 
             // Copy screen to bitmap
-            let result = BitBlt(mem_dc, 0, 0, width as i32, height as i32, screen_dc, x, y, SRCCOPY);
+            let result = BitBlt(
+                mem_dc,
+                0,
+                0,
+                width as i32,
+                height as i32,
+                screen_dc,
+                x,
+                y,
+                SRCCOPY,
+            );
             if result.is_err() {
                 SelectObject(mem_dc, old_bitmap);
                 let _ = DeleteObject(bitmap);
@@ -252,7 +273,12 @@ impl ScreenshotCapture {
                 },
                 window_title,
                 region: if matches!(mode, CaptureMode::Region) {
-                    Some(CaptureRegion { x, y, width, height })
+                    Some(CaptureRegion {
+                        x,
+                        y,
+                        width,
+                        height,
+                    })
                 } else {
                     None
                 },
@@ -314,7 +340,11 @@ impl ScreenshotCapture {
                 let is_primary = (info.monitorInfo.dwFlags & 1) != 0; // MONITORINFOF_PRIMARY
 
                 let name = String::from_utf16_lossy(
-                    &info.szDevice[..info.szDevice.iter().position(|&c| c == 0).unwrap_or(info.szDevice.len())],
+                    &info.szDevice[..info
+                        .szDevice
+                        .iter()
+                        .position(|&c| c == 0)
+                        .unwrap_or(info.szDevice.len())],
                 );
 
                 monitors.push(MonitorInfo {
@@ -346,7 +376,10 @@ impl ScreenshotCapture {
 
     // Non-Windows implementations
     #[cfg(not(target_os = "windows"))]
-    pub fn capture_screen(&self, _monitor_index: Option<usize>) -> Result<ScreenshotResult, String> {
+    pub fn capture_screen(
+        &self,
+        _monitor_index: Option<usize>,
+    ) -> Result<ScreenshotResult, String> {
         Err("Screenshot not implemented for this platform".to_string())
     }
 
@@ -356,7 +389,13 @@ impl ScreenshotCapture {
     }
 
     #[cfg(not(target_os = "windows"))]
-    pub fn capture_region(&self, _x: i32, _y: i32, _width: u32, _height: u32) -> Result<ScreenshotResult, String> {
+    pub fn capture_region(
+        &self,
+        _x: i32,
+        _y: i32,
+        _width: u32,
+        _height: u32,
+    ) -> Result<ScreenshotResult, String> {
         Err("Screenshot not implemented for this platform".to_string())
     }
 
@@ -454,15 +493,15 @@ mod tests {
         let capture = ScreenshotCapture::new();
         // Create a simple 2x2 red image (RGBA)
         let pixels: Vec<u8> = vec![
-            255, 0, 0, 255,  // Red pixel
-            255, 0, 0, 255,  // Red pixel
-            255, 0, 0, 255,  // Red pixel
-            255, 0, 0, 255,  // Red pixel
+            255, 0, 0, 255, // Red pixel
+            255, 0, 0, 255, // Red pixel
+            255, 0, 0, 255, // Red pixel
+            255, 0, 0, 255, // Red pixel
         ];
-        
+
         let result = capture.encode_png(&pixels, 2, 2);
         assert!(result.is_ok());
-        
+
         let png_data = result.unwrap();
         // PNG signature starts with specific bytes
         assert!(png_data.len() > 8);
@@ -472,17 +511,17 @@ mod tests {
     #[test]
     fn test_encode_png_various_sizes() {
         let capture = ScreenshotCapture::new();
-        
+
         // Test 1x1
         let pixels = vec![0u8; 4];
         let result = capture.encode_png(&pixels, 1, 1);
         assert!(result.is_ok());
-        
+
         // Test 10x10
         let pixels = vec![128u8; 10 * 10 * 4];
         let result = capture.encode_png(&pixels, 10, 10);
         assert!(result.is_ok());
-        
+
         // Test 100x100
         let pixels = vec![255u8; 100 * 100 * 4];
         let result = capture.encode_png(&pixels, 100, 100);
@@ -494,12 +533,9 @@ mod tests {
         let capture = ScreenshotCapture::new();
         // Semi-transparent blue
         let pixels: Vec<u8> = vec![
-            0, 0, 255, 128,
-            0, 0, 255, 128,
-            0, 0, 255, 128,
-            0, 0, 255, 128,
+            0, 0, 255, 128, 0, 0, 255, 128, 0, 0, 255, 128, 0, 0, 255, 128,
         ];
-        
+
         let result = capture.encode_png(&pixels, 2, 2);
         assert!(result.is_ok());
     }
@@ -513,7 +549,7 @@ mod tests {
             let v = (i * 16) as u8;
             pixels.extend_from_slice(&[v, v, v, 255]);
         }
-        
+
         let result = capture.encode_png(&pixels, 4, 4);
         assert!(result.is_ok());
     }
@@ -536,10 +572,10 @@ mod tests {
                 ocr_text: None,
             },
         };
-        
+
         let json = serde_json::to_string(&result).unwrap();
         assert!(json.contains("AQIDBAU=")); // Base64 of [1,2,3,4,5]
-        
+
         let deserialized: ScreenshotResult = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.image_data, vec![1, 2, 3, 4, 5]);
         assert_eq!(deserialized.metadata.width, 100);
@@ -561,7 +597,7 @@ mod tests {
                 ocr_text: None,
             },
         };
-        
+
         let json = serde_json::to_string(&result).unwrap();
         let deserialized: ScreenshotResult = serde_json::from_str(&json).unwrap();
         assert!(deserialized.image_data.is_empty());
@@ -584,7 +620,7 @@ mod tests {
                 ocr_text: None,
             },
         };
-        
+
         let json = serde_json::to_string(&result).unwrap();
         let deserialized: ScreenshotResult = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.image_data, large_data);
@@ -601,12 +637,17 @@ mod tests {
                 mode: "region".to_string(),
                 monitor_index: None,
                 window_title: None,
-                region: Some(CaptureRegion { x: 0, y: 0, width: 50, height: 50 }),
+                region: Some(CaptureRegion {
+                    x: 0,
+                    y: 0,
+                    width: 50,
+                    height: 50,
+                }),
                 file_path: None,
                 ocr_text: None,
             },
         };
-        
+
         let cloned = result.clone();
         assert_eq!(cloned.image_data, result.image_data);
         assert_eq!(cloned.metadata.width, result.metadata.width);
@@ -661,12 +702,12 @@ mod tests {
     #[test]
     fn test_capture_region_invalid_dimensions() {
         let capture = ScreenshotCapture::new();
-        
+
         // Zero width
         let result = capture.capture_region(0, 0, 0, 100);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Invalid capture dimensions"));
-        
+
         // Zero height
         let result = capture.capture_region(0, 0, 100, 0);
         assert!(result.is_err());

@@ -4,10 +4,10 @@
 
 #![allow(dead_code)]
 
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::Arc;
-use parking_lot::RwLock;
 
 /// Maximum number of clipboard entries to keep
 const MAX_CLIPBOARD_HISTORY: usize = 50;
@@ -167,7 +167,10 @@ pub struct ClipboardHistory {
 
 impl ClipboardHistory {
     pub fn new() -> Self {
-        log::debug!("[ClipboardHistory] Creating new instance with max_size={}", MAX_CLIPBOARD_HISTORY);
+        log::debug!(
+            "[ClipboardHistory] Creating new instance with max_size={}",
+            MAX_CLIPBOARD_HISTORY
+        );
         Self {
             entries: Arc::new(RwLock::new(VecDeque::with_capacity(MAX_CLIPBOARD_HISTORY))),
             max_size: MAX_CLIPBOARD_HISTORY,
@@ -177,20 +180,20 @@ impl ClipboardHistory {
 
     /// Add a new entry to history
     pub fn add(&self, entry: ClipboardEntry) {
-        log::trace!("[ClipboardHistory] add: type={:?}, preview='{}'", entry.content_type, 
-            entry.preview.chars().take(50).collect::<String>());
-        
+        log::trace!(
+            "[ClipboardHistory] add: type={:?}, preview='{}'",
+            entry.content_type,
+            entry.preview.chars().take(50).collect::<String>()
+        );
+
         let mut entries = self.entries.write();
 
         // Check for duplicate based on content
-        let is_duplicate = entries.front().map(|e| {
-            match (&e.content_type, &entry.content_type) {
-                (ClipboardContentType::Text, ClipboardContentType::Text) => {
-                    e.text == entry.text
-                }
-                (ClipboardContentType::Html, ClipboardContentType::Html) => {
-                    e.html == entry.html
-                }
+        let is_duplicate = entries
+            .front()
+            .map(|e| match (&e.content_type, &entry.content_type) {
+                (ClipboardContentType::Text, ClipboardContentType::Text) => e.text == entry.text,
+                (ClipboardContentType::Html, ClipboardContentType::Html) => e.html == entry.html,
                 (ClipboardContentType::Image, ClipboardContentType::Image) => {
                     e.image_base64 == entry.image_base64
                 }
@@ -198,8 +201,8 @@ impl ClipboardHistory {
                     e.files == entry.files
                 }
                 _ => false,
-            }
-        }).unwrap_or(false);
+            })
+            .unwrap_or(false);
 
         if is_duplicate {
             log::trace!("[ClipboardHistory] Skipping duplicate entry");
@@ -222,18 +225,25 @@ impl ClipboardHistory {
                 removed += 1;
             }
         }
-        
+
         if removed > 0 {
             log::trace!("[ClipboardHistory] Removed {} old entries", removed);
         }
-        log::debug!("[ClipboardHistory] Entry added, history_size={}", current_len.min(self.max_size));
+        log::debug!(
+            "[ClipboardHistory] Entry added, history_size={}",
+            current_len.min(self.max_size)
+        );
     }
 
     /// Get recent entries
     pub fn get_recent(&self, count: usize) -> Vec<ClipboardEntry> {
         let entries = self.entries.read();
         let result: Vec<_> = entries.iter().take(count).cloned().collect();
-        log::trace!("[ClipboardHistory] get_recent({}): returned {} entries", count, result.len());
+        log::trace!(
+            "[ClipboardHistory] get_recent({}): returned {} entries",
+            count,
+            result.len()
+        );
         result
     }
 
@@ -322,7 +332,11 @@ impl ClipboardHistory {
         let before = entries.len();
         entries.retain(|e| e.is_pinned);
         let removed = before - entries.len();
-        log::info!("[ClipboardHistory] Cleared {} unpinned entries, {} pinned remain", removed, entries.len());
+        log::info!(
+            "[ClipboardHistory] Cleared {} unpinned entries, {} pinned remain",
+            removed,
+            entries.len()
+        );
     }
 
     /// Clear all entries
@@ -365,7 +379,10 @@ impl ClipboardHistory {
                 // Check if changed
                 let mut last_hash = self.last_content_hash.write();
                 if *last_hash != Some(hash) {
-                    log::debug!("[ClipboardHistory] New text content detected ({} chars)", text.len());
+                    log::debug!(
+                        "[ClipboardHistory] New text content detected ({} chars)",
+                        text.len()
+                    );
                     *last_hash = Some(hash);
                     drop(last_hash);
 
@@ -388,7 +405,11 @@ impl ClipboardHistory {
 
             let mut last_hash = self.last_content_hash.write();
             if *last_hash != Some(hash) {
-                log::debug!("[ClipboardHistory] New image content detected ({}x{})", image.width, image.height);
+                log::debug!(
+                    "[ClipboardHistory] New image content detected ({}x{})",
+                    image.width,
+                    image.height
+                );
                 *last_hash = Some(hash);
                 drop(last_hash);
 
@@ -427,7 +448,10 @@ impl ClipboardHistory {
         match entry.content_type {
             ClipboardContentType::Text | ClipboardContentType::Html => {
                 if let Some(text) = entry.text {
-                    log::debug!("[ClipboardHistory] Restoring text to clipboard ({} chars)", text.len());
+                    log::debug!(
+                        "[ClipboardHistory] Restoring text to clipboard ({} chars)",
+                        text.len()
+                    );
                     clipboard.set_text(text).map_err(|e| {
                         log::error!("[ClipboardHistory] Failed to set clipboard text: {}", e);
                         e.to_string()
@@ -484,9 +508,9 @@ mod tests {
     fn test_add_text_entry() {
         let history = ClipboardHistory::new();
         let entry = ClipboardEntry::new_text("Hello World".to_string());
-        
+
         history.add(entry);
-        
+
         assert_eq!(history.len(), 1);
         let recent = history.get_recent(10);
         assert_eq!(recent[0].text, Some("Hello World".to_string()));
@@ -495,13 +519,10 @@ mod tests {
     #[test]
     fn test_add_html_entry() {
         let history = ClipboardHistory::new();
-        let entry = ClipboardEntry::new_html(
-            "Hello".to_string(),
-            "<b>Hello</b>".to_string(),
-        );
-        
+        let entry = ClipboardEntry::new_html("Hello".to_string(), "<b>Hello</b>".to_string());
+
         history.add(entry);
-        
+
         assert_eq!(history.len(), 1);
         let recent = history.get_recent(10);
         assert_eq!(recent[0].content_type, ClipboardContentType::Html);
@@ -511,9 +532,9 @@ mod tests {
     fn test_add_image_entry() {
         let history = ClipboardHistory::new();
         let entry = ClipboardEntry::new_image("base64data".to_string(), 100, 200);
-        
+
         history.add(entry);
-        
+
         let recent = history.get_recent(10);
         assert_eq!(recent[0].content_type, ClipboardContentType::Image);
         assert_eq!(recent[0].preview, "Image (100x200)");
@@ -526,9 +547,9 @@ mod tests {
             "/path/to/file1.txt".to_string(),
             "/path/to/file2.txt".to_string(),
         ]);
-        
+
         history.add(entry);
-        
+
         let recent = history.get_recent(10);
         assert_eq!(recent[0].content_type, ClipboardContentType::Files);
         assert_eq!(recent[0].preview, "2 files");
@@ -537,10 +558,10 @@ mod tests {
     #[test]
     fn test_duplicate_detection() {
         let history = ClipboardHistory::new();
-        
+
         history.add(ClipboardEntry::new_text("Same text".to_string()));
         history.add(ClipboardEntry::new_text("Same text".to_string()));
-        
+
         // Duplicate should not be added
         assert_eq!(history.len(), 1);
     }
@@ -548,17 +569,17 @@ mod tests {
     #[test]
     fn test_search() {
         let history = ClipboardHistory::new();
-        
+
         history.add(ClipboardEntry::new_text("Hello World".to_string()));
         history.add(ClipboardEntry::new_text("Goodbye World".to_string()));
         history.add(ClipboardEntry::new_text("Hello Rust".to_string()));
-        
+
         let results = history.search("hello");
         assert_eq!(results.len(), 2);
-        
+
         let results = history.search("world");
         assert_eq!(results.len(), 2);
-        
+
         let results = history.search("rust");
         assert_eq!(results.len(), 1);
     }
@@ -568,13 +589,13 @@ mod tests {
         let history = ClipboardHistory::new();
         let entry = ClipboardEntry::new_text("Test".to_string());
         let id = entry.id.clone();
-        
+
         history.add(entry);
-        
+
         let found = history.get_by_id(&id);
         assert!(found.is_some());
         assert_eq!(found.unwrap().text, Some("Test".to_string()));
-        
+
         let not_found = history.get_by_id("nonexistent");
         assert!(not_found.is_none());
     }
@@ -584,13 +605,13 @@ mod tests {
         let history = ClipboardHistory::new();
         let entry = ClipboardEntry::new_text("Test".to_string());
         let id = entry.id.clone();
-        
+
         history.add(entry);
-        
+
         assert!(history.pin_entry(&id));
         let pinned = history.get_pinned();
         assert_eq!(pinned.len(), 1);
-        
+
         assert!(history.unpin_entry(&id));
         let pinned = history.get_pinned();
         assert_eq!(pinned.len(), 0);
@@ -601,32 +622,32 @@ mod tests {
         let history = ClipboardHistory::new();
         let entry = ClipboardEntry::new_text("Test".to_string());
         let id = entry.id.clone();
-        
+
         history.add(entry);
         assert_eq!(history.len(), 1);
-        
+
         assert!(history.delete_entry(&id));
         assert_eq!(history.len(), 0);
-        
+
         assert!(!history.delete_entry("nonexistent"));
     }
 
     #[test]
     fn test_clear_unpinned() {
         let history = ClipboardHistory::new();
-        
+
         let entry1 = ClipboardEntry::new_text("Pinned".to_string());
         let id1 = entry1.id.clone();
         history.add(entry1);
         history.pin_entry(&id1);
-        
+
         history.add(ClipboardEntry::new_text("Unpinned 1".to_string()));
         history.add(ClipboardEntry::new_text("Unpinned 2".to_string()));
-        
+
         assert_eq!(history.len(), 3);
-        
+
         history.clear_unpinned();
-        
+
         assert_eq!(history.len(), 1);
         let remaining = history.get_all();
         assert_eq!(remaining[0].text, Some("Pinned".to_string()));
@@ -635,28 +656,28 @@ mod tests {
     #[test]
     fn test_clear_all() {
         let history = ClipboardHistory::new();
-        
+
         let entry = ClipboardEntry::new_text("Pinned".to_string());
         let id = entry.id.clone();
         history.add(entry);
         history.pin_entry(&id);
-        
+
         history.add(ClipboardEntry::new_text("Unpinned".to_string()));
-        
+
         history.clear_all();
-        
+
         assert!(history.is_empty());
     }
 
     #[test]
     fn test_max_size_limit() {
         let history = ClipboardHistory::new();
-        
+
         // Add more than MAX_CLIPBOARD_HISTORY entries
         for i in 0..60 {
             history.add(ClipboardEntry::new_text(format!("Entry {}", i)));
         }
-        
+
         // Should be capped at MAX_CLIPBOARD_HISTORY (50)
         assert!(history.len() <= 50);
     }
@@ -664,18 +685,18 @@ mod tests {
     #[test]
     fn test_pinned_entries_preserved_on_overflow() {
         let history = ClipboardHistory::new();
-        
+
         // Add a pinned entry first
         let pinned_entry = ClipboardEntry::new_text("Pinned Entry".to_string());
         let pinned_id = pinned_entry.id.clone();
         history.add(pinned_entry);
         history.pin_entry(&pinned_id);
-        
+
         // Add many more entries to trigger overflow
         for i in 0..55 {
             history.add(ClipboardEntry::new_text(format!("Entry {}", i)));
         }
-        
+
         // Pinned entry should still exist
         let pinned = history.get_pinned();
         assert_eq!(pinned.len(), 1);
@@ -686,7 +707,7 @@ mod tests {
     fn test_entry_with_source() {
         let entry = ClipboardEntry::new_text("Test".to_string())
             .with_source(Some("VSCode".to_string()), Some("main.rs".to_string()));
-        
+
         assert_eq!(entry.source_app, Some("VSCode".to_string()));
         assert_eq!(entry.source_window, Some("main.rs".to_string()));
     }
@@ -695,10 +716,10 @@ mod tests {
     fn test_entry_pin_unpin_methods() {
         let mut entry = ClipboardEntry::new_text("Test".to_string());
         assert!(!entry.is_pinned);
-        
+
         entry.pin();
         assert!(entry.is_pinned);
-        
+
         entry.unpin();
         assert!(!entry.is_pinned);
     }
@@ -707,7 +728,7 @@ mod tests {
     fn test_entry_set_label() {
         let mut entry = ClipboardEntry::new_text("Test".to_string());
         assert!(entry.label.is_none());
-        
+
         entry.set_label("My Label".to_string());
         assert_eq!(entry.label, Some("My Label".to_string()));
     }
@@ -716,7 +737,7 @@ mod tests {
     fn test_preview_truncation() {
         let long_text = "a".repeat(200);
         let entry = ClipboardEntry::new_text(long_text);
-        
+
         // Preview should be truncated to ~100 chars + "..."
         assert!(entry.preview.len() < 110);
         assert!(entry.preview.ends_with("..."));

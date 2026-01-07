@@ -104,15 +104,15 @@ jest.mock('@/types/provider', () => ({
   getModelConfig: () => ({ name: 'GPT-4o' }),
 }));
 
-jest.mock('./export-dialog', () => ({
+jest.mock('./dialogs/export-dialog', () => ({
   ExportDialog: () => <div data-testid="export-dialog" />,
 }));
 
-jest.mock('./image-generation-dialog', () => ({
+jest.mock('./dialogs/image-generation-dialog', () => ({
   ImageGenerationDialog: () => <div data-testid="image-dialog" />,
 }));
 
-jest.mock('./branch-selector', () => ({
+jest.mock('./selectors/branch-selector', () => ({
   BranchSelector: () => <div data-testid="branch-selector" />,
 }));
 
@@ -123,7 +123,7 @@ jest.mock('@/components/presets', () => ({
 }));
 
 // Mock hooks that use IndexedDB
-jest.mock('@/hooks/use-messages', () => ({
+jest.mock('@/hooks/chat/use-messages', () => ({
   useMessages: () => ({
     messages: [],
     isLoading: false,

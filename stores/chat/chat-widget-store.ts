@@ -41,6 +41,8 @@ export interface ChatWidgetConfig {
   showTimestamps: boolean;
   soundEnabled: boolean;
   autoFocus: boolean;
+  /** Background color for opaque rendering (hex format, e.g., "#ffffff") */
+  backgroundColor: string;
 }
 
 // Chat widget state
@@ -120,6 +122,7 @@ const DEFAULT_CONFIG: ChatWidgetConfig = {
   showTimestamps: false,
   soundEnabled: false,
   autoFocus: true,
+  backgroundColor: '#ffffff',
 };
 
 const DEFAULT_STATE: ChatWidgetState = {

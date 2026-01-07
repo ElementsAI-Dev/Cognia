@@ -8,6 +8,7 @@ import { GitPanel } from './git-panel';
 
 // Mock the useGit hook
 const mockUseGit: Record<string, unknown> = {
+  isDesktopAvailable: true,
   isInstalled: true,
   isCheckingGit: false,
   currentRepo: {
@@ -61,6 +62,12 @@ const mockUseGit: Record<string, unknown> = {
   checkout: jest.fn().mockResolvedValue(true),
   discardChanges: jest.fn().mockResolvedValue(true),
   clearError: jest.fn(),
+  stashList: [],
+  stashSave: jest.fn().mockResolvedValue(true),
+  stashPop: jest.fn().mockResolvedValue(true),
+  stashApply: jest.fn().mockResolvedValue(true),
+  stashDrop: jest.fn().mockResolvedValue(true),
+  stashClear: jest.fn().mockResolvedValue(true),
 };
 
 jest.mock('@/hooks/native/use-git', () => ({
@@ -87,6 +94,7 @@ jest.mock('@/types/git', () => ({
 describe('GitPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseGit.isDesktopAvailable = true;
     mockUseGit.isInstalled = true;
     mockUseGit.isCheckingGit = false;
     mockUseGit.currentRepo = {
@@ -111,6 +119,14 @@ describe('GitPanel', () => {
     };
     mockUseGit.fileStatus = [];
     mockUseGit.error = null;
+  });
+
+  it('should show desktop required message when not in desktop mode', () => {
+    mockUseGit.isDesktopAvailable = false;
+    
+    render(<GitPanel repoPath="/test/repo" />);
+    
+    expect(screen.getByText('desktopRequired.title')).toBeInTheDocument();
   });
 
   it('should show not installed message when Git is not installed', () => {

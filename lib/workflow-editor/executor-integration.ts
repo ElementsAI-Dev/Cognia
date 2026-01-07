@@ -18,8 +18,88 @@ import {
 import type { VisualWorkflow } from '@/types/workflow-editor';
 import type { WorkflowExecution, WorkflowDefinition } from '@/types/workflow';
 
-// Store for active executions
+// Store for active executions with automatic cleanup
 const activeExecutions = new Map<string, WorkflowExecution>();
+
+// Maximum number of executions to keep in memory
+const MAX_ACTIVE_EXECUTIONS = 100;
+
+// Cleanup interval in milliseconds (5 minutes)
+const CLEANUP_INTERVAL = 5 * 60 * 1000;
+
+// Maximum age for completed executions in memory (30 minutes)
+const MAX_EXECUTION_AGE = 30 * 60 * 1000;
+
+/**
+ * Clean up stale executions from memory
+ */
+function cleanupStaleExecutions(): void {
+  const now = Date.now();
+  const toDelete: string[] = [];
+
+  for (const [id, execution] of activeExecutions) {
+    // Remove completed/failed/cancelled executions older than MAX_EXECUTION_AGE
+    if (
+      execution.status === 'completed' ||
+      execution.status === 'failed' ||
+      execution.status === 'cancelled'
+    ) {
+      const completedAt = execution.completedAt?.getTime() || 0;
+      if (now - completedAt > MAX_EXECUTION_AGE) {
+        toDelete.push(id);
+      }
+    }
+    // Remove idle executions that never started (orphaned)
+    else if (execution.status === 'idle') {
+      const startedAt = execution.startedAt?.getTime() || 0;
+      if (now - startedAt > MAX_EXECUTION_AGE) {
+        toDelete.push(id);
+      }
+    }
+  }
+
+  for (const id of toDelete) {
+    activeExecutions.delete(id);
+  }
+
+  // If still over limit, remove oldest completed executions
+  if (activeExecutions.size > MAX_ACTIVE_EXECUTIONS) {
+    const sortedExecutions = Array.from(activeExecutions.entries())
+      .filter(([_, e]) => e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled')
+      .sort((a, b) => (a[1].completedAt?.getTime() || 0) - (b[1].completedAt?.getTime() || 0));
+
+    const toRemove = sortedExecutions.slice(0, activeExecutions.size - MAX_ACTIVE_EXECUTIONS);
+    for (const [id] of toRemove) {
+      activeExecutions.delete(id);
+    }
+  }
+}
+
+// Set up periodic cleanup (only in browser environment)
+if (typeof window !== 'undefined') {
+  setInterval(cleanupStaleExecutions, CLEANUP_INTERVAL);
+}
+
+/**
+ * Remove an execution from the active executions map
+ */
+export function removeActiveExecution(executionId: string): void {
+  activeExecutions.delete(executionId);
+}
+
+/**
+ * Get all active executions (for debugging/monitoring)
+ */
+export function getActiveExecutions(): Map<string, WorkflowExecution> {
+  return new Map(activeExecutions);
+}
+
+/**
+ * Get the count of active executions
+ */
+export function getActiveExecutionCount(): number {
+  return activeExecutions.size;
+}
 
 /**
  * Execute a visual workflow
@@ -30,6 +110,9 @@ export async function executeVisualWorkflow(
   config: WorkflowExecutorConfig,
   callbacks?: WorkflowExecutorCallbacks
 ): Promise<WorkflowExecutorResult> {
+  // Run cleanup before starting new execution
+  cleanupStaleExecutions();
+
   // Convert visual workflow to executable definition
   const definition = visualToDefinition(workflow);
 
@@ -41,13 +124,28 @@ export async function executeVisualWorkflow(
   const sessionId = `visual-${workflow.id}-${Date.now()}`;
 
   try {
+    // Wrap callbacks to handle cleanup on completion
+    const wrappedCallbacks: WorkflowExecutorCallbacks = {
+      ...callbacks,
+      onComplete: (execution) => {
+        // Schedule cleanup after a short delay to allow for any final state reads
+        setTimeout(() => removeActiveExecution(execution.id), MAX_EXECUTION_AGE);
+        callbacks?.onComplete?.(execution);
+      },
+      onError: (execution, error) => {
+        // Schedule cleanup after a short delay
+        setTimeout(() => removeActiveExecution(execution.id), MAX_EXECUTION_AGE);
+        callbacks?.onError?.(execution, error);
+      },
+    };
+
     // Execute the workflow using the correct signature
     const result = await executeWorkflow(
       definition.id,
       sessionId,
       input,
       config,
-      callbacks
+      wrappedCallbacks
     );
 
     // Store the execution for pause/resume/cancel

@@ -35,19 +35,23 @@ jest.mock('next-intl', () => ({
 }));
 
 // Mock stores
-jest.mock('@/stores', () => ({
-  useSettingsStore: () => ({
+jest.mock('@/stores', () => {
+  const mockState = {
     providerSettings: {
       openai: { enabled: true, apiKey: 'test-key' },
     },
-  }),
-  useSessionStore: () => ({
     getActiveSession: () => ({
       provider: 'openai',
       model: 'gpt-4o',
     }),
-  }),
-}));
+  };
+  return {
+    useSettingsStore: (selector?: (state: typeof mockState) => unknown) => 
+      selector ? selector(mockState) : mockState,
+    useSessionStore: (selector?: (state: typeof mockState) => unknown) => 
+      selector ? selector(mockState) : mockState,
+  };
+});
 
 // Mock AI lib
 jest.mock('@/lib/ai/generation/prompt-optimizer', () => ({

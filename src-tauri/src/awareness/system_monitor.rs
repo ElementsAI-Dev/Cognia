@@ -112,8 +112,12 @@ impl SystemMonitor {
             power_mode: self.get_power_mode(),
             displays: self.get_display_info(),
         };
-        log::trace!("System state: cpu={:.1}%, mem={:.1}%, processes={}", 
-            state.cpu_usage, state.memory_percent, state.process_count);
+        log::trace!(
+            "System state: cpu={:.1}%, mem={:.1}%, processes={}",
+            state.cpu_usage,
+            state.memory_percent,
+            state.process_count
+        );
         state
     }
 
@@ -126,13 +130,13 @@ impl SystemMonitor {
     #[cfg(target_os = "windows")]
     fn get_memory_used(&self) -> u64 {
         use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
-        
+
         unsafe {
             let mut mem_info = MEMORYSTATUSEX {
                 dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
                 ..Default::default()
             };
-            
+
             if GlobalMemoryStatusEx(&mut mem_info).is_ok() {
                 mem_info.ullTotalPhys - mem_info.ullAvailPhys
             } else {
@@ -144,13 +148,13 @@ impl SystemMonitor {
     #[cfg(target_os = "windows")]
     fn get_memory_total(&self) -> u64 {
         use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
-        
+
         unsafe {
             let mut mem_info = MEMORYSTATUSEX {
                 dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
                 ..Default::default()
             };
-            
+
             if GlobalMemoryStatusEx(&mut mem_info).is_ok() {
                 mem_info.ullTotalPhys
             } else {
@@ -171,31 +175,36 @@ impl SystemMonitor {
 
     #[cfg(target_os = "windows")]
     fn get_disk_info(&self) -> Vec<DiskInfo> {
-        use windows::Win32::Storage::FileSystem::{
-            GetLogicalDrives, GetDiskFreeSpaceExW, GetVolumeInformationW,
-        };
         use windows::core::PCWSTR;
+        use windows::Win32::Storage::FileSystem::{
+            GetDiskFreeSpaceExW, GetLogicalDrives, GetVolumeInformationW,
+        };
 
         let mut disks = Vec::new();
 
         unsafe {
             let drives = GetLogicalDrives();
-            
+
             for i in 0..26 {
                 if (drives & (1 << i)) != 0 {
                     let letter = (b'A' + i as u8) as char;
-                    let path: Vec<u16> = format!("{}:\\", letter).encode_utf16().chain(std::iter::once(0)).collect();
-                    
+                    let path: Vec<u16> = format!("{}:\\", letter)
+                        .encode_utf16()
+                        .chain(std::iter::once(0))
+                        .collect();
+
                     let mut free_bytes: u64 = 0;
                     let mut total_bytes: u64 = 0;
                     let mut total_free: u64 = 0;
-                    
+
                     if GetDiskFreeSpaceExW(
                         PCWSTR(path.as_ptr()),
                         Some(&mut free_bytes),
                         Some(&mut total_bytes),
                         Some(&mut total_free),
-                    ).is_ok() {
+                    )
+                    .is_ok()
+                    {
                         let used = total_bytes - free_bytes;
                         let percent = if total_bytes > 0 {
                             (used as f64 / total_bytes as f64) * 100.0
@@ -250,7 +259,7 @@ impl SystemMonitor {
                 };
 
                 let is_charging = status.ACLineStatus == 1;
-                
+
                 let time_remaining = if status.BatteryLifeTime != 0xFFFFFFFF {
                     Some(status.BatteryLifeTime / 60)
                 } else {
@@ -271,10 +280,8 @@ impl SystemMonitor {
     #[cfg(target_os = "windows")]
     fn get_uptime(&self) -> u64 {
         use windows::Win32::System::SystemInformation::GetTickCount64;
-        
-        unsafe {
-            GetTickCount64() / 1000
-        }
+
+        unsafe { GetTickCount64() / 1000 }
     }
 
     #[cfg(target_os = "windows")]
@@ -284,12 +291,14 @@ impl SystemMonitor {
         unsafe {
             let mut pids = vec![0u32; 1024];
             let mut bytes_returned: u32 = 0;
-            
+
             if EnumProcesses(
                 pids.as_mut_ptr(),
                 (pids.len() * std::mem::size_of::<u32>()) as u32,
                 &mut bytes_returned,
-            ).is_ok() {
+            )
+            .is_ok()
+            {
                 bytes_returned / std::mem::size_of::<u32>() as u32
             } else {
                 0
@@ -333,7 +342,11 @@ impl SystemMonitor {
                 let is_primary = (info.monitorInfo.dwFlags & 1) != 0;
 
                 let name = String::from_utf16_lossy(
-                    &info.szDevice[..info.szDevice.iter().position(|&c| c == 0).unwrap_or(info.szDevice.len())],
+                    &info.szDevice[..info
+                        .szDevice
+                        .iter()
+                        .position(|&c| c == 0)
+                        .unwrap_or(info.szDevice.len())],
                 );
 
                 displays.push(DisplayInfo {
@@ -414,7 +427,7 @@ mod tests {
     fn test_get_state() {
         let monitor = SystemMonitor::new();
         let state = monitor.get_state();
-        
+
         // Memory total should be >= used
         assert!(state.memory_total >= state.memory_used);
         // Memory percent should be in valid range
@@ -584,7 +597,7 @@ mod tests {
 
         let parsed: Result<DisplayInfo, _> = serde_json::from_str(&json.unwrap());
         assert!(parsed.is_ok());
-        
+
         let parsed_display = parsed.unwrap();
         assert_eq!(parsed_display.width, 2560);
         assert_eq!(parsed_display.height, 1440);

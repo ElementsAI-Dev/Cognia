@@ -69,7 +69,8 @@ describe('RecordingControls', () => {
     });
 
     renderWithProviders(<RecordingControls />);
-    expect(screen.getByRole('button')).toBeDisabled();
+    // Now renders FFmpegStatus component in compact mode which shows notAvailable text
+    expect(screen.getByText('notAvailable')).toBeInTheDocument();
   });
 
   it('shows loading spinner when initializing', () => {

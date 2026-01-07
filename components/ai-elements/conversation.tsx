@@ -9,14 +9,19 @@ import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 
 export type ConversationProps = ComponentProps<typeof StickToBottom>;
 
-export const Conversation = ({ className, ...props }: ConversationProps) => (
+export const Conversation = ({ className, children, ...props }: ConversationProps) => (
   <StickToBottom
-    className={cn("relative min-h-0 flex-1 overflow-y-hidden bg-linear-to-b from-background to-background/95", className)}
+    className={cn(
+      "relative min-h-0 flex-1 overflow-y-auto bg-linear-to-b from-background to-background/95",
+      className
+    )}
     initial="instant"
     resize="instant"
     role="log"
     {...props}
-  />
+  >
+    {children}
+  </StickToBottom>
 );
 
 export type ConversationContentProps = ComponentProps<

@@ -149,6 +149,16 @@ export interface DBSummary {
   updatedAt: Date;
 }
 
+export interface DBAsset {
+  id: string;
+  kind: 'background-image';
+  blob: Blob;
+  mimeType: string;
+  filename?: string;
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
 // Database class
 class CogniaDB extends Dexie {
   sessions!: EntityTable<DBSession, 'id'>;
@@ -160,6 +170,7 @@ class CogniaDB extends Dexie {
   workflows!: EntityTable<DBWorkflow, 'id'>;
   workflowExecutions!: EntityTable<DBWorkflowExecution, 'id'>;
   summaries!: EntityTable<DBSummary, 'id'>;
+  assets!: EntityTable<DBAsset, 'id'>;
 
   constructor() {
     super('CogniaDB');
@@ -212,6 +223,20 @@ class CogniaDB extends Dexie {
       workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
       workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
       summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
+    });
+
+    // Version 6: Add assets table for storing binary blobs (e.g. background images)
+    this.version(6).stores({
+      sessions: 'id, title, provider, projectId, createdAt, updatedAt',
+      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
+      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
+      mcpServers: 'id, name, url, connected',
+      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
+      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
+      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
+      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
+      summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
+      assets: 'id, kind, createdAt',
     });
   }
 }

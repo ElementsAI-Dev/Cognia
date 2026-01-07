@@ -75,13 +75,8 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
         true,
         None::<&str>,
     )?;
-    let screenshot_window = MenuItem::with_id(
-        app,
-        "screenshot-window",
-        "🪟 窗口截图",
-        true,
-        None::<&str>,
-    )?;
+    let screenshot_window =
+        MenuItem::with_id(app, "screenshot-window", "🪟 窗口截图", true, None::<&str>)?;
     let screenshot_ocr = MenuItem::with_id(
         app,
         "screenshot-ocr",
@@ -162,8 +157,13 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
         true,
         None::<&str>,
     )?;
-    let selection_restart =
-        MenuItem::with_id(app, "selection-restart", "🔄 重启划词服务", true, None::<&str>)?;
+    let selection_restart = MenuItem::with_id(
+        app,
+        "selection-restart",
+        "🔄 重启划词服务",
+        true,
+        None::<&str>,
+    )?;
 
     let selection_submenu = Submenu::with_id_and_items(
         app,
@@ -295,13 +295,11 @@ pub fn create_tray(app: &AppHandle) -> Result<(), tauri::Error> {
     let tooltip = build_tooltip();
 
     // Load tray icon from app's default window icon
-    let icon = app.default_window_icon()
-        .cloned()
-        .unwrap_or_else(|| {
-            // Last resort: create a simple 1x1 icon
-            log::warn!("Failed to load tray icon, using placeholder");
-            Image::new(&[255u8, 255, 255, 255], 1, 1)
-        });
+    let icon = app.default_window_icon().cloned().unwrap_or_else(|| {
+        // Last resort: create a simple 1x1 icon
+        log::warn!("Failed to load tray icon, using placeholder");
+        Image::new(&[255u8, 255, 255, 255], 1, 1)
+    });
 
     TrayIconBuilder::with_id("main-tray")
         .icon(icon)
@@ -479,7 +477,11 @@ pub fn handle_tray_menu_event(app: &AppHandle, item_id: String) {
                 if let Some(manager) = app_clone.try_state::<ScreenshotManager>() {
                     match manager.capture_fullscreen(None).await {
                         Ok(result) => {
-                            log::info!("Fullscreen screenshot captured: {}x{}", result.metadata.width, result.metadata.height);
+                            log::info!(
+                                "Fullscreen screenshot captured: {}x{}",
+                                result.metadata.width,
+                                result.metadata.height
+                            );
                             let _ = app_clone.emit("screenshot-captured", &result);
                         }
                         Err(e) => {
@@ -833,7 +835,7 @@ pub fn update_tray_icon(app: &AppHandle, state: TrayIconState) {
     // For now, we just log the state change - icon switching can be implemented
     // when separate icon files are available
     log::debug!("Tray icon state changed to {:?}", state);
-    
+
     // Update tooltip to reflect state
     let tooltip = match state {
         TrayIconState::Normal => "Cognia AI Assistant - 就绪",
@@ -841,7 +843,7 @@ pub fn update_tray_icon(app: &AppHandle, state: TrayIconState) {
         TrayIconState::Busy => "Cognia - ⏳ 处理中",
         TrayIconState::Notification => "Cognia - 📢 有新通知",
     };
-    
+
     if let Some(tray) = app.tray_by_id("main-tray") {
         let _ = tray.set_tooltip(Some(tooltip));
     }
@@ -953,7 +955,7 @@ mod tests {
     #[test]
     fn test_tray_icon_state_clone() {
         let state = TrayIconState::Recording;
-        let cloned = state.clone();
+        let cloned = state; // Copy trait - no need for clone()
         assert_eq!(state, cloned);
     }
 
@@ -1010,14 +1012,22 @@ mod tests {
     fn test_menu_id_uniqueness() {
         use std::collections::HashSet;
         let unique_ids: HashSet<&&str> = EXPECTED_MENU_IDS.iter().collect();
-        assert_eq!(unique_ids.len(), EXPECTED_MENU_IDS.len(), "Menu IDs should be unique");
+        assert_eq!(
+            unique_ids.len(),
+            EXPECTED_MENU_IDS.len(),
+            "Menu IDs should be unique"
+        );
     }
 
     #[test]
     fn test_menu_id_naming_convention() {
         for id in EXPECTED_MENU_IDS {
             assert!(!id.contains('_'), "Menu ID '{}' should use kebab-case", id);
-            assert!(!id.contains(' '), "Menu ID '{}' should not contain spaces", id);
+            assert!(
+                !id.contains(' '),
+                "Menu ID '{}' should not contain spaces",
+                id
+            );
         }
     }
 
@@ -1116,10 +1126,11 @@ mod tests {
 
     #[test]
     fn test_state_transition_busy_to_recording() {
-        let mut state = TrayState::default();
-        state.is_busy = true;
-        state.is_recording = true;
-        state.status_message = "录制中...".to_string();
+        let state = TrayState {
+            is_busy: true,
+            is_recording: true,
+            status_message: "录制中...".to_string(),
+        };
         assert!(state.is_busy);
         assert!(state.is_recording);
     }
@@ -1206,7 +1217,11 @@ mod tests {
     #[test]
     fn test_submenu_naming_convention() {
         for id in EXPECTED_SUBMENU_IDS {
-            assert!(id.ends_with("-menu"), "Submenu ID '{}' should end with '-menu'", id);
+            assert!(
+                id.ends_with("-menu"),
+                "Submenu ID '{}' should end with '-menu'",
+                id
+            );
         }
     }
 
@@ -1224,13 +1239,20 @@ mod tests {
 
     #[test]
     fn test_shortcut_items_count() {
-        assert_eq!(ITEMS_WITH_SHORTCUTS.len(), 5, "Expected 5 items with shortcuts");
+        assert_eq!(
+            ITEMS_WITH_SHORTCUTS.len(),
+            5,
+            "Expected 5 items with shortcuts"
+        );
     }
 
     #[test]
     fn test_shortcut_format() {
         for (_, shortcut) in ITEMS_WITH_SHORTCUTS {
-            assert!(shortcut.contains("Ctrl+Shift+"), "Shortcut should use Ctrl+Shift+");
+            assert!(
+                shortcut.contains("Ctrl+Shift+"),
+                "Shortcut should use Ctrl+Shift+"
+            );
         }
     }
 
@@ -1238,7 +1260,11 @@ mod tests {
     fn test_shortcut_keys_unique() {
         use std::collections::HashSet;
         let keys: HashSet<&str> = ITEMS_WITH_SHORTCUTS.iter().map(|(_, s)| *s).collect();
-        assert_eq!(keys.len(), ITEMS_WITH_SHORTCUTS.len(), "Shortcut keys should be unique");
+        assert_eq!(
+            keys.len(),
+            ITEMS_WITH_SHORTCUTS.len(),
+            "Shortcut keys should be unique"
+        );
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1249,15 +1275,28 @@ mod tests {
     fn test_window_control_ids() {
         let window_ids = ["show-window", "hide-window", "toggle-chat-widget"];
         for id in window_ids {
-            assert!(EXPECTED_MENU_IDS.contains(&id), "Missing window control: {}", id);
+            assert!(
+                EXPECTED_MENU_IDS.contains(&id),
+                "Missing window control: {}",
+                id
+            );
         }
     }
 
     #[test]
     fn test_screenshot_ids() {
-        let ids = ["screenshot-fullscreen", "screenshot-region", "screenshot-window", "screenshot-ocr"];
+        let ids = [
+            "screenshot-fullscreen",
+            "screenshot-region",
+            "screenshot-window",
+            "screenshot-ocr",
+        ];
         for id in ids {
-            assert!(EXPECTED_MENU_IDS.contains(&id), "Missing screenshot: {}", id);
+            assert!(
+                EXPECTED_MENU_IDS.contains(&id),
+                "Missing screenshot: {}",
+                id
+            );
         }
     }
 
@@ -1271,7 +1310,12 @@ mod tests {
 
     #[test]
     fn test_selection_ids() {
-        let ids = ["selection-enabled", "selection-trigger", "selection-hide-toolbar", "selection-restart"];
+        let ids = [
+            "selection-enabled",
+            "selection-trigger",
+            "selection-hide-toolbar",
+            "selection-restart",
+        ];
         for id in ids {
             assert!(EXPECTED_MENU_IDS.contains(&id), "Missing selection: {}", id);
         }

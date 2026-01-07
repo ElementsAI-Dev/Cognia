@@ -380,7 +380,7 @@ html.tauri-app [data-slot="sidebar-inset"] {
 
 /* Dark mode adjustments for KaTeX */
 .dark .katex {
-  color: hsl(var(--foreground));
+  color: var(--foreground);
 }
 
 .dark .katex .mord,
@@ -395,24 +395,24 @@ html.tauri-app [data-slot="sidebar-inset"] {
 
 /* KaTeX fraction line in dark mode */
 .dark .katex .frac-line {
-  border-color: hsl(var(--foreground));
+  border-color: var(--foreground);
 }
 
 /* KaTeX sqrt line in dark mode */
 .dark .katex .sqrt-line {
-  stroke: hsl(var(--foreground));
+  stroke: var(--foreground);
 }
 
 /* KaTeX error styling */
 .katex-error {
-  color: hsl(var(--destructive));
+  color: var(--destructive);
   font-family: monospace;
   font-size: 0.9em;
 }
 
 /* Math block hover effects */
 .katex-block:hover {
-  background-color: hsl(var(--muted) / 0.3);
+  background-color: color-mix(in oklch, var(--muted) 30%, transparent);
   border-radius: 0.5rem;
 }
 
@@ -424,7 +424,7 @@ html.tauri-app [data-slot="sidebar-inset"] {
 
 /* Focus visible for accessibility */
 .katex-inline:focus-visible {
-  outline: 2px solid hsl(var(--ring));
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
   border-radius: 0.25rem;
 }
@@ -463,7 +463,7 @@ html.tauri-app [data-slot="sidebar-inset"] {
 
 /* Mermaid hover effects */
 .mermaid-block:hover {
-  background-color: hsl(var(--muted) / 0.2);
+  background-color: color-mix(in oklch, var(--muted) 20%, transparent);
 }
 
 /* VegaLite Chart Styles */
@@ -484,7 +484,7 @@ html.tauri-app [data-slot="sidebar-inset"] {
 
 /* VegaLite hover effects */
 .vegalite-block:hover {
-  background-color: hsl(var(--muted) / 0.2);
+  background-color: color-mix(in oklch, var(--muted) 20%, transparent);
 }
 
 /* Dark mode VegaLite adjustments */
@@ -501,7 +501,7 @@ html.tauri-app [data-slot="sidebar-inset"] {
   gap: 0.25rem;
   opacity: 0;
   transition: opacity 0.2s ease;
-  background: hsl(var(--background) / 0.8);
+  background: color-mix(in oklch, var(--background) 80%, transparent);
   backdrop-filter: blur(4px);
   border-radius: 0.5rem;
   padding: 0.125rem;
@@ -526,7 +526,7 @@ html.tauri-app [data-slot="sidebar-inset"] {
 /* Focus styles for accessibility */
 .mermaid-block:focus-visible,
 .vegalite-block:focus-visible {
-  outline: 2px solid hsl(var(--ring));
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -554,16 +554,16 @@ html.tauri-app [data-slot="sidebar-inset"] {
 /* Line numbers styling */
 .code-block .line-number {
   user-select: none;
-  color: hsl(var(--muted-foreground));
+  color: var(--muted-foreground);
   opacity: 0.6;
   text-align: right;
   padding-right: 1rem;
-  border-right: 1px solid hsl(var(--border));
+  border-right: 1px solid var(--border);
 }
 
 /* Highlighted lines */
 .code-block .line-highlighted {
-  background-color: hsl(var(--primary) / 0.1);
+  background-color: color-mix(in oklch, var(--primary) 10%, transparent);
   display: block;
   margin: 0 -1rem;
   padding: 0 1rem;
@@ -571,7 +571,7 @@ html.tauri-app [data-slot="sidebar-inset"] {
 
 /* Code block hover effects */
 .code-block:hover {
-  box-shadow: 0 0 0 1px hsl(var(--border));
+  box-shadow: 0 0 0 1px var(--border);
 }
 
 /* Word wrap mode */
@@ -586,8 +586,8 @@ html.tauri-app [data-slot="sidebar-inset"] {
   align-items: center;
   justify-content: space-between;
   padding: 0.5rem 1rem;
-  background-color: hsl(var(--muted) / 0.8);
-  border-bottom: 1px solid hsl(var(--border));
+  background-color: color-mix(in oklch, var(--muted) 80%, transparent);
+  border-bottom: 1px solid var(--border);
   font-size: 0.75rem;
 }
 
@@ -598,7 +598,7 @@ html.tauri-app [data-slot="sidebar-inset"] {
 
 /* Dark mode code block adjustments */
 .dark .code-block {
-  background-color: hsl(var(--muted) / 0.3);
+  background-color: color-mix(in oklch, var(--muted) 30%, transparent);
 }
 
 .dark .code-block pre {
@@ -624,7 +624,7 @@ html.tauri-app [data-slot="sidebar-inset"] {
 
 /* Focus styles for accessibility */
 .code-block:focus-within {
-  outline: 2px solid hsl(var(--ring));
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -639,12 +639,12 @@ html.tauri-app [data-slot="sidebar-inset"] {
 }
 
 .code-block pre::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--muted-foreground) / 0.3);
+  background-color: color-mix(in oklch, var(--muted-foreground) 30%, transparent);
   border-radius: 4px;
 }
 
 .code-block pre::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(var(--muted-foreground) / 0.5);
+  background-color: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
 }
 
 /* Collapsible animations */
@@ -680,4 +680,162 @@ html.tauri-app [data-slot="sidebar-inset"] {
 
 .monaco-editor .codicon {
   font-family: 'codicon' !important;
+}
+
+
+/* ===== Chat Widget Window Styles ===== */
+/* Ensures proper opaque background and content visibility for the floating chat widget */
+
+.chat-widget-window {
+  /* Ensure solid opaque background - critical for content visibility */
+  background-color: var(--background);
+  /* Prevent any transparency that could cause content visibility issues */
+  opacity: 1;
+  /* Ensure proper text rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Light mode chat widget background */
+.chat-widget-window:not(.dark) {
+  background-color: oklch(1 0 0);
+}
+
+/* Dark mode chat widget background */
+.chat-widget-window.dark,
+.dark .chat-widget-window {
+  background-color: oklch(0.145 0 0);
+}
+
+/* Ensure chat widget content container has proper background */
+.chat-widget-window [data-chat-widget-container] {
+  background-color: var(--background);
+  /* Ensure content is always visible */
+  isolation: isolate;
+}
+
+/* Override any backdrop-blur effects that could cause transparency issues */
+.chat-widget-window .backdrop-blur-xl,
+.chat-widget-window .backdrop-blur-lg,
+.chat-widget-window .backdrop-blur-md,
+.chat-widget-window .backdrop-blur-sm,
+.chat-widget-window .backdrop-blur {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Ensure proper rendering during window resize and move operations */
+.chat-widget-window * {
+  /* Prevent visual artifacts during window operations */
+  transform: translateZ(0);
+}
+
+/* Chat widget content visibility validation styles */
+.chat-widget-window [data-content-ready="true"] {
+  /* Content is fully loaded and visible */
+  visibility: visible;
+  opacity: 1;
+}
+
+.chat-widget-window [data-content-ready="false"] {
+  /* Content is loading - show loading state */
+  visibility: visible;
+  opacity: 0.8;
+}
+
+/* ===== Assistant Bubble Window Styles ===== */
+/* Desktop bubble window should be transparent, with only the bubble button visible */
+
+.assistant-bubble-window {
+  background-color: transparent;
+}
+
+/* ========================================
+   Background Image System
+   ======================================== */
+
+/* Background container - applied to body when background is enabled */
+html.has-bg-image body {
+  position: relative;
+}
+
+/* Background image layer */
+html.has-bg-image body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background: var(--bg-image);
+  background-size: var(--bg-image-size, cover);
+  background-position: var(--bg-image-position, center center);
+  background-repeat: var(--bg-image-repeat, no-repeat);
+  opacity: var(--bg-image-opacity, 1);
+  filter: blur(var(--bg-image-blur, 0px)) brightness(var(--bg-brightness, 100%)) saturate(var(--bg-saturation, 100%));
+  pointer-events: none;
+}
+
+/* Overlay layer for readability */
+html.has-bg-image body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-color: var(--bg-overlay-color, transparent);
+  opacity: var(--bg-overlay-opacity, 0);
+  pointer-events: none;
+}
+
+/* When background is enabled, make content layers semi-transparent for better blending */
+/* Using color-mix for wider browser support (Chrome 111+, Safari 16.2+) */
+html.has-bg-image .bg-background {
+  background-color: color-mix(in oklch, var(--background) 85%, transparent);
+}
+
+html.has-bg-image .dark .bg-background,
+html.has-bg-image.dark .bg-background {
+  background-color: color-mix(in oklch, var(--background) 90%, transparent);
+}
+
+/* Card and popover backgrounds with subtle transparency when background enabled */
+html.has-bg-image .bg-card {
+  background-color: color-mix(in oklch, var(--card) 90%, transparent);
+}
+
+html.has-bg-image .bg-popover {
+  background-color: color-mix(in oklch, var(--popover) 95%, transparent);
+}
+
+/* Sidebar with background */
+html.has-bg-image [data-sidebar] {
+  background-color: color-mix(in oklch, var(--sidebar) 85%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* Chat area with background */
+html.has-bg-image [data-chat-container] {
+  background-color: color-mix(in oklch, var(--background) 70%, transparent);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+/* Input area with stronger background for readability */
+html.has-bg-image [data-chat-input] {
+  background-color: color-mix(in oklch, var(--background) 90%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* Message bubbles with background */
+html.has-bg-image [data-message-bubble] {
+  background-color: color-mix(in oklch, var(--muted) 85%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* Settings panel with background */
+html.has-bg-image [data-settings-panel] {
+  background-color: color-mix(in oklch, var(--background) 95%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }

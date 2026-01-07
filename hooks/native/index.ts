@@ -45,3 +45,9 @@ export {
   type UseGitOptions,
   type UseGitReturn,
 } from './use-git';
+export {
+  useScreenRecording,
+  type UseScreenRecordingOptions,
+  type UseScreenRecordingReturn,
+  type RecordingMode,
+} from './use-screen-recording';

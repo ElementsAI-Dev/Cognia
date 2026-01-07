@@ -3,8 +3,8 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { ErrorBoundaryProvider, useErrorBoundary } from './error-boundary-provider';
+import { render, screen, fireEvent, renderHook } from '@testing-library/react';
+import { ErrorBoundaryProvider, navigation, useErrorBoundary } from './error-boundary-provider';
 
 // Component that throws an error
 function ThrowError({ shouldThrow }: { shouldThrow: boolean }) {
@@ -198,12 +198,7 @@ describe('ErrorBoundaryProvider', () => {
 
   describe('reset functionality', () => {
     it('redirects to home when Go Home is clicked', () => {
-      // Mock window.location
-      const originalLocation = window.location;
-      // @ts-expect-error - Mock location for testing
-      delete window.location;
-      // @ts-expect-error - Partial mock of Location for testing
-      window.location = { ...originalLocation, href: '' };
+      const navigateSpy = jest.spyOn(navigation, 'navigateTo').mockImplementation(() => {});
 
       render(
         <ErrorBoundaryProvider>
@@ -213,10 +208,9 @@ describe('ErrorBoundaryProvider', () => {
 
       fireEvent.click(screen.getByText('Go Home'));
 
-      expect(window.location.href).toBe('/');
+      expect(navigateSpy).toHaveBeenCalledWith('/');
 
-      // @ts-expect-error - Restoring original location
-      window.location = originalLocation;
+      navigateSpy.mockRestore();
     });
   });
 
@@ -244,16 +238,13 @@ describe('ErrorBoundaryProvider', () => {
     });
 
     it('triggers error when called', () => {
-      render(
-        <ErrorBoundaryProvider>
-          <ErrorThrower />
-        </ErrorBoundaryProvider>
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <ErrorBoundaryProvider>{children}</ErrorBoundaryProvider>
       );
 
-      fireEvent.click(screen.getByText('Trigger Error'));
+      const { result } = renderHook(() => useErrorBoundary(), { wrapper });
 
-      // Error boundary should catch and display error state
-      expect(screen.getByText(/Error|error|went wrong/i)).toBeInTheDocument();
+      expect(() => result.current.triggerError(new Error('Hook error'))).toThrow('Hook error');
     });
   });
 

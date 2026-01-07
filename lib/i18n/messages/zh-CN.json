@@ -30,6 +30,11 @@
       "install": "安装 Git",
       "website": "访问官网"
     },
+    "desktopRequired": {
+      "title": "需要桌面应用",
+      "description": "Git 功能仅在 Cognia 桌面应用程序中可用。",
+      "learnMore": "了解更多"
+    },
     "noRepo": {
       "title": "不是 Git 仓库",
       "description": "此目录未初始化为 Git 仓库。"
@@ -215,6 +220,9 @@
     "send": "发送",
     "stop": "停止",
     "regenerate": "重新生成",
+    "editMessage": "编辑消息",
+    "editMessagePlaceholder": "编辑您的消息...",
+    "saveAndSubmit": "保存并提交",
     "modeChat": "聊天",
     "modeAgent": "智能体",
     "modeResearch": "研究",
@@ -446,6 +454,8 @@
   "chatInput": {
     "dropFilesHere": "拖放文件到这里",
     "dismiss": "关闭",
+    "removeAttachment": "移除附件",
+    "selectFiles": "选择要附加的文件",
     "attachFile": "附加文件 ({current}/{max})",
     "stopListening": "停止聆听",
     "voiceInput": "语音输入",
@@ -462,6 +472,8 @@
     "extendedThinking": "扩展思考模式",
     "stream": "流式",
     "toggleStreaming": "切换流式响应（逐字显示生成内容）",
+    "ppt": "PPT",
+    "createPresentation": "创建AI演示文稿",
     "contextSettings": "上下文设置",
     "aiSettings": "AI 设置",
     "contextWindowUsage": "上下文窗口使用量",
@@ -525,6 +537,10 @@
     "unpin": "取消置顶",
     "pinToTop": "置顶",
     "workflows": "工作流",
+    "noWorkflows": "暂无工作流",
+    "createWorkflow": "创建工作流",
+    "running": "运行中...",
+    "quickRun": "快速运行",
     "nativeTools": "原生工具",
     "sessionArtifacts": "会话制品",
     "usageStats": "用量统计",
@@ -534,6 +550,8 @@
     "tasksRunning": "{count} 运行中",
     "queued": "排队中",
     "quickActions": "快捷操作",
+    "pptStudio": "PPT 工作室",
+    "pptStudioDesc": "创建AI驱动的演示文稿",
     "imageStudio": "图像工作室",
     "imageStudioDesc": "使用AI生成和编辑图像",
     "videoStudio": "视频工作室",
@@ -3685,6 +3703,8 @@
     "chunkOverlapHint": "块之间的重叠（分块大小的 10-20%）",
     "autoEmbed": "导入时自动嵌入",
     "autoEmbedDesc": "添加文档时自动生成嵌入向量。",
+    "defaultCollection": "默认集合",
+    "defaultCollectionHint": "未指定时用于 RAG 搜索的默认集合名称。",
     "testConnection": "测试连接",
     "testing": "测试中...",
     "nativeProviderHint": "原生提供商通过 Tauri 命令本地存储向量（JSON 格式）。请确保使用桌面运行时。"
@@ -4056,6 +4076,26 @@
     "trimmedDuration": "裁剪后时长",
     "applyTrim": "应用裁剪",
     "export": "导出",
-    "tauriRequired": "视频编辑需要桌面应用。请使用 Cognia 桌面版访问此功能。"
+    "tauriRequired": "视频编辑需要桌面应用。请使用 Cognia 桌面版访问此功能。",
+    "trimming": "正在裁剪视频...",
+    "processing": "处理中...",
+    "complete": "完成！",
+    "trimFailed": "视频裁剪失败",
+    "exporting": "正在导出...",
+    "converting": "正在转换格式...",
+    "exportFailed": "视频导出失败",
+    "qualityHigh": "高质量",
+    "qualityMedium": "中等",
+    "qualityLow": "小体积",
+    "startRecording": "录制",
+    "startRecordingTooltip": "开始屏幕录制",
+    "countdown": "准备中...",
+    "pause": "暂停",
+    "pauseRecording": "暂停录制",
+    "resume": "继续",
+    "resumeRecording": "继续录制",
+    "stop": "停止",
+    "stopRecording": "停止录制",
+    "cancelRecording": "取消录制"
   }
 }

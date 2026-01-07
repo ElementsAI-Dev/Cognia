@@ -4,7 +4,7 @@
  * SidebarRecentFiles - Recent files widget for sidebar
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   FileImage,
@@ -58,8 +58,17 @@ export function SidebarRecentFiles({
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const getRecentFiles = useRecentFilesStore((state) => state.getRecentFiles);
   const removeFile = useRecentFilesStore((state) => state.removeFile);
+  const updateFileUsage = useRecentFilesStore((state) => state.updateFileUsage);
 
   const recentFiles = useMemo(() => getRecentFiles(limit), [getRecentFiles, limit]);
+
+  const handleFileClick = useCallback((file: RecentFile) => {
+    updateFileUsage(file.id);
+    onFileClick?.(file);
+    if (!onFileClick && file.url) {
+      window.open(file.url, '_blank', 'noreferrer');
+    }
+  }, [onFileClick, updateFileUsage]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -127,7 +136,7 @@ export function SidebarRecentFiles({
                 'group flex items-center gap-2 px-2 py-1.5 rounded-md',
                 'hover:bg-accent/50 transition-colors cursor-pointer'
               )}
-              onClick={() => onFileClick?.(file)}
+              onClick={() => handleFileClick(file)}
             >
               <span className={FILE_TYPE_COLORS[file.type]}>
                 {FILE_TYPE_ICONS[file.type]}

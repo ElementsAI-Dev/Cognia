@@ -148,6 +148,7 @@ describe('useVirtualEnv', () => {
     await act(async () => {
       await result.current.createEnvironment({
         name: 'new-test',
+        type: 'venv',
         pythonVersion: '3.12',
       });
     });
@@ -169,8 +170,8 @@ describe('useVirtualEnv', () => {
 
   it('should load packages', async () => {
     const mockPackages = [
-      { name: 'numpy', version: '1.24.0' },
-      { name: 'pandas', version: '2.0.0' },
+      { name: 'numpy', version: '1.24.0', latest: null, description: null, location: null },
+      { name: 'pandas', version: '2.0.0', latest: null, description: null, location: null },
     ];
     mockVirtualEnvService.listPackages.mockResolvedValueOnce(mockPackages);
 

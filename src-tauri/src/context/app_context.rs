@@ -2,8 +2,8 @@
 //!
 //! Identifies the type of application and provides relevant context.
 
-use log::{debug, trace};
 use super::WindowInfo;
+use log::{debug, trace};
 use serde::{Deserialize, Serialize};
 
 /// Application type classification
@@ -75,16 +75,18 @@ impl AppContext {
     pub fn from_window_info(window: &WindowInfo) -> Result<Self, String> {
         trace!(
             "Creating AppContext from window: process='{}', title='{}', class='{}'",
-            window.process_name, window.title, window.class_name
+            window.process_name,
+            window.title,
+            window.class_name
         );
-        
+
         let process_name = window.process_name.to_lowercase();
         let title = window.title.to_lowercase();
         let class_name = window.class_name.to_lowercase();
 
         let (app_type, app_name) = Self::detect_app_type(&process_name, &title, &class_name);
         debug!("Detected app type: {:?} ({})", app_type, app_name);
-        
+
         let (supports_text_input, supports_rich_text, is_dev_tool) = match app_type {
             AppType::Browser => (true, true, false),
             AppType::CodeEditor => (true, false, true),
@@ -110,7 +112,10 @@ impl AppContext {
         let suggested_actions = Self::get_suggested_actions(&app_type);
         trace!(
             "App capabilities: text_input={}, rich_text={}, dev_tool={}, actions={}",
-            supports_text_input, supports_rich_text, is_dev_tool, suggested_actions.len()
+            supports_text_input,
+            supports_rich_text,
+            is_dev_tool,
+            suggested_actions.len()
         );
 
         Ok(Self {
@@ -127,8 +132,13 @@ impl AppContext {
 
     /// Detect application type from process and window information
     fn detect_app_type(process_name: &str, title: &str, class_name: &str) -> (AppType, String) {
-        trace!("Detecting app type from process='{}', title='{}', class='{}'", process_name, title, class_name);
-        
+        trace!(
+            "Detecting app type from process='{}', title='{}', class='{}'",
+            process_name,
+            title,
+            class_name
+        );
+
         // Browsers
         if process_name.contains("chrome") || process_name.contains("chromium") {
             return (AppType::Browser, "Google Chrome".to_string());
@@ -340,7 +350,10 @@ impl AppContext {
             return (AppType::Database, "DataGrip".to_string());
         }
         if process_name.contains("ssms") || title.contains("sql server management") {
-            return (AppType::Database, "SQL Server Management Studio".to_string());
+            return (
+                AppType::Database,
+                "SQL Server Management Studio".to_string(),
+            );
         }
         if process_name.contains("pgadmin") {
             return (AppType::Database, "pgAdmin".to_string());
@@ -416,7 +429,10 @@ impl AppContext {
         }
 
         // Default
-        trace!("No specific app type matched, returning Unknown for process: {}", process_name);
+        trace!(
+            "No specific app type matched, returning Unknown for process: {}",
+            process_name
+        );
         (AppType::Unknown, process_name.to_string())
     }
 
@@ -501,9 +517,10 @@ mod tests {
 
     #[test]
     fn test_detect_browser_chrome() {
-        let window = create_test_window_info("chrome.exe", "Google - Google Chrome", "Chrome_WidgetWin_1");
+        let window =
+            create_test_window_info("chrome.exe", "Google - Google Chrome", "Chrome_WidgetWin_1");
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         assert_eq!(context.app_type, AppType::Browser);
         assert_eq!(context.app_name, "Google Chrome");
         assert!(context.supports_text_input);
@@ -512,9 +529,10 @@ mod tests {
 
     #[test]
     fn test_detect_browser_firefox() {
-        let window = create_test_window_info("firefox.exe", "Mozilla Firefox", "MozillaWindowClass");
+        let window =
+            create_test_window_info("firefox.exe", "Mozilla Firefox", "MozillaWindowClass");
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         assert_eq!(context.app_type, AppType::Browser);
         assert_eq!(context.app_name, "Mozilla Firefox");
     }
@@ -523,16 +541,20 @@ mod tests {
     fn test_detect_browser_edge() {
         let window = create_test_window_info("msedge.exe", "Microsoft Edge", "Chrome_WidgetWin_1");
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         assert_eq!(context.app_type, AppType::Browser);
         assert_eq!(context.app_name, "Microsoft Edge");
     }
 
     #[test]
     fn test_detect_code_editor_vscode() {
-        let window = create_test_window_info("code.exe", "main.rs - Visual Studio Code", "Chrome_WidgetWin_1");
+        let window = create_test_window_info(
+            "code.exe",
+            "main.rs - Visual Studio Code",
+            "Chrome_WidgetWin_1",
+        );
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         assert_eq!(context.app_type, AppType::CodeEditor);
         assert_eq!(context.app_name, "Visual Studio Code");
         assert!(context.is_dev_tool);
@@ -540,27 +562,33 @@ mod tests {
 
     #[test]
     fn test_detect_code_editor_cursor() {
-        let window = create_test_window_info("cursor.exe", "main.rs - Cursor", "Chrome_WidgetWin_1");
+        let window =
+            create_test_window_info("cursor.exe", "main.rs - Cursor", "Chrome_WidgetWin_1");
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         assert_eq!(context.app_type, AppType::CodeEditor);
         assert_eq!(context.app_name, "Cursor");
     }
 
     #[test]
     fn test_detect_terminal_powershell() {
-        let window = create_test_window_info("powershell.exe", "Windows PowerShell", "ConsoleWindowClass");
+        let window =
+            create_test_window_info("powershell.exe", "Windows PowerShell", "ConsoleWindowClass");
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         assert_eq!(context.app_type, AppType::Terminal);
         assert!(context.is_dev_tool);
     }
 
     #[test]
     fn test_detect_terminal_windows_terminal() {
-        let window = create_test_window_info("WindowsTerminal.exe", "Windows Terminal", "CASCADIA_HOSTING_WINDOW_CLASS");
+        let window = create_test_window_info(
+            "WindowsTerminal.exe",
+            "Windows Terminal",
+            "CASCADIA_HOSTING_WINDOW_CLASS",
+        );
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         assert_eq!(context.app_type, AppType::Terminal);
     }
 
@@ -568,7 +596,7 @@ mod tests {
     fn test_detect_document_editor_word() {
         let window = create_test_window_info("WINWORD.EXE", "Document1 - Word", "OpusApp");
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         assert_eq!(context.app_type, AppType::DocumentEditor);
         assert!(context.supports_rich_text);
     }
@@ -577,15 +605,16 @@ mod tests {
     fn test_detect_spreadsheet_excel() {
         let window = create_test_window_info("EXCEL.EXE", "Book1 - Excel", "XLMAIN");
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         assert_eq!(context.app_type, AppType::Spreadsheet);
     }
 
     #[test]
     fn test_detect_chat_slack() {
-        let window = create_test_window_info("slack.exe", "Slack - Workspace", "Chrome_WidgetWin_1");
+        let window =
+            create_test_window_info("slack.exe", "Slack - Workspace", "Chrome_WidgetWin_1");
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         assert_eq!(context.app_type, AppType::Chat);
         assert_eq!(context.app_name, "Slack");
     }
@@ -594,7 +623,7 @@ mod tests {
     fn test_detect_chat_discord() {
         let window = create_test_window_info("Discord.exe", "Discord", "Chrome_WidgetWin_1");
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         assert_eq!(context.app_type, AppType::Chat);
         assert_eq!(context.app_name, "Discord");
     }
@@ -603,16 +632,17 @@ mod tests {
     fn test_detect_note_taking_notion() {
         let window = create_test_window_info("Notion.exe", "Notion", "Chrome_WidgetWin_1");
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         assert_eq!(context.app_type, AppType::NoteTaking);
         assert_eq!(context.app_name, "Notion");
     }
 
     #[test]
     fn test_detect_note_taking_obsidian() {
-        let window = create_test_window_info("Obsidian.exe", "My Vault - Obsidian", "Chrome_WidgetWin_1");
+        let window =
+            create_test_window_info("Obsidian.exe", "My Vault - Obsidian", "Chrome_WidgetWin_1");
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         assert_eq!(context.app_type, AppType::NoteTaking);
         assert_eq!(context.app_name, "Obsidian");
     }
@@ -621,7 +651,7 @@ mod tests {
     fn test_detect_database_dbeaver() {
         let window = create_test_window_info("dbeaver.exe", "DBeaver", "SWT_Window0");
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         assert_eq!(context.app_type, AppType::Database);
         assert!(context.is_dev_tool);
     }
@@ -630,7 +660,7 @@ mod tests {
     fn test_detect_api_client_postman() {
         let window = create_test_window_info("Postman.exe", "Postman", "Chrome_WidgetWin_1");
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         assert_eq!(context.app_type, AppType::ApiClient);
         assert!(context.is_dev_tool);
     }
@@ -639,16 +669,17 @@ mod tests {
     fn test_detect_file_manager_explorer() {
         let window = create_test_window_info("explorer.exe", "Documents", "CabinetWClass");
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         assert_eq!(context.app_type, AppType::FileManager);
         assert!(!context.supports_text_input);
     }
 
     #[test]
     fn test_detect_unknown_app() {
-        let window = create_test_window_info("unknown_app.exe", "Unknown Application", "UnknownClass");
+        let window =
+            create_test_window_info("unknown_app.exe", "Unknown Application", "UnknownClass");
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         assert_eq!(context.app_type, AppType::Unknown);
     }
 
@@ -656,27 +687,37 @@ mod tests {
     fn test_suggested_actions_browser() {
         let window = create_test_window_info("chrome.exe", "Google", "Chrome_WidgetWin_1");
         let context = AppContext::from_window_info(&window).unwrap();
-        
-        assert!(context.suggested_actions.contains(&"Summarize page".to_string()));
-        assert!(context.suggested_actions.contains(&"Translate page".to_string()));
+
+        assert!(context
+            .suggested_actions
+            .contains(&"Summarize page".to_string()));
+        assert!(context
+            .suggested_actions
+            .contains(&"Translate page".to_string()));
     }
 
     #[test]
     fn test_suggested_actions_code_editor() {
         let window = create_test_window_info("code.exe", "main.rs", "Chrome_WidgetWin_1");
         let context = AppContext::from_window_info(&window).unwrap();
-        
-        assert!(context.suggested_actions.contains(&"Explain code".to_string()));
+
+        assert!(context
+            .suggested_actions
+            .contains(&"Explain code".to_string()));
         assert!(context.suggested_actions.contains(&"Fix bug".to_string()));
-        assert!(context.suggested_actions.contains(&"Generate tests".to_string()));
+        assert!(context
+            .suggested_actions
+            .contains(&"Generate tests".to_string()));
     }
 
     #[test]
     fn test_suggested_actions_terminal() {
         let window = create_test_window_info("powershell.exe", "PowerShell", "ConsoleWindowClass");
         let context = AppContext::from_window_info(&window).unwrap();
-        
-        assert!(context.suggested_actions.contains(&"Explain command".to_string()));
+
+        assert!(context
+            .suggested_actions
+            .contains(&"Explain command".to_string()));
         assert!(context.suggested_actions.contains(&"Fix error".to_string()));
     }
 
@@ -703,7 +744,7 @@ mod tests {
             AppType::Game,
             AppType::Unknown,
         ];
-        
+
         for t in types {
             let json = serde_json::to_string(&t);
             assert!(json.is_ok());
@@ -714,10 +755,10 @@ mod tests {
     fn test_app_context_serialization() {
         let window = create_test_window_info("code.exe", "main.rs", "Chrome_WidgetWin_1");
         let context = AppContext::from_window_info(&window).unwrap();
-        
+
         let json = serde_json::to_string(&context);
         assert!(json.is_ok());
-        
+
         let parsed: Result<AppContext, _> = serde_json::from_str(&json.unwrap());
         assert!(parsed.is_ok());
     }

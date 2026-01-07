@@ -161,6 +161,20 @@ export function VectorSettings() {
             />
           </div>
 
+          {/* Default collection for RAG */}
+          <div className="space-y-1.5">
+            <Label className="text-sm">{t('defaultCollection') || 'Default Collection'}</Label>
+            <Input
+              value={settings.defaultCollectionName || 'default'}
+              onChange={(e) => updateSettings({ defaultCollectionName: e.target.value })}
+              placeholder="default"
+              className="h-9"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              {t('defaultCollectionHint') || 'The default collection name used for RAG searches when not specified.'}
+            </p>
+          </div>
+
           {/* Test connection */}
           <div className="flex items-center gap-2 flex-wrap">
             <Button size="sm" onClick={handleTestConnection} disabled={testing}>

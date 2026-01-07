@@ -96,7 +96,7 @@ mod tests {
             data: Some("Hello, world!".to_string()),
             mime_type: Some("text/plain".to_string()),
         };
-        
+
         assert_eq!(content.content_type, "text");
         assert_eq!(content.data, Some("Hello, world!".to_string()));
         assert_eq!(content.mime_type, Some("text/plain".to_string()));
@@ -109,7 +109,7 @@ mod tests {
             data: Some("base64_encoded_data".to_string()),
             mime_type: Some("image/png".to_string()),
         };
-        
+
         assert_eq!(content.content_type, "image");
         assert_eq!(content.data, Some("base64_encoded_data".to_string()));
         assert_eq!(content.mime_type, Some("image/png".to_string()));
@@ -122,7 +122,7 @@ mod tests {
             data: None,
             mime_type: None,
         };
-        
+
         assert_eq!(content.content_type, "empty");
         assert!(content.data.is_none());
         assert!(content.mime_type.is_none());
@@ -135,10 +135,10 @@ mod tests {
             data: Some("test data".to_string()),
             mime_type: Some("text/plain".to_string()),
         };
-        
+
         let serialized = serde_json::to_string(&content).unwrap();
         let deserialized: ClipboardContent = serde_json::from_str(&serialized).unwrap();
-        
+
         assert_eq!(content.content_type, deserialized.content_type);
         assert_eq!(content.data, deserialized.data);
         assert_eq!(content.mime_type, deserialized.mime_type);
@@ -148,7 +148,7 @@ mod tests {
     fn test_clipboard_content_deserialization() {
         let json = r#"{"content_type":"text","data":"hello","mime_type":"text/plain"}"#;
         let content: ClipboardContent = serde_json::from_str(json).unwrap();
-        
+
         assert_eq!(content.content_type, "text");
         assert_eq!(content.data, Some("hello".to_string()));
         assert_eq!(content.mime_type, Some("text/plain".to_string()));
@@ -158,7 +158,7 @@ mod tests {
     fn test_clipboard_content_deserialization_with_nulls() {
         let json = r#"{"content_type":"empty","data":null,"mime_type":null}"#;
         let content: ClipboardContent = serde_json::from_str(json).unwrap();
-        
+
         assert_eq!(content.content_type, "empty");
         assert!(content.data.is_none());
         assert!(content.mime_type.is_none());

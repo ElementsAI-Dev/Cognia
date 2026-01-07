@@ -3,8 +3,8 @@
 //! Commands for capturing screenshots and performing OCR.
 
 use crate::screenshot::{
-    CaptureRegion, MonitorInfo, ScreenshotConfig, ScreenshotManager, ScreenshotMetadata,
-    ScreenshotHistoryEntry, WinOcrResult, WindowInfo, SnapConfig, SnapResult,
+    CaptureRegion, MonitorInfo, ScreenshotConfig, ScreenshotHistoryEntry, ScreenshotManager,
+    ScreenshotMetadata, SnapConfig, SnapResult, WinOcrResult, WindowInfo,
 };
 use tauri::State;
 
@@ -42,7 +42,12 @@ pub async fn screenshot_capture_region(
     width: u32,
     height: u32,
 ) -> Result<ScreenshotResult, String> {
-    let region = CaptureRegion { x, y, width, height };
+    let region = CaptureRegion {
+        x,
+        y,
+        width,
+        height,
+    };
     let result = manager.capture_region(region).await?;
     Ok(ScreenshotResult {
         image_base64: base64::engine::general_purpose::STANDARD.encode(&result.image_data),
@@ -67,7 +72,7 @@ pub async fn screenshot_ocr(
     let image_data = base64::engine::general_purpose::STANDARD
         .decode(&image_base64)
         .map_err(|e| format!("Failed to decode image: {}", e))?;
-    
+
     manager.extract_text(&image_data)
 }
 
@@ -107,7 +112,7 @@ pub async fn screenshot_save(
     let image_data = base64::engine::general_purpose::STANDARD
         .decode(&image_base64)
         .map_err(|e| format!("Failed to decode image: {}", e))?;
-    
+
     manager.save_to_file(&image_data, &path)
 }
 
@@ -169,9 +174,7 @@ pub async fn screenshot_delete(
 
 /// Clear screenshot history
 #[tauri::command]
-pub async fn screenshot_clear_history(
-    manager: State<'_, ScreenshotManager>,
-) -> Result<(), String> {
+pub async fn screenshot_clear_history(manager: State<'_, ScreenshotManager>) -> Result<(), String> {
     manager.clear_history();
     Ok(())
 }
@@ -187,7 +190,7 @@ pub async fn screenshot_ocr_windows(
     let image_data = base64::engine::general_purpose::STANDARD
         .decode(&image_base64)
         .map_err(|e| format!("Failed to decode image: {}", e))?;
-    
+
     manager.extract_text_windows(&image_data)
 }
 
@@ -208,9 +211,7 @@ pub async fn screenshot_ocr_is_available() -> Result<bool, String> {
 
 /// Check if a specific OCR language is available
 #[tauri::command]
-pub async fn screenshot_ocr_is_language_available(
-    language: String,
-) -> Result<bool, String> {
+pub async fn screenshot_ocr_is_language_available(language: String) -> Result<bool, String> {
     use crate::screenshot::WindowsOcr;
     Ok(WindowsOcr::is_language_available(&language))
 }
@@ -225,13 +226,13 @@ pub async fn screenshot_ocr_with_language(
     let image_data = base64::engine::general_purpose::STANDARD
         .decode(&image_base64)
         .map_err(|e| format!("Failed to decode image: {}", e))?;
-    
+
     // Create a temporary OCR engine with the specified language
     let mut ocr = crate::screenshot::WindowsOcr::new();
     if let Some(lang) = language {
         ocr.set_language(&lang);
     }
-    
+
     ocr.extract_text(&image_data)
 }
 
@@ -243,7 +244,9 @@ pub async fn screenshot_capture_fullscreen_with_history(
     manager: State<'_, ScreenshotManager>,
     monitor_index: Option<usize>,
 ) -> Result<ScreenshotResult, String> {
-    let result = manager.capture_fullscreen_with_history(monitor_index).await?;
+    let result = manager
+        .capture_fullscreen_with_history(monitor_index)
+        .await?;
     Ok(ScreenshotResult {
         image_base64: base64::engine::general_purpose::STANDARD.encode(&result.image_data),
         metadata: result.metadata,
@@ -271,7 +274,12 @@ pub async fn screenshot_capture_region_with_history(
     width: u32,
     height: u32,
 ) -> Result<ScreenshotResult, String> {
-    let region = CaptureRegion { x, y, width, height };
+    let region = CaptureRegion {
+        x,
+        y,
+        width,
+        height,
+    };
     let result = manager.capture_region_with_history(region).await?;
     Ok(ScreenshotResult {
         image_base64: base64::engine::general_purpose::STANDARD.encode(&result.image_data),
@@ -363,7 +371,7 @@ pub async fn screenshot_get_snap_config(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::screenshot::{OcrLine, OcrWord, OcrBounds};
+    use crate::screenshot::{OcrBounds, OcrLine, OcrWord};
 
     #[test]
     fn test_screenshot_result_struct() {
@@ -381,7 +389,7 @@ mod tests {
                 ocr_text: None,
             },
         };
-        
+
         assert!(!result.image_base64.is_empty());
         assert_eq!(result.metadata.width, 100);
         assert_eq!(result.metadata.height, 100);
@@ -403,11 +411,11 @@ mod tests {
                 ocr_text: None,
             },
         };
-        
+
         let serialized = serde_json::to_string(&result).unwrap();
         assert!(serialized.contains("\"image_base64\":\"base64data\""));
         assert!(serialized.contains("\"width\":1920"));
-        
+
         let deserialized: ScreenshotResult = serde_json::from_str(&serialized).unwrap();
         assert_eq!(result.image_base64, deserialized.image_base64);
         assert_eq!(result.metadata.width, deserialized.metadata.width);
@@ -421,7 +429,7 @@ mod tests {
             width: 800,
             height: 600,
         };
-        
+
         assert_eq!(region.x, 100);
         assert_eq!(region.y, 200);
         assert_eq!(region.width, 800);
@@ -436,10 +444,10 @@ mod tests {
             width: 1920,
             height: 1080,
         };
-        
+
         let serialized = serde_json::to_string(&region).unwrap();
         let deserialized: CaptureRegion = serde_json::from_str(&serialized).unwrap();
-        
+
         assert_eq!(region.x, deserialized.x);
         assert_eq!(region.y, deserialized.y);
         assert_eq!(region.width, deserialized.width);
@@ -454,7 +462,7 @@ mod tests {
             width: 500,
             height: 300,
         };
-        
+
         assert_eq!(region.x, -100);
         assert_eq!(region.y, -50);
     }
@@ -471,7 +479,7 @@ mod tests {
             is_primary: true,
             scale_factor: 1.0,
         };
-        
+
         assert_eq!(monitor.index, 0);
         assert!(monitor.is_primary);
         assert_eq!(monitor.scale_factor, 1.0);
@@ -489,7 +497,7 @@ mod tests {
             is_primary: false,
             scale_factor: 2.0,
         };
-        
+
         assert_eq!(monitor.scale_factor, 2.0);
         assert!(!monitor.is_primary);
     }
@@ -497,7 +505,7 @@ mod tests {
     #[test]
     fn test_screenshot_config_default() {
         let config = ScreenshotConfig::default();
-        
+
         assert_eq!(config.format, "png");
         assert_eq!(config.quality, 95);
         assert!(!config.include_cursor);
@@ -515,7 +523,7 @@ mod tests {
             show_notification: false,
             ocr_language: "chi_sim".to_string(),
         };
-        
+
         assert_eq!(config.save_directory, Some("/custom/path".to_string()));
         assert_eq!(config.format, "jpg");
         assert_eq!(config.quality, 80);
@@ -534,7 +542,7 @@ mod tests {
             show_notification: true,
             ocr_language: "en".to_string(),
         };
-        
+
         assert_eq!(config.format, "png");
         assert_eq!(config.quality, 90);
         assert!(!config.include_cursor);
@@ -553,10 +561,10 @@ mod tests {
             show_notification: false,
             ocr_language: "zh-CN".to_string(),
         };
-        
+
         let serialized = serde_json::to_string(&config).unwrap();
         let deserialized: ScreenshotConfig = serde_json::from_str(&serialized).unwrap();
-        
+
         assert_eq!(config.format, deserialized.format);
         assert_eq!(config.quality, deserialized.quality);
         assert_eq!(config.ocr_language, deserialized.ocr_language);
@@ -575,7 +583,7 @@ mod tests {
             file_path: None,
             ocr_text: None,
         };
-        
+
         assert_eq!(metadata.width, 1920);
         assert_eq!(metadata.mode, "window");
         assert_eq!(metadata.window_title, Some("Test Window".to_string()));
@@ -586,7 +594,7 @@ mod tests {
         let entry = ScreenshotHistoryEntry::new(800, 600, "region")
             .with_thumbnail("thumb_data".to_string())
             .with_ocr_text("Extracted text".to_string());
-        
+
         assert!(!entry.id.is_empty());
         assert!(!entry.is_pinned);
         assert_eq!(entry.width, 800);
@@ -599,27 +607,40 @@ mod tests {
         let result = WinOcrResult {
             text: "Hello World".to_string(),
             confidence: 0.95,
-            lines: vec![
-                OcrLine {
-                    text: "Hello World".to_string(),
-                    words: vec![
-                        OcrWord {
-                            text: "Hello".to_string(),
-                            bounds: OcrBounds { x: 0.0, y: 0.0, width: 50.0, height: 20.0 },
-                            confidence: 0.95,
+            lines: vec![OcrLine {
+                text: "Hello World".to_string(),
+                words: vec![
+                    OcrWord {
+                        text: "Hello".to_string(),
+                        bounds: OcrBounds {
+                            x: 0.0,
+                            y: 0.0,
+                            width: 50.0,
+                            height: 20.0,
                         },
-                        OcrWord {
-                            text: "World".to_string(),
-                            bounds: OcrBounds { x: 55.0, y: 0.0, width: 50.0, height: 20.0 },
-                            confidence: 0.95,
+                        confidence: 0.95,
+                    },
+                    OcrWord {
+                        text: "World".to_string(),
+                        bounds: OcrBounds {
+                            x: 55.0,
+                            y: 0.0,
+                            width: 50.0,
+                            height: 20.0,
                         },
-                    ],
-                    bounds: OcrBounds { x: 0.0, y: 0.0, width: 105.0, height: 20.0 },
+                        confidence: 0.95,
+                    },
+                ],
+                bounds: OcrBounds {
+                    x: 0.0,
+                    y: 0.0,
+                    width: 105.0,
+                    height: 20.0,
                 },
-            ],
+            }],
             language: Some("en".to_string()),
         };
-        
+
         assert_eq!(result.text, "Hello World");
         assert_eq!(result.confidence, 0.95);
         assert_eq!(result.lines.len(), 1);
@@ -633,7 +654,7 @@ mod tests {
             lines: vec![],
             language: None,
         };
-        
+
         assert!(result.text.is_empty());
         assert!(result.lines.is_empty());
         assert!(result.language.is_none());
@@ -647,7 +668,7 @@ mod tests {
             width: 100.0,
             height: 30.0,
         };
-        
+
         assert_eq!(bounds.x, 10.0);
         assert_eq!(bounds.y, 20.0);
         assert_eq!(bounds.width, 100.0);

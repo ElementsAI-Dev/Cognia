@@ -5,16 +5,22 @@
 //! - Window recording
 //! - Region recording
 //! - Audio capture (system and microphone)
+//! - Video trimming and export
 
-mod recorder;
 mod history;
+mod recorder;
+mod video_processor;
 
-pub use recorder::ScreenRecorder;
 pub use history::{RecordingHistory, RecordingHistoryEntry};
+pub use recorder::ScreenRecorder;
+pub use video_processor::{
+    EncodingSupport, VideoConvertOptions, VideoInfo, VideoProcessingResult, VideoProcessor,
+    VideoTrimOptions,
+};
 
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use parking_lot::RwLock;
 use tauri::AppHandle;
 
 /// Screen recording configuration
@@ -142,7 +148,7 @@ pub struct ScreenRecordingManager {
 impl ScreenRecordingManager {
     pub fn new(app_handle: AppHandle) -> Self {
         info!("[ScreenRecording] Initializing ScreenRecordingManager");
-        
+
         // Get app data directory for recordings
         let recordings_dir = app_handle
             .path()
@@ -153,8 +159,14 @@ impl ScreenRecordingManager {
         // Create recordings directory if it doesn't exist
         if let Some(ref dir) = recordings_dir {
             match std::fs::create_dir_all(dir) {
-                Ok(_) => info!("[ScreenRecording] Recordings directory created/verified: {:?}", dir),
-                Err(e) => warn!("[ScreenRecording] Failed to create recordings directory: {}", e),
+                Ok(_) => info!(
+                    "[ScreenRecording] Recordings directory created/verified: {:?}",
+                    dir
+                ),
+                Err(e) => warn!(
+                    "[ScreenRecording] Failed to create recordings directory: {}",
+                    e
+                ),
             }
         } else {
             warn!("[ScreenRecording] Could not determine app data directory for recordings");
@@ -164,9 +176,11 @@ impl ScreenRecordingManager {
             save_directory: recordings_dir.map(|p| p.to_string_lossy().to_string()),
             ..Default::default()
         };
-        
-        debug!("[ScreenRecording] Default config: format={}, codec={}, fps={}, quality={}",
-            config.format, config.codec, config.frame_rate, config.quality);
+
+        debug!(
+            "[ScreenRecording] Default config: format={}, codec={}, fps={}, quality={}",
+            config.format, config.codec, config.frame_rate, config.quality
+        );
 
         Self {
             config: Arc::new(RwLock::new(config.clone())),
@@ -197,15 +211,24 @@ impl ScreenRecordingManager {
 
     /// Start recording fullscreen
     pub async fn start_fullscreen(&self, monitor_index: Option<usize>) -> Result<String, String> {
-        info!("[ScreenRecording] Starting fullscreen recording, monitor_index={:?}", monitor_index);
+        info!(
+            "[ScreenRecording] Starting fullscreen recording, monitor_index={:?}",
+            monitor_index
+        );
         let config = self.config.read().clone();
         match self.recorder.start_fullscreen(monitor_index, config).await {
             Ok(id) => {
-                info!("[ScreenRecording] Fullscreen recording started successfully, id={}", id);
+                info!(
+                    "[ScreenRecording] Fullscreen recording started successfully, id={}",
+                    id
+                );
                 Ok(id)
             }
             Err(e) => {
-                error!("[ScreenRecording] Failed to start fullscreen recording: {}", e);
+                error!(
+                    "[ScreenRecording] Failed to start fullscreen recording: {}",
+                    e
+                );
                 Err(e)
             }
         }
@@ -213,11 +236,17 @@ impl ScreenRecordingManager {
 
     /// Start recording a window
     pub async fn start_window(&self, window_title: Option<String>) -> Result<String, String> {
-        info!("[ScreenRecording] Starting window recording, title={:?}", window_title);
+        info!(
+            "[ScreenRecording] Starting window recording, title={:?}",
+            window_title
+        );
         let config = self.config.read().clone();
         match self.recorder.start_window(window_title, config).await {
             Ok(id) => {
-                info!("[ScreenRecording] Window recording started successfully, id={}", id);
+                info!(
+                    "[ScreenRecording] Window recording started successfully, id={}",
+                    id
+                );
                 Ok(id)
             }
             Err(e) => {
@@ -229,12 +258,17 @@ impl ScreenRecordingManager {
 
     /// Start recording a region
     pub async fn start_region(&self, region: RecordingRegion) -> Result<String, String> {
-        info!("[ScreenRecording] Starting region recording: x={}, y={}, {}x{}",
-            region.x, region.y, region.width, region.height);
+        info!(
+            "[ScreenRecording] Starting region recording: x={}, y={}, {}x{}",
+            region.x, region.y, region.width, region.height
+        );
         let config = self.config.read().clone();
         match self.recorder.start_region(region, config).await {
             Ok(id) => {
-                info!("[ScreenRecording] Region recording started successfully, id={}", id);
+                info!(
+                    "[ScreenRecording] Region recording started successfully, id={}",
+                    id
+                );
                 Ok(id)
             }
             Err(e) => {
@@ -281,12 +315,12 @@ impl ScreenRecordingManager {
             Ok(metadata) => {
                 info!("[ScreenRecording] Recording stopped successfully: id={}, duration={}ms, size={} bytes, path={:?}",
                     metadata.id, metadata.duration_ms, metadata.file_size, metadata.file_path);
-                
+
                 // Add to history
                 let entry = RecordingHistoryEntry::from_metadata(&metadata);
                 self.history.add(entry);
                 debug!("[ScreenRecording] Recording added to history");
-                
+
                 Ok(metadata)
             }
             Err(e) => {
@@ -323,10 +357,16 @@ impl ScreenRecordingManager {
 
     /// Delete recording from history
     pub fn delete_recording(&self, id: &str) -> Result<(), String> {
-        info!("[ScreenRecording] Deleting recording from history: id={}", id);
+        info!(
+            "[ScreenRecording] Deleting recording from history: id={}",
+            id
+        );
         match self.history.delete(id) {
             Ok(_) => {
-                info!("[ScreenRecording] Recording deleted successfully: id={}", id);
+                info!(
+                    "[ScreenRecording] Recording deleted successfully: id={}",
+                    id
+                );
                 Ok(())
             }
             Err(e) => {
@@ -403,7 +443,7 @@ mod tests {
     #[test]
     fn test_recording_config_default() {
         let config = RecordingConfig::default();
-        
+
         assert_eq!(config.format, "mp4");
         assert_eq!(config.codec, "h264");
         assert_eq!(config.frame_rate, 30);
@@ -419,7 +459,7 @@ mod tests {
         let config = RecordingConfig::default();
         let json = serde_json::to_string(&config).unwrap();
         let deserialized: RecordingConfig = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(config.format, deserialized.format);
         assert_eq!(config.frame_rate, deserialized.frame_rate);
     }
@@ -432,7 +472,7 @@ mod tests {
             width: 800,
             height: 600,
         };
-        
+
         assert_eq!(region.x, 100);
         assert_eq!(region.width, 800);
     }

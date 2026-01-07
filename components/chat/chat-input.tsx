@@ -14,22 +14,13 @@
 
 import { useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { Send, Paperclip, Square, Loader2, Mic, X, FileIcon, ImageIcon, Archive, Wand2, Zap, Globe, Brain, Settings2, Radio, Music, Video } from 'lucide-react';
+import { Send, Paperclip, Square, Loader2, Mic, Wand2, Zap } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { Button } from '@/components/ui/button';
 // TooltipProvider is now at app level in providers.tsx
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { useSettingsStore, useRecentFilesStore, usePresetStore, useSessionStore } from '@/stores';
+import { useSettingsStore, useRecentFilesStore } from '@/stores';
 import { RecentFilesPopover, MentionPopover } from './popovers';
-import { PresetQuickPrompts } from '@/components/presets/preset-quick-prompts';
-import { PresetQuickSwitcher } from '@/components/presets/preset-quick-switcher';
 import type { RecentFile } from '@/stores/system';
 import type { MentionItem, SelectedMention, ParsedToolCall } from '@/types/mcp';
 import { useMention, useSpeech } from '@/hooks';
@@ -37,6 +28,12 @@ import { cn } from '@/lib/utils';
 import { transcribeViaApi, formatDuration } from '@/lib/ai/media/speech-api';
 import { getLanguageFlag } from '@/types/speech';
 import { nanoid } from 'nanoid';
+import { AttachmentsPreview } from './chat-input/attachments-preview';
+import { UploadErrorAlert } from './chat-input/upload-error-alert';
+import { DragOverlay } from './chat-input/drag-overlay';
+import { PreviewDialog } from './chat-input/preview-dialog';
+import { BottomToolbar } from './chat-input/bottom-toolbar';
+import { formatFileSize, getFileType } from './chat-input/utils';
 
 // Helper to get caret coordinates in textarea for mention popover positioning
 function getCaretCoordinates(textarea: HTMLTextAreaElement): DOMRect | null {
@@ -85,7 +82,6 @@ function getCaretCoordinates(textarea: HTMLTextAreaElement): DOMRect | null {
   );
 }
 
-// Attachment type
 export interface Attachment {
   id: string;
   name: string;
@@ -96,7 +92,6 @@ export interface Attachment {
   file?: File;
 }
 
-// Upload settings
 export interface UploadSettings {
   maxFileSize: number; // in bytes
   maxFiles: number;
@@ -186,45 +181,6 @@ interface ChatInputProps {
   onPresetChange?: (preset: import('@/types/preset').Preset) => void;
   onCreatePreset?: () => void;
   onManagePresets?: () => void;
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-function getFileType(mimeType: string): 'image' | 'audio' | 'video' | 'archive' | 'file' {
-  if (mimeType.startsWith('image/')) return 'image';
-  if (mimeType.startsWith('audio/')) return 'audio';
-  if (mimeType.startsWith('video/')) return 'video';
-  if (
-    mimeType.includes('zip') ||
-    mimeType.includes('tar') ||
-    mimeType.includes('rar') ||
-    mimeType.includes('7z') ||
-    mimeType.includes('gzip')
-  ) {
-    return 'archive';
-  }
-  return 'file';
-}
-
-function getFileIcon(type: 'image' | 'audio' | 'video' | 'archive' | 'file') {
-  switch (type) {
-    case 'image':
-      return <ImageIcon className="h-4 w-4" />;
-    case 'audio':
-      return <Music className="h-4 w-4" />;
-    case 'video':
-      return <Video className="h-4 w-4" />;
-    case 'archive':
-      return <Archive className="h-4 w-4" />;
-    default:
-      return <FileIcon className="h-4 w-4" />;
-  }
 }
 
 export function ChatInput({
@@ -653,86 +609,28 @@ export function ChatInput({
         'border-t border-border/50 bg-background/95 backdrop-blur-sm p-4 transition-all duration-200',
         isDragging && 'bg-accent/50 border-primary'
       )}
+      data-chat-input
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      {/* Drag overlay */}
-      {isDragging && (
-        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-md animate-in fade-in-0 duration-200">
-          <div className="flex flex-col items-center gap-3 text-primary animate-in zoom-in-95 duration-200">
-            <div className="rounded-full bg-primary/10 p-4">
-              <Paperclip className="h-10 w-10" />
-            </div>
-            <span className="text-lg font-medium">{t('dropFilesHere')}</span>
-          </div>
-        </div>
-      )}
+      <DragOverlay isDragging={isDragging} label={t('dropFilesHere')} />
 
       <div className="relative mx-auto max-w-3xl">
-          {/* Attachments preview */}
-          {attachments.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-2 animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
-              {attachments.map((attachment) => (
-                <div
-                  key={attachment.id}
-                  className="group relative flex items-center gap-2 rounded-xl border border-border/50 bg-muted/50 px-3 py-2 cursor-pointer hover:bg-accent hover:border-accent transition-all duration-150"
-                  onClick={() => setPreviewAttachment(attachment)}
-                >
-                  {attachment.type === 'image' ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={attachment.url}
-                      alt={attachment.name}
-                      className="h-8 w-8 rounded object-cover"
-                    />
-                  ) : attachment.type === 'video' ? (
-                    <div className="relative h-8 w-8 rounded bg-muted flex items-center justify-center overflow-hidden">
-                      <Video className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  ) : attachment.type === 'audio' ? (
-                    <div className="relative h-8 w-8 rounded bg-muted flex items-center justify-center">
-                      <Music className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  ) : (
-                    getFileIcon(attachment.type)
-                  )}
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium truncate max-w-[150px]">
-                      {attachment.name}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {formatFileSize(attachment.size)}
-                    </span>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeAttachment(attachment.id);
-                    }}
-                    className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 opacity-0 transition-all duration-150 group-hover:opacity-100 hover:scale-110"
-                  >
-                    <X className="h-3 w-3 text-destructive-foreground" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          <AttachmentsPreview
+            attachments={attachments}
+            onRemove={removeAttachment}
+            onPreview={setPreviewAttachment}
+            removeLabel={t('removeAttachment')}
+          />
 
-          {/* Upload error */}
           {uploadError && (
-            <Alert variant="destructive" className="mb-3 animate-in fade-in-0 slide-in-from-top-2 duration-200">
-              <AlertDescription className="flex items-center justify-between">
-                <span>{uploadError}</span>
-                <button
-                  onClick={() => setUploadError(null)}
-                  className="ml-2 underline hover:no-underline transition-all"
-                >
-                  {t('dismiss')}
-                </button>
-              </AlertDescription>
-            </Alert>
+            <UploadErrorAlert
+              message={uploadError}
+              onDismiss={() => setUploadError(null)}
+              dismissLabel={t('dismiss')}
+            />
           )}
 
           <div ref={inputContainerRef} className="relative flex items-end gap-2 rounded-2xl border border-input/50 bg-card p-2 shadow-md focus-within:shadow-lg focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-ring/10 transition-all duration-200">
@@ -789,6 +687,7 @@ export function ChatInput({
               type="file"
               multiple
               className="hidden"
+              aria-label={t('selectFiles')}
               onChange={(e) => {
                 if (e.target.files) {
                   addFiles(e.target.files);
@@ -945,164 +844,25 @@ export function ChatInput({
             )}
           </div>
 
-          {/* Bottom toolbar with feature toggles */}
-          <div className="mt-1 sm:mt-2 flex items-center justify-between px-1">
-            {/* Left side - Feature toggles */}
-            <div className="flex items-center gap-1">
-              {/* Model selector */}
-              {onModelClick && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 sm:h-7 gap-1 sm:gap-1.5 px-1.5 sm:px-2 text-[10px] sm:text-xs font-normal text-muted-foreground hover:text-foreground"
-                      onClick={onModelClick}
-                    >
-                      <span className="font-medium">⚡</span>
-                      <span className="max-w-[60px] sm:max-w-[100px] truncate">{modelName}</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('changeModel')}</TooltipContent>
-                </Tooltip>
-              )}
-
-              {/* Divider */}
-              <div className="mx-0.5 sm:mx-1 h-3 sm:h-4 w-px bg-border" />
-
-              {/* Web Search toggle - enhanced with label */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={cn(
-                      'h-6 sm:h-7 gap-1 sm:gap-1.5 px-1.5 sm:px-2 text-[10px] sm:text-xs font-normal',
-                      webSearchEnabled 
-                        ? 'bg-primary/10 text-primary hover:bg-primary/20' 
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                    onClick={() => onWebSearchChange?.(!webSearchEnabled)}
-                  >
-                    <Globe className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                    <span className="hidden sm:inline">{t('search')}</span>
-                    {webSearchEnabled && <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-primary animate-pulse" />}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('toggleWebSearch')}</TooltipContent>
-              </Tooltip>
-
-              {/* Thinking Mode toggle - enhanced with label */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={cn(
-                      'h-6 sm:h-7 gap-1 sm:gap-1.5 px-1.5 sm:px-2 text-[10px] sm:text-xs font-normal',
-                      thinkingEnabled 
-                        ? 'bg-purple-500/10 text-purple-500 hover:bg-purple-500/20' 
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                    onClick={() => onThinkingChange?.(!thinkingEnabled)}
-                  >
-                    <Brain className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                    <span className="hidden sm:inline">{t('think')}</span>
-                    {thinkingEnabled && <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-purple-500 animate-pulse" />}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('extendedThinking')}</TooltipContent>
-              </Tooltip>
-
-              {/* Streaming Mode toggle */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={cn(
-                      'h-6 sm:h-7 gap-1 sm:gap-1.5 px-1.5 sm:px-2 text-[10px] sm:text-xs font-normal',
-                      streamingEnabled !== false
-                        ? 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20' 
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                    onClick={() => onStreamingChange?.(streamingEnabled === false)}
-                  >
-                    <Radio className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                    <span className="hidden sm:inline">{t('stream') || 'Stream'}</span>
-                    {streamingEnabled !== false && <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-emerald-500 animate-pulse" />}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('toggleStreaming') || 'Toggle streaming responses'}</TooltipContent>
-              </Tooltip>
-
-              {/* AI Settings */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 sm:h-7 sm:w-7"
-                    onClick={onOpenAISettings}
-                  >
-                    <Settings2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('aiSettings')}</TooltipContent>
-              </Tooltip>
-
-              {/* Divider - hidden on very small screens */}
-              <div className="hidden min-[400px]:block mx-0.5 sm:mx-1 h-3 sm:h-4 w-px bg-border" />
-
-              {/* Preset Quick Switcher - hidden on very small screens */}
-              <div className="hidden min-[400px]:block">
-                <PresetQuickSwitcher
-                  onPresetChange={onPresetChange}
-                  onCreateNew={onCreatePreset}
-                  onManage={onManagePresets}
-                  disabled={isProcessing || disabled}
-                />
-              </div>
-
-              {/* Preset Quick Prompts - hidden on small screens */}
-              <div className="hidden sm:block">
-                <PresetQuickPromptsWrapper
-                  onSelectPrompt={(content) => {
-                    onChange(value ? `${value}\n${content}` : content);
-                  }}
-                  disabled={isProcessing || disabled}
-                />
-              </div>
-            </div>
-
-            {/* Right side - Context usage with progress bar */}
-            <div className="flex items-center gap-1 sm:gap-2">
-              <button
-                onClick={onOpenContextSettings}
-                className="flex items-center gap-1 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground hover:text-foreground transition-colors group"
-                title={t('contextWindowUsage')}
-              >
-                <div className="flex items-center gap-1 sm:gap-1.5">
-                  <div className="w-10 sm:w-16 h-1 sm:h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className={cn(
-                        "h-full rounded-full transition-all duration-300",
-                        contextUsagePercent < 50 ? "bg-green-500" :
-                        contextUsagePercent < 80 ? "bg-yellow-500" : "bg-red-500"
-                      )}
-                      style={{ width: `${Math.min(100, contextUsagePercent)}%` }}
-                    />
-                  </div>
-                  <span className={cn(
-                    "tabular-nums",
-                    contextUsagePercent >= 80 && "text-red-500 font-medium"
-                  )}>
-                    {contextUsagePercent}%
-                  </span>
-                </div>
-              </button>
-            </div>
-          </div>
+          <BottomToolbar
+            modelName={modelName}
+            webSearchEnabled={webSearchEnabled}
+            thinkingEnabled={thinkingEnabled}
+            streamingEnabled={streamingEnabled}
+            contextUsagePercent={contextUsagePercent}
+            onModelClick={onModelClick}
+            onWebSearchChange={onWebSearchChange}
+            onThinkingChange={onThinkingChange}
+            onStreamingChange={onStreamingChange}
+            onOpenAISettings={onOpenAISettings}
+            onOpenContextSettings={onOpenContextSettings}
+            onPresetChange={onPresetChange}
+            onCreatePreset={onCreatePreset}
+            onManagePresets={onManagePresets}
+            onSelectPrompt={(content) => onChange(value ? `${value}\n${content}` : content)}
+            disabled={disabled}
+            isProcessing={isProcessing}
+          />
 
           {/* Helper text - simplified on small screens */}
           <p className="mt-1 sm:mt-2 text-center text-[10px] sm:text-xs text-muted-foreground/70">
@@ -1123,95 +883,13 @@ export function ChatInput({
           </p>
         </div>
 
-      {/* Preview Dialog */}
-      <Dialog open={!!previewAttachment} onOpenChange={(open) => !open && setPreviewAttachment(null)}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{previewAttachment?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col items-center gap-4">
-            {previewAttachment?.type === 'image' ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={previewAttachment.url}
-                alt={previewAttachment.name}
-                className="max-h-[60vh] max-w-full rounded-lg object-contain"
-              />
-            ) : previewAttachment?.type === 'audio' ? (
-              <div className="flex flex-col items-center gap-4 py-4 w-full">
-                <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
-                  <Music className="h-8 w-8 text-primary" />
-                </div>
-                <audio
-                  controls
-                  className="w-full max-w-md"
-                  src={previewAttachment.url}
-                >
-                  Your browser does not support audio playback.
-                </audio>
-                <span className="text-sm text-muted-foreground">
-                  {previewAttachment.mimeType} • {formatFileSize(previewAttachment.size)}
-                </span>
-              </div>
-            ) : previewAttachment?.type === 'video' ? (
-              <div className="flex flex-col items-center gap-4 w-full">
-                <video
-                  controls
-                  className="max-h-[60vh] max-w-full rounded-lg"
-                  src={previewAttachment.url}
-                >
-                  Your browser does not support video playback.
-                </video>
-                <span className="text-sm text-muted-foreground">
-                  {previewAttachment.mimeType} • {formatFileSize(previewAttachment.size)}
-                </span>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2 py-8">
-                {getFileIcon(previewAttachment?.type || 'file')}
-                <span className="text-lg font-medium">{previewAttachment?.name}</span>
-                <span className="text-sm text-muted-foreground">
-                  {previewAttachment?.mimeType} • {formatFileSize(previewAttachment?.size || 0)}
-                </span>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <PreviewDialog
+        attachment={previewAttachment}
+        onOpenChange={(open) => {
+          if (!open) setPreviewAttachment(null);
+        }}
+      />
     </div>
-  );
-}
-
-// Wrapper component for PresetQuickPrompts that gets prompts from current preset
-function PresetQuickPromptsWrapper({
-  onSelectPrompt,
-  disabled,
-}: {
-  onSelectPrompt: (content: string) => void;
-  disabled?: boolean;
-}) {
-  const activeSessionId = useSessionStore((state) => state.activeSessionId);
-  const sessions = useSessionStore((state) => state.sessions);
-  const presets = usePresetStore((state) => state.presets);
-  
-  // Get current session's preset
-  const currentSession = activeSessionId ? sessions.find(s => s.id === activeSessionId) : null;
-  const presetId = currentSession?.presetId;
-  const currentPreset = presetId ? presets.find(p => p.id === presetId) : null;
-  
-  // Get builtin prompts from preset
-  const prompts = currentPreset?.builtinPrompts || [];
-  
-  if (prompts.length === 0) {
-    return null;
-  }
-  
-  return (
-    <PresetQuickPrompts
-      prompts={prompts}
-      onSelectPrompt={onSelectPrompt}
-      disabled={disabled}
-    />
   );
 }
 

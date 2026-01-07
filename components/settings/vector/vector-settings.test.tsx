@@ -33,7 +33,7 @@ const mockListAllCollections = jest.fn().mockResolvedValue([
   { name: 'collection2' },
 ]);
 
-jest.mock('@/hooks/use-vector-db', () => ({
+jest.mock('@/hooks/rag', () => ({
   useVectorDB: () => ({
     listAllCollections: mockListAllCollections,
   }),

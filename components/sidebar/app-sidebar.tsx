@@ -9,6 +9,7 @@ import { Plus, Settings, Moon, Sun, Monitor, MessageSquare, MoreHorizontal, Penc
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -46,7 +47,10 @@ import { SidebarUsageStats } from './sidebar-usage-stats';
 import { SidebarBackgroundTasks } from './sidebar-background-tasks';
 import { SidebarQuickActions } from './sidebar-quick-actions';
 import { SidebarRecentFiles } from './sidebar-recent-files';
+import { SidebarWorkflows } from './sidebar-workflows';
 import type { Session } from '@/types';
+
+const COLLAPSED_GROUPS_KEY = 'cognia:sidebar:collapsed-groups';
 
 // Search result type
 interface SearchResult {
@@ -93,6 +97,15 @@ export function AppSidebar() {
     return <Monitor className="h-4 w-4" />;
   };
 
+  // Memoized and sorted sessions to keep grouping predictable (pinned first, then most recent)
+  const sortedSessions = useMemo(() => {
+    return [...sessions].sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
+  }, [sessions]);
+
   // Search function
   const handleSearch = useCallback(async (query: string) => {
     if (!query.trim()) {
@@ -105,7 +118,7 @@ export function AppSidebar() {
     const results: SearchResult[] = [];
 
     // Search by title first
-    for (const session of sessions) {
+    for (const session of sortedSessions) {
       if (session.title.toLowerCase().includes(lowerQuery)) {
         results.push({ session, matchType: 'title' });
       }
@@ -113,7 +126,7 @@ export function AppSidebar() {
 
     // Search by message content
     try {
-      for (const session of sessions) {
+      for (const session of sortedSessions) {
         // Skip if already found by title
         if (results.some(r => r.session.id === session.id)) continue;
 
@@ -136,11 +149,11 @@ export function AppSidebar() {
       }
     } catch (err) {
       console.error('Search error:', err);
+    } finally {
+      setSearchResults(results);
+      setIsSearching(false);
     }
-
-    setSearchResults(results);
-    setIsSearching(false);
-  }, [sessions]);
+  }, [sortedSessions]);
 
   // Debounced search
   useEffect(() => {
@@ -176,7 +189,7 @@ export function AppSidebar() {
       older: [],
     };
 
-    for (const session of sessions) {
+    for (const session of sortedSessions) {
       const result = { session, matchType: 'title' as const, snippet: undefined };
       const updatedAt = new Date(session.updatedAt);
 
@@ -194,10 +207,23 @@ export function AppSidebar() {
     }
 
     return groups;
-  }, [searchQuery, searchResults, sessions]);
+  }, [searchQuery, searchResults, sortedSessions]);
 
   // Collapsed state for each group
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const stored = window.localStorage.getItem(COLLAPSED_GROUPS_KEY);
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(COLLAPSED_GROUPS_KEY, JSON.stringify(collapsedGroups));
+  }, [collapsedGroups]);
 
   const toggleGroup = (group: string) => {
     setCollapsedGroups(prev => ({ ...prev, [group]: !prev[group] }));
@@ -230,6 +256,7 @@ export function AppSidebar() {
               size="lg"
               onClick={handleNewChat}
               tooltip={t('newChat')}
+              data-testid="new-chat-button"
             >
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <Plus className="size-4" />
@@ -255,6 +282,7 @@ export function AppSidebar() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="text-sm"
+                data-testid="sidebar-search"
               />
               {searchQuery && (
                 <InputGroupAddon align="inline-end">
@@ -289,9 +317,9 @@ export function AppSidebar() {
             <span className="text-xs font-medium text-muted-foreground">{t('conversations')}</span>
             <DropdownMenu open={showDeleteAllConfirm} onOpenChange={setShowDeleteAllConfirm}>
               <DropdownMenuTrigger asChild>
-                <button className="text-muted-foreground hover:text-destructive transition-colors">
+                <Button className="text-muted-foreground hover:text-destructive transition-colors" data-testid="delete-all-trigger">
                   <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <div className="p-2 text-sm">
@@ -368,6 +396,13 @@ export function AppSidebar() {
             </SidebarGroup>
           );
         })}
+
+        {/* Search empty state */}
+        {searchQuery && !isSearching && searchResults.length === 0 && (
+          <div className="px-4 py-6 text-xs text-muted-foreground text-center" data-testid="search-empty">
+            {t('noResults') || 'No results'}
+          </div>
+        )}
       </SidebarContent>
 
       <SidebarSeparator />
@@ -396,6 +431,13 @@ export function AppSidebar() {
         {!isCollapsed && (
           <div className="px-2 pb-2">
             <SidebarRecentFiles defaultOpen={false} limit={5} />
+          </div>
+        )}
+
+        {/* Workflows Widget */}
+        {!isCollapsed && (
+          <div className="px-2 pb-2">
+            <SidebarWorkflows defaultOpen={false} limit={5} />
           </div>
         )}
 

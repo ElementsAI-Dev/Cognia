@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Textarea } from '@/components/ui/textarea';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -462,12 +463,12 @@ function QuoteItem({
       <div className="flex-1 min-w-0">
         {isEditing ? (
           <div className="flex flex-col gap-1">
-            <textarea
+            <Textarea
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="w-full min-h-[60px] p-2 text-sm rounded border bg-background resize-none focus:outline-none focus:ring-1 focus:ring-ring"
               autoFocus
+              className="min-h-[60px] resize-none text-sm"
             />
             <div className="flex gap-1 justify-end">
               <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={handleCancelEdit}>

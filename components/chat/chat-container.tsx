@@ -7,8 +7,9 @@
  */
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { Virtuoso } from 'react-virtuoso';
 import { useTranslations } from 'next-intl';
-import { Copy, Check, Pencil, RotateCcw, Languages, Bookmark, BookmarkCheck, Volume2, VolumeX, Share2, Loader2 } from 'lucide-react';
+import { Copy, Check, Pencil, RotateCcw, Languages, Bookmark, BookmarkCheck, Volume2, VolumeX, Share2, Loader2, BookOpen } from 'lucide-react';
 import {
   Conversation,
   ConversationContent,
@@ -58,6 +59,8 @@ import {
 } from '@/lib/ai/generation/suggestion-generator';
 import { translateText } from '@/lib/ai/generation/translate';
 import type { SearchResponse, SearchResult } from '@/types/search';
+import { SourceVerificationDialog } from '@/components/search/source-verification-dialog';
+import { useSourceVerification } from '@/hooks/search/use-source-verification';
 import { useSessionStore, useSettingsStore, usePresetStore, useMcpStore, useAgentStore, useProjectStore, useQuoteStore, useLearningStore, useArtifactStore } from '@/stores';
 import {
   AlertDialog,
@@ -69,6 +72,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { useMessages, useAgent, useProjectContext, calculateTokenBreakdown, useTTS } from '@/hooks';
 import type { ParsedToolCall, ToolCallResult } from '@/types/mcp';
 import { useAIChat, useAutoRouter, type ProviderName, isVisionModel, buildMultimodalContent, type MultimodalMessage, isAudioModel, isVideoModel } from '@/lib/ai';
@@ -76,6 +88,7 @@ import { messageRepository } from '@/lib/db';
 import { PROVIDERS } from '@/types/provider';
 import type { ChatMode, UIMessage } from '@/types';
 import type { AgentModeConfig } from '@/types/agent-mode';
+import { useStickToBottomContext } from 'use-stick-to-bottom';
 
 interface ChatContainerProps {
   sessionId?: string;
@@ -132,6 +145,9 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     messages,
     isLoading: _isLoadingMessages,
     isInitialized,
+    hasOlderMessages,
+    isLoadingOlder,
+    loadOlderMessages,
     addMessage,
     updateMessage,
     deleteMessagesAfter,
@@ -197,6 +213,27 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   // Clear context confirmation dialog state
   const [showClearContextConfirm, setShowClearContextConfirm] = useState(false);
+
+  // Streaming chunk coalescing (reduces render churn during token streaming)
+  const streamBufferRef = useRef<{ messageId: string; buffer: string } | null>(null);
+  const streamFlushTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const flushStreamBuffer = useCallback(() => {
+    if (streamFlushTimerRef.current) {
+      clearTimeout(streamFlushTimerRef.current);
+      streamFlushTimerRef.current = null;
+    }
+
+    const pending = streamBufferRef.current;
+    if (!pending || !pending.buffer) return;
+
+    const { messageId, buffer } = pending;
+    streamBufferRef.current = { messageId, buffer: '' };
+    appendToMessage(messageId, buffer);
+  }, [appendToMessage]);
+
+  // Source verification hook
+  const sourceVerification = useSourceVerification();
 
   // Model picker dialog state
   const [showModelPicker, setShowModelPicker] = useState(false);
@@ -935,10 +972,39 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
             if (searchRes.ok) {
               const searchResponse: SearchResponse = await searchRes.json();
               if (searchResponse.results && searchResponse.results.length > 0) {
-                const searchContext = formatSearchResults(searchResponse);
-                enhancedSystemPrompt = enhancedSystemPrompt
-                  ? `${enhancedSystemPrompt}\n\n${searchContext}`
-                  : searchContext;
+                // Apply source verification if enabled
+                const verificationSettings = sourceVerification.settings;
+                
+                if (verificationSettings.enabled && verificationSettings.mode === 'ask') {
+                  // Verify and show dialog - user will select sources
+                  await sourceVerification.verifyResults(searchResponse);
+                  // The dialog will be shown, and user can select sources
+                  // For now, use all results (dialog selection is async)
+                  const searchContext = formatSearchResults(searchResponse);
+                  enhancedSystemPrompt = enhancedSystemPrompt
+                    ? `${enhancedSystemPrompt}\n\n${searchContext}`
+                    : searchContext;
+                } else if (verificationSettings.enabled && verificationSettings.mode === 'auto') {
+                  // Auto-verify and filter low credibility sources
+                  const verified = await sourceVerification.verifyResults(searchResponse);
+                  const filteredResults = verified.results.filter(r => r.isEnabled);
+                  if (filteredResults.length > 0) {
+                    const filteredResponse: SearchResponse = {
+                      ...searchResponse,
+                      results: filteredResults,
+                    };
+                    const searchContext = formatSearchResults(filteredResponse);
+                    enhancedSystemPrompt = enhancedSystemPrompt
+                      ? `${enhancedSystemPrompt}\n\n${searchContext}`
+                      : searchContext;
+                  }
+                } else {
+                  // Verification disabled - use all results
+                  const searchContext = formatSearchResults(searchResponse);
+                  enhancedSystemPrompt = enhancedSystemPrompt
+                    ? `${enhancedSystemPrompt}\n\n${searchContext}`
+                    : searchContext;
+                }
               }
             }
           } catch (searchError) {
@@ -1023,9 +1089,20 @@ Be thorough in your thinking but concise in your final answer.`;
         },
         // Streaming callback
         (chunk) => {
-          appendToMessage(assistantMessage.id, chunk);
+          if (!streamBufferRef.current || streamBufferRef.current.messageId !== assistantMessage.id) {
+            streamBufferRef.current = { messageId: assistantMessage.id, buffer: '' };
+          }
+          streamBufferRef.current.buffer += chunk;
+
+          if (!streamFlushTimerRef.current) {
+            streamFlushTimerRef.current = setTimeout(() => {
+              flushStreamBuffer();
+            }, 75);
+          }
         }
       );
+
+      flushStreamBuffer();
 
       // If no streaming was used, update the message with the full response
       if (response && !isStreaming) {
@@ -1073,17 +1150,18 @@ Be thorough in your thinking but concise in your final answer.`;
     } finally {
       setIsLoading(false);
     }
-  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, appendToMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes, getActiveSkills, getLearningSessionByChat, autoCreateFromContent, processA2UIMessage]);
+  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, appendToMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes, getActiveSkills, getLearningSessionByChat, autoCreateFromContent, processA2UIMessage, sourceVerification]);
 
   const handleStop = useCallback(() => {
     aiStop();
+    flushStreamBuffer();
     // Also stop agent execution if running
     if (isAgentExecuting) {
       stopAgent();
     }
     setIsLoading(false);
     setIsStreaming(false);
-  }, [aiStop, isAgentExecuting, stopAgent]);
+  }, [aiStop, flushStreamBuffer, isAgentExecuting, stopAgent]);
 
   // Edit message handlers
   const handleEditMessage = useCallback((messageId: string, content: string) => {
@@ -1191,7 +1269,7 @@ Be thorough in your thinking but concise in your final answer.`;
   // The UI will show even while messages are loading
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-background">
+    <div className="flex min-h-0 flex-1 flex-col bg-background" data-chat-container>
       <ChatHeader sessionId={sessionId} />
 
       {error && (
@@ -1237,33 +1315,24 @@ Be thorough in your thinking but concise in your final answer.`;
           />
         ) : (
           <ConversationContent>
-            {messages.map((message, index) => (
-              <ChatMessageItem
-                key={message.id}
-                message={message}
-                sessionId={activeSessionId!}
-                isStreaming={isStreaming && index === messages.length - 1 && message.role === 'assistant'}
-                isEditing={editingMessageId === message.id}
-                editContent={editContent}
-                onEditContentChange={setEditContent}
-                onEdit={() => handleEditMessage(message.id, message.content)}
-                onCancelEdit={handleCancelEdit}
-                onSaveEdit={() => handleSaveEdit(message.id)}
-                onRetry={() => handleRetry(message.id)}
-                onCopyMessagesForBranch={copyMessagesForBranch}
-                onTranslate={handleTranslateMessage}
-              />
-            ))}
-            {isLoading && messages[messages.length - 1]?.role === 'user' && (
-              <MessageUI from="assistant">
-                <MessageContent>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Loader size={18} />
-                    <span className="text-sm animate-pulse">Thinking...</span>
-                  </div>
-                </MessageContent>
-              </MessageUI>
-            )}
+            <VirtualizedChatMessageList
+              messages={messages}
+              sessionId={activeSessionId!}
+              isStreaming={isStreaming}
+              isLoading={isLoading}
+              editingMessageId={editingMessageId}
+              editContent={editContent}
+              onEditContentChange={setEditContent}
+              onEditMessage={handleEditMessage}
+              onCancelEdit={handleCancelEdit}
+              onSaveEdit={handleSaveEdit}
+              onRetry={handleRetry}
+              onCopyMessagesForBranch={copyMessagesForBranch}
+              onTranslate={handleTranslateMessage}
+              hasOlderMessages={hasOlderMessages}
+              isLoadingOlder={isLoadingOlder}
+              loadOlderMessages={loadOlderMessages}
+            />
           </ConversationContent>
         )}
         <ConversationScrollButton />
@@ -1434,19 +1503,15 @@ Be thorough in your thinking but concise in your final answer.`;
       />
 
       {/* PPT Preview - shown when a presentation is generated */}
-      {activePresentation && showPPTPreview && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="relative w-full max-w-5xl max-h-[90vh] overflow-auto rounded-lg border bg-background shadow-lg">
-            <button
-              onClick={() => setShowPPTPreview(false)}
-              className="absolute top-2 right-2 z-10 p-2 rounded-full bg-background/80 hover:bg-background border shadow-sm"
-            >
-              ✕
-            </button>
-            <PPTPreview presentation={activePresentation} />
-          </div>
-        </div>
-      )}
+      <Dialog open={!!activePresentation && showPPTPreview} onOpenChange={(open) => setShowPPTPreview(open)}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Presentation Preview</DialogTitle>
+            <DialogClose />
+          </DialogHeader>
+          {activePresentation && <PPTPreview presentation={activePresentation} />}
+        </DialogContent>
+      </Dialog>
 
       {/* Learning Mode Panel - shown when in learning mode */}
       {currentMode === 'learning' && showLearningPanel && (
@@ -1470,18 +1535,45 @@ Be thorough in your thinking but concise in your final answer.`;
         }}
       />
 
+      {/* Source Verification Dialog */}
+      {sourceVerification.verifiedResponse && (
+        <SourceVerificationDialog
+          open={sourceVerification.shouldShowDialog}
+          onOpenChange={(open) => {
+            if (!open) {
+              sourceVerification.skipVerification();
+            }
+          }}
+          searchResponse={sourceVerification.verifiedResponse}
+          onConfirm={(selectedResults) => {
+            sourceVerification.setSelectedResults(selectedResults);
+            sourceVerification.confirmSelection();
+          }}
+          onSkip={sourceVerification.skipVerification}
+          onRememberChoice={(choice) => {
+            const { setSourceVerificationMode } = useSettingsStore.getState();
+            if (choice === 'always-use') {
+              setSourceVerificationMode('auto');
+            } else if (choice === 'always-skip') {
+              setSourceVerificationMode('disabled');
+            }
+          }}
+          onMarkTrusted={sourceVerification.markSourceTrusted}
+          onMarkBlocked={sourceVerification.markSourceBlocked}
+        />
+      )}
+
       {/* Learning Mode Toggle Button - shown when in learning mode */}
       {currentMode === 'learning' && !showLearningPanel && (
-        <button
+        <Button
           onClick={() => setShowLearningPanel(true)}
-          className="fixed right-4 top-20 z-40 p-3 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
+          className="fixed right-4 top-20 z-40 rounded-full p-3 h-auto w-auto shadow-lg"
           title="Open Learning Panel"
+          variant="default"
+          size="icon"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-            <path d="M6 12v5c3 3 9 3 12 0v-5"/>
-          </svg>
-        </button>
+          <BookOpen className="h-5 w-5" />
+        </Button>
       )}
 
       {/* Clear Context Confirmation Dialog */}
@@ -1606,6 +1698,8 @@ function ChatMessageItem({
   onCopyMessagesForBranch,
   onTranslate,
 }: ChatMessageItemProps) {
+  const t = useTranslations('chat');
+  const tCommon = useTranslations('common');
   const [copied, setCopied] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(message.isBookmarked || false);
@@ -1703,26 +1797,32 @@ function ChatMessageItem({
       <MessageContent>
         {isEditing ? (
           <div className="flex flex-col gap-2">
-            <textarea
+            <Textarea
               value={editContent}
               onChange={(e) => onEditContentChange(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="w-full min-h-[100px] p-3 rounded-md border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring"
               autoFocus
+              placeholder={t('editMessagePlaceholder')}
+              aria-label={t('editMessage')}
+              className="min-h-[100px] resize-none"
             />
             <div className="flex gap-2 justify-end">
-              <button
+              <Button
                 onClick={onCancelEdit}
-                className="px-3 py-1.5 text-sm rounded-md border hover:bg-muted transition-colors"
+                variant="outline"
+                size="sm"
+                aria-label={tCommon('cancel')}
               >
-                Cancel
-              </button>
-              <button
+                {tCommon('cancel')}
+              </Button>
+              <Button
                 onClick={onSaveEdit}
-                className="px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                variant="default"
+                size="sm"
+                aria-label={t('saveAndSubmit')}
               >
-                Save & Submit
-              </button>
+                {t('saveAndSubmit')}
+              </Button>
             </div>
           </div>
         ) : (
@@ -1836,3 +1936,177 @@ function ChatMessageItem({
 }
 
 export default ChatContainer;
+
+interface VirtualizedChatMessageListProps {
+  messages: UIMessage[];
+  sessionId: string;
+  isStreaming: boolean;
+  isLoading: boolean;
+  editingMessageId: string | null;
+  editContent: string;
+  onEditContentChange: (content: string) => void;
+  onEditMessage: (messageId: string, content: string) => void;
+  onCancelEdit: () => void;
+  onSaveEdit: (messageId: string) => Promise<void>;
+  onRetry: (messageId: string) => Promise<void>;
+  onCopyMessagesForBranch?: (branchPointMessageId: string, newBranchId: string) => Promise<unknown>;
+  onTranslate?: (messageId: string, content: string) => void;
+  hasOlderMessages: boolean;
+  isLoadingOlder: boolean;
+  loadOlderMessages: () => Promise<void>;
+}
+
+function VirtualizedChatMessageList({
+  messages,
+  sessionId,
+  isStreaming,
+  isLoading,
+  editingMessageId,
+  editContent,
+  onEditContentChange,
+  onEditMessage,
+  onCancelEdit,
+  onSaveEdit,
+  onRetry,
+  onCopyMessagesForBranch,
+  onTranslate,
+  hasOlderMessages,
+  isLoadingOlder,
+  loadOlderMessages,
+}: VirtualizedChatMessageListProps) {
+  const { scrollRef } = useStickToBottomContext();
+
+  const [scrollParent, setScrollParent] = useState<HTMLElement | null>(null);
+
+  const showThinking = isLoading && messages[messages.length - 1]?.role === 'user';
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      setScrollParent(scrollRef.current);
+    }
+  }, [scrollRef]);
+
+  // Preserve scroll position when prepending older messages.
+  const [firstItemIndex, setFirstItemIndex] = useState(0);
+  const prevLenRef = useRef<number>(messages.length);
+  const prevFirstIdRef = useRef<string | undefined>(messages[0]?.id);
+  const prevLastIdRef = useRef<string | undefined>(messages[messages.length - 1]?.id);
+
+  useEffect(() => {
+    const prevLen = prevLenRef.current;
+    const prevLastId = prevLastIdRef.current;
+    const nextLastId = messages[messages.length - 1]?.id;
+    const nextFirstId = messages[0]?.id;
+
+    // Detect a prepend (older messages loaded) by: length increased, last item unchanged, first item changed.
+    if (
+      messages.length > prevLen &&
+      prevLastId &&
+      nextLastId === prevLastId &&
+      nextFirstId &&
+      nextFirstId !== prevFirstIdRef.current
+    ) {
+      const delta = messages.length - prevLen;
+      setFirstItemIndex((v) => v - delta);
+    }
+
+    prevLenRef.current = messages.length;
+    prevFirstIdRef.current = nextFirstId;
+    prevLastIdRef.current = nextLastId;
+  }, [messages]);
+
+  const items = useMemo(() => {
+    if (!showThinking) return messages as Array<UIMessage | { kind: 'thinking' }>;
+    return [...messages, { kind: 'thinking' } as const];
+  }, [messages, showThinking]);
+
+  const lastItemIndex = messages.length - 1;
+
+  if (!scrollParent) {
+    return (
+      <>
+        {messages.map((message, index) => (
+          <ChatMessageItem
+            key={message.id}
+            message={message}
+            sessionId={sessionId}
+            isStreaming={isStreaming && index === lastItemIndex && message.role === 'assistant'}
+            isEditing={editingMessageId === message.id}
+            editContent={editContent}
+            onEditContentChange={onEditContentChange}
+            onEdit={() => onEditMessage(message.id, message.content)}
+            onCancelEdit={onCancelEdit}
+            onSaveEdit={() => onSaveEdit(message.id)}
+            onRetry={() => onRetry(message.id)}
+            onCopyMessagesForBranch={onCopyMessagesForBranch}
+            onTranslate={onTranslate}
+          />
+        ))}
+      </>
+    );
+  }
+
+  return (
+    <Virtuoso
+      data={items}
+      customScrollParent={scrollParent}
+      firstItemIndex={firstItemIndex}
+      startReached={() => {
+        if (hasOlderMessages && !isLoadingOlder) {
+          void loadOlderMessages();
+        }
+      }}
+      computeItemKey={(_index, item) => {
+        if ((item as { kind?: string }).kind === 'thinking') return 'thinking';
+        return (item as UIMessage).id;
+      }}
+      components={{
+        List: (() => {
+          const VirtualizedList = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+            (props, ref) => (
+              <div
+                {...props}
+                ref={ref}
+                className="flex flex-col gap-5 w-full"
+              />
+            )
+          );
+          VirtualizedList.displayName = 'VirtualizedList';
+          return VirtualizedList;
+        })(),
+      }}
+      itemContent={(index, item) => {
+        if ((item as { kind?: string }).kind === 'thinking') {
+          return (
+            <MessageUI from="assistant">
+              <MessageContent>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader size={18} />
+                  <span className="text-sm animate-pulse">Thinking...</span>
+                </div>
+              </MessageContent>
+            </MessageUI>
+          );
+        }
+
+        const message = item as UIMessage;
+        return (
+          <ChatMessageItem
+            message={message}
+            sessionId={sessionId}
+            isStreaming={isStreaming && index === lastItemIndex && message.role === 'assistant'}
+            isEditing={editingMessageId === message.id}
+            editContent={editContent}
+            onEditContentChange={onEditContentChange}
+            onEdit={() => onEditMessage(message.id, message.content)}
+            onCancelEdit={onCancelEdit}
+            onSaveEdit={() => onSaveEdit(message.id)}
+            onRetry={() => onRetry(message.id)}
+            onCopyMessagesForBranch={onCopyMessagesForBranch}
+            onTranslate={onTranslate}
+          />
+        );
+      }}
+    />
+  );
+}

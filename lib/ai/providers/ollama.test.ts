@@ -35,7 +35,7 @@ describe('Ollama API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Default to non-Tauri environment for most tests
-    delete (global.window as { __TAURI__?: unknown }).__TAURI__;
+    delete (global.window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
   });
 
   afterAll(() => {
@@ -77,7 +77,7 @@ describe('Ollama API', () => {
     });
 
     it('should use Tauri invoke in Tauri environment', async () => {
-      (global.window as { __TAURI__?: unknown }).__TAURI__ = {};
+      (global.window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
       mockInvoke.mockResolvedValue({
         connected: true,
         version: '0.2.0',

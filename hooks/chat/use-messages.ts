@@ -18,6 +18,11 @@ interface UseMessagesReturn {
   isLoading: boolean;
   isInitialized: boolean;
 
+  // History paging
+  hasOlderMessages: boolean;
+  isLoadingOlder: boolean;
+  loadOlderMessages: () => Promise<void>;
+
   // Message operations
   addMessage: (message: Omit<UIMessage, 'id' | 'createdAt'>) => Promise<UIMessage>;
   updateMessage: (id: string, updates: Partial<UIMessage>) => Promise<void>;
@@ -36,6 +41,9 @@ interface UseMessagesReturn {
   copyMessagesForBranch: (branchPointMessageId: string, newBranchId: string) => Promise<UIMessage[]>;
 }
 
+const INITIAL_PAGE_SIZE = 100;
+const OLDER_PAGE_SIZE = 80;
+
 export function useMessages({
   sessionId,
   branchId,
@@ -44,6 +52,11 @@ export function useMessages({
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+
+  const oldestMessageCreatedAtRef = useRef<Date | null>(null);
 
   // Track pending saves to prevent race conditions
   const pendingSaves = useRef<Map<string, UIMessage>>(new Map());
@@ -62,19 +75,30 @@ export function useMessages({
     async function loadMessages() {
       if (!sessionId) {
         setMessages([]);
+        setHasOlderMessages(false);
+        oldestMessageCreatedAtRef.current = null;
         setIsInitialized(true);
         return;
       }
 
       setIsLoading(true);
       try {
-        // Load messages filtered by branch
-        const loadedMessages = await messageRepository.getBySessionIdAndBranch(
+        const loadedMessages = await messageRepository.getPageBySessionIdAndBranch(
+          sessionId,
+          branchId,
+          { limit: INITIAL_PAGE_SIZE }
+        );
+
+        const totalCount = await messageRepository.getCountBySessionIdAndBranch(
           sessionId,
           branchId
         );
+
         if (!cancelled) {
           setMessages(loadedMessages);
+          const oldest = loadedMessages[0]?.createdAt;
+          oldestMessageCreatedAtRef.current = oldest ?? null;
+          setHasOlderMessages(totalCount > loadedMessages.length);
           setIsInitialized(true);
         }
       } catch (err) {
@@ -105,11 +129,21 @@ export function useMessages({
 
     setIsLoading(true);
     try {
-      const loadedMessages = await messageRepository.getBySessionIdAndBranch(
+      const loadedMessages = await messageRepository.getPageBySessionIdAndBranch(
+        sessionId,
+        branchId,
+        { limit: INITIAL_PAGE_SIZE }
+      );
+
+      const totalCount = await messageRepository.getCountBySessionIdAndBranch(
         sessionId,
         branchId
       );
+
       setMessages(loadedMessages);
+      const oldest = loadedMessages[0]?.createdAt;
+      oldestMessageCreatedAtRef.current = oldest ?? null;
+      setHasOlderMessages(totalCount > loadedMessages.length);
     } catch (err) {
       console.error('Failed to reload messages:', err);
       onErrorRef.current?.(err instanceof Error ? err : new Error('Failed to reload messages'));
@@ -117,6 +151,49 @@ export function useMessages({
       setIsLoading(false);
     }
   }, [sessionId, branchId]);
+
+  const loadOlderMessages = useCallback(async (): Promise<void> => {
+    if (!sessionId) return;
+    if (isLoadingOlder) return;
+    if (!hasOlderMessages) return;
+
+    const oldestCreatedAt = oldestMessageCreatedAtRef.current;
+    if (!oldestCreatedAt) return;
+
+    setIsLoadingOlder(true);
+    try {
+      const older = await messageRepository.getPageBySessionIdAndBranch(
+        sessionId,
+        branchId,
+        { limit: OLDER_PAGE_SIZE, before: oldestCreatedAt }
+      );
+
+      if (older.length === 0) {
+        setHasOlderMessages(false);
+        return;
+      }
+
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        const dedupedOlder = older.filter((m) => !existingIds.has(m.id));
+        return [...dedupedOlder, ...prev];
+      });
+
+      oldestMessageCreatedAtRef.current = older[0]?.createdAt ?? oldestCreatedAt;
+
+      const totalCount = await messageRepository.getCountBySessionIdAndBranch(
+        sessionId,
+        branchId
+      );
+
+      setHasOlderMessages(totalCount > (messages.length + older.length));
+    } catch (err) {
+      console.error('Failed to load older messages:', err);
+      onErrorRef.current?.(err instanceof Error ? err : new Error('Failed to load older messages'));
+    } finally {
+      setIsLoadingOlder(false);
+    }
+  }, [sessionId, branchId, isLoadingOlder, hasOlderMessages, messages.length]);
 
   // Add a new message
   const addMessage = useCallback(
@@ -232,19 +309,38 @@ export function useMessages({
 
   // Append chunk to a message (for streaming) - optimistic local update only
   const appendToMessage = useCallback((id: string, chunk: string) => {
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === id ? { ...m, content: m.content + chunk } : m
-      )
-    );
+    // Track for debounced save based on the latest content we know about.
+    const previousPending = pendingSaves.current.get(id);
 
-    // Track for debounced save
-    const currentMessage = messages.find((m) => m.id === id);
-    if (currentMessage) {
-      pendingSaves.current.set(id, {
-        ...currentMessage,
-        content: currentMessage.content + chunk,
+    setMessages((prev) => {
+      const next = prev.map((m) => {
+        if (m.id !== id) return m;
+
+        const nextContent = m.content + chunk;
+        pendingSaves.current.set(id, {
+          ...m,
+          content: nextContent,
+        });
+
+        return { ...m, content: nextContent };
       });
+
+      // If the message wasn't in state (rare), still keep pending content growing.
+      if (!previousPending && !next.some((m) => m.id === id)) {
+        const existingPending = pendingSaves.current.get(id);
+        if (existingPending) {
+          pendingSaves.current.set(id, {
+            ...existingPending,
+            content: existingPending.content + chunk,
+          });
+        }
+      }
+
+      return next;
+    });
+
+    const messageToSave = pendingSaves.current.get(id);
+    if (messageToSave) {
 
       // Debounce save to database
       const existingTimeout = saveTimeouts.current.get(id);
@@ -253,10 +349,10 @@ export function useMessages({
       }
 
       const timeout = setTimeout(async () => {
-        const messageToSave = pendingSaves.current.get(id);
-        if (messageToSave) {
+        const messageToSaveInner = pendingSaves.current.get(id);
+        if (messageToSaveInner) {
           try {
-            await messageRepository.update(id, { content: messageToSave.content });
+            await messageRepository.update(id, { content: messageToSaveInner.content });
           } catch (err) {
             console.error('Failed to save streaming message:', err);
           }
@@ -267,7 +363,7 @@ export function useMessages({
 
       saveTimeouts.current.set(id, timeout);
     }
-  }, [messages]);
+  }, []);
 
   // Create a new message for streaming (not saved until content is added)
   const createStreamingMessage = useCallback(
@@ -322,6 +418,9 @@ export function useMessages({
     messages,
     isLoading,
     isInitialized,
+    hasOlderMessages,
+    isLoadingOlder,
+    loadOlderMessages,
     addMessage,
     updateMessage,
     deleteMessage,

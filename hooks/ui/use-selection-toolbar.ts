@@ -1,18 +1,20 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { 
-  SelectionAction, 
-  ToolbarState, 
+import {
+  SelectionAction,
+  ToolbarState,
   SelectionPayload,
   SelectionMode,
   TextType,
   getLanguageName,
+  SelectionConfig as ToolbarConfig,
 } from "@/types";
 import { useSelectionStore } from "@/stores/context";
 import { useSettingsStore } from "@/stores/settings";
 import { useAIChat } from "@/lib/ai/generation/use-ai-chat";
 import type { ProviderName } from "@/lib/ai/core/client";
+import type { SelectionConfig as NativeSelectionConfig } from "@/lib/native/selection";
 
 const initialState: ToolbarState = {
   isVisible: false,
@@ -67,6 +69,16 @@ const ACTION_PROMPTS: Record<SelectionAction, (text: string, targetLang?: string
   shorten: (text) => 
     `Shorten the following text while keeping the essential meaning:\n\n"${text}"`,
 };
+
+const toNativeConfig = (config: ToolbarConfig): NativeSelectionConfig => ({
+  enabled: config.enabled,
+  trigger_mode: config.triggerMode,
+  min_text_length: config.minTextLength,
+  max_text_length: config.maxTextLength,
+  delay_ms: config.delayMs,
+  target_language: config.targetLanguage,
+  excluded_apps: config.excludedApps,
+});
 
 
 export function useSelectionToolbar() {
@@ -139,6 +151,46 @@ export function useSelectionToolbar() {
       }));
     },
   });
+
+    // Sync selection config to the native side and keep the service running
+    useEffect(() => {
+      if (typeof window === "undefined" || !window.__TAURI__) {
+        return;
+      }
+
+      const syncConfig = async () => {
+        try {
+          const [{ updateConfig, startSelectionService, stopSelectionService }, { invoke }] = await Promise.all([
+            import("@/lib/native/selection"),
+            import("@tauri-apps/api/core"),
+          ]);
+
+          await updateConfig(toNativeConfig({ ...config, enabled: store.isEnabled }));
+          await invoke("selection_set_auto_hide_timeout", { timeout_ms: config.autoHideDelay ?? 0 });
+
+          if (store.isEnabled) {
+            await startSelectionService();
+          } else {
+            await stopSelectionService();
+          }
+        } catch (error) {
+          console.error("Failed to sync selection config", error);
+        }
+      };
+
+      syncConfig();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- config object is destructured into individual deps
+    }, [
+      store.isEnabled,
+      config.enabled,
+      config.triggerMode,
+      config.minTextLength,
+      config.maxTextLength,
+      config.delayMs,
+      config.targetLanguage,
+      config.excludedApps,
+      config.autoHideDelay,
+    ]);
 
   // Listen for selection events from Tauri
   useEffect(() => {

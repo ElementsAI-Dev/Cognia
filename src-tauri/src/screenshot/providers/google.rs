@@ -277,20 +277,15 @@ impl OcrProvider for GoogleVisionProvider {
 
         let url = format!("{}?key={}", self.endpoint, self.api_key);
 
-        let response = client
-            .post(&url)
-            .json(&request)
-            .send()
-            .await
-            .map_err(|e| {
-                if e.is_timeout() {
-                    OcrError::network_error("Request timed out")
-                } else if e.is_connect() {
-                    OcrError::network_error("Cannot connect to Google Vision API")
-                } else {
-                    OcrError::network_error(format!("Request failed: {}", e))
-                }
-            })?;
+        let response = client.post(&url).json(&request).send().await.map_err(|e| {
+            if e.is_timeout() {
+                OcrError::network_error("Request timed out")
+            } else if e.is_connect() {
+                OcrError::network_error("Cannot connect to Google Vision API")
+            } else {
+                OcrError::network_error(format!("Request failed: {}", e))
+            }
+        })?;
 
         let status = response.status();
 
@@ -310,9 +305,10 @@ impl OcrProvider for GoogleVisionProvider {
         })?;
 
         // Process response
-        let response = result.responses.into_iter().next().ok_or_else(|| {
-            OcrError::new(OcrErrorCode::ProviderError, "Empty response from API")
-        })?;
+        let response =
+            result.responses.into_iter().next().ok_or_else(|| {
+                OcrError::new(OcrErrorCode::ProviderError, "Empty response from API")
+            })?;
 
         // Check for errors
         if let Some(error) = response.error {
@@ -353,7 +349,10 @@ impl OcrProvider for GoogleVisionProvider {
                                 .words
                                 .iter()
                                 .map(|w| {
-                                    w.symbols.iter().map(|s| s.text.as_str()).collect::<String>()
+                                    w.symbols
+                                        .iter()
+                                        .map(|s| s.text.as_str())
+                                        .collect::<String>()
                                 })
                                 .collect::<Vec<_>>()
                                 .join(" ");
@@ -407,7 +406,11 @@ impl OcrProvider for GoogleVisionProvider {
         };
 
         let confidence = if regions.is_empty() {
-            if text.is_empty() { 0.0 } else { 0.9 }
+            if text.is_empty() {
+                0.0
+            } else {
+                0.9
+            }
         } else {
             regions.iter().map(|r| r.confidence).sum::<f64>() / regions.len() as f64
         };

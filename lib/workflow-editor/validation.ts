@@ -929,9 +929,251 @@ export function getValidationSummary(result: WorkflowValidationResult): string {
   return parts.join(', ');
 }
 
+/**
+ * Validate IO schema compatibility between connected nodes
+ */
+export interface IOCompatibilityResult {
+  isCompatible: boolean;
+  errors: IOCompatibilityError[];
+  warnings: IOCompatibilityWarning[];
+}
+
+export interface IOCompatibilityError {
+  sourceNodeId: string;
+  targetNodeId: string;
+  sourceOutput: string;
+  targetInput: string;
+  message: string;
+  code: string;
+}
+
+export interface IOCompatibilityWarning {
+  sourceNodeId: string;
+  targetNodeId: string;
+  sourceOutput: string;
+  targetInput: string;
+  message: string;
+  code: string;
+}
+
+/**
+ * Validate IO schema compatibility for a workflow
+ */
+export function validateIOCompatibility(
+  nodes: { id: string; type: string; data: WorkflowNodeData }[],
+  edges: { id: string; source: string; target: string }[]
+): IOCompatibilityResult {
+  const errors: IOCompatibilityError[] = [];
+  const warnings: IOCompatibilityWarning[] = [];
+
+  const nodeMap = new Map(nodes.map(n => [n.id, n]));
+
+  for (const edge of edges) {
+    const sourceNode = nodeMap.get(edge.source);
+    const targetNode = nodeMap.get(edge.target);
+
+    if (!sourceNode || !targetNode) continue;
+
+    // Skip non-data flow edges (start, end, annotation, group)
+    if (
+      sourceNode.type === 'annotation' ||
+      sourceNode.type === 'group' ||
+      targetNode.type === 'annotation' ||
+      targetNode.type === 'group'
+    ) {
+      continue;
+    }
+
+    // Get output schema from source node
+    const sourceOutputs = getNodeOutputs(sourceNode);
+    // Get input schema from target node
+    const targetInputs = getNodeInputs(targetNode);
+
+    // Check if target has required inputs that aren't provided by source
+    for (const [inputName, inputSchema] of Object.entries(targetInputs)) {
+      if (inputSchema.required && !sourceOutputs[inputName]) {
+        // Check if input has a default value
+        if (inputSchema.default === undefined) {
+          warnings.push({
+            sourceNodeId: edge.source,
+            targetNodeId: edge.target,
+            sourceOutput: '',
+            targetInput: inputName,
+            message: `Required input "${inputName}" may not be provided by upstream node`,
+            code: 'MISSING_INPUT',
+          });
+        }
+      }
+    }
+
+    // Check type compatibility for matching IO names
+    for (const [outputName, outputSchema] of Object.entries(sourceOutputs)) {
+      const matchingInput = targetInputs[outputName];
+      if (matchingInput) {
+        // Check type compatibility
+        if (!isTypeCompatible(outputSchema.type, matchingInput.type)) {
+          errors.push({
+            sourceNodeId: edge.source,
+            targetNodeId: edge.target,
+            sourceOutput: outputName,
+            targetInput: outputName,
+            message: `Type mismatch: "${outputName}" outputs ${outputSchema.type} but expects ${matchingInput.type}`,
+            code: 'TYPE_MISMATCH',
+          });
+        }
+      }
+    }
+  }
+
+  return {
+    isCompatible: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
+
+/**
+ * Get output schema from a node
+ */
+function getNodeOutputs(node: { type: string; data: WorkflowNodeData }): Record<string, { type: string; required?: boolean; default?: unknown }> {
+  const data = node.data as Record<string, unknown>;
+  
+  // Type-specific outputs
+  switch (node.type) {
+    case 'start':
+      return (data as StartNodeData).workflowInputs || {};
+    case 'ai':
+      return {
+        text: { type: 'string' },
+        usage: { type: 'object' },
+        ...(data as AINodeData).outputs,
+      };
+    case 'tool':
+    case 'code':
+    case 'transform':
+    case 'webhook':
+    case 'loop':
+    case 'merge':
+    case 'subworkflow':
+      return (data as { outputs?: Record<string, { type: string }> }).outputs || { result: { type: 'object' } };
+    case 'conditional':
+      return {
+        conditionResult: { type: 'boolean' },
+        ...(data as ConditionalNodeData).inputs,
+      };
+    case 'delay':
+      return { delayed: { type: 'boolean' } };
+    case 'human':
+      return {
+        approved: { type: 'boolean' },
+        ...(data as HumanNodeData).outputs,
+      };
+    case 'parallel':
+      return (data as ParallelNodeData).outputs || {};
+    default:
+      return {};
+  }
+}
+
+/**
+ * Get input schema from a node
+ */
+function getNodeInputs(node: { type: string; data: WorkflowNodeData }): Record<string, { type: string; required?: boolean; default?: unknown }> {
+  const data = node.data as Record<string, unknown>;
+  
+  switch (node.type) {
+    case 'end':
+      return (data as EndNodeData).workflowOutputs || {};
+    case 'ai':
+      return (data as AINodeData).inputs || {};
+    case 'tool':
+    case 'code':
+    case 'transform':
+    case 'webhook':
+    case 'loop':
+    case 'merge':
+    case 'subworkflow':
+      return (data as { inputs?: Record<string, { type: string }> }).inputs || {};
+    case 'conditional':
+      return (data as ConditionalNodeData).inputs || {};
+    case 'human':
+      return (data as HumanNodeData).inputs || {};
+    case 'parallel':
+      return (data as ParallelNodeData).inputs || {};
+    default:
+      return {};
+  }
+}
+
+/**
+ * Check if output type is compatible with input type
+ */
+function isTypeCompatible(outputType: string, inputType: string): boolean {
+  // Exact match
+  if (outputType === inputType) return true;
+  
+  // Allow any type to connect to 'object' (generic)
+  if (inputType === 'object') return true;
+  
+  // Allow 'object' to connect to 'array' (might be array)
+  if (outputType === 'object' && inputType === 'array') return true;
+  
+  // Allow string to connect to any (strings can be parsed)
+  if (outputType === 'string') return true;
+  
+  // Allow number and boolean interconversion
+  if (
+    (outputType === 'number' && inputType === 'boolean') ||
+    (outputType === 'boolean' && inputType === 'number')
+  ) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Validate complete workflow including structure and IO compatibility
+ */
+export function validateCompleteWorkflow(
+  nodes: { id: string; type: string; data: WorkflowNodeData }[],
+  edges: { id: string; source: string; target: string }[]
+): {
+  isValid: boolean;
+  structureValidation: WorkflowValidationResult;
+  ioValidation: IOCompatibilityResult;
+  summary: string;
+} {
+  const structureValidation = validateWorkflowStructure(nodes, edges);
+  const ioValidation = validateIOCompatibility(nodes, edges);
+
+  const isValid = structureValidation.isValid && ioValidation.isCompatible;
+  
+  const totalErrors = structureValidation.errors.length + ioValidation.errors.length;
+  const totalWarnings = structureValidation.warnings.length + ioValidation.warnings.length;
+  
+  let summary: string;
+  if (isValid && totalWarnings === 0) {
+    summary = 'Workflow is valid and ready to execute';
+  } else if (isValid) {
+    summary = `Workflow is valid with ${totalWarnings} warning(s)`;
+  } else {
+    summary = `Workflow has ${totalErrors} error(s) and ${totalWarnings} warning(s)`;
+  }
+
+  return {
+    isValid,
+    structureValidation,
+    ioValidation,
+    summary,
+  };
+}
+
 export const validationUtils = {
   validateNode,
   validateWorkflowStructure,
+  validateIOCompatibility,
+  validateCompleteWorkflow,
   getFieldError,
   getFieldWarning,
   hasFieldError,

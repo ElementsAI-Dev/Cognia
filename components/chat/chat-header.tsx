@@ -361,9 +361,10 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
                   variant="outline" 
                   className="gap-1.5 px-2 py-1 bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors cursor-pointer"
                 >
+                  { }
                   <span 
                     className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: linkedProject.color || '#3b82f6' }}
+                    style={{ backgroundColor: linkedProject.color || '#3b82f6' } as React.CSSProperties}
                   />
                   <span className="max-w-[80px] truncate text-xs font-medium">
                     {linkedProject.name}

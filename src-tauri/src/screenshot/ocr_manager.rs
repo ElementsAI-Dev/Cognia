@@ -94,7 +94,9 @@ impl OcrManager {
 
     /// Set provider configuration
     pub fn set_config(&self, config: OcrProviderConfig) {
-        self.configs.write().insert(config.provider_type.clone(), config);
+        self.configs
+            .write()
+            .insert(config.provider_type.clone(), config);
     }
 
     /// Get provider configuration
@@ -134,10 +136,7 @@ impl OcrManager {
 
         for (provider_type, provider) in providers {
             let available = provider.is_available().await;
-            let languages = provider
-                .get_supported_languages()
-                .await
-                .unwrap_or_default();
+            let languages = provider.get_supported_languages().await.unwrap_or_default();
 
             infos.push(OcrProviderInfo::new(provider_type, available, languages));
         }
@@ -224,11 +223,7 @@ impl OcrManager {
             {
                 Ok(result) => return Ok(result),
                 Err(e) => {
-                    log::warn!(
-                        "OCR provider {:?} failed: {}",
-                        provider_type,
-                        e.message
-                    );
+                    log::warn!("OCR provider {:?} failed: {}", provider_type, e.message);
                     last_error = Some(e);
                 }
             }
@@ -272,9 +267,8 @@ impl OcrManager {
             }
         }
 
-        Err(last_error.unwrap_or_else(|| {
-            OcrError::provider_unavailable("No OCR providers available")
-        }))
+        Err(last_error
+            .unwrap_or_else(|| OcrError::provider_unavailable("No OCR providers available")))
     }
 
     /// Clear the result cache
@@ -324,13 +318,16 @@ mod tests {
         assert_eq!(manager.get_default_provider(), OcrProviderType::WindowsOcr);
 
         manager.set_default_provider(OcrProviderType::GoogleVision);
-        assert_eq!(manager.get_default_provider(), OcrProviderType::GoogleVision);
+        assert_eq!(
+            manager.get_default_provider(),
+            OcrProviderType::GoogleVision
+        );
     }
 
     #[test]
     fn test_ocr_manager_config() {
         let manager = OcrManager::new();
-        
+
         let config = OcrProviderConfig {
             provider_type: OcrProviderType::GoogleVision,
             enabled: true,
@@ -340,7 +337,7 @@ mod tests {
 
         manager.set_config(config.clone());
         let retrieved = manager.get_config(&OcrProviderType::GoogleVision);
-        
+
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().api_key, Some("test_key".to_string()));
     }

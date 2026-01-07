@@ -15,17 +15,25 @@ export default function SelectionToolbarLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="bg-transparent overflow-hidden">
+    <html lang="en" suppressHydrationWarning className="dark">
+      <body className="min-h-screen w-full overflow-auto bg-transparent">
+        {/* 
+          Selection toolbar window layout:
+          - Dark theme for the floating toolbar appearance
+          - Transparent background so Tauri window shadow works
+          - Full window sizing to display toolbar content properly
+          - Scrollable in debug mode where window is larger
+        */}
         <I18nProvider>
           <ThemeProvider
             attribute="class"
-            defaultTheme="system"
-            enableSystem
+            defaultTheme="dark"
             disableTransitionOnChange
           >
             <TooltipProvider delayDuration={0}>
-              {children}
+              <main className="flex min-h-screen w-full items-start justify-center p-3">
+                {children}
+              </main>
             </TooltipProvider>
           </ThemeProvider>
         </I18nProvider>

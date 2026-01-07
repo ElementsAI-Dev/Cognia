@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Palette,
   Monitor,
+  Presentation,
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -35,6 +36,14 @@ interface SidebarQuickActionsProps {
 }
 
 const quickActions: QuickAction[] = [
+  {
+    id: 'ppt-studio',
+    label: 'pptStudio',
+    icon: <Presentation className="h-4 w-4" />,
+    href: '/ppt',
+    color: 'text-orange-500',
+    description: 'pptStudioDesc',
+  },
   {
     id: 'image-studio',
     label: 'imageStudio',

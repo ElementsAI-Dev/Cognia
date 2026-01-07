@@ -15,6 +15,7 @@ import { useChatWidgetStore } from "@/stores/chat";
 import { ChatAssistantFab } from "./chat-assistant-fab";
 import { ChatAssistantPanel } from "./chat-assistant-panel";
 import { useFloatingPosition, useDraggableFab, type FabPosition } from "@/hooks/chat";
+import { isTauri as detectTauri } from "@/lib/native/utils";
 
 interface ChatAssistantContainerProps {
   defaultPosition?: FabPosition;
@@ -46,7 +47,7 @@ export function ChatAssistantContainer({
     
     // Check if running in Tauri
     const checkTauri = () => {
-      const hasTauri = typeof window !== "undefined" && !!window.__TAURI__;
+      const hasTauri = detectTauri() || (typeof window !== "undefined" && !!(window as typeof window & { __TAURI__?: unknown }).__TAURI__);
       console.log("[ChatAssistantContainer] Tauri check:", { hasTauri, pathname: window.location.pathname });
       setIsTauri(hasTauri);
     };

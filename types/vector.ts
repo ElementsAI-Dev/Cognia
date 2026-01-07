@@ -53,6 +53,8 @@ export interface VectorSettings {
   chunkSize: number;
   chunkOverlap: number;
   autoEmbed: boolean;
+  /** Default collection name for RAG searches when not specified */
+  defaultCollectionName?: string;
 }
 
 export interface VectorSearchResult {

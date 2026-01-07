@@ -1,4 +1,4 @@
-﻿//! MCP type definitions
+//! MCP type definitions
 //!
 //! Core types for MCP protocol entities and configuration
 
@@ -332,9 +332,7 @@ pub enum ContentItem {
     Image { data: String, mime_type: String },
 
     #[serde(rename = "resource")]
-    Resource {
-        resource: EmbeddedResource,
-    },
+    Resource { resource: EmbeddedResource },
 }
 
 /// Embedded resource in content
@@ -615,7 +613,10 @@ pub enum McpNotification {
     Cancelled(CancelledNotification),
 
     /// Unknown notification
-    Unknown { method: String, params: Option<serde_json::Value> },
+    Unknown {
+        method: String,
+        params: Option<serde_json::Value>,
+    },
 }
 
 // ============================================================================
@@ -764,18 +765,39 @@ mod tests {
 
     #[test]
     fn test_log_level_serialization() {
-        assert_eq!(serde_json::to_string(&LogLevel::Debug).unwrap(), "\"debug\"");
+        assert_eq!(
+            serde_json::to_string(&LogLevel::Debug).unwrap(),
+            "\"debug\""
+        );
         assert_eq!(serde_json::to_string(&LogLevel::Info).unwrap(), "\"info\"");
-        assert_eq!(serde_json::to_string(&LogLevel::Warning).unwrap(), "\"warning\"");
-        assert_eq!(serde_json::to_string(&LogLevel::Error).unwrap(), "\"error\"");
+        assert_eq!(
+            serde_json::to_string(&LogLevel::Warning).unwrap(),
+            "\"warning\""
+        );
+        assert_eq!(
+            serde_json::to_string(&LogLevel::Error).unwrap(),
+            "\"error\""
+        );
     }
 
     #[test]
     fn test_log_level_deserialization() {
-        assert_eq!(serde_json::from_str::<LogLevel>("\"debug\"").unwrap(), LogLevel::Debug);
-        assert_eq!(serde_json::from_str::<LogLevel>("\"info\"").unwrap(), LogLevel::Info);
-        assert_eq!(serde_json::from_str::<LogLevel>("\"warning\"").unwrap(), LogLevel::Warning);
-        assert_eq!(serde_json::from_str::<LogLevel>("\"error\"").unwrap(), LogLevel::Error);
+        assert_eq!(
+            serde_json::from_str::<LogLevel>("\"debug\"").unwrap(),
+            LogLevel::Debug
+        );
+        assert_eq!(
+            serde_json::from_str::<LogLevel>("\"info\"").unwrap(),
+            LogLevel::Info
+        );
+        assert_eq!(
+            serde_json::from_str::<LogLevel>("\"warning\"").unwrap(),
+            LogLevel::Warning
+        );
+        assert_eq!(
+            serde_json::from_str::<LogLevel>("\"error\"").unwrap(),
+            LogLevel::Error
+        );
     }
 
     #[test]
@@ -845,11 +867,26 @@ mod tests {
 
     #[test]
     fn test_tool_call_state_serialization() {
-        assert_eq!(serde_json::to_string(&ToolCallState::Pending).unwrap(), "\"pending\"");
-        assert_eq!(serde_json::to_string(&ToolCallState::Running).unwrap(), "\"running\"");
-        assert_eq!(serde_json::to_string(&ToolCallState::Completed).unwrap(), "\"completed\"");
-        assert_eq!(serde_json::to_string(&ToolCallState::Failed).unwrap(), "\"failed\"");
-        assert_eq!(serde_json::to_string(&ToolCallState::Cancelled).unwrap(), "\"cancelled\"");
+        assert_eq!(
+            serde_json::to_string(&ToolCallState::Pending).unwrap(),
+            "\"pending\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ToolCallState::Running).unwrap(),
+            "\"running\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ToolCallState::Completed).unwrap(),
+            "\"completed\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ToolCallState::Failed).unwrap(),
+            "\"failed\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ToolCallState::Cancelled).unwrap(),
+            "\"cancelled\""
+        );
     }
 
     // ============================================================================
@@ -1332,14 +1369,26 @@ mod tests {
 
     #[test]
     fn test_connection_type_serialization() {
-        assert_eq!(serde_json::to_string(&McpConnectionType::Stdio).unwrap(), "\"stdio\"");
-        assert_eq!(serde_json::to_string(&McpConnectionType::Sse).unwrap(), "\"sse\"");
+        assert_eq!(
+            serde_json::to_string(&McpConnectionType::Stdio).unwrap(),
+            "\"stdio\""
+        );
+        assert_eq!(
+            serde_json::to_string(&McpConnectionType::Sse).unwrap(),
+            "\"sse\""
+        );
     }
 
     #[test]
     fn test_connection_type_deserialization() {
-        assert_eq!(serde_json::from_str::<McpConnectionType>("\"stdio\"").unwrap(), McpConnectionType::Stdio);
-        assert_eq!(serde_json::from_str::<McpConnectionType>("\"sse\"").unwrap(), McpConnectionType::Sse);
+        assert_eq!(
+            serde_json::from_str::<McpConnectionType>("\"stdio\"").unwrap(),
+            McpConnectionType::Stdio
+        );
+        assert_eq!(
+            serde_json::from_str::<McpConnectionType>("\"sse\"").unwrap(),
+            McpConnectionType::Sse
+        );
     }
 
     // ============================================================================
@@ -1670,12 +1719,16 @@ mod tests {
     #[test]
     fn test_server_capabilities_full() {
         let caps = ServerCapabilities {
-            tools: Some(ToolsCapability { list_changed: Some(true) }),
+            tools: Some(ToolsCapability {
+                list_changed: Some(true),
+            }),
             resources: Some(ResourcesCapability {
                 subscribe: Some(true),
                 list_changed: Some(true),
             }),
-            prompts: Some(PromptsCapability { list_changed: Some(true) }),
+            prompts: Some(PromptsCapability {
+                list_changed: Some(true),
+            }),
             sampling: Some(SamplingCapability {}),
             logging: Some(LoggingCapability {}),
         };
@@ -1714,8 +1767,14 @@ mod tests {
 
     #[test]
     fn test_sampling_role_serialization() {
-        assert_eq!(serde_json::to_string(&SamplingRole::User).unwrap(), "\"user\"");
-        assert_eq!(serde_json::to_string(&SamplingRole::Assistant).unwrap(), "\"assistant\"");
+        assert_eq!(
+            serde_json::to_string(&SamplingRole::User).unwrap(),
+            "\"user\""
+        );
+        assert_eq!(
+            serde_json::to_string(&SamplingRole::Assistant).unwrap(),
+            "\"assistant\""
+        );
     }
 
     #[test]
@@ -1796,8 +1855,14 @@ mod tests {
 
     #[test]
     fn test_prompt_role_serialization() {
-        assert_eq!(serde_json::to_string(&PromptRole::User).unwrap(), "\"user\"");
-        assert_eq!(serde_json::to_string(&PromptRole::Assistant).unwrap(), "\"assistant\"");
+        assert_eq!(
+            serde_json::to_string(&PromptRole::User).unwrap(),
+            "\"user\""
+        );
+        assert_eq!(
+            serde_json::to_string(&PromptRole::Assistant).unwrap(),
+            "\"assistant\""
+        );
     }
 
     // ============================================================================

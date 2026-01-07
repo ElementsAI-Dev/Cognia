@@ -3,9 +3,9 @@
 //! Provides intelligent content analysis, pattern recognition, and context-aware
 //! clipboard operations.
 
-use serde::{Deserialize, Serialize};
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Content category detected from clipboard
@@ -146,45 +146,39 @@ pub struct FormattingHints {
 }
 
 // Lazy-initialized regex patterns
-static URL_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"https?://[^\s<>"']+|www\.[^\s<>"']+"#).unwrap()
-});
+static URL_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"https?://[^\s<>"']+|www\.[^\s<>"']+"#).unwrap());
 
-static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").unwrap()
-});
+static EMAIL_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").unwrap());
 
 static PHONE_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(\+?\d{1,3}[-\.\s]?)?\(?\d{3}\)?[-\.\s]?\d{3}[-\.\s]?\d{4}").unwrap()
 });
 
-static FILE_PATH_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"(?:[A-Za-z]:)?(?:[/\\][^/\\:\*\?"<>\|]+)+"#).unwrap()
-});
+static FILE_PATH_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"(?:[A-Za-z]:)?(?:[/\\][^/\\:\*\?"<>\|]+)+"#).unwrap());
 
-static HEX_COLOR_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"#(?:[0-9a-fA-F]{3}){1,2}\b|#(?:[0-9a-fA-F]{4}){1,2}\b").unwrap()
-});
+static HEX_COLOR_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"#(?:[0-9a-fA-F]{3}){1,2}\b|#(?:[0-9a-fA-F]{4}){1,2}\b").unwrap());
 
 static RGB_COLOR_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"rgba?\s*\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(?:,\s*[\d.]+\s*)?\)").unwrap()
 });
 
 static UUID_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}").unwrap()
+    Regex::new(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+        .unwrap()
 });
 
-static IP_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"\b(?:\d{1,3}\.){3}\d{1,3}\b").unwrap()
-});
+static IP_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\b(?:\d{1,3}\.){3}\d{1,3}\b").unwrap());
 
 static DATETIME_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2})?|\d{2}/\d{2}/\d{4}").unwrap()
 });
 
-static CREDIT_CARD_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"\b(?:\d{4}[-\s]?){3}\d{4}\b").unwrap()
-});
+static CREDIT_CARD_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\b(?:\d{4}[-\s]?){3}\d{4}\b").unwrap());
 
 /// Clipboard context analyzer
 pub struct ClipboardContextAnalyzer {
@@ -195,81 +189,201 @@ impl ClipboardContextAnalyzer {
     pub fn new() -> Self {
         log::debug!("[ClipboardContextAnalyzer] Creating new instance");
         let mut language_patterns: HashMap<DetectedLanguage, Vec<&'static str>> = HashMap::new();
-        
-        language_patterns.insert(DetectedLanguage::JavaScript, vec![
-            "const ", "let ", "var ", "function ", "=> ", "async ", "await ",
-            "import ", "export ", "require(", "module.exports", ".then(",
-            "console.log", "document.", "window.",
-        ]);
-        
-        language_patterns.insert(DetectedLanguage::TypeScript, vec![
-            "interface ", "type ", ": string", ": number", ": boolean",
-            ": void", "<T>", "as ", "readonly ", "enum ",
-        ]);
-        
-        language_patterns.insert(DetectedLanguage::Python, vec![
-            "def ", "class ", "import ", "from ", "if __name__",
-            "self.", "elif ", "except:", "lambda ", "print(",
-            "async def ", "await ", "__init__",
-        ]);
-        
-        language_patterns.insert(DetectedLanguage::Rust, vec![
-            "fn ", "let ", "mut ", "impl ", "struct ", "enum ",
-            "pub ", "use ", "mod ", "&str", "Vec<", "Option<",
-            "Result<", "match ", "->", "::",
-        ]);
-        
-        language_patterns.insert(DetectedLanguage::Go, vec![
-            "func ", "package ", "import ", "type ", "struct {",
-            "interface {", "go ", "defer ", "chan ", ":= ",
-            "fmt.", "err != nil",
-        ]);
-        
-        language_patterns.insert(DetectedLanguage::Java, vec![
-            "public class", "private ", "protected ", "void ",
-            "System.out", "new ", "extends ", "implements ",
-            "@Override", "package ", "import java.",
-        ]);
-        
-        language_patterns.insert(DetectedLanguage::CSharp, vec![
-            "public class", "private ", "protected ", "void ",
-            "Console.", "new ", "using ", "namespace ",
-            "async Task", "await ", "var ", "=>",
-        ]);
-        
-        language_patterns.insert(DetectedLanguage::Sql, vec![
-            "SELECT ", "FROM ", "WHERE ", "INSERT ", "UPDATE ",
-            "DELETE ", "CREATE ", "DROP ", "ALTER ", "JOIN ",
-            "GROUP BY", "ORDER BY", "HAVING ",
-        ]);
-        
-        language_patterns.insert(DetectedLanguage::Html, vec![
-            "<html", "<head", "<body", "<div", "<span", "<a ",
-            "<script", "<style", "<link", "</", "/>",
-        ]);
-        
-        language_patterns.insert(DetectedLanguage::Css, vec![
-            "margin:", "padding:", "display:", "color:", "background:",
-            "font-", "border:", "width:", "height:", "@media",
-            "flex", "grid", "position:",
-        ]);
-        
-        language_patterns.insert(DetectedLanguage::Shell, vec![
-            "#!/bin/bash", "#!/bin/sh", "echo ", "export ", "source ",
-            "$HOME", "$PATH", "if [", "fi", "done", "for ",
-        ]);
-        
-        language_patterns.insert(DetectedLanguage::PowerShell, vec![
-            "$_", "Get-", "Set-", "New-", "Remove-", "Write-Host",
-            "Invoke-", "param(", "[CmdletBinding", "$PSScriptRoot",
-        ]);
+
+        language_patterns.insert(
+            DetectedLanguage::JavaScript,
+            vec![
+                "const ",
+                "let ",
+                "var ",
+                "function ",
+                "=> ",
+                "async ",
+                "await ",
+                "import ",
+                "export ",
+                "require(",
+                "module.exports",
+                ".then(",
+                "console.log",
+                "document.",
+                "window.",
+            ],
+        );
+
+        language_patterns.insert(
+            DetectedLanguage::TypeScript,
+            vec![
+                "interface ",
+                "type ",
+                ": string",
+                ": number",
+                ": boolean",
+                ": void",
+                "<T>",
+                "as ",
+                "readonly ",
+                "enum ",
+            ],
+        );
+
+        language_patterns.insert(
+            DetectedLanguage::Python,
+            vec![
+                "def ",
+                "class ",
+                "import ",
+                "from ",
+                "if __name__",
+                "self.",
+                "elif ",
+                "except:",
+                "lambda ",
+                "print(",
+                "async def ",
+                "await ",
+                "__init__",
+            ],
+        );
+
+        language_patterns.insert(
+            DetectedLanguage::Rust,
+            vec![
+                "fn ", "let ", "mut ", "impl ", "struct ", "enum ", "pub ", "use ", "mod ", "&str",
+                "Vec<", "Option<", "Result<", "match ", "->", "::",
+            ],
+        );
+
+        language_patterns.insert(
+            DetectedLanguage::Go,
+            vec![
+                "func ",
+                "package ",
+                "import ",
+                "type ",
+                "struct {",
+                "interface {",
+                "go ",
+                "defer ",
+                "chan ",
+                ":= ",
+                "fmt.",
+                "err != nil",
+            ],
+        );
+
+        language_patterns.insert(
+            DetectedLanguage::Java,
+            vec![
+                "public class",
+                "private ",
+                "protected ",
+                "void ",
+                "System.out",
+                "new ",
+                "extends ",
+                "implements ",
+                "@Override",
+                "package ",
+                "import java.",
+            ],
+        );
+
+        language_patterns.insert(
+            DetectedLanguage::CSharp,
+            vec![
+                "public class",
+                "private ",
+                "protected ",
+                "void ",
+                "Console.",
+                "new ",
+                "using ",
+                "namespace ",
+                "async Task",
+                "await ",
+                "var ",
+                "=>",
+            ],
+        );
+
+        language_patterns.insert(
+            DetectedLanguage::Sql,
+            vec![
+                "SELECT ", "FROM ", "WHERE ", "INSERT ", "UPDATE ", "DELETE ", "CREATE ", "DROP ",
+                "ALTER ", "JOIN ", "GROUP BY", "ORDER BY", "HAVING ",
+            ],
+        );
+
+        language_patterns.insert(
+            DetectedLanguage::Html,
+            vec![
+                "<html", "<head", "<body", "<div", "<span", "<a ", "<script", "<style", "<link",
+                "</", "/>",
+            ],
+        );
+
+        language_patterns.insert(
+            DetectedLanguage::Css,
+            vec![
+                "margin:",
+                "padding:",
+                "display:",
+                "color:",
+                "background:",
+                "font-",
+                "border:",
+                "width:",
+                "height:",
+                "@media",
+                "flex",
+                "grid",
+                "position:",
+            ],
+        );
+
+        language_patterns.insert(
+            DetectedLanguage::Shell,
+            vec![
+                "#!/bin/bash",
+                "#!/bin/sh",
+                "echo ",
+                "export ",
+                "source ",
+                "$HOME",
+                "$PATH",
+                "if [",
+                "fi",
+                "done",
+                "for ",
+            ],
+        );
+
+        language_patterns.insert(
+            DetectedLanguage::PowerShell,
+            vec![
+                "$_",
+                "Get-",
+                "Set-",
+                "New-",
+                "Remove-",
+                "Write-Host",
+                "Invoke-",
+                "param(",
+                "[CmdletBinding",
+                "$PSScriptRoot",
+            ],
+        );
 
         Self { language_patterns }
     }
 
     /// Analyze clipboard content and return detailed analysis
     pub fn analyze(&self, content: &str) -> ClipboardAnalysis {
-        log::debug!("[ClipboardContextAnalyzer] Analyzing {} chars", content.len());
+        log::debug!(
+            "[ClipboardContextAnalyzer] Analyzing {} chars",
+            content.len()
+        );
         let stats = self.compute_stats(content);
         let entities = self.extract_entities(content);
         let (category, secondary, confidence) = self.detect_category(content, &entities);
@@ -298,17 +412,17 @@ impl ClipboardContextAnalyzer {
         let char_count = content.chars().count();
         let word_count = content.split_whitespace().count();
         let line_count = content.lines().count().max(1);
-        let has_unicode = content.chars().any(|c| !c.is_ascii());
+        let has_unicode = !content.is_ascii();
         let has_emoji = content.chars().any(|c| {
             let code = c as u32;
             (0x1F600..=0x1F64F).contains(&code) || // Emoticons
             (0x1F300..=0x1F5FF).contains(&code) || // Symbols
             (0x1F680..=0x1F6FF).contains(&code) || // Transport
-            (0x2600..=0x26FF).contains(&code)      // Misc symbols
+            (0x2600..=0x26FF).contains(&code) // Misc symbols
         });
-        let has_whitespace_only_lines = content.lines().any(|line| {
-            !line.is_empty() && line.chars().all(|c| c.is_whitespace())
-        });
+        let has_whitespace_only_lines = content
+            .lines()
+            .any(|line| !line.is_empty() && line.chars().all(|c| c.is_whitespace()));
 
         ContentStats {
             char_count,
@@ -321,7 +435,10 @@ impl ClipboardContextAnalyzer {
     }
 
     fn extract_entities(&self, content: &str) -> Vec<ExtractedEntity> {
-        log::debug!("[ClipboardContextAnalyzer] Extracting entities from {} chars", content.len());
+        log::debug!(
+            "[ClipboardContextAnalyzer] Extracting entities from {} chars",
+            content.len()
+        );
         let mut entities = Vec::new();
 
         // Extract URLs
@@ -404,7 +521,10 @@ impl ClipboardContextAnalyzer {
 
         // Sort by position
         entities.sort_by_key(|e| e.start);
-        log::debug!("[ClipboardContextAnalyzer] Extracted {} entities", entities.len());
+        log::debug!(
+            "[ClipboardContextAnalyzer] Extracted {} entities",
+            entities.len()
+        );
         entities
     }
 
@@ -413,47 +533,67 @@ impl ClipboardContextAnalyzer {
         content: &str,
         entities: &[ExtractedEntity],
     ) -> (ContentCategory, Vec<ContentCategory>, f32) {
-        log::debug!("[ClipboardContextAnalyzer] Detecting category for {} chars", content.len());
+        log::debug!(
+            "[ClipboardContextAnalyzer] Detecting category for {} chars",
+            content.len()
+        );
         let trimmed = content.trim();
         let mut scores: HashMap<ContentCategory, f32> = HashMap::new();
 
         // Check for JSON
-        if (trimmed.starts_with('{') && trimmed.ends_with('}'))
-            || (trimmed.starts_with('[') && trimmed.ends_with(']'))
+        if ((trimmed.starts_with('{') && trimmed.ends_with('}'))
+            || (trimmed.starts_with('[') && trimmed.ends_with(']')))
+            && serde_json::from_str::<serde_json::Value>(trimmed).is_ok()
         {
-            if serde_json::from_str::<serde_json::Value>(trimmed).is_ok() {
-                scores.insert(ContentCategory::Json, 1.0);
-            }
+            scores.insert(ContentCategory::Json, 1.0);
         }
 
         // Check for HTML/XML
         if trimmed.starts_with('<') && trimmed.contains('>') {
             let html_tags = ["html", "div", "span", "body", "head", "p", "a", "script"];
-            if html_tags.iter().any(|tag| trimmed.contains(&format!("<{}", tag))) {
+            if html_tags
+                .iter()
+                .any(|tag| trimmed.contains(&format!("<{}", tag)))
+            {
                 scores.insert(ContentCategory::Markup, 0.9);
             }
         }
 
         // Check for Markdown
-        let md_patterns = ["# ", "## ", "```", "**", "__", "- [ ]", "- [x]", "[](", "![]("];
+        let md_patterns = [
+            "# ", "## ", "```", "**", "__", "- [ ]", "- [x]", "[](", "![](",
+        ];
         let md_count = md_patterns.iter().filter(|p| content.contains(*p)).count();
         if md_count >= 2 {
-            scores.insert(ContentCategory::Markdown, 0.8 + (md_count as f32 * 0.02).min(0.15));
+            scores.insert(
+                ContentCategory::Markdown,
+                0.8 + (md_count as f32 * 0.02).min(0.15),
+            );
         }
 
         // Check for SQL
-        let sql_keywords = ["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER"];
+        let sql_keywords = [
+            "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER",
+        ];
         let upper = content.to_uppercase();
         let sql_count = sql_keywords.iter().filter(|k| upper.contains(*k)).count();
         if sql_count >= 2 {
-            scores.insert(ContentCategory::Sql, 0.7 + (sql_count as f32 * 0.05).min(0.25));
+            scores.insert(
+                ContentCategory::Sql,
+                0.7 + (sql_count as f32 * 0.05).min(0.25),
+            );
         }
 
         // Check for command line
-        if trimmed.starts_with('$') || trimmed.starts_with('>') || trimmed.starts_with("sudo ") 
-            || trimmed.starts_with("npm ") || trimmed.starts_with("pnpm ")
-            || trimmed.starts_with("yarn ") || trimmed.starts_with("cargo ")
-            || trimmed.starts_with("git ") || trimmed.starts_with("cd ")
+        if trimmed.starts_with('$')
+            || trimmed.starts_with('>')
+            || trimmed.starts_with("sudo ")
+            || trimmed.starts_with("npm ")
+            || trimmed.starts_with("pnpm ")
+            || trimmed.starts_with("yarn ")
+            || trimmed.starts_with("cargo ")
+            || trimmed.starts_with("git ")
+            || trimmed.starts_with("cd ")
         {
             scores.insert(ContentCategory::Command, 0.85);
         }
@@ -471,7 +611,10 @@ impl ClipboardContextAnalyzer {
             if url_entity.value.len() as f32 / trimmed.len() as f32 > 0.8 {
                 scores.insert(ContentCategory::Url, 0.95);
             } else {
-                scores.insert(ContentCategory::Url, 0.5 + (url_count as f32 * 0.1).min(0.3));
+                scores.insert(
+                    ContentCategory::Url,
+                    0.5 + (url_count as f32 * 0.1).min(0.3),
+                );
             }
         }
 
@@ -484,7 +627,10 @@ impl ClipboardContextAnalyzer {
         }
 
         if color_count > 0 {
-            scores.insert(ContentCategory::Color, 0.6 + (color_count as f32 * 0.1).min(0.3));
+            scores.insert(
+                ContentCategory::Color,
+                0.6 + (color_count as f32 * 0.1).min(0.3),
+            );
         }
 
         if uuid_count > 0 {
@@ -501,10 +647,18 @@ impl ClipboardContextAnalyzer {
         }
 
         // Check for code (generic)
-        let code_indicators = [";", "{", "}", "()", "=>", "->", "//", "/*", "*/", "===", "!=="];
-        let code_count = code_indicators.iter().filter(|i| content.contains(*i)).count();
+        let code_indicators = [
+            ";", "{", "}", "()", "=>", "->", "//", "/*", "*/", "===", "!==",
+        ];
+        let code_count = code_indicators
+            .iter()
+            .filter(|i| content.contains(*i))
+            .count();
         if code_count >= 3 {
-            scores.insert(ContentCategory::Code, 0.6 + (code_count as f32 * 0.03).min(0.3));
+            scores.insert(
+                ContentCategory::Code,
+                0.6 + (code_count as f32 * 0.03).min(0.3),
+            );
         }
 
         // Check for structured data (CSV/TSV)
@@ -527,7 +681,8 @@ impl ClipboardContextAnalyzer {
 
         // Default to plain text or natural text
         if scores.is_empty() {
-            let word_ratio = content.split_whitespace().count() as f32 / content.len().max(1) as f32;
+            let word_ratio =
+                content.split_whitespace().count() as f32 / content.len().max(1) as f32;
             if word_ratio > 0.1 && content.len() > 50 {
                 scores.insert(ContentCategory::NaturalText, 0.7);
             } else {
@@ -539,7 +694,10 @@ impl ClipboardContextAnalyzer {
         let mut sorted: Vec<_> = scores.iter().collect();
         sorted.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
 
-        let primary = sorted.first().map(|(c, _)| (*c).clone()).unwrap_or(ContentCategory::Unknown);
+        let primary = sorted
+            .first()
+            .map(|(c, _)| (*c).clone())
+            .unwrap_or(ContentCategory::Unknown);
         let confidence = sorted.first().map(|(_, s)| **s).unwrap_or(0.0);
         let secondary: Vec<ContentCategory> = sorted
             .iter()
@@ -548,13 +706,27 @@ impl ClipboardContextAnalyzer {
             .map(|(c, _)| (*c).clone())
             .collect();
 
-        log::debug!("[ClipboardContextAnalyzer] Detected category: {:?} with confidence: {}", primary, confidence);
+        log::debug!(
+            "[ClipboardContextAnalyzer] Detected category: {:?} with confidence: {}",
+            primary,
+            confidence
+        );
         (primary, secondary, confidence)
     }
 
-    fn detect_language(&self, content: &str, category: &ContentCategory) -> Option<DetectedLanguage> {
-        log::debug!("[ClipboardContextAnalyzer] Detecting language for {} chars", content.len());
-        if !matches!(category, ContentCategory::Code | ContentCategory::Markup | ContentCategory::Sql) {
+    fn detect_language(
+        &self,
+        content: &str,
+        category: &ContentCategory,
+    ) -> Option<DetectedLanguage> {
+        log::debug!(
+            "[ClipboardContextAnalyzer] Detecting language for {} chars",
+            content.len()
+        );
+        if !matches!(
+            category,
+            ContentCategory::Code | ContentCategory::Markup | ContentCategory::Sql
+        ) {
             return None;
         }
 
@@ -567,11 +739,17 @@ impl ClipboardContextAnalyzer {
             }
         }
 
-        scores.into_iter().max_by_key(|(_, count)| *count).map(|(lang, _)| lang)
+        scores
+            .into_iter()
+            .max_by_key(|(_, count)| *count)
+            .map(|(lang, _)| lang)
     }
 
     fn check_sensitive(&self, content: &str) -> bool {
-        log::debug!("[ClipboardContextAnalyzer] Checking for sensitive content in {} chars", content.len());
+        log::debug!(
+            "[ClipboardContextAnalyzer] Checking for sensitive content in {} chars",
+            content.len()
+        );
         // Check for credit card patterns
         if CREDIT_CARD_REGEX.is_match(content) {
             return true;
@@ -579,8 +757,15 @@ impl ClipboardContextAnalyzer {
 
         // Check for password-like patterns
         let sensitive_keywords = [
-            "password", "passwd", "secret", "api_key", "apikey",
-            "private_key", "access_token", "bearer", "authorization",
+            "password",
+            "passwd",
+            "secret",
+            "api_key",
+            "apikey",
+            "private_key",
+            "access_token",
+            "bearer",
+            "authorization",
         ];
         let lower = content.to_lowercase();
         if sensitive_keywords.iter().any(|k| lower.contains(k)) {
@@ -596,7 +781,10 @@ impl ClipboardContextAnalyzer {
         entities: &[ExtractedEntity],
         language: &Option<DetectedLanguage>,
     ) -> Vec<SuggestedAction> {
-        log::debug!("[ClipboardContextAnalyzer] Generating actions for {} entities", entities.len());
+        log::debug!(
+            "[ClipboardContextAnalyzer] Generating actions for {} entities",
+            entities.len()
+        );
         let mut actions = Vec::new();
 
         // Base copy action
@@ -708,24 +896,22 @@ impl ClipboardContextAnalyzer {
         }
 
         // Language-specific actions
-        if let Some(lang) = language {
-            match lang {
-                DetectedLanguage::Json => {
-                    actions.push(SuggestedAction {
-                        action_id: "validate_json".to_string(),
-                        label: "Validate JSON".to_string(),
-                        description: "Check JSON syntax".to_string(),
-                        icon: Some("check".to_string()),
-                        priority: 85,
-                    });
-                }
-                _ => {}
-            }
+        if let Some(DetectedLanguage::Json) = language {
+            actions.push(SuggestedAction {
+                action_id: "validate_json".to_string(),
+                label: "Validate JSON".to_string(),
+                description: "Check JSON syntax".to_string(),
+                icon: Some("check".to_string()),
+                priority: 85,
+            });
         }
 
         // Sort by priority
         actions.sort_by(|a, b| b.priority.cmp(&a.priority));
-        log::debug!("[ClipboardContextAnalyzer] Generated {} actions", actions.len());
+        log::debug!(
+            "[ClipboardContextAnalyzer] Generated {} actions",
+            actions.len()
+        );
         actions
     }
 
@@ -735,37 +921,46 @@ impl ClipboardContextAnalyzer {
         language: &Option<DetectedLanguage>,
         stats: &ContentStats,
     ) -> FormattingHints {
-        log::debug!("[ClipboardContextAnalyzer] Computing formatting hints for {} chars", stats.char_count);
+        log::debug!(
+            "[ClipboardContextAnalyzer] Computing formatting hints for {} chars",
+            stats.char_count
+        );
         let syntax_highlight = matches!(
             category,
-            ContentCategory::Code | ContentCategory::Json | ContentCategory::Sql |
-            ContentCategory::Markup | ContentCategory::Markdown
+            ContentCategory::Code
+                | ContentCategory::Json
+                | ContentCategory::Sql
+                | ContentCategory::Markup
+                | ContentCategory::Markdown
         );
 
-        let language_hint = language.as_ref().map(|l| match l {
-            DetectedLanguage::JavaScript => "javascript",
-            DetectedLanguage::TypeScript => "typescript",
-            DetectedLanguage::Python => "python",
-            DetectedLanguage::Rust => "rust",
-            DetectedLanguage::Go => "go",
-            DetectedLanguage::Java => "java",
-            DetectedLanguage::CSharp => "csharp",
-            DetectedLanguage::Cpp => "cpp",
-            DetectedLanguage::Ruby => "ruby",
-            DetectedLanguage::Php => "php",
-            DetectedLanguage::Swift => "swift",
-            DetectedLanguage::Kotlin => "kotlin",
-            DetectedLanguage::Sql => "sql",
-            DetectedLanguage::Html => "html",
-            DetectedLanguage::Css => "css",
-            DetectedLanguage::Json => "json",
-            DetectedLanguage::Yaml => "yaml",
-            DetectedLanguage::Toml => "toml",
-            DetectedLanguage::Markdown => "markdown",
-            DetectedLanguage::Shell => "bash",
-            DetectedLanguage::PowerShell => "powershell",
-            DetectedLanguage::Unknown => "text",
-        }.to_string());
+        let language_hint = language.as_ref().map(|l| {
+            match l {
+                DetectedLanguage::JavaScript => "javascript",
+                DetectedLanguage::TypeScript => "typescript",
+                DetectedLanguage::Python => "python",
+                DetectedLanguage::Rust => "rust",
+                DetectedLanguage::Go => "go",
+                DetectedLanguage::Java => "java",
+                DetectedLanguage::CSharp => "csharp",
+                DetectedLanguage::Cpp => "cpp",
+                DetectedLanguage::Ruby => "ruby",
+                DetectedLanguage::Php => "php",
+                DetectedLanguage::Swift => "swift",
+                DetectedLanguage::Kotlin => "kotlin",
+                DetectedLanguage::Sql => "sql",
+                DetectedLanguage::Html => "html",
+                DetectedLanguage::Css => "css",
+                DetectedLanguage::Json => "json",
+                DetectedLanguage::Yaml => "yaml",
+                DetectedLanguage::Toml => "toml",
+                DetectedLanguage::Markdown => "markdown",
+                DetectedLanguage::Shell => "bash",
+                DetectedLanguage::PowerShell => "powershell",
+                DetectedLanguage::Unknown => "text",
+            }
+            .to_string()
+        });
 
         let preserve_whitespace = matches!(
             category,
@@ -777,52 +972,53 @@ impl ClipboardContextAnalyzer {
             language_hint,
             preserve_whitespace,
             is_multiline: stats.line_count > 1,
-            max_preview_lines: if stats.line_count > 10 { 10 } else { stats.line_count },
+            max_preview_lines: if stats.line_count > 10 {
+                10
+            } else {
+                stats.line_count
+            },
         }
     }
 
     /// Transform content based on action
     pub fn transform(&self, content: &str, action: &str) -> Result<String, String> {
-        log::debug!("[ClipboardContextAnalyzer] Transforming content with action: {}", action);
+        log::debug!(
+            "[ClipboardContextAnalyzer] Transforming content with action: {}",
+            action
+        );
         match action {
             "format_json" => {
-                let value: serde_json::Value = serde_json::from_str(content)
-                    .map_err(|e| format!("Invalid JSON: {}", e))?;
+                let value: serde_json::Value =
+                    serde_json::from_str(content).map_err(|e| format!("Invalid JSON: {}", e))?;
                 serde_json::to_string_pretty(&value)
                     .map_err(|e| format!("Formatting failed: {}", e))
             }
             "minify_json" => {
-                let value: serde_json::Value = serde_json::from_str(content)
-                    .map_err(|e| format!("Invalid JSON: {}", e))?;
-                serde_json::to_string(&value)
-                    .map_err(|e| format!("Minification failed: {}", e))
+                let value: serde_json::Value =
+                    serde_json::from_str(content).map_err(|e| format!("Invalid JSON: {}", e))?;
+                serde_json::to_string(&value).map_err(|e| format!("Minification failed: {}", e))
             }
             "extract_urls" => {
-                let urls: Vec<&str> = URL_REGEX.find_iter(content)
-                    .map(|m| m.as_str())
-                    .collect();
+                let urls: Vec<&str> = URL_REGEX.find_iter(content).map(|m| m.as_str()).collect();
                 Ok(urls.join("\n"))
             }
             "extract_emails" => {
-                let emails: Vec<&str> = EMAIL_REGEX.find_iter(content)
-                    .map(|m| m.as_str())
-                    .collect();
+                let emails: Vec<&str> =
+                    EMAIL_REGEX.find_iter(content).map(|m| m.as_str()).collect();
                 Ok(emails.join("\n"))
             }
-            "trim_whitespace" => {
-                Ok(content.lines()
-                    .map(|line| line.trim())
-                    .collect::<Vec<&str>>()
-                    .join("\n"))
-            }
+            "trim_whitespace" => Ok(content
+                .lines()
+                .map(|line| line.trim())
+                .collect::<Vec<&str>>()
+                .join("\n")),
             "to_uppercase" => Ok(content.to_uppercase()),
             "to_lowercase" => Ok(content.to_lowercase()),
-            "remove_empty_lines" => {
-                Ok(content.lines()
-                    .filter(|line| !line.trim().is_empty())
-                    .collect::<Vec<&str>>()
-                    .join("\n"))
-            }
+            "remove_empty_lines" => Ok(content
+                .lines()
+                .filter(|line| !line.trim().is_empty())
+                .collect::<Vec<&str>>()
+                .join("\n")),
             "sort_lines" => {
                 let mut lines: Vec<&str> = content.lines().collect();
                 lines.sort();
@@ -830,27 +1026,21 @@ impl ClipboardContextAnalyzer {
             }
             "unique_lines" => {
                 let mut seen = std::collections::HashSet::new();
-                let unique: Vec<&str> = content.lines()
-                    .filter(|line| seen.insert(*line))
-                    .collect();
+                let unique: Vec<&str> = content.lines().filter(|line| seen.insert(*line)).collect();
                 Ok(unique.join("\n"))
             }
-            "escape_html" => {
-                Ok(content
-                    .replace('&', "&amp;")
-                    .replace('<', "&lt;")
-                    .replace('>', "&gt;")
-                    .replace('"', "&quot;")
-                    .replace('\'', "&#39;"))
-            }
-            "unescape_html" => {
-                Ok(content
-                    .replace("&amp;", "&")
-                    .replace("&lt;", "<")
-                    .replace("&gt;", ">")
-                    .replace("&quot;", "\"")
-                    .replace("&#39;", "'"))
-            }
+            "escape_html" => Ok(content
+                .replace('&', "&amp;")
+                .replace('<', "&lt;")
+                .replace('>', "&gt;")
+                .replace('"', "&quot;")
+                .replace('\'', "&#39;")),
+            "unescape_html" => Ok(content
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"")
+                .replace("&#39;", "'")),
             _ => Err(format!("Unknown action: {}", action)),
         }
     }
@@ -958,7 +1148,9 @@ mod tests {
     #[test]
     fn test_analyze_python_code() {
         let analyzer = ClipboardContextAnalyzer::new();
-        let result = analyzer.analyze("def hello():\n    print('Hello, World!')\n\nif __name__ == '__main__':\n    hello()");
+        let result = analyzer.analyze(
+            "def hello():\n    print('Hello, World!')\n\nif __name__ == '__main__':\n    hello()",
+        );
         assert_eq!(result.category, ContentCategory::Code);
         assert_eq!(result.language, Some(DetectedLanguage::Python));
     }
@@ -966,7 +1158,8 @@ mod tests {
     #[test]
     fn test_analyze_rust_code() {
         let analyzer = ClipboardContextAnalyzer::new();
-        let result = analyzer.analyze("fn main() {\n    let x: i32 = 42;\n    println!(\"Value: {}\", x);\n}");
+        let result = analyzer
+            .analyze("fn main() {\n    let x: i32 = 42;\n    println!(\"Value: {}\", x);\n}");
         assert_eq!(result.category, ContentCategory::Code);
         assert_eq!(result.language, Some(DetectedLanguage::Rust));
     }
@@ -974,7 +1167,8 @@ mod tests {
     #[test]
     fn test_analyze_sql_code() {
         let analyzer = ClipboardContextAnalyzer::new();
-        let result = analyzer.analyze("SELECT * FROM users WHERE active = true ORDER BY created_at DESC");
+        let result =
+            analyzer.analyze("SELECT * FROM users WHERE active = true ORDER BY created_at DESC");
         assert_eq!(result.category, ContentCategory::Sql);
         assert_eq!(result.language, Some(DetectedLanguage::Sql));
     }
@@ -982,7 +1176,8 @@ mod tests {
     #[test]
     fn test_analyze_html_code() {
         let analyzer = ClipboardContextAnalyzer::new();
-        let result = analyzer.analyze("<div class=\"container\">\n  <h1>Hello</h1>\n  <p>Welcome</p>\n</div>");
+        let result = analyzer
+            .analyze("<div class=\"container\">\n  <h1>Hello</h1>\n  <p>Welcome</p>\n</div>");
         assert_eq!(result.category, ContentCategory::Markup);
         assert_eq!(result.language, Some(DetectedLanguage::Html));
     }
@@ -1043,7 +1238,9 @@ mod tests {
     #[test]
     fn test_transform_json() {
         let analyzer = ClipboardContextAnalyzer::new();
-        let result = analyzer.transform(r#"{"a":1,"b":2}"#, "format_json").unwrap();
+        let result = analyzer
+            .transform(r#"{"a":1,"b":2}"#, "format_json")
+            .unwrap();
         assert!(result.contains('\n'));
     }
 
@@ -1073,28 +1270,36 @@ mod tests {
     #[test]
     fn test_transform_trim_whitespace() {
         let analyzer = ClipboardContextAnalyzer::new();
-        let result = analyzer.transform("  hello  \n  world  ", "trim_whitespace").unwrap();
+        let result = analyzer
+            .transform("  hello  \n  world  ", "trim_whitespace")
+            .unwrap();
         assert_eq!(result, "hello\nworld");
     }
 
     #[test]
     fn test_transform_remove_empty_lines() {
         let analyzer = ClipboardContextAnalyzer::new();
-        let result = analyzer.transform("line1\n\nline2\n\n\nline3", "remove_empty_lines").unwrap();
+        let result = analyzer
+            .transform("line1\n\nline2\n\n\nline3", "remove_empty_lines")
+            .unwrap();
         assert_eq!(result, "line1\nline2\nline3");
     }
 
     #[test]
     fn test_transform_sort_lines() {
         let analyzer = ClipboardContextAnalyzer::new();
-        let result = analyzer.transform("banana\napple\ncherry", "sort_lines").unwrap();
+        let result = analyzer
+            .transform("banana\napple\ncherry", "sort_lines")
+            .unwrap();
         assert_eq!(result, "apple\nbanana\ncherry");
     }
 
     #[test]
     fn test_transform_unique_lines() {
         let analyzer = ClipboardContextAnalyzer::new();
-        let result = analyzer.transform("apple\nbanana\napple\ncherry\nbanana", "unique_lines").unwrap();
+        let result = analyzer
+            .transform("apple\nbanana\napple\ncherry\nbanana", "unique_lines")
+            .unwrap();
         assert!(result.contains("apple"));
         assert!(result.contains("banana"));
         assert!(result.contains("cherry"));
@@ -1122,7 +1327,9 @@ mod tests {
     #[test]
     fn test_transform_escape_html() {
         let analyzer = ClipboardContextAnalyzer::new();
-        let result = analyzer.transform("<div>Hello & World</div>", "escape_html").unwrap();
+        let result = analyzer
+            .transform("<div>Hello & World</div>", "escape_html")
+            .unwrap();
         assert!(result.contains("&lt;"));
         assert!(result.contains("&gt;"));
         assert!(result.contains("&amp;"));
@@ -1131,7 +1338,9 @@ mod tests {
     #[test]
     fn test_transform_unescape_html() {
         let analyzer = ClipboardContextAnalyzer::new();
-        let result = analyzer.transform("&lt;div&gt;Hello &amp; World&lt;/div&gt;", "unescape_html").unwrap();
+        let result = analyzer
+            .transform("&lt;div&gt;Hello &amp; World&lt;/div&gt;", "unescape_html")
+            .unwrap();
         assert!(result.contains("<div>"));
         assert!(result.contains("</div>"));
         assert!(result.contains("&"));
@@ -1198,28 +1407,40 @@ mod tests {
     fn test_suggested_actions_url() {
         let analyzer = ClipboardContextAnalyzer::new();
         let result = analyzer.analyze("https://example.com");
-        assert!(result.suggested_actions.iter().any(|a| a.action_id == "open_url"));
+        assert!(result
+            .suggested_actions
+            .iter()
+            .any(|a| a.action_id == "open_url"));
     }
 
     #[test]
     fn test_suggested_actions_email() {
         let analyzer = ClipboardContextAnalyzer::new();
         let result = analyzer.analyze("user@example.com");
-        assert!(result.suggested_actions.iter().any(|a| a.action_id == "compose_email"));
+        assert!(result
+            .suggested_actions
+            .iter()
+            .any(|a| a.action_id == "compose_email"));
     }
 
     #[test]
     fn test_suggested_actions_json() {
         let analyzer = ClipboardContextAnalyzer::new();
         let result = analyzer.analyze(r#"{"key": "value"}"#);
-        assert!(result.suggested_actions.iter().any(|a| a.action_id == "format_json"));
+        assert!(result
+            .suggested_actions
+            .iter()
+            .any(|a| a.action_id == "format_json"));
     }
 
     #[test]
     fn test_suggested_actions_code() {
         let analyzer = ClipboardContextAnalyzer::new();
         let result = analyzer.analyze("function test() { return 42; }");
-        assert!(result.suggested_actions.iter().any(|a| a.action_id == "format_code" || a.action_id == "explain_code"));
+        assert!(result
+            .suggested_actions
+            .iter()
+            .any(|a| a.action_id == "format_code" || a.action_id == "explain_code"));
     }
 
     // ============== File Path Detection Tests ==============
@@ -1257,8 +1478,12 @@ mod tests {
     #[test]
     fn test_analyze_plain_text() {
         let analyzer = ClipboardContextAnalyzer::new();
-        let result = analyzer.analyze("This is just some regular plain text without any special patterns.");
-        assert!(result.category == ContentCategory::PlainText || result.category == ContentCategory::NaturalText);
+        let result =
+            analyzer.analyze("This is just some regular plain text without any special patterns.");
+        assert!(
+            result.category == ContentCategory::PlainText
+                || result.category == ContentCategory::NaturalText
+        );
     }
 
     // ============== Edge Cases ==============
@@ -1284,6 +1509,6 @@ mod tests {
         let content = "Email me at user@example.com\nVisit https://example.com\nColor: #FF5733";
         let result = analyzer.analyze(content);
         assert!(result.entities.len() >= 3);
-        assert!(result.secondary_categories.len() > 0 || result.entities.len() > 0);
+        assert!(!result.secondary_categories.is_empty() || !result.entities.is_empty());
     }
 }

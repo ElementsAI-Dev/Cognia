@@ -142,7 +142,7 @@ impl SandboxDb {
     /// Create a new database connection
     pub fn new(db_path: PathBuf) -> Result<Self, DbError> {
         log::debug!("Opening sandbox database at {:?}", db_path);
-        
+
         // Ensure parent directory exists
         if let Some(parent) = db_path.parent() {
             if let Err(e) = std::fs::create_dir_all(parent) {
@@ -154,11 +154,11 @@ impl SandboxDb {
             log::error!("Failed to open database at {:?}: {}", db_path, e);
             e
         })?;
-        
+
         let db = Self {
             conn: Mutex::new(conn),
         };
-        
+
         log::trace!("Initializing database schema...");
         db.initialize_schema()?;
         log::info!("Sandbox database opened successfully at {:?}", db_path);
@@ -284,9 +284,13 @@ impl SandboxDb {
         session_id: Option<&str>,
         tags: &[String],
     ) -> Result<ExecutionRecord, DbError> {
-        log::debug!("Saving execution to database: id={}, language={}, status={:?}",
-            result.id, result.language, result.status);
-        
+        log::debug!(
+            "Saving execution to database: id={}, language={}, status={:?}",
+            result.id,
+            result.language,
+            result.status
+        );
+
         let conn = self.conn.lock().map_err(|e| {
             log::error!("Failed to acquire database lock: {}", e);
             DbError::Lock(e.to_string())
@@ -297,9 +301,15 @@ impl SandboxDb {
             .trim_matches('"')
             .to_string();
         let runtime_str = result.runtime.to_string();
-        
-        log::trace!("Execution details: exit_code={:?}, time={}ms, code_len={}, session={:?}, tags={:?}",
-            result.exit_code, result.execution_time_ms, code.len(), session_id, tags);
+
+        log::trace!(
+            "Execution details: exit_code={:?}, time={}ms, code_len={}, session={:?}, tags={:?}",
+            result.exit_code,
+            result.execution_time_ms,
+            code.len(),
+            session_id,
+            tags
+        );
 
         conn.execute(
             r#"INSERT INTO executions 
@@ -441,7 +451,8 @@ impl SandboxDb {
         let created_at_str: String = row.get(13)?;
 
         // Get tags
-        let mut tag_stmt = conn.prepare("SELECT tag FROM execution_tags WHERE execution_id = ?1")?;
+        let mut tag_stmt =
+            conn.prepare("SELECT tag FROM execution_tags WHERE execution_id = ?1")?;
         let tags: Vec<String> = tag_stmt
             .query_map(params![&id], |r| r.get(0))?
             .filter_map(|r| r.ok())
@@ -487,9 +498,16 @@ impl SandboxDb {
     }
 
     /// Query executions with filter
-    pub fn query_executions(&self, filter: &ExecutionFilter) -> Result<Vec<ExecutionRecord>, DbError> {
-        log::trace!("Querying executions with filter: language={:?}, status={:?}, limit={:?}",
-            filter.language, filter.status, filter.limit);
+    pub fn query_executions(
+        &self,
+        filter: &ExecutionFilter,
+    ) -> Result<Vec<ExecutionRecord>, DbError> {
+        log::trace!(
+            "Querying executions with filter: language={:?}, status={:?}, limit={:?}",
+            filter.language,
+            filter.status,
+            filter.limit
+        );
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
 
         let mut sql = String::from(
@@ -555,8 +573,10 @@ impl SandboxDb {
         }
 
         if let Some(ref query) = filter.search_query {
-            conditions.push(format!("(e.code LIKE ?{} OR e.stdout LIKE ?{} OR e.stderr LIKE ?{})", 
-                param_idx, param_idx, param_idx));
+            conditions.push(format!(
+                "(e.code LIKE ?{} OR e.stdout LIKE ?{} OR e.stderr LIKE ?{})",
+                param_idx, param_idx, param_idx
+            ));
             let pattern = format!("%{}%", query);
             params_vec.push(Box::new(pattern));
             param_idx += 1;
@@ -595,7 +615,8 @@ impl SandboxDb {
         let _ = param_idx; // silence unused warning
 
         let mut stmt = conn.prepare(&sql)?;
-        let params_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::ToSql> =
+            params_vec.iter().map(|p| p.as_ref()).collect();
 
         let rows = stmt.query_map(params_refs.as_slice(), |row| {
             Ok(self.row_to_execution_record(row, &conn))
@@ -668,7 +689,7 @@ impl SandboxDb {
     pub fn clear_executions(&self, before_date: Option<DateTime<Utc>>) -> Result<u64, DbError> {
         log::info!("Clearing executions: before_date={:?}", before_date);
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
-        
+
         let deleted = if let Some(date) = before_date {
             conn.execute(
                 "DELETE FROM executions WHERE created_at < ?1 AND is_favorite = 0",
@@ -686,8 +707,12 @@ impl SandboxDb {
 
     /// Create a new code snippet
     pub fn create_snippet(&self, snippet: &CodeSnippet) -> Result<CodeSnippet, DbError> {
-        log::debug!("Creating snippet: id={}, title='{}', language={}", 
-            snippet.id, snippet.title, snippet.language);
+        log::debug!(
+            "Creating snippet: id={}, title='{}', language={}",
+            snippet.id,
+            snippet.title,
+            snippet.language
+        );
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
 
         conn.execute(
@@ -741,7 +766,11 @@ impl SandboxDb {
     }
 
     /// Helper to convert row to CodeSnippet
-    fn row_to_snippet(&self, row: &rusqlite::Row, conn: &Connection) -> Result<CodeSnippet, DbError> {
+    fn row_to_snippet(
+        &self,
+        row: &rusqlite::Row,
+        conn: &Connection,
+    ) -> Result<CodeSnippet, DbError> {
         let id: String = row.get(0)?;
         let created_at_str: String = row.get(8)?;
         let updated_at_str: String = row.get(9)?;
@@ -774,8 +803,12 @@ impl SandboxDb {
 
     /// Query snippets with filter
     pub fn query_snippets(&self, filter: &SnippetFilter) -> Result<Vec<CodeSnippet>, DbError> {
-        log::trace!("Querying snippets with filter: language={:?}, category={:?}, limit={:?}",
-            filter.language, filter.category, filter.limit);
+        log::trace!(
+            "Querying snippets with filter: language={:?}, category={:?}, limit={:?}",
+            filter.language,
+            filter.category,
+            filter.limit
+        );
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
 
         let mut sql = String::from(
@@ -853,7 +886,8 @@ impl SandboxDb {
         let _ = param_idx;
 
         let mut stmt = conn.prepare(&sql)?;
-        let params_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::ToSql> =
+            params_vec.iter().map(|p| p.as_ref()).collect();
 
         let rows = stmt.query_map(params_refs.as_slice(), |row| {
             Ok(self.row_to_snippet(row, &conn))
@@ -870,7 +904,11 @@ impl SandboxDb {
 
     /// Update a snippet
     pub fn update_snippet(&self, snippet: &CodeSnippet) -> Result<(), DbError> {
-        log::debug!("Updating snippet: id={}, title='{}'", snippet.id, snippet.title);
+        log::debug!(
+            "Updating snippet: id={}, title='{}'",
+            snippet.id,
+            snippet.title
+        );
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
         let now = Utc::now();
 
@@ -892,7 +930,10 @@ impl SandboxDb {
         )?;
 
         // Update tags
-        conn.execute("DELETE FROM snippet_tags WHERE snippet_id = ?1", params![snippet.id])?;
+        conn.execute(
+            "DELETE FROM snippet_tags WHERE snippet_id = ?1",
+            params![snippet.id],
+        )?;
         for tag in &snippet.tags {
             conn.execute(
                 "INSERT OR IGNORE INTO snippet_tags (snippet_id, tag) VALUES (?1, ?2)",
@@ -961,8 +1002,16 @@ impl SandboxDb {
     // ==================== Sessions ====================
 
     /// Create a new session
-    pub fn create_session(&self, name: &str, description: Option<&str>) -> Result<ExecutionSession, DbError> {
-        log::debug!("Creating session: name='{}', description={:?}", name, description);
+    pub fn create_session(
+        &self,
+        name: &str,
+        description: Option<&str>,
+    ) -> Result<ExecutionSession, DbError> {
+        log::debug!(
+            "Creating session: name='{}', description={:?}",
+            name,
+            description
+        );
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
         let now = Utc::now();
         let id = uuid::Uuid::new_v4().to_string();
@@ -1060,7 +1109,12 @@ impl SandboxDb {
 
     /// Update session
     #[allow(dead_code)]
-    pub fn update_session(&self, id: &str, name: &str, description: Option<&str>) -> Result<(), DbError> {
+    pub fn update_session(
+        &self,
+        id: &str,
+        name: &str,
+        description: Option<&str>,
+    ) -> Result<(), DbError> {
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
         conn.execute(
             "UPDATE sessions SET name = ?1, description = ?2, updated_at = ?3 WHERE id = ?4",
@@ -1083,15 +1137,27 @@ impl SandboxDb {
 
     /// Delete a session and its executions
     pub fn delete_session(&self, id: &str, delete_executions: bool) -> Result<(), DbError> {
-        log::info!("Deleting session: id={}, delete_executions={}", id, delete_executions);
+        log::info!(
+            "Deleting session: id={}, delete_executions={}",
+            id,
+            delete_executions
+        );
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
-        
+
         if delete_executions {
-            let exec_deleted = conn.execute("DELETE FROM executions WHERE session_id = ?1", params![id])?;
+            let exec_deleted =
+                conn.execute("DELETE FROM executions WHERE session_id = ?1", params![id])?;
             log::debug!("Deleted {} execution(s) from session {}", exec_deleted, id);
         } else {
-            let exec_orphaned = conn.execute("UPDATE executions SET session_id = NULL WHERE session_id = ?1", params![id])?;
-            log::debug!("Orphaned {} execution(s) from session {}", exec_orphaned, id);
+            let exec_orphaned = conn.execute(
+                "UPDATE executions SET session_id = NULL WHERE session_id = ?1",
+                params![id],
+            )?;
+            log::debug!(
+                "Orphaned {} execution(s) from session {}",
+                exec_orphaned,
+                id
+            );
         }
 
         conn.execute("DELETE FROM sessions WHERE id = ?1", params![id])?;
@@ -1101,7 +1167,10 @@ impl SandboxDb {
 
     /// Get executions for a session
     #[allow(dead_code)]
-    pub fn get_session_executions(&self, session_id: &str) -> Result<Vec<ExecutionRecord>, DbError> {
+    pub fn get_session_executions(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<ExecutionRecord>, DbError> {
         self.query_executions(&ExecutionFilter {
             session_id: Some(session_id.to_string()),
             ..Default::default()
@@ -1210,22 +1279,24 @@ impl SandboxDb {
                 COALESCE(SUM(total_execution_time_ms), 0)
                FROM language_stats"#,
             [],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
+            },
         )?;
 
         // Get snippet count
-        let total_snippets: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM snippets",
-            [],
-            |row| row.get(0),
-        )?;
+        let total_snippets: i64 =
+            conn.query_row("SELECT COUNT(*) FROM snippets", [], |row| row.get(0))?;
 
         // Get session count
-        let total_sessions: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM sessions",
-            [],
-            |row| row.get(0),
-        )?;
+        let total_sessions: i64 =
+            conn.query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))?;
 
         // Get most used language
         let most_used: Option<String> = conn
@@ -1240,16 +1311,25 @@ impl SandboxDb {
         drop(conn);
         let languages = self.get_all_language_stats()?;
 
-        log::debug!("Sandbox stats: executions={}, snippets={}, sessions={}, most_used={:?}",
-            total, total_snippets, total_sessions, most_used);
-        
+        log::debug!(
+            "Sandbox stats: executions={}, snippets={}, sessions={}, most_used={:?}",
+            total,
+            total_snippets,
+            total_sessions,
+            most_used
+        );
+
         Ok(SandboxStats {
             total_executions: total as u64,
             successful_executions: success as u64,
             failed_executions: failed as u64,
             timeout_executions: timeout as u64,
             total_execution_time_ms: time as u64,
-            avg_execution_time_ms: if total > 0 { time as f64 / total as f64 } else { 0.0 },
+            avg_execution_time_ms: if total > 0 {
+                time as f64 / total as f64
+            } else {
+                0.0
+            },
             total_snippets: total_snippets as u64,
             total_sessions: total_sessions as u64,
             most_used_language: most_used,
@@ -1290,10 +1370,13 @@ impl SandboxDb {
         let executions = self.query_executions(&ExecutionFilter::default())?;
         let snippets = self.query_snippets(&SnippetFilter::default())?;
         let sessions = self.list_sessions(false)?;
-        let stats = self.get_sandbox_stats()?
-        ;
-        log::debug!("Export data: {} executions, {} snippets, {} sessions",
-            executions.len(), snippets.len(), sessions.len());
+        let stats = self.get_sandbox_stats()?;
+        log::debug!(
+            "Export data: {} executions, {} snippets, {} sessions",
+            executions.len(),
+            snippets.len(),
+            sessions.len()
+        );
 
         let export = serde_json::json!({
             "version": "1.0",
@@ -1304,7 +1387,8 @@ impl SandboxDb {
             "stats": stats,
         });
 
-        let result = serde_json::to_string_pretty(&export).map_err(|e| DbError::Serialization(e.to_string()))?;
+        let result = serde_json::to_string_pretty(&export)
+            .map_err(|e| DbError::Serialization(e.to_string()))?;
         log::info!("Export completed: {} bytes", result.len());
         Ok(result)
     }
@@ -1357,7 +1441,9 @@ impl SandboxDb {
     pub fn get_all_categories(&self) -> Result<Vec<String>, DbError> {
         let conn = self.conn.lock().map_err(|e| DbError::Lock(e.to_string()))?;
 
-        let mut stmt = conn.prepare("SELECT DISTINCT category FROM snippets WHERE category IS NOT NULL ORDER BY category")?;
+        let mut stmt = conn.prepare(
+            "SELECT DISTINCT category FROM snippets WHERE category IS NOT NULL ORDER BY category",
+        )?;
         let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
 
         let mut results = Vec::new();
@@ -1444,15 +1530,15 @@ mod tests {
     fn test_save_and_get_execution() {
         let db = SandboxDb::in_memory().unwrap();
         let result = create_test_execution_result("exec-1", "python", 0);
-        
+
         let record = db
             .save_execution(&result, "print('hello')", None, None, &[])
             .unwrap();
-        
+
         assert_eq!(record.id, "exec-1");
         assert_eq!(record.language, "python");
         assert_eq!(record.code, "print('hello')");
-        
+
         let retrieved = db.get_execution("exec-1").unwrap().unwrap();
         assert_eq!(retrieved.id, "exec-1");
         assert_eq!(retrieved.stdout, "test output");
@@ -1462,11 +1548,11 @@ mod tests {
     fn test_save_execution_with_stdin() {
         let db = SandboxDb::in_memory().unwrap();
         let result = create_test_execution_result("exec-2", "python", 0);
-        
+
         let record = db
             .save_execution(&result, "x = input()", Some("test input"), None, &[])
             .unwrap();
-        
+
         assert_eq!(record.stdin, Some("test input".to_string()));
     }
 
@@ -1475,10 +1561,10 @@ mod tests {
         let db = SandboxDb::in_memory().unwrap();
         let session = db.create_session("Test Session", None).unwrap();
         let result = create_test_execution_result("exec-3", "python", 0);
-        
+
         db.save_execution(&result, "code", None, Some(&session.id), &[])
             .unwrap();
-        
+
         let updated_session = db.get_session(&session.id).unwrap().unwrap();
         assert_eq!(updated_session.execution_count, 1);
     }
@@ -1488,11 +1574,11 @@ mod tests {
         let db = SandboxDb::in_memory().unwrap();
         let result = create_test_execution_result("exec-4", "python", 0);
         let tags = vec!["test".to_string(), "example".to_string()];
-        
+
         let record = db
             .save_execution(&result, "code", None, None, &tags)
             .unwrap();
-        
+
         assert_eq!(record.tags.len(), 2);
         assert!(record.tags.contains(&"test".to_string()));
     }
@@ -1509,10 +1595,10 @@ mod tests {
         let db = SandboxDb::in_memory().unwrap();
         let result = create_test_execution_result("exec-5", "python", 0);
         db.save_execution(&result, "code", None, None, &[]).unwrap();
-        
+
         let deleted = db.delete_execution("exec-5").unwrap();
         assert!(deleted);
-        
+
         let deleted_again = db.delete_execution("exec-5").unwrap();
         assert!(!deleted_again);
     }
@@ -1522,10 +1608,10 @@ mod tests {
         let db = SandboxDb::in_memory().unwrap();
         let result = create_test_execution_result("exec-6", "python", 0);
         db.save_execution(&result, "code", None, None, &[]).unwrap();
-        
+
         let is_favorite = db.toggle_execution_favorite("exec-6").unwrap();
         assert!(is_favorite);
-        
+
         let is_favorite = db.toggle_execution_favorite("exec-6").unwrap();
         assert!(!is_favorite);
     }
@@ -1535,16 +1621,16 @@ mod tests {
         let db = SandboxDb::in_memory().unwrap();
         let result = create_test_execution_result("exec-7", "python", 0);
         db.save_execution(&result, "code", None, None, &[]).unwrap();
-        
+
         db.add_execution_tags("exec-7", &["tag1".to_string(), "tag2".to_string()])
             .unwrap();
-        
+
         let exec = db.get_execution("exec-7").unwrap().unwrap();
         assert_eq!(exec.tags.len(), 2);
-        
+
         db.remove_execution_tags("exec-7", &["tag1".to_string()])
             .unwrap();
-        
+
         let exec = db.get_execution("exec-7").unwrap().unwrap();
         assert_eq!(exec.tags.len(), 1);
         assert!(exec.tags.contains(&"tag2".to_string()));
@@ -1553,15 +1639,18 @@ mod tests {
     #[test]
     fn test_query_executions_by_language() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let result1 = create_test_execution_result("exec-a", "python", 0);
         let result2 = create_test_execution_result("exec-b", "javascript", 0);
         let result3 = create_test_execution_result("exec-c", "python", 0);
-        
-        db.save_execution(&result1, "code", None, None, &[]).unwrap();
-        db.save_execution(&result2, "code", None, None, &[]).unwrap();
-        db.save_execution(&result3, "code", None, None, &[]).unwrap();
-        
+
+        db.save_execution(&result1, "code", None, None, &[])
+            .unwrap();
+        db.save_execution(&result2, "code", None, None, &[])
+            .unwrap();
+        db.save_execution(&result3, "code", None, None, &[])
+            .unwrap();
+
         let filter = ExecutionFilter {
             language: Some("python".to_string()),
             ..Default::default()
@@ -1573,13 +1662,15 @@ mod tests {
     #[test]
     fn test_query_executions_by_status() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let result1 = create_test_execution_result("exec-d", "python", 0);
         let result2 = create_test_execution_result("exec-e", "python", 1);
-        
-        db.save_execution(&result1, "code", None, None, &[]).unwrap();
-        db.save_execution(&result2, "code", None, None, &[]).unwrap();
-        
+
+        db.save_execution(&result1, "code", None, None, &[])
+            .unwrap();
+        db.save_execution(&result2, "code", None, None, &[])
+            .unwrap();
+
         let filter = ExecutionFilter {
             status: Some(ExecutionStatus::Completed),
             ..Default::default()
@@ -1592,14 +1683,16 @@ mod tests {
     #[test]
     fn test_query_executions_by_favorite() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let result1 = create_test_execution_result("exec-f", "python", 0);
         let result2 = create_test_execution_result("exec-g", "python", 0);
-        
-        db.save_execution(&result1, "code", None, None, &[]).unwrap();
-        db.save_execution(&result2, "code", None, None, &[]).unwrap();
+
+        db.save_execution(&result1, "code", None, None, &[])
+            .unwrap();
+        db.save_execution(&result2, "code", None, None, &[])
+            .unwrap();
         db.toggle_execution_favorite("exec-f").unwrap();
-        
+
         let filter = ExecutionFilter {
             is_favorite: Some(true),
             ..Default::default()
@@ -1612,12 +1705,12 @@ mod tests {
     #[test]
     fn test_query_executions_with_limit_offset() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         for i in 0..5 {
             let result = create_test_execution_result(&format!("exec-{}", i), "python", 0);
             db.save_execution(&result, "code", None, None, &[]).unwrap();
         }
-        
+
         let filter = ExecutionFilter {
             limit: Some(2),
             offset: Some(1),
@@ -1630,14 +1723,15 @@ mod tests {
     #[test]
     fn test_query_executions_by_search() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let result1 = create_test_execution_result("exec-h", "python", 0);
         let result2 = create_test_execution_result("exec-i", "python", 0);
-        
+
         db.save_execution(&result1, "print('hello world')", None, None, &[])
             .unwrap();
-        db.save_execution(&result2, "x = 42", None, None, &[]).unwrap();
-        
+        db.save_execution(&result2, "x = 42", None, None, &[])
+            .unwrap();
+
         let filter = ExecutionFilter {
             search_query: Some("hello".to_string()),
             ..Default::default()
@@ -1650,15 +1744,15 @@ mod tests {
     #[test]
     fn test_query_executions_by_tags() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let result1 = create_test_execution_result("exec-j", "python", 0);
         let result2 = create_test_execution_result("exec-k", "python", 0);
-        
+
         db.save_execution(&result1, "code", None, None, &["important".to_string()])
             .unwrap();
         db.save_execution(&result2, "code", None, None, &["other".to_string()])
             .unwrap();
-        
+
         let filter = ExecutionFilter {
             tags: Some(vec!["important".to_string()]),
             ..Default::default()
@@ -1671,18 +1765,18 @@ mod tests {
     #[test]
     fn test_clear_executions() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         for i in 0..3 {
             let result = create_test_execution_result(&format!("exec-clear-{}", i), "python", 0);
             db.save_execution(&result, "code", None, None, &[]).unwrap();
         }
-        
+
         // Mark one as favorite (should not be deleted)
         db.toggle_execution_favorite("exec-clear-0").unwrap();
-        
+
         let cleared = db.clear_executions(None).unwrap();
         assert_eq!(cleared, 2);
-        
+
         // Favorite should still exist
         assert!(db.get_execution("exec-clear-0").unwrap().is_some());
     }
@@ -1692,8 +1786,10 @@ mod tests {
     #[test]
     fn test_session_lifecycle() {
         let db = SandboxDb::in_memory().unwrap();
-        
-        let session = db.create_session("Test Session", Some("A test session")).unwrap();
+
+        let session = db
+            .create_session("Test Session", Some("A test session"))
+            .unwrap();
         assert_eq!(session.name, "Test Session");
         assert!(session.is_active);
 
@@ -1708,7 +1804,7 @@ mod tests {
     #[test]
     fn test_session_without_description() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let session = db.create_session("No Desc Session", None).unwrap();
         assert!(session.description.is_none());
     }
@@ -1716,11 +1812,11 @@ mod tests {
     #[test]
     fn test_list_sessions_all() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         db.create_session("Session 1", None).unwrap();
         let session2 = db.create_session("Session 2", None).unwrap();
         db.close_session(&session2.id).unwrap();
-        
+
         let all_sessions = db.list_sessions(false).unwrap();
         assert_eq!(all_sessions.len(), 2);
     }
@@ -1728,11 +1824,11 @@ mod tests {
     #[test]
     fn test_list_sessions_active_only() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         db.create_session("Session 1", None).unwrap();
         let session2 = db.create_session("Session 2", None).unwrap();
         db.close_session(&session2.id).unwrap();
-        
+
         let active_sessions = db.list_sessions(true).unwrap();
         assert_eq!(active_sessions.len(), 1);
         assert_eq!(active_sessions[0].name, "Session 1");
@@ -1741,14 +1837,14 @@ mod tests {
     #[test]
     fn test_delete_session_with_executions() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let session = db.create_session("To Delete", None).unwrap();
         let result = create_test_execution_result("exec-sess", "python", 0);
         db.save_execution(&result, "code", None, Some(&session.id), &[])
             .unwrap();
-        
+
         db.delete_session(&session.id, true).unwrap();
-        
+
         assert!(db.get_session(&session.id).unwrap().is_none());
         assert!(db.get_execution("exec-sess").unwrap().is_none());
     }
@@ -1756,14 +1852,14 @@ mod tests {
     #[test]
     fn test_delete_session_keep_executions() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let session = db.create_session("To Delete", None).unwrap();
         let result = create_test_execution_result("exec-keep", "python", 0);
         db.save_execution(&result, "code", None, Some(&session.id), &[])
             .unwrap();
-        
+
         db.delete_session(&session.id, false).unwrap();
-        
+
         assert!(db.get_session(&session.id).unwrap().is_none());
         let exec = db.get_execution("exec-keep").unwrap().unwrap();
         assert!(exec.session_id.is_none());
@@ -1772,11 +1868,11 @@ mod tests {
     #[test]
     fn test_update_session() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let session = db.create_session("Original", None).unwrap();
         db.update_session(&session.id, "Updated", Some("New description"))
             .unwrap();
-        
+
         let updated = db.get_session(&session.id).unwrap().unwrap();
         assert_eq!(updated.name, "Updated");
         assert_eq!(updated.description, Some("New description".to_string()));
@@ -1794,7 +1890,7 @@ mod tests {
     #[test]
     fn test_snippet_crud() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let snippet = CodeSnippet {
             id: uuid::Uuid::new_v4().to_string(),
             title: "Hello World".to_string(),
@@ -1826,12 +1922,12 @@ mod tests {
     #[test]
     fn test_snippet_template() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let mut snippet = create_test_snippet("template-1", "python");
         snippet.is_template = true;
-        
+
         db.create_snippet(&snippet).unwrap();
-        
+
         let filter = SnippetFilter {
             is_template: Some(true),
             ..Default::default()
@@ -1844,11 +1940,14 @@ mod tests {
     #[test]
     fn test_query_snippets_by_language() {
         let db = SandboxDb::in_memory().unwrap();
-        
-        db.create_snippet(&create_test_snippet("s1", "python")).unwrap();
-        db.create_snippet(&create_test_snippet("s2", "javascript")).unwrap();
-        db.create_snippet(&create_test_snippet("s3", "python")).unwrap();
-        
+
+        db.create_snippet(&create_test_snippet("s1", "python"))
+            .unwrap();
+        db.create_snippet(&create_test_snippet("s2", "javascript"))
+            .unwrap();
+        db.create_snippet(&create_test_snippet("s3", "python"))
+            .unwrap();
+
         let filter = SnippetFilter {
             language: Some("python".to_string()),
             ..Default::default()
@@ -1860,15 +1959,15 @@ mod tests {
     #[test]
     fn test_query_snippets_by_category() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let mut s1 = create_test_snippet("cat1", "python");
         s1.category = Some("algorithms".to_string());
         let mut s2 = create_test_snippet("cat2", "python");
         s2.category = Some("utils".to_string());
-        
+
         db.create_snippet(&s1).unwrap();
         db.create_snippet(&s2).unwrap();
-        
+
         let filter = SnippetFilter {
             category: Some("algorithms".to_string()),
             ..Default::default()
@@ -1881,15 +1980,15 @@ mod tests {
     #[test]
     fn test_query_snippets_by_search() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let mut s1 = create_test_snippet("search1", "python");
         s1.title = "Fibonacci Algorithm".to_string();
         let mut s2 = create_test_snippet("search2", "python");
         s2.title = "Hello World".to_string();
-        
+
         db.create_snippet(&s1).unwrap();
         db.create_snippet(&s2).unwrap();
-        
+
         let filter = SnippetFilter {
             search_query: Some("Fibonacci".to_string()),
             ..Default::default()
@@ -1902,16 +2001,16 @@ mod tests {
     #[test]
     fn test_update_snippet() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let mut snippet = create_test_snippet("update-s", "python");
         db.create_snippet(&snippet).unwrap();
-        
+
         snippet.title = "Updated Title".to_string();
         snippet.code = "new_code()".to_string();
         snippet.tags = vec!["new_tag".to_string()];
-        
+
         db.update_snippet(&snippet).unwrap();
-        
+
         let updated = db.get_snippet("update-s").unwrap().unwrap();
         assert_eq!(updated.title, "Updated Title");
         assert_eq!(updated.code, "new_code()");
@@ -1921,11 +2020,17 @@ mod tests {
     #[test]
     fn test_create_snippet_from_execution() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let result = create_test_execution_result("exec-for-snippet", "python", 0);
-        db.save_execution(&result, "print('from exec')", None, None, &["original".to_string()])
-            .unwrap();
-        
+        db.save_execution(
+            &result,
+            "print('from exec')",
+            None,
+            None,
+            &["original".to_string()],
+        )
+        .unwrap();
+
         let snippet = db
             .create_snippet_from_execution(
                 "exec-for-snippet",
@@ -1935,7 +2040,7 @@ mod tests {
                 false,
             )
             .unwrap();
-        
+
         assert_eq!(snippet.title, "From Execution");
         assert_eq!(snippet.language, "python");
         assert_eq!(snippet.code, "print('from exec')");
@@ -1954,10 +2059,10 @@ mod tests {
     #[test]
     fn test_language_stats_updated_on_execution() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let result = create_test_execution_result("stats-1", "python", 0);
         db.save_execution(&result, "code", None, None, &[]).unwrap();
-        
+
         let stats = db.get_language_stats("python").unwrap().unwrap();
         assert_eq!(stats.total_executions, 1);
         assert_eq!(stats.successful_executions, 1);
@@ -1967,10 +2072,10 @@ mod tests {
     #[test]
     fn test_language_stats_failed_execution() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let result = create_test_execution_result("stats-2", "python", 1);
         db.save_execution(&result, "code", None, None, &[]).unwrap();
-        
+
         let stats = db.get_language_stats("python").unwrap().unwrap();
         assert_eq!(stats.failed_executions, 1);
     }
@@ -1978,11 +2083,11 @@ mod tests {
     #[test]
     fn test_language_stats_timeout() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let mut result = create_test_execution_result("stats-3", "python", 0);
         result.status = ExecutionStatus::Timeout;
         db.save_execution(&result, "code", None, None, &[]).unwrap();
-        
+
         let stats = db.get_language_stats("python").unwrap().unwrap();
         assert_eq!(stats.timeout_executions, 1);
     }
@@ -1990,18 +2095,18 @@ mod tests {
     #[test]
     fn test_get_all_language_stats() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let r1 = create_test_execution_result("multi-1", "python", 0);
         let r2 = create_test_execution_result("multi-2", "javascript", 0);
         let r3 = create_test_execution_result("multi-3", "python", 0);
-        
+
         db.save_execution(&r1, "code", None, None, &[]).unwrap();
         db.save_execution(&r2, "code", None, None, &[]).unwrap();
         db.save_execution(&r3, "code", None, None, &[]).unwrap();
-        
+
         let all_stats = db.get_all_language_stats().unwrap();
         assert_eq!(all_stats.len(), 2);
-        
+
         // Python should be first (more executions)
         assert_eq!(all_stats[0].language, "python");
         assert_eq!(all_stats[0].total_executions, 2);
@@ -2017,16 +2122,16 @@ mod tests {
     #[test]
     fn test_sandbox_stats() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let r1 = create_test_execution_result("sb-1", "python", 0);
         let r2 = create_test_execution_result("sb-2", "python", 1);
         db.save_execution(&r1, "code", None, None, &[]).unwrap();
         db.save_execution(&r2, "code", None, None, &[]).unwrap();
-        
+
         db.create_session("Test", None).unwrap();
         db.create_snippet(&create_test_snippet("sb-s1", "python"))
             .unwrap();
-        
+
         let stats = db.get_sandbox_stats().unwrap();
         assert_eq!(stats.total_executions, 2);
         assert_eq!(stats.successful_executions, 1);
@@ -2039,10 +2144,10 @@ mod tests {
     #[test]
     fn test_daily_execution_counts() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let result = create_test_execution_result("daily-1", "python", 0);
         db.save_execution(&result, "code", None, None, &[]).unwrap();
-        
+
         let counts = db.get_daily_execution_counts(7).unwrap();
         // Should have at least today's count
         assert!(!counts.is_empty() || counts.is_empty()); // May vary based on DB implementation
@@ -2053,15 +2158,15 @@ mod tests {
     #[test]
     fn test_get_all_tags() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let result = create_test_execution_result("tag-test-1", "python", 0);
         db.save_execution(&result, "code", None, None, &["exec_tag".to_string()])
             .unwrap();
-        
+
         let mut snippet = create_test_snippet("tag-snippet", "python");
         snippet.tags = vec!["snippet_tag".to_string()];
         db.create_snippet(&snippet).unwrap();
-        
+
         let tags = db.get_all_tags().unwrap();
         assert!(tags.contains(&"exec_tag".to_string()));
         assert!(tags.contains(&"snippet_tag".to_string()));
@@ -2070,18 +2175,18 @@ mod tests {
     #[test]
     fn test_get_all_categories() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let mut s1 = create_test_snippet("cat-a", "python");
         s1.category = Some("alpha".to_string());
         let mut s2 = create_test_snippet("cat-b", "python");
         s2.category = Some("beta".to_string());
         let mut s3 = create_test_snippet("cat-c", "python");
         s3.category = None;
-        
+
         db.create_snippet(&s1).unwrap();
         db.create_snippet(&s2).unwrap();
         db.create_snippet(&s3).unwrap();
-        
+
         let categories = db.get_all_categories().unwrap();
         assert_eq!(categories.len(), 2);
         assert!(categories.contains(&"alpha".to_string()));
@@ -2091,13 +2196,13 @@ mod tests {
     #[test]
     fn test_export_to_json() {
         let db = SandboxDb::in_memory().unwrap();
-        
+
         let result = create_test_execution_result("export-1", "python", 0);
         db.save_execution(&result, "code", None, None, &[]).unwrap();
         db.create_session("Export Session", None).unwrap();
         db.create_snippet(&create_test_snippet("export-s", "python"))
             .unwrap();
-        
+
         let json = db.export_to_json().unwrap();
         assert!(json.contains("\"version\""));
         assert!(json.contains("\"executions\""));
@@ -2125,10 +2230,10 @@ mod tests {
     fn test_db_error_display() {
         let err = DbError::NotFound("test".to_string());
         assert!(err.to_string().contains("test"));
-        
+
         let err = DbError::Lock("lock error".to_string());
         assert!(err.to_string().contains("lock"));
-        
+
         let err = DbError::Serialization("ser error".to_string());
         assert!(err.to_string().contains("ser"));
     }
@@ -2155,7 +2260,7 @@ mod tests {
             tags: vec![],
             is_favorite: false,
         };
-        
+
         let json = serde_json::to_string(&record).unwrap();
         let parsed: ExecutionRecord = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.id, "test-id");
@@ -2180,7 +2285,7 @@ mod tests {
             execution_count: 0,
             is_active: true,
         };
-        
+
         let json = serde_json::to_string(&session).unwrap();
         let parsed: ExecutionSession = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.id, "sess-1");
@@ -2215,7 +2320,7 @@ mod tests {
             total_memory_used_bytes: 10240,
             last_used: Some(Utc::now()),
         };
-        
+
         let json = serde_json::to_string(&stats).unwrap();
         let parsed: LanguageStats = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.language, "python");
@@ -2235,7 +2340,7 @@ mod tests {
             most_used_language: Some("python".to_string()),
             languages: vec![],
         };
-        
+
         let json = serde_json::to_string(&stats).unwrap();
         let parsed: SandboxStats = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.total_executions, 100);

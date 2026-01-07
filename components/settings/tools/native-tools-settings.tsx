@@ -2,7 +2,7 @@
 
 /**
  * NativeToolsSettings - Settings panel for native desktop tools
- * Provides access to clipboard history, screenshot, focus tracking, and context awareness
+ * Provides access to clipboard history, screenshot, screen recording, focus tracking, and context awareness
  */
 
 import { useState } from 'react';
@@ -15,6 +15,7 @@ import {
   Settings2,
   Activity,
   Terminal,
+  Video,
 } from 'lucide-react';
 import {
   Card,
@@ -36,6 +37,7 @@ import {
   SystemMonitorPanel,
   SandboxPanel,
 } from '@/components/native';
+import { RecordingHistoryPanel } from '@/components/screen-recording';
 import { isTauri } from '@/lib/native/utils';
 
 export function NativeToolsSettings() {
@@ -86,7 +88,7 @@ export function NativeToolsSettings() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-6 h-auto">
+            <TabsList className="grid w-full grid-cols-7 h-auto">
               <TabsTrigger value="clipboard" className="flex items-center gap-1 sm:gap-1.5 px-2 py-1.5">
                 <Clipboard className="h-4 w-4 shrink-0" />
                 <span className="hidden sm:inline text-xs">{t('clipboard')}</span>
@@ -94,6 +96,10 @@ export function NativeToolsSettings() {
               <TabsTrigger value="screenshot" className="flex items-center gap-1 sm:gap-1.5 px-2 py-1.5">
                 <Camera className="h-4 w-4 shrink-0" />
                 <span className="hidden sm:inline text-xs">{t('screenshot')}</span>
+              </TabsTrigger>
+              <TabsTrigger value="recording" className="flex items-center gap-1 sm:gap-1.5 px-2 py-1.5">
+                <Video className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline text-xs">{t('recording')}</span>
               </TabsTrigger>
               <TabsTrigger value="focus" className="flex items-center gap-1 sm:gap-1.5 px-2 py-1.5">
                 <Monitor className="h-4 w-4 shrink-0" />
@@ -168,6 +174,12 @@ export function NativeToolsSettings() {
 
               <div className="h-[300px] sm:h-[400px] border rounded-lg overflow-hidden">
                 <ScreenshotPanel className="h-full" />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="recording" className="mt-4 space-y-4">
+              <div className="h-[300px] sm:h-[400px] border rounded-lg overflow-hidden">
+                <RecordingHistoryPanel className="h-full" />
               </div>
             </TabsContent>
 

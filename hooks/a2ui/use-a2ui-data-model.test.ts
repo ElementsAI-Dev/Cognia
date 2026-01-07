@@ -15,7 +15,7 @@ const mockSetDataValue = jest.fn();
 const mockEmitDataChange = jest.fn();
 let mockSurfaces: Record<string, { dataModel: Record<string, unknown> }> = {};
 
-jest.mock('@/stores/a2ui-store', () => ({
+jest.mock('@/stores/a2ui', () => ({
   useA2UIStore: jest.fn((selector) => {
     const state = {
       surfaces: mockSurfaces,

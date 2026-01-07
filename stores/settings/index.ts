@@ -12,6 +12,8 @@ export {
   selectSearchEnabled,
   selectCompressionSettings,
   selectCompressionEnabled,
+  selectBackgroundSettings,
+  selectBackgroundEnabled,
   type Theme,
   type Language,
   type CustomTheme,

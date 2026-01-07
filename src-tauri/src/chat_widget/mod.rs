@@ -4,4 +4,4 @@
 
 mod chat_window;
 
-pub use chat_window::{ChatWidgetWindow, ChatWidgetConfig, ChatWidgetStatus};
+pub use chat_window::{ChatWidgetConfig, ChatWidgetStatus, ChatWidgetWindow};

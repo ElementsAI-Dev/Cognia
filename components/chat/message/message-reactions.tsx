@@ -110,7 +110,9 @@ export function MessageReactions({
       {reactions.map((reaction) => (
         <Tooltip key={reaction.emoji}>
           <TooltipTrigger asChild>
-            <button
+            <Button
+              variant={reaction.reacted ? 'ghost' : 'ghost'}
+              size="sm"
               onClick={() => reaction.reacted ? handleRemoveReaction(reaction.emoji) : handleReact(reaction.emoji)}
               className={cn(
                 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all duration-200',
@@ -128,7 +130,7 @@ export function MessageReactions({
                 {reaction.emoji}
               </span>
               <span className="font-medium tabular-nums">{reaction.count}</span>
-            </button>
+            </Button>
           </TooltipTrigger>
           <TooltipContent side="top" className="max-w-xs">
             <div className="text-xs">
@@ -182,18 +184,20 @@ export function MessageReactions({
             <TabsContent value="quick" className="mt-0">
               <div className="grid grid-cols-8 gap-0.5">
                 {QUICK_REACTIONS.map((emoji, index) => (
-                  <button
+                  <Button
                     key={emoji}
+                    variant="ghost"
+                    size="icon"
                     onClick={() => handleReact(emoji)}
                     className={cn(
-                      'p-1.5 rounded hover:bg-muted transition-all text-lg',
+                      'p-1.5 rounded transition-all text-lg',
                       'hover:scale-110 active:scale-95',
                       'animate-in fade-in-0 zoom-in-50'
                     )}
-                    style={{ animationDelay: `${index * 30}ms` }}
+                    style={{ animationDelay: `${index * 30}ms` } as React.CSSProperties}
                   >
-                    {emoji}
-                  </button>
+                    <span className="leading-none">{emoji}</span>
+                  </Button>
                 ))}
               </div>
             </TabsContent>
@@ -206,13 +210,15 @@ export function MessageReactions({
                   </p>
                   <div className="grid grid-cols-8 gap-0.5">
                     {emojis.map((emoji) => (
-                      <button
+                      <Button
                         key={emoji}
+                        variant="ghost"
+                        size="icon"
                         onClick={() => handleReact(emoji)}
-                        className="p-1 rounded hover:bg-muted transition-all text-base hover:scale-110 active:scale-95"
+                        className="p-1 rounded transition-all text-base hover:scale-110 active:scale-95"
                       >
-                        {emoji}
-                      </button>
+                        <span className="leading-none">{emoji}</span>
+                      </Button>
                     ))}
                   </div>
                 </div>

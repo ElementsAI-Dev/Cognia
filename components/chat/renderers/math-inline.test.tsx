@@ -13,7 +13,7 @@ jest.mock('katex', () => ({
 }));
 
 // Mock useCopy hook
-jest.mock('@/hooks/use-copy', () => ({
+jest.mock('@/hooks/ui/use-copy', () => ({
   useCopy: () => ({
     copy: jest.fn().mockResolvedValue({ success: true }),
     isCopying: false,
@@ -46,7 +46,8 @@ describe('MathInline', () => {
 
     it('strips \\( \\) delimiters from content', () => {
       const katex = jest.requireMock('katex');
-      render(<MathInline content="\\(a + b\\)" />);
+      katex.renderToString.mockClear();
+      render(<MathInline content="\(a + b\)" />);
       
       expect(katex.renderToString).toHaveBeenCalledWith(
         'a + b',

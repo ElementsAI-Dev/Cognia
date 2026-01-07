@@ -106,10 +106,7 @@ impl JupyterKernel {
         if let Some(ref version) = self.python_version {
             info!("Kernel {}: Detected Python version {}", self.id, version);
         } else {
-            warn!(
-                "Kernel {}: Could not detect Python version",
-                self.id
-            );
+            warn!("Kernel {}: Could not detect Python version", self.id);
         }
 
         // Check if ipykernel is installed
@@ -161,7 +158,7 @@ impl JupyterKernel {
         trace!("Kernel {} status changed to Busy", self.id);
 
         let python_path = self.get_python_path();
-        
+
         // Execute using Python directly (simplified approach)
         let result = self.execute_python(&python_path, code).await;
 
@@ -171,10 +168,10 @@ impl JupyterKernel {
         match result {
             Ok((stdout, stderr)) => {
                 let execution_time_ms = start_time.elapsed().as_millis() as u64;
-                
+
                 // Parse for display data (matplotlib, pandas, etc.)
                 let display_data = self.extract_display_data(&stdout);
-                
+
                 let success = stderr.is_empty();
                 if success {
                     info!(
@@ -219,10 +216,7 @@ impl JupyterKernel {
                 let execution_time_ms = start_time.elapsed().as_millis() as u64;
                 error!(
                     "Kernel {} execute [{}] failed after {}ms: {}",
-                    self.id,
-                    self.execution_count,
-                    execution_time_ms,
-                    e
+                    self.id, self.execution_count, execution_time_ms, e
                 );
                 Ok(super::KernelExecutionResult {
                     success: false,
@@ -242,7 +236,11 @@ impl JupyterKernel {
     }
 
     /// Execute Python code using subprocess
-    async fn execute_python(&self, python_path: &str, code: &str) -> Result<(String, String), String> {
+    async fn execute_python(
+        &self,
+        python_path: &str,
+        code: &str,
+    ) -> Result<(String, String), String> {
         trace!(
             "Kernel {}: Executing Python subprocess at {}",
             self.id,
@@ -281,8 +279,14 @@ print(json.dumps({{"stdout": stdout_val, "stderr": stderr_val}}))
 
         let output = if cfg!(target_os = "windows") {
             Command::new("cmd")
-                .args(["/C", &format!("\"{}\" -c \"{}\"", python_path, 
-                    wrapper_code.replace("\"", "\\\"").replace("\n", " "))])
+                .args([
+                    "/C",
+                    &format!(
+                        "\"{}\" -c \"{}\"",
+                        python_path,
+                        wrapper_code.replace("\"", "\\\"").replace("\n", " ")
+                    ),
+                ])
                 .output()
         } else {
             Command::new(python_path)
@@ -306,7 +310,14 @@ print(json.dumps({{"stdout": stdout_val, "stderr": stderr_val}}))
                     let stdout = parsed["stdout"].as_str().unwrap_or("").to_string();
                     let stderr = parsed["stderr"].as_str().unwrap_or("").to_string();
                     trace!("Kernel {}: Parsed JSON output successfully", self.id);
-                    Ok((stdout, if stderr.is_empty() { raw_stderr } else { stderr }))
+                    Ok((
+                        stdout,
+                        if stderr.is_empty() {
+                            raw_stderr
+                        } else {
+                            stderr
+                        },
+                    ))
                 } else {
                     // Fallback to raw output
                     debug!(
@@ -317,11 +328,7 @@ print(json.dumps({{"stdout": stdout_val, "stderr": stderr_val}}))
                 }
             }
             Err(e) => {
-                error!(
-                    "Kernel {}: Subprocess execution error: {}",
-                    self.id,
-                    e
-                );
+                error!("Kernel {}: Subprocess execution error: {}", self.id, e);
                 Err(e.to_string())
             }
         }
@@ -340,24 +347,24 @@ print(json.dumps({{"stdout": stdout_val, "stderr": stderr_val}}))
     fn detect_python_version(&self, python_path: &str) -> Option<String> {
         debug!(
             "Kernel {}: Detecting Python version at {}",
-            self.id,
-            python_path
+            self.id, python_path
         );
         let output = if cfg!(target_os = "windows") {
             Command::new("cmd")
                 .args(["/C", &format!("\"{}\" --version", python_path)])
                 .output()
         } else {
-            Command::new(python_path)
-                .args(["--version"])
-                .output()
+            Command::new(python_path).args(["--version"]).output()
         };
 
         output.ok().and_then(|out| {
             if out.status.success() {
                 let version = String::from_utf8_lossy(&out.stdout);
                 let version_str = version.trim().replace("Python ", "");
-                debug!("Kernel {}: Python version detected: {}", self.id, version_str);
+                debug!(
+                    "Kernel {}: Python version detected: {}",
+                    self.id, version_str
+                );
                 Some(version_str)
             } else {
                 warn!(
@@ -375,7 +382,10 @@ print(json.dumps({{"stdout": stdout_val, "stderr": stderr_val}}))
         trace!("Kernel {}: Checking if ipykernel is installed", self.id);
         let output = if cfg!(target_os = "windows") {
             Command::new("cmd")
-                .args(["/C", &format!("\"{}\" -c \"import ipykernel\"", python_path)])
+                .args([
+                    "/C",
+                    &format!("\"{}\" -c \"import ipykernel\"", python_path),
+                ])
                 .output()
         } else {
             Command::new(python_path)
@@ -388,16 +398,14 @@ print(json.dumps({{"stdout": stdout_val, "stderr": stderr_val}}))
                 let installed = out.status.success();
                 debug!(
                     "Kernel {}: ipykernel installed check: {}",
-                    self.id,
-                    installed
+                    self.id, installed
                 );
                 Ok(installed)
             }
             Err(e) => {
                 error!(
                     "Kernel {}: Failed to check ipykernel installation: {}",
-                    self.id,
-                    e
+                    self.id, e
                 );
                 Err(e.to_string())
             }
@@ -411,17 +419,26 @@ print(json.dumps({{"stdout": stdout_val, "stderr": stderr_val}}))
         debug!("Kernel {}: Attempting installation via uv", self.id);
         let uv_result = if cfg!(target_os = "windows") {
             Command::new("cmd")
-                .args(["/C", &format!("uv pip install ipykernel --python \"{}\"", python_path)])
+                .args([
+                    "/C",
+                    &format!("uv pip install ipykernel --python \"{}\"", python_path),
+                ])
                 .output()
         } else {
             Command::new("sh")
-                .args(["-c", &format!("uv pip install ipykernel --python '{}'", python_path)])
+                .args([
+                    "-c",
+                    &format!("uv pip install ipykernel --python '{}'", python_path),
+                ])
                 .output()
         };
 
         if let Ok(out) = uv_result {
             if out.status.success() {
-                info!("Kernel {}: ipykernel installed successfully via uv", self.id);
+                info!(
+                    "Kernel {}: ipykernel installed successfully via uv",
+                    self.id
+                );
                 return Ok(());
             }
             debug!(
@@ -434,10 +451,16 @@ print(json.dumps({{"stdout": stdout_val, "stderr": stderr_val}}))
         }
 
         // Fallback to pip
-        info!("Kernel {}: Falling back to pip for ipykernel installation", self.id);
+        info!(
+            "Kernel {}: Falling back to pip for ipykernel installation",
+            self.id
+        );
         let pip_result = if cfg!(target_os = "windows") {
             Command::new("cmd")
-                .args(["/C", &format!("\"{}\" -m pip install ipykernel", python_path)])
+                .args([
+                    "/C",
+                    &format!("\"{}\" -m pip install ipykernel", python_path),
+                ])
                 .output()
         } else {
             Command::new(python_path)
@@ -447,24 +470,19 @@ print(json.dumps({{"stdout": stdout_val, "stderr": stderr_val}}))
 
         match pip_result {
             Ok(out) if out.status.success() => {
-                info!("Kernel {}: ipykernel installed successfully via pip", self.id);
+                info!(
+                    "Kernel {}: ipykernel installed successfully via pip",
+                    self.id
+                );
                 Ok(())
             }
             Ok(out) => {
                 let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-                error!(
-                    "Kernel {}: pip installation failed: {}",
-                    self.id,
-                    stderr
-                );
+                error!("Kernel {}: pip installation failed: {}", self.id, stderr);
                 Err(stderr)
             }
             Err(e) => {
-                error!(
-                    "Kernel {}: pip command execution failed: {}",
-                    self.id,
-                    e
-                );
+                error!("Kernel {}: pip command execution failed: {}", self.id, e);
                 Err(e.to_string())
             }
         }
@@ -478,7 +496,10 @@ print(json.dumps({{"stdout": stdout_val, "stderr": stderr_val}}))
         if output.contains("data:image/png;base64,") {
             trace!("Kernel {}: Found base64 PNG image in output", self.id);
             if let Some(start) = output.find("data:image/png;base64,") {
-                if let Some(end) = output[start..].find("\"").or_else(|| output[start..].find("'")) {
+                if let Some(end) = output[start..]
+                    .find("\"")
+                    .or_else(|| output[start..].find("'"))
+                {
                     let data = &output[start + 22..start + end];
                     display_data.push(super::DisplayData {
                         mime_type: "image/png".to_string(),
@@ -555,15 +576,11 @@ print(json.dumps(get_var_info()))
 "#;
 
         let result = self.execute(code).await?;
-        
+
         if result.success {
-            let vars: Vec<super::VariableInfo> = serde_json::from_str(&result.stdout)
-                .map_err(|e| {
-                    error!(
-                        "Kernel {}: Failed to parse variables JSON: {}",
-                        self.id,
-                        e
-                    );
+            let vars: Vec<super::VariableInfo> =
+                serde_json::from_str(&result.stdout).map_err(|e| {
+                    error!("Kernel {}: Failed to parse variables JSON: {}", self.id, e);
                     e.to_string()
                 })?;
             debug!(
@@ -576,8 +593,7 @@ print(json.dumps(get_var_info()))
         } else {
             warn!(
                 "Kernel {}: get_variables execution failed: {}",
-                self.id,
-                result.stderr
+                self.id, result.stderr
             );
             Err(result.stderr)
         }
@@ -689,7 +705,7 @@ mod tests {
             "/path/to/env".to_string(),
             config,
         );
-        
+
         assert_eq!(kernel.id, "test-kernel");
         assert_eq!(kernel.status, KernelStatus::Starting);
         assert_eq!(kernel.execution_count, 0);

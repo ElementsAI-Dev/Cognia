@@ -19,8 +19,8 @@ jest.mock('@tauri-apps/api/core', () => ({
   invoke: mockInvoke,
 }));
 
-// Mock window.__TAURI__ to simulate Tauri environment
-Object.defineProperty(window, '__TAURI__', {
+// Mock window.__TAURI_INTERNALS__ to simulate Tauri environment
+Object.defineProperty(window, '__TAURI_INTERNALS__', {
   value: {},
   writable: true,
   configurable: true, // Allow deletion
@@ -29,7 +29,7 @@ Object.defineProperty(window, '__TAURI__', {
 // Extend Window interface for TypeScript
 declare global {
   interface Window {
-    __TAURI__?: Record<string, unknown>;
+    __TAURI_INTERNALS__?: Record<string, unknown>;
   }
 }
 
@@ -116,13 +116,13 @@ describe('NativeVectorStore', () => {
     });
 
     it('throws error when not in Tauri environment', async () => {
-      const originalTauri = window.__TAURI__;
+      const originalTauri = window.__TAURI_INTERNALS__;
       
-      // Completely remove __TAURI__ property
-      delete (window as unknown as Record<string, unknown>).__TAURI__;
+      // Completely remove __TAURI_INTERNALS__ property
+      delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
       
-      // Verify __TAURI__ is actually removed
-      expect('__TAURI__' in window).toBe(false);
+      // Verify __TAURI_INTERNALS__ is actually removed
+      expect('__TAURI_INTERNALS__' in window).toBe(false);
 
       const store = new NativeVectorStore(mockConfig);
       
@@ -130,9 +130,9 @@ describe('NativeVectorStore', () => {
 
       // Restore for other tests
       if (originalTauri !== undefined) {
-        window.__TAURI__ = originalTauri;
+        window.__TAURI_INTERNALS__ = originalTauri;
       } else {
-        window.__TAURI__ = {};
+        window.__TAURI_INTERNALS__ = {};
       }
     });
   });

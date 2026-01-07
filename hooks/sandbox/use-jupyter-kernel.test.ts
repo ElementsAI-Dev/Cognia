@@ -9,6 +9,7 @@ import { useJupyterKernel } from './use-jupyter-kernel';
 const mockCreateSession = jest.fn();
 const mockDeleteSession = jest.fn();
 const mockExecute = jest.fn();
+const mockExecuteCell = jest.fn();
 const mockRestartKernel = jest.fn();
 const mockInterruptKernel = jest.fn();
 
@@ -17,6 +18,7 @@ jest.mock('@/lib/jupyter/kernel', () => ({
     createSession: (...args: unknown[]) => mockCreateSession(...args),
     deleteSession: (...args: unknown[]) => mockDeleteSession(...args),
     execute: (...args: unknown[]) => mockExecute(...args),
+    executeCell: (...args: unknown[]) => mockExecuteCell(...args),
     restartKernel: (...args: unknown[]) => mockRestartKernel(...args),
     interruptKernel: (...args: unknown[]) => mockInterruptKernel(...args),
     getVariables: jest.fn(() => Promise.resolve([])),
@@ -24,6 +26,13 @@ jest.mock('@/lib/jupyter/kernel', () => ({
     ensureKernel: jest.fn(() => Promise.resolve(true)),
     shutdownAll: jest.fn(() => Promise.resolve()),
     checkKernelAvailable: jest.fn(() => Promise.resolve(true)),
+    // Required for hook initialization
+    isAvailable: jest.fn(() => true),
+    listSessions: jest.fn(() => Promise.resolve([])),
+    listKernels: jest.fn(() => Promise.resolve([])),
+    onKernelStatus: jest.fn(() => Promise.resolve(() => {})),
+    onKernelOutput: jest.fn(() => Promise.resolve(() => {})),
+    onCellOutput: jest.fn(() => Promise.resolve(() => {})),
   },
 }));
 
@@ -47,7 +56,6 @@ const mockSetSessions = jest.fn();
 const mockSetKernels = jest.fn();
 const mockSetActiveSessionId = jest.fn();
 const mockSetIsExecuting = jest.fn();
-const mockSetExecutingCellIndex = jest.fn();
 const mockSetLastExecutionResult = jest.fn();
 const mockSetVariables = jest.fn();
 const mockSetError = jest.fn();
@@ -58,22 +66,28 @@ jest.mock('@/stores/tools', () => ({
     const state = {
       ...mockStoreState,
       setSessions: mockSetSessions,
+      addSession: jest.fn(),
+      removeSession: jest.fn(),
+      setActiveSession: mockSetActiveSessionId,
       setKernels: mockSetKernels,
-      setActiveSessionId: mockSetActiveSessionId,
-      setIsExecuting: mockSetIsExecuting,
-      setExecutingCellIndex: mockSetExecutingCellIndex,
+      updateKernelStatus: jest.fn(),
+      setExecuting: mockSetIsExecuting,
       setLastExecutionResult: mockSetLastExecutionResult,
       setVariables: mockSetVariables,
+      setVariablesLoading: jest.fn(),
+      addExecutionHistory: jest.fn(),
+      mapChatToJupyter: jest.fn(),
+      unmapChatSession: jest.fn(),
       setError: mockSetError,
       clearError: mockClearError,
-      setIsCreatingSession: jest.fn(),
-      setIsLoadingSessions: jest.fn(),
-      setVariablesLoading: jest.fn(),
-      addSessionEnvMapping: jest.fn(),
-      removeSessionEnvMapping: jest.fn(),
-      getSessionByEnvPath: jest.fn(),
+      setCreatingSession: jest.fn(),
+      setLoadingSessions: jest.fn(),
     };
-    return selector(state);
+    // Handle both selector and no-selector cases
+    if (typeof selector === 'function') {
+      return selector(state);
+    }
+    return state;
   }),
   useActiveSession: jest.fn(() => undefined),
   useActiveKernel: jest.fn(() => null),
@@ -215,7 +229,7 @@ describe('useJupyterKernel', () => {
 
     it('should execute cell', async () => {
       const mockResult = { success: true, output: 'Result' };
-      mockExecute.mockResolvedValue(mockResult);
+      mockExecuteCell.mockResolvedValue(mockResult);
 
       const { result } = renderHook(() => useJupyterKernel());
 
@@ -223,7 +237,7 @@ describe('useJupyterKernel', () => {
         await result.current.executeCell(0, 'x = 1', 'session-1');
       });
 
-      expect(mockExecute).toHaveBeenCalled();
+      expect(mockExecuteCell).toHaveBeenCalled();
     });
   });
 

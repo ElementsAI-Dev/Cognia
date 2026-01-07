@@ -3,8 +3,8 @@
 //! Commands for multi-provider OCR functionality.
 
 use crate::screenshot::{
-    AzureVisionProvider, GoogleVisionProvider, OcrManager, OcrOptions, OcrProvider, 
-    OcrProviderConfig, OcrProviderInfo, OcrProviderType, OllamaVisionProvider, 
+    AzureVisionProvider, GoogleVisionProvider, OcrManager, OcrOptions, OcrProvider,
+    OcrProviderConfig, OcrProviderInfo, OcrProviderType, OllamaVisionProvider,
     OpenAiVisionProvider, TesseractProvider, UnifiedOcrResult, WindowsOcrProvider,
 };
 use base64::Engine;
@@ -144,7 +144,10 @@ pub async fn ocr_configure_provider(
                 manager.register_provider(Arc::new(provider));
             }
             OcrProviderType::AzureVision => {
-                let endpoint = config.endpoint.clone().or(provider_config.endpoint.clone())
+                let endpoint = config
+                    .endpoint
+                    .clone()
+                    .or(provider_config.endpoint.clone())
                     .unwrap_or_default();
                 let provider = AzureVisionProvider::new(api_key, endpoint);
                 manager.register_provider(Arc::new(provider));
@@ -245,7 +248,7 @@ pub async fn ocr_is_provider_available(
         let manager = state.manager.read();
         manager.get_provider(&provider)
     };
-    
+
     if let Some(p) = provider_arc {
         Ok(p.is_available().await)
     } else {
@@ -264,11 +267,9 @@ pub async fn ocr_get_provider_languages(
         let manager = state.manager.read();
         manager.get_provider(&provider)
     };
-    
+
     if let Some(p) = provider_arc {
-        p.get_supported_languages()
-            .await
-            .map_err(|e| e.message)
+        p.get_supported_languages().await.map_err(|e| e.message)
     } else {
         Err(format!("Provider {:?} not registered", provider))
     }
@@ -289,7 +290,7 @@ mod tests {
     fn test_ocr_state_new() {
         let state = OcrState::new();
         let manager = state.manager.read();
-        
+
         // Windows OCR should be registered by default
         let providers = manager.get_registered_providers();
         assert!(providers.contains(&OcrProviderType::WindowsOcr));

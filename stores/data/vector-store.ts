@@ -40,6 +40,8 @@ export interface VectorSettings {
   chunkSize: number;
   chunkOverlap: number;
   autoEmbed: boolean;
+  /** Default collection name for RAG searches when not specified */
+  defaultCollectionName: string;
 }
 
 const DEFAULT_SETTINGS: VectorSettings = {
@@ -51,6 +53,7 @@ const DEFAULT_SETTINGS: VectorSettings = {
   chunkSize: 1000,
   chunkOverlap: 200,
   autoEmbed: true,
+  defaultCollectionName: 'default',
 };
 
 interface VectorState {
@@ -71,6 +74,8 @@ interface VectorState {
   updateCollection: (id: string, updates: Partial<VectorCollection>) => void;
   deleteCollection: (id: string) => void;
   getCollection: (id: string) => VectorCollection | undefined;
+  getCollectionByName: (name: string) => VectorCollection | undefined;
+  getCollectionNames: () => string[];
 
   // Document operations
   addDocuments: (collectionId: string, docs: Omit<VectorDocument, 'id' | 'collectionId' | 'createdAt'>[]) => void;
@@ -148,6 +153,14 @@ export const useVectorStore = create<VectorState>()(
 
       getCollection: (id) => {
         return get().collections.find((c) => c.id === id);
+      },
+
+      getCollectionByName: (name) => {
+        return get().collections.find((c) => c.name === name);
+      },
+
+      getCollectionNames: () => {
+        return get().collections.map((c) => c.name);
       },
 
       addDocuments: (collectionId, docs) => {

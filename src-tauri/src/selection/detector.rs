@@ -2,16 +2,16 @@
 //!
 //! Main orchestrator that combines text extraction, analysis, and expansion components.
 
-use std::sync::Arc;
 use parking_lot::RwLock;
+use std::sync::Arc;
 
-use crate::selection::types::{Selection, SourceAppInfo};
-use crate::selection::extractor::TextExtractor;
 use crate::selection::analyzer::TextAnalyzer;
 use crate::selection::expander::SelectionExpander;
+use crate::selection::extractor::TextExtractor;
+use crate::selection::types::{Selection, SourceAppInfo};
 
 /// Text selection detector with analysis capabilities
-/// 
+///
 /// Combines:
 /// - `TextExtractor` for platform-specific text extraction
 /// - `TextAnalyzer` for text analysis and classification
@@ -81,7 +81,10 @@ impl SelectionDetector {
     /// Get last analyzed selection
     pub fn get_last_selection(&self) -> Option<Selection> {
         let selection = self.last_selection.read().clone();
-        log::trace!("[SelectionDetector] get_last_selection: has_selection={}", selection.is_some());
+        log::trace!(
+            "[SelectionDetector] get_last_selection: has_selection={}",
+            selection.is_some()
+        );
         selection
     }
 
@@ -139,11 +142,11 @@ mod tests {
     #[test]
     fn test_analyze_stores_last_selection() {
         let detector = SelectionDetector::new();
-        
+
         assert!(detector.get_last_selection().is_none());
-        
+
         detector.analyze("Test text", None);
-        
+
         let last = detector.get_last_selection();
         assert!(last.is_some());
         assert_eq!(last.unwrap().text, "Test text");
@@ -153,7 +156,7 @@ mod tests {
     fn test_analyze_plain_text() {
         let detector = SelectionDetector::new();
         let result = detector.analyze("Hello, this is a simple text.", None);
-        
+
         assert_eq!(result.text_type, TextType::PlainText);
         assert!(!result.is_code);
         assert_eq!(result.word_count, 6);
@@ -163,7 +166,7 @@ mod tests {
     fn test_analyze_url() {
         let detector = SelectionDetector::new();
         let result = detector.analyze("https://example.com/path", None);
-        
+
         assert_eq!(result.text_type, TextType::Url);
         assert!(result.is_url);
     }
@@ -173,7 +176,7 @@ mod tests {
         let detector = SelectionDetector::new();
         let rust_code = "fn main() {\n    let x = 5;\n}";
         let result = detector.analyze(rust_code, None);
-        
+
         assert_eq!(result.text_type, TextType::Code);
         assert!(result.is_code);
     }
@@ -182,7 +185,7 @@ mod tests {
     fn test_expand_to_word() {
         let detector = SelectionDetector::new();
         let text = "hello world test";
-        
+
         let (start, end) = detector.expand_to_word(text, 7);
         assert_eq!(&text[start..end], "world");
     }
@@ -191,7 +194,7 @@ mod tests {
     fn test_expand_to_sentence() {
         let detector = SelectionDetector::new();
         let text = "First sentence. Second sentence.";
-        
+
         let (start, end) = detector.expand_to_sentence(text, 20);
         let sentence = &text[start..end];
         assert!(sentence.contains("Second"));
@@ -201,7 +204,7 @@ mod tests {
     fn test_expand_to_line() {
         let detector = SelectionDetector::new();
         let text = "Line 1\nLine 2\nLine 3";
-        
+
         let (start, end) = detector.expand_to_line(text, 8);
         assert_eq!(&text[start..end], "Line 2");
     }
@@ -210,7 +213,7 @@ mod tests {
     fn test_expand_to_paragraph() {
         let detector = SelectionDetector::new();
         let text = "Para 1 line 1\nPara 1 line 2\n\nPara 2";
-        
+
         let (start, end) = detector.expand_to_paragraph(text, 5);
         let para = &text[start..end];
         assert!(para.contains("Para 1"));

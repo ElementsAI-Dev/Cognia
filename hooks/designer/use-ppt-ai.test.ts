@@ -483,7 +483,8 @@ describe('usePPTAI', () => {
         response = await result.current.generateOutline('Test', 1);
       });
 
-      expect(response?.outline?.[0].keyPoints).toEqual([]);
+      const firstItem = response?.outline?.[0] as { keyPoints?: unknown[] } | undefined;
+      expect(firstItem?.keyPoints).toEqual([]);
     });
 
     it('should handle outline generation errors', async () => {

@@ -51,3 +51,9 @@ export {
   useChatWidget,
   type UseChatWidgetReturn,
 } from './use-chat-widget';
+export {
+  useWorkflowCommand,
+  type WorkflowCommandResult,
+  type UseWorkflowCommandOptions,
+  type UseWorkflowCommandReturn,
+} from './use-workflow-command';

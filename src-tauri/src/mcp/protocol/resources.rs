@@ -360,9 +360,7 @@ mod tests {
 
     #[test]
     fn test_empty_uri() {
-        let params = ResourcesReadParams {
-            uri: String::new(),
-        };
+        let params = ResourcesReadParams { uri: String::new() };
         let json = serde_json::to_value(&params).unwrap();
         assert_eq!(json["uri"], "");
     }

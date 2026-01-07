@@ -2,9 +2,9 @@
 #[allow(clippy::module_inception)]
 mod tests {
     use crate::commands::vector::*;
+    use serde_json::json;
     use std::sync::Arc;
     use tempfile::tempdir;
-    use serde_json::json;
 
     fn create_test_state() -> Arc<VectorStoreState> {
         let temp_dir = tempdir().unwrap();
@@ -59,7 +59,10 @@ mod tests {
         assert_eq!(collection.name, "test_collection");
         assert_eq!(collection.dimension, 384);
         assert_eq!(collection.description, Some("Test collection".to_string()));
-        assert_eq!(collection.embedding_model, Some("text-embedding-3-small".to_string()));
+        assert_eq!(
+            collection.embedding_model,
+            Some("text-embedding-3-small".to_string())
+        );
         assert_eq!(collection.embedding_provider, Some("openai".to_string()));
     }
 
@@ -100,7 +103,7 @@ mod tests {
     #[test]
     fn test_delete_collection() {
         let state = create_test_state();
-        
+
         // First create a collection
         let payload = CreateCollectionPayload {
             name: "to_delete".to_string(),
@@ -131,7 +134,7 @@ mod tests {
     #[test]
     fn test_rename_collection() {
         let state = create_test_state();
-        
+
         // Create a collection
         let payload = CreateCollectionPayload {
             name: "old_name".to_string(),
@@ -144,35 +147,34 @@ mod tests {
         create_collection_impl(&state, payload).unwrap();
 
         // Rename it
-        let result = rename_collection_impl(
-            &state, 
-            "old_name".to_string(), 
-            "new_name".to_string()
-        );
+        let result = rename_collection_impl(&state, "old_name".to_string(), "new_name".to_string());
         assert!(result.is_ok());
 
         // Verify rename
         let data = state.data.lock();
         assert!(!data.collections.contains_key("old_name"));
         assert!(data.collections.contains_key("new_name"));
-        
+
         let collection = &data.collections["new_name"];
         assert_eq!(collection.name, "new_name");
-        assert_eq!(collection.description, Some("Original description".to_string()));
+        assert_eq!(
+            collection.description,
+            Some("Original description".to_string())
+        );
         assert_eq!(collection.embedding_model, Some("test-model".to_string()));
-        assert_eq!(collection.embedding_provider, Some("test-provider".to_string()));
+        assert_eq!(
+            collection.embedding_provider,
+            Some("test-provider".to_string())
+        );
     }
 
     #[test]
     fn test_rename_collection_errors() {
         let state = create_test_state();
-        
+
         // Try to rename non-existent collection
-        let result1 = rename_collection_impl(
-            &state, 
-            "nonexistent".to_string(), 
-            "new_name".to_string()
-        );
+        let result1 =
+            rename_collection_impl(&state, "nonexistent".to_string(), "new_name".to_string());
         assert!(result1.is_err());
         assert!(result1.unwrap_err().contains("not found"));
 
@@ -197,11 +199,8 @@ mod tests {
         create_collection_impl(&state, payload2).unwrap();
 
         // Try to rename to existing name
-        let result2 = rename_collection_impl(
-            &state, 
-            "collection1".to_string(), 
-            "collection2".to_string()
-        );
+        let result2 =
+            rename_collection_impl(&state, "collection1".to_string(), "collection2".to_string());
         assert!(result2.is_err());
         assert!(result2.unwrap_err().contains("already exists"));
     }
@@ -209,7 +208,7 @@ mod tests {
     #[test]
     fn test_truncate_collection() {
         let state = create_test_state();
-        
+
         // Create collection and add some points
         let payload = CreateCollectionPayload {
             name: "to_truncate".to_string(),
@@ -257,7 +256,7 @@ mod tests {
     #[test]
     fn test_truncate_nonexistent_collection() {
         let state = create_test_state();
-        
+
         let result = truncate_collection_impl(&state, "nonexistent".to_string());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("not found"));
@@ -266,7 +265,7 @@ mod tests {
     #[test]
     fn test_list_collections() {
         let state = create_test_state();
-        
+
         // Test empty list
         let result = list_collections_impl(&state);
         assert!(result.is_ok());
@@ -303,14 +302,20 @@ mod tests {
         assert_eq!(collections.len(), 2);
 
         // Find collections by name
-        let col1 = collections.iter().find(|c| c.name == "collection1").unwrap();
-        let col2 = collections.iter().find(|c| c.name == "collection2").unwrap();
+        let col1 = collections
+            .iter()
+            .find(|c| c.name == "collection1")
+            .unwrap();
+        let col2 = collections
+            .iter()
+            .find(|c| c.name == "collection2")
+            .unwrap();
 
         assert_eq!(col1.dimension, 384);
         assert_eq!(col1.description, Some("First collection".to_string()));
         assert_eq!(col1.embedding_model, Some("model1".to_string()));
         assert_eq!(col1.embedding_provider, Some("provider1".to_string()));
-        
+
         assert_eq!(col2.dimension, 768);
         assert_eq!(col2.description, Some("Second collection".to_string()));
         assert_eq!(col2.embedding_model, Some("model2".to_string()));
@@ -320,7 +325,7 @@ mod tests {
     #[test]
     fn test_get_collection() {
         let state = create_test_state();
-        
+
         // Test non-existent collection
         let result = get_collection_impl(&state, "nonexistent".to_string());
         assert!(result.is_err());
@@ -344,9 +349,15 @@ mod tests {
 
         assert_eq!(collection.name, "test_get");
         assert_eq!(collection.dimension, 384);
-        assert_eq!(collection.description, Some("Test get collection".to_string()));
+        assert_eq!(
+            collection.description,
+            Some("Test get collection".to_string())
+        );
         assert_eq!(collection.embedding_model, Some("test-model".to_string()));
-        assert_eq!(collection.embedding_provider, Some("test-provider".to_string()));
+        assert_eq!(
+            collection.embedding_provider,
+            Some("test-provider".to_string())
+        );
         assert_eq!(collection.document_count, 0);
     }
 
@@ -374,7 +385,7 @@ mod tests {
         let timestamp1 = default_timestamp();
         std::thread::sleep(std::time::Duration::from_millis(1));
         let timestamp2 = default_timestamp();
-        
+
         assert!(timestamp2 >= timestamp1);
         assert!(timestamp2 - timestamp1 <= 1); // Should be within 1 second
     }
@@ -382,7 +393,7 @@ mod tests {
     #[test]
     fn test_upsert_points() {
         let state = create_test_state();
-        
+
         // Create collection
         let payload = CreateCollectionPayload {
             name: "test_upsert".to_string(),
@@ -415,8 +426,11 @@ mod tests {
         let data = state.data.lock();
         assert_eq!(data.points["test_upsert"].len(), 2);
         assert_eq!(data.collections["test_upsert"].document_count, 2);
-        
-        let point1 = data.points["test_upsert"].iter().find(|p| p.id == "point1").unwrap();
+
+        let point1 = data.points["test_upsert"]
+            .iter()
+            .find(|p| p.id == "point1")
+            .unwrap();
         assert_eq!(point1.vector, vec![0.1, 0.2, 0.3]);
         assert_eq!(point1.payload.as_ref().unwrap()["category"], "A");
         assert_eq!(point1.payload.as_ref().unwrap()["score"], 85);
@@ -425,7 +439,7 @@ mod tests {
     #[test]
     fn test_upsert_points_dimension_mismatch() {
         let state = create_test_state();
-        
+
         // Create collection with dimension 2
         let payload = CreateCollectionPayload {
             name: "test_dim".to_string(),
@@ -438,13 +452,11 @@ mod tests {
         create_collection_impl(&state, payload).unwrap();
 
         // Try to add point with wrong dimension
-        let points = vec![
-            UpsertPoint {
-                id: "bad_point".to_string(),
-                vector: vec![0.1, 0.2, 0.3], // 3D vector for 2D collection
-                payload: None,
-            },
-        ];
+        let points = vec![UpsertPoint {
+            id: "bad_point".to_string(),
+            vector: vec![0.1, 0.2, 0.3], // 3D vector for 2D collection
+            payload: None,
+        }];
 
         let result = upsert_points_impl(&state, "test_dim".to_string(), points);
         assert!(result.is_err());
@@ -454,7 +466,7 @@ mod tests {
     #[test]
     fn test_upsert_points_update_existing() {
         let state = create_test_state();
-        
+
         // Create collection and add initial point
         let payload = CreateCollectionPayload {
             name: "test_update".to_string(),
@@ -466,30 +478,26 @@ mod tests {
         };
         create_collection_impl(&state, payload).unwrap();
 
-        let initial_points = vec![
-            UpsertPoint {
-                id: "update_me".to_string(),
-                vector: vec![0.1, 0.2],
-                payload: Some(json!({"version": 1})),
-            },
-        ];
+        let initial_points = vec![UpsertPoint {
+            id: "update_me".to_string(),
+            vector: vec![0.1, 0.2],
+            payload: Some(json!({"version": 1})),
+        }];
         upsert_points_impl(&state, "test_update".to_string(), initial_points).unwrap();
 
         // Update the same point
-        let updated_points = vec![
-            UpsertPoint {
-                id: "update_me".to_string(),
-                vector: vec![0.3, 0.4],
-                payload: Some(json!({"version": 2})),
-            },
-        ];
+        let updated_points = vec![UpsertPoint {
+            id: "update_me".to_string(),
+            vector: vec![0.3, 0.4],
+            payload: Some(json!({"version": 2})),
+        }];
         upsert_points_impl(&state, "test_update".to_string(), updated_points).unwrap();
 
         // Verify update (should still be 1 point, not 2)
         let data = state.data.lock();
         assert_eq!(data.points["test_update"].len(), 1);
         assert_eq!(data.collections["test_update"].document_count, 1);
-        
+
         let point = &data.points["test_update"][0];
         assert_eq!(point.vector, vec![0.3, 0.4]);
         assert_eq!(point.payload.as_ref().unwrap()["version"], 2);
@@ -498,7 +506,7 @@ mod tests {
     #[test]
     fn test_delete_points() {
         let state = create_test_state();
-        
+
         // Setup collection with points
         let payload = CreateCollectionPayload {
             name: "test_delete".to_string(),
@@ -525,7 +533,11 @@ mod tests {
         upsert_points_impl(&state, "test_delete".to_string(), points).unwrap();
 
         // Delete one point
-        let result = delete_points_impl(&state, "test_delete".to_string(), vec!["delete_me".to_string()]);
+        let result = delete_points_impl(
+            &state,
+            "test_delete".to_string(),
+            vec!["delete_me".to_string()],
+        );
         assert!(result.is_ok());
 
         // Verify deletion and document count update
@@ -538,7 +550,7 @@ mod tests {
     #[test]
     fn test_get_points() {
         let state = create_test_state();
-        
+
         // Setup collection with points
         let payload = CreateCollectionPayload {
             name: "test_get_points".to_string(),
@@ -565,7 +577,11 @@ mod tests {
         upsert_points_impl(&state, "test_get_points".to_string(), points).unwrap();
 
         // Get specific points
-        let result = get_points_impl(&state, "test_get_points".to_string(), vec!["point1".to_string()]);
+        let result = get_points_impl(
+            &state,
+            "test_get_points".to_string(),
+            vec!["point1".to_string()],
+        );
         assert!(result.is_ok());
         let retrieved = result.unwrap();
         assert_eq!(retrieved.len(), 1);
@@ -576,7 +592,7 @@ mod tests {
     #[test]
     fn test_search_points_basic() {
         let state = create_test_state();
-        
+
         // Setup collection with points
         let payload = CreateCollectionPayload {
             name: "test_search".to_string(),
@@ -618,7 +634,7 @@ mod tests {
         assert!(result.is_ok());
         let response = result.unwrap();
         assert_eq!(response.results.len(), 2);
-        
+
         // Results should be ordered by score (highest first)
         assert_eq!(response.results[0].id, "point1"); // Should have higher similarity
         assert!(response.results[0].score > response.results[1].score);
@@ -628,7 +644,7 @@ mod tests {
     #[test]
     fn test_search_points_with_threshold() {
         let state = create_test_state();
-        
+
         // Setup collection
         let payload = CreateCollectionPayload {
             name: "test_threshold".to_string(),
@@ -676,7 +692,7 @@ mod tests {
     #[test]
     fn test_payload_filters() {
         let state = create_test_state();
-        
+
         // Setup collection with diverse payload data
         let payload = CreateCollectionPayload {
             name: "test_filters".to_string(),
@@ -728,7 +744,7 @@ mod tests {
             value: json!("science"),
             operation: "equals".to_string(),
         }];
-        
+
         let search_payload = SearchPayload {
             collection: "test_filters".to_string(),
             vector: vec![1.0, 0.0],
@@ -754,7 +770,7 @@ mod tests {
             value: json!("Research"),
             operation: "contains".to_string(),
         }];
-        
+
         let search_payload = SearchPayload {
             collection: "test_filters".to_string(),
             vector: vec![1.0, 0.0],
@@ -778,7 +794,7 @@ mod tests {
             value: json!(90),
             operation: "greater_than".to_string(),
         }];
-        
+
         let search_payload = SearchPayload {
             collection: "test_filters".to_string(),
             vector: vec![1.0, 0.0],
@@ -794,7 +810,7 @@ mod tests {
         assert!(result.is_ok());
         let response = result.unwrap();
         assert_eq!(response.results.len(), 2); // doc1 (95) and doc3 (92)
-        
+
         // Test multiple filters (AND logic)
         let multiple_filters = vec![
             PayloadFilter {
@@ -808,7 +824,7 @@ mod tests {
                 operation: "greater_than".to_string(),
             },
         ];
-        
+
         let search_payload = SearchPayload {
             collection: "test_filters".to_string(),
             vector: vec![1.0, 0.0],
@@ -830,7 +846,7 @@ mod tests {
     #[test]
     fn test_pagination() {
         let state = create_test_state();
-        
+
         // Setup collection with multiple points
         let payload = CreateCollectionPayload {
             name: "test_pagination".to_string(),
@@ -843,13 +859,15 @@ mod tests {
         create_collection_impl(&state, payload).unwrap();
 
         // Add 5 points with decreasing similarity to [1.0]
-        let points: Vec<UpsertPoint> = (0..5).map(|i| {
-            UpsertPoint {
-                id: format!("point{}", i),
-                vector: vec![1.0 - (i as f64 * 0.1)], // 1.0, 0.9, 0.8, 0.7, 0.6
-                payload: Some(json!({"index": i})),
-            }
-        }).collect();
+        let points: Vec<UpsertPoint> = (0..5)
+            .map(|i| {
+                UpsertPoint {
+                    id: format!("point{}", i),
+                    vector: vec![1.0 - (i as f64 * 0.1)], // 1.0, 0.9, 0.8, 0.7, 0.6
+                    payload: Some(json!({"index": i})),
+                }
+            })
+            .collect();
         upsert_points_impl(&state, "test_pagination".to_string(), points).unwrap();
 
         // Test offset/limit pagination
@@ -859,7 +877,7 @@ mod tests {
             top_k: Some(10), // Request more than limit
             score_threshold: None,
             offset: Some(1), // Skip first result
-            limit: Some(2), // Take next 2
+            limit: Some(2),  // Take next 2
             filters: None,
             filter_mode: None,
         };
@@ -939,7 +957,7 @@ mod tests {
     #[test]
     fn test_search_nonexistent_collection() {
         let state = create_test_state();
-        
+
         let search_payload = SearchPayload {
             collection: "nonexistent".to_string(),
             vector: vec![1.0, 0.0],
@@ -959,7 +977,7 @@ mod tests {
     #[test]
     fn test_export_collection() {
         let state = create_test_state();
-        
+
         // Create collection with metadata
         let payload = CreateCollectionPayload {
             name: "test_export".to_string(),
@@ -994,12 +1012,21 @@ mod tests {
         // Verify export structure
         assert_eq!(exported.meta.name, "test_export");
         assert_eq!(exported.meta.dimension, 3);
-        assert_eq!(exported.meta.description, Some("Export test collection".to_string()));
-        assert_eq!(exported.meta.embedding_model, Some("test-model".to_string()));
-        assert_eq!(exported.meta.embedding_provider, Some("test-provider".to_string()));
+        assert_eq!(
+            exported.meta.description,
+            Some("Export test collection".to_string())
+        );
+        assert_eq!(
+            exported.meta.embedding_model,
+            Some("test-model".to_string())
+        );
+        assert_eq!(
+            exported.meta.embedding_provider,
+            Some("test-provider".to_string())
+        );
         assert_eq!(exported.meta.document_count, 2);
         assert_eq!(exported.points.len(), 2);
-        
+
         // Verify points in export
         let point1 = exported.points.iter().find(|p| p.id == "export1").unwrap();
         assert_eq!(point1.vector, vec![0.1, 0.2, 0.3]);
@@ -1015,7 +1042,7 @@ mod tests {
     #[test]
     fn test_export_nonexistent_collection() {
         let state = create_test_state();
-        
+
         let result = export_collection_impl(&state, "nonexistent".to_string());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("not found"));
@@ -1024,7 +1051,7 @@ mod tests {
     #[test]
     fn test_export_empty_collection() {
         let state = create_test_state();
-        
+
         // Create empty collection
         let payload = CreateCollectionPayload {
             name: "empty_export".to_string(),
@@ -1040,7 +1067,7 @@ mod tests {
         let result = export_collection_impl(&state, "empty_export".to_string());
         assert!(result.is_ok());
         let exported = result.unwrap();
-        
+
         assert_eq!(exported.meta.name, "empty_export");
         assert_eq!(exported.meta.document_count, 0);
         assert_eq!(exported.points.len(), 0);
@@ -1049,14 +1076,14 @@ mod tests {
     #[test]
     fn test_import_collection_new() {
         let state = create_test_state();
-        
+
         // Create import data
         let import_data = CollectionImport {
             meta: CollectionMeta {
                 name: "imported_collection".to_string(),
                 dimension: 2,
                 metadata: Some(json!({"imported": true})),
-                document_count: 2, // Will be updated during import
+                document_count: 2,      // Will be updated during import
                 created_at: 1600000000, // Will be updated
                 updated_at: 1600000000, // Will be updated
                 description: Some("Imported test collection".to_string()),
@@ -1084,18 +1111,30 @@ mod tests {
         // Verify collection was imported
         let data = state.data.lock();
         assert!(data.collections.contains_key("imported_collection"));
-        
+
         let collection = &data.collections["imported_collection"];
         assert_eq!(collection.name, "imported_collection");
         assert_eq!(collection.dimension, 2);
-        assert_eq!(collection.description, Some("Imported test collection".to_string()));
-        assert_eq!(collection.embedding_model, Some("imported-model".to_string()));
-        assert_eq!(collection.embedding_provider, Some("imported-provider".to_string()));
+        assert_eq!(
+            collection.description,
+            Some("Imported test collection".to_string())
+        );
+        assert_eq!(
+            collection.embedding_model,
+            Some("imported-model".to_string())
+        );
+        assert_eq!(
+            collection.embedding_provider,
+            Some("imported-provider".to_string())
+        );
         assert_eq!(collection.document_count, 2);
-        
+
         // Verify points were imported
         assert_eq!(data.points["imported_collection"].len(), 2);
-        let point1 = data.points["imported_collection"].iter().find(|p| p.id == "imported1").unwrap();
+        let point1 = data.points["imported_collection"]
+            .iter()
+            .find(|p| p.id == "imported1")
+            .unwrap();
         assert_eq!(point1.vector, vec![0.7, 0.8]);
         assert_eq!(point1.payload.as_ref().unwrap()["imported"], true);
         assert_eq!(point1.payload.as_ref().unwrap()["id"], 1);
@@ -1104,7 +1143,7 @@ mod tests {
     #[test]
     fn test_import_collection_overwrite() {
         let state = create_test_state();
-        
+
         // Create existing collection
         let payload = CreateCollectionPayload {
             name: "existing_collection".to_string(),
@@ -1117,13 +1156,11 @@ mod tests {
         create_collection_impl(&state, payload).unwrap();
 
         // Add original points
-        let original_points = vec![
-            UpsertPoint {
-                id: "original1".to_string(),
-                vector: vec![1.0, 0.0, 0.0],
-                payload: Some(json!({"original": true})),
-            },
-        ];
+        let original_points = vec![UpsertPoint {
+            id: "original1".to_string(),
+            vector: vec![1.0, 0.0, 0.0],
+            payload: Some(json!({"original": true})),
+        }];
         upsert_points_impl(&state, "existing_collection".to_string(), original_points).unwrap();
 
         // Try import without overwrite - should fail
@@ -1139,13 +1176,11 @@ mod tests {
                 embedding_model: Some("imported-model".to_string()),
                 embedding_provider: Some("imported-provider".to_string()),
             },
-            points: vec![
-                PointRecord {
-                    id: "imported1".to_string(),
-                    vector: vec![0.5, 0.5],
-                    payload: Some(json!({"imported": true})),
-                },
-            ],
+            points: vec![PointRecord {
+                id: "imported1".to_string(),
+                vector: vec![0.5, 0.5],
+                payload: Some(json!({"imported": true})),
+            }],
         };
 
         let result = import_collection_impl(&state, import_data.clone(), Some(false));
@@ -1160,10 +1195,16 @@ mod tests {
         let data = state.data.lock();
         let collection = &data.collections["existing_collection"];
         assert_eq!(collection.dimension, 2); // Should be updated
-        assert_eq!(collection.description, Some("Imported collection".to_string()));
-        assert_eq!(collection.embedding_model, Some("imported-model".to_string()));
+        assert_eq!(
+            collection.description,
+            Some("Imported collection".to_string())
+        );
+        assert_eq!(
+            collection.embedding_model,
+            Some("imported-model".to_string())
+        );
         assert_eq!(collection.document_count, 1);
-        
+
         // Verify points were replaced
         assert_eq!(data.points["existing_collection"].len(), 1);
         let point = &data.points["existing_collection"][0];
@@ -1174,7 +1215,7 @@ mod tests {
     #[test]
     fn test_import_collection_preserves_created_at() {
         let state = create_test_state();
-        
+
         // Import new collection
         let import_data = CollectionImport {
             meta: CollectionMeta {
@@ -1197,11 +1238,11 @@ mod tests {
         // Verify timestamps
         let data = state.data.lock();
         let collection = &data.collections["new_import"];
-        
+
         // created_at should be current time (new collection)
         let now = default_timestamp();
         assert!(collection.created_at >= now - 2 && collection.created_at <= now + 2);
-        
+
         // updated_at should be current time
         assert!(collection.updated_at >= now - 2 && collection.updated_at <= now + 2);
     }
@@ -1209,7 +1250,7 @@ mod tests {
     #[test]
     fn test_import_empty_collection() {
         let state = create_test_state();
-        
+
         let import_data = CollectionImport {
             meta: CollectionMeta {
                 name: "empty_import".to_string(),
@@ -1231,18 +1272,18 @@ mod tests {
         // Verify empty collection was imported correctly
         let data = state.data.lock();
         assert!(data.collections.contains_key("empty_import"));
-        
+
         let collection = &data.collections["empty_import"];
         assert_eq!(collection.document_count, 0);
         assert_eq!(collection.dimension, 4);
-        
+
         assert_eq!(data.points["empty_import"].len(), 0);
     }
 
     #[test]
     fn test_round_trip_export_import() {
         let state = create_test_state();
-        
+
         // Create original collection with complex data
         let payload = CreateCollectionPayload {
             name: "roundtrip_test".to_string(),
@@ -1299,37 +1340,65 @@ mod tests {
         }
 
         // Import the exported data
-        let import_result = import_collection_impl(&state, CollectionImport {
-            meta: exported_data.meta,
-            points: exported_data.points,
-        }, None);
+        let import_result = import_collection_impl(
+            &state,
+            CollectionImport {
+                meta: exported_data.meta,
+                points: exported_data.points,
+            },
+            None,
+        );
         assert!(import_result.is_ok());
 
         // Verify imported collection matches original
         let data = state.data.lock();
         assert!(data.collections.contains_key("roundtrip_test"));
-        
+
         let collection = &data.collections["roundtrip_test"];
         assert_eq!(collection.name, "roundtrip_test");
         assert_eq!(collection.dimension, 3);
-        assert_eq!(collection.description, Some("Round trip test collection".to_string()));
-        assert_eq!(collection.embedding_model, Some("roundtrip-model".to_string()));
-        assert_eq!(collection.embedding_provider, Some("roundtrip-provider".to_string()));
+        assert_eq!(
+            collection.description,
+            Some("Round trip test collection".to_string())
+        );
+        assert_eq!(
+            collection.embedding_model,
+            Some("roundtrip-model".to_string())
+        );
+        assert_eq!(
+            collection.embedding_provider,
+            Some("roundtrip-provider".to_string())
+        );
         assert_eq!(collection.document_count, 2);
-        
+
         // Verify imported points
         assert_eq!(data.points["roundtrip_test"].len(), 2);
-        
-        let point1 = data.points["roundtrip_test"].iter().find(|p| p.id == "complex1").unwrap();
+
+        let point1 = data.points["roundtrip_test"]
+            .iter()
+            .find(|p| p.id == "complex1")
+            .unwrap();
         assert_eq!(point1.vector, vec![0.123456789, -0.987654321, 0.555555555]);
         assert_eq!(point1.payload.as_ref().unwrap()["text"], "Hello, world! 🌍");
-        assert_eq!(point1.payload.as_ref().unwrap()["metadata"]["nested"]["deep"], "value");
+        assert_eq!(
+            point1.payload.as_ref().unwrap()["metadata"]["nested"]["deep"],
+            "value"
+        );
         assert_eq!(point1.payload.as_ref().unwrap()["boolean"], true);
-        
-        let point2 = data.points["roundtrip_test"].iter().find(|p| p.id == "complex2").unwrap();
+
+        let point2 = data.points["roundtrip_test"]
+            .iter()
+            .find(|p| p.id == "complex2")
+            .unwrap();
         assert_eq!(point2.vector, vec![1.0, 0.0, -1.0]);
-        assert_eq!(point2.payload.as_ref().unwrap()["unicode"], "测试 🚀 émojis");
-        assert_eq!(point2.payload.as_ref().unwrap()["special_chars"], "\"quotes\" & <tags> & 'apostrophes'");
+        assert_eq!(
+            point2.payload.as_ref().unwrap()["unicode"],
+            "测试 🚀 émojis"
+        );
+        assert_eq!(
+            point2.payload.as_ref().unwrap()["special_chars"],
+            "\"quotes\" & <tags> & 'apostrophes'"
+        );
     }
 
     // ============ Tests for new commands ============
@@ -1337,7 +1406,7 @@ mod tests {
     #[test]
     fn test_delete_all_points() {
         let state = create_test_state();
-        
+
         // Create collection
         let payload = CreateCollectionPayload {
             name: "delete_all_test".to_string(),
@@ -1390,7 +1459,7 @@ mod tests {
     #[test]
     fn test_delete_all_points_nonexistent_collection() {
         let state = create_test_state();
-        
+
         let result = delete_all_points_impl(&state, "nonexistent".to_string());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Collection not found"));
@@ -1399,7 +1468,7 @@ mod tests {
     #[test]
     fn test_stats() {
         let state = create_test_state();
-        
+
         // Create two collections with different point counts
         let payload1 = CreateCollectionPayload {
             name: "stats_test1".to_string(),
@@ -1437,20 +1506,18 @@ mod tests {
         upsert_points_impl(&state, "stats_test1".to_string(), points1).unwrap();
 
         // Add points to second collection
-        let points2 = vec![
-            UpsertPoint {
-                id: "p3".to_string(),
-                vector: vec![0.0, 0.0, 1.0],
-                payload: None,
-            },
-        ];
+        let points2 = vec![UpsertPoint {
+            id: "p3".to_string(),
+            vector: vec![0.0, 0.0, 1.0],
+            payload: None,
+        }];
         upsert_points_impl(&state, "stats_test2".to_string(), points2).unwrap();
 
         // Get stats
         let result = stats_impl(&state);
         assert!(result.is_ok());
         let stats = result.unwrap();
-        
+
         assert_eq!(stats.collection_count, 2);
         assert_eq!(stats.total_points, 3);
         assert!(!stats.storage_path.is_empty());
@@ -1459,7 +1526,7 @@ mod tests {
     #[test]
     fn test_scroll_points() {
         let state = create_test_state();
-        
+
         // Create collection
         let payload = CreateCollectionPayload {
             name: "scroll_test".to_string(),
@@ -1472,21 +1539,26 @@ mod tests {
         create_collection_impl(&state, payload).unwrap();
 
         // Add 10 points
-        let points: Vec<UpsertPoint> = (0..10).map(|i| UpsertPoint {
-            id: format!("p{}", i),
-            vector: vec![i as f64, 0.0, 0.0],
-            payload: Some(json!({"index": i})),
-        }).collect();
+        let points: Vec<UpsertPoint> = (0..10)
+            .map(|i| UpsertPoint {
+                id: format!("p{}", i),
+                vector: vec![i as f64, 0.0, 0.0],
+                payload: Some(json!({"index": i})),
+            })
+            .collect();
         upsert_points_impl(&state, "scroll_test".to_string(), points).unwrap();
 
         // Scroll first page
-        let result1 = scroll_points_impl(&state, ScrollPayload {
-            collection: "scroll_test".to_string(),
-            offset: Some(0),
-            limit: Some(3),
-            filters: None,
-            filter_mode: None,
-        });
+        let result1 = scroll_points_impl(
+            &state,
+            ScrollPayload {
+                collection: "scroll_test".to_string(),
+                offset: Some(0),
+                limit: Some(3),
+                filters: None,
+                filter_mode: None,
+            },
+        );
         assert!(result1.is_ok());
         let response1 = result1.unwrap();
         assert_eq!(response1.points.len(), 3);
@@ -1496,26 +1568,32 @@ mod tests {
         assert!(response1.has_more);
 
         // Scroll second page
-        let result2 = scroll_points_impl(&state, ScrollPayload {
-            collection: "scroll_test".to_string(),
-            offset: Some(3),
-            limit: Some(3),
-            filters: None,
-            filter_mode: None,
-        });
+        let result2 = scroll_points_impl(
+            &state,
+            ScrollPayload {
+                collection: "scroll_test".to_string(),
+                offset: Some(3),
+                limit: Some(3),
+                filters: None,
+                filter_mode: None,
+            },
+        );
         assert!(result2.is_ok());
         let response2 = result2.unwrap();
         assert_eq!(response2.points.len(), 3);
         assert!(response2.has_more);
 
         // Scroll last page
-        let result3 = scroll_points_impl(&state, ScrollPayload {
-            collection: "scroll_test".to_string(),
-            offset: Some(9),
-            limit: Some(3),
-            filters: None,
-            filter_mode: None,
-        });
+        let result3 = scroll_points_impl(
+            &state,
+            ScrollPayload {
+                collection: "scroll_test".to_string(),
+                offset: Some(9),
+                limit: Some(3),
+                filters: None,
+                filter_mode: None,
+            },
+        );
         assert!(result3.is_ok());
         let response3 = result3.unwrap();
         assert_eq!(response3.points.len(), 1);
@@ -1525,7 +1603,7 @@ mod tests {
     #[test]
     fn test_search_response_with_total() {
         let state = create_test_state();
-        
+
         // Create collection
         let payload = CreateCollectionPayload {
             name: "search_total_test".to_string(),
@@ -1538,27 +1616,32 @@ mod tests {
         create_collection_impl(&state, payload).unwrap();
 
         // Add points
-        let points: Vec<UpsertPoint> = (0..5).map(|i| UpsertPoint {
-            id: format!("p{}", i),
-            vector: vec![1.0, 0.0, 0.0],
-            payload: Some(json!({"content": format!("test{}", i)})),
-        }).collect();
+        let points: Vec<UpsertPoint> = (0..5)
+            .map(|i| UpsertPoint {
+                id: format!("p{}", i),
+                vector: vec![1.0, 0.0, 0.0],
+                payload: Some(json!({"content": format!("test{}", i)})),
+            })
+            .collect();
         upsert_points_impl(&state, "search_total_test".to_string(), points).unwrap();
 
         // Search with pagination
-        let result = search_points_impl(&state, SearchPayload {
-            collection: "search_total_test".to_string(),
-            vector: vec![1.0, 0.0, 0.0],
-            top_k: Some(10),
-            score_threshold: None,
-            offset: Some(0),
-            limit: Some(2),
-            filters: None,
-            filter_mode: None,
-        });
+        let result = search_points_impl(
+            &state,
+            SearchPayload {
+                collection: "search_total_test".to_string(),
+                vector: vec![1.0, 0.0, 0.0],
+                top_k: Some(10),
+                score_threshold: None,
+                offset: Some(0),
+                limit: Some(2),
+                filters: None,
+                filter_mode: None,
+            },
+        );
         assert!(result.is_ok());
         let response = result.unwrap();
-        
+
         assert_eq!(response.results.len(), 2);
         assert_eq!(response.total, 5);
         assert_eq!(response.offset, 0);
@@ -1568,7 +1651,7 @@ mod tests {
     #[test]
     fn test_filter_or_mode() {
         let state = create_test_state();
-        
+
         // Create collection
         let payload = CreateCollectionPayload {
             name: "filter_or_test".to_string(),
@@ -1601,30 +1684,33 @@ mod tests {
         upsert_points_impl(&state, "filter_or_test".to_string(), points).unwrap();
 
         // Search with OR filter (type=A OR type=B)
-        let result = search_points_impl(&state, SearchPayload {
-            collection: "filter_or_test".to_string(),
-            vector: vec![1.0, 0.0, 0.0],
-            top_k: Some(10),
-            score_threshold: None,
-            offset: None,
-            limit: None,
-            filters: Some(vec![
-                PayloadFilter {
-                    key: "type".to_string(),
-                    value: json!("A"),
-                    operation: "equals".to_string(),
-                },
-                PayloadFilter {
-                    key: "type".to_string(),
-                    value: json!("B"),
-                    operation: "equals".to_string(),
-                },
-            ]),
-            filter_mode: Some("or".to_string()),
-        });
+        let result = search_points_impl(
+            &state,
+            SearchPayload {
+                collection: "filter_or_test".to_string(),
+                vector: vec![1.0, 0.0, 0.0],
+                top_k: Some(10),
+                score_threshold: None,
+                offset: None,
+                limit: None,
+                filters: Some(vec![
+                    PayloadFilter {
+                        key: "type".to_string(),
+                        value: json!("A"),
+                        operation: "equals".to_string(),
+                    },
+                    PayloadFilter {
+                        key: "type".to_string(),
+                        value: json!("B"),
+                        operation: "equals".to_string(),
+                    },
+                ]),
+                filter_mode: Some("or".to_string()),
+            },
+        );
         assert!(result.is_ok());
         let response = result.unwrap();
-        
+
         assert_eq!(response.total, 2);
         let ids: Vec<&str> = response.results.iter().map(|r| r.id.as_str()).collect();
         assert!(ids.contains(&"p1"));
@@ -1635,7 +1721,7 @@ mod tests {
     #[test]
     fn test_extended_filter_operations() {
         let state = create_test_state();
-        
+
         // Create collection
         let payload = CreateCollectionPayload {
             name: "extended_filter_test".to_string(),
@@ -1668,74 +1754,86 @@ mod tests {
         upsert_points_impl(&state, "extended_filter_test".to_string(), points).unwrap();
 
         // Test starts_with
-        let result1 = search_points_impl(&state, SearchPayload {
-            collection: "extended_filter_test".to_string(),
-            vector: vec![1.0, 0.0, 0.0],
-            top_k: Some(10),
-            score_threshold: None,
-            offset: None,
-            limit: None,
-            filters: Some(vec![PayloadFilter {
-                key: "name".to_string(),
-                value: json!("hello"),
-                operation: "starts_with".to_string(),
-            }]),
-            filter_mode: None,
-        });
+        let result1 = search_points_impl(
+            &state,
+            SearchPayload {
+                collection: "extended_filter_test".to_string(),
+                vector: vec![1.0, 0.0, 0.0],
+                top_k: Some(10),
+                score_threshold: None,
+                offset: None,
+                limit: None,
+                filters: Some(vec![PayloadFilter {
+                    key: "name".to_string(),
+                    value: json!("hello"),
+                    operation: "starts_with".to_string(),
+                }]),
+                filter_mode: None,
+            },
+        );
         assert!(result1.is_ok());
         assert_eq!(result1.unwrap().total, 2);
 
         // Test array contains
-        let result2 = search_points_impl(&state, SearchPayload {
-            collection: "extended_filter_test".to_string(),
-            vector: vec![1.0, 0.0, 0.0],
-            top_k: Some(10),
-            score_threshold: None,
-            offset: None,
-            limit: None,
-            filters: Some(vec![PayloadFilter {
-                key: "tags".to_string(),
-                value: json!("a"),
-                operation: "contains".to_string(),
-            }]),
-            filter_mode: None,
-        });
+        let result2 = search_points_impl(
+            &state,
+            SearchPayload {
+                collection: "extended_filter_test".to_string(),
+                vector: vec![1.0, 0.0, 0.0],
+                top_k: Some(10),
+                score_threshold: None,
+                offset: None,
+                limit: None,
+                filters: Some(vec![PayloadFilter {
+                    key: "tags".to_string(),
+                    value: json!("a"),
+                    operation: "contains".to_string(),
+                }]),
+                filter_mode: None,
+            },
+        );
         assert!(result2.is_ok());
         assert_eq!(result2.unwrap().total, 2);
 
         // Test greater_than_or_equals
-        let result3 = search_points_impl(&state, SearchPayload {
-            collection: "extended_filter_test".to_string(),
-            vector: vec![1.0, 0.0, 0.0],
-            top_k: Some(10),
-            score_threshold: None,
-            offset: None,
-            limit: None,
-            filters: Some(vec![PayloadFilter {
-                key: "value".to_string(),
-                value: json!(20),
-                operation: "greater_than_or_equals".to_string(),
-            }]),
-            filter_mode: None,
-        });
+        let result3 = search_points_impl(
+            &state,
+            SearchPayload {
+                collection: "extended_filter_test".to_string(),
+                vector: vec![1.0, 0.0, 0.0],
+                top_k: Some(10),
+                score_threshold: None,
+                offset: None,
+                limit: None,
+                filters: Some(vec![PayloadFilter {
+                    key: "value".to_string(),
+                    value: json!(20),
+                    operation: "greater_than_or_equals".to_string(),
+                }]),
+                filter_mode: None,
+            },
+        );
         assert!(result3.is_ok());
         assert_eq!(result3.unwrap().total, 2);
 
         // Test in operator
-        let result4 = search_points_impl(&state, SearchPayload {
-            collection: "extended_filter_test".to_string(),
-            vector: vec![1.0, 0.0, 0.0],
-            top_k: Some(10),
-            score_threshold: None,
-            offset: None,
-            limit: None,
-            filters: Some(vec![PayloadFilter {
-                key: "value".to_string(),
-                value: json!([10, 30]),
-                operation: "in".to_string(),
-            }]),
-            filter_mode: None,
-        });
+        let result4 = search_points_impl(
+            &state,
+            SearchPayload {
+                collection: "extended_filter_test".to_string(),
+                vector: vec![1.0, 0.0, 0.0],
+                top_k: Some(10),
+                score_threshold: None,
+                offset: None,
+                limit: None,
+                filters: Some(vec![PayloadFilter {
+                    key: "value".to_string(),
+                    value: json!([10, 30]),
+                    operation: "in".to_string(),
+                }]),
+                filter_mode: None,
+            },
+        );
         assert!(result4.is_ok());
         assert_eq!(result4.unwrap().total, 2);
     }
@@ -1743,7 +1841,7 @@ mod tests {
     #[test]
     fn test_vector_validation_nan() {
         let state = create_test_state();
-        
+
         // Create collection
         let payload = CreateCollectionPayload {
             name: "nan_test".to_string(),
@@ -1762,7 +1860,7 @@ mod tests {
             payload: None,
         }];
         let result = upsert_points_impl(&state, "nan_test".to_string(), points);
-        
+
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("NaN"));
     }
@@ -1770,7 +1868,7 @@ mod tests {
     #[test]
     fn test_vector_validation_infinity() {
         let state = create_test_state();
-        
+
         // Create collection
         let payload = CreateCollectionPayload {
             name: "inf_test".to_string(),
@@ -1789,7 +1887,7 @@ mod tests {
             payload: None,
         }];
         let result = upsert_points_impl(&state, "inf_test".to_string(), points);
-        
+
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Infinity"));
     }

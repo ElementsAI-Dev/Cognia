@@ -2,8 +2,8 @@
 //!
 //! Extracts file-related context from window information.
 
-use log::{debug, trace, warn};
 use super::WindowInfo;
+use log::{debug, trace, warn};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -59,35 +59,43 @@ impl FileContext {
     /// Create file context from window information
     pub fn from_window_info(window: &WindowInfo) -> Result<Self, String> {
         trace!("Creating FileContext from window title: '{}'", window.title);
-        
+
         let title = &window.title;
-        
+
         // Try to extract file path from window title
         let (path, name, extension) = Self::extract_file_info(title);
         if let Some(ref n) = name {
-            debug!("Extracted file info: name='{}', ext={:?}, path={:?}", n, extension, path);
+            debug!(
+                "Extracted file info: name='{}', ext={:?}, path={:?}",
+                n, extension, path
+            );
         } else {
             trace!("No file info extracted from title");
         }
-        
+
         // Detect if file is modified (common indicators)
         // Patterns: "*file.rs", "●file.rs", "file.rs*", "file.rs [Modified]", "file.rs - Modified"
-        let is_modified = title.starts_with('*') 
-            || title.starts_with('●') 
+        let is_modified = title.starts_with('*')
+            || title.starts_with('●')
             || title.contains(" - Modified")
             || title.contains("[Modified]")
             || title.ends_with('*')
             || title.contains("* -")  // "file.rs* - project"
-            || title.contains("*-");   // "file.rs*- project"
-        
+            || title.contains("*-"); // "file.rs*- project"
+
         if is_modified {
             trace!("File detected as modified");
         }
 
         // Detect programming language from extension
-        let language = extension.as_ref().and_then(|ext| Self::detect_language(ext));
+        let language = extension
+            .as_ref()
+            .and_then(|ext| Self::detect_language(ext));
         if let Some(ref lang) = language {
-            debug!("Detected language: {} (from extension: {:?})", lang, extension);
+            debug!(
+                "Detected language: {} (from extension: {:?})",
+                lang, extension
+            );
         }
 
         // Determine file type
@@ -102,8 +110,10 @@ impl FileContext {
         if let Some(ref root) = project_root {
             debug!("Detected project root: {}", root);
         }
-        
-        let git_branch = project_root.as_ref().and_then(|root| Self::get_git_branch(root));
+
+        let git_branch = project_root
+            .as_ref()
+            .and_then(|root| Self::get_git_branch(root));
         if let Some(ref branch) = git_branch {
             debug!("Detected git branch: {}", branch);
         }
@@ -159,11 +169,11 @@ impl FileContext {
                 if let Some(matched) = captures.get(1) {
                     let path_str = matched.as_str();
                     let path = PathBuf::from(path_str);
-                    
-                    let name = path.file_name()
-                        .map(|n| n.to_string_lossy().to_string());
-                    
-                    let extension = path.extension()
+
+                    let name = path.file_name().map(|n| n.to_string_lossy().to_string());
+
+                    let extension = path
+                        .extension()
                         .map(|e| e.to_string_lossy().to_string().to_lowercase());
 
                     // Only return if we have a valid extension
@@ -180,11 +190,11 @@ impl FileContext {
             let trimmed = first.trim();
             if trimmed.contains('.') && !trimmed.contains(' ') {
                 let path = PathBuf::from(trimmed);
-                let name = path.file_name()
-                    .map(|n| n.to_string_lossy().to_string());
-                let extension = path.extension()
+                let name = path.file_name().map(|n| n.to_string_lossy().to_string());
+                let extension = path
+                    .extension()
                     .map(|e| e.to_string_lossy().to_string().to_lowercase());
-                
+
                 if extension.is_some() {
                     return (Some(trimmed.to_string()), name, extension);
                 }
@@ -205,7 +215,7 @@ impl FileContext {
             "tsx" => "TypeScript (TSX)",
             "mjs" => "JavaScript (ESM)",
             "cjs" => "JavaScript (CommonJS)",
-            
+
             // Web
             "html" | "htm" => "HTML",
             "css" => "CSS",
@@ -213,54 +223,54 @@ impl FileContext {
             "less" => "Less",
             "vue" => "Vue",
             "svelte" => "Svelte",
-            
+
             // Python
             "py" => "Python",
             "pyw" => "Python",
             "pyx" => "Cython",
             "ipynb" => "Jupyter Notebook",
-            
+
             // Rust
             "rs" => "Rust",
-            
+
             // Go
             "go" => "Go",
-            
+
             // Java/Kotlin
             "java" => "Java",
             "kt" | "kts" => "Kotlin",
             "scala" => "Scala",
             "groovy" => "Groovy",
-            
+
             // C/C++
             "c" => "C",
             "h" => "C Header",
             "cpp" | "cc" | "cxx" => "C++",
             "hpp" | "hxx" => "C++ Header",
-            
+
             // C#/F#
             "cs" => "C#",
             "fs" | "fsx" => "F#",
-            
+
             // Ruby
             "rb" => "Ruby",
             "erb" => "ERB",
-            
+
             // PHP
             "php" => "PHP",
-            
+
             // Swift/Objective-C
             "swift" => "Swift",
             "m" => "Objective-C",
             "mm" => "Objective-C++",
-            
+
             // Shell
             "sh" | "bash" => "Shell",
             "zsh" => "Zsh",
             "fish" => "Fish",
             "ps1" | "psm1" => "PowerShell",
             "bat" | "cmd" => "Batch",
-            
+
             // Data/Config
             "json" => "JSON",
             "yaml" | "yml" => "YAML",
@@ -268,59 +278,59 @@ impl FileContext {
             "xml" => "XML",
             "ini" => "INI",
             "env" => "Environment",
-            
+
             // Markup
             "md" | "markdown" => "Markdown",
             "rst" => "reStructuredText",
             "tex" => "LaTeX",
             "adoc" => "AsciiDoc",
-            
+
             // SQL
             "sql" => "SQL",
-            
+
             // Lua
             "lua" => "Lua",
-            
+
             // R
             "r" => "R",
-            
+
             // Haskell
             "hs" => "Haskell",
-            
+
             // Elixir/Erlang
             "ex" | "exs" => "Elixir",
             "erl" => "Erlang",
-            
+
             // Clojure
             "clj" | "cljs" | "cljc" => "Clojure",
-            
+
             // Dart
             "dart" => "Dart",
-            
+
             // Zig
             "zig" => "Zig",
-            
+
             // Nim
             "nim" => "Nim",
-            
+
             // V
             "v" => "V",
-            
+
             // Assembly
             "asm" | "s" => "Assembly",
-            
+
             // Dockerfile
             "dockerfile" => "Dockerfile",
-            
+
             // GraphQL
             "graphql" | "gql" => "GraphQL",
-            
+
             // Protobuf
             "proto" => "Protocol Buffers",
-            
+
             _ => return None,
         };
-        
+
         Some(lang.to_string())
     }
 
@@ -328,39 +338,42 @@ impl FileContext {
     fn detect_file_type(extension: &str) -> FileType {
         match extension.to_lowercase().as_str() {
             // Source code
-            "js" | "jsx" | "ts" | "tsx" | "py" | "rs" | "go" | "java" | "kt" | "scala" |
-            "c" | "cpp" | "cc" | "h" | "hpp" | "cs" | "fs" | "rb" | "php" | "swift" |
-            "m" | "mm" | "lua" | "r" | "hs" | "ex" | "exs" | "erl" | "clj" | "dart" |
-            "zig" | "nim" | "v" | "asm" | "s" | "sh" | "bash" | "zsh" | "ps1" | "bat" => FileType::SourceCode,
-            
+            "js" | "jsx" | "ts" | "tsx" | "py" | "rs" | "go" | "java" | "kt" | "scala" | "c"
+            | "cpp" | "cc" | "h" | "hpp" | "cs" | "fs" | "rb" | "php" | "swift" | "m" | "mm"
+            | "lua" | "r" | "hs" | "ex" | "exs" | "erl" | "clj" | "dart" | "zig" | "nim" | "v"
+            | "asm" | "s" | "sh" | "bash" | "zsh" | "ps1" | "bat" => FileType::SourceCode,
+
             // Markup
-            "html" | "htm" | "xml" | "xhtml" | "md" | "markdown" | "rst" | "tex" | "adoc" => FileType::Markup,
-            
+            "html" | "htm" | "xml" | "xhtml" | "md" | "markdown" | "rst" | "tex" | "adoc" => {
+                FileType::Markup
+            }
+
             // Config
-            "json" | "yaml" | "yml" | "toml" | "ini" | "cfg" | "conf" | "env" | "properties" |
-            "dockerfile" | "makefile" | "cmake" | "gradle" | "pom" => FileType::Config,
-            
+            "json" | "yaml" | "yml" | "toml" | "ini" | "cfg" | "conf" | "env" | "properties"
+            | "dockerfile" | "makefile" | "cmake" | "gradle" | "pom" => FileType::Config,
+
             // Data
             "csv" | "tsv" | "sql" | "graphql" | "gql" | "proto" => FileType::Data,
-            
+
             // Documents
             "doc" | "docx" | "pdf" | "odt" | "rtf" | "txt" | "pages" => FileType::Document,
-            
+
             // Images
-            "png" | "jpg" | "jpeg" | "gif" | "bmp" | "svg" | "webp" | "ico" | "tiff" | "psd" | "ai" => FileType::Image,
-            
+            "png" | "jpg" | "jpeg" | "gif" | "bmp" | "svg" | "webp" | "ico" | "tiff" | "psd"
+            | "ai" => FileType::Image,
+
             // Video
             "mp4" | "mkv" | "avi" | "mov" | "wmv" | "flv" | "webm" => FileType::Video,
-            
+
             // Audio
             "mp3" | "wav" | "flac" | "aac" | "ogg" | "wma" | "m4a" => FileType::Audio,
-            
+
             // Archives
             "zip" | "rar" | "7z" | "tar" | "gz" | "bz2" | "xz" => FileType::Archive,
-            
+
             // Executables
             "exe" | "msi" | "dmg" | "app" | "deb" | "rpm" | "apk" => FileType::Executable,
-            
+
             _ => FileType::Unknown,
         }
     }
@@ -395,7 +408,10 @@ impl FileContext {
                     // Glob pattern
                     let pattern = indicator.replace('*', "");
                     if std::fs::read_dir(current).ok()?.any(|entry| {
-                        entry.ok().map(|e| e.file_name().to_string_lossy().ends_with(&pattern)).unwrap_or(false)
+                        entry
+                            .ok()
+                            .map(|e| e.file_name().to_string_lossy().ends_with(&pattern))
+                            .unwrap_or(false)
                     }) {
                         return Some(current.to_string_lossy().to_string());
                     }
@@ -413,12 +429,17 @@ impl FileContext {
     fn get_git_branch(project_root: &str) -> Option<String> {
         trace!("Getting git branch for project: {}", project_root);
         let git_head = PathBuf::from(project_root).join(".git").join("HEAD");
-        
+
         if let Ok(content) = std::fs::read_to_string(&git_head) {
             trace!("Read .git/HEAD content: '{}'", content.trim());
             // Parse "ref: refs/heads/branch-name"
             if content.starts_with("ref: refs/heads/") {
-                return Some(content.trim_start_matches("ref: refs/heads/").trim().to_string());
+                return Some(
+                    content
+                        .trim_start_matches("ref: refs/heads/")
+                        .trim()
+                        .to_string(),
+                );
             }
             // Detached HEAD - return short commit hash
             if content.len() >= 7 {
@@ -471,7 +492,8 @@ mod tests {
 
     #[test]
     fn test_extract_windows_path() {
-        let window = create_test_window_info("C:\\Users\\user\\project\\main.rs - Visual Studio Code");
+        let window =
+            create_test_window_info("C:\\Users\\user\\project\\main.rs - Visual Studio Code");
         let context = FileContext::from_window_info(&window).unwrap();
         assert!(context.path.is_some());
         assert!(context.path.as_ref().unwrap().contains("main.rs"));
@@ -892,10 +914,10 @@ mod tests {
     fn test_file_context_serialization() {
         let window = create_test_window_info("main.rs - project - Visual Studio Code");
         let context = FileContext::from_window_info(&window).unwrap();
-        
+
         let json = serde_json::to_string(&context);
         assert!(json.is_ok());
-        
+
         let parsed: Result<FileContext, _> = serde_json::from_str(&json.unwrap());
         assert!(parsed.is_ok());
     }
@@ -915,7 +937,7 @@ mod tests {
             FileType::Executable,
             FileType::Unknown,
         ];
-        
+
         for file_type in file_types {
             let json = serde_json::to_string(&file_type);
             assert!(json.is_ok());
@@ -973,7 +995,9 @@ mod tests {
 
     #[test]
     fn test_complex_path() {
-        let window = create_test_window_info("C:\\Users\\test user\\My Projects\\project-name\\src\\main.rs - Visual Studio Code");
+        let window = create_test_window_info(
+            "C:\\Users\\test user\\My Projects\\project-name\\src\\main.rs - Visual Studio Code",
+        );
         let context = FileContext::from_window_info(&window).unwrap();
         // Should extract some file info
         assert!(context.extension == Some("rs".to_string()));

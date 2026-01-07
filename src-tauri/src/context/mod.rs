@@ -7,24 +7,26 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
-mod window_info;
 mod app_context;
-mod file_context;
 mod browser_context;
 mod editor_context;
+mod file_context;
 mod screen_content;
+mod window_info;
 
-pub use window_info::{WindowInfo, WindowManager};
 pub use app_context::{AppContext, AppType};
-pub use file_context::FileContext;
 pub use browser_context::BrowserContext;
 pub use editor_context::EditorContext;
-pub use screen_content::{ScreenContentAnalyzer, ScreenContent, TextBlock, UiElement, UiElementType};
+pub use file_context::FileContext;
+pub use screen_content::{
+    ScreenContent, ScreenContentAnalyzer, TextBlock, UiElement, UiElementType,
+};
+pub use window_info::{WindowInfo, WindowManager};
 
 use log::{debug, trace, warn};
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use parking_lot::RwLock;
 
 /// Complete context information
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,7 +65,7 @@ impl ContextManager {
     /// Get current full context
     pub fn get_context(&self) -> Result<FullContext, String> {
         trace!("get_context called");
-        
+
         // Check cache
         {
             let cached = self.last_context.read();
@@ -74,25 +76,29 @@ impl ContextManager {
                     trace!("Returning cached context (age: {}ms)", age_ms);
                     return Ok(ctx.clone());
                 }
-                trace!("Cache expired (age: {}ms, max: {}ms)", age_ms, self.cache_duration_ms);
+                trace!(
+                    "Cache expired (age: {}ms, max: {}ms)",
+                    age_ms,
+                    self.cache_duration_ms
+                );
             }
         }
 
         // Gather fresh context
         debug!("Gathering fresh context");
         let context = self.gather_context()?;
-        
+
         // Update cache
         *self.last_context.write() = Some(context.clone());
         trace!("Context cached successfully");
-        
+
         Ok(context)
     }
 
     /// Gather all context information
     fn gather_context(&self) -> Result<FullContext, String> {
         trace!("Starting context gathering");
-        
+
         let window = self.window_manager.get_active_window().ok();
         if let Some(ref w) = window {
             debug!(
@@ -102,9 +108,10 @@ impl ContextManager {
         } else {
             trace!("No active window detected");
         }
-        
-        let app = window.as_ref().and_then(|w| {
-            match AppContext::from_window_info(w) {
+
+        let app = window
+            .as_ref()
+            .and_then(|w| match AppContext::from_window_info(w) {
                 Ok(ctx) => {
                     debug!("App context: {:?} - {}", ctx.app_type, ctx.app_name);
                     Some(ctx)
@@ -113,11 +120,11 @@ impl ContextManager {
                     trace!("Failed to get app context: {}", e);
                     None
                 }
-            }
-        });
+            });
 
-        let file = window.as_ref().and_then(|w| {
-            match FileContext::from_window_info(w) {
+        let file = window
+            .as_ref()
+            .and_then(|w| match FileContext::from_window_info(w) {
                 Ok(ctx) => {
                     if ctx.name.is_some() {
                         debug!(
@@ -131,11 +138,11 @@ impl ContextManager {
                     trace!("Failed to get file context: {}", e);
                     None
                 }
-            }
-        });
+            });
 
-        let browser = window.as_ref().and_then(|w| {
-            match BrowserContext::from_window_info(w) {
+        let browser = window
+            .as_ref()
+            .and_then(|w| match BrowserContext::from_window_info(w) {
                 Ok(ctx) => {
                     debug!(
                         "Browser context: {} - page: {:?} (type: {:?})",
@@ -147,13 +154,17 @@ impl ContextManager {
                     trace!("Failed to get browser context (not a browser): {}", e);
                     None
                 }
-            }
-        });
+            });
 
         // Get editor context if this is a code editor
-        let editor = if app.as_ref().map(|a| a.app_type == AppType::CodeEditor).unwrap_or(false) {
-            window.as_ref().and_then(|w| {
-                match EditorContext::from_window_info(w) {
+        let editor = if app
+            .as_ref()
+            .map(|a| a.app_type == AppType::CodeEditor)
+            .unwrap_or(false)
+        {
+            window
+                .as_ref()
+                .and_then(|w| match EditorContext::from_window_info(w) {
                     Ok(ctx) => {
                         debug!(
                             "Editor context: {} - file: {:?} (lang: {:?}, branch: {:?})",
@@ -165,8 +176,7 @@ impl ContextManager {
                         trace!("Failed to get editor context: {}", e);
                         None
                     }
-                }
-            })
+                })
         } else {
             None
         };
@@ -238,7 +248,10 @@ impl ContextManager {
 
     /// Set cache duration
     pub fn set_cache_duration(&mut self, ms: u64) {
-        debug!("Cache duration changed: {}ms -> {}ms", self.cache_duration_ms, ms);
+        debug!(
+            "Cache duration changed: {}ms -> {}ms",
+            self.cache_duration_ms, ms
+        );
         self.cache_duration_ms = ms;
     }
 
@@ -263,7 +276,11 @@ impl ContextManager {
         debug!("Finding windows by title pattern: '{}'", pattern);
         let result = self.window_manager.find_windows_by_title(pattern);
         if let Ok(ref windows) = result {
-            debug!("Found {} windows matching title '{}'", windows.len(), pattern);
+            debug!(
+                "Found {} windows matching title '{}'",
+                windows.len(),
+                pattern
+            );
         }
         result
     }
@@ -273,7 +290,11 @@ impl ContextManager {
         debug!("Finding windows by process: '{}'", process_name);
         let result = self.window_manager.find_windows_by_process(process_name);
         if let Ok(ref windows) = result {
-            debug!("Found {} windows for process '{}'", windows.len(), process_name);
+            debug!(
+                "Found {} windows for process '{}'",
+                windows.len(),
+                process_name
+            );
         }
         result
     }
@@ -311,13 +332,13 @@ mod tests {
     #[test]
     fn test_clear_cache() {
         let manager = ContextManager::new();
-        
+
         // Try to get context (may fail on non-Windows or without active window)
         let _ = manager.get_context();
-        
+
         // Clear cache should not panic
         manager.clear_cache();
-        
+
         // Cache should be empty
         assert!(manager.last_context.read().is_none());
     }
@@ -332,10 +353,10 @@ mod tests {
             editor: None,
             timestamp: chrono::Utc::now().timestamp_millis(),
         };
-        
+
         let json = serde_json::to_string(&context);
         assert!(json.is_ok());
-        
+
         let parsed: Result<FullContext, _> = serde_json::from_str(&json.unwrap());
         assert!(parsed.is_ok());
     }
@@ -358,7 +379,7 @@ mod tests {
             is_focused: true,
             is_visible: true,
         };
-        
+
         let context = FullContext {
             window: Some(window),
             app: None,
@@ -367,10 +388,10 @@ mod tests {
             editor: None,
             timestamp: chrono::Utc::now().timestamp_millis(),
         };
-        
+
         let json = serde_json::to_string(&context);
         assert!(json.is_ok());
-        
+
         let parsed: FullContext = serde_json::from_str(&json.unwrap()).unwrap();
         assert!(parsed.window.is_some());
         assert_eq!(parsed.window.unwrap().title, "Test Window");
@@ -394,10 +415,10 @@ mod tests {
             is_focused: true,
             is_visible: true,
         };
-        
+
         let json = serde_json::to_string(&window);
         assert!(json.is_ok());
-        
+
         let parsed: WindowInfo = serde_json::from_str(&json.unwrap()).unwrap();
         assert_eq!(parsed.handle, 12345);
         assert_eq!(parsed.width, 800);
@@ -408,7 +429,7 @@ mod tests {
     fn test_window_manager_new() {
         let manager = WindowManager::new();
         let default_manager = WindowManager::default();
-        
+
         // Both should be valid instances
         let _ = manager;
         let _ = default_manager;
@@ -418,7 +439,7 @@ mod tests {
     #[test]
     fn test_non_windows_fallbacks() {
         let manager = WindowManager::new();
-        
+
         // On non-Windows, these should return errors or empty results
         assert!(manager.get_active_window().is_err());
         assert!(manager.get_all_windows().unwrap().is_empty());

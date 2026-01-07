@@ -54,6 +54,7 @@ import {
 import { formatDuration, type RecordingRegion } from '@/lib/native/screen-recording';
 import { isTauri } from '@/lib/native/utils';
 import { RegionSelector } from './region-selector';
+import { FFmpegStatus } from './ffmpeg-status';
 
 interface RecordingControlsProps {
   compact?: boolean;
@@ -172,22 +173,7 @@ export function RecordingControls({
   // FFmpeg not available
   if (!ffmpegAvailable) {
     return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size={compact ? 'icon' : 'sm'}
-            className={cn('text-muted-foreground', className)}
-            disabled
-          >
-            <VideoOff className="h-4 w-4" />
-            {!compact && <span className="ml-2">{t('unavailable')}</span>}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>{t('ffmpegRequired')}</p>
-        </TooltipContent>
-      </Tooltip>
+      <FFmpegStatus compact className={className} />
     );
   }
 

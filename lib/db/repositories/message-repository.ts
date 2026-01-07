@@ -2,6 +2,7 @@
  * Message Repository - data access layer for messages
  */
 
+import Dexie from 'dexie';
 import { db, type DBMessage } from '../schema';
 import type { UIMessage } from '@/types';
 import { nanoid } from 'nanoid';
@@ -72,10 +73,11 @@ export const messageRepository = {
     sessionId: string,
     input: Omit<UIMessage, 'id' | 'createdAt'>
   ): Promise<UIMessage> {
+    const inputWithOptionalIds = input as unknown as Partial<Pick<UIMessage, 'id' | 'createdAt'>>;
     const message: UIMessage = {
       ...input,
-      id: nanoid(),
-      createdAt: new Date(),
+      id: inputWithOptionalIds.id ?? nanoid(),
+      createdAt: inputWithOptionalIds.createdAt ?? new Date(),
     };
 
     await db.messages.add(toDBMessage(message, sessionId));
@@ -171,21 +173,61 @@ export const messageRepository = {
     sessionId: string,
     branchId?: string | null
   ): Promise<UIMessage[]> {
-    const allMessages = await db.messages
-      .where('sessionId')
-      .equals(sessionId)
-      .sortBy('createdAt');
+    const effectiveBranchId = branchId ?? undefined;
 
-    // Filter by branchId - undefined/null means main branch
-    const filtered = allMessages.filter((m) => {
-      if (branchId) {
-        return m.branchId === branchId;
-      }
-      // Main branch: messages without branchId
-      return !m.branchId;
-    });
+    const messages = await db.messages
+      .where('[sessionId+branchId+createdAt]')
+      .between(
+        [sessionId, effectiveBranchId, Dexie.minKey],
+        [sessionId, effectiveBranchId, Dexie.maxKey]
+      )
+      .toArray();
 
-    return filtered.map(toUIMessage);
+    // Dexie returns in index order (createdAt ascending) for forward ranges
+    return messages.map(toUIMessage);
+  },
+
+  /**
+   * Get messages for a session+branch in pages (newest-first window).
+   *
+   * @param before - Only return messages with createdAt < before (exclusive)
+   */
+  async getPageBySessionIdAndBranch(
+    sessionId: string,
+    branchId: string | null | undefined,
+    options: { limit: number; before?: Date }
+  ): Promise<UIMessage[]> {
+    const effectiveBranchId = branchId ?? undefined;
+    const upper = options.before ?? Dexie.maxKey;
+
+    const page = await db.messages
+      .where('[sessionId+branchId+createdAt]')
+      .between(
+        [sessionId, effectiveBranchId, Dexie.minKey],
+        [sessionId, effectiveBranchId, upper],
+        true,
+        false
+      )
+      .reverse()
+      .limit(options.limit)
+      .toArray();
+
+    // Normalize to chronological order for UI
+    return page.reverse().map(toUIMessage);
+  },
+
+  async getCountBySessionIdAndBranch(
+    sessionId: string,
+    branchId: string | null | undefined
+  ): Promise<number> {
+    const effectiveBranchId = branchId ?? undefined;
+    return db.messages
+      .where('[sessionId+branchId+createdAt]')
+      .between(
+        [sessionId, effectiveBranchId, Dexie.minKey],
+        [sessionId, effectiveBranchId, Dexie.maxKey]
+      )
+      .count();
   },
 
   /**
@@ -255,11 +297,12 @@ export const messageRepository = {
     branchId: string | undefined,
     input: Omit<UIMessage, 'id' | 'createdAt'>
   ): Promise<UIMessage> {
+    const inputWithOptionalIds = input as unknown as Partial<Pick<UIMessage, 'id' | 'createdAt'>>;
     const message: UIMessage = {
       ...input,
-      id: nanoid(),
+      id: inputWithOptionalIds.id ?? nanoid(),
       branchId,
-      createdAt: new Date(),
+      createdAt: inputWithOptionalIds.createdAt ?? new Date(),
     };
 
     await db.messages.add(toDBMessage(message, sessionId, branchId));

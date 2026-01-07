@@ -188,14 +188,36 @@ export function buildRAGConfigFromSettings(
   };
 }
 
+export interface RAGSearchToolOptions {
+  /** RAG configuration for embeddings and vector store */
+  ragConfig?: RAGConfig;
+  /** Available collection names for the agent to choose from */
+  availableCollections?: string[];
+  /** Default collection name to use if not specified */
+  defaultCollectionName?: string;
+}
+
 /**
  * Create RAG search tool for agent (uses real implementation from registry)
- * Enhanced version that can auto-configure from settings
+ * Enhanced version that includes available collections in the description
  */
-export function createRAGSearchTool(ragConfig?: RAGConfig): AgentTool {
+export function createRAGSearchTool(ragConfig?: RAGConfig, options?: Omit<RAGSearchToolOptions, 'ragConfig'>): AgentTool {
+  const { availableCollections = [], defaultCollectionName = 'default' } = options || {};
+  
+  // Build dynamic description with available collections
+  let description = 'Search through uploaded documents and knowledge base for relevant information using semantic similarity.';
+  if (availableCollections.length > 0) {
+    description += ` Available collections: ${availableCollections.map(c => `"${c}"`).join(', ')}.`;
+    if (defaultCollectionName && availableCollections.includes(defaultCollectionName)) {
+      description += ` Default collection: "${defaultCollectionName}".`;
+    }
+  } else {
+    description += ` Use collection name "${defaultCollectionName}" if not sure which collection to search.`;
+  }
+  
   return {
     name: 'rag_search',
-    description: 'Search through uploaded documents and knowledge base for relevant information using semantic similarity.',
+    description,
     parameters: ragSearchInputSchema,
     execute: async (args) => {
       const input = args as RAGSearchInput;
@@ -206,7 +228,53 @@ export function createRAGSearchTool(ragConfig?: RAGConfig): AgentTool {
           query: input.query,
         };
       }
-      return executeRAGSearch(input, ragConfig);
+      // Use default collection if not specified
+      const searchInput = {
+        ...input,
+        collectionName: input.collectionName || defaultCollectionName,
+      };
+      return executeRAGSearch(searchInput, ragConfig);
+    },
+    requiresApproval: false,
+  };
+}
+
+/**
+ * Create a tool for listing available RAG collections
+ * This helps agents discover what knowledge bases are available
+ */
+export function createListRAGCollectionsTool(
+  getCollections: () => Array<{ name: string; description?: string; documentCount: number }>
+): AgentTool {
+  return {
+    name: 'list_rag_collections',
+    description: 'List all available knowledge base collections that can be searched with rag_search. Use this to discover what collections exist before searching.',
+    parameters: z.object({}),
+    execute: async () => {
+      try {
+        const collections = getCollections();
+        if (collections.length === 0) {
+          return {
+            success: true,
+            collections: [],
+            message: 'No knowledge base collections found. Documents need to be uploaded first.',
+          };
+        }
+        return {
+          success: true,
+          collections: collections.map(c => ({
+            name: c.name,
+            description: c.description || 'No description',
+            documentCount: c.documentCount,
+          })),
+          message: `Found ${collections.length} collection(s) available for search.`,
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to list collections',
+        };
+      }
     },
     requiresApproval: false,
   };

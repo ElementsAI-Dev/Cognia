@@ -11,33 +11,33 @@
 //! - OCR text extraction
 //! - Screenshot history
 
-mod capture;
-mod region_selector;
-mod ocr;
 mod annotator;
-mod windows_ocr;
+mod capture;
+mod ocr;
+pub mod ocr_manager;
+pub mod ocr_provider;
+pub mod providers;
+mod region_selector;
 mod screenshot_history;
 mod window_manager;
-pub mod ocr_provider;
-pub mod ocr_manager;
-pub mod providers;
+mod windows_ocr;
 
-pub use capture::{ScreenshotCapture, CaptureMode, ScreenshotResult};
-pub use region_selector::RegionSelector;
-pub use ocr::OcrEngine;
 pub use annotator::ScreenshotAnnotator;
-pub use windows_ocr::{WindowsOcr, WinOcrResult, OcrLine, OcrWord, OcrBounds};
-pub use screenshot_history::{ScreenshotHistory, ScreenshotHistoryEntry};
-pub use window_manager::{WindowManager, WindowInfo, SnapConfig, SnapResult};
-pub use ocr_provider::{
-    OcrProvider, OcrProviderType, OcrProviderConfig, OcrProviderInfo,
-    OcrResult as UnifiedOcrResult, OcrOptions, OcrError, OcrRegion, OcrBounds as UnifiedOcrBounds,
-};
+pub use capture::{CaptureMode, ScreenshotCapture, ScreenshotResult};
+pub use ocr::OcrEngine;
 pub use ocr_manager::OcrManager;
-pub use providers::{
-    AzureVisionProvider, GoogleVisionProvider, OllamaVisionProvider, 
-    OpenAiVisionProvider, TesseractProvider, WindowsOcrProvider,
+pub use ocr_provider::{
+    OcrBounds as UnifiedOcrBounds, OcrError, OcrOptions, OcrProvider, OcrProviderConfig,
+    OcrProviderInfo, OcrProviderType, OcrRegion, OcrResult as UnifiedOcrResult,
 };
+pub use providers::{
+    AzureVisionProvider, GoogleVisionProvider, OllamaVisionProvider, OpenAiVisionProvider,
+    TesseractProvider, WindowsOcrProvider,
+};
+pub use region_selector::RegionSelector;
+pub use screenshot_history::{ScreenshotHistory, ScreenshotHistoryEntry};
+pub use window_manager::{SnapConfig, SnapResult, WindowInfo, WindowManager};
+pub use windows_ocr::{OcrBounds, OcrLine, OcrWord, WinOcrResult, WindowsOcr};
 
 use serde::{Deserialize, Serialize};
 
@@ -163,20 +163,26 @@ impl ScreenshotManager {
     }
 
     /// Capture full screen
-    pub async fn capture_fullscreen(&self, monitor_index: Option<usize>) -> Result<ScreenshotResult, String> {
-        self.execute_capture(|capture| capture.capture_screen(monitor_index)).await
+    pub async fn capture_fullscreen(
+        &self,
+        monitor_index: Option<usize>,
+    ) -> Result<ScreenshotResult, String> {
+        self.execute_capture(|capture| capture.capture_screen(monitor_index))
+            .await
     }
 
     /// Capture active window
     pub async fn capture_window(&self) -> Result<ScreenshotResult, String> {
-        self.execute_capture(|capture| capture.capture_active_window()).await
+        self.execute_capture(|capture| capture.capture_active_window())
+            .await
     }
 
     /// Capture selected region
     pub async fn capture_region(&self, region: CaptureRegion) -> Result<ScreenshotResult, String> {
         self.execute_capture(|capture| {
             capture.capture_region(region.x, region.y, region.width, region.height)
-        }).await
+        })
+        .await
     }
 
     /// Start interactive region selection
@@ -193,7 +199,11 @@ impl ScreenshotManager {
     }
 
     /// Post-capture actions (clipboard, notification, etc.)
-    async fn post_capture_actions(&self, result: &ScreenshotResult, config: &ScreenshotConfig) -> Result<(), String> {
+    async fn post_capture_actions(
+        &self,
+        result: &ScreenshotResult,
+        config: &ScreenshotConfig,
+    ) -> Result<(), String> {
         // Copy to clipboard if enabled
         if config.copy_to_clipboard {
             self.copy_to_clipboard(&result.image_data)?;
@@ -201,11 +211,14 @@ impl ScreenshotManager {
 
         // Show notification if enabled
         if config.show_notification {
-            let _ = self.app_handle.emit("screenshot-captured", serde_json::json!({
-                "width": result.metadata.width,
-                "height": result.metadata.height,
-                "mode": result.metadata.mode,
-            }));
+            let _ = self.app_handle.emit(
+                "screenshot-captured",
+                serde_json::json!({
+                    "width": result.metadata.width,
+                    "height": result.metadata.height,
+                    "mode": result.metadata.mode,
+                }),
+            );
         }
 
         Ok(())
@@ -295,7 +308,7 @@ impl ScreenshotManager {
             result.metadata.height,
             &result.metadata.mode,
         );
-        
+
         let entry = if let Some(ref title) = result.metadata.window_title {
             entry.with_window_title(title.clone())
         } else {
@@ -306,7 +319,10 @@ impl ScreenshotManager {
     }
 
     /// Capture and add to history
-    pub async fn capture_fullscreen_with_history(&self, monitor_index: Option<usize>) -> Result<ScreenshotResult, String> {
+    pub async fn capture_fullscreen_with_history(
+        &self,
+        monitor_index: Option<usize>,
+    ) -> Result<ScreenshotResult, String> {
         let result = self.capture_fullscreen(monitor_index).await?;
         self.add_to_history(&result);
         Ok(result)
@@ -320,7 +336,10 @@ impl ScreenshotManager {
     }
 
     /// Capture region and add to history
-    pub async fn capture_region_with_history(&self, region: CaptureRegion) -> Result<ScreenshotResult, String> {
+    pub async fn capture_region_with_history(
+        &self,
+        region: CaptureRegion,
+    ) -> Result<ScreenshotResult, String> {
         let result = self.capture_region(region).await?;
         self.add_to_history(&result);
         Ok(result)
@@ -345,7 +364,8 @@ impl ScreenshotManager {
 
     /// Get list of all visible windows with thumbnails
     pub fn get_windows_with_thumbnails(&self, thumbnail_size: u32) -> Vec<WindowInfo> {
-        self.window_manager.get_windows_with_thumbnails(thumbnail_size)
+        self.window_manager
+            .get_windows_with_thumbnails(thumbnail_size)
     }
 
     /// Capture a specific window by its HWND
@@ -354,7 +374,10 @@ impl ScreenshotManager {
     }
 
     /// Capture a specific window by HWND and add to history
-    pub async fn capture_window_by_hwnd_with_history(&self, hwnd: isize) -> Result<ScreenshotResult, String> {
+    pub async fn capture_window_by_hwnd_with_history(
+        &self,
+        hwnd: isize,
+    ) -> Result<ScreenshotResult, String> {
         let config = self.config.read().clone();
         self.apply_capture_delay(&config).await;
         let result = self.window_manager.capture_window_by_hwnd(hwnd)?;
@@ -416,7 +439,7 @@ mod tests {
     #[test]
     fn test_screenshot_config_default() {
         let config = ScreenshotConfig::default();
-        
+
         assert!(config.save_directory.is_none());
         assert_eq!(config.format, "png");
         assert_eq!(config.quality, 95);
@@ -439,7 +462,7 @@ mod tests {
             show_notification: false,
             ocr_language: "chi_sim".to_string(),
         };
-        
+
         assert_eq!(config.save_directory, Some("/custom/path".to_string()));
         assert_eq!(config.format, "jpg");
         assert_eq!(config.quality, 80);
@@ -454,7 +477,7 @@ mod tests {
     fn test_screenshot_config_clone() {
         let config = ScreenshotConfig::default();
         let cloned = config.clone();
-        
+
         assert_eq!(config.format, cloned.format);
         assert_eq!(config.quality, cloned.quality);
     }
@@ -464,7 +487,7 @@ mod tests {
         let config = ScreenshotConfig::default();
         let json = serde_json::to_string(&config).unwrap();
         let deserialized: ScreenshotConfig = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(config.format, deserialized.format);
         assert_eq!(config.quality, deserialized.quality);
         assert_eq!(config.ocr_language, deserialized.ocr_language);
@@ -480,7 +503,7 @@ mod tests {
             width: 800,
             height: 600,
         };
-        
+
         assert_eq!(region.x, 100);
         assert_eq!(region.y, 200);
         assert_eq!(region.width, 800);
@@ -496,7 +519,7 @@ mod tests {
             height: 100,
         };
         let cloned = region.clone();
-        
+
         assert_eq!(region.x, cloned.x);
         assert_eq!(region.y, cloned.y);
         assert_eq!(region.width, cloned.width);
@@ -513,7 +536,7 @@ mod tests {
         };
         let json = serde_json::to_string(&region).unwrap();
         let deserialized: CaptureRegion = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(region.x, deserialized.x);
         assert_eq!(region.y, deserialized.y);
         assert_eq!(region.width, deserialized.width);
@@ -528,7 +551,7 @@ mod tests {
             width: 400,
             height: 300,
         };
-        
+
         assert_eq!(region.x, -500);
         assert_eq!(region.y, -300);
     }
@@ -541,7 +564,7 @@ mod tests {
             width: 0,
             height: 0,
         };
-        
+
         assert_eq!(region.width, 0);
         assert_eq!(region.height, 0);
     }
@@ -561,7 +584,7 @@ mod tests {
             file_path: None,
             ocr_text: None,
         };
-        
+
         assert_eq!(metadata.timestamp, 1234567890);
         assert_eq!(metadata.width, 1920);
         assert_eq!(metadata.height, 1080);
@@ -588,7 +611,7 @@ mod tests {
             file_path: None,
             ocr_text: None,
         };
-        
+
         assert!(metadata.region.is_some());
         let r = metadata.region.unwrap();
         assert_eq!(r.x, 100);
@@ -608,7 +631,7 @@ mod tests {
             file_path: None,
             ocr_text: None,
         };
-        
+
         assert_eq!(metadata.window_title, Some("Test Window Title".to_string()));
     }
 
@@ -625,9 +648,15 @@ mod tests {
             file_path: Some("/path/to/screenshot.png".to_string()),
             ocr_text: Some("Extracted text from image".to_string()),
         };
-        
-        assert_eq!(metadata.file_path, Some("/path/to/screenshot.png".to_string()));
-        assert_eq!(metadata.ocr_text, Some("Extracted text from image".to_string()));
+
+        assert_eq!(
+            metadata.file_path,
+            Some("/path/to/screenshot.png".to_string())
+        );
+        assert_eq!(
+            metadata.ocr_text,
+            Some("Extracted text from image".to_string())
+        );
     }
 
     #[test]
@@ -639,14 +668,19 @@ mod tests {
             mode: "fullscreen".to_string(),
             monitor_index: Some(1),
             window_title: Some("Window".to_string()),
-            region: Some(CaptureRegion { x: 0, y: 0, width: 100, height: 100 }),
+            region: Some(CaptureRegion {
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+            }),
             file_path: Some("/path.png".to_string()),
             ocr_text: Some("text".to_string()),
         };
-        
+
         let json = serde_json::to_string(&metadata).unwrap();
         let deserialized: ScreenshotMetadata = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(metadata.timestamp, deserialized.timestamp);
         assert_eq!(metadata.width, deserialized.width);
         assert_eq!(metadata.mode, deserialized.mode);
@@ -666,7 +700,7 @@ mod tests {
             is_primary: true,
             scale_factor: 1.0,
         };
-        
+
         assert_eq!(monitor.index, 0);
         assert_eq!(monitor.name, "Primary Monitor");
         assert!(monitor.is_primary);
@@ -685,7 +719,7 @@ mod tests {
             is_primary: false,
             scale_factor: 1.25,
         };
-        
+
         assert_eq!(monitor.index, 1);
         assert!(!monitor.is_primary);
         assert_eq!(monitor.scale_factor, 1.25);
@@ -704,7 +738,7 @@ mod tests {
             is_primary: false,
             scale_factor: 1.0,
         };
-        
+
         assert_eq!(monitor.x, -1920);
     }
 
@@ -720,10 +754,10 @@ mod tests {
             is_primary: true,
             scale_factor: 2.0,
         };
-        
+
         let json = serde_json::to_string(&monitor).unwrap();
         let deserialized: MonitorInfo = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(monitor.index, deserialized.index);
         assert_eq!(monitor.scale_factor, deserialized.scale_factor);
     }
@@ -741,7 +775,7 @@ mod tests {
             scale_factor: 1.5,
         };
         let cloned = monitor.clone();
-        
+
         assert_eq!(monitor.name, cloned.name);
         assert_eq!(monitor.width, cloned.width);
         assert_eq!(monitor.scale_factor, cloned.scale_factor);

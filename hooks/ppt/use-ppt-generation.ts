@@ -6,8 +6,11 @@
  */
 
 import { useState, useCallback } from 'react';
+import { generateText } from 'ai';
 import { useSettingsStore } from '@/stores';
 import { usePPTEditorStore } from '@/stores/tools/ppt-editor-store';
+import { getProxyProviderModel } from '@/lib/ai/core/proxy-client';
+import { getNextApiKey } from '@/lib/ai/infrastructure/api-key-rotation';
 import type { ProviderName } from '@/types/provider';
 import type { PPTPresentation, PPTSlide, PPTTheme } from '@/types/workflow';
 import { DEFAULT_PPT_THEMES } from '@/types/workflow';
@@ -102,38 +105,50 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
     };
   }, [defaultProvider, providerSettings]);
 
-  // Call AI API for generation
+  // Call AI API for generation using direct client (works in static export/desktop)
   const callAI = useCallback(async (
     systemPrompt: string,
     userPrompt: string,
     signal?: AbortSignal
   ): Promise<string> => {
     const config = getAPIConfig();
+    const settings = providerSettings[defaultProvider];
     
-    // Use the chat API endpoint
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        provider: config.provider,
-        model: config.model,
-        temperature: 0.7,
-        stream: false,
-      }),
-      signal,
-    });
-
-    if (!response.ok) {
-      throw new Error(`AI API error: ${response.statusText}`);
+    // Support API key rotation
+    let activeApiKey = config.apiKey;
+    if (settings?.apiKeys && settings.apiKeys.length > 0 && settings.apiKeyRotationEnabled) {
+      const usageStats = settings.apiKeyUsageStats || {};
+      const rotationResult = getNextApiKey(
+        settings.apiKeys,
+        settings.apiKeyRotationStrategy || 'round-robin',
+        settings.currentKeyIndex || 0,
+        usageStats
+      );
+      activeApiKey = rotationResult.apiKey;
+      useSettingsStore.getState().updateProviderSettings(defaultProvider, {
+        currentKeyIndex: rotationResult.index,
+      });
     }
-
-    const data = await response.json();
-    return data.content || data.text || '';
-  }, [getAPIConfig]);
+    
+    // Get model instance directly (bypasses /api/chat for static export compatibility)
+    const modelInstance = getProxyProviderModel(
+      defaultProvider,
+      config.model,
+      activeApiKey,
+      settings?.baseURL,
+      true // Enable proxy support
+    );
+    
+    const { text } = await generateText({
+      model: modelInstance,
+      system: systemPrompt,
+      prompt: userPrompt,
+      temperature: 0.7,
+      abortSignal: signal,
+    });
+    
+    return text;
+  }, [getAPIConfig, defaultProvider, providerSettings]);
 
   // Parse JSON from AI response
   const parseJSONResponse = useCallback((response: string): unknown => {

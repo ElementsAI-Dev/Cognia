@@ -89,7 +89,7 @@ const mockUseChatWidget: {
   regenerate: mockRegenerate,
 };
 
-jest.mock('@/hooks/use-chat-widget', () => ({
+jest.mock('@/hooks/chat', () => ({
   useChatWidget: () => mockUseChatWidget,
 }));
 
@@ -120,12 +120,12 @@ jest.mock('./chat-widget-header', () => ({
     onExport?: () => void;
   }) => (
     <div data-testid="chat-widget-header">
-      <button data-testid="close-btn" onClick={onClose}>Close</button>
-      <button data-testid="new-session-btn" onClick={onNewSession}>New Session</button>
-      <button data-testid="clear-messages-btn" onClick={onClearMessages}>Clear</button>
-      <button data-testid="toggle-pin-btn" onClick={onTogglePin}>Pin</button>
-      {onSettings && <button data-testid="settings-btn" onClick={onSettings}>Settings</button>}
-      {onExport && <button data-testid="export-btn" onClick={onExport}>Export</button>}
+      <button type="button" data-testid="close-btn" onClick={onClose}>Close</button>
+      <button type="button" data-testid="new-session-btn" onClick={onNewSession}>New Session</button>
+      <button type="button" data-testid="clear-messages-btn" onClick={onClearMessages}>Clear</button>
+      <button type="button" data-testid="toggle-pin-btn" onClick={onTogglePin}>Pin</button>
+      {onSettings && <button type="button" data-testid="settings-btn" onClick={onSettings}>Settings</button>}
+      {onExport && <button type="button" data-testid="export-btn" onClick={onExport}>Export</button>}
     </div>
   ),
 }));
@@ -144,10 +144,10 @@ jest.mock('./chat-widget-messages', () => ({
       <span data-testid="message-count">{messages.length}</span>
       <span data-testid="loading-state">{isLoading.toString()}</span>
       {error && <span data-testid="error-state">{error}</span>}
-      {onRegenerate && <button data-testid="regenerate-btn" onClick={() => onRegenerate('msg-1')}>Regenerate</button>}
-      {onFeedback && <button data-testid="feedback-btn" onClick={() => onFeedback('msg-1', 'like')}>Feedback</button>}
-      {onEdit && <button data-testid="edit-btn" onClick={() => onEdit('msg-1', 'new content')}>Edit</button>}
-      {onContinue && <button data-testid="continue-btn" onClick={onContinue}>Continue</button>}
+      {onRegenerate && <button type="button" data-testid="regenerate-btn" onClick={() => onRegenerate('msg-1')}>Regenerate</button>}
+      {onFeedback && <button type="button" data-testid="feedback-btn" onClick={() => onFeedback('msg-1', 'like')}>Feedback</button>}
+      {onEdit && <button type="button" data-testid="edit-btn" onClick={() => onEdit('msg-1', 'new content')}>Edit</button>}
+      {onContinue && <button type="button" data-testid="continue-btn" onClick={onContinue}>Continue</button>}
     </div>
   ),
 }));
@@ -170,9 +170,11 @@ jest.mock('./chat-widget-input', () => ({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
+          placeholder="Type a message"
+          aria-label="Chat input"
         />
-        <button data-testid="submit-btn" onClick={onSubmit}>Submit</button>
-        {isLoading && onStop && <button data-testid="stop-btn" onClick={onStop}>Stop</button>}
+        <button type="button" data-testid="submit-btn" onClick={onSubmit}>Submit</button>
+        {isLoading && onStop && <button type="button" data-testid="stop-btn" onClick={onStop}>Stop</button>}
       </div>
     );
   }),
@@ -188,9 +190,9 @@ jest.mock('./chat-widget-settings', () => ({
   }) => (
     open ? (
       <div data-testid="chat-widget-settings">
-        <button data-testid="settings-close-btn" onClick={() => onOpenChange(false)}>Close Settings</button>
-        <button data-testid="settings-update-btn" onClick={() => onUpdateConfig({})}>Update</button>
-        <button data-testid="settings-reset-btn" onClick={onResetConfig}>Reset</button>
+        <button type="button" data-testid="settings-close-btn" onClick={() => onOpenChange(false)}>Close Settings</button>
+        <button type="button" data-testid="settings-update-btn" onClick={() => onUpdateConfig({})}>Update</button>
+        <button type="button" data-testid="settings-reset-btn" onClick={onResetConfig}>Reset</button>
       </div>
     ) : null
   ),
@@ -199,7 +201,7 @@ jest.mock('./chat-widget-settings', () => ({
 jest.mock('./chat-widget-suggestions', () => ({
   ChatWidgetSuggestions: ({ onSelect }: { onSelect: (prompt: string) => void }) => (
     <div data-testid="chat-widget-suggestions">
-      <button data-testid="suggestion-btn" onClick={() => onSelect('Test prompt')}>Suggestion</button>
+      <button type="button" data-testid="suggestion-btn" onClick={() => onSelect('Test prompt')}>Suggestion</button>
     </div>
   ),
 }));

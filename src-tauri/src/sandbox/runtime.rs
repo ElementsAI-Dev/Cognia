@@ -184,10 +184,22 @@ pub struct ExecutionResult {
 }
 
 impl ExecutionResult {
-    pub fn success(id: String, stdout: String, stderr: String, exit_code: i32, execution_time_ms: u64, runtime: RuntimeType, language: String) -> Self {
+    pub fn success(
+        id: String,
+        stdout: String,
+        stderr: String,
+        exit_code: i32,
+        execution_time_ms: u64,
+        runtime: RuntimeType,
+        language: String,
+    ) -> Self {
         Self {
             id,
-            status: if exit_code == 0 { ExecutionStatus::Completed } else { ExecutionStatus::Failed },
+            status: if exit_code == 0 {
+                ExecutionStatus::Completed
+            } else {
+                ExecutionStatus::Failed
+            },
             stdout,
             stderr,
             exit_code: Some(exit_code),
@@ -214,7 +226,14 @@ impl ExecutionResult {
         }
     }
 
-    pub fn timeout(id: String, stdout: String, stderr: String, timeout_secs: u64, runtime: RuntimeType, language: String) -> Self {
+    pub fn timeout(
+        id: String,
+        stdout: String,
+        stderr: String,
+        timeout_secs: u64,
+        runtime: RuntimeType,
+        language: String,
+    ) -> Self {
         Self {
             id,
             status: ExecutionStatus::Timeout,
@@ -285,7 +304,7 @@ impl SandboxManager {
         log::info!("Initializing SandboxManager");
         log::debug!("SandboxManager config: preferred_runtime={:?}, docker_enabled={}, podman_enabled={}, native_enabled={}",
             config.preferred_runtime, config.enable_docker, config.enable_podman, config.enable_native);
-        
+
         let mut available_runtimes = Vec::new();
 
         // Initialize Docker runtime if enabled
@@ -300,7 +319,9 @@ impl SandboxManager {
                 available_runtimes.push(RuntimeType::Docker);
                 Some(runtime)
             } else {
-                log::warn!("Docker runtime not available - docker command not found or not running");
+                log::warn!(
+                    "Docker runtime not available - docker command not found or not running"
+                );
                 None
             }
         } else {
@@ -320,7 +341,9 @@ impl SandboxManager {
                 available_runtimes.push(RuntimeType::Podman);
                 Some(runtime)
             } else {
-                log::warn!("Podman runtime not available - podman command not found or not running");
+                log::warn!(
+                    "Podman runtime not available - podman command not found or not running"
+                );
                 None
             }
         } else {
@@ -348,8 +371,11 @@ impl SandboxManager {
         if available_runtimes.is_empty() {
             log::warn!("No sandbox runtimes available! Enable native runtime or install Docker/Podman for code execution.");
         } else {
-            log::info!("SandboxManager initialized with {} available runtime(s): {:?}", 
-                available_runtimes.len(), available_runtimes);
+            log::info!(
+                "SandboxManager initialized with {} available runtime(s): {:?}",
+                available_runtimes.len(),
+                available_runtimes
+            );
         }
 
         Ok(Self {
@@ -402,10 +428,17 @@ impl SandboxManager {
     }
 
     /// Execute code
-    pub async fn execute(&self, request: ExecutionRequest) -> Result<ExecutionResult, SandboxError> {
-        log::debug!("SandboxManager.execute: language={}, id={}, preferred_runtime={:?}",
-            request.language, request.id, request.runtime);
-        
+    pub async fn execute(
+        &self,
+        request: ExecutionRequest,
+    ) -> Result<ExecutionResult, SandboxError> {
+        log::debug!(
+            "SandboxManager.execute: language={}, id={}, preferred_runtime={:?}",
+            request.language,
+            request.id,
+            request.runtime
+        );
+
         // Get language configuration
         let language_config = LANGUAGE_CONFIGS
             .iter()
@@ -415,12 +448,24 @@ impl SandboxManager {
                 SandboxError::LanguageNotSupported(request.language.clone())
             })?;
 
-        log::debug!("Language config found: id={}, name={}, image={}, category={:?}",
-            language_config.id, language_config.name, language_config.docker_image, language_config.category);
+        log::debug!(
+            "Language config found: id={}, name={}, image={}, category={:?}",
+            language_config.id,
+            language_config.name,
+            language_config.docker_image,
+            language_config.category
+        );
 
         // Check if language is enabled
-        if !self.config.enabled_languages.contains(&language_config.id.to_string()) {
-            log::warn!("Language '{}' is disabled in configuration", language_config.name);
+        if !self
+            .config
+            .enabled_languages
+            .contains(&language_config.id.to_string())
+        {
+            log::warn!(
+                "Language '{}' is disabled in configuration",
+                language_config.name
+            );
             return Err(SandboxError::LanguageNotSupported(format!(
                 "{} is disabled in configuration",
                 language_config.name
@@ -428,21 +473,30 @@ impl SandboxManager {
         }
 
         // Get runtime
-        let runtime = self
-            .get_runtime(request.runtime)
-            .ok_or_else(|| {
-                log::error!("No runtime available for execution (requested: {:?})", request.runtime);
-                SandboxError::RuntimeNotAvailable("No runtime available".to_string())
-            })?;
+        let runtime = self.get_runtime(request.runtime).ok_or_else(|| {
+            log::error!(
+                "No runtime available for execution (requested: {:?})",
+                request.runtime
+            );
+            SandboxError::RuntimeNotAvailable("No runtime available".to_string())
+        })?;
 
         log::debug!("Selected runtime: {:?}", runtime.runtime_type());
 
         // Build execution config
-        let timeout_secs = request.timeout_secs.unwrap_or(self.config.default_timeout_secs);
-        let memory_mb = request.memory_limit_mb.unwrap_or(self.config.default_memory_limit_mb);
-        let cpu_percent = request.cpu_limit_percent.unwrap_or(self.config.default_cpu_limit_percent);
-        let network = request.network_enabled.unwrap_or(self.config.network_enabled);
-        
+        let timeout_secs = request
+            .timeout_secs
+            .unwrap_or(self.config.default_timeout_secs);
+        let memory_mb = request
+            .memory_limit_mb
+            .unwrap_or(self.config.default_memory_limit_mb);
+        let cpu_percent = request
+            .cpu_limit_percent
+            .unwrap_or(self.config.default_cpu_limit_percent);
+        let network = request
+            .network_enabled
+            .unwrap_or(self.config.network_enabled);
+
         let exec_config = ExecutionConfig {
             timeout: Duration::from_secs(timeout_secs),
             memory_limit_mb: memory_mb,
@@ -451,19 +505,37 @@ impl SandboxManager {
             max_output_size: self.config.max_output_size,
         };
 
-        log::debug!("Execution config: timeout={}s, memory={}MB, cpu={}%, network={}, max_output={}",
-            timeout_secs, memory_mb, cpu_percent, network, self.config.max_output_size);
+        log::debug!(
+            "Execution config: timeout={}s, memory={}MB, cpu={}%, network={}, max_output={}",
+            timeout_secs,
+            memory_mb,
+            cpu_percent,
+            network,
+            self.config.max_output_size
+        );
 
         // Execute and handle errors
-        log::info!("Starting execution: id={}, language={}, runtime={:?}",
-            request.id, request.language, runtime.runtime_type());
-        
-        match runtime.execute(&request, language_config, &exec_config).await {
+        log::info!(
+            "Starting execution: id={}, language={}, runtime={:?}",
+            request.id,
+            request.language,
+            runtime.runtime_type()
+        );
+
+        match runtime
+            .execute(&request, language_config, &exec_config)
+            .await
+        {
             Ok(result) => {
-                log::debug!("Execution succeeded: id={}, status={:?}, exit_code={:?}, time={}ms",
-                    result.id, result.status, result.exit_code, result.execution_time_ms);
+                log::debug!(
+                    "Execution succeeded: id={}, status={:?}, exit_code={:?}, time={}ms",
+                    result.id,
+                    result.status,
+                    result.exit_code,
+                    result.execution_time_ms
+                );
                 Ok(result)
-            },
+            }
             Err(e) => {
                 log::error!("Execution failed: id={}, error={}", request.id, e);
                 Ok(ExecutionResult::error(
@@ -477,7 +549,10 @@ impl SandboxManager {
     }
 
     /// Get runtime information (type and version)
-    pub async fn get_runtime_info(&self, runtime_type: RuntimeType) -> Option<(RuntimeType, String)> {
+    pub async fn get_runtime_info(
+        &self,
+        runtime_type: RuntimeType,
+    ) -> Option<(RuntimeType, String)> {
         let runtime = self.get_runtime_by_type(runtime_type)?;
         let version = runtime.get_version().await.ok()?;
         Some((runtime.runtime_type(), version))
@@ -486,7 +561,7 @@ impl SandboxManager {
     /// Cleanup all runtimes
     pub async fn cleanup_all(&self) -> Result<(), SandboxError> {
         log::info!("Cleaning up all sandbox runtimes");
-        
+
         if let Some(ref docker) = self.docker {
             log::debug!("Cleaning up Docker runtime...");
             if let Err(e) = docker.cleanup().await {
@@ -511,7 +586,7 @@ impl SandboxManager {
                 log::debug!("Native runtime cleaned up successfully");
             }
         }
-        
+
         log::info!("All sandbox runtimes cleanup completed");
         Ok(())
     }
@@ -519,13 +594,19 @@ impl SandboxManager {
     /// Prepare image for a language
     pub async fn prepare_language(&self, language: &str) -> Result<(), SandboxError> {
         log::info!("Preparing container image for language: {}", language);
-        
+
         // Try Docker first, then Podman
         if let Some(ref docker) = self.docker {
-            log::debug!("Pulling image using Docker runtime for language: {}", language);
+            log::debug!(
+                "Pulling image using Docker runtime for language: {}",
+                language
+            );
             match docker.prepare_image(language).await {
                 Ok(_) => {
-                    log::info!("Docker image prepared successfully for language: {}", language);
+                    log::info!(
+                        "Docker image prepared successfully for language: {}",
+                        language
+                    );
                     return Ok(());
                 }
                 Err(e) => {
@@ -535,10 +616,16 @@ impl SandboxManager {
             }
         }
         if let Some(ref podman) = self.podman {
-            log::debug!("Pulling image using Podman runtime for language: {}", language);
+            log::debug!(
+                "Pulling image using Podman runtime for language: {}",
+                language
+            );
             match podman.prepare_image(language).await {
                 Ok(_) => {
-                    log::info!("Podman image prepared successfully for language: {}", language);
+                    log::info!(
+                        "Podman image prepared successfully for language: {}",
+                        language
+                    );
                     return Ok(());
                 }
                 Err(e) => {
@@ -547,8 +634,11 @@ impl SandboxManager {
                 }
             }
         }
-        
-        log::debug!("No container runtime available for image preparation (language: {})", language);
+
+        log::debug!(
+            "No container runtime available for image preparation (language: {})",
+            language
+        );
         Ok(())
     }
 
@@ -594,10 +684,10 @@ mod tests {
     fn test_runtime_type_serialization() {
         let docker = serde_json::to_string(&RuntimeType::Docker).unwrap();
         assert_eq!(docker, "\"docker\"");
-        
+
         let podman = serde_json::to_string(&RuntimeType::Podman).unwrap();
         assert_eq!(podman, "\"podman\"");
-        
+
         let native = serde_json::to_string(&RuntimeType::Native).unwrap();
         assert_eq!(native, "\"native\"");
     }
@@ -606,10 +696,10 @@ mod tests {
     fn test_runtime_type_deserialization() {
         let docker: RuntimeType = serde_json::from_str("\"docker\"").unwrap();
         assert_eq!(docker, RuntimeType::Docker);
-        
+
         let podman: RuntimeType = serde_json::from_str("\"podman\"").unwrap();
         assert_eq!(podman, RuntimeType::Podman);
-        
+
         let native: RuntimeType = serde_json::from_str("\"native\"").unwrap();
         assert_eq!(native, RuntimeType::Native);
     }
@@ -636,7 +726,7 @@ mod tests {
         set.insert(RuntimeType::Podman);
         set.insert(RuntimeType::Native);
         assert_eq!(set.len(), 3);
-        
+
         // Adding duplicate should not increase size
         set.insert(RuntimeType::Docker);
         assert_eq!(set.len(), 3);
@@ -648,19 +738,19 @@ mod tests {
     fn test_execution_status_serialization() {
         let pending = serde_json::to_string(&ExecutionStatus::Pending).unwrap();
         assert_eq!(pending, "\"pending\"");
-        
+
         let running = serde_json::to_string(&ExecutionStatus::Running).unwrap();
         assert_eq!(running, "\"running\"");
-        
+
         let completed = serde_json::to_string(&ExecutionStatus::Completed).unwrap();
         assert_eq!(completed, "\"completed\"");
-        
+
         let failed = serde_json::to_string(&ExecutionStatus::Failed).unwrap();
         assert_eq!(failed, "\"failed\"");
-        
+
         let timeout = serde_json::to_string(&ExecutionStatus::Timeout).unwrap();
         assert_eq!(timeout, "\"timeout\"");
-        
+
         let cancelled = serde_json::to_string(&ExecutionStatus::Cancelled).unwrap();
         assert_eq!(cancelled, "\"cancelled\"");
     }
@@ -669,7 +759,7 @@ mod tests {
     fn test_execution_status_deserialization() {
         let pending: ExecutionStatus = serde_json::from_str("\"pending\"").unwrap();
         assert!(matches!(pending, ExecutionStatus::Pending));
-        
+
         let completed: ExecutionStatus = serde_json::from_str("\"completed\"").unwrap();
         assert!(matches!(completed, ExecutionStatus::Completed));
     }
@@ -709,22 +799,19 @@ mod tests {
 
     #[test]
     fn test_execution_request_with_stdin() {
-        let request = ExecutionRequest::new("python", "x = input()")
-            .with_stdin("test input");
+        let request = ExecutionRequest::new("python", "x = input()").with_stdin("test input");
         assert_eq!(request.stdin, Some("test input".to_string()));
     }
 
     #[test]
     fn test_execution_request_with_timeout() {
-        let request = ExecutionRequest::new("python", "code")
-            .with_timeout(60);
+        let request = ExecutionRequest::new("python", "code").with_timeout(60);
         assert_eq!(request.timeout_secs, Some(60));
     }
 
     #[test]
     fn test_execution_request_with_memory_limit() {
-        let request = ExecutionRequest::new("python", "code")
-            .with_memory_limit(512);
+        let request = ExecutionRequest::new("python", "code").with_memory_limit(512);
         assert_eq!(request.memory_limit_mb, Some(512));
     }
 
@@ -734,7 +821,7 @@ mod tests {
             .with_stdin("input")
             .with_timeout(30)
             .with_memory_limit(256);
-        
+
         assert_eq!(request.language, "python");
         assert_eq!(request.stdin, Some("input".to_string()));
         assert_eq!(request.timeout_secs, Some(30));
@@ -753,7 +840,7 @@ mod tests {
         let request = ExecutionRequest::new("python", "print('hello')")
             .with_stdin("input")
             .with_timeout(30);
-        
+
         let json = serde_json::to_string(&request).unwrap();
         assert!(json.contains("\"language\":\"python\""));
         assert!(json.contains("\"code\":\"print('hello')\""));
@@ -777,7 +864,7 @@ mod tests {
             "files": {},
             "network_enabled": null
         }"#;
-        
+
         let request: ExecutionRequest = serde_json::from_str(json).unwrap();
         assert_eq!(request.id, "test-id");
         assert_eq!(request.language, "python");
@@ -803,7 +890,9 @@ mod tests {
     #[test]
     fn test_execution_request_with_files() {
         let mut request = ExecutionRequest::new("python", "code");
-        request.files.insert("data.txt".to_string(), "content".to_string());
+        request
+            .files
+            .insert("data.txt".to_string(), "content".to_string());
         assert_eq!(request.files.get("data.txt"), Some(&"content".to_string()));
     }
 
@@ -820,7 +909,7 @@ mod tests {
             RuntimeType::Docker,
             "python".to_string(),
         );
-        
+
         assert_eq!(result.id, "test-id");
         assert!(matches!(result.status, ExecutionStatus::Completed));
         assert_eq!(result.stdout, "Hello, World!");
@@ -844,7 +933,7 @@ mod tests {
             RuntimeType::Docker,
             "python".to_string(),
         );
-        
+
         assert!(matches!(result.status, ExecutionStatus::Failed));
         assert_eq!(result.exit_code, Some(1));
     }
@@ -857,7 +946,7 @@ mod tests {
             RuntimeType::Docker,
             "rust".to_string(),
         );
-        
+
         assert!(matches!(result.status, ExecutionStatus::Failed));
         assert_eq!(result.error, Some("Compilation failed".to_string()));
         assert!(result.exit_code.is_none());
@@ -876,7 +965,7 @@ mod tests {
             RuntimeType::Docker,
             "python".to_string(),
         );
-        
+
         assert!(matches!(result.status, ExecutionStatus::Timeout));
         assert_eq!(result.stdout, "partial output");
         assert_eq!(result.stderr, "partial error");
@@ -897,7 +986,7 @@ mod tests {
             RuntimeType::Docker,
             "python".to_string(),
         );
-        
+
         let json = serde_json::to_string(&result).unwrap();
         assert!(json.contains("\"id\":\"test-id\""));
         assert!(json.contains("\"status\":\"completed\""));
@@ -915,7 +1004,7 @@ mod tests {
             RuntimeType::Docker,
             "python".to_string(),
         );
-        
+
         let cloned = result.clone();
         assert_eq!(result.id, cloned.id);
         assert_eq!(result.stdout, cloned.stdout);
@@ -932,7 +1021,7 @@ mod tests {
             network_enabled: false,
             max_output_size: 1024 * 1024,
         };
-        
+
         assert_eq!(config.timeout.as_secs(), 30);
         assert_eq!(config.memory_limit_mb, 256);
         assert_eq!(config.cpu_limit_percent, 50);
@@ -949,7 +1038,7 @@ mod tests {
             network_enabled: true,
             max_output_size: 1024,
         };
-        
+
         let cloned = config.clone();
         assert_eq!(config.timeout, cloned.timeout);
         assert_eq!(config.memory_limit_mb, cloned.memory_limit_mb);
@@ -1168,7 +1257,7 @@ mod tests {
         let manager = SandboxManager::new(config).await.unwrap();
         let request = ExecutionRequest::new("nonexistent_lang", "code");
         let result = manager.execute(request).await;
-        
+
         // Should return an error result, not an Err
         assert!(result.is_err() || matches!(result.unwrap().status, ExecutionStatus::Failed));
     }
@@ -1193,7 +1282,7 @@ mod tests {
         let manager = SandboxManager::new(config).await.unwrap();
         let request = ExecutionRequest::new("python", "print('hello')");
         let result = manager.execute(request).await;
-        
+
         // Should fail because python is not in enabled_languages
         assert!(result.is_err());
     }

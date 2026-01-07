@@ -158,13 +158,23 @@ describe('Layout Engine', () => {
       expect(result).toBe('bullets');
     });
 
-    it('should default to title-content', () => {
+    it('should default to title-content when no special content', () => {
+      const result = suggestLayout({
+        title: 'Title',
+        subtitle: 'Sub',
+        // No bullets, no images, no chart, no table
+      });
+      // With only title and subtitle, should return 'title'
+      expect(result).toBe('title');
+    });
+
+    it('should return bullets when bullets are present', () => {
       const result = suggestLayout({
         title: 'Title',
         subtitle: 'Sub',
         bullets: ['One'],
       });
-      expect(result).toBe('title-content');
+      expect(result).toBe('bullets');
     });
   });
 

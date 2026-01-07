@@ -55,6 +55,10 @@ jest.mock('@/stores', () => ({
     };
     return selector(state);
   },
+  useNativeStore: () => ({
+    isNativeAvailable: false,
+    fileSystem: null,
+  }),
 }));
 
 jest.mock('@/lib/document', () => ({
@@ -121,6 +125,16 @@ jest.mock('@/components/ui/badge', () => ({
   Badge: ({ children }: { children: React.ReactNode }) => <span data-testid="badge">{children}</span>,
 }));
 
+// Mock EmptyState to avoid issues with icon rendering
+jest.mock('@/components/layout/empty-state', () => ({
+  EmptyState: ({ title, description }: { title: string; description?: string }) => (
+    <div data-testid="empty-state">
+      <span>{title}</span>
+      {description && <span>{description}</span>}
+    </div>
+  ),
+}));
+
 describe('KnowledgeBase', () => {
   const defaultProps = {
     projectId: 'project-1',
@@ -171,7 +185,8 @@ describe('KnowledgeBase', () => {
     render(<KnowledgeBase {...defaultProps} />);
     fireEvent.click(screen.getByText('Add'));
     expect(screen.getByTestId('dialog')).toBeInTheDocument();
-    expect(screen.getByText('Add Knowledge File')).toBeInTheDocument();
+    // Dialog title uses i18n key 'addFile'
+    expect(screen.getByRole('heading', { name: /addFile|Add File/i })).toBeInTheDocument();
   });
 
   it('renders file name and content inputs in add dialog', () => {
@@ -187,7 +202,8 @@ describe('KnowledgeBase', () => {
     render(<KnowledgeBase {...defaultProps} />);
     fireEvent.click(screen.getByText('Add'));
     
-    const addFileButton = screen.getByText('Add File');
+    // Use getByRole for button to avoid matching heading with same text
+    const addFileButton = screen.getByRole('button', { name: /addFile|Add File|添加文件/i });
     expect(addFileButton).toBeDisabled();
   });
 
@@ -201,7 +217,8 @@ describe('KnowledgeBase', () => {
     fireEvent.change(fileNameInput, { target: { value: 'test.md' } });
     fireEvent.change(contentInput, { target: { value: 'Test content' } });
     
-    const addFileButton = screen.getByText('Add File');
+    // Use getByRole for button to avoid matching heading with same text
+    const addFileButton = screen.getByRole('button', { name: /addFile|Add File|添加文件/i });
     expect(addFileButton).not.toBeDisabled();
   });
 
@@ -229,6 +246,8 @@ describe('KnowledgeBase', () => {
     const searchInput = screen.getByPlaceholderText('Search files...');
     fireEvent.change(searchInput, { target: { value: 'nonexistent' } });
     
-    expect(screen.getByText('No files found')).toBeInTheDocument();
+    // EmptyState is mocked and will show the i18n key 'noResults'
+    expect(screen.getByTestId('empty-state')).toBeInTheDocument();
+    expect(screen.getByText(/noResults|No files found|No results/i)).toBeInTheDocument();
   });
 });

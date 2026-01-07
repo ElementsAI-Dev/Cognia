@@ -244,7 +244,10 @@ pub async fn test_ollama_connection(base_url: String) -> Result<ApiTestResult, S
         let body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
         let model_count = extract_model_count(&body, "models");
         Ok(ApiTestResult::success(
-            format!("Connected successfully. {} local models available.", model_count),
+            format!(
+                "Connected successfully. {} local models available.",
+                model_count
+            ),
             latency,
             Some(format!("{} models", model_count)),
         ))
@@ -274,8 +277,9 @@ mod tests {
 
     #[test]
     fn test_api_test_result_success() {
-        let result = ApiTestResult::success("Connected successfully", 150, Some("10 models".to_string()));
-        
+        let result =
+            ApiTestResult::success("Connected successfully", 150, Some("10 models".to_string()));
+
         assert!(result.success);
         assert_eq!(result.message, "Connected successfully");
         assert_eq!(result.latency_ms, Some(150));
@@ -285,7 +289,7 @@ mod tests {
     #[test]
     fn test_api_test_result_failure() {
         let result = ApiTestResult::failure("Connection failed", 500);
-        
+
         assert!(!result.success);
         assert_eq!(result.message, "Connection failed");
         assert_eq!(result.latency_ms, Some(500));
@@ -301,7 +305,7 @@ mod tests {
                 {"id": "model-3"}
             ]
         });
-        
+
         let count = extract_model_count(&body, "data");
         assert_eq!(count, 3);
     }
@@ -314,7 +318,7 @@ mod tests {
                 {"name": "mistral"}
             ]
         });
-        
+
         let count = extract_model_count(&body, "models");
         assert_eq!(count, 2);
     }
@@ -324,7 +328,7 @@ mod tests {
         let body = json!({
             "other": "data"
         });
-        
+
         let count = extract_model_count(&body, "data");
         assert_eq!(count, 0);
     }
@@ -334,7 +338,7 @@ mod tests {
         let body = json!({
             "data": "not an array"
         });
-        
+
         let count = extract_model_count(&body, "data");
         assert_eq!(count, 0);
     }
@@ -344,7 +348,7 @@ mod tests {
         let body = json!({
             "data": []
         });
-        
+
         let count = extract_model_count(&body, "data");
         assert_eq!(count, 0);
     }
@@ -352,10 +356,10 @@ mod tests {
     #[test]
     fn test_api_test_result_serialization() {
         let result = ApiTestResult::success("Test", 100, Some("info".to_string()));
-        
+
         let serialized = serde_json::to_string(&result).unwrap();
         let deserialized: ApiTestResult = serde_json::from_str(&serialized).unwrap();
-        
+
         assert_eq!(result.success, deserialized.success);
         assert_eq!(result.message, deserialized.message);
         assert_eq!(result.latency_ms, deserialized.latency_ms);
@@ -366,7 +370,7 @@ mod tests {
     fn test_api_test_result_with_into_string() {
         let result = ApiTestResult::success(String::from("test message"), 50, None);
         assert_eq!(result.message, "test message");
-        
+
         let result2 = ApiTestResult::failure("error message", 100);
         assert_eq!(result2.message, "error message");
     }

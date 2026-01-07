@@ -25,7 +25,11 @@ impl McpConfig {
 
     /// Add or update a server configuration
     pub fn set_server(&mut self, id: String, config: McpServerConfig) {
-        log::debug!("Setting server configuration: id='{}', name='{}'", id, config.name);
+        log::debug!(
+            "Setting server configuration: id='{}', name='{}'",
+            id,
+            config.name
+        );
         self.mcp_servers.insert(id, config);
     }
 
@@ -91,9 +95,12 @@ impl McpConfigManager {
     /// Load configuration from disk
     pub async fn load(&self) -> McpResult<()> {
         log::debug!("Loading MCP configuration from: {:?}", self.config_path);
-        
+
         if !self.config_path.exists() {
-            log::info!("No MCP config file found at {:?}, using defaults", self.config_path);
+            log::info!(
+                "No MCP config file found at {:?}, using defaults",
+                self.config_path
+            );
             return Ok(());
         }
 
@@ -116,7 +123,7 @@ impl McpConfigManager {
             config.mcp_servers.len(),
             self.config_path
         );
-        
+
         for (id, server_config) in &config.mcp_servers {
             log::debug!(
                 "  Server '{}': name='{}', type={:?}, enabled={}, auto_start={}",
@@ -135,7 +142,7 @@ impl McpConfigManager {
     /// Save configuration to disk
     pub async fn save(&self) -> McpResult<()> {
         log::debug!("Saving MCP configuration to: {:?}", self.config_path);
-        
+
         // Ensure parent directory exists
         if let Some(parent) = self.config_path.parent() {
             log::trace!("Ensuring config directory exists: {:?}", parent);
@@ -153,11 +160,19 @@ impl McpConfigManager {
         tokio::fs::write(&self.config_path, content)
             .await
             .map_err(|e| {
-                log::error!("Failed to write MCP config to {:?}: {}", self.config_path, e);
+                log::error!(
+                    "Failed to write MCP config to {:?}: {}",
+                    self.config_path,
+                    e
+                );
                 McpError::ConfigPathError(format!("Failed to write config: {}", e))
             })?;
 
-        log::info!("Saved MCP config ({} servers) to {:?}", server_count, self.config_path);
+        log::info!(
+            "Saved MCP config ({} servers) to {:?}",
+            server_count,
+            self.config_path
+        );
         Ok(())
     }
 
@@ -168,7 +183,11 @@ impl McpConfigManager {
 
     /// Add or update a server
     pub fn set_server(&self, id: String, config: McpServerConfig) {
-        log::info!("Adding/updating MCP server: id='{}', name='{}'", id, config.name);
+        log::info!(
+            "Adding/updating MCP server: id='{}', name='{}'",
+            id,
+            config.name
+        );
         log::debug!(
             "Server config: type={:?}, command='{}', enabled={}, auto_start={}",
             config.connection_type,
@@ -203,12 +222,13 @@ impl McpConfigManager {
 
     /// Get servers marked for auto-start
     pub fn get_auto_start_servers(&self) -> Vec<(String, McpServerConfig)> {
-        let servers: Vec<_> = self.config
+        let servers: Vec<_> = self
+            .config
             .read()
             .auto_start_servers()
             .map(|(id, config)| (id.clone(), config.clone()))
             .collect();
-        
+
         log::debug!("Found {} servers marked for auto-start", servers.len());
         for (id, _) in &servers {
             log::trace!("  Auto-start server: '{}'", id);
@@ -227,7 +247,11 @@ impl McpConfigManager {
         let mut config = self.config.write();
         if let Some(server) = config.mcp_servers.get_mut(id) {
             server.enabled = enabled;
-            log::info!("Server '{}' {} successfully", id, if enabled { "enabled" } else { "disabled" });
+            log::info!(
+                "Server '{}' {} successfully",
+                id,
+                if enabled { "enabled" } else { "disabled" }
+            );
             true
         } else {
             log::warn!("Cannot set enabled status: server '{}' not found", id);
@@ -237,11 +261,19 @@ impl McpConfigManager {
 
     /// Update a server's auto-start status
     pub fn set_server_auto_start(&self, id: &str, auto_start: bool) -> bool {
-        log::debug!("Setting server '{}' auto-start status to: {}", id, auto_start);
+        log::debug!(
+            "Setting server '{}' auto-start status to: {}",
+            id,
+            auto_start
+        );
         let mut config = self.config.write();
         if let Some(server) = config.mcp_servers.get_mut(id) {
             server.auto_start = auto_start;
-            log::info!("Server '{}' auto-start {}", id, if auto_start { "enabled" } else { "disabled" });
+            log::info!(
+                "Server '{}' auto-start {}",
+                id,
+                if auto_start { "enabled" } else { "disabled" }
+            );
             true
         } else {
             log::warn!("Cannot set auto-start status: server '{}' not found", id);
@@ -414,7 +446,7 @@ mod tests {
     fn test_config_deserialization_with_defaults() {
         let json = r#"{"mcpServers": {"test": {"name": "Test"}}}"#;
         let config: McpConfig = serde_json::from_str(json).unwrap();
-        
+
         let server = config.get_server("test").unwrap();
         assert_eq!(server.name, "Test");
         assert!(server.enabled); // default true
@@ -503,15 +535,18 @@ mod tests {
     fn test_config_manager_new() {
         let temp_dir = TempDir::new().unwrap();
         let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
-        
-        assert_eq!(manager.config_path(), &temp_dir.path().join("mcp_servers.json"));
+
+        assert_eq!(
+            manager.config_path(),
+            &temp_dir.path().join("mcp_servers.json")
+        );
     }
 
     #[test]
     fn test_config_manager_get_config() {
         let temp_dir = TempDir::new().unwrap();
         let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
-        
+
         let config = manager.get_config();
         assert!(config.mcp_servers.is_empty());
     }
@@ -520,7 +555,7 @@ mod tests {
     fn test_config_manager_set_server() {
         let temp_dir = TempDir::new().unwrap();
         let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
-        
+
         manager.set_server(
             "test".to_string(),
             McpServerConfig {
@@ -538,7 +573,7 @@ mod tests {
     fn test_config_manager_remove_server() {
         let temp_dir = TempDir::new().unwrap();
         let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
-        
+
         manager.set_server("test".to_string(), McpServerConfig::default());
         assert!(manager.has_server("test"));
 
@@ -551,7 +586,7 @@ mod tests {
     fn test_config_manager_get_all_servers() {
         let temp_dir = TempDir::new().unwrap();
         let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
-        
+
         manager.set_server("s1".to_string(), McpServerConfig::default());
         manager.set_server("s2".to_string(), McpServerConfig::default());
 
@@ -565,7 +600,7 @@ mod tests {
     fn test_config_manager_has_server() {
         let temp_dir = TempDir::new().unwrap();
         let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
-        
+
         assert!(!manager.has_server("test"));
         manager.set_server("test".to_string(), McpServerConfig::default());
         assert!(manager.has_server("test"));
@@ -575,7 +610,7 @@ mod tests {
     fn test_config_manager_set_server_enabled() {
         let temp_dir = TempDir::new().unwrap();
         let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
-        
+
         manager.set_server(
             "test".to_string(),
             McpServerConfig {
@@ -595,7 +630,7 @@ mod tests {
     fn test_config_manager_set_server_enabled_nonexistent() {
         let temp_dir = TempDir::new().unwrap();
         let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
-        
+
         assert!(!manager.set_server_enabled("nonexistent", true));
     }
 
@@ -603,7 +638,7 @@ mod tests {
     fn test_config_manager_set_server_auto_start() {
         let temp_dir = TempDir::new().unwrap();
         let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
-        
+
         manager.set_server(
             "test".to_string(),
             McpServerConfig {
@@ -623,7 +658,7 @@ mod tests {
     fn test_config_manager_set_server_auto_start_nonexistent() {
         let temp_dir = TempDir::new().unwrap();
         let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
-        
+
         assert!(!manager.set_server_auto_start("nonexistent", true));
     }
 
@@ -631,7 +666,7 @@ mod tests {
     fn test_config_manager_get_auto_start_servers() {
         let temp_dir = TempDir::new().unwrap();
         let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
-        
+
         manager.set_server(
             "auto".to_string(),
             McpServerConfig {
@@ -658,7 +693,7 @@ mod tests {
     async fn test_config_manager_load_nonexistent_file() {
         let temp_dir = TempDir::new().unwrap();
         let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
-        
+
         // Loading from nonexistent file should succeed with empty config
         let result = manager.load().await;
         assert!(result.is_ok());
@@ -669,7 +704,7 @@ mod tests {
     async fn test_config_manager_save_and_load() {
         let temp_dir = TempDir::new().unwrap();
         let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
-        
+
         manager.set_server(
             "test".to_string(),
             McpServerConfig {
@@ -697,7 +732,7 @@ mod tests {
     async fn test_config_manager_load_invalid_json() {
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("mcp_servers.json");
-        
+
         // Write invalid JSON
         std::fs::write(&config_path, "invalid json content").unwrap();
 
@@ -711,9 +746,9 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let nested_path = temp_dir.path().join("nested").join("dir");
         let manager = McpConfigManager::new(nested_path.clone());
-        
+
         manager.set_server("test".to_string(), McpServerConfig::default());
-        
+
         let result = manager.save().await;
         assert!(result.is_ok());
         assert!(nested_path.join("mcp_servers.json").exists());
@@ -762,13 +797,13 @@ mod tests {
     fn test_config_concurrent_read_access() {
         let temp_dir = TempDir::new().unwrap();
         let manager = McpConfigManager::new(temp_dir.path().to_path_buf());
-        
+
         manager.set_server("test".to_string(), McpServerConfig::default());
 
         // Multiple concurrent reads should work
         let config1 = manager.get_config();
         let config2 = manager.get_config();
-        
+
         assert_eq!(config1.mcp_servers.len(), config2.mcp_servers.len());
     }
 }

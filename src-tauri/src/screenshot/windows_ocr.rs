@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 #[cfg(target_os = "windows")]
 use windows::{
     core::{Interface, HSTRING},
-    Graphics::Imaging::{BitmapPixelFormat, SoftwareBitmap, BitmapBufferAccessMode},
     Globalization::Language,
+    Graphics::Imaging::{BitmapBufferAccessMode, BitmapPixelFormat, SoftwareBitmap},
     Media::Ocr::OcrEngine as WinOcrEngine,
 };
 
@@ -124,7 +124,7 @@ impl WindowsOcr {
                     bgra.push(chunk[2]); // B
                     bgra.push(chunk[1]); // G
                     bgra.push(chunk[0]); // R
-                    bgra.push(255);      // A
+                    bgra.push(255); // A
                 }
                 bgra
             }
@@ -135,7 +135,7 @@ impl WindowsOcr {
                     bgra.push(gray); // B
                     bgra.push(gray); // G
                     bgra.push(gray); // R
-                    bgra.push(255);  // A
+                    bgra.push(255); // A
                 }
                 bgra
             }
@@ -323,21 +323,19 @@ fn perform_ocr_sync(
         // Use the IMemoryBufferByteAccess interface to get raw pointer
         unsafe {
             use windows::Win32::System::WinRT::IMemoryBufferByteAccess;
-            
-            let byte_access: IMemoryBufferByteAccess = reference.cast()
+
+            let byte_access: IMemoryBufferByteAccess = reference
+                .cast()
                 .map_err(|e| format!("Failed to cast to IMemoryBufferByteAccess: {}", e))?;
 
             let mut data_ptr: *mut u8 = std::ptr::null_mut();
             let mut capacity: u32 = 0;
-            byte_access.GetBuffer(&mut data_ptr, &mut capacity)
+            byte_access
+                .GetBuffer(&mut data_ptr, &mut capacity)
                 .map_err(|e| format!("Failed to get buffer pointer: {}", e))?;
 
             if !data_ptr.is_null() && capacity as usize >= bgra_pixels.len() {
-                std::ptr::copy_nonoverlapping(
-                    bgra_pixels.as_ptr(),
-                    data_ptr,
-                    bgra_pixels.len(),
-                );
+                std::ptr::copy_nonoverlapping(bgra_pixels.as_ptr(), data_ptr, bgra_pixels.len());
             } else {
                 return Err("Buffer too small or null".to_string());
             }
@@ -377,10 +375,7 @@ fn perform_ocr_sync(
         .map_err(|e| format!("OCR recognition failed: {}", e))?;
 
     // Extract results
-    let full_text = ocr_result
-        .Text()
-        .map(|s| s.to_string())
-        .unwrap_or_default();
+    let full_text = ocr_result.Text().map(|s| s.to_string()).unwrap_or_default();
 
     let mut lines = Vec::new();
     let mut total_words = 0;
@@ -465,10 +460,7 @@ fn perform_ocr_sync(
     };
 
     // Get detected language
-    let detected_language = ocr_result
-        .Text()
-        .ok()
-        .map(|_| language.to_string());
+    let detected_language = ocr_result.Text().ok().map(|_| language.to_string());
 
     Ok(WinOcrResult {
         text: full_text,
@@ -508,7 +500,7 @@ mod tests {
             width: 100.0,
             height: 50.0,
         };
-        
+
         assert_eq!(bounds.x, 10.5);
         assert_eq!(bounds.y, 20.5);
         assert_eq!(bounds.width, 100.0);
@@ -523,10 +515,10 @@ mod tests {
             width: 200.0,
             height: 100.0,
         };
-        
+
         let json = serde_json::to_string(&bounds).unwrap();
         let deserialized: OcrBounds = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(bounds.x, deserialized.x);
         assert_eq!(bounds.width, deserialized.width);
     }
@@ -534,10 +526,13 @@ mod tests {
     #[test]
     fn test_ocr_bounds_clone() {
         let bounds = OcrBounds {
-            x: 5.0, y: 10.0, width: 50.0, height: 25.0,
+            x: 5.0,
+            y: 10.0,
+            width: 50.0,
+            height: 25.0,
         };
         let cloned = bounds.clone();
-        
+
         assert_eq!(bounds.x, cloned.x);
         assert_eq!(bounds.height, cloned.height);
     }
@@ -548,10 +543,15 @@ mod tests {
     fn test_ocr_word_creation() {
         let word = OcrWord {
             text: "Hello".to_string(),
-            bounds: OcrBounds { x: 0.0, y: 0.0, width: 30.0, height: 15.0 },
+            bounds: OcrBounds {
+                x: 0.0,
+                y: 0.0,
+                width: 30.0,
+                height: 15.0,
+            },
             confidence: 0.95,
         };
-        
+
         assert_eq!(word.text, "Hello");
         assert_eq!(word.confidence, 0.95);
     }
@@ -560,13 +560,18 @@ mod tests {
     fn test_ocr_word_serialization() {
         let word = OcrWord {
             text: "World".to_string(),
-            bounds: OcrBounds { x: 35.0, y: 0.0, width: 35.0, height: 15.0 },
+            bounds: OcrBounds {
+                x: 35.0,
+                y: 0.0,
+                width: 35.0,
+                height: 15.0,
+            },
             confidence: 0.92,
         };
-        
+
         let json = serde_json::to_string(&word).unwrap();
         let deserialized: OcrWord = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(word.text, deserialized.text);
         assert_eq!(word.confidence, deserialized.confidence);
     }
@@ -575,11 +580,16 @@ mod tests {
     fn test_ocr_word_clone() {
         let word = OcrWord {
             text: "Test".to_string(),
-            bounds: OcrBounds { x: 0.0, y: 0.0, width: 25.0, height: 12.0 },
+            bounds: OcrBounds {
+                x: 0.0,
+                y: 0.0,
+                width: 25.0,
+                height: 12.0,
+            },
             confidence: 0.88,
         };
         let cloned = word.clone();
-        
+
         assert_eq!(word.text, cloned.text);
         assert_eq!(word.bounds.width, cloned.bounds.width);
     }
@@ -593,18 +603,33 @@ mod tests {
             words: vec![
                 OcrWord {
                     text: "Hello".to_string(),
-                    bounds: OcrBounds { x: 0.0, y: 0.0, width: 30.0, height: 15.0 },
+                    bounds: OcrBounds {
+                        x: 0.0,
+                        y: 0.0,
+                        width: 30.0,
+                        height: 15.0,
+                    },
                     confidence: 0.95,
                 },
                 OcrWord {
                     text: "World".to_string(),
-                    bounds: OcrBounds { x: 35.0, y: 0.0, width: 35.0, height: 15.0 },
+                    bounds: OcrBounds {
+                        x: 35.0,
+                        y: 0.0,
+                        width: 35.0,
+                        height: 15.0,
+                    },
                     confidence: 0.93,
                 },
             ],
-            bounds: OcrBounds { x: 0.0, y: 0.0, width: 70.0, height: 15.0 },
+            bounds: OcrBounds {
+                x: 0.0,
+                y: 0.0,
+                width: 70.0,
+                height: 15.0,
+            },
         };
-        
+
         assert_eq!(line.text, "Hello World");
         assert_eq!(line.words.len(), 2);
     }
@@ -614,9 +639,14 @@ mod tests {
         let line = OcrLine {
             text: String::new(),
             words: Vec::new(),
-            bounds: OcrBounds { x: 0.0, y: 0.0, width: 0.0, height: 0.0 },
+            bounds: OcrBounds {
+                x: 0.0,
+                y: 0.0,
+                width: 0.0,
+                height: 0.0,
+            },
         };
-        
+
         assert!(line.text.is_empty());
         assert!(line.words.is_empty());
     }
@@ -625,19 +655,27 @@ mod tests {
     fn test_ocr_line_serialization() {
         let line = OcrLine {
             text: "Test line".to_string(),
-            words: vec![
-                OcrWord {
-                    text: "Test".to_string(),
-                    bounds: OcrBounds { x: 0.0, y: 0.0, width: 25.0, height: 12.0 },
-                    confidence: 0.9,
+            words: vec![OcrWord {
+                text: "Test".to_string(),
+                bounds: OcrBounds {
+                    x: 0.0,
+                    y: 0.0,
+                    width: 25.0,
+                    height: 12.0,
                 },
-            ],
-            bounds: OcrBounds { x: 0.0, y: 0.0, width: 50.0, height: 12.0 },
+                confidence: 0.9,
+            }],
+            bounds: OcrBounds {
+                x: 0.0,
+                y: 0.0,
+                width: 50.0,
+                height: 12.0,
+            },
         };
-        
+
         let json = serde_json::to_string(&line).unwrap();
         let deserialized: OcrLine = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(line.text, deserialized.text);
         assert_eq!(line.words.len(), deserialized.words.len());
     }
@@ -647,10 +685,15 @@ mod tests {
         let line = OcrLine {
             text: "Clone".to_string(),
             words: vec![],
-            bounds: OcrBounds { x: 10.0, y: 20.0, width: 40.0, height: 15.0 },
+            bounds: OcrBounds {
+                x: 10.0,
+                y: 20.0,
+                width: 40.0,
+                height: 15.0,
+            },
         };
         let cloned = line.clone();
-        
+
         assert_eq!(line.text, cloned.text);
         assert_eq!(line.bounds.x, cloned.bounds.x);
     }
@@ -661,17 +704,20 @@ mod tests {
     fn test_win_ocr_result_creation() {
         let result = WinOcrResult {
             text: "Full OCR text".to_string(),
-            lines: vec![
-                OcrLine {
-                    text: "Full OCR text".to_string(),
-                    words: vec![],
-                    bounds: OcrBounds { x: 0.0, y: 0.0, width: 100.0, height: 20.0 },
+            lines: vec![OcrLine {
+                text: "Full OCR text".to_string(),
+                words: vec![],
+                bounds: OcrBounds {
+                    x: 0.0,
+                    y: 0.0,
+                    width: 100.0,
+                    height: 20.0,
                 },
-            ],
+            }],
             language: Some("en-US".to_string()),
             confidence: 0.9,
         };
-        
+
         assert_eq!(result.text, "Full OCR text");
         assert_eq!(result.lines.len(), 1);
         assert_eq!(result.language, Some("en-US".to_string()));
@@ -686,7 +732,7 @@ mod tests {
             language: None,
             confidence: 0.0,
         };
-        
+
         assert!(result.text.is_empty());
         assert!(result.lines.is_empty());
         assert!(result.language.is_none());
@@ -700,10 +746,10 @@ mod tests {
             language: Some("zh-Hans".to_string()),
             confidence: 0.85,
         };
-        
+
         let json = serde_json::to_string(&result).unwrap();
         let deserialized: WinOcrResult = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(result.text, deserialized.text);
         assert_eq!(result.language, deserialized.language);
         assert_eq!(result.confidence, deserialized.confidence);
@@ -718,7 +764,7 @@ mod tests {
             confidence: 0.88,
         };
         let cloned = result.clone();
-        
+
         assert_eq!(result.text, cloned.text);
         assert_eq!(result.language, cloned.language);
     }
@@ -747,10 +793,10 @@ mod tests {
     fn test_windows_ocr_set_language() {
         let mut ocr = WindowsOcr::new();
         assert_eq!(ocr.language, "en-US");
-        
+
         ocr.set_language("ja");
         assert_eq!(ocr.language, "ja");
-        
+
         ocr.set_language("ko");
         assert_eq!(ocr.language, "ko");
     }
@@ -804,7 +850,7 @@ mod tests {
     #[test]
     fn test_windows_ocr_extract_text_with_valid_png() {
         let ocr = WindowsOcr::new();
-        
+
         // Create a minimal valid PNG
         let mut png_data = Vec::new();
         {
@@ -815,10 +861,10 @@ mod tests {
             let pixels = vec![255u8; 2 * 2 * 4];
             writer.write_image_data(&pixels).unwrap();
         }
-        
+
         let result = ocr.extract_text(&png_data);
         assert!(result.is_ok());
-        
+
         let ocr_result = result.unwrap();
         // Placeholder returns empty result with language set
         assert_eq!(ocr_result.language, Some("en-US".to_string()));
@@ -829,7 +875,7 @@ mod tests {
     fn test_windows_ocr_extract_text_invalid_png() {
         let ocr = WindowsOcr::new();
         let invalid_data = vec![1, 2, 3, 4, 5]; // Not a valid PNG
-        
+
         let result = ocr.extract_text(&invalid_data);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Failed to decode PNG"));
@@ -840,7 +886,7 @@ mod tests {
     fn test_windows_ocr_extract_text_not_windows() {
         let ocr = WindowsOcr::new();
         let dummy_data = vec![0u8; 100];
-        
+
         let result = ocr.extract_text(&dummy_data);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("only available on Windows"));
@@ -851,7 +897,7 @@ mod tests {
     fn test_windows_ocr_extract_text_from_pixels() {
         let ocr = WindowsOcr::new();
         let pixels = vec![255u8; 10 * 10 * 4]; // 10x10 white image
-        
+
         let result = ocr.extract_text_from_pixels(&pixels, 10, 10);
         assert!(result.is_ok());
     }
@@ -861,7 +907,7 @@ mod tests {
     fn test_windows_ocr_extract_text_from_pixels_not_windows() {
         let ocr = WindowsOcr::new();
         let pixels = vec![0u8; 100];
-        
+
         let result = ocr.extract_text_from_pixels(&pixels, 10, 10);
         assert!(result.is_err());
     }
@@ -870,10 +916,10 @@ mod tests {
     fn test_windows_ocr_language_change_affects_result() {
         let mut ocr = WindowsOcr::new();
         assert_eq!(ocr.language, "en-US");
-        
+
         ocr.set_language("zh-Hans");
         assert_eq!(ocr.language, "zh-Hans");
-        
+
         // Create valid PNG for testing on Windows
         #[cfg(target_os = "windows")]
         {
@@ -886,7 +932,7 @@ mod tests {
                 let pixels = vec![255u8; 2 * 2 * 4];
                 writer.write_image_data(&pixels).unwrap();
             }
-            
+
             let result = ocr.extract_text(&png_data).unwrap();
             assert_eq!(result.language, Some("zh-Hans".to_string()));
         }
@@ -912,43 +958,73 @@ mod tests {
                     words: vec![
                         OcrWord {
                             text: "Hello".to_string(),
-                            bounds: OcrBounds { x: 10.0, y: 10.0, width: 50.0, height: 20.0 },
+                            bounds: OcrBounds {
+                                x: 10.0,
+                                y: 10.0,
+                                width: 50.0,
+                                height: 20.0,
+                            },
                             confidence: 0.98,
                         },
                         OcrWord {
                             text: "World".to_string(),
-                            bounds: OcrBounds { x: 65.0, y: 10.0, width: 55.0, height: 20.0 },
+                            bounds: OcrBounds {
+                                x: 65.0,
+                                y: 10.0,
+                                width: 55.0,
+                                height: 20.0,
+                            },
                             confidence: 0.96,
                         },
                     ],
-                    bounds: OcrBounds { x: 10.0, y: 10.0, width: 110.0, height: 20.0 },
+                    bounds: OcrBounds {
+                        x: 10.0,
+                        y: 10.0,
+                        width: 110.0,
+                        height: 20.0,
+                    },
                 },
                 OcrLine {
                     text: "Second Line".to_string(),
                     words: vec![
                         OcrWord {
                             text: "Second".to_string(),
-                            bounds: OcrBounds { x: 10.0, y: 35.0, width: 60.0, height: 20.0 },
+                            bounds: OcrBounds {
+                                x: 10.0,
+                                y: 35.0,
+                                width: 60.0,
+                                height: 20.0,
+                            },
                             confidence: 0.94,
                         },
                         OcrWord {
                             text: "Line".to_string(),
-                            bounds: OcrBounds { x: 75.0, y: 35.0, width: 40.0, height: 20.0 },
+                            bounds: OcrBounds {
+                                x: 75.0,
+                                y: 35.0,
+                                width: 40.0,
+                                height: 20.0,
+                            },
                             confidence: 0.97,
                         },
                     ],
-                    bounds: OcrBounds { x: 10.0, y: 35.0, width: 105.0, height: 20.0 },
+                    bounds: OcrBounds {
+                        x: 10.0,
+                        y: 35.0,
+                        width: 105.0,
+                        height: 20.0,
+                    },
                 },
             ],
             language: Some("en-US".to_string()),
             confidence: 0.96,
         };
-        
+
         // Verify structure
         assert_eq!(result.lines.len(), 2);
         assert_eq!(result.lines[0].words.len(), 2);
         assert_eq!(result.lines[1].words.len(), 2);
-        
+
         // Verify serialization round-trip
         let json = serde_json::to_string(&result).unwrap();
         let deserialized: WinOcrResult = serde_json::from_str(&json).unwrap();

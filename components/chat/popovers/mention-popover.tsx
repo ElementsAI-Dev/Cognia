@@ -152,9 +152,10 @@ export function MentionPopover({
   let currentIndex = 0;
   
   return (
+     
     <div 
       className="absolute z-50 w-80 rounded-lg border bg-popover shadow-lg"
-      style={popoverStyle}
+      style={popoverStyle as React.CSSProperties}
     >
       <Command className="rounded-lg" shouldFilter={false}>
         <div className="flex items-center gap-2 border-b px-3 py-2">

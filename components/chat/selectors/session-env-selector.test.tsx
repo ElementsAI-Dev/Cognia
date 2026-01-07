@@ -9,7 +9,7 @@ import { useSessionEnv } from '@/hooks/sandbox';
 import type { SessionEnvContext } from '@/hooks/sandbox';
 
 // Mock the hook
-jest.mock('@/hooks/use-session-env');
+jest.mock('@/hooks/sandbox');
 const mockUseSessionEnv = useSessionEnv as jest.MockedFunction<typeof useSessionEnv>;
 
 // Mock next-intl

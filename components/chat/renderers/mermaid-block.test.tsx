@@ -18,7 +18,7 @@ jest.mock('@/lib/export/diagram-export', () => ({
 }));
 
 // Mock useCopy hook
-jest.mock('@/hooks/use-copy', () => ({
+jest.mock('@/hooks/ui/use-copy', () => ({
   useCopy: () => ({
     copy: jest.fn().mockResolvedValue({ success: true }),
     isCopying: false,
@@ -54,7 +54,7 @@ describe('MermaidBlock', () => {
 
     it('has aria-label during loading', () => {
       render(<MermaidBlock content={mockContent} />);
-      expect(screen.getByLabelText('Loading diagram')).toBeInTheDocument();
+      expect(screen.getByLabelText('Rendering diagram...')).toBeInTheDocument();
     });
 
     it('displays spinner during loading', () => {
@@ -113,7 +113,7 @@ describe('MermaidBlock', () => {
 
       expect(screen.getByLabelText('Copy source code')).toBeInTheDocument();
       expect(screen.getByLabelText('View fullscreen')).toBeInTheDocument();
-      expect(screen.getByLabelText('Show source')).toBeInTheDocument();
+      expect(screen.getByLabelText('Show spec')).toBeInTheDocument();
       expect(screen.getByLabelText('Export options')).toBeInTheDocument();
     });
   });
@@ -127,7 +127,7 @@ describe('MermaidBlock', () => {
         expect(screen.queryByText('Rendering diagram...')).not.toBeInTheDocument();
       }, { timeout: 3000 });
 
-      const toggleButton = screen.getByLabelText('Show source');
+      const toggleButton = screen.getByLabelText('Show spec');
       await user.click(toggleButton);
 
       // Source code should now be visible
@@ -143,7 +143,7 @@ describe('MermaidBlock', () => {
         expect(screen.queryByText('Rendering diagram...')).not.toBeInTheDocument();
       }, { timeout: 3000 });
 
-      const toggleButton = screen.getByLabelText('Show source');
+      const toggleButton = screen.getByLabelText('Show spec');
       expect(toggleButton).toHaveAttribute('aria-pressed', 'false');
       
       await user.click(toggleButton);
@@ -164,7 +164,8 @@ describe('MermaidBlock', () => {
       await user.click(fullscreenButton);
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText('Mermaid Diagram')).toBeInTheDocument();
+      // Check for diagram in the dialog (title might be rendered differently)
+      expect(screen.getByLabelText('Mermaid diagram')).toBeInTheDocument();
     });
 
     it('shows source code section in fullscreen', async () => {

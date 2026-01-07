@@ -264,6 +264,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
             return <ol className="list-decimal pl-6 my-2 space-y-1">{children}</ol>;
           },
           li({ children }) {
+            // NOTE: <li> is wrapped by parent <ul>/<ol> from react-markdown
             return <li className="leading-relaxed">{children}</li>;
           },
           h1({ children }) {

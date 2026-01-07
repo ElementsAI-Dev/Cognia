@@ -3,40 +3,31 @@
 //! Commands for gathering context about the user's current activity.
 
 use crate::context::{
-    AppContext, BrowserContext, ContextManager, FileContext, FullContext, WindowInfo,
-    EditorContext,
+    AppContext, BrowserContext, ContextManager, EditorContext, FileContext, FullContext, WindowInfo,
 };
 use tauri::State;
 
 /// Get full context information
 #[tauri::command]
-pub async fn context_get_full(
-    manager: State<'_, ContextManager>,
-) -> Result<FullContext, String> {
+pub async fn context_get_full(manager: State<'_, ContextManager>) -> Result<FullContext, String> {
     manager.get_context()
 }
 
 /// Get active window information
 #[tauri::command]
-pub async fn context_get_window(
-    manager: State<'_, ContextManager>,
-) -> Result<WindowInfo, String> {
+pub async fn context_get_window(manager: State<'_, ContextManager>) -> Result<WindowInfo, String> {
     manager.get_window_info()
 }
 
 /// Get application context
 #[tauri::command]
-pub async fn context_get_app(
-    manager: State<'_, ContextManager>,
-) -> Result<AppContext, String> {
+pub async fn context_get_app(manager: State<'_, ContextManager>) -> Result<AppContext, String> {
     manager.get_app_context()
 }
 
 /// Get file context
 #[tauri::command]
-pub async fn context_get_file(
-    manager: State<'_, ContextManager>,
-) -> Result<FileContext, String> {
+pub async fn context_get_file(manager: State<'_, ContextManager>) -> Result<FileContext, String> {
     manager.get_file_context()
 }
 
@@ -58,9 +49,7 @@ pub async fn context_get_all_windows(
 
 /// Clear context cache
 #[tauri::command]
-pub async fn context_clear_cache(
-    manager: State<'_, ContextManager>,
-) -> Result<(), String> {
+pub async fn context_clear_cache(manager: State<'_, ContextManager>) -> Result<(), String> {
     manager.clear_cache();
     Ok(())
 }
@@ -114,7 +103,7 @@ mod tests {
             is_focused: true,
             is_visible: true,
         };
-        
+
         assert_eq!(info.handle, 12345);
         assert_eq!(info.title, "Test Window");
         assert_eq!(info.process_id, 1234);
@@ -140,11 +129,11 @@ mod tests {
             is_focused: false,
             is_visible: false,
         };
-        
+
         let serialized = serde_json::to_string(&info).unwrap();
         assert!(serialized.contains("\"title\":\"Serialization Test\""));
         assert!(serialized.contains("\"is_minimized\":true"));
-        
+
         let deserialized: WindowInfo = serde_json::from_str(&serialized).unwrap();
         assert_eq!(info.handle, deserialized.handle);
         assert_eq!(info.title, deserialized.title);
@@ -176,7 +165,7 @@ mod tests {
             editor: None,
             timestamp: 1704067200000,
         };
-        
+
         assert!(context.window.is_none());
         assert!(context.app.is_none());
         assert!(context.file.is_none());
@@ -195,10 +184,10 @@ mod tests {
             editor: None,
             timestamp: 1704067200000,
         };
-        
+
         let serialized = serde_json::to_string(&context).unwrap();
         assert!(serialized.contains("\"timestamp\":1704067200000"));
-        
+
         let deserialized: FullContext = serde_json::from_str(&serialized).unwrap();
         assert_eq!(context.timestamp, deserialized.timestamp);
     }
@@ -221,7 +210,7 @@ mod tests {
             is_focused: true,
             is_visible: true,
         };
-        
+
         let context = FullContext {
             window: Some(window),
             app: None,
@@ -230,7 +219,7 @@ mod tests {
             editor: None,
             timestamp: 1704067200000,
         };
-        
+
         assert!(context.window.is_some());
         let w = context.window.unwrap();
         assert_eq!(w.title, "Test");

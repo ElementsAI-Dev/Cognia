@@ -11,7 +11,8 @@ jest.mock('nanoid', () => ({
 }));
 
 // Mock message repository
-const mockGetBySessionIdAndBranch = jest.fn();
+const mockGetPageBySessionIdAndBranch = jest.fn();
+const mockGetCountBySessionIdAndBranch = jest.fn();
 const mockCreateWithBranch = jest.fn();
 const mockUpdate = jest.fn();
 const mockDelete = jest.fn();
@@ -20,7 +21,10 @@ const mockCopyMessagesForBranch = jest.fn();
 
 jest.mock('@/lib/db', () => ({
   messageRepository: {
-    getBySessionIdAndBranch: (...args: unknown[]) => mockGetBySessionIdAndBranch(...args),
+    getPageBySessionIdAndBranch: (...args: unknown[]) =>
+      mockGetPageBySessionIdAndBranch(...args),
+    getCountBySessionIdAndBranch: (...args: unknown[]) =>
+      mockGetCountBySessionIdAndBranch(...args),
     createWithBranch: (...args: unknown[]) => mockCreateWithBranch(...args),
     update: (...args: unknown[]) => mockUpdate(...args),
     delete: (...args: unknown[]) => mockDelete(...args),
@@ -47,7 +51,8 @@ describe('useMessages', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetBySessionIdAndBranch.mockResolvedValue([]);
+    mockGetPageBySessionIdAndBranch.mockResolvedValue([]);
+    mockGetCountBySessionIdAndBranch.mockResolvedValue(0);
   });
 
   describe('initialization', () => {
@@ -63,7 +68,8 @@ describe('useMessages', () => {
     });
 
     it('should load messages when sessionId is provided', async () => {
-      mockGetBySessionIdAndBranch.mockResolvedValueOnce(mockMessages);
+      mockGetPageBySessionIdAndBranch.mockResolvedValueOnce(mockMessages);
+      mockGetCountBySessionIdAndBranch.mockResolvedValueOnce(mockMessages.length);
 
       const { result } = renderHook(() => useMessages({ sessionId: 'session-1' }));
 
@@ -71,12 +77,15 @@ describe('useMessages', () => {
         expect(result.current.isInitialized).toBe(true);
       });
 
-      expect(mockGetBySessionIdAndBranch).toHaveBeenCalledWith('session-1', undefined);
+      expect(mockGetPageBySessionIdAndBranch).toHaveBeenCalledWith('session-1', undefined, {
+        limit: 100,
+      });
       expect(result.current.messages).toEqual(mockMessages);
     });
 
     it('should load messages with branchId', async () => {
-      mockGetBySessionIdAndBranch.mockResolvedValueOnce(mockMessages);
+      mockGetPageBySessionIdAndBranch.mockResolvedValueOnce(mockMessages);
+      mockGetCountBySessionIdAndBranch.mockResolvedValueOnce(mockMessages.length);
 
       const { result } = renderHook(() => useMessages({ 
         sessionId: 'session-1',
@@ -87,12 +96,14 @@ describe('useMessages', () => {
         expect(result.current.isInitialized).toBe(true);
       });
 
-      expect(mockGetBySessionIdAndBranch).toHaveBeenCalledWith('session-1', 'branch-1');
+      expect(mockGetPageBySessionIdAndBranch).toHaveBeenCalledWith('session-1', 'branch-1', {
+        limit: 100,
+      });
     });
 
     it('should handle load errors', async () => {
       const onError = jest.fn();
-      mockGetBySessionIdAndBranch.mockRejectedValueOnce(new Error('Load failed'));
+      mockGetPageBySessionIdAndBranch.mockRejectedValueOnce(new Error('Load failed'));
 
       const { result } = renderHook(() => useMessages({ 
         sessionId: 'session-1',
@@ -175,7 +186,8 @@ describe('useMessages', () => {
 
   describe('updateMessage', () => {
     it('should update an existing message', async () => {
-      mockGetBySessionIdAndBranch.mockResolvedValueOnce(mockMessages);
+      mockGetPageBySessionIdAndBranch.mockResolvedValueOnce(mockMessages);
+      mockGetCountBySessionIdAndBranch.mockResolvedValueOnce(mockMessages.length);
       mockUpdate.mockResolvedValueOnce(undefined);
 
       const { result } = renderHook(() => useMessages({ sessionId: 'session-1' }));
@@ -195,7 +207,8 @@ describe('useMessages', () => {
 
   describe('deleteMessage', () => {
     it('should delete a message', async () => {
-      mockGetBySessionIdAndBranch.mockResolvedValueOnce(mockMessages);
+      mockGetPageBySessionIdAndBranch.mockResolvedValueOnce(mockMessages);
+      mockGetCountBySessionIdAndBranch.mockResolvedValueOnce(mockMessages.length);
       mockDelete.mockResolvedValueOnce(undefined);
 
       const { result } = renderHook(() => useMessages({ sessionId: 'session-1' }));
@@ -220,7 +233,8 @@ describe('useMessages', () => {
         ...mockMessages,
         { id: 'msg-3', role: 'user' as const, content: 'Third', createdAt: new Date() },
       ];
-      mockGetBySessionIdAndBranch.mockResolvedValueOnce(threeMessages);
+      mockGetPageBySessionIdAndBranch.mockResolvedValueOnce(threeMessages);
+      mockGetCountBySessionIdAndBranch.mockResolvedValueOnce(threeMessages.length);
       mockDelete.mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useMessages({ sessionId: 'session-1' }));
@@ -240,7 +254,8 @@ describe('useMessages', () => {
 
   describe('clearMessages', () => {
     it('should clear all messages', async () => {
-      mockGetBySessionIdAndBranch.mockResolvedValueOnce(mockMessages);
+      mockGetPageBySessionIdAndBranch.mockResolvedValueOnce(mockMessages);
+      mockGetCountBySessionIdAndBranch.mockResolvedValueOnce(mockMessages.length);
       mockDeleteBySessionId.mockResolvedValueOnce(undefined);
 
       const { result } = renderHook(() => useMessages({ sessionId: 'session-1' }));
@@ -282,9 +297,10 @@ describe('useMessages', () => {
 
   describe('appendToMessage', () => {
     it('should append content to a message', async () => {
-      mockGetBySessionIdAndBranch.mockResolvedValueOnce([
+      mockGetPageBySessionIdAndBranch.mockResolvedValueOnce([
         { id: 'msg-1', role: 'assistant', content: 'Hello', createdAt: new Date() },
       ]);
+      mockGetCountBySessionIdAndBranch.mockResolvedValueOnce(1);
 
       const { result } = renderHook(() => useMessages({ sessionId: 'session-1' }));
 
@@ -302,9 +318,13 @@ describe('useMessages', () => {
 
   describe('reloadMessages', () => {
     it('should reload messages from database', async () => {
-      mockGetBySessionIdAndBranch
+      mockGetPageBySessionIdAndBranch
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce(mockMessages);
+
+      mockGetCountBySessionIdAndBranch
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(mockMessages.length);
 
       const { result } = renderHook(() => useMessages({ sessionId: 'session-1' }));
 

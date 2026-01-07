@@ -4,7 +4,7 @@
  * Git Page - Main Git management page
  */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { GitBranch, FolderOpen, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { GitPanel } from '@/components/git';
+import { open } from '@tauri-apps/plugin-dialog';
 
 export default function GitPage() {
   const [repoPath, setRepoPath] = useState('');
@@ -28,6 +29,21 @@ export default function GitPage() {
       setActiveRepo(repoPath.trim());
     }
   };
+
+  const handlePickFolder = useCallback(async () => {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: 'Select Git Repository',
+      });
+      if (selected && typeof selected === 'string') {
+        setRepoPath(selected);
+      }
+    } catch {
+      // User cancelled or error - silently ignore
+    }
+  }, []);
 
   return (
     <div className="flex h-screen bg-background">
@@ -65,7 +81,7 @@ export default function GitPage() {
                 placeholder="Enter repository path..."
                 className="flex-1"
               />
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" onClick={handlePickFolder}>
                 <FolderOpen className="h-4 w-4" />
               </Button>
             </div>

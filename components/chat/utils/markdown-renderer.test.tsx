@@ -13,19 +13,19 @@ jest.mock('rehype-katex', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('rehype-raw', () => ({ __esModule: true, default: jest.fn() }));
 
 // Mock the renderers
-jest.mock('./renderers/mermaid-block', () => ({
+jest.mock('@/components/chat/renderers/mermaid-block', () => ({
   MermaidBlock: ({ content }: { content: string }) => (
     <div data-testid="mermaid-block">{content}</div>
   ),
 }));
 
-jest.mock('./renderers/vegalite-block', () => ({
+jest.mock('@/components/chat/renderers/vegalite-block', () => ({
   VegaLiteBlock: ({ content }: { content: string }) => (
     <div data-testid="vegalite-block">{content}</div>
   ),
 }));
 
-jest.mock('./renderers/code-block', () => ({
+jest.mock('@/components/chat/renderers/code-block', () => ({
   CodeBlock: ({ code, language }: { code: string; language?: string }) => (
     <div data-testid="code-block" data-language={language}>{code}</div>
   ),

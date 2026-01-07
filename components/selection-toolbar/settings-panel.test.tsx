@@ -194,6 +194,77 @@ describe('SelectionToolbarSettings', () => {
       });
     });
 
+    it('updates auto-hide delay slider', () => {
+      render(<SelectionToolbarSettings />);
+
+      const sliders = screen.getAllByTestId('slider');
+      fireEvent.change(sliders[1], { target: { value: '5000' } });
+
+      expect(mockUpdateConfig).toHaveBeenCalledWith({ autoHideDelay: 5000 });
+    });
+
+    it('updates excluded apps input', () => {
+      render(<SelectionToolbarSettings />);
+
+      const input = screen.getByPlaceholderText(/notepad\.exe/);
+      fireEvent.change(input, { target: { value: 'foo.exe,  bar.exe ' } });
+
+      expect(mockUpdateConfig).toHaveBeenCalledWith({
+        excludedApps: ['foo.exe', 'bar.exe'],
+      });
+    });
+
+    it('limits pinned actions to six items', () => {
+      mockUseSelectionStore.mockReturnValueOnce({
+        config: {
+          ...DEFAULT_SELECTION_CONFIG,
+          pinnedActions: [
+            'explain',
+            'translate',
+            'summarize',
+            'copy',
+            'send-to-chat',
+            'search',
+          ],
+        },
+        isEnabled: true,
+        updateConfig: mockUpdateConfig,
+        resetConfig: mockResetConfig,
+        setEnabled: mockSetEnabled,
+      } as ReturnType<typeof useSelectionStore>);
+
+      render(<SelectionToolbarSettings />);
+
+      const optimizeButton = screen.getByText('Optimize').closest('button');
+      expect(optimizeButton).toBeDisabled();
+
+      fireEvent.click(optimizeButton!);
+
+      expect(mockUpdateConfig).toHaveBeenCalledWith({
+        pinnedActions: [
+          'explain',
+          'translate',
+          'summarize',
+          'copy',
+          'send-to-chat',
+          'search',
+        ],
+      });
+    });
+
+    it('updates min and max text length inputs', () => {
+      render(<SelectionToolbarSettings />);
+
+      const minInput = screen.getByLabelText('Min Text Length');
+      const maxInput = screen.getByLabelText('Max Text Length');
+
+      fireEvent.change(minInput, { target: { value: '5' } });
+      fireEvent.change(maxInput, { target: { value: '1234' } });
+
+      expect(mockUpdateConfig).toHaveBeenCalledWith({ minTextLength: 5 });
+      expect(mockUpdateConfig).toHaveBeenCalledWith({ maxTextLength: 1234 });
+    });
+
     it('resets config when reset button is clicked', () => {
       render(<SelectionToolbarSettings />);
 

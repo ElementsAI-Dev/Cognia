@@ -29,7 +29,7 @@ const mockUseSandbox = {
   toggleLanguage: jest.fn(),
 };
 
-jest.mock('@/hooks/use-sandbox', () => ({
+jest.mock('@/hooks/sandbox', () => ({
   useSandbox: () => mockUseSandbox,
 }));
 

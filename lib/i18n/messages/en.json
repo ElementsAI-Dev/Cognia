@@ -22,6 +22,11 @@
     "clear": "Clear",
     "dismiss": "Dismiss"
   },
+  "platformWarning": {
+    "notSupported": "{feature} is only available on {platforms}",
+    "limitedSupport": "Limited Platform Support",
+    "desktopOnly": "This feature requires the desktop app"
+  },
   "git": {
     "repository": "Repository",
     "checking": "Checking Git installation...",
@@ -30,6 +35,11 @@
       "description": "Git is required for version control features.",
       "install": "Install Git",
       "website": "Visit Website"
+    },
+    "desktopRequired": {
+      "title": "Desktop App Required",
+      "description": "Git features are only available in the Cognia desktop application.",
+      "learnMore": "Learn More"
     },
     "noRepo": {
       "title": "Not a Git Repository",
@@ -216,6 +226,9 @@
     "send": "Send",
     "stop": "Stop",
     "regenerate": "Regenerate",
+    "editMessage": "Edit message",
+    "editMessagePlaceholder": "Edit your message...",
+    "saveAndSubmit": "Save & Submit",
     "modeChat": "Chat",
     "modeAgent": "Agent",
     "modeResearch": "Research",
@@ -448,6 +461,8 @@
   "chatInput": {
     "dropFilesHere": "Drop files here",
     "dismiss": "Dismiss",
+    "removeAttachment": "Remove attachment",
+    "selectFiles": "Select files to attach",
     "attachFile": "Attach file ({current}/{max})",
     "stopListening": "Stop listening",
     "voiceInput": "Voice input",
@@ -464,6 +479,8 @@
     "extendedThinking": "Extended Thinking Mode",
     "stream": "Stream",
     "toggleStreaming": "Toggle streaming responses (show text as it generates)",
+    "ppt": "PPT",
+    "createPresentation": "Create AI Presentation",
     "contextSettings": "Context Settings",
     "aiSettings": "AI Settings",
     "contextWindowUsage": "Context window usage",
@@ -529,6 +546,10 @@
     "unpin": "Unpin",
     "pinToTop": "Pin to top",
     "workflows": "Workflows",
+    "noWorkflows": "No workflows yet",
+    "createWorkflow": "Create Workflow",
+    "running": "Running...",
+    "quickRun": "Quick Run",
     "nativeTools": "Native Tools",
     "sessionArtifacts": "Session Artifacts",
     "usageStats": "Usage Stats",
@@ -538,6 +559,8 @@
     "tasksRunning": "{count} running",
     "queued": "queued",
     "quickActions": "Quick Actions",
+    "pptStudio": "PPT Studio",
+    "pptStudioDesc": "Create AI-powered presentations",
     "imageStudio": "Image Studio",
     "imageStudioDesc": "Generate and edit images with AI",
     "videoStudio": "Video Studio",
@@ -3709,6 +3732,8 @@
     "chunkOverlapHint": "Overlap between chunks (10-20% of chunk size)",
     "autoEmbed": "Auto embed on import",
     "autoEmbedDesc": "Automatically generate embeddings when adding documents.",
+    "defaultCollection": "Default Collection",
+    "defaultCollectionHint": "The default collection name used for RAG searches when not specified.",
     "testConnection": "Test connection",
     "testing": "Testing...",
     "nativeProviderHint": "Native provider stores vectors locally via Tauri commands (JSON-backed). Ensure desktop runtime is used."
@@ -4061,6 +4086,26 @@
     "trimmedDuration": "Trimmed duration",
     "applyTrim": "Apply Trim",
     "export": "Export",
-    "tauriRequired": "Video editing requires the desktop app. Please use Cognia desktop to access this feature."
+    "tauriRequired": "Video editing requires the desktop app. Please use Cognia desktop to access this feature.",
+    "trimming": "Trimming video...",
+    "processing": "Processing...",
+    "complete": "Complete!",
+    "trimFailed": "Failed to trim video",
+    "exporting": "Exporting...",
+    "converting": "Converting format...",
+    "exportFailed": "Failed to export video",
+    "qualityHigh": "High Quality",
+    "qualityMedium": "Medium",
+    "qualityLow": "Low Size",
+    "startRecording": "Record",
+    "startRecordingTooltip": "Start screen recording",
+    "countdown": "Starting...",
+    "pause": "Pause",
+    "pauseRecording": "Pause recording",
+    "resume": "Resume",
+    "resumeRecording": "Resume recording",
+    "stop": "Stop",
+    "stopRecording": "Stop recording",
+    "cancelRecording": "Cancel recording"
   }
 }

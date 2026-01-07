@@ -45,3 +45,16 @@ export {
   useRecordingStatus,
   type RecordingMode,
 } from './screen-recording-store';
+
+export {
+  useScreenshotStore,
+  selectHistory,
+  selectPinnedScreenshots,
+  selectRecentScreenshots,
+  selectScreenshotById,
+  type ScreenshotConfig,
+  type ScreenshotHistoryEntry,
+  type ScreenshotMetadata,
+  type ScreenshotResult,
+  type MonitorInfo as ScreenshotMonitorInfo,
+} from './screenshot-store';

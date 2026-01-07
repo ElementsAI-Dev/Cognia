@@ -1,9 +1,10 @@
-﻿//! Cognia Tauri application library
+//! Cognia Tauri application library
 //!
 //! This is the main entry point for the Tauri desktop application.
 
 mod awareness;
 mod chat_widget;
+mod assistant_bubble;
 mod commands;
 mod context;
 mod http;
@@ -17,19 +18,24 @@ mod tray;
 
 use awareness::AwarenessManager;
 use chat_widget::ChatWidgetWindow;
+use assistant_bubble::AssistantBubbleWindow;
 use commands::jupyter::JupyterState;
+use commands::vector::VectorStoreState;
 use context::ContextManager;
 use mcp::McpManager;
 use sandbox::SandboxState;
 use screen_recording::ScreenRecordingManager;
 use screenshot::ScreenshotManager;
 use selection::SelectionManager;
-use tauri::{Emitter, Manager, RunEvent, WindowEvent};
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
-#[cfg(not(debug_assertions))]
-use tauri_plugin_log::{Target, TargetKind, RotationStrategy, TimezoneStrategy};
-use commands::vector::VectorStoreState;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::{Emitter, Manager, RunEvent, WindowEvent};
+#[cfg(not(debug_assertions))]
+use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
+
+/// Prevent running cleanup twice (window destroy and shortcut teardown are idempotent but we guard anyway)
+static CLEANUP_CALLED: AtomicBool = AtomicBool::new(false);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -62,29 +68,35 @@ pub fn run() {
                 argv,
                 cwd
             );
-            
+
             // Focus the existing main window when another instance tries to start
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
                 let _ = window.set_focus();
                 let _ = window.unminimize();
             }
-            
+
             // Check for deep link URLs in arguments (cognia://)
             for arg in &argv {
                 if arg.starts_with("cognia://") {
                     log::info!("Deep link detected: {}", arg);
-                    let _ = app.emit("deep-link-open", serde_json::json!({
-                        "url": arg
-                    }));
+                    let _ = app.emit(
+                        "deep-link-open",
+                        serde_json::json!({
+                            "url": arg
+                        }),
+                    );
                 }
             }
-            
+
             // Emit event to frontend so it can handle the arguments if needed
-            let _ = app.emit("single-instance", serde_json::json!({
-                "args": argv,
-                "cwd": cwd
-            }));
+            let _ = app.emit(
+                "single-instance",
+                serde_json::json!({
+                    "args": argv,
+                    "cwd": cwd
+                }),
+            );
         }));
     }
 
@@ -117,13 +129,29 @@ pub fn run() {
     {
         let salt_path_for_stronghold = std::env::temp_dir().join("cognia_stronghold_salt.txt");
         builder = builder.plugin(
-            tauri_plugin_stronghold::Builder::with_argon2(&salt_path_for_stronghold).build()
+            tauri_plugin_stronghold::Builder::with_argon2(&salt_path_for_stronghold).build(),
         );
-        log::debug!("Stronghold plugin configured with salt path: {:?}", salt_path_for_stronghold);
+        log::debug!(
+            "Stronghold plugin configured with salt path: {:?}",
+            salt_path_for_stronghold
+        );
     }
 
-    builder.setup(|app| {
+    builder
+        .setup(|app| {
             log::info!("Cognia application starting...");
+
+            // Ensure Ctrl+C (or terminal close) performs graceful teardown instead of abrupt kill
+            {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    if tokio::signal::ctrl_c().await.is_ok() {
+                        log::info!("Ctrl+C detected, performing graceful shutdown");
+                        perform_full_cleanup(&handle);
+                        handle.exit(0);
+                    }
+                });
+            }
 
             // Initialize system tray
             if let Err(e) = tray::create_tray(app.handle()) {
@@ -207,27 +235,42 @@ pub fn run() {
             app.manage(chat_widget_window);
             log::info!("Chat widget window manager initialized");
 
+            // Initialize Assistant Bubble Window (long-lived desktop bubble)
+            let assistant_bubble_window = AssistantBubbleWindow::new(app.handle().clone());
+            // Best-effort create + show; never fail app startup.
+            if let Err(e) = assistant_bubble_window.show() {
+                log::error!("Failed to show assistant bubble window: {}", e);
+            }
+            app.manage(assistant_bubble_window);
+            log::info!("Assistant bubble window manager initialized");
+
             // Register global shortcut for chat widget toggle
             let app_handle_for_shortcut = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
-                
+
                 // Parse the shortcut
                 let shortcut: Shortcut = "CommandOrControl+Shift+Space".parse().unwrap();
-                
+
                 // Register the shortcut
-                if let Err(e) = app_handle_for_shortcut.global_shortcut().on_shortcut(shortcut, move |app, _shortcut, _event| {
-                    if let Some(manager) = app.try_state::<ChatWidgetWindow>() {
-                        match manager.toggle() {
-                            Ok(visible) => {
-                                log::debug!("Chat widget toggled via shortcut: {}", if visible { "shown" } else { "hidden" });
-                            }
-                            Err(e) => {
-                                log::error!("Failed to toggle chat widget: {}", e);
+                if let Err(e) = app_handle_for_shortcut.global_shortcut().on_shortcut(
+                    shortcut,
+                    move |app, _shortcut, _event| {
+                        if let Some(manager) = app.try_state::<ChatWidgetWindow>() {
+                            match manager.toggle() {
+                                Ok(visible) => {
+                                    log::debug!(
+                                        "Chat widget toggled via shortcut: {}",
+                                        if visible { "shown" } else { "hidden" }
+                                    );
+                                }
+                                Err(e) => {
+                                    log::error!("Failed to toggle chat widget: {}", e);
+                                }
                             }
                         }
-                    }
-                }) {
+                    },
+                ) {
                     log::error!("Failed to register chat widget shortcut: {}", e);
                 } else {
                     log::info!("Global shortcut registered: Ctrl+Shift+Space for chat widget");
@@ -238,26 +281,32 @@ pub fn run() {
             let app_handle_for_selection = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
-                
+
                 // Alt+Space for selection toolbar trigger
                 let shortcut: Shortcut = "Alt+Space".parse().unwrap();
-                
-                if let Err(e) = app_handle_for_selection.global_shortcut().on_shortcut(shortcut, move |app, _shortcut, _event| {
-                    if let Some(manager) = app.try_state::<SelectionManager>() {
-                        // Trigger selection detection manually
-                        match manager.trigger() {
-                            Ok(Some(payload)) => {
-                                log::debug!("Selection toolbar triggered via shortcut: {} chars", payload.text.len());
-                            }
-                            Ok(None) => {
-                                log::debug!("Selection toolbar trigger: no text selected");
-                            }
-                            Err(e) => {
-                                log::error!("Failed to trigger selection toolbar: {}", e);
+
+                if let Err(e) = app_handle_for_selection.global_shortcut().on_shortcut(
+                    shortcut,
+                    move |app, _shortcut, _event| {
+                        if let Some(manager) = app.try_state::<SelectionManager>() {
+                            // Trigger selection detection manually
+                            match manager.trigger() {
+                                Ok(Some(payload)) => {
+                                    log::debug!(
+                                        "Selection toolbar triggered via shortcut: {} chars",
+                                        payload.text.len()
+                                    );
+                                }
+                                Ok(None) => {
+                                    log::debug!("Selection toolbar trigger: no text selected");
+                                }
+                                Err(e) => {
+                                    log::error!("Failed to trigger selection toolbar: {}", e);
+                                }
                             }
                         }
-                    }
-                }) {
+                    },
+                ) {
                     log::error!("Failed to register selection toolbar shortcut: {}", e);
                 } else {
                     log::info!("Global shortcut registered: Alt+Space for selection toolbar");
@@ -268,23 +317,29 @@ pub fn run() {
             let app_handle_for_translate = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
-                
+
                 let shortcut: Shortcut = "CommandOrControl+Shift+T".parse().unwrap();
-                
-                if let Err(e) = app_handle_for_translate.global_shortcut().on_shortcut(shortcut, move |app, _shortcut, _event| {
-                    if let Some(manager) = app.try_state::<SelectionManager>() {
-                        if let Ok(Some(text)) = manager.detector.get_selected_text() {
-                            if !text.is_empty() {
-                                // Emit quick translate event
-                                let _ = app.emit("selection-quick-translate", serde_json::json!({
-                                    "text": text,
-                                    "action": "translate"
-                                }));
-                                log::debug!("Quick translate triggered: {} chars", text.len());
+
+                if let Err(e) = app_handle_for_translate.global_shortcut().on_shortcut(
+                    shortcut,
+                    move |app, _shortcut, _event| {
+                        if let Some(manager) = app.try_state::<SelectionManager>() {
+                            if let Ok(Some(text)) = manager.detector.get_selected_text() {
+                                if !text.is_empty() {
+                                    // Emit quick translate event
+                                    let _ = app.emit(
+                                        "selection-quick-translate",
+                                        serde_json::json!({
+                                            "text": text,
+                                            "action": "translate"
+                                        }),
+                                    );
+                                    log::debug!("Quick translate triggered: {} chars", text.len());
+                                }
                             }
                         }
-                    }
-                }) {
+                    },
+                ) {
                     log::error!("Failed to register quick translate shortcut: {}", e);
                 } else {
                     log::info!("Global shortcut registered: Ctrl+Shift+T for quick translate");
@@ -295,23 +350,29 @@ pub fn run() {
             let app_handle_for_explain = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
-                
+
                 let shortcut: Shortcut = "CommandOrControl+Shift+E".parse().unwrap();
-                
-                if let Err(e) = app_handle_for_explain.global_shortcut().on_shortcut(shortcut, move |app, _shortcut, _event| {
-                    if let Some(manager) = app.try_state::<SelectionManager>() {
-                        if let Ok(Some(text)) = manager.detector.get_selected_text() {
-                            if !text.is_empty() {
-                                // Emit quick explain event
-                                let _ = app.emit("selection-quick-action", serde_json::json!({
-                                    "text": text,
-                                    "action": "explain"
-                                }));
-                                log::debug!("Quick explain triggered: {} chars", text.len());
+
+                if let Err(e) = app_handle_for_explain.global_shortcut().on_shortcut(
+                    shortcut,
+                    move |app, _shortcut, _event| {
+                        if let Some(manager) = app.try_state::<SelectionManager>() {
+                            if let Ok(Some(text)) = manager.detector.get_selected_text() {
+                                if !text.is_empty() {
+                                    // Emit quick explain event
+                                    let _ = app.emit(
+                                        "selection-quick-action",
+                                        serde_json::json!({
+                                            "text": text,
+                                            "action": "explain"
+                                        }),
+                                    );
+                                    log::debug!("Quick explain triggered: {} chars", text.len());
+                                }
                             }
                         }
-                    }
-                }) {
+                    },
+                ) {
                     log::error!("Failed to register quick explain shortcut: {}", e);
                 } else {
                     log::info!("Global shortcut registered: Ctrl+Shift+E for quick explain");
@@ -430,6 +491,7 @@ pub fn run() {
             // Selection toolbar commands
             commands::selection::selection_start,
             commands::selection::selection_stop,
+            commands::selection::selection_release_stuck_keys,
             commands::selection::selection_get_text,
             commands::selection::selection_show_toolbar,
             commands::selection::selection_hide_toolbar,
@@ -702,6 +764,12 @@ pub fn run() {
             commands::screen_recording::recording_get_history,
             commands::screen_recording::recording_delete,
             commands::screen_recording::recording_clear_history,
+            // Video processing commands
+            commands::screen_recording::video_trim,
+            commands::screen_recording::video_convert,
+            commands::screen_recording::video_get_info,
+            commands::screen_recording::video_generate_thumbnail,
+            commands::screen_recording::video_check_encoding_support,
             // Chat widget commands
             commands::chat_widget::chat_widget_show,
             commands::chat_widget::chat_widget_hide,
@@ -733,7 +801,9 @@ pub fn run() {
             commands::git::git_log,
             commands::git::git_file_status,
             commands::git::git_diff,
+            commands::git::git_diff_file,
             commands::git::git_diff_between,
+            commands::git::git_stash_list,
             commands::git::git_push,
             commands::git::git_pull,
             commands::git::git_fetch,
@@ -788,7 +858,7 @@ pub fn run() {
 }
 
 /// Build the logging plugin with comprehensive configuration
-/// 
+///
 /// Configures multiple log targets:
 /// - Stdout: Console output for development
 /// - Webview: Browser console for debugging frontend-backend interaction
@@ -858,7 +928,13 @@ fn create_window_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
         true,
         &[
             &MenuItem::with_id(app, "menu-new-chat", "新建对话\tCtrl+N", true, None::<&str>)?,
-            &MenuItem::with_id(app, "menu-open-project", "打开项目\tCtrl+O", true, None::<&str>)?,
+            &MenuItem::with_id(
+                app,
+                "menu-open-project",
+                "打开项目\tCtrl+O",
+                true,
+                None::<&str>,
+            )?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "menu-save", "保存\tCtrl+S", true, None::<&str>)?,
             &MenuItem::with_id(app, "menu-export", "导出对话...", true, None::<&str>)?,
@@ -895,12 +971,30 @@ fn create_window_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
         "视图",
         true,
         &[
-            &MenuItem::with_id(app, "menu-toggle-sidebar", "切换侧边栏\tCtrl+B", true, None::<&str>)?,
-            &MenuItem::with_id(app, "menu-toggle-fullscreen", "全屏\tF11", true, None::<&str>)?,
+            &MenuItem::with_id(
+                app,
+                "menu-toggle-sidebar",
+                "切换侧边栏\tCtrl+B",
+                true,
+                None::<&str>,
+            )?,
+            &MenuItem::with_id(
+                app,
+                "menu-toggle-fullscreen",
+                "全屏\tF11",
+                true,
+                None::<&str>,
+            )?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "menu-zoom-in", "放大\tCtrl++", true, None::<&str>)?,
             &MenuItem::with_id(app, "menu-zoom-out", "缩小\tCtrl+-", true, None::<&str>)?,
-            &MenuItem::with_id(app, "menu-zoom-reset", "重置缩放\tCtrl+0", true, None::<&str>)?,
+            &MenuItem::with_id(
+                app,
+                "menu-zoom-reset",
+                "重置缩放\tCtrl+0",
+                true,
+                None::<&str>,
+            )?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "menu-reload", "刷新\tCtrl+R", true, None::<&str>)?,
             &MenuItem::with_id(app, "menu-devtools", "开发者工具\tF12", true, None::<&str>)?,
@@ -914,13 +1008,37 @@ fn create_window_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
         "工具",
         true,
         &[
-            &MenuItem::with_id(app, "menu-screenshot", "截图\tCtrl+Shift+S", true, None::<&str>)?,
+            &MenuItem::with_id(
+                app,
+                "menu-screenshot",
+                "截图\tCtrl+Shift+S",
+                true,
+                None::<&str>,
+            )?,
             &MenuItem::with_id(app, "menu-ocr", "文字识别 (OCR)", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(app, "menu-chat-widget", "AI 助手\tCtrl+Shift+Space", true, None::<&str>)?,
-            &MenuItem::with_id(app, "menu-clipboard-history", "剪贴板历史\tCtrl+Shift+V", true, None::<&str>)?,
+            &MenuItem::with_id(
+                app,
+                "menu-chat-widget",
+                "AI 助手\tCtrl+Shift+Space",
+                true,
+                None::<&str>,
+            )?,
+            &MenuItem::with_id(
+                app,
+                "menu-clipboard-history",
+                "剪贴板历史\tCtrl+Shift+V",
+                true,
+                None::<&str>,
+            )?,
             &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(app, "menu-mcp-servers", "MCP 服务器管理", true, None::<&str>)?,
+            &MenuItem::with_id(
+                app,
+                "menu-mcp-servers",
+                "MCP 服务器管理",
+                true,
+                None::<&str>,
+            )?,
             &MenuItem::with_id(app, "menu-sandbox", "代码沙箱", true, None::<&str>)?,
         ],
     )?;
@@ -935,7 +1053,13 @@ fn create_window_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
             &MenuItem::with_id(app, "menu-minimize", "最小化\tCtrl+M", true, None::<&str>)?,
             &MenuItem::with_id(app, "menu-maximize", "最大化", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(app, "menu-close-window", "关闭窗口\tCtrl+W", true, None::<&str>)?,
+            &MenuItem::with_id(
+                app,
+                "menu-close-window",
+                "关闭窗口\tCtrl+W",
+                true,
+                None::<&str>,
+            )?,
         ],
     )?;
 
@@ -1031,7 +1155,8 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
                 let _ = window.eval("location.reload()");
             }
         }
-        "menu-devtools" => {
+        "menu-devtools" =>
+        {
             #[cfg(debug_assertions)]
             if let Some(window) = app.get_webview_window("main") {
                 if window.is_devtools_open() {
@@ -1116,6 +1241,11 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
 
 /// Perform full cleanup before application exit
 fn perform_full_cleanup(app: &tauri::AppHandle) {
+    if CLEANUP_CALLED.swap(true, Ordering::SeqCst) {
+        log::debug!("Cleanup already performed, skipping");
+        return;
+    }
+
     log::info!("Performing full application cleanup...");
 
     // 1. Unregister all global shortcuts
@@ -1162,9 +1292,42 @@ fn perform_full_cleanup(app: &tauri::AppHandle) {
         log::debug!("Tray icon hidden");
     }
 
+    // 6. Explicitly destroy auxiliary windows to avoid lingering Win32 classes on shutdown
+    destroy_aux_windows(app);
+
     // Small delay to ensure async cleanup completes
     std::thread::sleep(std::time::Duration::from_millis(100));
 
     log::info!("Full cleanup completed");
 }
 
+/// Tear down auxiliary windows safely (chat widget, selection toolbar, splash)
+fn destroy_aux_windows(app: &tauri::AppHandle) {
+    // Prefer manager-aware destroy for chat widget to persist position
+    if let Some(manager) = app.try_state::<ChatWidgetWindow>() {
+        if let Err(e) = manager.destroy() {
+            log::debug!("Failed to destroy chat widget window via manager: {}", e);
+        }
+    } else if let Some(window) = app.get_webview_window("chat-widget") {
+        let _ = window.hide();
+        let _ = window.destroy();
+    }
+
+    // Selection toolbar: destroy if present (no manager destroy helper)
+    if let Some(window) = app.get_webview_window("selection-toolbar") {
+        let _ = window.hide();
+        let _ = window.destroy();
+    }
+
+    // Splashscreen: ensure it is cleaned up to avoid stray window classes
+    if let Some(window) = app.get_webview_window("splashscreen") {
+        let _ = window.hide();
+        let _ = window.destroy();
+    }
+
+    // Assistant bubble: long-lived window, ensure clean teardown
+    if let Some(window) = app.get_webview_window("assistant-bubble") {
+        let _ = window.hide();
+        let _ = window.destroy();
+    }
+}

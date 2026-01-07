@@ -85,3 +85,7 @@ export {
 
 // Message parts (for rendering different message content types)
 export { TextPart, ReasoningPart, ToolPart, SourcesPart, A2UIPart } from './message-parts';
+
+// Workflow components
+export { WorkflowPickerDialog } from './workflow-picker-dialog';
+export { WorkflowResultCard, type WorkflowResultData, type WorkflowExecutionStatus } from './workflow-result-card';

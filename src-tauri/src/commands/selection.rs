@@ -3,13 +3,60 @@
 //! Commands for controlling the selection toolbar from the frontend.
 
 use crate::selection::{
-    SelectionConfig, SelectionManager, SelectionPayload, SelectionStatus, 
-    Selection, SourceAppInfo, SelectionHistoryEntry, SelectionHistoryStats,
-    ClipboardEntry, SelectionMode, SelectionExpansion, SelectionContext,
-    ClipboardAnalysis, ContentCategory, DetectedLanguage, ExtractedEntity,
-    SuggestedAction, ContentStats,
+    ClipboardAnalysis, ClipboardEntry, ContentCategory, ContentStats, DetectedLanguage,
+    ExtractedEntity, Selection, SelectionConfig, SelectionContext, SelectionExpansion,
+    SelectionHistoryEntry, SelectionHistoryStats, SelectionManager, SelectionMode,
+    SelectionPayload, SelectionStatus, SourceAppInfo, SuggestedAction,
 };
-use tauri::{State, Emitter};
+use tauri::{Emitter, State};
+
+/// Release all stuck modifier keys (Ctrl, Alt, Shift, Win)
+///
+/// This command can be called to reset the keyboard state if modifier keys
+/// get stuck due to interrupted key simulations or other issues.
+#[tauri::command]
+pub async fn selection_release_stuck_keys() -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use rdev::{simulate, EventType, Key};
+        use std::thread;
+        use std::time::Duration;
+
+        log::info!("[Selection] Releasing all potentially stuck modifier keys");
+
+        // Small delay before starting
+        thread::sleep(Duration::from_millis(10));
+
+        // Release all modifier keys (both left and right versions)
+        let modifiers = [
+            Key::ControlLeft,
+            Key::ControlRight,
+            Key::ShiftLeft,
+            Key::ShiftRight,
+            Key::Alt,
+            Key::AltGr,
+            Key::MetaLeft,
+            Key::MetaRight,
+        ];
+
+        for key in modifiers {
+            if let Err(e) = simulate(&EventType::KeyRelease(key)) {
+                log::trace!("[Selection] Failed to release {:?}: {:?}", key, e);
+                // Continue with other keys even if one fails
+            }
+            thread::sleep(Duration::from_millis(5));
+        }
+
+        log::info!("[Selection] Modifier keys released");
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        log::debug!("[Selection] release_stuck_keys called on non-Windows platform");
+        Ok(())
+    }
+}
 
 /// Start the selection detection service
 #[tauri::command]
@@ -44,9 +91,7 @@ pub async fn selection_show_toolbar(
 
 /// Hide the selection toolbar
 #[tauri::command]
-pub async fn selection_hide_toolbar(
-    manager: State<'_, SelectionManager>,
-) -> Result<(), String> {
+pub async fn selection_hide_toolbar(manager: State<'_, SelectionManager>) -> Result<(), String> {
     manager.toolbar_window.hide()
 }
 
@@ -104,17 +149,13 @@ pub async fn selection_set_enabled(
 
 /// Check if selection toolbar is enabled
 #[tauri::command]
-pub async fn selection_is_enabled(
-    manager: State<'_, SelectionManager>,
-) -> Result<bool, String> {
+pub async fn selection_is_enabled(manager: State<'_, SelectionManager>) -> Result<bool, String> {
     Ok(manager.is_enabled())
 }
 
 /// Restart the selection detection service
 #[tauri::command]
-pub async fn selection_restart(
-    manager: State<'_, SelectionManager>,
-) -> Result<(), String> {
+pub async fn selection_restart(manager: State<'_, SelectionManager>) -> Result<(), String> {
     manager.restart().await
 }
 
@@ -347,9 +388,7 @@ pub async fn selection_get_history_stats(
 
 /// Clear selection history
 #[tauri::command]
-pub async fn selection_clear_history(
-    manager: State<'_, SelectionManager>,
-) -> Result<(), String> {
+pub async fn selection_clear_history(manager: State<'_, SelectionManager>) -> Result<(), String> {
     manager.history.clear();
     Ok(())
 }
@@ -428,18 +467,14 @@ pub async fn clipboard_delete_entry(
 
 /// Clear unpinned clipboard history
 #[tauri::command]
-pub async fn clipboard_clear_unpinned(
-    manager: State<'_, SelectionManager>,
-) -> Result<(), String> {
+pub async fn clipboard_clear_unpinned(manager: State<'_, SelectionManager>) -> Result<(), String> {
     manager.clipboard_history.clear_unpinned();
     Ok(())
 }
 
 /// Clear all clipboard history
 #[tauri::command]
-pub async fn clipboard_clear_all(
-    manager: State<'_, SelectionManager>,
-) -> Result<(), String> {
+pub async fn clipboard_clear_all(manager: State<'_, SelectionManager>) -> Result<(), String> {
     manager.clipboard_history.clear_all();
     Ok(())
 }
@@ -455,9 +490,7 @@ pub async fn clipboard_copy_entry(
 
 /// Check and update clipboard history
 #[tauri::command]
-pub async fn clipboard_check_update(
-    manager: State<'_, SelectionManager>,
-) -> Result<bool, String> {
+pub async fn clipboard_check_update(manager: State<'_, SelectionManager>) -> Result<bool, String> {
     manager.clipboard_history.check_and_update()
 }
 
@@ -478,16 +511,16 @@ pub async fn clipboard_get_current_with_analysis(
     manager: State<'_, SelectionManager>,
 ) -> Result<Option<(String, ClipboardAnalysis)>, String> {
     use arboard::Clipboard;
-    
+
     let mut clipboard = Clipboard::new().map_err(|e| e.to_string())?;
-    
+
     if let Ok(text) = clipboard.get_text() {
         if !text.is_empty() {
             let analysis = manager.clipboard_analyzer.analyze(&text);
             return Ok(Some((text, analysis)));
         }
     }
-    
+
     Ok(None)
 }
 
@@ -508,20 +541,20 @@ pub async fn clipboard_write_text(
     text: String,
 ) -> Result<(), String> {
     use tauri_plugin_clipboard_manager::ClipboardExt;
-    
-    app_handle.clipboard()
+
+    app_handle
+        .clipboard()
         .write_text(text)
         .map_err(|e| format!("Failed to write to clipboard: {}", e))
 }
 
 /// Read text from clipboard using Tauri plugin
 #[tauri::command]
-pub async fn clipboard_read_text(
-    app_handle: tauri::AppHandle,
-) -> Result<String, String> {
+pub async fn clipboard_read_text(app_handle: tauri::AppHandle) -> Result<String, String> {
     use tauri_plugin_clipboard_manager::ClipboardExt;
-    
-    app_handle.clipboard()
+
+    app_handle
+        .clipboard()
         .read_text()
         .map_err(|e| format!("Failed to read clipboard: {}", e))
 }
@@ -534,20 +567,20 @@ pub async fn clipboard_write_html(
     alt_text: Option<String>,
 ) -> Result<(), String> {
     use tauri_plugin_clipboard_manager::ClipboardExt;
-    
-    app_handle.clipboard()
+
+    app_handle
+        .clipboard()
         .write_html(html, alt_text)
         .map_err(|e| format!("Failed to write HTML to clipboard: {}", e))
 }
 
 /// Clear clipboard using Tauri plugin
 #[tauri::command]
-pub async fn clipboard_clear(
-    app_handle: tauri::AppHandle,
-) -> Result<(), String> {
+pub async fn clipboard_clear(app_handle: tauri::AppHandle) -> Result<(), String> {
     use tauri_plugin_clipboard_manager::ClipboardExt;
-    
-    app_handle.clipboard()
+
+    app_handle
+        .clipboard()
         .clear()
         .map_err(|e| format!("Failed to clear clipboard: {}", e))
 }
@@ -599,7 +632,11 @@ pub async fn clipboard_detect_category(
     content: String,
 ) -> Result<(ContentCategory, Vec<ContentCategory>, f32), String> {
     let analysis = manager.clipboard_analyzer.analyze(&content);
-    Ok((analysis.category, analysis.secondary_categories, analysis.confidence))
+    Ok((
+        analysis.category,
+        analysis.secondary_categories,
+        analysis.confidence,
+    ))
 }
 
 /// Detect programming language in code content
@@ -703,7 +740,7 @@ pub async fn selection_ai_process(
     // This is a placeholder that returns the prompt for now
     // In a real implementation, this would call the AI provider
     // The actual AI integration should be done through the existing AI infrastructure
-    
+
     // For now, return a mock response indicating the feature needs AI provider integration
     Ok(format!(
         "AI processing is not yet connected. Prompt received:\n\n{}",
@@ -726,7 +763,7 @@ pub async fn selection_ai_process_stream(
     // In a real implementation, this would:
     // 1. Connect to the AI provider
     // 2. Stream chunks back via the "selection-ai-chunk" event
-    
+
     // Simulate streaming for demonstration
     let response = format!(
         "AI streaming is not yet connected. Your prompt was: {}",
@@ -736,31 +773,29 @@ pub async fn selection_ai_process_stream(
             prompt.clone()
         }
     );
-    
+
     // Emit chunks
     for word in response.split_whitespace() {
         let chunk = format!("{} ", word);
         app_handle
             .emit("selection-ai-chunk", serde_json::json!({ "chunk": chunk }))
             .map_err(|e| format!("Failed to emit chunk: {}", e))?;
-        
+
         // Small delay between chunks for visual effect
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
     }
-    
+
     Ok(())
 }
 
 /// Detect text type (code, url, email, etc.)
 #[tauri::command]
-pub async fn selection_detect_text_type(
-    text: String,
-) -> Result<String, String> {
+pub async fn selection_detect_text_type(text: String) -> Result<String, String> {
     // Check for URL
     if text.contains("://") || text.starts_with("www.") {
         return Ok("url".to_string());
     }
-    
+
     // Check for email
     if text.contains('@') && text.contains('.') {
         let parts: Vec<&str> = text.split('@').collect();
@@ -768,32 +803,37 @@ pub async fn selection_detect_text_type(
             return Ok("email".to_string());
         }
     }
-    
+
     // Check for file path
-    if text.contains('/') || text.contains('\\') || 
-       (text.len() >= 3 && text.chars().nth(1) == Some(':')) {
+    if text.contains('/')
+        || text.contains('\\')
+        || (text.len() >= 3 && text.chars().nth(1) == Some(':'))
+    {
         return Ok("path".to_string());
     }
-    
+
     // Check for code (simple heuristics)
     let code_indicators = [
-        "function", "const ", "let ", "var ", "class ", "import ", "export ",
-        "def ", "fn ", "pub ", "async ", "await ", "return ", "if ", "for ",
-        "while ", "{", "}", "()", "=>", "->", "::", "//", "/*", "#include",
+        "function", "const ", "let ", "var ", "class ", "import ", "export ", "def ", "fn ",
+        "pub ", "async ", "await ", "return ", "if ", "for ", "while ", "{", "}", "()", "=>", "->",
+        "::", "//", "/*", "#include",
     ];
-    
+
     let text_lower = text.to_lowercase();
     for indicator in &code_indicators {
         if text_lower.contains(indicator) {
             return Ok("code".to_string());
         }
     }
-    
+
     // Check for numbers
-    if text.chars().all(|c| c.is_ascii_digit() || c == '.' || c == ',' || c == '-') {
+    if text
+        .chars()
+        .all(|c| c.is_ascii_digit() || c == '.' || c == ',' || c == '-')
+    {
         return Ok("number".to_string());
     }
-    
+
     // Default to text
     Ok("text".to_string())
 }
@@ -833,7 +873,7 @@ pub async fn selection_get_stats_summary(
 ) -> Result<serde_json::Value, String> {
     let (attempts, successes) = manager.detector.get_stats();
     let history_stats = manager.history.get_stats();
-    
+
     Ok(serde_json::json!({
         "detection": {
             "attempts": attempts,
@@ -861,7 +901,7 @@ mod tests {
             y: 200,
             timestamp: 1704067200000,
         };
-        
+
         assert_eq!(payload.text, "Hello World");
         assert_eq!(payload.x, 100);
         assert_eq!(payload.y, 200);
@@ -875,7 +915,7 @@ mod tests {
             y: 75,
             timestamp: 1704067200000,
         };
-        
+
         let serialized = serde_json::to_string(&payload).unwrap();
         assert!(serialized.contains("\"text\":\"Test\""));
         assert!(serialized.contains("\"x\":50"));
@@ -895,25 +935,25 @@ mod tests {
             selection_detect_text_type("https://example.com".to_string()).await
         });
         assert_eq!(result.unwrap(), "url");
-        
+
         let result2 = tokio::runtime::Runtime::new().unwrap().block_on(async {
             selection_detect_text_type("http://test.org/page".to_string()).await
         });
         assert_eq!(result2.unwrap(), "url");
-        
-        let result3 = tokio::runtime::Runtime::new().unwrap().block_on(async {
-            selection_detect_text_type("www.example.com".to_string()).await
-        });
+
+        let result3 = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { selection_detect_text_type("www.example.com".to_string()).await });
         assert_eq!(result3.unwrap(), "url");
     }
 
     #[test]
     fn test_selection_detect_text_type_email() {
-        let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
-            selection_detect_text_type("user@example.com".to_string()).await
-        });
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { selection_detect_text_type("user@example.com".to_string()).await });
         assert_eq!(result.unwrap(), "email");
-        
+
         let result2 = tokio::runtime::Runtime::new().unwrap().block_on(async {
             selection_detect_text_type("test.user@domain.org".to_string()).await
         });
@@ -922,14 +962,14 @@ mod tests {
 
     #[test]
     fn test_selection_detect_text_type_path() {
-        let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
-            selection_detect_text_type("/usr/local/bin".to_string()).await
-        });
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { selection_detect_text_type("/usr/local/bin".to_string()).await });
         assert_eq!(result.unwrap(), "path");
-        
-        let result2 = tokio::runtime::Runtime::new().unwrap().block_on(async {
-            selection_detect_text_type("C:\\Users\\test".to_string()).await
-        });
+
+        let result2 = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { selection_detect_text_type("C:\\Users\\test".to_string()).await });
         assert_eq!(result2.unwrap(), "path");
     }
 
@@ -939,28 +979,28 @@ mod tests {
             selection_detect_text_type("function test() { return 1; }".to_string()).await
         });
         assert_eq!(result.unwrap(), "code");
-        
-        let result2 = tokio::runtime::Runtime::new().unwrap().block_on(async {
-            selection_detect_text_type("const x = 5;".to_string()).await
-        });
+
+        let result2 = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { selection_detect_text_type("const x = 5;".to_string()).await });
         assert_eq!(result2.unwrap(), "code");
-        
-        let result3 = tokio::runtime::Runtime::new().unwrap().block_on(async {
-            selection_detect_text_type("def foo(): pass".to_string()).await
-        });
+
+        let result3 = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { selection_detect_text_type("def foo(): pass".to_string()).await });
         assert_eq!(result3.unwrap(), "code");
     }
 
     #[test]
     fn test_selection_detect_text_type_number() {
-        let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
-            selection_detect_text_type("12345".to_string()).await
-        });
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { selection_detect_text_type("12345".to_string()).await });
         assert_eq!(result.unwrap(), "number");
-        
-        let result2 = tokio::runtime::Runtime::new().unwrap().block_on(async {
-            selection_detect_text_type("1,234.56".to_string()).await
-        });
+
+        let result2 = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { selection_detect_text_type("1,234.56".to_string()).await });
         assert_eq!(result2.unwrap(), "number");
     }
 
@@ -974,11 +1014,11 @@ mod tests {
 
     #[test]
     fn test_selection_get_modes() {
-        let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
-            selection_get_modes().await
-        });
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { selection_get_modes().await });
         let modes = result.unwrap();
-        
+
         assert!(modes.contains(&"word".to_string()));
         assert!(modes.contains(&"line".to_string()));
         assert!(modes.contains(&"sentence".to_string()));
@@ -1004,7 +1044,7 @@ mod tests {
             ("email", SelectionMode::Email),
             ("file_path", SelectionMode::FilePath),
         ];
-        
+
         for (mode_str, _expected) in modes {
             let parsed = match mode_str {
                 "word" => SelectionMode::Word,
@@ -1020,7 +1060,11 @@ mod tests {
                 "file_path" => SelectionMode::FilePath,
                 _ => SelectionMode::Word,
             };
-            assert!(matches!(parsed, _expected), "Mode {} should match", mode_str);
+            assert!(
+                matches!(parsed, _expected),
+                "Mode {} should match",
+                mode_str
+            );
         }
     }
 
@@ -1032,7 +1076,7 @@ mod tests {
             window_title: "main.rs - Cognia".to_string(),
             app_type: "editor".to_string(),
         };
-        
+
         assert_eq!(app_info.name, "Code");
         assert_eq!(app_info.process, "code.exe");
         assert_eq!(app_info.app_type, "editor");
@@ -1049,7 +1093,7 @@ mod tests {
             is_code: false,
             language: None,
         };
-        
+
         assert_eq!(context.full_text, "Hello world");
         assert_eq!(context.cursor_pos, 5);
         assert!(!context.is_code);
@@ -1066,7 +1110,7 @@ mod tests {
             is_code: true,
             language: Some("rust".to_string()),
         };
-        
+
         assert!(context.is_code);
         assert_eq!(context.language, Some("rust".to_string()));
     }
@@ -1082,7 +1126,7 @@ mod tests {
             mode: SelectionMode::Word,
             confidence: 0.95,
         };
-        
+
         assert_eq!(expansion.original_start, 0);
         assert_eq!(expansion.original_end, 5);
         assert_eq!(expansion.expanded_start, 0);

@@ -5,7 +5,7 @@
  * Allows users to set times for automatic light/dark mode switching
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Clock, Sun, Moon, Sunrise, Sunset } from 'lucide-react';
 import { Label } from '@/components/ui/label';
@@ -20,20 +20,6 @@ import {
 } from '@/components/ui/card';
 import { useSettingsStore } from '@/stores';
 
-export interface ThemeScheduleSettings {
-  enabled: boolean;
-  lightModeStart: string; // HH:MM format
-  darkModeStart: string;  // HH:MM format
-  useSunriseSunset: boolean;
-}
-
-const DEFAULT_SCHEDULE: ThemeScheduleSettings = {
-  enabled: false,
-  lightModeStart: '07:00',
-  darkModeStart: '19:00',
-  useSunriseSunset: false,
-};
-
 /**
  * Parse time string to minutes since midnight
  */
@@ -43,86 +29,22 @@ function parseTimeToMinutes(time: string): number {
 }
 
 /**
- * Get current time in minutes since midnight
+ * (Scheduling execution runs globally in the app provider.)
  */
-function getCurrentTimeMinutes(): number {
-  const now = new Date();
-  return now.getHours() * 60 + now.getMinutes();
-}
-
-/**
- * Check if current time is in light mode period
- */
-function isLightModePeriod(lightStart: string, darkStart: string): boolean {
-  const current = getCurrentTimeMinutes();
-  const lightMinutes = parseTimeToMinutes(lightStart);
-  const darkMinutes = parseTimeToMinutes(darkStart);
-
-  if (lightMinutes < darkMinutes) {
-    // Normal case: light mode during day (e.g., 7:00 - 19:00)
-    return current >= lightMinutes && current < darkMinutes;
-  } else {
-    // Inverted case: dark mode spans midnight
-    return current >= lightMinutes || current < darkMinutes;
-  }
-}
 
 export function ThemeSchedule() {
   const t = useTranslations('settings');
   const language = useSettingsStore((state) => state.language);
-  const setTheme = useSettingsStore((state) => state.setTheme);
   const theme = useSettingsStore((state) => state.theme);
+  const schedule = useSettingsStore((state) => state.themeSchedule);
+  const setThemeSchedule = useSettingsStore((state) => state.setThemeSchedule);
 
-  // Load schedule from localStorage
-  const [schedule, setSchedule] = useState<ThemeScheduleSettings>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('themeSchedule');
-      if (saved) {
-        try {
-          return { ...DEFAULT_SCHEDULE, ...JSON.parse(saved) };
-        } catch {
-          return DEFAULT_SCHEDULE;
-        }
-      }
-    }
-    return DEFAULT_SCHEDULE;
-  });
-
-  // Save schedule to localStorage
-  const updateSchedule = useCallback((updates: Partial<ThemeScheduleSettings>) => {
-    setSchedule((prev) => {
-      const newSchedule = { ...prev, ...updates };
-      localStorage.setItem('themeSchedule', JSON.stringify(newSchedule));
-      return newSchedule;
-    });
-  }, []);
-
-  // Apply theme based on schedule
-  const applyScheduledTheme = useCallback(() => {
-    if (!schedule.enabled || theme === 'system') return;
-
-    const shouldBeLightMode = isLightModePeriod(
-      schedule.lightModeStart,
-      schedule.darkModeStart
-    );
-
-    const currentTheme = shouldBeLightMode ? 'light' : 'dark';
-    if (theme !== currentTheme) {
-      setTheme(currentTheme);
-    }
-  }, [schedule, theme, setTheme]);
-
-  // Check and apply theme periodically
-  useEffect(() => {
-    if (!schedule.enabled) return;
-
-    // Apply immediately
-    applyScheduledTheme();
-
-    // Check every minute
-    const interval = setInterval(applyScheduledTheme, 60000);
-    return () => clearInterval(interval);
-  }, [schedule.enabled, applyScheduledTheme]);
+  const updateSchedule = useCallback(
+    (updates: Parameters<typeof setThemeSchedule>[0]) => {
+      setThemeSchedule(updates);
+    },
+    [setThemeSchedule]
+  );
 
   return (
     <Card>
@@ -149,19 +71,18 @@ export function ThemeSchedule() {
           <Switch
             checked={schedule.enabled}
             onCheckedChange={(enabled) => updateSchedule({ enabled })}
-            disabled={theme === 'system'}
           />
         </div>
 
-        {theme === 'system' && (
+        {theme === 'system' && schedule.enabled && (
           <p className="text-xs text-amber-600 dark:text-amber-400">
             {language === 'zh-CN'
-              ? '注意：当主题设置为"跟随系统"时，调度功能不可用'
-              : 'Note: Schedule is disabled when theme is set to "System"'}
+              ? '提示：当主题设置为“跟随系统”时，定时切换不会生效'
+              : 'Note: Schedule will not apply when theme is set to "System"'}
           </p>
         )}
 
-        {schedule.enabled && theme !== 'system' && (
+        {schedule.enabled && (
           <>
             {/* Light Mode Start */}
             <div className="grid grid-cols-2 gap-4">

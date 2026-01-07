@@ -12,3 +12,13 @@ export { ContextPanel } from './context-panel';
 export { ScreenshotPanel } from './screenshot-panel';
 export { SystemMonitorPanel } from './system-monitor-panel';
 export { SandboxPanel } from './sandbox-panel';
+
+// Platform utilities
+export {
+  PlatformWarning,
+  PlatformBadge,
+  DesktopOnly,
+  usePlatform,
+  detectPlatform,
+  type Platform,
+} from './platform-warning';

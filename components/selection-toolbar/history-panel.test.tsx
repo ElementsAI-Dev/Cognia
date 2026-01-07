@@ -5,10 +5,20 @@
 import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import { SelectionHistoryPanel } from './history-panel';
 import { useSelectionStore, SelectionHistoryItem } from '@/stores/context';
+import { emit as tauriEmit } from '@tauri-apps/api/event';
+
+// Extend globalThis for Tauri detection in tests
+declare global {
+  var __TAURI__: Record<string, unknown> | undefined;
+}
 
 // Mock the selection store
 jest.mock('@/stores/context', () => ({
   useSelectionStore: jest.fn(),
+}));
+
+jest.mock('@tauri-apps/api/event', () => ({
+  emit: jest.fn(),
 }));
 
 // Mock the clipboard API
@@ -254,6 +264,17 @@ describe('SelectionHistoryPanel', () => {
       });
 
       expect(screen.getByText('Copied!')).toBeInTheDocument();
+    });
+
+    it('emits reuse event in Tauri mode', async () => {
+      globalThis.__TAURI__ = {};
+      fireEvent.click(screen.getByText('First selected text'));
+
+      await act(async () => {
+        fireEvent.click(screen.getByText('Reuse Text'));
+      });
+
+      expect(tauriEmit).toHaveBeenCalledWith('selection-reuse', { text: 'First selected text' });
     });
   });
 

@@ -38,7 +38,7 @@ jest.mock('@/lib/native/stronghold', () => ({
 
 // Mock Tauri environment
 const mockTauriWindow = () => {
-  Object.defineProperty(window, '__TAURI__', {
+  Object.defineProperty(window, '__TAURI_INTERNALS__', {
     value: {},
     writable: true,
     configurable: true,
@@ -46,7 +46,7 @@ const mockTauriWindow = () => {
 };
 
 const clearTauriWindow = () => {
-  delete (window as { __TAURI__?: unknown }).__TAURI__;
+  delete (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 };
 
 describe('useStronghold', () => {

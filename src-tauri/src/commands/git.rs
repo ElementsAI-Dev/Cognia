@@ -310,14 +310,19 @@ fn run_git_command(args: &[&str], cwd: Option<&str>) -> Result<String, String> {
     let mut cmd = Command::new("git");
     cmd.args(args);
     
+    // Prevent credential prompts from blocking the process
+    cmd.env("GIT_TERMINAL_PROMPT", "0");
+
     if let Some(dir) = cwd {
         cmd.current_dir(dir);
     }
-    
+
     log::debug!("Running git command: git {:?} in {:?}", args, cwd);
-    
-    let output = cmd.output().map_err(|e| format!("Failed to execute git: {}", e))?;
-    
+
+    let output = cmd
+        .output()
+        .map_err(|e| format!("Failed to execute git: {}", e))?;
+
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
     } else {
@@ -338,11 +343,11 @@ fn parse_git_status_short(line: &str) -> Option<GitFileStatus> {
     if line.len() < 3 {
         return None;
     }
-    
+
     let index_status = line.chars().next().unwrap_or(' ');
     let worktree_status = line.chars().nth(1).unwrap_or(' ');
     let path = line[3..].to_string();
-    
+
     let (status, staged) = match (index_status, worktree_status) {
         ('A', _) => ("added", true),
         ('M', ' ') => ("modified", true),
@@ -355,7 +360,7 @@ fn parse_git_status_short(line: &str) -> Option<GitFileStatus> {
         ('!', '!') => ("ignored", false),
         _ => ("modified", false),
     };
-    
+
     Some(GitFileStatus {
         path,
         status: status.to_string(),
@@ -366,17 +371,17 @@ fn parse_git_status_short(line: &str) -> Option<GitFileStatus> {
 
 fn parse_commit_log(output: &str) -> Vec<GitCommitInfo> {
     let mut commits = Vec::new();
-    
+
     for entry in output.split("\x00\x00") {
         let entry = entry.trim();
         if entry.is_empty() {
             continue;
         }
-        
+
         let parts: Vec<&str> = entry.splitn(6, '\x00').collect();
         if parts.len() >= 5 {
             let message_parts: Vec<&str> = parts.get(4).unwrap_or(&"").splitn(2, '\n').collect();
-            
+
             commits.push(GitCommitInfo {
                 hash: parts[0].to_string(),
                 short_hash: parts[0].chars().take(7).collect(),
@@ -388,7 +393,7 @@ fn parse_commit_log(output: &str) -> Vec<GitCommitInfo> {
             });
         }
     }
-    
+
     commits
 }
 
@@ -411,7 +416,7 @@ pub fn git_get_platform() -> String {
 #[tauri::command]
 pub async fn git_check_installed() -> GitStatus {
     log::debug!("Checking Git installation...");
-    
+
     match run_git_command(&["--version"], None) {
         Ok(output) => {
             // Parse version from "git version X.Y.Z"
@@ -419,7 +424,7 @@ pub async fn git_check_installed() -> GitStatus {
                 .strip_prefix("git version ")
                 .map(|v| v.split_whitespace().next().unwrap_or(v))
                 .map(|v| v.to_string());
-            
+
             // Get git path
             let path = if cfg!(target_os = "windows") {
                 run_git_command(&["--exec-path"], None).ok()
@@ -436,9 +441,9 @@ pub async fn git_check_installed() -> GitStatus {
                         }
                     })
             };
-            
+
             log::info!("Git found: version={:?}, path={:?}", version, path);
-            
+
             GitStatus {
                 installed: true,
                 version,
@@ -466,34 +471,41 @@ pub async fn git_check_installed() -> GitStatus {
 #[tauri::command]
 pub async fn git_install(_app: AppHandle) -> Result<GitStatus, String> {
     log::info!("Installing Git...");
-    
+
     #[cfg(target_os = "windows")]
     {
         // Try winget first
         let result = std::process::Command::new("winget")
-            .args(["install", "--id", "Git.Git", "-e", "--accept-source-agreements", "--accept-package-agreements"])
+            .args([
+                "install",
+                "--id",
+                "Git.Git",
+                "-e",
+                "--accept-source-agreements",
+                "--accept-package-agreements",
+            ])
             .output();
-        
+
         match result {
             Ok(output) if output.status.success() => {
                 log::info!("Git installed via winget");
-                return Ok(git_check_installed().await);
+                Ok(git_check_installed().await)
             }
             _ => {
                 // Open download page as fallback
                 let _ = open::that("https://git-scm.com/download/win");
-                return Err("Please install Git from the opened download page".to_string());
+                Err("Please install Git from the opened download page".to_string())
             }
         }
     }
-    
+
     #[cfg(target_os = "macos")]
     {
         // Try xcode-select first (includes git)
         let result = std::process::Command::new("xcode-select")
             .args(["--install"])
             .output();
-        
+
         match result {
             Ok(_) => {
                 log::info!("Xcode Command Line Tools installation initiated");
@@ -506,14 +518,16 @@ pub async fn git_install(_app: AppHandle) -> Result<GitStatus, String> {
             }
         }
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         // Open download page - user needs to use their package manager
         let _ = open::that("https://git-scm.com/download/linux");
-        return Err("Please install Git using your package manager (apt, dnf, pacman, etc.)".to_string());
+        return Err(
+            "Please install Git using your package manager (apt, dnf, pacman, etc.)".to_string(),
+        );
     }
-    
+
     #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     {
         Err("Git installation not supported on this platform".to_string())
@@ -533,7 +547,7 @@ pub async fn git_get_config() -> Result<GitConfig, String> {
     let user_email = run_git_command(&["config", "--global", "user.email"], None).ok();
     let default_branch = run_git_command(&["config", "--global", "init.defaultBranch"], None).ok();
     let editor = run_git_command(&["config", "--global", "core.editor"], None).ok();
-    
+
     Ok(GitConfig {
         user_name,
         user_email,
@@ -557,7 +571,7 @@ pub async fn git_set_config(config: GitConfig) -> Result<(), String> {
     if let Some(editor) = config.editor {
         run_git_command(&["config", "--global", "core.editor", &editor], None)?;
     }
-    
+
     Ok(())
 }
 
@@ -565,24 +579,24 @@ pub async fn git_set_config(config: GitConfig) -> Result<(), String> {
 #[tauri::command]
 pub async fn git_init(options: GitInitOptions) -> GitOperationResult<GitRepoInfo> {
     log::info!("Initializing Git repository at: {}", options.path);
-    
+
     let mut args = vec!["init"];
-    
+
     if options.bare.unwrap_or(false) {
         args.push("--bare");
     }
-    
+
     if let Some(ref branch) = options.initial_branch {
         args.push("-b");
         args.push(branch);
     }
-    
+
     args.push(&options.path);
-    
+
     match run_git_command(&args, None) {
         Ok(output) => {
             log::info!("Git repository initialized: {}", output);
-            
+
             // Get repo info
             match git_status_internal(&options.path) {
                 Ok(info) => GitOperationResult::success_with_output(info, output),
@@ -599,33 +613,37 @@ pub async fn git_init(options: GitInitOptions) -> GitOperationResult<GitRepoInfo
 /// Clone a Git repository
 #[tauri::command]
 pub async fn git_clone(options: GitCloneOptions) -> GitOperationResult<GitRepoInfo> {
-    log::info!("Cloning Git repository from: {} to: {}", options.url, options.target_path);
-    
+    log::info!(
+        "Cloning Git repository from: {} to: {}",
+        options.url,
+        options.target_path
+    );
+
     let mut args = vec!["clone".to_string()];
-    
+
     if let Some(branch) = &options.branch {
         args.push("-b".to_string());
         args.push(branch.clone());
     }
-    
+
     if let Some(depth) = options.depth {
         args.push("--depth".to_string());
         args.push(depth.to_string());
     }
-    
+
     if options.recursive.unwrap_or(false) {
         args.push("--recursive".to_string());
     }
-    
+
     args.push(options.url.clone());
     args.push(options.target_path.clone());
-    
+
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-    
+
     match run_git_command(&args_refs, None) {
         Ok(output) => {
             log::info!("Repository cloned successfully");
-            
+
             match git_status_internal(&options.target_path) {
                 Ok(info) => GitOperationResult::success_with_output(info, output),
                 Err(e) => GitOperationResult::error(e),
@@ -648,64 +666,72 @@ pub async fn git_is_repo(path: String) -> bool {
 /// Get repository status
 fn git_status_internal(repo_path: &str) -> Result<GitRepoInfo, String> {
     // Check if it's a git repo
-    if !Path::new(repo_path).join(".git").exists() {
-        if run_git_command(&["rev-parse", "--git-dir"], Some(repo_path)).is_err() {
-            return Ok(GitRepoInfo {
-                path: repo_path.to_string(),
-                is_git_repo: false,
-                status: "not_initialized".to_string(),
-                branch: None,
-                remote_name: None,
-                remote_url: None,
-                ahead: 0,
-                behind: 0,
-                has_uncommitted_changes: false,
-                has_untracked_files: false,
-                last_commit: None,
-            });
-        }
+    if !Path::new(repo_path).join(".git").exists()
+        && run_git_command(&["rev-parse", "--git-dir"], Some(repo_path)).is_err()
+    {
+        return Ok(GitRepoInfo {
+            path: repo_path.to_string(),
+            is_git_repo: false,
+            status: "not_initialized".to_string(),
+            branch: None,
+            remote_name: None,
+            remote_url: None,
+            ahead: 0,
+            behind: 0,
+            has_uncommitted_changes: false,
+            has_untracked_files: false,
+            last_commit: None,
+        });
     }
-    
+
     // Get current branch
     let branch = run_git_command(&["rev-parse", "--abbrev-ref", "HEAD"], Some(repo_path)).ok();
-    
+
     // Get remote info
     let remote_name = run_git_command(&["remote"], Some(repo_path))
         .ok()
         .and_then(|r| r.lines().next().map(|s| s.to_string()));
-    
-    let remote_url = remote_name.as_ref().and_then(|name| {
-        run_git_command(&["remote", "get-url", name], Some(repo_path)).ok()
-    });
-    
+
+    let remote_url = remote_name
+        .as_ref()
+        .and_then(|name| run_git_command(&["remote", "get-url", name], Some(repo_path)).ok());
+
     // Get ahead/behind
     let (ahead, behind) = if let Some(ref branch) = branch {
         let upstream = format!("{}@{{upstream}}", branch);
         let rev_list = run_git_command(
-            &["rev-list", "--left-right", "--count", &format!("{}...{}", branch, upstream)],
-            Some(repo_path)
+            &[
+                "rev-list",
+                "--left-right",
+                "--count",
+                &format!("{}...{}", branch, upstream),
+            ],
+            Some(repo_path),
         );
-        
-        rev_list.ok().map(|output| {
-            let parts: Vec<&str> = output.split_whitespace().collect();
-            (
-                parts.first().and_then(|s| s.parse().ok()).unwrap_or(0),
-                parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0),
-            )
-        }).unwrap_or((0, 0))
+
+        rev_list
+            .ok()
+            .map(|output| {
+                let parts: Vec<&str> = output.split_whitespace().collect();
+                (
+                    parts.first().and_then(|s| s.parse().ok()).unwrap_or(0),
+                    parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0),
+                )
+            })
+            .unwrap_or((0, 0))
     } else {
         (0, 0)
     };
-    
+
     // Check for uncommitted changes
-    let status_output = run_git_command(&["status", "--porcelain"], Some(repo_path))
-        .unwrap_or_default();
-    
+    let status_output =
+        run_git_command(&["status", "--porcelain"], Some(repo_path)).unwrap_or_default();
+
     let has_uncommitted_changes = status_output.lines().any(|l| !l.starts_with("??"));
     let has_untracked_files = status_output.lines().any(|l| l.starts_with("??"));
-    
-    // Determine overall status
-    let status = if has_uncommitted_changes {
+
+    // Determine overall status - consider untracked files as dirty too
+    let status = if has_uncommitted_changes || has_untracked_files {
         "dirty"
     } else if ahead > 0 && behind > 0 {
         "diverged"
@@ -716,12 +742,14 @@ fn git_status_internal(repo_path: &str) -> Result<GitRepoInfo, String> {
     } else {
         "clean"
     };
-    
+
     // Get last commit
     let last_commit = run_git_command(
         &["log", "-1", "--format=%H%x00%an%x00%ae%x00%aI%x00%s"],
-        Some(repo_path)
-    ).ok().and_then(|output| {
+        Some(repo_path),
+    )
+    .ok()
+    .and_then(|output| {
         let parts: Vec<&str> = output.split('\x00').collect();
         if parts.len() >= 5 {
             Some(GitCommitInfo {
@@ -737,7 +765,7 @@ fn git_status_internal(repo_path: &str) -> Result<GitRepoInfo, String> {
             None
         }
     });
-    
+
     Ok(GitRepoInfo {
         path: repo_path.to_string(),
         is_git_repo: true,
@@ -765,10 +793,10 @@ pub async fn git_status(repo_path: String) -> GitOperationResult<GitRepoInfo> {
 /// Stage files
 #[tauri::command]
 pub async fn git_stage(repo_path: String, files: Vec<String>) -> GitOperationResult<()> {
-    let mut args = vec!["add"];
+    let mut args = vec!["add", "--"];
     let file_refs: Vec<&str> = files.iter().map(|s| s.as_str()).collect();
     args.extend(file_refs);
-    
+
     match run_git_command(&args, Some(&repo_path)) {
         Ok(output) => GitOperationResult::ok_with_output(output),
         Err(e) => GitOperationResult::error(e),
@@ -790,7 +818,7 @@ pub async fn git_unstage(repo_path: String, files: Vec<String>) -> GitOperationR
     let mut args = vec!["reset", "HEAD", "--"];
     let file_refs: Vec<&str> = files.iter().map(|s| s.as_str()).collect();
     args.extend(file_refs);
-    
+
     match run_git_command(&args, Some(&repo_path)) {
         Ok(output) => GitOperationResult::ok_with_output(output),
         Err(e) => GitOperationResult::error(e),
@@ -800,21 +828,25 @@ pub async fn git_unstage(repo_path: String, files: Vec<String>) -> GitOperationR
 /// Create a commit
 #[tauri::command]
 pub async fn git_commit(options: GitCommitOptions) -> GitOperationResult<GitCommitInfo> {
-    let mut args = vec!["commit".to_string(), "-m".to_string(), options.message.clone()];
-    
+    let mut args = vec![
+        "commit".to_string(),
+        "-m".to_string(),
+        options.message.clone(),
+    ];
+
     if let Some(desc) = &options.description {
         args.push("-m".to_string());
         args.push(desc.clone());
     }
-    
+
     if options.amend.unwrap_or(false) {
         args.push("--amend".to_string());
     }
-    
+
     if options.allow_empty.unwrap_or(false) {
         args.push("--allow-empty".to_string());
     }
-    
+
     if let Some(author) = &options.author {
         if let Some(email) = &options.email {
             args.push("--author".to_string());
@@ -828,15 +860,15 @@ pub async fn git_commit(options: GitCommitOptions) -> GitOperationResult<GitComm
             args.extend(files.iter().cloned());
         }
     }
-    
+
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-    
+
     match run_git_command(&args_refs, Some(&options.repo_path)) {
         Ok(output) => {
             // Get the commit info
             match run_git_command(
                 &["log", "-1", "--format=%H%x00%an%x00%ae%x00%aI%x00%s"],
-                Some(&options.repo_path)
+                Some(&options.repo_path),
             ) {
                 Ok(log_output) => {
                     let parts: Vec<&str> = log_output.split('\x00').collect();
@@ -869,38 +901,38 @@ pub async fn git_log(options: GitLogOptions) -> GitOperationResult<Vec<GitCommit
         "log".to_string(),
         "--format=%H%x00%an%x00%ae%x00%aI%x00%s%x00%x00".to_string(),
     ];
-    
+
     if let Some(max) = options.max_count {
         args.push(format!("-{}", max));
     }
-    
+
     if let Some(skip) = options.skip {
         args.push(format!("--skip={}", skip));
     }
-    
+
     if let Some(since) = &options.since {
         args.push(format!("--since={}", since));
     }
-    
+
     if let Some(until) = &options.until {
         args.push(format!("--until={}", until));
     }
-    
+
     if let Some(author) = &options.author {
         args.push(format!("--author={}", author));
     }
-    
+
     if let Some(grep) = &options.grep {
         args.push(format!("--grep={}", grep));
     }
-    
+
     if let Some(path) = &options.path {
         args.push("--".to_string());
         args.push(path.clone());
     }
-    
+
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-    
+
     match run_git_command(&args_refs, Some(&options.repo_path)) {
         Ok(output) => {
             let commits = parse_commit_log(&output);
@@ -915,10 +947,8 @@ pub async fn git_log(options: GitLogOptions) -> GitOperationResult<Vec<GitCommit
 pub async fn git_file_status(repo_path: String) -> GitOperationResult<Vec<GitFileStatus>> {
     match run_git_command(&["status", "--porcelain"], Some(&repo_path)) {
         Ok(output) => {
-            let statuses: Vec<GitFileStatus> = output
-                .lines()
-                .filter_map(parse_git_status_short)
-                .collect();
+            let statuses: Vec<GitFileStatus> =
+                output.lines().filter_map(parse_git_status_short).collect();
             GitOperationResult::success(statuses)
         }
         Err(e) => GitOperationResult::error(e),
@@ -927,13 +957,16 @@ pub async fn git_file_status(repo_path: String) -> GitOperationResult<Vec<GitFil
 
 /// Get diff
 #[tauri::command]
-pub async fn git_diff(repo_path: String, staged: Option<bool>) -> GitOperationResult<Vec<GitDiffInfo>> {
+pub async fn git_diff(
+    repo_path: String,
+    staged: Option<bool>,
+) -> GitOperationResult<Vec<GitDiffInfo>> {
     let args = if staged.unwrap_or(false) {
         vec!["diff", "--staged", "--numstat"]
     } else {
         vec!["diff", "--numstat"]
     };
-    
+
     match run_git_command(&args, Some(&repo_path)) {
         Ok(output) => {
             let diffs: Vec<GitDiffInfo> = output
@@ -965,10 +998,7 @@ pub async fn git_diff_between(
     from_ref: String,
     to_ref: String,
 ) -> GitOperationResult<Vec<GitDiffInfo>> {
-    match run_git_command(
-        &["diff", "--numstat", &from_ref, &to_ref],
-        Some(&repo_path)
-    ) {
+    match run_git_command(&["diff", "--numstat", &from_ref, &to_ref], Some(&repo_path)) {
         Ok(output) => {
             let diffs: Vec<GitDiffInfo> = output
                 .lines()
@@ -992,33 +1022,157 @@ pub async fn git_diff_between(
     }
 }
 
+/// Get diff content for a specific file
+#[tauri::command]
+pub async fn git_diff_file(
+    repo_path: String,
+    file_path: String,
+    staged: Option<bool>,
+    max_lines: Option<u32>,
+) -> GitOperationResult<GitDiffInfo> {
+    let mut args = vec!["diff"];
+    
+    if staged.unwrap_or(false) {
+        args.push("--staged");
+    }
+    
+    args.push("--");
+    args.push(&file_path);
+
+    match run_git_command(&args, Some(&repo_path)) {
+        Ok(content) => {
+            // Count additions and deletions
+            let mut additions = 0;
+            let mut deletions = 0;
+            let mut line_count = 0;
+            let max = max_lines.unwrap_or(5000) as usize;
+            
+            let truncated_content: String = content
+                .lines()
+                .take_while(|line| {
+                    line_count += 1;
+                    if line.starts_with('+') && !line.starts_with("+++") {
+                        additions += 1;
+                    } else if line.starts_with('-') && !line.starts_with("---") {
+                        deletions += 1;
+                    }
+                    line_count <= max
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            
+            let final_content = if line_count > max {
+                format!("{}\n\n... (truncated, {} more lines)", truncated_content, line_count - max)
+            } else {
+                truncated_content
+            };
+            
+            GitOperationResult::success(GitDiffInfo {
+                path: file_path,
+                additions,
+                deletions,
+                content: Some(final_content),
+            })
+        }
+        Err(e) => GitOperationResult::error(e),
+    }
+}
+
+/// Stash entry info
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitStashEntry {
+    pub index: u32,
+    pub message: String,
+    pub branch: Option<String>,
+    pub date: Option<String>,
+}
+
+/// Get stash list with parsed entries
+#[tauri::command]
+pub async fn git_stash_list(repo_path: String) -> GitOperationResult<Vec<GitStashEntry>> {
+    match run_git_command(
+        &["stash", "list", "--format=%gd%x00%gs%x00%ci"],
+        Some(&repo_path),
+    ) {
+        Ok(output) => {
+            let entries: Vec<GitStashEntry> = output
+                .lines()
+                .filter_map(|line| {
+                    let parts: Vec<&str> = line.split('\x00').collect();
+                    if parts.len() >= 2 {
+                        // Parse stash@{N} to get index
+                        let index = parts[0]
+                            .strip_prefix("stash@{")
+                            .and_then(|s| s.strip_suffix("}"))
+                            .and_then(|s| s.parse::<u32>().ok())
+                            .unwrap_or(0);
+                        
+                        // Parse message which may contain branch info
+                        let message = parts[1].to_string();
+                        let branch = if message.starts_with("WIP on ") || message.starts_with("On ") {
+                            message.split(':').next().and_then(|s| {
+                                s.strip_prefix("WIP on ")
+                                    .or_else(|| s.strip_prefix("On "))
+                                    .map(|b| b.to_string())
+                            })
+                        } else {
+                            None
+                        };
+                        
+                        let date = parts.get(2).map(|s| s.to_string());
+                        
+                        Some(GitStashEntry {
+                            index,
+                            message,
+                            branch,
+                            date,
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            
+            GitOperationResult::success(entries)
+        }
+        Err(e) => {
+            // Empty stash list is not an error
+            if e.contains("No stash entries") || e.is_empty() {
+                GitOperationResult::success(vec![])
+            } else {
+                GitOperationResult::error(e)
+            }
+        }
+    }
+}
+
 /// Push to remote
 #[tauri::command]
 pub async fn git_push(options: GitPushOptions) -> GitOperationResult<()> {
     let mut args = vec!["push".to_string()];
-    
+
     if options.force.unwrap_or(false) {
         args.push("--force".to_string());
     }
-    
+
     if options.set_upstream.unwrap_or(false) {
         args.push("-u".to_string());
     }
-    
+
     if options.tags.unwrap_or(false) {
         args.push("--tags".to_string());
     }
-    
+
     if let Some(remote) = &options.remote {
         args.push(remote.clone());
     }
-    
+
     if let Some(branch) = &options.branch {
         args.push(branch.clone());
     }
-    
+
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-    
+
     match run_git_command(&args_refs, Some(&options.repo_path)) {
         Ok(output) => GitOperationResult::ok_with_output(output),
         Err(e) => GitOperationResult::error(e),
@@ -1029,25 +1183,25 @@ pub async fn git_push(options: GitPushOptions) -> GitOperationResult<()> {
 #[tauri::command]
 pub async fn git_pull(options: GitPullOptions) -> GitOperationResult<()> {
     let mut args = vec!["pull".to_string()];
-    
+
     if options.rebase.unwrap_or(false) {
         args.push("--rebase".to_string());
     }
-    
+
     if options.no_commit.unwrap_or(false) {
         args.push("--no-commit".to_string());
     }
-    
+
     if let Some(remote) = &options.remote {
         args.push(remote.clone());
     }
-    
+
     if let Some(branch) = &options.branch {
         args.push(branch.clone());
     }
-    
+
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-    
+
     match run_git_command(&args_refs, Some(&options.repo_path)) {
         Ok(output) => GitOperationResult::ok_with_output(output),
         Err(e) => GitOperationResult::error(e),
@@ -1058,11 +1212,11 @@ pub async fn git_pull(options: GitPullOptions) -> GitOperationResult<()> {
 #[tauri::command]
 pub async fn git_fetch(repo_path: String, remote: Option<String>) -> GitOperationResult<()> {
     let mut args = vec!["fetch"];
-    
+
     if let Some(ref r) = remote {
         args.push(r);
     }
-    
+
     match run_git_command(&args, Some(&repo_path)) {
         Ok(output) => GitOperationResult::ok_with_output(output),
         Err(e) => GitOperationResult::error(e),
@@ -1076,7 +1230,7 @@ pub async fn git_remotes(repo_path: String) -> GitOperationResult<Vec<GitRemoteI
         Ok(output) => {
             let mut remotes: Vec<GitRemoteInfo> = Vec::new();
             let mut seen = std::collections::HashSet::new();
-            
+
             for line in output.lines() {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() >= 2 {
@@ -1091,7 +1245,7 @@ pub async fn git_remotes(repo_path: String) -> GitOperationResult<Vec<GitRemoteI
                     }
                 }
             }
-            
+
             GitOperationResult::success(remotes)
         }
         Err(e) => GitOperationResult::error(e),
@@ -1100,7 +1254,11 @@ pub async fn git_remotes(repo_path: String) -> GitOperationResult<Vec<GitRemoteI
 
 /// Add remote
 #[tauri::command]
-pub async fn git_add_remote(repo_path: String, name: String, url: String) -> GitOperationResult<()> {
+pub async fn git_add_remote(
+    repo_path: String,
+    name: String,
+    url: String,
+) -> GitOperationResult<()> {
     match run_git_command(&["remote", "add", &name, &url], Some(&repo_path)) {
         Ok(output) => GitOperationResult::ok_with_output(output),
         Err(e) => GitOperationResult::error(e),
@@ -1118,13 +1276,23 @@ pub async fn git_remove_remote(repo_path: String, name: String) -> GitOperationR
 
 /// Get branches
 #[tauri::command]
-pub async fn git_branches(repo_path: String, include_remote: Option<bool>) -> GitOperationResult<Vec<GitBranchInfo>> {
+pub async fn git_branches(
+    repo_path: String,
+    include_remote: Option<bool>,
+) -> GitOperationResult<Vec<GitBranchInfo>> {
     let args = if include_remote.unwrap_or(false) {
-        vec!["branch", "-a", "--format=%(refname:short)%00%(upstream:short)%00%(HEAD)"]
+        vec![
+            "branch",
+            "-a",
+            "--format=%(refname:short)%00%(upstream:short)%00%(HEAD)",
+        ]
     } else {
-        vec!["branch", "--format=%(refname:short)%00%(upstream:short)%00%(HEAD)"]
+        vec![
+            "branch",
+            "--format=%(refname:short)%00%(upstream:short)%00%(HEAD)",
+        ]
     };
-    
+
     match run_git_command(&args, Some(&repo_path)) {
         Ok(output) => {
             let branches: Vec<GitBranchInfo> = output
@@ -1134,19 +1302,24 @@ pub async fn git_branches(repo_path: String, include_remote: Option<bool>) -> Gi
                     if parts.is_empty() || parts[0].is_empty() {
                         return None;
                     }
-                    
-                    let name = parts[0].to_string();
-                    let is_remote = name.starts_with("remotes/") || name.contains('/');
-                    
+
+                    let raw_name = parts[0].to_string();
+                    // Remote branches start with "remotes/" prefix from -a flag
+                    let is_remote = raw_name.starts_with("remotes/");
+                    let name = raw_name.trim_start_matches("remotes/").to_string();
+
                     Some(GitBranchInfo {
-                        name: name.trim_start_matches("remotes/").to_string(),
+                        name,
                         is_remote,
                         is_current: parts.get(2).map(|s| s.trim() == "*").unwrap_or(false),
-                        upstream: parts.get(1).filter(|s| !s.is_empty()).map(|s| s.to_string()),
+                        upstream: parts
+                            .get(1)
+                            .filter(|s| !s.is_empty())
+                            .map(|s| s.to_string()),
                     })
                 })
                 .collect();
-            
+
             GitOperationResult::success(branches)
         }
         Err(e) => GitOperationResult::error(e),
@@ -1157,11 +1330,11 @@ pub async fn git_branches(repo_path: String, include_remote: Option<bool>) -> Gi
 #[tauri::command]
 pub async fn git_create_branch(options: GitBranchOptions) -> GitOperationResult<()> {
     let mut args = vec!["branch", &options.name];
-    
+
     if let Some(ref start) = options.start_point {
         args.push(start);
     }
-    
+
     match run_git_command(&args, Some(&options.repo_path)) {
         Ok(output) => GitOperationResult::ok_with_output(output),
         Err(e) => GitOperationResult::error(e),
@@ -1181,8 +1354,12 @@ pub async fn git_delete_branch(options: GitBranchOptions) -> GitOperationResult<
         );
     }
 
-    let flag = if options.force.unwrap_or(false) { "-D" } else { "-d" };
-    
+    let flag = if options.force.unwrap_or(false) {
+        "-D"
+    } else {
+        "-d"
+    };
+
     match run_git_command(&["branch", flag, &options.name], Some(&options.repo_path)) {
         Ok(output) => GitOperationResult::ok_with_output(output),
         Err(e) => GitOperationResult::error(e),
@@ -1193,19 +1370,19 @@ pub async fn git_delete_branch(options: GitBranchOptions) -> GitOperationResult<
 #[tauri::command]
 pub async fn git_checkout(options: GitCheckoutOptions) -> GitOperationResult<()> {
     let mut args = vec!["checkout".to_string()];
-    
+
     if options.create_branch.unwrap_or(false) {
         args.push("-b".to_string());
     }
-    
+
     if options.force.unwrap_or(false) {
         args.push("-f".to_string());
     }
-    
+
     args.push(options.target);
-    
+
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-    
+
     match run_git_command(&args_refs, Some(&options.repo_path)) {
         Ok(output) => GitOperationResult::ok_with_output(output),
         Err(e) => GitOperationResult::error(e),
@@ -1216,28 +1393,28 @@ pub async fn git_checkout(options: GitCheckoutOptions) -> GitOperationResult<()>
 #[tauri::command]
 pub async fn git_merge(options: GitMergeOptions) -> GitOperationResult<()> {
     let mut args = vec!["merge".to_string()];
-    
+
     if options.no_commit.unwrap_or(false) {
         args.push("--no-commit".to_string());
     }
-    
+
     if options.no_ff.unwrap_or(false) {
         args.push("--no-ff".to_string());
     }
-    
+
     if options.squash.unwrap_or(false) {
         args.push("--squash".to_string());
     }
-    
+
     if let Some(msg) = &options.message {
         args.push("-m".to_string());
         args.push(msg.clone());
     }
-    
+
     args.push(options.branch);
-    
+
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-    
+
     match run_git_command(&args_refs, Some(&options.repo_path)) {
         Ok(output) => GitOperationResult::ok_with_output(output),
         Err(e) => GitOperationResult::error(e),
@@ -1248,7 +1425,7 @@ pub async fn git_merge(options: GitMergeOptions) -> GitOperationResult<()> {
 #[tauri::command]
 pub async fn git_stash(options: GitStashOptions) -> GitOperationResult<()> {
     let mut args = vec!["stash".to_string()];
-    
+
     match options.action.as_str() {
         "save" => {
             args.push("push".to_string());
@@ -1286,9 +1463,9 @@ pub async fn git_stash(options: GitStashOptions) -> GitOperationResult<()> {
         }
         _ => return GitOperationResult::error(format!("Unknown stash action: {}", options.action)),
     }
-    
+
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-    
+
     match run_git_command(&args_refs, Some(&options.repo_path)) {
         Ok(output) => GitOperationResult::ok_with_output(output),
         Err(e) => GitOperationResult::error(e),
@@ -1299,20 +1476,20 @@ pub async fn git_stash(options: GitStashOptions) -> GitOperationResult<()> {
 #[tauri::command]
 pub async fn git_reset(options: GitResetOptions) -> GitOperationResult<()> {
     let mut args = vec!["reset".to_string()];
-    
+
     match options.mode.as_str() {
         "soft" => args.push("--soft".to_string()),
         "mixed" => args.push("--mixed".to_string()),
         "hard" => args.push("--hard".to_string()),
         _ => return GitOperationResult::error(format!("Unknown reset mode: {}", options.mode)),
     }
-    
+
     if let Some(target) = &options.target {
         args.push(target.clone());
     }
-    
+
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-    
+
     match run_git_command(&args_refs, Some(&options.repo_path)) {
         Ok(output) => GitOperationResult::ok_with_output(output),
         Err(e) => GitOperationResult::error(e),
@@ -1322,13 +1499,22 @@ pub async fn git_reset(options: GitResetOptions) -> GitOperationResult<()> {
 /// Discard changes
 #[tauri::command]
 pub async fn git_discard_changes(repo_path: String, files: Vec<String>) -> GitOperationResult<()> {
-    let mut args = vec!["checkout", "--"];
+    // First, try to restore tracked files
+    let mut checkout_args = vec!["checkout", "--"];
     let file_refs: Vec<&str> = files.iter().map(|s| s.as_str()).collect();
-    args.extend(file_refs);
-    
-    match run_git_command(&args, Some(&repo_path)) {
+    checkout_args.extend(file_refs.clone());
+
+    match run_git_command(&checkout_args, Some(&repo_path)) {
         Ok(output) => GitOperationResult::ok_with_output(output),
-        Err(e) => GitOperationResult::error(e),
+        Err(e) => {
+            // If checkout fails, try to remove untracked files
+            let mut clean_args = vec!["clean", "-fd", "--"];
+            clean_args.extend(file_refs);
+            match run_git_command(&clean_args, Some(&repo_path)) {
+                Ok(output) => GitOperationResult::ok_with_output(output),
+                Err(_) => GitOperationResult::error(e), // Return original error
+            }
+        }
     }
 }
 
@@ -1336,7 +1522,7 @@ pub async fn git_discard_changes(repo_path: String, files: Vec<String>) -> GitOp
 #[tauri::command]
 pub async fn git_create_gitignore(repo_path: String, template: String) -> GitOperationResult<()> {
     let gitignore_path = Path::new(&repo_path).join(".gitignore");
-    
+
     match std::fs::write(&gitignore_path, template) {
         Ok(_) => GitOperationResult::ok(),
         Err(e) => GitOperationResult::error(format!("Failed to create .gitignore: {}", e)),
@@ -1358,19 +1544,19 @@ pub async fn git_export_chat(
             return GitOperationResult::error(format!("Failed to create chats directory: {}", e));
         }
     }
-    
+
     // Write chat data
     let chat_file = chat_dir.join(format!("{}.json", session_id));
     if let Err(e) = std::fs::write(&chat_file, &chat_data) {
         return GitOperationResult::error(format!("Failed to write chat file: {}", e));
     }
-    
+
     // Stage the file
     let relative_path = format!("chats/{}.json", session_id);
     if let Err(e) = run_git_command(&["add", &relative_path], Some(&repo_path)) {
         return GitOperationResult::error(e);
     }
-    
+
     // Commit
     let message = commit_message.unwrap_or_else(|| format!("Update chat: {}", session_id));
     git_commit(GitCommitOptions {
@@ -1382,7 +1568,8 @@ pub async fn git_export_chat(
         amend: None,
         allow_empty: None,
         files: None,
-    }).await
+    })
+    .await
 }
 
 /// Export designer to Git (placeholder for integration)
@@ -1397,24 +1584,28 @@ pub async fn git_export_designer(
     let designer_dir = Path::new(&repo_path).join("designer");
     if !designer_dir.exists() {
         if let Err(e) = std::fs::create_dir_all(&designer_dir) {
-            return GitOperationResult::error(format!("Failed to create designer directory: {}", e));
+            return GitOperationResult::error(format!(
+                "Failed to create designer directory: {}",
+                e
+            ));
         }
     }
-    
+
     // Write designer data
     let designer_file = designer_dir.join(format!("{}.json", project_id));
     if let Err(e) = std::fs::write(&designer_file, &designer_data) {
         return GitOperationResult::error(format!("Failed to write designer file: {}", e));
     }
-    
+
     // Stage the file
     let relative_path = format!("designer/{}.json", project_id);
     if let Err(e) = run_git_command(&["add", &relative_path], Some(&repo_path)) {
         return GitOperationResult::error(e);
     }
-    
+
     // Commit
-    let message = commit_message.unwrap_or_else(|| format!("Update designer project: {}", project_id));
+    let message =
+        commit_message.unwrap_or_else(|| format!("Update designer project: {}", project_id));
     git_commit(GitCommitOptions {
         repo_path,
         message,
@@ -1424,7 +1615,8 @@ pub async fn git_export_designer(
         amend: None,
         allow_empty: None,
         files: None,
-    }).await
+    })
+    .await
 }
 
 /// Restore chat from Git
@@ -1435,8 +1627,11 @@ pub async fn git_restore_chat(
     commit_hash: String,
 ) -> GitOperationResult<String> {
     let relative_path = format!("chats/{}.json", session_id);
-    
-    match run_git_command(&["show", &format!("{}:{}", commit_hash, relative_path)], Some(&repo_path)) {
+
+    match run_git_command(
+        &["show", &format!("{}:{}", commit_hash, relative_path)],
+        Some(&repo_path),
+    ) {
         Ok(content) => GitOperationResult::success(content),
         Err(e) => GitOperationResult::error(e),
     }
@@ -1450,8 +1645,11 @@ pub async fn git_restore_designer(
     commit_hash: String,
 ) -> GitOperationResult<String> {
     let relative_path = format!("designer/{}.json", project_id);
-    
-    match run_git_command(&["show", &format!("{}:{}", commit_hash, relative_path)], Some(&repo_path)) {
+
+    match run_git_command(
+        &["show", &format!("{}:{}", commit_hash, relative_path)],
+        Some(&repo_path),
+    ) {
         Ok(content) => GitOperationResult::success(content),
         Err(e) => GitOperationResult::error(e),
     }

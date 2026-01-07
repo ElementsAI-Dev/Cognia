@@ -134,7 +134,7 @@ mod tests {
     async fn test_windows_ocr_provider_languages() {
         let provider = WindowsOcrProvider::new();
         let languages = provider.get_supported_languages().await;
-        
+
         // Should return some languages (actual list depends on system)
         assert!(languages.is_ok());
     }

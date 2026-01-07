@@ -1,8 +1,9 @@
 //! Screen Recording Tauri commands
 
 use crate::screen_recording::{
-    AudioDevices, MonitorInfo, RecordingConfig, RecordingHistoryEntry,
+    AudioDevices, EncodingSupport, MonitorInfo, RecordingConfig, RecordingHistoryEntry,
     RecordingMetadata, RecordingRegion, RecordingStatus, ScreenRecordingManager,
+    VideoConvertOptions, VideoInfo, VideoProcessingResult, VideoProcessor, VideoTrimOptions,
 };
 use tauri::State;
 
@@ -49,23 +50,24 @@ pub async fn recording_start_region(
     width: u32,
     height: u32,
 ) -> Result<String, String> {
-    let region = RecordingRegion { x, y, width, height };
+    let region = RecordingRegion {
+        x,
+        y,
+        width,
+        height,
+    };
     manager.start_region(region).await
 }
 
 /// Pause recording
 #[tauri::command]
-pub async fn recording_pause(
-    manager: State<'_, ScreenRecordingManager>,
-) -> Result<(), String> {
+pub async fn recording_pause(manager: State<'_, ScreenRecordingManager>) -> Result<(), String> {
     manager.pause()
 }
 
 /// Resume recording
 #[tauri::command]
-pub async fn recording_resume(
-    manager: State<'_, ScreenRecordingManager>,
-) -> Result<(), String> {
+pub async fn recording_resume(manager: State<'_, ScreenRecordingManager>) -> Result<(), String> {
     manager.resume()
 }
 
@@ -79,9 +81,7 @@ pub async fn recording_stop(
 
 /// Cancel recording without saving
 #[tauri::command]
-pub async fn recording_cancel(
-    manager: State<'_, ScreenRecordingManager>,
-) -> Result<(), String> {
+pub async fn recording_cancel(manager: State<'_, ScreenRecordingManager>) -> Result<(), String> {
     manager.cancel()
 }
 
@@ -154,6 +154,42 @@ pub async fn recording_clear_history(
     Ok(())
 }
 
+// ==================== Video Processing Commands ====================
+
+/// Trim a video file
+#[tauri::command]
+pub async fn video_trim(options: VideoTrimOptions) -> Result<VideoProcessingResult, String> {
+    VideoProcessor::trim_video(&options)
+}
+
+/// Convert video to different format
+#[tauri::command]
+pub async fn video_convert(options: VideoConvertOptions) -> Result<VideoProcessingResult, String> {
+    VideoProcessor::convert_video(&options)
+}
+
+/// Get video information
+#[tauri::command]
+pub async fn video_get_info(file_path: String) -> Result<VideoInfo, String> {
+    VideoProcessor::get_video_info(&file_path)
+}
+
+/// Generate video thumbnail
+#[tauri::command]
+pub async fn video_generate_thumbnail(
+    video_path: String,
+    output_path: String,
+    timestamp_ms: u64,
+) -> Result<String, String> {
+    VideoProcessor::generate_thumbnail(&video_path, &output_path, timestamp_ms)
+}
+
+/// Check encoding support
+#[tauri::command]
+pub async fn video_check_encoding_support() -> Result<EncodingSupport, String> {
+    Ok(VideoProcessor::check_encoding_support())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -166,7 +202,7 @@ mod tests {
             width: 800,
             height: 600,
         };
-        
+
         assert_eq!(region.x, 100);
         assert_eq!(region.y, 200);
         assert_eq!(region.width, 800);
@@ -178,7 +214,7 @@ mod tests {
         let config = RecordingConfig::default();
         let json = serde_json::to_string(&config).unwrap();
         let deserialized: RecordingConfig = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(config.format, deserialized.format);
         assert_eq!(config.frame_rate, deserialized.frame_rate);
     }

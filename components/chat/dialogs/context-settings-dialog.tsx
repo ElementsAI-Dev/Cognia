@@ -63,7 +63,8 @@ interface ContextSettingsDialogProps {
   modelMaxTokens: number;
   // Optional callbacks
   onClearContext?: () => void;
-  onOptimizeContext?: () => void;
+  // May be sync or async
+  onOptimizeContext?: () => void | Promise<void>;
   messageCount?: number;
 }
 
@@ -106,12 +107,16 @@ export function ContextSettingsDialog({
   const setCompressionMessageThreshold = useSettingsStore((state) => state.setCompressionMessageThreshold);
   const setCompressionPreserveRecent = useSettingsStore((state) => state.setCompressionPreserveRecent);
 
-  // Handle manual compression
+  // Handle manual compression (support sync and async callbacks)
   const handleManualCompress = useCallback(async () => {
     if (onOptimizeContext) {
       setIsCompressing(true);
       try {
-        await onOptimizeContext();
+        const result = onOptimizeContext();
+        // Await only if the result is a Promise
+        if (result instanceof Promise) {
+          await result;
+        }
       } finally {
         setIsCompressing(false);
       }
@@ -136,6 +141,10 @@ export function ContextSettingsDialog({
   };
 
   const StatusIcon = statusConfig[status].icon;
+
+  // Compute percentages for segmented linear bar (0-100)
+  const systemPercent = totalTokens > 0 ? Math.min(100, Math.max(0, (systemTokens / totalTokens) * 100)) : 0;
+  const contextPercent = totalTokens > 0 ? Math.min(100 - systemPercent, Math.max(0, (contextTokens / totalTokens) * 100)) : 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -214,22 +223,41 @@ export function ContextSettingsDialog({
 
             {/* Detailed Token Breakdown */}
             <div className="space-y-2">
-              <div className="h-2 rounded-full bg-muted overflow-hidden flex">
+              <div className="h-2 rounded-full bg-muted overflow-hidden flex items-center">
+                {/* Use an SVG segmented bar instead of inline-styled divs */}
+                <svg viewBox="0 0 100 4" preserveAspectRatio="none" className="w-full h-full">
+                  {/* background track */}
+                  <rect x="0" y="0" width="100" height="4" className="fill-muted" />
+                  {/* system segment */}
+                  {systemPercent > 0 && (
+                    <rect
+                      x={0}
+                      y={0}
+                      width={systemPercent}
+                      height={4}
+                      className="fill-purple-500 transition-all duration-300"
+                    />
+                  )}
+                  {/* context segment */}
+                  {contextPercent > 0 && (
+                    <rect
+                      x={systemPercent}
+                      y={0}
+                      width={contextPercent}
+                      height={4}
+                      className="fill-blue-500 transition-all duration-300"
+                    />
+                  )}
+                </svg>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div
-                      className="h-full bg-purple-500 transition-all duration-300 cursor-help"
-                      style={{ width: `${totalTokens > 0 ? (systemTokens / totalTokens) * 100 : 0}%` }}
-                    />
+                    <div className="sr-only" />
                   </TooltipTrigger>
                   <TooltipContent>{t('system')}: {systemTokens.toLocaleString()}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div
-                      className="h-full bg-blue-500 transition-all duration-300 cursor-help"
-                      style={{ width: `${totalTokens > 0 ? (contextTokens / totalTokens) * 100 : 0}%` }}
-                    />
+                    <div className="sr-only" />
                   </TooltipTrigger>
                   <TooltipContent>{t('context')}: {contextTokens.toLocaleString()}</TooltipContent>
                 </Tooltip>
@@ -283,7 +311,14 @@ export function ContextSettingsDialog({
                 variant="outline"
                 size="sm"
                 className="flex-1 gap-1.5"
-                onClick={onOptimizeContext}
+                onClick={() => {
+                  // invoke without awaiting here (sync or async handled elsewhere)
+                  const res = onOptimizeContext();
+                  if (res instanceof Promise) {
+                    // fire-and-forget: user expects immediate UI response; handled by manual compress path
+                    res.catch(() => {});
+                  }
+                }}
               >
                 <Zap className="h-3.5 w-3.5" />
                 {t('optimize') || 'Optimize'}

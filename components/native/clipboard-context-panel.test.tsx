@@ -86,6 +86,37 @@ jest.mock('@/components/ui/tabs', () => ({
   ),
 }));
 
+// Mock ScrollArea to avoid Radix rendering issues
+jest.mock('@/components/ui/scroll-area', () => ({
+  ScrollArea: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="scroll-area" className={className}>{children}</div>
+  ),
+}));
+
+// Mock DropdownMenu components
+jest.mock('@/components/ui/dropdown-menu', () => ({
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown-menu">{children}</div>,
+  DropdownMenuTrigger: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) => (
+    <div data-testid="dropdown-menu-trigger">{asChild ? children : <button>{children}</button>}</div>
+  ),
+  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown-menu-content">{children}</div>,
+  DropdownMenuItem: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+    <button data-testid="dropdown-menu-item" onClick={onClick}>{children}</button>
+  ),
+  DropdownMenuLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuSeparator: () => <hr />,
+}));
+
+// Mock EmptyState to avoid issues with Lucide icons passed as forwardRef
+jest.mock('@/components/layout/empty-state', () => ({
+  EmptyState: ({ title, description, compact, className }: { icon?: unknown; title: string; description?: string; compact?: boolean; className?: string }) => (
+    <div data-testid="empty-state" data-compact={compact} className={className}>
+      <div>{title}</div>
+      {description && <div>{description}</div>}
+    </div>
+  ),
+}));
+
 describe('ClipboardContextPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();

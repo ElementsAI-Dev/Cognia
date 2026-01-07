@@ -84,7 +84,7 @@ jest.mock('@/stores/system', () => ({
 }));
 
 // Mock useWindow hook
-jest.mock('@/hooks/use-window', () => ({
+jest.mock('@/hooks/native', () => ({
   useWindow: () => ({
     isAlwaysOnTop: false,
     toggleAlwaysOnTop: jest.fn(),

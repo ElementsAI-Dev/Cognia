@@ -6,36 +6,36 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
-mod types;
-mod extractor;
 mod analyzer;
-mod expander;
-mod detector;
-mod mouse_hook;
-mod toolbar_window;
-mod history;
-mod clipboard_history;
 mod clipboard_context;
+mod clipboard_history;
+mod detector;
+mod expander;
+mod extractor;
+mod history;
+mod mouse_hook;
 mod smart_selection;
+mod toolbar_window;
+mod types;
 
-pub use types::{Selection, TextType, SourceAppInfo};
-pub use extractor::TextExtractor;
 pub use analyzer::TextAnalyzer;
-pub use expander::SelectionExpander;
-pub use detector::SelectionDetector;
-pub use mouse_hook::{MouseHook, MouseEvent};
-pub use toolbar_window::ToolbarWindow;
-pub use history::{SelectionHistory, SelectionHistoryEntry, SelectionHistoryStats};
-pub use clipboard_history::{ClipboardHistory, ClipboardEntry, ClipboardContentType};
 pub use clipboard_context::{
-    ClipboardContextAnalyzer, ClipboardAnalysis, ContentCategory, DetectedLanguage,
-    ExtractedEntity, SuggestedAction, ContentStats, FormattingHints,
+    ClipboardAnalysis, ClipboardContextAnalyzer, ContentCategory, ContentStats, DetectedLanguage,
+    ExtractedEntity, FormattingHints, SuggestedAction,
 };
-pub use smart_selection::{SmartSelection, SelectionMode, SelectionExpansion, SelectionContext};
+pub use clipboard_history::{ClipboardContentType, ClipboardEntry, ClipboardHistory};
+pub use detector::SelectionDetector;
+pub use expander::SelectionExpander;
+pub use extractor::TextExtractor;
+pub use history::{SelectionHistory, SelectionHistoryEntry, SelectionHistoryStats};
+pub use mouse_hook::{MouseEvent, MouseHook};
+pub use smart_selection::{SelectionContext, SelectionExpansion, SelectionMode, SmartSelection};
+pub use toolbar_window::ToolbarWindow;
+pub use types::{Selection, SourceAppInfo, TextType};
 
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use parking_lot::RwLock;
 use tauri::Emitter;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -192,7 +192,7 @@ impl SelectionManager {
         log::debug!("[SelectionManager] Spawning event processing task");
         tauri::async_runtime::spawn(async move {
             log::info!("[SelectionManager] Event loop started");
-            
+
             loop {
                 tokio::select! {
                     // Check for cancellation
@@ -241,16 +241,16 @@ impl SelectionManager {
                             Ok(Some(text)) if !text.is_empty() => {
                                 // Check text length
                                 if text.len() < cfg.min_text_length || text.len() > cfg.max_text_length {
-                                    log::debug!("[SelectionManager] Text length {} outside bounds [{}, {}]", 
+                                    log::debug!("[SelectionManager] Text length {} outside bounds [{}, {}]",
                                         text.len(), cfg.min_text_length, cfg.max_text_length);
                                     continue;
                                 }
-                                
-                                log::debug!("[SelectionManager] Processing selection: {} chars at ({}, {})", 
+
+                                log::debug!("[SelectionManager] Processing selection: {} chars at ({}, {})",
                                     text.len(), x, y);
 
                                 let timestamp = chrono::Utc::now().timestamp_millis();
-                                
+
                                 // Update last selection timestamp
                                 *last_selection_timestamp.write() = Some(timestamp);
 
@@ -302,7 +302,7 @@ impl SelectionManager {
                     }
                 }
             }
-            
+
             log::info!("[SelectionManager] Event loop exited");
         });
 
@@ -355,7 +355,7 @@ impl SelectionManager {
     pub fn update_config(&self, new_config: SelectionConfig) {
         log::debug!("[SelectionManager] update_config called");
         let old_config = self.config.read().clone();
-        
+
         // Update config
         {
             let mut current = self.config.write();
@@ -363,7 +363,9 @@ impl SelectionManager {
         }
 
         // Emit config change event
-        let _ = self.app_handle.emit("selection-config-changed", &new_config);
+        let _ = self
+            .app_handle
+            .emit("selection-config-changed", &new_config);
 
         // Handle enable/disable state change
         if old_config.enabled != new_config.enabled {
@@ -371,11 +373,22 @@ impl SelectionManager {
                 // Hide toolbar when disabled
                 let _ = self.toolbar_window.hide();
             }
-            log::info!("[SelectionManager] Selection toolbar {}", if new_config.enabled { "enabled" } else { "disabled" });
+            log::info!(
+                "[SelectionManager] Selection toolbar {}",
+                if new_config.enabled {
+                    "enabled"
+                } else {
+                    "disabled"
+                }
+            );
         }
 
-        log::debug!("[SelectionManager] Config updated: enabled={}, trigger_mode={}, delay={}ms", 
-            new_config.enabled, new_config.trigger_mode, new_config.delay_ms);
+        log::debug!(
+            "[SelectionManager] Config updated: enabled={}, trigger_mode={}, delay={}ms",
+            new_config.enabled,
+            new_config.trigger_mode,
+            new_config.delay_ms
+        );
     }
 
     /// Set enabled state
@@ -389,7 +402,10 @@ impl SelectionManager {
                 let _ = self.toolbar_window.hide();
             }
             let _ = self.app_handle.emit("selection-enabled-changed", enabled);
-            log::info!("[SelectionManager] Selection toolbar {}", if enabled { "enabled" } else { "disabled" });
+            log::info!(
+                "[SelectionManager] Selection toolbar {}",
+                if enabled { "enabled" } else { "disabled" }
+            );
         } else {
             log::trace!("[SelectionManager] Enabled state unchanged ({})", enabled);
         }
@@ -443,13 +459,21 @@ impl SelectionManager {
 
         // Check text length
         if text.len() < cfg.min_text_length || text.len() > cfg.max_text_length {
-            log::debug!("[SelectionManager] Trigger: text length {} outside bounds", text.len());
+            log::debug!(
+                "[SelectionManager] Trigger: text length {} outside bounds",
+                text.len()
+            );
             return Ok(None);
         }
 
         // Get mouse position
         let (x, y) = get_mouse_position();
-        log::debug!("[SelectionManager] Manual trigger: {} chars at ({}, {})", text.len(), x, y);
+        log::debug!(
+            "[SelectionManager] Manual trigger: {} chars at ({}, {})",
+            text.len(),
+            x,
+            y
+        );
 
         // Create payload
         let payload = SelectionPayload {
@@ -541,7 +565,7 @@ mod tests {
 
         let json = serde_json::to_string(&payload);
         assert!(json.is_ok());
-        
+
         let json_str = json.unwrap();
         assert!(json_str.contains("serialize test"));
         assert!(json_str.contains("100"));
@@ -552,7 +576,7 @@ mod tests {
     fn test_selection_payload_deserialize() {
         let json = r#"{"text":"deserialized","x":50,"y":60,"timestamp":2000}"#;
         let payload: Result<SelectionPayload, _> = serde_json::from_str(json);
-        
+
         assert!(payload.is_ok());
         let payload = payload.unwrap();
         assert_eq!(payload.text, "deserialized");
@@ -611,7 +635,7 @@ mod tests {
     fn test_selection_config_serialize() {
         let config = SelectionConfig::default();
         let json = serde_json::to_string(&config);
-        
+
         assert!(json.is_ok());
         let json_str = json.unwrap();
         assert!(json_str.contains("enabled"));
@@ -633,7 +657,7 @@ mod tests {
 
         let config: Result<SelectionConfig, _> = serde_json::from_str(json);
         assert!(config.is_ok());
-        
+
         let config = config.unwrap();
         assert!(config.enabled);
         assert_eq!(config.trigger_mode, "manual");
@@ -711,7 +735,7 @@ mod tests {
 
         let json = serde_json::to_string(&status);
         assert!(json.is_ok());
-        
+
         let json_str = json.unwrap();
         assert!(json_str.contains("is_running"));
         assert!(json_str.contains("toolbar_visible"));
@@ -739,7 +763,7 @@ mod tests {
 
         let status: Result<SelectionStatus, _> = serde_json::from_str(json);
         assert!(status.is_ok());
-        
+
         let status = status.unwrap();
         assert!(status.is_running);
         assert!(status.toolbar_visible);
@@ -770,7 +794,7 @@ mod tests {
         };
 
         assert_eq!(payload.text, "你好世界 🌍 émoji");
-        
+
         // Should serialize correctly
         let json = serde_json::to_string(&payload);
         assert!(json.is_ok());
@@ -827,7 +851,7 @@ mod tests {
     #[test]
     fn test_selection_config_many_excluded_apps() {
         let excluded: Vec<String> = (0..100).map(|i| format!("app{}.exe", i)).collect();
-        
+
         let config = SelectionConfig {
             enabled: true,
             trigger_mode: "auto".to_string(),
@@ -904,7 +928,7 @@ mod tests {
     #[test]
     fn test_config_text_length_validation_logic() {
         let config = SelectionConfig::default();
-        
+
         // Test text length validation logic that would be used elsewhere
         let short_text = "ab";
         let valid_text = "abc";
@@ -923,7 +947,7 @@ mod tests {
             trigger_mode: "auto".to_string(),
             ..SelectionConfig::default()
         };
-        
+
         let shortcut_config = SelectionConfig {
             trigger_mode: "shortcut".to_string(),
             ..SelectionConfig::default()

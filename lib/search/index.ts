@@ -4,6 +4,7 @@
 
 export * from './providers';
 export * from './search-service';
+export * from './source-verification';
 
 export {
   searchWithTavily,

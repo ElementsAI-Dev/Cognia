@@ -36,10 +36,8 @@ impl PodmanRuntime {
         work_dir: &std::path::Path,
     ) -> Command {
         let mut cmd = Command::new(&self.podman_path);
-        
-        cmd.arg("run")
-            .arg("--rm")
-            .arg("--interactive");
+
+        cmd.arg("run").arg("--rm").arg("--interactive");
 
         // Security: drop all capabilities
         cmd.arg("--cap-drop=ALL");
@@ -51,10 +49,14 @@ impl PodmanRuntime {
         cmd.arg("--security-opt").arg("no-new-privileges:true");
 
         // Memory limit
-        cmd.arg("--memory").arg(format!("{}m", exec_config.memory_limit_mb));
+        cmd.arg("--memory")
+            .arg(format!("{}m", exec_config.memory_limit_mb));
 
         // CPU limit
-        cmd.arg("--cpus").arg(format!("{:.2}", exec_config.cpu_limit_percent as f64 / 100.0));
+        cmd.arg("--cpus").arg(format!(
+            "{:.2}",
+            exec_config.cpu_limit_percent as f64 / 100.0
+        ));
 
         // PIDs limit
         cmd.arg("--pids-limit").arg("64");
@@ -69,7 +71,8 @@ impl PodmanRuntime {
         cmd.arg("--tmpfs").arg("/var/tmp:rw,noexec,nosuid,size=32m");
 
         // Mount work directory
-        cmd.arg("-v").arg(format!("{}:/code:ro,Z", work_dir.display()));
+        cmd.arg("-v")
+            .arg(format!("{}:/code:ro,Z", work_dir.display()));
 
         // Working directory
         cmd.arg("-w").arg("/code");
@@ -84,14 +87,28 @@ impl PodmanRuntime {
 
         // Build execution command
         let file_path = format!("/code/{}", language_config.file_name);
-        let basename = language_config.file_name.rsplit('.').next_back().unwrap_or("main");
+        let basename = language_config
+            .file_name
+            .rsplit('.')
+            .next_back()
+            .unwrap_or("main");
 
         if let Some(compile_cmd) = language_config.compile_cmd {
-            let compile = compile_cmd.replace("{file}", &file_path).replace("{basename}", basename);
-            let run = language_config.run_cmd.replace("{file}", &file_path).replace("{basename}", basename);
-            cmd.arg("sh").arg("-c").arg(format!("{} && {}", compile, run));
+            let compile = compile_cmd
+                .replace("{file}", &file_path)
+                .replace("{basename}", basename);
+            let run = language_config
+                .run_cmd
+                .replace("{file}", &file_path)
+                .replace("{basename}", basename);
+            cmd.arg("sh")
+                .arg("-c")
+                .arg(format!("{} && {}", compile, run));
         } else {
-            let run = language_config.run_cmd.replace("{file}", &file_path).replace("{basename}", basename);
+            let run = language_config
+                .run_cmd
+                .replace("{file}", &file_path)
+                .replace("{basename}", basename);
             cmd.arg("sh").arg("-c").arg(run);
         }
 
@@ -155,9 +172,13 @@ impl SandboxRuntime for PodmanRuntime {
         language_config: &LanguageConfig,
         exec_config: &ExecutionConfig,
     ) -> Result<ExecutionResult, SandboxError> {
-        log::debug!("Podman execute: id={}, language={}, image={}",
-            request.id, request.language, language_config.docker_image);
-        
+        log::debug!(
+            "Podman execute: id={}, language={}, image={}",
+            request.id,
+            request.language,
+            language_config.docker_image
+        );
+
         let start = Instant::now();
 
         let temp_dir = tempfile::tempdir()?;
@@ -165,7 +186,11 @@ impl SandboxRuntime for PodmanRuntime {
         log::trace!("Created temp directory: {:?}", work_dir);
 
         let code_path = work_dir.join(language_config.file_name);
-        log::trace!("Writing code to {:?} ({} bytes)", code_path, request.code.len());
+        log::trace!(
+            "Writing code to {:?} ({} bytes)",
+            code_path,
+            request.code.len()
+        );
         tokio::fs::write(&code_path, &request.code).await?;
 
         if !request.files.is_empty() {
@@ -176,16 +201,24 @@ impl SandboxRuntime for PodmanRuntime {
             if let Some(parent) = file_path.parent() {
                 tokio::fs::create_dir_all(parent).await?;
             }
-            log::trace!("Writing additional file: {} ({} bytes)", name, content.len());
+            log::trace!(
+                "Writing additional file: {} ({} bytes)",
+                name,
+                content.len()
+            );
             tokio::fs::write(&file_path, content).await?;
         }
 
-        log::debug!("Building Podman command with memory={}MB, cpu={}%, timeout={}s, network={}",
-            exec_config.memory_limit_mb, exec_config.cpu_limit_percent,
-            exec_config.timeout.as_secs(), exec_config.network_enabled);
-        
+        log::debug!(
+            "Building Podman command with memory={}MB, cpu={}%, timeout={}s, network={}",
+            exec_config.memory_limit_mb,
+            exec_config.cpu_limit_percent,
+            exec_config.timeout.as_secs(),
+            exec_config.network_enabled
+        );
+
         let mut cmd = self.build_command(request, language_config, exec_config, &work_dir);
-        
+
         log::info!("Starting Podman container for execution: id={}", request.id);
         let mut child = cmd.spawn().map_err(|e| {
             log::error!("Failed to spawn Podman process: {}", e);
@@ -200,7 +233,10 @@ impl SandboxRuntime for PodmanRuntime {
             }
         }
 
-        log::trace!("Waiting for execution with timeout: {}s", exec_config.timeout.as_secs());
+        log::trace!(
+            "Waiting for execution with timeout: {}s",
+            exec_config.timeout.as_secs()
+        );
         let result = timeout(exec_config.timeout, child.wait_with_output()).await;
         let execution_time_ms = start.elapsed().as_millis() as u64;
         log::debug!("Podman execution completed in {}ms", execution_time_ms);
@@ -211,16 +247,29 @@ impl SandboxRuntime for PodmanRuntime {
                 let mut stdout = String::from_utf8_lossy(&output.stdout).to_string();
                 let mut stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
-                log::debug!("Podman execution result: id={}, exit_code={}, stdout_len={}, stderr_len={}",
-                    request.id, exit_code, stdout.len(), stderr.len());
+                log::debug!(
+                    "Podman execution result: id={}, exit_code={}, stdout_len={}, stderr_len={}",
+                    request.id,
+                    exit_code,
+                    stdout.len(),
+                    stderr.len()
+                );
 
                 if stdout.len() > exec_config.max_output_size {
-                    log::debug!("Truncating stdout from {} to {} bytes", stdout.len(), exec_config.max_output_size);
+                    log::debug!(
+                        "Truncating stdout from {} to {} bytes",
+                        stdout.len(),
+                        exec_config.max_output_size
+                    );
                     stdout.truncate(exec_config.max_output_size);
                     stdout.push_str("\n... [output truncated]");
                 }
                 if stderr.len() > exec_config.max_output_size {
-                    log::debug!("Truncating stderr from {} to {} bytes", stderr.len(), exec_config.max_output_size);
+                    log::debug!(
+                        "Truncating stderr from {} to {} bytes",
+                        stderr.len(),
+                        exec_config.max_output_size
+                    );
                     stderr.truncate(exec_config.max_output_size);
                     stderr.push_str("\n... [output truncated]");
                 }
@@ -244,7 +293,11 @@ impl SandboxRuntime for PodmanRuntime {
                 Err(SandboxError::ExecutionFailed(e.to_string()))
             }
             Err(_) => {
-                log::warn!("Podman execution timeout: id={}, timeout={}s", request.id, exec_config.timeout.as_secs());
+                log::warn!(
+                    "Podman execution timeout: id={}, timeout={}s",
+                    request.id,
+                    exec_config.timeout.as_secs()
+                );
                 Ok(ExecutionResult::timeout(
                     request.id.clone(),
                     String::new(),
@@ -263,14 +316,16 @@ impl SandboxRuntime for PodmanRuntime {
             .args(["container", "prune", "-f"])
             .output()
             .await;
-        
+
         match result {
             Ok(output) if output.status.success() => {
                 log::trace!("Podman container prune successful");
             }
             Ok(output) => {
-                log::debug!("Podman container prune returned non-zero: {}", 
-                    String::from_utf8_lossy(&output.stderr));
+                log::debug!(
+                    "Podman container prune returned non-zero: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
             }
             Err(e) => {
                 log::debug!("Podman container prune command failed: {}", e);
@@ -281,29 +336,41 @@ impl SandboxRuntime for PodmanRuntime {
 
     async fn prepare_image(&self, language: &str) -> Result<(), SandboxError> {
         log::info!("Podman: preparing image for language '{}'", language);
-        
-        let config = super::languages::get_language_config(language)
-            .ok_or_else(|| {
-                log::warn!("Cannot prepare image - language not supported: {}", language);
-                SandboxError::LanguageNotSupported(language.to_string())
-            })?;
 
-        log::info!("Podman: pulling image '{}' for language '{}'", config.docker_image, language);
+        let config = super::languages::get_language_config(language).ok_or_else(|| {
+            log::warn!(
+                "Cannot prepare image - language not supported: {}",
+                language
+            );
+            SandboxError::LanguageNotSupported(language.to_string())
+        })?;
+
+        log::info!(
+            "Podman: pulling image '{}' for language '{}'",
+            config.docker_image,
+            language
+        );
         let output = Command::new(&self.podman_path)
             .args(["pull", config.docker_image])
             .output()
             .await?;
 
         if output.status.success() {
-            log::info!("Podman: image '{}' pulled successfully", config.docker_image);
+            log::info!(
+                "Podman: image '{}' pulled successfully",
+                config.docker_image
+            );
             Ok(())
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-            log::error!("Podman: failed to pull image '{}': {}", config.docker_image, stderr);
-            Err(SandboxError::ContainerError(format!(
-                "Failed to pull image {}: {}",
+            log::error!(
+                "Podman: failed to pull image '{}': {}",
                 config.docker_image,
                 stderr
+            );
+            Err(SandboxError::ContainerError(format!(
+                "Failed to pull image {}: {}",
+                config.docker_image, stderr
             )))
         }
     }
@@ -311,8 +378,8 @@ impl SandboxRuntime for PodmanRuntime {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::runtime::ExecutionStatus;
+    use super::*;
     use std::time::Duration;
 
     // ==================== Runtime Creation Tests ====================
@@ -372,9 +439,14 @@ mod tests {
         let work_dir = PathBuf::from("/tmp/test");
 
         let cmd = runtime.build_command(&request, language_config, &exec_config, &work_dir);
-        
+
         // Verify command was created
-        assert!(cmd.as_std().get_program().to_str().unwrap().contains("podman"));
+        assert!(cmd
+            .as_std()
+            .get_program()
+            .to_str()
+            .unwrap()
+            .contains("podman"));
     }
 
     #[test]
@@ -392,7 +464,12 @@ mod tests {
         let work_dir = PathBuf::from("/tmp/test");
 
         let cmd = runtime.build_command(&request, language_config, &exec_config, &work_dir);
-        assert!(cmd.as_std().get_program().to_str().unwrap().contains("podman"));
+        assert!(cmd
+            .as_std()
+            .get_program()
+            .to_str()
+            .unwrap()
+            .contains("podman"));
     }
 
     #[test]
@@ -400,7 +477,7 @@ mod tests {
         let runtime = PodmanRuntime::new();
         let mut request = ExecutionRequest::new("python", "import os; print(os.environ['TEST'])");
         request.env.insert("TEST".to_string(), "value".to_string());
-        
+
         let language_config = super::super::languages::get_language_config("python").unwrap();
         let exec_config = ExecutionConfig {
             timeout: Duration::from_secs(30),
@@ -412,7 +489,12 @@ mod tests {
         let work_dir = PathBuf::from("/tmp/test");
 
         let cmd = runtime.build_command(&request, language_config, &exec_config, &work_dir);
-        assert!(cmd.as_std().get_program().to_str().unwrap().contains("podman"));
+        assert!(cmd
+            .as_std()
+            .get_program()
+            .to_str()
+            .unwrap()
+            .contains("podman"));
     }
 
     #[test]
@@ -430,7 +512,12 @@ mod tests {
         let work_dir = PathBuf::from("/tmp/test");
 
         let cmd = runtime.build_command(&request, language_config, &exec_config, &work_dir);
-        assert!(cmd.as_std().get_program().to_str().unwrap().contains("podman"));
+        assert!(cmd
+            .as_std()
+            .get_program()
+            .to_str()
+            .unwrap()
+            .contains("podman"));
     }
 
     #[test]
@@ -448,7 +535,12 @@ mod tests {
         let work_dir = PathBuf::from("/tmp/test");
 
         let cmd = runtime.build_command(&request, language_config, &exec_config, &work_dir);
-        assert!(cmd.as_std().get_program().to_str().unwrap().contains("podman"));
+        assert!(cmd
+            .as_std()
+            .get_program()
+            .to_str()
+            .unwrap()
+            .contains("podman"));
     }
 
     // ==================== Cleanup Tests ====================
@@ -489,7 +581,7 @@ mod tests {
             RuntimeType::Podman,
             "python".to_string(),
         );
-        
+
         assert_eq!(result.id, "test-id");
         assert_eq!(result.runtime, RuntimeType::Podman);
         assert_eq!(result.exit_code, Some(0));
@@ -505,7 +597,7 @@ mod tests {
             RuntimeType::Podman,
             "python".to_string(),
         );
-        
+
         assert!(matches!(result.status, ExecutionStatus::Timeout));
         assert_eq!(result.runtime, RuntimeType::Podman);
         assert!(result.error.is_some());
@@ -517,7 +609,7 @@ mod tests {
     #[ignore] // Run with --ignored flag when Podman is available
     async fn test_execute_simple_python_podman() {
         let runtime = PodmanRuntime::new();
-        
+
         if !runtime.is_available().await {
             return;
         }
@@ -532,9 +624,11 @@ mod tests {
             max_output_size: 1024 * 1024,
         };
 
-        let result = runtime.execute(&request, language_config, &exec_config).await;
+        let result = runtime
+            .execute(&request, language_config, &exec_config)
+            .await;
         assert!(result.is_ok());
-        
+
         let execution_result = result.unwrap();
         assert!(execution_result.stdout.contains("Hello, World!"));
         assert_eq!(execution_result.exit_code, Some(0));
@@ -544,7 +638,7 @@ mod tests {
     #[ignore]
     async fn test_execute_with_stdin_podman() {
         let runtime = PodmanRuntime::new();
-        
+
         if !runtime.is_available().await {
             return;
         }
@@ -560,9 +654,11 @@ mod tests {
             max_output_size: 1024 * 1024,
         };
 
-        let result = runtime.execute(&request, language_config, &exec_config).await;
+        let result = runtime
+            .execute(&request, language_config, &exec_config)
+            .await;
         assert!(result.is_ok());
-        
+
         let execution_result = result.unwrap();
         assert!(execution_result.stdout.contains("Hello, World!"));
     }
@@ -571,7 +667,7 @@ mod tests {
     #[ignore]
     async fn test_execute_with_error_podman() {
         let runtime = PodmanRuntime::new();
-        
+
         if !runtime.is_available().await {
             return;
         }
@@ -586,25 +682,32 @@ mod tests {
             max_output_size: 1024 * 1024,
         };
 
-        let result = runtime.execute(&request, language_config, &exec_config).await;
+        let result = runtime
+            .execute(&request, language_config, &exec_config)
+            .await;
         assert!(result.is_ok());
-        
+
         let execution_result = result.unwrap();
-        assert!(execution_result.stderr.contains("Exception") || execution_result.exit_code != Some(0));
+        assert!(
+            execution_result.stderr.contains("Exception") || execution_result.exit_code != Some(0)
+        );
     }
 
     #[tokio::test]
     #[ignore]
     async fn test_execute_with_additional_files_podman() {
         let runtime = PodmanRuntime::new();
-        
+
         if !runtime.is_available().await {
             return;
         }
 
-        let mut request = ExecutionRequest::new("python", "with open('data.txt') as f: print(f.read())");
-        request.files.insert("data.txt".to_string(), "Hello from file!".to_string());
-        
+        let mut request =
+            ExecutionRequest::new("python", "with open('data.txt') as f: print(f.read())");
+        request
+            .files
+            .insert("data.txt".to_string(), "Hello from file!".to_string());
+
         let language_config = super::super::languages::get_language_config("python").unwrap();
         let exec_config = ExecutionConfig {
             timeout: Duration::from_secs(30),
@@ -614,9 +717,11 @@ mod tests {
             max_output_size: 1024 * 1024,
         };
 
-        let result = runtime.execute(&request, language_config, &exec_config).await;
+        let result = runtime
+            .execute(&request, language_config, &exec_config)
+            .await;
         assert!(result.is_ok());
-        
+
         let execution_result = result.unwrap();
         assert!(execution_result.stdout.contains("Hello from file!"));
     }

@@ -3,6 +3,7 @@
  */
 
 import type { TokenUsage } from './usage';
+import type { SourceVerification } from './search';
 
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool';
 
@@ -144,6 +145,8 @@ export interface Source {
   url: string;
   snippet: string;
   relevance: number;
+  /** Optional source verification data */
+  verification?: SourceVerification;
 }
 
 export type MessageReaction = 'like' | 'dislike';

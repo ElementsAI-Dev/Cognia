@@ -34,11 +34,11 @@ pub type PromptsGetResponse = PromptContent;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mcp::types::{PromptArgument, PromptMessage, PromptRole, PromptMessageContent};
+    use crate::mcp::types::{PromptArgument, PromptMessage, PromptMessageContent, PromptRole};
 
-    // ============================================================================ 
-    // PromptsListParams Tests 
-    // ============================================================================ 
+    // ============================================================================
+    // PromptsListParams Tests
+    // ============================================================================
 
     #[test]
     fn test_prompts_list_params_default() {
@@ -84,9 +84,9 @@ mod tests {
         assert!(params.cursor.is_none());
     }
 
-    // ============================================================================ 
-    // PromptsListResponse Tests 
-    // ============================================================================ 
+    // ============================================================================
+    // PromptsListResponse Tests
+    // ============================================================================
 
     #[test]
     fn test_prompts_list_response_empty() {
@@ -104,13 +104,11 @@ mod tests {
                 McpPrompt {
                     name: "code_review".to_string(),
                     description: Some("Review code".to_string()),
-                    arguments: Some(vec![
-                        PromptArgument {
-                            name: "code".to_string(),
-                            description: Some("Code to review".to_string()),
-                            required: true,
-                        },
-                    ]),
+                    arguments: Some(vec![PromptArgument {
+                        name: "code".to_string(),
+                        description: Some("Code to review".to_string()),
+                        required: true,
+                    }]),
                 },
                 McpPrompt {
                     name: "summarize".to_string(),
@@ -165,9 +163,9 @@ mod tests {
         assert_eq!(response.next_cursor, Some("token".to_string()));
     }
 
-    // ============================================================================ 
-    // PromptsGetParams Tests 
-    // ============================================================================ 
+    // ============================================================================
+    // PromptsGetParams Tests
+    // ============================================================================
 
     #[test]
     fn test_prompts_get_params_creation() {
@@ -242,9 +240,9 @@ mod tests {
         assert!(params.arguments.is_none());
     }
 
-    // ============================================================================ 
-    // PromptContent Tests (via type alias) 
-    // ============================================================================ 
+    // ============================================================================
+    // PromptContent Tests (via type alias)
+    // ============================================================================
 
     #[test]
     fn test_prompt_content_with_description() {
@@ -303,9 +301,9 @@ mod tests {
         assert_eq!(content.messages.len(), 2);
     }
 
-    // ============================================================================ 
-    // Edge Cases 
-    // ============================================================================ 
+    // ============================================================================
+    // Edge Cases
+    // ============================================================================
 
     #[test]
     fn test_prompts_get_params_with_complex_arguments() {

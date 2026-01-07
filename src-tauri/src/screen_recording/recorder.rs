@@ -3,8 +3,8 @@
 //! Uses FFmpeg for cross-platform screen recording
 
 use super::{
-    AudioDevices, AudioDevice, MonitorInfo, RecordingConfig, RecordingMetadata, 
-    RecordingRegion, RecordingStatus,
+    AudioDevice, AudioDevices, MonitorInfo, RecordingConfig, RecordingMetadata, RecordingRegion,
+    RecordingStatus,
 };
 use log::{debug, error, info, trace, warn};
 use parking_lot::RwLock;
@@ -78,7 +78,7 @@ impl ScreenRecorder {
         if let Some(start) = state.start_time {
             let now = chrono::Utc::now().timestamp_millis();
             let elapsed = (now - start) as u64;
-            
+
             // Subtract paused time
             let paused = if state.status == RecordingStatus::Paused {
                 if let Some(pause_time) = state.pause_time {
@@ -89,7 +89,7 @@ impl ScreenRecorder {
             } else {
                 state.total_paused_ms
             };
-            
+
             elapsed.saturating_sub(paused)
         } else {
             0
@@ -102,23 +102,31 @@ impl ScreenRecorder {
         monitor_index: Option<usize>,
         config: RecordingConfig,
     ) -> Result<String, String> {
-        info!("[ScreenRecorder] start_fullscreen called, monitor_index={:?}", monitor_index);
+        info!(
+            "[ScreenRecorder] start_fullscreen called, monitor_index={:?}",
+            monitor_index
+        );
         self.check_not_recording()?;
-        
+
         let monitors = self.get_monitors();
         debug!("[ScreenRecorder] Found {} monitors", monitors.len());
-        
+
         let monitor = monitor_index
             .and_then(|i| monitors.get(i))
             .or_else(|| monitors.iter().find(|m| m.is_primary))
             .ok_or("No monitor found")?;
-        
-        info!("[ScreenRecorder] Selected monitor: index={}, name={}, {}x{}, primary={}",
-            monitor.index, monitor.name, monitor.width, monitor.height, monitor.is_primary);
+
+        info!(
+            "[ScreenRecorder] Selected monitor: index={}, name={}, {}x{}, primary={}",
+            monitor.index, monitor.name, monitor.width, monitor.height, monitor.is_primary
+        );
 
         let recording_id = Uuid::new_v4().to_string();
         let output_path = self.generate_output_path(&config, &recording_id)?;
-        info!("[ScreenRecorder] Recording ID: {}, output path: {}", recording_id, output_path);
+        info!(
+            "[ScreenRecorder] Recording ID: {}, output path: {}",
+            recording_id, output_path
+        );
 
         // Update state
         {
@@ -138,7 +146,10 @@ impl ScreenRecorder {
 
         // Wait for countdown
         if config.countdown_seconds > 0 {
-            info!("[ScreenRecorder] Starting countdown: {} seconds", config.countdown_seconds);
+            info!(
+                "[ScreenRecorder] Starting countdown: {} seconds",
+                config.countdown_seconds
+            );
             for i in (1..=config.countdown_seconds).rev() {
                 debug!("[ScreenRecorder] Countdown: {}", i);
                 let _ = self.app_handle.emit("recording-countdown", i);
@@ -155,7 +166,10 @@ impl ScreenRecorder {
             let mut state = self.state.write();
             state.status = RecordingStatus::Recording;
             state.start_time = Some(chrono::Utc::now().timestamp_millis());
-            info!("[ScreenRecorder] Recording started at timestamp: {:?}", state.start_time);
+            info!(
+                "[ScreenRecorder] Recording started at timestamp: {:?}",
+                state.start_time
+            );
         }
 
         self.emit_status_change();
@@ -168,17 +182,29 @@ impl ScreenRecorder {
         window_title: Option<String>,
         config: RecordingConfig,
     ) -> Result<String, String> {
-        info!("[ScreenRecorder] start_window called, window_title={:?}", window_title);
+        info!(
+            "[ScreenRecorder] start_window called, window_title={:?}",
+            window_title
+        );
         self.check_not_recording()?;
 
         let recording_id = Uuid::new_v4().to_string();
         let output_path = self.generate_output_path(&config, &recording_id)?;
-        info!("[ScreenRecorder] Recording ID: {}, output path: {}", recording_id, output_path);
+        info!(
+            "[ScreenRecorder] Recording ID: {}, output path: {}",
+            recording_id, output_path
+        );
 
         // Get window dimensions (simplified - use primary monitor for now)
         let monitors = self.get_monitors();
-        let monitor = monitors.iter().find(|m| m.is_primary).ok_or("No monitor found")?;
-        debug!("[ScreenRecorder] Using primary monitor: {}x{}", monitor.width, monitor.height);
+        let monitor = monitors
+            .iter()
+            .find(|m| m.is_primary)
+            .ok_or("No monitor found")?;
+        debug!(
+            "[ScreenRecorder] Using primary monitor: {}x{}",
+            monitor.width, monitor.height
+        );
 
         {
             let mut state = self.state.write();
@@ -196,7 +222,10 @@ impl ScreenRecorder {
 
         // Countdown
         if config.countdown_seconds > 0 {
-            info!("[ScreenRecorder] Starting countdown: {} seconds", config.countdown_seconds);
+            info!(
+                "[ScreenRecorder] Starting countdown: {} seconds",
+                config.countdown_seconds
+            );
             for i in (1..=config.countdown_seconds).rev() {
                 debug!("[ScreenRecorder] Countdown: {}", i);
                 let _ = self.app_handle.emit("recording-countdown", i);
@@ -206,13 +235,22 @@ impl ScreenRecorder {
 
         // Start recording
         info!("[ScreenRecorder] Starting FFmpeg window recording process");
-        self.start_ffmpeg_recording(&config, &output_path, monitor.width, monitor.height, window_title.as_deref())?;
+        self.start_ffmpeg_recording(
+            &config,
+            &output_path,
+            monitor.width,
+            monitor.height,
+            window_title.as_deref(),
+        )?;
 
         {
             let mut state = self.state.write();
             state.status = RecordingStatus::Recording;
             state.start_time = Some(chrono::Utc::now().timestamp_millis());
-            info!("[ScreenRecorder] Window recording started at timestamp: {:?}", state.start_time);
+            info!(
+                "[ScreenRecorder] Window recording started at timestamp: {:?}",
+                state.start_time
+            );
         }
 
         self.emit_status_change();
@@ -225,13 +263,18 @@ impl ScreenRecorder {
         region: RecordingRegion,
         config: RecordingConfig,
     ) -> Result<String, String> {
-        info!("[ScreenRecorder] start_region called: x={}, y={}, {}x{}",
-            region.x, region.y, region.width, region.height);
+        info!(
+            "[ScreenRecorder] start_region called: x={}, y={}, {}x{}",
+            region.x, region.y, region.width, region.height
+        );
         self.check_not_recording()?;
 
         let recording_id = Uuid::new_v4().to_string();
         let output_path = self.generate_output_path(&config, &recording_id)?;
-        info!("[ScreenRecorder] Recording ID: {}, output path: {}", recording_id, output_path);
+        info!(
+            "[ScreenRecorder] Recording ID: {}, output path: {}",
+            recording_id, output_path
+        );
 
         {
             let mut state = self.state.write();
@@ -249,7 +292,10 @@ impl ScreenRecorder {
 
         // Countdown
         if config.countdown_seconds > 0 {
-            info!("[ScreenRecorder] Starting countdown: {} seconds", config.countdown_seconds);
+            info!(
+                "[ScreenRecorder] Starting countdown: {} seconds",
+                config.countdown_seconds
+            );
             for i in (1..=config.countdown_seconds).rev() {
                 debug!("[ScreenRecorder] Countdown: {}", i);
                 let _ = self.app_handle.emit("recording-countdown", i);
@@ -265,7 +311,10 @@ impl ScreenRecorder {
             let mut state = self.state.write();
             state.status = RecordingStatus::Recording;
             state.start_time = Some(chrono::Utc::now().timestamp_millis());
-            info!("[ScreenRecorder] Region recording started at timestamp: {:?}", state.start_time);
+            info!(
+                "[ScreenRecorder] Region recording started at timestamp: {:?}",
+                state.start_time
+            );
         }
 
         self.emit_status_change();
@@ -277,13 +326,19 @@ impl ScreenRecorder {
         info!("[ScreenRecorder] pause called");
         let mut state = self.state.write();
         if state.status != RecordingStatus::Recording {
-            warn!("[ScreenRecorder] Cannot pause - not in Recording state, current: {:?}", state.status);
+            warn!(
+                "[ScreenRecorder] Cannot pause - not in Recording state, current: {:?}",
+                state.status
+            );
             return Err("Not recording".to_string());
         }
 
         state.status = RecordingStatus::Paused;
         state.pause_time = Some(chrono::Utc::now().timestamp_millis());
-        info!("[ScreenRecorder] Recording paused at timestamp: {:?}", state.pause_time);
+        info!(
+            "[ScreenRecorder] Recording paused at timestamp: {:?}",
+            state.pause_time
+        );
         drop(state);
 
         self.emit_status_change();
@@ -295,7 +350,10 @@ impl ScreenRecorder {
         info!("[ScreenRecorder] resume called");
         let mut state = self.state.write();
         if state.status != RecordingStatus::Paused {
-            warn!("[ScreenRecorder] Cannot resume - not in Paused state, current: {:?}", state.status);
+            warn!(
+                "[ScreenRecorder] Cannot resume - not in Paused state, current: {:?}",
+                state.status
+            );
             return Err("Not paused".to_string());
         }
 
@@ -303,8 +361,10 @@ impl ScreenRecorder {
             let now = chrono::Utc::now().timestamp_millis();
             let paused_duration = (now - pause_time) as u64;
             state.total_paused_ms += paused_duration;
-            info!("[ScreenRecorder] Recording resumed, paused for {}ms, total paused: {}ms",
-                paused_duration, state.total_paused_ms);
+            info!(
+                "[ScreenRecorder] Recording resumed, paused for {}ms, total paused: {}ms",
+                paused_duration, state.total_paused_ms
+            );
         }
 
         state.status = RecordingStatus::Recording;
@@ -320,7 +380,10 @@ impl ScreenRecorder {
         info!("[ScreenRecorder] stop called");
         let state = self.state.read();
         if state.status != RecordingStatus::Recording && state.status != RecordingStatus::Paused {
-            warn!("[ScreenRecorder] Cannot stop - not in Recording or Paused state, current: {:?}", state.status);
+            warn!(
+                "[ScreenRecorder] Cannot stop - not in Recording or Paused state, current: {:?}",
+                state.status
+            );
             return Err("Not recording".to_string());
         }
         let recording_id = state.recording_id.clone();
@@ -330,7 +393,10 @@ impl ScreenRecorder {
         {
             let mut state = self.state.write();
             state.status = RecordingStatus::Processing;
-            info!("[ScreenRecorder] Status changed to Processing for recording: {:?}", recording_id);
+            info!(
+                "[ScreenRecorder] Status changed to Processing for recording: {:?}",
+                recording_id
+            );
         }
         self.emit_status_change();
 
@@ -341,8 +407,10 @@ impl ScreenRecorder {
         // Get metadata
         info!("[ScreenRecorder] Creating recording metadata");
         let metadata = self.create_metadata()?;
-        info!("[ScreenRecorder] Recording metadata created: id={}, duration={}ms, size={} bytes",
-            metadata.id, metadata.duration_ms, metadata.file_size);
+        info!(
+            "[ScreenRecorder] Recording metadata created: id={}, duration={}ms, size={} bytes",
+            metadata.id, metadata.duration_ms, metadata.file_size
+        );
 
         // Reset state
         {
@@ -370,13 +438,16 @@ impl ScreenRecorder {
         let output_path = state.output_path.clone();
         let recording_id = state.recording_id.clone();
         drop(state);
-        
+
         info!("[ScreenRecorder] Cancelling recording: {:?}", recording_id);
 
         // Stop FFmpeg
         info!("[ScreenRecorder] Stopping FFmpeg process for cancellation");
         if let Err(e) = self.stop_ffmpeg() {
-            warn!("[ScreenRecorder] Error stopping FFmpeg during cancel: {}", e);
+            warn!(
+                "[ScreenRecorder] Error stopping FFmpeg during cancel: {}",
+                e
+            );
         }
 
         // Delete partial file
@@ -409,19 +480,25 @@ impl ScreenRecorder {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status();
-        
+
         match result {
             Ok(status) => {
                 let available = status.success();
                 if available {
                     debug!("[ScreenRecorder] FFmpeg check passed");
                 } else {
-                    warn!("[ScreenRecorder] FFmpeg check failed with status: {:?}", status.code());
+                    warn!(
+                        "[ScreenRecorder] FFmpeg check failed with status: {:?}",
+                        status.code()
+                    );
                 }
                 available
             }
             Err(e) => {
-                error!("[ScreenRecorder] FFmpeg check failed - command error: {}", e);
+                error!(
+                    "[ScreenRecorder] FFmpeg check failed - command error: {}",
+                    e
+                );
                 false
             }
         }
@@ -450,10 +527,10 @@ impl ScreenRecorder {
 
     #[cfg(target_os = "windows")]
     fn get_monitors_windows(&self) -> Vec<MonitorInfo> {
-        use windows::Win32::Graphics::Gdi::{
-            EnumDisplayMonitors, GetMonitorInfoW, MONITORINFOEXW, HDC, HMONITOR,
-        };
         use windows::Win32::Foundation::{BOOL, LPARAM, RECT};
+        use windows::Win32::Graphics::Gdi::{
+            EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITORINFOEXW,
+        };
 
         debug!("[ScreenRecorder] Enumerating Windows monitors");
         let mut monitors = Vec::new();
@@ -465,16 +542,20 @@ impl ScreenRecorder {
             lparam: LPARAM,
         ) -> BOOL {
             let monitors = &mut *(lparam.0 as *mut Vec<MonitorInfo>);
-            
+
             let mut info: MONITORINFOEXW = std::mem::zeroed();
             info.monitorInfo.cbSize = std::mem::size_of::<MONITORINFOEXW>() as u32;
-            
+
             if GetMonitorInfoW(hmonitor, &mut info.monitorInfo).as_bool() {
                 let rect = info.monitorInfo.rcMonitor;
                 let name = String::from_utf16_lossy(
-                    &info.szDevice[..info.szDevice.iter().position(|&c| c == 0).unwrap_or(info.szDevice.len())]
+                    &info.szDevice[..info
+                        .szDevice
+                        .iter()
+                        .position(|&c| c == 0)
+                        .unwrap_or(info.szDevice.len())],
                 );
-                
+
                 monitors.push(MonitorInfo {
                     index: monitors.len(),
                     name,
@@ -486,7 +567,7 @@ impl ScreenRecorder {
                     scale_factor: 1.0,
                 });
             }
-            
+
             BOOL(1)
         }
 
@@ -512,11 +593,13 @@ impl ScreenRecorder {
                 scale_factor: 1.0,
             });
         }
-        
+
         debug!("[ScreenRecorder] Found {} monitors", monitors.len());
         for (i, m) in monitors.iter().enumerate() {
-            debug!("[ScreenRecorder]   Monitor {}: {} - {}x{} at ({}, {}), primary={}",
-                i, m.name, m.width, m.height, m.x, m.y, m.is_primary);
+            debug!(
+                "[ScreenRecorder]   Monitor {}: {} - {}x{} at ({}, {}), primary={}",
+                i, m.name, m.width, m.height, m.x, m.y, m.is_primary
+            );
         }
 
         monitors
@@ -528,16 +611,17 @@ impl ScreenRecorder {
         // Simplified - actual implementation would query system audio devices
         let devices = AudioDevices {
             system_audio_available: cfg!(target_os = "windows"),
-            microphones: vec![
-                AudioDevice {
-                    id: "default".to_string(),
-                    name: "Default Microphone".to_string(),
-                    is_default: true,
-                },
-            ],
+            microphones: vec![AudioDevice {
+                id: "default".to_string(),
+                name: "Default Microphone".to_string(),
+                is_default: true,
+            }],
         };
-        debug!("[ScreenRecorder] Audio devices: system_audio={}, microphones={}",
-            devices.system_audio_available, devices.microphones.len());
+        debug!(
+            "[ScreenRecorder] Audio devices: system_audio={}, microphones={}",
+            devices.system_audio_available,
+            devices.microphones.len()
+        );
         devices
     }
 
@@ -546,21 +630,36 @@ impl ScreenRecorder {
     fn check_not_recording(&self) -> Result<(), String> {
         let state = self.state.read();
         if state.status != RecordingStatus::Idle {
-            warn!("[ScreenRecorder] check_not_recording failed - current status: {:?}", state.status);
+            warn!(
+                "[ScreenRecorder] check_not_recording failed - current status: {:?}",
+                state.status
+            );
             return Err("Already recording".to_string());
         }
         trace!("[ScreenRecorder] check_not_recording passed - status is Idle");
         Ok(())
     }
 
-    fn generate_output_path(&self, config: &RecordingConfig, recording_id: &str) -> Result<String, String> {
+    fn generate_output_path(
+        &self,
+        config: &RecordingConfig,
+        recording_id: &str,
+    ) -> Result<String, String> {
         let dir = config.save_directory.clone().ok_or_else(|| {
             error!("[ScreenRecorder] No save directory configured");
             "No save directory configured".to_string()
         })?;
         let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
-        let filename = format!("recording_{}_{}.{}", timestamp, &recording_id[..8], config.format);
-        let path = std::path::Path::new(&dir).join(&filename).to_string_lossy().to_string();
+        let filename = format!(
+            "recording_{}_{}.{}",
+            timestamp,
+            &recording_id[..8],
+            config.format
+        );
+        let path = std::path::Path::new(&dir)
+            .join(&filename)
+            .to_string_lossy()
+            .to_string();
         debug!("[ScreenRecorder] Generated output path: {}", path);
         Ok(path)
     }
@@ -573,7 +672,10 @@ impl ScreenRecorder {
         _height: u32,
         window_title: Option<&str>,
     ) -> Result<(), String> {
-        info!("[ScreenRecorder] Starting FFmpeg recording to: {}", output_path);
+        info!(
+            "[ScreenRecorder] Starting FFmpeg recording to: {}",
+            output_path
+        );
         let mut args = Vec::new();
 
         // Input source (platform-specific)
@@ -607,21 +709,21 @@ impl ScreenRecorder {
         let frame_rate_str = config.frame_rate.to_string();
         args.extend(["-framerate", &frame_rate_str]);
         debug!("[ScreenRecorder] FFmpeg framerate: {}", config.frame_rate);
-        
+
         // Codec
         let codec = match config.codec.as_str() {
             "h265" => {
                 args.extend(["-c:v", "libx265"]);
                 "libx265"
-            },
+            }
             "vp9" => {
                 args.extend(["-c:v", "libvpx-vp9"]);
                 "libvpx-vp9"
-            },
+            }
             _ => {
                 args.extend(["-c:v", "libx264"]);
                 "libx264"
-            },
+            }
         };
         debug!("[ScreenRecorder] FFmpeg codec: {}", codec);
 
@@ -642,7 +744,10 @@ impl ScreenRecorder {
         } else {
             args.extend(["-draw_mouse", "0"]);
         }
-        debug!("[ScreenRecorder] FFmpeg show cursor: {}", config.show_cursor);
+        debug!(
+            "[ScreenRecorder] FFmpeg show cursor: {}",
+            config.show_cursor
+        );
 
         // Audio
         #[cfg(target_os = "windows")]
@@ -654,9 +759,12 @@ impl ScreenRecorder {
         // Output
         args.extend(["-y", output_path]);
 
-        info!("[ScreenRecorder] Spawning FFmpeg process with {} arguments", args.len());
+        info!(
+            "[ScreenRecorder] Spawning FFmpeg process with {} arguments",
+            args.len()
+        );
         debug!("[ScreenRecorder] FFmpeg command: ffmpeg {}", args.join(" "));
-        
+
         let child = Command::new("ffmpeg")
             .args(&args)
             .stdin(Stdio::piped())
@@ -667,8 +775,11 @@ impl ScreenRecorder {
                 error!("[ScreenRecorder] Failed to spawn FFmpeg process: {}", e);
                 format!("Failed to start FFmpeg: {}", e)
             })?;
-        
-        info!("[ScreenRecorder] FFmpeg process spawned successfully, PID: {:?}", child.id());
+
+        info!(
+            "[ScreenRecorder] FFmpeg process spawned successfully, PID: {:?}",
+            child.id()
+        );
 
         *self.ffmpeg_process.write() = Some(child);
         Ok(())
@@ -680,8 +791,10 @@ impl ScreenRecorder {
         output_path: &str,
         region: &RecordingRegion,
     ) -> Result<(), String> {
-        info!("[ScreenRecorder] Starting FFmpeg region recording: {}x{} at ({}, {}) -> {}",
-            region.width, region.height, region.x, region.y, output_path);
+        info!(
+            "[ScreenRecorder] Starting FFmpeg region recording: {}x{} at ({}, {}) -> {}",
+            region.width, region.height, region.x, region.y, output_path
+        );
         let mut args = Vec::new();
 
         let offset_x_str = region.x.to_string();
@@ -692,25 +805,38 @@ impl ScreenRecorder {
 
         #[cfg(target_os = "windows")]
         {
-            debug!("[ScreenRecorder] FFmpeg region input: gdigrab with offset ({}, {}), size {}",
-                region.x, region.y, video_size_str);
+            debug!(
+                "[ScreenRecorder] FFmpeg region input: gdigrab with offset ({}, {}), size {}",
+                region.x, region.y, video_size_str
+            );
             args.extend([
-                "-f", "gdigrab",
-                "-offset_x", &offset_x_str,
-                "-offset_y", &offset_y_str,
-                "-video_size", &video_size_str,
-                "-i", "desktop",
+                "-f",
+                "gdigrab",
+                "-offset_x",
+                &offset_x_str,
+                "-offset_y",
+                &offset_y_str,
+                "-video_size",
+                &video_size_str,
+                "-i",
+                "desktop",
             ]);
         }
 
         #[cfg(not(target_os = "windows"))]
         {
             let input_str = format!(":0.0+{},{}", region.x, region.y);
-            debug!("[ScreenRecorder] FFmpeg region input: x11grab {}, size {}", input_str, video_size_str);
+            debug!(
+                "[ScreenRecorder] FFmpeg region input: x11grab {}, size {}",
+                input_str, video_size_str
+            );
             args.extend([
-                "-f", "x11grab",
-                "-video_size", &video_size_str,
-                "-i", &input_str,
+                "-f",
+                "x11grab",
+                "-video_size",
+                &video_size_str,
+                "-i",
+                &input_str,
             ]);
         }
 
@@ -718,9 +844,15 @@ impl ScreenRecorder {
         args.extend(["-c:v", "libx264"]);
         args.extend(["-crf", &crf_str]);
         args.extend(["-y", output_path]);
-        
-        debug!("[ScreenRecorder] FFmpeg region settings: fps={}, crf={}", frame_rate_str, crf_str);
-        info!("[ScreenRecorder] Spawning FFmpeg region process with {} arguments", args.len());
+
+        debug!(
+            "[ScreenRecorder] FFmpeg region settings: fps={}, crf={}",
+            frame_rate_str, crf_str
+        );
+        info!(
+            "[ScreenRecorder] Spawning FFmpeg region process with {} arguments",
+            args.len()
+        );
         debug!("[ScreenRecorder] FFmpeg command: ffmpeg {}", args.join(" "));
 
         let child = Command::new("ffmpeg")
@@ -730,11 +862,17 @@ impl ScreenRecorder {
             .stderr(Stdio::null())
             .spawn()
             .map_err(|e| {
-                error!("[ScreenRecorder] Failed to spawn FFmpeg region process: {}", e);
+                error!(
+                    "[ScreenRecorder] Failed to spawn FFmpeg region process: {}",
+                    e
+                );
                 format!("Failed to start FFmpeg: {}", e)
             })?;
-        
-        info!("[ScreenRecorder] FFmpeg region process spawned successfully, PID: {:?}", child.id());
+
+        info!(
+            "[ScreenRecorder] FFmpeg region process spawned successfully, PID: {:?}",
+            child.id()
+        );
 
         *self.ffmpeg_process.write() = Some(child);
         Ok(())
@@ -745,23 +883,32 @@ impl ScreenRecorder {
         let mut process = self.ffmpeg_process.write();
         if let Some(ref mut child) = *process {
             let pid = child.id();
-            debug!("[ScreenRecorder] Sending 'q' to FFmpeg process (PID: {:?})", pid);
-            
+            debug!(
+                "[ScreenRecorder] Sending 'q' to FFmpeg process (PID: {:?})",
+                pid
+            );
+
             // Send 'q' to gracefully stop FFmpeg
             if let Some(ref mut stdin) = child.stdin {
                 use std::io::Write;
                 match stdin.write_all(b"q") {
                     Ok(_) => debug!("[ScreenRecorder] Successfully sent quit signal to FFmpeg"),
-                    Err(e) => warn!("[ScreenRecorder] Failed to send quit signal to FFmpeg: {}", e),
+                    Err(e) => warn!(
+                        "[ScreenRecorder] Failed to send quit signal to FFmpeg: {}",
+                        e
+                    ),
                 }
             } else {
                 warn!("[ScreenRecorder] FFmpeg stdin not available, cannot send quit signal");
             }
-            
+
             // Wait for process to finish
             debug!("[ScreenRecorder] Waiting for FFmpeg process to exit");
             match child.wait() {
-                Ok(status) => info!("[ScreenRecorder] FFmpeg process exited with status: {:?}", status),
+                Ok(status) => info!(
+                    "[ScreenRecorder] FFmpeg process exited with status: {:?}",
+                    status
+                ),
                 Err(e) => warn!("[ScreenRecorder] Error waiting for FFmpeg process: {}", e),
             }
         } else {
@@ -775,7 +922,7 @@ impl ScreenRecorder {
     fn create_metadata(&self) -> Result<RecordingMetadata, String> {
         debug!("[ScreenRecorder] Creating recording metadata");
         let state = self.state.read();
-        
+
         let recording_id = state.recording_id.clone().ok_or_else(|| {
             error!("[ScreenRecorder] Cannot create metadata - no recording ID");
             "No recording ID".to_string()
@@ -786,30 +933,33 @@ impl ScreenRecorder {
         })?;
         let end_time = chrono::Utc::now().timestamp_millis();
         let duration_ms = (end_time - start_time) as u64 - state.total_paused_ms;
-        
-        debug!("[ScreenRecorder] Metadata: id={}, start={}, end={}, duration={}ms (paused: {}ms)",
-            recording_id, start_time, end_time, duration_ms, state.total_paused_ms);
-        
+
+        debug!(
+            "[ScreenRecorder] Metadata: id={}, start={}, end={}, duration={}ms (paused: {}ms)",
+            recording_id, start_time, end_time, duration_ms, state.total_paused_ms
+        );
+
         let file_path = state.output_path.clone();
         let file_size = file_path
             .as_ref()
-            .and_then(|p| {
-                match std::fs::metadata(p) {
-                    Ok(m) => {
-                        debug!("[ScreenRecorder] Output file size: {} bytes", m.len());
-                        Some(m)
-                    },
-                    Err(e) => {
-                        warn!("[ScreenRecorder] Cannot read output file metadata: {}", e);
-                        None
-                    }
+            .and_then(|p| match std::fs::metadata(p) {
+                Ok(m) => {
+                    debug!("[ScreenRecorder] Output file size: {} bytes", m.len());
+                    Some(m)
+                }
+                Err(e) => {
+                    warn!("[ScreenRecorder] Cannot read output file metadata: {}", e);
+                    None
                 }
             })
             .map(|m| m.len())
             .unwrap_or(0);
-        
+
         if file_size == 0 {
-            warn!("[ScreenRecorder] Output file has zero size or does not exist: {:?}", file_path);
+            warn!(
+                "[ScreenRecorder] Output file has zero size or does not exist: {:?}",
+                file_path
+            );
         }
 
         let metadata = RecordingMetadata {
@@ -826,26 +976,31 @@ impl ScreenRecorder {
             file_path: file_path.clone(),
             file_size,
             has_audio: false, // TODO: Detect from config
-            thumbnail: None, // TODO: Generate thumbnail
+            thumbnail: None,  // TODO: Generate thumbnail
         };
-        
+
         info!("[ScreenRecorder] Metadata created: id={}, mode={}, {}x{}, duration={}ms, size={} bytes, path={:?}",
             metadata.id, metadata.mode, metadata.width, metadata.height,
             metadata.duration_ms, metadata.file_size, metadata.file_path);
-        
+
         Ok(metadata)
     }
 
     fn emit_status_change(&self) {
         let state = self.state.read();
         let duration = self.get_duration();
-        debug!("[ScreenRecorder] Emitting status change: {:?}, recording_id={:?}, duration={}ms",
-            state.status, state.recording_id, duration);
-        let _ = self.app_handle.emit("recording-status-changed", serde_json::json!({
-            "status": state.status,
-            "recording_id": state.recording_id,
-            "duration_ms": duration,
-        }));
+        debug!(
+            "[ScreenRecorder] Emitting status change: {:?}, recording_id={:?}, duration={}ms",
+            state.status, state.recording_id, duration
+        );
+        let _ = self.app_handle.emit(
+            "recording-status-changed",
+            serde_json::json!({
+                "status": state.status,
+                "recording_id": state.recording_id,
+                "duration_ms": duration,
+            }),
+        );
     }
 }
 

@@ -15,6 +15,7 @@ import {
   createAgent,
   createMcpToolsFromStore,
   createRAGSearchTool,
+  createListRAGCollectionsTool,
   buildRAGConfigFromSettings,
   type AgentConfig,
   type AgentResult,
@@ -101,8 +102,10 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   const mcpServers = useMcpStore((state) => state.servers);
   const mcpCallTool = useMcpStore((state) => state.callTool);
 
-  // Get vector store settings for RAG
+  // Get vector store settings and collections for RAG
   const vectorSettings = useVectorStore((state) => state.settings);
+  const vectorCollections = useVectorStore((state) => state.collections);
+  const getCollectionNames = useVectorStore((state) => state.getCollectionNames);
 
   // Build skills system prompt using the optimized utility function
   const skillsSystemPrompt = useMemo(() => {
@@ -160,8 +163,28 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   // Create RAG search tool if config is available
   const ragTools = useMemo((): Record<string, AgentTool> => {
     if (!ragConfig) return {};
-    return { rag_search: createRAGSearchTool(ragConfig) };
-  }, [ragConfig]);
+    
+    const collectionNames = getCollectionNames();
+    const tools: Record<string, AgentTool> = {
+      rag_search: createRAGSearchTool(ragConfig, {
+        availableCollections: collectionNames,
+        defaultCollectionName: vectorSettings.defaultCollectionName,
+      }),
+    };
+    
+    // Add collection listing tool for discovery
+    if (vectorCollections.length > 0) {
+      tools.list_rag_collections = createListRAGCollectionsTool(() =>
+        vectorCollections.map(c => ({
+          name: c.name,
+          description: c.description,
+          documentCount: c.documentCount,
+        }))
+      );
+    }
+    
+    return tools;
+  }, [ragConfig, getCollectionNames, vectorSettings.defaultCollectionName, vectorCollections]);
 
   // Merge skill tools, MCP tools, RAG tools, and registered tools
   const allTools = useMemo(() => ({

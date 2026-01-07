@@ -78,10 +78,7 @@ pub async fn sandbox_execute(
         network_enabled: request.network_enabled,
     };
 
-    state
-        .execute(exec_request)
-        .await
-        .map_err(|e| e.to_string())
+    state.execute(exec_request).await.map_err(|e| e.to_string())
 }
 
 /// Get sandbox status
@@ -93,7 +90,11 @@ pub async fn sandbox_get_status(state: State<'_, SandboxState>) -> Result<Sandbo
 
     let mut runtime_statuses = Vec::new();
 
-    for rt in [RuntimeType::Docker, RuntimeType::Podman, RuntimeType::Native] {
+    for rt in [
+        RuntimeType::Docker,
+        RuntimeType::Podman,
+        RuntimeType::Native,
+    ] {
         runtime_statuses.push(RuntimeStatus {
             runtime_type: rt,
             available: available.contains(&rt),
@@ -125,13 +126,17 @@ pub async fn sandbox_update_config(
 
 /// Get available runtimes
 #[tauri::command]
-pub async fn sandbox_get_runtimes(state: State<'_, SandboxState>) -> Result<Vec<RuntimeType>, String> {
+pub async fn sandbox_get_runtimes(
+    state: State<'_, SandboxState>,
+) -> Result<Vec<RuntimeType>, String> {
     Ok(state.get_available_runtimes().await)
 }
 
 /// Get supported languages
 #[tauri::command]
-pub async fn sandbox_get_languages(state: State<'_, SandboxState>) -> Result<Vec<Language>, String> {
+pub async fn sandbox_get_languages(
+    state: State<'_, SandboxState>,
+) -> Result<Vec<Language>, String> {
     Ok(state.get_supported_languages().await)
 }
 
@@ -187,7 +192,7 @@ pub async fn sandbox_toggle_language(
     state: State<'_, SandboxState>,
 ) -> Result<(), String> {
     let mut config = state.config.write().await;
-    
+
     if enabled {
         if !config.enabled_languages.contains(&language) {
             config.enabled_languages.push(language);
@@ -195,7 +200,7 @@ pub async fn sandbox_toggle_language(
     } else {
         config.enabled_languages.retain(|l| l != &language);
     }
-    
+
     drop(config);
     state.save_config().await.map_err(|e| e.to_string())
 }
@@ -259,9 +264,7 @@ pub async fn sandbox_get_runtime_info(
 
 /// Cleanup all runtimes (containers, temp files)
 #[tauri::command]
-pub async fn sandbox_cleanup(
-    state: State<'_, SandboxState>,
-) -> Result<(), String> {
+pub async fn sandbox_cleanup(state: State<'_, SandboxState>) -> Result<(), String> {
     state.cleanup_all().await.map_err(|e| e.to_string())
 }
 
@@ -315,9 +318,7 @@ pub async fn sandbox_set_current_session(
 
 /// End current session
 #[tauri::command]
-pub async fn sandbox_end_session(
-    state: State<'_, SandboxState>,
-) -> Result<(), String> {
+pub async fn sandbox_end_session(state: State<'_, SandboxState>) -> Result<(), String> {
     state.end_session().await.map_err(|e| e.to_string())
 }
 
@@ -447,7 +448,7 @@ pub async fn sandbox_clear_history(
         .map(|s| DateTime::parse_from_rfc3339(&s).map(|dt| dt.with_timezone(&Utc)))
         .transpose()
         .map_err(|e| format!("Invalid date format: {}", e))?;
-    
+
     state
         .clear_execution_history(date)
         .await
@@ -488,8 +489,11 @@ pub async fn sandbox_create_snippet(
         created_at: now,
         updated_at: now,
     };
-    
-    state.create_snippet(&snippet).await.map_err(|e| e.to_string())
+
+    state
+        .create_snippet(&snippet)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Get snippet by ID
@@ -507,7 +511,10 @@ pub async fn sandbox_query_snippets(
     filter: SnippetFilter,
     state: State<'_, SandboxState>,
 ) -> Result<Vec<CodeSnippet>, String> {
-    state.query_snippets(&filter).await.map_err(|e| e.to_string())
+    state
+        .query_snippets(&filter)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Update a snippet
@@ -516,7 +523,10 @@ pub async fn sandbox_update_snippet(
     snippet: CodeSnippet,
     state: State<'_, SandboxState>,
 ) -> Result<(), String> {
-    state.update_snippet(&snippet).await.map_err(|e| e.to_string())
+    state
+        .update_snippet(&snippet)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Delete a snippet
@@ -578,14 +588,15 @@ pub async fn sandbox_get_language_stats(
 pub async fn sandbox_get_all_language_stats(
     state: State<'_, SandboxState>,
 ) -> Result<Vec<LanguageStats>, String> {
-    state.get_all_language_stats().await.map_err(|e| e.to_string())
+    state
+        .get_all_language_stats()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Get overall sandbox statistics
 #[tauri::command]
-pub async fn sandbox_get_stats(
-    state: State<'_, SandboxState>,
-) -> Result<SandboxStats, String> {
+pub async fn sandbox_get_stats(state: State<'_, SandboxState>) -> Result<SandboxStats, String> {
     state.get_sandbox_stats().await.map_err(|e| e.to_string())
 }
 
@@ -605,17 +616,13 @@ pub async fn sandbox_get_daily_counts(
 
 /// Export all sandbox data to JSON
 #[tauri::command]
-pub async fn sandbox_export_data(
-    state: State<'_, SandboxState>,
-) -> Result<String, String> {
+pub async fn sandbox_export_data(state: State<'_, SandboxState>) -> Result<String, String> {
     state.export_data().await.map_err(|e| e.to_string())
 }
 
 /// Get all unique tags
 #[tauri::command]
-pub async fn sandbox_get_all_tags(
-    state: State<'_, SandboxState>,
-) -> Result<Vec<String>, String> {
+pub async fn sandbox_get_all_tags(state: State<'_, SandboxState>) -> Result<Vec<String>, String> {
     state.get_all_tags().await.map_err(|e| e.to_string())
 }
 
@@ -629,17 +636,13 @@ pub async fn sandbox_get_all_categories(
 
 /// Get database size in bytes
 #[tauri::command]
-pub async fn sandbox_get_db_size(
-    state: State<'_, SandboxState>,
-) -> Result<u64, String> {
+pub async fn sandbox_get_db_size(state: State<'_, SandboxState>) -> Result<u64, String> {
     state.get_db_size().await.map_err(|e| e.to_string())
 }
 
 /// Vacuum database to reclaim space
 #[tauri::command]
-pub async fn sandbox_vacuum_db(
-    state: State<'_, SandboxState>,
-) -> Result<(), String> {
+pub async fn sandbox_vacuum_db(state: State<'_, SandboxState>) -> Result<(), String> {
     state.vacuum_db().await.map_err(|e| e.to_string())
 }
 
@@ -689,7 +692,7 @@ mod tests {
             "timeout_secs": 30,
             "memory_limit_mb": 256
         });
-        
+
         let request: ExecuteCodeRequest = serde_json::from_value(json).unwrap();
         assert_eq!(request.language, "python");
         assert_eq!(request.code, "print('hello')");
@@ -701,10 +704,10 @@ mod tests {
     fn test_execute_code_request_with_all_fields() {
         let mut env = HashMap::new();
         env.insert("MY_VAR".to_string(), "value".to_string());
-        
+
         let mut files = HashMap::new();
         files.insert("data.txt".to_string(), "file content".to_string());
-        
+
         let request = ExecuteCodeRequest {
             language: "javascript".to_string(),
             code: "console.log('test')".to_string(),
@@ -717,12 +720,15 @@ mod tests {
             files,
             network_enabled: Some(false),
         };
-        
+
         assert_eq!(request.language, "javascript");
         assert_eq!(request.stdin, Some("input data".to_string()));
         assert_eq!(request.args.len(), 1);
         assert_eq!(request.env.get("MY_VAR"), Some(&"value".to_string()));
-        assert_eq!(request.files.get("data.txt"), Some(&"file content".to_string()));
+        assert_eq!(
+            request.files.get("data.txt"),
+            Some(&"file content".to_string())
+        );
     }
 
     #[test]
@@ -732,7 +738,7 @@ mod tests {
             available: true,
             version: Some("24.0.5".to_string()),
         };
-        
+
         assert!(matches!(status.runtime_type, RuntimeType::Docker));
         assert!(status.available);
         assert_eq!(status.version, Some("24.0.5".to_string()));
@@ -745,7 +751,7 @@ mod tests {
             available: false,
             version: None,
         };
-        
+
         assert!(!status.available);
         assert!(status.version.is_none());
     }
@@ -757,7 +763,7 @@ mod tests {
             available: true,
             version: Some("1.0.0".to_string()),
         };
-        
+
         let serialized = serde_json::to_string(&status).unwrap();
         assert!(serialized.contains("\"available\":true"));
     }
@@ -780,7 +786,7 @@ mod tests {
             supported_languages: vec![],
             config: SandboxConfig::default(),
         };
-        
+
         assert_eq!(status.available_runtimes.len(), 2);
     }
 
@@ -795,7 +801,7 @@ mod tests {
             category: Some("examples".to_string()),
             is_template: false,
         };
-        
+
         assert_eq!(request.title, "My Snippet");
         assert_eq!(request.language, "rust");
         assert_eq!(request.tags.len(), 2);
@@ -813,7 +819,7 @@ mod tests {
             "category": null,
             "is_template": true
         });
-        
+
         let request: CreateSnippetRequest = serde_json::from_value(json).unwrap();
         assert_eq!(request.title, "Test");
         assert!(request.description.is_none());
@@ -826,7 +832,7 @@ mod tests {
             "language": "python",
             "code": "pass"
         });
-        
+
         let request: ExecuteCodeRequest = serde_json::from_value(json).unwrap();
         assert!(request.args.is_empty());
         assert!(request.env.is_empty());
@@ -852,7 +858,7 @@ mod tests {
             files: HashMap::new(),
             network_enabled: None,
         };
-        
+
         assert!(matches!(request.runtime, Some(RuntimeType::Docker)));
     }
 }

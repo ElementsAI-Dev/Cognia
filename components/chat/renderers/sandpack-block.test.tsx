@@ -13,7 +13,7 @@ const customRender = (ui: React.ReactElement) =>
   render(ui, { wrapper: Wrapper });
 
 // Mock useCopy hook
-jest.mock('@/hooks/use-copy', () => ({
+jest.mock('@/hooks/ui/use-copy', () => ({
   useCopy: () => ({
     copy: jest.fn().mockResolvedValue({ success: true }),
     isCopying: false,
@@ -102,7 +102,8 @@ describe('SandpackBlock', () => {
       customRender(<SandpackBlock code={defaultCode} showTabs />);
       
       await waitFor(() => {
-        expect(screen.getByText('Preview')).toBeInTheDocument();
+        // Use getAllByText since "Preview" appears in both tab and content
+        expect(screen.getAllByText('Preview').length).toBeGreaterThan(0);
         expect(screen.getByText('Code')).toBeInTheDocument();
       });
     });
@@ -237,13 +238,16 @@ describe('SimplePlayground', () => {
     });
 
     it('shows error for invalid code', async () => {
-      customRender(<SimplePlayground code='throw new Error("Test error");' />);
+      const { container } = customRender(<SimplePlayground code='throw new Error("Test error");' />);
       
       const runButton = screen.getByText('Run');
       fireEvent.click(runButton);
       
       await waitFor(() => {
-        expect(screen.getByText(/Test error/)).toBeInTheDocument();
+        // Error appears in both code and output, check for error output specifically
+        const errorOutput = container.querySelector('pre.text-red-500');
+        expect(errorOutput).toBeInTheDocument();
+        expect(errorOutput?.textContent).toContain('Test error');
       });
     });
 
@@ -252,14 +256,17 @@ describe('SimplePlayground', () => {
         console.log("Line 1");
         console.log("Line 2");
       `;
-      customRender(<SimplePlayground code={multiLogCode} />);
+      const { container } = customRender(<SimplePlayground code={multiLogCode} />);
       
       const runButton = screen.getByText('Run');
       fireEvent.click(runButton);
       
       await waitFor(() => {
-        expect(screen.getByText(/Line 1/)).toBeInTheDocument();
-        expect(screen.getByText(/Line 2/)).toBeInTheDocument();
+        // Output appears in both code and output area, check output area specifically
+        const outputArea = container.querySelector('.border-t.p-4 pre');
+        expect(outputArea).toBeInTheDocument();
+        expect(outputArea?.textContent).toContain('Line 1');
+        expect(outputArea?.textContent).toContain('Line 2');
       });
     });
   });

@@ -54,6 +54,7 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
     let unlistenHide: (() => void) | undefined;
     let unlistenSendText: (() => void) | undefined;
     let unlistenFocusInput: (() => void) | undefined;
+    let unlistenConfigChanged: (() => void) | undefined;
 
     const setupListeners = async () => {
       const { listen } = await import('@tauri-apps/api/event');
@@ -83,14 +84,42 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
         inputRef.current?.focus();
       });
 
+      // Persist window size/position updates coming from Rust
+      unlistenConfigChanged = await listen<{
+        width: number;
+        height: number;
+        x: number | null;
+        y: number | null;
+        rememberPosition: boolean;
+        startMinimized: boolean;
+        opacity: number;
+        shortcut: string;
+        pinned: boolean;
+        backgroundColor: string;
+      }>('chat-widget-config-changed', (event) => {
+        updateConfig({
+          width: event.payload.width,
+          height: event.payload.height,
+          x: event.payload.x,
+          y: event.payload.y,
+          rememberPosition: event.payload.rememberPosition,
+          startMinimized: event.payload.startMinimized,
+          opacity: event.payload.opacity,
+          shortcut: event.payload.shortcut,
+          pinned: event.payload.pinned,
+          backgroundColor: event.payload.backgroundColor,
+        });
+      });
+
       // Listen for selection toolbar "send to chat" action
       const unlistenSelectionSend = await listen<{ text: string; references?: unknown[] }>(
         'selection-send-to-chat',
         async (event) => {
           const { text } = event.payload;
           if (text) {
-            // Show widget and set input
-            show();
+            // Show Tauri widget window and set input
+            const { invoke } = await import('@tauri-apps/api/core');
+            await invoke('chat_widget_show');
             setInputValue(text);
             setTimeout(() => {
               inputRef.current?.focus();
@@ -110,11 +139,60 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
       unlistenHide?.();
       unlistenSendText?.();
       unlistenFocusInput?.();
+      unlistenConfigChanged?.();
       // Cleanup selection listener
       const win = window as unknown as { __chatWidgetUnlistenSelection?: () => void };
       win.__chatWidgetUnlistenSelection?.();
     };
-  }, [setVisible, setInputValue, options, show]);
+  }, [setVisible, setInputValue, updateConfig, options]);
+
+  // In the dedicated chat-widget window, persist size/position changes so they survive app restart.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.__TAURI__) return;
+    if (window.location?.pathname !== '/chat-widget') return;
+
+    let unlistenResize: (() => void) | undefined;
+    let unlistenMove: (() => void) | undefined;
+    let unlistenScale: (() => void) | undefined;
+
+    const setup = async () => {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const appWindow = getCurrentWindow();
+
+      const syncSize = async () => {
+        const [size, scale] = await Promise.all([
+          appWindow.innerSize(),
+          appWindow.scaleFactor(),
+        ]);
+        updateConfig({
+          width: size.width / scale,
+          height: size.height / scale,
+        });
+      };
+
+      unlistenResize = await appWindow.onResized(syncSize);
+      unlistenMove = await appWindow.onMoved((event) => {
+        updateConfig({
+          x: event.payload.x,
+          y: event.payload.y,
+        });
+      });
+      unlistenScale = await appWindow.onScaleChanged(syncSize);
+
+      // Initial sync
+      await syncSize();
+      const pos = await appWindow.outerPosition();
+      updateConfig({ x: pos.x, y: pos.y });
+    };
+
+    setup();
+
+    return () => {
+      unlistenResize?.();
+      unlistenMove?.();
+      unlistenScale?.();
+    };
+  }, [updateConfig]);
 
   // Send message to AI
   const sendMessage = useCallback(

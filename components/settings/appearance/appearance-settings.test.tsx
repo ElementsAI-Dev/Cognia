@@ -10,6 +10,33 @@ jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+// Mock lucide-react icons
+jest.mock('lucide-react', () => ({
+  Moon: () => <span>Moon</span>,
+  Sun: () => <span>Sun</span>,
+  Monitor: () => <span>Monitor</span>,
+  Check: () => <span>Check</span>,
+  Palette: () => <span>Palette</span>,
+  Globe: () => <span>Globe</span>,
+  Plus: () => <span>Plus</span>,
+  Type: () => <span>Type</span>,
+  MessageCircle: () => <span>MessageCircle</span>,
+  Settings2: () => <span>Settings2</span>,
+  MapPin: () => <span>MapPin</span>,
+  RefreshCw: () => <span>RefreshCw</span>,
+  Power: () => <span>Power</span>,
+}));
+
+// Mock useAutostart hook
+jest.mock('@/hooks/native', () => ({
+  useAutostart: () => ({
+    autostart: false,
+    setAutostart: jest.fn(),
+    isLoading: false,
+    isSupported: false,
+  }),
+}));
+
 // Mock stores
 const mockSetTheme = jest.fn();
 const mockSetColorTheme = jest.fn();
@@ -71,8 +98,9 @@ jest.mock('@/components/ui/label', () => ({
 jest.mock('@/components/ui/switch', () => ({
   Switch: ({ checked, onCheckedChange }: { checked?: boolean; onCheckedChange?: (v: boolean) => void }) => (
     <button
+      type="button"
       role="switch"
-      aria-checked={checked}
+      aria-checked={!!checked}
       onClick={() => onCheckedChange?.(!checked)}
     >
       Switch
@@ -81,8 +109,8 @@ jest.mock('@/components/ui/switch', () => ({
 }));
 
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick}>{children}</button>
+  Button: ({ children, onClick, type }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button type={type ?? 'button'} onClick={onClick}>{children}</button>
   ),
 }));
 
@@ -93,6 +121,8 @@ jest.mock('@/components/ui/slider', () => ({
       data-testid="slider"
       value={value?.[0] || 0}
       onChange={(e) => onValueChange?.([Number(e.target.value)])}
+      aria-label="slider"
+      title="slider"
     />
   ),
 }));
@@ -136,6 +166,22 @@ jest.mock('@/lib/i18n', () => ({
 
 jest.mock('./theme-editor', () => ({
   ThemeEditor: () => <div data-testid="theme-editor" />,
+}));
+
+jest.mock('./theme-schedule', () => ({
+  ThemeSchedule: () => <div data-testid="theme-schedule" />,
+}));
+
+jest.mock('./ui-customization-settings', () => ({
+  UICustomizationSettings: () => <div data-testid="ui-customization-settings" />,
+}));
+
+jest.mock('./background-settings', () => ({
+  BackgroundSettings: () => <div data-testid="background-settings" />,
+}));
+
+jest.mock('./theme-import-export', () => ({
+  ThemeImportExport: () => <div data-testid="theme-import-export" />,
 }));
 
 describe('AppearanceSettings', () => {

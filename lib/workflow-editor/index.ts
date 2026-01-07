@@ -26,6 +26,10 @@ export {
   cancelVisualWorkflow,
   validateVisualWorkflow,
   executorIntegration,
+  // New execution management exports
+  removeActiveExecution,
+  getActiveExecutions,
+  getActiveExecutionCount,
 } from './executor-integration';
 
 export {
@@ -35,7 +39,17 @@ export {
   hasFieldError,
   hasFieldWarning,
   validationUtils,
+  validateWorkflowStructure,
+  validateIOCompatibility,
+  validateCompleteWorkflow,
+  getValidationSummary,
   type ValidationResult,
   type ValidationError,
   type ValidationWarning,
+  type WorkflowValidationResult,
+  type WorkflowStructureError,
+  type WorkflowStructureWarning,
+  type IOCompatibilityResult,
+  type IOCompatibilityError,
+  type IOCompatibilityWarning,
 } from './validation';

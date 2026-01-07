@@ -2,18 +2,21 @@
 // Mock for use-stick-to-bottom ESM module
 const React = require('react');
 
-const StickToBottom = ({ children }) => React.createElement('div', { 'data-testid': 'stick-to-bottom' }, children);
+const StickToBottom = ({ children, ...props }) => React.createElement('div', { 'data-testid': 'stick-to-bottom', ...props }, children);
 StickToBottom.Content = ({ children, className }) => React.createElement('div', { className, 'data-testid': 'stick-to-bottom-content' }, children);
-StickToBottom.Scroller = ({ children, className }) => React.createElement('div', { className, 'data-testid': 'stick-to-bottom-scroller' }, children);
 
-const useStickToBottom = () => ({
+const useStickToBottomContext = () => ({
   isAtBottom: true,
   scrollToBottom: jest.fn(),
+  stopScroll: jest.fn(),
+  escapedFromLock: false,
+  state: {},
+  targetScrollTop: null,
   contentRef: { current: null },
-  scrollerRef: { current: null },
+  scrollRef: { current: null },
 });
 
 module.exports = {
   StickToBottom,
-  useStickToBottom,
+  useStickToBottomContext,
 };

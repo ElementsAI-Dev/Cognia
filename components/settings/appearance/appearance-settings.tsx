@@ -33,6 +33,7 @@ import { ThemeEditor } from './theme-editor';
 import { ThemeImportExport } from './theme-import-export';
 import { ThemeSchedule } from './theme-schedule';
 import { UICustomizationSettings } from './ui-customization-settings';
+import { BackgroundSettings } from './background-settings';
 import { useAutostart } from '@/hooks/native';
 
 const themeOptions: { value: Theme; labelKey: string; icon: React.ReactNode }[] = [
@@ -504,6 +505,9 @@ export function AppearanceSettings() {
 
       {/* Theme Schedule */}
       <ThemeSchedule />
+
+      {/* Background Settings */}
+      <BackgroundSettings />
 
       {/* UI Customization */}
       <UICustomizationSettings />

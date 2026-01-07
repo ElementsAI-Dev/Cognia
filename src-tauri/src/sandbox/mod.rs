@@ -14,16 +14,15 @@ mod podman;
 mod runtime;
 
 pub use db::{
-    CodeSnippet, ExecutionFilter, ExecutionRecord, ExecutionSession,
-    LanguageStats, SandboxDb, SandboxStats, SnippetFilter,
+    CodeSnippet, ExecutionFilter, ExecutionRecord, ExecutionSession, LanguageStats, SandboxDb,
+    SandboxStats, SnippetFilter,
 };
 pub use docker::DockerRuntime;
 pub use languages::{Language, LANGUAGE_CONFIGS};
 pub use native::NativeRuntime;
 pub use podman::PodmanRuntime;
 pub use runtime::{
-    ExecutionRequest, ExecutionResult, RuntimeType, SandboxError,
-    SandboxManager, SandboxRuntime,
+    ExecutionRequest, ExecutionResult, RuntimeType, SandboxError, SandboxManager, SandboxRuntime,
 };
 
 use serde::{Deserialize, Serialize};
@@ -150,29 +149,29 @@ pub struct SandboxState {
 impl SandboxState {
     /// Create new sandbox state
     pub async fn new(config_path: PathBuf) -> Result<Self, SandboxError> {
-        log::info!("Initializing SandboxState with config path: {:?}", config_path);
-        
+        log::info!(
+            "Initializing SandboxState with config path: {:?}",
+            config_path
+        );
+
         // Load or create config
         let config = if config_path.exists() {
             log::debug!("Loading existing sandbox config from {:?}", config_path);
-            let content = tokio::fs::read_to_string(&config_path)
-                .await
-                .map_err(|e| {
-                    log::error!("Failed to read sandbox config file: {}", e);
-                    SandboxError::Config(format!("Failed to read config: {}", e))
-                })?;
-            serde_json::from_str(&content)
-                .map_err(|e| {
-                    log::error!("Failed to parse sandbox config JSON: {}", e);
-                    SandboxError::Config(format!("Failed to parse config: {}", e))
-                })?
+            let content = tokio::fs::read_to_string(&config_path).await.map_err(|e| {
+                log::error!("Failed to read sandbox config file: {}", e);
+                SandboxError::Config(format!("Failed to read config: {}", e))
+            })?;
+            serde_json::from_str(&content).map_err(|e| {
+                log::error!("Failed to parse sandbox config JSON: {}", e);
+                SandboxError::Config(format!("Failed to parse config: {}", e))
+            })?
         } else {
             log::info!("No existing config found, using default sandbox configuration");
             SandboxConfig::default()
         };
 
         log::debug!("Sandbox config loaded: preferred_runtime={:?}, docker={}, podman={}, native={}, timeout={}s, memory={}MB",
-            config.preferred_runtime, config.enable_docker, config.enable_podman, 
+            config.preferred_runtime, config.enable_docker, config.enable_podman,
             config.enable_native, config.default_timeout_secs, config.default_memory_limit_mb);
 
         // Create manager
@@ -185,11 +184,14 @@ impl SandboxState {
             .map(|p| p.join("sandbox.db"))
             .unwrap_or_else(|| PathBuf::from("sandbox.db"));
         log::debug!("Initializing sandbox database at {:?}", db_path);
-        let db = SandboxDb::new(db_path.clone())
-            .map_err(|e| {
-                log::error!("Failed to initialize sandbox database at {:?}: {}", db_path, e);
-                SandboxError::Config(format!("Failed to initialize database: {}", e))
-            })?;
+        let db = SandboxDb::new(db_path.clone()).map_err(|e| {
+            log::error!(
+                "Failed to initialize sandbox database at {:?}: {}",
+                db_path,
+                e
+            );
+            SandboxError::Config(format!("Failed to initialize database: {}", e))
+        })?;
         log::info!("Sandbox database initialized successfully");
 
         log::info!("SandboxState initialization complete");
@@ -206,26 +208,27 @@ impl SandboxState {
     pub async fn save_config(&self) -> Result<(), SandboxError> {
         log::debug!("Saving sandbox configuration to {:?}", self.config_path);
         let config = self.config.read().await;
-        let content = serde_json::to_string_pretty(&*config)
-            .map_err(|e| {
-                log::error!("Failed to serialize sandbox config: {}", e);
-                SandboxError::Config(format!("Failed to serialize config: {}", e))
-            })?;
+        let content = serde_json::to_string_pretty(&*config).map_err(|e| {
+            log::error!("Failed to serialize sandbox config: {}", e);
+            SandboxError::Config(format!("Failed to serialize config: {}", e))
+        })?;
 
         // Ensure parent directory exists
         if let Some(parent) = self.config_path.parent() {
-            tokio::fs::create_dir_all(parent)
-                .await
-                .map_err(|e| {
-                    log::error!("Failed to create config directory {:?}: {}", parent, e);
-                    SandboxError::Config(format!("Failed to create config dir: {}", e))
-                })?;
+            tokio::fs::create_dir_all(parent).await.map_err(|e| {
+                log::error!("Failed to create config directory {:?}: {}", parent, e);
+                SandboxError::Config(format!("Failed to create config dir: {}", e))
+            })?;
         }
 
         tokio::fs::write(&self.config_path, &content)
             .await
             .map_err(|e| {
-                log::error!("Failed to write sandbox config to {:?}: {}", self.config_path, e);
+                log::error!(
+                    "Failed to write sandbox config to {:?}: {}",
+                    self.config_path,
+                    e
+                );
                 SandboxError::Config(format!("Failed to write config: {}", e))
             })?;
 
@@ -236,10 +239,14 @@ impl SandboxState {
     /// Update configuration
     pub async fn update_config(&self, new_config: SandboxConfig) -> Result<(), SandboxError> {
         log::info!("Updating sandbox configuration");
-        log::debug!("New config: preferred_runtime={:?}, docker={}, podman={}, native={}",
-            new_config.preferred_runtime, new_config.enable_docker, 
-            new_config.enable_podman, new_config.enable_native);
-        
+        log::debug!(
+            "New config: preferred_runtime={:?}, docker={}, podman={}, native={}",
+            new_config.preferred_runtime,
+            new_config.enable_docker,
+            new_config.enable_podman,
+            new_config.enable_native
+        );
+
         {
             let mut config = self.config.write().await;
             *config = new_config.clone();
@@ -256,7 +263,10 @@ impl SandboxState {
     }
 
     /// Execute code
-    pub async fn execute(&self, request: ExecutionRequest) -> Result<ExecutionResult, SandboxError> {
+    pub async fn execute(
+        &self,
+        request: ExecutionRequest,
+    ) -> Result<ExecutionResult, SandboxError> {
         self.execute_with_history(request, &[], true).await
     }
 
@@ -267,33 +277,57 @@ impl SandboxState {
         tags: &[String],
         save_to_history: bool,
     ) -> Result<ExecutionResult, SandboxError> {
-        log::info!("Executing code: language={}, id={}, code_length={} bytes", 
-            request.language, request.id, request.code.len());
-        log::debug!("Execution request details: timeout={:?}s, memory={:?}MB, runtime={:?}, stdin={}",
-            request.timeout_secs, request.memory_limit_mb, request.runtime,
-            request.stdin.as_ref().map(|s| format!("{} bytes", s.len())).unwrap_or_else(|| "none".to_string()));
-        
+        log::info!(
+            "Executing code: language={}, id={}, code_length={} bytes",
+            request.language,
+            request.id,
+            request.code.len()
+        );
+        log::debug!(
+            "Execution request details: timeout={:?}s, memory={:?}MB, runtime={:?}, stdin={}",
+            request.timeout_secs,
+            request.memory_limit_mb,
+            request.runtime,
+            request
+                .stdin
+                .as_ref()
+                .map(|s| format!("{} bytes", s.len()))
+                .unwrap_or_else(|| "none".to_string())
+        );
+
         let manager = self.manager.read().await;
         let code = request.code.clone();
         let stdin = request.stdin.clone();
         let execution_id = request.id.clone();
         let language = request.language.clone();
-        
+
         let result = manager.execute(request).await?;
 
-        log::info!("Execution completed: id={}, language={}, status={:?}, exit_code={:?}, time={}ms",
-            execution_id, language, result.status, result.exit_code, result.execution_time_ms);
-        
+        log::info!(
+            "Execution completed: id={}, language={}, status={:?}, exit_code={:?}, time={}ms",
+            execution_id,
+            language,
+            result.status,
+            result.exit_code,
+            result.execution_time_ms
+        );
+
         if !result.stderr.is_empty() {
-            log::debug!("Execution stderr (first 500 chars): {}", 
-                result.stderr.chars().take(500).collect::<String>());
+            log::debug!(
+                "Execution stderr (first 500 chars): {}",
+                result.stderr.chars().take(500).collect::<String>()
+            );
         }
 
         // Save to history if enabled
         if save_to_history {
             let session_id = self.current_session.read().await.clone();
-            log::debug!("Saving execution to history: id={}, session={:?}, tags={:?}",
-                execution_id, session_id, tags);
+            log::debug!(
+                "Saving execution to history: id={}, session={:?}, tags={:?}",
+                execution_id,
+                session_id,
+                tags
+            );
             if let Err(e) = self.db.save_execution(
                 &result,
                 &code,
@@ -387,20 +421,25 @@ impl SandboxState {
         name: &str,
         description: Option<&str>,
     ) -> Result<ExecutionSession, SandboxError> {
-        log::info!("Starting new sandbox session: name='{}', description={:?}", name, description);
-        
-        let session = self
-            .db
-            .create_session(name, description)
-            .map_err(|e| {
-                log::error!("Failed to create session '{}': {}", name, e);
-                SandboxError::Config(format!("Failed to create session: {}", e))
-            })?;
+        log::info!(
+            "Starting new sandbox session: name='{}', description={:?}",
+            name,
+            description
+        );
+
+        let session = self.db.create_session(name, description).map_err(|e| {
+            log::error!("Failed to create session '{}': {}", name, e);
+            SandboxError::Config(format!("Failed to create session: {}", e))
+        })?;
 
         let mut current = self.current_session.write().await;
         *current = Some(session.id.clone());
 
-        log::info!("Session started successfully: id={}, name='{}'", session.id, name);
+        log::info!(
+            "Session started successfully: id={}, name='{}'",
+            session.id,
+            name
+        );
         Ok(session)
     }
 
@@ -424,12 +463,10 @@ impl SandboxState {
 
         if let Some(id) = session_id {
             log::info!("Ending sandbox session: id={}", id);
-            self.db
-                .close_session(&id)
-                .map_err(|e| {
-                    log::error!("Failed to close session {}: {}", id, e);
-                    SandboxError::Config(format!("Failed to close session: {}", e))
-                })?;
+            self.db.close_session(&id).map_err(|e| {
+                log::error!("Failed to close session {}: {}", id, e);
+                SandboxError::Config(format!("Failed to close session: {}", e))
+            })?;
             log::debug!("Session {} closed successfully", id);
         } else {
             log::debug!("No active session to end");
@@ -461,8 +498,12 @@ impl SandboxState {
         id: &str,
         delete_executions: bool,
     ) -> Result<(), SandboxError> {
-        log::info!("Deleting sandbox session: id={}, delete_executions={}", id, delete_executions);
-        
+        log::info!(
+            "Deleting sandbox session: id={}, delete_executions={}",
+            id,
+            delete_executions
+        );
+
         // Clear current session if it matches
         {
             let mut current = self.current_session.write().await;
@@ -472,13 +513,11 @@ impl SandboxState {
             }
         }
 
-        self.db
-            .delete_session(id, delete_executions)
-            .map_err(|e| {
-                log::error!("Failed to delete session {}: {}", id, e);
-                SandboxError::Config(format!("Failed to delete session: {}", e))
-            })?;
-        
+        self.db.delete_session(id, delete_executions).map_err(|e| {
+            log::error!("Failed to delete session {}: {}", id, e);
+            SandboxError::Config(format!("Failed to delete session: {}", e))
+        })?;
+
         log::info!("Session {} deleted successfully", id);
         Ok(())
     }
@@ -552,12 +591,10 @@ impl SandboxState {
         before_date: Option<chrono::DateTime<chrono::Utc>>,
     ) -> Result<u64, SandboxError> {
         log::info!("Clearing execution history: before_date={:?}", before_date);
-        let deleted = self.db
-            .clear_executions(before_date)
-            .map_err(|e| {
-                log::error!("Failed to clear execution history: {}", e);
-                SandboxError::Config(format!("Failed to clear history: {}", e))
-            })?;
+        let deleted = self.db.clear_executions(before_date).map_err(|e| {
+            log::error!("Failed to clear execution history: {}", e);
+            SandboxError::Config(format!("Failed to clear history: {}", e))
+        })?;
         log::info!("Cleared {} execution records from history", deleted);
         Ok(deleted)
     }
@@ -566,15 +603,21 @@ impl SandboxState {
 
     /// Create a new code snippet
     pub async fn create_snippet(&self, snippet: &CodeSnippet) -> Result<CodeSnippet, SandboxError> {
-        log::debug!("Creating code snippet: id={}, title='{}', language={}", 
-            snippet.id, snippet.title, snippet.language);
-        let result = self.db
-            .create_snippet(snippet)
-            .map_err(|e| {
-                log::error!("Failed to create snippet '{}': {}", snippet.title, e);
-                SandboxError::Config(format!("Failed to create snippet: {}", e))
-            })?;
-        log::info!("Code snippet created: id={}, title='{}'", result.id, result.title);
+        log::debug!(
+            "Creating code snippet: id={}, title='{}', language={}",
+            snippet.id,
+            snippet.title,
+            snippet.language
+        );
+        let result = self.db.create_snippet(snippet).map_err(|e| {
+            log::error!("Failed to create snippet '{}': {}", snippet.title, e);
+            SandboxError::Config(format!("Failed to create snippet: {}", e))
+        })?;
+        log::info!(
+            "Code snippet created: id={}, title='{}'",
+            result.id,
+            result.title
+        );
         Ok(result)
     }
 
@@ -626,16 +669,17 @@ impl SandboxState {
     /// Execute a snippet
     pub async fn execute_snippet(&self, id: &str) -> Result<ExecutionResult, SandboxError> {
         log::info!("Executing code snippet: id={}", id);
-        let snippet = self
-            .get_snippet(id)
-            .await?
-            .ok_or_else(|| {
-                log::warn!("Snippet not found: id={}", id);
-                SandboxError::Config(format!("Snippet {} not found", id))
-            })?;
+        let snippet = self.get_snippet(id).await?.ok_or_else(|| {
+            log::warn!("Snippet not found: id={}", id);
+            SandboxError::Config(format!("Snippet {} not found", id))
+        })?;
 
-        log::debug!("Found snippet: title='{}', language={}, code_length={} bytes",
-            snippet.title, snippet.language, snippet.code.len());
+        log::debug!(
+            "Found snippet: title='{}', language={}, code_length={} bytes",
+            snippet.title,
+            snippet.language,
+            snippet.code.len()
+        );
 
         // Increment usage count
         if let Err(e) = self.db.increment_snippet_usage(id) {
@@ -643,7 +687,8 @@ impl SandboxState {
         }
 
         let request = ExecutionRequest::new(snippet.language, snippet.code);
-        self.execute_with_history(request, &snippet.tags, true).await
+        self.execute_with_history(request, &snippet.tags, true)
+            .await
     }
 
     // ==================== Statistics ====================
@@ -715,12 +760,10 @@ impl SandboxState {
     /// Vacuum database
     pub async fn vacuum_db(&self) -> Result<(), SandboxError> {
         log::info!("Vacuuming sandbox database");
-        self.db
-            .vacuum()
-            .map_err(|e| {
-                log::error!("Failed to vacuum sandbox database: {}", e);
-                SandboxError::Config(format!("Failed to vacuum: {}", e))
-            })?;
+        self.db.vacuum().map_err(|e| {
+            log::error!("Failed to vacuum sandbox database: {}", e);
+            SandboxError::Config(format!("Failed to vacuum: {}", e))
+        })?;
         log::info!("Sandbox database vacuum completed");
         Ok(())
     }
@@ -776,7 +819,10 @@ mod tests {
         let json = serde_json::to_string(&config).unwrap();
         let parsed: SandboxConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(config.default_timeout_secs, parsed.default_timeout_secs);
-        assert_eq!(config.default_memory_limit_mb, parsed.default_memory_limit_mb);
+        assert_eq!(
+            config.default_memory_limit_mb,
+            parsed.default_memory_limit_mb
+        );
     }
 
     #[test]
@@ -787,25 +833,37 @@ mod tests {
             default_timeout_secs: 60,
             ..Default::default()
         };
-        config.custom_images.insert("python".to_string(), "custom/python:latest".to_string());
-        
+        config
+            .custom_images
+            .insert("python".to_string(), "custom/python:latest".to_string());
+
         let json = serde_json::to_string(&config).unwrap();
         let parsed: SandboxConfig = serde_json::from_str(&json).unwrap();
-        
+
         assert!(parsed.enable_native);
         assert!(parsed.network_enabled);
         assert_eq!(parsed.default_timeout_secs, 60);
-        assert_eq!(parsed.custom_images.get("python"), Some(&"custom/python:latest".to_string()));
+        assert_eq!(
+            parsed.custom_images.get("python"),
+            Some(&"custom/python:latest".to_string())
+        );
     }
 
     #[test]
     fn test_config_with_custom_images() {
         let mut config = SandboxConfig::default();
-        config.custom_images.insert("python".to_string(), "my-python:3.12".to_string());
-        config.custom_images.insert("rust".to_string(), "my-rust:1.80".to_string());
-        
+        config
+            .custom_images
+            .insert("python".to_string(), "my-python:3.12".to_string());
+        config
+            .custom_images
+            .insert("rust".to_string(), "my-rust:1.80".to_string());
+
         assert_eq!(config.custom_images.len(), 2);
-        assert_eq!(config.custom_images.get("python"), Some(&"my-python:3.12".to_string()));
+        assert_eq!(
+            config.custom_images.get("python"),
+            Some(&"my-python:3.12".to_string())
+        );
     }
 
     #[test]
@@ -814,7 +872,7 @@ mod tests {
             workspace_dir: Some(PathBuf::from("/tmp/sandbox")),
             ..Default::default()
         };
-        
+
         assert!(config.workspace_dir.is_some());
         assert_eq!(config.workspace_dir.unwrap(), PathBuf::from("/tmp/sandbox"));
     }
@@ -824,7 +882,10 @@ mod tests {
         let config = SandboxConfig::default();
         let cloned = config.clone();
         assert_eq!(config.default_timeout_secs, cloned.default_timeout_secs);
-        assert_eq!(config.enabled_languages.len(), cloned.enabled_languages.len());
+        assert_eq!(
+            config.enabled_languages.len(),
+            cloned.enabled_languages.len()
+        );
     }
 
     #[test]
@@ -857,22 +918,20 @@ mod tests {
 
     #[test]
     fn test_execution_request_with_stdin() {
-        let request = ExecutionRequest::new("python", "x = input()")
-            .with_stdin("test input");
+        let request = ExecutionRequest::new("python", "x = input()").with_stdin("test input");
         assert_eq!(request.stdin, Some("test input".to_string()));
     }
 
     #[test]
     fn test_execution_request_with_timeout() {
-        let request = ExecutionRequest::new("python", "import time; time.sleep(1)")
-            .with_timeout(60);
+        let request =
+            ExecutionRequest::new("python", "import time; time.sleep(1)").with_timeout(60);
         assert_eq!(request.timeout_secs, Some(60));
     }
 
     #[test]
     fn test_execution_request_with_memory_limit() {
-        let request = ExecutionRequest::new("python", "x = [0] * 1000000")
-            .with_memory_limit(512);
+        let request = ExecutionRequest::new("python", "x = [0] * 1000000").with_memory_limit(512);
         assert_eq!(request.memory_limit_mb, Some(512));
     }
 
@@ -882,7 +941,7 @@ mod tests {
             .with_stdin("input")
             .with_timeout(30)
             .with_memory_limit(256);
-        
+
         assert_eq!(request.language, "python");
         assert_eq!(request.stdin, Some("input".to_string()));
         assert_eq!(request.timeout_secs, Some(30));
@@ -902,7 +961,7 @@ mod tests {
             RuntimeType::Docker,
             "python".to_string(),
         );
-        
+
         assert_eq!(result.id, "test-id");
         assert!(matches!(result.status, ExecutionStatus::Completed));
         assert_eq!(result.stdout, "Hello, World!");
@@ -918,7 +977,7 @@ mod tests {
             RuntimeType::Docker,
             "rust".to_string(),
         );
-        
+
         assert!(matches!(result.status, ExecutionStatus::Failed));
         assert_eq!(result.error, Some("Compilation failed".to_string()));
         assert!(result.exit_code.is_none());
@@ -934,7 +993,7 @@ mod tests {
             RuntimeType::Docker,
             "python".to_string(),
         );
-        
+
         assert!(matches!(result.status, ExecutionStatus::Timeout));
         assert!(result.error.is_some());
         assert!(result.error.unwrap().contains("timeout"));
@@ -962,12 +1021,33 @@ mod tests {
     fn test_enabled_languages_all_present() {
         let config = SandboxConfig::default();
         let expected = vec![
-            "python", "javascript", "typescript", "go", "rust", "java",
-            "c", "cpp", "ruby", "php", "bash", "powershell", "r", "julia",
-            "lua", "perl", "swift", "kotlin", "scala", "haskell", "elixir",
-            "clojure", "fsharp", "csharp", "zig"
+            "python",
+            "javascript",
+            "typescript",
+            "go",
+            "rust",
+            "java",
+            "c",
+            "cpp",
+            "ruby",
+            "php",
+            "bash",
+            "powershell",
+            "r",
+            "julia",
+            "lua",
+            "perl",
+            "swift",
+            "kotlin",
+            "scala",
+            "haskell",
+            "elixir",
+            "clojure",
+            "fsharp",
+            "csharp",
+            "zig",
         ];
-        
+
         for lang in expected {
             assert!(
                 config.enabled_languages.contains(&lang.to_string()),
@@ -983,10 +1063,10 @@ mod tests {
     fn test_sandbox_error_display() {
         let err = SandboxError::LanguageNotSupported("unknown".to_string());
         assert!(err.to_string().contains("unknown"));
-        
+
         let err = SandboxError::Timeout(30);
         assert!(err.to_string().contains("30"));
-        
+
         let err = SandboxError::RuntimeNotAvailable("docker".to_string());
         assert!(err.to_string().contains("docker"));
     }
@@ -1004,7 +1084,7 @@ mod tests {
             SandboxError::ResourceLimit("test".to_string()),
             SandboxError::SecurityViolation("test".to_string()),
         ];
-        
+
         for err in errors {
             let display = err.to_string();
             assert!(!display.is_empty());
@@ -1023,7 +1103,7 @@ mod tests {
         let _: LanguageStats;
         let _: SandboxStats;
         let _: SnippetFilter;
-        
+
         // These should compile - just checking reexports work
         let _ = DockerRuntime::new();
         let _ = PodmanRuntime::new();
@@ -1034,7 +1114,7 @@ mod tests {
     fn test_language_configs_reexport() {
         // Test LANGUAGE_CONFIGS is accessible
         assert!(!LANGUAGE_CONFIGS.is_empty());
-        
+
         // Test Language struct is accessible
         let lang = Language {
             id: "test",
@@ -1053,7 +1133,7 @@ mod tests {
         let request = ExecutionRequest::new("python", "print('hello')")
             .with_timeout(config.default_timeout_secs)
             .with_memory_limit(config.default_memory_limit_mb);
-        
+
         assert_eq!(request.timeout_secs, Some(DEFAULT_TIMEOUT_SECS));
         assert_eq!(request.memory_limit_mb, Some(DEFAULT_MEMORY_LIMIT_MB));
     }
@@ -1062,25 +1142,45 @@ mod tests {
     fn test_execution_result_status_mapping() {
         // Exit code 0 -> Completed
         let success = ExecutionResult::success(
-            "id".to_string(), String::new(), String::new(), 0, 0, RuntimeType::Docker, "python".to_string()
+            "id".to_string(),
+            String::new(),
+            String::new(),
+            0,
+            0,
+            RuntimeType::Docker,
+            "python".to_string(),
         );
         assert!(matches!(success.status, ExecutionStatus::Completed));
-        
+
         // Exit code non-zero -> Failed
         let failed = ExecutionResult::success(
-            "id".to_string(), String::new(), String::new(), 1, 0, RuntimeType::Docker, "python".to_string()
+            "id".to_string(),
+            String::new(),
+            String::new(),
+            1,
+            0,
+            RuntimeType::Docker,
+            "python".to_string(),
         );
         assert!(matches!(failed.status, ExecutionStatus::Failed));
-        
+
         // Error -> Failed
         let error = ExecutionResult::error(
-            "id".to_string(), "error".to_string(), RuntimeType::Docker, "python".to_string()
+            "id".to_string(),
+            "error".to_string(),
+            RuntimeType::Docker,
+            "python".to_string(),
         );
         assert!(matches!(error.status, ExecutionStatus::Failed));
-        
+
         // Timeout -> Timeout
         let timeout = ExecutionResult::timeout(
-            "id".to_string(), String::new(), String::new(), 30, RuntimeType::Docker, "python".to_string()
+            "id".to_string(),
+            String::new(),
+            String::new(),
+            30,
+            RuntimeType::Docker,
+            "python".to_string(),
         );
         assert!(matches!(timeout.status, ExecutionStatus::Timeout));
     }
@@ -1122,22 +1222,19 @@ hello()
     #[test]
     fn test_large_stdin() {
         let large_input = "a".repeat(10000);
-        let request = ExecutionRequest::new("python", "x = input()")
-            .with_stdin(&large_input);
+        let request = ExecutionRequest::new("python", "x = input()").with_stdin(&large_input);
         assert_eq!(request.stdin.unwrap().len(), 10000);
     }
 
     #[test]
     fn test_zero_timeout() {
-        let request = ExecutionRequest::new("python", "code")
-            .with_timeout(0);
+        let request = ExecutionRequest::new("python", "code").with_timeout(0);
         assert_eq!(request.timeout_secs, Some(0));
     }
 
     #[test]
     fn test_large_memory_limit() {
-        let request = ExecutionRequest::new("python", "code")
-            .with_memory_limit(8192); // 8GB
+        let request = ExecutionRequest::new("python", "code").with_memory_limit(8192); // 8GB
         assert_eq!(request.memory_limit_mb, Some(8192));
     }
 }

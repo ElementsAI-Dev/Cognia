@@ -32,7 +32,7 @@ jest.mock('next-intl', () => ({
 }));
 
 // Mock use-copy hook
-jest.mock('@/hooks/use-copy', () => ({
+jest.mock('@/hooks/ui/use-copy', () => ({
   useCopy: () => ({
     copy: jest.fn().mockResolvedValue({ success: true }),
     isCopying: false,

@@ -14,6 +14,7 @@ describe('CogniaDB Schema', () => {
     await db.messages.clear();
     await db.documents.clear();
     await db.mcpServers.clear();
+    await db.assets.clear();
   });
 
   afterAll(async () => {
@@ -43,6 +44,10 @@ describe('CogniaDB Schema', () => {
 
     it('has mcpServers table', () => {
       expect(db.mcpServers).toBeDefined();
+    });
+
+    it('has assets table', () => {
+      expect(db.assets).toBeDefined();
     });
   });
 

@@ -39,7 +39,7 @@ jest.mock('sonner', () => ({
 }));
 
 // Mock use-copy hook
-jest.mock('@/hooks/use-copy', () => ({
+jest.mock('@/hooks/ui/use-copy', () => ({
   useCopy: () => ({
     copy: jest.fn().mockResolvedValue({ success: true }),
     isCopying: false,
@@ -77,7 +77,7 @@ jest.mock('@/components/ui/radio-group', () => ({
     <div data-testid="radio-group">{children}</div>
   ),
   RadioGroupItem: ({ value, id }: { value: string; id: string }) => (
-    <input type="radio" value={value} id={id} />
+    <input type="radio" value={value} id={id} aria-label={value} title={value} />
   ),
 }));
 

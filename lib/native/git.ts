@@ -241,6 +241,42 @@ export async function getDiffBetween(
   return invoke<GitOperationResult<GitDiffInfo[]>>('git_diff_between', { repoPath, fromRef, toRef });
 }
 
+/** Get diff content for a specific file */
+export async function getDiffFile(
+  repoPath: string,
+  filePath: string,
+  staged?: boolean,
+  maxLines?: number
+): Promise<GitOperationResult<GitDiffInfo>> {
+  if (!isTauri()) {
+    throw new Error('Git operations require Tauri desktop environment');
+  }
+
+  return invoke<GitOperationResult<GitDiffInfo>>('git_diff_file', { 
+    repoPath, 
+    filePath, 
+    staged,
+    maxLines: maxLines || 5000,
+  });
+}
+
+/** Stash entry from backend */
+export interface GitStashEntry {
+  index: number;
+  message: string;
+  branch?: string;
+  date?: string;
+}
+
+/** Get stash list with parsed entries */
+export async function getStashList(repoPath: string): Promise<GitOperationResult<GitStashEntry[]>> {
+  if (!isTauri()) {
+    throw new Error('Git operations require Tauri desktop environment');
+  }
+
+  return invoke<GitOperationResult<GitStashEntry[]>>('git_stash_list', { repoPath });
+}
+
 // ==================== Remote Operations ====================
 
 /** Push changes to remote */
@@ -574,6 +610,7 @@ export const gitService = {
   getFileStatus,
   getDiff,
   getDiffBetween,
+  getDiffFile,
   
   // Remote
   push,
@@ -592,6 +629,7 @@ export const gitService = {
   
   // Stash
   stash,
+  getStashList,
   
   // Reset
   reset,

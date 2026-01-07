@@ -38,6 +38,7 @@ export {
   createBulkWebScraperTool,
   createSearchAndScrapeTool,
   createRAGSearchTool,
+  createListRAGCollectionsTool,
   createCodeExecutionTool,
   getToolDescriptions,
   buildRAGConfigFromSettings,
@@ -48,6 +49,7 @@ export {
   buildEnvironmentToolsSystemPrompt,
   buildAgentSystemPrompt,
   type AgentToolsConfig,
+  type RAGSearchToolOptions,
 } from './agent-tools';
 
 // MCP Tools exports

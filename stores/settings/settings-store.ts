@@ -12,10 +12,11 @@ import {
   recordApiKeyError,
   getDefaultUsageStats,
 } from '@/lib/ai/infrastructure/api-key-rotation';
-import type { ColorThemePreset, UICustomization, BorderRadiusSize, SpacingSize, ShadowIntensity } from '@/lib/themes';
-import { DEFAULT_UI_CUSTOMIZATION } from '@/lib/themes';
-import type { SearchProviderType, SearchProviderSettings } from '@/types/search';
-import { DEFAULT_SEARCH_PROVIDER_SETTINGS } from '@/types/search';
+import type { ColorThemePreset, UICustomization, BorderRadiusSize, SpacingSize, ShadowIntensity, BackgroundSettings, BackgroundImageFit, BackgroundImagePosition, BackgroundImageSource } from '@/lib/themes';
+import { DEFAULT_UI_CUSTOMIZATION, DEFAULT_BACKGROUND_SETTINGS } from '@/lib/themes';
+import { deleteBackgroundImageAsset, saveBackgroundImageAsset } from '@/lib/themes/background-assets';
+import type { SearchProviderType, SearchProviderSettings, SourceVerificationSettings, SourceVerificationMode } from '@/types/search';
+import { DEFAULT_SEARCH_PROVIDER_SETTINGS, DEFAULT_SOURCE_VERIFICATION_SETTINGS } from '@/types/search';
 import type { SpeechSettings, SpeechLanguageCode, SpeechProvider } from '@/types/speech';
 import { DEFAULT_SPEECH_SETTINGS } from '@/types/speech';
 import type { CompressionSettings, CompressionStrategy, CompressionTrigger, CompressionModelConfig } from '@/types/compression';
@@ -24,6 +25,18 @@ import type { AutoDetectResult } from '@/lib/i18n/locale-auto-detect';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'en' | 'zh-CN';
+
+export interface ThemeScheduleSettings {
+  enabled: boolean;
+  lightModeStart: string; // HH:MM
+  darkModeStart: string; // HH:MM
+}
+
+const DEFAULT_THEME_SCHEDULE: ThemeScheduleSettings = {
+  enabled: false,
+  lightModeStart: '07:00',
+  darkModeStart: '19:00',
+};
 
 // Response display settings types
 export type CodeTheme = 'github-dark' | 'github-light' | 'monokai' | 'dracula' | 'nord' | 'one-dark';
@@ -56,6 +69,11 @@ interface SettingsState {
   // Theme (light/dark/system mode)
   theme: Theme;
   setTheme: (theme: Theme) => void;
+
+  // Theme schedule (automatic light/dark switching)
+  themeSchedule: ThemeScheduleSettings;
+  setThemeSchedule: (updates: Partial<ThemeScheduleSettings>) => void;
+  setThemeScheduleEnabled: (enabled: boolean) => void;
 
   // Color theme preset
   colorTheme: ColorThemePreset;
@@ -178,6 +196,19 @@ interface SettingsState {
   defaultSearchSources: string[];
   setDefaultSearchSources: (sources: string[]) => void;
 
+  // Source verification settings
+  sourceVerificationSettings: SourceVerificationSettings;
+  setSourceVerificationSettings: (settings: Partial<SourceVerificationSettings>) => void;
+  setSourceVerificationEnabled: (enabled: boolean) => void;
+  setSourceVerificationMode: (mode: SourceVerificationMode) => void;
+  setMinimumCredibilityScore: (score: number) => void;
+  addTrustedDomain: (domain: string) => void;
+  removeTrustedDomain: (domain: string) => void;
+  addBlockedDomain: (domain: string) => void;
+  removeBlockedDomain: (domain: string) => void;
+  setAutoFilterLowCredibility: (enabled: boolean) => void;
+  setEnableCrossValidation: (enabled: boolean) => void;
+
   // Tool settings
   enableFileTools: boolean;
   setEnableFileTools: (enabled: boolean) => void;
@@ -240,6 +271,24 @@ interface SettingsState {
   setUIFontSize: (size: number) => void;
   messageBubbleStyle: MessageBubbleStyle;
   setMessageBubbleStyle: (style: MessageBubbleStyle) => void;
+
+  // Background settings
+  backgroundSettings: BackgroundSettings;
+  setBackgroundSettings: (settings: Partial<BackgroundSettings>) => void;
+  setBackgroundEnabled: (enabled: boolean) => void;
+  setBackgroundSource: (source: BackgroundImageSource) => void;
+  setBackgroundImageUrl: (url: string) => void;
+  setBackgroundLocalFile: (file: File) => Promise<void>;
+  setBackgroundPreset: (presetId: string | null) => void;
+  setBackgroundFit: (fit: BackgroundImageFit) => void;
+  setBackgroundPosition: (position: BackgroundImagePosition) => void;
+  setBackgroundOpacity: (opacity: number) => void;
+  setBackgroundBlur: (blur: number) => void;
+  setBackgroundOverlay: (color: string, opacity: number) => void;
+  setBackgroundBrightness: (brightness: number) => void;
+  setBackgroundSaturation: (saturation: number) => void;
+  resetBackgroundSettings: () => void;
+  clearBackground: () => Promise<void>;
 
   // Advanced chat parameters
   defaultTopP: number;
@@ -431,6 +480,9 @@ const initialState = {
   // Research
   defaultSearchSources: ['google', 'brave'],
 
+  // Source verification
+  sourceVerificationSettings: { ...DEFAULT_SOURCE_VERIFICATION_SETTINGS },
+
   // Tool settings
   enableFileTools: false,
   enableDocumentTools: true,
@@ -464,6 +516,12 @@ const initialState = {
   uiFontSize: 14,
   messageBubbleStyle: 'default' as MessageBubbleStyle,
 
+  // Background settings
+  backgroundSettings: { ...DEFAULT_BACKGROUND_SETTINGS },
+
+  // Theme schedule
+  themeSchedule: { ...DEFAULT_THEME_SCHEDULE },
+
   // Advanced chat parameters
   defaultTopP: 1.0,
   defaultFrequencyPenalty: 0,
@@ -490,6 +548,16 @@ export const useSettingsStore = create<SettingsState>()(
       // Theme actions
       setTheme: (theme) => set({ theme }),
       setColorTheme: (colorTheme) => set({ colorTheme, activeCustomThemeId: null }),
+
+      // Theme schedule actions
+      setThemeSchedule: (updates) =>
+        set((state) => ({
+          themeSchedule: { ...state.themeSchedule, ...updates },
+        })),
+      setThemeScheduleEnabled: (enabled) =>
+        set((state) => ({
+          themeSchedule: { ...state.themeSchedule, enabled },
+        })),
 
       // Custom theme actions
       createCustomTheme: (theme) => {
@@ -854,6 +922,67 @@ export const useSettingsStore = create<SettingsState>()(
 
       setDefaultSearchSources: (defaultSearchSources) => set({ defaultSearchSources }),
 
+      // Source verification settings actions
+      setSourceVerificationSettings: (settings) =>
+        set((state) => ({
+          sourceVerificationSettings: { ...state.sourceVerificationSettings, ...settings },
+        })),
+      setSourceVerificationEnabled: (enabled) =>
+        set((state) => ({
+          sourceVerificationSettings: { ...state.sourceVerificationSettings, enabled },
+        })),
+      setSourceVerificationMode: (mode) =>
+        set((state) => ({
+          sourceVerificationSettings: { ...state.sourceVerificationSettings, mode },
+        })),
+      setMinimumCredibilityScore: (minimumCredibilityScore) =>
+        set((state) => ({
+          sourceVerificationSettings: {
+            ...state.sourceVerificationSettings,
+            minimumCredibilityScore: Math.min(1, Math.max(0, minimumCredibilityScore)),
+          },
+        })),
+      addTrustedDomain: (domain) =>
+        set((state) => ({
+          sourceVerificationSettings: {
+            ...state.sourceVerificationSettings,
+            trustedDomains: state.sourceVerificationSettings.trustedDomains.includes(domain)
+              ? state.sourceVerificationSettings.trustedDomains
+              : [...state.sourceVerificationSettings.trustedDomains, domain],
+          },
+        })),
+      removeTrustedDomain: (domain) =>
+        set((state) => ({
+          sourceVerificationSettings: {
+            ...state.sourceVerificationSettings,
+            trustedDomains: state.sourceVerificationSettings.trustedDomains.filter((d) => d !== domain),
+          },
+        })),
+      addBlockedDomain: (domain) =>
+        set((state) => ({
+          sourceVerificationSettings: {
+            ...state.sourceVerificationSettings,
+            blockedDomains: state.sourceVerificationSettings.blockedDomains.includes(domain)
+              ? state.sourceVerificationSettings.blockedDomains
+              : [...state.sourceVerificationSettings.blockedDomains, domain],
+          },
+        })),
+      removeBlockedDomain: (domain) =>
+        set((state) => ({
+          sourceVerificationSettings: {
+            ...state.sourceVerificationSettings,
+            blockedDomains: state.sourceVerificationSettings.blockedDomains.filter((d) => d !== domain),
+          },
+        })),
+      setAutoFilterLowCredibility: (autoFilterLowCredibility) =>
+        set((state) => ({
+          sourceVerificationSettings: { ...state.sourceVerificationSettings, autoFilterLowCredibility },
+        })),
+      setEnableCrossValidation: (enableCrossValidation) =>
+        set((state) => ({
+          sourceVerificationSettings: { ...state.sourceVerificationSettings, enableCrossValidation },
+        })),
+
       // Tool settings actions
       setEnableFileTools: (enableFileTools) => set({ enableFileTools }),
       setEnableDocumentTools: (enableDocumentTools) => set({ enableDocumentTools }),
@@ -899,6 +1028,87 @@ export const useSettingsStore = create<SettingsState>()(
       // Appearance enhancement actions
       setUIFontSize: (uiFontSize) => set({ uiFontSize: Math.min(20, Math.max(12, uiFontSize)) }),
       setMessageBubbleStyle: (messageBubbleStyle) => set({ messageBubbleStyle }),
+
+      // Background settings actions
+      setBackgroundSettings: (settings) =>
+        set((state) => ({
+          backgroundSettings: { ...state.backgroundSettings, ...settings },
+        })),
+      setBackgroundEnabled: (enabled) =>
+        set((state) => ({
+          backgroundSettings: { ...state.backgroundSettings, enabled },
+        })),
+      setBackgroundSource: (source) =>
+        set((state) => ({
+          backgroundSettings: { ...state.backgroundSettings, source },
+        })),
+      setBackgroundImageUrl: (imageUrl) =>
+        set((state) => ({
+          backgroundSettings: { ...state.backgroundSettings, imageUrl },
+        })),
+      setBackgroundLocalFile: async (file) => {
+        const previousAssetId = get().backgroundSettings.localAssetId;
+        const { assetId } = await saveBackgroundImageAsset(file);
+        set((state) => ({
+          backgroundSettings: {
+            ...state.backgroundSettings,
+            enabled: true,
+            source: 'local',
+            presetId: null,
+            imageUrl: '',
+            localAssetId: assetId,
+          },
+        }));
+
+        if (previousAssetId && previousAssetId !== assetId) {
+          await deleteBackgroundImageAsset(previousAssetId);
+        }
+      },
+      setBackgroundPreset: (presetId) =>
+        set((state) => ({
+          backgroundSettings: { ...state.backgroundSettings, presetId, source: presetId ? 'preset' : 'none' },
+        })),
+      setBackgroundFit: (fit) =>
+        set((state) => ({
+          backgroundSettings: { ...state.backgroundSettings, fit },
+        })),
+      setBackgroundPosition: (position) =>
+        set((state) => ({
+          backgroundSettings: { ...state.backgroundSettings, position },
+        })),
+      setBackgroundOpacity: (opacity) =>
+        set((state) => ({
+          backgroundSettings: { ...state.backgroundSettings, opacity: Math.min(100, Math.max(0, opacity)) },
+        })),
+      setBackgroundBlur: (blur) =>
+        set((state) => ({
+          backgroundSettings: { ...state.backgroundSettings, blur: Math.min(20, Math.max(0, blur)) },
+        })),
+      setBackgroundOverlay: (overlayColor, overlayOpacity) =>
+        set((state) => ({
+          backgroundSettings: {
+            ...state.backgroundSettings,
+            overlayColor,
+            overlayOpacity: Math.min(100, Math.max(0, overlayOpacity)),
+          },
+        })),
+      setBackgroundBrightness: (brightness) =>
+        set((state) => ({
+          backgroundSettings: { ...state.backgroundSettings, brightness: Math.min(150, Math.max(50, brightness)) },
+        })),
+      setBackgroundSaturation: (saturation) =>
+        set((state) => ({
+          backgroundSettings: { ...state.backgroundSettings, saturation: Math.min(200, Math.max(0, saturation)) },
+        })),
+      resetBackgroundSettings: () =>
+        set({ backgroundSettings: { ...DEFAULT_BACKGROUND_SETTINGS } }),
+      clearBackground: async () => {
+        const previousAssetId = get().backgroundSettings.localAssetId;
+        if (previousAssetId) {
+          await deleteBackgroundImageAsset(previousAssetId);
+        }
+        set({ backgroundSettings: { ...DEFAULT_BACKGROUND_SETTINGS } });
+      },
 
       // Advanced chat parameter actions
       setDefaultTopP: (defaultTopP) => set({ defaultTopP: Math.min(1, Math.max(0, defaultTopP)) }),
@@ -1033,6 +1243,7 @@ export const useSettingsStore = create<SettingsState>()(
         customThemes: state.customThemes,
         activeCustomThemeId: state.activeCustomThemeId,
         uiCustomization: state.uiCustomization,
+        themeSchedule: state.themeSchedule,
         language: state.language,
         autoDetectLocale: state.autoDetectLocale,
         localeDetectionResult: state.localeDetectionResult,
@@ -1091,6 +1302,8 @@ export const useSettingsStore = create<SettingsState>()(
         // Appearance enhancements
         uiFontSize: state.uiFontSize,
         messageBubbleStyle: state.messageBubbleStyle,
+        // Background settings
+        backgroundSettings: state.backgroundSettings,
         // Advanced chat parameters
         defaultTopP: state.defaultTopP,
         defaultFrequencyPenalty: state.defaultFrequencyPenalty,
@@ -1117,3 +1330,5 @@ export const selectSidebarCollapsed = (state: SettingsState) => state.sidebarCol
 export const selectSearchEnabled = (state: SettingsState) => state.searchEnabled;
 export const selectCompressionSettings = (state: SettingsState) => state.compressionSettings;
 export const selectCompressionEnabled = (state: SettingsState) => state.compressionSettings.enabled;
+export const selectBackgroundSettings = (state: SettingsState) => state.backgroundSettings;
+export const selectBackgroundEnabled = (state: SettingsState) => state.backgroundSettings.enabled;

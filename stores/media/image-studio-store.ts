@@ -107,7 +107,7 @@ export interface StudioImage {
  */
 export interface EditOperation {
   id: string;
-  type: 'generate' | 'edit' | 'variation' | 'crop' | 'rotate' | 'flip' | 'adjust' | 'mask' | 'upscale' | 'remove-bg';
+  type: 'generate' | 'edit' | 'variation' | 'crop' | 'rotate' | 'flip' | 'adjust' | 'mask' | 'upscale' | 'remove-bg' | 'filter' | 'text' | 'draw';
   imageId: string;
   timestamp: number;
   description: string;

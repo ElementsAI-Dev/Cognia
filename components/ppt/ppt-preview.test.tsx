@@ -210,9 +210,9 @@ describe('PPTPreview', () => {
       
       if (outlineBtn) {
         await userEvent.click(outlineBtn);
-        // Outline view should show tab options
-        expect(screen.getByText('Outline')).toBeInTheDocument();
-        expect(screen.getByText('Marp Code')).toBeInTheDocument();
+        // Outline view should show tab options (using translation keys)
+        expect(screen.getByText('outline')).toBeInTheDocument();
+        expect(screen.getByText('marpCode')).toBeInTheDocument();
       }
     });
 

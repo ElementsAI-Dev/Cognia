@@ -247,7 +247,7 @@ describe('visualToDefinition', () => {
     expect(definition.steps[1].dependencies).toContain('ai-1');
   });
 
-  it('should convert code, transform, loop, webhook, delay, merge, subworkflow as tool type', () => {
+  it('should convert code node to code step type (not tool)', () => {
     const codeNode: WorkflowNode = {
       id: 'code-1',
       type: 'code',
@@ -269,8 +269,10 @@ describe('visualToDefinition', () => {
     const definition = visualToDefinition(visual);
 
     expect(definition.steps).toHaveLength(1);
-    expect(definition.steps[0].type).toBe('tool');
-    expect(definition.steps[0].toolName).toBe('code_executor');
+    // Code nodes now have their own step type instead of being coerced to tool
+    expect(definition.steps[0].type).toBe('code');
+    expect(definition.steps[0].code).toBe('return input;');
+    expect(definition.steps[0].language).toBe('javascript');
   });
 });
 
@@ -506,6 +508,203 @@ describe('validateVisualWorkflow', () => {
 
     // Disconnected nodes generate warnings, not errors
     expect(result.warnings.some(w => w.includes('not connected'))).toBe(true);
+  });
+});
+
+describe('extended node type conversion', () => {
+  it('should convert workflow with Code node', () => {
+    const codeNode: WorkflowNode = {
+      id: 'code-1',
+      type: 'code',
+      position: { x: 250, y: 200 },
+      data: {
+        label: 'JavaScript Code',
+        nodeType: 'code',
+        executionStatus: 'idle',
+        isConfigured: true,
+        hasError: false,
+        language: 'javascript',
+        code: 'return input.value * 2;',
+        inputs: { value: { type: 'number', description: 'Input value' } },
+        outputs: { result: { type: 'number', description: 'Doubled value' } },
+      },
+    };
+
+    const visual = createMinimalWorkflow([codeNode]);
+    const definition = visualToDefinition(visual);
+
+    expect(definition.steps).toHaveLength(1);
+    expect(definition.steps[0].type).toBe('code');
+    expect(definition.steps[0].code).toBe('return input.value * 2;');
+    expect(definition.steps[0].language).toBe('javascript');
+  });
+
+  it('should convert workflow with Transform node', () => {
+    const transformNode: WorkflowNode = {
+      id: 'transform-1',
+      type: 'transform',
+      position: { x: 250, y: 200 },
+      data: {
+        label: 'Map Transform',
+        nodeType: 'transform',
+        executionStatus: 'idle',
+        isConfigured: true,
+        hasError: false,
+        transformType: 'map',
+        expression: 'item => item.toUpperCase()',
+        inputs: { data: { type: 'array', description: 'Input array' } },
+        outputs: { result: { type: 'array', description: 'Transformed array' } },
+      },
+    };
+
+    const visual = createMinimalWorkflow([transformNode]);
+    const definition = visualToDefinition(visual);
+
+    expect(definition.steps).toHaveLength(1);
+    expect(definition.steps[0].type).toBe('transform');
+    expect(definition.steps[0].transformType).toBe('map');
+    expect(definition.steps[0].expression).toBe('item => item.toUpperCase()');
+  });
+
+  it('should convert workflow with Loop node', () => {
+    const loopNode: WorkflowNode = {
+      id: 'loop-1',
+      type: 'loop',
+      position: { x: 250, y: 200 },
+      data: {
+        label: 'ForEach Loop',
+        nodeType: 'loop',
+        executionStatus: 'idle',
+        isConfigured: true,
+        hasError: false,
+        loopType: 'forEach',
+        iteratorVariable: 'item',
+        collection: 'items',
+        maxIterations: 100,
+        inputs: { items: { type: 'array', description: 'Items to iterate' } },
+        outputs: { iterations: { type: 'array', description: 'Loop results' } },
+      },
+    };
+
+    const visual = createMinimalWorkflow([loopNode]);
+    const definition = visualToDefinition(visual);
+
+    expect(definition.steps).toHaveLength(1);
+    expect(definition.steps[0].type).toBe('loop');
+    expect(definition.steps[0].loopType).toBe('forEach');
+    expect(definition.steps[0].iteratorVariable).toBe('item');
+    expect(definition.steps[0].collection).toBe('items');
+  });
+
+  it('should convert workflow with Webhook node', () => {
+    const webhookNode: WorkflowNode = {
+      id: 'webhook-1',
+      type: 'webhook',
+      position: { x: 250, y: 200 },
+      data: {
+        label: 'API Call',
+        nodeType: 'webhook',
+        executionStatus: 'idle',
+        isConfigured: true,
+        hasError: false,
+        webhookUrl: 'https://api.example.com/data',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{"key": "{{value}}"}',
+        inputs: { value: { type: 'string', description: 'Request value' } },
+        outputs: { response: { type: 'object', description: 'API response' } },
+      },
+    };
+
+    const visual = createMinimalWorkflow([webhookNode]);
+    const definition = visualToDefinition(visual);
+
+    expect(definition.steps).toHaveLength(1);
+    expect(definition.steps[0].type).toBe('webhook');
+    expect(definition.steps[0].webhookUrl).toBe('https://api.example.com/data');
+    expect(definition.steps[0].method).toBe('POST');
+  });
+
+  it('should convert workflow with Delay node', () => {
+    const delayNode: WorkflowNode = {
+      id: 'delay-1',
+      type: 'delay',
+      position: { x: 250, y: 200 },
+      data: {
+        label: 'Wait 5 seconds',
+        nodeType: 'delay',
+        executionStatus: 'idle',
+        isConfigured: true,
+        hasError: false,
+        delayType: 'fixed',
+        delayMs: 5000,
+      },
+    };
+
+    const visual = createMinimalWorkflow([delayNode]);
+    const definition = visualToDefinition(visual);
+
+    expect(definition.steps).toHaveLength(1);
+    expect(definition.steps[0].type).toBe('delay');
+    expect(definition.steps[0].delayType).toBe('fixed');
+    expect(definition.steps[0].delayMs).toBe(5000);
+  });
+
+  it('should convert workflow with Merge node', () => {
+    const mergeNode: WorkflowNode = {
+      id: 'merge-1',
+      type: 'merge',
+      position: { x: 250, y: 200 },
+      data: {
+        label: 'Merge Results',
+        nodeType: 'merge',
+        executionStatus: 'idle',
+        isConfigured: true,
+        hasError: false,
+        mergeStrategy: 'concat',
+        inputs: {
+          input1: { type: 'array', description: 'First input' },
+          input2: { type: 'array', description: 'Second input' },
+        },
+        outputs: { result: { type: 'array', description: 'Merged result' } },
+      },
+    };
+
+    const visual = createMinimalWorkflow([mergeNode]);
+    const definition = visualToDefinition(visual);
+
+    expect(definition.steps).toHaveLength(1);
+    expect(definition.steps[0].type).toBe('merge');
+    expect(definition.steps[0].mergeStrategy).toBe('concat');
+  });
+
+  it('should convert workflow with Subworkflow node', () => {
+    const subworkflowNode: WorkflowNode = {
+      id: 'subworkflow-1',
+      type: 'subworkflow',
+      position: { x: 250, y: 200 },
+      data: {
+        label: 'Sub Process',
+        nodeType: 'subworkflow',
+        executionStatus: 'idle',
+        isConfigured: true,
+        hasError: false,
+        workflowId: 'workflow-123',
+        inputMapping: { input: 'parentInput' },
+        outputMapping: { result: 'subResult' },
+        inputs: { parentInput: { type: 'string', description: 'Parent input' } },
+        outputs: { subResult: { type: 'string', description: 'Sub result' } },
+      },
+    };
+
+    const visual = createMinimalWorkflow([subworkflowNode]);
+    const definition = visualToDefinition(visual);
+
+    expect(definition.steps).toHaveLength(1);
+    expect(definition.steps[0].type).toBe('subworkflow');
+    expect(definition.steps[0].workflowId).toBe('workflow-123');
+    expect(definition.steps[0].inputMapping).toEqual({ input: 'parentInput' });
+    expect(definition.steps[0].outputMapping).toEqual({ result: 'subResult' });
   });
 });
 

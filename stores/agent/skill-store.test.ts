@@ -2,6 +2,10 @@
  * Tests for skill-store
  */
 
+// Unmock the skill store so we test the real implementation
+jest.unmock('./skill-store');
+jest.unmock('@/stores/agent/skill-store');
+
 import { act, renderHook } from '@testing-library/react';
 import { useSkillStore } from './skill-store';
 
@@ -14,6 +18,11 @@ describe('useSkillStore', () => {
   beforeEach(() => {
     // Clear mocks before each test
     jest.clearAllMocks();
+    // Reset store state
+    const { result } = renderHook(() => useSkillStore());
+    act(() => {
+      result.current.reset();
+    });
   });
 
   describe('createSkill', () => {

@@ -45,6 +45,7 @@ describe('ChatWidgetHeader', () => {
     showTimestamps: false,
     soundEnabled: false,
     autoFocus: true,
+    backgroundColor: '#ffffff',
   };
 
   const defaultProps = {

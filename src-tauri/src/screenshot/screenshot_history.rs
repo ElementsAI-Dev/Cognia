@@ -2,10 +2,10 @@
 //!
 //! Tracks screenshot history for easy recall and management.
 
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::Arc;
-use parking_lot::RwLock;
 
 /// Maximum number of screenshots to keep in memory
 const MAX_SCREENSHOT_HISTORY: usize = 20;
@@ -277,9 +277,9 @@ mod tests {
     fn test_add_entry() {
         let history = ScreenshotHistory::new();
         let entry = ScreenshotHistoryEntry::new(1920, 1080, "fullscreen");
-        
+
         history.add(entry);
-        
+
         assert_eq!(history.len(), 1);
         let recent = history.get_recent(10);
         assert_eq!(recent[0].width, 1920);
@@ -294,7 +294,7 @@ mod tests {
             .with_file_path("/path/to/file.png".to_string())
             .with_window_title("Test Window".to_string())
             .with_ocr_text("Extracted text".to_string());
-        
+
         assert_eq!(entry.thumbnail_base64, Some("base64thumbnail".to_string()));
         assert_eq!(entry.file_path, Some("/path/to/file.png".to_string()));
         assert_eq!(entry.window_title, Some("Test Window".to_string()));
@@ -306,13 +306,13 @@ mod tests {
         let history = ScreenshotHistory::new();
         let entry = ScreenshotHistoryEntry::new(100, 100, "region");
         let id = entry.id.clone();
-        
+
         history.add(entry);
-        
+
         let found = history.get_by_id(&id);
         assert!(found.is_some());
         assert_eq!(found.unwrap().mode, "region");
-        
+
         let not_found = history.get_by_id("nonexistent");
         assert!(not_found.is_none());
     }
@@ -320,21 +320,21 @@ mod tests {
     #[test]
     fn test_search_by_text() {
         let history = ScreenshotHistory::new();
-        
+
         let entry1 = ScreenshotHistoryEntry::new(100, 100, "region")
             .with_ocr_text("Hello World".to_string());
         let entry2 = ScreenshotHistoryEntry::new(100, 100, "region")
             .with_ocr_text("Goodbye World".to_string());
-        let entry3 = ScreenshotHistoryEntry::new(100, 100, "region")
-            .with_ocr_text("Hello Rust".to_string());
-        
+        let entry3 =
+            ScreenshotHistoryEntry::new(100, 100, "region").with_ocr_text("Hello Rust".to_string());
+
         history.add(entry1);
         history.add(entry2);
         history.add(entry3);
-        
+
         let results = history.search_by_text("hello");
         assert_eq!(results.len(), 2);
-        
+
         let results = history.search_by_text("world");
         assert_eq!(results.len(), 2);
     }
@@ -342,16 +342,16 @@ mod tests {
     #[test]
     fn test_search_by_label() {
         let history = ScreenshotHistory::new();
-        
+
         let mut entry1 = ScreenshotHistoryEntry::new(100, 100, "region");
         entry1.set_label("Important Screenshot".to_string());
-        
+
         let mut entry2 = ScreenshotHistoryEntry::new(100, 100, "region");
         entry2.set_label("Bug Report".to_string());
-        
+
         history.add(entry1);
         history.add(entry2);
-        
+
         let results = history.search_by_label("important");
         assert_eq!(results.len(), 1);
     }
@@ -361,13 +361,13 @@ mod tests {
         let history = ScreenshotHistory::new();
         let entry = ScreenshotHistoryEntry::new(100, 100, "region");
         let id = entry.id.clone();
-        
+
         history.add(entry);
-        
+
         assert!(history.pin_entry(&id));
         let pinned = history.get_pinned();
         assert_eq!(pinned.len(), 1);
-        
+
         assert!(history.unpin_entry(&id));
         let pinned = history.get_pinned();
         assert_eq!(pinned.len(), 0);
@@ -378,13 +378,13 @@ mod tests {
         let history = ScreenshotHistory::new();
         let entry = ScreenshotHistoryEntry::new(100, 100, "region");
         let id = entry.id.clone();
-        
+
         history.add(entry);
         assert_eq!(history.len(), 1);
-        
+
         assert!(history.delete_entry(&id));
         assert_eq!(history.len(), 0);
-        
+
         assert!(!history.delete_entry("nonexistent"));
     }
 
@@ -393,11 +393,11 @@ mod tests {
         let history = ScreenshotHistory::new();
         let entry = ScreenshotHistoryEntry::new(100, 100, "region");
         let id = entry.id.clone();
-        
+
         history.add(entry);
-        
+
         assert!(history.update_label(&id, "New Label".to_string()));
-        
+
         let found = history.get_by_id(&id).unwrap();
         assert_eq!(found.label, Some("New Label".to_string()));
     }
@@ -407,12 +407,12 @@ mod tests {
         let history = ScreenshotHistory::new();
         let entry = ScreenshotHistoryEntry::new(100, 100, "region");
         let id = entry.id.clone();
-        
+
         history.add(entry);
-        
+
         assert!(history.add_tag(&id, "bug".to_string()));
         assert!(history.add_tag(&id, "ui".to_string()));
-        
+
         let found = history.get_by_id(&id).unwrap();
         assert_eq!(found.tags.len(), 2);
         assert!(found.tags.contains(&"bug".to_string()));
@@ -421,19 +421,19 @@ mod tests {
     #[test]
     fn test_clear_unpinned() {
         let history = ScreenshotHistory::new();
-        
+
         let entry1 = ScreenshotHistoryEntry::new(100, 100, "region");
         let id1 = entry1.id.clone();
         history.add(entry1);
         history.pin_entry(&id1);
-        
+
         history.add(ScreenshotHistoryEntry::new(200, 200, "window"));
         history.add(ScreenshotHistoryEntry::new(300, 300, "fullscreen"));
-        
+
         assert_eq!(history.len(), 3);
-        
+
         history.clear_unpinned();
-        
+
         assert_eq!(history.len(), 1);
         let remaining = history.get_all();
         assert!(remaining[0].is_pinned);
@@ -442,28 +442,28 @@ mod tests {
     #[test]
     fn test_clear_all() {
         let history = ScreenshotHistory::new();
-        
+
         let entry = ScreenshotHistoryEntry::new(100, 100, "region");
         let id = entry.id.clone();
         history.add(entry);
         history.pin_entry(&id);
-        
+
         history.add(ScreenshotHistoryEntry::new(200, 200, "window"));
-        
+
         history.clear_all();
-        
+
         assert!(history.is_empty());
     }
 
     #[test]
     fn test_max_size_limit() {
         let history = ScreenshotHistory::new();
-        
+
         // Add more than MAX_SCREENSHOT_HISTORY entries
         for i in 0..25 {
             history.add(ScreenshotHistoryEntry::new(i as u32, i as u32, "region"));
         }
-        
+
         // Should be capped at MAX_SCREENSHOT_HISTORY (20)
         assert!(history.len() <= 20);
     }
@@ -471,18 +471,18 @@ mod tests {
     #[test]
     fn test_pinned_preserved_on_overflow() {
         let history = ScreenshotHistory::new();
-        
+
         // Add a pinned entry first
         let pinned_entry = ScreenshotHistoryEntry::new(999, 999, "pinned");
         let pinned_id = pinned_entry.id.clone();
         history.add(pinned_entry);
         history.pin_entry(&pinned_id);
-        
+
         // Add many more entries to trigger overflow
         for i in 0..25 {
             history.add(ScreenshotHistoryEntry::new(i as u32, i as u32, "region"));
         }
-        
+
         // Pinned entry should still exist
         let pinned = history.get_pinned();
         assert_eq!(pinned.len(), 1);
@@ -492,11 +492,11 @@ mod tests {
     #[test]
     fn test_entry_add_tag_no_duplicates() {
         let mut entry = ScreenshotHistoryEntry::new(100, 100, "region");
-        
+
         entry.add_tag("test".to_string());
         entry.add_tag("test".to_string());
         entry.add_tag("test".to_string());
-        
+
         assert_eq!(entry.tags.len(), 1);
     }
 
@@ -504,10 +504,10 @@ mod tests {
     fn test_entry_pin_unpin_methods() {
         let mut entry = ScreenshotHistoryEntry::new(100, 100, "region");
         assert!(!entry.is_pinned);
-        
+
         entry.pin();
         assert!(entry.is_pinned);
-        
+
         entry.unpin();
         assert!(!entry.is_pinned);
     }
@@ -515,14 +515,14 @@ mod tests {
     #[test]
     fn test_get_recent() {
         let history = ScreenshotHistory::new();
-        
+
         for i in 0..10 {
             history.add(ScreenshotHistoryEntry::new(i as u32, i as u32, "region"));
         }
-        
+
         let recent = history.get_recent(5);
         assert_eq!(recent.len(), 5);
-        
+
         // Most recent should be first
         assert_eq!(recent[0].width, 9);
     }
@@ -530,11 +530,11 @@ mod tests {
     #[test]
     fn test_get_all() {
         let history = ScreenshotHistory::new();
-        
+
         for i in 0..5 {
             history.add(ScreenshotHistoryEntry::new(i as u32, i as u32, "region"));
         }
-        
+
         let all = history.get_all();
         assert_eq!(all.len(), 5);
     }

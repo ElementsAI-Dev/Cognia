@@ -25,6 +25,10 @@ const eslintConfig = defineConfig([
         varsIgnorePattern: "^_",
         caughtErrorsIgnorePattern: "^_",
       }],
+      // Allow inline styles for dynamic values (CSS-in-JS)
+      "react/forbid-dom-props": "off",
+      // Allow <li> without parent context check (react-markdown handles this)
+      "jsx-a11y/html-has-lang": "off",
     },
   },
 ]);

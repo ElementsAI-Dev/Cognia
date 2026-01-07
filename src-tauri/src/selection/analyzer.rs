@@ -2,7 +2,7 @@
 //!
 //! Provides text type detection, language detection, and content analysis.
 
-use crate::selection::types::{Selection, TextType, SourceAppInfo};
+use crate::selection::types::{Selection, SourceAppInfo, TextType};
 
 /// Text analyzer for classifying and analyzing text content
 pub struct TextAnalyzer;
@@ -16,19 +16,25 @@ impl TextAnalyzer {
     /// Analyze text and return rich selection info
     pub fn analyze(&self, text: &str, source_app: Option<SourceAppInfo>) -> Selection {
         let text_len = text.len();
-        log::debug!("[TextAnalyzer] Analyzing text: {} chars, source_app: {:?}", 
-            text_len, source_app.as_ref().map(|s| &s.name));
-        
+        log::debug!(
+            "[TextAnalyzer] Analyzing text: {} chars, source_app: {:?}",
+            text_len,
+            source_app.as_ref().map(|s| &s.name)
+        );
+
         let text_type = self.detect_text_type(text);
         log::trace!("[TextAnalyzer] Detected text type: {:?}", text_type);
-        
-        let is_code = matches!(text_type, TextType::Code | TextType::Json | TextType::Markup);
-        let language = if is_code { 
+
+        let is_code = matches!(
+            text_type,
+            TextType::Code | TextType::Json | TextType::Markup
+        );
+        let language = if is_code {
             let lang = self.detect_language(text);
             log::trace!("[TextAnalyzer] Detected language: {:?}", lang);
             lang
-        } else { 
-            None 
+        } else {
+            None
         };
 
         let word_count = self.count_words(text);
@@ -36,7 +42,7 @@ impl TextAnalyzer {
         let line_count = text.lines().count();
         let is_url = self.is_url(text);
         let is_email = self.is_email(text);
-        
+
         let selection = Selection {
             text: text.to_string(),
             text_before: None,
@@ -55,13 +61,16 @@ impl TextAnalyzer {
 
         log::debug!("[TextAnalyzer] Analysis complete: type={:?}, is_code={}, language={:?}, words={}, lines={}",
             text_type, is_code, language, word_count, line_count);
-        
+
         selection
     }
 
     /// Detect the type of text
     pub fn detect_text_type(&self, text: &str) -> TextType {
-        log::trace!("[TextAnalyzer] detect_text_type: analyzing {} chars", text.len());
+        log::trace!(
+            "[TextAnalyzer] detect_text_type: analyzing {} chars",
+            text.len()
+        );
         let trimmed = text.trim();
 
         if self.is_url(trimmed) {
@@ -136,7 +145,8 @@ impl TextAnalyzer {
         }
         // Relative path with extension
         if text.contains('/') || text.contains('\\') {
-            let has_extension = text.split(&['/', '\\'][..])
+            let has_extension = text
+                .split(&['/', '\\'][..])
                 .next_back()
                 .map(|f| f.contains('.') && !f.starts_with('.'))
                 .unwrap_or(false);
@@ -175,8 +185,14 @@ impl TextAnalyzer {
             if trimmed.starts_with("- ") || trimmed.starts_with("* ") || trimmed.starts_with("+ ") {
                 md_indicators += 1;
             }
-            if trimmed.len() > 2 && trimmed.chars().next().map(|c| c.is_numeric()).unwrap_or(false) 
-                && trimmed.contains(". ") {
+            if trimmed.len() > 2
+                && trimmed
+                    .chars()
+                    .next()
+                    .map(|c| c.is_numeric())
+                    .unwrap_or(false)
+                && trimmed.contains(". ")
+            {
                 md_indicators += 1;
             }
             if trimmed.starts_with("```") {
@@ -197,20 +213,27 @@ impl TextAnalyzer {
     pub fn is_command_line(&self, text: &str) -> bool {
         let text = text.trim();
         let first_line = text.lines().next().unwrap_or("");
-        
-        let cmd_prefixes = ["$", ">", "#", "C:\\>", "PS>", ">>>", "...", "npm ", "yarn ", 
-            "pnpm ", "cargo ", "git ", "docker ", "kubectl ", "pip ", "python ", "node ",
-            "go ", "rustc ", "gcc ", "make ", "cmake ", "cd ", "ls ", "dir ", "cat ",
-            "echo ", "grep ", "find ", "curl ", "wget "];
-        
+
+        let cmd_prefixes = [
+            "$", ">", "#", "C:\\>", "PS>", ">>>", "...", "npm ", "yarn ", "pnpm ", "cargo ",
+            "git ", "docker ", "kubectl ", "pip ", "python ", "node ", "go ", "rustc ", "gcc ",
+            "make ", "cmake ", "cd ", "ls ", "dir ", "cat ", "echo ", "grep ", "find ", "curl ",
+            "wget ",
+        ];
+
         for prefix in &cmd_prefixes {
             if first_line.starts_with(prefix) {
                 return true;
             }
         }
 
-        if text.contains(" | ") || text.contains(" > ") || text.contains(" >> ") 
-            || text.contains(" < ") || text.contains(" && ") || text.contains(" || ") {
+        if text.contains(" | ")
+            || text.contains(" > ")
+            || text.contains(" >> ")
+            || text.contains(" < ")
+            || text.contains(" && ")
+            || text.contains(" || ")
+        {
             return true;
         }
 
@@ -220,13 +243,31 @@ impl TextAnalyzer {
     /// Check if text is an error message
     pub fn is_error_message(&self, text: &str) -> bool {
         let text_lower = text.to_lowercase();
-        
+
         let error_indicators = [
-            "error:", "error[", "exception:", "traceback", "stack trace",
-            "panic:", "fatal:", "failed:", "failure:", "cannot ", "could not",
-            "unable to", "not found", "permission denied", "access denied",
-            "segmentation fault", "null pointer", "undefined", "typeerror",
-            "syntaxerror", "referenceerror", "at line", "on line",
+            "error:",
+            "error[",
+            "exception:",
+            "traceback",
+            "stack trace",
+            "panic:",
+            "fatal:",
+            "failed:",
+            "failure:",
+            "cannot ",
+            "could not",
+            "unable to",
+            "not found",
+            "permission denied",
+            "access denied",
+            "segmentation fault",
+            "null pointer",
+            "undefined",
+            "typeerror",
+            "syntaxerror",
+            "referenceerror",
+            "at line",
+            "on line",
         ];
 
         for indicator in &error_indicators {
@@ -235,8 +276,13 @@ impl TextAnalyzer {
             }
         }
 
-        if text.contains("at ") && (text.contains(".js:") || text.contains(".ts:") 
-            || text.contains(".py:") || text.contains(".rs:") || text.contains(".go:")) {
+        if text.contains("at ")
+            && (text.contains(".js:")
+                || text.contains(".ts:")
+                || text.contains(".py:")
+                || text.contains(".rs:")
+                || text.contains(".go:"))
+        {
             return true;
         }
 
@@ -246,10 +292,21 @@ impl TextAnalyzer {
     /// Check if text is a log entry
     pub fn is_log_entry(&self, text: &str) -> bool {
         let text_upper = text.to_uppercase();
-        
-        let log_levels = ["[DEBUG]", "[INFO]", "[WARN]", "[WARNING]", "[ERROR]", 
-            "[FATAL]", "[TRACE]", "DEBUG:", "INFO:", "WARN:", "ERROR:"];
-        
+
+        let log_levels = [
+            "[DEBUG]",
+            "[INFO]",
+            "[WARN]",
+            "[WARNING]",
+            "[ERROR]",
+            "[FATAL]",
+            "[TRACE]",
+            "DEBUG:",
+            "INFO:",
+            "WARN:",
+            "ERROR:",
+        ];
+
         for level in &log_levels {
             if text_upper.contains(level) {
                 return true;
@@ -261,7 +318,11 @@ impl TextAnalyzer {
         let char_count = first_line.chars().count();
         if char_count > 10 {
             // Get the byte index of the 10th character (or end of string)
-            let end_byte = first_line.char_indices().nth(10).map(|(i, _)| i).unwrap_or(first_line.len());
+            let end_byte = first_line
+                .char_indices()
+                .nth(10)
+                .map(|(i, _)| i)
+                .unwrap_or(first_line.len());
             let start = &first_line[..end_byte];
             if start.contains('-') && start.chars().filter(|c| c.is_numeric()).count() >= 4 {
                 return true;
@@ -278,36 +339,50 @@ impl TextAnalyzer {
 
         for line in &lines {
             let trimmed = line.trim();
-            
+
             if trimmed.ends_with(';') || trimmed.ends_with('{') || trimmed.ends_with('}') {
                 code_indicators += 1;
             }
             if trimmed.starts_with("//") || trimmed.starts_with("/*") || trimmed.starts_with('#') {
                 code_indicators += 1;
             }
-            if trimmed.starts_with("import ") || trimmed.starts_with("from ") 
-                || trimmed.starts_with("use ") || trimmed.starts_with("require(") {
+            if trimmed.starts_with("import ")
+                || trimmed.starts_with("from ")
+                || trimmed.starts_with("use ")
+                || trimmed.starts_with("require(")
+            {
                 code_indicators += 2;
             }
-            if trimmed.starts_with("function ") || trimmed.starts_with("fn ") 
-                || trimmed.starts_with("def ") || trimmed.starts_with("class ") 
-                || trimmed.starts_with("pub ") || trimmed.starts_with("async ") {
+            if trimmed.starts_with("function ")
+                || trimmed.starts_with("fn ")
+                || trimmed.starts_with("def ")
+                || trimmed.starts_with("class ")
+                || trimmed.starts_with("pub ")
+                || trimmed.starts_with("async ")
+            {
                 code_indicators += 2;
             }
             if trimmed.contains("=>") || trimmed.contains("->") {
                 code_indicators += 1;
             }
-            if trimmed.starts_with("if ") || trimmed.starts_with("for ") 
-                || trimmed.starts_with("while ") || trimmed.starts_with("match ") {
+            if trimmed.starts_with("if ")
+                || trimmed.starts_with("for ")
+                || trimmed.starts_with("while ")
+                || trimmed.starts_with("match ")
+            {
                 code_indicators += 1;
             }
-            if trimmed.contains("const ") || trimmed.contains("let ") 
-                || trimmed.contains("var ") || trimmed.contains("mut ") {
+            if trimmed.contains("const ")
+                || trimmed.contains("let ")
+                || trimmed.contains("var ")
+                || trimmed.contains("mut ")
+            {
                 code_indicators += 1;
             }
         }
 
-        code_indicators >= 2 || (!lines.is_empty() && code_indicators as f64 / lines.len() as f64 > 0.2)
+        code_indicators >= 2
+            || (!lines.is_empty() && code_indicators as f64 / lines.len() as f64 > 0.2)
     }
 
     /// Check if text is primarily numeric
@@ -317,10 +392,23 @@ impl TextAnalyzer {
             return false;
         }
 
-        let numeric_chars: usize = text.chars()
-            .filter(|c| c.is_numeric() || *c == '.' || *c == ',' || *c == '-' 
-                || *c == '+' || *c == '*' || *c == '/' || *c == '=' || *c == ' '
-                || *c == '(' || *c == ')' || *c == '%' || *c == '^')
+        let numeric_chars: usize = text
+            .chars()
+            .filter(|c| {
+                c.is_numeric()
+                    || *c == '.'
+                    || *c == ','
+                    || *c == '-'
+                    || *c == '+'
+                    || *c == '*'
+                    || *c == '/'
+                    || *c == '='
+                    || *c == ' '
+                    || *c == '('
+                    || *c == ')'
+                    || *c == '%'
+                    || *c == '^'
+            })
             .count();
 
         numeric_chars as f64 / text.len() as f64 > 0.8
@@ -328,11 +416,16 @@ impl TextAnalyzer {
 
     /// Detect programming language from code
     pub fn detect_language(&self, text: &str) -> Option<String> {
-        log::trace!("[TextAnalyzer] detect_language: analyzing {} chars", text.len());
+        log::trace!(
+            "[TextAnalyzer] detect_language: analyzing {} chars",
+            text.len()
+        );
         let text_lower = text.to_lowercase();
 
         // Rust
-        if text.contains("fn ") && (text.contains("->") || text.contains("pub ") || text.contains("let mut")) {
+        if text.contains("fn ")
+            && (text.contains("->") || text.contains("pub ") || text.contains("let mut"))
+        {
             return Some("rust".to_string());
         }
 
@@ -346,7 +439,9 @@ impl TextAnalyzer {
 
         // JavaScript/TypeScript
         if text.contains("const ") || text.contains("let ") || text.contains("var ") {
-            if text.contains(": ") && (text.contains("string") || text.contains("number") || text.contains("boolean")) {
+            if text.contains(": ")
+                && (text.contains("string") || text.contains("number") || text.contains("boolean"))
+            {
                 return Some("typescript".to_string());
             }
             if text.contains("=>") || text.contains("function") {
@@ -360,7 +455,10 @@ impl TextAnalyzer {
         }
 
         // Java/Kotlin
-        if text.contains("public class ") || text.contains("private ") || text.contains("protected ") {
+        if text.contains("public class ")
+            || text.contains("private ")
+            || text.contains("protected ")
+        {
             if text.contains("fun ") {
                 return Some("kotlin".to_string());
             }
@@ -423,7 +521,7 @@ mod tests {
     fn test_analyze_plain_text() {
         let analyzer = TextAnalyzer::new();
         let result = analyzer.analyze("Hello, this is a simple text.", None);
-        
+
         assert_eq!(result.text_type, TextType::PlainText);
         assert!(!result.is_code);
         assert_eq!(result.word_count, 6);
@@ -432,7 +530,7 @@ mod tests {
     #[test]
     fn test_analyze_url() {
         let analyzer = TextAnalyzer::new();
-        
+
         let result = analyzer.analyze("https://example.com/path", None);
         assert_eq!(result.text_type, TextType::Url);
         assert!(result.is_url);
@@ -441,7 +539,7 @@ mod tests {
     #[test]
     fn test_analyze_email() {
         let analyzer = TextAnalyzer::new();
-        
+
         let result = analyzer.analyze("user@example.com", None);
         assert_eq!(result.text_type, TextType::Email);
         assert!(result.is_email);
@@ -450,7 +548,7 @@ mod tests {
     #[test]
     fn test_analyze_code() {
         let analyzer = TextAnalyzer::new();
-        
+
         let rust_code = "fn main() {\n    let x = 5;\n}";
         let result = analyzer.analyze(rust_code, None);
         assert_eq!(result.text_type, TextType::Code);

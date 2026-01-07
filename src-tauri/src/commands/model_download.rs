@@ -69,9 +69,8 @@ fn resolve_source_url(source: ModelSource, url: &str, config: &DownloadConfig) -
     if let Some(mirror_base) = config.custom_mirrors.get(source.config_key()) {
         let mirror_base = mirror_base.trim_end_matches('/');
         if let Some(default_base) = source.base_url() {
-            if url.starts_with(default_base) {
+            if let Some(suffix) = url.strip_prefix(default_base) {
                 let mut resolved = mirror_base.to_string();
-                let suffix = &url[default_base.len()..];
                 if !suffix.starts_with('/') {
                     resolved.push('/');
                 }
@@ -294,9 +293,7 @@ async fn test_proxy_connectivity(proxy_url: &str) -> bool {
 }
 
 /// Create HTTP client with optional proxy
-async fn create_download_client(
-    config: &DownloadConfig,
-) -> Result<reqwest::Client, String> {
+async fn create_download_client(config: &DownloadConfig) -> Result<reqwest::Client, String> {
     let proxy_url = if let Some(ref proxy) = config.proxy_url {
         Some(proxy.clone())
     } else if config.use_system_proxy {
@@ -447,11 +444,20 @@ pub async fn model_download(
             },
         );
 
-        match download_file(&app, &client, &url, &target_path, &model_id, source, model.size).await
+        match download_file(
+            &app,
+            &client,
+            &url,
+            &target_path,
+            &model_id,
+            source,
+            model.size,
+        )
+        .await
         {
             Ok(_) => {
                 let elapsed = start_time.elapsed().as_secs();
-                
+
                 // Emit completion
                 let _ = app.emit(
                     "model-download-progress",
@@ -486,7 +492,7 @@ pub async fn model_download(
 
     // All sources failed
     let error = last_error.unwrap_or_else(|| "No download sources available".to_string());
-    
+
     let _ = app.emit(
         "model-download-progress",
         DownloadProgress {
@@ -532,9 +538,7 @@ async fn download_file(
         return Err(format!("HTTP error: {}", response.status()));
     }
 
-    let total_size = response
-        .content_length()
-        .unwrap_or(expected_size);
+    let total_size = response.content_length().unwrap_or(expected_size);
 
     let mut file = File::create(path)
         .await
@@ -547,7 +551,7 @@ async fn download_file(
 
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| format!("Stream error: {}", e))?;
-        
+
         file.write_all(&chunk)
             .await
             .map_err(|e| format!("Write error: {}", e))?;
@@ -562,7 +566,7 @@ async fn download_file(
             } else {
                 0
             };
-            
+
             let eta_secs = if speed_bps > 0 && downloaded < total_size {
                 Some((total_size - downloaded) / speed_bps)
             } else {
@@ -625,10 +629,22 @@ pub async fn model_delete(app: AppHandle, model_id: String) -> Result<bool, Stri
 #[tauri::command]
 pub async fn model_get_sources() -> Result<Vec<(ModelSource, String)>, String> {
     Ok(vec![
-        (ModelSource::HuggingFace, ModelSource::HuggingFace.display_name().to_string()),
-        (ModelSource::ModelScope, ModelSource::ModelScope.display_name().to_string()),
-        (ModelSource::GitHub, ModelSource::GitHub.display_name().to_string()),
-        (ModelSource::Ollama, ModelSource::Ollama.display_name().to_string()),
+        (
+            ModelSource::HuggingFace,
+            ModelSource::HuggingFace.display_name().to_string(),
+        ),
+        (
+            ModelSource::ModelScope,
+            ModelSource::ModelScope.display_name().to_string(),
+        ),
+        (
+            ModelSource::GitHub,
+            ModelSource::GitHub.display_name().to_string(),
+        ),
+        (
+            ModelSource::Ollama,
+            ModelSource::Ollama.display_name().to_string(),
+        ),
     ])
 }
 
@@ -658,7 +674,7 @@ mod tests {
     fn test_builtin_models() {
         let models = get_builtin_models();
         assert!(!models.is_empty());
-        
+
         // Check tesseract-eng exists
         assert!(models.iter().any(|m| m.id == "tesseract-eng"));
     }

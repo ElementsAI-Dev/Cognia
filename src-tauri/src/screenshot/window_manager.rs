@@ -99,13 +99,13 @@ impl WindowManager {
         use std::ffi::OsString;
         use std::os::windows::ffi::OsStringExt;
         use windows::Win32::Foundation::{BOOL, HWND, LPARAM, RECT};
+        use windows::Win32::System::ProcessStatus::GetModuleBaseNameW;
         use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
         use windows::Win32::UI::WindowsAndMessaging::{
             EnumWindows, GetWindowInfo, GetWindowLongW, GetWindowRect, GetWindowTextLengthW,
             GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible, IsZoomed,
             GWL_EXSTYLE, GWL_STYLE, WINDOWINFO, WS_EX_TOOLWINDOW, WS_VISIBLE,
         };
-        use windows::Win32::System::ProcessStatus::GetModuleBaseNameW;
 
         let mut windows: Vec<WindowInfo> = Vec::new();
 
@@ -136,7 +136,7 @@ impl WindowManager {
             }
 
             let title = String::from_utf16_lossy(&title_buf[..actual_len as usize]);
-            
+
             // Skip empty titles
             if title.trim().is_empty() {
                 return BOOL(1);
@@ -193,10 +193,7 @@ impl WindowManager {
         }
 
         unsafe {
-            let _ = EnumWindows(
-                Some(enum_callback),
-                LPARAM(&mut windows as *mut _ as isize),
-            );
+            let _ = EnumWindows(Some(enum_callback), LPARAM(&mut windows as *mut _ as isize));
         }
 
         // Sort by Z-order (front to back) - windows at front first
@@ -209,16 +206,14 @@ impl WindowManager {
     #[cfg(target_os = "windows")]
     pub fn get_windows_with_thumbnails(&self, thumbnail_size: u32) -> Vec<WindowInfo> {
         let mut windows = self.get_windows();
-        
+
         for window in &mut windows {
             if !window.is_minimized {
-                window.thumbnail_base64 = self.capture_window_thumbnail(
-                    window.hwnd,
-                    thumbnail_size,
-                );
+                window.thumbnail_base64 =
+                    self.capture_window_thumbnail(window.hwnd, thumbnail_size);
             }
         }
-        
+
         windows
     }
 
@@ -228,15 +223,15 @@ impl WindowManager {
         use base64::{engine::general_purpose::STANDARD, Engine};
         use windows::Win32::Foundation::{HWND, RECT};
         use windows::Win32::Graphics::Gdi::{
-            BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject,
-            GetDC, GetDIBits, ReleaseDC, SelectObject, StretchBlt, BITMAPINFO, BITMAPINFOHEADER,
-            BI_RGB, DIB_RGB_COLORS, SRCCOPY, HALFTONE, SetStretchBltMode,
+            BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC,
+            GetDIBits, ReleaseDC, SelectObject, SetStretchBltMode, StretchBlt, BITMAPINFO,
+            BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HALFTONE, SRCCOPY,
         };
         use windows::Win32::UI::WindowsAndMessaging::GetWindowRect;
 
         unsafe {
             let hwnd = HWND(hwnd as *mut _);
-            
+
             // Get window rect
             let mut rect = RECT::default();
             if GetWindowRect(hwnd, &mut rect).is_err() {
@@ -271,18 +266,27 @@ impl WindowManager {
             let src_dc = CreateCompatibleDC(screen_dc);
             let dst_dc = CreateCompatibleDC(screen_dc);
             if src_dc.is_invalid() || dst_dc.is_invalid() {
-                if !src_dc.is_invalid() { let _ = DeleteDC(src_dc); }
-                if !dst_dc.is_invalid() { let _ = DeleteDC(dst_dc); }
+                if !src_dc.is_invalid() {
+                    let _ = DeleteDC(src_dc);
+                }
+                if !dst_dc.is_invalid() {
+                    let _ = DeleteDC(dst_dc);
+                }
                 ReleaseDC(HWND::default(), screen_dc);
                 return None;
             }
 
             // Create bitmaps
             let src_bitmap = CreateCompatibleBitmap(screen_dc, width as i32, height as i32);
-            let dst_bitmap = CreateCompatibleBitmap(screen_dc, thumb_width as i32, thumb_height as i32);
+            let dst_bitmap =
+                CreateCompatibleBitmap(screen_dc, thumb_width as i32, thumb_height as i32);
             if src_bitmap.is_invalid() || dst_bitmap.is_invalid() {
-                if !src_bitmap.is_invalid() { let _ = DeleteObject(src_bitmap); }
-                if !dst_bitmap.is_invalid() { let _ = DeleteObject(dst_bitmap); }
+                if !src_bitmap.is_invalid() {
+                    let _ = DeleteObject(src_bitmap);
+                }
+                if !dst_bitmap.is_invalid() {
+                    let _ = DeleteObject(dst_bitmap);
+                }
                 let _ = DeleteDC(src_dc);
                 let _ = DeleteDC(dst_dc);
                 ReleaseDC(HWND::default(), screen_dc);
@@ -293,7 +297,19 @@ impl WindowManager {
             let old_dst = SelectObject(dst_dc, dst_bitmap);
 
             // Capture window area
-            if BitBlt(src_dc, 0, 0, width as i32, height as i32, screen_dc, rect.left, rect.top, SRCCOPY).is_err() {
+            if BitBlt(
+                src_dc,
+                0,
+                0,
+                width as i32,
+                height as i32,
+                screen_dc,
+                rect.left,
+                rect.top,
+                SRCCOPY,
+            )
+            .is_err()
+            {
                 SelectObject(src_dc, old_src);
                 SelectObject(dst_dc, old_dst);
                 let _ = DeleteObject(src_bitmap);
@@ -307,10 +323,20 @@ impl WindowManager {
             // Scale down to thumbnail
             let _ = SetStretchBltMode(dst_dc, HALFTONE);
             if !StretchBlt(
-                dst_dc, 0, 0, thumb_width as i32, thumb_height as i32,
-                src_dc, 0, 0, width as i32, height as i32,
+                dst_dc,
+                0,
+                0,
+                thumb_width as i32,
+                thumb_height as i32,
+                src_dc,
+                0,
+                0,
+                width as i32,
+                height as i32,
                 SRCCOPY,
-            ).as_bool() {
+            )
+            .as_bool()
+            {
                 SelectObject(src_dc, old_src);
                 SelectObject(dst_dc, old_dst);
                 let _ = DeleteObject(src_bitmap);
@@ -390,15 +416,15 @@ impl WindowManager {
     pub fn capture_window_by_hwnd(&self, hwnd: isize) -> Result<super::ScreenshotResult, String> {
         use windows::Win32::Foundation::{HWND, RECT};
         use windows::Win32::Graphics::Gdi::{
-            BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject,
-            GetDC, GetDIBits, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER,
-            BI_RGB, DIB_RGB_COLORS, SRCCOPY,
+            BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC,
+            GetDIBits, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
+            DIB_RGB_COLORS, SRCCOPY,
         };
         use windows::Win32::UI::WindowsAndMessaging::{GetWindowRect, GetWindowTextW};
 
         unsafe {
             let hwnd = HWND(hwnd as *mut _);
-            
+
             // Get window title
             let mut title_buf = [0u16; 256];
             let len = GetWindowTextW(hwnd, &mut title_buf);
@@ -444,7 +470,19 @@ impl WindowManager {
             let old_bitmap = SelectObject(mem_dc, bitmap);
 
             // Copy screen region to bitmap
-            if BitBlt(mem_dc, 0, 0, width as i32, height as i32, screen_dc, x, y, SRCCOPY).is_err() {
+            if BitBlt(
+                mem_dc,
+                0,
+                0,
+                width as i32,
+                height as i32,
+                screen_dc,
+                x,
+                y,
+                SRCCOPY,
+            )
+            .is_err()
+            {
                 SelectObject(mem_dc, old_bitmap);
                 let _ = DeleteObject(bitmap);
                 let _ = DeleteDC(mem_dc);
@@ -505,7 +543,12 @@ impl WindowManager {
                 mode: "window".to_string(),
                 monitor_index: None,
                 window_title,
-                region: Some(super::CaptureRegion { x, y, width, height }),
+                region: Some(super::CaptureRegion {
+                    x,
+                    y,
+                    width,
+                    height,
+                }),
                 file_path: None,
                 ocr_text: None,
             };
@@ -542,7 +585,10 @@ impl WindowManager {
         window_width: u32,
         window_height: u32,
     ) -> SnapResult {
-        use windows::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN};
+        use windows::Win32::UI::WindowsAndMessaging::{
+            GetSystemMetrics, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN,
+            SM_YVIRTUALSCREEN,
+        };
 
         let mut result = SnapResult {
             x: None,
@@ -595,7 +641,7 @@ impl WindowManager {
         // Snap to other windows
         if self.snap_config.snap_to_windows {
             let other_windows = self.get_windows();
-            
+
             for other in &other_windows {
                 // Skip self and minimized windows
                 if other.hwnd == window_hwnd || other.is_minimized {
@@ -752,7 +798,7 @@ mod tests {
 
         let json = serde_json::to_string(&info).unwrap();
         let deserialized: WindowInfo = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.hwnd, 12345);
         assert_eq!(deserialized.title, "Test Window");
     }
@@ -769,7 +815,7 @@ mod tests {
 
         let json = serde_json::to_string(&result).unwrap();
         let deserialized: SnapResult = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.x, Some(100));
         assert_eq!(deserialized.y, None);
     }

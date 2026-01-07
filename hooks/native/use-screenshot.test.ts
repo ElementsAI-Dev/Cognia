@@ -12,13 +12,15 @@ jest.mock('@tauri-apps/api/core', () => ({
 }));
 
 // Mock isTauri
+const mockIsTauri = jest.fn(() => true);
 jest.mock('@/lib/native/utils', () => ({
-  isTauri: () => true,
+  isTauri: () => mockIsTauri(),
 }));
 
 describe('useScreenshot', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
   });
 
   const mockScreenshotResult = {
@@ -263,6 +265,7 @@ describe('useScreenshot', () => {
 describe('useScreenshotHistory', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
   });
 
   const mockHistoryEntry = {
@@ -395,5 +398,34 @@ describe('useScreenshotHistory', () => {
       expect(mockInvoke).toHaveBeenCalledWith('screenshot_clear_history');
       expect(result.current.history).toEqual([]);
     });
+  });
+});
+
+describe('useScreenshot non-tauri fallback', () => {
+  beforeEach(() => {
+    mockIsTauri.mockReturnValue(false);
+    mockInvoke.mockReset();
+  });
+
+  it('returns null when capturing outside Tauri', async () => {
+    const { result } = renderHook(() => useScreenshot());
+
+    await act(async () => {
+      const capture = await result.current.captureFullscreen();
+      expect(capture).toBeNull();
+    });
+
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it('skips history fetch when not in Tauri', async () => {
+    const { result } = renderHook(() => useScreenshotHistory());
+
+    await act(async () => {
+      await result.current.fetchHistory();
+    });
+
+    expect(mockInvoke).not.toHaveBeenCalled();
+    expect(result.current.history).toEqual([]);
   });
 });

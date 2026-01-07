@@ -385,28 +385,28 @@ mod tests {
         assert!(get_language_config("py").is_some());
         assert!(get_language_config("python3").is_some());
         assert!(get_language_config("py3").is_some());
-        
+
         // JavaScript aliases
         assert!(get_language_config("js").is_some());
         assert!(get_language_config("node").is_some());
         assert!(get_language_config("nodejs").is_some());
-        
+
         // TypeScript alias
         assert!(get_language_config("ts").is_some());
-        
+
         // Go alias
         assert!(get_language_config("golang").is_some());
-        
+
         // Rust alias
         assert!(get_language_config("rs").is_some());
-        
+
         // Ruby alias
         assert!(get_language_config("rb").is_some());
-        
+
         // Bash aliases
         assert!(get_language_config("sh").is_some());
         assert!(get_language_config("shell").is_some());
-        
+
         // PowerShell aliases
         assert!(get_language_config("ps1").is_some());
         assert!(get_language_config("pwsh").is_some());
@@ -426,7 +426,11 @@ mod tests {
     #[test]
     fn test_all_languages_have_docker_image() {
         for lang in LANGUAGE_CONFIGS {
-            assert!(!lang.docker_image.is_empty(), "{} has no docker image", lang.id);
+            assert!(
+                !lang.docker_image.is_empty(),
+                "{} has no docker image",
+                lang.id
+            );
         }
     }
 
@@ -466,7 +470,9 @@ mod tests {
             assert!(
                 lang.file_name.ends_with(&expected_ext),
                 "{} file_name '{}' doesn't end with extension '.{}'",
-                lang.id, lang.file_name, lang.extension
+                lang.id,
+                lang.file_name,
+                lang.extension
             );
         }
     }
@@ -475,25 +481,41 @@ mod tests {
 
     #[test]
     fn test_interpreted_languages() {
-        let interpreted = ["python", "javascript", "ruby", "php", "lua", "perl", "elixir"];
+        let interpreted = [
+            "python",
+            "javascript",
+            "ruby",
+            "php",
+            "lua",
+            "perl",
+            "elixir",
+        ];
         for lang_id in interpreted {
             let config = get_language_config(lang_id).unwrap();
             assert_eq!(
-                config.category, LanguageCategory::Interpreted,
+                config.category,
+                LanguageCategory::Interpreted,
                 "{} should be Interpreted",
                 lang_id
             );
-            assert!(config.compile_cmd.is_none(), "{} should not have compile_cmd", lang_id);
+            assert!(
+                config.compile_cmd.is_none(),
+                "{} should not have compile_cmd",
+                lang_id
+            );
         }
     }
 
     #[test]
     fn test_compiled_languages() {
-        let compiled = ["rust", "c", "cpp", "java", "swift", "kotlin", "haskell", "csharp"];
+        let compiled = [
+            "rust", "c", "cpp", "java", "swift", "kotlin", "haskell", "csharp",
+        ];
         for lang_id in compiled {
             let config = get_language_config(lang_id).unwrap();
             assert_eq!(
-                config.category, LanguageCategory::Compiled,
+                config.category,
+                LanguageCategory::Compiled,
                 "{} should be Compiled",
                 lang_id
             );
@@ -506,7 +528,8 @@ mod tests {
         for lang_id in shells {
             let config = get_language_config(lang_id).unwrap();
             assert_eq!(
-                config.category, LanguageCategory::Shell,
+                config.category,
+                LanguageCategory::Shell,
                 "{} should be Shell",
                 lang_id
             );
@@ -519,7 +542,8 @@ mod tests {
         for lang_id in jit {
             let config = get_language_config(lang_id).unwrap();
             assert_eq!(
-                config.category, LanguageCategory::JIT,
+                config.category,
+                LanguageCategory::JIT,
                 "{} should be JIT",
                 lang_id
             );
@@ -539,7 +563,7 @@ mod tests {
     fn test_get_all_languages_contains_major_languages() {
         let languages = get_all_languages();
         let ids: Vec<&str> = languages.iter().map(|l| l.id).collect();
-        
+
         assert!(ids.contains(&"python"));
         assert!(ids.contains(&"javascript"));
         assert!(ids.contains(&"typescript"));
@@ -647,13 +671,13 @@ mod tests {
     fn test_language_category_serialization() {
         let interpreted = serde_json::to_string(&LanguageCategory::Interpreted).unwrap();
         assert_eq!(interpreted, "\"interpreted\"");
-        
+
         let compiled = serde_json::to_string(&LanguageCategory::Compiled).unwrap();
         assert_eq!(compiled, "\"compiled\"");
-        
+
         let jit = serde_json::to_string(&LanguageCategory::JIT).unwrap();
         assert_eq!(jit, "\"jit\"");
-        
+
         let shell = serde_json::to_string(&LanguageCategory::Shell).unwrap();
         assert_eq!(shell, "\"shell\"");
     }
@@ -662,13 +686,13 @@ mod tests {
     fn test_language_category_deserialization() {
         let interpreted: LanguageCategory = serde_json::from_str("\"interpreted\"").unwrap();
         assert_eq!(interpreted, LanguageCategory::Interpreted);
-        
+
         let compiled: LanguageCategory = serde_json::from_str("\"compiled\"").unwrap();
         assert_eq!(compiled, LanguageCategory::Compiled);
-        
+
         let jit: LanguageCategory = serde_json::from_str("\"jit\"").unwrap();
         assert_eq!(jit, LanguageCategory::JIT);
-        
+
         let shell: LanguageCategory = serde_json::from_str("\"shell\"").unwrap();
         assert_eq!(shell, LanguageCategory::Shell);
     }
@@ -681,7 +705,7 @@ mod tests {
             extension: "test",
             category: LanguageCategory::Interpreted,
         };
-        
+
         let json = serde_json::to_string(&lang).unwrap();
         assert!(json.contains("\"id\":\"test\""));
         assert!(json.contains("\"name\":\"Test\""));
@@ -727,16 +751,17 @@ mod tests {
         for lang in LANGUAGE_CONFIGS {
             // For compiled languages with fixed output names (like Java), the run_cmd may reference
             // a fixed class/binary name. These are valid as long as compile_cmd uses {file}.
-            let has_placeholder = lang.run_cmd.contains("{file}") 
-                || lang.run_cmd.contains("{basename}") 
+            let has_placeholder = lang.run_cmd.contains("{file}")
+                || lang.run_cmd.contains("{basename}")
                 || lang.run_cmd.starts_with("/tmp/")
                 || lang.run_cmd.contains("/tmp/");
-            
+
             // If no placeholder in run_cmd, there must be a compile step that uses {file}
-            let has_compile_with_placeholder = lang.compile_cmd
+            let has_compile_with_placeholder = lang
+                .compile_cmd
                 .map(|cmd| cmd.contains("{file}"))
                 .unwrap_or(false);
-            
+
             assert!(
                 has_placeholder || has_compile_with_placeholder,
                 "{} run_cmd should have {{file}} or {{basename}} placeholder, or compile_cmd should have {{file}}",

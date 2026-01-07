@@ -40,6 +40,21 @@ describe('useVectorStore', () => {
       expect(settings.chunkSize).toBe(500);
     });
 
+    it('should have default collection name', () => {
+      const settings = useVectorStore.getState().settings;
+      expect(settings.defaultCollectionName).toBe('default');
+    });
+
+    it('should update default collection name', () => {
+      act(() => {
+        useVectorStore.getState().updateSettings({
+          defaultCollectionName: 'my-custom-collection',
+        });
+      });
+
+      expect(useVectorStore.getState().settings.defaultCollectionName).toBe('my-custom-collection');
+    });
+
     it('should get embedding config', () => {
       const config = useVectorStore.getState().getEmbeddingConfig();
       expect(config.provider).toBe('openai');
@@ -113,6 +128,42 @@ describe('useVectorStore', () => {
 
       expect(useVectorStore.getState().getCollection(collection!.id)).toBeDefined();
       expect(useVectorStore.getState().getCollection('non-existent')).toBeUndefined();
+    });
+
+    it('should get collection by name', () => {
+      act(() => {
+        useVectorStore.getState().addCollection({
+          name: 'My Collection',
+          embeddingModel: 'text-embedding-3-small',
+          embeddingProvider: 'openai',
+        });
+      });
+
+      expect(useVectorStore.getState().getCollectionByName('My Collection')).toBeDefined();
+      expect(useVectorStore.getState().getCollectionByName('My Collection')?.name).toBe('My Collection');
+      expect(useVectorStore.getState().getCollectionByName('Non-existent')).toBeUndefined();
+    });
+
+    it('should get collection names', () => {
+      act(() => {
+        useVectorStore.getState().addCollection({
+          name: 'Collection A',
+          embeddingModel: 'text-embedding-3-small',
+          embeddingProvider: 'openai',
+        });
+        useVectorStore.getState().addCollection({
+          name: 'Collection B',
+          embeddingModel: 'text-embedding-3-small',
+          embeddingProvider: 'openai',
+        });
+      });
+
+      const names = useVectorStore.getState().getCollectionNames();
+      expect(names).toEqual(['Collection A', 'Collection B']);
+    });
+
+    it('should return empty array when no collections', () => {
+      expect(useVectorStore.getState().getCollectionNames()).toEqual([]);
     });
   });
 

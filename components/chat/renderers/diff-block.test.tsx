@@ -13,7 +13,7 @@ const customRender = (ui: React.ReactElement) =>
   render(ui, { wrapper: Wrapper });
 
 // Mock useCopy hook
-jest.mock('@/hooks/use-copy', () => ({
+jest.mock('@/hooks/ui/use-copy', () => ({
   useCopy: () => ({
     copy: jest.fn().mockResolvedValue({ success: true }),
     isCopying: false,
@@ -56,12 +56,15 @@ describe('DiffBlock', () => {
     });
 
     it('shows addition and deletion counts', () => {
-      customRender(<DiffBlock content={sampleDiff} />);
+      const { container } = customRender(<DiffBlock content={sampleDiff} />);
       
       // Should show +2 additions (added line, another added line)
       // and -1 deletion (removed line)
-      expect(screen.getByText('2')).toBeInTheDocument();
-      expect(screen.getByText('1')).toBeInTheDocument();
+      // Look for the stats in the green/red spans
+      const additionsSpan = container.querySelector('.text-green-600');
+      const deletionsSpan = container.querySelector('.text-red-600');
+      expect(additionsSpan?.textContent).toContain('2');
+      expect(deletionsSpan?.textContent).toContain('1');
     });
   });
 

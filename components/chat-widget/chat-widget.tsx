@@ -17,6 +17,7 @@ interface ChatWidgetProps {
 export function ChatWidget({ className }: ChatWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [contentReady, setContentReady] = useState(false);
   const resetConfig = useChatWidgetStore((state) => state.resetConfig);
   const setFeedback = useChatWidgetStore((state) => state.setFeedback);
   const editMessage = useChatWidgetStore((state) => state.editMessage);
@@ -40,6 +41,15 @@ export function ChatWidget({ className }: ChatWidgetProps) {
     stop,
     regenerate,
   } = useChatWidget();
+
+  // Mark content as ready after initial render
+  useEffect(() => {
+    // Use requestAnimationFrame to ensure DOM is fully painted
+    const rafId = requestAnimationFrame(() => {
+      setContentReady(true);
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, []);
 
   // Handle window dragging
   useEffect(() => {
@@ -74,11 +84,17 @@ export function ChatWidget({ className }: ChatWidgetProps) {
   return (
     <div
       ref={containerRef}
+      data-chat-widget-container
+      data-content-ready={contentReady}
       className={cn(
         "flex flex-col h-screen w-full",
-        "bg-background/95 backdrop-blur-xl",
+        // Use solid opaque background to ensure content visibility
+        // Avoid backdrop-blur which can cause transparency issues on some platforms
+        "bg-background",
         "border border-border/50 rounded-xl shadow-2xl",
         "overflow-hidden",
+        // Ensure text and content are always visible with proper contrast
+        "text-foreground",
         className
       )}
     >

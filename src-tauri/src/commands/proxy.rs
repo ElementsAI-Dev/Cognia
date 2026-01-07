@@ -100,16 +100,72 @@ pub async fn proxy_detect_all() -> Result<Vec<DetectedProxy>, String> {
     // Check common proxy ports
     let proxy_configs = vec![
         // Clash variants
-        (ProxySoftware::Clash, "Clash", "⚔️", 7890, 7891, Some(7890), Some(9090)),
-        (ProxySoftware::ClashVerge, "Clash Verge", "🔷", 7897, 7898, Some(7897), Some(9097)),
-        (ProxySoftware::ClashForWindows, "Clash for Windows", "🪟", 7890, 7891, Some(7890), Some(9090)),
+        (
+            ProxySoftware::Clash,
+            "Clash",
+            "⚔️",
+            7890,
+            7891,
+            Some(7890),
+            Some(9090),
+        ),
+        (
+            ProxySoftware::ClashVerge,
+            "Clash Verge",
+            "🔷",
+            7897,
+            7898,
+            Some(7897),
+            Some(9097),
+        ),
+        (
+            ProxySoftware::ClashForWindows,
+            "Clash for Windows",
+            "🪟",
+            7890,
+            7891,
+            Some(7890),
+            Some(9090),
+        ),
         // V2Ray variants
-        (ProxySoftware::V2ray, "V2Ray", "🚀", 10809, 10808, None, None),
-        (ProxySoftware::V2rayn, "V2RayN", "🔵", 10809, 10808, None, None),
+        (
+            ProxySoftware::V2ray,
+            "V2Ray",
+            "🚀",
+            10809,
+            10808,
+            None,
+            None,
+        ),
+        (
+            ProxySoftware::V2rayn,
+            "V2RayN",
+            "🔵",
+            10809,
+            10808,
+            None,
+            None,
+        ),
         // Shadowsocks
-        (ProxySoftware::Shadowsocks, "Shadowsocks", "✈️", 1080, 1080, None, None),
+        (
+            ProxySoftware::Shadowsocks,
+            "Shadowsocks",
+            "✈️",
+            1080,
+            1080,
+            None,
+            None,
+        ),
         // sing-box
-        (ProxySoftware::SingBox, "sing-box", "📦", 2080, 2081, Some(2080), None),
+        (
+            ProxySoftware::SingBox,
+            "sing-box",
+            "📦",
+            2080,
+            2081,
+            Some(2080),
+            None,
+        ),
     ];
 
     for (software, name, icon, http_port, socks_port, mixed_port, api_port) in proxy_configs {
@@ -156,7 +212,9 @@ pub async fn proxy_detect_all() -> Result<Vec<DetectedProxy>, String> {
 fn is_port_open(host: &str, port: u16) -> bool {
     let addr = format!("{}:{}", host, port);
     match addr.parse() {
-        Ok(socket_addr) => TcpStream::connect_timeout(&socket_addr, Duration::from_millis(500)).is_ok(),
+        Ok(socket_addr) => {
+            TcpStream::connect_timeout(&socket_addr, Duration::from_millis(500)).is_ok()
+        }
         Err(_) => false,
     }
 }
@@ -164,17 +222,13 @@ fn is_port_open(host: &str, port: u16) -> bool {
 /// Get Clash version from API
 async fn get_clash_version(api_port: u16) -> Result<String, String> {
     let url = format!("http://127.0.0.1:{}/version", api_port);
-    
+
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(2))
         .build()
         .map_err(|e| e.to_string())?;
 
-    let resp = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
+    let resp = client.get(&url).send().await.map_err(|e| e.to_string())?;
 
     if resp.status().is_success() {
         let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
@@ -194,8 +248,18 @@ fn detect_proxy_processes() -> Vec<DetectedProxy> {
     {
         let process_map = vec![
             ("clash", ProxySoftware::Clash, "Clash", "⚔️"),
-            ("Clash Verge", ProxySoftware::ClashVerge, "Clash Verge", "🔷"),
-            ("Clash for Windows", ProxySoftware::ClashForWindows, "Clash for Windows", "🪟"),
+            (
+                "Clash Verge",
+                ProxySoftware::ClashVerge,
+                "Clash Verge",
+                "🔷",
+            ),
+            (
+                "Clash for Windows",
+                ProxySoftware::ClashForWindows,
+                "Clash for Windows",
+                "🪟",
+            ),
             ("v2ray", ProxySoftware::V2ray, "V2Ray", "🚀"),
             ("v2rayn", ProxySoftware::V2rayn, "V2RayN", "🔵"),
             ("ss-local", ProxySoftware::Shadowsocks, "Shadowsocks", "✈️"),
@@ -275,15 +339,15 @@ pub async fn proxy_test(
         .map_err(|e| e.to_string())?;
 
     let start = Instant::now();
-    
+
     match client.get(&test_url).send().await {
         Ok(resp) => {
             let latency = start.elapsed().as_millis() as u64;
-            
+
             if resp.status().is_success() || resp.status().as_u16() == 204 {
                 // Try to get IP from ipinfo.io
                 let ip_info = get_ip_info(&client).await.ok();
-                
+
                 Ok(ProxyTestResult {
                     success: true,
                     latency: Some(latency),
@@ -320,12 +384,16 @@ async fn get_ip_info(client: &reqwest::Client) -> Result<(String, String), Strin
         .map_err(|e| e.to_string())?;
 
     let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
-    
-    let ip = json.get("ip").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+    let ip = json
+        .get("ip")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
     let city = json.get("city").and_then(|v| v.as_str()).unwrap_or("");
     let country = json.get("country").and_then(|v| v.as_str()).unwrap_or("");
     let location = format!("{}, {}", city, country);
-    
+
     Ok((ip, location))
 }
 
@@ -336,12 +404,12 @@ pub fn proxy_get_system() -> Result<SystemProxySettings, String> {
     {
         get_windows_system_proxy()
     }
-    
+
     #[cfg(target_os = "macos")]
     {
         get_macos_system_proxy()
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         get_linux_system_proxy()
@@ -358,14 +426,12 @@ fn get_windows_system_proxy() -> Result<SystemProxySettings, String> {
         .open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings")
         .map_err(|e| e.to_string())?;
 
-    let proxy_enable: u32 = internet_settings
-        .get_value("ProxyEnable")
-        .unwrap_or(0);
-    
+    let proxy_enable: u32 = internet_settings.get_value("ProxyEnable").unwrap_or(0);
+
     let proxy_server: String = internet_settings
         .get_value("ProxyServer")
         .unwrap_or_default();
-    
+
     let proxy_override: String = internet_settings
         .get_value("ProxyOverride")
         .unwrap_or_default();
@@ -382,7 +448,11 @@ fn get_windows_system_proxy() -> Result<SystemProxySettings, String> {
         http_proxy: http_proxy.clone(),
         https_proxy: http_proxy,
         socks_proxy: None,
-        no_proxy: if proxy_override.is_empty() { None } else { Some(proxy_override) },
+        no_proxy: if proxy_override.is_empty() {
+            None
+        } else {
+            Some(proxy_override)
+        },
     })
 }
 
@@ -396,7 +466,7 @@ fn get_macos_system_proxy() -> Result<SystemProxySettings, String> {
 
     let output_str = String::from_utf8_lossy(&output.stdout);
     let enabled = output_str.contains("Enabled: Yes");
-    
+
     let mut http_proxy = None;
     for line in output_str.lines() {
         if line.starts_with("Server:") {
@@ -418,11 +488,14 @@ fn get_macos_system_proxy() -> Result<SystemProxySettings, String> {
 
 #[cfg(target_os = "linux")]
 fn get_linux_system_proxy() -> Result<SystemProxySettings, String> {
-    let http_proxy = std::env::var("http_proxy").ok()
+    let http_proxy = std::env::var("http_proxy")
+        .ok()
         .or_else(|| std::env::var("HTTP_PROXY").ok());
-    let https_proxy = std::env::var("https_proxy").ok()
+    let https_proxy = std::env::var("https_proxy")
+        .ok()
         .or_else(|| std::env::var("HTTPS_PROXY").ok());
-    let no_proxy = std::env::var("no_proxy").ok()
+    let no_proxy = std::env::var("no_proxy")
+        .ok()
         .or_else(|| std::env::var("NO_PROXY").ok());
 
     let enabled = http_proxy.is_some() || https_proxy.is_some();
@@ -446,7 +519,7 @@ pub fn proxy_check_port(host: String, port: u16) -> bool {
 #[tauri::command]
 pub async fn proxy_get_clash_info(api_port: u16) -> Result<serde_json::Value, String> {
     let url = format!("http://127.0.0.1:{}", api_port);
-    
+
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(5))
         .build()
@@ -458,7 +531,7 @@ pub async fn proxy_get_clash_info(api_port: u16) -> Result<serde_json::Value, St
         .send()
         .await
         .map_err(|e| e.to_string())?;
-    
+
     let version: serde_json::Value = version_resp.json().await.unwrap_or(serde_json::json!({}));
 
     // Get configs
@@ -467,7 +540,7 @@ pub async fn proxy_get_clash_info(api_port: u16) -> Result<serde_json::Value, St
         .send()
         .await
         .map_err(|e| e.to_string())?;
-    
+
     let configs: serde_json::Value = configs_resp.json().await.unwrap_or(serde_json::json!({}));
 
     Ok(serde_json::json!({
@@ -485,7 +558,10 @@ mod tests {
     fn test_proxy_software_display() {
         assert_eq!(format!("{}", ProxySoftware::Clash), "clash");
         assert_eq!(format!("{}", ProxySoftware::ClashVerge), "clash-verge");
-        assert_eq!(format!("{}", ProxySoftware::ClashForWindows), "clash-for-windows");
+        assert_eq!(
+            format!("{}", ProxySoftware::ClashForWindows),
+            "clash-for-windows"
+        );
         assert_eq!(format!("{}", ProxySoftware::V2ray), "v2ray");
         assert_eq!(format!("{}", ProxySoftware::V2rayn), "v2rayn");
         assert_eq!(format!("{}", ProxySoftware::Shadowsocks), "shadowsocks");
@@ -503,7 +579,7 @@ mod tests {
         let software = ProxySoftware::Clash;
         let serialized = serde_json::to_string(&software).unwrap();
         assert_eq!(serialized, r#""clash""#);
-        
+
         let deserialized: ProxySoftware = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized, ProxySoftware::Clash);
     }
@@ -512,10 +588,10 @@ mod tests {
     fn test_proxy_software_deserialization() {
         let clash: ProxySoftware = serde_json::from_str(r#""clash""#).unwrap();
         assert_eq!(clash, ProxySoftware::Clash);
-        
+
         let v2ray: ProxySoftware = serde_json::from_str(r#""v2ray""#).unwrap();
         assert_eq!(v2ray, ProxySoftware::V2ray);
-        
+
         let singbox: ProxySoftware = serde_json::from_str(r#""sing-box""#).unwrap();
         assert_eq!(singbox, ProxySoftware::SingBox);
     }
@@ -535,7 +611,7 @@ mod tests {
             version: Some("1.18.0".to_string()),
             config_path: Some("/path/to/config.yaml".to_string()),
         };
-        
+
         assert_eq!(proxy.software, ProxySoftware::Clash);
         assert!(proxy.running);
         assert_eq!(proxy.http_port, Some(7890));
@@ -557,7 +633,7 @@ mod tests {
             version: None,
             config_path: None,
         };
-        
+
         assert_eq!(proxy.software, ProxySoftware::Unknown);
         assert!(!proxy.running);
         assert!(proxy.http_port.is_none());
@@ -578,10 +654,10 @@ mod tests {
             version: Some("6.0.0".to_string()),
             config_path: None,
         };
-        
+
         let serialized = serde_json::to_string(&proxy).unwrap();
         let deserialized: DetectedProxy = serde_json::from_str(&serialized).unwrap();
-        
+
         assert_eq!(proxy.software, deserialized.software);
         assert_eq!(proxy.name, deserialized.name);
         assert_eq!(proxy.http_port, deserialized.http_port);
@@ -596,7 +672,7 @@ mod tests {
             location: Some("Tokyo, JP".to_string()),
             error: None,
         };
-        
+
         assert!(result.success);
         assert_eq!(result.latency, Some(150));
         assert_eq!(result.ip, Some("1.2.3.4".to_string()));
@@ -612,7 +688,7 @@ mod tests {
             location: None,
             error: Some("Connection timeout".to_string()),
         };
-        
+
         assert!(!result.success);
         assert!(result.latency.is_none());
         assert_eq!(result.error, Some("Connection timeout".to_string()));
@@ -627,9 +703,12 @@ mod tests {
             socks_proxy: Some("socks5://127.0.0.1:7891".to_string()),
             no_proxy: Some("localhost,127.0.0.1".to_string()),
         };
-        
+
         assert!(settings.enabled);
-        assert_eq!(settings.http_proxy, Some("http://127.0.0.1:7890".to_string()));
+        assert_eq!(
+            settings.http_proxy,
+            Some("http://127.0.0.1:7890".to_string())
+        );
     }
 
     #[test]
@@ -641,7 +720,7 @@ mod tests {
             socks_proxy: None,
             no_proxy: None,
         };
-        
+
         assert!(!settings.enabled);
         assert!(settings.http_proxy.is_none());
     }
@@ -655,10 +734,10 @@ mod tests {
             socks_proxy: None,
             no_proxy: Some("*.local".to_string()),
         };
-        
+
         let serialized = serde_json::to_string(&settings).unwrap();
         let deserialized: SystemProxySettings = serde_json::from_str(&serialized).unwrap();
-        
+
         assert_eq!(settings.enabled, deserialized.enabled);
         assert_eq!(settings.http_proxy, deserialized.http_proxy);
         assert_eq!(settings.no_proxy, deserialized.no_proxy);
@@ -709,7 +788,7 @@ mod tests {
             version: None,
             config_path: None,
         };
-        
+
         assert_eq!(proxy.software, ProxySoftware::ClashVerge);
         assert_eq!(proxy.http_port, Some(7897));
         assert_eq!(proxy.api_port, Some(9097));
@@ -724,11 +803,11 @@ mod tests {
             location: Some("Mountain View, US".to_string()),
             error: None,
         };
-        
+
         let serialized = serde_json::to_string(&result).unwrap();
         assert!(serialized.contains("\"success\":true"));
         assert!(serialized.contains("\"latency\":200"));
-        
+
         let deserialized: ProxyTestResult = serde_json::from_str(&serialized).unwrap();
         assert_eq!(result.success, deserialized.success);
         assert_eq!(result.latency, deserialized.latency);

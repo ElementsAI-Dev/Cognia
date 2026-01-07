@@ -3,10 +3,10 @@
 //! Provides an interactive overlay for selecting a screen region to capture.
 
 use super::CaptureRegion;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Emitter, Listener};
-use tokio::sync::oneshot;
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
+use tauri::{AppHandle, Emitter, Listener, Manager, WebviewUrl, WebviewWindowBuilder};
+use tokio::sync::oneshot;
 
 /// Region selector window label
 const REGION_SELECTOR_LABEL: &str = "region-selector";
@@ -51,7 +51,7 @@ impl RegionSelector {
         // Set up event listeners
         let tx_clone = tx.clone();
         let app_handle_clone = app_handle.clone();
-        
+
         // Listen for region selection completion
         let _listener = app_handle.listen("region-selected", move |event| {
             let payload_str = event.payload();
@@ -68,7 +68,7 @@ impl RegionSelector {
 
         let tx_clone = tx.clone();
         let app_handle_clone = app_handle.clone();
-        
+
         // Listen for cancellation
         let _cancel_listener = app_handle.listen("region-selection-cancelled", move |_| {
             if let Some(sender) = tx_clone.lock().take() {
@@ -80,12 +80,15 @@ impl RegionSelector {
         });
 
         // Emit event to notify frontend that selection is ready
-        let _ = app_handle.emit("region-selection-started", serde_json::json!({
-            "screenX": screen_x,
-            "screenY": screen_y,
-            "screenWidth": screen_width,
-            "screenHeight": screen_height,
-        }));
+        let _ = app_handle.emit(
+            "region-selection-started",
+            serde_json::json!({
+                "screenX": screen_x,
+                "screenY": screen_y,
+                "screenWidth": screen_width,
+                "screenHeight": screen_height,
+            }),
+        );
 
         // Wait for selection result
         match rx.await {
@@ -99,8 +102,8 @@ impl RegionSelector {
 #[cfg(target_os = "windows")]
 fn get_virtual_screen_bounds() -> (i32, i32, u32, u32) {
     use windows::Win32::UI::WindowsAndMessaging::{
-        GetSystemMetrics, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
-        SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN,
+        GetSystemMetrics, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN,
+        SM_YVIRTUALSCREEN,
     };
 
     unsafe {
@@ -139,7 +142,12 @@ impl SelectionState {
         let width = (self.start_x - self.current_x).unsigned_abs();
         let height = (self.start_y - self.current_y).unsigned_abs();
 
-        CaptureRegion { x, y, width, height }
+        CaptureRegion {
+            x,
+            y,
+            width,
+            height,
+        }
     }
 
     /// Check if the selection is valid (has non-zero area)
@@ -158,7 +166,7 @@ mod tests {
     #[test]
     fn test_selection_state_default() {
         let state = SelectionState::default();
-        
+
         assert!(!state.is_selecting);
         assert_eq!(state.start_x, 0);
         assert_eq!(state.start_y, 0);
@@ -175,7 +183,7 @@ mod tests {
             current_x: 200,
             current_y: 200,
         };
-        
+
         assert!(state.is_selecting);
         assert_eq!(state.start_x, 100);
         assert_eq!(state.start_y, 100);
@@ -192,9 +200,9 @@ mod tests {
             current_x: 150,
             current_y: 100,
         };
-        
+
         let region = state.get_region();
-        
+
         assert_eq!(region.x, 50);
         assert_eq!(region.y, 50);
         assert_eq!(region.width, 100);
@@ -211,9 +219,9 @@ mod tests {
             current_x: 100,
             current_y: 150,
         };
-        
+
         let region = state.get_region();
-        
+
         // Should normalize to top-left origin
         assert_eq!(region.x, 100);
         assert_eq!(region.y, 50);
@@ -231,9 +239,9 @@ mod tests {
             current_x: 150,
             current_y: 100,
         };
-        
+
         let region = state.get_region();
-        
+
         assert_eq!(region.x, 50);
         assert_eq!(region.y, 100);
         assert_eq!(region.width, 100);
@@ -250,9 +258,9 @@ mod tests {
             current_x: 100,
             current_y: 100,
         };
-        
+
         let region = state.get_region();
-        
+
         assert_eq!(region.x, 100);
         assert_eq!(region.y, 100);
         assert_eq!(region.width, 200);
@@ -268,9 +276,9 @@ mod tests {
             current_x: 100,
             current_y: 50,
         };
-        
+
         let region = state.get_region();
-        
+
         assert_eq!(region.x, -100);
         assert_eq!(region.y, -50);
         assert_eq!(region.width, 200);
@@ -286,9 +294,9 @@ mod tests {
             current_x: 100,
             current_y: 100,
         };
-        
+
         let region = state.get_region();
-        
+
         assert_eq!(region.width, 0);
         assert_eq!(region.height, 0);
     }
@@ -302,7 +310,7 @@ mod tests {
             current_x: 100,
             current_y: 100,
         };
-        
+
         assert!(state.is_valid());
     }
 
@@ -316,7 +324,7 @@ mod tests {
             current_x: 5,
             current_y: 5,
         };
-        
+
         assert!(!state.is_valid());
     }
 
@@ -330,7 +338,7 @@ mod tests {
             current_x: 100,
             current_y: 5,
         };
-        
+
         assert!(!state.is_valid());
     }
 
@@ -344,7 +352,7 @@ mod tests {
             current_x: 5,
             current_y: 100,
         };
-        
+
         assert!(!state.is_valid());
     }
 
@@ -358,7 +366,7 @@ mod tests {
             current_x: 11,
             current_y: 11,
         };
-        
+
         assert!(state.is_valid());
     }
 
@@ -372,7 +380,7 @@ mod tests {
             current_x: 10,
             current_y: 10,
         };
-        
+
         assert!(!state.is_valid());
     }
 
@@ -386,7 +394,7 @@ mod tests {
             current_y: 40,
         };
         let cloned = state.clone();
-        
+
         assert_eq!(state.is_selecting, cloned.is_selecting);
         assert_eq!(state.start_x, cloned.start_x);
         assert_eq!(state.start_y, cloned.start_y);
@@ -403,7 +411,7 @@ mod tests {
             current_x: 300,
             current_y: 400,
         };
-        
+
         let debug_str = format!("{:?}", state);
         assert!(debug_str.contains("SelectionState"));
         assert!(debug_str.contains("is_selecting: true"));
@@ -416,7 +424,7 @@ mod tests {
     #[test]
     fn test_get_virtual_screen_bounds_fallback() {
         let (x, y, width, height) = get_virtual_screen_bounds();
-        
+
         assert_eq!(x, 0);
         assert_eq!(y, 0);
         assert_eq!(width, 1920);
@@ -427,7 +435,7 @@ mod tests {
     #[test]
     fn test_get_virtual_screen_bounds_windows() {
         let (x, y, width, height) = get_virtual_screen_bounds();
-        
+
         // On Windows, should return actual screen dimensions
         // Width and height should be positive
         assert!(width > 0);

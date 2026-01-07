@@ -155,17 +155,126 @@ function nodeToStep(
     case 'delay':
     case 'merge':
     case 'subworkflow': {
-      return {
-        ...baseStep,
-        type: 'tool',
-        toolName: `${data.nodeType}_executor`,
-        inputs: (data as unknown as AINodeData).inputs || {},
-        outputs: (data as unknown as AINodeData).outputs || {},
-      } as WorkflowStepDefinition;
+      // Use the actual node type as the step type for proper execution
+      return createExtendedStep(data, baseStep);
     }
 
     default:
       return null;
+  }
+}
+
+/**
+ * Create extended step definition for complex node types
+ */
+function createExtendedStep(
+  data: WorkflowNodeData,
+  baseStep: Partial<WorkflowStepDefinition>
+): WorkflowStepDefinition {
+  const inputs = (data as unknown as AINodeData).inputs || {};
+  const outputs = (data as unknown as AINodeData).outputs || {};
+
+  switch (data.nodeType) {
+    case 'code': {
+      const codeData = data as import('@/types/workflow-editor').CodeNodeData;
+      return {
+        ...baseStep,
+        type: 'code',
+        code: codeData.code || '',
+        language: codeData.language || 'javascript',
+        inputs,
+        outputs,
+      } as WorkflowStepDefinition;
+    }
+
+    case 'transform': {
+      const transformData = data as import('@/types/workflow-editor').TransformNodeData;
+      return {
+        ...baseStep,
+        type: 'transform',
+        transformType: transformData.transformType || 'custom',
+        expression: transformData.expression || '',
+        inputs,
+        outputs,
+      } as WorkflowStepDefinition;
+    }
+
+    case 'loop': {
+      const loopData = data as import('@/types/workflow-editor').LoopNodeData;
+      return {
+        ...baseStep,
+        type: 'loop',
+        loopType: loopData.loopType || 'forEach',
+        iteratorVariable: loopData.iteratorVariable || 'item',
+        collection: loopData.collection,
+        maxIterations: loopData.maxIterations || 100,
+        condition: loopData.condition,
+        inputs,
+        outputs,
+      } as WorkflowStepDefinition;
+    }
+
+    case 'webhook': {
+      const webhookData = data as import('@/types/workflow-editor').WebhookNodeData;
+      return {
+        ...baseStep,
+        type: 'webhook',
+        webhookUrl: webhookData.webhookUrl || '',
+        method: webhookData.method || 'POST',
+        headers: webhookData.headers || {},
+        body: webhookData.body,
+        inputs,
+        outputs,
+      } as WorkflowStepDefinition;
+    }
+
+    case 'delay': {
+      const delayData = data as import('@/types/workflow-editor').DelayNodeData;
+      return {
+        ...baseStep,
+        type: 'delay',
+        delayType: delayData.delayType || 'fixed',
+        delayMs: delayData.delayMs || 1000,
+        untilTime: delayData.untilTime,
+        cronExpression: delayData.cronExpression,
+        inputs: {},
+        outputs: {},
+      } as WorkflowStepDefinition;
+    }
+
+    case 'merge': {
+      const mergeData = data as import('@/types/workflow-editor').MergeNodeData;
+      return {
+        ...baseStep,
+        type: 'merge',
+        mergeStrategy: mergeData.mergeStrategy || 'merge',
+        inputs,
+        outputs,
+      } as WorkflowStepDefinition;
+    }
+
+    case 'subworkflow': {
+      const subworkflowData = data as import('@/types/workflow-editor').SubworkflowNodeData;
+      return {
+        ...baseStep,
+        type: 'subworkflow',
+        workflowId: subworkflowData.workflowId || '',
+        inputMapping: subworkflowData.inputMapping || {},
+        outputMapping: subworkflowData.outputMapping || {},
+        inputs,
+        outputs,
+      } as WorkflowStepDefinition;
+    }
+
+    default:
+      // Fallback for any unexpected type - use tool type as last resort
+      return {
+        ...baseStep,
+        type: 'tool',
+        toolName: `${data.nodeType}_executor`,
+        inputs,
+        outputs,
+      } as WorkflowStepDefinition;
   }
 }
 

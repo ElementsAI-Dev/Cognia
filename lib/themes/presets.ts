@@ -329,8 +329,13 @@ export function removeCustomThemeColors(): void {
     '--background', '--foreground',
     '--muted', '--muted-foreground',
     '--card', '--card-foreground',
+    '--popover', '--popover-foreground',
     '--border', '--ring',
+    '--input',
     '--destructive', '--destructive-foreground',
+    '--sidebar-primary', '--sidebar-primary-foreground',
+    '--sidebar-accent', '--sidebar-accent-foreground',
+    '--sidebar-ring',
   ];
   varNames.forEach(name => root.style.removeProperty(name));
 }
@@ -397,6 +402,56 @@ export const DEFAULT_UI_CUSTOMIZATION: UICustomization = {
   // Font default
   uiFontFamily: 'system',
 };
+
+/**
+ * Background image settings
+ */
+export type BackgroundImageFit = 'cover' | 'contain' | 'fill' | 'tile';
+export type BackgroundImagePosition = 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+export type BackgroundImageSource = 'none' | 'url' | 'local' | 'preset';
+
+export interface BackgroundSettings {
+  enabled: boolean;
+  source: BackgroundImageSource;
+  imageUrl: string; // URL, gradient string, or local file URL (Tauri). For web-local files, this is resolved at runtime.
+  localAssetId: string | null; // Web-only: IndexedDB asset id for local background image
+  presetId: string | null; // For built-in presets
+  fit: BackgroundImageFit;
+  position: BackgroundImagePosition;
+  opacity: number; // 0-100
+  blur: number; // 0-20 px
+  overlayColor: string; // Hex color for overlay
+  overlayOpacity: number; // 0-100
+  brightness: number; // 50-150 (100 = normal)
+  saturation: number; // 0-200 (100 = normal)
+}
+
+export const DEFAULT_BACKGROUND_SETTINGS: BackgroundSettings = {
+  enabled: false,
+  source: 'none',
+  imageUrl: '',
+  localAssetId: null,
+  presetId: null,
+  fit: 'cover',
+  position: 'center',
+  opacity: 100,
+  blur: 0,
+  overlayColor: '#000000',
+  overlayOpacity: 0,
+  brightness: 100,
+  saturation: 100,
+};
+
+export const BACKGROUND_PRESETS: { id: string; name: string; url: string; thumbnail?: string }[] = [
+  { id: 'gradient-blue', name: 'Blue Gradient', url: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+  { id: 'gradient-green', name: 'Green Gradient', url: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)' },
+  { id: 'gradient-orange', name: 'Orange Sunset', url: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
+  { id: 'gradient-purple', name: 'Purple Night', url: 'linear-gradient(135deg, #4776E6 0%, #8E54E9 100%)' },
+  { id: 'gradient-dark', name: 'Dark Ocean', url: 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)' },
+  { id: 'gradient-warm', name: 'Warm Flame', url: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)' },
+  { id: 'mesh-blue', name: 'Mesh Blue', url: 'radial-gradient(at 40% 20%, hsla(210,100%,56%,0.3) 0px, transparent 50%), radial-gradient(at 80% 0%, hsla(189,100%,56%,0.3) 0px, transparent 50%), radial-gradient(at 0% 50%, hsla(235,100%,69%,0.3) 0px, transparent 50%)' },
+  { id: 'mesh-purple', name: 'Mesh Purple', url: 'radial-gradient(at 40% 20%, hsla(280,100%,56%,0.3) 0px, transparent 50%), radial-gradient(at 80% 0%, hsla(320,100%,56%,0.3) 0px, transparent 50%), radial-gradient(at 0% 50%, hsla(260,100%,69%,0.3) 0px, transparent 50%)' },
+];
 
 export const BORDER_RADIUS_VALUES: Record<BorderRadiusSize, string> = {
   none: '0',
@@ -484,4 +539,93 @@ export function removeUICustomization(): void {
     '--font-ui', '--message-spacing',
   ];
   varNames.forEach(name => root.style.removeProperty(name));
+}
+
+/**
+ * Apply background settings to document
+ */
+export function applyBackgroundSettings(settings: BackgroundSettings): void {
+  const root = document.documentElement;
+  
+  if (!settings.enabled || settings.source === 'none') {
+    // Remove all background CSS variables
+    removeBackgroundSettings();
+    return;
+  }
+  
+  // Determine the background value
+  let backgroundValue = '';
+  if (settings.source === 'preset' && settings.presetId) {
+    const preset = BACKGROUND_PRESETS.find(p => p.id === settings.presetId);
+    if (preset) {
+      backgroundValue = preset.url;
+    }
+  } else if (settings.source === 'url' || settings.source === 'local') {
+    if (settings.imageUrl) {
+      // Check if it's already a gradient (preset stored as URL)
+      if (settings.imageUrl.startsWith('linear-gradient') || settings.imageUrl.startsWith('radial-gradient')) {
+        backgroundValue = settings.imageUrl;
+      } else {
+        backgroundValue = `url("${settings.imageUrl}")`;
+      }
+    }
+  }
+  
+  if (!backgroundValue) {
+    removeBackgroundSettings();
+    return;
+  }
+  
+  // Set CSS variables
+  root.style.setProperty('--bg-image', backgroundValue);
+  root.style.setProperty('--bg-image-opacity', `${settings.opacity / 100}`);
+  root.style.setProperty('--bg-image-blur', `${settings.blur}px`);
+  root.style.setProperty('--bg-overlay-color', settings.overlayColor);
+  root.style.setProperty('--bg-overlay-opacity', `${settings.overlayOpacity / 100}`);
+  root.style.setProperty('--bg-brightness', `${settings.brightness}%`);
+  root.style.setProperty('--bg-saturation', `${settings.saturation}%`);
+  
+  // Set background size based on fit
+  const sizeMap: Record<BackgroundImageFit, string> = {
+    cover: 'cover',
+    contain: 'contain',
+    fill: '100% 100%',
+    tile: 'auto',
+  };
+  root.style.setProperty('--bg-image-size', sizeMap[settings.fit]);
+  
+  // Set background repeat
+  root.style.setProperty('--bg-image-repeat', settings.fit === 'tile' ? 'repeat' : 'no-repeat');
+  
+  // Set background position
+  const positionMap: Record<BackgroundImagePosition, string> = {
+    center: 'center center',
+    top: 'center top',
+    bottom: 'center bottom',
+    left: 'left center',
+    right: 'right center',
+    'top-left': 'left top',
+    'top-right': 'right top',
+    'bottom-left': 'left bottom',
+    'bottom-right': 'right bottom',
+  };
+  root.style.setProperty('--bg-image-position', positionMap[settings.position]);
+  
+  // Add a class to indicate background is active
+  root.classList.add('has-bg-image');
+}
+
+/**
+ * Remove background settings
+ */
+export function removeBackgroundSettings(): void {
+  const root = document.documentElement;
+  const varNames = [
+    '--bg-image', '--bg-image-opacity', '--bg-image-blur',
+    '--bg-overlay-color', '--bg-overlay-opacity',
+    '--bg-brightness', '--bg-saturation',
+    '--bg-image-size', '--bg-image-repeat', '--bg-image-position',
+  ];
+  varNames.forEach(name => root.style.removeProperty(name));
+  root.classList.remove('has-bg-image');
 }

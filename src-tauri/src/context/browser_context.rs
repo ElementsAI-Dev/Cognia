@@ -2,8 +2,8 @@
 //!
 //! Extracts browser-related context from window information.
 
-use log::{debug, trace};
 use super::WindowInfo;
+use log::{debug, trace};
 use serde::{Deserialize, Serialize};
 
 /// Browser context information
@@ -74,40 +74,51 @@ pub enum PageType {
 impl BrowserContext {
     /// Create browser context from window information
     pub fn from_window_info(window: &WindowInfo) -> Result<Self, String> {
-        trace!("Creating BrowserContext from window: process='{}', title='{}'", window.process_name, window.title);
-        
+        trace!(
+            "Creating BrowserContext from window: process='{}', title='{}'",
+            window.process_name,
+            window.title
+        );
+
         let process_name = window.process_name.to_lowercase();
-        
+
         // Check if this is a browser
         let browser = Self::detect_browser(&process_name)?;
         debug!("Detected browser: {}", browser);
-        
+
         let title = &window.title;
-        
+
         // Parse title to extract page info
         // Common format: "Page Title - Browser Name" or "Page Title — Browser Name"
         let (page_title, url, domain) = Self::parse_browser_title(title, &browser);
-        trace!("Parsed title: page_title={:?}, domain={:?}", page_title, domain);
-        
+        trace!(
+            "Parsed title: page_title={:?}, domain={:?}",
+            page_title,
+            domain
+        );
+
         // Detect tab info
         let tab_info = Self::detect_tab_info(title, &page_title);
         trace!(
             "Tab info: new_tab={}, settings={}, dev_tools={}, extension={}",
-            tab_info.is_new_tab, tab_info.is_settings, tab_info.is_dev_tools, tab_info.is_extension
+            tab_info.is_new_tab,
+            tab_info.is_settings,
+            tab_info.is_dev_tools,
+            tab_info.is_extension
         );
-        
+
         // Detect page type
         let page_type = Self::detect_page_type(&page_title, &domain);
         debug!("Page type: {:?} for domain: {:?}", page_type, domain);
-        
+
         // Detect if secure (limited without actual URL)
         let is_secure = domain.as_ref().map(|_| true); // Assume HTTPS for known domains
-        
+
         debug!(
             "Browser context created: {} - {:?} (type: {:?})",
             browser, page_title, page_type
         );
-        
+
         Ok(Self {
             browser,
             url,
@@ -145,7 +156,10 @@ impl BrowserContext {
     }
 
     /// Parse browser window title to extract page info
-    fn parse_browser_title(title: &str, _browser: &str) -> (Option<String>, Option<String>, Option<String>) {
+    fn parse_browser_title(
+        title: &str,
+        _browser: &str,
+    ) -> (Option<String>, Option<String>, Option<String>) {
         // Remove browser name from title
         let browser_suffixes = [
             " - Google Chrome",
@@ -170,11 +184,11 @@ impl BrowserContext {
         }
 
         let page_title = page_title.trim().to_string();
-        
+
         // Try to extract domain from title patterns
         // Some sites include domain: "Page Title | example.com"
         let domain = Self::extract_domain_from_title(&page_title);
-        
+
         // URL is typically not available from title alone
         let url = None;
 
@@ -221,7 +235,7 @@ impl BrowserContext {
             ("Google Cloud", "cloud.google.com"),
             ("Google Meet", "meet.google.com"),
             ("Gmail", "mail.google.com"),
-            ("Google", "google.com"),  // General Google last
+            ("Google", "google.com"), // General Google last
             ("ChatGPT", "chat.openai.com"),
             ("Claude", "claude.ai"),
             ("Anthropic", "anthropic.com"),
@@ -257,11 +271,11 @@ impl BrowserContext {
             ("Yahoo Mail", "mail.yahoo.com"),
             ("Zoom", "zoom.us"),
             ("Microsoft Teams", "teams.microsoft.com"),
-            ("X", "x.com"),  // Put X last as it's very short and might match unintentionally
+            ("X", "x.com"), // Put X last as it's very short and might match unintentionally
         ];
 
         let title_lower = title.to_lowercase();
-        
+
         for (name, domain) in &known_domains {
             if title_lower.contains(&name.to_lowercase()) {
                 return Some(domain.to_string());
@@ -280,10 +294,13 @@ impl BrowserContext {
     /// Detect tab information
     fn detect_tab_info(title: &str, page_title: &Option<String>) -> TabInfo {
         let title_lower = title.to_lowercase();
-        let page_lower = page_title.as_ref().map(|t| t.to_lowercase()).unwrap_or_default();
+        let page_lower = page_title
+            .as_ref()
+            .map(|t| t.to_lowercase())
+            .unwrap_or_default();
 
         TabInfo {
-            is_new_tab: title_lower.contains("new tab") 
+            is_new_tab: title_lower.contains("new tab")
                 || title_lower.contains("start page")
                 || title_lower.contains("speed dial")
                 || page_lower.is_empty(),
@@ -302,8 +319,14 @@ impl BrowserContext {
 
     /// Detect page type from title and domain
     fn detect_page_type(page_title: &Option<String>, domain: &Option<String>) -> PageType {
-        let title = page_title.as_ref().map(|t| t.to_lowercase()).unwrap_or_default();
-        let dom = domain.as_ref().map(|d| d.to_lowercase()).unwrap_or_default();
+        let title = page_title
+            .as_ref()
+            .map(|t| t.to_lowercase())
+            .unwrap_or_default();
+        let dom = domain
+            .as_ref()
+            .map(|d| d.to_lowercase())
+            .unwrap_or_default();
 
         // Check for browser internal pages
         if title.contains("new tab") || title.contains("settings") || dom.is_empty() {
@@ -311,14 +334,22 @@ impl BrowserContext {
         }
 
         // Cloud storage (check before search engines to avoid false positives)
-        if dom.contains("drive.google.com") || dom.contains("dropbox.com") || dom.contains("onedrive.")
-            || dom.contains("box.com") || dom.contains("icloud.com") {
+        if dom.contains("drive.google.com")
+            || dom.contains("dropbox.com")
+            || dom.contains("onedrive.")
+            || dom.contains("box.com")
+            || dom.contains("icloud.com")
+        {
             return PageType::CloudStorage;
         }
 
         // Web email (check before search engines to avoid false positives)
-        if dom.contains("mail.google.com") || dom.contains("outlook.live.com") || dom.contains("mail.yahoo.com")
-            || dom.contains("protonmail.com") || title.contains("inbox") {
+        if dom.contains("mail.google.com")
+            || dom.contains("outlook.live.com")
+            || dom.contains("mail.yahoo.com")
+            || dom.contains("protonmail.com")
+            || title.contains("inbox")
+        {
             return PageType::WebEmail;
         }
 
@@ -326,63 +357,107 @@ impl BrowserContext {
         if dom == "google.com" && (title.contains("search") || title.contains(" - google search")) {
             return PageType::SearchResults;
         }
-        if (dom.contains("bing.com") || dom.contains("duckduckgo.com")) && title.contains("search") {
+        if (dom.contains("bing.com") || dom.contains("duckduckgo.com")) && title.contains("search")
+        {
             return PageType::SearchResults;
         }
 
         // Code repositories
-        if dom.contains("github.com") || dom.contains("gitlab.com") || dom.contains("bitbucket.org") {
+        if dom.contains("github.com") || dom.contains("gitlab.com") || dom.contains("bitbucket.org")
+        {
             return PageType::CodeRepository;
         }
 
         // Documentation
-        if dom.contains("docs.") || dom.contains("developer.") || dom.contains("documentation") 
-            || title.contains("documentation") || title.contains(" docs") || title.contains("api reference")
-            || dom.contains("mdn") || dom.contains("w3schools") || dom.contains("devdocs") {
+        if dom.contains("docs.")
+            || dom.contains("developer.")
+            || dom.contains("documentation")
+            || title.contains("documentation")
+            || title.contains(" docs")
+            || title.contains("api reference")
+            || dom.contains("mdn")
+            || dom.contains("w3schools")
+            || dom.contains("devdocs")
+        {
             return PageType::Documentation;
         }
 
         // AI interfaces
-        if dom.contains("chat.openai.com") || dom.contains("claude.ai") || dom.contains("bard.google.com")
-            || dom.contains("poe.com") || dom.contains("perplexity.ai") || dom.contains("huggingface.co") {
+        if dom.contains("chat.openai.com")
+            || dom.contains("claude.ai")
+            || dom.contains("bard.google.com")
+            || dom.contains("poe.com")
+            || dom.contains("perplexity.ai")
+            || dom.contains("huggingface.co")
+        {
             return PageType::AiInterface;
         }
 
         // Video streaming
-        if dom.contains("youtube.com") || dom.contains("netflix.com") || dom.contains("twitch.tv")
-            || dom.contains("vimeo.com") || dom.contains("dailymotion.com") || dom.contains("bilibili.com") {
+        if dom.contains("youtube.com")
+            || dom.contains("netflix.com")
+            || dom.contains("twitch.tv")
+            || dom.contains("vimeo.com")
+            || dom.contains("dailymotion.com")
+            || dom.contains("bilibili.com")
+        {
             return PageType::VideoStreaming;
         }
 
         // Social media
-        if dom.contains("twitter.com") || dom.contains("x.com") || dom.contains("facebook.com")
-            || dom.contains("instagram.com") || dom.contains("linkedin.com") || dom.contains("reddit.com")
-            || dom.contains("tiktok.com") || dom.contains("weibo.com") {
+        if dom.contains("twitter.com")
+            || dom.contains("x.com")
+            || dom.contains("facebook.com")
+            || dom.contains("instagram.com")
+            || dom.contains("linkedin.com")
+            || dom.contains("reddit.com")
+            || dom.contains("tiktok.com")
+            || dom.contains("weibo.com")
+        {
             return PageType::SocialMedia;
         }
 
         // Chat/Messaging
-        if dom.contains("discord.com") || dom.contains("slack.com") || dom.contains("teams.microsoft.com")
-            || dom.contains("telegram.org") || dom.contains("whatsapp.com") {
+        if dom.contains("discord.com")
+            || dom.contains("slack.com")
+            || dom.contains("teams.microsoft.com")
+            || dom.contains("telegram.org")
+            || dom.contains("whatsapp.com")
+        {
             return PageType::Chat;
         }
 
         // E-commerce
-        if dom.contains("amazon.") || dom.contains("ebay.") || dom.contains("aliexpress.")
-            || dom.contains("shopify.") || dom.contains("etsy.com") || title.contains("shopping")
-            || title.contains("cart") || title.contains("checkout") {
+        if dom.contains("amazon.")
+            || dom.contains("ebay.")
+            || dom.contains("aliexpress.")
+            || dom.contains("shopify.")
+            || dom.contains("etsy.com")
+            || title.contains("shopping")
+            || title.contains("cart")
+            || title.contains("checkout")
+        {
             return PageType::Ecommerce;
         }
 
         // Dev tools (online IDEs, etc.)
-        if dom.contains("codepen.io") || dom.contains("jsfiddle.net") || dom.contains("replit.com")
-            || dom.contains("codesandbox.io") || dom.contains("stackblitz.com") || dom.contains("gitpod.io") {
+        if dom.contains("codepen.io")
+            || dom.contains("jsfiddle.net")
+            || dom.contains("replit.com")
+            || dom.contains("codesandbox.io")
+            || dom.contains("stackblitz.com")
+            || dom.contains("gitpod.io")
+        {
             return PageType::DevTools;
         }
 
         // News/Articles
-        if title.contains("news") || title.contains("article") || dom.contains("medium.com")
-            || dom.contains("dev.to") || dom.contains("news.ycombinator.com") {
+        if title.contains("news")
+            || title.contains("article")
+            || dom.contains("medium.com")
+            || dom.contains("dev.to")
+            || dom.contains("news.ycombinator.com")
+        {
             return PageType::NewsArticle;
         }
 
@@ -412,10 +487,9 @@ impl BrowserContext {
                 "Draft response".to_string(),
                 "Translate".to_string(),
             ],
-            PageType::VideoStreaming => vec![
-                "Summarize video".to_string(),
-                "Get transcript".to_string(),
-            ],
+            PageType::VideoStreaming => {
+                vec!["Summarize video".to_string(), "Get transcript".to_string()]
+            }
             PageType::NewsArticle => vec![
                 "Summarize article".to_string(),
                 "Key points".to_string(),
@@ -553,14 +627,20 @@ mod tests {
     // Domain detection tests
     #[test]
     fn test_detect_domain_github() {
-        let window = create_test_window_info("chrome.exe", "GitHub - google/material-design - Google Chrome");
+        let window = create_test_window_info(
+            "chrome.exe",
+            "GitHub - google/material-design - Google Chrome",
+        );
         let context = BrowserContext::from_window_info(&window).unwrap();
         assert_eq!(context.domain, Some("github.com".to_string()));
     }
 
     #[test]
     fn test_detect_domain_stackoverflow() {
-        let window = create_test_window_info("chrome.exe", "Stack Overflow - How to do something - Google Chrome");
+        let window = create_test_window_info(
+            "chrome.exe",
+            "Stack Overflow - How to do something - Google Chrome",
+        );
         let context = BrowserContext::from_window_info(&window).unwrap();
         assert_eq!(context.domain, Some("stackoverflow.com".to_string()));
     }
@@ -639,7 +719,8 @@ mod tests {
 
     #[test]
     fn test_page_type_ai_interface() {
-        let window = create_test_window_info("chrome.exe", "ChatGPT - New conversation - Google Chrome");
+        let window =
+            create_test_window_info("chrome.exe", "ChatGPT - New conversation - Google Chrome");
         let context = BrowserContext::from_window_info(&window).unwrap();
         assert_eq!(context.page_type, PageType::AiInterface);
     }
@@ -667,7 +748,8 @@ mod tests {
 
     #[test]
     fn test_page_type_cloud_storage() {
-        let window = create_test_window_info("chrome.exe", "Google Drive - My Files - Google Chrome");
+        let window =
+            create_test_window_info("chrome.exe", "Google Drive - My Files - Google Chrome");
         let context = BrowserContext::from_window_info(&window).unwrap();
         assert_eq!(context.page_type, PageType::CloudStorage);
     }
@@ -689,7 +771,10 @@ mod tests {
     // Suggested actions tests
     #[test]
     fn test_suggested_actions_search_results() {
-        let window = create_test_window_info("chrome.exe", "search results - Google Search - Google Chrome");
+        let window = create_test_window_info(
+            "chrome.exe",
+            "search results - Google Search - Google Chrome",
+        );
         let context = BrowserContext::from_window_info(&window).unwrap();
         let actions = context.get_suggested_actions();
         assert!(actions.contains(&"Summarize results".to_string()));
@@ -721,7 +806,8 @@ mod tests {
 
     #[test]
     fn test_suggested_actions_news_article() {
-        let window = create_test_window_info("chrome.exe", "Medium - Article Title - Google Chrome");
+        let window =
+            create_test_window_info("chrome.exe", "Medium - Article Title - Google Chrome");
         let context = BrowserContext::from_window_info(&window).unwrap();
         let actions = context.get_suggested_actions();
         assert!(actions.contains(&"Summarize article".to_string()));
@@ -732,10 +818,10 @@ mod tests {
     fn test_browser_context_serialization() {
         let window = create_test_window_info("chrome.exe", "GitHub - Google Chrome");
         let context = BrowserContext::from_window_info(&window).unwrap();
-        
+
         let json = serde_json::to_string(&context);
         assert!(json.is_ok());
-        
+
         let parsed: Result<BrowserContext, _> = serde_json::from_str(&json.unwrap());
         assert!(parsed.is_ok());
         assert_eq!(parsed.unwrap().browser, "Google Chrome");
@@ -749,10 +835,10 @@ mod tests {
             is_dev_tools: false,
             is_extension: false,
         };
-        
+
         let json = serde_json::to_string(&tab_info);
         assert!(json.is_ok());
-        
+
         let parsed: Result<TabInfo, _> = serde_json::from_str(&json.unwrap());
         assert!(parsed.is_ok());
         assert!(parsed.unwrap().is_new_tab);
@@ -776,7 +862,7 @@ mod tests {
             PageType::General,
             PageType::BrowserInternal,
         ];
-        
+
         for page_type in page_types {
             let json = serde_json::to_string(&page_type);
             assert!(json.is_ok());

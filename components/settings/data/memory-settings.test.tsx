@@ -75,6 +75,34 @@ jest.mock('@/stores', () => ({
 // Mock types
 jest.mock('@/types', () => ({}));
 
+// Mock lucide-react icons
+jest.mock('lucide-react', () => ({
+  Brain: () => <span>Brain</span>,
+  Plus: () => <span>Plus</span>,
+  Trash2: () => <span>Trash2</span>,
+  Edit2: () => <span>Edit2</span>,
+  Check: () => <span>Check</span>,
+  X: () => <span>X</span>,
+  Search: () => <span>Search</span>,
+  Download: () => <span>Download</span>,
+  Upload: () => <span>Upload</span>,
+  Tag: () => <span>Tag</span>,
+  Settings2: () => <span>Settings2</span>,
+  Pin: () => <span>Pin</span>,
+  Star: () => <span>Star</span>,
+  Eye: () => <span>Eye</span>,
+  Clock: () => <span>Clock</span>,
+  Zap: () => <span>Zap</span>,
+  Globe: () => <span>Globe</span>,
+  RefreshCw: () => <span>RefreshCw</span>,
+  CheckSquare: () => <span>CheckSquare</span>,
+  Square: () => <span>Square</span>,
+  Cloud: () => <span>Cloud</span>,
+  HardDrive: () => <span>HardDrive</span>,
+  Key: () => <span>Key</span>,
+  Workflow: () => <span>Workflow</span>,
+}));
+
 // Mock UI components
 jest.mock('@/components/ui/card', () => ({
   Card: ({ children }: { children: React.ReactNode }) => <div data-testid="card">{children}</div>,
@@ -150,6 +178,48 @@ jest.mock('@/components/ui/alert-dialog', () => ({
   AlertDialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   AlertDialogTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
   AlertDialogTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+// Mock additional UI components
+jest.mock('@/components/ui/slider', () => ({
+  Slider: ({ value, onValueChange }: { value?: number[]; onValueChange?: (v: number[]) => void }) => (
+    <input
+      type="range"
+      data-testid="slider"
+      value={value?.[0] || 0}
+      onChange={(e) => onValueChange?.([Number(e.target.value)])}
+    />
+  ),
+}));
+
+jest.mock('@/components/ui/alert', () => ({
+  Alert: ({ children }: { children: React.ReactNode }) => <div data-testid="alert">{children}</div>,
+  AlertDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+}));
+
+jest.mock('@/components/ui/collapsible', () => ({
+  Collapsible: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  CollapsibleContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  CollapsibleTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+jest.mock('@/components/ui/tooltip', () => ({
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  Tooltip: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TooltipContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+jest.mock('@/components/ui/input-group', () => ({
+  InputGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  InputGroupAddon: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  InputGroupInput: ({ value, onChange, placeholder }: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input value={value} onChange={onChange} placeholder={placeholder} data-testid="input-group-input" />
+  ),
+}));
+
+jest.mock('@/components/layout/empty-state', () => ({
+  EmptyState: ({ message }: { message?: string }) => <div data-testid="empty-state">{message || 'No memories stored yet'}</div>,
 }));
 
 describe('MemorySettings', () => {

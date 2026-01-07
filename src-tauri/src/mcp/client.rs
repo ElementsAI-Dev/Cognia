@@ -1,4 +1,4 @@
-﻿//! MCP Client implementation
+//! MCP Client implementation
 //!
 //! High-level client for communicating with MCP servers
 
@@ -14,8 +14,8 @@ use crate::mcp::protocol::jsonrpc::{
 use crate::mcp::protocol::prompts::{PromptsGetParams, PromptsListResponse};
 use crate::mcp::protocol::resources::{ResourcesListResponse, ResourcesReadParams};
 use crate::mcp::protocol::tools::{ToolsCallParams, ToolsListResponse};
-use crate::mcp::transport::stdio::StdioTransport;
 use crate::mcp::transport::sse::SseTransport;
+use crate::mcp::transport::stdio::StdioTransport;
 use crate::mcp::transport::Transport;
 use crate::mcp::types::*;
 
@@ -57,7 +57,10 @@ impl McpClient {
             env.len()
         );
         let transport = StdioTransport::spawn(command, args, env, None).await?;
-        log::info!("Stdio transport created successfully for command: {}", command);
+        log::info!(
+            "Stdio transport created successfully for command: {}",
+            command
+        );
         Self::new(Arc::new(transport), notification_tx)
     }
 
@@ -183,17 +186,28 @@ impl McpClient {
         log::trace!("Waiting for response to request id={} with 30s timeout", id);
         match tokio::time::timeout(std::time::Duration::from_secs(30), rx).await {
             Ok(Ok(result)) => {
-                log::debug!("Received successful response for request id={}, method='{}'", id, method);
+                log::debug!(
+                    "Received successful response for request id={}, method='{}'",
+                    id,
+                    method
+                );
                 log::trace!("Response result: {:?}", result);
                 result
             }
             Ok(Err(_)) => {
-                log::error!("Channel closed while waiting for response to request id={}", id);
+                log::error!(
+                    "Channel closed while waiting for response to request id={}",
+                    id
+                );
                 Err(McpError::ChannelClosed)
             }
             Err(_) => {
                 // Clean up pending request on timeout
-                log::error!("Request timeout for id={}, method='{}' after 30s", id, method);
+                log::error!(
+                    "Request timeout for id={}, method='{}' after 30s",
+                    id,
+                    method
+                );
                 let mut pending = self.pending_requests.lock().await;
                 pending.remove(&id);
                 Err(McpError::ConnectionTimeout)
@@ -236,7 +250,7 @@ impl McpClient {
         // Store capabilities and server info
         *self.capabilities.lock().await = Some(init_result.capabilities.clone());
         *self.server_info.lock().await = init_result.server_info.clone();
-        
+
         if let Some(ref server_info) = init_result.server_info {
             log::info!(
                 "Connected to MCP server: '{}' v{}",
@@ -280,7 +294,11 @@ impl McpClient {
         let response: ToolsListResponse = serde_json::from_value(result)?;
         log::info!("Retrieved {} tools from MCP server", response.tools.len());
         for tool in &response.tools {
-            log::trace!("  Tool: '{}' - {}", tool.name, tool.description.as_deref().unwrap_or("(no description)"));
+            log::trace!(
+                "  Tool: '{}' - {}",
+                tool.name,
+                tool.description.as_deref().unwrap_or("(no description)")
+            );
         }
         Ok(response.tools)
     }
@@ -304,13 +322,17 @@ impl McpClient {
             .await?;
         let response: ToolCallResult = serde_json::from_value(result)?;
         let elapsed = start.elapsed();
-        
+
         if response.is_error {
             log::warn!("Tool '{}' returned error after {:?}", name, elapsed);
         } else {
             log::info!("Tool '{}' completed successfully in {:?}", name, elapsed);
         }
-        log::debug!("Tool '{}' returned {} content items", name, response.content.len());
+        log::debug!(
+            "Tool '{}' returned {} content items",
+            name,
+            response.content.len()
+        );
         Ok(response)
     }
 
@@ -319,7 +341,10 @@ impl McpClient {
         log::debug!("Listing available resources from MCP server");
         let result = self.send_request(methods::RESOURCES_LIST, None).await?;
         let response: ResourcesListResponse = serde_json::from_value(result)?;
-        log::info!("Retrieved {} resources from MCP server", response.resources.len());
+        log::info!(
+            "Retrieved {} resources from MCP server",
+            response.resources.len()
+        );
         for resource in &response.resources {
             log::trace!("  Resource: '{}' ({})", resource.name, resource.uri);
         }
@@ -335,10 +360,7 @@ impl McpClient {
 
         let start = std::time::Instant::now();
         let result = self
-            .send_request(
-                methods::RESOURCES_READ,
-                Some(serde_json::to_value(params)?),
-            )
+            .send_request(methods::RESOURCES_READ, Some(serde_json::to_value(params)?))
             .await?;
         let response: ResourceContent = serde_json::from_value(result)?;
         let elapsed = start.elapsed();
@@ -376,9 +398,16 @@ impl McpClient {
         log::debug!("Listing available prompts from MCP server");
         let result = self.send_request(methods::PROMPTS_LIST, None).await?;
         let response: PromptsListResponse = serde_json::from_value(result)?;
-        log::info!("Retrieved {} prompts from MCP server", response.prompts.len());
+        log::info!(
+            "Retrieved {} prompts from MCP server",
+            response.prompts.len()
+        );
         for prompt in &response.prompts {
-            log::trace!("  Prompt: '{}' - {}", prompt.name, prompt.description.as_deref().unwrap_or("(no description)"));
+            log::trace!(
+                "  Prompt: '{}' - {}",
+                prompt.name,
+                prompt.description.as_deref().unwrap_or("(no description)")
+            );
         }
         Ok(response.prompts)
     }
@@ -417,7 +446,8 @@ impl McpClient {
         let params = serde_json::json!({
             "level": level
         });
-        self.send_request(methods::LOGGING_SET_LEVEL, Some(params)).await?;
+        self.send_request(methods::LOGGING_SET_LEVEL, Some(params))
+            .await?;
         log::debug!("Server log level set successfully");
         Ok(())
     }
@@ -435,7 +465,7 @@ impl McpClient {
     /// Close the connection
     pub async fn close(&self) -> McpResult<()> {
         log::info!("Closing MCP client connection");
-        
+
         // Cancel receive task
         if let Some(handle) = self.receive_task.lock().await.take() {
             log::debug!("Aborting receive loop task");
@@ -450,7 +480,10 @@ impl McpClient {
         let mut pending = self.pending_requests.lock().await;
         let pending_count = pending.len();
         if pending_count > 0 {
-            log::warn!("Clearing {} pending requests on connection close", pending_count);
+            log::warn!(
+                "Clearing {} pending requests on connection close",
+                pending_count
+            );
         }
         pending.clear();
 
@@ -473,14 +506,15 @@ impl Drop for McpClient {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mcp::protocol::jsonrpc::{methods, JsonRpcRequest, JsonRpcResponse, JsonRpcNotification, RequestId, JSONRPC_VERSION};
-    use crate::mcp::protocol::tools::{ToolsListParams, ToolsCallParams};
+    use crate::mcp::protocol::jsonrpc::{
+        methods, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse, RequestId, JSONRPC_VERSION,
+    };
+    use crate::mcp::protocol::prompts::{PromptsGetParams, PromptsListParams};
     use crate::mcp::protocol::resources::{ResourcesListParams, ResourcesReadParams};
-    use crate::mcp::protocol::prompts::{PromptsListParams, PromptsGetParams};
+    use crate::mcp::protocol::tools::{ToolsCallParams, ToolsListParams};
 
     // ============================================================================
     // JSON-RPC Method Constants Tests
@@ -507,10 +541,22 @@ mod tests {
         assert_eq!(methods::INITIALIZED, "notifications/initialized");
         assert_eq!(methods::NOTIFICATION_PROGRESS, "notifications/progress");
         assert_eq!(methods::NOTIFICATION_MESSAGE, "notifications/message");
-        assert_eq!(methods::NOTIFICATION_RESOURCES_UPDATED, "notifications/resources/updated");
-        assert_eq!(methods::NOTIFICATION_RESOURCES_LIST_CHANGED, "notifications/resources/list_changed");
-        assert_eq!(methods::NOTIFICATION_TOOLS_LIST_CHANGED, "notifications/tools/list_changed");
-        assert_eq!(methods::NOTIFICATION_PROMPTS_LIST_CHANGED, "notifications/prompts/list_changed");
+        assert_eq!(
+            methods::NOTIFICATION_RESOURCES_UPDATED,
+            "notifications/resources/updated"
+        );
+        assert_eq!(
+            methods::NOTIFICATION_RESOURCES_LIST_CHANGED,
+            "notifications/resources/list_changed"
+        );
+        assert_eq!(
+            methods::NOTIFICATION_TOOLS_LIST_CHANGED,
+            "notifications/tools/list_changed"
+        );
+        assert_eq!(
+            methods::NOTIFICATION_PROMPTS_LIST_CHANGED,
+            "notifications/prompts/list_changed"
+        );
         assert_eq!(methods::NOTIFICATION_CANCELLED, "notifications/cancelled");
     }
 
@@ -571,7 +617,7 @@ mod tests {
     fn test_jsonrpc_request_with_params() {
         let params = serde_json::json!({"key": "value"});
         let request = JsonRpcRequest::new(42i64, "test/method", Some(params.clone()));
-        
+
         assert_eq!(request.params, Some(params));
     }
 
@@ -608,7 +654,7 @@ mod tests {
     #[test]
     fn test_jsonrpc_response_error() {
         use crate::mcp::protocol::jsonrpc::JsonRpcError;
-        
+
         let error = JsonRpcError::method_not_found("unknown");
         let response = JsonRpcResponse::error(RequestId::Number(1), error);
 
@@ -632,7 +678,7 @@ mod tests {
     fn test_jsonrpc_notification_with_params() {
         let params = serde_json::json!({"progress": 0.5});
         let notification = JsonRpcNotification::new("notifications/progress", Some(params.clone()));
-        
+
         assert_eq!(notification.params, Some(params));
     }
 
@@ -651,7 +697,7 @@ mod tests {
         let params = ToolsListParams {
             cursor: Some("next-page-token".to_string()),
         };
-        
+
         let json = serde_json::to_value(&params).unwrap();
         assert_eq!(json["cursor"], "next-page-token");
     }
@@ -885,7 +931,10 @@ mod tests {
         });
 
         let content: PromptContent = serde_json::from_value(json).unwrap();
-        assert_eq!(content.description, Some("Code explanation prompt".to_string()));
+        assert_eq!(
+            content.description,
+            Some("Code explanation prompt".to_string())
+        );
         assert_eq!(content.messages.len(), 1);
     }
 

@@ -201,11 +201,8 @@ pub async fn jupyter_quick_execute(
     emit_kernel_status(&app, "", "busy", Some("Executing code..."));
 
     let config = KernelConfig::default();
-    let mut kernel = JupyterKernel::new(
-        format!("quick-{}", uuid::Uuid::new_v4()),
-        env_path,
-        config,
-    );
+    let mut kernel =
+        JupyterKernel::new(format!("quick-{}", uuid::Uuid::new_v4()), env_path, config);
 
     kernel.start().await?;
     let result = kernel.execute(&code).await?;
@@ -356,11 +353,13 @@ pub async fn jupyter_check_kernel_available(env_path: String) -> Result<bool, St
 
 /// Install ipykernel in an environment if not present
 #[tauri::command]
-pub async fn jupyter_ensure_kernel(
-    app: AppHandle,
-    env_path: String,
-) -> Result<bool, String> {
-    emit_kernel_status(&app, "", "configuring", Some("Checking kernel requirements..."));
+pub async fn jupyter_ensure_kernel(app: AppHandle, env_path: String) -> Result<bool, String> {
+    emit_kernel_status(
+        &app,
+        "",
+        "configuring",
+        Some("Checking kernel requirements..."),
+    );
 
     let python_path = if cfg!(target_os = "windows") {
         format!("{}\\Scripts\\python.exe", env_path)
@@ -371,7 +370,10 @@ pub async fn jupyter_ensure_kernel(
     // Check if ipykernel is installed
     let check_output = if cfg!(target_os = "windows") {
         std::process::Command::new("cmd")
-            .args(["/C", &format!("\"{}\" -c \"import ipykernel\"", python_path)])
+            .args([
+                "/C",
+                &format!("\"{}\" -c \"import ipykernel\"", python_path),
+            ])
             .output()
     } else {
         std::process::Command::new(&python_path)
@@ -466,9 +468,9 @@ mod tests {
 
     #[test]
     fn test_jupyter_state_creation() {
-        let _state = JupyterState::new();
-        // State should be created without error
-        assert!(true);
+        let state = JupyterState::new();
+        // State should be created without error - verify manager Arc is valid
+        assert!(Arc::strong_count(&state.manager) == 1);
     }
 
     #[test]

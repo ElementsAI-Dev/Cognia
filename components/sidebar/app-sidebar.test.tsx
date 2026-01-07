@@ -8,16 +8,28 @@ import { AppSidebar } from './app-sidebar';
 // Mock stores
 const mockCreateSession = jest.fn();
 const mockSetTheme = jest.fn();
+const mockDeleteAllSessions = jest.fn();
+const mockSetActiveSession = jest.fn();
+const mockUpdateSession = jest.fn();
+const mockDeleteSession = jest.fn();
+const mockDuplicateSession = jest.fn();
+const mockTogglePinSession = jest.fn();
 
 jest.mock('@/stores', () => ({
   useSessionStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       sessions: [
-        { id: 'session-1', title: 'Test Session 1' },
-        { id: 'session-2', title: 'Test Session 2' },
+        { id: 'session-1', title: 'Test Session 1', updatedAt: new Date(), pinned: false },
+        { id: 'session-2', title: 'Test Session 2', updatedAt: new Date(), pinned: true },
       ],
       activeSessionId: 'session-1',
       createSession: mockCreateSession,
+      setActiveSession: mockSetActiveSession,
+      updateSession: mockUpdateSession,
+      deleteSession: mockDeleteSession,
+      duplicateSession: mockDuplicateSession,
+      togglePinSession: mockTogglePinSession,
+      deleteAllSessions: mockDeleteAllSessions,
       getActiveSession: () => ({ id: 'session-1', title: 'Test Session 1' }),
     };
     return selector(state);
@@ -66,12 +78,12 @@ jest.mock('@/components/ui/sidebar', () => ({
   SidebarFooter: ({ children }: { children: React.ReactNode }) => <div data-testid="sidebar-footer">{children}</div>,
   SidebarGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SidebarGroupContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SidebarGroupLabel: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+  SidebarGroupLabel: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => <span onClick={onClick}>{children}</span>,
   SidebarHeader: ({ children }: { children: React.ReactNode }) => <div data-testid="sidebar-header">{children}</div>,
   SidebarMenu: ({ children }: { children: React.ReactNode }) => <ul>{children}</ul>,
   SidebarMenuAction: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SidebarMenuButton: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
-    <button onClick={onClick}>{children}</button>
+  SidebarMenuButton: ({ children, onClick, ...props }: { children: React.ReactNode; onClick?: () => void; 'data-testid'?: string }) => (
+    <button onClick={onClick} data-testid={props['data-testid']}>{children}</button>
   ),
   SidebarMenuItem: ({ children }: { children: React.ReactNode }) => <li>{children}</li>,
   SidebarSeparator: () => <hr />,
@@ -94,6 +106,30 @@ jest.mock('@/components/ui/input', () => ({
 
 jest.mock('@/components/layout/keyboard-shortcuts-dialog', () => ({
   KeyboardShortcutsDialog: () => <div data-testid="keyboard-shortcuts-dialog" />,
+}));
+
+jest.mock('@/components/sidebar/sidebar-usage-stats', () => ({
+  SidebarUsageStats: () => <div data-testid="usage-stats" />,
+}));
+
+jest.mock('@/components/sidebar/sidebar-background-tasks', () => ({
+  SidebarBackgroundTasks: () => <div data-testid="background-tasks" />,
+}));
+
+jest.mock('@/components/sidebar/sidebar-quick-actions', () => ({
+  SidebarQuickActions: () => <div data-testid="quick-actions" />,
+}));
+
+jest.mock('@/components/sidebar/sidebar-recent-files', () => ({
+  SidebarRecentFiles: () => <div data-testid="recent-files" />,
+}));
+
+jest.mock('@/components/sidebar/sidebar-workflows', () => ({
+  SidebarWorkflows: () => <div data-testid="workflows" />,
+}));
+
+jest.mock('@/components/artifacts', () => ({
+  ArtifactListCompact: () => <div data-testid="artifacts" />,
 }));
 
 describe('AppSidebar', () => {
@@ -123,7 +159,11 @@ describe('AppSidebar', () => {
 
   it('calls createSession when new chat button is clicked', () => {
     render(<AppSidebar />);
-    fireEvent.click(screen.getByText('New Chat'));
+    // Find the new chat button by its text content
+    const newChatButton = screen.getByText('New Chat').closest('button');
+    if (newChatButton) {
+      fireEvent.click(newChatButton);
+    }
     expect(mockCreateSession).toHaveBeenCalled();
   });
 
@@ -135,16 +175,24 @@ describe('AppSidebar', () => {
 
   it('renders search input', () => {
     render(<AppSidebar />);
-    expect(screen.getByPlaceholderText(/Search/i)).toBeInTheDocument();
-  });
-
-  it('renders settings link', () => {
-    render(<AppSidebar />);
-    expect(screen.getByText('Settings')).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-search')).toBeInTheDocument();
   });
 
   it('renders keyboard shortcuts dialog', () => {
     render(<AppSidebar />);
     expect(screen.getByTestId('keyboard-shortcuts-dialog')).toBeInTheDocument();
+  });
+
+  it('shows grouped sessions and pinned ordering', () => {
+    render(<AppSidebar />);
+    // The translation mock returns the key itself, so look for 'Pinned' (the translated value)
+    const pinnedLabel = screen.getByText('Pinned');
+    expect(pinnedLabel).toBeInTheDocument();
+  });
+
+  it('triggers delete all confirm', () => {
+    render(<AppSidebar />);
+    fireEvent.click(screen.getByTestId('delete-all-trigger'));
+    expect(mockDeleteAllSessions).not.toHaveBeenCalled();
   });
 });

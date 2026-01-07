@@ -115,6 +115,7 @@ const CATEGORY_INFO: Record<ActionCategory, { label: string; color: string }> = 
 export function SelectionToolbar() {
   const {
     state,
+    config,
     executeAction,
     copyResult,
     clearResult,
@@ -150,7 +151,8 @@ export function SelectionToolbar() {
   } = useSelectionStore();
 
   // Get pinned actions
-  const pinnedActions = ALL_ACTIONS.filter((a) => DEFAULT_PINNED.includes(a.action));
+  const pinnedSource = config.pinnedActions?.length ? config.pinnedActions : DEFAULT_PINNED;
+  const pinnedActions = ALL_ACTIONS.filter((a) => pinnedSource.includes(a.action));
   
   // Get actions by category for the more menu
   const getActionsByCategory = (category: ActionCategory) =>
@@ -196,23 +198,49 @@ export function SelectionToolbar() {
     [state.selectedText, executeAction, hideToolbar, isMultiSelectMode, selections.length, getCombinedText, references]
   );
 
-  // Handle click outside - use mouseup to not interfere with text selection
+  // Handle click outside - use Tauri window blur event for standalone window
   useEffect(() => {
+    // In Tauri standalone window, use window blur event
+    if (typeof window !== "undefined" && window.__TAURI__) {
+      let unlistenBlur: (() => void) | undefined;
+      
+      const setupBlurListener = async () => {
+        try {
+          const { getCurrentWindow } = await import("@tauri-apps/api/window");
+          const currentWindow = getCurrentWindow();
+          unlistenBlur = await currentWindow.onFocusChanged(({ payload: focused }) => {
+            // When the window loses focus, hide the toolbar
+            // unless user is interacting with the toolbar
+            if (!focused && !showMoreMenu && !showModeSelector && !showReferences && 
+                !showClipboardPanel && !showOCRPanel && !showTemplatesPanel) {
+              // Small delay to allow for popover interactions
+              setTimeout(() => {
+                hideToolbar();
+              }, 150);
+            }
+          });
+        } catch (e) {
+          console.error("Failed to setup Tauri blur listener:", e);
+        }
+      };
+      
+      setupBlurListener();
+      return () => {
+        unlistenBlur?.();
+      };
+    }
+    
+    // Fallback for non-Tauri (web) environment
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target.closest(".selection-toolbar")) {
-        // Don't hide if user might be making a new selection
-        const windowSelection = window.getSelection();
-        if (!windowSelection || windowSelection.isCollapsed || windowSelection.toString().trim() === '') {
-          hideToolbar();
-        }
+        hideToolbar();
       }
     };
 
-    // Use mouseup instead of mousedown to not interfere with selection start
     document.addEventListener("mouseup", handleClickOutside);
     return () => document.removeEventListener("mouseup", handleClickOutside);
-  }, [hideToolbar]);
+  }, [hideToolbar, showMoreMenu, showModeSelector, showReferences, showClipboardPanel, showOCRPanel, showTemplatesPanel]);
 
   // Handle selection mode change
   const handleModeChange = async (mode: SelectionMode) => {
@@ -287,18 +315,51 @@ export function SelectionToolbar() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [state.isVisible, state.isLoading, handleAction, hideToolbar, showMoreMenu, showModeSelector, showReferences]);
 
+  // Don't render anything if toolbar is not visible
+  if (!state.isVisible) {
+    return null;
+  }
+
+  // Handle hover state to prevent auto-hide while user is interacting
+  const handleMouseEnter = async () => {
+    if (typeof window !== "undefined" && window.__TAURI__) {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        await invoke("selection_set_toolbar_hovered", { hovered: true });
+      } catch (e) {
+        console.error("Failed to set toolbar hovered state:", e);
+      }
+    }
+  };
+
+  const handleMouseLeave = async () => {
+    if (typeof window !== "undefined" && window.__TAURI__) {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        await invoke("selection_set_toolbar_hovered", { hovered: false });
+      } catch (e) {
+        console.error("Failed to set toolbar hovered state:", e);
+      }
+    }
+  };
+
   return (
     <TooltipProvider>
-      <div className="selection-toolbar relative" ref={toolbarRef}>
+      <div 
+        className="selection-toolbar relative w-full" 
+        ref={toolbarRef}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
         {/* Main Toolbar */}
         <div
           className={cn(
-            "flex items-center gap-0.5 px-1.5 py-1",
-            "bg-linear-to-br from-gray-900/95 via-gray-800/95 to-gray-900/95",
+            "flex flex-wrap items-center gap-0.5 px-1.5 py-1",
+            "bg-linear-to-br from-gray-900/98 via-gray-800/98 to-gray-900/98",
             "backdrop-blur-xl",
             "rounded-2xl",
             "shadow-2xl shadow-black/60",
-            "border border-white/8",
+            "border border-white/10",
             "animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-300"
           )}
         >

@@ -49,6 +49,9 @@ jest.mock('@/components/ui/tabs', () => ({
   TabsTrigger: ({ children, value, className }: { children: React.ReactNode; value: string; className?: string }) => (
     <button data-testid={`tab-${value}`} className={className}>{children}</button>
   ),
+  TabsContent: ({ children, value }: { children: React.ReactNode; value: string }) => (
+    <div data-testid={`tabs-content-${value}`}>{children}</div>
+  ),
 }));
 
 jest.mock('@/components/ui/input-group', () => ({
@@ -77,6 +80,44 @@ jest.mock('./node-template-manager', () => ({
   ),
 }));
 
+// Mock Badge
+jest.mock('@/components/ui/badge', () => ({
+  Badge: ({ children, className, variant }: { children: React.ReactNode; className?: string; variant?: string }) => (
+    <span data-testid="badge" className={className} data-variant={variant}>{children}</span>
+  ),
+}));
+
+// Mock Button
+jest.mock('@/components/ui/button', () => ({
+  Button: ({ children, onClick, className, variant, size }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) => (
+    <button onClick={onClick} className={className} data-variant={variant} data-size={size}>{children}</button>
+  ),
+}));
+
+// Mock DropdownMenu
+jest.mock('@/components/ui/dropdown-menu', () => ({
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown-menu">{children}</div>,
+  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuCheckboxItem: ({ children, checked }: { children: React.ReactNode; checked?: boolean }) => (
+    <div data-testid="dropdown-checkbox" data-checked={checked}>{children}</div>
+  ),
+  DropdownMenuLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuSeparator: () => <hr />,
+  DropdownMenuTrigger: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) => (
+    <div data-testid="dropdown-trigger" data-aschild={asChild}>{children}</div>
+  ),
+}));
+
+// Mock Tooltip
+jest.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => <div data-testid="tooltip">{children}</div>,
+  TooltipContent: ({ children }: { children: React.ReactNode }) => <div data-testid="tooltip-content">{children}</div>,
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TooltipTrigger: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) => (
+    <div data-testid="tooltip-trigger" data-aschild={asChild}>{children}</div>
+  ),
+}));
+
 // Mock lucide-react icons
 jest.mock('lucide-react', () => ({
   Search: () => <span data-testid="search-icon">Search</span>,
@@ -98,6 +139,15 @@ jest.mock('lucide-react', () => ({
   Settings: () => <span>Settings</span>,
   Plug: () => <span>Plug</span>,
   Bookmark: () => <span>Bookmark</span>,
+  Database: () => <span>Database</span>,
+  Filter: () => <span>Filter</span>,
+  Sigma: () => <span>Sigma</span>,
+  History: () => <span>History</span>,
+  Star: () => <span>Star</span>,
+  X: () => <span>X</span>,
+  SlidersHorizontal: () => <span>Sliders</span>,
+  Zap: () => <span>Zap</span>,
+  Heart: () => <span>Heart</span>,
 }));
 
 describe('NodePalette', () => {
@@ -167,14 +217,17 @@ describe('NodePalette', () => {
 
   it('renders help text at the bottom', () => {
     render(<NodePalette {...defaultProps} />);
-    expect(screen.getByText('dragToAdd')).toBeInTheDocument();
+    // Check for the drag instructions text
+    expect(screen.getByText(/Drag to canvas/i)).toBeInTheDocument();
   });
 
   it('renders all node categories from NODE_CATEGORIES', () => {
     render(<NodePalette {...defaultProps} />);
     
     NODE_CATEGORIES.forEach((category) => {
-      expect(screen.getByText(category.name)).toBeInTheDocument();
+      // Categories may appear multiple times, use getAllByText
+      const elements = screen.getAllByText(category.name);
+      expect(elements.length).toBeGreaterThan(0);
     });
   });
 

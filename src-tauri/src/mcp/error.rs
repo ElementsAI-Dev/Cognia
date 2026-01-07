@@ -1,4 +1,4 @@
-﻿//! MCP error types
+//! MCP error types
 //!
 //! This module defines error types for MCP operations with proper
 //! serialization support for frontend communication.
@@ -140,7 +140,11 @@ impl From<&McpError> for McpErrorInfo {
                 code: None,
                 data: None,
             },
-            McpError::RpcError { code, message, data } => Self {
+            McpError::RpcError {
+                code,
+                message,
+                data,
+            } => Self {
                 error_type: "rpc_error".to_string(),
                 message: message.clone(),
                 code: Some(*code),
@@ -281,14 +285,15 @@ mod tests {
             message: "Method not found".to_string(),
             data: None,
         };
-        
+
         let mcp_error: McpError = rpc_error.into();
         assert!(matches!(mcp_error, McpError::RpcError { .. }));
     }
 
     #[test]
     fn test_mcp_error_io() {
-        let io_error = std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "connection refused");
+        let io_error =
+            std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "connection refused");
         let mcp_error = McpError::IoError(io_error);
         assert!(mcp_error.to_string().contains("connection refused"));
     }
@@ -304,11 +309,11 @@ mod tests {
         fn returns_ok() -> McpResult<String> {
             Ok("success".to_string())
         }
-        
+
         fn returns_err() -> McpResult<String> {
             Err(McpError::NotConnected)
         }
-        
+
         assert!(returns_ok().is_ok());
         assert!(returns_err().is_err());
     }
@@ -611,9 +616,14 @@ mod tests {
             message: "Parse error".to_string(),
             data: Some(serde_json::json!({"position": 42})),
         };
-        
+
         let mcp_error: McpError = rpc_error.into();
-        if let McpError::RpcError { code, message, data } = mcp_error {
+        if let McpError::RpcError {
+            code,
+            message,
+            data,
+        } = mcp_error
+        {
             assert_eq!(code, -32700);
             assert_eq!(message, "Parse error");
             assert!(data.is_some());
@@ -630,9 +640,14 @@ mod tests {
             message: "Invalid params".to_string(),
             data: None,
         };
-        
+
         let mcp_error: McpError = rpc_error.into();
-        if let McpError::RpcError { code, message, data } = mcp_error {
+        if let McpError::RpcError {
+            code,
+            message,
+            data,
+        } = mcp_error
+        {
             assert_eq!(code, -32602);
             assert_eq!(message, "Invalid params");
             assert!(data.is_none());
@@ -689,4 +704,3 @@ mod tests {
         assert_eq!(data["nested"]["object"]["key"], "value");
     }
 }
-

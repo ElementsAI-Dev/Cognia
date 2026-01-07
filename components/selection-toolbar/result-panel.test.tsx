@@ -5,6 +5,13 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ResultPanel, ResultPanelProps } from './result-panel';
 
+const mockWriteText = jest.fn();
+Object.defineProperty(navigator, 'clipboard', {
+  value: { writeText: mockWriteText },
+  writable: true,
+  configurable: true,
+});
+
 // Default props for all tests
 const defaultProps: ResultPanelProps = {
   result: null,
@@ -72,6 +79,17 @@ describe('ResultPanel', () => {
       
       expect(onRetry).toHaveBeenCalled();
     });
+
+    it('copies content and calls onCopy', async () => {
+      const onCopy = jest.fn();
+      render(<ResultPanel {...defaultProps} result="Copy me" onCopy={onCopy} />);
+
+      const copyButton = screen.getByTitle('Copy (Ctrl+C)');
+      fireEvent.click(copyButton);
+
+      expect(mockWriteText).toHaveBeenCalledWith('Copy me');
+      expect(onCopy).toHaveBeenCalled();
+    });
   });
 
   describe('action info', () => {
@@ -137,6 +155,18 @@ describe('ResultPanel', () => {
         />
       );
       expect(container).toBeInTheDocument();
+    });
+
+    it('collapses and expands the panel', () => {
+      render(<ResultPanel {...defaultProps} result="Visible content" />);
+
+      const toggle = screen.getByTitle('Collapse panel');
+      fireEvent.click(toggle);
+      expect(screen.queryByText('Visible content')).not.toBeInTheDocument();
+
+      const expand = screen.getByTitle('Expand panel');
+      fireEvent.click(expand);
+      expect(screen.getByText('Visible content')).toBeInTheDocument();
     });
   });
 });

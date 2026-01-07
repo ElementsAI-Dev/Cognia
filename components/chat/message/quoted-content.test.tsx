@@ -46,6 +46,20 @@ describe('QuotedContent', () => {
         quotedTexts,
         removeQuote: mockRemoveQuote,
         clearQuotes: mockClearQuotes,
+        selectedIds: new Set<string>(),
+        isSelectionMode: false,
+        toggleSelectionMode: jest.fn(),
+        toggleSelect: jest.fn(),
+        selectAll: jest.fn(),
+        deselectAll: jest.fn(),
+        removeSelected: jest.fn(),
+        mergeSelected: jest.fn(),
+        exportQuotes: jest.fn(),
+        exportSelected: jest.fn(),
+        reorderQuotes: jest.fn(),
+        collapseAll: jest.fn(),
+        expandAll: jest.fn(),
+        maxQuotes: 10,
       };
       return selector(state);
     });
@@ -64,7 +78,7 @@ describe('QuotedContent', () => {
 
     render(<QuotedContent />);
 
-    expect(screen.getByText('Quoted (1)')).toBeInTheDocument();
+    expect(screen.getByText('Quoted (1/10)')).toBeInTheDocument();
     expect(screen.getByText(/Test quoted content/)).toBeInTheDocument();
   });
 
@@ -76,7 +90,7 @@ describe('QuotedContent', () => {
 
     render(<QuotedContent />);
 
-    expect(screen.getByText('Quoted (2)')).toBeInTheDocument();
+    expect(screen.getByText('Quoted (2/10)')).toBeInTheDocument();
     expect(screen.getByText(/First quote/)).toBeInTheDocument();
     expect(screen.getByText(/Second quote/)).toBeInTheDocument();
   });

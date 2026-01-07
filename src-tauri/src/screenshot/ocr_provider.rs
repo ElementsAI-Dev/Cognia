@@ -215,7 +215,11 @@ pub trait OcrProvider: Send + Sync {
     async fn is_language_supported(&self, language: &str) -> bool {
         self.get_supported_languages()
             .await
-            .map(|langs| langs.iter().any(|l| l == language || l.starts_with(language)))
+            .map(|langs| {
+                langs
+                    .iter()
+                    .any(|l| l == language || l.starts_with(language))
+            })
             .unwrap_or(false)
     }
 }
@@ -374,7 +378,10 @@ mod tests {
     #[test]
     fn test_provider_type_display_name() {
         assert_eq!(OcrProviderType::WindowsOcr.display_name(), "Windows OCR");
-        assert_eq!(OcrProviderType::GoogleVision.display_name(), "Google Cloud Vision");
+        assert_eq!(
+            OcrProviderType::GoogleVision.display_name(),
+            "Google Cloud Vision"
+        );
     }
 
     #[test]
@@ -404,7 +411,7 @@ mod tests {
 
         let json = serde_json::to_string(&result).unwrap();
         let deserialized: OcrResult = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(result.text, deserialized.text);
         assert_eq!(result.confidence, deserialized.confidence);
     }
@@ -413,7 +420,7 @@ mod tests {
     fn test_ocr_error() {
         let err = OcrError::provider_unavailable("Windows OCR not installed")
             .with_provider("windows_ocr");
-        
+
         assert_eq!(err.code, OcrErrorCode::ProviderUnavailable);
         assert_eq!(err.provider, Some("windows_ocr".to_string()));
     }

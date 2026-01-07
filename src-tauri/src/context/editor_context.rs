@@ -2,8 +2,8 @@
 //!
 //! Provides detailed context for code editors and IDEs.
 
-use log::{debug, trace};
 use super::WindowInfo;
+use log::{debug, trace};
 use serde::{Deserialize, Serialize};
 
 /// Type alias for parsed editor title components
@@ -49,27 +49,40 @@ pub struct EditorContext {
 impl EditorContext {
     /// Create editor context from window information
     pub fn from_window_info(window: &WindowInfo) -> Result<Self, String> {
-        trace!("Creating EditorContext from window: process='{}', title='{}'", window.process_name, window.title);
-        
+        trace!(
+            "Creating EditorContext from window: process='{}', title='{}'",
+            window.process_name,
+            window.title
+        );
+
         let process_name = window.process_name.to_lowercase();
         let title = &window.title;
 
         // Detect editor type
         let editor_name = Self::detect_editor_name(&process_name);
         debug!("Detected editor: {}", editor_name);
-        
+
         // Parse title for file information
-        let (file_path, file_name, file_extension, project_name, is_modified, git_branch, line_col) = 
+        let (file_path, file_name, file_extension, project_name, is_modified, git_branch, line_col) =
             Self::parse_editor_title(&editor_name, title);
-        
+
         trace!(
             "Parsed editor title: file={:?}, ext={:?}, project={:?}, modified={}, branch={:?}",
-            file_name, file_extension, project_name, is_modified, git_branch
+            file_name,
+            file_extension,
+            project_name,
+            is_modified,
+            git_branch
         );
 
-        let language = file_extension.as_ref().and_then(|ext| Self::extension_to_language(ext));
+        let language = file_extension
+            .as_ref()
+            .and_then(|ext| Self::extension_to_language(ext));
         if let Some(ref lang) = language {
-            debug!("Detected language: {} (from extension: {:?})", lang, file_extension);
+            debug!(
+                "Detected language: {} (from extension: {:?})",
+                lang, file_extension
+            );
         }
 
         debug!(
@@ -123,18 +136,29 @@ impl EditorContext {
     }
 
     fn parse_editor_title(editor_name: &str, title: &str) -> ParsedTitleInfo {
-        trace!("Parsing editor title: '{}' for editor: {}", title, editor_name);
-        let is_modified = title.contains("●") || title.contains("*") || title.contains("[Modified]");
-        
+        trace!(
+            "Parsing editor title: '{}' for editor: {}",
+            title,
+            editor_name
+        );
+        let is_modified =
+            title.contains("●") || title.contains("*") || title.contains("[Modified]");
+
         // VS Code style: "filename.ext - folder - Visual Studio Code"
         // Or: "● filename.ext - folder - Visual Studio Code"
-        if editor_name.contains("Visual Studio Code") || editor_name.contains("Cursor") || editor_name.contains("Windsurf") {
+        if editor_name.contains("Visual Studio Code")
+            || editor_name.contains("Cursor")
+            || editor_name.contains("Windsurf")
+        {
             return Self::parse_vscode_title(title, is_modified);
         }
 
         // JetBrains style: "project – file.ext [branch]"
-        if editor_name.contains("IntelliJ") || editor_name.contains("PyCharm") || 
-           editor_name.contains("WebStorm") || editor_name.contains("GoLand") {
+        if editor_name.contains("IntelliJ")
+            || editor_name.contains("PyCharm")
+            || editor_name.contains("WebStorm")
+            || editor_name.contains("GoLand")
+        {
             return Self::parse_jetbrains_title(title, is_modified);
         }
 
@@ -155,10 +179,10 @@ impl EditorContext {
     fn parse_vscode_title(title: &str, is_modified: bool) -> ParsedTitleInfo {
         // Remove modification indicator
         let clean_title = title.replace("●", "").replace("•", "").trim().to_string();
-        
+
         // Split by " - "
         let parts: Vec<&str> = clean_title.split(" - ").collect();
-        
+
         if parts.is_empty() {
             return (None, None, None, None, is_modified, None, None);
         }
@@ -184,7 +208,7 @@ impl EditorContext {
             let start = clean_title.find('[').unwrap();
             let end = clean_title.find(']').unwrap();
             if end > start {
-                Some(clean_title[start+1..end].to_string())
+                Some(clean_title[start + 1..end].to_string())
             } else {
                 None
             }
@@ -192,23 +216,31 @@ impl EditorContext {
             None
         };
 
-        (None, file_name, file_extension, project_name, is_modified, git_branch, None)
+        (
+            None,
+            file_name,
+            file_extension,
+            project_name,
+            is_modified,
+            git_branch,
+            None,
+        )
     }
 
     fn parse_jetbrains_title(title: &str, is_modified: bool) -> ParsedTitleInfo {
         // JetBrains format: "project – file.ext [branch]" or "project – path/to/file.ext"
         let parts: Vec<&str> = title.split(" – ").collect();
-        
+
         let project_name = parts.first().map(|s| s.trim().to_string());
-        
+
         let (file_path, file_name, file_extension, git_branch) = if parts.len() > 1 {
             let file_part = parts[1].trim();
-            
+
             // Check for branch in brackets
             let (file_str, branch) = if file_part.contains('[') && file_part.contains(']') {
                 let bracket_start = file_part.find('[').unwrap();
                 let bracket_end = file_part.find(']').unwrap();
-                let branch = file_part[bracket_start+1..bracket_end].to_string();
+                let branch = file_part[bracket_start + 1..bracket_end].to_string();
                 let file = file_part[..bracket_start].trim();
                 (file, Some(branch))
             } else {
@@ -221,7 +253,10 @@ impl EditorContext {
                 None
             };
 
-            let name = file_str.rsplit(&['/', '\\'][..]).next().map(|s| s.to_string());
+            let name = file_str
+                .rsplit(&['/', '\\'][..])
+                .next()
+                .map(|s| s.to_string());
             let ext = name.as_ref().and_then(|n| {
                 if n.contains('.') {
                     n.rsplit('.').next().map(|s| s.to_string())
@@ -235,13 +270,21 @@ impl EditorContext {
             (None, None, None, None)
         };
 
-        (file_path, file_name, file_extension, project_name, is_modified, git_branch, None)
+        (
+            file_path,
+            file_name,
+            file_extension,
+            project_name,
+            is_modified,
+            git_branch,
+            None,
+        )
     }
 
     fn parse_sublime_title(title: &str, is_modified: bool) -> ParsedTitleInfo {
         // Sublime format: "filename.ext - Sublime Text" or "path/to/file.ext - Sublime Text"
         let parts: Vec<&str> = title.split(" - ").collect();
-        
+
         if parts.is_empty() {
             return (None, None, None, None, is_modified, None, None);
         }
@@ -253,7 +296,10 @@ impl EditorContext {
             None
         };
 
-        let file_name = file_part.rsplit(&['/', '\\'][..]).next().map(|s| s.to_string());
+        let file_name = file_part
+            .rsplit(&['/', '\\'][..])
+            .next()
+            .map(|s| s.to_string());
         let file_extension = file_name.as_ref().and_then(|n| {
             if n.contains('.') {
                 n.rsplit('.').next().map(|s| s.to_string())
@@ -262,13 +308,25 @@ impl EditorContext {
             }
         });
 
-        (file_path, file_name, file_extension, None, is_modified, None, None)
+        (
+            file_path,
+            file_name,
+            file_extension,
+            None,
+            is_modified,
+            None,
+            None,
+        )
     }
 
     fn parse_vim_title(title: &str, is_modified: bool) -> ParsedTitleInfo {
         // Vim format varies: "filename.ext + VIM" or "filename.ext [+] - VIM"
-        let clean = title.replace("[+]", "").replace(" + ", " ").trim().to_string();
-        
+        let clean = title
+            .replace("[+]", "")
+            .replace(" + ", " ")
+            .trim()
+            .to_string();
+
         // Remove VIM/NVIM suffix
         let without_vim = clean
             .trim_end_matches(" VIM")
@@ -278,7 +336,7 @@ impl EditorContext {
             .trim_end_matches(" - VIM")
             .trim_end_matches(" - NVIM")
             .trim();
-        
+
         let file_name = if !without_vim.is_empty() && without_vim.contains('.') {
             Some(without_vim.to_string())
         } else {
@@ -293,20 +351,36 @@ impl EditorContext {
             }
         });
 
-        (None, file_name, file_extension, None, is_modified || title.contains("+"), None, None)
+        (
+            None,
+            file_name,
+            file_extension,
+            None,
+            is_modified || title.contains("+"),
+            None,
+            None,
+        )
     }
 
     fn parse_generic_title(title: &str, is_modified: bool) -> ParsedTitleInfo {
         // Try to extract file name from title
         let parts: Vec<&str> = title.split(" - ").collect();
-        
+
         let file_part = parts.first().map(|s| s.trim()).unwrap_or("");
-        
+
         // Check if it looks like a file name
         if file_part.contains('.') && !file_part.contains(' ') {
             let file_name = Some(file_part.to_string());
             let file_extension = file_part.rsplit('.').next().map(|s| s.to_string());
-            return (None, file_name, file_extension, None, is_modified, None, None);
+            return (
+                None,
+                file_name,
+                file_extension,
+                None,
+                is_modified,
+                None,
+                None,
+            );
         }
 
         (None, None, None, None, is_modified, None, None)
@@ -419,7 +493,8 @@ mod tests {
     // Editor detection tests
     #[test]
     fn test_detect_editor_vscode() {
-        let window = create_test_window_info("code.exe", "main.rs - myproject - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "main.rs - myproject - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.editor_name, "Visual Studio Code");
     }
@@ -511,35 +586,42 @@ mod tests {
     // VSCode title parsing tests
     #[test]
     fn test_vscode_parse_file_name() {
-        let window = create_test_window_info("code.exe", "main.rs - myproject - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "main.rs - myproject - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.file_name, Some("main.rs".to_string()));
     }
 
     #[test]
     fn test_vscode_parse_project_name() {
-        let window = create_test_window_info("code.exe", "main.rs - myproject - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "main.rs - myproject - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.project_name, Some("myproject".to_string()));
     }
 
     #[test]
     fn test_vscode_parse_modified_indicator() {
-        let window = create_test_window_info("code.exe", "● main.rs - myproject - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "● main.rs - myproject - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert!(context.is_modified);
     }
 
     #[test]
     fn test_vscode_parse_modified_indicator_dot() {
-        let window = create_test_window_info("code.exe", "• main.rs - myproject - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "• main.rs - myproject - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.file_name, Some("main.rs".to_string()));
     }
 
     #[test]
     fn test_vscode_parse_git_branch() {
-        let window = create_test_window_info("code.exe", "main.rs - myproject [main] - Visual Studio Code");
+        let window = create_test_window_info(
+            "code.exe",
+            "main.rs - myproject [main] - Visual Studio Code",
+        );
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.git_branch, Some("main".to_string()));
     }
@@ -561,7 +643,8 @@ mod tests {
 
     #[test]
     fn test_jetbrains_parse_git_branch() {
-        let window = create_test_window_info("idea64.exe", "myproject – Main.java [feature-branch]");
+        let window =
+            create_test_window_info("idea64.exe", "myproject – Main.java [feature-branch]");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.git_branch, Some("feature-branch".to_string()));
     }
@@ -570,7 +653,10 @@ mod tests {
     fn test_jetbrains_parse_file_path() {
         let window = create_test_window_info("idea64.exe", "myproject – src/main/java/Main.java");
         let context = EditorContext::from_window_info(&window).unwrap();
-        assert_eq!(context.file_path, Some("src/main/java/Main.java".to_string()));
+        assert_eq!(
+            context.file_path,
+            Some("src/main/java/Main.java".to_string())
+        );
     }
 
     // Sublime title parsing tests
@@ -583,9 +669,15 @@ mod tests {
 
     #[test]
     fn test_sublime_parse_file_path() {
-        let window = create_test_window_info("sublime_text.exe", "C:\\project\\src\\main.rs - Sublime Text");
+        let window = create_test_window_info(
+            "sublime_text.exe",
+            "C:\\project\\src\\main.rs - Sublime Text",
+        );
         let context = EditorContext::from_window_info(&window).unwrap();
-        assert_eq!(context.file_path, Some("C:\\project\\src\\main.rs".to_string()));
+        assert_eq!(
+            context.file_path,
+            Some("C:\\project\\src\\main.rs".to_string())
+        );
     }
 
     // Vim title parsing tests
@@ -670,7 +762,8 @@ mod tests {
 
     #[test]
     fn test_language_java() {
-        let window = create_test_window_info("code.exe", "Main.java - project - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "Main.java - project - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.language, Some("Java".to_string()));
     }
@@ -698,7 +791,8 @@ mod tests {
 
     #[test]
     fn test_language_csharp() {
-        let window = create_test_window_info("code.exe", "Program.cs - project - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "Program.cs - project - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.language, Some("C#".to_string()));
     }
@@ -712,70 +806,80 @@ mod tests {
 
     #[test]
     fn test_language_php() {
-        let window = create_test_window_info("code.exe", "index.php - project - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "index.php - project - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.language, Some("PHP".to_string()));
     }
 
     #[test]
     fn test_language_swift() {
-        let window = create_test_window_info("code.exe", "main.swift - project - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "main.swift - project - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.language, Some("Swift".to_string()));
     }
 
     #[test]
     fn test_language_shell() {
-        let window = create_test_window_info("code.exe", "script.sh - project - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "script.sh - project - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.language, Some("Shell".to_string()));
     }
 
     #[test]
     fn test_language_powershell() {
-        let window = create_test_window_info("code.exe", "script.ps1 - project - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "script.ps1 - project - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.language, Some("PowerShell".to_string()));
     }
 
     #[test]
     fn test_language_html() {
-        let window = create_test_window_info("code.exe", "index.html - project - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "index.html - project - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.language, Some("HTML".to_string()));
     }
 
     #[test]
     fn test_language_css() {
-        let window = create_test_window_info("code.exe", "styles.css - project - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "styles.css - project - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.language, Some("CSS".to_string()));
     }
 
     #[test]
     fn test_language_json() {
-        let window = create_test_window_info("code.exe", "package.json - project - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "package.json - project - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.language, Some("JSON".to_string()));
     }
 
     #[test]
     fn test_language_yaml() {
-        let window = create_test_window_info("code.exe", "config.yaml - project - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "config.yaml - project - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.language, Some("YAML".to_string()));
     }
 
     #[test]
     fn test_language_markdown() {
-        let window = create_test_window_info("code.exe", "README.md - project - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "README.md - project - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.language, Some("Markdown".to_string()));
     }
 
     #[test]
     fn test_language_sql() {
-        let window = create_test_window_info("code.exe", "query.sql - project - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "query.sql - project - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.language, Some("SQL".to_string()));
     }
@@ -789,7 +893,8 @@ mod tests {
 
     #[test]
     fn test_language_svelte() {
-        let window = create_test_window_info("code.exe", "App.svelte - project - Visual Studio Code");
+        let window =
+            create_test_window_info("code.exe", "App.svelte - project - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         assert_eq!(context.language, Some("Svelte".to_string()));
     }
@@ -828,10 +933,10 @@ mod tests {
     fn test_editor_context_serialization() {
         let window = create_test_window_info("code.exe", "main.rs - project - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
-        
+
         let json = serde_json::to_string(&context);
         assert!(json.is_ok());
-        
+
         let parsed: Result<EditorContext, _> = serde_json::from_str(&json.unwrap());
         assert!(parsed.is_ok());
         assert_eq!(parsed.unwrap().editor_name, "Visual Studio Code");
@@ -850,7 +955,14 @@ mod tests {
         let window = create_test_window_info("code.exe", "Welcome Tab - Visual Studio Code");
         let context = EditorContext::from_window_info(&window).unwrap();
         // Should not detect file extension in welcome text
-        assert!(context.file_extension.is_none() || context.file_name.as_ref().map(|n| n.contains(' ')).unwrap_or(true));
+        assert!(
+            context.file_extension.is_none()
+                || context
+                    .file_name
+                    .as_ref()
+                    .map(|n| n.contains(' '))
+                    .unwrap_or(true)
+        );
     }
 
     #[test]
@@ -862,7 +974,10 @@ mod tests {
 
     #[test]
     fn test_modified_indicator_text() {
-        let window = create_test_window_info("code.exe", "main.rs [Modified] - project - Visual Studio Code");
+        let window = create_test_window_info(
+            "code.exe",
+            "main.rs [Modified] - project - Visual Studio Code",
+        );
         let context = EditorContext::from_window_info(&window).unwrap();
         assert!(context.is_modified);
     }

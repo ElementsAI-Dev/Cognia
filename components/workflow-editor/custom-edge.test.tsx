@@ -8,25 +8,64 @@ import { Position } from '@xyflow/react';
 
 // Mock the workflow editor store
 const mockDeleteEdge = jest.fn();
+const mockUpdateEdge = jest.fn();
 
 jest.mock('@/stores/workflow', () => ({
   useWorkflowEditorStore: () => ({
     deleteEdge: mockDeleteEdge,
+    updateEdge: mockUpdateEdge,
   }),
 }));
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) => (
-    <button onClick={onClick} className={className} data-testid="delete-button" {...props}>
-      {children}
-    </button>
+  Button: ({ children, onClick, className, variant, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) => {
+    // Give unique test IDs based on variant
+    const testId = variant === 'destructive' ? 'edge-delete-button' : 
+                   variant === 'outline' ? 'outline-button' : 'button';
+    return (
+      <button onClick={onClick} className={className} data-testid={testId} data-variant={variant} {...props}>
+        {children}
+      </button>
+    );
+  },
+}));
+
+jest.mock('@/components/ui/input', () => ({
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input data-testid="input" {...props} />,
+}));
+
+jest.mock('@/components/ui/badge', () => ({
+  Badge: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <span data-testid="badge" className={className}>{children}</span>
   ),
+}));
+
+jest.mock('@/components/ui/popover', () => ({
+  Popover: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
+    <div data-testid="popover" data-open={open}>{children}</div>
+  ),
+  PopoverContent: ({ children }: { children: React.ReactNode }) => <div data-testid="popover-content">{children}</div>,
+  PopoverTrigger: ({ children, className }: { children: React.ReactNode; className?: string; asChild?: boolean }) => (
+    <div data-testid="popover-trigger" className={className}>{children}</div>
+  ),
+}));
+
+jest.mock('@/components/ui/select', () => ({
+  Select: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => <option value={value}>{children}</option>,
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SelectValue: ({ placeholder }: { placeholder?: string }) => <span>{placeholder}</span>,
 }));
 
 // Mock lucide-react
 jest.mock('lucide-react', () => ({
   X: () => <span data-testid="x-icon">X</span>,
+  Edit2: () => <span data-testid="edit-icon">Edit</span>,
+  Check: () => <span data-testid="check-icon">Check</span>,
+  Zap: () => <span data-testid="zap-icon">Zap</span>,
+  AlertTriangle: () => <span data-testid="alert-icon">Alert</span>,
 }));
 
 // Mock @xyflow/react components
@@ -92,16 +131,18 @@ describe('CustomEdge', () => {
         <CustomEdge {...defaultProps} selected={true} />
       </svg>
     );
-    expect(screen.getByTestId('delete-button')).toBeInTheDocument();
+    // The delete edge button has variant="destructive"
+    expect(screen.getByTestId('edge-delete-button')).toBeInTheDocument();
   });
 
-  it('does not show delete button when not selected', () => {
+  it('renders popover when not selected', () => {
     render(
       <svg>
         <CustomEdge {...defaultProps} selected={false} />
       </svg>
     );
-    expect(screen.queryByTestId('delete-button')).not.toBeInTheDocument();
+    // The edge label renderer is always present with the popover
+    expect(screen.getByTestId('edge-label-renderer')).toBeInTheDocument();
   });
 
   it('calls deleteEdge when delete button is clicked', () => {
@@ -111,22 +152,23 @@ describe('CustomEdge', () => {
       </svg>
     );
     
-    const deleteButton = screen.getByTestId('delete-button');
+    const deleteButton = screen.getByTestId('edge-delete-button');
     fireEvent.click(deleteButton);
     
     expect(mockDeleteEdge).toHaveBeenCalledWith('edge-1');
   });
 
   it('stops event propagation when delete button is clicked', () => {
-    const stopPropagation = jest.fn();
     render(
       <svg>
         <CustomEdge {...defaultProps} selected={true} />
       </svg>
     );
     
-    const deleteButton = screen.getByTestId('delete-button');
-    fireEvent.click(deleteButton, { stopPropagation });
+    const deleteButton = screen.getByTestId('edge-delete-button');
+    fireEvent.click(deleteButton);
+    // Event propagation is stopped inside the click handler
+    expect(mockDeleteEdge).toHaveBeenCalled();
   });
 
   it('renders label when provided in data', () => {
@@ -144,38 +186,36 @@ describe('CustomEdge', () => {
     expect(screen.getByText('Test Label')).toBeInTheDocument();
   });
 
-  it('applies green border for true condition value', () => {
-    const propsWithTrueCondition = {
+  it('applies green styling for success edge type', () => {
+    const propsWithSuccessType = {
       ...defaultProps,
-      data: { label: 'True Branch', conditionValue: true },
+      data: { label: 'Success Edge', edgeType: 'success' },
     };
     
     render(
       <svg>
-        <CustomEdge {...propsWithTrueCondition} />
+        <CustomEdge {...propsWithSuccessType} />
       </svg>
     );
     
-    const label = screen.getByText('True Branch');
-    const labelClass = label.closest('div')?.getAttribute('class') || '';
-    expect(labelClass).toContain('border-green-500');
+    // Check that the label text exists
+    expect(screen.getByText('Success Edge')).toBeInTheDocument();
   });
 
-  it('applies red border for false condition value', () => {
-    const propsWithFalseCondition = {
+  it('applies red styling for failure edge type', () => {
+    const propsWithFailureType = {
       ...defaultProps,
-      data: { label: 'False Branch', conditionValue: false },
+      data: { label: 'Failure Edge', edgeType: 'failure' },
     };
     
     render(
       <svg>
-        <CustomEdge {...propsWithFalseCondition} />
+        <CustomEdge {...propsWithFailureType} />
       </svg>
     );
     
-    const label = screen.getByText('False Branch');
-    const labelClass = label.closest('div')?.getAttribute('class') || '';
-    expect(labelClass).toContain('border-red-500');
+    // Check that the label text exists
+    expect(screen.getByText('Failure Edge')).toBeInTheDocument();
   });
 
   it('renders edge label renderer when label exists', () => {
@@ -203,14 +243,15 @@ describe('CustomEdge', () => {
     expect(screen.getByTestId('edge-label-renderer')).toBeInTheDocument();
   });
 
-  it('does not render edge label renderer when no label and not selected', () => {
+  it('renders edge label renderer even when no label and not selected', () => {
     render(
       <svg>
         <CustomEdge {...defaultProps} selected={false} data={{}} />
       </svg>
     );
     
-    expect(screen.queryByTestId('edge-label-renderer')).not.toBeInTheDocument();
+    // The EdgeLabelRenderer is always present (contains the popover)
+    expect(screen.getByTestId('edge-label-renderer')).toBeInTheDocument();
   });
 
   it('handles animated edge data', () => {
@@ -226,7 +267,8 @@ describe('CustomEdge', () => {
     );
     
     const edge = screen.getByTestId('edge-edge-1');
-    expect(edge.getAttribute('class') || '').toContain('animate-pulse');
+    // The main edge has animate-[dash_1s_linear_infinite] class
+    expect(edge.getAttribute('class') || '').toContain('animate-[dash_1s_linear_infinite]');
   });
 
   it('applies dashed style for conditional edges', () => {

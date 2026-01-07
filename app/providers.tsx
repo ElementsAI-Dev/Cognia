@@ -19,8 +19,9 @@
 
 import { useEffect, useLayoutEffect, useState, useCallback, useMemo } from 'react';
 import { useSettingsStore } from '@/stores';
+import { useSelectionStore } from '@/stores/context';
 import { I18nProvider } from '@/lib/i18n';
-import { THEME_PRESETS, applyThemeColors, removeCustomThemeColors } from '@/lib/themes';
+import { THEME_PRESETS, applyThemeColors, removeCustomThemeColors, applyBackgroundSettings, applyUICustomization } from '@/lib/themes';
 import type { ColorThemePreset as _ColorThemePreset } from '@/lib/themes';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { CommandPalette } from '@/components/layout/command-palette';
@@ -38,9 +39,68 @@ import {
 } from '@/components/providers';
 import { LocaleInitializer } from '@/components/providers/locale-initializer';
 import { ChatAssistantContainer } from '@/components/chat-widget';
+import { useChatWidgetStore } from '@/stores/chat';
+import { isTauri as detectTauri } from '@/lib/native/utils';
 
 interface ProvidersProps {
   children: React.ReactNode;
+}
+
+function ChatAssistantContainerGate() {
+  const [mounted, setMounted] = useState(false);
+  const [isTauri, setIsTauri] = useState(false);
+
+  useIsomorphicLayoutEffect(() => {
+    setMounted(true);
+    setIsTauri(detectTauri());
+  }, []);
+
+  // Desktop uses the dedicated Tauri assistant bubble window.
+  if (!mounted || isTauri) return null;
+
+  return <ChatAssistantContainer tauriOnly={false} />;
+}
+
+function ChatWidgetNativeSync() {
+  const config = useChatWidgetStore((s) => s.config);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!detectTauri() && !(window as typeof window & { __TAURI__?: unknown }).__TAURI__) return;
+
+    const payload = {
+      width: config.width,
+      height: config.height,
+      x: config.x,
+      y: config.y,
+      rememberPosition: config.rememberPosition,
+      startMinimized: config.startMinimized,
+      opacity: config.opacity,
+      shortcut: config.shortcut,
+      pinned: config.pinned,
+      backgroundColor: config.backgroundColor,
+    };
+
+    (async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('chat_widget_update_config', { config: payload });
+    })().catch(() => {
+      // best-effort sync; ignore failures (e.g., web mode)
+    });
+  }, [
+    config.width,
+    config.height,
+    config.x,
+    config.y,
+    config.rememberPosition,
+    config.startMinimized,
+    config.opacity,
+    config.shortcut,
+    config.pinned,
+    config.backgroundColor,
+  ]);
+
+  return null;
 }
 
 // Use useLayoutEffect on client, useEffect on server
@@ -342,7 +402,13 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   const colorTheme = useSettingsStore((state) => state.colorTheme);
   const customThemes = useSettingsStore((state) => state.customThemes);
   const activeCustomThemeId = useSettingsStore((state) => state.activeCustomThemeId);
+  const backgroundSettings = useSettingsStore((state) => state.backgroundSettings);
+  const uiCustomization = useSettingsStore((state) => state.uiCustomization);
+  const themeSchedule = useSettingsStore((state) => state.themeSchedule);
+  const setTheme = useSettingsStore((state) => state.setTheme);
   const [mounted, setMounted] = useState(false);
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
+  const [resolvedLocalBgUrl, setResolvedLocalBgUrl] = useState<string | null>(null);
 
   // Set mounted state synchronously after hydration
   useIsomorphicLayoutEffect(() => {
@@ -356,22 +422,36 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
 
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'dark'
-        : 'light';
-      root.classList.add(systemTheme);
-    } else {
-      root.classList.add(theme);
-    }
+    const nextResolved = theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : theme;
+
+    setResolvedTheme(nextResolved);
+    root.classList.add(nextResolved);
   }, [theme, mounted]);
+
+  const applyDerivedThemeVariables = useCallback((colors: {
+    primary: string;
+    primaryForeground: string;
+    accent: string;
+    accentForeground: string;
+    ring: string;
+  }) => {
+    const root = window.document.documentElement;
+    root.style.setProperty('--sidebar-primary', colors.primary);
+    root.style.setProperty('--sidebar-primary-foreground', colors.primaryForeground);
+    root.style.setProperty('--sidebar-accent', colors.accent);
+    root.style.setProperty('--sidebar-accent-foreground', colors.accentForeground);
+    root.style.setProperty('--sidebar-ring', colors.ring);
+  }, []);
 
   // Handle color theme (presets and custom)
   useEffect(() => {
     if (!mounted) return;
 
     const root = window.document.documentElement;
-    const isDark = root.classList.contains('dark');
+
+    const isDark = resolvedTheme === 'dark';
 
     // Remove all theme classes first
     const themeClasses = Object.keys(THEME_PRESETS).map(t => `theme-${t}`);
@@ -401,18 +481,42 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
           destructiveForeground: isDark ? 'oklch(0.15 0.02 27)' : 'oklch(0.985 0.002 27)',
         };
         applyThemeColors(colors);
+
+        // Keep popovers/inputs consistent with cards/borders
+        root.style.setProperty('--popover', colors.card);
+        root.style.setProperty('--popover-foreground', colors.cardForeground);
+        root.style.setProperty('--input', colors.border);
+        applyDerivedThemeVariables({
+          primary: colors.primary,
+          primaryForeground: colors.primaryForeground,
+          accent: colors.accent,
+          accentForeground: colors.accentForeground,
+          ring: colors.ring,
+        });
         return;
       }
     }
 
-    // Remove any custom theme CSS variables
-    removeCustomThemeColors();
-
-    // Apply preset theme class
-    if (colorTheme !== 'default') {
-      root.classList.add(`theme-${colorTheme}`);
+    // Preset themes: apply full token set via CSS variables
+    if (colorTheme === 'default') {
+      removeCustomThemeColors();
+      return;
     }
-  }, [colorTheme, activeCustomThemeId, customThemes, mounted, theme]);
+
+    const preset = THEME_PRESETS[colorTheme];
+    const presetColors = isDark ? preset.dark : preset.light;
+    applyThemeColors(presetColors);
+    root.style.setProperty('--popover', presetColors.card);
+    root.style.setProperty('--popover-foreground', presetColors.cardForeground);
+    root.style.setProperty('--input', presetColors.border);
+    applyDerivedThemeVariables({
+      primary: presetColors.primary,
+      primaryForeground: presetColors.primaryForeground,
+      accent: presetColors.accent,
+      accentForeground: presetColors.accentForeground,
+      ring: presetColors.ring,
+    });
+  }, [colorTheme, activeCustomThemeId, customThemes, mounted, resolvedTheme, applyDerivedThemeVariables]);
 
   // Listen for system theme changes
   useEffect(() => {
@@ -425,7 +529,9 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
       if (currentTheme === 'system') {
         const root = window.document.documentElement;
         root.classList.remove('light', 'dark');
-        root.classList.add(e.matches ? 'dark' : 'light');
+        const nextResolved = e.matches ? 'dark' : 'light';
+        root.classList.add(nextResolved);
+        setResolvedTheme(nextResolved);
       }
     };
 
@@ -433,12 +539,159 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, [mounted]);
 
+  // Apply UI customization globally (not only on settings page)
+  useEffect(() => {
+    if (!mounted) return;
+    applyUICustomization(uiCustomization);
+  }, [mounted, uiCustomization]);
+
+  // Apply scheduled theme switching globally
+  useEffect(() => {
+    if (!mounted) return;
+    if (!themeSchedule.enabled) return;
+
+    const parseTimeToMinutes = (time: string): number => {
+      const [hours, minutes] = time.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    const isLightModePeriod = (lightStart: string, darkStart: string): boolean => {
+      const now = new Date();
+      const current = now.getHours() * 60 + now.getMinutes();
+      const lightMinutes = parseTimeToMinutes(lightStart);
+      const darkMinutes = parseTimeToMinutes(darkStart);
+
+      if (lightMinutes < darkMinutes) {
+        return current >= lightMinutes && current < darkMinutes;
+      }
+      return current >= lightMinutes || current < darkMinutes;
+    };
+
+    const applyScheduledTheme = () => {
+      const currentTheme = useSettingsStore.getState().theme;
+      if (currentTheme === 'system') return;
+
+      const shouldBeLight = isLightModePeriod(
+        themeSchedule.lightModeStart,
+        themeSchedule.darkModeStart
+      );
+      const target = shouldBeLight ? 'light' : 'dark';
+      if (currentTheme !== target) {
+        setTheme(target);
+      }
+    };
+
+    applyScheduledTheme();
+    const interval = setInterval(applyScheduledTheme, 60000);
+    return () => clearInterval(interval);
+  }, [mounted, themeSchedule.enabled, themeSchedule.lightModeStart, themeSchedule.darkModeStart, setTheme]);
+
+  // Resolve web-local background asset to an object URL (do not persist object URL)
+  useEffect(() => {
+    if (!mounted) return;
+    if (typeof window === 'undefined') return;
+    if ((window as typeof window & { __TAURI__?: unknown }).__TAURI__) {
+      setResolvedLocalBgUrl(null);
+      return;
+    }
+
+    if (backgroundSettings.source !== 'local' || !backgroundSettings.localAssetId) {
+      setResolvedLocalBgUrl(null);
+      return;
+    }
+
+    let objectUrl: string | null = null;
+    let cancelled = false;
+
+    const resolve = async () => {
+      const { getBackgroundImageAssetBlob } = await import('@/lib/themes/background-assets');
+      const blob = await getBackgroundImageAssetBlob(backgroundSettings.localAssetId!);
+      if (!blob || cancelled) return;
+      objectUrl = URL.createObjectURL(blob);
+      setResolvedLocalBgUrl(objectUrl);
+    };
+
+    resolve();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [mounted, backgroundSettings.source, backgroundSettings.localAssetId]);
+
+  // Apply background settings
+  useEffect(() => {
+    if (!mounted) return;
+
+    const effectiveSettings =
+      backgroundSettings.source === 'local' && resolvedLocalBgUrl
+        ? { ...backgroundSettings, imageUrl: resolvedLocalBgUrl }
+        : backgroundSettings;
+
+    applyBackgroundSettings(effectiveSettings);
+  }, [backgroundSettings, mounted, resolvedLocalBgUrl]);
+
   // Prevent flash of unstyled content
   if (!mounted) {
     return <AppLoadingScreen />;
   }
 
   return <>{children}</>;
+}
+
+function SelectionNativeSync() {
+  const selectionConfig = useSelectionStore((s) => s.config);
+  const selectionEnabled = useSelectionStore((s) => s.isEnabled);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.__TAURI__) {
+      return;
+    }
+
+    const syncSelection = async () => {
+      try {
+        const [{ updateConfig, startSelectionService, stopSelectionService }, { invoke }] = await Promise.all([
+          import('@/lib/native/selection'),
+          import('@tauri-apps/api/core'),
+        ]);
+
+        await updateConfig({
+          enabled: selectionEnabled,
+          trigger_mode: selectionConfig.triggerMode,
+          min_text_length: selectionConfig.minTextLength,
+          max_text_length: selectionConfig.maxTextLength,
+          delay_ms: selectionConfig.delayMs,
+          target_language: selectionConfig.targetLanguage,
+          excluded_apps: selectionConfig.excludedApps,
+        });
+
+        await invoke('selection_set_auto_hide_timeout', {
+          timeout_ms: selectionConfig.autoHideDelay ?? 0,
+        });
+
+        if (selectionEnabled) {
+          await startSelectionService();
+        } else {
+          await stopSelectionService();
+        }
+      } catch (error) {
+        console.error('Failed to sync selection service', error);
+      }
+    };
+
+    syncSelection();
+  }, [
+    selectionEnabled,
+    selectionConfig.triggerMode,
+    selectionConfig.minTextLength,
+    selectionConfig.maxTextLength,
+    selectionConfig.delayMs,
+    selectionConfig.targetLanguage,
+    selectionConfig.excludedApps,
+    selectionConfig.autoHideDelay,
+  ]);
+
+  return null;
 }
 
 /**
@@ -483,6 +736,7 @@ export function Providers({ children }: ProvidersProps) {
                   <TooltipProvider delayDuration={0}>
                     <SkillProvider loadBuiltinSkills={true}>
                       <NativeProvider checkUpdatesOnMount={true}>
+                        <SelectionNativeSync />
                         <OnboardingProvider>
                           {children}
                         </OnboardingProvider>
@@ -491,7 +745,8 @@ export function Providers({ children }: ProvidersProps) {
                     <CommandPalette />
                     <Toaster />
                     <KeyboardShortcutsDialog />
-                    <ChatAssistantContainer />
+                    <ChatWidgetNativeSync />
+                    <ChatAssistantContainerGate />
                   </TooltipProvider>
                 </ThemeProvider>
               </I18nProvider>

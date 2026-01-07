@@ -4,8 +4,8 @@
 //! The main OCR functionality is now provided by the multi-provider system
 //! in `ocr_provider.rs` and `ocr_manager.rs`.
 
-use serde::{Deserialize, Serialize};
 use super::windows_ocr::WindowsOcr;
+use serde::{Deserialize, Serialize};
 
 /// Legacy OCR result with text and bounding boxes
 /// Note: Prefer using `ocr_provider::OcrResult` for new code
@@ -42,7 +42,7 @@ pub struct OcrBounds {
 }
 
 /// OCR Engine - delegates to WindowsOcr for actual OCR functionality
-/// 
+///
 /// This provides a simplified interface for basic OCR operations.
 /// For advanced multi-provider OCR, use the `OcrManager` directly.
 pub struct OcrEngine {
@@ -52,7 +52,7 @@ pub struct OcrEngine {
 impl OcrEngine {
     /// Create a new OCR engine
     pub fn new() -> Result<Self, String> {
-        Ok(Self { 
+        Ok(Self {
             windows_ocr: WindowsOcr::new(),
         })
     }
@@ -60,7 +60,7 @@ impl OcrEngine {
     /// Extract text from PNG image data using Windows OCR
     pub fn extract_text(&self, image_data: &[u8]) -> Result<String, String> {
         log::debug!("OCR extraction requested for {} bytes", image_data.len());
-        
+
         let result = self.windows_ocr.extract_text(image_data)?;
         Ok(result.text)
     }
@@ -68,20 +68,24 @@ impl OcrEngine {
     /// Extract text asynchronously with full result
     pub async fn extract_text_async(&self, image_data: Vec<u8>) -> Result<OcrResult, String> {
         let win_result = self.windows_ocr.extract_text(&image_data)?;
-        
+
         // Convert WindowsOcr result to legacy OcrResult
-        let blocks: Vec<OcrTextBlock> = win_result.lines.iter().flat_map(|line| {
-            line.words.iter().map(|word| OcrTextBlock {
-                text: word.text.clone(),
-                bounds: OcrBounds {
-                    x: word.bounds.x,
-                    y: word.bounds.y,
-                    width: word.bounds.width,
-                    height: word.bounds.height,
-                },
-                confidence: word.confidence,
+        let blocks: Vec<OcrTextBlock> = win_result
+            .lines
+            .iter()
+            .flat_map(|line| {
+                line.words.iter().map(|word| OcrTextBlock {
+                    text: word.text.clone(),
+                    bounds: OcrBounds {
+                        x: word.bounds.x,
+                        y: word.bounds.y,
+                        width: word.bounds.width,
+                        height: word.bounds.height,
+                    },
+                    confidence: word.confidence,
+                })
             })
-        }).collect();
+            .collect();
 
         Ok(OcrResult {
             text: win_result.text,
@@ -124,7 +128,7 @@ mod tests {
             width: 100.0,
             height: 50.0,
         };
-        
+
         assert_eq!(bounds.x, 10.0);
         assert_eq!(bounds.y, 20.0);
         assert_eq!(bounds.width, 100.0);
@@ -139,10 +143,10 @@ mod tests {
             width: 200.0,
             height: 100.0,
         };
-        
+
         let json = serde_json::to_string(&bounds).unwrap();
         let deserialized: OcrBounds = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(bounds.x, deserialized.x);
         assert_eq!(bounds.y, deserialized.y);
         assert_eq!(bounds.width, deserialized.width);
@@ -158,7 +162,7 @@ mod tests {
             height: 25.0,
         };
         let cloned = bounds.clone();
-        
+
         assert_eq!(bounds.x, cloned.x);
         assert_eq!(bounds.width, cloned.width);
     }
@@ -177,7 +181,7 @@ mod tests {
             },
             confidence: 0.95,
         };
-        
+
         assert_eq!(block.text, "Hello World");
         assert_eq!(block.confidence, 0.95);
     }
@@ -187,14 +191,17 @@ mod tests {
         let block = OcrTextBlock {
             text: "Test".to_string(),
             bounds: OcrBounds {
-                x: 0.0, y: 0.0, width: 50.0, height: 20.0,
+                x: 0.0,
+                y: 0.0,
+                width: 50.0,
+                height: 20.0,
             },
             confidence: 0.88,
         };
-        
+
         let json = serde_json::to_string(&block).unwrap();
         let deserialized: OcrTextBlock = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(block.text, deserialized.text);
         assert_eq!(block.confidence, deserialized.confidence);
     }
@@ -203,11 +210,16 @@ mod tests {
     fn test_ocr_text_block_clone() {
         let block = OcrTextBlock {
             text: "Cloneable".to_string(),
-            bounds: OcrBounds { x: 1.0, y: 2.0, width: 3.0, height: 4.0 },
+            bounds: OcrBounds {
+                x: 1.0,
+                y: 2.0,
+                width: 3.0,
+                height: 4.0,
+            },
             confidence: 0.99,
         };
         let cloned = block.clone();
-        
+
         assert_eq!(block.text, cloned.text);
         assert_eq!(block.bounds.x, cloned.bounds.x);
     }
@@ -221,19 +233,29 @@ mod tests {
             blocks: vec![
                 OcrTextBlock {
                     text: "Full".to_string(),
-                    bounds: OcrBounds { x: 0.0, y: 0.0, width: 30.0, height: 15.0 },
+                    bounds: OcrBounds {
+                        x: 0.0,
+                        y: 0.0,
+                        width: 30.0,
+                        height: 15.0,
+                    },
                     confidence: 0.9,
                 },
                 OcrTextBlock {
                     text: "text".to_string(),
-                    bounds: OcrBounds { x: 35.0, y: 0.0, width: 30.0, height: 15.0 },
+                    bounds: OcrBounds {
+                        x: 35.0,
+                        y: 0.0,
+                        width: 30.0,
+                        height: 15.0,
+                    },
                     confidence: 0.92,
                 },
             ],
             confidence: 0.91,
             language: Some("en-US".to_string()),
         };
-        
+
         assert_eq!(result.text, "Full text content");
         assert_eq!(result.blocks.len(), 2);
         assert_eq!(result.confidence, 0.91);
@@ -248,7 +270,7 @@ mod tests {
             confidence: 0.0,
             language: None,
         };
-        
+
         assert!(result.text.is_empty());
         assert!(result.blocks.is_empty());
         assert!(result.language.is_none());
@@ -262,10 +284,10 @@ mod tests {
             confidence: 0.85,
             language: Some("zh-CN".to_string()),
         };
-        
+
         let json = serde_json::to_string(&result).unwrap();
         let deserialized: OcrResult = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(result.text, deserialized.text);
         assert_eq!(result.confidence, deserialized.confidence);
         assert_eq!(result.language, deserialized.language);
@@ -275,18 +297,21 @@ mod tests {
     fn test_ocr_result_clone() {
         let result = OcrResult {
             text: "Clone me".to_string(),
-            blocks: vec![
-                OcrTextBlock {
-                    text: "Clone".to_string(),
-                    bounds: OcrBounds { x: 0.0, y: 0.0, width: 40.0, height: 20.0 },
-                    confidence: 0.95,
+            blocks: vec![OcrTextBlock {
+                text: "Clone".to_string(),
+                bounds: OcrBounds {
+                    x: 0.0,
+                    y: 0.0,
+                    width: 40.0,
+                    height: 20.0,
                 },
-            ],
+                confidence: 0.95,
+            }],
             confidence: 0.95,
             language: Some("en".to_string()),
         };
         let cloned = result.clone();
-        
+
         assert_eq!(result.text, cloned.text);
         assert_eq!(result.blocks.len(), cloned.blocks.len());
     }
@@ -310,7 +335,7 @@ mod tests {
     fn test_ocr_engine_extract_text_invalid_png() {
         let engine = OcrEngine::new().unwrap();
         let dummy_image_data = vec![0u8; 100];
-        
+
         // Invalid PNG data should return error
         let result = engine.extract_text(&dummy_image_data);
         assert!(result.is_err());
@@ -352,7 +377,7 @@ mod tests {
     #[tokio::test]
     async fn test_ocr_engine_extract_text_async_with_valid_png() {
         let engine = OcrEngine::new().unwrap();
-        
+
         // Create a minimal valid PNG (too small for actual OCR)
         let mut png_data = Vec::new();
         {
@@ -363,7 +388,7 @@ mod tests {
             let pixels = vec![255u8; 40 * 40 * 4];
             writer.write_image_data(&pixels).unwrap();
         }
-        
+
         // May succeed or fail depending on Windows OCR availability
         let _result = engine.extract_text_async(png_data).await;
     }
@@ -372,7 +397,7 @@ mod tests {
     async fn test_ocr_engine_extract_text_async_invalid_png() {
         let engine = OcrEngine::new().unwrap();
         let invalid_data = vec![1, 2, 3, 4, 5]; // Not a valid PNG
-        
+
         let result = engine.extract_text_async(invalid_data).await;
         assert!(result.is_err());
     }

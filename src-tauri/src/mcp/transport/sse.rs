@@ -32,7 +32,7 @@ impl SseTransport {
     /// Connect to an SSE endpoint
     pub async fn connect(url: &str) -> McpResult<Self> {
         log::info!("Connecting to SSE endpoint: {}", url);
-        
+
         log::debug!("Creating HTTP client with 30s timeout");
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(30))
@@ -71,7 +71,11 @@ impl SseTransport {
                             "SSE message #{} received ({} bytes): {}",
                             message_count,
                             data_len,
-                            if data_len > 500 { &message.data[..500] } else { &message.data }
+                            if data_len > 500 {
+                                &message.data[..500]
+                            } else {
+                                &message.data
+                            }
                         );
                         if tx.send(message.data).await.is_err() {
                             log::warn!("Failed to send SSE message to channel, receiver dropped");
@@ -86,7 +90,11 @@ impl SseTransport {
                 }
             }
 
-            log::info!("SSE connection closed for {} (received {} messages total)", sse_url, message_count);
+            log::info!(
+                "SSE connection closed for {} (received {} messages total)",
+                sse_url,
+                message_count
+            );
             connected_flag_clone.store(false, Ordering::SeqCst);
         });
 
@@ -101,7 +109,11 @@ impl SseTransport {
             Some(format!("{}/message", url.trim_end_matches('/')))
         };
         log::debug!("Derived message URL: {:?}", message_url);
-        log::info!("SSE transport created for {} (message endpoint: {:?})", sse_url_for_log, message_url);
+        log::info!(
+            "SSE transport created for {} (message endpoint: {:?})",
+            sse_url_for_log,
+            message_url
+        );
 
         Ok(Self {
             base_url: url.to_string(),
@@ -128,20 +140,21 @@ impl Transport for SseTransport {
             return Err(McpError::NotConnected);
         }
 
-        let url = self
-            .message_url
-            .as_ref()
-            .ok_or_else(|| {
-                log::error!("Cannot send SSE message: message URL not configured");
-                McpError::TransportError("Message URL not configured".to_string())
-            })?;
+        let url = self.message_url.as_ref().ok_or_else(|| {
+            log::error!("Cannot send SSE message: message URL not configured");
+            McpError::TransportError("Message URL not configured".to_string())
+        })?;
 
         let msg_len = message.len();
         log::trace!(
             "Sending HTTP POST to {} ({} bytes): {}",
             url,
             msg_len,
-            if msg_len > 500 { &message[..500] } else { message }
+            if msg_len > 500 {
+                &message[..500]
+            } else {
+                message
+            }
         );
 
         let start = std::time::Instant::now();
@@ -164,7 +177,10 @@ impl Transport for SseTransport {
             let body = response.text().await.unwrap_or_default();
             log::error!(
                 "HTTP POST to {} failed with status {} after {:?}: {}",
-                url, status, elapsed, body
+                url,
+                status,
+                elapsed,
+                body
             );
             return Err(McpError::TransportError(format!(
                 "HTTP error {}: {}",
@@ -172,7 +188,12 @@ impl Transport for SseTransport {
             )));
         }
 
-        log::trace!("HTTP POST to {} completed with status {} in {:?}", url, status, elapsed);
+        log::trace!(
+            "HTTP POST to {} completed with status {} in {:?}",
+            url,
+            status,
+            elapsed
+        );
         Ok(())
     }
 
@@ -191,7 +212,11 @@ impl Transport for SseTransport {
                 log::trace!(
                     "Received SSE event ({} bytes): {}",
                     msg_len,
-                    if msg_len > 500 { &message[..500] } else { &message }
+                    if msg_len > 500 {
+                        &message[..500]
+                    } else {
+                        &message
+                    }
                 );
                 Ok(message)
             }
@@ -213,7 +238,11 @@ impl Transport for SseTransport {
 
     fn is_connected(&self) -> bool {
         let connected = self.connected.load(Ordering::SeqCst);
-        log::trace!("SSE transport connection status for {}: {}", self.base_url, connected);
+        log::trace!(
+            "SSE transport connection status for {}: {}",
+            self.base_url,
+            connected
+        );
         connected
     }
 }
@@ -238,7 +267,8 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_sse_transport_connection_invalid_url() {
-        let result = SseTransport::connect("http://invalid-host-that-does-not-exist:9999/sse").await;
+        let result =
+            SseTransport::connect("http://invalid-host-that-does-not-exist:9999/sse").await;
         // Connection to invalid host should eventually fail or timeout
         // Note: This may take time due to DNS resolution
         assert!(result.is_ok()); // The struct is created, but connection may not be established
@@ -278,14 +308,14 @@ mod tests {
         // Test that message URL is correctly derived from SSE URL
         let url = "http://localhost:8080/sse";
         let expected_message_url = "http://localhost:8080/message";
-        
+
         // The derivation logic: if URL ends with /sse, replace with /message
         let derived = if url.ends_with("/sse") {
             url.replace("/sse", "/message")
         } else {
             format!("{}/message", url.trim_end_matches('/'))
         };
-        
+
         assert_eq!(derived, expected_message_url);
     }
 
@@ -297,7 +327,7 @@ mod tests {
         } else {
             format!("{}/message", url.trim_end_matches('/'))
         };
-        
+
         assert_eq!(derived, "http://localhost:8080/events/message");
     }
 
@@ -305,7 +335,7 @@ mod tests {
     fn test_message_url_derivation_with_trailing_slash() {
         let url = "http://localhost:8080/";
         let derived = format!("{}/message", url.trim_end_matches('/'));
-        
+
         assert_eq!(derived, "http://localhost:8080/message");
     }
 
@@ -319,7 +349,7 @@ mod tests {
         let transport = SseTransport::connect("http://localhost:8080/sse").await;
         if let Ok(t) = transport {
             t.close().await.unwrap();
-            
+
             let result = t.send(r#"{"jsonrpc":"2.0","id":1,"method":"ping"}"#).await;
             assert!(result.is_err());
         }
@@ -331,7 +361,7 @@ mod tests {
         let transport = SseTransport::connect("http://localhost:8080/sse").await;
         if let Ok(t) = transport {
             t.close().await.unwrap();
-            
+
             let result = t.receive().await;
             assert!(result.is_err());
         }
@@ -360,7 +390,10 @@ mod tests {
     fn test_various_url_formats() {
         let urls = vec![
             ("http://localhost:8080/sse", "http://localhost:8080/message"),
-            ("https://api.example.com/sse", "https://api.example.com/message"),
+            (
+                "https://api.example.com/sse",
+                "https://api.example.com/message",
+            ),
             ("http://127.0.0.1:3000/sse", "http://127.0.0.1:3000/message"),
             ("http://localhost/sse", "http://localhost/message"),
         ];

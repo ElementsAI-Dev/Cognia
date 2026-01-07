@@ -4,9 +4,9 @@
 
 #![allow(dead_code)]
 
-use log::{debug, error, info, trace, warn};
 use super::kernel::{JupyterKernel, KernelConfig, KernelStatus};
 use super::{KernelExecutionResult, KernelInfo, VariableInfo};
+use log::{debug, error, info, trace, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -69,12 +69,9 @@ impl SessionManager {
 
         // Create and start kernel
         debug!("Creating kernel for session {}", session_id);
-        let mut kernel = JupyterKernel::new(
-            kernel_id.clone(),
-            env_path.to_string(),
-            self.config.clone(),
-        );
-        
+        let mut kernel =
+            JupyterKernel::new(kernel_id.clone(), env_path.to_string(), self.config.clone());
+
         if let Err(e) = kernel.start().await {
             error!(
                 "Failed to start kernel {} for session {}: {}",
@@ -153,13 +150,10 @@ impl SessionManager {
 
         trace!("Session {} maps to kernel {}", session_id, kernel_id);
 
-        let kernel = self
-            .kernels
-            .get_mut(&kernel_id)
-            .ok_or_else(|| {
-                error!("Kernel {} not found for session {}", kernel_id, session_id);
-                "Kernel not found".to_string()
-            })?;
+        let kernel = self.kernels.get_mut(&kernel_id).ok_or_else(|| {
+            error!("Kernel {} not found for session {}", kernel_id, session_id);
+            "Kernel not found".to_string()
+        })?;
 
         let result = kernel.execute(code).await?;
 
@@ -189,20 +183,13 @@ impl SessionManager {
                 "Session not found or has no kernel".to_string()
             })?;
 
-        let kernel = self
-            .kernels
-            .get_mut(&kernel_id)
-            .ok_or_else(|| {
-                error!("Kernel {} not found for session {}", kernel_id, session_id);
-                "Kernel not found".to_string()
-            })?;
+        let kernel = self.kernels.get_mut(&kernel_id).ok_or_else(|| {
+            error!("Kernel {} not found for session {}", kernel_id, session_id);
+            "Kernel not found".to_string()
+        })?;
 
         let vars = kernel.get_variables().await?;
-        debug!(
-            "Session {}: Retrieved {} variables",
-            session_id,
-            vars.len()
-        );
+        debug!("Session {}: Retrieved {} variables", session_id, vars.len());
         Ok(vars)
     }
 
@@ -218,17 +205,20 @@ impl SessionManager {
                 "Session not found or has no kernel".to_string()
             })?;
 
-        debug!("Session {} kernel {} restart initiated", session_id, kernel_id);
-        let kernel = self
-            .kernels
-            .get_mut(&kernel_id)
-            .ok_or_else(|| {
-                error!("Kernel {} not found for session {}", kernel_id, session_id);
-                "Kernel not found".to_string()
-            })?;
+        debug!(
+            "Session {} kernel {} restart initiated",
+            session_id, kernel_id
+        );
+        let kernel = self.kernels.get_mut(&kernel_id).ok_or_else(|| {
+            error!("Kernel {} not found for session {}", kernel_id, session_id);
+            "Kernel not found".to_string()
+        })?;
 
         kernel.restart().await?;
-        info!("Session {}: Kernel {} restarted successfully", session_id, kernel_id);
+        info!(
+            "Session {}: Kernel {} restarted successfully",
+            session_id, kernel_id
+        );
         Ok(())
     }
 
@@ -244,16 +234,16 @@ impl SessionManager {
                 "Session not found or has no kernel".to_string()
             })?;
 
-        let kernel = self
-            .kernels
-            .get_mut(&kernel_id)
-            .ok_or_else(|| {
-                error!("Kernel {} not found for session {}", kernel_id, session_id);
-                "Kernel not found".to_string()
-            })?;
+        let kernel = self.kernels.get_mut(&kernel_id).ok_or_else(|| {
+            error!("Kernel {} not found for session {}", kernel_id, session_id);
+            "Kernel not found".to_string()
+        })?;
 
         kernel.interrupt().await?;
-        info!("Session {}: Kernel {} interrupt completed", session_id, kernel_id);
+        info!(
+            "Session {}: Kernel {} interrupt completed",
+            session_id, kernel_id
+        );
         Ok(())
     }
 
@@ -263,7 +253,10 @@ impl SessionManager {
         if let Some(session) = self.sessions.remove(session_id) {
             debug!("Session {} removed from sessions map", session_id);
             if let Some(kernel_id) = session.kernel_id {
-                debug!("Stopping kernel {} for deleted session {}", kernel_id, session_id);
+                debug!(
+                    "Stopping kernel {} for deleted session {}",
+                    kernel_id, session_id
+                );
                 if let Some(mut kernel) = self.kernels.remove(&kernel_id) {
                     if let Err(e) = kernel.stop().await {
                         warn!(
@@ -282,7 +275,10 @@ impl SessionManager {
             }
             info!("Session {} deleted successfully", session_id);
         } else {
-            debug!("Session {} not found for deletion (may already be deleted)", session_id);
+            debug!(
+                "Session {} not found for deletion (may already be deleted)",
+                session_id
+            );
         }
         debug!(
             "SessionManager now has {} sessions and {} kernels",
@@ -301,7 +297,11 @@ impl SessionManager {
 
     /// List all kernels
     pub fn list_kernels(&self) -> Vec<KernelInfo> {
-        let kernels = self.kernels.values().map(|k| k.get_info()).collect::<Vec<_>>();
+        let kernels = self
+            .kernels
+            .values()
+            .map(|k| k.get_info())
+            .collect::<Vec<_>>();
         trace!("Listing {} kernels", kernels.len());
         kernels
     }
@@ -326,7 +326,11 @@ impl SessionManager {
         if dead_kernel_ids.is_empty() {
             trace!("No dead kernels to clean up");
         } else {
-            info!("Cleaning up {} dead kernels: {:?}", dead_kernel_ids.len(), dead_kernel_ids);
+            info!(
+                "Cleaning up {} dead kernels: {:?}",
+                dead_kernel_ids.len(),
+                dead_kernel_ids
+            );
         }
 
         for id in &dead_kernel_ids {
@@ -350,7 +354,10 @@ impl SessionManager {
         }
 
         if orphaned_sessions > 0 {
-            info!("{} sessions now have no kernel after cleanup", orphaned_sessions);
+            info!(
+                "{} sessions now have no kernel after cleanup",
+                orphaned_sessions
+            );
         }
     }
 
@@ -386,7 +393,11 @@ impl SessionManager {
         if idle_kernel_ids.is_empty() {
             trace!("No idle kernels to clean up");
         } else {
-            info!("Cleaning up {} idle kernels: {:?}", idle_kernel_ids.len(), idle_kernel_ids);
+            info!(
+                "Cleaning up {} idle kernels: {:?}",
+                idle_kernel_ids.len(),
+                idle_kernel_ids
+            );
         }
 
         for id in idle_kernel_ids {

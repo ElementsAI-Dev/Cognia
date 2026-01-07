@@ -101,6 +101,17 @@ jest.mock('@/stores', () => ({
     };
     return selector ? selector(state) : state;
   },
+  useArtifactStore: (selector: (state: unknown) => unknown) => {
+    const state = {
+      artifacts: [],
+      openPanel: jest.fn(),
+      panelOpen: false,
+      closePanel: jest.fn(),
+      selectedArtifactId: null,
+      selectArtifact: jest.fn(),
+    };
+    return selector ? selector(state) : state;
+  },
 }));
 
 jest.mock('@/stores/agent', () => ({
@@ -147,6 +158,20 @@ jest.mock('@/hooks', () => ({
   }),
   useProjectContext: () => ({
     hasKnowledge: false,
+  }),
+  calculateTokenBreakdown: jest.fn(() => ({
+    systemPrompt: 0,
+    messages: 0,
+    attachments: 0,
+    total: 0,
+    limit: 128000,
+    percent: 0,
+  })),
+  useTTS: () => ({
+    speak: jest.fn(),
+    stop: jest.fn(),
+    isSpeaking: false,
+    isSupported: true,
   }),
 }));
 
@@ -196,7 +221,7 @@ jest.mock('@/types/provider', () => ({
 }));
 
 // Mock child components
-jest.mock('./error-message', () => ({
+jest.mock('./message/error-message', () => ({
   ErrorMessage: ({ error, onDismiss }: { error: string; onDismiss: () => void }) => (
     <div data-testid="error-message" onClick={onDismiss}>{error}</div>
   ),
@@ -255,30 +280,40 @@ jest.mock('./welcome-state', () => ({
   ),
 }));
 
-jest.mock('./context-settings-dialog', () => ({
+jest.mock('./dialogs/ai-settings-dialog', () => ({
+  AISettingsDialog: ({ open }: { open: boolean }) => 
+    open ? <div data-testid="ai-settings-dialog">AI Settings</div> : null,
+}));
+
+jest.mock('./dialogs/model-picker-dialog', () => ({
+  ModelPickerDialog: ({ open }: { open: boolean }) => 
+    open ? <div data-testid="model-picker-dialog">Model Picker</div> : null,
+}));
+
+jest.mock('./dialogs/context-settings-dialog', () => ({
   ContextSettingsDialog: ({ open }: { open: boolean }) => 
     open ? <div data-testid="context-settings-dialog">Context Settings</div> : null,
 }));
 
-jest.mock('./prompt-optimizer-dialog', () => ({
+jest.mock('./dialogs/prompt-optimizer-dialog', () => ({
   PromptOptimizerDialog: ({ open }: { open: boolean }) => 
     open ? <div data-testid="prompt-optimizer-dialog">Prompt Optimizer</div> : null,
 }));
 
-jest.mock('./preset-manager-dialog', () => ({
+jest.mock('./dialogs/preset-manager-dialog', () => ({
   PresetManagerDialog: ({ open }: { open: boolean }) => 
     open ? <div data-testid="preset-manager-dialog">Preset Manager</div> : null,
 }));
 
-jest.mock('./branch-selector', () => ({
+jest.mock('./selectors/branch-selector', () => ({
   BranchButton: () => <button data-testid="branch-button">Branch</button>,
 }));
 
-jest.mock('./text-selection-popover', () => ({
+jest.mock('./popovers/text-selection-popover', () => ({
   TextSelectionPopover: () => null,
 }));
 
-jest.mock('./quoted-content', () => ({
+jest.mock('./message/quoted-content', () => ({
   QuotedContent: () => null,
 }));
 

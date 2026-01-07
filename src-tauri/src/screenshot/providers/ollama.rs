@@ -233,7 +233,7 @@ impl OcrProvider for OllamaVisionProvider {
         };
 
         let confidence = if regions.is_empty() { 0.0 } else { 0.8 };
-        
+
         Ok(OcrResult {
             text,
             regions,
@@ -258,8 +258,10 @@ mod tests {
 
     #[test]
     fn test_ollama_provider_custom() {
-        let provider =
-            OllamaVisionProvider::new(Some("http://custom:8080".to_string()), Some("bakllava".to_string()));
+        let provider = OllamaVisionProvider::new(
+            Some("http://custom:8080".to_string()),
+            Some("bakllava".to_string()),
+        );
         assert_eq!(provider.endpoint, "http://custom:8080");
         assert_eq!(provider.model, "bakllava");
     }

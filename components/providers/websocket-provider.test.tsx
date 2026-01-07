@@ -64,6 +64,12 @@ afterAll(() => {
 });
 
 describe('WebSocketProvider', () => {
+  const baseConfig = {
+    url: 'ws://localhost:8080',
+    heartbeatInterval: 0,
+    enableReconnect: false,
+  };
+
   const wrapper = ({ children }: { children: ReactNode }) => (
     <WebSocketProvider>{children}</WebSocketProvider>
   );
@@ -110,7 +116,7 @@ describe('WebSocketProvider', () => {
       const { result } = renderHook(() => useWebSocket(), { wrapper });
 
       act(() => {
-        result.current.connect({ url: 'ws://localhost:8080' });
+        result.current.connect(baseConfig);
       });
 
       expect(result.current.connectionState).toBe('connecting');
@@ -121,7 +127,7 @@ describe('WebSocketProvider', () => {
       const { result } = renderHook(() => useWebSocket(), { wrapper });
 
       act(() => {
-        result.current.connect({ url: 'ws://localhost:8080' });
+        result.current.connect(baseConfig);
       });
 
       await act(async () => {
@@ -136,7 +142,7 @@ describe('WebSocketProvider', () => {
       const { result } = renderHook(() => useWebSocket(), { wrapper });
 
       act(() => {
-        result.current.connect({ url: 'ws://localhost:8080' });
+        result.current.connect(baseConfig);
       });
 
       await act(async () => {
@@ -157,7 +163,7 @@ describe('WebSocketProvider', () => {
       const { result } = renderHook(() => useWebSocket(), { wrapper });
 
       act(() => {
-        result.current.connect({ url: 'ws://localhost:8080' });
+        result.current.connect(baseConfig);
       });
 
       await act(async () => {
@@ -176,7 +182,7 @@ describe('WebSocketProvider', () => {
       const { result } = renderHook(() => useWebSocket(), { wrapper });
 
       act(() => {
-        result.current.connect({ url: 'ws://localhost:8080' });
+        result.current.connect(baseConfig);
       });
 
       await act(async () => {
@@ -210,7 +216,7 @@ describe('WebSocketProvider', () => {
 
       act(() => {
         result.current.on('open', openHandler);
-        result.current.connect({ url: 'ws://localhost:8080' });
+        result.current.connect(baseConfig);
       });
 
       await act(async () => {
@@ -227,7 +233,7 @@ describe('WebSocketProvider', () => {
       act(() => {
         result.current.on('close', closeHandler);
         result.current.off('close', closeHandler);
-        result.current.connect({ url: 'ws://localhost:8080' });
+        result.current.connect(baseConfig);
       });
 
       await act(async () => {
@@ -247,7 +253,7 @@ describe('WebSocketProvider', () => {
 
       act(() => {
         result.current.once('open', openHandler);
-        result.current.connect({ url: 'ws://localhost:8080' });
+        result.current.connect(baseConfig);
       });
 
       await act(async () => {
@@ -290,7 +296,7 @@ describe('WebSocketProvider', () => {
       const { result } = renderHook(() => useWebSocket(), { wrapper });
 
       act(() => {
-        result.current.connect({ url: 'ws://localhost:8080' });
+        result.current.connect(baseConfig);
       });
 
       await act(async () => {
@@ -312,7 +318,7 @@ describe('WebSocketProvider', () => {
       const { result } = renderHook(() => useWebSocket(), { wrapper });
 
       act(() => {
-        result.current.connect({ url: 'ws://localhost:8080' });
+        result.current.connect(baseConfig);
       });
 
       await act(async () => {
@@ -335,7 +341,7 @@ describe('WebSocketProvider', () => {
     it('auto-connects when autoConnect is true', async () => {
       const autoConnectWrapper = ({ children }: { children: ReactNode }) => (
         <WebSocketProvider
-          defaultConfig={{ url: 'ws://localhost:8080' }}
+          defaultConfig={baseConfig}
           autoConnect={true}
         >
           {children}
@@ -354,7 +360,7 @@ describe('WebSocketProvider', () => {
     it('does not auto-connect when autoConnect is false', () => {
       const noAutoConnectWrapper = ({ children }: { children: ReactNode }) => (
         <WebSocketProvider
-          defaultConfig={{ url: 'ws://localhost:8080' }}
+          defaultConfig={baseConfig}
           autoConnect={false}
         >
           {children}

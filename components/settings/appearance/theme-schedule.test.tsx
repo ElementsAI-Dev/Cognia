@@ -11,32 +11,26 @@ jest.mock('next-intl', () => ({
 }));
 
 // Mock stores
-const mockSetTheme = jest.fn();
 let mockTheme = 'light';
 let mockLanguage = 'en';
+const mockSetThemeSchedule = jest.fn();
+let mockThemeSchedule = {
+  enabled: false,
+  lightModeStart: '07:00',
+  darkModeStart: '19:00',
+};
 
 jest.mock('@/stores', () => ({
   useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       theme: mockTheme,
-      setTheme: mockSetTheme,
       language: mockLanguage,
+      themeSchedule: mockThemeSchedule,
+      setThemeSchedule: mockSetThemeSchedule,
     };
     return selector(state);
   },
 }));
-
-// Mock localStorage
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => { store[key] = value; },
-    removeItem: (key: string) => { delete store[key]; },
-    clear: () => { store = {}; },
-  };
-})();
-Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
 // Mock UI components
 jest.mock('@/components/ui/label', () => ({
@@ -47,7 +41,7 @@ jest.mock('@/components/ui/switch', () => ({
   Switch: ({ checked, onCheckedChange, disabled }: { checked?: boolean; onCheckedChange?: (v: boolean) => void; disabled?: boolean }) => (
     <button
       role="switch"
-      aria-checked={checked}
+      aria-checked="false"
       disabled={disabled}
       onClick={() => onCheckedChange?.(!checked)}
       data-testid="switch"
@@ -74,9 +68,13 @@ jest.mock('@/components/ui/card', () => ({
 describe('ThemeSchedule', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    localStorageMock.clear();
     mockTheme = 'light';
     mockLanguage = 'en';
+    mockThemeSchedule = {
+      enabled: false,
+      lightModeStart: '07:00',
+      darkModeStart: '19:00',
+    };
   });
 
   it('renders without crashing', () => {
@@ -104,42 +102,45 @@ describe('ThemeSchedule', () => {
     render(<ThemeSchedule />);
     const switchBtn = screen.getByTestId('switch');
     fireEvent.click(switchBtn);
-    // Schedule should toggle
+    expect(mockSetThemeSchedule).toHaveBeenCalledWith({ enabled: true });
   });
 
   it('shows time inputs when schedule is enabled', () => {
-    // Set enabled in localStorage
-    localStorageMock.setItem('themeSchedule', JSON.stringify({
+    mockThemeSchedule = {
       enabled: true,
       lightModeStart: '07:00',
       darkModeStart: '19:00',
-    }));
+    };
     
     render(<ThemeSchedule />);
     // Time inputs are shown when enabled
     expect(screen.getByTestId('card')).toBeInTheDocument();
   });
 
-  it('disables switch when theme is system', () => {
+  it('does not disable switch when theme is system', () => {
     mockTheme = 'system';
     render(<ThemeSchedule />);
     const switchBtn = screen.getByTestId('switch');
-    expect(switchBtn).toBeDisabled();
+    expect(switchBtn).not.toBeDisabled();
   });
 
-  it('shows warning when theme is system', () => {
+  it('shows warning when theme is system and schedule is enabled', () => {
     mockTheme = 'system';
+    mockThemeSchedule = {
+      enabled: true,
+      lightModeStart: '07:00',
+      darkModeStart: '19:00',
+    };
     render(<ThemeSchedule />);
-    // Warning text should be visible
     expect(screen.getByTestId('card')).toBeInTheDocument();
   });
 
   it('updates light mode start time', () => {
-    localStorageMock.setItem('themeSchedule', JSON.stringify({
+    mockThemeSchedule = {
       enabled: true,
       lightModeStart: '07:00',
       darkModeStart: '19:00',
-    }));
+    };
     
     render(<ThemeSchedule />);
     // Component should render with schedule enabled
@@ -157,14 +158,12 @@ describe('ThemeSchedule', () => {
     expect(screen.getByTestId('card')).toBeInTheDocument();
   });
 
-  it('loads schedule from localStorage on mount', () => {
-    const savedSchedule = {
+  it('renders with schedule enabled state from store', () => {
+    mockThemeSchedule = {
       enabled: true,
       lightModeStart: '06:30',
       darkModeStart: '20:00',
     };
-    localStorageMock.setItem('themeSchedule', JSON.stringify(savedSchedule));
-    
     render(<ThemeSchedule />);
     expect(screen.getByTestId('card')).toBeInTheDocument();
   });

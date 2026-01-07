@@ -2,17 +2,47 @@
  * Tests for useSelectionReceiver hook
  */
 
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useSelectionReceiver } from './use-selection-receiver';
 
+// Extend globalThis for Tauri detection in tests
+declare global {
+  var __TAURI__: Record<string, unknown> | undefined;
+}
+
 // Mock isTauri
+const mockIsTauri = jest.fn(() => false);
 jest.mock('@/lib/native/utils', () => ({
-  isTauri: jest.fn(() => false),
+  isTauri: () => mockIsTauri(),
+}));
+
+interface TauriEvent<T = unknown> {
+  payload: T;
+}
+
+const listeners: Record<string, (event: TauriEvent) => void> = {};
+
+jest.mock('@tauri-apps/api/event', () => ({
+  listen: jest.fn(async (event: string, handler: (event: TauriEvent) => void) => {
+    listeners[event] = handler;
+    return () => delete listeners[event];
+  }),
+}));
+
+const mockSetFocus = jest.fn(async () => undefined);
+const mockUnminimize = jest.fn(async () => undefined);
+jest.mock('@tauri-apps/api/window', () => ({
+  getCurrentWindow: () => ({
+    setFocus: mockSetFocus,
+    unminimize: mockUnminimize,
+  }),
 }));
 
 describe('useSelectionReceiver', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(false);
+    Object.keys(listeners).forEach((key) => delete listeners[key]);
   });
 
   describe('initialization', () => {
@@ -125,6 +155,51 @@ describe('useSelectionReceiver', () => {
       );
 
       expect(result.current).toBeDefined();
+    });
+  });
+
+  describe('tauri events', () => {
+    it('handles send-to-chat event and focuses window', async () => {
+      mockIsTauri.mockReturnValue(true);
+      const { result } = renderHook(() => useSelectionReceiver());
+
+      await waitFor(() => expect(Object.keys(listeners)).toContain('selection-send-to-chat'));
+
+      await act(async () => {
+        listeners['selection-send-to-chat']?.({ payload: { text: 'from-tauri' } });
+      });
+
+      expect(result.current.pendingText).toBe('from-tauri');
+      expect(mockSetFocus).toHaveBeenCalled();
+      expect(mockUnminimize).toHaveBeenCalled();
+    });
+
+    it('triggers quick translate callback', async () => {
+      mockIsTauri.mockReturnValue(true);
+      const onTranslateRequest = jest.fn();
+      renderHook(() => useSelectionReceiver({ onTranslateRequest }));
+
+      await waitFor(() => expect(Object.keys(listeners)).toContain('selection-quick-translate'));
+
+      await act(async () => {
+        listeners['selection-quick-translate']?.({ payload: { text: '需要翻译' } });
+      });
+
+      expect(onTranslateRequest).toHaveBeenCalledWith('需要翻译');
+    });
+
+    it('triggers quick explain callback', async () => {
+      mockIsTauri.mockReturnValue(true);
+      const onExplainRequest = jest.fn();
+      renderHook(() => useSelectionReceiver({ onExplainRequest }));
+
+      await waitFor(() => expect(Object.keys(listeners)).toContain('selection-quick-explain'));
+
+      await act(async () => {
+        listeners['selection-quick-explain']?.({ payload: { text: '需要解释' } });
+      });
+
+      expect(onExplainRequest).toHaveBeenCalledWith('需要解释');
     });
   });
 });

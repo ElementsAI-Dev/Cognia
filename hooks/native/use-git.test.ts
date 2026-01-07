@@ -41,46 +41,74 @@ jest.mock('@/lib/native/git', () => ({
 }));
 
 // Mock store
-const mockSetGitStatus = jest.fn();
+const mockCheckGitInstalledStore = jest.fn().mockResolvedValue(undefined);
+const mockInstallGitStore = jest.fn().mockResolvedValue(undefined);
 const mockSetCurrentRepo = jest.fn();
-const mockSetBranches = jest.fn();
-const mockSetCommits = jest.fn();
-const mockSetFileStatus = jest.fn();
-const mockSetError = jest.fn();
+const mockLoadRepoStatus = jest.fn().mockResolvedValue(undefined);
+const mockLoadBranches = jest.fn().mockResolvedValue(undefined);
+const mockLoadCommitHistory = jest.fn().mockResolvedValue(undefined);
+const mockLoadFileStatus = jest.fn().mockResolvedValue(undefined);
+const mockInitRepoStore = jest.fn().mockResolvedValue(true);
+const mockCloneRepoStore = jest.fn().mockResolvedValue(true);
+const mockStageFilesStore = jest.fn().mockResolvedValue(true);
+const mockStageAllStore = jest.fn().mockResolvedValue(true);
+const mockUnstageFilesStore = jest.fn().mockResolvedValue(true);
+const mockCommitStore = jest.fn().mockResolvedValue(true);
+const mockCreateBranchStore = jest.fn().mockResolvedValue(true);
+const mockDeleteBranchStore = jest.fn().mockResolvedValue(true);
+const mockCheckoutStore = jest.fn().mockResolvedValue(true);
+const mockPushStore = jest.fn().mockResolvedValue(true);
+const mockPullStore = jest.fn().mockResolvedValue(true);
+const mockFetchStore = jest.fn().mockResolvedValue(true);
+const mockDiscardChangesStore = jest.fn().mockResolvedValue(true);
 const mockClearError = jest.fn();
+const mockGetProjectConfig = jest.fn().mockReturnValue(null);
+const mockSetProjectConfig = jest.fn();
+const mockEnableGitForProject = jest.fn().mockResolvedValue(true);
+const mockDisableGitForProject = jest.fn();
 
 let mockStoreState = {
   gitStatus: { installed: false, version: null },
   isCheckingGit: false,
   isInstallingGit: false,
   installProgress: null,
-  currentRepo: null,
+  currentRepoInfo: null as null | { isGitRepo: boolean },
   branches: [] as Array<{ name: string; current: boolean }>,
   commits: [] as Array<{ hash: string; message: string }>,
   fileStatus: [] as Array<{ path: string; status: string }>,
   operationStatus: 'idle' as string,
-  isOperating: false,
-  error: null as string | null,
-  projectConfig: null,
+  lastError: null as string | null,
 };
 
 jest.mock('@/stores/git', () => ({
   useGitStore: jest.fn((selector) => {
     const state = {
       ...mockStoreState,
-      setGitStatus: mockSetGitStatus,
+      checkGitInstalled: mockCheckGitInstalledStore,
+      installGit: mockInstallGitStore,
       setCurrentRepo: mockSetCurrentRepo,
-      setBranches: mockSetBranches,
-      setCommits: mockSetCommits,
-      setFileStatus: mockSetFileStatus,
-      setError: mockSetError,
+      loadRepoStatus: mockLoadRepoStatus,
+      loadBranches: mockLoadBranches,
+      loadCommitHistory: mockLoadCommitHistory,
+      loadFileStatus: mockLoadFileStatus,
+      initRepo: mockInitRepoStore,
+      cloneRepo: mockCloneRepoStore,
+      stageFiles: mockStageFilesStore,
+      stageAll: mockStageAllStore,
+      unstageFiles: mockUnstageFilesStore,
+      commit: mockCommitStore,
+      createBranch: mockCreateBranchStore,
+      deleteBranch: mockDeleteBranchStore,
+      checkout: mockCheckoutStore,
+      push: mockPushStore,
+      pull: mockPullStore,
+      fetch: mockFetchStore,
+      discardChanges: mockDiscardChangesStore,
+      getProjectConfig: mockGetProjectConfig,
+      setProjectConfig: mockSetProjectConfig,
+      enableGitForProject: mockEnableGitForProject,
+      disableGitForProject: mockDisableGitForProject,
       clearError: mockClearError,
-      setIsCheckingGit: jest.fn(),
-      setIsInstallingGit: jest.fn(),
-      setInstallProgress: jest.fn(),
-      setOperationStatus: jest.fn(),
-      setIsOperating: jest.fn(),
-      setProjectConfig: jest.fn(),
     };
     return selector(state);
   }),
@@ -94,14 +122,12 @@ describe('useGit', () => {
       isCheckingGit: false,
       isInstallingGit: false,
       installProgress: null,
-      currentRepo: null,
+      currentRepoInfo: null,
       branches: [],
       commits: [],
       fileStatus: [],
       operationStatus: 'idle',
-      isOperating: false,
-      error: null,
-      projectConfig: null,
+      lastError: null,
     };
   });
 
@@ -132,22 +158,18 @@ describe('useGit', () => {
 
   describe('checkGitInstalled', () => {
     it('should check git installation', async () => {
-      mockCheckGitInstalled.mockResolvedValue({ installed: true, version: '2.40.0' });
-
       const { result } = renderHook(() => useGit({ autoCheck: false }));
 
       await act(async () => {
         await result.current.checkGitInstalled();
       });
 
-      expect(mockCheckGitInstalled).toHaveBeenCalled();
+      expect(mockCheckGitInstalledStore).toHaveBeenCalled();
     });
   });
 
   describe('repository actions', () => {
     it('should init repository', async () => {
-      mockInitRepo.mockResolvedValue(true);
-
       const { result } = renderHook(() => useGit({ autoCheck: false }));
 
       let success: boolean;
@@ -155,13 +177,11 @@ describe('useGit', () => {
         success = await result.current.initRepo('/path/to/repo');
       });
 
-      expect(mockInitRepo).toHaveBeenCalledWith('/path/to/repo', undefined);
+      expect(mockInitRepoStore).toHaveBeenCalledWith('/path/to/repo', undefined);
       expect(success!).toBe(true);
     });
 
     it('should clone repository', async () => {
-      mockCloneRepo.mockResolvedValue(true);
-
       const { result } = renderHook(() => useGit({ autoCheck: false }));
 
       let success: boolean;
@@ -169,15 +189,13 @@ describe('useGit', () => {
         success = await result.current.cloneRepo('https://github.com/test/repo.git', '/target');
       });
 
-      expect(mockCloneRepo).toHaveBeenCalled();
+      expect(mockCloneRepoStore).toHaveBeenCalled();
       expect(success!).toBe(true);
     });
   });
 
   describe('staging actions', () => {
     it('should stage files', async () => {
-      mockStage.mockResolvedValue(true);
-
       const { result } = renderHook(() => useGit({ autoCheck: false }));
 
       let success: boolean;
@@ -185,27 +203,23 @@ describe('useGit', () => {
         success = await result.current.stage(['file1.ts', 'file2.ts']);
       });
 
-      expect(mockStage).toHaveBeenCalledWith(['file1.ts', 'file2.ts']);
+      expect(mockStageFilesStore).toHaveBeenCalledWith(['file1.ts', 'file2.ts']);
       expect(success!).toBe(true);
     });
 
     it('should stage all files', async () => {
-      mockStage.mockResolvedValue(true);
-
       const { result } = renderHook(() => useGit({ autoCheck: false }));
 
       await act(async () => {
         await result.current.stageAll();
       });
 
-      expect(mockStage).toHaveBeenCalled();
+      expect(mockStageAllStore).toHaveBeenCalled();
     });
   });
 
   describe('commit actions', () => {
     it('should commit changes', async () => {
-      mockCommit.mockResolvedValue(true);
-
       const { result } = renderHook(() => useGit({ autoCheck: false }));
 
       let success: boolean;
@@ -213,27 +227,23 @@ describe('useGit', () => {
         success = await result.current.commit('feat: add new feature');
       });
 
-      expect(mockCommit).toHaveBeenCalledWith('feat: add new feature', undefined);
+      expect(mockCommitStore).toHaveBeenCalledWith('feat: add new feature', undefined);
       expect(success!).toBe(true);
     });
 
     it('should commit with options', async () => {
-      mockCommit.mockResolvedValue(true);
-
       const { result } = renderHook(() => useGit({ autoCheck: false }));
 
       await act(async () => {
         await result.current.commit('fix: bug fix', { description: 'Details', amend: true });
       });
 
-      expect(mockCommit).toHaveBeenCalledWith('fix: bug fix', { description: 'Details', amend: true });
+      expect(mockCommitStore).toHaveBeenCalledWith('fix: bug fix', { description: 'Details', amend: true });
     });
   });
 
   describe('remote actions', () => {
     it('should push changes', async () => {
-      mockPush.mockResolvedValue(true);
-
       const { result } = renderHook(() => useGit({ autoCheck: false }));
 
       let success: boolean;
@@ -241,13 +251,11 @@ describe('useGit', () => {
         success = await result.current.push();
       });
 
-      expect(mockPush).toHaveBeenCalled();
+      expect(mockPushStore).toHaveBeenCalled();
       expect(success!).toBe(true);
     });
 
     it('should pull changes', async () => {
-      mockPull.mockResolvedValue(true);
-
       const { result } = renderHook(() => useGit({ autoCheck: false }));
 
       let success: boolean;
@@ -255,7 +263,7 @@ describe('useGit', () => {
         success = await result.current.pull();
       });
 
-      expect(mockPull).toHaveBeenCalled();
+      expect(mockPullStore).toHaveBeenCalled();
       expect(success!).toBe(true);
     });
   });

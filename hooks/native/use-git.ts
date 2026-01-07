@@ -27,6 +27,9 @@ export interface UseGitOptions {
 }
 
 export interface UseGitReturn {
+  // Desktop availability
+  isDesktopAvailable: boolean;
+  
   // Installation status
   gitStatus: GitStatus;
   isInstalled: boolean;
@@ -39,6 +42,7 @@ export interface UseGitReturn {
   branches: GitBranchInfo[];
   commits: GitCommitInfo[];
   fileStatus: GitFileStatus[];
+  stashList: { index: number; message: string; branch?: string; date?: string }[];
   
   // Operation state
   operationStatus: GitOperationStatus;
@@ -79,6 +83,14 @@ export interface UseGitReturn {
   
   // File actions
   discardChanges: (files: string[]) => Promise<boolean>;
+  getDiffContent: (filePath: string, staged?: boolean) => Promise<string | null>;
+  
+  // Stash actions
+  stashSave: (message?: string, includeUntracked?: boolean) => Promise<boolean>;
+  stashPop: (index?: number) => Promise<boolean>;
+  stashApply: (index?: number) => Promise<boolean>;
+  stashDrop: (index?: number) => Promise<boolean>;
+  stashClear: () => Promise<boolean>;
   
   // Project Git
   enableGitForProject: (repoPath: string) => Promise<boolean>;
@@ -109,6 +121,7 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
   const branches = useGitStore((state) => state.branches);
   const commits = useGitStore((state) => state.commits);
   const fileStatus = useGitStore((state) => state.fileStatus);
+  const stashList = useGitStore((state) => state.stashList);
   const operationStatus = useGitStore((state) => state.operationStatus);
   const lastError = useGitStore((state) => state.lastError);
 
@@ -120,6 +133,7 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
   const loadBranches = useGitStore((state) => state.loadBranches);
   const loadCommitHistory = useGitStore((state) => state.loadCommitHistory);
   const loadFileStatus = useGitStore((state) => state.loadFileStatus);
+  const loadStashList = useGitStore((state) => state.loadStashList);
   const initRepoAction = useGitStore((state) => state.initRepo);
   const cloneRepoAction = useGitStore((state) => state.cloneRepo);
   const stageFilesAction = useGitStore((state) => state.stageFiles);
@@ -133,6 +147,12 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
   const pullAction = useGitStore((state) => state.pull);
   const fetchAction = useGitStore((state) => state.fetch);
   const discardChangesAction = useGitStore((state) => state.discardChanges);
+  const getDiffContentAction = useGitStore((state) => state.getDiffContent);
+  const stashSaveAction = useGitStore((state) => state.stashSave);
+  const stashPopAction = useGitStore((state) => state.stashPop);
+  const stashApplyAction = useGitStore((state) => state.stashApply);
+  const stashDropAction = useGitStore((state) => state.stashDrop);
+  const stashClearAction = useGitStore((state) => state.stashClear);
   const getProjectConfig = useGitStore((state) => state.getProjectConfig);
   const setProjectConfig = useGitStore((state) => state.setProjectConfig);
   const enableGitForProjectAction = useGitStore((state) => state.enableGitForProject);
@@ -163,8 +183,9 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
       loadBranches();
       loadCommitHistory();
       loadFileStatus();
+      loadStashList();
     }
-  }, [autoLoadStatus, currentRepoInfo?.isGitRepo, loadBranches, loadCommitHistory, loadFileStatus]);
+  }, [autoLoadStatus, currentRepoInfo?.isGitRepo, loadBranches, loadCommitHistory, loadFileStatus, loadStashList]);
 
   // Refresh all status
   const refreshStatus = useCallback(async () => {
@@ -172,7 +193,8 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     await loadBranches();
     await loadCommitHistory();
     await loadFileStatus();
-  }, [loadRepoStatus, loadBranches, loadCommitHistory, loadFileStatus]);
+    await loadStashList();
+  }, [loadRepoStatus, loadBranches, loadCommitHistory, loadFileStatus, loadStashList]);
 
   // Install Git
   const installGit = useCallback(async () => {
@@ -268,6 +290,36 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     return discardChangesAction(files);
   }, [discardChangesAction]);
 
+  // Get diff content for a file
+  const getDiffContent = useCallback(async (filePath: string, staged?: boolean) => {
+    return getDiffContentAction(filePath, staged);
+  }, [getDiffContentAction]);
+
+  // Stash save
+  const stashSave = useCallback(async (message?: string, includeUntracked?: boolean) => {
+    return stashSaveAction(message, includeUntracked);
+  }, [stashSaveAction]);
+
+  // Stash pop
+  const stashPop = useCallback(async (index?: number) => {
+    return stashPopAction(index);
+  }, [stashPopAction]);
+
+  // Stash apply
+  const stashApply = useCallback(async (index?: number) => {
+    return stashApplyAction(index);
+  }, [stashApplyAction]);
+
+  // Stash drop
+  const stashDrop = useCallback(async (index?: number) => {
+    return stashDropAction(index);
+  }, [stashDropAction]);
+
+  // Stash clear
+  const stashClear = useCallback(async () => {
+    return stashClearAction();
+  }, [stashClearAction]);
+
   // Enable Git for project
   const enableGitForProject = useCallback(async (gitRepoPath: string) => {
     if (!projectId) return false;
@@ -287,6 +339,9 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
   }, [projectId, setProjectConfig]);
 
   return {
+    // Desktop availability
+    isDesktopAvailable: isAvailable,
+    
     // Installation status
     gitStatus,
     isInstalled: gitStatus.installed,
@@ -299,6 +354,7 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     branches,
     commits,
     fileStatus,
+    stashList,
     
     // Operation state
     operationStatus,
@@ -339,6 +395,14 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     
     // File actions
     discardChanges,
+    getDiffContent,
+    
+    // Stash actions
+    stashSave,
+    stashPop,
+    stashApply,
+    stashDrop,
+    stashClear,
     
     // Project Git
     enableGitForProject,

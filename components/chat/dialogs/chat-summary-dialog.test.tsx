@@ -57,7 +57,7 @@ const mockGenerateChatSummaryWithDiagram = jest.fn();
 const mockExportSummary = jest.fn();
 const mockReset = jest.fn();
 
-jest.mock('@/hooks/use-summary', () => ({
+jest.mock('@/hooks/chat/use-summary', () => ({
   useSummary: () => ({
     isGenerating: false,
     progress: null,
@@ -77,7 +77,7 @@ jest.mock('@/hooks/use-summary', () => ({
 }));
 
 // Mock useCopy hook
-jest.mock('@/hooks/use-copy', () => ({
+jest.mock('@/hooks/ui/use-copy', () => ({
   useCopy: () => ({
     copy: jest.fn(),
     isCopying: false,
@@ -85,7 +85,7 @@ jest.mock('@/hooks/use-copy', () => ({
 }));
 
 // Mock MermaidBlock
-jest.mock('./renderers/mermaid-block', () => ({
+jest.mock('@/components/chat/renderers/mermaid-block', () => ({
   MermaidBlock: ({ content }: { content: string }) => (
     <div data-testid="mermaid-block">{content}</div>
   ),
@@ -291,43 +291,14 @@ describe('ChatSummaryDialog', () => {
 
   describe('with summary data', () => {
     it('should display summary when available', () => {
-      const mockSummaryHook = {
-        isGenerating: false,
-        progress: null,
-        chatSummary: {
-          success: true,
-          summary: 'This is a test summary of the conversation.',
-          keyPoints: [
-            { id: '1', content: 'Key point 1', sourceMessageId: 'msg-1', category: 'code' },
-          ],
-          topics: [
-            { name: 'Sorting', messageIds: ['msg-1', 'msg-2'] },
-          ],
-          messageCount: 4,
-          sourceTokens: 100,
-          summaryTokens: 20,
-          compressionRatio: 0.2,
-          generatedAt: new Date(),
-        },
-        agentSummary: null,
-        diagram: null,
-        error: null,
-        generateChatSummary: mockGenerateChatSummary,
-        generateAgentSummary: jest.fn(),
-        generateChatDiagram: mockGenerateChatDiagram,
-        generateAgentDiagram: jest.fn(),
-        generateChatSummaryWithDiagram: mockGenerateChatSummaryWithDiagram,
-        generateAgentSummaryWithDiagram: jest.fn(),
-        exportSummary: mockExportSummary,
-        reset: mockReset,
-      };
-
-      jest.doMock('@/hooks/use-summary', () => ({
-        useSummary: () => mockSummaryHook,
-      }));
-
-      // Note: Due to how Jest mocking works, this test may need adjustment
-      // The important thing is the structure is correct
+      // Note: The useSummary hook is already mocked at the top level
+      // This test verifies the component renders correctly when dialog is open
+      render(<ChatSummaryDialog {...defaultProps} />);
+      
+      // Component should render the summary dialog
+      expect(screen.getByText('Chat Summary & Diagram')).toBeInTheDocument();
+      // The summary tab should be visible
+      expect(screen.getByRole('tab', { name: /summary/i })).toBeInTheDocument();
     });
   });
 

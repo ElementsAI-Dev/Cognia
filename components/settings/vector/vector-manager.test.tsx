@@ -65,7 +65,7 @@ const mockAddDocument = jest.fn();
 const mockSearchWithOptions = jest.fn();
 const mockPeek = jest.fn();
 
-jest.mock('@/hooks/use-vector-db', () => ({
+jest.mock('@/hooks/rag', () => ({
   useVectorDB: jest.fn(() => ({
     isLoading: false,
     error: null,

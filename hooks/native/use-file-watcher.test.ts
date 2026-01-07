@@ -22,6 +22,9 @@ const mockWatchPath = watchPath as jest.MockedFunction<typeof watchPath>;
 const mockWatchPathImmediate = watchPathImmediate as jest.MockedFunction<typeof watchPathImmediate>;
 const mockIsTauri = isTauri as jest.MockedFunction<typeof isTauri>;
 
+type WatchCallback = Parameters<typeof watchPath>[1];
+type WatchEvent = Parameters<WatchCallback>[0];
+
 describe('useFileWatcher', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -103,7 +106,7 @@ describe('useFileWatcher', () => {
 
   it('should call onEvent callback when event occurs', async () => {
     const onEvent = jest.fn();
-    let capturedCallback: ((event: unknown) => void) | null = null;
+    let capturedCallback: WatchCallback | null = null;
     
     mockWatchPath.mockImplementation(async (_path, callback) => {
       capturedCallback = callback;
@@ -118,7 +121,7 @@ describe('useFileWatcher', () => {
       await result.current.startWatching();
     });
 
-    const mockEvent = { type: 'modify', paths: ['/test/path/file.txt'] };
+    const mockEvent = { type: 'modify', paths: ['/test/path/file.txt'] } as WatchEvent;
     
     await act(async () => {
       capturedCallback?.(mockEvent);
@@ -263,7 +266,7 @@ describe('useMultiFileWatcher', () => {
 
   it('should call onEvent with path when event occurs', async () => {
     const onEvent = jest.fn();
-    let capturedCallback: ((event: unknown) => void) | null = null;
+    let capturedCallback: WatchCallback | null = null;
     
     mockWatchPath.mockImplementation(async (_path, callback) => {
       capturedCallback = callback;
@@ -278,7 +281,7 @@ describe('useMultiFileWatcher', () => {
       await result.current.startAll();
     });
 
-    const mockEvent = { type: 'create', paths: ['/path/1/new.txt'] };
+    const mockEvent = { type: 'create', paths: ['/path/1/new.txt'] } as WatchEvent;
     
     await act(async () => {
       capturedCallback?.(mockEvent);

@@ -4,10 +4,10 @@
 
 #![allow(dead_code)]
 
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::Arc;
-use parking_lot::RwLock;
 
 /// Maximum number of history entries to keep
 const MAX_HISTORY_SIZE: usize = 100;
@@ -59,7 +59,12 @@ impl SelectionHistoryEntry {
         }
     }
 
-    pub fn with_app_info(mut self, app_name: Option<String>, window_title: Option<String>, process_name: Option<String>) -> Self {
+    pub fn with_app_info(
+        mut self,
+        app_name: Option<String>,
+        window_title: Option<String>,
+        process_name: Option<String>,
+    ) -> Self {
         self.app_name = app_name;
         self.window_title = window_title;
         self.process_name = process_name;
@@ -111,7 +116,10 @@ pub struct SelectionHistory {
 
 impl SelectionHistory {
     pub fn new() -> Self {
-        log::debug!("[SelectionHistory] Creating new instance with max_size={}", MAX_HISTORY_SIZE);
+        log::debug!(
+            "[SelectionHistory] Creating new instance with max_size={}",
+            MAX_HISTORY_SIZE
+        );
         Self {
             entries: Arc::new(RwLock::new(VecDeque::with_capacity(MAX_HISTORY_SIZE))),
             max_size: MAX_HISTORY_SIZE,
@@ -119,7 +127,10 @@ impl SelectionHistory {
     }
 
     pub fn with_max_size(max_size: usize) -> Self {
-        log::debug!("[SelectionHistory] Creating new instance with custom max_size={}", max_size);
+        log::debug!(
+            "[SelectionHistory] Creating new instance with custom max_size={}",
+            max_size
+        );
         Self {
             entries: Arc::new(RwLock::new(VecDeque::with_capacity(max_size))),
             max_size,
@@ -129,14 +140,17 @@ impl SelectionHistory {
     /// Add a new entry to history
     pub fn add(&self, entry: SelectionHistoryEntry) {
         let text_len = entry.text.len();
-        log::trace!("[SelectionHistory] add: {} chars, app={:?}", text_len, entry.app_name);
-        
+        log::trace!(
+            "[SelectionHistory] add: {} chars, app={:?}",
+            text_len,
+            entry.app_name
+        );
+
         let mut entries = self.entries.write();
-        
+
         // Check for duplicate (same text within last 5 seconds)
         if let Some(last) = entries.front() {
-            if last.text == entry.text && 
-               (entry.timestamp - last.timestamp).abs() < 5000 {
+            if last.text == entry.text && (entry.timestamp - last.timestamp).abs() < 5000 {
                 log::trace!("[SelectionHistory] Skipping duplicate entry (same text within 5s)");
                 return; // Skip duplicate
             }
@@ -144,25 +158,37 @@ impl SelectionHistory {
 
         entries.push_front(entry);
         let new_len = entries.len();
-        
+
         // Trim to max size
         let mut trimmed = 0;
         while entries.len() > self.max_size {
             entries.pop_back();
             trimmed += 1;
         }
-        
+
         if trimmed > 0 {
-            log::trace!("[SelectionHistory] Trimmed {} old entries, current size={}", trimmed, entries.len());
+            log::trace!(
+                "[SelectionHistory] Trimmed {} old entries, current size={}",
+                trimmed,
+                entries.len()
+            );
         }
-        log::debug!("[SelectionHistory] Entry added: {} chars, history_size={}", text_len, new_len.min(self.max_size));
+        log::debug!(
+            "[SelectionHistory] Entry added: {} chars, history_size={}",
+            text_len,
+            new_len.min(self.max_size)
+        );
     }
 
     /// Get recent entries
     pub fn get_recent(&self, count: usize) -> Vec<SelectionHistoryEntry> {
         let entries = self.entries.read();
         let result: Vec<_> = entries.iter().take(count).cloned().collect();
-        log::trace!("[SelectionHistory] get_recent({}): returned {} entries", count, result.len());
+        log::trace!(
+            "[SelectionHistory] get_recent({}): returned {} entries",
+            count,
+            result.len()
+        );
         result
     }
 
@@ -200,7 +226,10 @@ impl SelectionHistory {
             })
             .cloned()
             .collect();
-        log::debug!("[SelectionHistory] search_by_app: found {} matches", results.len());
+        log::debug!(
+            "[SelectionHistory] search_by_app: found {} matches",
+            results.len()
+        );
         results
     }
 
@@ -218,20 +247,30 @@ impl SelectionHistory {
             })
             .cloned()
             .collect();
-        log::debug!("[SelectionHistory] search_by_type: found {} matches", results.len());
+        log::debug!(
+            "[SelectionHistory] search_by_type: found {} matches",
+            results.len()
+        );
         results
     }
 
     /// Search by time range
     pub fn search_by_time(&self, start: i64, end: i64) -> Vec<SelectionHistoryEntry> {
-        log::debug!("[SelectionHistory] search_by_time: range=[{}, {}]", start, end);
+        log::debug!(
+            "[SelectionHistory] search_by_time: range=[{}, {}]",
+            start,
+            end
+        );
         let entries = self.entries.read();
         let results: Vec<_> = entries
             .iter()
             .filter(|e| e.timestamp >= start && e.timestamp <= end)
             .cloned()
             .collect();
-        log::debug!("[SelectionHistory] search_by_time: found {} matches", results.len());
+        log::debug!(
+            "[SelectionHistory] search_by_time: found {} matches",
+            results.len()
+        );
         results
     }
 
@@ -265,10 +304,12 @@ impl SelectionHistory {
     /// Get statistics about selection history
     pub fn get_stats(&self) -> SelectionHistoryStats {
         let entries = self.entries.read();
-        
+
         let mut by_app: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-        let mut by_type: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-        let mut word_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        let mut by_type: std::collections::HashMap<String, usize> =
+            std::collections::HashMap::new();
+        let mut word_counts: std::collections::HashMap<String, usize> =
+            std::collections::HashMap::new();
         let mut total_length: usize = 0;
         let mut earliest: Option<i64> = None;
         let mut latest: Option<i64> = None;
@@ -326,7 +367,10 @@ impl SelectionHistory {
     /// Export history to JSON
     pub fn export_json(&self) -> Result<String, String> {
         let entries = self.get_all();
-        log::debug!("[SelectionHistory] Exporting {} entries to JSON", entries.len());
+        log::debug!(
+            "[SelectionHistory] Exporting {} entries to JSON",
+            entries.len()
+        );
         serde_json::to_string_pretty(&entries).map_err(|e| {
             log::error!("[SelectionHistory] JSON export failed: {}", e);
             e.to_string()
@@ -335,16 +379,18 @@ impl SelectionHistory {
 
     /// Import history from JSON
     pub fn import_json(&self, json: &str) -> Result<usize, String> {
-        log::debug!("[SelectionHistory] Importing from JSON ({} bytes)", json.len());
-        let imported: Vec<SelectionHistoryEntry> = 
-            serde_json::from_str(json).map_err(|e| {
-                log::error!("[SelectionHistory] JSON import parse failed: {}", e);
-                e.to_string()
-            })?;
-        
+        log::debug!(
+            "[SelectionHistory] Importing from JSON ({} bytes)",
+            json.len()
+        );
+        let imported: Vec<SelectionHistoryEntry> = serde_json::from_str(json).map_err(|e| {
+            log::error!("[SelectionHistory] JSON import parse failed: {}", e);
+            e.to_string()
+        })?;
+
         let count = imported.len();
         let mut entries = self.entries.write();
-        
+
         for entry in imported {
             entries.push_back(entry);
         }
@@ -356,7 +402,11 @@ impl SelectionHistory {
             trimmed += 1;
         }
 
-        log::info!("[SelectionHistory] Imported {} entries (trimmed {})", count, trimmed);
+        log::info!(
+            "[SelectionHistory] Imported {} entries (trimmed {})",
+            count,
+            trimmed
+        );
         Ok(count)
     }
 }
@@ -376,7 +426,7 @@ mod tests {
         let history = SelectionHistory::new();
         let entry = SelectionHistoryEntry::new("test text".to_string(), 100, 200);
         history.add(entry);
-        
+
         assert_eq!(history.len(), 1);
         let retrieved = history.get_latest().unwrap();
         assert_eq!(retrieved.text, "test text");
@@ -386,7 +436,11 @@ mod tests {
     fn test_search() {
         let history = SelectionHistory::new();
         history.add(SelectionHistoryEntry::new("hello world".to_string(), 0, 0));
-        history.add(SelectionHistoryEntry::new("goodbye world".to_string(), 0, 0));
+        history.add(SelectionHistoryEntry::new(
+            "goodbye world".to_string(),
+            0,
+            0,
+        ));
         history.add(SelectionHistoryEntry::new("hello rust".to_string(), 0, 0));
 
         let results = history.search("hello");
@@ -402,21 +456,21 @@ mod tests {
             entry.timestamp += i as i64 * 10000; // Different timestamps
             history.add(entry);
         }
-        
+
         assert_eq!(history.len(), 5);
     }
 
     #[test]
     fn test_duplicate_detection() {
         let history = SelectionHistory::new();
-        
+
         let entry1 = SelectionHistoryEntry::new("same text".to_string(), 0, 0);
         let mut entry2 = SelectionHistoryEntry::new("same text".to_string(), 0, 0);
         entry2.timestamp = entry1.timestamp + 1000; // Within 5 seconds
-        
+
         history.add(entry1);
         history.add(entry2);
-        
+
         // Duplicate within 5 seconds should be skipped
         assert_eq!(history.len(), 1);
     }
@@ -424,22 +478,22 @@ mod tests {
     #[test]
     fn test_search_by_app() {
         let history = SelectionHistory::new();
-        
+
         let mut entry1 = SelectionHistoryEntry::new("text1".to_string(), 0, 0);
         entry1.app_name = Some("VSCode".to_string());
-        
+
         let mut entry2 = SelectionHistoryEntry::new("text2".to_string(), 0, 0);
         entry2.app_name = Some("Chrome".to_string());
         entry2.timestamp += 10000;
-        
+
         let mut entry3 = SelectionHistoryEntry::new("text3".to_string(), 0, 0);
         entry3.app_name = Some("VSCode Editor".to_string());
         entry3.timestamp += 20000;
-        
+
         history.add(entry1);
         history.add(entry2);
         history.add(entry3);
-        
+
         let results = history.search_by_app("vscode");
         assert_eq!(results.len(), 2);
     }
@@ -447,22 +501,22 @@ mod tests {
     #[test]
     fn test_search_by_type() {
         let history = SelectionHistory::new();
-        
+
         let mut entry1 = SelectionHistoryEntry::new("text1".to_string(), 0, 0);
         entry1.text_type = Some("Code".to_string());
-        
+
         let mut entry2 = SelectionHistoryEntry::new("text2".to_string(), 0, 0);
         entry2.text_type = Some("PlainText".to_string());
         entry2.timestamp += 10000;
-        
+
         let mut entry3 = SelectionHistoryEntry::new("text3".to_string(), 0, 0);
         entry3.text_type = Some("Code".to_string());
         entry3.timestamp += 20000;
-        
+
         history.add(entry1);
         history.add(entry2);
         history.add(entry3);
-        
+
         let results = history.search_by_type("Code");
         assert_eq!(results.len(), 2);
     }
@@ -471,20 +525,20 @@ mod tests {
     fn test_search_by_time() {
         let history = SelectionHistory::new();
         let now = chrono::Utc::now().timestamp_millis();
-        
+
         let mut entry1 = SelectionHistoryEntry::new("old".to_string(), 0, 0);
         entry1.timestamp = now - 100000;
-        
+
         let mut entry2 = SelectionHistoryEntry::new("recent".to_string(), 0, 0);
         entry2.timestamp = now - 50000;
-        
+
         let mut entry3 = SelectionHistoryEntry::new("newest".to_string(), 0, 0);
         entry3.timestamp = now;
-        
+
         history.add(entry1);
         history.add(entry2);
         history.add(entry3);
-        
+
         let results = history.search_by_time(now - 60000, now);
         assert_eq!(results.len(), 2);
     }
@@ -492,18 +546,18 @@ mod tests {
     #[test]
     fn test_get_by_index() {
         let history = SelectionHistory::new();
-        
+
         let entry1 = SelectionHistoryEntry::new("first".to_string(), 0, 0);
         let mut entry2 = SelectionHistoryEntry::new("second".to_string(), 0, 0);
         entry2.timestamp += 10000;
-        
+
         history.add(entry1);
         history.add(entry2);
-        
+
         let first = history.get(0);
         assert!(first.is_some());
         assert_eq!(first.unwrap().text, "second"); // Most recent first
-        
+
         let none = history.get(10);
         assert!(none.is_none());
     }
@@ -512,14 +566,14 @@ mod tests {
     fn test_get_latest() {
         let history = SelectionHistory::new();
         assert!(history.get_latest().is_none());
-        
+
         let entry1 = SelectionHistoryEntry::new("first".to_string(), 0, 0);
         let mut entry2 = SelectionHistoryEntry::new("second".to_string(), 0, 0);
         entry2.timestamp += 10000;
-        
+
         history.add(entry1);
         history.add(entry2);
-        
+
         let latest = history.get_latest();
         assert!(latest.is_some());
         assert_eq!(latest.unwrap().text, "second");
@@ -529,7 +583,7 @@ mod tests {
     fn test_is_empty() {
         let history = SelectionHistory::new();
         assert!(history.is_empty());
-        
+
         history.add(SelectionHistoryEntry::new("test".to_string(), 0, 0));
         assert!(!history.is_empty());
     }
@@ -537,19 +591,19 @@ mod tests {
     #[test]
     fn test_get_stats() {
         let history = SelectionHistory::new();
-        
+
         let mut entry1 = SelectionHistoryEntry::new("hello world".to_string(), 0, 0);
         entry1.app_name = Some("App1".to_string());
         entry1.text_type = Some("PlainText".to_string());
-        
+
         let mut entry2 = SelectionHistoryEntry::new("foo bar baz".to_string(), 0, 0);
         entry2.app_name = Some("App1".to_string());
         entry2.text_type = Some("Code".to_string());
         entry2.timestamp += 10000;
-        
+
         history.add(entry1);
         history.add(entry2);
-        
+
         let stats = history.get_stats();
         assert_eq!(stats.total_selections, 2);
         assert!(stats.by_app.contains_key("App1"));
@@ -559,19 +613,19 @@ mod tests {
     #[test]
     fn test_export_import_json() {
         let history = SelectionHistory::new();
-        
+
         let mut entry = SelectionHistoryEntry::new("test export".to_string(), 100, 200);
         entry.app_name = Some("TestApp".to_string());
         history.add(entry);
-        
+
         let json = history.export_json();
         assert!(json.is_ok());
-        
+
         let new_history = SelectionHistory::new();
         let result = new_history.import_json(&json.unwrap());
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 1);
-        
+
         let imported = new_history.get_latest().unwrap();
         assert_eq!(imported.text, "test export");
         assert_eq!(imported.app_name, Some("TestApp".to_string()));
@@ -587,7 +641,7 @@ mod tests {
             )
             .with_context(Some("before".to_string()), Some("after".to_string()))
             .with_type_info(Some("Code".to_string()), Some("rust".to_string()));
-        
+
         assert_eq!(entry.app_name, Some("App".to_string()));
         assert_eq!(entry.window_title, Some("Window".to_string()));
         assert_eq!(entry.process_name, Some("process.exe".to_string()));
@@ -600,11 +654,11 @@ mod tests {
     #[test]
     fn test_entry_add_tag() {
         let mut entry = SelectionHistoryEntry::new("test".to_string(), 0, 0);
-        
+
         entry.add_tag("tag1".to_string());
         entry.add_tag("tag2".to_string());
         entry.add_tag("tag1".to_string()); // Duplicate
-        
+
         assert_eq!(entry.tags.len(), 2);
         assert!(entry.tags.contains(&"tag1".to_string()));
         assert!(entry.tags.contains(&"tag2".to_string()));

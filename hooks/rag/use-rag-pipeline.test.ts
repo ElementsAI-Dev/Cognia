@@ -43,6 +43,7 @@ jest.mock('@/lib/ai/rag/index', () => ({
     clear: jest.fn(),
     clearCollection: jest.fn(),
     getStats: jest.fn(() => ({ documentCount: 0, exists: true })),
+    getCollectionStats: jest.fn(() => ({ documentCount: 0, exists: true })),
     updateConfig: jest.fn(),
   })),
 }));

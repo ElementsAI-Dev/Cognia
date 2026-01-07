@@ -212,7 +212,7 @@ impl OcrProvider for OpenAiVisionProvider {
             // Try to parse error response
             if let Ok(error_response) = serde_json::from_str::<ErrorResponse>(&body) {
                 let error_type = error_response.error.error_type.as_deref();
-                
+
                 return Err(match error_type {
                     Some("invalid_api_key") | Some("authentication_error") => {
                         OcrError::authentication_error(error_response.error.message)
@@ -262,7 +262,7 @@ impl OcrProvider for OpenAiVisionProvider {
         };
 
         let confidence = if regions.is_empty() { 0.0 } else { 0.95 };
-        
+
         Ok(OcrResult {
             text,
             regions,
@@ -280,11 +280,7 @@ mod tests {
 
     #[test]
     fn test_openai_provider_new() {
-        let provider = OpenAiVisionProvider::new(
-            "test_key".to_string(),
-            None,
-            None,
-        );
+        let provider = OpenAiVisionProvider::new("test_key".to_string(), None, None);
         assert_eq!(provider.endpoint, "https://api.openai.com/v1");
         assert_eq!(provider.model, "gpt-4o");
     }

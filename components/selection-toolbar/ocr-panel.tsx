@@ -563,6 +563,7 @@ export function OCRPanel({
               type="file"
               accept="image/*"
               className="hidden"
+              aria-label="Upload image file"
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) handleFileUpload(file);

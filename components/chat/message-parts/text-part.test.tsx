@@ -14,7 +14,7 @@ jest.mock('@/components/ai-elements/message', () => ({
 }));
 
 // Mock MarkdownRenderer to avoid react-markdown ESM issues
-jest.mock('@/components/chat/markdown-renderer', () => ({
+jest.mock('@/components/chat/utils/markdown-renderer', () => ({
   MarkdownRenderer: ({ content, className }: { content: string; className?: string }) => (
     <div data-testid="message-response" className={className}>{content}</div>
   ),

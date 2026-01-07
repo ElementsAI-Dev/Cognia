@@ -2,6 +2,7 @@
 
 /**
  * SourcesDisplay - Display web search sources with the ai-elements Sources component
+ * Supports verification badges when source verification is enabled
  */
 
 import {
@@ -25,9 +26,25 @@ import {
   InlineCitationCarouselNext,
   InlineCitationSource,
 } from '@/components/ai-elements/inline-citation';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Globe, ExternalLink, Clock } from 'lucide-react';
+import { useSettingsStore } from '@/stores';
+import { 
+  Globe, 
+  ExternalLink, 
+  Clock,
+  ShieldCheck,
+  Shield,
+  ShieldAlert,
+  ShieldQuestion,
+} from 'lucide-react';
+import type { CredibilityLevel, SourceVerification } from '@/types/search';
 
 export interface WebSource {
   id: string;
@@ -36,7 +53,36 @@ export interface WebSource {
   content: string;
   score: number;
   publishedDate?: string;
+  verification?: SourceVerification;
 }
+
+// Credibility badge configuration
+const credibilityConfig: Record<CredibilityLevel, { 
+  icon: React.ReactNode; 
+  label: string; 
+  className: string;
+}> = {
+  high: {
+    icon: <ShieldCheck className="h-3 w-3" />,
+    label: '高可信度',
+    className: 'text-green-600 bg-green-500/10 border-green-500/20',
+  },
+  medium: {
+    icon: <Shield className="h-3 w-3" />,
+    label: '中等可信度',
+    className: 'text-yellow-600 bg-yellow-500/10 border-yellow-500/20',
+  },
+  low: {
+    icon: <ShieldAlert className="h-3 w-3" />,
+    label: '低可信度',
+    className: 'text-red-600 bg-red-500/10 border-red-500/20',
+  },
+  unknown: {
+    icon: <ShieldQuestion className="h-3 w-3" />,
+    label: '未知',
+    className: 'text-gray-600 bg-gray-500/10 border-gray-500/20',
+  },
+};
 
 interface SourcesDisplayProps {
   sources: WebSource[];
@@ -50,6 +96,11 @@ export function SourcesDisplay({
   sources,
   className,
 }: SourcesDisplayProps) {
+  // Get verification badge setting from store
+  const showVerificationBadges = useSettingsStore(
+    (state) => state.sourceVerificationSettings.showVerificationBadges
+  );
+
   if (!sources || sources.length === 0) {
     return null;
   }
@@ -66,7 +117,12 @@ export function SourcesDisplay({
       </SourcesTrigger>
       <SourcesContent>
         {sources.map((source, index) => (
-          <SourceItem key={source.id || index} source={source} index={index} />
+          <SourceItem 
+            key={source.id || index} 
+            source={source} 
+            index={index}
+            showVerificationBadges={showVerificationBadges}
+          />
         ))}
       </SourcesContent>
     </Sources>
@@ -76,10 +132,14 @@ export function SourcesDisplay({
 interface SourceItemProps {
   source: WebSource;
   index: number;
+  showVerificationBadges?: boolean;
 }
 
-function SourceItem({ source, index }: SourceItemProps) {
+function SourceItem({ source, index, showVerificationBadges = false }: SourceItemProps) {
   const hostname = getHostname(source.url);
+  const verification = source.verification;
+  const credibility = verification?.credibilityLevel || 'unknown';
+  const config = credibilityConfig[credibility];
 
   return (
     <Source href={source.url} title={source.title}>
@@ -90,6 +150,23 @@ function SourceItem({ source, index }: SourceItemProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-medium text-sm truncate">{source.title}</span>
+            {showVerificationBadges && verification && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className={cn('flex items-center gap-1 px-1.5 py-0.5 rounded border', config.className)}>
+                      {config.icon}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{config.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      可信度: {Math.round(verification.credibilityScore * 100)}%
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
             <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
           </div>
           <p className="text-xs text-muted-foreground truncate">{hostname}</p>
@@ -98,10 +175,15 @@ function SourceItem({ source, index }: SourceItemProps) {
               {source.content}
             </p>
           )}
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
             <Badge variant="outline" className="text-xs px-1.5 py-0">
               {Math.round(source.score * 100)}% relevant
             </Badge>
+            {showVerificationBadges && verification?.sourceType && verification.sourceType !== 'unknown' && (
+              <Badge variant="outline" className="text-xs px-1.5 py-0">
+                {verification.sourceType}
+              </Badge>
+            )}
             {source.publishedDate && (
               <span className="text-xs text-muted-foreground flex items-center gap-1">
                 <Clock className="h-3 w-3" />

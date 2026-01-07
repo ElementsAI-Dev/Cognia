@@ -1,8 +1,8 @@
 //! Ollama API commands for local model management
 
+use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
-use futures::StreamExt;
 
 /// Ollama model information
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -86,24 +86,20 @@ pub async fn ollama_get_status(base_url: String) -> Result<OllamaServerStatus, S
         .map_err(|e| e.to_string())?;
 
     // Try to get version from /api/version endpoint
-    let version_result = client
-        .get(format!("{}/api/version", url))
-        .send()
-        .await;
+    let version_result = client.get(format!("{}/api/version", url)).send().await;
 
     let version = match version_result {
         Ok(resp) if resp.status().is_success() => {
             let body: serde_json::Value = resp.json().await.unwrap_or_default();
-            body.get("version").and_then(|v| v.as_str()).map(|s| s.to_string())
+            body.get("version")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
         }
         _ => None,
     };
 
     // Get model count
-    let models_result = client
-        .get(format!("{}/api/tags", url))
-        .send()
-        .await;
+    let models_result = client.get(format!("{}/api/tags", url)).send().await;
 
     let (connected, models_count) = match models_result {
         Ok(resp) if resp.status().is_success() => {
@@ -162,7 +158,10 @@ pub async fn ollama_list_models(base_url: String) -> Result<Vec<OllamaModel>, St
 
 /// Get detailed information about a specific model
 #[tauri::command]
-pub async fn ollama_show_model(base_url: String, model_name: String) -> Result<OllamaModelInfo, String> {
+pub async fn ollama_show_model(
+    base_url: String,
+    model_name: String,
+) -> Result<OllamaModelInfo, String> {
     let url = normalize_base_url(&base_url);
     let client = reqwest::Client::new();
 
@@ -197,9 +196,9 @@ pub async fn ollama_pull_model(
 
     let response = client
         .post(format!("{}/api/pull", url))
-        .json(&serde_json::json!({ 
+        .json(&serde_json::json!({
             "name": model_name,
-            "stream": true 
+            "stream": true
         }))
         .send()
         .await
@@ -217,27 +216,28 @@ pub async fn ollama_pull_model(
         match chunk {
             Ok(bytes) => {
                 buffer.extend_from_slice(&bytes);
-                
+
                 // Try to parse complete JSON lines from buffer
                 while let Some(newline_pos) = buffer.iter().position(|&b| b == b'\n') {
                     let line: Vec<u8> = buffer.drain(..=newline_pos).collect();
                     if let Ok(text) = std::str::from_utf8(&line) {
-                        if let Ok(progress) = serde_json::from_str::<serde_json::Value>(text.trim()) {
+                        if let Ok(progress) = serde_json::from_str::<serde_json::Value>(text.trim())
+                        {
                             let pull_progress = OllamaPullProgress {
-                                status: progress.get("status")
+                                status: progress
+                                    .get("status")
                                     .and_then(|s| s.as_str())
                                     .unwrap_or("unknown")
                                     .to_string(),
-                                digest: progress.get("digest")
+                                digest: progress
+                                    .get("digest")
                                     .and_then(|s| s.as_str())
                                     .map(|s| s.to_string()),
-                                total: progress.get("total")
-                                    .and_then(|t| t.as_u64()),
-                                completed: progress.get("completed")
-                                    .and_then(|c| c.as_u64()),
+                                total: progress.get("total").and_then(|t| t.as_u64()),
+                                completed: progress.get("completed").and_then(|c| c.as_u64()),
                                 model: model_name.clone(),
                             };
-                            
+
                             // Emit progress event to frontend
                             let _ = app.emit("ollama-pull-progress", &pull_progress);
                         }
@@ -251,13 +251,16 @@ pub async fn ollama_pull_model(
     }
 
     // Emit completion event
-    let _ = app.emit("ollama-pull-progress", OllamaPullProgress {
-        status: "success".to_string(),
-        digest: None,
-        total: None,
-        completed: None,
-        model: model_name,
-    });
+    let _ = app.emit(
+        "ollama-pull-progress",
+        OllamaPullProgress {
+            status: "success".to_string(),
+            digest: None,
+            total: None,
+            completed: None,
+            model: model_name,
+        },
+    );
 
     Ok(true)
 }
@@ -329,9 +332,9 @@ pub async fn ollama_copy_model(
 
     let response = client
         .post(format!("{}/api/copy", url))
-        .json(&serde_json::json!({ 
+        .json(&serde_json::json!({
             "source": source,
-            "destination": destination 
+            "destination": destination
         }))
         .send()
         .await
@@ -357,7 +360,7 @@ pub async fn ollama_generate_embedding(
 
     let response = client
         .post(format!("{}/api/embed", url))
-        .json(&serde_json::json!({ 
+        .json(&serde_json::json!({
             "model": model,
             "input": input
         }))
@@ -381,11 +384,7 @@ pub async fn ollama_generate_embedding(
         .and_then(|e| e.as_array())
         .and_then(|arr| arr.first())
         .and_then(|e| e.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| v.as_f64())
-                .collect::<Vec<f64>>()
-        })
+        .map(|arr| arr.iter().filter_map(|v| v.as_f64()).collect::<Vec<f64>>())
         .ok_or_else(|| "Failed to extract embeddings from response".to_string())?;
 
     Ok(embeddings)
@@ -400,7 +399,7 @@ pub async fn ollama_stop_model(base_url: String, model_name: String) -> Result<b
     // Send a generate request with keep_alive: 0 to unload the model
     let response = client
         .post(format!("{}/api/generate", url))
-        .json(&serde_json::json!({ 
+        .json(&serde_json::json!({
             "model": model_name,
             "keep_alive": 0
         }))
@@ -473,7 +472,7 @@ mod tests {
                 quantization_level: Some("Q4_0".to_string()),
             }),
         };
-        
+
         assert_eq!(model.name, "llama2:latest");
         assert_eq!(model.size, 3_800_000_000);
         assert!(model.details.is_some());
@@ -489,10 +488,10 @@ mod tests {
             digest: "def456".to_string(),
             details: None,
         };
-        
+
         let serialized = serde_json::to_string(&model).unwrap();
         let deserialized: OllamaModel = serde_json::from_str(&serialized).unwrap();
-        
+
         assert_eq!(model.name, deserialized.name);
         assert_eq!(model.size, deserialized.size);
         assert_eq!(model.digest, deserialized.digest);
@@ -508,7 +507,7 @@ mod tests {
             parameter_size: Some("13B".to_string()),
             quantization_level: Some("Q5_K_M".to_string()),
         };
-        
+
         assert_eq!(details.family, Some("llama".to_string()));
         assert_eq!(details.parameter_size, Some("13B".to_string()));
         assert_eq!(details.families.as_ref().unwrap().len(), 2);
@@ -521,7 +520,7 @@ mod tests {
             version: Some("0.1.24".to_string()),
             models_count: 5,
         };
-        
+
         assert!(status.connected);
         assert_eq!(status.version, Some("0.1.24".to_string()));
         assert_eq!(status.models_count, 5);
@@ -534,7 +533,7 @@ mod tests {
             version: None,
             models_count: 0,
         };
-        
+
         assert!(!status.connected);
         assert!(status.version.is_none());
         assert_eq!(status.models_count, 0);
@@ -549,7 +548,7 @@ mod tests {
             completed: Some(2_000_000_000),
             model: "llama2".to_string(),
         };
-        
+
         assert_eq!(progress.status, "downloading");
         assert_eq!(progress.total, Some(4_000_000_000));
         assert_eq!(progress.completed, Some(2_000_000_000));
@@ -564,7 +563,7 @@ mod tests {
             completed: None,
             model: "llama2".to_string(),
         };
-        
+
         assert_eq!(progress.status, "success");
         assert!(progress.digest.is_none());
     }
@@ -579,7 +578,7 @@ mod tests {
             expires_at: Some("2024-01-01T01:00:00Z".to_string()),
             size_vram: Some(3_500_000_000),
         };
-        
+
         assert_eq!(running.name, "llama2:latest");
         assert_eq!(running.size_vram, Some(3_500_000_000));
     }
@@ -600,7 +599,7 @@ mod tests {
             }),
             model_info: Some(json!({"general.architecture": "llama"})),
         };
-        
+
         assert!(info.modelfile.is_some());
         assert!(info.details.is_some());
     }
@@ -639,7 +638,7 @@ mod tests {
         let normalized = normalize_base_url(https_url);
         assert!(normalized.starts_with("https://"));
         assert!(!normalized.ends_with("/v1"));
-        
+
         let http_url = "http://localhost:11434";
         let normalized = normalize_base_url(http_url);
         assert!(normalized.starts_with("http://"));

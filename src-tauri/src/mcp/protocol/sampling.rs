@@ -23,11 +23,13 @@ pub struct SamplingProgressParams {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mcp::types::{SamplingMessage, SamplingRole, SamplingContent, ModelPreferences, ModelHint};
+    use crate::mcp::types::{
+        ModelHint, ModelPreferences, SamplingContent, SamplingMessage, SamplingRole,
+    };
 
-    // ============================================================================ 
-    // SamplingProgressParams Tests 
-    // ============================================================================ 
+    // ============================================================================
+    // SamplingProgressParams Tests
+    // ============================================================================
 
     #[test]
     fn test_sampling_progress_params_creation() {
@@ -81,7 +83,7 @@ mod tests {
     fn test_sampling_progress_params_deserialization() {
         let json = r#"{"progressToken": "abc", "progress": 0.9, "total": 10.0}"#;
         let params: SamplingProgressParams = serde_json::from_str(json).unwrap();
-        
+
         assert_eq!(params.progress_token, "abc");
         assert_eq!(params.progress, 0.9);
         assert_eq!(params.total, Some(10.0));
@@ -91,14 +93,14 @@ mod tests {
     fn test_sampling_progress_params_deserialization_without_total() {
         let json = r#"{"progressToken": "xyz", "progress": 0.5}"#;
         let params: SamplingProgressParams = serde_json::from_str(json).unwrap();
-        
+
         assert_eq!(params.progress_token, "xyz");
         assert!(params.total.is_none());
     }
 
-    // ============================================================================ 
-    // SamplingRequest Tests (via type alias) 
-    // ============================================================================ 
+    // ============================================================================
+    // SamplingRequest Tests (via type alias)
+    // ============================================================================
 
     #[test]
     fn test_sampling_request_minimal() {
@@ -134,7 +136,9 @@ mod tests {
                 },
             ],
             model_preferences: Some(ModelPreferences {
-                hints: Some(vec![ModelHint { name: Some("gpt-4".to_string()) }]),
+                hints: Some(vec![ModelHint {
+                    name: Some("gpt-4".to_string()),
+                }]),
                 cost_priority: Some(0.3),
                 speed_priority: Some(0.5),
                 intelligence_priority: Some(0.8),
@@ -190,9 +194,9 @@ mod tests {
         assert_eq!(request.temperature, Some(0.0));
     }
 
-    // ============================================================================ 
-    // SamplingResult Tests (via type alias) 
-    // ============================================================================ 
+    // ============================================================================
+    // SamplingResult Tests (via type alias)
+    // ============================================================================
 
     #[test]
     fn test_sampling_result_creation() {
@@ -249,9 +253,9 @@ mod tests {
         assert_eq!(result.stop_reason, Some("stop".to_string()));
     }
 
-    // ============================================================================ 
-    // Edge Cases 
-    // ============================================================================ 
+    // ============================================================================
+    // Edge Cases
+    // ============================================================================
 
     #[test]
     fn test_sampling_progress_at_boundaries() {
@@ -324,8 +328,12 @@ mod tests {
     fn test_model_preferences_serialization() {
         let prefs = ModelPreferences {
             hints: Some(vec![
-                ModelHint { name: Some("gpt-4".to_string()) },
-                ModelHint { name: Some("claude-3".to_string()) },
+                ModelHint {
+                    name: Some("gpt-4".to_string()),
+                },
+                ModelHint {
+                    name: Some("claude-3".to_string()),
+                },
             ]),
             cost_priority: Some(0.2),
             speed_priority: Some(0.3),

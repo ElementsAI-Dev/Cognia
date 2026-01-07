@@ -2,6 +2,26 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MathBlock } from './math-block';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      showSpec: 'Show source',
+      hideSpec: 'Hide source',
+      copyLatex: 'Copy LaTeX',
+      retry: 'Retry',
+      latexError: 'LaTeX Error',
+      mathExpression: 'Math expression',
+      viewFullscreen: 'View fullscreen',
+      exportOptions: 'Export options',
+      exportPng: 'Export as PNG',
+      specJson: 'Spec JSON',
+      copyError: 'Failed to copy',
+    };
+    return translations[key] || key;
+  },
+}));
+
 // Mock KaTeX
 jest.mock('katex', () => ({
   renderToString: jest.fn((content: string) => {
@@ -19,7 +39,7 @@ jest.mock('@/lib/export/math-export', () => ({
 }));
 
 // Mock useCopy hook
-jest.mock('@/hooks/use-copy', () => ({
+jest.mock('@/hooks/ui/use-copy', () => ({
   useCopy: () => ({
     copy: jest.fn().mockResolvedValue({ success: true }),
     isCopying: false,
@@ -60,7 +80,8 @@ describe('MathBlock', () => {
 
     it('strips \\[ \\] delimiters from content', () => {
       const katex = jest.requireMock('katex');
-      render(<MathBlock content="\\[a + b = c\\]" />);
+      katex.renderToString.mockClear();
+      render(<MathBlock content="\[a + b = c\]" />);
       
       expect(katex.renderToString).toHaveBeenCalledWith(
         'a + b = c',
@@ -216,7 +237,7 @@ describe('MathBlock', () => {
     it('has aria-label on container', () => {
       render(<MathBlock content="$$x$$" />);
       
-      expect(screen.getByLabelText('Mathematical expression')).toBeInTheDocument();
+      expect(screen.getByLabelText('Math expression')).toBeInTheDocument();
     });
 
     it('has aria-hidden on decorative icons in error state', () => {

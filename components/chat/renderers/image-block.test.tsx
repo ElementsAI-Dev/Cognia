@@ -13,7 +13,7 @@ const customRender = (ui: React.ReactElement) =>
   render(ui, { wrapper: Wrapper });
 
 // Mock useCopy hook
-jest.mock('@/hooks/use-copy', () => ({
+jest.mock('@/hooks/ui/use-copy', () => ({
   useCopy: () => ({
     copy: jest.fn().mockResolvedValue({ success: true }),
     isCopying: false,
@@ -23,6 +23,11 @@ jest.mock('@/hooks/use-copy', () => ({
 // Mock next-intl
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+}));
+
+// Mock LoadingAnimation
+jest.mock('./loading-animation', () => ({
+  LoadingAnimation: () => <div data-testid="loading-animation" />,
 }));
 
 describe('ImageBlock', () => {
@@ -81,20 +86,20 @@ describe('ImageBlock', () => {
   });
 
   describe('Loading states', () => {
-    it('shows loading spinner initially', () => {
-      const { container } = customRender(<ImageBlock {...defaultProps} />);
-      // Loading spinner should be present before image loads
-      expect(container.querySelector('.animate-spin')).toBeInTheDocument();
+    it('shows loading indicator initially', () => {
+      customRender(<ImageBlock {...defaultProps} />);
+      // Loading animation should be present before image loads
+      expect(screen.getByTestId('loading-animation')).toBeInTheDocument();
     });
 
-    it('hides loading spinner after image loads', async () => {
-      const { container } = customRender(<ImageBlock {...defaultProps} />);
+    it('hides loading indicator after image loads', async () => {
+      customRender(<ImageBlock {...defaultProps} />);
       const img = screen.getByRole('img');
       
       fireEvent.load(img);
       
       await waitFor(() => {
-        expect(container.querySelector('.animate-spin')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loading-animation')).not.toBeInTheDocument();
       });
     });
   });

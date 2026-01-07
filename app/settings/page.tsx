@@ -492,6 +492,7 @@ export default function SettingsPage() {
       {/* Main content with sidebar */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - hidden on mobile */}
+        { }
         <aside className="hidden shrink-0 border-r bg-muted/10 md:block" style={{ width: 'var(--sidebar-width, 280px)' }}>
           <div className="p-2 border-b">
             <InputGroup className="h-8">
@@ -672,7 +673,7 @@ export default function SettingsPage() {
 
           {/* Content area - Full width with grid support */}
           <ScrollArea className="flex-1 overflow-hidden">
-            <div className="p-4 lg:p-6">
+            <div className="p-4 lg:p-6" data-settings-panel>
               <div className="mx-auto max-w-5xl animate-in fade-in slide-in-from-bottom-2 duration-200">
                 {renderContent()}
               </div>

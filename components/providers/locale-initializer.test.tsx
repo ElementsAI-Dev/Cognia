@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { render } from '@testing-library/react';
+import { render, act } from '@testing-library/react';
 import { LocaleInitializer } from './locale-initializer';
 import * as i18n from '@/lib/i18n';
 
@@ -31,6 +31,7 @@ import { useSettingsStore } from '@/stores';
 describe('LocaleInitializer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
 
     // Default mock implementations
     (i18n.getSystemTimezone as jest.Mock).mockReturnValue('Asia/Shanghai');
@@ -43,17 +44,18 @@ describe('LocaleInitializer', () => {
     });
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('should render nothing (null)', () => {
-    (useSettingsStore as unknown as jest.Mock).mockImplementation((selector) => {
-      const state = {
-        language: 'en',
-        autoDetectLocale: true,
-        hasCompletedOnboarding: false,
-        setLanguage: mockSetLanguage,
-        setLocaleDetectionResult: mockSetLocaleDetectionResult,
-        setDetectedTimezone: mockSetDetectedTimezone,
-      };
-      return selector(state);
+    (useSettingsStore as unknown as jest.Mock).mockReturnValue({
+      language: 'en',
+      autoDetectLocale: true,
+      hasCompletedOnboarding: false,
+      setLanguage: mockSetLanguage,
+      setLocaleDetectionResult: mockSetLocaleDetectionResult,
+      setDetectedTimezone: mockSetDetectedTimezone,
     });
 
     const { container } = render(<LocaleInitializer />);
@@ -62,24 +64,13 @@ describe('LocaleInitializer', () => {
   });
 
   it('should have correct store selectors', () => {
-    const selectorCalls: string[] = [];
-    
-    (useSettingsStore as unknown as jest.Mock).mockImplementation((selector) => {
-      const state = {
-        language: 'en',
-        autoDetectLocale: true,
-        hasCompletedOnboarding: false,
-        setLanguage: mockSetLanguage,
-        setLocaleDetectionResult: mockSetLocaleDetectionResult,
-        setDetectedTimezone: mockSetDetectedTimezone,
-      };
-      const result = selector(state);
-      if (typeof result === 'function') {
-        selectorCalls.push('function');
-      } else {
-        selectorCalls.push(String(result));
-      }
-      return result;
+    (useSettingsStore as unknown as jest.Mock).mockReturnValue({
+      language: 'en',
+      autoDetectLocale: true,
+      hasCompletedOnboarding: false,
+      setLanguage: mockSetLanguage,
+      setLocaleDetectionResult: mockSetLocaleDetectionResult,
+      setDetectedTimezone: mockSetDetectedTimezone,
     });
 
     render(<LocaleInitializer />);
@@ -89,16 +80,13 @@ describe('LocaleInitializer', () => {
   });
 
   it('should not crash when auto-detect is disabled', () => {
-    (useSettingsStore as unknown as jest.Mock).mockImplementation((selector) => {
-      const state = {
-        language: 'en',
-        autoDetectLocale: false,
-        hasCompletedOnboarding: false,
-        setLanguage: mockSetLanguage,
-        setLocaleDetectionResult: mockSetLocaleDetectionResult,
-        setDetectedTimezone: mockSetDetectedTimezone,
-      };
-      return selector(state);
+    (useSettingsStore as unknown as jest.Mock).mockReturnValue({
+      language: 'en',
+      autoDetectLocale: false,
+      hasCompletedOnboarding: false,
+      setLanguage: mockSetLanguage,
+      setLocaleDetectionResult: mockSetLocaleDetectionResult,
+      setDetectedTimezone: mockSetDetectedTimezone,
     });
 
     expect(() => {
@@ -107,16 +95,13 @@ describe('LocaleInitializer', () => {
   });
 
   it('should not crash when user has already completed onboarding', () => {
-    (useSettingsStore as unknown as jest.Mock).mockImplementation((selector) => {
-      const state = {
-        language: 'zh-CN',
-        autoDetectLocale: true,
-        hasCompletedOnboarding: true,
-        setLanguage: mockSetLanguage,
-        setLocaleDetectionResult: mockSetLocaleDetectionResult,
-        setDetectedTimezone: mockSetDetectedTimezone,
-      };
-      return selector(state);
+    (useSettingsStore as unknown as jest.Mock).mockReturnValue({
+      language: 'zh-CN',
+      autoDetectLocale: true,
+      hasCompletedOnboarding: true,
+      setLanguage: mockSetLanguage,
+      setLocaleDetectionResult: mockSetLocaleDetectionResult,
+      setDetectedTimezone: mockSetDetectedTimezone,
     });
 
     expect(() => {
@@ -124,23 +109,26 @@ describe('LocaleInitializer', () => {
     }).not.toThrow();
   });
 
-  it('should call getSystemTimezone from i18n module', () => {
-    (useSettingsStore as unknown as jest.Mock).mockImplementation((selector) => {
-      const state = {
-        language: 'en',
-        autoDetectLocale: true,
-        hasCompletedOnboarding: false,
-        setLanguage: mockSetLanguage,
-        setLocaleDetectionResult: mockSetLocaleDetectionResult,
-        setDetectedTimezone: mockSetDetectedTimezone,
-      };
-      return selector(state);
+  it('should call getSystemTimezone after 100ms delay and setDetectedTimezone', async () => {
+    (useSettingsStore as unknown as jest.Mock).mockReturnValue({
+      language: 'en',
+      autoDetectLocale: true,
+      hasCompletedOnboarding: false,
+      setLanguage: mockSetLanguage,
+      setLocaleDetectionResult: mockSetLocaleDetectionResult,
+      setDetectedTimezone: mockSetDetectedTimezone,
     });
 
     render(<LocaleInitializer />);
 
-    // The component should have access to the i18n functions
-    expect(i18n.getSystemTimezone).toBeDefined();
-    expect(i18n.autoDetectLocale).toBeDefined();
+    expect(i18n.getSystemTimezone).not.toHaveBeenCalled();
+    expect(mockSetDetectedTimezone).not.toHaveBeenCalled();
+
+    await act(async () => {
+      jest.advanceTimersByTime(100);
+    });
+
+    expect(i18n.getSystemTimezone).toHaveBeenCalledTimes(1);
+    expect(mockSetDetectedTimezone).toHaveBeenCalledWith('Asia/Shanghai');
   });
 });

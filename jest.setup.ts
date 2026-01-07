@@ -34,6 +34,9 @@ global.ResizeObserver = class ResizeObserver {
   disconnect() {}
 };
 
+// Mock scrollIntoView for JSDOM (not supported by default)
+Element.prototype.scrollIntoView = jest.fn();
+
 // Mock window.matchMedia for components using media queries
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
@@ -129,6 +132,11 @@ jest.mock('@/stores', () => {
       defaultTopP: 1,
       defaultFrequencyPenalty: 0,
       defaultPresencePenalty: 0,
+      sourceVerificationSettings: {
+        showVerificationBadges: true,
+        autoVerifySources: false,
+        verificationTimeout: 5000,
+      },
     }),
     usePresetStore: createMockSelector({
       presets: [],

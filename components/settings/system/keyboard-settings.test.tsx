@@ -21,7 +21,7 @@ jest.mock('next-intl', () => ({
 }));
 
 // Mock hooks
-jest.mock('@/hooks/use-keyboard-shortcuts', () => ({
+jest.mock('@/hooks/ui', () => ({
   useKeyboardShortcuts: () => ({
     shortcuts: [
       { key: 'n', description: 'New chat', category: 'chat', modifiers: ['ctrl'] },

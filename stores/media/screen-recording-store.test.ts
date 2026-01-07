@@ -431,3 +431,260 @@ describe('useRecordingStatus', () => {
     expect(result.current).toBe('Recording');
   });
 });
+
+describe('useScreenRecordingStore - Edge Cases', () => {
+  beforeEach(() => {
+    act(() => {
+      useScreenRecordingStore.setState({
+        status: 'Idle',
+        recordingId: null,
+        duration: 0,
+        isLoading: false,
+        isInitialized: false,
+        error: null,
+      });
+    });
+    jest.clearAllMocks();
+  });
+
+  describe('error handling', () => {
+    it('should handle initialization errors gracefully', async () => {
+      const mockGetRecordingStatus = screenRecordingModule.getRecordingStatus as jest.Mock;
+      mockGetRecordingStatus.mockRejectedValueOnce(new Error('Init failed'));
+
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      await act(async () => {
+        await result.current.initialize();
+      });
+
+      expect(result.current.isInitialized).toBe(true);
+      expect(result.current.error).toBeTruthy();
+    });
+
+    it('should handle pause errors', async () => {
+      mocks.pauseRecording.mockRejectedValueOnce(new Error('Pause failed'));
+
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      await act(async () => {
+        await result.current.pause();
+      });
+
+      expect(result.current.error).toContain('Pause');
+    });
+
+    it('should handle resume errors', async () => {
+      mocks.resumeRecording.mockRejectedValueOnce(new Error('Resume failed'));
+
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      await act(async () => {
+        await result.current.resume();
+      });
+
+      expect(result.current.error).toContain('Resume');
+    });
+
+    it('should handle stop errors', async () => {
+      const mockStopRecording = screenRecordingModule.stopRecording as jest.Mock;
+      mockStopRecording.mockRejectedValueOnce(new Error('Stop failed'));
+
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      await act(async () => {
+        const metadata = await result.current.stop();
+        expect(metadata).toBeNull();
+      });
+
+      expect(result.current.error).toContain('Stop');
+    });
+
+    it('should handle cancel errors', async () => {
+      mocks.cancelRecording.mockRejectedValueOnce(new Error('Cancel failed'));
+
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      await act(async () => {
+        await result.current.cancel();
+      });
+
+      expect(result.current.error).toContain('Cancel');
+    });
+  });
+
+  describe('non-Tauri environment', () => {
+    it('should skip initialization in web environment', async () => {
+      mocks.isTauri.mockReturnValue(false);
+
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      await act(async () => {
+        await result.current.initialize();
+      });
+
+      expect(result.current.isInitialized).toBe(true);
+      expect(screenRecordingModule.getRecordingStatus).not.toHaveBeenCalled();
+    });
+
+    it('should return null for start recording in web', async () => {
+      mocks.isTauri.mockReturnValue(false);
+
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      await act(async () => {
+        const recordingId = await result.current.startRecording('fullscreen');
+        expect(recordingId).toBeNull();
+      });
+    });
+
+    it('should skip all operations in web environment', async () => {
+      mocks.isTauri.mockReturnValue(false);
+
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      await act(async () => {
+        await result.current.pause();
+        await result.current.resume();
+        await result.current.stop();
+        await result.current.cancel();
+        await result.current.refreshMonitors();
+        await result.current.refreshAudioDevices();
+        await result.current.refreshHistory();
+        await result.current.deleteFromHistory('test');
+        await result.current.clearHistory();
+      });
+
+      expect(mocks.pauseRecording).not.toHaveBeenCalled();
+      expect(mocks.resumeRecording).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('recording modes', () => {
+    beforeEach(() => {
+      mocks.isTauri.mockReturnValue(true);
+    });
+
+    it('should start window recording', async () => {
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      await act(async () => {
+        await result.current.initialize();
+      });
+
+      await act(async () => {
+        await result.current.startRecording('window', { windowTitle: 'Test Window' });
+      });
+
+      expect(screenRecordingModule.startWindowRecording).toHaveBeenCalledWith('Test Window');
+      expect(result.current.selectedMode).toBe('window');
+    });
+
+    it('should start region recording', async () => {
+      const region = { x: 100, y: 100, width: 800, height: 600 };
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      await act(async () => {
+        await result.current.initialize();
+      });
+
+      await act(async () => {
+        await result.current.startRecording('region', { region });
+      });
+
+      expect(screenRecordingModule.startRegionRecording).toHaveBeenCalledWith(region);
+      expect(result.current.selectedMode).toBe('region');
+    });
+
+    it('should fail region recording without region parameter', async () => {
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      await act(async () => {
+        await result.current.initialize();
+      });
+
+      await act(async () => {
+        const recordingId = await result.current.startRecording('region');
+        expect(recordingId).toBeNull();
+      });
+
+      expect(result.current.error).toContain('Region is required');
+    });
+  });
+
+  describe('FFmpeg check', () => {
+    it('should update ffmpegAvailable when checking', async () => {
+      const mockCheckFFmpeg = screenRecordingModule.checkFFmpeg as jest.Mock;
+      mockCheckFFmpeg.mockResolvedValueOnce(true);
+
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      await act(async () => {
+        const available = await result.current.checkFfmpeg();
+        expect(available).toBe(true);
+      });
+
+      expect(result.current.ffmpegAvailable).toBe(true);
+    });
+
+    it('should handle FFmpeg check failure', async () => {
+      const mockCheckFFmpeg = screenRecordingModule.checkFFmpeg as jest.Mock;
+      mockCheckFFmpeg.mockRejectedValueOnce(new Error('Check failed'));
+
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      await act(async () => {
+        const available = await result.current.checkFfmpeg();
+        expect(available).toBe(false);
+      });
+
+      expect(result.current.ffmpegAvailable).toBe(false);
+    });
+  });
+
+  describe('audio devices', () => {
+    it('should refresh audio devices', async () => {
+      const mockGetAudioDevices = screenRecordingModule.getAudioDevices as jest.Mock;
+      mockGetAudioDevices.mockResolvedValueOnce({
+        system_audio_available: true,
+        microphones: [
+          { id: 'mic-1', name: 'Microphone 1', is_default: true },
+          { id: 'mic-2', name: 'Microphone 2', is_default: false },
+        ],
+      });
+
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      await act(async () => {
+        await result.current.refreshAudioDevices();
+      });
+
+      expect(result.current.audioDevices.system_audio_available).toBe(true);
+      expect(result.current.audioDevices.microphones.length).toBe(2);
+    });
+  });
+
+  describe('persisted state', () => {
+    it('should preserve config across instances', () => {
+      const { result: result1 } = renderHook(() => useScreenRecordingStore());
+
+      act(() => {
+        result1.current.setSelectedMode('window');
+      });
+
+      const { result: result2 } = renderHook(() => useScreenRecordingStore());
+
+      expect(result2.current.selectedMode).toBe('window');
+    });
+
+    it('should preserve showRecordingIndicator setting', () => {
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      act(() => {
+        result.current.setShowIndicator(false);
+      });
+
+      expect(result.current.showRecordingIndicator).toBe(false);
+    });
+  });
+});

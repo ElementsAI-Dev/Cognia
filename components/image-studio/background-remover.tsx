@@ -36,6 +36,8 @@ import {
 
 import type { BackgroundType } from '@/types';
 
+import './background-remover.css';
+
 // Re-export types for backward compatibility
 export type { BackgroundType } from '@/types';
 
@@ -67,6 +69,7 @@ export function BackgroundRemover({
   const maskCanvasRef = useRef<HTMLCanvasElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const customColorRef = useRef<HTMLDivElement>(null);
 
   // State
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -82,6 +85,12 @@ export function BackgroundRemover({
   const [showOriginal, setShowOriginal] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasProcessed, setHasProcessed] = useState(false);
+
+  useEffect(() => {
+    if (customColorRef.current) {
+      customColorRef.current.style.setProperty('--custom-color', customColor);
+    }
+  }, [customColor]);
 
   // Load image
   useEffect(() => {
@@ -550,8 +559,11 @@ export function BackgroundRemover({
                     <Palette className="h-4 w-4 opacity-50" />
                   ) : (
                     <div
-                      className="w-4 h-4 rounded-sm border"
-                      style={{ backgroundColor: bg.color }}
+                      className={cn(
+                        'w-4 h-4 rounded-sm border',
+                        bg.type === 'white' && 'bg-white',
+                        bg.type === 'black' && 'bg-black'
+                      )}
                     />
                   )}
                 </Button>
@@ -574,8 +586,8 @@ export function BackgroundRemover({
                   }}
                 >
                   <div
-                    className="w-4 h-4 rounded-sm border"
-                    style={{ backgroundColor: customColor }}
+                    ref={customColorRef}
+                    className="w-4 h-4 rounded-sm border custom-color-swatch"
                   />
                 </Button>
                 <input
@@ -587,6 +599,8 @@ export function BackgroundRemover({
                     updatePreview();
                   }}
                   className="absolute inset-0 opacity-0 cursor-pointer"
+                  aria-label="Select custom color"
+                  title="Select custom color"
                 />
               </div>
             </TooltipTrigger>
@@ -663,9 +677,9 @@ export function BackgroundRemover({
           ref={previewCanvasRef}
           className={cn(
             'max-w-full max-h-full object-contain',
-            selectedTool !== 'auto' && 'cursor-crosshair'
+            selectedTool !== 'auto' && 'cursor-crosshair',
+            showOriginal ? 'hidden' : 'block'
           )}
-          style={{ display: showOriginal ? 'none' : 'block' }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}

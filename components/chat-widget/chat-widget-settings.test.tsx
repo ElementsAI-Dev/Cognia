@@ -95,6 +95,7 @@ describe('ChatWidgetSettings', () => {
     showTimestamps: false,
     soundEnabled: false,
     autoFocus: true,
+    backgroundColor: '#ffffff',
   };
 
   const defaultProps = {

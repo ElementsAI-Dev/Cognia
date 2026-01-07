@@ -5,7 +5,11 @@
 import { renderHook, act } from '@testing-library/react';
 import { useFloatingPosition } from './use-floating-position';
 
-// Mock window properties
+// Store original window values
+const originalInnerWidth = window.innerWidth;
+const originalInnerHeight = window.innerHeight;
+
+// Mock window properties using defineProperty on window itself
 const mockScreen = {
   width: 1920,
   height: 1080,
@@ -13,32 +17,30 @@ const mockScreen = {
   availHeight: 1040,
 };
 
-const mockWindow = {
-  innerWidth: 1280,
-  innerHeight: 720,
-  screenX: 0,
-  screenY: 0,
-  screenLeft: 0,
-  screenTop: 0,
-  screen: mockScreen,
-  addEventListener: jest.fn(),
-  removeEventListener: jest.fn(),
-  requestAnimationFrame: jest.fn((_cb) => {
-    return 1;
-  }),
-  cancelAnimationFrame: jest.fn(),
-};
-
-Object.defineProperty(global, 'window', {
-  value: mockWindow,
+Object.defineProperty(window, 'screen', {
+  value: mockScreen,
   writable: true,
+  configurable: true,
 });
+
+// Mock window methods
+window.requestAnimationFrame = jest.fn((_cb) => {
+  return 1;
+});
+window.cancelAnimationFrame = jest.fn();
 
 describe('useFloatingPosition', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockWindow.innerWidth = 1280;
-    mockWindow.innerHeight = 720;
+    // Use defineProperty to set innerWidth/innerHeight
+    Object.defineProperty(window, 'innerWidth', { value: 1280, writable: true, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 720, writable: true, configurable: true });
+  });
+
+  afterAll(() => {
+    // Restore original values
+    Object.defineProperty(window, 'innerWidth', { value: originalInnerWidth, writable: true, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: originalInnerHeight, writable: true, configurable: true });
   });
 
   describe('initialization', () => {
@@ -96,7 +98,7 @@ describe('useFloatingPosition', () => {
 
     it('should switch direction when not enough space', () => {
       // Small viewport
-      mockWindow.innerHeight = 400;
+      Object.defineProperty(window, 'innerHeight', { value: 400, writable: true, configurable: true });
 
       const { result } = renderHook(() =>
         useFloatingPosition({
@@ -128,8 +130,8 @@ describe('useFloatingPosition', () => {
     });
 
     it('should report false for directions without enough space', () => {
-      mockWindow.innerWidth = 300;
-      mockWindow.innerHeight = 300;
+      Object.defineProperty(window, 'innerWidth', { value: 300, writable: true, configurable: true });
+      Object.defineProperty(window, 'innerHeight', { value: 300, writable: true, configurable: true });
 
       const { result } = renderHook(() =>
         useFloatingPosition({

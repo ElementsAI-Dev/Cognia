@@ -367,25 +367,25 @@ export function SearchSettings() {
                         <div className="flex flex-col gap-0.5">
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <button
+                              <Button
                                 onClick={(e) => { e.stopPropagation(); adjustPriority(providerId, -1); }}
                                 className="p-0.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
                                 disabled={!settings?.enabled}
                               >
                                 <ArrowUp className="h-2.5 w-2.5" />
-                              </button>
+                              </Button>
                             </TooltipTrigger>
                             <TooltipContent side="left" className="text-xs">Higher priority</TooltipContent>
                           </Tooltip>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <button
+                              <Button
                                 onClick={(e) => { e.stopPropagation(); adjustPriority(providerId, 1); }}
                                 className="p-0.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
                                 disabled={!settings?.enabled}
                               >
                                 <ArrowDown className="h-2.5 w-2.5" />
-                              </button>
+                              </Button>
                             </TooltipTrigger>
                             <TooltipContent side="left" className="text-xs">Lower priority</TooltipContent>
                           </Tooltip>

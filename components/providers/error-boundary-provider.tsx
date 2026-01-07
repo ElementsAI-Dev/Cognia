@@ -10,6 +10,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, RefreshCw, Home } from 'lucide-react';
 
+export const navigation = {
+  navigateTo(url: string): void {
+    window.location.assign(url);
+  },
+};
+
 export interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
@@ -181,7 +187,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProviderProps, ErrorBoundaryS
     });
 
     // Reload the page to start fresh
-    window.location.href = '/';
+    navigation.navigateTo('/');
   };
 
   componentWillUnmount(): void {

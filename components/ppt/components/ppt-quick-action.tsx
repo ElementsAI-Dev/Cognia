@@ -70,7 +70,7 @@ export function PPTQuickAction({
     if (result) {
       onGenerationComplete?.(result.id);
       setDialogOpen(false);
-      router.push(`/designer?type=ppt&id=${result.id}`);
+      router.push(`/ppt?id=${result.id}`);
     } else {
       onGenerationError?.(error || 'Generation failed');
     }
@@ -103,7 +103,7 @@ export function PPTQuickAction({
       setOutlinePreviewOpen(false);
       setCurrentOutline(null);
       setCurrentConfig(null);
-      router.push(`/designer?type=ppt&id=${result.id}`);
+      router.push(`/ppt?id=${result.id}`);
     } else {
       onGenerationError?.(error || 'Generation failed');
     }

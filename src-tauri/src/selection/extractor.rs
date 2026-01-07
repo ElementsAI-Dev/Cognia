@@ -2,14 +2,17 @@
 //!
 //! Platform-specific text extraction using UI Automation (Windows) and clipboard fallback.
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use parking_lot::RwLock;
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::Arc;
 
 #[cfg(target_os = "windows")]
 use windows::{
-    core::{BSTR, Interface},
-    Win32::System::Com::{CoInitializeEx, CoUninitialize, CoCreateInstance, COINIT_APARTMENTTHREADED, CLSCTX_INPROC_SERVER},
+    core::{Interface, BSTR},
+    Win32::System::Com::{
+        CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_INPROC_SERVER,
+        COINIT_APARTMENTTHREADED,
+    },
     Win32::UI::Accessibility::{
         CUIAutomation, IUIAutomation, IUIAutomationTextPattern, UIA_TextPatternId,
     },
@@ -59,21 +62,32 @@ impl TextExtractor {
     #[cfg(target_os = "windows")]
     pub fn get_selected_text(&self) -> Result<Option<String>, String> {
         let attempt = self.detection_attempts.fetch_add(1, Ordering::Relaxed) + 1;
-        log::trace!("[TextExtractor] get_selected_text called (attempt #{})", attempt);
-        
+        log::trace!(
+            "[TextExtractor] get_selected_text called (attempt #{})",
+            attempt
+        );
+
         // Try UI Automation first (most reliable, doesn't modify clipboard)
         log::trace!("[TextExtractor] Attempting UI Automation method");
         match self.get_text_via_ui_automation() {
             Ok(Some(text)) if !text.is_empty() => {
-                log::debug!("[TextExtractor] UI Automation success: {} chars detected", text.len());
+                log::debug!(
+                    "[TextExtractor] UI Automation success: {} chars detected",
+                    text.len()
+                );
                 self.record_successful_detection(text.clone());
                 return Ok(Some(text));
             }
             Ok(_) => {
-                log::debug!("[TextExtractor] UI Automation returned no text, trying clipboard fallback");
+                log::debug!(
+                    "[TextExtractor] UI Automation returned no text, trying clipboard fallback"
+                );
             }
             Err(e) => {
-                log::debug!("[TextExtractor] UI Automation failed: {}, trying clipboard fallback", e);
+                log::debug!(
+                    "[TextExtractor] UI Automation failed: {}, trying clipboard fallback",
+                    e
+                );
             }
         }
 
@@ -85,7 +99,10 @@ impl TextExtractor {
     #[cfg(not(target_os = "windows"))]
     pub fn get_selected_text(&self) -> Result<Option<String>, String> {
         let attempt = self.detection_attempts.fetch_add(1, Ordering::Relaxed) + 1;
-        log::trace!("[TextExtractor] get_selected_text called on non-Windows (attempt #{})", attempt);
+        log::trace!(
+            "[TextExtractor] get_selected_text called on non-Windows (attempt #{})",
+            attempt
+        );
         self.get_text_via_clipboard_with_retry()
     }
 
@@ -95,7 +112,11 @@ impl TextExtractor {
         let text_len = text.len();
         *self.last_text.write() = Some(text);
         *self.last_detection_time.write() = Some(std::time::Instant::now());
-        log::debug!("[TextExtractor] Recorded successful detection #{}: {} chars", count, text_len);
+        log::debug!(
+            "[TextExtractor] Recorded successful detection #{}: {} chars",
+            count,
+            text_len
+        );
     }
 
     /// Get detection statistics
@@ -144,56 +165,42 @@ impl TextExtractor {
 
             // Create UI Automation instance
             log::trace!("[TextExtractor] Creating CUIAutomation instance");
-            let automation: IUIAutomation = CoCreateInstance(
-                &CUIAutomation,
-                None,
-                CLSCTX_INPROC_SERVER,
-            )
-            .map_err(|e| {
-                log::warn!("[TextExtractor] Failed to create CUIAutomation: {}", e);
-                format!("Failed to create CUIAutomation: {}", e)
-            })?;
+            let automation: IUIAutomation =
+                CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).map_err(|e| {
+                    log::warn!("[TextExtractor] Failed to create CUIAutomation: {}", e);
+                    format!("Failed to create CUIAutomation: {}", e)
+                })?;
 
             // Get focused element
             log::trace!("[TextExtractor] Getting focused element");
-            let focused = automation
-                .GetFocusedElement()
-                .map_err(|e| {
-                    log::debug!("[TextExtractor] Failed to get focused element: {}", e);
-                    format!("Failed to get focused element: {}", e)
-                })?;
+            let focused = automation.GetFocusedElement().map_err(|e| {
+                log::debug!("[TextExtractor] Failed to get focused element: {}", e);
+                format!("Failed to get focused element: {}", e)
+            })?;
 
             // Try to get TextPattern
             log::trace!("[TextExtractor] Getting TextPattern from focused element");
-            let pattern_obj = focused
-                .GetCurrentPattern(UIA_TextPatternId)
-                .map_err(|_| {
-                    log::trace!("[TextExtractor] Element does not support TextPattern");
-                    "Element does not support TextPattern".to_string()
-                })?;
+            let pattern_obj = focused.GetCurrentPattern(UIA_TextPatternId).map_err(|_| {
+                log::trace!("[TextExtractor] Element does not support TextPattern");
+                "Element does not support TextPattern".to_string()
+            })?;
 
-            let text_pattern: IUIAutomationTextPattern = pattern_obj
-                .cast()
-                .map_err(|e| {
-                    log::debug!("[TextExtractor] Failed to cast to TextPattern: {}", e);
-                    format!("Failed to cast to TextPattern: {}", e)
-                })?;
+            let text_pattern: IUIAutomationTextPattern = pattern_obj.cast().map_err(|e| {
+                log::debug!("[TextExtractor] Failed to cast to TextPattern: {}", e);
+                format!("Failed to cast to TextPattern: {}", e)
+            })?;
 
             // Get selection
             log::trace!("[TextExtractor] Getting text selection");
-            let selection = text_pattern
-                .GetSelection()
-                .map_err(|e| {
-                    log::debug!("[TextExtractor] Failed to get selection: {}", e);
-                    format!("Failed to get selection: {}", e)
-                })?;
+            let selection = text_pattern.GetSelection().map_err(|e| {
+                log::debug!("[TextExtractor] Failed to get selection: {}", e);
+                format!("Failed to get selection: {}", e)
+            })?;
 
-            let count = selection
-                .Length()
-                .map_err(|e| {
-                    log::debug!("[TextExtractor] Failed to get selection length: {}", e);
-                    format!("Failed to get selection length: {}", e)
-                })?;
+            let count = selection.Length().map_err(|e| {
+                log::debug!("[TextExtractor] Failed to get selection length: {}", e);
+                format!("Failed to get selection length: {}", e)
+            })?;
 
             log::trace!("[TextExtractor] Selection range count: {}", count);
             if count == 0 {
@@ -203,26 +210,25 @@ impl TextExtractor {
 
             // Get first selection range
             log::trace!("[TextExtractor] Getting first selection range");
-            let range = selection
-                .GetElement(0)
-                .map_err(|e| {
-                    log::debug!("[TextExtractor] Failed to get selection range: {}", e);
-                    format!("Failed to get selection range: {}", e)
-                })?;
+            let range = selection.GetElement(0).map_err(|e| {
+                log::debug!("[TextExtractor] Failed to get selection range: {}", e);
+                format!("Failed to get selection range: {}", e)
+            })?;
 
-            let text: BSTR = range
-                .GetText(-1)
-                .map_err(|e| {
-                    log::debug!("[TextExtractor] Failed to get text from range: {}", e);
-                    format!("Failed to get text: {}", e)
-                })?;
+            let text: BSTR = range.GetText(-1).map_err(|e| {
+                log::debug!("[TextExtractor] Failed to get text from range: {}", e);
+                format!("Failed to get text: {}", e)
+            })?;
 
             let text_str = text.to_string();
             if text_str.is_empty() {
                 log::trace!("[TextExtractor] UI Automation returned empty text");
                 Ok(None)
             } else {
-                log::debug!("[TextExtractor] UI Automation extracted {} chars", text_str.len());
+                log::debug!(
+                    "[TextExtractor] UI Automation extracted {} chars",
+                    text_str.len()
+                );
                 Ok(Some(text_str))
             }
         }
@@ -230,36 +236,67 @@ impl TextExtractor {
 
     /// Clipboard fallback with retry logic
     fn get_text_via_clipboard_with_retry(&self) -> Result<Option<String>, String> {
-        log::trace!("[TextExtractor] get_text_via_clipboard_with_retry: starting (max {} attempts)", MAX_CLIPBOARD_RETRIES);
+        log::trace!(
+            "[TextExtractor] get_text_via_clipboard_with_retry: starting (max {} attempts)",
+            MAX_CLIPBOARD_RETRIES
+        );
         let mut last_error = String::new();
-        
+
         for attempt in 0..MAX_CLIPBOARD_RETRIES {
-            log::trace!("[TextExtractor] Clipboard attempt {}/{}", attempt + 1, MAX_CLIPBOARD_RETRIES);
+            log::trace!(
+                "[TextExtractor] Clipboard attempt {}/{}",
+                attempt + 1,
+                MAX_CLIPBOARD_RETRIES
+            );
             match self.get_text_via_clipboard() {
                 Ok(Some(text)) if !text.is_empty() => {
-                    log::debug!("[TextExtractor] Clipboard method success on attempt {}: {} chars", attempt + 1, text.len());
+                    log::debug!(
+                        "[TextExtractor] Clipboard method success on attempt {}: {} chars",
+                        attempt + 1,
+                        text.len()
+                    );
                     self.record_successful_detection(text.clone());
                     return Ok(Some(text));
                 }
                 Ok(_) => {
-                    log::trace!("[TextExtractor] Clipboard returned no text on attempt {}", attempt + 1);
+                    log::trace!(
+                        "[TextExtractor] Clipboard returned no text on attempt {}",
+                        attempt + 1
+                    );
                     return Ok(None);
                 }
                 Err(e) => {
                     last_error = e.clone();
                     if attempt < MAX_CLIPBOARD_RETRIES - 1 {
-                        log::debug!("[TextExtractor] Clipboard attempt {} failed: {}, retrying in {}ms...", 
-                            attempt + 1, e, CLIPBOARD_RETRY_DELAY_MS);
-                        std::thread::sleep(std::time::Duration::from_millis(CLIPBOARD_RETRY_DELAY_MS));
+                        log::debug!(
+                            "[TextExtractor] Clipboard attempt {} failed: {}, retrying in {}ms...",
+                            attempt + 1,
+                            e,
+                            CLIPBOARD_RETRY_DELAY_MS
+                        );
+                        std::thread::sleep(std::time::Duration::from_millis(
+                            CLIPBOARD_RETRY_DELAY_MS,
+                        ));
                     } else {
-                        log::warn!("[TextExtractor] Clipboard attempt {} failed: {} (no more retries)", attempt + 1, e);
+                        log::warn!(
+                            "[TextExtractor] Clipboard attempt {} failed: {} (no more retries)",
+                            attempt + 1,
+                            e
+                        );
                     }
                 }
             }
         }
-        
-        log::error!("[TextExtractor] Clipboard fallback failed after {} attempts: {}", MAX_CLIPBOARD_RETRIES, last_error);
-        Err(format!("Clipboard fallback failed after {} attempts: {}", MAX_CLIPBOARD_RETRIES, last_error))
+
+        log::error!(
+            "[TextExtractor] Clipboard fallback failed after {} attempts: {}",
+            MAX_CLIPBOARD_RETRIES,
+            last_error
+        );
+        Err(format!(
+            "Clipboard fallback failed after {} attempts: {}",
+            MAX_CLIPBOARD_RETRIES, last_error
+        ))
     }
 
     /// Fallback method: simulate Ctrl+C and read from clipboard
@@ -274,7 +311,10 @@ impl TextExtractor {
             .as_millis() as u64;
         let last_copy = self.last_clipboard_copy_time.load(Ordering::Relaxed);
         if last_copy > 0 && now_ms.saturating_sub(last_copy) < CLIPBOARD_DEBOUNCE_MS {
-            log::trace!("[TextExtractor] Clipboard copy debounced ({}ms since last)", now_ms.saturating_sub(last_copy));
+            log::trace!(
+                "[TextExtractor] Clipboard copy debounced ({}ms since last)",
+                now_ms.saturating_sub(last_copy)
+            );
             // Return last text instead of triggering another copy
             return Ok(self.last_text.read().clone());
         }
@@ -285,10 +325,12 @@ impl TextExtractor {
             format!("Failed to create clipboard: {}", e)
         })?;
         let original = clipboard.get_text().ok();
-        log::trace!("[TextExtractor] Saved original clipboard content: {} chars", 
-            original.as_ref().map(|s| s.len()).unwrap_or(0));
+        log::trace!(
+            "[TextExtractor] Saved original clipboard content: {} chars",
+            original.as_ref().map(|s| s.len()).unwrap_or(0)
+        );
 
-        // Simulate Ctrl+C
+        // Simulate Ctrl+C with guaranteed Ctrl key release
         #[cfg(target_os = "windows")]
         {
             use rdev::{simulate, EventType, Key};
@@ -299,36 +341,65 @@ impl TextExtractor {
 
             thread::sleep(Duration::from_millis(10));
 
-            simulate(&EventType::KeyPress(Key::ControlLeft))
-                .map_err(|e| {
+            // Track if Ctrl was pressed so we can ensure it gets released
+            let mut ctrl_pressed = false;
+            let mut simulation_error: Option<String> = None;
+
+            // Press Ctrl
+            match simulate(&EventType::KeyPress(Key::ControlLeft)) {
+                Ok(_) => {
+                    ctrl_pressed = true;
+                    thread::sleep(Duration::from_millis(20));
+                }
+                Err(e) => {
                     log::warn!("[TextExtractor] Failed to simulate Ctrl press: {:?}", e);
-                    format!("Failed to simulate Ctrl press: {:?}", e)
-                })?;
-            thread::sleep(Duration::from_millis(20));
-            
-            simulate(&EventType::KeyPress(Key::KeyC))
-                .map_err(|e| {
+                    simulation_error = Some(format!("Failed to simulate Ctrl press: {:?}", e));
+                }
+            }
+
+            // Only proceed with C key if Ctrl was pressed successfully
+            if ctrl_pressed && simulation_error.is_none() {
+                // Press C
+                if let Err(e) = simulate(&EventType::KeyPress(Key::KeyC)) {
                     log::warn!("[TextExtractor] Failed to simulate C press: {:?}", e);
-                    format!("Failed to simulate C press: {:?}", e)
-                })?;
-            thread::sleep(Duration::from_millis(20));
-            
-            simulate(&EventType::KeyRelease(Key::KeyC))
-                .map_err(|e| {
+                    simulation_error = Some(format!("Failed to simulate C press: {:?}", e));
+                } else {
+                    thread::sleep(Duration::from_millis(20));
+                }
+
+                // Release C (always try even if press failed, to ensure clean state)
+                if let Err(e) = simulate(&EventType::KeyRelease(Key::KeyC)) {
                     log::warn!("[TextExtractor] Failed to simulate C release: {:?}", e);
-                    format!("Failed to simulate C release: {:?}", e)
-                })?;
-            thread::sleep(Duration::from_millis(10));
-            
-            simulate(&EventType::KeyRelease(Key::ControlLeft))
-                .map_err(|e| {
-                    log::warn!("[TextExtractor] Failed to simulate Ctrl release: {:?}", e);
-                    format!("Failed to simulate Ctrl release: {:?}", e)
-                })?;
+                    // Don't override existing error, C release is less critical
+                }
+                thread::sleep(Duration::from_millis(10));
+            }
+
+            // CRITICAL: Always release Ctrl key if it was pressed, regardless of any errors
+            // This prevents the Ctrl key from getting "stuck" at the OS level
+            if ctrl_pressed {
+                if let Err(e) = simulate(&EventType::KeyRelease(Key::ControlLeft)) {
+                    log::error!(
+                        "[TextExtractor] CRITICAL: Failed to release Ctrl key: {:?}",
+                        e
+                    );
+                    // Try releasing it again after a small delay
+                    thread::sleep(Duration::from_millis(50));
+                    let _ = simulate(&EventType::KeyRelease(Key::ControlLeft));
+                    // Also try releasing the right Ctrl key just in case
+                    let _ = simulate(&EventType::KeyRelease(Key::ControlRight));
+                }
+            }
+
+            // If there was a simulation error, return it now (after Ctrl is released)
+            if let Some(err) = simulation_error {
+                return Err(err);
+            }
 
             thread::sleep(Duration::from_millis(80));
             // Update last copy time after successful simulation
-            self.last_clipboard_copy_time.store(now_ms, Ordering::Relaxed);
+            self.last_clipboard_copy_time
+                .store(now_ms, Ordering::Relaxed);
             log::trace!("[TextExtractor] Ctrl+C simulation complete");
         }
 
@@ -339,8 +410,10 @@ impl TextExtractor {
 
         // Read new clipboard content
         let new_text = clipboard.get_text().ok();
-        log::trace!("[TextExtractor] New clipboard content: {} chars", 
-            new_text.as_ref().map(|s| s.len()).unwrap_or(0));
+        log::trace!(
+            "[TextExtractor] New clipboard content: {} chars",
+            new_text.as_ref().map(|s| s.len()).unwrap_or(0)
+        );
 
         // Restore original clipboard if we got new text
         if let Some(ref orig) = original {
@@ -360,7 +433,10 @@ impl TextExtractor {
         // Return new text if different from original
         if new_text != original {
             if let Some(ref text) = new_text {
-                log::debug!("[TextExtractor] Clipboard method got {} chars (different from original)", text.len());
+                log::debug!(
+                    "[TextExtractor] Clipboard method got {} chars (different from original)",
+                    text.len()
+                );
             }
             Ok(new_text)
         } else {
@@ -422,7 +498,7 @@ mod tests {
     fn test_record_successful_detection() {
         let extractor = TextExtractor::new();
         extractor.record_successful_detection("detected".to_string());
-        
+
         let (_, successes) = extractor.get_stats();
         assert_eq!(successes, 1);
         assert_eq!(extractor.get_last_text(), Some("detected".to_string()));
@@ -432,7 +508,7 @@ mod tests {
     fn test_time_since_last_detection() {
         let extractor = TextExtractor::new();
         assert!(extractor.time_since_last_detection().is_none());
-        
+
         extractor.record_successful_detection("test".to_string());
         assert!(extractor.time_since_last_detection().is_some());
     }

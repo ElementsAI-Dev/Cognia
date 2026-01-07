@@ -25,20 +25,10 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Sparkles, Users, Target, MessageSquare, Palette } from 'lucide-react';
 import { DEFAULT_PPT_THEMES } from '@/types/workflow';
-import type { PPTTheme } from '@/types/workflow';
+import type { PPTGenerationConfig } from '@/hooks/ppt';
 
-export interface PPTGenerationConfig {
-  topic: string;
-  description?: string;
-  audience?: string;
-  purpose?: 'informative' | 'persuasive' | 'educational' | 'pitch' | 'report';
-  tone?: 'formal' | 'casual' | 'professional' | 'creative';
-  slideCount: number;
-  theme: PPTTheme;
-  language?: string;
-  includeImages?: boolean;
-  includeCharts?: boolean;
-}
+// Re-export for convenience
+export type { PPTGenerationConfig };
 
 export interface PPTGenerationDialogProps {
   open: boolean;

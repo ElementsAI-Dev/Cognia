@@ -3,6 +3,7 @@
  */
 
 export { AppearanceSettings } from './appearance-settings';
+export { BackgroundSettings } from './background-settings';
 export { ThemeEditor } from './theme-editor';
 export { ThemeImportExport } from './theme-import-export';
 export { ThemePreview, ThemePreviewInline } from './theme-preview';

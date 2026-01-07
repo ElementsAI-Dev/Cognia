@@ -35,6 +35,7 @@ export const Message = ({ className, from, ...props }: MessageProps) => (
       from === "user" ? "is-user ml-auto justify-end" : "is-assistant",
       className
     )}
+    data-message-bubble
     {...props}
   />
 );

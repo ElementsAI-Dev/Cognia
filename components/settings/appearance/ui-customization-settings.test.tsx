@@ -51,6 +51,27 @@ jest.mock('@/stores', () => ({
 // Mock lib/themes
 jest.mock('@/lib/themes', () => ({
   applyUICustomization: jest.fn(),
+  UI_FONT_OPTIONS: [
+    { value: 'system', label: 'System Default' },
+    { value: 'inter', label: 'Inter' },
+    { value: 'roboto', label: 'Roboto' },
+  ],
+}));
+
+// Mock lucide-react icons
+jest.mock('lucide-react', () => ({
+  Sliders: () => <span>Sliders</span>,
+  RotateCcw: () => <span>RotateCcw</span>,
+  Layout: () => <span>Layout</span>,
+  Sparkles: () => <span>Sparkles</span>,
+  MessageSquare: () => <span>MessageSquare</span>,
+  User: () => <span>User</span>,
+  Clock: () => <span>Clock</span>,
+}));
+
+// Mock lib/utils
+jest.mock('@/lib/utils', () => ({
+  cn: (...args: string[]) => args.filter(Boolean).join(' '),
 }));
 
 // Mock UI components

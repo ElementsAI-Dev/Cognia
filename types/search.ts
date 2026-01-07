@@ -455,3 +455,110 @@ export function validateApiKey(provider: SearchProviderType, apiKey: string): bo
   
   return apiKey.length >= 10;
 }
+
+/**
+ * Source verification mode
+ * - 'ask': Ask user before using sources
+ * - 'auto': Automatically verify and use sources
+ * - 'disabled': Skip source verification
+ */
+export type SourceVerificationMode = 'ask' | 'auto' | 'disabled';
+
+/**
+ * Source type classification
+ */
+export type SourceType =
+  | 'government'
+  | 'academic'
+  | 'news'
+  | 'reference'
+  | 'organization'
+  | 'corporate'
+  | 'blog'
+  | 'social'
+  | 'forum'
+  | 'unknown';
+
+/**
+ * Credibility level
+ */
+export type CredibilityLevel = 'high' | 'medium' | 'low' | 'unknown';
+
+/**
+ * Source verification result for a single source
+ */
+export interface SourceVerification {
+  url: string;
+  domain: string;
+  rootDomain: string;
+  sourceType: SourceType;
+  credibilityScore: number;
+  credibilityLevel: CredibilityLevel;
+  isHttps: boolean;
+  trustIndicators: string[];
+  warningIndicators: string[];
+  userMarked?: 'trusted' | 'blocked' | null;
+}
+
+/**
+ * Cross-validation result between sources
+ */
+export interface CrossValidationResult {
+  claim: string;
+  supportingSources: string[];
+  contradictingSources: string[];
+  neutralSources: string[];
+  consensusScore: number;
+}
+
+/**
+ * Enhanced search result with verification data
+ */
+export interface VerifiedSearchResult extends SearchResult {
+  verification?: SourceVerification;
+  isEnabled: boolean;
+}
+
+/**
+ * Enhanced search response with verification
+ */
+export interface VerifiedSearchResponse extends Omit<SearchResponse, 'results'> {
+  results: VerifiedSearchResult[];
+  verificationReport?: {
+    totalSources: number;
+    highCredibility: number;
+    mediumCredibility: number;
+    lowCredibility: number;
+    averageCredibility: number;
+    crossValidation?: CrossValidationResult[];
+    recommendations: string[];
+  };
+}
+
+/**
+ * Source verification settings
+ */
+export interface SourceVerificationSettings {
+  enabled: boolean;
+  mode: SourceVerificationMode;
+  minimumCredibilityScore: number;
+  autoFilterLowCredibility: boolean;
+  showVerificationBadges: boolean;
+  trustedDomains: string[];
+  blockedDomains: string[];
+  enableCrossValidation: boolean;
+}
+
+/**
+ * Default source verification settings
+ */
+export const DEFAULT_SOURCE_VERIFICATION_SETTINGS: SourceVerificationSettings = {
+  enabled: true,
+  mode: 'ask',
+  minimumCredibilityScore: 0.3,
+  autoFilterLowCredibility: false,
+  showVerificationBadges: true,
+  trustedDomains: [],
+  blockedDomains: [],
+  enableCrossValidation: true,
+};

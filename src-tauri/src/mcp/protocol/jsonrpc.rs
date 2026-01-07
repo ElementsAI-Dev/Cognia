@@ -1,4 +1,4 @@
-﻿//! JSON-RPC 2.0 protocol implementation for MCP
+//! JSON-RPC 2.0 protocol implementation for MCP
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -301,7 +301,7 @@ mod tests {
         let id1 = RequestId::Number(1);
         let id2 = RequestId::Number(1);
         let id3 = RequestId::Number(2);
-        
+
         assert_eq!(id1, id2);
         assert_ne!(id1, id3);
     }
@@ -312,7 +312,7 @@ mod tests {
         let mut set = HashSet::new();
         set.insert(RequestId::Number(1));
         set.insert(RequestId::String("a".to_string()));
-        
+
         assert!(set.contains(&RequestId::Number(1)));
         assert!(set.contains(&RequestId::String("a".to_string())));
         assert!(!set.contains(&RequestId::Number(2)));
@@ -340,7 +340,11 @@ mod tests {
 
     #[test]
     fn test_request_serialization() {
-        let request = JsonRpcRequest::new(1i64, "test_method", Some(serde_json::json!({"key": "value"})));
+        let request = JsonRpcRequest::new(
+            1i64,
+            "test_method",
+            Some(serde_json::json!({"key": "value"})),
+        );
         let json = serde_json::to_string(&request).unwrap();
         assert!(json.contains("\"jsonrpc\":\"2.0\""));
         assert!(json.contains("\"method\":\"test_method\""));
@@ -350,7 +354,7 @@ mod tests {
     fn test_request_deserialization() {
         let json = r#"{"jsonrpc":"2.0","id":42,"method":"test","params":{"a":1}}"#;
         let request: JsonRpcRequest = serde_json::from_str(json).unwrap();
-        
+
         assert_eq!(request.jsonrpc, "2.0");
         assert_eq!(request.id, RequestId::Number(42));
         assert_eq!(request.method, "test");
@@ -361,7 +365,7 @@ mod tests {
     fn test_request_without_params_serialization() {
         let request = JsonRpcRequest::new(1i64, "test", None);
         let json = serde_json::to_string(&request).unwrap();
-        
+
         // params should be skipped when None
         assert!(!json.contains("params"));
     }
@@ -372,7 +376,8 @@ mod tests {
 
     #[test]
     fn test_response_success() {
-        let response = JsonRpcResponse::success(RequestId::Number(1), serde_json::json!({"result": "ok"}));
+        let response =
+            JsonRpcResponse::success(RequestId::Number(1), serde_json::json!({"result": "ok"}));
         assert!(response.result.is_some());
         assert!(response.error.is_none());
     }
@@ -391,7 +396,7 @@ mod tests {
     fn test_response_serialization_success() {
         let response = JsonRpcResponse::success(RequestId::Number(1), serde_json::json!("ok"));
         let json = serde_json::to_value(&response).unwrap();
-        
+
         assert_eq!(json["jsonrpc"], "2.0");
         assert_eq!(json["id"], 1);
         assert_eq!(json["result"], "ok");
@@ -405,7 +410,7 @@ mod tests {
             JsonRpcError::new(-32600, "Invalid Request"),
         );
         let json = serde_json::to_value(&response).unwrap();
-        
+
         assert_eq!(json["jsonrpc"], "2.0");
         assert_eq!(json["id"], 1);
         assert!(json.get("result").is_none());
@@ -416,7 +421,7 @@ mod tests {
     fn test_response_deserialization() {
         let json = r#"{"jsonrpc":"2.0","id":1,"result":{"status":"ok"}}"#;
         let response: JsonRpcResponse = serde_json::from_str(json).unwrap();
-        
+
         assert_eq!(response.id, RequestId::Number(1));
         assert!(response.result.is_some());
         assert!(response.error.is_none());
@@ -436,7 +441,11 @@ mod tests {
 
     #[test]
     fn test_error_with_data() {
-        let error = JsonRpcError::with_data(-32000, "Server error", serde_json::json!({"detail": "info"}));
+        let error = JsonRpcError::with_data(
+            -32000,
+            "Server error",
+            serde_json::json!({"detail": "info"}),
+        );
         assert_eq!(error.code, -32000);
         assert!(error.data.is_some());
         assert_eq!(error.data.unwrap()["detail"], "info");
@@ -481,7 +490,7 @@ mod tests {
     fn test_error_serialization() {
         let error = JsonRpcError::with_data(-32000, "Error", serde_json::json!({"key": "value"}));
         let json = serde_json::to_value(&error).unwrap();
-        
+
         assert_eq!(json["code"], -32000);
         assert_eq!(json["message"], "Error");
         assert_eq!(json["data"]["key"], "value");
@@ -510,7 +519,7 @@ mod tests {
     fn test_notification_serialization() {
         let notification = JsonRpcNotification::new("test", Some(serde_json::json!({"a": 1})));
         let json = serde_json::to_value(&notification).unwrap();
-        
+
         assert_eq!(json["jsonrpc"], "2.0");
         assert_eq!(json["method"], "test");
         assert_eq!(json["params"]["a"], 1);
@@ -520,7 +529,7 @@ mod tests {
     fn test_notification_deserialization() {
         let json = r#"{"jsonrpc":"2.0","method":"notifications/test","params":{"key":"value"}}"#;
         let notification: JsonRpcNotification = serde_json::from_str(json).unwrap();
-        
+
         assert_eq!(notification.method, "notifications/test");
         assert!(notification.params.is_some());
     }
@@ -533,7 +542,7 @@ mod tests {
     fn test_message_parse_request() {
         let json = r#"{"jsonrpc":"2.0","id":1,"method":"test"}"#;
         let message = JsonRpcMessage::parse(json).unwrap();
-        
+
         assert!(message.is_request());
         assert!(!message.is_response());
         assert!(!message.is_notification());
@@ -543,7 +552,7 @@ mod tests {
     fn test_message_parse_response() {
         let json = r#"{"jsonrpc":"2.0","id":1,"result":"ok"}"#;
         let message = JsonRpcMessage::parse(json).unwrap();
-        
+
         assert!(!message.is_request());
         assert!(message.is_response());
         assert!(!message.is_notification());
@@ -553,7 +562,7 @@ mod tests {
     fn test_message_parse_notification() {
         let json = r#"{"jsonrpc":"2.0","method":"notifications/test"}"#;
         let message = JsonRpcMessage::parse(json).unwrap();
-        
+
         assert!(!message.is_request());
         assert!(!message.is_response());
         assert!(message.is_notification());
@@ -624,10 +633,22 @@ mod tests {
     fn test_notification_methods() {
         assert_eq!(methods::NOTIFICATION_PROGRESS, "notifications/progress");
         assert_eq!(methods::NOTIFICATION_MESSAGE, "notifications/message");
-        assert_eq!(methods::NOTIFICATION_RESOURCES_UPDATED, "notifications/resources/updated");
-        assert_eq!(methods::NOTIFICATION_RESOURCES_LIST_CHANGED, "notifications/resources/list_changed");
-        assert_eq!(methods::NOTIFICATION_TOOLS_LIST_CHANGED, "notifications/tools/list_changed");
-        assert_eq!(methods::NOTIFICATION_PROMPTS_LIST_CHANGED, "notifications/prompts/list_changed");
+        assert_eq!(
+            methods::NOTIFICATION_RESOURCES_UPDATED,
+            "notifications/resources/updated"
+        );
+        assert_eq!(
+            methods::NOTIFICATION_RESOURCES_LIST_CHANGED,
+            "notifications/resources/list_changed"
+        );
+        assert_eq!(
+            methods::NOTIFICATION_TOOLS_LIST_CHANGED,
+            "notifications/tools/list_changed"
+        );
+        assert_eq!(
+            methods::NOTIFICATION_PROMPTS_LIST_CHANGED,
+            "notifications/prompts/list_changed"
+        );
         assert_eq!(methods::NOTIFICATION_CANCELLED, "notifications/cancelled");
     }
 

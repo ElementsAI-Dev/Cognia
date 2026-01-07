@@ -7,6 +7,7 @@ import {
   createCalculatorTool,
   createWebSearchTool,
   createRAGSearchTool,
+  createListRAGCollectionsTool,
   createDesignerTool,
   createCodeExecutionTool,
   getToolsFromRegistry,
@@ -159,9 +160,104 @@ describe('createRAGSearchTool', () => {
       maxContextLength: 4000,
     };
     const tool = createRAGSearchTool(ragConfig);
-    const result = await tool.execute({ query: 'test' });
+    const result = await tool.execute({ query: 'test', collectionName: 'default' });
 
     expect(result).toEqual({ success: true, results: [] });
+  });
+
+  it('includes available collections in description when provided', () => {
+    const ragConfig = {
+      chromaConfig: {
+        mode: 'embedded' as const,
+        serverUrl: '',
+        embeddingConfig: { provider: 'openai' as const, model: 'text-embedding-3-small' },
+        apiKey: 'test-key',
+      },
+      topK: 5,
+      similarityThreshold: 0.5,
+      maxContextLength: 4000,
+    };
+    const tool = createRAGSearchTool(ragConfig, {
+      availableCollections: ['docs', 'knowledge', 'faq'],
+      defaultCollectionName: 'docs',
+    });
+
+    expect(tool.description).toContain('Available collections');
+    expect(tool.description).toContain('"docs"');
+    expect(tool.description).toContain('"knowledge"');
+    expect(tool.description).toContain('"faq"');
+    expect(tool.description).toContain('Default collection: "docs"');
+  });
+
+  it('uses default collection name when not specified in input', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { executeRAGSearch } = require('../tools');
+    const ragConfig = {
+      chromaConfig: {
+        mode: 'embedded' as const,
+        serverUrl: '',
+        embeddingConfig: { provider: 'openai' as const, model: 'text-embedding-3-small' },
+        apiKey: 'test-key',
+      },
+      topK: 5,
+      similarityThreshold: 0.5,
+      maxContextLength: 4000,
+    };
+    const tool = createRAGSearchTool(ragConfig, {
+      defaultCollectionName: 'my-default',
+    });
+    
+    await tool.execute({ query: 'test' });
+    
+    expect(executeRAGSearch).toHaveBeenCalledWith(
+      expect.objectContaining({ collectionName: 'my-default' }),
+      ragConfig
+    );
+  });
+});
+
+describe('createListRAGCollectionsTool', () => {
+  it('creates a list RAG collections tool', () => {
+    const getCollections = () => [{ name: 'docs', documentCount: 10 }];
+    const tool = createListRAGCollectionsTool(getCollections);
+
+    expect(tool.name).toBe('list_rag_collections');
+    expect(tool.description).toContain('List all available knowledge base collections');
+    expect(tool.requiresApproval).toBe(false);
+  });
+
+  it('returns empty list when no collections exist', async () => {
+    const getCollections = () => [];
+    const tool = createListRAGCollectionsTool(getCollections);
+    const result = await tool.execute({});
+
+    expect(result).toEqual({
+      success: true,
+      collections: [],
+      message: 'No knowledge base collections found. Documents need to be uploaded first.',
+    });
+  });
+
+  it('returns list of collections with metadata', async () => {
+    const getCollections = () => [
+      { name: 'docs', description: 'Documentation', documentCount: 100 },
+      { name: 'faq', description: 'FAQ entries', documentCount: 50 },
+    ];
+    const tool = createListRAGCollectionsTool(getCollections);
+    const result = await tool.execute({}) as {
+      success: boolean;
+      collections: Array<{ name: string; description: string; documentCount: number }>;
+      message: string;
+    };
+
+    expect(result.success).toBe(true);
+    expect(result.collections).toHaveLength(2);
+    expect(result.collections[0]).toEqual({
+      name: 'docs',
+      description: 'Documentation',
+      documentCount: 100,
+    });
+    expect(result.message).toContain('2 collection(s)');
   });
 });
 

@@ -39,6 +39,9 @@ import {
   ZoomIn,
   ZoomOut,
   X,
+  Circle,
+  Square,
+  Disc,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -77,16 +80,31 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { useScreenRecordingStore } from '@/stores/media';
+import { useScreenRecording } from '@/hooks/native/use-screen-recording';
 import {
   formatDuration,
   formatFileSize,
   type RecordingHistoryEntry,
 } from '@/lib/native/screen-recording';
+import {
+  trimVideo,
+  convertVideo,
+  generateOutputFilename,
+  type VideoTrimOptions,
+  type VideoConvertOptions,
+  type VideoProcessingResult as _VideoProcessingResult,
+} from '@/lib/native/video-processing';
 import { isTauri } from '@/lib/native/utils';
 
 interface TrimRange {
   start: number; // percentage 0-100
   end: number;   // percentage 0-100
+}
+
+interface ExportState {
+  isExporting: boolean;
+  progress: number;
+  message: string;
 }
 
 export default function VideoEditorPage() {
@@ -100,6 +118,33 @@ export default function VideoEditorPage() {
     refreshHistory,
     deleteFromHistory,
   } = useScreenRecordingStore();
+
+  // Screen recording hook
+  const {
+    isRecording,
+    isPaused,
+    isCountdown,
+    isProcessing,
+    duration: recordingDuration,
+    isAvailable: isRecordingAvailable,
+    startFullscreen,
+    pause: pauseRecording,
+    resume: resumeRecording,
+    stop: stopRecording,
+    cancel: cancelRecording,
+    monitors,
+    selectedMonitor,
+    setSelectedMonitor,
+    formatDuration: formatRecordingDuration,
+    error: recordingError,
+    clearError,
+  } = useScreenRecording({
+    autoInitialize: true,
+    onRecordingStop: () => {
+      // Refresh history when recording stops to show new video
+      refreshHistory();
+    },
+  });
 
   // State
   const [selectedVideo, setSelectedVideo] = useState<RecordingHistoryEntry | null>(null);
@@ -115,6 +160,12 @@ export default function VideoEditorPage() {
   const [videoToDelete, setVideoToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [exportFormat, setExportFormat] = useState<'mp4' | 'webm' | 'gif'>('mp4');
+  const [exportQuality, setExportQuality] = useState(80);
+  const [exportState, setExportState] = useState<ExportState>({
+    isExporting: false,
+    progress: 0,
+    message: '',
+  });
   const [zoomLevel, setZoomLevel] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -300,14 +351,71 @@ export default function VideoEditorPage() {
     }));
   }, []);
 
-  const applyTrim = useCallback(() => {
-    // In a real implementation, this would call FFmpeg to trim the video
+  const applyTrim = useCallback(async () => {
+    if (!selectedVideo?.file_path || !duration) return;
+    
     setIsTrimming(true);
-    setTimeout(() => {
+    setExportState({ isExporting: true, progress: 10, message: t('trimming') });
+    
+    try {
+      // Calculate actual times from trim range percentages
+      const startTime = (trimRange.start / 100) * (duration / 1000);
+      const endTime = (trimRange.end / 100) * (duration / 1000);
+      
+      // Generate output path
+      const outputPath = generateOutputFilename(
+        selectedVideo.file_path,
+        exportFormat,
+        '_trimmed'
+      );
+      
+      const options: VideoTrimOptions = {
+        inputPath: selectedVideo.file_path,
+        outputPath,
+        startTime,
+        endTime,
+        format: exportFormat,
+        quality: exportQuality,
+        gifFps: exportFormat === 'gif' ? 10 : undefined,
+      };
+      
+      setExportState({ isExporting: true, progress: 30, message: t('processing') });
+      
+      const result = await trimVideo(options);
+      
+      if (result.success) {
+        setExportState({ isExporting: true, progress: 100, message: t('complete') });
+        
+        // Refresh history to show the new trimmed video
+        await refreshHistory();
+        
+        // Open the folder containing the exported file
+        if (isTauri()) {
+          const { open } = await import('@tauri-apps/plugin-shell');
+          const folderPath = result.outputPath.substring(
+            0,
+            Math.max(result.outputPath.lastIndexOf('/'), result.outputPath.lastIndexOf('\\'))
+          );
+          await open(folderPath);
+        }
+      } else {
+        throw new Error(result.error || t('trimFailed'));
+      }
+    } catch (error) {
+      console.error('Trim failed:', error);
+      setExportState({ 
+        isExporting: false, 
+        progress: 0, 
+        message: error instanceof Error ? error.message : t('trimFailed') 
+      });
+    } finally {
       setIsTrimming(false);
-      // Show success message
-    }, 2000);
-  }, []);
+      // Reset export state after a delay
+      setTimeout(() => {
+        setExportState({ isExporting: false, progress: 0, message: '' });
+      }, 2000);
+    }
+  }, [selectedVideo, duration, trimRange, exportFormat, exportQuality, refreshHistory, t]);
 
   // Video selection
   const handleSelectVideo = useCallback((entry: RecordingHistoryEntry) => {
@@ -344,27 +452,122 @@ export default function VideoEditorPage() {
     if (!selectedVideo?.file_path) return;
     
     setIsLoading(true);
+    setExportState({ isExporting: true, progress: 10, message: t('exporting') });
+    
     try {
-      // In a real implementation, this would:
-      // 1. Apply trim if needed
-      // 2. Convert format if different
-      // 3. Save or download the file
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const hasTrimChanges = trimRange.start > 0 || trimRange.end < 100;
       
-      // Open file location or trigger download
-      if (isTauri()) {
-        const { open } = await import('@tauri-apps/plugin-shell');
-        // Open the folder containing the file
-        const folderPath = selectedVideo.file_path.substring(
-          0,
-          selectedVideo.file_path.lastIndexOf('\\')
+      // Determine input file extension
+      const inputExtension = selectedVideo.file_path
+        .substring(selectedVideo.file_path.lastIndexOf('.') + 1)
+        .toLowerCase();
+      const needsConversion = inputExtension !== exportFormat;
+      
+      if (hasTrimChanges) {
+        // If there are trim changes, apply trim (which also converts format)
+        const startTime = (trimRange.start / 100) * (duration / 1000);
+        const endTime = (trimRange.end / 100) * (duration / 1000);
+        
+        const outputPath = generateOutputFilename(
+          selectedVideo.file_path,
+          exportFormat,
+          '_export'
         );
-        await open(folderPath);
+        
+        const options: VideoTrimOptions = {
+          inputPath: selectedVideo.file_path,
+          outputPath,
+          startTime,
+          endTime,
+          format: exportFormat,
+          quality: exportQuality,
+          gifFps: exportFormat === 'gif' ? 10 : undefined,
+        };
+        
+        setExportState({ isExporting: true, progress: 30, message: t('processing') });
+        
+        const result = await trimVideo(options);
+        
+        if (!result.success) {
+          throw new Error(result.error || t('exportFailed'));
+        }
+        
+        setExportState({ isExporting: true, progress: 90, message: t('complete') });
+        
+        // Refresh and open folder
+        await refreshHistory();
+        
+        if (isTauri()) {
+          const { open } = await import('@tauri-apps/plugin-shell');
+          const folderPath = result.outputPath.substring(
+            0,
+            Math.max(result.outputPath.lastIndexOf('/'), result.outputPath.lastIndexOf('\\'))
+          );
+          await open(folderPath);
+        }
+      } else if (needsConversion) {
+        // Only format conversion needed
+        const outputPath = generateOutputFilename(
+          selectedVideo.file_path,
+          exportFormat,
+          '_converted'
+        );
+        
+        const options: VideoConvertOptions = {
+          inputPath: selectedVideo.file_path,
+          outputPath,
+          format: exportFormat,
+          quality: exportQuality,
+          gifFps: exportFormat === 'gif' ? 10 : undefined,
+        };
+        
+        setExportState({ isExporting: true, progress: 30, message: t('converting') });
+        
+        const result = await convertVideo(options);
+        
+        if (!result.success) {
+          throw new Error(result.error || t('exportFailed'));
+        }
+        
+        setExportState({ isExporting: true, progress: 90, message: t('complete') });
+        
+        await refreshHistory();
+        
+        if (isTauri()) {
+          const { open } = await import('@tauri-apps/plugin-shell');
+          const folderPath = result.outputPath.substring(
+            0,
+            Math.max(result.outputPath.lastIndexOf('/'), result.outputPath.lastIndexOf('\\'))
+          );
+          await open(folderPath);
+        }
+      } else {
+        // No changes needed, just open the file location
+        if (isTauri()) {
+          const { open } = await import('@tauri-apps/plugin-shell');
+          const folderPath = selectedVideo.file_path.substring(
+            0,
+            Math.max(selectedVideo.file_path.lastIndexOf('/'), selectedVideo.file_path.lastIndexOf('\\'))
+          );
+          await open(folderPath);
+        }
+        setExportState({ isExporting: true, progress: 100, message: t('complete') });
       }
+    } catch (error) {
+      console.error('Export failed:', error);
+      setExportState({ 
+        isExporting: false, 
+        progress: 0, 
+        message: error instanceof Error ? error.message : t('exportFailed') 
+      });
     } finally {
       setIsLoading(false);
+      // Reset export state after a delay
+      setTimeout(() => {
+        setExportState({ isExporting: false, progress: 0, message: '' });
+      }, 2000);
     }
-  }, [selectedVideo]);
+  }, [selectedVideo, trimRange, duration, exportFormat, exportQuality, refreshHistory, t]);
 
   // Format time for display
   const formatTime = useCallback((ms: number) => {
@@ -415,6 +618,128 @@ export default function VideoEditorPage() {
             <h1 className="font-semibold text-sm sm:text-base">{t('title')}</h1>
           </div>
         </div>
+
+        {/* Recording Controls */}
+        {isRecordingAvailable && (
+          <div className="flex items-center gap-2">
+            {/* Monitor Selection (when not recording) */}
+            {!isRecording && monitors.length > 1 && (
+              <Select 
+                value={selectedMonitor?.toString() ?? '0'} 
+                onValueChange={(v) => setSelectedMonitor(parseInt(v))}
+              >
+                <SelectTrigger className="w-32 h-8 text-xs">
+                  <Monitor className="h-3 w-3 mr-1" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {monitors.map((monitor) => (
+                    <SelectItem key={monitor.index} value={monitor.index.toString()}>
+                      {monitor.name || `Monitor ${monitor.index + 1}`}
+                      {monitor.is_primary && ' ★'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Recording Status/Duration */}
+            {isRecording && (
+              <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-md">
+                <Disc className={cn("h-3 w-3 text-red-500", !isPaused && "animate-pulse")} />
+                <span className="text-xs font-medium text-red-500">
+                  {formatRecordingDuration(recordingDuration)}
+                </span>
+              </div>
+            )}
+
+            {isCountdown && (
+              <div className="flex items-center gap-2 px-2 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
+                <Clock className="h-3 w-3 text-yellow-500 animate-pulse" />
+                <span className="text-xs font-medium text-yellow-500">{t('countdown')}</span>
+              </div>
+            )}
+
+            {isProcessing && (
+              <div className="flex items-center gap-2 px-2 py-1 bg-blue-500/10 border border-blue-500/20 rounded-md">
+                <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
+                <span className="text-xs font-medium text-blue-500">{t('processing')}</span>
+              </div>
+            )}
+
+            {/* Start Recording */}
+            {!isRecording && !isCountdown && !isProcessing && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    className="bg-red-500 hover:bg-red-600 text-white"
+                    onClick={() => startFullscreen(selectedMonitor ?? 0)}
+                  >
+                    <Circle className="h-3 w-3 mr-1 fill-current" />
+                    <span className="hidden sm:inline">{t('startRecording')}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('startRecordingTooltip')}</TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Pause/Resume (when recording) */}
+            {isRecording && !isPaused && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={pauseRecording}>
+                    <Pause className="h-3 w-3 mr-1" />
+                    <span className="hidden sm:inline">{t('pause')}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('pauseRecording')}</TooltipContent>
+              </Tooltip>
+            )}
+
+            {isRecording && isPaused && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={resumeRecording}>
+                    <Play className="h-3 w-3 mr-1" />
+                    <span className="hidden sm:inline">{t('resume')}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('resumeRecording')}</TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Stop Recording */}
+            {isRecording && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={stopRecording}
+                  >
+                    <Square className="h-3 w-3 mr-1 fill-current" />
+                    <span className="hidden sm:inline">{t('stop')}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('stopRecording')}</TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Cancel Recording */}
+            {isRecording && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={cancelRecording}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('cancelRecording')}</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        )}
         
         <div className="flex items-center gap-2">
           <Button
@@ -438,6 +763,19 @@ export default function VideoEditorPage() {
           </Tooltip>
         </div>
       </header>
+
+      {/* Recording Error Alert */}
+      {recordingError && (
+        <Alert variant="destructive" className="mx-4 mt-2">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>{recordingError}</span>
+            <Button variant="ghost" size="sm" onClick={clearError}>
+              <X className="h-4 w-4" />
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar - Recording History */}
@@ -804,8 +1142,36 @@ export default function VideoEditorPage() {
                       </SelectContent>
                     </Select>
                     
-                    <Button onClick={handleExport} disabled={isLoading}>
-                      {isLoading ? (
+                    {exportFormat !== 'gif' && (
+                      <Select 
+                        value={exportQuality.toString()} 
+                        onValueChange={(v) => setExportQuality(parseInt(v))}
+                      >
+                        <SelectTrigger className="w-28 h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="100">{t('qualityHigh')}</SelectItem>
+                          <SelectItem value="80">{t('qualityMedium')}</SelectItem>
+                          <SelectItem value="50">{t('qualityLow')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                    
+                    {exportState.isExporting && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary transition-all duration-300"
+                            style={{ width: `${exportState.progress}%` }}
+                          />
+                        </div>
+                        <span className="w-8">{exportState.progress}%</span>
+                      </div>
+                    )}
+                    
+                    <Button onClick={handleExport} disabled={isLoading || exportState.isExporting}>
+                      {isLoading || exportState.isExporting ? (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       ) : (
                         <Download className="h-4 w-4 mr-2" />

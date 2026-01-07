@@ -26,7 +26,7 @@ jest.mock('@/stores/workflow', () => ({
   })),
 }));
 
-jest.mock('@/hooks/use-workflow', () => ({
+jest.mock('@/hooks/designer/use-workflow', () => ({
   useWorkflow: jest.fn(() => ({
     run: jest.fn().mockResolvedValue({ id: 'exec-1', status: 'completed' }),
     pause: jest.fn(),
@@ -80,7 +80,7 @@ describe('useWorkflowEditor', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseWorkflowEditorStore.mockReturnValue(mockStoreFunctions);
-    mockUseWorkflow.mockReturnValue(mockWorkflowFunctions);
+    mockUseWorkflow.mockReturnValue(mockWorkflowFunctions as unknown as ReturnType<typeof useWorkflow>);
   });
 
   it('should return initial state', () => {

@@ -45,7 +45,7 @@ mod tests {
     fn test_transport_type_debug() {
         let stdio = TransportType::Stdio;
         let sse = TransportType::Sse;
-        
+
         assert_eq!(format!("{:?}", stdio), "Stdio");
         assert_eq!(format!("{:?}", sse), "Sse");
     }
@@ -54,7 +54,7 @@ mod tests {
     fn test_transport_type_clone() {
         let original = TransportType::Stdio;
         let cloned = original;
-        
+
         assert_eq!(original, cloned);
     }
 
@@ -62,7 +62,7 @@ mod tests {
     fn test_transport_type_copy() {
         let original = TransportType::Sse;
         let copied = original;
-        
+
         assert_eq!(original, copied);
     }
 

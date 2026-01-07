@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { WindowSelectorDialog } from './window-selector-dialog';
+import { PlatformWarning, PlatformBadge } from './platform-warning';
 
 interface ScreenshotPanelProps {
   className?: string;
@@ -137,10 +138,20 @@ export function ScreenshotPanel({
   return (
     <div className={cn('flex flex-col h-full min-h-0 overflow-hidden', className)}>
       <div className="p-2 sm:p-3 border-b space-y-2 sm:space-y-3 shrink-0">
-        <div className="flex items-center gap-2">
-          <Camera className="h-5 w-5" />
-          <span className="font-medium">{t('title')}</span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Camera className="h-5 w-5" />
+            <span className="font-medium">{t('title')}</span>
+          </div>
+          <PlatformBadge platform="windows" />
         </div>
+        
+        <PlatformWarning
+          supportedPlatforms={['windows']}
+          featureName={t('title')}
+          mode="alert"
+          className="mb-2"
+        />
         
         <div className="flex flex-wrap gap-2">
           <Button

@@ -154,6 +154,11 @@ const config: Config = {
     "^@tauri-apps/plugin-fs$": "<rootDir>/__mocks__/tauri-plugin-fs.js",
     "^@tauri-apps/plugin-dialog$": "<rootDir>/__mocks__/tauri-plugin-dialog.js",
 
+    // Mock Tauri core/window APIs for unit tests
+    "^@tauri-apps/api/core$": "<rootDir>/__mocks__/tauri-api-core.js",
+    "^@tauri-apps/api/window$": "<rootDir>/__mocks__/tauri-api-window.js",
+    "^@tauri-apps/api/dpi$": "<rootDir>/__mocks__/tauri-api-dpi.js",
+
     // Mock nanoid ESM module
     "^nanoid$": "<rootDir>/__mocks__/nanoid.js",
     

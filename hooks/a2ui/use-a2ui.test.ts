@@ -16,7 +16,7 @@ const mockGetDataValue = jest.fn();
 const mockClearEventHistory = jest.fn();
 const mockSetActiveSurface = jest.fn();
 
-jest.mock('@/stores/a2ui-store', () => ({
+jest.mock('@/stores/a2ui', () => ({
   useA2UIStore: jest.fn((selector) => {
     const state = {
       surfaces: {},

@@ -12,7 +12,7 @@ const mockCancelPull = jest.fn();
 const mockDeleteModel = jest.fn().mockResolvedValue(true);
 const mockStopModel = jest.fn().mockResolvedValue(true);
 
-jest.mock('@/hooks/use-ollama', () => ({
+jest.mock('@/hooks/ai', () => ({
   useOllama: () => ({
     status: { connected: true, version: '0.1.0' },
     isConnected: true,
@@ -267,7 +267,7 @@ describe('OllamaModelManager', () => {
 describe('OllamaModelManager - Disconnected State', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.doMock('@/hooks/use-ollama', () => ({
+    jest.doMock('@/hooks/ai', () => ({
       useOllama: () => ({
         status: { connected: false },
         isConnected: false,

@@ -36,6 +36,7 @@ interface GitState {
   branches: GitBranchInfo[];
   commits: GitCommitInfo[];
   fileStatus: GitFileStatus[];
+  stashList: { index: number; message: string; branch?: string; date?: string }[];
   
   // Operation state
   operationStatus: GitOperationStatus;
@@ -90,6 +91,15 @@ interface GitActions {
   // File operations
   loadFileStatus: () => Promise<void>;
   discardChanges: (files: string[]) => Promise<boolean>;
+  getDiffContent: (filePath: string, staged?: boolean) => Promise<string | null>;
+  
+  // Stash operations
+  loadStashList: () => Promise<void>;
+  stashSave: (message?: string, includeUntracked?: boolean) => Promise<boolean>;
+  stashPop: (index?: number) => Promise<boolean>;
+  stashApply: (index?: number) => Promise<boolean>;
+  stashDrop: (index?: number) => Promise<boolean>;
+  stashClear: () => Promise<boolean>;
   
   // Project Git configuration
   getProjectConfig: (projectId: string) => ProjectGitConfig;
@@ -142,6 +152,7 @@ const initialState: GitState = {
   branches: [],
   commits: [],
   fileStatus: [],
+  stashList: [],
   operationStatus: 'idle',
   operationProgress: null,
   lastError: null,
@@ -674,6 +685,195 @@ export const useGitStore = create<GitState & GitActions>()(
           } else {
             set({
               lastError: result.error || 'Failed to discard changes',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      getDiffContent: async (filePath, staged) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return null;
+
+        try {
+          const result = await gitService.getDiffFile(currentRepoPath, filePath, staged);
+          if (result.success && result.data) {
+            return result.data.content || null;
+          }
+          return null;
+        } catch {
+          return null;
+        }
+      },
+
+      // Stash operations
+      loadStashList: async () => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return;
+
+        try {
+          const result = await gitService.getStashList(currentRepoPath);
+          if (result.success && result.data) {
+            set({ stashList: result.data });
+          }
+        } catch (error) {
+          set({ lastError: error instanceof Error ? error.message : String(error) });
+        }
+      },
+
+      stashSave: async (message, includeUntracked) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.stash({
+            repoPath: currentRepoPath,
+            action: 'save',
+            message,
+            includeUntracked,
+          });
+          if (result.success) {
+            await get().loadStashList();
+            await get().loadFileStatus();
+            await get().loadRepoStatus();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to stash changes',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      stashPop: async (index) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.stash({
+            repoPath: currentRepoPath,
+            action: 'pop',
+            stashIndex: index,
+          });
+          if (result.success) {
+            await get().loadStashList();
+            await get().loadFileStatus();
+            await get().loadRepoStatus();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to pop stash',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      stashApply: async (index) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.stash({
+            repoPath: currentRepoPath,
+            action: 'apply',
+            stashIndex: index,
+          });
+          if (result.success) {
+            await get().loadFileStatus();
+            await get().loadRepoStatus();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to apply stash',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      stashDrop: async (index) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.stash({
+            repoPath: currentRepoPath,
+            action: 'drop',
+            stashIndex: index,
+          });
+          if (result.success) {
+            await get().loadStashList();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to drop stash',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      stashClear: async () => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.stash({
+            repoPath: currentRepoPath,
+            action: 'clear',
+          });
+          if (result.success) {
+            set({ stashList: [], operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to clear stash',
               operationStatus: 'error',
             });
             return false;

@@ -2,10 +2,10 @@
 //!
 //! Provides functionality for analyzing screen content using OCR and image analysis.
 
-use log::{debug, trace, warn, error};
+use log::{debug, error, trace, warn};
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use parking_lot::RwLock;
 
 /// Screen content analysis result
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -96,9 +96,19 @@ impl ScreenContentAnalyzer {
     }
 
     /// Analyze screen content from screenshot
-    pub fn analyze(&self, image_data: &[u8], width: u32, height: u32) -> Result<ScreenContent, String> {
-        trace!("analyze called for image: {}x{}, {} bytes", width, height, image_data.len());
-        
+    pub fn analyze(
+        &self,
+        image_data: &[u8],
+        width: u32,
+        height: u32,
+    ) -> Result<ScreenContent, String> {
+        trace!(
+            "analyze called for image: {}x{}, {} bytes",
+            width,
+            height,
+            image_data.len()
+        );
+
         // Check cache
         {
             let cached = self.last_analysis.read();
@@ -109,29 +119,47 @@ impl ScreenContentAnalyzer {
                     trace!("Returning cached analysis (age: {}ms)", age_ms);
                     return Ok(content.clone());
                 }
-                trace!("Cache expired (age: {}ms, max: {}ms)", age_ms, self.cache_duration_ms);
+                trace!(
+                    "Cache expired (age: {}ms, max: {}ms)",
+                    age_ms,
+                    self.cache_duration_ms
+                );
             }
         }
 
         // Perform analysis
-        debug!("Performing screen content analysis for {}x{} image", width, height);
+        debug!(
+            "Performing screen content analysis for {}x{} image",
+            width, height
+        );
         let content = self.perform_analysis(image_data, width, height)?;
-        
+
         // Update cache
         *self.last_analysis.write() = Some(content.clone());
         debug!(
             "Analysis complete: {} text blocks, {} UI elements, confidence: {:.2}",
-            content.text_blocks.len(), content.ui_elements.len(), content.confidence
+            content.text_blocks.len(),
+            content.ui_elements.len(),
+            content.confidence
         );
-        
+
         Ok(content)
     }
 
-    fn perform_analysis(&self, _image_data: &[u8], width: u32, height: u32) -> Result<ScreenContent, String> {
-        trace!("perform_analysis: placeholder implementation for {}x{}", width, height);
+    fn perform_analysis(
+        &self,
+        _image_data: &[u8],
+        width: u32,
+        height: u32,
+    ) -> Result<ScreenContent, String> {
+        trace!(
+            "perform_analysis: placeholder implementation for {}x{}",
+            width,
+            height
+        );
         // This is a placeholder implementation
         // In production, this would use Windows OCR API or Tesseract
-        
+
         Ok(ScreenContent {
             text: String::new(),
             text_blocks: Vec::new(),
@@ -146,8 +174,12 @@ impl ScreenContentAnalyzer {
     /// Analyze screen using Windows UI Automation
     #[cfg(target_os = "windows")]
     pub fn analyze_ui_automation(&self) -> Result<Vec<UiElement>, String> {
-        use windows::Win32::System::Com::{CoInitializeEx, CoCreateInstance, COINIT_APARTMENTTHREADED, CLSCTX_INPROC_SERVER};
-        use windows::Win32::UI::Accessibility::{CUIAutomation, IUIAutomation, TreeScope_Children, TreeScope_Subtree};
+        use windows::Win32::System::Com::{
+            CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
+        };
+        use windows::Win32::UI::Accessibility::{
+            CUIAutomation, IUIAutomation, TreeScope_Children, TreeScope_Subtree,
+        };
 
         debug!("Starting UI Automation analysis");
         let mut elements = Vec::new();
@@ -159,17 +191,14 @@ impl ScreenContentAnalyzer {
 
             // Create UI Automation instance
             trace!("Creating UI Automation instance");
-            let automation: IUIAutomation = match CoCreateInstance(
-                &CUIAutomation,
-                None,
-                CLSCTX_INPROC_SERVER,
-            ) {
-                Ok(a) => a,
-                Err(e) => {
-                    error!("Failed to create UI Automation: {}", e);
-                    return Err(format!("Failed to create UI Automation: {}", e));
-                }
-            };
+            let automation: IUIAutomation =
+                match CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER) {
+                    Ok(a) => a,
+                    Err(e) => {
+                        error!("Failed to create UI Automation: {}", e);
+                        return Err(format!("Failed to create UI Automation: {}", e));
+                    }
+                };
 
             // Get root element (desktop)
             trace!("Getting root UI element");
@@ -193,8 +222,10 @@ impl ScreenContentAnalyzer {
                         if let Ok(rect) = focused.CurrentBoundingRectangle() {
                             trace!(
                                 "Element bounds: x={}, y={}, w={}, h={}",
-                                rect.left, rect.top,
-                                rect.right - rect.left, rect.bottom - rect.top
+                                rect.left,
+                                rect.top,
+                                rect.right - rect.left,
+                                rect.bottom - rect.top
                             );
                             elements.push(UiElement {
                                 element_type: UiElementType::Unknown,
@@ -213,7 +244,10 @@ impl ScreenContentAnalyzer {
             }
         }
 
-        debug!("UI Automation analysis complete: {} elements found", elements.len());
+        debug!(
+            "UI Automation analysis complete: {} elements found",
+            elements.len()
+        );
         Ok(elements)
     }
 
@@ -229,13 +263,21 @@ impl ScreenContentAnalyzer {
         let analysis = self.last_analysis.read();
         if let Some(ref content) = *analysis {
             for block in &content.text_blocks {
-                if x >= block.x && x <= block.x + block.width as i32 &&
-                   y >= block.y && y <= block.y + block.height as i32 {
+                if x >= block.x
+                    && x <= block.x + block.width as i32
+                    && y >= block.y
+                    && y <= block.y + block.height as i32
+                {
                     debug!("Found text at ({}, {}): '{}'", x, y, block.text);
                     return Some(block.text.clone());
                 }
             }
-            trace!("No text found at ({}, {}) in {} blocks", x, y, content.text_blocks.len());
+            trace!(
+                "No text found at ({}, {}) in {} blocks",
+                x,
+                y,
+                content.text_blocks.len()
+            );
         } else {
             trace!("No cached analysis available");
         }
@@ -248,8 +290,11 @@ impl ScreenContentAnalyzer {
         let analysis = self.last_analysis.read();
         if let Some(ref content) = *analysis {
             for element in &content.ui_elements {
-                if x >= element.x && x <= element.x + element.width as i32 &&
-                   y >= element.y && y <= element.y + element.height as i32 {
+                if x >= element.x
+                    && x <= element.x + element.width as i32
+                    && y >= element.y
+                    && y <= element.y + element.height as i32
+                {
                     debug!(
                         "Found element at ({}, {}): {:?} - {:?}",
                         x, y, element.element_type, element.text
@@ -257,7 +302,12 @@ impl ScreenContentAnalyzer {
                     return Some(element.clone());
                 }
             }
-            trace!("No element found at ({}, {}) in {} elements", x, y, content.ui_elements.len());
+            trace!(
+                "No element found at ({}, {}) in {} elements",
+                x,
+                y,
+                content.ui_elements.len()
+            );
         } else {
             trace!("No cached analysis available");
         }
@@ -272,7 +322,10 @@ impl ScreenContentAnalyzer {
 
     /// Set cache duration
     pub fn set_cache_duration(&mut self, ms: u64) {
-        debug!("Cache duration changed: {}ms -> {}ms", self.cache_duration_ms, ms);
+        debug!(
+            "Cache duration changed: {}ms -> {}ms",
+            self.cache_duration_ms, ms
+        );
         self.cache_duration_ms = ms;
     }
 }
@@ -352,11 +405,16 @@ mod tests {
             text: "Test".to_string(),
             text_blocks: vec![TextBlock {
                 text: "Hello".to_string(),
-                x: 50, y: 50, width: 100, height: 20,
-                confidence: 0.95, language: Some("en".to_string()),
+                x: 50,
+                y: 50,
+                width: 100,
+                height: 20,
+                confidence: 0.95,
+                language: Some("en".to_string()),
             }],
             ui_elements: vec![],
-            width: 1920, height: 1080,
+            width: 1920,
+            height: 1080,
             timestamp: chrono::Utc::now().timestamp_millis(),
             confidence: 0.9,
         };
@@ -374,10 +432,14 @@ mod tests {
             ui_elements: vec![UiElement {
                 element_type: UiElementType::Button,
                 text: Some("Click".to_string()),
-                x: 100, y: 100, width: 80, height: 30,
+                x: 100,
+                y: 100,
+                width: 80,
+                height: 30,
                 is_interactive: true,
             }],
-            width: 1920, height: 1080,
+            width: 1920,
+            height: 1080,
             timestamp: chrono::Utc::now().timestamp_millis(),
             confidence: 0.9,
         };
@@ -403,8 +465,10 @@ mod tests {
             text: "Test".to_string(),
             text_blocks: vec![],
             ui_elements: vec![],
-            width: 1920, height: 1080,
-            timestamp: 0, confidence: 0.95,
+            width: 1920,
+            height: 1080,
+            timestamp: 0,
+            confidence: 0.95,
         };
         let json = serde_json::to_string(&content);
         assert!(json.is_ok());
@@ -416,8 +480,12 @@ mod tests {
     fn test_text_block_serialization() {
         let block = TextBlock {
             text: "Hello".to_string(),
-            x: 100, y: 200, width: 150, height: 25,
-            confidence: 0.98, language: Some("en".to_string()),
+            x: 100,
+            y: 200,
+            width: 150,
+            height: 25,
+            confidence: 0.98,
+            language: Some("en".to_string()),
         };
         let json = serde_json::to_string(&block);
         assert!(json.is_ok());
@@ -430,7 +498,10 @@ mod tests {
         let element = UiElement {
             element_type: UiElementType::Button,
             text: Some("Submit".to_string()),
-            x: 300, y: 400, width: 100, height: 40,
+            x: 300,
+            y: 400,
+            width: 100,
+            height: 40,
             is_interactive: true,
         };
         let json = serde_json::to_string(&element);
@@ -442,14 +513,22 @@ mod tests {
     #[test]
     fn test_ui_element_type_serialization() {
         let types = vec![
-            UiElementType::Button, UiElementType::TextInput,
-            UiElementType::Checkbox, UiElementType::RadioButton,
-            UiElementType::Dropdown, UiElementType::Link,
-            UiElementType::Menu, UiElementType::MenuItem,
-            UiElementType::Tab, UiElementType::Window,
-            UiElementType::Dialog, UiElementType::Tooltip,
-            UiElementType::Icon, UiElementType::Image,
-            UiElementType::Text, UiElementType::Unknown,
+            UiElementType::Button,
+            UiElementType::TextInput,
+            UiElementType::Checkbox,
+            UiElementType::RadioButton,
+            UiElementType::Dropdown,
+            UiElementType::Link,
+            UiElementType::Menu,
+            UiElementType::MenuItem,
+            UiElementType::Tab,
+            UiElementType::Window,
+            UiElementType::Dialog,
+            UiElementType::Tooltip,
+            UiElementType::Icon,
+            UiElementType::Image,
+            UiElementType::Text,
+            UiElementType::Unknown,
         ];
         for t in types {
             assert!(serde_json::to_string(&t).is_ok());
@@ -466,8 +545,12 @@ mod tests {
     fn test_screen_content_clone() {
         let content = ScreenContent {
             text: "Test".to_string(),
-            text_blocks: vec![], ui_elements: vec![],
-            width: 100, height: 100, timestamp: 12345, confidence: 0.9,
+            text_blocks: vec![],
+            ui_elements: vec![],
+            width: 100,
+            height: 100,
+            timestamp: 12345,
+            confidence: 0.9,
         };
         let cloned = content.clone();
         assert_eq!(cloned.text, "Test");
@@ -478,8 +561,12 @@ mod tests {
     fn test_text_block_clone() {
         let block = TextBlock {
             text: "Test".to_string(),
-            x: 10, y: 20, width: 30, height: 40,
-            confidence: 0.5, language: Some("en".to_string()),
+            x: 10,
+            y: 20,
+            width: 30,
+            height: 40,
+            confidence: 0.5,
+            language: Some("en".to_string()),
         };
         let cloned = block.clone();
         assert_eq!(cloned.x, 10);
@@ -490,7 +577,10 @@ mod tests {
         let element = UiElement {
             element_type: UiElementType::Button,
             text: Some("Clone".to_string()),
-            x: 100, y: 200, width: 50, height: 25,
+            x: 100,
+            y: 200,
+            width: 50,
+            height: 25,
             is_interactive: true,
         };
         let cloned = element.clone();
@@ -501,14 +591,19 @@ mod tests {
     fn test_boundary_conditions() {
         let analyzer = ScreenContentAnalyzer::new();
         let content = ScreenContent {
-            text: String::new(), text_blocks: vec![],
+            text: String::new(),
+            text_blocks: vec![],
             ui_elements: vec![UiElement {
                 element_type: UiElementType::Button,
                 text: Some("Edge".to_string()),
-                x: 0, y: 0, width: 10, height: 10,
+                x: 0,
+                y: 0,
+                width: 10,
+                height: 10,
                 is_interactive: true,
             }],
-            width: 100, height: 100,
+            width: 100,
+            height: 100,
             timestamp: chrono::Utc::now().timestamp_millis(),
             confidence: 1.0,
         };

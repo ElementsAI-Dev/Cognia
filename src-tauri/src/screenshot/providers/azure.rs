@@ -23,7 +23,7 @@ impl AzureVisionProvider {
     pub fn new(subscription_key: String, endpoint: String) -> Self {
         // Ensure endpoint doesn't have trailing slash
         let endpoint = endpoint.trim_end_matches('/').to_string();
-        
+
         Self {
             subscription_key,
             endpoint,
@@ -104,9 +104,19 @@ fn bounding_box_to_bounds(bbox: &[f64]) -> OcrBounds {
 
     // Azure provides 4 corner points: [x1,y1, x2,y2, x3,y3, x4,y4]
     let min_x = bbox.iter().step_by(2).cloned().fold(f64::MAX, f64::min);
-    let min_y = bbox.iter().skip(1).step_by(2).cloned().fold(f64::MAX, f64::min);
+    let min_y = bbox
+        .iter()
+        .skip(1)
+        .step_by(2)
+        .cloned()
+        .fold(f64::MAX, f64::min);
     let max_x = bbox.iter().step_by(2).cloned().fold(0.0_f64, f64::max);
-    let max_y = bbox.iter().skip(1).step_by(2).cloned().fold(0.0_f64, f64::max);
+    let max_y = bbox
+        .iter()
+        .skip(1)
+        .step_by(2)
+        .cloned()
+        .fold(0.0_f64, f64::max);
 
     OcrBounds {
         x: min_x,
@@ -159,7 +169,9 @@ impl OcrProvider for AzureVisionProvider {
         options: &OcrOptions,
     ) -> Result<OcrResult, OcrError> {
         if self.subscription_key.is_empty() {
-            return Err(OcrError::authentication_error("Subscription key is required"));
+            return Err(OcrError::authentication_error(
+                "Subscription key is required",
+            ));
         }
 
         if self.endpoint.is_empty() {
@@ -172,10 +184,7 @@ impl OcrProvider for AzureVisionProvider {
             .map_err(|e| OcrError::network_error(format!("Failed to create HTTP client: {}", e)))?;
 
         // Build URL with optional language parameter
-        let mut url = format!(
-            "{}/vision/v3.2/read/analyze",
-            self.endpoint
-        );
+        let mut url = format!("{}/vision/v3.2/read/analyze", self.endpoint);
 
         if let Some(ref lang) = options.language {
             if lang != "auto" {
@@ -205,7 +214,7 @@ impl OcrProvider for AzureVisionProvider {
 
         if !status.is_success() {
             let body = submit_response.text().await.unwrap_or_default();
-            
+
             if let Ok(error) = serde_json::from_str::<AzureError>(&body) {
                 return Err(OcrError::new(
                     OcrErrorCode::ProviderError,
@@ -235,7 +244,7 @@ impl OcrProvider for AzureVisionProvider {
         // Poll for results
         let mut attempts = 0;
         let max_attempts = 30; // 30 seconds max wait
-        
+
         loop {
             attempts += 1;
             if attempts > max_attempts {
@@ -299,9 +308,9 @@ impl AzureVisionProvider {
         result: ReadOperationResult,
         options: &OcrOptions,
     ) -> Result<OcrResult, OcrError> {
-        let analyze_result = result.analyze_result.ok_or_else(|| {
-            OcrError::new(OcrErrorCode::ProviderError, "No analysis result")
-        })?;
+        let analyze_result = result
+            .analyze_result
+            .ok_or_else(|| OcrError::new(OcrErrorCode::ProviderError, "No analysis result"))?;
 
         let mut full_text = String::new();
         let mut regions = Vec::new();
@@ -331,7 +340,8 @@ impl AzureVisionProvider {
                     let line_confidence = if line.words.is_empty() {
                         0.9
                     } else {
-                        line.words.iter().map(|w| w.confidence).sum::<f64>() / line.words.len() as f64
+                        line.words.iter().map(|w| w.confidence).sum::<f64>()
+                            / line.words.len() as f64
                     };
 
                     regions.push(OcrRegion {
@@ -406,7 +416,7 @@ mod tests {
     fn test_bounding_box_to_bounds() {
         let bbox = vec![10.0, 20.0, 110.0, 20.0, 110.0, 70.0, 10.0, 70.0];
         let bounds = bounding_box_to_bounds(&bbox);
-        
+
         assert_eq!(bounds.x, 10.0);
         assert_eq!(bounds.y, 20.0);
         assert_eq!(bounds.width, 100.0);
@@ -422,10 +432,8 @@ mod tests {
 
     #[test]
     fn test_endpoint_trailing_slash_removed() {
-        let provider = AzureVisionProvider::new(
-            "key".to_string(),
-            "https://test.azure.com/".to_string(),
-        );
+        let provider =
+            AzureVisionProvider::new("key".to_string(), "https://test.azure.com/".to_string());
         assert_eq!(provider.endpoint, "https://test.azure.com");
     }
 }

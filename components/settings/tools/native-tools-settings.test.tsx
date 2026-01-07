@@ -10,6 +10,23 @@ jest.mock('@/lib/native/utils', () => ({
   isTauri: () => true,
 }));
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
+// Mock lucide-react icons
+jest.mock('lucide-react', () => ({
+  Clipboard: () => <span data-testid="icon-clipboard">Clipboard</span>,
+  Camera: () => <span data-testid="icon-camera">Camera</span>,
+  Monitor: () => <span data-testid="icon-monitor">Monitor</span>,
+  Eye: () => <span data-testid="icon-eye">Eye</span>,
+  Settings2: () => <span data-testid="icon-settings2">Settings2</span>,
+  Activity: () => <span data-testid="icon-activity">Activity</span>,
+  Terminal: () => <span data-testid="icon-terminal">Terminal</span>,
+  Video: () => <span data-testid="icon-video">Video</span>,
+}));
+
 // Mock native components
 jest.mock('@/components/native', () => ({
   ClipboardHistoryPanel: ({ className }: { className?: string }) => (
@@ -29,6 +46,13 @@ jest.mock('@/components/native', () => ({
   ),
   SandboxPanel: ({ className }: { className?: string }) => (
     <div data-testid="sandbox-panel" className={className}>Sandbox Panel</div>
+  ),
+}));
+
+// Mock screen-recording components
+jest.mock('@/components/screen-recording', () => ({
+  RecordingHistoryPanel: ({ className }: { className?: string }) => (
+    <div data-testid="recording-panel" className={className}>Recording Panel</div>
   ),
 }));
 
