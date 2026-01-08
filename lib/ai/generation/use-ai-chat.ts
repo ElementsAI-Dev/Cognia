@@ -21,6 +21,12 @@ import { getProxyProviderModel } from '../core/proxy-client';
 import { useSettingsStore, useMemoryStore, useUsageStore, useSessionStore } from '@/stores';
 import { getNextApiKey } from '../infrastructure/api-key-rotation';
 import {
+  circuitBreakerRegistry,
+  recordApiUsage,
+  isProviderAvailable,
+  calculateRequestCost,
+} from '../infrastructure';
+import {
   filterMessagesForContext,
   mergeCompressionSettings,
 } from '../embedding/compression';
@@ -158,6 +164,17 @@ export function useAIChat({
 
       if (!settings?.enabled) {
         throw new Error(`Provider ${provider} is disabled. Please enable it in Settings.`);
+      }
+
+      // Check circuit breaker - if provider is failing, reject early
+      if (!isProviderAvailable(provider)) {
+        throw new Error(`Provider ${provider} is temporarily unavailable due to repeated failures. Please try again later or switch providers.`);
+      }
+
+      // Check quota limits - if exceeded, reject early
+      const quotaCheck = useUsageStore.getState().canMakeRequest(provider);
+      if (!quotaCheck.allowed) {
+        throw new Error(`Provider ${provider} quota exceeded: ${quotaCheck.reason}`);
       }
 
       // Get API key with rotation support
@@ -500,6 +517,23 @@ export function useAIChat({
           // Record successful API key usage
           recordApiKeyUsage(true);
 
+          // Record circuit breaker success
+          circuitBreakerRegistry.get(provider).recordSuccess();
+
+          // Record quota usage
+          if (usage) {
+            const cost = calculateRequestCost(provider, model, usage.promptTokens, usage.completionTokens);
+            recordApiUsage({
+              providerId: provider,
+              modelId: model,
+              inputTokens: usage.promptTokens,
+              outputTokens: usage.completionTokens,
+              cost,
+              success: true,
+              latencyMs: Date.now() - (abortControllerRef.current?.signal ? 0 : Date.now()),
+            });
+          }
+
           onStreamEnd?.();
           return extractReasoning ? finalContent : fullText;
         } else {
@@ -531,6 +565,23 @@ export function useAIChat({
           // Record successful API key usage
           recordApiKeyUsage(true);
 
+          // Record circuit breaker success
+          circuitBreakerRegistry.get(provider).recordSuccess();
+
+          // Record quota usage
+          if (usage) {
+            const cost = calculateRequestCost(provider, model, usage.promptTokens, usage.completionTokens);
+            recordApiUsage({
+              providerId: provider,
+              modelId: model,
+              inputTokens: usage.promptTokens,
+              outputTokens: usage.completionTokens,
+              cost,
+              success: true,
+              latencyMs: Date.now() - (abortControllerRef.current?.signal ? 0 : Date.now()),
+            });
+          }
+
           return extractReasoning ? finalContent : result.text;
         }
       } catch (error) {
@@ -540,6 +591,20 @@ export function useAIChat({
         
         // Record failed API key usage
         recordApiKeyUsage(false, (error as Error).message);
+
+        // Record circuit breaker failure
+        circuitBreakerRegistry.get(provider).recordFailure(error as Error);
+
+        // Record failed quota usage
+        recordApiUsage({
+          providerId: provider,
+          modelId: model,
+          inputTokens: 0,
+          outputTokens: 0,
+          cost: 0,
+          success: false,
+          latencyMs: Date.now() - (abortControllerRef.current?.signal ? 0 : Date.now()),
+        });
         
         onError?.(error as Error);
         throw error;

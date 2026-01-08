@@ -41,6 +41,11 @@ export type ToolCategory =
   | 'design'      // Designer tools
   | 'external'    // MCP and external tools
   | 'skill'       // Skill-based tools
+  | 'video'       // Video generation and analysis
+  | 'image'       // Image generation and editing
+  | 'academic'    // Academic search and analysis
+  | 'ppt'         // Presentation generation
+  | 'learning'    // Learning/generative UI tools
   | 'other';      // Uncategorized
 
 /**
@@ -368,6 +373,11 @@ export class UnifiedToolRegistry {
       design: 0,
       external: 0,
       skill: 0,
+      video: 0,
+      image: 0,
+      academic: 0,
+      ppt: 0,
+      learning: 0,
       other: 0,
     };
 
@@ -422,24 +432,51 @@ export function inferToolCategory(name: string, description: string): ToolCatego
   const lowerName = name.toLowerCase();
   const lowerDesc = description.toLowerCase();
 
+  // Video tools
+  if (lowerName.includes('video') || lowerName.includes('subtitle') || lowerDesc.includes('video') || lowerDesc.includes('subtitle') || lowerDesc.includes('transcri')) {
+    return 'video';
+  }
+  // Image tools
+  if (lowerName.includes('image') || lowerDesc.includes('image') || lowerDesc.includes('dall-e') || lowerDesc.includes('imagen')) {
+    return 'image';
+  }
+  // Academic tools
+  if (lowerName.includes('academic') || lowerName.includes('paper') || lowerDesc.includes('academic') || lowerDesc.includes('paper') || lowerDesc.includes('arxiv')) {
+    return 'academic';
+  }
+  // PPT tools
+  if (lowerName.includes('ppt') || lowerName.includes('slide') || lowerDesc.includes('presentation') || lowerDesc.includes('powerpoint')) {
+    return 'ppt';
+  }
+  // Learning tools
+  if (lowerName.includes('flashcard') || lowerName.includes('quiz') || lowerName.includes('review') || lowerName.includes('learning') || lowerDesc.includes('flashcard') || lowerDesc.includes('quiz')) {
+    return 'learning';
+  }
+  // Search tools
   if (lowerName.includes('search') || lowerName.includes('rag') || lowerName.includes('scrape') || lowerDesc.includes('search') || lowerDesc.includes('scrape')) {
     return 'search';
   }
+  // Compute tools
   if (lowerName.includes('calc') || lowerName.includes('code') || lowerDesc.includes('calculate') || lowerDesc.includes('execute')) {
     return 'compute';
   }
+  // File tools
   if (lowerName.includes('file') || lowerDesc.includes('file')) {
     return 'file';
   }
+  // Document tools
   if (lowerName.includes('doc') || lowerDesc.includes('document')) {
     return 'document';
   }
+  // Design tools
   if (lowerName.includes('design') || lowerDesc.includes('design')) {
     return 'design';
   }
+  // MCP/External tools
   if (lowerName.includes('mcp') || lowerName.startsWith('mcp_')) {
     return 'external';
   }
+  // Skill tools
   if (lowerName.includes('skill')) {
     return 'skill';
   }

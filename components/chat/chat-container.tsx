@@ -82,8 +82,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useMessages, useAgent, useProjectContext, calculateTokenBreakdown, useTTS } from '@/hooks';
+import { useIntentDetection } from '@/hooks/chat/use-intent-detection';
+import { ModeSwitchSuggestion } from './mode-switch-suggestion';
 import type { ParsedToolCall, ToolCallResult } from '@/types/mcp';
 import { useAIChat, useAutoRouter, type ProviderName, isVisionModel, buildMultimodalContent, type MultimodalMessage, isAudioModel, isVideoModel } from '@/lib/ai';
+import { RoutingIndicator } from './routing-indicator';
+import type { ModelSelection } from '@/types/auto-router';
 import { messageRepository } from '@/lib/db';
 import { PROVIDERS } from '@/types/provider';
 import type { ChatMode, UIMessage } from '@/types';
@@ -211,6 +215,11 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   // AI settings dialog state
   const [showAISettings, setShowAISettings] = useState(false);
 
+  // Auto-routing state
+  const [lastRoutingSelection, setLastRoutingSelection] = useState<ModelSelection | null>(null);
+  const [showRoutingIndicator, setShowRoutingIndicator] = useState(false);
+  const autoRouterSettings = useSettingsStore((state) => state.autoRouterSettings);
+
   // Clear context confirmation dialog state
   const [showClearContextConfirm, setShowClearContextConfirm] = useState(false);
 
@@ -263,8 +272,31 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   // Agent sub-mode (when in agent mode)
   const agentModeId = session?.agentModeId || 'general';
 
+  // Mode switch function
+  const switchMode = useSessionStore((state) => state.switchMode);
+
+  // Intent detection for mode switching suggestions (enabled in all modes)
+  const {
+    detectionResult,
+    showSuggestion,
+    checkIntent,
+    acceptSuggestion,
+    dismissSuggestion,
+    keepCurrentMode,
+    resetSuggestion: _resetSuggestion,
+  } = useIntentDetection({
+    currentMode,
+    enabled: true, // Enable in all modes for bidirectional suggestions
+    maxSuggestionsPerSession: 3,
+    onModeSwitch: (mode) => {
+      if (activeSessionId) {
+        switchMode(activeSessionId, mode);
+      }
+    },
+  });
+
   // Auto router for intelligent model selection
-  const { selectModel } = useAutoRouter();
+  const { selectModel, getAvailableModels } = useAutoRouter();
 
   // Determine effective provider/model (considering auto mode)
   const currentProvider = session?.provider || 'openai';
@@ -779,6 +811,9 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const handleSendMessage = useCallback(async (content: string, attachments?: Attachment[], toolCalls?: ParsedToolCall[]) => {
     if (!content.trim() && (!attachments || attachments.length === 0)) return;
 
+    // Check for learning/research intent (works in all modes)
+    checkIntent(content);
+
     setError(null);
     setRetryCount(0);
     setLastFailedMessage(null);
@@ -821,7 +856,37 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     // Use Agent mode execution if in agent mode
     if (currentMode === 'agent') {
       try {
-        await handleAgentMessage(messageContent, currentSessionId);
+        // For agent mode, also process video attachments if present
+        let agentContent = messageContent;
+        const videoAttachments = attachments?.filter((a) => a.type === 'video') || [];
+        
+        if (videoAttachments.length > 0) {
+          const openaiApiKey = providerSettings.openai?.apiKey;
+          if (openaiApiKey) {
+            try {
+              const { buildVideoContextMessage } = await import('@/lib/ai/media/media-utils');
+              let videoContext = '';
+              for (const videoAttachment of videoAttachments) {
+                if (videoAttachment.file) {
+                  const videoText = await buildVideoContextMessage(
+                    videoAttachment.file,
+                    videoAttachment.name,
+                    openaiApiKey
+                  );
+                  videoContext += videoText + '\n\n';
+                }
+              }
+              if (videoContext) {
+                agentContent = `${videoContext}${messageContent}`;
+                console.log('Extracted video content for agent analysis');
+              }
+            } catch (err) {
+              console.warn('Failed to extract video content for agent:', err);
+            }
+          }
+        }
+        
+        await handleAgentMessage(agentContent, currentSessionId);
       } finally {
         setIsLoading(false);
       }
@@ -855,6 +920,12 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
         actualProvider = selection.provider;
         actualModel = selection.model;
         console.log('Auto-selected:', selection.reason);
+        
+        // Track routing selection for UI display
+        setLastRoutingSelection(selection);
+        if (autoRouterSettings.showRoutingIndicator) {
+          setShowRoutingIndicator(true);
+        }
       }
 
       // Check if we have media attachments and the model supports them
@@ -916,12 +987,51 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
           console.warn(`Model ${actualModel} does not support video input`);
         }
       } else if (hasMediaAttachments) {
-        // Has media but model doesn't support any of them - fall back to text only
-        console.warn(`Model ${actualModel} does not support the attached media types`);
-        coreMessages = [...messages, userMessage].map((m) => ({
+        // Has media but model doesn't support any of them
+        // For video, try to extract text content via transcription
+        let videoContextText = '';
+        
+        if (hasVideo && !modelSupportsVideo) {
+          const openaiApiKey = providerSettings.openai?.apiKey;
+          if (openaiApiKey && videoAttachments.length > 0) {
+            try {
+              const { buildVideoContextMessage } = await import('@/lib/ai/media/media-utils');
+              for (const videoAttachment of videoAttachments) {
+                if (videoAttachment.file) {
+                  const videoText = await buildVideoContextMessage(
+                    videoAttachment.file,
+                    videoAttachment.name,
+                    openaiApiKey
+                  );
+                  videoContextText += videoText + '\n\n';
+                }
+              }
+              console.log('Extracted video content for AI analysis');
+            } catch (err) {
+              console.warn('Failed to extract video content:', err);
+            }
+          } else {
+            console.warn('OpenAI API key required for video transcription');
+          }
+        }
+        
+        // Build messages with video context if available
+        const enhancedContent = videoContextText 
+          ? `${videoContextText}${content}`
+          : content;
+        
+        coreMessages = [...messages].map((m) => ({
           role: m.role as 'user' | 'assistant',
           content: m.content,
         }));
+        coreMessages.push({
+          role: 'user',
+          content: enhancedContent,
+        });
+        
+        if (!videoContextText && hasVideo) {
+          console.warn(`Model ${actualModel} does not support video input and transcription unavailable`);
+        }
       } else {
         // Text-only messages
         coreMessages = [...messages, userMessage].map((m) => ({
@@ -1150,7 +1260,7 @@ Be thorough in your thinking but concise in your final answer.`;
     } finally {
       setIsLoading(false);
     }
-  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, appendToMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes, getActiveSkills, getLearningSessionByChat, autoCreateFromContent, processA2UIMessage, sourceVerification]);
+  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes, getActiveSkills, getLearningSessionByChat, autoCreateFromContent, processA2UIMessage, sourceVerification, checkIntent, autoRouterSettings.showRoutingIndicator, flushStreamBuffer]);
 
   const handleStop = useCallback(() => {
     aiStop();
@@ -1371,12 +1481,33 @@ Be thorough in your thinking but concise in your final answer.`;
         </div>
       )}
 
+      {/* Auto-Routing Indicator - shown when auto mode selected a model */}
+      {isAutoMode && showRoutingIndicator && lastRoutingSelection && (
+        <div className="px-4 pb-2">
+          <RoutingIndicator
+            selection={lastRoutingSelection}
+            isVisible={showRoutingIndicator}
+            onDismiss={() => setShowRoutingIndicator(false)}
+            availableModels={getAvailableModels()}
+            onOverride={(provider, model) => {
+              if (session) {
+                updateSession(session.id, { provider, model });
+                setShowRoutingIndicator(false);
+              }
+            }}
+            compact={false}
+          />
+        </div>
+      )}
+
       <ChatInput
         value={inputValue}
         onChange={setInputValue}
         onSubmit={(content, attachments, toolCalls) => {
           handleSendMessage(content, attachments, toolCalls);
           setInputValue('');
+          // Hide routing indicator after sending
+          setShowRoutingIndicator(false);
         }}
         isLoading={isLoading}
         isStreaming={isStreaming}
@@ -1493,6 +1624,19 @@ Be thorough in your thinking but concise in your final answer.`;
       {currentMode === 'agent' && toolTimelineExecutions.length > 0 && (
         <div className="fixed bottom-24 right-4 z-50 w-80">
           <ToolTimeline executions={toolTimelineExecutions} />
+        </div>
+      )}
+
+      {/* Mode Switch Suggestion - shown when learning/research intent detected */}
+      {showSuggestion && detectionResult && (
+        <div className="fixed bottom-24 left-4 z-50 w-96">
+          <ModeSwitchSuggestion
+            result={detectionResult}
+            currentMode={currentMode}
+            onAccept={acceptSuggestion}
+            onDismiss={dismissSuggestion}
+            onKeepCurrent={keepCurrentMode}
+          />
         </div>
       )}
 

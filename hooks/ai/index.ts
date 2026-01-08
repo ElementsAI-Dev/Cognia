@@ -45,3 +45,8 @@ export {
   type UseSkillsReturn,
 } from './use-skills';
 export { usePlanExecutor, type PlanExecutionOptions, type UsePlanExecutorReturn } from './use-plan-executor';
+export {
+  usePromptOptimizer,
+  type UsePromptOptimizerOptions,
+  type UsePromptOptimizerReturn,
+} from './use-prompt-optimizer';

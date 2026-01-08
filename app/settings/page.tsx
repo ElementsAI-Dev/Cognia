@@ -95,6 +95,7 @@ import {
   SearchSettings,
 } from '@/components/settings';
 import { SelectionToolbarSettings } from '@/components/selection-toolbar/settings-panel';
+import { PromptTemplateManager } from '@/components/prompt-templates/prompt-template-manager';
 
 type SettingsSection = 
   | 'providers'
@@ -116,7 +117,8 @@ type SettingsSection =
   | 'environment'
   | 'proxy'
   | 'selection'
-  | 'native-tools';
+  | 'native-tools'
+  | 'prompt-templates';
 
 type SettingsGroup = 'ai' | 'interface' | 'data' | 'system';
 
@@ -267,6 +269,13 @@ export default function SettingsPage() {
       group: 'interface',
     },
     {
+      id: 'prompt-templates',
+      label: 'Prompt Templates',
+      icon: <FileText className="h-4 w-4" />,
+      description: 'Manage reusable prompt instructions',
+      group: 'interface',
+    },
+    {
       id: 'keyboard',
       label: 'Shortcuts',
       icon: <Keyboard className="h-4 w-4" />,
@@ -387,6 +396,8 @@ export default function SettingsPage() {
         return <SelectionToolbarSettings />;
       case 'native-tools':
         return <NativeToolsSettings />;
+      case 'prompt-templates':
+        return <PromptTemplateManager />;
       default:
         return <ProviderSettings />;
     }

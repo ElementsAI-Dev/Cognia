@@ -17,6 +17,7 @@ export {
   type Theme,
   type Language,
   type CustomTheme,
+  type CustomThemeColors,
   type CustomProviderSettings,
   type CodeTheme,
   type FontFamily,
@@ -34,3 +35,8 @@ export {
   createDefaultThemeTemplate,
   type CustomSyntaxTheme,
 } from './custom-theme-store';
+
+export {
+  useSettingsProfilesStore,
+  type SettingsProfile,
+} from './settings-profiles-store';

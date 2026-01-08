@@ -21,6 +21,16 @@ jest.mock('@tauri-apps/api/event', () => ({
   emit: jest.fn(),
 }));
 
+// Mock EmptyState to avoid lucide icon issues in test environment
+jest.mock('@/components/layout/empty-state', () => ({
+  EmptyState: ({ title, description }: { title: string; description?: string }) => (
+    <div data-testid="empty-state">
+      <span>{title}</span>
+      {description && <span>{description}</span>}
+    </div>
+  ),
+}));
+
 // Mock the clipboard API
 const mockWriteText = jest.fn();
 Object.assign(navigator, {

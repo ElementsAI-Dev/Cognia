@@ -40,7 +40,7 @@ jest.mock('@/stores', () => ({
 }));
 
 // Mock shortcuts hook
-jest.mock('@/hooks/use-keyboard-shortcuts', () => ({
+jest.mock('@/hooks/ui/use-keyboard-shortcuts', () => ({
   useKeyboardShortcuts: () => ({
     shortcuts: [
       { key: 'n', ctrl: true, description: 'New chat', category: 'chat' },

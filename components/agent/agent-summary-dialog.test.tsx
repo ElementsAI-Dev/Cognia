@@ -55,7 +55,7 @@ const mockGenerateAgentSummaryWithDiagram = jest.fn();
 const mockExportSummary = jest.fn();
 const mockReset = jest.fn();
 
-jest.mock('@/hooks/use-summary', () => ({
+jest.mock('@/hooks/chat/use-summary', () => ({
   useSummary: () => ({
     isGenerating: false,
     progress: null,
@@ -75,7 +75,7 @@ jest.mock('@/hooks/use-summary', () => ({
 }));
 
 // Mock useCopy hook
-jest.mock('@/hooks/use-copy', () => ({
+jest.mock('@/hooks/ui/use-copy', () => ({
   useCopy: () => ({
     copy: jest.fn(),
     isCopying: false,

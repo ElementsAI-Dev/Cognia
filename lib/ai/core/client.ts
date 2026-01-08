@@ -213,6 +213,52 @@ export function getProviderModel(
         baseURL: baseURL || 'http://localhost:11434/v1',
         apiKey: 'ollama', // Ollama doesn't require an API key
       })(model);
+    // Local providers - all OpenAI-compatible
+    case 'lmstudio':
+      return createOpenAI({
+        baseURL: baseURL || 'http://localhost:1234/v1',
+        apiKey: apiKey || 'lm-studio',
+      })(model);
+    case 'llamacpp':
+      return createOpenAI({
+        baseURL: baseURL || 'http://localhost:8080/v1',
+        apiKey: apiKey || 'llama-cpp',
+      })(model);
+    case 'llamafile':
+      return createOpenAI({
+        baseURL: baseURL || 'http://localhost:8080/v1',
+        apiKey: apiKey || 'llamafile',
+      })(model);
+    case 'vllm':
+      return createOpenAI({
+        baseURL: baseURL || 'http://localhost:8000/v1',
+        apiKey: apiKey || 'vllm',
+      })(model);
+    case 'localai':
+      return createOpenAI({
+        baseURL: baseURL || 'http://localhost:8080/v1',
+        apiKey: apiKey || 'localai',
+      })(model);
+    case 'jan':
+      return createOpenAI({
+        baseURL: baseURL || 'http://localhost:1337/v1',
+        apiKey: apiKey || 'jan',
+      })(model);
+    case 'textgenwebui':
+      return createOpenAI({
+        baseURL: baseURL || 'http://localhost:5000/v1',
+        apiKey: apiKey || 'textgen',
+      })(model);
+    case 'koboldcpp':
+      return createOpenAI({
+        baseURL: baseURL || 'http://localhost:5001/v1',
+        apiKey: apiKey || 'koboldcpp',
+      })(model);
+    case 'tabbyapi':
+      return createOpenAI({
+        baseURL: baseURL || 'http://localhost:5000/v1',
+        apiKey: apiKey || 'tabbyapi',
+      })(model);
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }
@@ -259,6 +305,16 @@ export const defaultModels: Record<Exclude<ProviderName, 'auto'>, string> = {
   cerebras: 'llama-3.3-70b',
   sambanova: 'Meta-Llama-3.3-70B-Instruct',
   ollama: 'llama3.2',
+  // Local providers
+  lmstudio: 'local-model',
+  llamacpp: 'local-model',
+  llamafile: 'local-model',
+  vllm: 'local-model',
+  localai: 'local-model',
+  jan: 'local-model',
+  textgenwebui: 'local-model',
+  koboldcpp: 'local-model',
+  tabbyapi: 'local-model',
 };
 
 /**
@@ -278,7 +334,11 @@ export function isValidProvider(provider: string): provider is ProviderName {
   const validProviders: ProviderName[] = [
     'openai', 'anthropic', 'google', 'deepseek', 'groq', 
     'mistral', 'xai', 'togetherai', 'openrouter', 'cohere',
-    'fireworks', 'cerebras', 'sambanova', 'ollama', 'auto'
+    'fireworks', 'cerebras', 'sambanova', 'ollama',
+    // Local providers
+    'lmstudio', 'llamacpp', 'llamafile', 'vllm', 'localai',
+    'jan', 'textgenwebui', 'koboldcpp', 'tabbyapi',
+    'auto'
   ];
   return validProviders.includes(provider as ProviderName);
 }
@@ -413,6 +473,16 @@ export const providerDisplayNames: Record<Exclude<ProviderName, 'auto'>, string>
   cerebras: 'Cerebras',
   sambanova: 'SambaNova',
   ollama: 'Ollama',
+  // Local inference frameworks
+  lmstudio: 'LM Studio',
+  llamacpp: 'llama.cpp',
+  llamafile: 'Llamafile',
+  vllm: 'vLLM',
+  localai: 'LocalAI',
+  jan: 'Jan',
+  textgenwebui: 'Text Generation WebUI',
+  koboldcpp: 'KoboldCpp',
+  tabbyapi: 'TabbyAPI',
 };
 
 /**

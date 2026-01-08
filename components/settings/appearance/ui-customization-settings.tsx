@@ -369,6 +369,41 @@ export function UICustomizationSettings() {
             </div>
           </div>
 
+          {/* Input Position */}
+          <div className="space-y-3">
+            <Label>{t('inputPosition') || 'Input Box Position'}</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setUICustomization({ inputPosition: 'bottom' })}
+                className={cn(
+                  'flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-colors',
+                  uiCustomization.inputPosition === 'bottom'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-transparent bg-muted hover:bg-muted/80'
+                )}
+              >
+                <div className="flex flex-col gap-1 w-full h-10 border rounded-md relative">
+                  <div className="absolute bottom-1 left-1 right-1 h-2 rounded bg-primary/50" />
+                </div>
+                <span className="text-xs font-medium">{t('inputBottom') || 'Bottom'}</span>
+              </button>
+              <button
+                onClick={() => setUICustomization({ inputPosition: 'floating' })}
+                className={cn(
+                  'flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-colors',
+                  uiCustomization.inputPosition === 'floating'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-transparent bg-muted hover:bg-muted/80'
+                )}
+              >
+                <div className="flex flex-col gap-1 w-full h-10 border rounded-md relative">
+                  <div className="absolute bottom-2 left-2 right-2 h-3 rounded bg-primary/50 shadow-sm" />
+                </div>
+                <span className="text-xs font-medium">{t('inputFloating') || 'Floating'}</span>
+              </button>
+            </div>
+          </div>
+
           {/* Timestamp Format */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">

@@ -86,6 +86,7 @@ import { OAuthLoginButton } from './oauth-login-button';
 import { ProviderImportExport } from './provider-import-export';
 import { ProviderHealthStatus } from './provider-health-status';
 import { OllamaModelManager } from './ollama-model-manager';
+import { LocalProviderSettings } from './local-provider-settings';
 import { OpenRouterSettings } from './openrouter-settings';
 import { OpenRouterKeyManagement } from './openrouter-key-management';
 import { testProviderConnection, type ApiTestResult } from '@/lib/ai/infrastructure/api-test';
@@ -110,6 +111,17 @@ function getProviderDashboardUrl(providerId: string): string {
     fireworks: 'https://fireworks.ai/account/api-keys',
     cerebras: 'https://cloud.cerebras.ai/platform',
     sambanova: 'https://cloud.sambanova.ai/apis',
+    // Local providers - link to documentation/websites
+    ollama: 'https://ollama.ai',
+    lmstudio: 'https://lmstudio.ai',
+    llamacpp: 'https://github.com/ggerganov/llama.cpp',
+    llamafile: 'https://github.com/Mozilla-Ocho/llamafile',
+    vllm: 'https://docs.vllm.ai',
+    localai: 'https://localai.io',
+    jan: 'https://jan.ai',
+    textgenwebui: 'https://github.com/oobabooga/text-generation-webui',
+    koboldcpp: 'https://github.com/LostRuins/koboldcpp',
+    tabbyapi: 'https://github.com/theroyallab/tabbyAPI',
   };
   return urls[providerId] || '#';
 }
@@ -134,6 +146,16 @@ function getProviderDescription(providerId: string): string {
     cerebras: 'Fastest inference with custom AI chips',
     sambanova: 'Enterprise AI with free tier',
     ollama: 'Run models locally on your machine',
+    // New local providers
+    lmstudio: 'Desktop app for running local LLMs',
+    llamacpp: 'High-performance C++ inference server',
+    llamafile: 'Single-file executable LLM server',
+    vllm: 'High-throughput GPU inference engine',
+    localai: 'Self-hosted OpenAI alternative',
+    jan: 'Open-source ChatGPT alternative',
+    textgenwebui: 'Gradio web UI with OpenAI API',
+    koboldcpp: 'Easy-to-use llama.cpp fork',
+    tabbyapi: 'Exllamav2 API server',
   };
   return descriptions[providerId] || '';
 }
@@ -158,7 +180,7 @@ const CATEGORY_CONFIG: Record<ProviderCategory, { label: string; icon: React.Rea
   flagship: { label: 'Flagship', icon: <Sparkles className="h-3 w-3" />, description: 'OpenAI, Anthropic, Google, xAI' },
   aggregator: { label: 'Aggregator', icon: <Globe className="h-3 w-3" />, description: 'OpenRouter, Together AI' },
   specialized: { label: 'Fast', icon: <Zap className="h-3 w-3" />, description: 'Groq, Cerebras, DeepSeek' },
-  local: { label: 'Local', icon: <Server className="h-3 w-3" />, description: 'Ollama' },
+  local: { label: 'Local', icon: <Server className="h-3 w-3" />, description: 'Ollama, LM Studio, vLLM, llama.cpp' },
 };
 
 // Map provider IDs to categories
@@ -176,7 +198,17 @@ const PROVIDER_CATEGORIES: Record<string, ProviderCategory> = {
   mistral: 'specialized',
   cohere: 'specialized',
   sambanova: 'specialized',
+  // Local inference providers
   ollama: 'local',
+  lmstudio: 'local',
+  llamacpp: 'local',
+  llamafile: 'local',
+  vllm: 'local',
+  localai: 'local',
+  jan: 'local',
+  textgenwebui: 'local',
+  koboldcpp: 'local',
+  tabbyapi: 'local',
 };
 
 export function ProviderSettings() {
@@ -517,6 +549,11 @@ export function ProviderSettings() {
           </div>
         </div>
       </div>
+
+      {/* Local Providers Section - Show when local category is selected */}
+      {categoryFilter === 'local' && (
+        <LocalProviderSettings />
+      )}
 
       {/* Built-in Providers - Grid or Table Layout */}
       <TooltipProvider delayDuration={300}>

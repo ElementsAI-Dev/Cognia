@@ -2,60 +2,95 @@
 
 /**
  * Auto Router - intelligent model selection based on task complexity
- * Routes queries to appropriate model tiers: fast, balanced, powerful
+ * Routes queries to appropriate model tiers: fast, balanced, powerful, reasoning
  * 
  * Features:
- * - Task complexity classification (simple, moderate, complex)
- * - Multi-tier model selection (fast, balanced, powerful)
- * - Provider availability checking
- * - Fallback mechanisms
- * - Vision and tool requirement detection
- * - Two routing modes:
- *   1. Rule-based (fast, pattern matching)
- *   2. LLM-based (accurate, uses small model for routing)
+ * - Task complexity classification (simple, moderate, complex, expert)
+ * - Multi-tier model selection with reasoning tier
+ * - Provider availability and capability checking
+ * - Agent mode integration
+ * - Context-aware routing
+ * - Cost estimation and optimization
+ * - Fallback mechanisms with priority
+ * - Vision, tool, and reasoning capability detection
+ * - Routing modes: rule-based, LLM-based, hybrid
+ * - Caching and statistics
  */
 
 import { useCallback, useMemo } from 'react';
 import { useSettingsStore } from '@/stores';
 import type { ProviderName } from '@/types/provider';
+import { getModelConfig } from '@/types/provider';
+import type { AgentModeType } from '@/types/agent-mode';
+import type { 
+  TaskClassification, 
+  ModelSelection, 
+  RoutingMode, 
+  RoutingContext,
+  ModelTier,
+  TaskCategory,
+  TaskComplexity,
+} from '@/types/auto-router';
+
+/**
+ * Apply agent mode hints to task classification
+ * Adjusts classification based on the active agent mode
+ */
+function applyAgentModeHints(
+  classification: TaskClassification,
+  agentMode: AgentModeType
+): TaskClassification {
+  const modeHints: Record<AgentModeType, Partial<TaskClassification>> = {
+    'general': {},
+    'web-design': { requiresCreativity: true, requiresCoding: true, category: 'coding' },
+    'code-gen': { requiresCoding: true, category: 'coding' },
+    'data-analysis': { requiresReasoning: true, category: 'analysis' },
+    'writing': { requiresCreativity: true, category: 'creative' },
+    'research': { requiresReasoning: true, category: 'research' },
+    'ppt-generation': { requiresCreativity: true, category: 'creative' },
+    'workflow': { requiresTools: true, requiresReasoning: true },
+    'academic': { requiresReasoning: true, category: 'research' },
+    'custom': {},
+  };
+
+  const hints = modeHints[agentMode] || {};
+  return { ...classification, ...hints };
+}
+
+/**
+ * Check if a model supports vision based on provider config
+ */
+function supportsVision(provider: ProviderName, model: string): boolean {
+  const config = getModelConfig(provider, model);
+  return config?.supportsVision ?? false;
+}
+
 import { supportsToolCalling, getProviderModel } from '../core/client';
 import { generateText } from 'ai';
+import { 
+  getCachedRouting, 
+  cacheRoutingDecision, 
+  recordRoutingDecision,
+  estimateCost,
+} from './routing-cache';
 
-// Routing mode types
-export type RoutingMode = 'rule-based' | 'llm-based';
+// Re-export types for backward compatibility
+export type { TaskClassification, ModelSelection, RoutingMode };
 
 // Router model configuration
 export interface RouterModelConfig {
   provider: ProviderName;
   model: string;
+  priority?: number;
 }
 
-// Default small models for LLM-based routing
+// Default small models for LLM-based routing (ordered by priority)
 const DEFAULT_ROUTER_MODELS: RouterModelConfig[] = [
-  { provider: 'groq', model: 'llama-3.1-8b-instant' },
-  { provider: 'openai', model: 'gpt-4o-mini' },
-  { provider: 'google', model: 'gemini-2.0-flash-exp' },
-  { provider: 'anthropic', model: 'claude-3-5-haiku-20241022' },
+  { provider: 'groq', model: 'llama-3.1-8b-instant', priority: 1 },
+  { provider: 'google', model: 'gemini-2.0-flash-exp', priority: 2 },
+  { provider: 'openai', model: 'gpt-4o-mini', priority: 3 },
+  { provider: 'anthropic', model: 'claude-3-5-haiku-20241022', priority: 4 },
 ];
-
-export interface ModelSelection {
-  provider: ProviderName;
-  model: string;
-  reason: string;
-  routingMode?: RoutingMode;
-  routingLatency?: number;
-}
-
-export interface TaskClassification {
-  complexity: 'simple' | 'moderate' | 'complex';
-  requiresReasoning: boolean;
-  requiresTools: boolean;
-  requiresVision: boolean;
-  requiresCreativity: boolean;
-  requiresCoding: boolean;
-  estimatedTokens: number;
-  category: 'general' | 'coding' | 'analysis' | 'creative' | 'research' | 'conversation';
-}
 
 // LLM routing prompt
 const LLM_ROUTER_PROMPT = `You are a task router that classifies user queries to select the best AI model tier.
@@ -145,10 +180,11 @@ function classifyTaskRuleBased(input: string): TaskClassification {
 
   // Estimate complexity based on input length and patterns
   const wordCount = input.split(/\s+/).length;
-  const estimatedTokens = Math.ceil(wordCount * 1.3);
+  const estimatedInputTokens = Math.ceil(wordCount * 1.3);
+  const estimatedOutputTokens = Math.ceil(estimatedInputTokens * 2); // Rough estimate
 
   // More nuanced complexity detection
-  let complexity: 'simple' | 'moderate' | 'complex' = 'moderate';
+  let complexity: TaskComplexity = 'moderate';
   
   if (isSimple && wordCount < 20 && !requiresCoding) {
     complexity = 'simple';
@@ -161,24 +197,37 @@ function classifyTaskRuleBased(input: string): TaskClassification {
   
   // Check for vision requirements
   const requiresVision = /image|picture|photo|screenshot|diagram|visual|look.*at/i.test(input);
+  
+  // Check for long context requirements
+  const requiresLongContext = wordCount > 500 || /entire|full|complete|all.*of/i.test(input);
 
   // Determine category
-  let category: TaskClassification['category'] = 'general';
+  let category: TaskCategory = 'general';
   if (requiresCoding) category = 'coding';
   else if (requiresReasoning) category = 'analysis';
   else if (requiresCreativity) category = 'creative';
   else if (isResearch) category = 'research';
   else if (isSimple && wordCount < 30) category = 'conversation';
 
+  // Calculate confidence based on pattern matches
+  const patternMatches = [
+    isComplex, isSimple, requiresReasoning, requiresCoding, 
+    requiresCreativity, isResearch, requiresTools, requiresVision
+  ].filter(Boolean).length;
+  const confidence = Math.min(0.95, 0.5 + patternMatches * 0.1);
+
   return {
     complexity,
+    category,
     requiresReasoning,
     requiresTools,
     requiresVision,
     requiresCreativity,
     requiresCoding,
-    estimatedTokens,
-    category,
+    requiresLongContext,
+    estimatedInputTokens,
+    estimatedOutputTokens,
+    confidence,
   };
 }
 
@@ -210,16 +259,20 @@ export async function classifyTaskWithLLM(
     
     const wordCount = input.split(/\s+/).length;
     
+    const estimatedInputTokens = Math.ceil(wordCount * 1.3);
     return {
       classification: {
         complexity: result.complexity || 'moderate',
+        category: result.category || 'general',
         requiresReasoning: result.requiresReasoning || false,
         requiresTools: result.requiresTools || false,
         requiresVision: result.requiresVision || false,
         requiresCreativity: result.requiresCreativity || false,
         requiresCoding: result.requiresCoding || false,
-        estimatedTokens: Math.ceil(wordCount * 1.3),
-        category: result.category || 'general',
+        requiresLongContext: wordCount > 500,
+        estimatedInputTokens,
+        estimatedOutputTokens: estimatedInputTokens * 2,
+        confidence: 0.85, // LLM classification is more confident
       },
       recommendedTier: result.recommendedTier || 'balanced',
     };
@@ -271,6 +324,7 @@ const MODEL_TIERS = {
 
 export function useAutoRouter() {
   const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const autoRouterSettings = useSettingsStore((state) => state.autoRouterSettings);
 
   // Memoize enabled providers list
   const enabledProviders = useMemo(() => {
@@ -301,6 +355,10 @@ export function useAutoRouter() {
         if (classification.requiresTools && !supportsToolCalling(m.model)) {
           return false;
         }
+        // If vision is required, filter out models that don't support it
+        if (classification.requiresVision && !supportsVision(m.provider, m.model)) {
+          return false;
+        }
         return true;
       });
     },
@@ -309,33 +367,32 @@ export function useAutoRouter() {
 
   const selectModel = useCallback(
     (input: string, options?: { preferredProvider?: ProviderName }): ModelSelection => {
+      const startTime = Date.now();
       const classification = classifyTask(input);
 
       // Determine initial tier based on classification
-      let tier: keyof typeof MODEL_TIERS;
+      let tier: ModelTier = 'balanced';
       if (classification.complexity === 'simple' && !classification.requiresReasoning) {
         tier = 'fast';
       } else if (classification.complexity === 'complex' || classification.requiresReasoning) {
         tier = 'powerful';
-      } else {
-        tier = 'balanced';
       }
 
       // Get available models for the tier
-      let availableModels = getEnabledModels(tier);
+      let availableModels = getEnabledModels(tier as keyof typeof MODEL_TIERS);
       
       // Filter by requirements
       availableModels = filterByRequirements(availableModels, classification);
 
       // Fallback to lower tiers if no models available
       if (availableModels.length === 0) {
-        const fallbackOrder: Array<keyof typeof MODEL_TIERS> = 
+        const fallbackOrder: ModelTier[] = 
           tier === 'powerful' ? ['balanced', 'fast'] :
           tier === 'fast' ? ['balanced', 'powerful'] :
           ['fast', 'powerful'];
 
         for (const fallbackTier of fallbackOrder) {
-          let fallbackModels = getEnabledModels(fallbackTier);
+          let fallbackModels = getEnabledModels(fallbackTier as keyof typeof MODEL_TIERS);
           fallbackModels = filterByRequirements(fallbackModels, classification);
           if (fallbackModels.length > 0) {
             availableModels = fallbackModels;
@@ -350,7 +407,11 @@ export function useAutoRouter() {
         return {
           provider: 'openai',
           model: 'gpt-4o-mini',
+          tier: 'fast',
           reason: 'Fallback: No configured providers available. Please add API keys in Settings.',
+          routingMode: 'rule-based',
+          routingLatency: Date.now() - startTime,
+          classification,
         };
       }
 
@@ -361,7 +422,11 @@ export function useAutoRouter() {
           return {
             provider: preferred.provider,
             model: preferred.model,
+            tier,
             reason: `Auto: preferred provider (${classification.complexity} task)`,
+            routingMode: 'rule-based',
+            routingLatency: Date.now() - startTime,
+            classification,
           };
         }
       }
@@ -369,10 +434,11 @@ export function useAutoRouter() {
       // Select first available model from tier
       const selected = availableModels[0];
 
-      const tierDescriptions = {
+      const tierDescriptions: Record<ModelTier, string> = {
         fast: 'quick response',
         balanced: 'balanced quality/speed',
         powerful: 'complex reasoning',
+        reasoning: 'deep reasoning',
       };
 
       // Build detailed reason
@@ -386,7 +452,11 @@ export function useAutoRouter() {
       return {
         provider: selected.provider,
         model: selected.model,
+        tier,
         reason: `Auto: ${tierDescriptions[tier]} (${classification.complexity} task)${detailStr}`,
+        routingMode: 'rule-based',
+        routingLatency: Date.now() - startTime,
+        classification,
       };
     },
     [getEnabledModels, filterByRequirements]
@@ -401,7 +471,7 @@ export function useAutoRouter() {
     };
   }, [getEnabledModels]);
 
-  // Async model selection using LLM-based routing
+  // Async model selection using LLM-based routing with caching
   const selectModelAsync = useCallback(
     async (
       input: string, 
@@ -409,13 +479,33 @@ export function useAutoRouter() {
         preferredProvider?: ProviderName;
         routingMode?: RoutingMode;
         routerModel?: RouterModelConfig;
+        context?: RoutingContext;
+        useCache?: boolean;
       }
     ): Promise<ModelSelection> => {
       const startTime = Date.now();
       const mode = options?.routingMode || 'rule-based';
+      const useCache = options?.useCache ?? autoRouterSettings.enableCache;
+      
+      // Check cache first
+      if (useCache) {
+        const cached = getCachedRouting(
+          input,
+          options?.context?.hasImages,
+          options?.context?.agentTools && options.context.agentTools.length > 0,
+          options?.context?.agentMode
+        );
+        if (cached) {
+          recordRoutingDecision(cached, true);
+          return {
+            ...cached,
+            routingLatency: Date.now() - startTime,
+          };
+        }
+      }
       
       let classification: TaskClassification;
-      let recommendedTier: 'fast' | 'balanced' | 'powerful';
+      let recommendedTier: ModelTier = 'balanced';
       
       if (mode === 'llm-based') {
         // Get router model (use provided or find first available)
@@ -444,19 +534,35 @@ export function useAutoRouter() {
                          classification.complexity === 'complex' ? 'powerful' : 'balanced';
       }
       
+      // Apply context-based adjustments
+      if (options?.context) {
+        // Agent mode adjustments
+        if (options.context.agentMode) {
+          classification = applyAgentModeHints(classification, options.context.agentMode);
+        }
+        // Image attachments require vision
+        if (options.context.hasImages) {
+          classification = { ...classification, requiresVision: true };
+        }
+        // User tier preference
+        if (options.context.userPreferredTier) {
+          recommendedTier = options.context.userPreferredTier;
+        }
+      }
+      
       // Get available models for the recommended tier
-      let availableModels = getEnabledModels(recommendedTier);
+      let availableModels = getEnabledModels(recommendedTier as keyof typeof MODEL_TIERS);
       availableModels = filterByRequirements(availableModels, classification);
       
       // Fallback to other tiers if needed
       if (availableModels.length === 0) {
-        const fallbackOrder: Array<keyof typeof MODEL_TIERS> = 
+        const fallbackOrder: ModelTier[] = 
           recommendedTier === 'powerful' ? ['balanced', 'fast'] :
           recommendedTier === 'fast' ? ['balanced', 'powerful'] :
           ['fast', 'powerful'];
 
         for (const fallbackTier of fallbackOrder) {
-          let fallbackModels = getEnabledModels(fallbackTier);
+          let fallbackModels = getEnabledModels(fallbackTier as keyof typeof MODEL_TIERS);
           fallbackModels = filterByRequirements(fallbackModels, classification);
           if (fallbackModels.length > 0) {
             availableModels = fallbackModels;
@@ -471,9 +577,11 @@ export function useAutoRouter() {
         return {
           provider: 'openai',
           model: 'gpt-4o-mini',
+          tier: 'fast',
           reason: 'Fallback: No configured providers available.',
           routingMode: mode,
           routingLatency: Date.now() - startTime,
+          classification,
         };
       }
       
@@ -484,18 +592,21 @@ export function useAutoRouter() {
           return {
             provider: preferred.provider,
             model: preferred.model,
+            tier: recommendedTier,
             reason: `Auto (${mode}): preferred provider (${classification.category})`,
             routingMode: mode,
             routingLatency: Date.now() - startTime,
+            classification,
           };
         }
       }
       
       const selected = availableModels[0];
-      const tierDescriptions = {
+      const tierDescriptions: Record<ModelTier, string> = {
         fast: 'quick response',
         balanced: 'balanced quality/speed',
         powerful: 'complex reasoning',
+        reasoning: 'deep reasoning',
       };
       
       const details: string[] = [classification.category];
@@ -503,15 +614,40 @@ export function useAutoRouter() {
       if (classification.requiresCoding) details.push('coding');
       if (classification.requiresCreativity) details.push('creative');
       
-      return {
+      // Calculate estimated cost
+      const cost = estimateCost(
+        classification.estimatedInputTokens,
+        classification.estimatedOutputTokens,
+        selected.provider,
+        selected.model
+      );
+      
+      const result: ModelSelection = {
         provider: selected.provider,
         model: selected.model,
+        tier: recommendedTier,
         reason: `Auto (${mode}): ${tierDescriptions[recommendedTier]} [${details.join(', ')}]`,
         routingMode: mode,
         routingLatency: Date.now() - startTime,
+        classification,
+        estimatedCost: cost || undefined,
       };
+      
+      // Cache the result and record statistics
+      if (useCache) {
+        cacheRoutingDecision(
+          input,
+          result,
+          options?.context?.hasImages,
+          options?.context?.agentTools && options.context.agentTools.length > 0,
+          options?.context?.agentMode
+        );
+      }
+      recordRoutingDecision(result, false);
+      
+      return result;
     },
-    [enabledProviders, providerSettings, getEnabledModels, filterByRequirements]
+    [enabledProviders, providerSettings, getEnabledModels, filterByRequirements, autoRouterSettings.enableCache]
   );
 
   // Get available router models

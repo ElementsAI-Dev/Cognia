@@ -57,3 +57,6 @@ export {
   type UseWorkflowCommandOptions,
   type UseWorkflowCommandReturn,
 } from './use-workflow-command';
+export {
+  useIntentDetection,
+} from './use-intent-detection';

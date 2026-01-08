@@ -1,0 +1,491 @@
+'use client';
+
+/**
+ * PromptMarketplaceDetail - Detailed view of a marketplace prompt
+ */
+
+import { useState, useCallback } from 'react';
+import {
+  Star,
+  Download,
+  Heart,
+  Check,
+  Copy,
+  Share2,
+  User,
+  Calendar,
+  Tag,
+  Code,
+  Eye,
+  ThumbsUp,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  History,
+  Shield,
+} from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
+import type { MarketplacePrompt, PromptReview } from '@/types/prompt-marketplace';
+import { QUALITY_TIER_INFO } from '@/types/prompt-marketplace';
+import { usePromptMarketplaceStore } from '@/stores/prompt/prompt-marketplace-store';
+import { toast } from '@/components/ui/sonner';
+
+interface PromptMarketplaceDetailProps {
+  prompt: MarketplacePrompt | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function PromptMarketplaceDetail({
+  prompt,
+  open,
+  onOpenChange,
+}: PromptMarketplaceDetailProps) {
+  const [isInstalling, setIsInstalling] = useState(false);
+  const [showFullContent, setShowFullContent] = useState(false);
+  const [userRating, setUserRating] = useState(0);
+  const [userReview, setUserReview] = useState('');
+  const [_reviews, setReviews] = useState<PromptReview[]>([]);
+  const [copied, setCopied] = useState(false);
+
+  const isInstalled = usePromptMarketplaceStore(state => 
+    prompt ? state.isPromptInstalled(prompt.id) : false
+  );
+  const isFavorite = usePromptMarketplaceStore(state => 
+    prompt ? state.isFavorite(prompt.id) : false
+  );
+  const addToFavorites = usePromptMarketplaceStore(state => state.addToFavorites);
+  const removeFromFavorites = usePromptMarketplaceStore(state => state.removeFromFavorites);
+  const installPrompt = usePromptMarketplaceStore(state => state.installPrompt);
+  const fetchPromptReviews = usePromptMarketplaceStore(state => state.fetchPromptReviews);
+
+  const handleInstall = useCallback(async () => {
+    if (!prompt) return;
+    setIsInstalling(true);
+    try {
+      await installPrompt(prompt);
+      toast.success('Prompt installed successfully!');
+    } catch (error) {
+      toast.error('Failed to install prompt');
+      console.error(error);
+    } finally {
+      setIsInstalling(false);
+    }
+  }, [prompt, installPrompt]);
+
+  const handleFavoriteToggle = useCallback(() => {
+    if (!prompt) return;
+    if (isFavorite) {
+      removeFromFavorites(prompt.id);
+    } else {
+      addToFavorites(prompt.id);
+    }
+  }, [prompt, isFavorite, addToFavorites, removeFromFavorites]);
+
+  const handleCopyContent = useCallback(async () => {
+    if (!prompt) return;
+    await navigator.clipboard.writeText(prompt.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast.success('Copied to clipboard');
+  }, [prompt]);
+
+  const handleShare = useCallback(async () => {
+    if (!prompt) return;
+    const shareUrl = `${window.location.origin}/marketplace/prompt/${prompt.id}`;
+    await navigator.clipboard.writeText(shareUrl);
+    toast.success('Share link copied!');
+  }, [prompt]);
+
+  const loadReviews = useCallback(async () => {
+    if (!prompt) return;
+    const reviews = await fetchPromptReviews(prompt.id);
+    setReviews(reviews);
+  }, [prompt, fetchPromptReviews]);
+
+  if (!prompt) return null;
+
+  const tierInfo = QUALITY_TIER_INFO[prompt.qualityTier];
+
+  const formatNumber = (num: number): string => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+    return num.toString();
+  };
+
+  const formatDate = (date: Date): string => {
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }).format(new Date(date));
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="shrink-0">
+          <div className="flex items-start gap-4">
+            {/* Icon */}
+            <div
+              className="flex items-center justify-center w-14 h-14 rounded-xl text-2xl shrink-0"
+              style={{ backgroundColor: `${prompt.color || '#6366f1'}20` }}
+            >
+              {prompt.icon || '📝'}
+            </div>
+
+            {/* Title & Meta */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <DialogTitle className="text-xl">{prompt.name}</DialogTitle>
+                <Badge
+                  variant="secondary"
+                  className="text-xs"
+                  style={{ backgroundColor: `${tierInfo.color}20`, color: tierInfo.color }}
+                >
+                  {tierInfo.icon} {tierInfo.name}
+                </Badge>
+              </div>
+              
+              <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <User className="h-3.5 w-3.5" />
+                  <span>{prompt.author.name}</span>
+                  {prompt.author.verified && (
+                    <Shield className="h-3.5 w-3.5 text-blue-500" />
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span>{formatDate(prompt.createdAt)}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <History className="h-3.5 w-3.5" />
+                  <span>v{prompt.version}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <ScrollArea className="flex-1 -mx-6 px-6">
+          <div className="space-y-6 pb-4">
+            {/* Stats Row */}
+            <div className="flex items-center gap-6 p-4 bg-muted/50 rounded-lg">
+              <div className="text-center">
+                <div className="flex items-center gap-1 justify-center">
+                  <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                  <span className="text-lg font-semibold">{prompt.rating.average.toFixed(1)}</span>
+                </div>
+                <div className="text-xs text-muted-foreground">{prompt.rating.count} ratings</div>
+              </div>
+              <Separator orientation="vertical" className="h-10" />
+              <div className="text-center">
+                <div className="flex items-center gap-1 justify-center">
+                  <Download className="h-4 w-4" />
+                  <span className="text-lg font-semibold">{formatNumber(prompt.stats.downloads)}</span>
+                </div>
+                <div className="text-xs text-muted-foreground">downloads</div>
+              </div>
+              <Separator orientation="vertical" className="h-10" />
+              <div className="text-center">
+                <div className="flex items-center gap-1 justify-center">
+                  <Heart className="h-4 w-4" />
+                  <span className="text-lg font-semibold">{formatNumber(prompt.stats.favorites)}</span>
+                </div>
+                <div className="text-xs text-muted-foreground">favorites</div>
+              </div>
+              <Separator orientation="vertical" className="h-10" />
+              <div className="text-center">
+                <div className="flex items-center gap-1 justify-center">
+                  <Eye className="h-4 w-4" />
+                  <span className="text-lg font-semibold">{formatNumber(prompt.stats.views)}</span>
+                </div>
+                <div className="text-xs text-muted-foreground">views</div>
+              </div>
+              {prompt.stats.successRate && (
+                <>
+                  <Separator orientation="vertical" className="h-10" />
+                  <div className="text-center">
+                    <div className="flex items-center gap-1 justify-center">
+                      <Sparkles className="h-4 w-4 text-green-500" />
+                      <span className="text-lg font-semibold">{Math.round(prompt.stats.successRate * 100)}%</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">success rate</div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Description */}
+            <div>
+              <h4 className="font-medium mb-2">Description</h4>
+              <p className="text-sm text-muted-foreground">{prompt.description}</p>
+            </div>
+
+            {/* Tags */}
+            <div>
+              <h4 className="font-medium mb-2 flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                Tags
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {prompt.tags.map(tag => (
+                  <Badge key={tag} variant="secondary">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Tabs for Content, Variables, Reviews */}
+            <Tabs defaultValue="content" onValueChange={(v) => v === 'reviews' && loadReviews()}>
+              <TabsList className="w-full">
+                <TabsTrigger value="content" className="flex-1">
+                  <Code className="h-4 w-4 mr-1.5" />
+                  Content
+                </TabsTrigger>
+                <TabsTrigger value="variables" className="flex-1">
+                  <Sparkles className="h-4 w-4 mr-1.5" />
+                  Variables ({prompt.variables.length})
+                </TabsTrigger>
+                <TabsTrigger value="reviews" className="flex-1">
+                  <ThumbsUp className="h-4 w-4 mr-1.5" />
+                  Reviews ({prompt.reviewCount})
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="content" className="mt-4">
+                <div className="relative">
+                  <pre
+                    className={cn(
+                      'p-4 bg-muted rounded-lg text-sm overflow-x-auto whitespace-pre-wrap',
+                      !showFullContent && 'max-h-[200px] overflow-hidden'
+                    )}
+                  >
+                    {prompt.content}
+                  </pre>
+                  {prompt.content.length > 500 && (
+                    <div
+                      className={cn(
+                        'absolute bottom-0 left-0 right-0 flex justify-center pb-2',
+                        !showFullContent && 'bg-gradient-to-t from-muted to-transparent pt-8'
+                      )}
+                    >
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setShowFullContent(!showFullContent)}
+                      >
+                        {showFullContent ? (
+                          <>
+                            <ChevronUp className="h-4 w-4 mr-1" />
+                            Show Less
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="h-4 w-4 mr-1" />
+                            Show More
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="variables" className="mt-4">
+                {prompt.variables.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No variables defined
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {prompt.variables.map((variable) => (
+                      <div
+                        key={variable.name}
+                        className="p-3 border rounded-lg"
+                      >
+                        <div className="flex items-center gap-2">
+                          <code className="text-sm font-mono bg-muted px-2 py-0.5 rounded">
+                            {`{{${variable.name}}}`}
+                          </code>
+                          {variable.required && (
+                            <Badge variant="destructive" className="text-xs">Required</Badge>
+                          )}
+                          <Badge variant="outline" className="text-xs">{variable.type || 'text'}</Badge>
+                        </div>
+                        {variable.description && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {variable.description}
+                          </p>
+                        )}
+                        {variable.defaultValue && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Default: <code>{variable.defaultValue}</code>
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="reviews" className="mt-4">
+                <div className="space-y-4">
+                  {/* Rating Distribution */}
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-4">
+                      <div className="text-center">
+                        <div className="text-3xl font-bold">{prompt.rating.average.toFixed(1)}</div>
+                        <div className="flex items-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={cn(
+                                'h-4 w-4',
+                                star <= Math.round(prompt.rating.average)
+                                  ? 'text-yellow-500 fill-yellow-500'
+                                  : 'text-muted-foreground'
+                              )}
+                            />
+                          ))}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {prompt.rating.count} ratings
+                        </div>
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        {[5, 4, 3, 2, 1].map((star) => {
+                          const count = prompt.rating.distribution[star as keyof typeof prompt.rating.distribution];
+                          const percentage = prompt.rating.count > 0
+                            ? (count / prompt.rating.count) * 100
+                            : 0;
+                          return (
+                            <div key={star} className="flex items-center gap-2">
+                              <span className="text-xs w-3">{star}</span>
+                              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-yellow-500 rounded-full"
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-muted-foreground w-8">
+                                {count}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Write Review */}
+                  <div className="p-4 border rounded-lg space-y-3">
+                    <h5 className="font-medium">Write a Review</h5>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setUserRating(star)}
+                          className="p-1 hover:scale-110 transition-transform"
+                        >
+                          <Star
+                            className={cn(
+                              'h-6 w-6 transition-colors',
+                              star <= userRating
+                                ? 'text-yellow-500 fill-yellow-500'
+                                : 'text-muted-foreground hover:text-yellow-400'
+                            )}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    <Textarea
+                      placeholder="Share your experience with this prompt..."
+                      value={userReview}
+                      onChange={(e) => setUserReview(e.target.value)}
+                      rows={3}
+                    />
+                    <Button disabled={userRating === 0}>
+                      Submit Review
+                    </Button>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </ScrollArea>
+
+        {/* Action Footer */}
+        <div className="shrink-0 pt-4 border-t flex items-center gap-3">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" onClick={handleFavoriteToggle}>
+                <Heart
+                  className={cn(
+                    'h-4 w-4',
+                    isFavorite && 'text-red-500 fill-red-500'
+                  )}
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{isFavorite ? 'Remove from favorites' : 'Add to favorites'}</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" onClick={handleCopyContent}>
+                {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Copy prompt content</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" onClick={handleShare}>
+                <Share2 className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Share prompt</TooltipContent>
+          </Tooltip>
+
+          <div className="flex-1" />
+
+          {isInstalled ? (
+            <Button variant="outline" className="gap-2">
+              <Check className="h-4 w-4 text-green-500" />
+              Installed
+            </Button>
+          ) : (
+            <Button onClick={handleInstall} disabled={isInstalling} className="gap-2">
+              <Download className="h-4 w-4" />
+              {isInstalling ? 'Installing...' : 'Install Prompt'}
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default PromptMarketplaceDetail;

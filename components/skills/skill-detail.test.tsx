@@ -123,7 +123,8 @@ describe('SkillDetail', () => {
     it('renders status badge', () => {
       renderWithProviders(<SkillDetail skillId="test-skill-1" />);
 
-      expect(screen.getByText('enabled')).toBeInTheDocument();
+      // Multiple "Enabled" texts may appear (badge + toggle label)
+      expect(screen.getAllByText('Enabled').length).toBeGreaterThan(0);
     });
 
     it('renders Active badge for active skills', () => {
@@ -162,7 +163,7 @@ describe('SkillDetail', () => {
     it('renders all tabs', () => {
       renderWithProviders(<SkillDetail skillId="test-skill-1" />);
 
-      expect(screen.getByRole('tab', { name: /overview/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /preview/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /content/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /resources/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /edit/i })).toBeInTheDocument();
@@ -171,7 +172,7 @@ describe('SkillDetail', () => {
     it('shows overview tab by default', () => {
       renderWithProviders(<SkillDetail skillId="test-skill-1" />);
 
-      expect(screen.getByRole('tab', { name: /overview/i })).toHaveAttribute('data-state', 'active');
+      expect(screen.getByRole('tab', { name: /preview/i })).toHaveAttribute('data-state', 'active');
     });
 
     it('displays About this Skill card in overview', () => {

@@ -28,6 +28,15 @@ jest.mock('@/lib/ai/embedding/chunking', () => ({
       strategy: 'fixed',
     };
   }),
+  chunkDocumentAsync: jest.fn(async (content: string, options: unknown, id?: string) =>
+    Promise.resolve(
+      (jest.requireActual('@/lib/ai/embedding/chunking') as typeof import('@/lib/ai/embedding/chunking')).chunkDocument(
+        content,
+        options as Parameters<typeof import('@/lib/ai/embedding/chunking').chunkDocument>[1],
+        id
+      )
+    )
+  ),
 }));
 
 describe('detectDocumentType', () => {

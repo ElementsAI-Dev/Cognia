@@ -68,7 +68,7 @@ describe('document-storage', () => {
       const longContent = 'word '.repeat(500);
       const result = await storeDocument('large.md', longContent, {
         generateChunks: true,
-        chunkingOptions: { chunkSize: 100 },
+        chunkingOptions: { chunkSize: 100, strategy: 'fixed' },
       });
 
       expect(result.processed.chunks).toBeDefined();

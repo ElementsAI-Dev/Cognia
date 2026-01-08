@@ -59,6 +59,7 @@ import {
 } from '@/lib/themes';
 import { getBackgroundImageAssetBlob } from '@/lib/themes/background-assets';
 import { cn } from '@/lib/utils';
+import { BackgroundImportExport } from './background-import-export';
 
 const fitOptions: { value: BackgroundImageFit; label: string; labelZh: string }[] = [
   { value: 'cover', label: 'Cover', labelZh: '覆盖' },
@@ -95,12 +96,18 @@ export function BackgroundSettings() {
   const setBackgroundBrightness = useSettingsStore((state) => state.setBackgroundBrightness);
   const setBackgroundSaturation = useSettingsStore((state) => state.setBackgroundSaturation);
   const setBackgroundLocalFile = useSettingsStore((state) => state.setBackgroundLocalFile);
+  const setBackgroundAttachment = useSettingsStore((state) => state.setBackgroundAttachment);
+  const setBackgroundAnimation = useSettingsStore((state) => state.setBackgroundAnimation);
+  const setBackgroundAnimationSpeed = useSettingsStore((state) => state.setBackgroundAnimationSpeed);
+  const setBackgroundContrast = useSettingsStore((state) => state.setBackgroundContrast);
+  const setBackgroundGrayscale = useSettingsStore((state) => state.setBackgroundGrayscale);
   const clearBackground = useSettingsStore((state) => state.clearBackground);
 
   const [urlInput, setUrlInput] = useState(backgroundSettings.imageUrl || '');
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isPreviewVisible, setIsPreviewVisible] = useState(true);
+  const [presetCategory, setPresetCategory] = useState<'all' | 'gradient' | 'mesh' | 'abstract'>('all');
 
   const derivedTab = useMemo(() => {
     if (backgroundSettings.source === 'url') return 'url';
@@ -278,6 +285,7 @@ export function BackgroundSettings() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <BackgroundImportExport />
             {backgroundSettings.enabled && (
               <Button
                 variant="ghost"
@@ -359,9 +367,28 @@ export function BackgroundSettings() {
           </TabsList>
 
           {/* Presets Tab */}
-          <TabsContent value="presets" className="mt-3">
+          <TabsContent value="presets" className="mt-3 space-y-3">
+            {/* Category Filter */}
+            <div className="flex gap-1 flex-wrap">
+              {(['all', 'gradient', 'mesh', 'abstract'] as const).map((cat) => (
+                <Button
+                  key={cat}
+                  variant={presetCategory === cat ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-6 text-[10px] px-2"
+                  onClick={() => setPresetCategory(cat)}
+                >
+                  {cat === 'all' ? (isZh ? '全部' : 'All') :
+                   cat === 'gradient' ? (isZh ? '渐变' : 'Gradient') :
+                   cat === 'mesh' ? (isZh ? '网格' : 'Mesh') :
+                   (isZh ? '抽象' : 'Abstract')}
+                </Button>
+              ))}
+            </div>
             <div className="grid grid-cols-4 gap-2">
-              {BACKGROUND_PRESETS.map((preset) => {
+              {BACKGROUND_PRESETS
+                .filter((p) => presetCategory === 'all' || p.category === presetCategory)
+                .map((preset) => {
                 const isSelected = backgroundSettings.presetId === preset.id && backgroundSettings.source === 'preset';
                 return (
                   <button
@@ -581,6 +608,104 @@ export function BackgroundSettings() {
                     step={10}
                   />
                 </div>
+
+                {/* Contrast */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">{isZh ? '对比度' : 'Contrast'}</Label>
+                    <span className="text-xs text-muted-foreground">{backgroundSettings.contrast ?? 100}%</span>
+                  </div>
+                  <Slider
+                    value={[backgroundSettings.contrast ?? 100]}
+                    onValueChange={([v]) => setBackgroundContrast(v)}
+                    min={50}
+                    max={150}
+                    step={5}
+                  />
+                </div>
+
+                {/* Grayscale */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">{isZh ? '灰度' : 'Grayscale'}</Label>
+                    <span className="text-xs text-muted-foreground">{backgroundSettings.grayscale ?? 0}%</span>
+                  </div>
+                  <Slider
+                    value={[backgroundSettings.grayscale ?? 0]}
+                    onValueChange={([v]) => setBackgroundGrayscale(v)}
+                    min={0}
+                    max={100}
+                    step={5}
+                  />
+                </div>
+
+                {/* Attachment Mode */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{isZh ? '附着模式' : 'Attachment'}</Label>
+                  <Select
+                    value={backgroundSettings.attachment ?? 'fixed'}
+                    onValueChange={(v) => setBackgroundAttachment(v as 'fixed' | 'scroll' | 'local')}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fixed" className="text-xs">
+                        {isZh ? '固定' : 'Fixed'}
+                      </SelectItem>
+                      <SelectItem value="scroll" className="text-xs">
+                        {isZh ? '滚动' : 'Scroll'}
+                      </SelectItem>
+                      <SelectItem value="local" className="text-xs">
+                        {isZh ? '本地' : 'Local'}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Animation */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{isZh ? '动画效果' : 'Animation'}</Label>
+                  <Select
+                    value={backgroundSettings.animation ?? 'none'}
+                    onValueChange={(v) => setBackgroundAnimation(v as 'none' | 'kenburns' | 'parallax' | 'gradient-shift')}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none" className="text-xs">
+                        {isZh ? '无' : 'None'}
+                      </SelectItem>
+                      <SelectItem value="kenburns" className="text-xs">
+                        Ken Burns
+                      </SelectItem>
+                      <SelectItem value="parallax" className="text-xs">
+                        {isZh ? '视差' : 'Parallax'}
+                      </SelectItem>
+                      <SelectItem value="gradient-shift" className="text-xs">
+                        {isZh ? '渐变变换' : 'Gradient Shift'}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Animation Speed */}
+                {(backgroundSettings.animation ?? 'none') !== 'none' && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">{isZh ? '动画速度' : 'Animation Speed'}</Label>
+                      <span className="text-xs text-muted-foreground">{backgroundSettings.animationSpeed ?? 5}</span>
+                    </div>
+                    <Slider
+                      value={[backgroundSettings.animationSpeed ?? 5]}
+                      onValueChange={([v]) => setBackgroundAnimationSpeed(v)}
+                      min={1}
+                      max={10}
+                      step={1}
+                    />
+                  </div>
+                )}
 
                 {/* Reset Button */}
                 <Button

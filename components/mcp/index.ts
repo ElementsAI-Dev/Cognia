@@ -10,3 +10,4 @@ export { MCPProgressIndicator, type MCPProgressIndicatorProps } from './mcp-prog
 export { MCPCallTimeline, type MCPCallTimelineProps, type MCPCallStep } from './mcp-call-timeline';
 export { MCPLogViewer, type MCPLogViewerProps, type MCPLogEntry } from './mcp-log-viewer';
 export { MCPServerBadge, type MCPServerBadgeProps } from './mcp-server-badge';
+export { McpPromptsPanel, type McpPromptsPanelProps } from './mcp-prompts-panel';

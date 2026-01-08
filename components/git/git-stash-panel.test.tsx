@@ -153,7 +153,9 @@ describe('GitStashPanel', () => {
     fireEvent.click(saveButton);
     
     await waitFor(() => {
-      expect(screen.getByText('saveStash')).toBeInTheDocument();
+      // Dialog opens with saveStash title and button, use getAllByText
+      const saveStashElements = screen.getAllByText('saveStash');
+      expect(saveStashElements.length).toBeGreaterThan(0);
       expect(screen.getByText('message')).toBeInTheDocument();
       expect(screen.getByText('includeUntracked')).toBeInTheDocument();
     });
@@ -177,19 +179,21 @@ describe('GitStashPanel', () => {
     fireEvent.click(saveButton);
     
     await waitFor(() => {
-      expect(screen.getByText('saveStash')).toBeInTheDocument();
+      const saveStashElements = screen.getAllByText('saveStash');
+      expect(saveStashElements.length).toBeGreaterThan(0);
     });
     
     // Fill message
     const messageInput = screen.getByPlaceholderText('messagePlaceholder');
     fireEvent.change(messageInput, { target: { value: 'My stash message' } });
     
-    // Click save
-    const saveStashButton = screen.getAllByText('saveStash').find(
+    // Click the save button in dialog (the one that's a button element)
+    const saveStashButtons = screen.getAllByText('saveStash');
+    const buttonElement = saveStashButtons.find(
       el => el.tagName === 'BUTTON' || el.closest('button')
     );
-    if (saveStashButton) {
-      fireEvent.click(saveStashButton.closest('button') || saveStashButton);
+    if (buttonElement) {
+      fireEvent.click(buttonElement.closest('button') || buttonElement);
     }
     
     await waitFor(() => {

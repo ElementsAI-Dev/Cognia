@@ -1,0 +1,35 @@
+{
+  "id": "data-analysis",
+  "name": "Data Analysis Plugin",
+  "version": "1.0.0",
+  "description": "Analyze CSV and JSON data files with pandas",
+  "type": "python",
+  "capabilities": ["tools"],
+  "pythonMain": "main.py",
+  "pythonDependencies": ["pandas>=2.0"],
+  "permissions": ["filesystem:read"],
+  "author": {
+    "name": "Cognia Team"
+  },
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "maxRows": {
+        "type": "number",
+        "title": "Max Rows",
+        "description": "Maximum rows to display in results",
+        "default": 100
+      },
+      "enableCache": {
+        "type": "boolean",
+        "title": "Enable Cache",
+        "description": "Cache loaded dataframes",
+        "default": true
+      }
+    }
+  },
+  "defaultConfig": {
+    "maxRows": 100,
+    "enableCache": true
+  }
+}

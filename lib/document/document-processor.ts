@@ -186,11 +186,10 @@ export function processDocument(
 
   // Generate chunks if requested
   if (opts.generateChunks) {
-    const chunkResult = chunkDocument(
-      embeddableContent,
-      opts.chunkingOptions,
-      id
-    );
+    const strategy = opts.chunkingOptions?.strategy ?? 'semantic';
+    // In sync version, always use sync chunking
+    const chunkResult = chunkDocument(embeddableContent, { strategy, ...opts.chunkingOptions }, id);
+
     result.chunks = chunkResult.chunks;
   }
 

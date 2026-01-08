@@ -12,6 +12,7 @@
 import type { LanguageModel } from 'ai';
 import type { DocumentChunk, ChunkingOptions } from '../embedding/chunking';
 import { chunkDocument } from '../embedding/chunking';
+import { chunkDocumentAsync } from '../embedding/chunking';
 import type { EmbeddingModelConfig } from '@/lib/vector/embedding';
 import { generateEmbedding, generateEmbeddings } from '@/lib/vector/embedding';
 import { cosineSimilarity } from '@/lib/ai/embedding/embedding';
@@ -156,7 +157,7 @@ export class RAGPipeline {
       similarityThreshold: config.similarityThreshold ?? 0.5,
       maxContextLength: config.maxContextLength ?? 4000,
       chunkingOptions: config.chunkingOptions ?? {
-        strategy: 'sentence',
+        strategy: 'semantic',
         chunkSize: 1000,
         chunkOverlap: 200,
       },
@@ -187,11 +188,10 @@ export class RAGPipeline {
       onProgress?.({ stage: 'chunking', current: 0, total: 1 });
 
       // Chunk the document
-      const chunkResult = chunkDocument(
-        content,
-        this.config.chunkingOptions,
-        documentId
-      );
+      const strategy = this.config.chunkingOptions.strategy ?? 'semantic';
+      const chunkResult = strategy === 'semantic' && this.config.model
+        ? await chunkDocumentAsync(content, { ...this.config.chunkingOptions, strategy, model: this.config.model }, documentId)
+        : chunkDocument(content, { ...this.config.chunkingOptions, strategy }, documentId);
 
       if (chunkResult.chunks.length === 0) {
         return { chunksCreated: 0, success: false, error: 'No chunks created from document' };

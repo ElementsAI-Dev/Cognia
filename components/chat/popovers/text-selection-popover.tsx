@@ -22,6 +22,7 @@ import {
   Volume2,
   VolumeX,
   Highlighter,
+  Map,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,6 +62,8 @@ export interface TextSelectionFeatures {
   translate?: boolean;
   /** Enable ask about button (requires onAskAbout callback) */
   askAbout?: boolean;
+  /** Enable knowledge map generation button (requires onKnowledgeMap callback) */
+  knowledgeMap?: boolean;
 }
 
 const DEFAULT_FEATURES: TextSelectionFeatures = {
@@ -75,6 +78,7 @@ const DEFAULT_FEATURES: TextSelectionFeatures = {
   define: true,
   translate: true,
   askAbout: true,
+  knowledgeMap: true,
 };
 
 interface TextSelectionPopoverProps {
@@ -89,6 +93,7 @@ interface TextSelectionPopoverProps {
   onSummarize?: (text: string) => void;
   onDefine?: (text: string) => void;
   onHighlight?: (text: string, messageId: string) => void;
+  onKnowledgeMap?: (text: string) => void;
   /** Feature toggles - selectively enable/disable features */
   features?: TextSelectionFeatures;
   /** Show text labels alongside icons */
@@ -123,6 +128,7 @@ export function TextSelectionPopover({
   onSummarize,
   onDefine,
   onHighlight,
+  onKnowledgeMap,
   features: featuresProp,
   showLabels = false,
   enableShortcuts = true,
@@ -418,6 +424,23 @@ export function TextSelectionPopover({
     }
   };
 
+  // Handle knowledge map generation
+  const handleKnowledgeMap = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (onKnowledgeMap) {
+      setIsProcessing(true);
+      try {
+        onKnowledgeMap(selection.text);
+        toast.success(tToasts('knowledgeMapGenerated') || 'Knowledge map generated');
+      } finally {
+        setIsProcessing(false);
+        setSelection({ text: '', rect: null });
+        window.getSelection()?.removeAllRanges();
+      }
+    }
+  };
+
   // Keyboard shortcuts - use refs to avoid stale closures
   const selectionTextRef = useRef(selection.text);
   selectionTextRef.current = selection.text;
@@ -516,12 +539,20 @@ export function TextSelectionPopover({
             }
           }
           break;
+        case 'k':
+          if (onKnowledgeMap) {
+            e.preventDefault();
+            onKnowledgeMap(selectionTextRef.current);
+            setSelection({ text: '', rect: null });
+            window.getSelection()?.removeAllRanges();
+          }
+          break;
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [enableShortcuts, onExplain, onTranslate, onSummarize, onDefine, messageId, messageRole, addQuote, tToasts]);
+  }, [enableShortcuts, onExplain, onTranslate, onSummarize, onDefine, onKnowledgeMap, messageId, messageRole, addQuote, tToasts]);
 
   // Cleanup speech on unmount
   useEffect(() => {
@@ -555,7 +586,8 @@ export function TextSelectionPopover({
     (features.askAbout && onAskAbout) || 
     (features.translate && onTranslate) || 
     (features.summarize && onSummarize) || 
-    (features.define && onDefine);
+    (features.define && onDefine) ||
+    (features.knowledgeMap && onKnowledgeMap);
   
   
   // Common button styles
@@ -832,6 +864,28 @@ export function TextSelectionPopover({
                 {!showLabels && (
                   <TooltipContent side="top" className="text-xs">
                     {t('askAbout')}
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            )}
+
+            {features.knowledgeMap && onKnowledgeMap && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size={showLabels ? 'sm' : 'icon'}
+                    className={cn(baseBtnClass, aiHoverClass)}
+                    onClick={handleKnowledgeMap}
+                    disabled={isProcessing}
+                  >
+                    <Map className="h-3.5 w-3.5" />
+                    {showLabels && <span>{t('knowledgeMap') || 'Knowledge Map'}</span>}
+                  </Button>
+                </TooltipTrigger>
+                {!showLabels && (
+                  <TooltipContent side="top" className="text-xs">
+                    {t('knowledgeMap') || 'Knowledge Map'} <kbd className="ml-1 text-[10px] opacity-60">K</kbd>
                   </TooltipContent>
                 )}
               </Tooltip>

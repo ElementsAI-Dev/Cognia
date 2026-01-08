@@ -7,11 +7,8 @@ import { NextIntlClientProvider } from 'next-intl';
 import { InteractiveNotebook } from './interactive-notebook';
 
 // Mock the hooks
-jest.mock('@/hooks/use-jupyter-kernel', () => ({
+jest.mock('@/hooks/sandbox', () => ({
   useJupyterKernel: jest.fn(),
-}));
-
-jest.mock('@/hooks/use-virtual-env', () => ({
   useVirtualEnv: jest.fn(),
 }));
 

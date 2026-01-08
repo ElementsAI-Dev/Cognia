@@ -16,7 +16,8 @@ export type SelectionAction =
   | "tone-formal"
   | "tone-casual"
   | "expand"
-  | "shorten";
+  | "shorten"
+  | "knowledge-map";
 
 export type SelectionMode = 
   | "word"
@@ -144,6 +145,7 @@ export const DEFAULT_SELECTION_CONFIG: SelectionConfig = {
     "tone-casual": "",
     "expand": "",
     "shorten": "",
+    "knowledge-map": "K",
   },
 };
 
@@ -200,6 +202,7 @@ export const ACTION_LABELS: Record<SelectionAction, string> = {
   "tone-casual": "Casual Tone",
   expand: "Expanded",
   shorten: "Shortened",
+  "knowledge-map": "Knowledge Map",
 };
 
 export const ACTION_SHORT_LABELS: Record<SelectionAction, string> = {
@@ -219,6 +222,7 @@ export const ACTION_SHORT_LABELS: Record<SelectionAction, string> = {
   "tone-casual": "Casual",
   expand: "Expand",
   shorten: "Shorten",
+  "knowledge-map": "Knowledge Map",
 };
 
 export interface LanguageOption {

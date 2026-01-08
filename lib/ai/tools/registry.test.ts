@@ -336,6 +336,11 @@ describe('ToolDefinition interface', () => {
       'file',
       'system',
       'custom',
+      'ppt',
+      'video',
+      'image',
+      'academic',
+      'learning',
       undefined,
     ];
 

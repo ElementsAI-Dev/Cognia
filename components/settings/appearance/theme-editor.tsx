@@ -4,10 +4,10 @@
  * ThemeEditor - Create and edit custom color themes
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import { useTranslations } from 'next-intl';
-import { Trash2, Copy, Palette, AlertTriangle, CheckCircle2, Wand2 } from 'lucide-react';
+import { Trash2, Copy, Palette, AlertTriangle, CheckCircle2, Wand2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -44,40 +44,87 @@ interface ThemeEditorProps {
   editingThemeId: string | null;
 }
 
+// Full 16-color theme interface
 interface ThemeColors {
+  // Core colors (required)
   primary: string;
   secondary: string;
   accent: string;
   background: string;
   foreground: string;
   muted: string;
+  // Extended colors (optional, auto-generated if not provided)
+  primaryForeground?: string;
+  secondaryForeground?: string;
+  accentForeground?: string;
+  mutedForeground?: string;
+  card?: string;
+  cardForeground?: string;
+  border?: string;
+  ring?: string;
+  destructive?: string;
+  destructiveForeground?: string;
 }
+
+type ColorCategory = 'core' | 'extended';
 
 const defaultLightColors: ThemeColors = {
   primary: '#3b82f6',
+  primaryForeground: '#ffffff',
   secondary: '#f1f5f9',
+  secondaryForeground: '#1e293b',
   accent: '#f1f5f9',
+  accentForeground: '#1e293b',
   background: '#ffffff',
   foreground: '#0f172a',
   muted: '#f1f5f9',
+  mutedForeground: '#64748b',
+  card: '#ffffff',
+  cardForeground: '#0f172a',
+  border: '#e2e8f0',
+  ring: '#3b82f6',
+  destructive: '#ef4444',
+  destructiveForeground: '#ffffff',
 };
 
 const defaultDarkColors: ThemeColors = {
   primary: '#3b82f6',
+  primaryForeground: '#ffffff',
   secondary: '#1e293b',
+  secondaryForeground: '#f8fafc',
   accent: '#1e293b',
+  accentForeground: '#f8fafc',
   background: '#0f172a',
   foreground: '#f8fafc',
   muted: '#1e293b',
+  mutedForeground: '#94a3b8',
+  card: '#1e293b',
+  cardForeground: '#f8fafc',
+  border: '#334155',
+  ring: '#3b82f6',
+  destructive: '#dc2626',
+  destructiveForeground: '#ffffff',
 };
 
-const colorLabels: { key: keyof ThemeColors; labelKey: string; description: string }[] = [
-  { key: 'primary', labelKey: 'primary', description: 'Buttons, links, highlights' },
-  { key: 'secondary', labelKey: 'secondary', description: 'Secondary backgrounds' },
-  { key: 'accent', labelKey: 'accent', description: 'Hover states, accents' },
-  { key: 'background', labelKey: 'background', description: 'Main background' },
-  { key: 'foreground', labelKey: 'foreground', description: 'Main text color' },
-  { key: 'muted', labelKey: 'muted', description: 'Muted backgrounds' },
+const colorLabels: { key: keyof ThemeColors; labelKey: string; description: string; category: ColorCategory }[] = [
+  // Core colors
+  { key: 'primary', labelKey: 'primary', description: 'Buttons, links, highlights', category: 'core' },
+  { key: 'secondary', labelKey: 'secondary', description: 'Secondary backgrounds', category: 'core' },
+  { key: 'accent', labelKey: 'accent', description: 'Hover states, accents', category: 'core' },
+  { key: 'background', labelKey: 'background', description: 'Main background', category: 'core' },
+  { key: 'foreground', labelKey: 'foreground', description: 'Main text color', category: 'core' },
+  { key: 'muted', labelKey: 'muted', description: 'Muted backgrounds', category: 'core' },
+  // Extended colors
+  { key: 'primaryForeground', labelKey: 'primaryForeground', description: 'Text on primary', category: 'extended' },
+  { key: 'secondaryForeground', labelKey: 'secondaryForeground', description: 'Text on secondary', category: 'extended' },
+  { key: 'accentForeground', labelKey: 'accentForeground', description: 'Text on accent', category: 'extended' },
+  { key: 'mutedForeground', labelKey: 'mutedForeground', description: 'Muted text', category: 'extended' },
+  { key: 'card', labelKey: 'card', description: 'Card background', category: 'extended' },
+  { key: 'cardForeground', labelKey: 'cardForeground', description: 'Card text', category: 'extended' },
+  { key: 'border', labelKey: 'border', description: 'Borders', category: 'extended' },
+  { key: 'ring', labelKey: 'ring', description: 'Focus ring', category: 'extended' },
+  { key: 'destructive', labelKey: 'destructive', description: 'Error/delete', category: 'extended' },
+  { key: 'destructiveForeground', labelKey: 'destructiveForeground', description: 'Text on destructive', category: 'extended' },
 ];
 
 const contrastLevelColors: Record<ContrastLevel, string> = {
@@ -110,6 +157,7 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
   const [activeColor, setActiveColor] = useState<keyof ThemeColors>('primary');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState<'colors' | 'palettes'>('colors');
+  const [isLivePreview, setIsLivePreview] = useState(false);
 
   // Calculate contrast ratios
   const contrastResults = useMemo(() => {
@@ -158,6 +206,56 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
       });
     }
   }, [isDark, editingThemeId]);
+
+  // Live preview effect - apply colors to document temporarily
+  useEffect(() => {
+    if (!isLivePreview) return;
+
+    const root = document.documentElement;
+    const originalStyles: Record<string, string> = {};
+    
+    // Store original values
+    const cssVars = [
+      '--primary', '--secondary', '--accent', '--background', '--foreground', '--muted',
+      '--primary-foreground', '--secondary-foreground', '--accent-foreground', '--muted-foreground',
+      '--card', '--card-foreground', '--border', '--ring', '--destructive', '--destructive-foreground'
+    ];
+    cssVars.forEach(v => {
+      originalStyles[v] = root.style.getPropertyValue(v);
+    });
+
+    // Apply preview colors
+    Object.entries(colors).forEach(([key, value]) => {
+      if (value) {
+        const cssVar = `--${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
+        root.style.setProperty(cssVar, value);
+      }
+    });
+
+    return () => {
+      // Restore original values
+      cssVars.forEach(v => {
+        if (originalStyles[v]) {
+          root.style.setProperty(v, originalStyles[v]);
+        } else {
+          root.style.removeProperty(v);
+        }
+      });
+    };
+  }, [isLivePreview, colors]);
+
+  // Toggle live preview handler
+  const toggleLivePreview = useCallback(() => {
+    setIsLivePreview(prev => !prev);
+  }, []);
+
+  // Handle dialog close - reset preview
+  const handleOpenChange = useCallback((newOpen: boolean) => {
+    if (!newOpen) {
+      setIsLivePreview(false);
+    }
+    onOpenChange(newOpen);
+  }, [onOpenChange]);
 
   const handleColorChange = (color: string) => {
     setColors((prev) => ({
@@ -239,15 +337,28 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {isEditing ? t('editTheme') : t('createTheme')}
-          </DialogTitle>
-          <DialogDescription>
-            {isEditing ? t('editThemeDescription') : t('createThemeDescription')}
-          </DialogDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle>
+                {isEditing ? t('editTheme') : t('createTheme')}
+              </DialogTitle>
+              <DialogDescription>
+                {isEditing ? t('editThemeDescription') : t('createThemeDescription')}
+              </DialogDescription>
+            </div>
+            <Button
+              variant={isLivePreview ? 'default' : 'outline'}
+              size="sm"
+              onClick={toggleLivePreview}
+              className="h-8"
+            >
+              {isLivePreview ? <Eye className="h-3.5 w-3.5 mr-1" /> : <EyeOff className="h-3.5 w-3.5 mr-1" />}
+              {isLivePreview ? t('previewOn') || 'Preview On' : t('previewOff') || 'Preview'}
+            </Button>
+          </div>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -283,40 +394,82 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
             </TabsList>
 
             <TabsContent value="colors" className="space-y-4 mt-3">
-              {/* Color Swatches */}
-              <div className="grid grid-cols-3 gap-2">
-                {colorLabels.map(({ key, labelKey, description }) => (
-                  <TooltipProvider key={key}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => setActiveColor(key)}
-                          className={cn(
-                            'flex items-center gap-2 rounded-lg border-2 p-2 transition-colors',
-                            activeColor === key
-                              ? 'border-primary bg-primary/5'
-                              : 'border-transparent bg-muted hover:bg-muted/80'
-                          )}
-                        >
-                          <div
-                            className="h-5 w-5 rounded-full border shadow-sm flex-shrink-0"
-                            style={{ backgroundColor: colors[key] }}
-                          />
-                          <span className="text-xs font-medium truncate">{t(labelKey)}</span>
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">
-                        <p className="text-xs">{description}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ))}
+              {/* Core Color Swatches */}
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Core Colors</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {colorLabels.filter(c => c.category === 'core').map(({ key, labelKey, description }) => (
+                    <TooltipProvider key={key}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => setActiveColor(key)}
+                            className={cn(
+                              'flex items-center gap-2 rounded-lg border-2 p-2 transition-colors',
+                              activeColor === key
+                                ? 'border-primary bg-primary/5'
+                                : 'border-transparent bg-muted hover:bg-muted/80'
+                            )}
+                          >
+                            <div
+                              className="h-5 w-5 rounded-full border shadow-sm flex-shrink-0"
+                              style={{ backgroundColor: colors[key] || '#888888' }}
+                            />
+                            <span className="text-xs font-medium truncate">{t(labelKey)}</span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                          <p className="text-xs">{description}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ))}
+                </div>
+              </div>
+
+              {/* Extended Color Swatches */}
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Extended Colors (Optional)</Label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {colorLabels.filter(c => c.category === 'extended').map(({ key, labelKey, description }) => (
+                    <TooltipProvider key={key}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => setActiveColor(key)}
+                            className={cn(
+                              'flex items-center gap-1.5 rounded-md border-2 p-1.5 transition-colors',
+                              activeColor === key
+                                ? 'border-primary bg-primary/5'
+                                : 'border-transparent bg-muted/50 hover:bg-muted/80'
+                            )}
+                          >
+                            <div
+                              className="h-4 w-4 rounded-full border shadow-sm flex-shrink-0"
+                              style={{ backgroundColor: colors[key] || '#888888' }}
+                            />
+                            <span className="text-[10px] font-medium truncate">{t(labelKey)}</span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                          <p className="text-xs">{description}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ))}
+                </div>
               </div>
 
               {/* Color Picker */}
               <div className="flex flex-col items-center gap-3 rounded-lg border bg-muted/50 p-3">
+                <div className="text-xs text-center mb-1">
+                  <span className="font-medium">{t(colorLabels.find(c => c.key === activeColor)?.labelKey || activeColor)}</span>
+                  <span className="text-muted-foreground ml-1">
+                    ({colorLabels.find(c => c.key === activeColor)?.category === 'extended' ? 'optional' : 'required'})
+                  </span>
+                </div>
                 <HexColorPicker
-                  color={colors[activeColor]}
+                  color={colors[activeColor] || '#888888'}
                   onChange={handleColorChange}
                   style={{ width: '100%', maxWidth: '240px', height: '160px' }}
                 />
@@ -325,7 +478,7 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
                   <div className="flex items-center gap-1">
                     <span className="text-muted-foreground text-xs">#</span>
                     <HexColorInput
-                      color={colors[activeColor]}
+                      color={colors[activeColor] || '#888888'}
                       onChange={handleColorChange}
                       className="w-20 rounded border bg-background px-2 py-1 text-xs uppercase"
                       prefixed={false}

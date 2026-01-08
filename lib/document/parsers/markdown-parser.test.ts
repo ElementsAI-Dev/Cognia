@@ -60,6 +60,22 @@ Content`;
       
       expect(result.frontmatter?.tags).toEqual(['tag1', 'tag2']);
     });
+
+    it('handles multiline list frontmatter', () => {
+      const content = `---
+tags:
+  - alpha
+  - beta
+summary: |
+  multi
+  line
+---
+Content`;
+      const result = parseMarkdown(content);
+
+      expect(result.frontmatter?.tags).toEqual(['alpha', 'beta']);
+      expect(result.frontmatter?.summary).toContain('multi');
+    });
   });
 
   describe('title extraction', () => {

@@ -4,15 +4,25 @@
 
 import {
   chunkDocument,
+  chunkDocumentAsync,
   estimateChunkCount,
   mergeChunks,
   getChunkStats,
   type DocumentChunk,
 } from './chunking';
+import type { LanguageModel } from 'ai';
+
+import { generateText } from 'ai';
 
 jest.mock('ai', () => ({
   generateText: jest.fn(),
 }));
+
+const mockedGenerateText = generateText as jest.Mock;
+
+beforeEach(() => {
+  mockedGenerateText.mockReset();
+});
 
 describe('chunkDocument', () => {
   describe('fixed strategy', () => {
@@ -97,6 +107,24 @@ describe('chunkDocument', () => {
 
       expect(result.strategy).toBe('semantic');
       expect(result.totalChunks).toBeGreaterThan(0);
+    });
+  });
+
+  describe('additional strategies', () => {
+    it('supports smart strategy', () => {
+      const text = '# Title\n\nParagraph text. Another sentence.';
+      const result = chunkDocument(text, { strategy: 'smart', chunkSize: 50 });
+
+      expect(result.strategy).toBe('smart');
+      expect(result.totalChunks).toBeGreaterThan(0);
+    });
+
+    it('supports sliding_window strategy', () => {
+      const text = 'Sliding window chunking preserves overlap between windows for context.';
+      const result = chunkDocument(text, { strategy: 'sliding_window', chunkSize: 20, chunkOverlap: 5 });
+
+      expect(result.strategy).toBe('sliding_window');
+      expect(result.totalChunks).toBeGreaterThan(1);
     });
   });
 
@@ -186,6 +214,32 @@ describe('chunkDocument', () => {
       result.chunks.forEach((chunk, index) => {
         expect(chunk.index).toBe(index);
       });
+    });
+  });
+
+  describe('chunkDocumentAsync (semantic)', () => {
+    it('uses semantic split points when a model is provided', async () => {
+      (generateText as jest.Mock).mockResolvedValue({ text: '[10]' });
+      const model = {} as LanguageModel;
+
+      const result = await chunkDocumentAsync(
+        'Sentence one ends here. Sentence two starts now.',
+        { strategy: 'semantic', chunkSize: 30, model }
+      );
+
+      expect(result.strategy).toBe('semantic');
+      expect(result.totalChunks).toBeGreaterThan(0);
+    });
+
+    it('falls back to heading strategy when semantic parsing fails', async () => {
+      (generateText as jest.Mock).mockResolvedValue({ text: 'no json here' });
+      const model = {} as LanguageModel;
+      const text = '# Title\n\nSection content.';
+
+      const result = await chunkDocumentAsync(text, { strategy: 'semantic', model, chunkSize: 20 });
+
+      expect(result.strategy).toBe('heading');
+      expect(result.totalChunks).toBeGreaterThan(0);
     });
   });
 });

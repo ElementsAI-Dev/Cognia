@@ -1,0 +1,53 @@
+{
+  "id": "cognia-web-search",
+  "name": "Web Search Plugin",
+  "version": "1.0.0",
+  "description": "Enhanced web search capabilities with multiple providers and result caching",
+  "type": "frontend",
+  "capabilities": ["tools", "commands"],
+  "author": {
+    "name": "Cognia Team",
+    "email": "plugins@cognia.dev"
+  },
+  "main": "index.ts",
+  "homepage": "https://github.com/cognia/plugins/web-search",
+  "repository": "https://github.com/cognia/plugins",
+  "license": "MIT",
+  "keywords": ["search", "web", "google", "bing", "duckduckgo"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "defaultProvider": {
+        "type": "string",
+        "enum": ["google", "bing", "duckduckgo"],
+        "default": "google",
+        "description": "Default search provider"
+      },
+      "maxResults": {
+        "type": "integer",
+        "default": 10,
+        "minimum": 1,
+        "maximum": 50,
+        "description": "Maximum number of results to return"
+      },
+      "enableCache": {
+        "type": "boolean",
+        "default": true,
+        "description": "Cache search results to reduce API calls"
+      },
+      "cacheTTL": {
+        "type": "integer",
+        "default": 3600,
+        "description": "Cache time-to-live in seconds"
+      },
+      "safeSearch": {
+        "type": "boolean",
+        "default": true,
+        "description": "Enable safe search filtering"
+      }
+    }
+  },
+  "permissions": [
+    "network:fetch"
+  ]
+}

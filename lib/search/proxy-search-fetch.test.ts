@@ -31,11 +31,18 @@ const mockGetCurrentProxyUrl = getCurrentProxyUrl as jest.MockedFunction<typeof 
 const originalEnv = process.env.NODE_ENV;
 
 function setNodeEnv(value: string) {
-  Object.defineProperty(process.env, 'NODE_ENV', { value, configurable: true });
+  // Use delete + assign pattern for reliable NODE_ENV override in Jest
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  delete (process.env as any).NODE_ENV;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (process.env as any).NODE_ENV = value;
 }
 
 function restoreNodeEnv() {
-  Object.defineProperty(process.env, 'NODE_ENV', { value: originalEnv, configurable: true });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  delete (process.env as any).NODE_ENV;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (process.env as any).NODE_ENV = originalEnv;
 }
 
 describe('proxy-search-fetch', () => {

@@ -138,7 +138,8 @@ describe('ToolTimeline', () => {
         { id: '1', toolName: 'test', state: 'output-available', startTime: new Date(0), endTime: new Date(500) },
       ];
       render(<ToolTimeline executions={shortExec} />);
-      expect(screen.getByText('500ms')).toBeInTheDocument();
+      // Duration appears in multiple places (header stats, timeline item, badge)
+      expect(screen.getAllByText('500ms').length).toBeGreaterThanOrEqual(1);
     });
 
     it('formats seconds correctly', () => {
@@ -146,7 +147,8 @@ describe('ToolTimeline', () => {
         { id: '1', toolName: 'test', state: 'output-available', startTime: new Date(0), endTime: new Date(5500) },
       ];
       render(<ToolTimeline executions={secExec} />);
-      expect(screen.getByText('5.5s')).toBeInTheDocument();
+      // Duration appears in multiple places (header stats, timeline item, badge)
+      expect(screen.getAllByText('5.5s').length).toBeGreaterThanOrEqual(1);
     });
 
     it('formats minutes correctly', () => {
@@ -154,7 +156,8 @@ describe('ToolTimeline', () => {
         { id: '1', toolName: 'test', state: 'output-available', startTime: new Date(0), endTime: new Date(125000) },
       ];
       render(<ToolTimeline executions={minExec} />);
-      expect(screen.getByText('2m 5s')).toBeInTheDocument();
+      // Duration appears in multiple places (header stats, timeline item, badge)
+      expect(screen.getAllByText('2m 5s').length).toBeGreaterThanOrEqual(1);
     });
   });
 

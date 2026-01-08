@@ -115,6 +115,61 @@ function createProviderInstance(
         baseURL: baseURL || 'http://localhost:11434/v1',
       });
 
+    // Local providers - all OpenAI-compatible
+    case 'lmstudio':
+      return createOpenAI({
+        apiKey: apiKey || 'lm-studio',
+        baseURL: baseURL || 'http://localhost:1234/v1',
+      });
+
+    case 'llamacpp':
+      return createOpenAI({
+        apiKey: apiKey || 'llama-cpp',
+        baseURL: baseURL || 'http://localhost:8080/v1',
+      });
+
+    case 'llamafile':
+      return createOpenAI({
+        apiKey: apiKey || 'llamafile',
+        baseURL: baseURL || 'http://localhost:8080/v1',
+      });
+
+    case 'vllm':
+      return createOpenAI({
+        apiKey: apiKey || 'vllm',
+        baseURL: baseURL || 'http://localhost:8000/v1',
+      });
+
+    case 'localai':
+      return createOpenAI({
+        apiKey: apiKey || 'localai',
+        baseURL: baseURL || 'http://localhost:8080/v1',
+      });
+
+    case 'jan':
+      return createOpenAI({
+        apiKey: apiKey || 'jan',
+        baseURL: baseURL || 'http://localhost:1337/v1',
+      });
+
+    case 'textgenwebui':
+      return createOpenAI({
+        apiKey: apiKey || 'textgen',
+        baseURL: baseURL || 'http://localhost:5000/v1',
+      });
+
+    case 'koboldcpp':
+      return createOpenAI({
+        apiKey: apiKey || 'koboldcpp',
+        baseURL: baseURL || 'http://localhost:5001/v1',
+      });
+
+    case 'tabbyapi':
+      return createOpenAI({
+        apiKey: apiKey || 'tabbyapi',
+        baseURL: baseURL || 'http://localhost:5000/v1',
+      });
+
     default:
       return null;
   }

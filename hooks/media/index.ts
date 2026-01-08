@@ -15,3 +15,8 @@ export {
 } from './use-video-generation';
 export { useSpeech, type UseSpeechOptions, type UseSpeechReturn, type SpeakOptions } from './use-speech';
 export { useTTS, type UseTTSOptions, type UseTTSReturn, type TTSPlaybackState } from './use-tts';
+export {
+  useVideoAnalysis,
+  type UseVideoAnalysisOptions,
+  type UseVideoAnalysisReturn,
+} from './use-video-analysis';

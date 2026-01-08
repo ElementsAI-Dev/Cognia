@@ -168,19 +168,55 @@ describe('classifyTask', () => {
   describe('token estimation', () => {
     it('estimates tokens based on word count', () => {
       const result = classifyTask('one two three four five');
-      expect(result.estimatedTokens).toBeGreaterThan(0);
-      expect(result.estimatedTokens).toBeLessThan(20);
+      expect(result.estimatedInputTokens).toBeGreaterThan(0);
+      expect(result.estimatedInputTokens).toBeLessThan(20);
     });
 
     it('handles empty input', () => {
       const result = classifyTask('');
-      expect(result.estimatedTokens).toBeGreaterThanOrEqual(0);
+      expect(result.estimatedInputTokens).toBeGreaterThanOrEqual(0);
     });
 
     it('handles long inputs', () => {
       const longInput = 'word '.repeat(100);
       const result = classifyTask(longInput);
-      expect(result.estimatedTokens).toBeGreaterThan(100);
+      expect(result.estimatedInputTokens).toBeGreaterThan(100);
+    });
+
+    it('estimates output tokens as double input tokens', () => {
+      const result = classifyTask('one two three four five');
+      expect(result.estimatedOutputTokens).toBe(result.estimatedInputTokens * 2);
+    });
+  });
+
+  describe('confidence scoring', () => {
+    it('has higher confidence for clear patterns', () => {
+      const result = classifyTask('Write code for a REST API');
+      expect(result.confidence).toBeGreaterThan(0.5);
+    });
+
+    it('has base confidence for ambiguous inputs', () => {
+      const result = classifyTask('hello');
+      expect(result.confidence).toBeGreaterThanOrEqual(0.5);
+      expect(result.confidence).toBeLessThanOrEqual(1);
+    });
+  });
+
+  describe('long context detection', () => {
+    it('detects long context for long inputs', () => {
+      const longInput = 'word '.repeat(600);
+      const result = classifyTask(longInput);
+      expect(result.requiresLongContext).toBe(true);
+    });
+
+    it('detects long context for "entire" keyword', () => {
+      const result = classifyTask('Read the entire document');
+      expect(result.requiresLongContext).toBe(true);
+    });
+
+    it('does not flag short inputs as requiring long context', () => {
+      const result = classifyTask('Hello world');
+      expect(result.requiresLongContext).toBe(false);
     });
   });
 

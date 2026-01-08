@@ -36,9 +36,11 @@ import type { McpServerState, ToolCallResult } from '@/types/mcp';
 import { createMcpToolsFromStore } from './mcp-tools';
 import { initializeEnvironmentTools, getEnvironmentToolsSystemPrompt, getEnvironmentToolsPromptSnippet } from './environment-tools';
 import { getJupyterTools, getJupyterToolsSystemPrompt } from './jupyter-tools';
+import { initializeProcessTools, getProcessToolsSystemPrompt, getProcessToolsPromptSnippet } from './process-tools';
 
 export interface AgentToolsConfig {
   tavilyApiKey?: string;
+  openaiApiKey?: string;
   enableWebSearch?: boolean;
   enableWebScraper?: boolean;
   enableCalculator?: boolean;
@@ -51,6 +53,19 @@ export interface AgentToolsConfig {
   enableMcpTools?: boolean;
   enableEnvironmentTools?: boolean;
   enableJupyterTools?: boolean;
+  enableProcessTools?: boolean;
+  /** Enable video generation tools (video_generate, video_status) */
+  enableVideoGeneration?: boolean;
+  /** Enable video analysis tools (video_subtitles, video_analyze, subtitle_parse) */
+  enableVideoAnalysis?: boolean;
+  /** Enable academic tools (academic_search, academic_analysis, paper_comparison) */
+  enableAcademicTools?: boolean;
+  /** Enable image generation tools (image_generate, image_edit, image_variation) */
+  enableImageTools?: boolean;
+  /** Enable PPT generation tools (ppt_outline, ppt_slide_content, ppt_finalize, ppt_export) */
+  enablePPTTools?: boolean;
+  /** Enable learning/generative UI tools (flashcard, quiz, review session, etc.) */
+  enableLearningTools?: boolean;
   ragConfig?: RAGConfig;
   customTools?: Record<string, AgentTool>;
   activeSkills?: Skill[];
@@ -476,6 +491,80 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
     Object.assign(tools, jupyterTools);
   }
 
+  // Process tools - local process management (desktop only)
+  if (config.enableProcessTools) {
+    const processTools = initializeProcessTools({
+      enableList: true,
+      enableSearch: true,
+      enableGet: true,
+      enableStart: true,
+      enableTerminate: true,
+    });
+    Object.assign(tools, processTools);
+  }
+
+  // Video generation tools from registry
+  if (config.enableVideoGeneration) {
+    const videoTools = getToolsFromRegistry(
+      ['video_generate', 'video_status'],
+      { ...registryConfig, apiKey: config.openaiApiKey || config.tavilyApiKey }
+    );
+    Object.assign(tools, videoTools);
+  }
+
+  // Video analysis tools from registry
+  if (config.enableVideoAnalysis) {
+    const videoAnalysisTools = getToolsFromRegistry(
+      ['video_subtitles', 'video_analyze', 'subtitle_parse'],
+      { ...registryConfig, apiKey: config.openaiApiKey }
+    );
+    Object.assign(tools, videoAnalysisTools);
+  }
+
+  // Academic tools from registry
+  if (config.enableAcademicTools) {
+    const academicTools = getToolsFromRegistry(
+      ['academic_search', 'academic_analysis', 'paper_comparison'],
+      registryConfig
+    );
+    Object.assign(tools, academicTools);
+  }
+
+  // Image generation tools from registry
+  if (config.enableImageTools) {
+    const imageTools = getToolsFromRegistry(
+      ['image_generate', 'image_edit', 'image_variation'],
+      { ...registryConfig, apiKey: config.openaiApiKey }
+    );
+    Object.assign(tools, imageTools);
+  }
+
+  // PPT generation tools from registry
+  if (config.enablePPTTools) {
+    const pptTools = getToolsFromRegistry(
+      ['ppt_outline', 'ppt_slide_content', 'ppt_finalize', 'ppt_export'],
+      registryConfig
+    );
+    Object.assign(tools, pptTools);
+  }
+
+  // Learning/Generative UI tools from registry
+  if (config.enableLearningTools) {
+    const learningTools = getToolsFromRegistry(
+      [
+        'display_flashcard',
+        'display_flashcard_deck',
+        'display_quiz',
+        'display_quiz_question',
+        'display_review_session',
+        'display_progress_summary',
+        'display_concept_explanation',
+      ],
+      registryConfig
+    );
+    Object.assign(tools, learningTools);
+  }
+
   // Add custom tools
   if (config.customTools) {
     Object.assign(tools, config.customTools);
@@ -548,6 +637,16 @@ export function buildEnvironmentToolsSystemPrompt(includeDetailed: boolean = fal
 }
 
 /**
+ * Build complete system prompt with process tools guidance
+ * Use this when process tools are enabled to help AI understand usage
+ */
+export function buildProcessToolsSystemPrompt(includeDetailed: boolean = false): string {
+  return includeDetailed 
+    ? getProcessToolsSystemPrompt() 
+    : getProcessToolsPromptSnippet();
+}
+
+/**
  * Build combined system prompt for agent with all tool guidance
  */
 export function buildAgentSystemPrompt(config: {
@@ -556,6 +655,8 @@ export function buildAgentSystemPrompt(config: {
   enableEnvironmentTools?: boolean;
   environmentToolsDetailed?: boolean;
   enableJupyterTools?: boolean;
+  enableProcessTools?: boolean;
+  processToolsDetailed?: boolean;
 }): string {
   const parts: string[] = [];
 
@@ -580,6 +681,11 @@ export function buildAgentSystemPrompt(config: {
   // Jupyter tools prompt
   if (config.enableJupyterTools) {
     parts.push(getJupyterToolsSystemPrompt());
+  }
+
+  // Process tools prompt
+  if (config.enableProcessTools) {
+    parts.push(buildProcessToolsSystemPrompt(config.processToolsDetailed));
   }
 
   return parts.join('\n\n');

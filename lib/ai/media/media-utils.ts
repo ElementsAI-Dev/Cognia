@@ -262,3 +262,106 @@ export function estimateVideoDuration(fileSize: number, _mimeType: string): numb
   const bytesPerSecond = 100 * 1024; // ~100KB/s average
   return Math.round(fileSize / bytesPerSecond);
 }
+
+/**
+ * Process video for text-based analysis (subtitle extraction or transcription)
+ * Use this when the AI model doesn't support native video input
+ * 
+ * @param file - Video file to process
+ * @param apiKey - OpenAI API key for Whisper transcription (optional)
+ * @param options - Processing options
+ * @returns Text content from video (subtitles or transcription)
+ */
+export async function processVideoForTextAnalysis(
+  file: File | Blob,
+  apiKey?: string,
+  options: {
+    preferredLanguage?: string;
+    transcribeIfNoSubtitles?: boolean;
+  } = {}
+): Promise<{ 
+  success: boolean; 
+  text?: string; 
+  source?: 'subtitles' | 'transcription' | 'none';
+  error?: string;
+}> {
+  const { preferredLanguage = 'en', transcribeIfNoSubtitles: _transcribeIfNoSubtitles = true } = options;
+
+  try {
+    // For web-based processing, we need to use Whisper API for transcription
+    // since we can't directly extract embedded subtitles from a blob without FFmpeg
+    if (!apiKey) {
+      return {
+        success: false,
+        source: 'none',
+        error: 'OpenAI API key required for video transcription',
+      };
+    }
+
+    // Import transcription function dynamically
+    const { transcribeAudio } = await import('./speech-api');
+    
+    // Note: For full subtitle extraction support, the video file path 
+    // is needed for FFmpeg processing via Tauri. For web uploads,
+    // we fall back to Whisper transcription of the audio track.
+    
+    const result = await transcribeAudio(file, {
+      apiKey,
+      language: preferredLanguage as Parameters<typeof transcribeAudio>[1]['language'],
+    });
+
+    if (result.success && result.text) {
+      return {
+        success: true,
+        text: result.text,
+        source: 'transcription',
+      };
+    }
+
+    return {
+      success: false,
+      source: 'none',
+      error: result.error || 'Failed to transcribe video audio',
+    };
+  } catch (error) {
+    return {
+      success: false,
+      source: 'none',
+      error: error instanceof Error ? error.message : 'Video processing failed',
+    };
+  }
+}
+
+/**
+ * Build video context message for AI when native video input is not supported
+ * Extracts text from video and formats it for AI consumption
+ */
+export async function buildVideoContextMessage(
+  file: File | Blob,
+  fileName: string,
+  apiKey?: string,
+  options: {
+    preferredLanguage?: string;
+    includeTimestamps?: boolean;
+  } = {}
+): Promise<string> {
+  const { preferredLanguage = 'en' } = options;
+
+  const result = await processVideoForTextAnalysis(file, apiKey, {
+    preferredLanguage,
+    transcribeIfNoSubtitles: true,
+  });
+
+  if (!result.success || !result.text) {
+    return `[Video file: ${fileName}]\n[Unable to extract text content from video${result.error ? `: ${result.error}` : ''}]`;
+  }
+
+  const sourceLabel = result.source === 'subtitles' ? 'Subtitles' : 'Transcription';
+  
+  return `[Video file: ${fileName}]
+[${sourceLabel} extracted from video:]
+
+${result.text}
+
+[End of video content]`;
+}

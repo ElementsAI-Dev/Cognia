@@ -1,6 +1,64 @@
 import { render, act } from '@testing-library/react';
 import { TitleBar } from './title-bar';
 
+// Mock stores - must include all stores used by TitleBar and useWindowControls
+jest.mock('@/stores', () => {
+  // Helper to create selector-compatible mocks (defined inside factory)
+  const createMockStore = <T extends Record<string, unknown>>(state: T) => {
+    return (selector?: (s: T) => unknown) => {
+      if (typeof selector === 'function') {
+        return selector(state);
+      }
+      return state;
+    };
+  };
+
+  return {
+    useWindowStore: createMockStore({
+      // State from useWindowControls
+      isMaximized: false,
+      isMinimized: false,
+      isFullscreen: false,
+      isAlwaysOnTop: false,
+      isFocused: true,
+      isVisible: true,
+      preferences: {},
+      // State from title-bar directly
+      contentProtected: false,
+      skipTaskbar: false,
+      shadow: true,
+      visibleOnAllWorkspaces: false,
+      isResizable: true,
+      // Setters from useWindowControls
+      setIsMaximized: jest.fn(),
+      setIsMinimized: jest.fn(),
+      setIsFullscreen: jest.fn(),
+      setIsAlwaysOnTop: jest.fn(),
+      setIsFocused: jest.fn(),
+      setIsVisible: jest.fn(),
+      setSize: jest.fn(),
+      setPosition: jest.fn(),
+      setScaleFactor: jest.fn(),
+      updateWindowState: jest.fn(),
+      // Setters from title-bar directly
+      setContentProtected: jest.fn(),
+      setSkipTaskbar: jest.fn(),
+      setShadow: jest.fn(),
+      setVisibleOnAllWorkspaces: jest.fn(),
+      setIsResizable: jest.fn(),
+      setEnableDoubleClickMaximize: jest.fn(),
+      setEnableDragToMove: jest.fn(),
+    }),
+    useSettingsStore: createMockStore({
+      theme: 'dark',
+      setTheme: jest.fn(),
+    }),
+    useSessionStore: createMockStore({
+      createSession: jest.fn(),
+    }),
+  };
+});
+
 // Mock Tauri API
 const mockIsMaximized = jest.fn().mockResolvedValue(false);
 const mockMinimize = jest.fn().mockResolvedValue(undefined);

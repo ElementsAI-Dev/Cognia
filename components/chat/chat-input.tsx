@@ -14,12 +14,12 @@
 
 import { useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { Send, Paperclip, Square, Loader2, Mic, Wand2, Zap } from 'lucide-react';
+import { Send, Paperclip, Square, Loader2, Mic, Wand2, Zap, FileText } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { Button } from '@/components/ui/button';
 // TooltipProvider is now at app level in providers.tsx
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { useSettingsStore, useRecentFilesStore } from '@/stores';
+import { useSettingsStore, useRecentFilesStore, usePromptTemplateStore } from '@/stores';
 import { RecentFilesPopover, MentionPopover } from './popovers';
 import type { RecentFile } from '@/stores/system';
 import type { MentionItem, SelectedMention, ParsedToolCall } from '@/types/mcp';
@@ -34,6 +34,7 @@ import { DragOverlay } from './chat-input/drag-overlay';
 import { PreviewDialog } from './chat-input/preview-dialog';
 import { BottomToolbar } from './chat-input/bottom-toolbar';
 import { formatFileSize, getFileType } from './chat-input/utils';
+import { PromptTemplateSelector } from '@/components/prompt-templates';
 
 // Helper to get caret coordinates in textarea for mention popover positioning
 function getCaretCoordinates(textarea: HTMLTextAreaElement): DOMRect | null {
@@ -221,6 +222,8 @@ export function ChatInput({
   const sendOnEnter = useSettingsStore((state) => state.sendOnEnter);
   const addRecentFile = useRecentFilesStore((state) => state.addFile);
   const allRecentFiles = useRecentFilesStore((state) => state.recentFiles);
+  const initializePromptTemplates = usePromptTemplateStore((state) => state.initializeDefaults);
+  const recordTemplateUsage = usePromptTemplateStore((state) => state.recordUsage);
   
   // Mention popover positioning
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
@@ -245,6 +248,12 @@ export function ChatInput({
       .slice(0, 10),
     [allRecentFiles]
   );
+
+  const [isTemplateSelectorOpen, setTemplateSelectorOpen] = useState(false);
+
+  useEffect(() => {
+    initializePromptTemplates();
+  }, [initializePromptTemplates]);
 
   // Attachments state
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -301,6 +310,15 @@ export function ChatInput({
       handleTextChange(newValue, pos);
     }
   }, [onChange, handleTextChange]);
+
+  const handleTemplateSelect = useCallback((template: import('@/types/prompt-template').PromptTemplate) => {
+    const insertion = template.content;
+    const nextValue = value ? `${value}\n\n${insertion}` : insertion;
+    onChange(nextValue);
+    recordTemplateUsage(template.id);
+    setTemplateSelectorOpen(false);
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }, [onChange, recordTemplateUsage, value]);
 
   // Handle cursor position changes for mention popover
   const handleSelectionChange = useCallback(() => {
@@ -736,6 +754,22 @@ export function ChatInput({
               </Tooltip>
             )}
 
+            {/* Prompt template picker */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  disabled={isProcessing || disabled}
+                  onClick={() => setTemplateSelectorOpen(true)}
+                >
+                  <FileText className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Insert template</TooltipContent>
+            </Tooltip>
+
             {/* Prompt optimizer button */}
             {onOptimizePrompt && value.trim() && (
               <Tooltip>
@@ -882,6 +916,12 @@ export function ChatInput({
             </span>
           </p>
         </div>
+
+        <PromptTemplateSelector
+          open={isTemplateSelectorOpen}
+          onOpenChange={setTemplateSelectorOpen}
+          onSelect={handleTemplateSelect}
+        />
 
       <PreviewDialog
         attachment={previewAttachment}

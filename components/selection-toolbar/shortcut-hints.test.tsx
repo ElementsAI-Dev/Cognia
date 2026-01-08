@@ -26,7 +26,10 @@ describe("ShortcutHints", () => {
 
     expect(screen.getByText("Trigger selection toolbar")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByText("ai"));
+    // Find the category filter button for 'ai' (it's a button, not a span)
+    const aiButtons = screen.getAllByText("ai");
+    const aiFilterButton = aiButtons.find(el => el.closest('button[data-variant="ghost"]'));
+    await userEvent.click(aiFilterButton!);
 
     expect(screen.queryByText("Trigger selection toolbar")).not.toBeInTheDocument();
     expect(screen.getByText("Quick translate")).toBeInTheDocument();

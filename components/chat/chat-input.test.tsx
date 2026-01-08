@@ -56,6 +56,15 @@ jest.mock('@/stores', () => ({
     };
     return selector ? selector(state) : state;
   },
+  usePromptTemplateStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      templates: [],
+      isInitialized: true,
+      initializeDefaults: jest.fn(),
+      recordUsage: jest.fn(),
+    };
+    return selector ? selector(state) : state;
+  },
 }));
 
 // Mock hooks

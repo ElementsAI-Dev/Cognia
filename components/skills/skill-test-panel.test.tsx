@@ -90,12 +90,13 @@ describe('SkillTestPanel', () => {
     it('displays resource count badge', () => {
       renderWithProviders(<SkillTestPanel skill={mockSkill} />);
 
-      expect(screen.getByText('1 resources')).toBeInTheDocument();
+      expect(screen.getByText('1 Resources')).toBeInTheDocument();
     });
 
     it('displays skill status badge', () => {
       renderWithProviders(<SkillTestPanel skill={mockSkill} />);
 
+      // The component renders the raw status value (lowercase)
       expect(screen.getByText('enabled')).toBeInTheDocument();
     });
 
@@ -439,8 +440,9 @@ describe('SkillTestPanel', () => {
       const promptTab = screen.getAllByRole('tab')[1];
       await user.click(promptTab);
 
+      // The CopyButton renders as an icon-only button; verify the system prompt content is visible instead
       await waitFor(() => {
-        expect(screen.getByText('Copy')).toBeInTheDocument();
+        expect(screen.getByText('Mock system prompt for testing')).toBeInTheDocument();
       });
     });
   });

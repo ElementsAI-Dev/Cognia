@@ -286,7 +286,8 @@ describe('ReviewSession', () => {
     });
     
     await waitFor(() => {
-      expect(screen.getByText('Target Met')).toBeInTheDocument();
+      // Use matcher function since the badge text is split across multiple text nodes
+      expect(screen.getByText((content) => content.includes('Target Met'))).toBeInTheDocument();
     });
   });
 
@@ -435,7 +436,8 @@ describe('ProgressSummary', () => {
     
     render(<ProgressSummary title="Progress" stats={emptyStats} />);
     
-    expect(screen.getByText('0%')).toBeInTheDocument();
+    // There are multiple elements with '0%' (Accuracy and Overall Mastery), so use getAllByText
+    expect(screen.getAllByText('0%').length).toBeGreaterThan(0);
   });
 });
 

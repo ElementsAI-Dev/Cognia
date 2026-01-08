@@ -34,6 +34,7 @@ import { ThemeImportExport } from './theme-import-export';
 import { ThemeSchedule } from './theme-schedule';
 import { UICustomizationSettings } from './ui-customization-settings';
 import { BackgroundSettings } from './background-settings';
+import { SettingsProfiles } from './settings-profiles';
 import { useAutostart } from '@/hooks/native';
 
 const themeOptions: { value: Theme; labelKey: string; icon: React.ReactNode }[] = [
@@ -49,6 +50,8 @@ const colorThemeOptions: { value: ColorThemePreset; color: string }[] = [
   { value: 'sunset', color: 'bg-orange-500' },
   { value: 'lavender', color: 'bg-purple-500' },
   { value: 'rose', color: 'bg-pink-500' },
+  { value: 'slate', color: 'bg-slate-500' },
+  { value: 'amber', color: 'bg-amber-500' },
 ];
 
 export function AppearanceSettings() {
@@ -502,6 +505,9 @@ export function AppearanceSettings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Settings Profiles */}
+      <SettingsProfiles />
 
       {/* Theme Schedule */}
       <ThemeSchedule />

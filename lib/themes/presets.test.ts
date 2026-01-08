@@ -5,12 +5,15 @@
 import {
   THEME_PRESETS,
   getThemeCSSVariables,
+  BACKGROUND_PRESETS,
+  DEFAULT_BACKGROUND_SETTINGS,
   type ColorThemePreset,
   type ThemeColors,
+  type BackgroundSettings,
 } from './presets';
 
 describe('THEME_PRESETS', () => {
-  const presetIds: ColorThemePreset[] = ['default', 'ocean', 'forest', 'sunset', 'lavender', 'rose'];
+  const presetIds: ColorThemePreset[] = ['default', 'ocean', 'forest', 'sunset', 'lavender', 'rose', 'slate', 'amber'];
 
   it('contains all expected presets', () => {
     presetIds.forEach((id) => {
@@ -210,5 +213,104 @@ describe('getThemeCSSVariables', () => {
     
     expect(result).toContain('--primary:');
     expect(result).toContain('oklch(');
+  });
+});
+
+describe('New Theme Presets', () => {
+  it('slate preset has professional gray theme', () => {
+    expect(THEME_PRESETS.slate.name).toBe('Slate');
+    expect(THEME_PRESETS.slate.description.toLowerCase()).toContain('gray');
+  });
+
+  it('amber preset has warm golden theme', () => {
+    expect(THEME_PRESETS.amber.name).toBe('Amber');
+    expect(THEME_PRESETS.amber.description.toLowerCase()).toContain('golden');
+  });
+});
+
+describe('BACKGROUND_PRESETS', () => {
+  it('contains gradient presets', () => {
+    const gradients = BACKGROUND_PRESETS.filter((p) => p.category === 'gradient');
+    expect(gradients.length).toBeGreaterThan(0);
+  });
+
+  it('contains mesh presets', () => {
+    const mesh = BACKGROUND_PRESETS.filter((p) => p.category === 'mesh');
+    expect(mesh.length).toBeGreaterThan(0);
+  });
+
+  it('contains abstract presets', () => {
+    const abstract = BACKGROUND_PRESETS.filter((p) => p.category === 'abstract');
+    expect(abstract.length).toBeGreaterThan(0);
+  });
+
+  it('all presets have required properties', () => {
+    BACKGROUND_PRESETS.forEach((preset) => {
+      expect(preset.id).toBeDefined();
+      expect(preset.name).toBeDefined();
+      expect(preset.url).toBeDefined();
+      expect(preset.category).toBeDefined();
+    });
+  });
+
+  it('all presets have unique ids', () => {
+    const ids = BACKGROUND_PRESETS.map((p) => p.id);
+    const uniqueIds = new Set(ids);
+    expect(uniqueIds.size).toBe(ids.length);
+  });
+
+  it('gradient presets use linear-gradient', () => {
+    const gradients = BACKGROUND_PRESETS.filter((p) => p.category === 'gradient');
+    gradients.forEach((preset) => {
+      expect(preset.url).toContain('linear-gradient');
+    });
+  });
+
+  it('mesh presets use radial-gradient', () => {
+    const mesh = BACKGROUND_PRESETS.filter((p) => p.category === 'mesh');
+    mesh.forEach((preset) => {
+      expect(preset.url).toContain('radial-gradient');
+    });
+  });
+});
+
+describe('DEFAULT_BACKGROUND_SETTINGS', () => {
+  it('has correct default values', () => {
+    expect(DEFAULT_BACKGROUND_SETTINGS.enabled).toBe(false);
+    expect(DEFAULT_BACKGROUND_SETTINGS.source).toBe('none');
+    expect(DEFAULT_BACKGROUND_SETTINGS.fit).toBe('cover');
+    expect(DEFAULT_BACKGROUND_SETTINGS.position).toBe('center');
+  });
+
+  it('has new animation settings', () => {
+    expect(DEFAULT_BACKGROUND_SETTINGS.attachment).toBe('fixed');
+    expect(DEFAULT_BACKGROUND_SETTINGS.animation).toBe('none');
+    expect(DEFAULT_BACKGROUND_SETTINGS.animationSpeed).toBe(5);
+  });
+
+  it('has new filter settings', () => {
+    expect(DEFAULT_BACKGROUND_SETTINGS.contrast).toBe(100);
+    expect(DEFAULT_BACKGROUND_SETTINGS.grayscale).toBe(0);
+  });
+
+  it('has all required properties', () => {
+    const settings: BackgroundSettings = DEFAULT_BACKGROUND_SETTINGS;
+    
+    expect(settings.enabled).toBeDefined();
+    expect(settings.source).toBeDefined();
+    expect(settings.imageUrl).toBeDefined();
+    expect(settings.fit).toBeDefined();
+    expect(settings.position).toBeDefined();
+    expect(settings.opacity).toBeDefined();
+    expect(settings.blur).toBeDefined();
+    expect(settings.overlayColor).toBeDefined();
+    expect(settings.overlayOpacity).toBeDefined();
+    expect(settings.brightness).toBeDefined();
+    expect(settings.saturation).toBeDefined();
+    expect(settings.attachment).toBeDefined();
+    expect(settings.animation).toBeDefined();
+    expect(settings.animationSpeed).toBeDefined();
+    expect(settings.contrast).toBeDefined();
+    expect(settings.grayscale).toBeDefined();
   });
 });

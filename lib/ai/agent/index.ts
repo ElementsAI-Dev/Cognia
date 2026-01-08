@@ -47,10 +47,26 @@ export {
   getSkillsSystemPrompt,
   initializeAgentToolsWithSkills,
   buildEnvironmentToolsSystemPrompt,
+  buildProcessToolsSystemPrompt,
   buildAgentSystemPrompt,
   type AgentToolsConfig,
   type RAGSearchToolOptions,
 } from './agent-tools';
+
+// Process Tools exports
+export {
+  initializeProcessTools,
+  createListProcessesTool,
+  createGetProcessTool,
+  createSearchProcessesTool,
+  createTopMemoryProcessesTool,
+  createStartProcessTool,
+  createTerminateProcessTool,
+  createCheckProgramTool,
+  getProcessToolsSystemPrompt,
+  getProcessToolsPromptSnippet,
+  type ProcessToolsConfig,
+} from './process-tools';
 
 // MCP Tools exports
 export {
@@ -120,3 +136,23 @@ export {
   getEnvironmentToolsSystemPrompt,
   getEnvironmentToolsPromptSnippet,
 } from './environment-tools';
+
+// Context Tools exports (Dynamic Context Discovery)
+export {
+  createContextTools,
+  createReadContextFileTool,
+  createTailContextFileTool,
+  createGrepContextTool,
+  createListContextFilesTool,
+  createContextStatsTool,
+  getContextToolsPrompt,
+} from '@/lib/context';
+
+// Context-Aware Executor exports
+export {
+  executeContextAwareAgent,
+  createContextAwareAgent,
+  getContextExecutionSummary,
+  type ContextAwareAgentConfig,
+  type ContextAwareAgentResult,
+} from './context-aware-executor';

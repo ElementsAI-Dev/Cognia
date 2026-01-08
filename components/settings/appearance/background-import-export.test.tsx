@@ -1,0 +1,152 @@
+/**
+ * BackgroundImportExport Component Tests
+ */
+
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { BackgroundImportExport } from './background-import-export';
+import { useSettingsStore } from '@/stores';
+import { NextIntlClientProvider } from 'next-intl';
+
+// Mock next-intl
+const messages = {
+  settings: {},
+  common: {
+    close: 'Close',
+  },
+};
+
+const renderWithProviders = (component: React.ReactNode) => {
+  return render(
+    <NextIntlClientProvider locale="en" messages={messages}>
+      {component}
+    </NextIntlClientProvider>
+  );
+};
+
+// Mock URL.createObjectURL and URL.revokeObjectURL
+const mockCreateObjectURL = jest.fn(() => 'blob:test-url');
+const mockRevokeObjectURL = jest.fn();
+global.URL.createObjectURL = mockCreateObjectURL;
+global.URL.revokeObjectURL = mockRevokeObjectURL;
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  
+  // Reset store
+  useSettingsStore.setState({
+    backgroundSettings: {
+      enabled: true,
+      source: 'preset',
+      imageUrl: '',
+      localAssetId: null,
+      presetId: 'gradient-blue',
+      fit: 'cover',
+      position: 'center',
+      opacity: 80,
+      blur: 5,
+      overlayColor: '#000000',
+      overlayOpacity: 20,
+      brightness: 100,
+      saturation: 100,
+      attachment: 'fixed',
+      animation: 'none',
+      animationSpeed: 5,
+      contrast: 100,
+      grayscale: 0,
+    },
+    language: 'en' as const,
+  });
+});
+
+describe('BackgroundImportExport', () => {
+  describe('rendering', () => {
+    it('should render import/export button', () => {
+      renderWithProviders(<BackgroundImportExport />);
+      
+      expect(screen.getByRole('button', { name: /import.*export/i })).toBeInTheDocument();
+    });
+
+    it('should open dialog when button is clicked', async () => {
+      renderWithProviders(<BackgroundImportExport />);
+      
+      const button = screen.getByRole('button', { name: /import.*export/i });
+      fireEvent.click(button);
+
+      await waitFor(() => {
+        expect(screen.getByText(/background import.*export/i)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('export functionality', () => {
+    it('should have export button in dialog', async () => {
+      renderWithProviders(<BackgroundImportExport />);
+      
+      // Open dialog
+      fireEvent.click(screen.getByRole('button', { name: /import.*export/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /export to file/i })).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('import functionality', () => {
+    it('should have import button in dialog', async () => {
+      renderWithProviders(<BackgroundImportExport />);
+      
+      // Open dialog
+      fireEvent.click(screen.getByRole('button', { name: /import.*export/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /select file/i })).toBeInTheDocument();
+      });
+    });
+
+    it('should have hidden file input', async () => {
+      renderWithProviders(<BackgroundImportExport />);
+      
+      // Open dialog
+      fireEvent.click(screen.getByRole('button', { name: /import.*export/i }));
+
+      await waitFor(() => {
+        const fileInput = document.querySelector('input[type="file"]');
+        expect(fileInput).toBeInTheDocument();
+        expect(fileInput).toHaveAttribute('accept', '.json');
+      });
+    });
+  });
+
+  describe('Chinese language support', () => {
+    beforeEach(() => {
+      useSettingsStore.setState({ language: 'zh-CN' });
+    });
+
+    it('should show Chinese labels', () => {
+      renderWithProviders(<BackgroundImportExport />);
+      
+      expect(screen.getByRole('button', { name: /导入.*导出/i })).toBeInTheDocument();
+    });
+  });
+
+  describe('dialog controls', () => {
+    it('should close dialog when close button is clicked', async () => {
+      renderWithProviders(<BackgroundImportExport />);
+      
+      // Open dialog
+      fireEvent.click(screen.getByRole('button', { name: /import.*export/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/background import.*export/i)).toBeInTheDocument();
+      });
+
+      // Close dialog
+      const closeButton = screen.getByRole('button', { name: /close/i });
+      fireEvent.click(closeButton);
+
+      await waitFor(() => {
+        expect(screen.queryByText(/background import.*export/i)).not.toBeInTheDocument();
+      });
+    });
+  });
+});

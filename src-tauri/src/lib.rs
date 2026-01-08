@@ -10,6 +10,8 @@ mod context;
 mod http;
 mod jupyter;
 mod mcp;
+mod plugin;
+mod process;
 mod sandbox;
 mod screen_recording;
 mod screenshot;
@@ -23,6 +25,7 @@ use commands::jupyter::JupyterState;
 use commands::vector::VectorStoreState;
 use context::ContextManager;
 use mcp::McpManager;
+use process::ProcessManager;
 use sandbox::SandboxState;
 use screen_recording::ScreenRecordingManager;
 use screenshot::ScreenshotManager;
@@ -182,7 +185,7 @@ pub fn run() {
 
             // Initialize MCP Manager
             let sandbox_data_dir = app_data_dir.clone();
-            let mcp_manager = McpManager::new(app.handle().clone(), app_data_dir);
+            let mcp_manager = McpManager::new(app.handle().clone(), app_data_dir.clone());
 
             // Store manager in app state
             app.manage(mcp_manager);
@@ -218,6 +221,18 @@ pub fn run() {
             app.manage(ocr_state);
             log::info!("OCR manager initialized with Windows OCR provider");
 
+            // Initialize Academic Mode State
+            let academic_path = app_data_dir.join("academic");
+            match commands::academic::AcademicState::new(academic_path) {
+                Ok(academic_state) => {
+                    app.manage(academic_state);
+                    log::info!("Academic mode state initialized");
+                }
+                Err(e) => {
+                    log::error!("Failed to initialize academic state: {}", e);
+                }
+            }
+
             // Initialize Screen Recording Manager
             let screen_recording_manager = ScreenRecordingManager::new(app.handle().clone());
             app.manage(screen_recording_manager);
@@ -229,6 +244,11 @@ pub fn run() {
             // Initialize Awareness Manager
             let awareness_manager = AwarenessManager::new();
             app.manage(awareness_manager);
+
+            // Initialize Plugin Manager
+            let plugin_manager_state = commands::plugin::create_plugin_manager(app_data_dir.clone());
+            app.manage(plugin_manager_state);
+            log::info!("Plugin manager initialized");
 
             // Initialize Chat Widget Window
             let chat_widget_window = ChatWidgetWindow::new(app.handle().clone());
@@ -399,6 +419,21 @@ pub fn run() {
                 }
             });
 
+            // Initialize Process Manager
+            let process_config_path = app_data_dir.join("process_config.json");
+            let handle_for_process = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                match ProcessManager::new(process_config_path).await {
+                    Ok(process_manager) => {
+                        handle_for_process.manage(process_manager);
+                        log::info!("Process manager initialized");
+                    }
+                    Err(e) => {
+                        log::error!("Failed to initialize process manager: {}", e);
+                    }
+                }
+            });
+
             // Setup splash screen and main window
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -472,6 +507,14 @@ pub fn run() {
             commands::ollama::ollama_copy_model,
             commands::ollama::ollama_generate_embedding,
             commands::ollama::ollama_stop_model,
+            // Local provider commands (LM Studio, llama.cpp, vLLM, etc.)
+            commands::local_provider::local_provider_get_status,
+            commands::local_provider::local_provider_list_models,
+            commands::local_provider::local_provider_check_installation,
+            commands::local_provider::local_provider_pull_model,
+            commands::local_provider::local_provider_delete_model,
+            commands::local_provider::local_provider_check_all,
+            commands::local_provider::local_provider_test_connection,
             // Vector (local) commands
             commands::vector::vector_create_collection,
             commands::vector::vector_delete_collection,
@@ -823,6 +866,66 @@ pub fn run() {
             commands::git::git_export_designer,
             commands::git::git_restore_chat,
             commands::git::git_restore_designer,
+            // Process management commands
+            commands::process::process_list,
+            commands::process::process_get,
+            commands::process::process_start,
+            commands::process::process_terminate,
+            commands::process::process_get_config,
+            commands::process::process_update_config,
+            commands::process::process_is_allowed,
+            commands::process::process_get_tracked,
+            commands::process::process_is_enabled,
+            commands::process::process_set_enabled,
+            commands::process::process_search,
+            commands::process::process_top_memory,
+            // Academic mode commands
+            commands::academic::academic_search,
+            commands::academic::academic_search_provider,
+            commands::academic::academic_get_paper,
+            commands::academic::academic_get_citations,
+            commands::academic::academic_get_references,
+            commands::academic::academic_download_pdf,
+            commands::academic::academic_get_pdf_path,
+            commands::academic::academic_delete_pdf,
+            commands::academic::academic_add_to_library,
+            commands::academic::academic_remove_from_library,
+            commands::academic::academic_get_library_papers,
+            commands::academic::academic_update_paper,
+            commands::academic::academic_get_paper_by_id,
+            commands::academic::academic_create_collection,
+            commands::academic::academic_update_collection,
+            commands::academic::academic_delete_collection,
+            commands::academic::academic_get_collections,
+            commands::academic::academic_add_paper_to_collection,
+            commands::academic::academic_remove_paper_from_collection,
+            commands::academic::academic_add_annotation,
+            commands::academic::academic_update_annotation,
+            commands::academic::academic_delete_annotation,
+            commands::academic::academic_get_annotations,
+            commands::academic::academic_import_papers,
+            commands::academic::academic_export_papers,
+            commands::academic::academic_get_providers,
+            commands::academic::academic_set_provider_api_key,
+            commands::academic::academic_set_provider_enabled,
+            commands::academic::academic_test_provider,
+            commands::academic::academic_get_statistics,
+            // Plugin system commands
+            commands::plugin::plugin_python_initialize,
+            commands::plugin::plugin_scan_directory,
+            commands::plugin::plugin_install,
+            commands::plugin::plugin_uninstall,
+            commands::plugin::plugin_python_load,
+            commands::plugin::plugin_python_get_tools,
+            commands::plugin::plugin_python_call_tool,
+            commands::plugin::plugin_python_call,
+            commands::plugin::plugin_python_eval,
+            commands::plugin::plugin_python_import,
+            commands::plugin::plugin_python_module_call,
+            commands::plugin::plugin_python_module_getattr,
+            commands::plugin::plugin_get_state,
+            commands::plugin::plugin_get_all,
+            commands::plugin::plugin_show_notification,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

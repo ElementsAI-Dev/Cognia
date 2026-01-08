@@ -20,6 +20,36 @@ export interface MarkdownParseResult {
   images: { alt: string; url: string }[];
 }
 
+type YamlParser = ((source: string) => unknown) | null | undefined;
+let cachedYamlParser: YamlParser;
+
+function tryParseYaml(frontmatterStr: string): Record<string, unknown> | null {
+  if (cachedYamlParser === undefined) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const yamlModule = require('yaml');
+      cachedYamlParser = (yamlModule.parse ?? yamlModule.default?.parse) as
+        | ((source: string) => unknown)
+        | null;
+    } catch {
+      cachedYamlParser = null;
+    }
+  }
+
+  if (typeof cachedYamlParser === 'function') {
+    try {
+      const parsed = cachedYamlParser(frontmatterStr);
+      if (parsed && typeof parsed === 'object') {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // Fall through to the lightweight parser
+    }
+  }
+
+  return null;
+}
+
 /**
  * Parse frontmatter from markdown
  */
@@ -36,32 +66,63 @@ function parseFrontmatter(content: string): {
 
   try {
     const frontmatterStr = match[1];
+    const yamlResult = tryParseYaml(frontmatterStr);
+    if (yamlResult) {
+      return {
+        frontmatter: yamlResult,
+        body: content.slice(match[0].length),
+      };
+    }
+
     const frontmatter: Record<string, unknown> = {};
-
-    // Simple YAML-like parsing
     const lines = frontmatterStr.split('\n');
-    for (const line of lines) {
-      const colonIndex = line.indexOf(':');
-      if (colonIndex > 0) {
-        const key = line.slice(0, colonIndex).trim();
-        let value: unknown = line.slice(colonIndex + 1).trim();
+    let currentKey: string | null = null;
 
-        // Try to parse as JSON for arrays/objects
-        if (typeof value === 'string' && (value.startsWith('[') || value.startsWith('{'))) {
-          try {
-            value = JSON.parse(value);
-          } catch {
-            // Keep as string
-          }
-        } else if (value === 'true') {
-          value = true;
-        } else if (value === 'false') {
-          value = false;
-        } else if (!isNaN(Number(value)) && value !== '') {
-          value = Number(value);
+    const parseScalar = (raw: string): unknown => {
+      const value = raw.trim();
+      if ((value.startsWith('[') && value.endsWith(']')) || (value.startsWith('{') && value.endsWith('}'))) {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return value;
         }
+      }
+      if (value === 'true') return true;
+      if (value === 'false') return false;
+      if (!Number.isNaN(Number(value)) && value !== '') return Number(value);
+      return value;
+    };
 
-        frontmatter[key] = value;
+    for (const rawLine of lines) {
+      const line = rawLine.trimEnd();
+      if (!line.trim()) continue;
+
+      const listItemMatch = line.match(/^[-]\s+(.*)$/);
+      if (listItemMatch && currentKey) {
+        const existing = frontmatter[currentKey];
+        const parsedItem = parseScalar(listItemMatch[1]);
+        if (Array.isArray(existing)) {
+          existing.push(parsedItem);
+        } else if (existing === undefined) {
+          frontmatter[currentKey] = [parsedItem];
+        }
+        continue;
+      }
+
+      const keyMatch = line.match(/^([A-Za-z0-9_.-]+)\s*:\s*(.*)$/);
+      if (keyMatch) {
+        const [, key, rawValue] = keyMatch;
+        currentKey = key;
+        const parsedValue = rawValue ? parseScalar(rawValue) : [];
+        frontmatter[key] = parsedValue;
+        continue;
+      }
+
+      if (currentKey && rawLine.startsWith(' ')) {
+        const existing = frontmatter[currentKey];
+        if (typeof existing === 'string') {
+          frontmatter[currentKey] = `${existing}\n${line.trim()}`;
+        }
       }
     }
 

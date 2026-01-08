@@ -70,10 +70,10 @@ describe('SkillAnalytics', () => {
 
       renderWithProviders(<SkillAnalytics skillId="test-skill-1" />);
 
-      expect(screen.getByText('totalExecutions')).toBeInTheDocument();
-      expect(screen.getByText('successRate')).toBeInTheDocument();
-      expect(screen.getByText('avgDuration')).toBeInTheDocument();
-      expect(screen.getByText('tokenCost')).toBeInTheDocument();
+      expect(screen.getByText('Total Executions')).toBeInTheDocument();
+      expect(screen.getByText('Success Rate')).toBeInTheDocument();
+      expect(screen.getByText(/Avg\.? Duration/i)).toBeInTheDocument();
+      expect(screen.getByText('Token Cost')).toBeInTheDocument();
     });
 
     it('displays total executions count', () => {
@@ -180,8 +180,8 @@ describe('SkillAnalytics', () => {
 
       renderWithProviders(<SkillAnalytics />);
 
-      expect(screen.getByText('totalSkills')).toBeInTheDocument();
-      expect(screen.getByText('activeSkills')).toBeInTheDocument();
+      expect(screen.getByText('Total Skills')).toBeInTheDocument();
+      expect(screen.getByText('Active Skills')).toBeInTheDocument();
     });
 
     it('displays total skills count', () => {
@@ -209,7 +209,7 @@ describe('SkillAnalytics', () => {
       renderWithProviders(<SkillAnalytics />);
 
       // Check that inCurrentSession label exists (indicates active skills card)
-      expect(screen.getByText('inCurrentSession')).toBeInTheDocument();
+      expect(screen.getByText('in current session')).toBeInTheDocument();
     });
 
     it('displays token budget card', () => {
@@ -272,7 +272,9 @@ describe('SkillAnalytics', () => {
 
       renderWithProviders(<SkillAnalytics />);
 
-      expect(screen.getByText('enabledCount')).toBeInTheDocument();
+      // Translation: "{count} enabled" becomes "1 enabled"
+      const enabledElements = screen.getAllByText(/\d+ enabled/);
+      expect(enabledElements.length).toBeGreaterThan(0);
     });
   });
 });

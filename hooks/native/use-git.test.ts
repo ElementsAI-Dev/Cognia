@@ -61,6 +61,7 @@ const mockPushStore = jest.fn().mockResolvedValue(true);
 const mockPullStore = jest.fn().mockResolvedValue(true);
 const mockFetchStore = jest.fn().mockResolvedValue(true);
 const mockDiscardChangesStore = jest.fn().mockResolvedValue(true);
+const mockLoadStashListStore = jest.fn().mockResolvedValue(undefined);
 const mockClearError = jest.fn();
 const mockGetProjectConfig = jest.fn().mockReturnValue(null);
 const mockSetProjectConfig = jest.fn();
@@ -104,6 +105,7 @@ jest.mock('@/stores/git', () => ({
       pull: mockPullStore,
       fetch: mockFetchStore,
       discardChanges: mockDiscardChangesStore,
+      loadStashList: mockLoadStashListStore,
       getProjectConfig: mockGetProjectConfig,
       setProjectConfig: mockSetProjectConfig,
       enableGitForProject: mockEnableGitForProject,

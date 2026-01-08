@@ -44,7 +44,9 @@ jest.mock('next-intl', () => ({
 }));
 
 // Mock the useLearningMode hook
-jest.mock('@/hooks/use-learning-mode');
+jest.mock('@/hooks/ui', () => ({
+  useLearningMode: jest.fn(),
+}));
 const mockUseLearningMode = useLearningMode as jest.MockedFunction<typeof useLearningMode>;
 
 const createMockHookReturn = (overrides?: Partial<ReturnType<typeof useLearningMode>>) => ({

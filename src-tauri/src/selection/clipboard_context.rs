@@ -147,7 +147,7 @@ pub struct FormattingHints {
 
 // Lazy-initialized regex patterns
 static URL_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"https?://[^\s<>"']+|www\.[^\s<>"']+"#).unwrap());
+    Lazy::new(|| Regex::new(r#"(?:https?|ftp|sftp)://[^\s<>"']+|www\.[^\s<>"']+"#).unwrap());
 
 static EMAIL_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").unwrap());
@@ -661,6 +661,19 @@ impl ClipboardContextAnalyzer {
             );
         }
 
+        // Check for Python code (doesn't use braces)
+        let python_indicators = ["def ", "class ", "import ", "if __name__", "print(", "elif ", "except:"];
+        let python_count = python_indicators
+            .iter()
+            .filter(|i| content.contains(*i))
+            .count();
+        if python_count >= 2 {
+            scores.insert(
+                ContentCategory::Code,
+                0.8 + (python_count as f32 * 0.02).min(0.15),
+            );
+        }
+
         // Check for structured data (CSV/TSV)
         let lines: Vec<&str> = content.lines().collect();
         if lines.len() > 1 {
@@ -755,6 +768,12 @@ impl ClipboardContextAnalyzer {
             return true;
         }
 
+        // Check for SSN patterns (XXX-XX-XXXX)
+        let ssn_regex = Regex::new(r"\b\d{3}-\d{2}-\d{4}\b").unwrap();
+        if ssn_regex.is_match(content) {
+            return true;
+        }
+
         // Check for password-like patterns
         let sensitive_keywords = [
             "password",
@@ -766,6 +785,7 @@ impl ClipboardContextAnalyzer {
             "access_token",
             "bearer",
             "authorization",
+            "ssn",
         ];
         let lower = content.to_lowercase();
         if sensitive_keywords.iter().any(|k| lower.contains(k)) {

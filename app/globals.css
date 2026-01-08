@@ -216,6 +216,43 @@
   
 }
 
+/* Preset color utilities (full + 12.5% tint) */
+.bg-preset-6366f1 { background-color: #6366f1; }
+.bg-preset-8b5cf6 { background-color: #8b5cf6; }
+.bg-preset-a855f7 { background-color: #a855f7; }
+.bg-preset-d946ef { background-color: #d946ef; }
+.bg-preset-ec4899 { background-color: #ec4899; }
+.bg-preset-f43f5e { background-color: #f43f5e; }
+.bg-preset-ef4444 { background-color: #ef4444; }
+.bg-preset-f97316 { background-color: #f97316; }
+.bg-preset-f59e0b { background-color: #f59e0b; }
+.bg-preset-eab308 { background-color: #eab308; }
+.bg-preset-84cc16 { background-color: #84cc16; }
+.bg-preset-22c55e { background-color: #22c55e; }
+.bg-preset-10b981 { background-color: #10b981; }
+.bg-preset-14b8a6 { background-color: #14b8a6; }
+.bg-preset-06b6d4 { background-color: #06b6d4; }
+.bg-preset-0ea5e9 { background-color: #0ea5e9; }
+.bg-preset-3b82f6 { background-color: #3b82f6; }
+
+.bg-preset-6366f1-20 { background-color: #6366f120; }
+.bg-preset-8b5cf6-20 { background-color: #8b5cf620; }
+.bg-preset-a855f7-20 { background-color: #a855f720; }
+.bg-preset-d946ef-20 { background-color: #d946ef20; }
+.bg-preset-ec4899-20 { background-color: #ec489920; }
+.bg-preset-f43f5e-20 { background-color: #f43f5e20; }
+.bg-preset-ef4444-20 { background-color: #ef444420; }
+.bg-preset-f97316-20 { background-color: #f9731620; }
+.bg-preset-f59e0b-20 { background-color: #f59e0b20; }
+.bg-preset-eab308-20 { background-color: #eab30820; }
+.bg-preset-84cc16-20 { background-color: #84cc1620; }
+.bg-preset-22c55e-20 { background-color: #22c55e20; }
+.bg-preset-10b981-20 { background-color: #10b98120; }
+.bg-preset-14b8a6-20 { background-color: #14b8a620; }
+.bg-preset-06b6d4-20 { background-color: #06b6d420; }
+.bg-preset-0ea5e9-20 { background-color: #0ea5e920; }
+.bg-preset-3b82f6-20 { background-color: #3b82f620; }
+
 /* ===== Tauri Desktop App Styles ===== */
 /* These must be outside @layer to have higher specificity than Tailwind utilities */
 
@@ -838,4 +875,65 @@ html.has-bg-image [data-settings-panel] {
   background-color: color-mix(in oklch, var(--background) 95%, transparent);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
+}
+
+/* Background attachment support */
+html.has-bg-image body::before {
+  background-attachment: var(--bg-image-attachment, fixed);
+}
+
+/* Background contrast and grayscale support */
+html.has-bg-image body::before {
+  filter: blur(var(--bg-image-blur, 0px)) 
+          brightness(var(--bg-brightness, 100%)) 
+          saturate(var(--bg-saturation, 100%))
+          contrast(var(--bg-contrast, 100%))
+          grayscale(var(--bg-grayscale, 0%));
+}
+
+/* Background Animations */
+@keyframes bg-kenburns {
+  0% {
+    transform: scale(1) translate(0, 0);
+  }
+  25% {
+    transform: scale(1.1) translate(-2%, -1%);
+  }
+  50% {
+    transform: scale(1.15) translate(1%, 2%);
+  }
+  75% {
+    transform: scale(1.1) translate(2%, -1%);
+  }
+  100% {
+    transform: scale(1) translate(0, 0);
+  }
+}
+
+@keyframes bg-gradient-shift {
+  0% {
+    filter: hue-rotate(0deg) blur(var(--bg-image-blur, 0px)) brightness(var(--bg-brightness, 100%)) saturate(var(--bg-saturation, 100%));
+  }
+  50% {
+    filter: hue-rotate(30deg) blur(var(--bg-image-blur, 0px)) brightness(var(--bg-brightness, 100%)) saturate(var(--bg-saturation, 100%));
+  }
+  100% {
+    filter: hue-rotate(0deg) blur(var(--bg-image-blur, 0px)) brightness(var(--bg-brightness, 100%)) saturate(var(--bg-saturation, 100%));
+  }
+}
+
+/* Ken Burns animation class */
+html.bg-anim-kenburns body::before {
+  animation: bg-kenburns var(--bg-animation-duration, 30s) ease-in-out infinite;
+}
+
+/* Gradient shift animation class */
+html.bg-anim-gradient-shift body::before {
+  animation: bg-gradient-shift var(--bg-animation-duration, 30s) ease-in-out infinite;
+}
+
+/* Parallax effect - simplified CSS-only version */
+html.bg-anim-parallax body::before {
+  background-attachment: fixed;
+  transform: translateZ(-1px) scale(1.5);
 }

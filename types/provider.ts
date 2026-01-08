@@ -4,7 +4,34 @@
 
 export type ProviderType = 'cloud' | 'local';
 
-export type ProviderName = 'openai' | 'anthropic' | 'google' | 'deepseek' | 'groq' | 'mistral' | 'xai' | 'togetherai' | 'openrouter' | 'cohere' | 'fireworks' | 'cerebras' | 'sambanova' | 'ollama' | 'auto';
+export type ProviderName = 
+  // Cloud providers
+  | 'openai' 
+  | 'anthropic' 
+  | 'google' 
+  | 'deepseek' 
+  | 'groq' 
+  | 'mistral' 
+  | 'xai' 
+  | 'togetherai' 
+  | 'openrouter' 
+  | 'cohere' 
+  | 'fireworks' 
+  | 'cerebras' 
+  | 'sambanova' 
+  // Local providers
+  | 'ollama'
+  | 'lmstudio'
+  | 'llamacpp'
+  | 'llamafile'
+  | 'vllm'
+  | 'localai'
+  | 'jan'
+  | 'textgenwebui'
+  | 'koboldcpp'
+  | 'tabbyapi'
+  // Auto router
+  | 'auto';
 
 export interface ModelConfig {
   id: string;
@@ -384,6 +411,10 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
     apiKeyRequired: false,
     baseURLRequired: true,
     defaultModel: 'llama3.2',
+    category: 'local',
+    description: 'Run models locally with easy model management',
+    website: 'https://ollama.ai',
+    docsUrl: 'https://github.com/ollama/ollama',
     models: [
       {
         id: 'llama3.2',
@@ -410,6 +441,222 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
         name: 'Mistral',
         contextLength: 32000,
         supportsTools: true,
+        supportsVision: false,
+        supportsAudio: false,
+        supportsVideo: false,
+        supportsStreaming: true,
+      },
+    ],
+  },
+  lmstudio: {
+    id: 'lmstudio',
+    name: 'LM Studio',
+    type: 'local',
+    apiKeyRequired: false,
+    baseURLRequired: true,
+    defaultModel: 'local-model',
+    category: 'local',
+    description: 'Desktop app for running local LLMs with OpenAI-compatible API',
+    website: 'https://lmstudio.ai',
+    docsUrl: 'https://lmstudio.ai/docs',
+    models: [
+      {
+        id: 'local-model',
+        name: 'Local Model',
+        contextLength: 8192,
+        supportsTools: true,
+        supportsVision: true,
+        supportsAudio: false,
+        supportsVideo: false,
+        supportsStreaming: true,
+      },
+    ],
+  },
+  llamacpp: {
+    id: 'llamacpp',
+    name: 'llama.cpp Server',
+    type: 'local',
+    apiKeyRequired: false,
+    baseURLRequired: true,
+    defaultModel: 'local-model',
+    category: 'local',
+    description: 'High-performance C++ inference server for GGUF models',
+    website: 'https://github.com/ggerganov/llama.cpp',
+    docsUrl: 'https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md',
+    models: [
+      {
+        id: 'local-model',
+        name: 'Local Model',
+        contextLength: 8192,
+        supportsTools: true,
+        supportsVision: true,
+        supportsAudio: false,
+        supportsVideo: false,
+        supportsStreaming: true,
+      },
+    ],
+  },
+  llamafile: {
+    id: 'llamafile',
+    name: 'llamafile',
+    type: 'local',
+    apiKeyRequired: false,
+    baseURLRequired: true,
+    defaultModel: 'local-model',
+    category: 'local',
+    description: 'Single-file executable LLM with built-in server',
+    website: 'https://github.com/Mozilla-Ocho/llamafile',
+    docsUrl: 'https://github.com/Mozilla-Ocho/llamafile#readme',
+    models: [
+      {
+        id: 'local-model',
+        name: 'Local Model',
+        contextLength: 8192,
+        supportsTools: false,
+        supportsVision: true,
+        supportsAudio: false,
+        supportsVideo: false,
+        supportsStreaming: true,
+      },
+    ],
+  },
+  vllm: {
+    id: 'vllm',
+    name: 'vLLM',
+    type: 'local',
+    apiKeyRequired: false,
+    baseURLRequired: true,
+    defaultModel: 'local-model',
+    category: 'local',
+    description: 'High-throughput GPU inference engine with PagedAttention',
+    website: 'https://vllm.ai',
+    docsUrl: 'https://docs.vllm.ai',
+    models: [
+      {
+        id: 'local-model',
+        name: 'Local Model',
+        contextLength: 32768,
+        supportsTools: true,
+        supportsVision: true,
+        supportsAudio: false,
+        supportsVideo: false,
+        supportsStreaming: true,
+      },
+    ],
+  },
+  localai: {
+    id: 'localai',
+    name: 'LocalAI',
+    type: 'local',
+    apiKeyRequired: false,
+    baseURLRequired: true,
+    defaultModel: 'local-model',
+    category: 'local',
+    description: 'Self-hosted OpenAI alternative with multiple backends',
+    website: 'https://localai.io',
+    docsUrl: 'https://localai.io/docs',
+    models: [
+      {
+        id: 'local-model',
+        name: 'Local Model',
+        contextLength: 8192,
+        supportsTools: true,
+        supportsVision: true,
+        supportsAudio: true,
+        supportsVideo: false,
+        supportsStreaming: true,
+      },
+    ],
+  },
+  jan: {
+    id: 'jan',
+    name: 'Jan',
+    type: 'local',
+    apiKeyRequired: false,
+    baseURLRequired: true,
+    defaultModel: 'local-model',
+    category: 'local',
+    description: 'Open-source ChatGPT alternative with local-first design',
+    website: 'https://jan.ai',
+    docsUrl: 'https://jan.ai/docs',
+    models: [
+      {
+        id: 'local-model',
+        name: 'Local Model',
+        contextLength: 8192,
+        supportsTools: true,
+        supportsVision: true,
+        supportsAudio: false,
+        supportsVideo: false,
+        supportsStreaming: true,
+      },
+    ],
+  },
+  textgenwebui: {
+    id: 'textgenwebui',
+    name: 'Text Generation WebUI',
+    type: 'local',
+    apiKeyRequired: false,
+    baseURLRequired: true,
+    defaultModel: 'local-model',
+    category: 'local',
+    description: 'Gradio web UI with OpenAI-compatible API extension',
+    website: 'https://github.com/oobabooga/text-generation-webui',
+    docsUrl: 'https://github.com/oobabooga/text-generation-webui/wiki',
+    models: [
+      {
+        id: 'local-model',
+        name: 'Local Model',
+        contextLength: 8192,
+        supportsTools: false,
+        supportsVision: true,
+        supportsAudio: false,
+        supportsVideo: false,
+        supportsStreaming: true,
+      },
+    ],
+  },
+  koboldcpp: {
+    id: 'koboldcpp',
+    name: 'KoboldCpp',
+    type: 'local',
+    apiKeyRequired: false,
+    baseURLRequired: true,
+    defaultModel: 'local-model',
+    category: 'local',
+    description: 'Easy-to-use llama.cpp fork with web UI and API',
+    website: 'https://github.com/LostRuins/koboldcpp',
+    docsUrl: 'https://github.com/LostRuins/koboldcpp/wiki',
+    models: [
+      {
+        id: 'local-model',
+        name: 'Local Model',
+        contextLength: 8192,
+        supportsTools: false,
+        supportsVision: true,
+        supportsAudio: false,
+        supportsVideo: false,
+        supportsStreaming: true,
+      },
+    ],
+  },
+  tabbyapi: {
+    id: 'tabbyapi',
+    name: 'TabbyAPI',
+    type: 'local',
+    apiKeyRequired: false,
+    baseURLRequired: true,
+    defaultModel: 'local-model',
+    category: 'local',
+    description: 'Exllamav2 API server with OpenAI-compatible endpoints',
+    website: 'https://github.com/theroyallab/tabbyAPI',
+    docsUrl: 'https://github.com/theroyallab/tabbyAPI/wiki',
+    models: [
+      {
+        id: 'local-model',
+        name: 'Local Model',
+        contextLength: 16384,
+        supportsTools: false,
         supportsVision: false,
         supportsAudio: false,
         supportsVideo: false,

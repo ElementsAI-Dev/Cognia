@@ -110,3 +110,14 @@ export {
   type AppGenerationRequest,
   type GeneratedApp,
 } from './app-generator';
+
+// Academic Templates
+export {
+  academicTemplates,
+  createPaperCardSurface,
+  createSearchResultsSurface,
+  createAnalysisPanelSurface,
+  createPaperComparisonSurface,
+  createReadingListSurface,
+  type AcademicTemplateType,
+} from './academic-templates';

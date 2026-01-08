@@ -479,6 +479,23 @@ describe('UnifiedToolRegistry', () => {
       expect(stats.byCategory.skill).toBe(1);
       expect(stats.byCategory.external).toBe(1);
     });
+
+    it('includes all new category types in stats', () => {
+      registry.register(createMockTool('video1'), { source: 'builtin', category: 'video' });
+      registry.register(createMockTool('image1'), { source: 'builtin', category: 'image' });
+      registry.register(createMockTool('academic1'), { source: 'builtin', category: 'academic' });
+      registry.register(createMockTool('ppt1'), { source: 'builtin', category: 'ppt' });
+      registry.register(createMockTool('learning1'), { source: 'builtin', category: 'learning' });
+
+      const stats = registry.getStats();
+
+      expect(stats.total).toBe(5);
+      expect(stats.byCategory.video).toBe(1);
+      expect(stats.byCategory.image).toBe(1);
+      expect(stats.byCategory.academic).toBe(1);
+      expect(stats.byCategory.ppt).toBe(1);
+      expect(stats.byCategory.learning).toBe(1);
+    });
   });
 });
 
@@ -535,6 +552,39 @@ describe('inferToolCategory', () => {
 
   it('infers skill category', () => {
     expect(inferToolCategory('skill_action', 'Perform skill action')).toBe('skill');
+  });
+
+  it('infers video category', () => {
+    expect(inferToolCategory('video_generate', 'Generate video')).toBe('video');
+    expect(inferToolCategory('video_analyze', 'Analyze video content')).toBe('video');
+    expect(inferToolCategory('subtitle_parse', 'Parse subtitles')).toBe('video');
+    expect(inferToolCategory('extract', 'Transcribe audio')).toBe('video');
+  });
+
+  it('infers image category', () => {
+    expect(inferToolCategory('image_generate', 'Generate an image')).toBe('image');
+    expect(inferToolCategory('image_edit', 'Edit image')).toBe('image');
+    expect(inferToolCategory('create_picture', 'Create with DALL-E')).toBe('image');
+    expect(inferToolCategory('generate_art', 'Use Imagen to create')).toBe('image');
+  });
+
+  it('infers academic category', () => {
+    expect(inferToolCategory('academic_search', 'Search academic papers')).toBe('academic');
+    expect(inferToolCategory('paper_comparison', 'Compare papers')).toBe('academic');
+    expect(inferToolCategory('find_research', 'Search arXiv for papers')).toBe('academic');
+  });
+
+  it('infers ppt category', () => {
+    expect(inferToolCategory('ppt_outline', 'Create presentation outline')).toBe('ppt');
+    expect(inferToolCategory('slide_generate', 'Generate slides')).toBe('ppt');
+    expect(inferToolCategory('create_deck', 'Build PowerPoint presentation')).toBe('ppt');
+  });
+
+  it('infers learning category', () => {
+    expect(inferToolCategory('display_flashcard', 'Show flashcard')).toBe('learning');
+    expect(inferToolCategory('display_quiz', 'Display quiz questions')).toBe('learning');
+    expect(inferToolCategory('review_session', 'Start review session')).toBe('learning');
+    expect(inferToolCategory('learning_progress', 'Track learning')).toBe('learning');
   });
 
   it('returns other for unknown', () => {

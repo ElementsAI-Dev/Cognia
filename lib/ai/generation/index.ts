@@ -4,6 +4,7 @@
 
 export * from './use-ai-chat';
 export * from './auto-router';
+export * from './routing-cache';
 export * from './structured-output';
 export * from './sequential';
 export * from './summarizer';

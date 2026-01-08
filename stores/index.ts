@@ -96,6 +96,24 @@ export {
 // MCP stores
 export { useMcpStore, installNpmPackage, installPipPackage, checkCommandExists, useMcpMarketplaceStore } from './mcp';
 
+// Prompt templates
+export {
+  usePromptTemplateStore,
+  selectPromptTemplates,
+  selectPromptTemplateCategories,
+  selectPromptTemplateId,
+} from './prompt/prompt-template-store';
+
+// Prompt marketplace
+export {
+  usePromptMarketplaceStore,
+  selectMarketplacePrompts,
+  selectFeaturedPrompts,
+  selectTrendingPrompts,
+  selectInstalledPrompts,
+  selectFavoritePrompts,
+} from './prompt/prompt-marketplace-store';
+
 // Media stores
 export {
   useMediaStore,
@@ -159,14 +177,17 @@ export {
   selectSelectedPresetId,
   useCustomThemeStore,
   createDefaultThemeTemplate,
+  useSettingsProfilesStore,
   type Theme,
   type Language,
   type CustomTheme,
+  type CustomThemeColors,
   type CustomProviderSettings,
   type CodeTheme,
   type FontFamily,
   type MessageBubbleStyle,
   type CustomSyntaxTheme,
+  type SettingsProfile,
 } from './settings';
 
 // System stores
@@ -268,3 +289,6 @@ export {
   selectEventHistory,
   selectRecentEvents,
 } from './a2ui';
+
+// Academic stores
+export { useAcademicStore } from './academic';

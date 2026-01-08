@@ -229,6 +229,54 @@ export async function testOllamaConnection(
 }
 
 /**
+ * Test local inference provider connection by URL (OpenAI-compatible)
+ * Works for: LM Studio, llama.cpp, llamafile, vLLM, LocalAI, Jan, etc.
+ */
+export async function testLocalProviderConnectionByUrl(
+  baseUrl: string,
+  providerName: string = 'Local'
+): Promise<ApiTestResult> {
+  try {
+    // Normalize the URL
+    let url = baseUrl.trim().replace(/\/+$/, '');
+    if (!url.endsWith('/v1')) {
+      url = `${url}/v1`;
+    }
+    
+    const start = Date.now();
+    const response = await proxyFetch(`${url}/models`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    const latency = Date.now() - start;
+
+    if (response.ok) {
+      const data = await response.json();
+      const modelCount = data.data?.length || 0;
+      const modelList = data.data?.slice(0, 3).map((m: { id: string }) => m.id).join(', ');
+      return {
+        success: true,
+        message: `${providerName} connected. ${modelCount} model(s)${modelList ? `: ${modelList}` : ''}.`,
+        latency_ms: latency,
+        model_info: `${modelCount} models`,
+      };
+    } else {
+      return {
+        success: false,
+        message: `${providerName} connection failed: HTTP ${response.status}`,
+        latency_ms: latency,
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : `${providerName} connection failed`,
+    };
+  }
+}
+
+/**
  * Test custom OpenAI-compatible provider connection
  */
 export async function testCustomProviderConnection(
@@ -282,6 +330,20 @@ export async function testProviderConnection(
   apiKey: string,
   baseUrl?: string
 ): Promise<ApiTestResult> {
+  // Default base URLs for local providers
+  const localProviderDefaults: Record<string, { url: string; name: string }> = {
+    ollama: { url: 'http://localhost:11434', name: 'Ollama' },
+    lmstudio: { url: 'http://localhost:1234', name: 'LM Studio' },
+    llamacpp: { url: 'http://localhost:8080', name: 'llama.cpp' },
+    llamafile: { url: 'http://localhost:8080', name: 'llamafile' },
+    vllm: { url: 'http://localhost:8000', name: 'vLLM' },
+    localai: { url: 'http://localhost:8080', name: 'LocalAI' },
+    jan: { url: 'http://localhost:1337', name: 'Jan' },
+    textgenwebui: { url: 'http://localhost:5000', name: 'Text Gen WebUI' },
+    koboldcpp: { url: 'http://localhost:5001', name: 'KoboldCpp' },
+    tabbyapi: { url: 'http://localhost:5000', name: 'TabbyAPI' },
+  };
+
   switch (providerId) {
     case 'openai':
       return testOpenAIConnection(apiKey, baseUrl);
@@ -296,7 +358,20 @@ export async function testProviderConnection(
     case 'mistral':
       return testMistralConnection(apiKey);
     case 'ollama':
-      return testOllamaConnection(baseUrl || 'http://localhost:11434');
+      return testOllamaConnection(baseUrl || localProviderDefaults.ollama.url);
+    // Local inference providers (OpenAI-compatible)
+    case 'lmstudio':
+    case 'llamacpp':
+    case 'llamafile':
+    case 'vllm':
+    case 'localai':
+    case 'jan':
+    case 'textgenwebui':
+    case 'koboldcpp':
+    case 'tabbyapi': {
+      const config = localProviderDefaults[providerId];
+      return testLocalProviderConnectionByUrl(baseUrl || config.url, config.name);
+    }
     default:
       if (baseUrl) {
         return testCustomProviderConnection(baseUrl, apiKey);

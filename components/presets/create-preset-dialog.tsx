@@ -39,12 +39,13 @@ import {
   Brain,
   Zap,
 } from 'lucide-react';
-import { usePresetStore, useSettingsStore } from '@/stores';
+import { usePresetStore, useSettingsStore, usePromptTemplateStore } from '@/stores';
 import { toast } from '@/components/ui/sonner';
 import { PRESET_COLORS, PRESET_ICONS, type Preset, type BuiltinPrompt } from '@/types/preset';
 import { PROVIDERS, type ProviderName } from '@/types/provider';
 import { nanoid } from 'nanoid';
 import { cn } from '@/lib/utils';
+import { PromptTemplateSelector } from '@/components/prompt-templates';
 
 interface CreatePresetDialogProps {
   open: boolean;
@@ -66,6 +67,8 @@ export function CreatePresetDialog({
   const createPreset = usePresetStore((state) => state.createPreset);
   const updatePreset = usePresetStore((state) => state.updatePreset);
   const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const initializePromptTemplates = usePromptTemplateStore((state) => state.initializeDefaults);
+  const recordTemplateUsage = usePromptTemplateStore((state) => state.recordUsage);
 
   // Basic info
   const [name, setName] = useState('');
@@ -93,6 +96,48 @@ export function CreatePresetDialog({
   const [isGeneratingPreset, setIsGeneratingPreset] = useState(false);
   const [isOptimizingPrompt, setIsOptimizingPrompt] = useState(false);
   const [isGeneratingPrompts, setIsGeneratingPrompts] = useState(false);
+  const [isTemplateSelectorOpen, setTemplateSelectorOpen] = useState(false);
+
+  // Map preset colors to CSS classes to avoid inline styles
+  const COLOR_BG_CLASS: Record<string, string> = {
+    '#6366f1': 'bg-preset-6366f1',
+    '#8b5cf6': 'bg-preset-8b5cf6',
+    '#a855f7': 'bg-preset-a855f7',
+    '#d946ef': 'bg-preset-d946ef',
+    '#ec4899': 'bg-preset-ec4899',
+    '#f43f5e': 'bg-preset-f43f5e',
+    '#ef4444': 'bg-preset-ef4444',
+    '#f97316': 'bg-preset-f97316',
+    '#f59e0b': 'bg-preset-f59e0b',
+    '#eab308': 'bg-preset-eab308',
+    '#84cc16': 'bg-preset-84cc16',
+    '#22c55e': 'bg-preset-22c55e',
+    '#10b981': 'bg-preset-10b981',
+    '#14b8a6': 'bg-preset-14b8a6',
+    '#06b6d4': 'bg-preset-06b6d4',
+    '#0ea5e9': 'bg-preset-0ea5e9',
+    '#3b82f6': 'bg-preset-3b82f6',
+  };
+
+  const COLOR_TINT_CLASS: Record<string, string> = {
+    '#6366f1': 'bg-preset-6366f1-20',
+    '#8b5cf6': 'bg-preset-8b5cf6-20',
+    '#a855f7': 'bg-preset-a855f7-20',
+    '#d946ef': 'bg-preset-d946ef-20',
+    '#ec4899': 'bg-preset-ec4899-20',
+    '#f43f5e': 'bg-preset-f43f5e-20',
+    '#ef4444': 'bg-preset-ef4444-20',
+    '#f97316': 'bg-preset-f97316-20',
+    '#f59e0b': 'bg-preset-f59e0b-20',
+    '#eab308': 'bg-preset-eab308-20',
+    '#84cc16': 'bg-preset-84cc16-20',
+    '#22c55e': 'bg-preset-22c55e-20',
+    '#10b981': 'bg-preset-10b981-20',
+    '#14b8a6': 'bg-preset-14b8a6-20',
+    '#06b6d4': 'bg-preset-06b6d4-20',
+    '#0ea5e9': 'bg-preset-0ea5e9-20',
+    '#3b82f6': 'bg-preset-3b82f6-20',
+  };
 
   // Populate form when editing
   useEffect(() => {
@@ -130,6 +175,10 @@ export function CreatePresetDialog({
       }
     });
   }, [editPreset, open]);
+
+  useEffect(() => {
+    initializePromptTemplates();
+  }, [initializePromptTemplates]);
 
   // Get API settings for AI features
   const getApiSettings = useCallback(() => {
@@ -287,6 +336,12 @@ export function CreatePresetDialog({
     }
   }, [name, description, systemPrompt, builtinPrompts, provider, getApiSettings, t]);
 
+  const handleApplyTemplate = useCallback((template: import('@/types/prompt-template').PromptTemplate) => {
+    setSystemPrompt(template.content);
+    recordTemplateUsage(template.id);
+    setTemplateSelectorOpen(false);
+  }, [recordTemplateUsage]);
+
   // Add manual builtin prompt
   const handleAddBuiltinPrompt = useCallback(() => {
     setBuiltinPrompts(prev => [...prev, {
@@ -415,6 +470,7 @@ export function CreatePresetDialog({
                 onClick={handleAIGeneratePreset}
                 disabled={!aiDescription.trim() || isGeneratingPreset}
                 className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+                  aria-label={t('aiGenerate')}
               >
                 {isGeneratingPreset ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -487,9 +543,11 @@ export function CreatePresetDialog({
                         onClick={() => setColor(c)}
                         className={cn(
                           'w-6 h-6 rounded-full transition-transform',
-                          color === c && 'ring-2 ring-primary ring-offset-2 scale-110'
+                          color === c && 'ring-2 ring-primary ring-offset-2 scale-110',
+                          COLOR_BG_CLASS[c] ?? ''
                         )}
-                        style={{ backgroundColor: c }}
+                        aria-label={`Select color ${c}`}
+                        title={`Select color ${c}`}
                       />
                     ))}
                   </div>
@@ -616,19 +674,28 @@ export function CreatePresetDialog({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="systemPrompt">{t('systemPrompt')}</Label>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleOptimizePrompt}
-                    disabled={!systemPrompt.trim() || isOptimizingPrompt}
-                  >
-                    {isOptimizingPrompt ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Wand2 className="h-4 w-4 mr-2" />
-                    )}
-                    {t('optimizePrompt')}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setTemplateSelectorOpen(true)}
+                    >
+                      Insert template
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleOptimizePrompt}
+                      disabled={!systemPrompt.trim() || isOptimizingPrompt}
+                    >
+                      {isOptimizingPrompt ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Wand2 className="h-4 w-4 mr-2" />
+                      )}
+                      {t('optimizePrompt')}
+                    </Button>
+                  </div>
                 </div>
                 <Textarea
                   id="systemPrompt"
@@ -692,6 +759,8 @@ export function CreatePresetDialog({
                         size="icon"
                         className="h-8 w-8 text-destructive"
                         onClick={() => handleRemoveBuiltinPrompt(prompt.id)}
+                        aria-label={t('removePrompt')}
+                        title={t('removePrompt')}
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -717,13 +786,21 @@ export function CreatePresetDialog({
           </Tabs>
         </ScrollArea>
 
+        <PromptTemplateSelector
+          open={isTemplateSelectorOpen}
+          onOpenChange={setTemplateSelectorOpen}
+          onSelect={handleApplyTemplate}
+        />
+
         {/* Preview */}
         <div className="mt-4 p-3 border rounded-lg bg-muted/50">
           <p className="text-xs text-muted-foreground mb-2">{t('preview')}</p>
           <div className="flex items-center gap-2">
             <span
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-lg"
-              style={{ backgroundColor: `${color}20` }}
+              className={cn(
+                'flex h-8 w-8 items-center justify-center rounded-lg text-lg',
+                COLOR_TINT_CLASS[color] ?? 'bg-muted'
+              )}
             >
               {icon}
             </span>

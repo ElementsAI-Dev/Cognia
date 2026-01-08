@@ -56,6 +56,15 @@ jest.mock('@/stores', () => ({
     };
     return selector(state);
   },
+  useNativeStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      isDesktop: false,
+      isWindows: false,
+      isMac: false,
+      isLinux: false,
+    };
+    return selector(state);
+  },
   useAgentStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       isExecuting: false,

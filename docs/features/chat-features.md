@@ -141,6 +141,45 @@ AI guides learning through questions rather than direct answers, helping you dis
 Help me understand recursion in programming. Don't just show me examples, guide me through understanding how it works.
 ```
 
+## Smart Mode Switching
+
+Cognia intelligently detects your intent and suggests the most appropriate mode for your task.
+
+### How It Works
+
+When you send a message, Cognia analyzes the content and may suggest switching to a more suitable mode:
+
+- **Learning Intent Detected**: If you ask to learn, understand, or explain concepts → Suggests Learning mode
+- **Research Intent Detected**: If you mention papers, research, or literature → Suggests Research mode
+- **Agent Intent Detected**: If you request complex tasks like creating PPTs → Suggests Agent mode
+- **Chat Intent Detected**: If you're in a specialized mode but want casual conversation → Suggests Chat mode
+
+### Bidirectional Suggestions
+
+The system works in both directions:
+
+1. **Specialization**: From Chat mode to Learning/Research/Agent modes
+2. **Generalization**: From specialized modes back to Chat mode
+
+### User Control
+
+You have full control over mode suggestions:
+
+- **Accept**: Switch to the suggested mode
+- **Dismiss**: Hide the suggestion temporarily
+- **Keep Current**: Stop suggestions for this session
+
+### Example Scenarios
+
+| You're In | You Type | Suggestion |
+|-----------|----------|------------|
+| Chat | "教我机器学习" | Switch to Learning mode |
+| Chat | "找一些AI论文" | Switch to Research mode |
+| Learning | "你好" | Switch back to Chat mode |
+| Research | "帮我理解这个概念" | Switch to Learning mode |
+
+For detailed technical information, see [Intent Detection Documentation](./intent-detection.md).
+
 ## Conversation Branching
 
 Create alternative conversation paths to explore different directions.

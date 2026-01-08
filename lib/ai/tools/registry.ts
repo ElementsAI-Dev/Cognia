@@ -61,6 +61,79 @@ import {
   type VideoGenerateInput,
   type VideoStatusInput,
 } from './video-tool';
+import {
+  academicSearchInputSchema,
+  executeAcademicSearch,
+  type AcademicSearchInput,
+  type AcademicSearchConfig,
+} from './academic-search-tool';
+import {
+  academicAnalysisInputSchema,
+  executeAcademicAnalysis,
+  paperComparisonInputSchema,
+  executePaperComparison,
+  type AcademicAnalysisInput,
+  type PaperComparisonInput,
+} from './academic-analysis-tool';
+import {
+  videoSubtitleInputSchema,
+  videoAnalysisInputSchema,
+  subtitleParseInputSchema,
+  executeVideoSubtitleExtraction,
+  executeVideoAnalysis,
+  executeSubtitleParse,
+  type VideoSubtitleInput,
+  type VideoAnalysisInput,
+  type SubtitleParseInput,
+} from './video-analysis-tool';
+import {
+  imageGenerateInputSchema,
+  imageEditInputSchema,
+  imageVariationInputSchema,
+  executeImageGenerate,
+  executeImageEdit,
+  executeImageVariation,
+  type ImageGenerateInput,
+  type ImageEditInput,
+  type ImageVariationInput,
+} from './image-tool';
+import {
+  pptOutlineInputSchema,
+  pptSlideContentInputSchema,
+  pptFinalizeInputSchema,
+  pptExportInputSchema,
+  executePPTOutline,
+  executePPTSlideContent,
+  executePPTFinalize,
+  executePPTExport,
+  type PPTOutlineInput,
+  type PPTSlideContentInput,
+  type PPTFinalizeInput,
+  type PPTExportInput,
+} from './ppt-tool';
+import {
+  displayFlashcardInputSchema,
+  displayFlashcardDeckInputSchema,
+  displayQuizInputSchema,
+  displayQuizQuestionInputSchema,
+  displayReviewSessionInputSchema,
+  displayProgressSummaryInputSchema,
+  displayConceptExplanationInputSchema,
+  executeDisplayFlashcard,
+  executeDisplayFlashcardDeck,
+  executeDisplayQuiz,
+  executeDisplayQuizQuestion,
+  executeDisplayReviewSession,
+  executeDisplayProgressSummary,
+  executeDisplayConceptExplanation,
+  type DisplayFlashcardInput,
+  type DisplayFlashcardDeckInput,
+  type DisplayQuizInput,
+  type DisplayQuizQuestionInput,
+  type DisplayReviewSessionInput,
+  type DisplayProgressSummaryInput,
+  type DisplayConceptExplanationInput,
+} from './learning-tools';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ToolFunction = (...args: any[]) => any;
@@ -70,7 +143,7 @@ export interface ToolDefinition<T extends z.ZodType = z.ZodType> {
   description: string;
   parameters: T;
   requiresApproval?: boolean;
-  category?: 'search' | 'code' | 'file' | 'system' | 'custom' | 'ppt' | 'video';
+  category?: 'search' | 'code' | 'file' | 'system' | 'custom' | 'ppt' | 'video' | 'image' | 'academic' | 'learning';
   create: (config: Record<string, unknown>) => ToolFunction;
 }
 
@@ -432,5 +505,198 @@ Returns a jobId for async operations. Use video_status to check progress.`,
     requiresApproval: false,
     category: 'video',
     create: (config) => (input: unknown) => executeVideoStatus(input as VideoStatusInput, (config.apiKey as string) || ''),
+  });
+
+  // Academic search tools
+  registry.register({
+    name: 'academic_search',
+    description: `Search academic databases (arXiv, Semantic Scholar, OpenAlex, HuggingFace Papers) for scholarly papers.
+Use this tool to find research papers, discover publications, search by authors, or explore AI/ML papers.
+Returns paper metadata including title, authors, abstract, year, citations, and PDF links.`,
+    parameters: academicSearchInputSchema,
+    requiresApproval: false,
+    category: 'academic',
+    create: (config) => (input: unknown) => executeAcademicSearch(input as AcademicSearchInput, config as AcademicSearchConfig),
+  });
+
+  registry.register({
+    name: 'academic_analysis',
+    description: `Analyze academic papers to extract insights, summaries, and structured information.
+Use this to generate summaries, extract key insights, analyze methodology, identify limitations, or provide simplified explanations.`,
+    parameters: academicAnalysisInputSchema,
+    requiresApproval: false,
+    category: 'academic',
+    create: () => (input: unknown) => executeAcademicAnalysis(input as AcademicAnalysisInput),
+  });
+
+  registry.register({
+    name: 'paper_comparison',
+    description: 'Compare multiple academic papers to identify similarities, differences, and relative strengths. Useful for literature reviews.',
+    parameters: paperComparisonInputSchema,
+    requiresApproval: false,
+    category: 'academic',
+    create: () => (input: unknown) => executePaperComparison(input as PaperComparisonInput),
+  });
+
+  // Video analysis tools
+  registry.register({
+    name: 'video_subtitles',
+    description: `Extract subtitles from a video file. Supports embedded subtitles (SRT, ASS, VTT) and audio transcription via Whisper.`,
+    parameters: videoSubtitleInputSchema,
+    requiresApproval: false,
+    category: 'video',
+    create: (config) => (input: unknown) => executeVideoSubtitleExtraction(input as VideoSubtitleInput, (config.apiKey as string) || ''),
+  });
+
+  registry.register({
+    name: 'video_analyze',
+    description: `Analyze video content using subtitles or transcription. Analysis types: summary, transcript, key-moments, qa, full.`,
+    parameters: videoAnalysisInputSchema,
+    requiresApproval: false,
+    category: 'video',
+    create: (config) => (input: unknown) => executeVideoAnalysis(
+      input as VideoAnalysisInput, 
+      (config.apiKey as string) || '',
+      config.analyzeCallback as ((text: string, prompt: string) => Promise<string>) | undefined
+    ),
+  });
+
+  registry.register({
+    name: 'subtitle_parse',
+    description: 'Parse subtitle content in various formats (SRT, VTT, ASS/SSA). Returns structured data with cues and plain text transcript.',
+    parameters: subtitleParseInputSchema,
+    requiresApproval: false,
+    category: 'video',
+    create: () => (input: unknown) => executeSubtitleParse(input as SubtitleParseInput),
+  });
+
+  // Image generation tools
+  registry.register({
+    name: 'image_generate',
+    description: `Generate an image from a text prompt using AI. Supports OpenAI DALL-E (dall-e-3, dall-e-2), Google Imagen, and Stability AI.
+Features: multiple sizes, quality options, style options, and batch generation.`,
+    parameters: imageGenerateInputSchema,
+    requiresApproval: false,
+    category: 'image',
+    create: (config) => (input: unknown) => executeImageGenerate(input as ImageGenerateInput, (config.apiKey as string) || ''),
+  });
+
+  registry.register({
+    name: 'image_edit',
+    description: 'Edit an existing image using AI (inpainting). Provide a base64 encoded PNG image and a description of the edit.',
+    parameters: imageEditInputSchema,
+    requiresApproval: false,
+    category: 'image',
+    create: (config) => (input: unknown) => executeImageEdit(input as ImageEditInput, (config.apiKey as string) || ''),
+  });
+
+  registry.register({
+    name: 'image_variation',
+    description: 'Create variations of an existing image. The AI will generate similar but unique versions of the input image.',
+    parameters: imageVariationInputSchema,
+    requiresApproval: false,
+    category: 'image',
+    create: (config) => (input: unknown) => executeImageVariation(input as ImageVariationInput, (config.apiKey as string) || ''),
+  });
+
+  // PPT tools
+  registry.register({
+    name: 'ppt_outline',
+    description: 'Generate a presentation outline from a topic. Creates structured slide outline with title, agenda, content slides, and closing.',
+    parameters: pptOutlineInputSchema,
+    requiresApproval: false,
+    category: 'ppt',
+    create: () => (input: unknown) => executePPTOutline(input as PPTOutlineInput),
+  });
+
+  registry.register({
+    name: 'ppt_slide_content',
+    description: 'Generate detailed slide content from an outline. Creates content, bullet points, and notes for each slide.',
+    parameters: pptSlideContentInputSchema,
+    requiresApproval: false,
+    category: 'ppt',
+    create: () => (input: unknown) => executePPTSlideContent(input as PPTSlideContentInput),
+  });
+
+  registry.register({
+    name: 'ppt_finalize',
+    description: 'Finalize and build the presentation object from outline and designed slides.',
+    parameters: pptFinalizeInputSchema,
+    requiresApproval: false,
+    category: 'ppt',
+    create: () => (input: unknown) => executePPTFinalize(input as PPTFinalizeInput),
+  });
+
+  registry.register({
+    name: 'ppt_export',
+    description: 'Export presentation to various formats (marp, html, reveal). Supports speaker notes and custom CSS.',
+    parameters: pptExportInputSchema,
+    requiresApproval: false,
+    category: 'ppt',
+    create: () => (input: unknown) => executePPTExport(input as PPTExportInput),
+  });
+
+  // Learning tools (Generative UI)
+  registry.register({
+    name: 'display_flashcard',
+    description: 'Display an interactive flashcard for the user to review. Use for concepts that need memorization with question-answer format.',
+    parameters: displayFlashcardInputSchema,
+    requiresApproval: false,
+    category: 'learning',
+    create: () => (input: unknown) => executeDisplayFlashcard(input as DisplayFlashcardInput),
+  });
+
+  registry.register({
+    name: 'display_flashcard_deck',
+    description: 'Display a deck of flashcards for sequential review. Use when presenting multiple related concepts for study.',
+    parameters: displayFlashcardDeckInputSchema,
+    requiresApproval: false,
+    category: 'learning',
+    create: () => (input: unknown) => executeDisplayFlashcardDeck(input as DisplayFlashcardDeckInput),
+  });
+
+  registry.register({
+    name: 'display_quiz',
+    description: 'Display an interactive quiz to test understanding. Supports multiple choice, true/false, fill in the blank, and short answer.',
+    parameters: displayQuizInputSchema,
+    requiresApproval: false,
+    category: 'learning',
+    create: () => (input: unknown) => executeDisplayQuiz(input as DisplayQuizInput),
+  });
+
+  registry.register({
+    name: 'display_quiz_question',
+    description: 'Display a single quiz question for quick knowledge check during learning conversations.',
+    parameters: displayQuizQuestionInputSchema,
+    requiresApproval: false,
+    category: 'learning',
+    create: () => (input: unknown) => executeDisplayQuizQuestion(input as DisplayQuizQuestionInput),
+  });
+
+  registry.register({
+    name: 'display_review_session',
+    description: 'Start an interactive review session combining flashcards and quiz questions with spaced repetition support.',
+    parameters: displayReviewSessionInputSchema,
+    requiresApproval: false,
+    category: 'learning',
+    create: () => (input: unknown) => executeDisplayReviewSession(input as DisplayReviewSessionInput),
+  });
+
+  registry.register({
+    name: 'display_progress_summary',
+    description: 'Display a visual summary of learning progress including mastery levels, review statistics, and achievements.',
+    parameters: displayProgressSummaryInputSchema,
+    requiresApproval: false,
+    category: 'learning',
+    create: () => (input: unknown) => executeDisplayProgressSummary(input as DisplayProgressSummaryInput),
+  });
+
+  registry.register({
+    name: 'display_concept_explanation',
+    description: 'Display an interactive concept explanation with expandable sections, examples, and related concepts.',
+    parameters: displayConceptExplanationInputSchema,
+    requiresApproval: false,
+    category: 'learning',
+    create: () => (input: unknown) => executeDisplayConceptExplanation(input as DisplayConceptExplanationInput),
   });
 }

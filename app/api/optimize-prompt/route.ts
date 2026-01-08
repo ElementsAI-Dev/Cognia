@@ -10,6 +10,10 @@ import {
   isValidProvider,
   type ProviderName 
 } from '@/lib/ai/core/client';
+import {
+  circuitBreakerRegistry,
+  isProviderAvailable,
+} from '@/lib/ai/infrastructure';
 
 const OPTIMIZE_PROMPT = `You are an expert prompt engineer. Your task is to optimize and enhance the given system prompt to make it more effective, clear, and comprehensive.
 
@@ -47,6 +51,14 @@ export async function POST(request: NextRequest) {
     // Validate provider
     const validProvider = isValidProvider(provider) ? provider as ProviderName : 'openai';
 
+    // Check circuit breaker - if provider is failing, reject early
+    if (!isProviderAvailable(validProvider)) {
+      return NextResponse.json(
+        { error: `Provider ${validProvider} is temporarily unavailable. Please try again later.` },
+        { status: 503 }
+      );
+    }
+
     // Use unified client to get model
     const { model: aiModel } = getProviderModelFromConfig({
       provider: validProvider,
@@ -61,12 +73,25 @@ export async function POST(request: NextRequest) {
       prompt: `Please optimize this system prompt:\n\n${prompt}`,
     });
 
+    // Record success in circuit breaker
+    circuitBreakerRegistry.get(validProvider).recordSuccess();
+
     return NextResponse.json({
       optimizedPrompt: result.text.trim(),
       usage: result.usage,
     });
   } catch (error) {
     console.error('Prompt optimization error:', error);
+
+    // Record failure in circuit breaker
+    try {
+      const body = await request.clone().json();
+      const failedProvider = isValidProvider(body.provider) ? body.provider as ProviderName : 'openai';
+      circuitBreakerRegistry.get(failedProvider).recordFailure(error as Error);
+    } catch {
+      // Ignore parsing errors
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to optimize prompt' },
       { status: 500 }

@@ -11,7 +11,16 @@
 
 import type { LanguageModel } from 'ai';
 
-export type ChunkingStrategy = 'fixed' | 'sentence' | 'paragraph' | 'semantic' | 'heading';
+export type ChunkingStrategy =
+  | 'fixed'
+  | 'sentence'
+  | 'paragraph'
+  | 'semantic'
+  | 'heading'
+  | 'smart'
+  | 'recursive'
+  | 'sliding_window'
+  | 'code';
 
 export interface ChunkingOptions {
   strategy: ChunkingStrategy;
@@ -39,12 +48,47 @@ export interface ChunkingResult {
 }
 
 const DEFAULT_OPTIONS: ChunkingOptions = {
-  strategy: 'fixed',
+  strategy: 'semantic',
   chunkSize: 1000,
   chunkOverlap: 200,
   minChunkSize: 0,
   maxChunkSize: 2000,
 };
+
+function normalizeChunkingInputs(
+  text: string,
+  options: Partial<ChunkingOptions>
+): {
+  cleanedText: string;
+  normalizedChunkSize: number;
+  normalizedOverlap: number;
+  opts: ChunkingOptions;
+} {
+  const opts = { ...DEFAULT_OPTIONS, ...options } as ChunkingOptions;
+
+  const normalizedChunkSize =
+    typeof options.chunkSize === 'number' && options.chunkSize > 0
+      ? options.chunkSize
+      : DEFAULT_OPTIONS.chunkSize;
+
+  // If the caller didn't specify overlap, pick a proportional default.
+  const rawOverlap =
+    typeof options.chunkOverlap === 'number'
+      ? options.chunkOverlap
+      : Math.min(DEFAULT_OPTIONS.chunkOverlap, Math.floor(normalizedChunkSize * 0.2));
+
+  const normalizedOverlap = Math.min(
+    Math.max(0, rawOverlap),
+    Math.max(0, normalizedChunkSize - 1)
+  );
+
+  return {
+    cleanedText: text.replace(/\r\n/g, '\n').trim(),
+    normalizedChunkSize,
+    normalizedOverlap,
+    opts,
+  };
+}
 
 /**
  * Split text into chunks using fixed-size strategy
@@ -352,27 +396,12 @@ export function chunkDocument(
   options: Partial<ChunkingOptions> = {},
   documentId?: string
 ): ChunkingResult {
-  const opts = { ...DEFAULT_OPTIONS, ...options };
-
-  const normalizedChunkSize =
-    typeof options.chunkSize === 'number' && options.chunkSize > 0
-      ? options.chunkSize
-      : DEFAULT_OPTIONS.chunkSize;
-
-  // If the caller didn't specify overlap, pick a proportional default.
-  // This prevents pathological cases where a small chunkSize inherits the global default overlap.
-  const rawOverlap =
-    typeof options.chunkOverlap === 'number'
-      ? options.chunkOverlap
-      : Math.min(DEFAULT_OPTIONS.chunkOverlap, Math.floor(normalizedChunkSize * 0.2));
-
-  const normalizedOverlap = Math.min(
-    Math.max(0, rawOverlap),
-    Math.max(0, normalizedChunkSize - 1)
-  );
-  
-  // Clean text
-  const cleanedText = text.replace(/\r\n/g, '\n').trim();
+  const {
+    cleanedText,
+    normalizedChunkSize,
+    normalizedOverlap,
+    opts,
+  } = normalizeChunkingInputs(text, options);
   
   if (!cleanedText) {
     return {
@@ -393,12 +422,44 @@ export function chunkDocument(
       rawChunks = paragraphChunking(cleanedText, normalizedChunkSize, normalizedOverlap);
       break;
     case 'semantic':
-      // Semantic chunking uses heading-based as a heuristic
-      // For true AI-powered semantic chunking, use chunkDocumentSemantic
       rawChunks = headingChunking(cleanedText, normalizedChunkSize, normalizedOverlap);
       break;
     case 'heading':
       rawChunks = headingChunking(cleanedText, normalizedChunkSize, normalizedOverlap);
+      break;
+    case 'smart':
+      rawChunks = chunkDocumentSmart(cleanedText, { ...opts }, documentId).chunks.map((c) => ({
+        content: c.content,
+        start: c.startOffset,
+        end: c.endOffset,
+      }));
+      break;
+    case 'recursive':
+      rawChunks = chunkDocumentRecursive(
+        cleanedText,
+        {
+          maxChunkSize: normalizedChunkSize,
+          minChunkSize: opts.minChunkSize,
+          overlap: normalizedOverlap,
+        },
+        documentId
+      ).chunks.map((c) => ({ content: c.content, start: c.startOffset, end: c.endOffset }));
+      break;
+    case 'sliding_window':
+      rawChunks = chunkDocumentSlidingWindow(
+        cleanedText,
+        {
+          windowSize: normalizedChunkSize,
+          stepSize: Math.max(1, normalizedChunkSize - normalizedOverlap),
+          preserveWords: true,
+        },
+        documentId
+      ).chunks.map((c) => ({ content: c.content, start: c.startOffset, end: c.endOffset }));
+      break;
+    case 'code':
+      rawChunks = chunkCodeDocument(cleanedText, { maxChunkSize: normalizedChunkSize }, documentId).chunks.map(
+        (c) => ({ content: c.content, start: c.startOffset, end: c.endOffset })
+      );
       break;
     case 'fixed':
     default:
@@ -427,6 +488,39 @@ export function chunkDocument(
     originalLength: cleanedText.length,
     strategy: opts.strategy,
   };
+}
+
+/**
+ * Async variant that can leverage AI-powered semantic chunking when a model is provided.
+ * Falls back to heading-based chunking if the model call fails or returns no split points.
+ */
+export async function chunkDocumentAsync(
+  text: string,
+  options: Partial<ChunkingOptions> = {},
+  documentId?: string
+): Promise<ChunkingResult> {
+  const normalized = normalizeChunkingInputs(text, options);
+
+  // Only the semantic strategy is AI-assisted; others reuse the sync implementation.
+  if (normalized.opts.strategy === 'semantic' && normalized.opts.model) {
+    try {
+      const semanticResult = await chunkDocumentSemantic(text, normalized.opts.model, {
+        targetChunkSize: normalized.normalizedChunkSize,
+        documentId,
+      });
+
+      if (semanticResult.totalChunks > 0) {
+        return semanticResult;
+      }
+    } catch (error) {
+      console.warn('Semantic chunking failed, falling back to heading strategy:', error);
+    }
+
+    // Fallback to deterministic heading-based chunking when AI path fails.
+    return chunkDocument(text, { ...options, strategy: 'heading' }, documentId);
+  }
+
+  return chunkDocument(text, options, documentId);
 }
 
 /**
@@ -500,6 +594,26 @@ export function getChunkStats(chunks: DocumentChunk[]): {
   };
 }
 
+function parseSemanticSplitPoints(responseText: string, textLength: number): number[] {
+  const jsonMatch = responseText.match(/\[[^\]]+\]/);
+  if (!jsonMatch) return [];
+
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(parsed)) return [];
+
+    const splitPoints = parsed
+      .map((p) => Number(p))
+      .filter((p) => Number.isFinite(p) && p > 0 && p < textLength)
+      .sort((a, b) => a - b);
+
+    // De-duplicate while preserving order
+    return Array.from(new Set(splitPoints));
+  } catch {
+    return [];
+  }
+}
+
 /**
  * AI-powered semantic chunking using language model to identify split points
  * This provides true semantic chunking based on content meaning
@@ -550,21 +664,7 @@ ${cleanedText.slice(0, 8000)}${cleanedText.length > 8000 ? '\n...[truncated]' : 
       temperature: 0.1,
     });
 
-    // Parse the split points from AI response
-    const jsonMatch = result.text.match(/\[[\d,\s]+\]/);
-    let splitPoints: number[] = [];
-    
-    if (jsonMatch) {
-      try {
-        splitPoints = JSON.parse(jsonMatch[0]);
-        // Validate and filter split points
-        splitPoints = splitPoints
-          .filter((p) => typeof p === 'number' && p > 0 && p < cleanedText.length)
-          .sort((a, b) => a - b);
-      } catch {
-        // If parsing fails, fall back to heading chunking
-      }
-    }
+    const splitPoints = parseSemanticSplitPoints(result.text, cleanedText.length);
 
     // If AI couldn't find good split points, fall back to heading chunking
     if (splitPoints.length === 0) {

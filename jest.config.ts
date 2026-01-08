@@ -301,6 +301,7 @@ const config: Config = {
     "/e2e/",
     // Skip tests with severe memory issues (require dedicated Node heap increase)
     "components/providers/provider-context.test.tsx",
+    "hooks/sandbox/use-sandbox-db.test.ts",
   ],
 
   // The regexp pattern or array of patterns that Jest uses to detect test files

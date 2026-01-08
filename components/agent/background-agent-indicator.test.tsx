@@ -23,7 +23,7 @@ const mockCompletedAgents = [
   { id: '2', name: 'Agent 2', progress: 100, status: 'completed', completedAt: new Date() },
 ];
 
-jest.mock('@/hooks/use-background-agent', () => ({
+jest.mock('@/hooks/ai/use-background-agent', () => ({
   useBackgroundAgent: () => ({
     runningAgents: mockRunningAgents,
     completedAgents: mockCompletedAgents,
@@ -70,7 +70,7 @@ describe('BackgroundAgentIndicator', () => {
 describe('BackgroundAgentIndicator - Empty State', () => {
   beforeEach(() => {
     // Override mock to return empty arrays
-    jest.doMock('@/hooks/use-background-agent', () => ({
+    jest.doMock('@/hooks/ai/use-background-agent', () => ({
       useBackgroundAgent: () => ({
         runningAgents: [],
         completedAgents: [],

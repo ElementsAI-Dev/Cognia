@@ -5,7 +5,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
-import type { UserProviderSettings, ApiKeyRotationStrategy } from '@/types/provider';
+import type { UserProviderSettings, ApiKeyRotationStrategy, ProviderName } from '@/types/provider';
 import {
   getNextApiKey,
   recordApiKeySuccess,
@@ -22,6 +22,8 @@ import { DEFAULT_SPEECH_SETTINGS } from '@/types/speech';
 import type { CompressionSettings, CompressionStrategy, CompressionTrigger, CompressionModelConfig } from '@/types/compression';
 import { DEFAULT_COMPRESSION_SETTINGS } from '@/types/compression';
 import type { AutoDetectResult } from '@/lib/i18n/locale-auto-detect';
+import type { AutoRouterSettings, RoutingMode, RoutingStrategy, ModelTier } from '@/types/auto-router';
+import { DEFAULT_AUTO_ROUTER_SETTINGS } from '@/types/auto-router';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'en' | 'zh-CN';
@@ -43,18 +45,34 @@ export type CodeTheme = 'github-dark' | 'github-light' | 'monokai' | 'dracula' |
 export type FontFamily = 'system' | 'inter' | 'roboto' | 'fira-code' | 'jetbrains-mono';
 export type MessageBubbleStyle = 'default' | 'minimal' | 'bordered' | 'gradient';
 
-// Custom theme interface
+// Custom theme interface - supports full 16 colors for complete customization
+export interface CustomThemeColors {
+  // Core colors
+  primary: string;
+  primaryForeground?: string;
+  secondary: string;
+  secondaryForeground?: string;
+  accent: string;
+  accentForeground?: string;
+  background: string;
+  foreground: string;
+  muted: string;
+  mutedForeground?: string;
+  // Card colors
+  card?: string;
+  cardForeground?: string;
+  // Border and ring
+  border?: string;
+  ring?: string;
+  // Destructive
+  destructive?: string;
+  destructiveForeground?: string;
+}
+
 export interface CustomTheme {
   id: string;
   name: string;
-  colors: {
-    primary: string;
-    secondary: string;
-    accent: string;
-    background: string;
-    foreground: string;
-    muted: string;
-  };
+  colors: CustomThemeColors;
   isDark: boolean;
 }
 
@@ -222,6 +240,8 @@ interface SettingsState {
   setEnableRAGSearch: (enabled: boolean) => void;
   enableCalculator: boolean;
   setEnableCalculator: (enabled: boolean) => void;
+  enableProcessTools: boolean;
+  setEnableProcessTools: (enabled: boolean) => void;
   alwaysAllowedTools: string[];
   addAlwaysAllowedTool: (toolName: string) => void;
   removeAlwaysAllowedTool: (toolName: string) => void;
@@ -287,6 +307,11 @@ interface SettingsState {
   setBackgroundOverlay: (color: string, opacity: number) => void;
   setBackgroundBrightness: (brightness: number) => void;
   setBackgroundSaturation: (saturation: number) => void;
+  setBackgroundAttachment: (attachment: 'fixed' | 'scroll' | 'local') => void;
+  setBackgroundAnimation: (animation: 'none' | 'kenburns' | 'parallax' | 'gradient-shift') => void;
+  setBackgroundAnimationSpeed: (speed: number) => void;
+  setBackgroundContrast: (contrast: number) => void;
+  setBackgroundGrayscale: (grayscale: number) => void;
   resetBackgroundSettings: () => void;
   clearBackground: () => Promise<void>;
 
@@ -330,6 +355,18 @@ interface SettingsState {
   setCompressionModel: (config: Partial<CompressionModelConfig>) => void;
   setCompressionNotification: (show: boolean) => void;
   setCompressionUndo: (enable: boolean) => void;
+
+  // Auto Router settings
+  autoRouterSettings: AutoRouterSettings;
+  setAutoRouterSettings: (settings: Partial<AutoRouterSettings>) => void;
+  setAutoRouterEnabled: (enabled: boolean) => void;
+  setAutoRouterMode: (mode: RoutingMode) => void;
+  setAutoRouterStrategy: (strategy: RoutingStrategy) => void;
+  setAutoRouterShowIndicator: (show: boolean) => void;
+  setAutoRouterPreferredProviders: (providers: string[]) => void;
+  setAutoRouterExcludedProviders: (providers: string[]) => void;
+  setAutoRouterFallbackTier: (tier: ModelTier) => void;
+  resetAutoRouterSettings: () => void;
 
   // Onboarding
   hasCompletedOnboarding: boolean;
@@ -424,6 +461,61 @@ const defaultProviderSettings: Record<string, UserProviderSettings> = {
     defaultModel: 'llama3.2',
     enabled: false,
   },
+  // Local inference providers
+  lmstudio: {
+    providerId: 'lmstudio',
+    baseURL: 'http://localhost:1234',
+    defaultModel: 'local-model',
+    enabled: false,
+  },
+  llamacpp: {
+    providerId: 'llamacpp',
+    baseURL: 'http://localhost:8080',
+    defaultModel: 'local-model',
+    enabled: false,
+  },
+  llamafile: {
+    providerId: 'llamafile',
+    baseURL: 'http://localhost:8080',
+    defaultModel: 'local-model',
+    enabled: false,
+  },
+  vllm: {
+    providerId: 'vllm',
+    baseURL: 'http://localhost:8000',
+    defaultModel: 'local-model',
+    enabled: false,
+  },
+  localai: {
+    providerId: 'localai',
+    baseURL: 'http://localhost:8080',
+    defaultModel: 'local-model',
+    enabled: false,
+  },
+  jan: {
+    providerId: 'jan',
+    baseURL: 'http://localhost:1337',
+    defaultModel: 'local-model',
+    enabled: false,
+  },
+  textgenwebui: {
+    providerId: 'textgenwebui',
+    baseURL: 'http://localhost:5000',
+    defaultModel: 'local-model',
+    enabled: false,
+  },
+  koboldcpp: {
+    providerId: 'koboldcpp',
+    baseURL: 'http://localhost:5001',
+    defaultModel: 'local-model',
+    enabled: false,
+  },
+  tabbyapi: {
+    providerId: 'tabbyapi',
+    baseURL: 'http://localhost:5000',
+    defaultModel: 'local-model',
+    enabled: false,
+  },
 };
 
 const initialState = {
@@ -490,6 +582,7 @@ const initialState = {
   enableWebSearch: true,
   enableRAGSearch: true,
   enableCalculator: true,
+  enableProcessTools: false, // Disabled by default for security
   alwaysAllowedTools: [] as string[],
 
   // Response display
@@ -535,6 +628,9 @@ const initialState = {
 
   // Compression settings
   compressionSettings: { ...DEFAULT_COMPRESSION_SETTINGS },
+
+  // Auto Router settings
+  autoRouterSettings: { ...DEFAULT_AUTO_ROUTER_SETTINGS },
 
   // Onboarding
   hasCompletedOnboarding: false,
@@ -990,6 +1086,7 @@ export const useSettingsStore = create<SettingsState>()(
       setEnableWebSearch: (enableWebSearch) => set({ enableWebSearch }),
       setEnableRAGSearch: (enableRAGSearch) => set({ enableRAGSearch }),
       setEnableCalculator: (enableCalculator) => set({ enableCalculator }),
+      setEnableProcessTools: (enableProcessTools) => set({ enableProcessTools }),
 
       addAlwaysAllowedTool: (toolName) => set((state) => ({
         alwaysAllowedTools: state.alwaysAllowedTools.includes(toolName)
@@ -1099,6 +1196,26 @@ export const useSettingsStore = create<SettingsState>()(
       setBackgroundSaturation: (saturation) =>
         set((state) => ({
           backgroundSettings: { ...state.backgroundSettings, saturation: Math.min(200, Math.max(0, saturation)) },
+        })),
+      setBackgroundAttachment: (attachment) =>
+        set((state) => ({
+          backgroundSettings: { ...state.backgroundSettings, attachment },
+        })),
+      setBackgroundAnimation: (animation) =>
+        set((state) => ({
+          backgroundSettings: { ...state.backgroundSettings, animation },
+        })),
+      setBackgroundAnimationSpeed: (animationSpeed) =>
+        set((state) => ({
+          backgroundSettings: { ...state.backgroundSettings, animationSpeed: Math.min(10, Math.max(1, animationSpeed)) },
+        })),
+      setBackgroundContrast: (contrast) =>
+        set((state) => ({
+          backgroundSettings: { ...state.backgroundSettings, contrast: Math.min(150, Math.max(50, contrast)) },
+        })),
+      setBackgroundGrayscale: (grayscale) =>
+        set((state) => ({
+          backgroundSettings: { ...state.backgroundSettings, grayscale: Math.min(100, Math.max(0, grayscale)) },
         })),
       resetBackgroundSettings: () =>
         set({ backgroundSettings: { ...DEFAULT_BACKGROUND_SETTINGS } }),
@@ -1229,6 +1346,48 @@ export const useSettingsStore = create<SettingsState>()(
           compressionSettings: { ...state.compressionSettings, enableUndo },
         })),
 
+      // Auto Router settings actions
+      setAutoRouterSettings: (settings) =>
+        set((state) => ({
+          autoRouterSettings: { ...state.autoRouterSettings, ...settings },
+        })),
+      setAutoRouterEnabled: (enabled) =>
+        set((state) => ({
+          autoRouterSettings: { ...state.autoRouterSettings, enabled },
+        })),
+      setAutoRouterMode: (routingMode) =>
+        set((state) => ({
+          autoRouterSettings: { ...state.autoRouterSettings, routingMode },
+        })),
+      setAutoRouterStrategy: (strategy) =>
+        set((state) => ({
+          autoRouterSettings: { ...state.autoRouterSettings, strategy },
+        })),
+      setAutoRouterShowIndicator: (showRoutingIndicator) =>
+        set((state) => ({
+          autoRouterSettings: { ...state.autoRouterSettings, showRoutingIndicator },
+        })),
+      setAutoRouterPreferredProviders: (preferredProviders) =>
+        set((state) => ({
+          autoRouterSettings: { 
+            ...state.autoRouterSettings, 
+            preferredProviders: preferredProviders as ProviderName[] 
+          },
+        })),
+      setAutoRouterExcludedProviders: (excludedProviders) =>
+        set((state) => ({
+          autoRouterSettings: { 
+            ...state.autoRouterSettings, 
+            excludedProviders: excludedProviders as ProviderName[] 
+          },
+        })),
+      setAutoRouterFallbackTier: (fallbackTier) =>
+        set((state) => ({
+          autoRouterSettings: { ...state.autoRouterSettings, fallbackTier },
+        })),
+      resetAutoRouterSettings: () =>
+        set({ autoRouterSettings: { ...DEFAULT_AUTO_ROUTER_SETTINGS } }),
+
       // Onboarding actions
       setOnboardingCompleted: (hasCompletedOnboarding) => set({ hasCompletedOnboarding }),
 
@@ -1314,6 +1473,8 @@ export const useSettingsStore = create<SettingsState>()(
         speechSettings: state.speechSettings,
         // Compression settings
         compressionSettings: state.compressionSettings,
+        // Auto Router settings
+        autoRouterSettings: state.autoRouterSettings,
         // Onboarding
         hasCompletedOnboarding: state.hasCompletedOnboarding,
       }),
@@ -1332,3 +1493,5 @@ export const selectCompressionSettings = (state: SettingsState) => state.compres
 export const selectCompressionEnabled = (state: SettingsState) => state.compressionSettings.enabled;
 export const selectBackgroundSettings = (state: SettingsState) => state.backgroundSettings;
 export const selectBackgroundEnabled = (state: SettingsState) => state.backgroundSettings.enabled;
+export const selectAutoRouterSettings = (state: SettingsState) => state.autoRouterSettings;
+export const selectAutoRouterEnabled = (state: SettingsState) => state.autoRouterSettings.enabled;

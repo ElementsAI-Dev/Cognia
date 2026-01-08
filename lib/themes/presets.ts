@@ -3,7 +3,7 @@
  * Uses OKLch color space for perceptually uniform colors
  */
 
-export type ColorThemePreset = 'default' | 'ocean' | 'forest' | 'sunset' | 'lavender' | 'rose';
+export type ColorThemePreset = 'default' | 'ocean' | 'forest' | 'sunset' | 'lavender' | 'rose' | 'slate' | 'amber';
 
 export interface ThemeColors {
   primary: string;
@@ -279,6 +279,88 @@ export const THEME_PRESETS: Record<ColorThemePreset, ThemePreset> = {
       destructiveForeground: 'oklch(0.15 0.02 27)',
     },
   },
+  slate: {
+    id: 'slate',
+    name: 'Slate',
+    description: 'Professional gray tones',
+    light: {
+      primary: 'oklch(0.45 0.02 250)',
+      primaryForeground: 'oklch(0.985 0.002 250)',
+      secondary: 'oklch(0.96 0.005 250)',
+      secondaryForeground: 'oklch(0.25 0.01 250)',
+      accent: 'oklch(0.96 0.005 250)',
+      accentForeground: 'oklch(0.25 0.01 250)',
+      background: 'oklch(0.995 0.002 250)',
+      foreground: 'oklch(0.15 0.01 250)',
+      muted: 'oklch(0.96 0.005 250)',
+      mutedForeground: 'oklch(0.5 0.01 250)',
+      card: 'oklch(0.995 0.002 250)',
+      cardForeground: 'oklch(0.15 0.01 250)',
+      border: 'oklch(0.9 0.005 250)',
+      ring: 'oklch(0.45 0.02 250)',
+      destructive: 'oklch(0.55 0.2 27)',
+      destructiveForeground: 'oklch(0.985 0.002 27)',
+    },
+    dark: {
+      primary: 'oklch(0.65 0.02 250)',
+      primaryForeground: 'oklch(0.15 0.01 250)',
+      secondary: 'oklch(0.25 0.01 250)',
+      secondaryForeground: 'oklch(0.95 0.005 250)',
+      accent: 'oklch(0.25 0.01 250)',
+      accentForeground: 'oklch(0.95 0.005 250)',
+      background: 'oklch(0.13 0.01 250)',
+      foreground: 'oklch(0.95 0.005 250)',
+      muted: 'oklch(0.25 0.01 250)',
+      mutedForeground: 'oklch(0.65 0.01 250)',
+      card: 'oklch(0.13 0.01 250)',
+      cardForeground: 'oklch(0.95 0.005 250)',
+      border: 'oklch(0.3 0.01 250)',
+      ring: 'oklch(0.65 0.02 250)',
+      destructive: 'oklch(0.65 0.2 27)',
+      destructiveForeground: 'oklch(0.15 0.01 27)',
+    },
+  },
+  amber: {
+    id: 'amber',
+    name: 'Amber',
+    description: 'Warm golden tones',
+    light: {
+      primary: 'oklch(0.7 0.16 75)',
+      primaryForeground: 'oklch(0.15 0.03 75)',
+      secondary: 'oklch(0.96 0.02 75)',
+      secondaryForeground: 'oklch(0.25 0.05 75)',
+      accent: 'oklch(0.96 0.02 75)',
+      accentForeground: 'oklch(0.25 0.05 75)',
+      background: 'oklch(0.995 0.005 75)',
+      foreground: 'oklch(0.2 0.03 75)',
+      muted: 'oklch(0.96 0.02 75)',
+      mutedForeground: 'oklch(0.5 0.03 75)',
+      card: 'oklch(0.995 0.005 75)',
+      cardForeground: 'oklch(0.2 0.03 75)',
+      border: 'oklch(0.9 0.03 75)',
+      ring: 'oklch(0.7 0.16 75)',
+      destructive: 'oklch(0.55 0.2 27)',
+      destructiveForeground: 'oklch(0.985 0.002 27)',
+    },
+    dark: {
+      primary: 'oklch(0.75 0.14 75)',
+      primaryForeground: 'oklch(0.15 0.02 75)',
+      secondary: 'oklch(0.25 0.03 75)',
+      secondaryForeground: 'oklch(0.95 0.01 75)',
+      accent: 'oklch(0.25 0.03 75)',
+      accentForeground: 'oklch(0.95 0.01 75)',
+      background: 'oklch(0.15 0.02 75)',
+      foreground: 'oklch(0.95 0.01 75)',
+      muted: 'oklch(0.25 0.03 75)',
+      mutedForeground: 'oklch(0.7 0.02 75)',
+      card: 'oklch(0.15 0.02 75)',
+      cardForeground: 'oklch(0.95 0.01 75)',
+      border: 'oklch(0.3 0.03 75)',
+      ring: 'oklch(0.75 0.14 75)',
+      destructive: 'oklch(0.65 0.2 27)',
+      destructiveForeground: 'oklch(0.15 0.02 27)',
+    },
+  },
 };
 
 /**
@@ -409,6 +491,8 @@ export const DEFAULT_UI_CUSTOMIZATION: UICustomization = {
 export type BackgroundImageFit = 'cover' | 'contain' | 'fill' | 'tile';
 export type BackgroundImagePosition = 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 export type BackgroundImageSource = 'none' | 'url' | 'local' | 'preset';
+export type BackgroundAttachment = 'fixed' | 'scroll' | 'local';
+export type BackgroundAnimation = 'none' | 'kenburns' | 'parallax' | 'gradient-shift';
 
 export interface BackgroundSettings {
   enabled: boolean;
@@ -424,6 +508,15 @@ export interface BackgroundSettings {
   overlayOpacity: number; // 0-100
   brightness: number; // 50-150 (100 = normal)
   saturation: number; // 0-200 (100 = normal)
+  // New: attachment mode
+  attachment: BackgroundAttachment;
+  // New: animation effect
+  animation: BackgroundAnimation;
+  animationSpeed: number; // 1-10 (slow to fast)
+  // New: contrast adjustment
+  contrast: number; // 50-150 (100 = normal)
+  // New: grayscale filter
+  grayscale: number; // 0-100
 }
 
 export const DEFAULT_BACKGROUND_SETTINGS: BackgroundSettings = {
@@ -440,17 +533,34 @@ export const DEFAULT_BACKGROUND_SETTINGS: BackgroundSettings = {
   overlayOpacity: 0,
   brightness: 100,
   saturation: 100,
+  attachment: 'fixed',
+  animation: 'none',
+  animationSpeed: 5,
+  contrast: 100,
+  grayscale: 0,
 };
 
-export const BACKGROUND_PRESETS: { id: string; name: string; url: string; thumbnail?: string }[] = [
-  { id: 'gradient-blue', name: 'Blue Gradient', url: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
-  { id: 'gradient-green', name: 'Green Gradient', url: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)' },
-  { id: 'gradient-orange', name: 'Orange Sunset', url: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
-  { id: 'gradient-purple', name: 'Purple Night', url: 'linear-gradient(135deg, #4776E6 0%, #8E54E9 100%)' },
-  { id: 'gradient-dark', name: 'Dark Ocean', url: 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)' },
-  { id: 'gradient-warm', name: 'Warm Flame', url: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)' },
-  { id: 'mesh-blue', name: 'Mesh Blue', url: 'radial-gradient(at 40% 20%, hsla(210,100%,56%,0.3) 0px, transparent 50%), radial-gradient(at 80% 0%, hsla(189,100%,56%,0.3) 0px, transparent 50%), radial-gradient(at 0% 50%, hsla(235,100%,69%,0.3) 0px, transparent 50%)' },
-  { id: 'mesh-purple', name: 'Mesh Purple', url: 'radial-gradient(at 40% 20%, hsla(280,100%,56%,0.3) 0px, transparent 50%), radial-gradient(at 80% 0%, hsla(320,100%,56%,0.3) 0px, transparent 50%), radial-gradient(at 0% 50%, hsla(260,100%,69%,0.3) 0px, transparent 50%)' },
+export const BACKGROUND_PRESETS: { id: string; name: string; url: string; thumbnail?: string; category: 'gradient' | 'mesh' | 'abstract' | 'nature' }[] = [
+  // Gradient backgrounds
+  { id: 'gradient-blue', name: 'Blue Gradient', url: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', category: 'gradient' },
+  { id: 'gradient-green', name: 'Green Gradient', url: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)', category: 'gradient' },
+  { id: 'gradient-orange', name: 'Orange Sunset', url: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', category: 'gradient' },
+  { id: 'gradient-purple', name: 'Purple Night', url: 'linear-gradient(135deg, #4776E6 0%, #8E54E9 100%)', category: 'gradient' },
+  { id: 'gradient-dark', name: 'Dark Ocean', url: 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)', category: 'gradient' },
+  { id: 'gradient-warm', name: 'Warm Flame', url: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)', category: 'gradient' },
+  { id: 'gradient-midnight', name: 'Midnight', url: 'linear-gradient(135deg, #232526 0%, #414345 100%)', category: 'gradient' },
+  { id: 'gradient-aurora', name: 'Aurora', url: 'linear-gradient(135deg, #00c6fb 0%, #005bea 50%, #00c6fb 100%)', category: 'gradient' },
+  { id: 'gradient-coral', name: 'Coral Reef', url: 'linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)', category: 'gradient' },
+  { id: 'gradient-forest', name: 'Forest', url: 'linear-gradient(135deg, #134e5e 0%, #71b280 100%)', category: 'gradient' },
+  // Mesh backgrounds
+  { id: 'mesh-blue', name: 'Mesh Blue', url: 'radial-gradient(at 40% 20%, hsla(210,100%,56%,0.3) 0px, transparent 50%), radial-gradient(at 80% 0%, hsla(189,100%,56%,0.3) 0px, transparent 50%), radial-gradient(at 0% 50%, hsla(235,100%,69%,0.3) 0px, transparent 50%)', category: 'mesh' },
+  { id: 'mesh-purple', name: 'Mesh Purple', url: 'radial-gradient(at 40% 20%, hsla(280,100%,56%,0.3) 0px, transparent 50%), radial-gradient(at 80% 0%, hsla(320,100%,56%,0.3) 0px, transparent 50%), radial-gradient(at 0% 50%, hsla(260,100%,69%,0.3) 0px, transparent 50%)', category: 'mesh' },
+  { id: 'mesh-sunset', name: 'Mesh Sunset', url: 'radial-gradient(at 0% 100%, hsla(22,100%,50%,0.3) 0px, transparent 50%), radial-gradient(at 100% 100%, hsla(339,100%,50%,0.3) 0px, transparent 50%), radial-gradient(at 50% 0%, hsla(52,100%,69%,0.3) 0px, transparent 50%)', category: 'mesh' },
+  { id: 'mesh-ocean', name: 'Mesh Ocean', url: 'radial-gradient(at 0% 0%, hsla(180,100%,50%,0.3) 0px, transparent 50%), radial-gradient(at 100% 50%, hsla(200,100%,50%,0.3) 0px, transparent 50%), radial-gradient(at 50% 100%, hsla(220,100%,69%,0.3) 0px, transparent 50%)', category: 'mesh' },
+  // Abstract patterns
+  { id: 'abstract-dots', name: 'Subtle Dots', url: 'radial-gradient(circle, rgba(0,0,0,0.05) 1px, transparent 1px)', category: 'abstract' },
+  { id: 'abstract-grid', name: 'Grid Pattern', url: 'linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px)', category: 'abstract' },
+  { id: 'abstract-noise', name: 'Noise Texture', url: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 400 400\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\' opacity=\'0.05\'/%3E%3C/svg%3E")', category: 'abstract' },
 ];
 
 export const BORDER_RADIUS_VALUES: Record<BorderRadiusSize, string> = {
@@ -585,6 +695,10 @@ export function applyBackgroundSettings(settings: BackgroundSettings): void {
   root.style.setProperty('--bg-brightness', `${settings.brightness}%`);
   root.style.setProperty('--bg-saturation', `${settings.saturation}%`);
   
+  // New: contrast and grayscale
+  root.style.setProperty('--bg-contrast', `${settings.contrast ?? 100}%`);
+  root.style.setProperty('--bg-grayscale', `${settings.grayscale ?? 0}%`);
+  
   // Set background size based on fit
   const sizeMap: Record<BackgroundImageFit, string> = {
     cover: 'cover',
@@ -611,6 +725,26 @@ export function applyBackgroundSettings(settings: BackgroundSettings): void {
   };
   root.style.setProperty('--bg-image-position', positionMap[settings.position]);
   
+  // New: background attachment
+  const attachmentMap: Record<BackgroundAttachment, string> = {
+    fixed: 'fixed',
+    scroll: 'scroll',
+    local: 'local',
+  };
+  root.style.setProperty('--bg-image-attachment', attachmentMap[settings.attachment ?? 'fixed']);
+  
+  // New: animation settings
+  const animation = settings.animation ?? 'none';
+  const animationSpeed = settings.animationSpeed ?? 5;
+  root.style.setProperty('--bg-animation', animation);
+  root.style.setProperty('--bg-animation-duration', `${(11 - animationSpeed) * 5}s`); // 50s (slow) to 5s (fast)
+  
+  // Add animation class if needed
+  root.classList.remove('bg-anim-kenburns', 'bg-anim-parallax', 'bg-anim-gradient-shift');
+  if (animation !== 'none') {
+    root.classList.add(`bg-anim-${animation}`);
+  }
+  
   // Add a class to indicate background is active
   root.classList.add('has-bg-image');
 }
@@ -623,9 +757,12 @@ export function removeBackgroundSettings(): void {
   const varNames = [
     '--bg-image', '--bg-image-opacity', '--bg-image-blur',
     '--bg-overlay-color', '--bg-overlay-opacity',
-    '--bg-brightness', '--bg-saturation',
+    '--bg-brightness', '--bg-saturation', '--bg-contrast', '--bg-grayscale',
     '--bg-image-size', '--bg-image-repeat', '--bg-image-position',
+    '--bg-image-attachment', '--bg-animation', '--bg-animation-duration',
   ];
+  // Remove animation classes
+  root.classList.remove('bg-anim-kenburns', 'bg-anim-parallax', 'bg-anim-gradient-shift');
   varNames.forEach(name => root.style.removeProperty(name));
   root.classList.remove('has-bg-image');
 }

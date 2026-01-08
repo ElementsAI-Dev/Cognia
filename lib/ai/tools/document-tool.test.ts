@@ -321,12 +321,12 @@ describe('Schema validation', () => {
       if (result.success) {
         expect(result.data.chunkSize).toBe(1000);
         expect(result.data.overlap).toBe(200);
-        expect(result.data.strategy).toBe('sentence');
+        expect(result.data.strategy).toBe('semantic');
       }
     });
 
     it('validates strategy enum', () => {
-      const validStrategies = ['fixed', 'sentence', 'paragraph'];
+      const validStrategies = ['fixed', 'sentence', 'paragraph', 'heading', 'semantic', 'smart', 'recursive', 'sliding_window', 'code'];
 
       for (const strategy of validStrategies) {
         const result = documentChunkInputSchema.safeParse({

@@ -38,9 +38,9 @@ export const documentChunkInputSchema = z.object({
     .default(200)
     .describe('Overlap between chunks'),
   strategy: z
-    .enum(['fixed', 'sentence', 'paragraph'])
+    .enum(['fixed', 'sentence', 'paragraph', 'heading', 'semantic', 'smart', 'recursive', 'sliding_window', 'code'])
     .optional()
-    .default('sentence')
+    .default('semantic')
     .describe('Chunking strategy'),
 });
 

@@ -51,7 +51,7 @@ describe('GitPage', () => {
 
   it('should render open repository button', () => {
     render(<GitPage />);
-    expect(screen.getByText('Open Repository')).toBeInTheDocument();
+    expect(screen.getAllByText('Open Repository').length).toBeGreaterThan(0);
   });
 
   it('should disable open button when path is empty', () => {

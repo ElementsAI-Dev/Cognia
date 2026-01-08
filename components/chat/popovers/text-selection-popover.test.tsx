@@ -1101,4 +1101,191 @@ describe('TextSelectionPopover', () => {
       });
     });
   });
+
+  describe('knowledge map feature', () => {
+    it('should render knowledge map button when onKnowledgeMap is provided', async () => {
+      const { range, textNode } = createMockSelection('test content for knowledge map', mockContainer);
+      const mockOnKnowledgeMap = jest.fn();
+      
+      (window.getSelection as jest.Mock).mockReturnValue({
+        toString: () => 'test content for knowledge map',
+        isCollapsed: false,
+        anchorNode: textNode,
+        focusNode: textNode,
+        getRangeAt: () => range,
+        removeAllRanges: jest.fn(),
+      });
+
+      render(
+        <TextSelectionPopover
+          containerRef={mockContainerRef}
+          messageId="msg-123"
+          messageRole="assistant"
+          onKnowledgeMap={mockOnKnowledgeMap}
+        />
+      );
+
+      act(() => {
+        fireEvent.mouseUp(document);
+        jest.runAllTimers();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('knowledgeMap')).toBeInTheDocument();
+      });
+    });
+
+    it('should call onKnowledgeMap when knowledge map button is clicked', async () => {
+      const { range, textNode } = createMockSelection('generate knowledge map', mockContainer);
+      const mockOnKnowledgeMap = jest.fn();
+      
+      (window.getSelection as jest.Mock).mockReturnValue({
+        toString: () => 'generate knowledge map',
+        isCollapsed: false,
+        anchorNode: textNode,
+        focusNode: textNode,
+        getRangeAt: () => range,
+        removeAllRanges: jest.fn(),
+      });
+
+      render(
+        <TextSelectionPopover
+          containerRef={mockContainerRef}
+          messageId="msg-123"
+          messageRole="assistant"
+          onKnowledgeMap={mockOnKnowledgeMap}
+        />
+      );
+
+      act(() => {
+        fireEvent.mouseUp(document);
+        jest.runAllTimers();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('knowledgeMap')).toBeInTheDocument();
+      });
+
+      // Click the knowledge map button
+      const knowledgeMapButton = screen.getByText('knowledgeMap').closest('button');
+      if (knowledgeMapButton) {
+        act(() => {
+          fireEvent.click(knowledgeMapButton);
+          jest.runAllTimers();
+        });
+
+        expect(mockOnKnowledgeMap).toHaveBeenCalledWith('generate knowledge map');
+      }
+    });
+
+    it('should hide knowledge map button when features.knowledgeMap is false', async () => {
+      const { range, textNode } = createMockSelection('test', mockContainer);
+      const mockOnKnowledgeMap = jest.fn();
+      
+      (window.getSelection as jest.Mock).mockReturnValue({
+        toString: () => 'test',
+        isCollapsed: false,
+        anchorNode: textNode,
+        focusNode: textNode,
+        getRangeAt: () => range,
+        removeAllRanges: jest.fn(),
+      });
+
+      render(
+        <TextSelectionPopover
+          containerRef={mockContainerRef}
+          messageId="msg-123"
+          messageRole="assistant"
+          onKnowledgeMap={mockOnKnowledgeMap}
+          features={{ knowledgeMap: false }}
+        />
+      );
+
+      act(() => {
+        fireEvent.mouseUp(document);
+        jest.runAllTimers();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('copy')).toBeInTheDocument();
+      });
+
+      // Knowledge map button should not be rendered
+      expect(screen.queryByText('knowledgeMap')).not.toBeInTheDocument();
+    });
+
+    it('should trigger knowledge map action with keyboard shortcut K', async () => {
+      const { range, textNode } = createMockSelection('keyboard shortcut test', mockContainer);
+      const mockOnKnowledgeMap = jest.fn();
+      
+      (window.getSelection as jest.Mock).mockReturnValue({
+        toString: () => 'keyboard shortcut test',
+        isCollapsed: false,
+        anchorNode: textNode,
+        focusNode: textNode,
+        getRangeAt: () => range,
+        removeAllRanges: jest.fn(),
+      });
+
+      render(
+        <TextSelectionPopover
+          containerRef={mockContainerRef}
+          messageId="msg-123"
+          messageRole="assistant"
+          onKnowledgeMap={mockOnKnowledgeMap}
+          enableShortcuts={true}
+        />
+      );
+
+      act(() => {
+        fireEvent.mouseUp(document);
+        jest.runAllTimers();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('knowledgeMap')).toBeInTheDocument();
+      });
+
+      // Press 'k' key for knowledge map shortcut
+      act(() => {
+        fireEvent.keyDown(document, { key: 'k' });
+        jest.runAllTimers();
+      });
+
+      expect(mockOnKnowledgeMap).toHaveBeenCalledWith('keyboard shortcut test');
+    });
+
+    it('should not render knowledge map button when onKnowledgeMap is not provided', async () => {
+      const { range, textNode } = createMockSelection('test', mockContainer);
+      
+      (window.getSelection as jest.Mock).mockReturnValue({
+        toString: () => 'test',
+        isCollapsed: false,
+        anchorNode: textNode,
+        focusNode: textNode,
+        getRangeAt: () => range,
+        removeAllRanges: jest.fn(),
+      });
+
+      render(
+        <TextSelectionPopover
+          containerRef={mockContainerRef}
+          messageId="msg-123"
+          messageRole="assistant"
+        />
+      );
+
+      act(() => {
+        fireEvent.mouseUp(document);
+        jest.runAllTimers();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('copy')).toBeInTheDocument();
+      });
+
+      // Knowledge map button should not be rendered when callback is not provided
+      expect(screen.queryByText('knowledgeMap')).not.toBeInTheDocument();
+    });
+  });
 });

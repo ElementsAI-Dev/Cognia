@@ -98,7 +98,7 @@ describe('SkillSelector', () => {
     it('renders search input', () => {
       renderWithProviders(<SkillSelector onSkillsChange={mockOnSkillsChange} />);
 
-      expect(screen.getByPlaceholderText('searchSkills')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/search skills/i)).toBeInTheDocument();
     });
 
     it('displays enabled skills grouped by category', () => {
@@ -131,7 +131,7 @@ describe('SkillSelector', () => {
     it('filters skills by search query', () => {
       renderWithProviders(<SkillSelector onSkillsChange={mockOnSkillsChange} />);
 
-      const searchInput = screen.getByPlaceholderText('searchSkills');
+      const searchInput = screen.getByPlaceholderText(/search skills/i);
       fireEvent.change(searchInput, { target: { value: 'one' } });
 
       expect(screen.getByText('skill-one')).toBeInTheDocument();
@@ -141,7 +141,7 @@ describe('SkillSelector', () => {
     it('filters skills by tag', () => {
       renderWithProviders(<SkillSelector onSkillsChange={mockOnSkillsChange} />);
 
-      const searchInput = screen.getByPlaceholderText('searchSkills');
+      const searchInput = screen.getByPlaceholderText(/search skills/i);
       fireEvent.change(searchInput, { target: { value: 'productivity' } });
 
       expect(screen.queryByText('skill-one')).not.toBeInTheDocument();

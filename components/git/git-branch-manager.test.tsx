@@ -63,7 +63,9 @@ describe('GitBranchManager', () => {
       />
     );
     
-    expect(screen.getByText('main')).toBeInTheDocument();
+    // Multiple elements may contain 'main' (dropdown trigger + branch list)
+    const mainElements = screen.getAllByText('main');
+    expect(mainElements.length).toBeGreaterThan(0);
   });
 
   it('should show new branch button', () => {

@@ -22,6 +22,29 @@ export {
 } from './web-scraper';
 export { type ToolDefinition, type ToolRegistry, type ToolFunction, createToolRegistry, getGlobalToolRegistry } from './registry';
 export { ragSearchTool, executeRAGSearch, ragSearchInputSchema, type RAGSearchInput, type RAGSearchResult } from './rag-search';
+export { 
+  academicSearchTool, 
+  executeAcademicSearch, 
+  academicSearchInputSchema,
+  formatAcademicResultsForAI,
+  type AcademicSearchInput, 
+  type AcademicSearchResult,
+  type AcademicSearchConfig,
+} from './academic-search-tool';
+export {
+  academicAnalysisTool,
+  executeAcademicAnalysis,
+  academicAnalysisInputSchema,
+  buildAnalysisPrompt,
+  formatPaperForAnalysis,
+  paperComparisonTool,
+  executePaperComparison,
+  paperComparisonInputSchema,
+  type AcademicAnalysisInput,
+  type AcademicAnalysisResult,
+  type PaperComparisonInput,
+  type PaperComparisonResult,
+} from './academic-analysis-tool';
 export { calculatorTool, executeCalculator, calculatorInputSchema, convertUnit, unitConversions, type CalculatorInput, type CalculatorResult } from './calculator';
 export { documentTools, executeDocumentSummarize, executeDocumentChunk, executeDocumentAnalyze, type DocumentToolResult } from './document-tool';
 export { 
@@ -79,6 +102,71 @@ export {
   type PPTToolResult,
 } from './ppt-tool';
 
+// PPT generation tool (for agent chat)
+export {
+  createPPTGenerationTool,
+  detectPPTGenerationIntent,
+  buildPPTSuggestionResponse,
+  pptGenerationInputSchema,
+  type PPTGenerationInput,
+  type PPTGenerationResult,
+  type PPTGenerationCallback,
+} from './ppt-generation-tool';
+
+// Material processing tools for PPT
+export {
+  materialTools,
+  executeMaterialExtract,
+  executeMaterialSummarize,
+  executeMaterialAnalyze,
+  executeMaterialCombine,
+  registerMaterialTools,
+  materialExtractInputSchema,
+  materialSummarizeInputSchema,
+  materialAnalyzeInputSchema,
+  materialCombineInputSchema,
+  generateSummarizationPrompt,
+  generateAnalysisPrompt,
+  type MaterialExtractInput,
+  type MaterialSummarizeInput,
+  type MaterialAnalyzeInput,
+  type MaterialCombineInput,
+  type MaterialToolResult,
+} from './material-tool';
+
+// Slide image generation tools
+export {
+  slideImageTools,
+  executeSlideImageGenerate,
+  executeSlideBatchImageGenerate,
+  executeSlideImagePromptGenerate,
+  enhanceSlidesWithImages,
+  registerSlideImageTools,
+  slideImageGenerateInputSchema,
+  slideBatchImageGenerateInputSchema,
+  slideImagePromptGenerateInputSchema,
+  type SlideImageGenerateInput,
+  type SlideBatchImageGenerateInput,
+  type SlideImagePromptGenerateInput,
+  type SlideImageToolResult,
+} from './slide-image-tool';
+
+// PPT image generation tools
+export {
+  pptImageTools,
+  executePPTImageGenerate,
+  executePPTBatchImageGenerate,
+  generateSlideImage,
+  buildImagePrompt,
+  applyImagesToSlides,
+  registerPPTImageTools,
+  pptImageGenerateInputSchema,
+  pptBatchImageGenerateInputSchema,
+  type PPTImageGenerateInput,
+  type PPTBatchImageGenerateInput,
+  type PPTImageToolResult,
+} from './ppt-image-tool';
+
 // Video generation tools
 export {
   videoTools,
@@ -94,6 +182,26 @@ export {
   type VideoStatusInput,
   type VideoToolResult,
 } from './video-tool';
+
+// Video analysis tools (subtitle extraction, transcription, analysis)
+export {
+  videoAnalysisTools,
+  videoSubtitleTool,
+  videoAnalysisTool,
+  subtitleParseTool,
+  executeVideoSubtitleExtraction,
+  executeVideoAnalysis,
+  executeSubtitleParse,
+  formatVideoAnalysisForAI,
+  registerVideoAnalysisTools,
+  videoSubtitleInputSchema,
+  videoAnalysisInputSchema,
+  subtitleParseInputSchema,
+  type VideoSubtitleInput,
+  type VideoAnalysisInput,
+  type SubtitleParseInput,
+  type VideoAnalysisToolResult,
+} from './video-analysis-tool';
 
 // Image generation tools
 export {
@@ -176,3 +284,14 @@ export {
   type ToolRegistryConfig,
   type ToolFilterOptions,
 } from './unified-registry';
+
+// Intent detection for mode switching
+export {
+  detectUserIntent,
+  detectChatIntent,
+  detectModeMismatch,
+  getModeSwitchSuggestion,
+  shouldSuggestModeSwitch,
+  getEnhancedModeSuggestion,
+  type IntentDetectionResult,
+} from './intent-detection';
