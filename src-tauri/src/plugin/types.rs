@@ -300,12 +300,6 @@ pub enum PluginError {
     #[error("Plugin already exists: {0}")]
     AlreadyExists(String),
     
-    #[error("Invalid plugin state: {0}")]
-    InvalidState(String),
-    
-    #[error("Permission denied: {0}")]
-    PermissionDenied(String),
-    
     #[error("Dependency error: {0}")]
     Dependency(String),
 }

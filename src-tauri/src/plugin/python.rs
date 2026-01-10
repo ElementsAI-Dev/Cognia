@@ -14,8 +14,6 @@ pub struct PythonRuntime {
     python_path: String,
     /// Loaded plugin modules
     loaded_plugins: HashMap<String, PythonPluginInstance>,
-    /// Virtual environment path (if any)
-    venv_path: Option<PathBuf>,
     /// Whether PyO3 runtime is available
     #[allow(dead_code)]
     pyo3_available: bool,
@@ -68,7 +66,6 @@ impl PythonRuntime {
         Ok(Self {
             python_path: python,
             loaded_plugins: HashMap::new(),
-            venv_path: None,
             pyo3_available: false, // Will be set to true when PyO3 is properly configured
         })
     }
@@ -477,16 +474,4 @@ except Exception as e:
         Ok(result["result"].clone())
     }
 
-    /// Unload a plugin
-    pub fn unload_plugin(&mut self, plugin_id: &str) -> PluginResult<()> {
-        if self.loaded_plugins.remove(plugin_id).is_none() {
-            return Err(PluginError::NotFound(plugin_id.to_string()));
-        }
-        Ok(())
-    }
-
-    /// Check if a plugin is loaded
-    pub fn is_loaded(&self, plugin_id: &str) -> bool {
-        self.loaded_plugins.contains_key(plugin_id)
-    }
 }

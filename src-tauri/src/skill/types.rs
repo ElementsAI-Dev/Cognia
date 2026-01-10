@@ -166,7 +166,7 @@ impl Default for SkillStore {
 }
 
 /// Skill metadata parsed from SKILL.md YAML frontmatter
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SkillMetadata {
     pub name: Option<String>,
     pub description: Option<String>,
@@ -244,55 +244,6 @@ pub struct SkillSearchFilters {
     pub query: Option<String>,
 }
 
-// ========== Error Types ==========
-
-/// Skill-related errors
-#[derive(Debug, thiserror::Error)]
-pub enum SkillError {
-    #[error("Skill not found: {0}")]
-    NotFound(String),
-
-    #[error("Skill already installed: {0}")]
-    AlreadyInstalled(String),
-
-    #[error("Repository not found: {owner}/{name}")]
-    RepoNotFound { owner: String, name: String },
-
-    #[error("Download failed: {0}")]
-    DownloadFailed(String),
-
-    #[error("Download timeout after {0} seconds")]
-    DownloadTimeout(u64),
-
-    #[error("Parse error: {0}")]
-    ParseError(String),
-
-    #[error("Invalid skill directory: {0}")]
-    InvalidDirectory(String),
-
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
-
-    #[error("Network error: {0}")]
-    Network(String),
-
-    #[error("Archive error: {0}")]
-    Archive(String),
-
-    #[error("JSON error: {0}")]
-    Json(#[from] serde_json::Error),
-}
-
-impl Serialize for SkillError {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(&self.to_string())
-    }
-}
-
-pub type SkillResult<T> = Result<T, SkillError>;
 
 #[cfg(test)]
 mod tests {

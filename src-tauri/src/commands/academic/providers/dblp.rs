@@ -128,13 +128,6 @@ enum DblpLinks {
 }
 
 impl DblpLinks {
-    fn first(&self) -> Option<&str> {
-        match self {
-            DblpLinks::Single(s) => Some(s),
-            DblpLinks::Multiple(v) => v.first().map(|s| s.as_str()),
-        }
-    }
-    
     fn all(&self) -> Vec<&str> {
         match self {
             DblpLinks::Single(s) => vec![s],

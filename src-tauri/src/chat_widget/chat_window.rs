@@ -29,19 +29,6 @@ const DEBUG_WIDTH: f64 = 520.0;
 #[cfg(debug_assertions)]
 const DEBUG_HEIGHT: f64 = 750.0;
 
-/// Get current window dimensions based on build mode
-#[inline]
-fn get_current_dimensions() -> (f64, f64) {
-    #[cfg(debug_assertions)]
-    {
-        (DEBUG_WIDTH, DEBUG_HEIGHT)
-    }
-    #[cfg(not(debug_assertions))]
-    {
-        (DEFAULT_WIDTH, DEFAULT_HEIGHT)
-    }
-}
-
 /// Minimum distance from screen edge
 const SCREEN_EDGE_PADDING: i32 = 20;
 
@@ -166,12 +153,9 @@ impl ChatWidgetWindow {
 
         let config = self.config.read().clone();
 
-        // Use current dimensions based on build mode
-        let (default_w, default_h) = get_current_dimensions();
-
-        // Use larger dimensions in debug mode, otherwise respect config
+        // Use config dimensions, with larger defaults for debug mode
         #[cfg(debug_assertions)]
-        let (width, height) = (default_w, default_h);
+        let (width, height) = (DEBUG_WIDTH, DEBUG_HEIGHT);
         #[cfg(not(debug_assertions))]
         let (width, height) = (config.width, config.height);
 

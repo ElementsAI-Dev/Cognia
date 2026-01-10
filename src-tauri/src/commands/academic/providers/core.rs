@@ -52,18 +52,19 @@ struct CoreWork {
     #[serde(rename = "downloadUrl")]
     download_url: Option<String>,
     #[serde(rename = "fullText")]
-    full_text: Option<String>,
+    _full_text: Option<String>,
     doi: Option<String>,
     #[serde(rename = "arxivId")]
     arxiv_id: Option<String>,
     #[serde(rename = "magId")]
     mag_id: Option<String>,
     #[serde(rename = "oai")]
-    oai: Option<String>,
+    _oai: Option<String>,
     #[serde(rename = "fieldOfStudy")]
     field_of_study: Option<String>,
     subjects: Option<Vec<String>>,
-    language: Option<CoreLanguage>,
+    #[serde(rename = "language")]
+    _language: Option<CoreLanguage>,
     #[serde(rename = "citationCount")]
     citation_count: Option<i32>,
 }
@@ -76,13 +77,16 @@ struct CoreAuthor {
 #[derive(Debug, Deserialize)]
 struct CoreJournal {
     title: Option<String>,
-    identifiers: Option<Vec<String>>,
+    #[serde(rename = "identifiers")]
+    _identifiers: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]
 struct CoreLanguage {
-    code: Option<String>,
-    name: Option<String>,
+    #[serde(rename = "code")]
+    _code: Option<String>,
+    #[serde(rename = "name")]
+    _name: Option<String>,
 }
 
 impl From<CoreWork> for Paper {

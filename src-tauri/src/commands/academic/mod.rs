@@ -51,10 +51,6 @@ impl AcademicState {
         })
     }
     
-    pub async fn get_provider(&self, provider_id: &str) -> Option<usize> {
-        let providers = self.providers.read().await;
-        providers.iter().position(|p| p.provider_id() == provider_id)
-    }
 }
 
 // ============================================================================

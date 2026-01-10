@@ -10,7 +10,7 @@ use anyhow::{anyhow, Context, Result};
 use reqwest::Client;
 use std::collections::HashMap;
 use std::fs;
-use std::io::{Cursor, Read};
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -680,7 +680,9 @@ impl SkillService {
     /// Download repository to temp directory
     async fn download_repo(&self, repo: &SkillRepo) -> Result<PathBuf> {
         let temp_dir = tempfile::tempdir()?;
-        let temp_path = temp_dir.into_path();
+        let temp_path = temp_dir.path().to_path_buf();
+        // Persist the temp directory by forgetting about it (keeps it around)
+        std::mem::forget(temp_dir);
 
         let branches = if repo.branch.is_empty() {
             vec!["main", "master"]

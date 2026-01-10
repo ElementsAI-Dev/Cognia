@@ -27,14 +27,16 @@ struct UnpaywallResponse {
     doi: Option<String>,
     title: Option<String>,
     year: Option<i32>,
-    genre: Option<String>,
+    #[serde(rename = "genre")]
+    _genre: Option<String>,
     is_oa: Option<bool>,
     journal_name: Option<String>,
     publisher: Option<String>,
     z_authors: Option<Vec<UnpaywallAuthor>>,
     best_oa_location: Option<UnpaywallLocation>,
     oa_locations: Option<Vec<UnpaywallLocation>>,
-    first_oa_location: Option<UnpaywallLocation>,
+    #[serde(rename = "first_oa_location")]
+    _first_oa_location: Option<UnpaywallLocation>,
     published_date: Option<String>,
 }
 
@@ -51,12 +53,17 @@ struct UnpaywallLocation {
     url: Option<String>,
     url_for_pdf: Option<String>,
     url_for_landing_page: Option<String>,
-    evidence: Option<String>,
-    license: Option<String>,
-    version: Option<String>,
+    #[serde(rename = "evidence")]
+    _evidence: Option<String>,
+    #[serde(rename = "license")]
+    _license: Option<String>,
+    #[serde(rename = "version")]
+    _version: Option<String>,
     host_type: Option<String>,
-    is_best: Option<bool>,
-    repository_institution: Option<String>,
+    #[serde(rename = "is_best")]
+    _is_best: Option<bool>,
+    #[serde(rename = "repository_institution")]
+    _repository_institution: Option<String>,
 }
 
 impl From<UnpaywallResponse> for Paper {
@@ -231,12 +238,3 @@ impl AcademicProvider for UnpaywallProvider {
     }
 }
 
-/// Helper function to find open access PDF for a paper using Unpaywall
-pub async fn find_open_access_pdf(doi: &str, email: &str) -> Result<Option<String>, String> {
-    let provider = UnpaywallProvider::new(Some(email.to_string()));
-    
-    match provider.get_paper(doi).await {
-        Ok(paper) => Ok(paper.pdf_url),
-        Err(_) => Ok(None), // Paper not found or not open access
-    }
-}

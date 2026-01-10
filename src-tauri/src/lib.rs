@@ -916,6 +916,10 @@ pub fn run() {
             commands::academic::academic_set_provider_enabled,
             commands::academic::academic_test_provider,
             commands::academic::academic_get_statistics,
+            commands::academic::academic_generate_knowledge_map_from_content,
+            commands::academic::academic_generate_mind_map,
+            commands::academic::academic_generate_mind_map_from_content,
+            commands::academic::academic_extract_pdf_content,
             // Plugin system commands
             commands::plugin::plugin_python_initialize,
             commands::plugin::plugin_scan_directory,

@@ -98,7 +98,8 @@ struct S2ExternalIds {
 #[derive(Debug, Deserialize)]
 struct S2OpenAccessPdf {
     url: Option<String>,
-    status: Option<String>,
+    #[serde(rename = "status")]
+    _status: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -124,7 +125,7 @@ struct S2CitedPaper {
     #[serde(rename = "citedPaper")]
     cited_paper: Option<S2Paper>,
     #[serde(rename = "isInfluential")]
-    is_influential: Option<bool>,
+    _is_influential: Option<bool>,
     contexts: Option<Vec<String>>,
 }
 

@@ -42,8 +42,10 @@ struct OASearchResponse {
 #[derive(Debug, Deserialize)]
 struct OAMeta {
     count: Option<i32>,
-    per_page: Option<i32>,
-    page: Option<i32>,
+    #[serde(rename = "per_page")]
+    _per_page: Option<i32>,
+    #[serde(rename = "page")]
+    _page: Option<i32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -84,7 +86,8 @@ struct OASource {
     display_name: Option<String>,
     #[serde(rename = "type")]
     source_type: Option<String>,
-    issn_l: Option<String>,
+    #[serde(rename = "issn_l")]
+    _issn_l: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

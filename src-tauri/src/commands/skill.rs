@@ -3,7 +3,7 @@
 //! Exposes skill management functionality to the frontend.
 
 use crate::skill::{
-    AddRepoInput, DiscoverableSkill, InstalledSkill, LocalSkill, Skill, SkillRepo, SkillService,
+    DiscoverableSkill, InstalledSkill, LocalSkill, Skill, SkillRepo, SkillService,
 };
 use std::path::PathBuf;
 use std::sync::Arc;

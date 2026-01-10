@@ -336,7 +336,7 @@ pub struct AnnotationUpdate {
 // Search Types
 // ============================================================================
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchOptions {
     pub query: Option<String>,
     pub authors: Option<Vec<String>>,
@@ -357,14 +357,26 @@ pub struct SearchOptions {
     pub offset: Option<u32>,
 }
 
-impl SearchOptions {
-    pub fn new() -> Self {
+impl Default for SearchOptions {
+    fn default() -> Self {
         Self {
+            query: None,
+            authors: None,
+            year_from: None,
+            year_to: None,
+            venues: None,
+            categories: None,
+            fields_of_study: None,
+            open_access_only: None,
+            has_full_text: None,
+            has_pdf: None,
+            min_citations: None,
+            max_citations: None,
+            providers: Vec::new(),
             sort_by: "relevance".to_string(),
             sort_order: "desc".to_string(),
             limit: Some(20),
             offset: Some(0),
-            ..Default::default()
         }
     }
 }

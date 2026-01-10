@@ -332,9 +332,4 @@ impl PluginManager {
         plugins.values().cloned().collect()
     }
 
-    /// Update plugin state
-    pub async fn update_plugin_state(&self, plugin_id: &str, state: PluginState) {
-        let mut plugins = self.plugins.write().await;
-        plugins.insert(plugin_id.to_string(), state);
-    }
 }
