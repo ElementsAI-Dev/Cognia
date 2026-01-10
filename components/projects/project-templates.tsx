@@ -28,19 +28,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useProjectStore } from '@/stores';
-import type { CreateProjectInput } from '@/types';
+import type { CreateProjectInput, ProjectTemplate } from '@/types';
 
-export interface ProjectTemplate {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  color: string;
-  defaultMode: 'chat' | 'agent' | 'research';
-  customInstructions?: string;
-  tags: string[];
-  category: 'development' | 'writing' | 'research' | 'business' | 'personal';
-}
+export type { ProjectTemplate } from '@/types';
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Code,

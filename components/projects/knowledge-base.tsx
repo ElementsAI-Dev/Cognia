@@ -21,6 +21,8 @@ import {
   Globe,
   Loader2,
   ExternalLink,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 import { opener } from '@/lib/native';
 import { useNativeStore } from '@/stores';
@@ -139,6 +141,8 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
   const [newFileContent, setNewFileContent] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [showBatchDeleteDialog, setShowBatchDeleteDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isDesktop = useNativeStore((state) => state.isDesktop);
@@ -249,6 +253,34 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
     }
   };
 
+  const handleBatchDelete = () => {
+    for (const fileId of selectedFiles) {
+      removeKnowledgeFile(projectId, fileId);
+    }
+    setSelectedFiles(new Set());
+    setShowBatchDeleteDialog(false);
+  };
+
+  const toggleFileSelection = (fileId: string) => {
+    setSelectedFiles((prev) => {
+      const next = new Set(prev);
+      if (next.has(fileId)) {
+        next.delete(fileId);
+      } else {
+        next.add(fileId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedFiles.size === filteredFiles.length) {
+      setSelectedFiles(new Set());
+    } else {
+      setSelectedFiles(new Set(filteredFiles.map((f) => f.id)));
+    }
+  };
+
   const handleDownload = (file: KnowledgeFile) => {
     const blob = new Blob([file.content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -308,28 +340,77 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
       )}
 
       {project.knowledgeBase.length > 0 && (
-        <InputGroup>
-          <InputGroupAddon align="inline-start">
-            <Search className="h-4 w-4" />
-          </InputGroupAddon>
-          <InputGroupInput
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t('searchPlaceholder')}
-          />
-        </InputGroup>
+        <div className="flex items-center gap-2">
+          <InputGroup className="flex-1">
+            <InputGroupAddon align="inline-start">
+              <Search className="h-4 w-4" />
+            </InputGroupAddon>
+            <InputGroupInput
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('searchPlaceholder')}
+            />
+          </InputGroup>
+          {filteredFiles.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleSelectAll}
+                className="gap-1"
+              >
+                {selectedFiles.size === filteredFiles.length ? (
+                  <CheckSquare className="h-4 w-4" />
+                ) : (
+                  <Square className="h-4 w-4" />
+                )}
+                {selectedFiles.size > 0 ? `${selectedFiles.size} selected` : t('selectAll')}
+              </Button>
+              {selectedFiles.size > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowBatchDeleteDialog(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  {t('deleteSelected')}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {filteredFiles.length > 0 ? (
         <div className="space-y-2">
           {filteredFiles.map((file) => {
             const IconComponent = fileTypeIcons[file.type] || FileText;
+            const isSelected = selectedFiles.has(file.id);
             return (
               <div
                 key={file.id}
-                className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent/50"
+                className={cn(
+                  "flex items-center justify-between rounded-lg border p-3 hover:bg-accent/50 cursor-pointer transition-colors",
+                  isSelected && "border-primary bg-primary/5"
+                )}
+                onClick={() => toggleFileSelection(file.id)}
               >
                 <div className="flex items-center gap-3">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFileSelection(file.id);
+                    }}
+                  >
+                    {isSelected ? (
+                      <CheckSquare className="h-4 w-4 text-primary" />
+                    ) : (
+                      <Square className="h-4 w-4" />
+                    )}
+                  </Button>
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
                     <IconComponent className="h-5 w-5 text-muted-foreground" />
                   </div>
@@ -491,6 +572,27 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {tCommon('delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Batch Delete Confirmation */}
+      <AlertDialog open={showBatchDeleteDialog} onOpenChange={setShowBatchDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('deleteMultipleFiles')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('deleteMultipleConfirm', { count: selectedFiles.size })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBatchDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t('deleteAll', { count: selectedFiles.size })}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

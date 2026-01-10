@@ -91,6 +91,7 @@ import { parseSkillMd, toHyphenCase } from '@/lib/skills/parser';
 // Download functions available for future export button integration
 // import { downloadSkillAsMarkdown, downloadSkillAsPackage } from '@/lib/skills/packager';
 import { SkillDetail } from '@/components/skills/skill-detail';
+import { SkillDiscovery } from '@/components/skills/skill-discovery';
 import type { Skill, SkillCategory, CreateSkillInput } from '@/types/skill';
 
 const CATEGORY_ICONS: Record<SkillCategory, React.ReactNode> = {
@@ -584,87 +585,100 @@ export function SkillSettings() {
             </Alert>
           )}
 
-          <div className="flex items-center gap-4">
-            <InputGroup className="flex-1">
-              <InputGroupAddon align="inline-start">
-                <Search className="h-4 w-4" />
-              </InputGroupAddon>
-              <InputGroupInput
-                placeholder={t('searchPlaceholder')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </InputGroup>
-            <Select
-              value={categoryFilter}
-              onValueChange={(v) => setCategoryFilter(v as SkillCategory | 'all')}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder={t('allCategories')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('allCategories')}</SelectItem>
-                {Object.entries(CATEGORY_KEYS).map(([key, labelKey]) => (
-                  <SelectItem key={key} value={key}>
-                    <div className="flex items-center gap-2">
-                      {CATEGORY_ICONS[key as SkillCategory]}
-                      {t(`categories.${labelKey}`)}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <Tabs defaultValue="my-skills" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="my-skills">{t('mySkills')}</TabsTrigger>
+              <TabsTrigger value="discover">{t('discover')}</TabsTrigger>
+            </TabsList>
 
-          <div className="flex items-center gap-2">
-            <Button onClick={() => setShowCreateDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              {t('createSkill')}
-            </Button>
-            <Button variant="outline" onClick={() => setShowImportDialog(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              {t('import')}
-            </Button>
-          </div>
-
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" />
-            </div>
-          ) : filteredSkills.length === 0 ? (
-            <EmptyState
-              icon={BookOpen}
-              title={t('noSkills')}
-              description={t('noSkillsDesc')}
-            />
-          ) : (
-            <div className="space-y-6">
-              {Object.entries(groupedSkills).map(([category, categorySkills]) => (
-                <div key={category}>
-                  <h3 className="flex items-center gap-2 text-sm font-medium mb-3">
-                    {CATEGORY_ICONS[category as SkillCategory]}
-                    {t(`categories.${CATEGORY_KEYS[category as SkillCategory]}`)}
-                    <Badge variant="secondary" className="ml-2">
-                      {categorySkills.length}
-                    </Badge>
-                  </h3>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {categorySkills.map((skill) => (
-                      <SkillCard
-                        key={skill.id}
-                        skill={skill}
-                        onEdit={() => setSelectedSkillId(skill.id)}
-                        onDelete={() => handleDeleteSkill(skill.id)}
-                        onToggle={() => handleToggleSkill(skill)}
-                        onActivate={() => handleActivateSkill(skill)}
-                        t={t}
-                      />
+            <TabsContent value="my-skills" className="space-y-4">
+              <div className="flex items-center gap-4">
+                <InputGroup className="flex-1">
+                  <InputGroupAddon align="inline-start">
+                    <Search className="h-4 w-4" />
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    placeholder={t('searchPlaceholder')}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </InputGroup>
+                <Select
+                  value={categoryFilter}
+                  onValueChange={(v) => setCategoryFilter(v as SkillCategory | 'all')}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder={t('allCategories')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t('allCategories')}</SelectItem>
+                    {Object.entries(CATEGORY_KEYS).map(([key, labelKey]) => (
+                      <SelectItem key={key} value={key}>
+                        <div className="flex items-center gap-2">
+                          {CATEGORY_ICONS[key as SkillCategory]}
+                          {t(`categories.${labelKey}`)}
+                        </div>
+                      </SelectItem>
                     ))}
-                  </div>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button onClick={() => setShowCreateDialog(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t('createSkill')}
+                </Button>
+                <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  {t('import')}
+                </Button>
+              </div>
+
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin" />
                 </div>
-              ))}
-            </div>
-          )}
+              ) : filteredSkills.length === 0 ? (
+                <EmptyState
+                  icon={BookOpen}
+                  title={t('noSkills')}
+                  description={t('noSkillsDesc')}
+                />
+              ) : (
+                <div className="space-y-6">
+                  {Object.entries(groupedSkills).map(([category, categorySkills]) => (
+                    <div key={category}>
+                      <h3 className="flex items-center gap-2 text-sm font-medium mb-3">
+                        {CATEGORY_ICONS[category as SkillCategory]}
+                        {t(`categories.${CATEGORY_KEYS[category as SkillCategory]}`)}
+                        <Badge variant="secondary" className="ml-2">
+                          {categorySkills.length}
+                        </Badge>
+                      </h3>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {categorySkills.map((skill) => (
+                          <SkillCard
+                            key={skill.id}
+                            skill={skill}
+                            onEdit={() => setSelectedSkillId(skill.id)}
+                            onDelete={() => handleDeleteSkill(skill.id)}
+                            onToggle={() => handleToggleSkill(skill)}
+                            onActivate={() => handleActivateSkill(skill)}
+                            t={t}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="discover">
+              <SkillDiscovery />
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 

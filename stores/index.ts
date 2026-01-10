@@ -292,3 +292,12 @@ export {
 
 // Academic stores
 export { useAcademicStore } from './academic';
+
+// Tool History stores
+export {
+  useToolHistoryStore,
+  selectHistory as selectToolHistory,
+  selectUsageStats as selectToolUsageStats,
+  selectSettings as selectToolHistorySettings,
+  createToolId,
+} from './tool-history';

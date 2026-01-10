@@ -112,3 +112,6 @@ export {
   useStrongholdContext,
   useStrongholdOptional,
 } from './stronghold-provider';
+
+// Store initialization
+export { StoreInitializer } from './store-initializer';

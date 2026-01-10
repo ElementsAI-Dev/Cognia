@@ -50,3 +50,4 @@ llmdoc/
 output/
 playwright-report/
 test-results/
+.ace-tool/

@@ -55,7 +55,11 @@ import {
 import { useArtifactStore, useSettingsStore, useSessionStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import { VersionHistoryPanel } from './version-history-panel';
+import { CodeExecutionPanel } from './code-execution-panel';
+import { CanvasDocumentTabs } from './canvas-document-tabs';
+import { SuggestionItem } from './suggestion-item';
 import type { CanvasSuggestion } from '@/types';
+import { useCanvasCodeExecution, useCanvasDocuments, useCanvasSuggestions } from '@/hooks/canvas';
 import {
   executeCanvasAction,
   applyCanvasActionResult,
@@ -162,6 +166,34 @@ export function CanvasPanel() {
   const [showTranslateDialog, setShowTranslateDialog] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState('english');
   const [copied, setCopied] = useState(false);
+  const [showExecutionPanel, setShowExecutionPanel] = useState(false);
+
+  // Code execution hook
+  const {
+    isExecuting: isCodeExecuting,
+    result: executionResult,
+    execute: executeCode,
+    cancel: cancelExecution,
+    clear: clearExecution,
+  } = useCanvasCodeExecution();
+
+  // Document management hook
+  const {
+    documents: allDocuments,
+    openDocument,
+    closeDocument,
+    renameDocument,
+    duplicateDocument,
+    deleteDocument,
+    createDocument,
+  } = useCanvasDocuments();
+
+  // AI suggestions hook
+  const {
+    suggestions: aiSuggestions,
+    isGenerating: isGeneratingSuggestions,
+    generateSuggestions,
+  } = useCanvasSuggestions();
 
   // Editor settings state
   const [editorSettings, setEditorSettings] = useState({
@@ -400,8 +432,17 @@ export function CanvasPanel() {
             updateCanvasDocument(activeCanvasId, { content: newContent });
             setHasUnsavedChanges(true);
           }
+        } else if (action.type === 'review') {
+          // For review action, also generate inline suggestions
+          generateSuggestions({
+            content: localContent,
+            language: activeDocument.language,
+            selection: selection || undefined,
+          }, { focusArea: 'all' });
+          // Still show the review result
+          setActionResult(result.result);
         } else {
-          // For review/explain/run actions, show the result
+          // For explain actions, show the result
           setActionResult(result.result);
         }
       } else if (!result.success) {
@@ -412,7 +453,7 @@ export function CanvasPanel() {
     } finally {
       setIsProcessing(false);
     }
-  }, [activeDocument, getActiveSession, defaultProvider, providerSettings, localContent, selection, activeCanvasId, updateCanvasDocument]);
+  }, [activeDocument, getActiveSession, defaultProvider, providerSettings, localContent, selection, activeCanvasId, updateCanvasDocument, generateSuggestions]);
 
   // Listen for canvas-action custom events
   useEffect(() => {
@@ -476,6 +517,23 @@ export function CanvasPanel() {
         <SheetTitle className="sr-only">Canvas Panel</SheetTitle>
         {activeDocument ? (
           <>
+            {/* Document Tabs - shown when multiple documents exist */}
+            <CanvasDocumentTabs
+              documents={allDocuments}
+              activeDocumentId={activeCanvasId}
+              onSelectDocument={openDocument}
+              onCloseDocument={closeDocument}
+              onCreateDocument={() => createDocument({
+                title: 'Untitled',
+                content: '',
+                language: 'javascript',
+                type: 'code',
+              })}
+              onRenameDocument={renameDocument}
+              onDuplicateDocument={duplicateDocument}
+              onDeleteDocument={deleteDocument}
+            />
+
             {/* Header */}
             <div className="flex items-center justify-between border-b px-4 py-3">
               <div className="flex items-center gap-2">
@@ -629,8 +687,11 @@ export function CanvasPanel() {
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onClick={() => handleAction({ type: 'run', label: 'Run', icon: 'play' })}
-                      disabled={isProcessing || activeDocument.language !== 'python'}
+                      onClick={() => {
+                        setShowExecutionPanel(true);
+                        executeCode(localContent, activeDocument.language);
+                      }}
+                      disabled={isProcessing || isCodeExecuting}
                     >
                       <Play className="h-4 w-4" />
                       <span className="ml-2">{t('runCode')}</span>
@@ -731,6 +792,21 @@ export function CanvasPanel() {
               />
             </div>
 
+            {/* Code Execution Panel */}
+            {showExecutionPanel && activeDocument?.type === 'code' && (
+              <CodeExecutionPanel
+                result={executionResult}
+                isExecuting={isCodeExecuting}
+                language={activeDocument.language}
+                onExecute={() => executeCode(localContent, activeDocument.language)}
+                onCancel={cancelExecution}
+                onClear={() => {
+                  clearExecution();
+                  setShowExecutionPanel(false);
+                }}
+              />
+            )}
+
             {/* Footer with stats and settings */}
             <div className="flex items-center justify-between border-t px-4 py-1.5 text-xs text-muted-foreground bg-muted/30">
               <div className="flex items-center gap-4">
@@ -816,11 +892,16 @@ export function CanvasPanel() {
               </div>
             )}
 
-            {/* Suggestions panel */}
-            {activeDocument.aiSuggestions && activeDocument.aiSuggestions.length > 0 && (
+            {/* Suggestions panel - shows both store suggestions and hook-generated ones */}
+            {((activeDocument.aiSuggestions && activeDocument.aiSuggestions.length > 0) || 
+              aiSuggestions.length > 0 || isGeneratingSuggestions) && (
               <SuggestionsPanel
                 documentId={activeDocument.id}
-                suggestions={activeDocument.aiSuggestions}
+                suggestions={[
+                  ...(activeDocument.aiSuggestions || []),
+                  ...aiSuggestions.filter((s: CanvasSuggestion) => s.status === 'pending'),
+                ]}
+                isGenerating={isGeneratingSuggestions}
               />
             )}
 
@@ -920,10 +1001,13 @@ export function CanvasPanel() {
 function SuggestionsPanel({
   documentId,
   suggestions,
+  isGenerating = false,
 }: {
   documentId: string;
   suggestions: CanvasSuggestion[];
+  isGenerating?: boolean;
 }) {
+  const t = useTranslations('canvas');
   const applySuggestion = useArtifactStore((state) => state.applySuggestion);
   const updateSuggestionStatus = useArtifactStore(
     (state) => state.updateSuggestionStatus
@@ -931,39 +1015,31 @@ function SuggestionsPanel({
 
   const pendingSuggestions = suggestions.filter((s) => s.status === 'pending');
 
-  if (pendingSuggestions.length === 0) return null;
+  if (pendingSuggestions.length === 0 && !isGenerating) return null;
 
   return (
     <div className="border-t">
-      <div className="px-4 py-2 text-sm font-medium">
-        AI Suggestions ({pendingSuggestions.length})
+      <div className="px-4 py-2 text-sm font-medium flex items-center gap-2">
+        {isGenerating ? (
+          <>
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            {t('generatingSuggestions')}
+          </>
+        ) : (
+          <>
+            {t('aiSuggestions')} ({pendingSuggestions.length})
+          </>
+        )}
       </div>
       <ScrollArea className="max-h-[200px]">
         <div className="space-y-2 px-4 pb-4">
           {pendingSuggestions.map((suggestion) => (
-            <div
+            <SuggestionItem
               key={suggestion.id}
-              className="rounded-lg border bg-muted/50 p-3 space-y-2"
-            >
-              <p className="text-sm">{suggestion.explanation}</p>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => applySuggestion(documentId, suggestion.id)}
-                >
-                  Apply
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() =>
-                    updateSuggestionStatus(documentId, suggestion.id, 'rejected')
-                  }
-                >
-                  Dismiss
-                </Button>
-              </div>
-            </div>
+              suggestion={suggestion}
+              onApply={(id) => applySuggestion(documentId, id)}
+              onReject={(id) => updateSuggestionStatus(documentId, id, 'rejected')}
+            />
           ))}
         </div>
       </ScrollArea>

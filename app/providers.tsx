@@ -28,6 +28,7 @@ import { CommandPalette } from '@/components/layout/command-palette';
 import { Toaster } from '@/components/ui/sonner';
 import { KeyboardShortcutsDialog } from '@/components/layout/keyboard-shortcuts-dialog';
 import { SetupWizard } from '@/components/settings';
+import { TourManager, isOnboardingCompleted } from '@/components/onboarding';
 import {
   ErrorBoundaryProvider,
   LoggerProvider,
@@ -36,6 +37,7 @@ import {
   ProviderProvider,
   SkillProvider,
   NativeProvider,
+  StoreInitializer,
 } from '@/components/providers';
 import { LocaleInitializer } from '@/components/providers/locale-initializer';
 import { ChatAssistantContainer } from '@/components/chat-widget';
@@ -344,12 +346,13 @@ function AppLoadingScreen() {
 }
 
 /**
- * OnboardingProvider - Shows setup wizard for first-time users
+ * OnboardingProvider - Shows setup wizard and page-specific tours for users
  */
 function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const hasCompletedOnboarding = useSettingsStore((state) => state.hasCompletedOnboarding);
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const [showWizard, setShowWizard] = useState(false);
+  const [showTour, setShowTour] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   // Check if user needs onboarding
@@ -377,8 +380,23 @@ function OnboardingProvider({ children }: { children: React.ReactNode }) {
     }
   }, [mounted, needsOnboarding]);
 
+  // Check if feature tour should be shown (after wizard but tour not completed)
+  useEffect(() => {
+    if (mounted && !needsOnboarding && !showWizard) {
+      const tourCompleted = isOnboardingCompleted('feature-tour');
+      if (!tourCompleted) {
+        // Small delay to let the UI settle
+        const timer = setTimeout(() => setShowTour(true), 800);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [mounted, needsOnboarding, showWizard]);
+
   const handleWizardComplete = useCallback(() => {
     setShowWizard(false);
+    // Show feature tour after wizard completes
+    const timer = setTimeout(() => setShowTour(true), 500);
+    return () => clearTimeout(timer);
   }, []);
 
   if (!mounted) {
@@ -393,6 +411,8 @@ function OnboardingProvider({ children }: { children: React.ReactNode }) {
         onOpenChange={setShowWizard}
         onComplete={handleWizardComplete}
       />
+      {/* TourManager handles page-specific tours automatically */}
+      {showTour && <TourManager autoDetect={true} showDelay={300} />}
     </>
   );
 }
@@ -736,6 +756,7 @@ export function Providers({ children }: ProvidersProps) {
                   <TooltipProvider delayDuration={0}>
                     <SkillProvider loadBuiltinSkills={true}>
                       <NativeProvider checkUpdatesOnMount={true}>
+                        <StoreInitializer />
                         <SelectionNativeSync />
                         <OnboardingProvider>
                           {children}

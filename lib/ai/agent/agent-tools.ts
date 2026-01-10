@@ -37,6 +37,7 @@ import { createMcpToolsFromStore } from './mcp-tools';
 import { initializeEnvironmentTools, getEnvironmentToolsSystemPrompt, getEnvironmentToolsPromptSnippet } from './environment-tools';
 import { getJupyterTools, getJupyterToolsSystemPrompt } from './jupyter-tools';
 import { initializeProcessTools, getProcessToolsSystemPrompt, getProcessToolsPromptSnippet } from './process-tools';
+import { createCanvasTools } from './canvas-tool';
 
 export interface AgentToolsConfig {
   tavilyApiKey?: string;
@@ -66,6 +67,8 @@ export interface AgentToolsConfig {
   enablePPTTools?: boolean;
   /** Enable learning/generative UI tools (flashcard, quiz, review session, etc.) */
   enableLearningTools?: boolean;
+  /** Enable Canvas document tools (canvas_create, canvas_update, canvas_read, canvas_open) */
+  enableCanvasTools?: boolean;
   ragConfig?: RAGConfig;
   customTools?: Record<string, AgentTool>;
   activeSkills?: Skill[];
@@ -563,6 +566,14 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
       registryConfig
     );
     Object.assign(tools, learningTools);
+  }
+
+  // Canvas document tools
+  if (config.enableCanvasTools !== false) {
+    const canvasTools = createCanvasTools();
+    for (const tool of canvasTools) {
+      tools[tool.name] = tool;
+    }
   }
 
   // Add custom tools

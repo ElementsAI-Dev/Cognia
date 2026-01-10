@@ -80,6 +80,10 @@ quick-xml = "0.31"
 urlencoding = "2.1"
 nanoid = "0.4"
 
+# Skill service dependencies
+serde_yaml = "0.9"
+zip = "2.1"
+
 # Local provider detection
 which = "6.0"
 

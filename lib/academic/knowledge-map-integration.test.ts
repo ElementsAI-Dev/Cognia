@@ -95,7 +95,7 @@ describe('Knowledge Map Integration', () => {
   describe('generateKnowledgeMapFromPDFFile', () => {
     it('should extract PDF and generate knowledge map', async () => {
       const { invoke } = await import('@tauri-apps/api/core');
-      const mockKnowledgeMap = createTestKnowledgeMap({ id: 'pdf-km' });
+      const _mockKnowledgeMap = createTestKnowledgeMap({ id: 'pdf-km' });
 
       (invoke as jest.Mock).mockResolvedValueOnce({
         success: true,

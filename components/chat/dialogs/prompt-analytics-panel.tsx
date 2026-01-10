@@ -131,7 +131,7 @@ export function PromptAnalyticsPanel({ template }: PromptAnalyticsPanelProps) {
     return (
       <Badge variant="outline" className={cn('text-xs gap-1', color)}>
         <Icon className="h-3 w-3" />
-        {t(`effectiveness.${effectiveness}`)}
+        {t(`effectivenessOptions.${effectiveness}`)}
       </Badge>
     );
   };
@@ -223,7 +223,7 @@ export function PromptAnalyticsPanel({ template }: PromptAnalyticsPanelProps) {
               <div className="space-y-2">
                 {/* Excellent */}
                 <div className="flex items-center gap-3">
-                  <span className="w-20 text-xs text-muted-foreground">{t('effectiveness.excellent')}</span>
+                  <span className="w-20 text-xs text-muted-foreground">{t('effectivenessOptions.excellent')}</span>
                   <Progress 
                     value={stats.totalUses > 0 ? (stats.excellentCount / stats.totalUses) * 100 : 0} 
                     className="h-2 flex-1" 
@@ -233,7 +233,7 @@ export function PromptAnalyticsPanel({ template }: PromptAnalyticsPanelProps) {
                 
                 {/* Good */}
                 <div className="flex items-center gap-3">
-                  <span className="w-20 text-xs text-muted-foreground">{t('effectiveness.good')}</span>
+                  <span className="w-20 text-xs text-muted-foreground">{t('effectivenessOptions.good')}</span>
                   <Progress 
                     value={stats.totalUses > 0 ? (stats.goodCount / stats.totalUses) * 100 : 0} 
                     className="h-2 flex-1" 
@@ -243,7 +243,7 @@ export function PromptAnalyticsPanel({ template }: PromptAnalyticsPanelProps) {
                 
                 {/* Average */}
                 <div className="flex items-center gap-3">
-                  <span className="w-20 text-xs text-muted-foreground">{t('effectiveness.average')}</span>
+                  <span className="w-20 text-xs text-muted-foreground">{t('effectivenessOptions.average')}</span>
                   <Progress 
                     value={stats.totalUses > 0 ? (stats.averageCount / stats.totalUses) * 100 : 0} 
                     className="h-2 flex-1" 
@@ -253,7 +253,7 @@ export function PromptAnalyticsPanel({ template }: PromptAnalyticsPanelProps) {
                 
                 {/* Poor */}
                 <div className="flex items-center gap-3">
-                  <span className="w-20 text-xs text-muted-foreground">{t('effectiveness.poor')}</span>
+                  <span className="w-20 text-xs text-muted-foreground">{t('effectivenessOptions.poor')}</span>
                   <Progress 
                     value={stats.totalUses > 0 ? (stats.poorCount / stats.totalUses) * 100 : 0} 
                     className="h-2 flex-1" 

@@ -68,3 +68,5 @@ export * from './git';
 export * from './document-formatting';
 export * from './context';
 export * from './knowledge-map';
+export * from './chat-history-context';
+export * from './project-template';

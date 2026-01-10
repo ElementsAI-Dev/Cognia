@@ -7,6 +7,7 @@
 
 import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
+import { useState } from 'react';
 import {
   Monitor,
   Tablet,
@@ -28,7 +29,25 @@ import {
   FileCode,
   History,
   MessageSquare,
+  Grid3X3,
+  Lightbulb,
+  Layout,
 } from 'lucide-react';
+import { AISuggestionsPanel } from '../ai/ai-suggestions-panel';
+import { ExportOptionsPanel } from '../panels/export-options-panel';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { Separator } from '@/components/ui/separator';
@@ -55,10 +74,15 @@ interface DesignerToolbarProps {
   onOpenInCanvas?: () => void;
   showAIChatPanel?: boolean;
   onToggleAIChat?: () => void;
+  showGridOverlay?: boolean;
+  onToggleGridOverlay?: () => void;
+  onOpenTemplates?: () => void;
 }
 
-export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas, showAIChatPanel, onToggleAIChat }: DesignerToolbarProps) {
+export function DesignerToolbar({ className, onAIEdit, onExport: _onExport, onOpenInCanvas, showAIChatPanel, onToggleAIChat, showGridOverlay, onToggleGridOverlay, onOpenTemplates }: DesignerToolbarProps) {
   const t = useTranslations('designer');
+  const [showSuggestionsPanel, setShowSuggestionsPanel] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const mode = useDesignerStore((state) => state.mode);
   const setMode = useDesignerStore((state) => state.setMode);
   const viewport = useDesignerStore((state) => state.viewport);
@@ -282,6 +306,23 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas,
             </TooltipTrigger>
             <TooltipContent>{t('versionHistory')}</TooltipContent>
           </Tooltip>
+
+          {/* Grid overlay toggle */}
+          {onToggleGridOverlay && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={showGridOverlay ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={onToggleGridOverlay}
+                >
+                  <Grid3X3 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('gridOverlay') || 'Grid Overlay'}</TooltipContent>
+            </Tooltip>
+          )}
         </div>
 
         <Separator orientation="vertical" className="mx-1 h-6" />
@@ -301,6 +342,31 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas,
           </TooltipTrigger>
           <TooltipContent>{t('editWithAI')}</TooltipContent>
         </Tooltip>
+
+        {/* AI Suggestions Panel */}
+        <Popover open={showSuggestionsPanel} onOpenChange={setShowSuggestionsPanel}>
+          <PopoverTrigger asChild>
+            <Button
+              variant={showSuggestionsPanel ? 'secondary' : 'outline'}
+              size="sm"
+              className="h-7 gap-1.5"
+            >
+              <Lightbulb className="h-3.5 w-3.5" />
+              <span className="text-xs">{t('suggestions') || 'Tips'}</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="end" side="bottom">
+            <AISuggestionsPanel
+              code={code}
+              onCodeChange={(newCode) => {
+                // Update through store
+                const { setCode } = useDesignerStore.getState();
+                setCode(newCode);
+              }}
+              onClose={() => setShowSuggestionsPanel(false)}
+            />
+          </PopoverContent>
+        </Popover>
 
         {/* AI Chat button */}
         {onToggleAIChat && (
@@ -338,6 +404,25 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas,
           </Tooltip>
         )}
 
+        {/* Export Dialog */}
+        <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="h-7 gap-1.5">
+              <Download className="h-3.5 w-3.5" />
+              <span className="text-xs">{t('export')}</span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>{t('exportOptions') || 'Export Options'}</DialogTitle>
+              <DialogDescription>
+                {t('exportDescription') || 'Choose export format and options'}
+              </DialogDescription>
+            </DialogHeader>
+            <ExportOptionsPanel onExport={() => setShowExportDialog(false)} />
+          </DialogContent>
+        </Dialog>
+
         {/* More actions */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -346,13 +431,15 @@ export function DesignerToolbar({ className, onAIEdit, onExport, onOpenInCanvas,
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {onOpenTemplates && (
+              <DropdownMenuItem onClick={onOpenTemplates}>
+                <Layout className="h-4 w-4 mr-2" />
+                {t('templates') || 'Templates'}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={handleCopyCode}>
               <Copy className="h-4 w-4 mr-2" />
               {t('copyCode')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onExport}>
-              <Download className="h-4 w-4 mr-2" />
-              {t('export')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={reset} className="text-destructive">
               <RotateCcw className="h-4 w-4 mr-2" />

@@ -17,6 +17,8 @@ import {
   FileArchive,
   MessageSquare,
   FileCode,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,6 +46,7 @@ import { useSessionStore, useSettingsStore, useArtifactStore } from '@/stores';
 import { db } from '@/lib/db';
 import { BatchExportDialog } from '@/components/export';
 import { toast } from '@/components/ui/sonner';
+import { resetOnboardingTour } from '@/components/onboarding';
 
 // Helper to format bytes
 function formatBytes(bytes: number): string {
@@ -302,6 +305,34 @@ export function DataSettings() {
                   {t('dataPrivacyDesc')}
                 </AlertDescription>
               </Alert>
+            </CardContent>
+          </Card>
+
+          {/* Onboarding & Help */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Sparkles className="h-4 w-4 text-muted-foreground" />
+                {t('helpAndTour')}
+              </CardTitle>
+              <CardDescription className="text-[10px]">
+                {t('helpAndTourDesc')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  resetOnboardingTour('feature-tour');
+                  toast.success(t('tourReset'));
+                  // Reload to show tour
+                  setTimeout(() => window.location.reload(), 500);
+                }}
+              >
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                {t('restartTour')}
+              </Button>
             </CardContent>
           </Card>
 

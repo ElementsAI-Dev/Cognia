@@ -156,3 +156,16 @@ export {
   type ContextAwareAgentConfig,
   type ContextAwareAgentResult,
 } from './context-aware-executor';
+
+// Canvas Tools exports
+export {
+  createCanvasCreateTool,
+  createCanvasUpdateTool,
+  createCanvasReadTool,
+  createCanvasOpenTool,
+  createCanvasTools,
+  getCanvasToolsRecord,
+  type CanvasCreateInput,
+  type CanvasUpdateInput,
+  type CanvasReadInput,
+} from './canvas-tool';

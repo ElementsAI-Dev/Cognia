@@ -103,7 +103,6 @@ export function ProjectDetail({
   );
 
   const sessions = useSessionStore((state) => state.sessions);
-  const _deleteSession = useSessionStore((state) => state.deleteSession);
   
   // Get project activities - must be called before any conditional returns
   const getActivitiesForProject = useProjectActivityStore((state) => state.getActivitiesForProject);

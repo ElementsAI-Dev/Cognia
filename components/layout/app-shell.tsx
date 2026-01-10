@@ -3,15 +3,19 @@
 /**
  * AppShell - main application layout with sidebar and content area
  * Provides responsive layout with collapsible sidebar for desktop
+ * Includes mobile bottom navigation for touch devices
  */
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { useUIStore, useSettingsStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { NetworkStatusIndicator, OfflineBanner } from '@/components/layout/network-status-indicator';
+import { MobileBottomNav } from './mobile-bottom-nav';
+import { useIsMobile } from '@/hooks/utils';
+import { useSwipeGesture } from '@/hooks/utils';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -20,8 +24,21 @@ interface AppShellProps {
 
 export function AppShell({ children, sidebar }: AppShellProps) {
   const sidebarOpen = useUIStore((state) => state.sidebarOpen);
+  const setSidebarOpen = useUIStore((state) => state.setSidebarOpen);
   const sidebarCollapsed = useSettingsStore((state) => state.sidebarCollapsed);
   const setSidebarCollapsed = useSettingsStore((state) => state.setSidebarCollapsed);
+  const isMobile = useIsMobile();
+  const mainRef = useRef<HTMLDivElement>(null);
+
+  // Swipe gesture for mobile - swipe right to open sidebar
+  useSwipeGesture(mainRef, {
+    onSwipeRight: () => {
+      if (isMobile && !sidebarOpen) {
+        setSidebarOpen(true);
+      }
+    },
+    threshold: 80,
+  });
 
   // Clone sidebar element with collapsed prop (only for React components, not DOM elements)
   const sidebarWithProps = sidebar
@@ -86,15 +103,27 @@ export function AppShell({ children, sidebar }: AppShellProps) {
       )}
 
       {/* Main content */}
-      <main className="flex flex-1 flex-col overflow-hidden">
+      <main 
+        ref={mainRef}
+        className={cn(
+          "flex flex-1 flex-col overflow-hidden",
+          isMobile && "pb-16" // Add padding for mobile bottom nav
+        )}
+      >
         {children}
       </main>
 
       {/* Network Status Indicator - fixed position at bottom right */}
-      <div className="fixed bottom-4 right-4 z-40">
+      <div className={cn(
+        "fixed z-40",
+        isMobile ? "bottom-20 right-4" : "bottom-4 right-4"
+      )}>
         <NetworkStatusIndicator showLabel />
       </div>
     </div>
+
+    {/* Mobile Bottom Navigation */}
+    {isMobile && <MobileBottomNav />}
     </>
   );
 }

@@ -16,15 +16,13 @@ export default function ProjectsPage() {
   const router = useRouter();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
-  const _activeProjectId = useProjectStore((state) => state.activeProjectId);
   const setActiveProject = useProjectStore((state) => state.setActiveProject);
   const addSessionToProject = useProjectStore((state) => state.addSessionToProject);
   const getProject = useProjectStore((state) => state.getProject);
 
   const createSession = useSessionStore((state) => state.createSession);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
-  const _updateSession = useSessionStore((state) => state.updateSession);
-
+  
   const handleProjectSelect = (projectId: string) => {
     setSelectedProjectId(projectId);
     setActiveProject(projectId);

@@ -2,7 +2,7 @@
  * Plugin Context Tests
  */
 
-import { createPluginContext } from './context';
+import { createPluginContext, createFullPluginContext, isFullPluginContext } from './context';
 import type { Plugin, PluginManifest } from '@/types/plugin';
 import type { PluginManager } from './manager';
 
@@ -546,5 +546,91 @@ describe('createPluginContext', () => {
       expect(typeof context.secrets.delete).toBe('function');
       expect(typeof context.secrets.has).toBe('function');
     });
+  });
+});
+
+describe('createFullPluginContext', () => {
+  it('should create context with base APIs', () => {
+    const plugin = createMockPlugin();
+    const context = createFullPluginContext(plugin, mockManager);
+    
+    expect(context.pluginId).toBe('test-plugin');
+    expect(context.logger).toBeDefined();
+    expect(context.storage).toBeDefined();
+  });
+
+  it('should create context with extended APIs', () => {
+    const plugin = createMockPlugin();
+    const context = createFullPluginContext(plugin, mockManager);
+    
+    expect(context.session).toBeDefined();
+    expect(context.project).toBeDefined();
+    expect(context.vector).toBeDefined();
+    expect(context.theme).toBeDefined();
+    expect(context.export).toBeDefined();
+    expect(context.i18n).toBeDefined();
+    expect(context.canvas).toBeDefined();
+    expect(context.artifact).toBeDefined();
+    expect(context.notifications).toBeDefined();
+    expect(context.ai).toBeDefined();
+    expect(context.extensions).toBeDefined();
+    expect(context.permissions).toBeDefined();
+  });
+
+  it('should have session API methods', () => {
+    const plugin = createMockPlugin();
+    const context = createFullPluginContext(plugin, mockManager);
+    
+    expect(typeof context.session.getCurrentSession).toBe('function');
+    expect(typeof context.session.createSession).toBe('function');
+    expect(typeof context.session.listSessions).toBe('function');
+  });
+
+  it('should have project API methods', () => {
+    const plugin = createMockPlugin();
+    const context = createFullPluginContext(plugin, mockManager);
+    
+    expect(typeof context.project.getCurrentProject).toBe('function');
+    expect(typeof context.project.createProject).toBe('function');
+    expect(typeof context.project.listProjects).toBe('function');
+  });
+
+  it('should have vector API methods', () => {
+    const plugin = createMockPlugin();
+    const context = createFullPluginContext(plugin, mockManager);
+    
+    expect(typeof context.vector.search).toBe('function');
+    expect(typeof context.vector.addDocuments).toBe('function');
+  });
+
+  it('should have notifications API methods', () => {
+    const plugin = createMockPlugin();
+    const context = createFullPluginContext(plugin, mockManager);
+    
+    expect(typeof context.notifications.create).toBe('function');
+    expect(typeof context.notifications.dismiss).toBe('function');
+  });
+
+  it('should have permissions API methods', () => {
+    const plugin = createMockPlugin();
+    const context = createFullPluginContext(plugin, mockManager);
+    
+    expect(typeof context.permissions.hasPermission).toBe('function');
+  });
+});
+
+describe('isFullPluginContext', () => {
+  it('should return true for full context', () => {
+    const plugin = createMockPlugin();
+    const context = createFullPluginContext(plugin, mockManager);
+    
+    expect(isFullPluginContext(context)).toBe(true);
+  });
+
+  it('should return false for base context', () => {
+    const plugin = createMockPlugin();
+    const context = createPluginContext(plugin, mockManager);
+    
+    expect(isFullPluginContext(context)).toBe(false);
   });
 });

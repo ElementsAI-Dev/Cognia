@@ -19,6 +19,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useDesignerStore } from '@/stores/designer';
 import { ResizeHandles } from './resize-handles';
+import { InlineTextEditor, useInlineTextEditor } from '../toolbar/inline-text-editor';
 import type { DesignerElement } from '@/types/designer';
 
 interface SelectionOverlayProps {
@@ -150,6 +151,9 @@ function SelectionOverlayComponent({
   const duplicateElement = useDesignerStore((state) => state.duplicateElement);
   const moveElement = useDesignerStore((state) => state.moveElement);
   const syncCodeFromElements = useDesignerStore((state) => state.syncCodeFromElements);
+
+  // Inline text editing state
+  const { isEditing, editingElement, startEditing, stopEditing } = useInlineTextEditor();
 
   // Get element bounds relative to preview container
   const getElementBounds = useCallback((elementId: string) => {
@@ -299,6 +303,27 @@ function SelectionOverlayComponent({
             width: selectedBounds.width,
             height: selectedBounds.height,
           }}
+          onDoubleClick={() => {
+            // Enable inline text editing for text elements
+            const textTags = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'a', 'button', 'label'];
+            if (textTags.includes(selectedElement.tagName.toLowerCase()) && selectedElement.textContent) {
+              startEditing(
+                selectedElement.id,
+                selectedElement.textContent,
+                {
+                  left: selectedBounds.left,
+                  top: selectedBounds.top,
+                  width: selectedBounds.width,
+                  height: selectedBounds.height,
+                  right: 0,
+                  bottom: 0,
+                  x: selectedBounds.left,
+                  y: selectedBounds.top,
+                  toJSON: () => ({}),
+                } as DOMRect
+              );
+            }
+          }}
         >
           {/* Element label */}
           {showLabels && (
@@ -334,6 +359,16 @@ function SelectionOverlayComponent({
             </div>
           )}
         </div>
+      )}
+
+      {/* Inline text editor */}
+      {isEditing && editingElement && (
+        <InlineTextEditor
+          elementId={editingElement.id}
+          initialText={editingElement.text}
+          position={editingElement.position}
+          onClose={stopEditing}
+        />
       )}
     </div>,
     containerElement

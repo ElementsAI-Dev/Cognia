@@ -36,6 +36,7 @@ import {
   ClipboardList,
   StickyNote,
   Keyboard,
+  Clock,
 } from "lucide-react";
 import { useEffect, useCallback, useState, useRef } from "react";
 import { ToolbarButton } from "./toolbar-button";
@@ -44,6 +45,7 @@ import { ShortcutHints } from "./shortcut-hints";
 import { ClipboardPanel } from "./clipboard-panel";
 import { OCRPanel } from "./ocr-panel";
 import { TemplatesPanel } from "./templates-panel";
+import { SelectionHistoryPanel } from "./history-panel";
 import { SelectionAction, ActionDefinition, ActionCategory, SelectionMode } from "@/types";
 import { useSelectionToolbar } from '@/hooks/ui';
 import { useSelectionStore } from "@/stores/context";
@@ -133,13 +135,51 @@ export function SelectionToolbar() {
   const [showClipboardPanel, setShowClipboardPanel] = useState(false);
   const [showOCRPanel, setShowOCRPanel] = useState(false);
   const [showTemplatesPanel, setShowTemplatesPanel] = useState(false);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
+
+  // Helper to close all panels
+  const closeAllPanels = useCallback(() => {
+    setShowShortcutHints(false);
+    setShowClipboardPanel(false);
+    setShowOCRPanel(false);
+    setShowTemplatesPanel(false);
+    setShowHistoryPanel(false);
+  }, []);
+
+  // Panel toggle helpers - close other panels when opening one
+  const togglePanel = useCallback((panel: 'shortcuts' | 'clipboard' | 'ocr' | 'templates' | 'history') => {
+    const setters = {
+      shortcuts: setShowShortcutHints,
+      clipboard: setShowClipboardPanel,
+      ocr: setShowOCRPanel,
+      templates: setShowTemplatesPanel,
+      history: setShowHistoryPanel,
+    };
+    const current = {
+      shortcuts: showShortcutHints,
+      clipboard: showClipboardPanel,
+      ocr: showOCRPanel,
+      templates: showTemplatesPanel,
+      history: showHistoryPanel,
+    };
+
+    if (current[panel]) {
+      // If already open, just close it
+      setters[panel](false);
+    } else {
+      // Close all others and open this one
+      closeAllPanels();
+      setters[panel](true);
+    }
+  }, [showShortcutHints, showClipboardPanel, showOCRPanel, showTemplatesPanel, showHistoryPanel, closeAllPanels]);
 
   // Multi-selection and references from store
   const {
     selections,
     isMultiSelectMode,
     references,
+    history,
     toggleMultiSelectMode,
     addSelection,
     removeSelection,
@@ -212,7 +252,7 @@ export function SelectionToolbar() {
             // When the window loses focus, hide the toolbar
             // unless user is interacting with the toolbar
             if (!focused && !showMoreMenu && !showModeSelector && !showReferences && 
-                !showClipboardPanel && !showOCRPanel && !showTemplatesPanel) {
+                !showClipboardPanel && !showOCRPanel && !showTemplatesPanel && !showHistoryPanel) {
               // Small delay to allow for popover interactions
               setTimeout(() => {
                 hideToolbar();
@@ -240,7 +280,7 @@ export function SelectionToolbar() {
 
     document.addEventListener("mouseup", handleClickOutside);
     return () => document.removeEventListener("mouseup", handleClickOutside);
-  }, [hideToolbar, showMoreMenu, showModeSelector, showReferences, showClipboardPanel, showOCRPanel, showTemplatesPanel]);
+  }, [hideToolbar, showMoreMenu, showModeSelector, showReferences, showClipboardPanel, showOCRPanel, showTemplatesPanel, showHistoryPanel]);
 
   // Handle selection mode change
   const handleModeChange = async (mode: SelectionMode) => {
@@ -271,10 +311,13 @@ export function SelectionToolbar() {
         return;
       }
 
-      // Escape to close menus or toolbar
+      // Escape to close panels, menus, or toolbar (in priority order)
       if (e.key === "Escape") {
         e.preventDefault();
-        if (showMoreMenu) {
+        // First close any open panels
+        if (showShortcutHints || showClipboardPanel || showOCRPanel || showTemplatesPanel || showHistoryPanel) {
+          closeAllPanels();
+        } else if (showMoreMenu) {
           setShowMoreMenu(false);
         } else if (showModeSelector) {
           setShowModeSelector(false);
@@ -303,6 +346,23 @@ export function SelectionToolbar() {
       }
 
       const key = e.key.toUpperCase();
+
+      // Panel shortcuts
+      const panelShortcuts: Record<string, 'templates' | 'clipboard' | 'ocr' | 'history' | 'shortcuts'> = {
+        'P': 'templates',
+        'B': 'clipboard',
+        'O': 'ocr',
+        'H': 'history',
+        '?': 'shortcuts',
+      };
+
+      if (panelShortcuts[key] || (e.key === '?' && e.shiftKey)) {
+        e.preventDefault();
+        const panel = e.key === '?' ? 'shortcuts' : panelShortcuts[key];
+        if (panel) togglePanel(panel);
+        return;
+      }
+
       const action = ALL_ACTIONS.find((a) => a.shortcut === key);
       
       if (action) {
@@ -313,7 +373,7 @@ export function SelectionToolbar() {
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [state.isVisible, state.isLoading, handleAction, hideToolbar, showMoreMenu, showModeSelector, showReferences]);
+  }, [state.isVisible, state.isLoading, handleAction, hideToolbar, showMoreMenu, showModeSelector, showReferences, togglePanel, closeAllPanels, showShortcutHints, showClipboardPanel, showOCRPanel, showTemplatesPanel, showHistoryPanel]);
 
   // Don't render anything if toolbar is not visible
   if (!state.isVisible) {
@@ -472,11 +532,12 @@ export function SelectionToolbar() {
 
           {/* Templates */}
           <ToolbarButton
-            icon={FileText}
+            icon={StickyNote}
             label="Templates"
+            shortcut="P"
             description="Use prompt templates"
             size="sm"
-            onClick={() => setShowTemplatesPanel(!showTemplatesPanel)}
+            onClick={() => togglePanel('templates')}
             isActive={showTemplatesPanel}
           />
 
@@ -484,9 +545,10 @@ export function SelectionToolbar() {
           <ToolbarButton
             icon={ClipboardList}
             label="Clipboard"
+            shortcut="B"
             description="View clipboard history"
             size="sm"
-            onClick={() => setShowClipboardPanel(!showClipboardPanel)}
+            onClick={() => togglePanel('clipboard')}
             isActive={showClipboardPanel}
           />
 
@@ -494,10 +556,23 @@ export function SelectionToolbar() {
           <ToolbarButton
             icon={Type}
             label="OCR"
+            shortcut="O"
             description="Extract text from image"
             size="sm"
-            onClick={() => setShowOCRPanel(!showOCRPanel)}
+            onClick={() => togglePanel('ocr')}
             isActive={showOCRPanel}
+          />
+
+          {/* History */}
+          <ToolbarButton
+            icon={Clock}
+            label="History"
+            shortcut="H"
+            description="View selection history"
+            size="sm"
+            onClick={() => togglePanel('history')}
+            isActive={showHistoryPanel}
+            badge={history?.length > 0 ? history.length : undefined}
           />
 
           {/* Keyboard Shortcuts Help */}
@@ -507,7 +582,7 @@ export function SelectionToolbar() {
             shortcut="?"
             description="View keyboard shortcuts"
             size="sm"
-            onClick={() => setShowShortcutHints(!showShortcutHints)}
+            onClick={() => togglePanel('shortcuts')}
             isActive={showShortcutHints}
           />
 
@@ -918,6 +993,13 @@ export function SelectionToolbar() {
             }
           }}
         />
+
+        {/* History Panel */}
+        {showHistoryPanel && (
+          <div className="absolute top-full right-0 mt-2 z-50">
+            <SelectionHistoryPanel />
+          </div>
+        )}
 
         {/* Selected Text Preview (when long) */}
         {state.selectedText && state.selectedText.length > 100 && !state.result && !state.isLoading && (

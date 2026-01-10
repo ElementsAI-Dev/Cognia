@@ -24,6 +24,8 @@ import { DEFAULT_COMPRESSION_SETTINGS } from '@/types/compression';
 import type { AutoDetectResult } from '@/lib/i18n/locale-auto-detect';
 import type { AutoRouterSettings, RoutingMode, RoutingStrategy, ModelTier } from '@/types/auto-router';
 import { DEFAULT_AUTO_ROUTER_SETTINGS } from '@/types/auto-router';
+import type { ChatHistoryContextSettings, HistoryContextCompressionLevel } from '@/types/chat-history-context';
+import { DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS } from '@/types/chat-history-context';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'en' | 'zh-CN';
@@ -368,6 +370,20 @@ interface SettingsState {
   setAutoRouterFallbackTier: (tier: ModelTier) => void;
   resetAutoRouterSettings: () => void;
 
+  // Chat History Context settings
+  chatHistoryContextSettings: ChatHistoryContextSettings;
+  setChatHistoryContextSettings: (settings: Partial<ChatHistoryContextSettings>) => void;
+  setChatHistoryContextEnabled: (enabled: boolean) => void;
+  setChatHistoryContextSessionCount: (count: number) => void;
+  setChatHistoryContextTokenBudget: (budget: number) => void;
+  setChatHistoryContextCompressionLevel: (level: HistoryContextCompressionLevel) => void;
+  setChatHistoryContextIncludeTitles: (include: boolean) => void;
+  setChatHistoryContextExcludeEmpty: (exclude: boolean) => void;
+  setChatHistoryContextMinMessages: (min: number) => void;
+  setChatHistoryContextIncludeTimestamps: (include: boolean) => void;
+  setChatHistoryContextSameProjectOnly: (sameProject: boolean) => void;
+  resetChatHistoryContextSettings: () => void;
+
   // Onboarding
   hasCompletedOnboarding: boolean;
   setOnboardingCompleted: (completed: boolean) => void;
@@ -631,6 +647,9 @@ const initialState = {
 
   // Auto Router settings
   autoRouterSettings: { ...DEFAULT_AUTO_ROUTER_SETTINGS },
+
+  // Chat History Context settings
+  chatHistoryContextSettings: { ...DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS },
 
   // Onboarding
   hasCompletedOnboarding: false,
@@ -1388,6 +1407,59 @@ export const useSettingsStore = create<SettingsState>()(
       resetAutoRouterSettings: () =>
         set({ autoRouterSettings: { ...DEFAULT_AUTO_ROUTER_SETTINGS } }),
 
+      // Chat History Context settings actions
+      setChatHistoryContextSettings: (settings) =>
+        set((state) => ({
+          chatHistoryContextSettings: { ...state.chatHistoryContextSettings, ...settings },
+        })),
+      setChatHistoryContextEnabled: (enabled) =>
+        set((state) => ({
+          chatHistoryContextSettings: { ...state.chatHistoryContextSettings, enabled },
+        })),
+      setChatHistoryContextSessionCount: (recentSessionCount) =>
+        set((state) => ({
+          chatHistoryContextSettings: {
+            ...state.chatHistoryContextSettings,
+            recentSessionCount: Math.min(10, Math.max(1, recentSessionCount))
+          },
+        })),
+      setChatHistoryContextTokenBudget: (maxTokenBudget) =>
+        set((state) => ({
+          chatHistoryContextSettings: {
+            ...state.chatHistoryContextSettings,
+            maxTokenBudget: Math.min(2000, Math.max(100, maxTokenBudget))
+          },
+        })),
+      setChatHistoryContextCompressionLevel: (compressionLevel) =>
+        set((state) => ({
+          chatHistoryContextSettings: { ...state.chatHistoryContextSettings, compressionLevel },
+        })),
+      setChatHistoryContextIncludeTitles: (includeSessionTitles) =>
+        set((state) => ({
+          chatHistoryContextSettings: { ...state.chatHistoryContextSettings, includeSessionTitles },
+        })),
+      setChatHistoryContextExcludeEmpty: (excludeEmptySessions) =>
+        set((state) => ({
+          chatHistoryContextSettings: { ...state.chatHistoryContextSettings, excludeEmptySessions },
+        })),
+      setChatHistoryContextMinMessages: (minMessagesThreshold) =>
+        set((state) => ({
+          chatHistoryContextSettings: {
+            ...state.chatHistoryContextSettings,
+            minMessagesThreshold: Math.min(20, Math.max(1, minMessagesThreshold))
+          },
+        })),
+      setChatHistoryContextIncludeTimestamps: (includeTimestamps) =>
+        set((state) => ({
+          chatHistoryContextSettings: { ...state.chatHistoryContextSettings, includeTimestamps },
+        })),
+      setChatHistoryContextSameProjectOnly: (sameProjectOnly) =>
+        set((state) => ({
+          chatHistoryContextSettings: { ...state.chatHistoryContextSettings, sameProjectOnly },
+        })),
+      resetChatHistoryContextSettings: () =>
+        set({ chatHistoryContextSettings: { ...DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS } }),
+
       // Onboarding actions
       setOnboardingCompleted: (hasCompletedOnboarding) => set({ hasCompletedOnboarding }),
 
@@ -1475,6 +1547,8 @@ export const useSettingsStore = create<SettingsState>()(
         compressionSettings: state.compressionSettings,
         // Auto Router settings
         autoRouterSettings: state.autoRouterSettings,
+        // Chat History Context settings
+        chatHistoryContextSettings: state.chatHistoryContextSettings,
         // Onboarding
         hasCompletedOnboarding: state.hasCompletedOnboarding,
       }),
@@ -1495,3 +1569,5 @@ export const selectBackgroundSettings = (state: SettingsState) => state.backgrou
 export const selectBackgroundEnabled = (state: SettingsState) => state.backgroundSettings.enabled;
 export const selectAutoRouterSettings = (state: SettingsState) => state.autoRouterSettings;
 export const selectAutoRouterEnabled = (state: SettingsState) => state.autoRouterSettings.enabled;
+export const selectChatHistoryContextSettings = (state: SettingsState) => state.chatHistoryContextSettings;
+export const selectChatHistoryContextEnabled = (state: SettingsState) => state.chatHistoryContextSettings.enabled;

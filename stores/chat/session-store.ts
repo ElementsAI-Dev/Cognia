@@ -46,6 +46,11 @@ interface SessionState {
   deleteAllSessions: () => void;
 
   switchMode: (sessionId: string, mode: ChatMode) => void;
+  switchModeWithNewSession: (
+    currentSessionId: string,
+    targetMode: ChatMode,
+    options?: { carryContext?: boolean; summary?: string }
+  ) => Session;
   getModeHistory: (sessionId?: string) => ModeHistoryEntry[];
   getModeConfig: (mode: ChatMode) => ModeConfig;
   getRecentModes: (limit?: number) => ChatMode[];
@@ -128,6 +133,8 @@ export const useSessionStore = create<SessionState>()(
           projectId: input.projectId,
           virtualEnvId: input.virtualEnvId,
           messageCount: 0,
+          carriedContext: input.carriedContext,
+          historyContext: input.historyContext,
         };
         set((state) => ({
           sessions: [session, ...state.sessions],
@@ -185,6 +192,56 @@ export const useSessionStore = create<SessionState>()(
             modeHistory: [...state.modeHistory.slice(-49), historyEntry],
           };
         });
+      },
+
+      switchModeWithNewSession: (
+        currentSessionId: string,
+        targetMode: ChatMode,
+        options?: { carryContext?: boolean; summary?: string }
+      ) => {
+        const { sessions } = get();
+        const currentSession = sessions.find((s) => s.id === currentSessionId);
+        
+        // Build carried context if provided
+        const carriedContext = options?.carryContext && options?.summary && currentSession
+          ? {
+              fromSessionId: currentSessionId,
+              fromMode: currentSession.mode,
+              summary: options.summary,
+              carriedAt: new Date(),
+            }
+          : undefined;
+
+        // Create new session with target mode, inheriting some settings from current session
+        const newSession: Session = {
+          id: nanoid(),
+          title: 'New Chat',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          provider: currentSession?.provider || DEFAULT_PROVIDER,
+          model: currentSession?.model || DEFAULT_MODEL,
+          mode: targetMode,
+          systemPrompt: MODE_CONFIGS[targetMode].defaultSystemPrompt || currentSession?.systemPrompt,
+          projectId: currentSession?.projectId,
+          virtualEnvId: currentSession?.virtualEnvId,
+          messageCount: 0,
+          carriedContext,
+        };
+
+        // Add mode history entry for the new session
+        const historyEntry: ModeHistoryEntry = {
+          mode: targetMode,
+          timestamp: new Date(),
+          sessionId: newSession.id,
+        };
+
+        set((state) => ({
+          sessions: [newSession, ...state.sessions],
+          activeSessionId: newSession.id,
+          modeHistory: [...state.modeHistory.slice(-49), historyEntry],
+        }));
+
+        return newSession;
       },
 
       getModeHistory: (sessionId?: string) => {

@@ -10,7 +10,7 @@ import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useSettingsStore, useArtifactStore } from '@/stores';
 import { executeDesignerAIEdit, getDesignerAIConfig } from '@/lib/designer';
-import { Loader2, X, Sparkles, Send, AlertCircle } from 'lucide-react';
+import { Loader2, X, Sparkles, Send, AlertCircle, Layers, Package } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,19 @@ import { DesignerPreview } from '../preview/designer-preview';
 import { ElementTree } from '../panels/element-tree';
 import { StylePanel } from '../panels/style-panel';
 import { VersionHistoryPanel } from '../panels/version-history-panel';
+import { ComponentLibrary } from '../panels/component-library';
+import { DesignTokensPanel } from '../panels/design-tokens-panel';
+import { LayoutGridOverlay } from '../preview/layout-grid-overlay';
+import { BreadcrumbNav } from '../preview/breadcrumb-nav';
+import { DesignerBrowser } from './designer-browser';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { DesignerDndProvider, SelectionOverlay } from '../dnd';
 import { AIChatPanel } from '../ai/ai-chat-panel';
 
@@ -59,6 +72,9 @@ export function DesignerPanel({
   const [showAIInput, setShowAIInput] = useState(false);
   const [aiError, setAIError] = useState<string | null>(null);
   const [showAIChatPanel, setShowAIChatPanel] = useState(false);
+  const [leftPanelTab, setLeftPanelTab] = useState<'elements' | 'components'>('elements');
+  const [showGridOverlay, setShowGridOverlay] = useState(false);
+  const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
 
   // Settings for built-in AI
   const providerSettings = useSettingsStore((state) => state.providerSettings);
@@ -219,6 +235,9 @@ export function DesignerPanel({
             onOpenInCanvas={handleOpenInCanvas}
             showAIChatPanel={showAIChatPanel}
             onToggleAIChat={() => setShowAIChatPanel(!showAIChatPanel)}
+            showGridOverlay={showGridOverlay}
+            onToggleGridOverlay={() => setShowGridOverlay(!showGridOverlay)}
+            onOpenTemplates={() => setShowTemplateBrowser(true)}
           />
 
           {/* AI Input Bar */}
@@ -287,15 +306,38 @@ export function DesignerPanel({
             ) : (
               // Design/Preview view with panels
               <ResizablePanelGroup direction="horizontal">
-                {/* Element Tree Panel */}
+                {/* Left Panel - Element Tree or Component Library */}
                 {showElementTree && (
                   <>
                     <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
                       <div className="flex flex-col h-full border-r">
-                        <div className="border-b px-3 py-2">
-                          <h3 className="text-sm font-medium">{t('elements')}</h3>
+                        {/* Tab switcher */}
+                        <div className="border-b px-2 py-1.5 flex items-center gap-1">
+                          <Button
+                            variant={leftPanelTab === 'elements' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            className="h-7 text-xs gap-1.5 flex-1"
+                            onClick={() => setLeftPanelTab('elements')}
+                          >
+                            <Layers className="h-3.5 w-3.5" />
+                            {t('elements')}
+                          </Button>
+                          <Button
+                            variant={leftPanelTab === 'components' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            className="h-7 text-xs gap-1.5 flex-1"
+                            onClick={() => setLeftPanelTab('components')}
+                          >
+                            <Package className="h-3.5 w-3.5" />
+                            {t('components') || 'Components'}
+                          </Button>
                         </div>
-                        <ElementTree className="flex-1" />
+                        {/* Panel content */}
+                        {leftPanelTab === 'elements' ? (
+                          <ElementTree className="flex-1" />
+                        ) : (
+                          <ComponentLibrary className="flex-1" />
+                        )}
                       </div>
                     </ResizablePanel>
                     <ResizableHandle withHandle />
@@ -305,7 +347,15 @@ export function DesignerPanel({
                 {/* Preview Panel */}
                 <ResizablePanel defaultSize={showStylePanel ? 55 : 80}>
                   <div ref={previewContainerRef} className="relative h-full">
+                    {/* Breadcrumb navigation */}
+                    {mode === 'design' && selectedElementId && (
+                      <BreadcrumbNav className="absolute top-2 left-2 z-20" />
+                    )}
                     <DesignerPreview className="h-full" />
+                    {/* Grid overlay */}
+                    {showGridOverlay && (
+                      <LayoutGridOverlay className="absolute inset-0 pointer-events-none z-10" />
+                    )}
                     {/* Selection overlay for design mode */}
                     {mode === 'design' && selectedElementId && (
                       <SelectionOverlay previewContainerRef={previewContainerRef} />
@@ -313,16 +363,28 @@ export function DesignerPanel({
                   </div>
                 </ResizablePanel>
 
-                {/* Style Panel */}
+                {/* Style Panel with Design Tokens */}
                 {showStylePanel && mode === 'design' && (
                   <>
                     <ResizableHandle withHandle />
                     <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
                       <div className="flex flex-col h-full border-l">
-                        <div className="border-b px-3 py-2">
-                          <h3 className="text-sm font-medium">{t('styles')}</h3>
-                        </div>
-                        <StylePanel className="flex-1" />
+                        <Tabs defaultValue="styles" className="flex flex-col h-full">
+                          <TabsList className="mx-2 mt-2 grid w-auto grid-cols-2">
+                            <TabsTrigger value="styles" className="text-xs">
+                              {t('styles')}
+                            </TabsTrigger>
+                            <TabsTrigger value="tokens" className="text-xs">
+                              {t('tokens') || 'Tokens'}
+                            </TabsTrigger>
+                          </TabsList>
+                          <TabsContent value="styles" className="flex-1 mt-0">
+                            <StylePanel className="h-full" />
+                          </TabsContent>
+                          <TabsContent value="tokens" className="flex-1 mt-0">
+                            <DesignTokensPanel className="h-full" />
+                          </TabsContent>
+                        </Tabs>
                       </div>
                     </ResizablePanel>
                   </>
@@ -370,6 +432,34 @@ export function DesignerPanel({
             <X className="h-4 w-4" />
           </Button>
         </DesignerDndProvider>
+
+        {/* Template Browser Dialog */}
+        <Dialog open={showTemplateBrowser} onOpenChange={setShowTemplateBrowser}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden p-0">
+            <DialogHeader className="px-4 pt-4 pb-2">
+              <DialogTitle>{t('selectTemplate') || 'Select Template'}</DialogTitle>
+              <DialogDescription>
+                {t('selectTemplateDescription') || 'Choose a template to start with'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="h-[60vh] overflow-auto">
+              <DesignerBrowser
+                showBackButton={false}
+                onSelectTemplate={(template) => {
+                  setCode(template.code);
+                  parseCodeToElements(template.code);
+                  onCodeChange?.(template.code);
+                  setShowTemplateBrowser(false);
+                }}
+                onCreateNew={() => {
+                  setCode('');
+                  parseCodeToElements('');
+                  setShowTemplateBrowser(false);
+                }}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       </SheetContent>
     </Sheet>
   );

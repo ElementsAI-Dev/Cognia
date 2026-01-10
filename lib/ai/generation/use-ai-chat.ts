@@ -26,6 +26,7 @@ import {
   isProviderAvailable,
   calculateRequestCost,
 } from '../infrastructure';
+import { getPluginWorkflowIntegration } from '@/lib/plugin';
 import {
   filterMessagesForContext,
   mergeCompressionSettings,
@@ -462,6 +463,12 @@ export function useAIChat({
         if (useStreaming && onChunk) {
           onStreamStart?.();
           reasoningRef.current = '';
+          
+          // Notify plugins of stream start
+          const pluginIntegration = getPluginWorkflowIntegration();
+          if (sessionId) {
+            pluginIntegration.notifyStreamStart(sessionId);
+          }
 
           const result = await streamText(commonOptions);
 
@@ -486,17 +493,35 @@ export function useAIChat({
             // Only send visible content chunks (exclude reasoning)
             if (!inReasoningBlock || !extractReasoning) {
               onChunk(chunk);
+              // Notify plugins of stream chunk
+              if (sessionId) {
+                pluginIntegration.notifyStreamChunk(sessionId, chunk, fullText);
+              }
             }
           }
 
           // Extract reasoning from final text
           const { content: finalContent, reasoning } = extractReasoningFromText(fullText);
           reasoningRef.current = reasoning;
+          
+          // Notify plugins of stream end
+          if (sessionId) {
+            pluginIntegration.notifyStreamEnd(sessionId, finalContent);
+          }
 
           // Record usage after streaming completes
           const rawUsage = await result.usage;
           const usage = normalizeUsage(rawUsage);
           recordUsage(usage);
+          
+          // Notify plugins of token usage
+          if (sessionId && usage) {
+            pluginIntegration.notifyTokenUsage(sessionId, {
+              prompt: usage.promptTokens,
+              completion: usage.completionTokens,
+              total: usage.totalTokens,
+            });
+          }
 
           // Call onStepFinish for streaming completion
           onStepFinish?.({
@@ -587,6 +612,12 @@ export function useAIChat({
       } catch (error) {
         if ((error as Error).name === 'AbortError') {
           return '';
+        }
+        
+        // Notify plugins of chat error
+        const pluginIntegration = getPluginWorkflowIntegration();
+        if (sessionId) {
+          pluginIntegration.notifyChatError(sessionId, error as Error);
         }
         
         // Record failed API key usage

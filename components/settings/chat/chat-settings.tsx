@@ -30,6 +30,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useSettingsStore } from '@/stores';
 import { PROVIDERS } from '@/types/provider';
 import type { CompressionStrategy, CompressionTrigger } from '@/types/compression';
+import type { HistoryContextCompressionLevel } from '@/types/chat-history-context';
 
 // Tooltip helper component
 function SettingTooltip({ children, content }: { children: React.ReactNode; content: string }) {
@@ -90,6 +91,18 @@ export function ChatSettings() {
   const setStreamResponses = useSettingsStore((state) => state.setStreamResponses);
   const sendOnEnter = useSettingsStore((state) => state.sendOnEnter);
   const setSendOnEnter = useSettingsStore((state) => state.setSendOnEnter);
+
+  // Chat history context settings
+  const chatHistoryContextSettings = useSettingsStore((state) => state.chatHistoryContextSettings);
+  const setChatHistoryContextEnabled = useSettingsStore((state) => state.setChatHistoryContextEnabled);
+  const setChatHistoryContextSessionCount = useSettingsStore((state) => state.setChatHistoryContextSessionCount);
+  const setChatHistoryContextTokenBudget = useSettingsStore((state) => state.setChatHistoryContextTokenBudget);
+  const setChatHistoryContextCompressionLevel = useSettingsStore((state) => state.setChatHistoryContextCompressionLevel);
+  const setChatHistoryContextIncludeTitles = useSettingsStore((state) => state.setChatHistoryContextIncludeTitles);
+  const setChatHistoryContextExcludeEmpty = useSettingsStore((state) => state.setChatHistoryContextExcludeEmpty);
+  const setChatHistoryContextMinMessages = useSettingsStore((state) => state.setChatHistoryContextMinMessages);
+  const setChatHistoryContextIncludeTimestamps = useSettingsStore((state) => state.setChatHistoryContextIncludeTimestamps);
+  const setChatHistoryContextSameProjectOnly = useSettingsStore((state) => state.setChatHistoryContextSameProjectOnly);
 
   // Default provider
   const defaultProvider = useSettingsStore((state) => state.defaultProvider);
@@ -576,6 +589,157 @@ export function ChatSettings() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Chat History Context Settings */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <History className="h-4 w-4" />
+                  {tContext('historyContext.title') || 'Chat History Context'}
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  {tContext('historyContext.description') || 'Include compressed context from recent conversations when starting new chats'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Enable History Context */}
+                <div className="flex items-center justify-between py-1">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="enable-history-context" className="text-sm">
+                      {tContext('historyContext.enable') || 'Enable History Context'}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {tContext('historyContext.enableDesc') || 'Automatically inject recent chat summaries into new conversations'}
+                    </p>
+                  </div>
+                  <Switch
+                    id="enable-history-context"
+                    checked={chatHistoryContextSettings.enabled}
+                    onCheckedChange={setChatHistoryContextEnabled}
+                  />
+                </div>
+
+                {chatHistoryContextSettings.enabled && (
+                  <>
+                    {/* Session Count & Compression Level */}
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm">{tContext('historyContext.sessionCount') || 'Recent Sessions'}</Label>
+                          <span className="text-sm font-mono">{chatHistoryContextSettings.recentSessionCount}</span>
+                        </div>
+                        <Slider
+                          value={[chatHistoryContextSettings.recentSessionCount]}
+                          onValueChange={([v]) => setChatHistoryContextSessionCount(v)}
+                          min={1}
+                          max={10}
+                          step={1}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm">{tContext('historyContext.compressionLevel') || 'Compression Level'}</Label>
+                        <Select
+                          value={chatHistoryContextSettings.compressionLevel}
+                          onValueChange={(value) => setChatHistoryContextCompressionLevel(value as HistoryContextCompressionLevel)}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="minimal">{tContext('historyContext.level.minimal') || 'Minimal'}</SelectItem>
+                            <SelectItem value="moderate">{tContext('historyContext.level.moderate') || 'Moderate'}</SelectItem>
+                            <SelectItem value="detailed">{tContext('historyContext.level.detailed') || 'Detailed'}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Token Budget */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <SettingTooltip content="Maximum tokens to use for history context">
+                          <Label className="text-sm">{tContext('historyContext.tokenBudget') || 'Token Budget'}</Label>
+                        </SettingTooltip>
+                        <span className="text-sm font-mono">{chatHistoryContextSettings.maxTokenBudget}</span>
+                      </div>
+                      <Slider
+                        value={[chatHistoryContextSettings.maxTokenBudget]}
+                        onValueChange={([v]) => setChatHistoryContextTokenBudget(v)}
+                        min={100}
+                        max={2000}
+                        step={100}
+                      />
+                    </div>
+
+                    {/* Min Messages Threshold */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <SettingTooltip content="Minimum messages required to include a session">
+                          <Label className="text-sm">{tContext('historyContext.minMessages') || 'Min Messages'}</Label>
+                        </SettingTooltip>
+                        <span className="text-sm font-mono">{chatHistoryContextSettings.minMessagesThreshold}</span>
+                      </div>
+                      <Slider
+                        value={[chatHistoryContextSettings.minMessagesThreshold]}
+                        onValueChange={([v]) => setChatHistoryContextMinMessages(v)}
+                        min={1}
+                        max={20}
+                        step={1}
+                      />
+                    </div>
+
+                    {/* Options Grid */}
+                    <div className="grid grid-cols-2 gap-2 pt-2">
+                      <div className="flex items-center justify-between rounded-md border px-2 py-1.5">
+                        <Label htmlFor="include-titles" className="text-[10px]">
+                          {tContext('historyContext.includeTitles') || 'Include Titles'}
+                        </Label>
+                        <Switch
+                          id="include-titles"
+                          checked={chatHistoryContextSettings.includeSessionTitles}
+                          onCheckedChange={setChatHistoryContextIncludeTitles}
+                          className="scale-75"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between rounded-md border px-2 py-1.5">
+                        <Label htmlFor="exclude-empty" className="text-[10px]">
+                          {tContext('historyContext.excludeEmpty') || 'Skip Empty'}
+                        </Label>
+                        <Switch
+                          id="exclude-empty"
+                          checked={chatHistoryContextSettings.excludeEmptySessions}
+                          onCheckedChange={setChatHistoryContextExcludeEmpty}
+                          className="scale-75"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between rounded-md border px-2 py-1.5">
+                        <Label htmlFor="include-timestamps" className="text-[10px]">
+                          {tContext('historyContext.includeTimestamps') || 'Show Dates'}
+                        </Label>
+                        <Switch
+                          id="include-timestamps"
+                          checked={chatHistoryContextSettings.includeTimestamps}
+                          onCheckedChange={setChatHistoryContextIncludeTimestamps}
+                          className="scale-75"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between rounded-md border px-2 py-1.5">
+                        <Label htmlFor="same-project" className="text-[10px]">
+                          {tContext('historyContext.sameProject') || 'Same Project'}
+                        </Label>
+                        <Switch
+                          id="same-project"
+                          checked={chatHistoryContextSettings.sameProjectOnly}
+                          onCheckedChange={setChatHistoryContextSameProjectOnly}
+                          className="scale-75"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Display Tab */}

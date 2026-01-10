@@ -26,8 +26,15 @@ import { Loader } from '@/components/ai-elements/loader';
 import { ErrorMessage } from './message';
 import { ChatHeader } from './chat-header';
 import { ChatInput, type Attachment } from './chat-input';
-import { ContextSettingsDialog, AISettingsDialog, type AISettings, ModelPickerDialog, PromptOptimizerDialog, PresetManagerDialog } from './dialogs';
+import { QuickReplyBar } from './quick-reply-bar';
+import { useKeyboardShortcuts } from './keyboard-shortcuts-handler';
+import { ContextSettingsDialog, AISettingsDialog, type AISettings, ModelPickerDialog, PromptOptimizerDialog, PresetManagerDialog, ModeSwitchConfirmDialog } from './dialogs';
+import { PromptOptimizationHub } from './dialogs/prompt-optimization';
+import { WorkflowPickerDialog } from './workflow-picker-dialog';
+import { WorkflowResultCard, type WorkflowResultData, type WorkflowExecutionStatus } from './workflow-result-card';
+import { MessageSwipeActions, type SwipeAction } from './message-swipe-actions';
 import { WelcomeState } from './welcome-state';
+import { CarriedContextBanner } from './carried-context-banner';
 import { BranchButton } from './selectors';
 import { TextSelectionPopover } from './popovers';
 import { QuotedContent } from './message';
@@ -91,6 +98,7 @@ import type { ModelSelection } from '@/types/auto-router';
 import { messageRepository } from '@/lib/db';
 import { PROVIDERS } from '@/types/provider';
 import type { ChatMode, UIMessage } from '@/types';
+import { useSummary } from '@/hooks/chat';
 import type { AgentModeConfig } from '@/types/agent-mode';
 import { useStickToBottomContext } from 'use-stick-to-bottom';
 
@@ -186,6 +194,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   // New feature states
   const [showPromptOptimizer, setShowPromptOptimizer] = useState(false);
+  const [showPromptOptimizationHub, setShowPromptOptimizationHub] = useState(false);
   const [suggestions, setSuggestions] = useState<GeneratedSuggestion[]>([]);
   const [_isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
@@ -193,10 +202,14 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const [showPresetManager, setShowPresetManager] = useState(false);
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
   const trackPresetUsage = usePresetStore((state) => state.usePreset);
+  const getPreset = usePresetStore((state) => state.getPreset);
+  const activePreset = session?.presetId ? getPreset(session.presetId) : null;
 
   // Workflow states
   const [showWorkflowSelector, setShowWorkflowSelector] = useState(false);
+  const [showWorkflowPicker, setShowWorkflowPicker] = useState(false);
   const [showPPTPreview, setShowPPTPreview] = useState(false);
+  const [workflowResults, setWorkflowResults] = useState<Map<string, WorkflowResultData>>(new Map());
 
   // Learning mode states
   const [showLearningPanel, setShowLearningPanel] = useState(false);
@@ -220,8 +233,15 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const [showRoutingIndicator, setShowRoutingIndicator] = useState(false);
   const autoRouterSettings = useSettingsStore((state) => state.autoRouterSettings);
 
+  // Chat history context settings
+  const chatHistoryContextSettings = useSettingsStore((state) => state.chatHistoryContextSettings);
+
   // Clear context confirmation dialog state
   const [showClearContextConfirm, setShowClearContextConfirm] = useState(false);
+
+  // Mode switch confirmation dialog state
+  const [showModeSwitchDialog, setShowModeSwitchDialog] = useState(false);
+  const [pendingTargetMode, setPendingTargetMode] = useState<ChatMode | null>(null);
 
   // Streaming chunk coalescing (reduces render churn during token streaming)
   const streamBufferRef = useRef<{ messageId: string; buffer: string } | null>(null);
@@ -274,6 +294,18 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   // Mode switch function
   const switchMode = useSessionStore((state) => state.switchMode);
+  const switchModeWithNewSession = useSessionStore((state) => state.switchModeWithNewSession);
+
+  // Settings for AI summary generation
+  const openaiSettings = providerSettings?.openai;
+  const { generateChatSummary } = useSummary({
+    useAI: !!openaiSettings?.apiKey,
+    aiConfig: openaiSettings?.apiKey ? {
+      provider: 'openai',
+      model: openaiSettings.defaultModel || 'gpt-4o-mini',
+      apiKey: openaiSettings.apiKey,
+    } : undefined,
+  });
 
   // Intent detection for mode switching suggestions (enabled in all modes)
   const {
@@ -362,6 +394,9 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     const limit = Math.round((contextLimitPercent / 100) * modelMaxTokens);
     return limit > 0 ? Math.min(100, Math.round((estimatedTokens.totalTokens / limit) * 100)) : 0;
   }, [estimatedTokens.totalTokens, contextLimitPercent, modelMaxTokens]);
+
+  // Input ref for keyboard shortcuts
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // AI Chat hook
   const { sendMessage: aiSendMessage, stop: aiStop } = useAIChat({
@@ -499,6 +534,12 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   const handleModeChange = useCallback((mode: ChatMode) => {
     if (session) {
+      // Check if there are messages - if so, show confirmation dialog
+      if (messages.length > 0 && mode !== currentMode) {
+        setPendingTargetMode(mode);
+        setShowModeSwitchDialog(true);
+        return;
+      }
       updateSession(session.id, { mode });
     } else {
       createSession({ mode });
@@ -513,7 +554,45 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
         setShowLearningPanel(true);
       }
     }
-  }, [session, updateSession, createSession, getLearningSessionByChat]);
+  }, [session, updateSession, createSession, getLearningSessionByChat, messages.length, currentMode]);
+
+  // Handle mode switch confirmation
+  const handleModeSwitchConfirm = useCallback((options: { carryContext: boolean; summary?: string }) => {
+    if (!session || !pendingTargetMode) return;
+
+    // Create new session with the target mode
+    switchModeWithNewSession(session.id, pendingTargetMode, {
+      carryContext: options.carryContext,
+      summary: options.summary,
+    });
+
+    // Show learning start dialog when switching to learning mode
+    if (pendingTargetMode === 'learning') {
+      setShowLearningStartDialog(true);
+    }
+
+    // Reset state
+    setPendingTargetMode(null);
+    setShowModeSwitchDialog(false);
+  }, [session, pendingTargetMode, switchModeWithNewSession]);
+
+  // Handle mode switch cancel
+  const handleModeSwitchCancel = useCallback(() => {
+    setPendingTargetMode(null);
+    setShowModeSwitchDialog(false);
+  }, []);
+
+  // Generate summary for mode switch
+  const handleGenerateSummaryForModeSwitch = useCallback(async (): Promise<string | null> => {
+    if (messages.length === 0) return null;
+    try {
+      const result = await generateChatSummary(messages, { format: 'brief' }, session?.title);
+      return result.summary;
+    } catch (error) {
+      console.error('Failed to generate summary:', error);
+      return null;
+    }
+  }, [messages, generateChatSummary, session?.title]);
 
   // Close learning panel when clicking outside
   useEffect(() => {
@@ -821,7 +900,30 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     // Ensure we have an active session
     let currentSessionId = activeSessionId;
     if (!currentSessionId) {
-      const newSession = createSession({ title: content.slice(0, 50) || 'New conversation' });
+      // Build history context if enabled
+      let historyContext: { contextText: string; sessionCount: number; generatedAt: Date } | undefined;
+      if (chatHistoryContextSettings.enabled) {
+        try {
+          const { buildHistoryContext } = await import('@/lib/context/cross-session-context');
+          const result = await buildHistoryContext(chatHistoryContextSettings, {
+            projectId: session?.projectId,
+          });
+          if (result.success && result.contextText) {
+            historyContext = {
+              contextText: result.contextText,
+              sessionCount: result.sessionCount,
+              generatedAt: new Date(),
+            };
+          }
+        } catch (err) {
+          console.warn('Failed to build history context:', err);
+        }
+      }
+      
+      const newSession = createSession({
+        title: content.slice(0, 50) || 'New conversation',
+        historyContext,
+      });
       currentSessionId = newSession.id;
     }
 
@@ -1042,6 +1144,19 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
       // Build enhanced system prompt starting with project context if available
       let enhancedSystemPrompt = '';
+
+      // Add carried context from mode switch if available
+      if (session?.carriedContext && messages.length === 0) {
+        const contextNote = `## Context from Previous Conversation\n\nThe user switched from ${session.carriedContext.fromMode} mode. Here's a summary of the previous conversation to provide context:\n\n${session.carriedContext.summary}\n\n---\n\nUse this context to provide continuity in your responses.`;
+        enhancedSystemPrompt = contextNote;
+      }
+
+      // Add history context from recent sessions if available (only on first message)
+      if (session?.historyContext?.contextText && messages.length === 0) {
+        enhancedSystemPrompt = enhancedSystemPrompt
+          ? `${session.historyContext.contextText}\n\n${enhancedSystemPrompt}`
+          : session.historyContext.contextText;
+      }
       
       // Add project knowledge base context if available
       if (session?.projectId && projectContext?.hasKnowledge) {
@@ -1260,7 +1375,7 @@ Be thorough in your thinking but concise in your final answer.`;
     } finally {
       setIsLoading(false);
     }
-  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes, getActiveSkills, getLearningSessionByChat, autoCreateFromContent, processA2UIMessage, sourceVerification, checkIntent, autoRouterSettings.showRoutingIndicator, flushStreamBuffer]);
+  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes, getActiveSkills, getLearningSessionByChat, autoCreateFromContent, processA2UIMessage, sourceVerification, checkIntent, autoRouterSettings.showRoutingIndicator, flushStreamBuffer, chatHistoryContextSettings]);
 
   const handleStop = useCallback(() => {
     aiStop();
@@ -1272,6 +1387,12 @@ Be thorough in your thinking but concise in your final answer.`;
     setIsLoading(false);
     setIsStreaming(false);
   }, [aiStop, flushStreamBuffer, isAgentExecuting, stopAgent]);
+
+  // Keyboard shortcuts for chat actions
+  useKeyboardShortcuts({
+    onStopGeneration: isStreaming ? handleStop : undefined,
+    onFocusInput: () => inputRef.current?.focus(),
+  });
 
   // Edit message handlers
   const handleEditMessage = useCallback((messageId: string, content: string) => {
@@ -1348,6 +1469,34 @@ Be thorough in your thinking but concise in your final answer.`;
     }
   }, [providerSettings, currentProvider, currentModel, addMessage]);
 
+  // Handle workflow selection from WorkflowPickerDialog
+  const handleWorkflowSelect = useCallback(async (workflow: { id: string; name: string }, input: Record<string, unknown>) => {
+    setShowWorkflowPicker(false);
+    
+    // Create a workflow result entry
+    const resultId = `workflow-${Date.now()}`;
+    const resultData: WorkflowResultData = {
+      workflowId: workflow.id,
+      workflowName: workflow.name,
+      executionId: resultId,
+      status: 'running' as WorkflowExecutionStatus,
+      progress: 0,
+      startedAt: new Date(),
+      input: input,
+    };
+    
+    setWorkflowResults(prev => new Map(prev).set(resultId, resultData));
+    
+    // Add a message indicating workflow started
+    const workflowMessage: UIMessage = {
+      id: resultId,
+      role: 'assistant',
+      content: `🔄 Running workflow: **${workflow.name}**\n\nWorkflow execution started...`,
+      createdAt: new Date(),
+    };
+    await addMessage(workflowMessage);
+  }, [addMessage]);
+
   // Retry last assistant message
   const handleRetry = useCallback(async (messageId: string) => {
     const messageIndex = messages.findIndex(m => m.id === messageId);
@@ -1402,27 +1551,44 @@ Be thorough in your thinking but concise in your final answer.`;
 
       <Conversation>
         {isEmpty ? (
-          <WelcomeState
-            mode={currentMode}
-            onSuggestionClick={handleSuggestionClick}
-            onModeChange={handleModeChange}
-            agentModeId={agentModeId}
-            onAgentModeChange={handleAgentModeChange}
-            onSelectTemplate={(template) => {
-              // Apply template settings to session
-              if (session) {
-                updateSession(session.id, {
-                  systemPrompt: template.systemPrompt,
-                  provider: (template.provider as ProviderName) || session.provider,
-                  model: template.model || session.model,
-                });
-              }
-              // Set initial message if provided
-              if (template.initialMessage) {
-                setInputValue(template.initialMessage);
-              }
-            }}
-          />
+          <>
+            {/* Show carried context banner if session was created with context from mode switch */}
+            {session?.carriedContext && (
+              <CarriedContextBanner
+                fromMode={session.carriedContext.fromMode}
+                toMode={currentMode}
+                summary={session.carriedContext.summary}
+                carriedAt={new Date(session.carriedContext.carriedAt)}
+                onDismiss={() => {
+                  // Clear carried context from session
+                  if (session) {
+                    updateSession(session.id, { carriedContext: undefined } as Parameters<typeof updateSession>[1]);
+                  }
+                }}
+              />
+            )}
+            <WelcomeState
+              mode={currentMode}
+              onSuggestionClick={handleSuggestionClick}
+              onModeChange={handleModeChange}
+              agentModeId={agentModeId}
+              onAgentModeChange={handleAgentModeChange}
+              onSelectTemplate={(template) => {
+                // Apply template settings to session
+                if (session) {
+                  updateSession(session.id, {
+                    systemPrompt: template.systemPrompt,
+                    provider: (template.provider as ProviderName) || session.provider,
+                    model: template.model || session.model,
+                  });
+                }
+                // Set initial message if provided
+                if (template.initialMessage) {
+                  setInputValue(template.initialMessage);
+                }
+              }}
+            />
+          </>
         ) : (
           <ConversationContent>
             <VirtualizedChatMessageList
@@ -1442,6 +1608,8 @@ Be thorough in your thinking but concise in your final answer.`;
               hasOlderMessages={hasOlderMessages}
               isLoadingOlder={isLoadingOlder}
               loadOlderMessages={loadOlderMessages}
+              workflowResults={workflowResults}
+              onWorkflowRerun={(_input) => setShowWorkflowPicker(true)}
             />
           </ConversationContent>
         )}
@@ -1500,6 +1668,16 @@ Be thorough in your thinking but concise in your final answer.`;
         </div>
       )}
 
+      {/* Quick Reply Bar - AI-powered suggestions */}
+      <QuickReplyBar
+        messages={messages}
+        onSelect={(text) => {
+          setInputValue(text);
+          inputRef.current?.focus();
+        }}
+        disabled={isLoading || isStreaming}
+      />
+
       <ChatInput
         value={inputValue}
         onChange={setInputValue}
@@ -1546,6 +1724,9 @@ Be thorough in your thinking but concise in your final answer.`;
           setEditingPresetId(null);
           setShowPresetManager(true);
         }}
+        onOpenWorkflowPicker={() => setShowWorkflowPicker(true)}
+        onOpenPromptOptimization={() => setShowPromptOptimizationHub(true)}
+        hasActivePreset={!!activePreset}
       />
 
       {/* Prompt Optimizer Dialog */}
@@ -1555,6 +1736,31 @@ Be thorough in your thinking but concise in your final answer.`;
         initialPrompt={inputValue}
         onApply={handleApplyOptimizedPrompt}
       />
+
+      {/* Prompt Optimization Hub - Advanced prompt optimization with analytics and A/B testing */}
+      {activePreset && (
+        <PromptOptimizationHub
+          open={showPromptOptimizationHub}
+          onOpenChange={setShowPromptOptimizationHub}
+          template={{
+            id: activePreset.id,
+            name: activePreset.name,
+            content: activePreset.systemPrompt || '',
+            variables: [],
+            tags: [],
+            source: 'user' as const,
+            usageCount: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }}
+          onTemplateUpdate={(content) => {
+            // Update preset with optimized content
+            if (activePreset) {
+              usePresetStore.getState().updatePreset(activePreset.id, { systemPrompt: content });
+            }
+          }}
+        />
+      )}
 
       {/* Preset Manager Dialog */}
       <PresetManagerDialog
@@ -1644,6 +1850,14 @@ Be thorough in your thinking but concise in your final answer.`;
       <WorkflowSelector
         open={showWorkflowSelector}
         onOpenChange={setShowWorkflowSelector}
+      />
+
+      {/* Workflow Picker Dialog - for running visual workflows from chat */}
+      <WorkflowPickerDialog
+        open={showWorkflowPicker}
+        onOpenChange={setShowWorkflowPicker}
+        onSelectWorkflow={handleWorkflowSelect}
+        initialInput={inputValue}
       />
 
       {/* PPT Preview - shown when a presentation is generated */}
@@ -1740,6 +1954,21 @@ Be thorough in your thinking but concise in your final answer.`;
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Mode Switch Confirmation Dialog */}
+      {pendingTargetMode && (
+        <ModeSwitchConfirmDialog
+          open={showModeSwitchDialog}
+          onOpenChange={setShowModeSwitchDialog}
+          currentMode={currentMode}
+          targetMode={pendingTargetMode}
+          messageCount={messages.length}
+          sessionTitle={session?.title}
+          onConfirm={handleModeSwitchConfirm}
+          onCancel={handleModeSwitchCancel}
+          onGenerateSummary={handleGenerateSummaryForModeSwitch}
+        />
+      )}
     </div>
   );
 }
@@ -1826,6 +2055,8 @@ interface ChatMessageItemProps {
   onRetry: () => void;
   onCopyMessagesForBranch?: (branchPointMessageId: string, newBranchId: string) => Promise<unknown>;
   onTranslate?: (messageId: string, content: string) => void;
+  workflowResult?: WorkflowResultData;
+  onWorkflowRerun?: (input: Record<string, unknown>) => void;
 }
 
 function ChatMessageItem({
@@ -1841,6 +2072,8 @@ function ChatMessageItem({
   onRetry,
   onCopyMessagesForBranch,
   onTranslate,
+  workflowResult,
+  onWorkflowRerun,
 }: ChatMessageItemProps) {
   const t = useTranslations('chat');
   const tCommon = useTranslations('common');
@@ -1881,11 +2114,11 @@ function ChatMessageItem({
     await messageRepository.update(message.id, { reactions });
   };
 
-  const handleCopy = async () => {
+  const handleCopy = useCallback(async () => {
     await navigator.clipboard.writeText(message.content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
+  }, [message.content]);
 
   const handleTranslate = () => {
     if (onTranslate && !isTranslating) {
@@ -1895,12 +2128,12 @@ function ChatMessageItem({
     }
   };
 
-  const handleBookmark = async () => {
+  const handleBookmark = useCallback(async () => {
     const newBookmarked = !isBookmarked;
     setIsBookmarked(newBookmarked);
     // Update in database
     await messageRepository.update(message.id, { isBookmarked: newBookmarked });
-  };
+  }, [isBookmarked, message.id]);
 
   const handleSpeak = () => {
     if (isSpeaking) {
@@ -1936,7 +2169,33 @@ function ChatMessageItem({
     }
   };
 
+  // Handle swipe actions for mobile
+  const handleSwipeAction = useCallback((action: SwipeAction) => {
+    switch (action) {
+      case 'copy':
+        handleCopy();
+        break;
+      case 'edit':
+        if (message.role === 'user') onEdit();
+        break;
+      case 'regenerate':
+        if (message.role === 'assistant') onRetry();
+        break;
+      case 'bookmark':
+        handleBookmark();
+        break;
+      case 'delete':
+        // Could be implemented with a delete handler
+        break;
+    }
+  }, [handleCopy, handleBookmark, message.role, onEdit, onRetry]);
+
   return (
+    <MessageSwipeActions
+      onAction={handleSwipeAction}
+      enabledActions={message.role === 'user' ? ['copy', 'edit'] : ['copy', 'regenerate', 'bookmark']}
+      disabled={isEditing || isStreaming}
+    >
     <MessageUI id={`message-${message.id}`} from={message.role as "system" | "user" | "assistant"}>
       <MessageContent>
         {isEditing ? (
@@ -1971,6 +2230,14 @@ function ChatMessageItem({
           </div>
         ) : (
           <div ref={messageContentRef}>
+            {/* Workflow Result Card - render if this message has workflow data */}
+            {workflowResult && (
+              <WorkflowResultCard
+                data={workflowResult}
+                onRerun={onWorkflowRerun}
+                className="mb-3"
+              />
+            )}
             {message.role === 'user' ? (
               <p className="whitespace-pre-wrap">{message.content}</p>
             ) : hasA2UIContent(message.content) ? (
@@ -2076,10 +2343,9 @@ function ChatMessageItem({
         </MessageActions>
       )}
     </MessageUI>
+    </MessageSwipeActions>
   );
 }
-
-export default ChatContainer;
 
 interface VirtualizedChatMessageListProps {
   messages: UIMessage[];
@@ -2098,6 +2364,8 @@ interface VirtualizedChatMessageListProps {
   hasOlderMessages: boolean;
   isLoadingOlder: boolean;
   loadOlderMessages: () => Promise<void>;
+  workflowResults?: Map<string, WorkflowResultData>;
+  onWorkflowRerun?: (input: Record<string, unknown>) => void;
 }
 
 function VirtualizedChatMessageList({
@@ -2117,6 +2385,8 @@ function VirtualizedChatMessageList({
   hasOlderMessages,
   isLoadingOlder,
   loadOlderMessages,
+  workflowResults,
+  onWorkflowRerun,
 }: VirtualizedChatMessageListProps) {
   const { scrollRef } = useStickToBottomContext();
 
@@ -2184,6 +2454,8 @@ function VirtualizedChatMessageList({
             onRetry={() => onRetry(message.id)}
             onCopyMessagesForBranch={onCopyMessagesForBranch}
             onTranslate={onTranslate}
+            workflowResult={workflowResults?.get(message.id)}
+            onWorkflowRerun={onWorkflowRerun}
           />
         ))}
       </>
@@ -2248,9 +2520,13 @@ function VirtualizedChatMessageList({
             onRetry={() => onRetry(message.id)}
             onCopyMessagesForBranch={onCopyMessagesForBranch}
             onTranslate={onTranslate}
+            workflowResult={workflowResults?.get(message.id)}
+            onWorkflowRerun={onWorkflowRerun}
           />
         );
       }}
     />
   );
 }
+
+export default ChatContainer;

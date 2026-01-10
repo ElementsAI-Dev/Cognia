@@ -1,5 +1,4 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { VegaLiteBlock } from './vegalite-block';
 
 // Mock vega-embed - dynamic import pattern

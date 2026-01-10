@@ -1366,6 +1366,314 @@ export default function createPlugin(context: PluginContext): PluginDefinition {
       },
     ],
   },
+
+  // Media Processing Plugin Template
+  {
+    id: 'media-processing',
+    name: 'Media Processing Plugin',
+    description: 'A plugin that provides custom image filters, video effects, and transitions for the media studio',
+    type: 'frontend',
+    capabilities: ['tools', 'components'],
+    difficulty: 'intermediate',
+    tags: ['media', 'image', 'video', 'filter', 'effect', 'transition'],
+    files: [
+      {
+        path: 'plugin.json',
+        content: `{
+  "id": "{{id}}",
+  "name": "{{name}}",
+  "version": "1.0.0",
+  "description": "{{description}}",
+  "type": "frontend",
+  "capabilities": ["tools", "components"],
+  "author": {
+    "name": "{{author.name}}"
+  },
+  "main": "index.ts",
+  "contributes": {
+    "imageFilters": true,
+    "videoEffects": true,
+    "videoTransitions": true
+  }
+}`,
+      },
+      {
+        path: 'index.ts',
+        content: `/**
+ * {{name}} - Media Processing Plugin
+ * 
+ * Provides custom image filters, video effects, and transitions
+ */
+
+import type { PluginContext, PluginDefinition } from '@cognia/plugin-sdk';
+import type { 
+  ImageFilterDefinition, 
+  VideoEffectDefinition, 
+  VideoTransitionDefinition 
+} from '@cognia/plugin-sdk/media';
+
+// Custom Image Filter: Vintage
+const vintageFilter: ImageFilterDefinition = {
+  id: 'vintage',
+  name: 'Vintage',
+  description: 'Apply a vintage film look',
+  category: 'stylize',
+  icon: '📷',
+  parameters: [
+    { id: 'intensity', name: 'Intensity', type: 'number', default: 50, min: 0, max: 100 },
+    { id: 'vignette', name: 'Vignette', type: 'boolean', default: true },
+  ],
+  apply: (imageData, params) => {
+    const intensity = ((params?.intensity as number) || 50) / 100;
+    const data = new Uint8ClampedArray(imageData.data);
+    
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      
+      // Sepia tone
+      const sepiaR = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
+      const sepiaG = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
+      const sepiaB = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
+      
+      // Blend with intensity
+      data[i] = r + (sepiaR - r) * intensity;
+      data[i + 1] = g + (sepiaG - g) * intensity;
+      data[i + 2] = b + (sepiaB - b) * intensity;
+      
+      // Add slight contrast
+      data[i] = Math.min(255, Math.max(0, (data[i] - 128) * 1.1 + 128));
+      data[i + 1] = Math.min(255, Math.max(0, (data[i + 1] - 128) * 1.1 + 128));
+      data[i + 2] = Math.min(255, Math.max(0, (data[i + 2] - 128) * 1.1 + 128));
+    }
+    
+    return new ImageData(data, imageData.width, imageData.height);
+  },
+};
+
+// Custom Image Filter: Neon Glow
+const neonGlowFilter: ImageFilterDefinition = {
+  id: 'neon-glow',
+  name: 'Neon Glow',
+  description: 'Add a neon glow effect',
+  category: 'stylize',
+  icon: '✨',
+  parameters: [
+    { id: 'color', name: 'Glow Color', type: 'color', default: '#ff00ff' },
+    { id: 'intensity', name: 'Intensity', type: 'number', default: 50, min: 0, max: 100 },
+  ],
+  apply: (imageData, params) => {
+    const color = params?.color as string || '#ff00ff';
+    const intensity = ((params?.intensity as number) || 50) / 100;
+    const data = new Uint8ClampedArray(imageData.data);
+    
+    // Parse hex color
+    const glowR = parseInt(color.slice(1, 3), 16);
+    const glowG = parseInt(color.slice(3, 5), 16);
+    const glowB = parseInt(color.slice(5, 7), 16);
+    
+    for (let i = 0; i < data.length; i += 4) {
+      const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3 / 255;
+      
+      // Add glow to bright areas
+      if (brightness > 0.5) {
+        const glowAmount = (brightness - 0.5) * 2 * intensity;
+        data[i] = Math.min(255, data[i] + glowR * glowAmount);
+        data[i + 1] = Math.min(255, data[i + 1] + glowG * glowAmount);
+        data[i + 2] = Math.min(255, data[i + 2] + glowB * glowAmount);
+      }
+    }
+    
+    return new ImageData(data, imageData.width, imageData.height);
+  },
+};
+
+// Custom Video Effect: Color Shift
+const colorShiftEffect: VideoEffectDefinition = {
+  id: 'color-shift',
+  name: 'Color Shift',
+  description: 'Animated RGB color channel shift',
+  category: 'stylize',
+  icon: '🌈',
+  supportsKeyframes: true,
+  parameters: [
+    { id: 'amount', name: 'Shift Amount', type: 'number', default: 10, min: 0, max: 50 },
+    { id: 'animate', name: 'Animate', type: 'boolean', default: true },
+  ],
+  apply: (frame, params, time) => {
+    const amount = (params?.amount as number) || 10;
+    const animate = params?.animate !== false;
+    const data = new Uint8ClampedArray(frame.data);
+    
+    // Calculate animated offset
+    const offset = animate && time !== undefined 
+      ? Math.sin(time * 2) * amount 
+      : amount;
+    
+    for (let y = 0; y < frame.height; y++) {
+      for (let x = 0; x < frame.width; x++) {
+        const i = (y * frame.width + x) * 4;
+        
+        // Shift red channel
+        const shiftedX = Math.min(frame.width - 1, Math.max(0, x + Math.round(offset)));
+        const shiftedI = (y * frame.width + shiftedX) * 4;
+        
+        data[i] = frame.data[shiftedI]; // Red from shifted position
+        data[i + 1] = frame.data[i + 1]; // Green stays
+        data[i + 2] = frame.data[i + 2]; // Blue stays
+        data[i + 3] = frame.data[i + 3]; // Alpha stays
+      }
+    }
+    
+    return new ImageData(data, frame.width, frame.height);
+  },
+};
+
+// Custom Video Transition: Glitch
+const glitchTransition: VideoTransitionDefinition = {
+  id: 'glitch',
+  name: 'Glitch',
+  description: 'Digital glitch transition effect',
+  icon: '📺',
+  minDuration: 0.2,
+  maxDuration: 2,
+  defaultDuration: 0.5,
+  render: (fromFrame, toFrame, progress) => {
+    const data = new Uint8ClampedArray(fromFrame.data.length);
+    const sliceHeight = Math.max(2, Math.floor(fromFrame.height / 20));
+    
+    for (let y = 0; y < fromFrame.height; y++) {
+      const sliceIndex = Math.floor(y / sliceHeight);
+      const useToFrame = (sliceIndex + Math.floor(progress * 10)) % 2 === 0 && progress > 0.3;
+      const sourceFrame = useToFrame ? toFrame : fromFrame;
+      
+      // Random horizontal offset for glitch effect
+      const offset = Math.random() < 0.1 ? Math.floor(Math.random() * 20 - 10) : 0;
+      
+      for (let x = 0; x < fromFrame.width; x++) {
+        const srcX = Math.min(fromFrame.width - 1, Math.max(0, x + offset));
+        const i = (y * fromFrame.width + x) * 4;
+        const srcI = (y * sourceFrame.width + srcX) * 4;
+        
+        data[i] = sourceFrame.data[srcI];
+        data[i + 1] = sourceFrame.data[srcI + 1];
+        data[i + 2] = sourceFrame.data[srcI + 2];
+        data[i + 3] = 255;
+      }
+    }
+    
+    return new ImageData(data, fromFrame.width, fromFrame.height);
+  },
+};
+
+export default function createPlugin(context: PluginContext): PluginDefinition {
+  const { media, log } = context;
+  
+  // Register image filters
+  media.filters.register(vintageFilter);
+  media.filters.register(neonGlowFilter);
+  log.info('Registered image filters: vintage, neon-glow');
+  
+  // Register video effects
+  media.effects.register(colorShiftEffect);
+  log.info('Registered video effects: color-shift');
+  
+  // Register video transitions
+  media.transitions.register(glitchTransition);
+  log.info('Registered video transitions: glitch');
+  
+  return {
+    hooks: {
+      onEnable: async () => {
+        log.info('Media processing plugin enabled');
+      },
+      onDisable: async () => {
+        // Unregister all contributions
+        media.filters.unregister('vintage');
+        media.filters.unregister('neon-glow');
+        media.effects.unregister('color-shift');
+        media.transitions.unregister('glitch');
+        log.info('Media processing plugin disabled');
+      },
+    },
+  };
+}
+`,
+      },
+      {
+        path: 'README.md',
+        content: `# {{name}}
+
+{{description}}
+
+## Image Filters
+
+### Vintage
+Apply a vintage film look with adjustable intensity and optional vignette.
+
+### Neon Glow
+Add a colorful neon glow effect to bright areas of the image.
+
+## Video Effects
+
+### Color Shift
+Animated RGB color channel separation effect.
+
+## Video Transitions
+
+### Glitch
+Digital glitch transition with horizontal slices and offset effects.
+
+## Usage
+
+1. Install this plugin in your Cognia plugins directory
+2. Enable it in Settings > Plugins
+3. The filters, effects, and transitions will appear in:
+   - Image Studio > Filters Gallery
+   - Video Studio > Effects Panel
+   - Video Studio > Transitions
+
+## API
+
+This plugin uses the Cognia Media API:
+
+\\\`\\\`\\\`typescript
+// Register an image filter
+context.media.filters.register({
+  id: 'my-filter',
+  name: 'My Filter',
+  category: 'stylize',
+  apply: (imageData, params) => {
+    // Process and return modified ImageData
+  }
+});
+
+// Register a video effect
+context.media.effects.register({
+  id: 'my-effect',
+  name: 'My Effect',
+  category: 'color',
+  supportsKeyframes: true,
+  apply: (frame, params, time) => {
+    // Process and return modified frame
+  }
+});
+
+// Register a video transition
+context.media.transitions.register({
+  id: 'my-transition',
+  name: 'My Transition',
+  minDuration: 0.1,
+  maxDuration: 3,
+  defaultDuration: 1,
+  render: (fromFrame, toFrame, progress) => {
+    // Blend frames based on progress (0-1)
+  }
+});
+\\\`\\\`\\\`
+`,
+      },
+    ],
+  },
 ];
 
 // =============================================================================

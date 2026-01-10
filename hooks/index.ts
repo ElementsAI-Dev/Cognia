@@ -38,8 +38,14 @@ export * from './chat';
 // Image Studio related hooks
 export * from './image-studio';
 
+// Video Studio related hooks
+export * from './video-studio';
+
 // PPT Generation related hooks
 export * from './ppt';
 
 // A2UI hooks
 export * from './a2ui';
+
+// Canvas hooks
+export * from './canvas';

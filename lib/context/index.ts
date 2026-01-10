@@ -120,3 +120,11 @@ export {
   createContextTools,
   getContextToolsPrompt,
 } from './agent-context-tools';
+
+// Cross-session context
+export {
+  getRecentSessions,
+  buildSessionContextSummary,
+  buildHistoryContext,
+  shouldBuildHistoryContext,
+} from './cross-session-context';

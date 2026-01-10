@@ -79,6 +79,21 @@ export interface Session {
 
   // Compression overrides (per-session settings)
   compressionOverrides?: SessionCompressionOverrides;
+
+  // Carried context from previous session (when switching modes)
+  carriedContext?: {
+    fromSessionId: string;
+    fromMode: ChatMode;
+    summary: string;
+    carriedAt: Date;
+  };
+
+  // History context from recent sessions (compressed summaries)
+  historyContext?: {
+    contextText: string;
+    sessionCount: number;
+    generatedAt: Date;
+  };
 }
 
 export interface SessionWithMessages extends Session {
@@ -93,6 +108,17 @@ export interface CreateSessionInput {
   systemPrompt?: string;
   projectId?: string;
   virtualEnvId?: string;
+  carriedContext?: {
+    fromSessionId: string;
+    fromMode: ChatMode;
+    summary: string;
+    carriedAt: Date;
+  };
+  historyContext?: {
+    contextText: string;
+    sessionCount: number;
+    generatedAt: Date;
+  };
 }
 
 export interface UpdateSessionInput {

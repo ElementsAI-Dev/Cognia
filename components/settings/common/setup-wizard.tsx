@@ -11,7 +11,8 @@
  * 5. Completion
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles,
   ChevronRight,
@@ -57,6 +58,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
+import { Confetti } from '@/components/onboarding';
 import { useMcpStore } from '@/stores/mcp';
 import { PROVIDERS } from '@/types/provider';
 import { testProviderConnection } from '@/lib/ai/infrastructure/api-test';
@@ -292,6 +294,19 @@ export function SetupWizard({ open, onOpenChange, onComplete }: SetupWizardProps
     }
   }, [selectedMcpServers, mcpInitialized, initializeMcp, addServer, connectServer, handleNext]);
 
+  // Celebration state
+  const [showCelebration, setShowCelebration] = useState(false);
+
+  // Show celebration on complete step
+  useEffect(() => {
+    if (step === 'complete') {
+      const timer = setTimeout(() => setShowCelebration(true), 300);
+      return () => clearTimeout(timer);
+    } else {
+      setShowCelebration(false);
+    }
+  }, [step]);
+
   const handleComplete = useCallback(() => {
     setOnboardingCompleted(true);
     onComplete();
@@ -309,14 +324,33 @@ export function SetupWizard({ open, onOpenChange, onComplete }: SetupWizardProps
 
   const provider = PROVIDERS[selectedProvider];
 
+  // Animation variants for step transitions
+  const stepVariants = {
+    initial: { opacity: 0, x: 20 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: -20 },
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
+      {/* Confetti celebration */}
+      <Confetti isActive={showCelebration} particleCount={60} />
+      
       <DialogContent className="sm:max-w-[550px] max-h-[90vh] p-0 gap-0 overflow-hidden">
         {/* Step Indicator */}
         <StepIndicator currentStep={step} steps={WIZARD_STEPS} />
 
         <ScrollArea className="max-h-[calc(90vh-120px)]">
-          <div className="px-6 pb-6">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              variants={stepVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+              className="px-6 pb-6"
+            >
             {/* Step: Welcome */}
             {step === 'welcome' && (
               <div className="space-y-6 text-center py-4">
@@ -809,7 +843,8 @@ export function SetupWizard({ open, onOpenChange, onComplete }: SetupWizardProps
                 </div>
               </div>
             )}
-          </div>
+            </motion.div>
+          </AnimatePresence>
         </ScrollArea>
 
         {/* Footer Actions */}

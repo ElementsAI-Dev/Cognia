@@ -16,7 +16,7 @@ import type {
 } from '@/types/plugin';
 import { PluginLoader } from './loader';
 import { PluginRegistry } from './registry';
-import { createPluginContext } from './context';
+import { createFullPluginContext } from './context';
 import { PluginHooksManager } from './hooks';
 import { validatePluginManifest } from './validation';
 
@@ -223,7 +223,7 @@ export class PluginManager {
       const definition = await this.loader.load(plugin);
 
       // Create plugin context
-      const context = createPluginContext(plugin, this);
+      const context = createFullPluginContext(plugin, this);
       this.contexts.set(pluginId, context);
 
       // Activate the plugin

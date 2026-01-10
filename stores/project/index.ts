@@ -14,3 +14,8 @@ export {
   type ActivityType,
   type ProjectActivity,
 } from './project-activity-store';
+
+export {
+  initProjectActivitySubscriber,
+  resetSubscriberState,
+} from './project-activity-subscriber';

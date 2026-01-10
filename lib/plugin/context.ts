@@ -60,6 +60,26 @@ import { usePluginStore } from '@/stores/plugin';
 import { useA2UIStore } from '@/stores/a2ui';
 import { useSettingsStore } from '@/stores/settings';
 import type { PluginManager } from './manager';
+import type { ExtendedPluginContext } from '@/types/plugin-extended';
+import {
+  createSessionAPI,
+  createProjectAPI,
+  createVectorAPI,
+  createThemeAPI,
+  createExportAPI,
+  createI18nAPI,
+  createCanvasAPI,
+  createArtifactAPI,
+  createNotificationCenterAPI,
+  createAIProviderAPI,
+  createExtensionAPI,
+  createPermissionAPI,
+} from './api';
+
+/**
+ * Full plugin context combining base and extended APIs
+ */
+export interface FullPluginContext extends PluginContext, ExtendedPluginContext {}
 
 // =============================================================================
 // Create Plugin Context
@@ -95,6 +115,48 @@ export function createPluginContext(
     window: createWindowAPI(pluginId),
     secrets: createSecretsAPI(pluginId),
   };
+}
+
+/**
+ * Create a full plugin context with all APIs (base + extended)
+ */
+export function createFullPluginContext(
+  plugin: Plugin,
+  manager: PluginManager
+): FullPluginContext {
+  const pluginId = plugin.manifest.id;
+  
+  // Get the base context
+  const baseContext = createPluginContext(plugin, manager);
+  
+  // Create extended APIs
+  const extendedContext: ExtendedPluginContext = {
+    session: createSessionAPI(pluginId),
+    project: createProjectAPI(pluginId),
+    vector: createVectorAPI(pluginId),
+    theme: createThemeAPI(pluginId),
+    export: createExportAPI(pluginId),
+    i18n: createI18nAPI(pluginId),
+    canvas: createCanvasAPI(pluginId),
+    artifact: createArtifactAPI(pluginId),
+    notifications: createNotificationCenterAPI(pluginId),
+    ai: createAIProviderAPI(pluginId),
+    extensions: createExtensionAPI(pluginId),
+    permissions: createPermissionAPI(pluginId, plugin.manifest.permissions || []),
+  };
+
+  // Combine base and extended contexts
+  return {
+    ...baseContext,
+    ...extendedContext,
+  };
+}
+
+/**
+ * Check if a context is a full plugin context
+ */
+export function isFullPluginContext(context: PluginContext): context is FullPluginContext {
+  return 'session' in context && 'project' in context && 'vector' in context;
 }
 
 // =============================================================================
@@ -421,7 +483,7 @@ function createSettingsAPI(pluginId: string): PluginSettingsAPI {
   return {
     get: <T>(key: string): T | undefined => {
       const state = useSettingsStore.getState();
-      const pluginSettings = (state as Record<string, unknown>)[settingsKey] as Record<string, unknown> | undefined;
+      const pluginSettings = (state as unknown as Record<string, unknown>)[settingsKey] as Record<string, unknown> | undefined;
       return pluginSettings?.[key] as T | undefined;
     },
 

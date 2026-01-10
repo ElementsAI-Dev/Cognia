@@ -331,7 +331,7 @@ export default function DesignerPage() {
             </Button>
           </ButtonGroup>
 
-          <Button variant="outline" size="sm" onClick={() => setShowTemplates(true)}>
+          <Button variant="outline" size="sm" onClick={() => setShowTemplates(true)} data-tour="designer-templates">
             <Layers className="h-4 w-4 mr-2" />
             Templates
           </Button>
@@ -592,7 +592,7 @@ export default function DesignerPage() {
             )}
 
             {/* Main Preview/Editor Panel */}
-            <ResizablePanel defaultSize={showElementTree || showStylePanel || showHistoryPanel ? 64 : 100}>
+            <ResizablePanel defaultSize={showElementTree || showStylePanel || showHistoryPanel ? 64 : 100} data-tour="designer-canvas">
               <ReactSandbox
                 code={code}
                 onCodeChange={handleCodeChange}

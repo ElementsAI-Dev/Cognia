@@ -50,3 +50,23 @@ export {
   type UsePromptOptimizerOptions,
   type UsePromptOptimizerReturn,
 } from './use-prompt-optimizer';
+export {
+  useNativeSkills,
+  useNativeSkillAvailable,
+  type UseNativeSkillsReturn,
+  type SkillRepo,
+  type DiscoverableSkill,
+  type InstalledSkill,
+  type NativeSkill,
+  type LocalSkill,
+} from './use-native-skills';
+export {
+  useSkillSync,
+  useSkillSyncAvailable,
+  type UseSkillSyncReturn,
+} from './use-skill-sync';
+export {
+  useToolHistory,
+  type UseToolHistoryOptions,
+  type UseToolHistoryReturn,
+} from './use-tool-history';

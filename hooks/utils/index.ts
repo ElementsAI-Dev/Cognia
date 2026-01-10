@@ -4,6 +4,8 @@
 
 export { useDebounce, useDebouncedCallback } from './use-debounce';
 export { useIsMobile } from './use-mobile';
+export { useDevice, useIsTouch, type DeviceInfo } from './use-device';
+export { useSwipeGesture, type SwipeDirection, type SwipeOptions, type SwipeState } from './use-swipe-gesture';
 export {
   useResizeObserver,
   useLayoutRecalculation,

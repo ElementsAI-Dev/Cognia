@@ -194,7 +194,7 @@ export function PromptFeedbackDialog({
                       )}
                     >
                       <Icon className={cn('h-5 w-5', option.color)} />
-                      <span className="text-sm font-medium">{t(`effectiveness.${option.value}`)}</span>
+                      <span className="text-sm font-medium">{t(`effectivenessOptions.${option.value}`)}</span>
                     </Label>
                   </div>
                 );

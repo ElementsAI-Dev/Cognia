@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { useDesignerStore } from '@/stores/designer';
 import { useSettingsStore } from '@/stores';
 import type { FrameworkType } from '@/lib/designer';
+import { SandboxErrorBoundary, useErrorBoundaryReset } from './sandbox-error-boundary';
 
 export type { FrameworkType };
 
@@ -92,6 +93,7 @@ export function ReactSandbox({
   const storeCode = useDesignerStore((state) => state.code);
   const code = propCode ?? storeCode;
   const theme = useSettingsStore((state) => state.theme);
+  const { resetKey, reset } = useErrorBoundaryReset();
 
   // Build files object for Sandpack
   const files = useMemo(() => ({
@@ -110,43 +112,45 @@ export function ReactSandbox({
 
   return (
     <div className={cn('h-full', className)}>
-      <SandpackProvider
-        template="react-ts"
-        theme={theme === 'dark' ? 'dark' : 'light'}
-        files={files}
-        customSetup={{
-          dependencies: {
-            'tailwindcss': 'latest',
-            'autoprefixer': 'latest',
-            'postcss': 'latest',
-          },
-        }}
-        options={{
-          externalResources: ['https://cdn.tailwindcss.com'],
-          recompileMode: 'delayed',
-          recompileDelay: 300,
-        }}
-      >
-        <SandboxSync />
-        <SandpackLayout className="h-full">
-          {showEditor && (
-            <SandpackCodeEditor
-              showTabs={false}
-              showLineNumbers
-              showInlineErrors
-              wrapContent
-              style={{ height: '100%' }}
-            />
-          )}
-          {showPreview && (
-            <SandpackPreview
-              showNavigator={false}
-              showRefreshButton
-              style={{ height: '100%' }}
-            />
-          )}
-        </SandpackLayout>
-      </SandpackProvider>
+      <SandboxErrorBoundary key={resetKey} onReset={reset} className="h-full">
+        <SandpackProvider
+          template="react-ts"
+          theme={theme === 'dark' ? 'dark' : 'light'}
+          files={files}
+          customSetup={{
+            dependencies: {
+              'tailwindcss': 'latest',
+              'autoprefixer': 'latest',
+              'postcss': 'latest',
+            },
+          }}
+          options={{
+            externalResources: ['https://cdn.tailwindcss.com'],
+            recompileMode: 'delayed',
+            recompileDelay: 300,
+          }}
+        >
+          <SandboxSync />
+          <SandpackLayout className="h-full">
+            {showEditor && (
+              <SandpackCodeEditor
+                showTabs={false}
+                showLineNumbers
+                showInlineErrors
+                wrapContent
+                style={{ height: '100%' }}
+              />
+            )}
+            {showPreview && (
+              <SandpackPreview
+                showNavigator={false}
+                showRefreshButton
+                style={{ height: '100%' }}
+              />
+            )}
+          </SandpackLayout>
+        </SandpackProvider>
+      </SandboxErrorBoundary>
     </div>
   );
 }

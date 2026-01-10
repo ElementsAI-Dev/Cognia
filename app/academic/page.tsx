@@ -54,7 +54,7 @@ export default function AcademicPage() {
       >
         <div className="border-b px-4">
           <TabsList className="h-11">
-            <TabsTrigger value="search" className="gap-2 text-sm">
+            <TabsTrigger value="search" className="gap-2 text-sm" data-tour="academic-research">
               <Search className="h-4 w-4" />
               Search
             </TabsTrigger>
@@ -78,7 +78,7 @@ export default function AcademicPage() {
               <Wand2 className="h-4 w-4" />
               Smart
             </TabsTrigger>
-            <TabsTrigger value="analysis" className="gap-2 text-sm">
+            <TabsTrigger value="analysis" className="gap-2 text-sm" data-tour="academic-writing">
               <Brain className="h-4 w-4" />
               AI
             </TabsTrigger>

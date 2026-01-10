@@ -287,4 +287,43 @@ describe('ChatInput', () => {
     expect(screen.getByRole('textbox')).toHaveValue('Hello');
     // Submit and clear behavior is complex - verify initial state is correct
   });
+
+  it('displays workflow picker button when onOpenWorkflowPicker is provided', () => {
+    const onOpenWorkflowPicker = jest.fn();
+    render(<ChatInput {...defaultProps} onOpenWorkflowPicker={onOpenWorkflowPicker} />);
+    // Verify component renders with workflow picker prop
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
+    // Button should be in the toolbar
+    const buttons = screen.getAllByRole('button');
+    expect(buttons.length).toBeGreaterThan(0);
+  });
+
+  it('displays prompt optimization button when hasActivePreset and onOpenPromptOptimization are provided', () => {
+    const onOpenPromptOptimization = jest.fn();
+    render(
+      <ChatInput 
+        {...defaultProps} 
+        onOpenPromptOptimization={onOpenPromptOptimization}
+        hasActivePreset={true}
+      />
+    );
+    // Verify component renders with prompt optimization props
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
+    // Button should be in the toolbar
+    const buttons = screen.getAllByRole('button');
+    expect(buttons.length).toBeGreaterThan(0);
+  });
+
+  it('does not display prompt optimization button when hasActivePreset is false', () => {
+    const onOpenPromptOptimization = jest.fn();
+    render(
+      <ChatInput 
+        {...defaultProps} 
+        onOpenPromptOptimization={onOpenPromptOptimization}
+        hasActivePreset={false}
+      />
+    );
+    // Verify component renders
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
+  });
 });

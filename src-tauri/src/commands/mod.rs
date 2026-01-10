@@ -21,4 +21,5 @@ pub mod sandbox;
 pub mod screen_recording;
 pub mod screenshot;
 pub mod selection;
+pub mod skill;
 pub mod vector;

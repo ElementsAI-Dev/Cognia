@@ -29,6 +29,7 @@ export { ChatHeader } from './chat-header';
 export { ChatInput } from './chat-input';
 export { WelcomeState } from './welcome-state';
 export { ChatDesignerPanel } from './chat-designer-panel';
+export { CarriedContextBanner } from './carried-context-banner';
 
 // Dialogs
 export {
@@ -43,7 +44,11 @@ export {
   PresetManagerDialog,
   PromptOptimizerDialog,
   VideoGenerationDialog,
+  ModeSwitchConfirmDialog,
 } from './dialogs';
+
+// Prompt Optimization (advanced)
+export { PromptOptimizationHub } from './dialogs/prompt-optimization';
 
 // Selectors
 export {
@@ -60,6 +65,7 @@ export {
   MentionChip,
   RecentFilesPopover,
   TextSelectionPopover,
+  ToolHistoryPanel,
 } from './popovers';
 
 // Message components
@@ -84,8 +90,16 @@ export {
 } from './utils';
 
 // Message parts (for rendering different message content types)
-export { TextPart, ReasoningPart, ToolPart, SourcesPart, A2UIPart } from './message-parts';
+export { TextPart, ReasoningPart, ToolPart, SourcesPart, A2UIPart, LearningToolPart, isLearningTool, LEARNING_TOOL_NAMES } from './message-parts';
 
 // Workflow components
 export { WorkflowPickerDialog } from './workflow-picker-dialog';
 export { WorkflowResultCard, type WorkflowResultData, type WorkflowExecutionStatus } from './workflow-result-card';
+
+// UI Enhancement components
+export { QuickReplyBar } from './quick-reply-bar';
+export { MessageSwipeActions, type SwipeAction } from './message-swipe-actions';
+export { useKeyboardShortcuts, getShortcutsByCategory, formatShortcut, type KeyboardShortcut } from './keyboard-shortcuts-handler';
+export { CopyButton } from './copy-button';
+export { RoutingIndicator } from './routing-indicator';
+export { ModeSwitchSuggestion } from './mode-switch-suggestion';

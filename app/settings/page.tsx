@@ -547,6 +547,7 @@ export default function SettingsPage() {
                               <TooltipTrigger asChild>
                                 <button
                                   onClick={() => setActiveSection(item.id)}
+                                  data-tour={`settings-${item.id}`}
                                   className={cn(
                                     'flex items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors text-xs',
                                     activeSection === item.id

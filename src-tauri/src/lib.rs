@@ -16,6 +16,7 @@ mod sandbox;
 mod screen_recording;
 mod screenshot;
 mod selection;
+mod skill;
 mod tray;
 
 use awareness::AwarenessManager;
@@ -249,6 +250,11 @@ pub fn run() {
             let plugin_manager_state = commands::plugin::create_plugin_manager(app_data_dir.clone());
             app.manage(plugin_manager_state);
             log::info!("Plugin manager initialized");
+
+            // Initialize Skill Service
+            let skill_service_state = commands::skill::create_skill_service(app_data_dir.clone());
+            app.manage(skill_service_state);
+            log::info!("Skill service initialized");
 
             // Initialize Chat Widget Window
             let chat_widget_window = ChatWidgetWindow::new(app.handle().clone());
@@ -926,6 +932,27 @@ pub fn run() {
             commands::plugin::plugin_get_state,
             commands::plugin::plugin_get_all,
             commands::plugin::plugin_show_notification,
+            // Skill commands
+            commands::skill::skill_list_repos,
+            commands::skill::skill_add_repo,
+            commands::skill::skill_remove_repo,
+            commands::skill::skill_toggle_repo,
+            commands::skill::skill_discover,
+            commands::skill::skill_get_all,
+            commands::skill::skill_scan_local,
+            commands::skill::skill_install,
+            commands::skill::skill_install_local,
+            commands::skill::skill_register_local,
+            commands::skill::skill_uninstall,
+            commands::skill::skill_get_installed,
+            commands::skill::skill_get,
+            commands::skill::skill_enable,
+            commands::skill::skill_disable,
+            commands::skill::skill_update,
+            commands::skill::skill_read_content,
+            commands::skill::skill_list_resources,
+            commands::skill::skill_read_resource,
+            commands::skill::skill_get_ssot_dir,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

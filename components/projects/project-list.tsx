@@ -141,7 +141,7 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button>
+              <Button data-tour="projects-create">
                 <Plus className="h-4 w-4 mr-2" />
                 New Project
               </Button>

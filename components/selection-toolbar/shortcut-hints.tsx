@@ -27,7 +27,14 @@ const SHORTCUTS: ShortcutHint[] = [
   { keys: ["Enter"], description: "Send to chat", category: "action" },
   { keys: ["R"], description: "Rewrite", category: "edit" },
   { keys: ["G"], description: "Check grammar", category: "edit" },
-  { keys: ["Esc"], description: "Close toolbar", category: "navigation" },
+  { keys: ["M"], description: "Toggle multi-select mode", category: "action" },
+  // Panel shortcuts
+  { keys: ["P"], description: "Open templates panel", category: "navigation" },
+  { keys: ["B"], description: "Open clipboard panel", category: "navigation" },
+  { keys: ["O"], description: "Open OCR panel", category: "navigation" },
+  { keys: ["H"], description: "Open history panel", category: "navigation" },
+  { keys: ["?"], description: "Show keyboard shortcuts", category: "navigation" },
+  { keys: ["Esc"], description: "Close toolbar/panels", category: "navigation" },
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {

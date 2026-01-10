@@ -160,16 +160,17 @@ describe('DesignerToolbar', () => {
     expect(screen.getByText('Copy Code')).toBeInTheDocument();
   });
 
-  it('renders Export option in dropdown', () => {
+  it('renders Export button', () => {
     render(<DesignerToolbar />);
     expect(screen.getByText('Export')).toBeInTheDocument();
   });
 
-  it('calls onExport when Export is clicked', () => {
-    const onExport = jest.fn();
-    render(<DesignerToolbar onExport={onExport} />);
+  it('Export button opens dialog when clicked', () => {
+    render(<DesignerToolbar />);
     fireEvent.click(screen.getByText('Export'));
-    expect(onExport).toHaveBeenCalled();
+    // Export now opens a dialog instead of calling a callback
+    // The dialog contains ExportOptionsPanel
+    expect(screen.getByText('Export')).toBeInTheDocument();
   });
 
   it('renders Reset option in dropdown', () => {

@@ -36,7 +36,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { BatchCopyDialog, ExportDialog, ChatSummaryDialog } from './dialogs';
+import { BatchCopyDialog, ExportDialog, ChatSummaryDialog, ModeSwitchConfirmDialog } from './dialogs';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -85,6 +85,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { ChatMode, Preset } from '@/types';
+import { useSummary } from '@/hooks/chat';
+import { useSettingsStore } from '@/stores';
 
 interface ChatHeaderProps {
   sessionId?: string;
@@ -112,6 +114,8 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [batchCopyOpen, setBatchCopyOpen] = useState(false);
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
+  const [modeSwitchDialogOpen, setModeSwitchDialogOpen] = useState(false);
+  const [pendingTargetMode, setPendingTargetMode] = useState<ChatMode | null>(null);
 
   // Artifact panel state
   const openPanel = useArtifactStore((state) => state.openPanel);
@@ -145,8 +149,21 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
 
   // Get mode config from SessionStore
   const switchMode = useSessionStore((state) => state.switchMode);
+  const switchModeWithNewSession = useSessionStore((state) => state.switchModeWithNewSession);
   const getModeConfig = useSessionStore((state) => state.getModeConfig);
   const getRecentModes = useSessionStore((state) => state.getRecentModes);
+
+  // Settings for AI summary
+  const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const openaiSettings = providerSettings?.openai;
+  const { generateChatSummary } = useSummary({
+    useAI: !!openaiSettings?.apiKey,
+    aiConfig: openaiSettings?.apiKey ? {
+      provider: 'openai',
+      model: openaiSettings.defaultModel || 'gpt-4o-mini',
+      apiKey: openaiSettings.apiKey,
+    } : undefined,
+  });
 
   // Get current mode configuration
   const _currentModeConfig = useMemo(() => getModeConfig(currentMode), [getModeConfig, currentMode]);
@@ -154,15 +171,55 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
 
   const handleModeChange = useCallback((mode: ChatMode) => {
     if (session && mode !== currentMode) {
-      setModeTransitioning(true);
-      // Use the enhanced switchMode from SessionStore
-      switchMode(session.id, mode);
-      // Also update session for backward compatibility
-      updateSession(session.id, { mode });
-      // Reset transition state after animation
-      setTimeout(() => setModeTransitioning(false), 300);
+      // Check if there are messages - if so, show confirmation dialog
+      if (messages.length > 0) {
+        setPendingTargetMode(mode);
+        setModeSwitchDialogOpen(true);
+      } else {
+        // No messages, just switch mode directly
+        setModeTransitioning(true);
+        switchMode(session.id, mode);
+        updateSession(session.id, { mode });
+        setTimeout(() => setModeTransitioning(false), 300);
+      }
     }
-  }, [session, currentMode, switchMode, updateSession]);
+  }, [session, currentMode, messages.length, switchMode, updateSession]);
+
+  // Handle mode switch confirmation
+  const handleModeSwitchConfirm = useCallback((options: { carryContext: boolean; summary?: string }) => {
+    if (!session || !pendingTargetMode) return;
+
+    setModeTransitioning(true);
+    
+    // Create new session with the target mode
+    switchModeWithNewSession(session.id, pendingTargetMode, {
+      carryContext: options.carryContext,
+      summary: options.summary,
+    });
+
+    // Reset state
+    setPendingTargetMode(null);
+    setModeSwitchDialogOpen(false);
+    setTimeout(() => setModeTransitioning(false), 300);
+  }, [session, pendingTargetMode, switchModeWithNewSession]);
+
+  // Handle mode switch cancel
+  const handleModeSwitchCancel = useCallback(() => {
+    setPendingTargetMode(null);
+    setModeSwitchDialogOpen(false);
+  }, []);
+
+  // Generate summary for mode switch
+  const handleGenerateSummaryForModeSwitch = useCallback(async (): Promise<string | null> => {
+    if (messages.length === 0) return null;
+    try {
+      const result = await generateChatSummary(messages, { format: 'brief' }, session?.title);
+      return result.summary;
+    } catch (error) {
+      console.error('Failed to generate summary:', error);
+      return null;
+    }
+  }, [session, messages, generateChatSummary]);
 
   // Handle agent sub-mode change (within agent mode)
   const handleAgentModeChange = (agentMode: AgentModeConfig) => {
@@ -234,6 +291,7 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
               <Button 
                 variant="ghost" 
                 size="sm" 
+                data-tour="mode-selector"
                 className={cn(
                   'gap-2 transition-all duration-300 border',
                   modeColors[currentMode],
@@ -636,6 +694,21 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
       messages={messages}
       sessionTitle={session?.title}
     />
+
+    {/* Mode Switch Confirmation Dialog */}
+    {pendingTargetMode && (
+      <ModeSwitchConfirmDialog
+        open={modeSwitchDialogOpen}
+        onOpenChange={setModeSwitchDialogOpen}
+        currentMode={currentMode}
+        targetMode={pendingTargetMode}
+        messageCount={messages.length}
+        sessionTitle={session?.title}
+        onConfirm={handleModeSwitchConfirm}
+        onCancel={handleModeSwitchCancel}
+        onGenerateSummary={handleGenerateSummaryForModeSwitch}
+      />
+    )}
 
     </>
   );

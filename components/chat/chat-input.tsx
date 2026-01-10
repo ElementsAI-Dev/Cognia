@@ -14,13 +14,13 @@
 
 import { useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { Send, Paperclip, Square, Loader2, Mic, Wand2, Zap, FileText } from 'lucide-react';
+import { Send, Paperclip, Square, Loader2, Mic, Wand2, Zap, FileText, History } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { Button } from '@/components/ui/button';
 // TooltipProvider is now at app level in providers.tsx
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSettingsStore, useRecentFilesStore, usePromptTemplateStore } from '@/stores';
-import { RecentFilesPopover, MentionPopover } from './popovers';
+import { RecentFilesPopover, MentionPopover, ToolHistoryPanel } from './popovers';
 import type { RecentFile } from '@/stores/system';
 import type { MentionItem, SelectedMention, ParsedToolCall } from '@/types/mcp';
 import { useMention, useSpeech } from '@/hooks';
@@ -182,6 +182,10 @@ interface ChatInputProps {
   onPresetChange?: (preset: import('@/types/preset').Preset) => void;
   onCreatePreset?: () => void;
   onManagePresets?: () => void;
+  // Workflow and prompt optimization
+  onOpenWorkflowPicker?: () => void;
+  onOpenPromptOptimization?: () => void;
+  hasActivePreset?: boolean;
 }
 
 export function ChatInput({
@@ -212,6 +216,9 @@ export function ChatInput({
   onPresetChange,
   onCreatePreset,
   onManagePresets,
+  onOpenWorkflowPicker,
+  onOpenPromptOptimization,
+  hasActivePreset,
 }: ChatInputProps) {
   const t = useTranslations('chatInput');
   const tPlaceholders = useTranslations('placeholders');
@@ -623,6 +630,7 @@ export function ChatInput({
   return (
     <div
       ref={dropZoneRef}
+      data-tour="chat-input"
       className={cn(
         'border-t border-border/50 bg-background/95 backdrop-blur-sm p-4 transition-all duration-200',
         isDragging && 'bg-accent/50 border-primary'
@@ -821,6 +829,42 @@ export function ChatInput({
               </Tooltip>
             )}
 
+            {/* Tool History button */}
+            {isMcpAvailable && (
+              <ToolHistoryPanel
+                asPopover
+                trigger={
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        disabled={isProcessing || disabled}
+                      >
+                        <History className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {t('toolHistory')}
+                    </TooltipContent>
+                  </Tooltip>
+                }
+                onInsertPrompt={(prompt) => {
+                  onChange(value ? `${value}\n${prompt}` : prompt);
+                  textareaRef.current?.focus();
+                }}
+                onSelectTool={(toolId, prompt) => {
+                  const toolParts = toolId.split(':');
+                  const mention = toolParts.length >= 3 
+                    ? `@${toolParts[1]}:${toolParts[2]}` 
+                    : `@${toolId}`;
+                  onChange(value ? `${value}\n${mention} ${prompt}` : `${mention} ${prompt}`);
+                  textareaRef.current?.focus();
+                }}
+              />
+            )}
+
             {/* Textarea */}
             <TextareaAutosize
               ref={textareaRef}
@@ -894,6 +938,9 @@ export function ChatInput({
             onCreatePreset={onCreatePreset}
             onManagePresets={onManagePresets}
             onSelectPrompt={(content) => onChange(value ? `${value}\n${content}` : content)}
+            onOpenWorkflowPicker={onOpenWorkflowPicker}
+            onOpenPromptOptimization={onOpenPromptOptimization}
+            hasActivePreset={hasActivePreset}
             disabled={disabled}
             isProcessing={isProcessing}
           />
