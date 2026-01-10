@@ -508,6 +508,41 @@ fn sort_papers(mut papers: Vec<Paper>, sort_by: &str, sort_order: &str) -> Vec<P
 // ============================================================================
 
 #[tauri::command]
+pub async fn academic_generate_knowledge_map(
+    content: String,
+    title: Option<String>,
+    mode: Option<String>,
+    _options: Option<serde_json::Value>,
+) -> Result<KnowledgeMap, String> {
+    let now = chrono::Utc::now().to_rfc3339();
+    let id = uuid::Uuid::new_v4().to_string();
+    let title = title.unwrap_or_else(|| "Knowledge Map".to_string());
+    let _mode = mode.unwrap_or_else(|| "DETAILED".to_string());
+    
+    // Parse content into traces
+    let traces = parse_content_to_traces(&content, &id);
+    
+    // Generate mermaid diagram
+    let mermaid_diagram = generate_mermaid_from_traces(&traces);
+    
+    // Generate mind map data
+    let mind_map_data = generate_mind_map_from_traces(&traces, &title);
+    
+    Ok(KnowledgeMap {
+        id,
+        title,
+        description: format!("Generated from content with {} traces", traces.len()),
+        source_type: "content".to_string(),
+        source_path: None,
+        traces,
+        mind_map_data: Some(mind_map_data),
+        mermaid_diagram: Some(mermaid_diagram),
+        created_at: now.clone(),
+        updated_at: now,
+    })
+}
+
+#[tauri::command]
 pub async fn academic_generate_knowledge_map_from_content(
     content: String,
     title: String,

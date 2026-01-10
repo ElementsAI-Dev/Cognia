@@ -916,6 +916,7 @@ pub fn run() {
             commands::academic::academic_set_provider_enabled,
             commands::academic::academic_test_provider,
             commands::academic::academic_get_statistics,
+            commands::academic::academic_generate_knowledge_map,
             commands::academic::academic_generate_knowledge_map_from_content,
             commands::academic::academic_generate_mind_map,
             commands::academic::academic_generate_mind_map_from_content,
