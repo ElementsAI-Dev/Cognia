@@ -157,6 +157,15 @@ export class PluginA2UIBridge {
           a2ui: {} as never,
           agent: {} as never,
           settings: {} as never,
+          network: {} as never,
+          fs: {} as never,
+          clipboard: {} as never,
+          shell: {} as never,
+          db: {} as never,
+          shortcuts: {} as never,
+          contextMenu: {} as never,
+          window: {} as never,
+          secrets: {} as never,
         },
       };
 

@@ -156,7 +156,7 @@ export {
   pptImageTools,
   executePPTImageGenerate,
   executePPTBatchImageGenerate,
-  generateSlideImage,
+  generateSlideImage as generatePPTSlideImage,
   buildImagePrompt,
   applyImagesToSlides,
   registerPPTImageTools,

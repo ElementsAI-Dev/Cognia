@@ -84,7 +84,7 @@ export {
   initializeProviderManager,
   executeWithProviderManager,
   type ProviderManagerConfig,
-  type ProviderCredentials,
+  type ProviderCredentials as InfraProviderCredentials,
   type ProviderState,
   type ExecutionContext,
   type ExecutionResult,

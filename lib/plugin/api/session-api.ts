@@ -124,7 +124,7 @@ export function createSessionAPI(pluginId: string): PluginSessionAPI {
         let messages: UIMessage[];
         
         if (options?.branchId) {
-          messages = await messageRepository.getByBranchId(sessionId, options.branchId);
+          messages = await messageRepository.getBySessionIdAndBranch(sessionId, options.branchId);
         } else {
           messages = await messageRepository.getBySessionId(sessionId);
         }
@@ -150,25 +150,18 @@ export function createSessionAPI(pluginId: string): PluginSessionAPI {
         role: options?.role || 'user',
         content,
         createdAt: new Date(),
-        experimental_attachments: options?.attachments?.map(a => ({
+        attachments: options?.attachments?.map(a => ({
+          id: nanoid(),
           name: a.name,
-          contentType: a.mimeType || 'text/plain',
+          type: 'file' as const,
+          mimeType: a.mimeType || 'text/plain',
           url: a.url || '',
+          size: 0,
         })),
       };
 
       try {
         await messageRepository.create(sessionId, newMessage);
-        
-        // Update session message count
-        const store = useSessionStore.getState();
-        const session = store.sessions.find(s => s.id === sessionId);
-        if (session) {
-          store.updateSession(sessionId, {
-            messageCount: (session.messageCount || 0) + 1,
-          });
-        }
-
         console.log(`[Plugin:${pluginId}] Added message to session: ${sessionId}`);
         return newMessage;
       } catch (error) {
@@ -191,15 +184,6 @@ export function createSessionAPI(pluginId: string): PluginSessionAPI {
       try {
         await messageRepository.delete(messageId);
         
-        // Update session message count
-        const store = useSessionStore.getState();
-        const session = store.sessions.find(s => s.id === sessionId);
-        if (session && session.messageCount && session.messageCount > 0) {
-          store.updateSession(sessionId, {
-            messageCount: session.messageCount - 1,
-          });
-        }
-
         console.log(`[Plugin:${pluginId}] Deleted message: ${messageId}`);
       } catch (error) {
         console.error(`[Plugin:${pluginId}] Failed to delete message:`, error);
@@ -208,15 +192,12 @@ export function createSessionAPI(pluginId: string): PluginSessionAPI {
     },
 
     onSessionChange: (handler: (session: Session | null) => void) => {
-      const unsubscribe = useSessionStore.subscribe(
-        (state) => {
-          const session = state.activeSessionId 
-            ? state.sessions.find(s => s.id === state.activeSessionId) || null
-            : null;
-          return session;
-        },
-        handler
-      );
+      const unsubscribe = useSessionStore.subscribe((state) => {
+        const session = state.activeSessionId 
+          ? state.sessions.find(s => s.id === state.activeSessionId) || null
+          : null;
+        handler(session);
+      });
       
       const subId = nanoid();
       subscriptions.set(subId, unsubscribe);
@@ -272,14 +253,14 @@ export function createSessionAPI(pluginId: string): PluginSessionAPI {
         const responseCount = 0;
 
         for (const msg of assistantMessages) {
-          if (msg.usage) {
-            totalTokens += msg.usage.totalTokens || 0;
+          if (msg.tokens) {
+            totalTokens += msg.tokens.total || 0;
           }
           // Response time would need to be tracked separately
         }
 
         const attachmentCount = messages.reduce((count, msg) => {
-          return count + (msg.experimental_attachments?.length || 0);
+          return count + (msg.attachments?.length || 0);
         }, 0);
 
         return {

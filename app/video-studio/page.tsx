@@ -519,6 +519,30 @@ export default function VideoStudioPage() {
     }
   }, [filteredHistory, selectedRecording, studioMode]);
 
+  // Playback controls for recording (defined before keyboard shortcuts that use them)
+  const togglePlay = useCallback(() => {
+    if (!videoRef.current) return;
+    if (isPlaying) {
+      videoRef.current.pause();
+    } else {
+      videoRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  }, [isPlaying]);
+
+  const handleSeek = useCallback((time: number) => {
+    if (!videoRef.current || !videoDuration) return;
+    videoRef.current.currentTime = time;
+    setCurrentTime(time * 1000);
+  }, [videoDuration]);
+
+  const handleVolumeChange = useCallback((newVolume: number) => {
+    if (!videoRef.current) return;
+    videoRef.current.volume = newVolume;
+    setVolume(newVolume);
+    setIsMuted(newVolume === 0);
+  }, []);
+
   // Keyboard shortcuts for video playback
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -602,35 +626,11 @@ export default function VideoStudioPage() {
     }
   }, []);
 
-  // Playback controls for recording
-  const togglePlay = useCallback(() => {
-    if (!videoRef.current) return;
-    if (isPlaying) {
-      videoRef.current.pause();
-    } else {
-      videoRef.current.play();
-    }
-    setIsPlaying(!isPlaying);
-  }, [isPlaying]);
-
-  const handleSeek = useCallback((time: number) => {
-    if (!videoRef.current || !videoDuration) return;
-    videoRef.current.currentTime = time;
-    setCurrentTime(time * 1000);
-  }, [videoDuration]);
-
   const _toggleMute = useCallback(() => {
     if (!videoRef.current) return;
     videoRef.current.muted = !isMuted;
     setIsMuted(!isMuted);
   }, [isMuted]);
-
-  const handleVolumeChange = useCallback((newVolume: number) => {
-    if (!videoRef.current) return;
-    videoRef.current.volume = newVolume;
-    setVolume(newVolume);
-    setIsMuted(newVolume === 0);
-  }, []);
 
   // Recording selection
   const handleSelectRecording = useCallback((entry: RecordingHistoryEntry) => {

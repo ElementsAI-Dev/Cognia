@@ -6,7 +6,7 @@ import type { UIMessage } from './message';
 import type { ProviderName } from './provider';
 import type { SessionCompressionOverrides } from './compression';
 
-export type { ProviderName };
+export type { ProviderName, UIMessage };
 
 export type ChatMode = 'chat' | 'agent' | 'research' | 'learning';
 

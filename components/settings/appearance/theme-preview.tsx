@@ -47,6 +47,8 @@ function getPresetColors(preset: ColorThemePreset, isDark: boolean) {
     sunset: { light: '#ea580c', dark: '#f97316' },
     lavender: { light: '#7c3aed', dark: '#8b5cf6' },
     rose: { light: '#e11d48', dark: '#f43f5e' },
+    slate: { light: '#475569', dark: '#64748b' },
+    amber: { light: '#d97706', dark: '#f59e0b' },
   };
 
   const primary = isDark ? colorMap[preset].dark : colorMap[preset].light;

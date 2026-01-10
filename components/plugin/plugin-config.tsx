@@ -60,6 +60,7 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
   ): React.ReactNode => {
     const value = config[key];
     const type = schema.type as string;
+    const title = (typeof schema.title === 'string' ? schema.title : key) as string;
     const description = schema.description as string | undefined;
     const enumValues = schema.enum as unknown[] | undefined;
 
@@ -68,7 +69,7 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
         return (
           <div className="flex items-center justify-between">
             <div>
-              <Label htmlFor={key}>{schema.title || key}</Label>
+              <Label htmlFor={key}>{title}</Label>
               {description && (
                 <p className="text-xs text-muted-foreground">{description}</p>
               )}
@@ -85,7 +86,7 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
         if (enumValues) {
           return (
             <div className="space-y-2">
-              <Label htmlFor={key}>{schema.title || key}</Label>
+              <Label htmlFor={key}>{title}</Label>
               {description && (
                 <p className="text-xs text-muted-foreground">{description}</p>
               )}
@@ -114,7 +115,7 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
 
         return (
           <div className="space-y-2">
-            <Label htmlFor={key}>{schema.title || key}</Label>
+            <Label htmlFor={key}>{title}</Label>
             {description && (
               <p className="text-xs text-muted-foreground">{description}</p>
             )}
@@ -139,7 +140,7 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
       case 'integer':
         return (
           <div className="space-y-2">
-            <Label htmlFor={key}>{schema.title || key}</Label>
+            <Label htmlFor={key}>{title}</Label>
             {description && (
               <p className="text-xs text-muted-foreground">{description}</p>
             )}
@@ -164,7 +165,7 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
       default:
         return (
           <div className="space-y-2">
-            <Label htmlFor={key}>{schema.title || key}</Label>
+            <Label htmlFor={key}>{title}</Label>
             {description && (
               <p className="text-xs text-muted-foreground">{description}</p>
             )}

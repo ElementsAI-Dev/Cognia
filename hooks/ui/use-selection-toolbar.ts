@@ -68,6 +68,8 @@ const ACTION_PROMPTS: Record<SelectionAction, (text: string, targetLang?: string
     `Expand on the following text with more details and context:\n\n"${text}"`,
   shorten: (text) => 
     `Shorten the following text while keeping the essential meaning:\n\n"${text}"`,
+  "knowledge-map": (text) =>
+    `Analyze the following text and generate a knowledge map with key concepts and their relationships:\n\n"${text}"`,
 };
 
 const toNativeConfig = (config: ToolbarConfig): NativeSelectionConfig => ({

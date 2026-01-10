@@ -34,6 +34,7 @@ import {
   MessageSquare,
   Copy,
   FileText,
+  Network,
 } from "lucide-react";
 import { useState } from "react";
 import { SelectionAction, LANGUAGES } from "@/types";
@@ -108,6 +109,7 @@ const ACTION_INFO: Record<SelectionAction, { icon: typeof BookOpen; label: strin
   "tone-casual": { icon: Sparkles, label: "Casual" },
   expand: { icon: Sparkles, label: "Expand" },
   shorten: { icon: Sparkles, label: "Shorten" },
+  "knowledge-map": { icon: Network, label: "Knowledge Map" },
 };
 
 type SettingsSection = "general" | "appearance" | "shortcuts" | "advanced";

@@ -34,6 +34,8 @@ import {
   Terminal,
   Layers,
   Zap,
+  LayoutGrid,
+  FileCode2,
 } from 'lucide-react';
 
 interface PluginCardProps {
@@ -55,6 +57,8 @@ const capabilityIcons: Record<PluginCapability, React.ReactNode> = {
   providers: <Code className="h-3 w-3" />,
   exporters: <Code className="h-3 w-3" />,
   importers: <Code className="h-3 w-3" />,
+  a2ui: <LayoutGrid className="h-3 w-3" />,
+  python: <FileCode2 className="h-3 w-3" />,
 };
 
 export function PluginCard({
