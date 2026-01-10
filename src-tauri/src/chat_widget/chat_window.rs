@@ -288,6 +288,19 @@ impl ChatWidgetWindow {
             .get_webview_window(CHAT_WIDGET_WINDOW_LABEL)
             .ok_or("Chat widget window not found")?;
 
+        // Try to position relative to bubble if no remembered position
+        let config = self.config.read().clone();
+        if config.x.is_none() || config.y.is_none() {
+            // Get position relative to bubble
+            if let Some(bubble) = self.app_handle.try_state::<crate::assistant_bubble::AssistantBubbleWindow>() {
+                let (width, height) = *self.size_physical.read();
+                let (x, y) = bubble.calculate_chat_widget_position(width as i32, height as i32);
+                let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
+                *self.position.write() = Some((x, y));
+                log::debug!("[ChatWidgetWindow] Positioned relative to bubble at ({}, {})", x, y);
+            }
+        }
+
         window
             .show()
             .map_err(|e| format!("Failed to show window: {}", e))?;

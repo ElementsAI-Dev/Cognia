@@ -832,6 +832,11 @@ pub fn run() {
             commands::chat_widget::chat_widget_focus_input,
             commands::chat_widget::chat_widget_send_text,
             commands::chat_widget::chat_widget_destroy,
+            // Assistant bubble commands
+            commands::assistant_bubble::assistant_bubble_show,
+            commands::assistant_bubble::assistant_bubble_hide,
+            commands::assistant_bubble::assistant_bubble_is_visible,
+            commands::assistant_bubble::assistant_bubble_get_info,
             // Git commands
             commands::git::git_get_platform,
             commands::git::git_check_installed,

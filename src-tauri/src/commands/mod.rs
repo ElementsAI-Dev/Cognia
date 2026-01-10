@@ -2,6 +2,7 @@
 
 pub mod academic;
 pub mod api;
+pub mod assistant_bubble;
 pub mod awareness;
 pub mod chat_widget;
 pub mod clipboard;

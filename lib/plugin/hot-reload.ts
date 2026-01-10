@@ -394,7 +394,7 @@ export class PluginHotReload {
       if (typeof window !== 'undefined') {
         // Clear dynamic import cache by appending timestamp
         const cacheKey = `__plugin_cache_${pluginId}`;
-        (window as Record<string, unknown>)[cacheKey] = Date.now();
+        (window as unknown as Record<string, unknown>)[cacheKey] = Date.now();
       }
     } catch (error) {
       console.debug(`[HotReload] Cache invalidation warning for ${pluginId}:`, error);
