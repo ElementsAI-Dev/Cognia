@@ -34,7 +34,7 @@ import {
   Check,
   ExternalLink,
 } from 'lucide-react';
-import type { ReasoningPart as ReasoningPartType } from '@/types/message';
+import type { ReasoningPart as ReasoningPartType } from '@/types/core/message';
 
 interface ReasoningPartProps {
   part: ReasoningPartType;

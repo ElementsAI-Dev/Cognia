@@ -80,7 +80,7 @@ import {
   type VideoAspectRatio,
   type VideoDuration,
   type VideoStyle,
-} from '@/types/video';
+} from '@/types/media/video';
 import {
   VideoPreview,
   PlaybackControls,

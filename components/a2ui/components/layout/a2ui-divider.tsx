@@ -8,7 +8,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
-import type { A2UIComponentProps, A2UIDividerComponent } from '@/types/a2ui';
+import type { A2UIComponentProps, A2UIDividerComponent } from '@/types/artifact/a2ui';
 
 export function A2UIDivider({ component }: A2UIComponentProps<A2UIDividerComponent>) {
   const orientation = component.orientation || 'horizontal';

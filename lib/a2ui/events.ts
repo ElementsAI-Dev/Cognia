@@ -8,7 +8,7 @@ import type {
   A2UIDataModelChange,
   A2UIClientMessage,
   A2UIComponent,
-} from '@/types/a2ui';
+} from '@/types/artifact/a2ui';
 
 /**
  * Event handler type for user actions

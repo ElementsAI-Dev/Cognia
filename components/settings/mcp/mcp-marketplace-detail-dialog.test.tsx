@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { McpMarketplaceDetailDialog } from './mcp-marketplace-detail-dialog';
-import type { McpMarketplaceItem } from '@/types/mcp-marketplace';
+import type { McpMarketplaceItem } from '@/types/mcp/mcp-marketplace';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

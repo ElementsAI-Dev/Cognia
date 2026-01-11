@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import type { MentionItem } from '@/types/mcp';
 import { useToolHistoryStore, createToolId } from '@/stores';
-import type { ToolUsageStats } from '@/types/tool-history';
+import type { ToolUsageStats } from '@/types/agent/tool-history';
 
 /** Sort mode for tools */
 export type MentionSortMode = 'default' | 'recent' | 'frequent' | 'custom';

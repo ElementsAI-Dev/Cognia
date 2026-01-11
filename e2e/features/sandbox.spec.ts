@@ -116,7 +116,7 @@ test.describe('Sandbox Execution', () => {
 
   test('should track execution history', async ({ page }) => {
     const result = await page.evaluate(() => {
-      interface ExecutionRecord {
+      interface SandboxExecutionRecord {
         id: string;
         snippetId?: string;
         code: string;
@@ -129,10 +129,10 @@ test.describe('Sandbox Execution', () => {
         status: 'success' | 'error' | 'timeout';
       }
 
-      const history: ExecutionRecord[] = [];
+      const history: SandboxExecutionRecord[] = [];
 
-      const addExecution = (record: Omit<ExecutionRecord, 'id' | 'timestamp'>): ExecutionRecord => {
-        const execution: ExecutionRecord = {
+      const addExecution = (record: Omit<SandboxExecutionRecord, 'id' | 'timestamp'>): SandboxExecutionRecord => {
+        const execution: SandboxExecutionRecord = {
           ...record,
           id: `exec-${Date.now()}`,
           timestamp: new Date(),

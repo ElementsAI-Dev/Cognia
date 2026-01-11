@@ -8,8 +8,8 @@
  * - Multi-language support
  */
 
-import type { UIMessage } from '@/types/message';
-import type { SummaryFormat, SummaryStyle, KeyPointCategory } from '@/types/summary';
+import type { UIMessage } from '@/types/core/message';
+import type { SummaryFormat, SummaryStyle, KeyPointCategory } from '@/types/learning/summary';
 
 /**
  * Summary style configurations

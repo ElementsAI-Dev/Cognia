@@ -84,7 +84,7 @@ jest.mock('@/lib/native/environment', () => ({
   isEnvironmentAvailable: jest.fn(() => true),
 }));
 
-jest.mock('@/types/environment', () => ({
+jest.mock('@/types/system/environment', () => ({
   createDefaultProjectEnvConfig: jest.fn((path, name) => ({ 
     id: 'config-1', 
     projectPath: path, 

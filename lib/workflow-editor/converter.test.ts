@@ -15,7 +15,7 @@ import type {
   AINodeData,
   ToolNodeData,
   ConditionalNodeData,
-} from '@/types/workflow-editor';
+} from '@/types/workflow/workflow-editor';
 import type { WorkflowDefinition } from '@/types/workflow';
 
 // Helper to create a minimal visual workflow

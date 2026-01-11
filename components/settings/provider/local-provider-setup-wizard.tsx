@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import type { LocalProviderName } from '@/types/local-provider';
+import type { LocalProviderName } from '@/types/provider/local-provider';
 import { LOCAL_PROVIDER_CONFIGS } from '@/lib/ai/providers/local-providers';
 import { getInstallInstructions, createLocalProviderService } from '@/lib/ai/providers/local-provider-service';
 

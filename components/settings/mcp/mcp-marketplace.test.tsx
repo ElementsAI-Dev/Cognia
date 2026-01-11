@@ -7,7 +7,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { McpMarketplace } from './mcp-marketplace';
 import { useMcpMarketplaceStore } from '@/stores/mcp';
 import { useMcpStore } from '@/stores/mcp';
-import type { McpMarketplaceItem, McpMarketplaceCatalog } from '@/types/mcp-marketplace';
+import type { McpMarketplaceItem, McpMarketplaceCatalog } from '@/types/mcp/mcp-marketplace';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

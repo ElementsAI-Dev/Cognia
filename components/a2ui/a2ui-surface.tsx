@@ -12,7 +12,7 @@ import type {
   A2UISurfaceProps,
   A2UIUserAction,
   A2UIDataModelChange,
-} from '@/types/a2ui';
+} from '@/types/artifact/a2ui';
 import { useA2UIStore } from '@/stores/a2ui';
 import { globalEventEmitter } from '@/lib/a2ui/events';
 import { A2UIProvider } from './a2ui-context';

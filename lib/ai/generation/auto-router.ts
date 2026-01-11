@@ -21,7 +21,7 @@ import { useCallback, useMemo } from 'react';
 import { useSettingsStore } from '@/stores';
 import type { ProviderName } from '@/types/provider';
 import { getModelConfig } from '@/types/provider';
-import type { AgentModeType } from '@/types/agent-mode';
+import type { AgentModeType } from '@/types/agent/agent-mode';
 import type { 
   TaskClassification, 
   ModelSelection, 
@@ -30,7 +30,7 @@ import type {
   ModelTier,
   TaskCategory,
   TaskComplexity,
-} from '@/types/auto-router';
+} from '@/types/provider/auto-router';
 
 /**
  * Apply agent mode hints to task classification

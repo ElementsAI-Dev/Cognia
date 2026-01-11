@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { RoutingIndicator, RoutingBadge } from './routing-indicator';
-import type { ModelSelection, TaskClassification } from '@/types/auto-router';
+import type { ModelSelection, TaskClassification } from '@/types/provider/auto-router';
 
 // Mock framer-motion
 jest.mock('framer-motion', () => ({

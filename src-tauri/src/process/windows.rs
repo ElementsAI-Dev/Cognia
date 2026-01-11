@@ -332,7 +332,7 @@ fn apply_filter(info: &ProcessInfo, filter: &ProcessFilter) -> bool {
 }
 
 /// Sort processes by field
-fn sort_processes(processes: &mut Vec<ProcessInfo>, sort_by: ProcessSortField, desc: bool) {
+fn sort_processes(processes: &mut [ProcessInfo], sort_by: ProcessSortField, desc: bool) {
     processes.sort_by(|a, b| {
         let cmp = match sort_by {
             ProcessSortField::Pid => a.pid.cmp(&b.pid),

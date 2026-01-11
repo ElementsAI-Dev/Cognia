@@ -11,7 +11,7 @@ import { useA2UI } from '@/hooks/a2ui';
 import { A2UIInlineSurface } from '@/components/a2ui';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
-import type { A2UIComponent, A2UIUserAction, A2UIDataModelChange } from '@/types/a2ui';
+import type { A2UIComponent, A2UIUserAction, A2UIDataModelChange } from '@/types/artifact/a2ui';
 
 interface WelcomeA2UIDemoProps {
   className?: string;

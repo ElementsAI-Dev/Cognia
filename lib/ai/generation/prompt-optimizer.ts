@@ -8,7 +8,7 @@ import type {
   PromptOptimizationStyle,
   PromptOptimizationConfig,
   OptimizedPrompt,
-} from '@/types/prompt';
+} from '@/types/content/prompt';
 
 export interface OptimizePromptOptions {
   prompt: string;

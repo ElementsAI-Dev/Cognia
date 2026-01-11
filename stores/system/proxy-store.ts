@@ -19,8 +19,8 @@ import type {
   ManualProxyConfig,
   DetectionStatus,
   ProxySoftware,
-} from '@/types/proxy';
-import { createDefaultProxyConfig, createDefaultProxyStatus } from '@/types/proxy';
+} from '@/types/system/proxy';
+import { createDefaultProxyConfig, createDefaultProxyStatus } from '@/types/system/proxy';
 
 export interface ProxyState {
   // Configuration

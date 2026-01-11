@@ -8,7 +8,7 @@ import type { PluginPermission } from '@/types/plugin';
 // Types
 // =============================================================================
 
-interface SandboxConfig {
+interface BackendSandboxConfig {
   pluginId: string;
   permissions: PluginPermission[];
   timeout?: number;
@@ -30,11 +30,11 @@ interface SandboxedAPI {
 // =============================================================================
 
 export class PluginSandbox {
-  private config: SandboxConfig;
+  private config: BackendSandboxConfig;
   private allowedAPIs: Set<string>;
   private sandboxedGlobals: SandboxedAPI;
 
-  constructor(config: SandboxConfig) {
+  constructor(config: BackendSandboxConfig) {
     this.config = config;
     this.allowedAPIs = this.buildAllowedAPIs(config.permissions);
     this.sandboxedGlobals = this.createSandboxedGlobals();
@@ -305,6 +305,6 @@ export class PluginSandbox {
 // Factory
 // =============================================================================
 
-export function createPluginSandbox(config: SandboxConfig): PluginSandbox {
+export function createPluginSandbox(config: BackendSandboxConfig): PluginSandbox {
   return new PluginSandbox(config);
 }

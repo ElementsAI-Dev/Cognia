@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import type { EmojiReaction } from '@/types/message';
+import type { EmojiReaction } from '@/types/core/message';
 
 interface ReactionUser {
   id: string;

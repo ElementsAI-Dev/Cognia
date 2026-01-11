@@ -114,7 +114,7 @@ jest.mock('@/stores', () => ({
   },
 }));
 
-jest.mock('@/stores/agent', () => ({
+jest.mock('@/stores/skills', () => ({
   useSkillStore: (selector: (state: unknown) => unknown) => {
     const state = {
       getActiveSkills: jest.fn(() => []),

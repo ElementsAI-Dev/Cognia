@@ -11,7 +11,7 @@ import type {
   SessionFilter,
   MessageQueryOptions,
   SendMessageOptions,
-} from '@/types/plugin-extended';
+} from '@/types/plugin/plugin-extended';
 import type { Session, UIMessage } from '@/types';
 import { nanoid } from 'nanoid';
 

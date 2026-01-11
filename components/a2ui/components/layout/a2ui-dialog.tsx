@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { A2UIComponentProps, A2UIDialogComponent } from '@/types/a2ui';
+import type { A2UIComponentProps, A2UIDialogComponent } from '@/types/artifact/a2ui';
 import { useA2UIContext } from '../../a2ui-context';
 import { A2UIChildRenderer } from '../../a2ui-renderer';
 

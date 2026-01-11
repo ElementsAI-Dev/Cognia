@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import { usePromptOptimizer } from '@/hooks/ai/use-prompt-optimizer';
 import { generateABTestVariant } from '@/lib/ai/generation/prompt-self-optimizer';
 import { Loader } from '@/components/ai-elements/loader';
-import type { PromptTemplate, PromptABTest } from '@/types/prompt-template';
+import type { PromptTemplate, PromptABTest } from '@/types/content/prompt-template';
 import {
   FlaskConical,
   Play,

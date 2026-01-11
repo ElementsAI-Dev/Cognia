@@ -162,6 +162,16 @@ export function createSambaNovaClient(apiKey: string) {
 }
 
 /**
+ * Create CLIProxyAPI provider instance (OpenAI-compatible)
+ */
+export function createCLIProxyAPIClient(apiKey: string, baseURL?: string) {
+  return createOpenAI({
+    apiKey,
+    baseURL: baseURL || 'http://localhost:8317/v1',
+  });
+}
+
+/**
  * Create custom provider instance (OpenAI-compatible)
  */
 export function createCustomProviderClient(baseURL: string, apiKey: string) {
@@ -259,6 +269,8 @@ export function getProviderModel(
         baseURL: baseURL || 'http://localhost:5000/v1',
         apiKey: apiKey || 'tabbyapi',
       })(model);
+    case 'cliproxyapi':
+      return createCLIProxyAPIClient(apiKey, baseURL)(model);
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }
@@ -315,6 +327,8 @@ export const defaultModels: Record<Exclude<ProviderName, 'auto'>, string> = {
   textgenwebui: 'local-model',
   koboldcpp: 'local-model',
   tabbyapi: 'local-model',
+  // Proxy/Aggregator providers
+  cliproxyapi: 'gemini-2.5-flash',
 };
 
 /**
@@ -338,6 +352,8 @@ export function isValidProvider(provider: string): provider is ProviderName {
     // Local providers
     'lmstudio', 'llamacpp', 'llamafile', 'vllm', 'localai',
     'jan', 'textgenwebui', 'koboldcpp', 'tabbyapi',
+    // Proxy/Aggregator providers
+    'cliproxyapi',
     'auto'
   ];
   return validProviders.includes(provider as ProviderName);
@@ -483,6 +499,8 @@ export const providerDisplayNames: Record<Exclude<ProviderName, 'auto'>, string>
   textgenwebui: 'Text Generation WebUI',
   koboldcpp: 'KoboldCpp',
   tabbyapi: 'TabbyAPI',
+  // Proxy/Aggregator providers
+  cliproxyapi: 'CLIProxyAPI',
 };
 
 /**

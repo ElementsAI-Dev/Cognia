@@ -8,7 +8,7 @@ import { memo } from 'react';
 import { type NodeProps } from '@xyflow/react';
 import { BaseNode } from './base-node';
 import { Badge } from '@/components/ui/badge';
-import type { AINodeData } from '@/types/workflow-editor';
+import type { AINodeData } from '@/types/workflow/workflow-editor';
 
 function AINodeComponent(props: NodeProps) {
   const data = props.data as AINodeData;

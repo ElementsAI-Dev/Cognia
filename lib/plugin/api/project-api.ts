@@ -9,7 +9,7 @@ import type {
   PluginProjectAPI,
   ProjectFilter,
   ProjectFileInput,
-} from '@/types/plugin-extended';
+} from '@/types/plugin/plugin-extended';
 import type { Project, KnowledgeFile } from '@/types';
 
 /**

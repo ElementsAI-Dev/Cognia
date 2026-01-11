@@ -8,7 +8,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import type { A2UIComponentProps, A2UIBadgeComponent } from '@/types/a2ui';
+import type { A2UIComponentProps, A2UIBadgeComponent } from '@/types/artifact/a2ui';
 import { useA2UIContext } from '../../a2ui-context';
 
 const variantMap: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {

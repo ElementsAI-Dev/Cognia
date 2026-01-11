@@ -11,16 +11,16 @@ import type {
   KernelInfo,
   KernelStatus,
   VariableInfo,
-  KernelExecutionResult,
+  KernelSandboxExecutionResult,
   ExecutableCell,
-} from '@/types/jupyter';
+} from '@/types/system/jupyter';
 
 /** Execution history entry */
 export interface ExecutionHistoryEntry {
   id: string;
   sessionId: string;
   code: string;
-  result: KernelExecutionResult;
+  result: KernelSandboxExecutionResult;
   timestamp: string;
 }
 
@@ -42,7 +42,7 @@ interface JupyterState {
   // Execution state
   isExecuting: boolean;
   executingCellIndex: number | null;
-  lastExecutionResult: KernelExecutionResult | null;
+  lastSandboxExecutionResult: KernelSandboxExecutionResult | null;
 
   // Variables
   variables: VariableInfo[];
@@ -80,7 +80,7 @@ interface JupyterActions {
 
   // Execution state
   setExecuting: (isExecuting: boolean, cellIndex?: number | null) => void;
-  setLastExecutionResult: (result: KernelExecutionResult | null) => void;
+  setLastSandboxExecutionResult: (result: KernelSandboxExecutionResult | null) => void;
 
   // Variables
   setVariables: (variables: VariableInfo[]) => void;
@@ -128,7 +128,7 @@ const initialState: JupyterState = {
   activeSessionId: null,
   isExecuting: false,
   executingCellIndex: null,
-  lastExecutionResult: null,
+  lastSandboxExecutionResult: null,
   variables: [],
   variablesLoading: false,
   executionHistory: [],
@@ -190,8 +190,8 @@ export const useJupyterStore = create<JupyterState & JupyterActions>()(
           executingCellIndex: cellIndex,
         }),
 
-      setLastExecutionResult: (result) =>
-        set({ lastExecutionResult: result }),
+      setLastSandboxExecutionResult: (result) =>
+        set({ lastSandboxExecutionResult: result }),
 
       // Variables
       setVariables: (variables) => set({ variables }),
@@ -313,7 +313,7 @@ export const useExecutionState = () => {
   return useJupyterStore((state) => ({
     isExecuting: state.isExecuting,
     executingCellIndex: state.executingCellIndex,
-    lastResult: state.lastExecutionResult,
+    lastResult: state.lastSandboxExecutionResult,
   }));
 };
 

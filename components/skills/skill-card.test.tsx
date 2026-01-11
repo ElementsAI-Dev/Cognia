@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SkillCard } from './skill-card';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import type { Skill } from '@/types/skill';
+import type { Skill } from '@/types/system/skill';
 
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(<TooltipProvider>{ui}</TooltipProvider>);

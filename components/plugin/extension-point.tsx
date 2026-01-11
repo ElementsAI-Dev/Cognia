@@ -8,7 +8,7 @@
 
 import React, { useMemo, Suspense } from 'react';
 import { getExtensionsForPoint } from '@/lib/plugin/api/extension-api';
-import type { ExtensionPoint, ExtensionRegistration, ExtensionProps } from '@/types/plugin-extended';
+import type { ExtensionPoint, ExtensionRegistration, ExtensionProps } from '@/types/plugin/plugin-extended';
 import { cn } from '@/lib/utils';
 
 interface PluginExtensionPointProps {

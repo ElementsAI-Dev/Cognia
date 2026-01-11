@@ -16,7 +16,7 @@ import {
   type UpdatePromptTemplateInput,
   DEFAULT_PROMPT_TEMPLATE_CATEGORIES,
   DEFAULT_PROMPT_TEMPLATES,
-} from '@/types/prompt-template';
+} from '@/types/content/prompt-template';
 import { buildTemplateVariables } from '@/lib/prompts/template-utils';
 
 interface PromptTemplateState {

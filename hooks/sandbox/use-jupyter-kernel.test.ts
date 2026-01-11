@@ -43,7 +43,7 @@ let mockStoreState = {
   activeSessionId: null as string | null,
   isExecuting: false,
   executingCellIndex: null as number | null,
-  lastExecutionResult: null,
+  lastSandboxExecutionResult: null,
   variables: [] as Array<{ name: string; type: string; value: unknown }>,
   variablesLoading: false,
   error: null as string | null,
@@ -56,7 +56,7 @@ const mockSetSessions = jest.fn();
 const mockSetKernels = jest.fn();
 const mockSetActiveSessionId = jest.fn();
 const mockSetIsExecuting = jest.fn();
-const mockSetLastExecutionResult = jest.fn();
+const mockSetLastSandboxExecutionResult = jest.fn();
 const mockSetVariables = jest.fn();
 const mockSetError = jest.fn();
 const mockClearError = jest.fn();
@@ -72,7 +72,7 @@ jest.mock('@/stores/tools', () => ({
       setKernels: mockSetKernels,
       updateKernelStatus: jest.fn(),
       setExecuting: mockSetIsExecuting,
-      setLastExecutionResult: mockSetLastExecutionResult,
+      setLastSandboxExecutionResult: mockSetLastSandboxExecutionResult,
       setVariables: mockSetVariables,
       setVariablesLoading: jest.fn(),
       addExecutionHistory: jest.fn(),
@@ -102,7 +102,7 @@ describe('useJupyterKernel', () => {
       activeSessionId: null,
       isExecuting: false,
       executingCellIndex: null,
-      lastExecutionResult: null,
+      lastSandboxExecutionResult: null,
       variables: [],
       variablesLoading: false,
       error: null,

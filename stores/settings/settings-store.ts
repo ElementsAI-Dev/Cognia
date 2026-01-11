@@ -17,15 +17,15 @@ import { DEFAULT_UI_CUSTOMIZATION, DEFAULT_BACKGROUND_SETTINGS } from '@/lib/the
 import { deleteBackgroundImageAsset, saveBackgroundImageAsset } from '@/lib/themes/background-assets';
 import type { SearchProviderType, SearchProviderSettings, SourceVerificationSettings, SourceVerificationMode } from '@/types/search';
 import { DEFAULT_SEARCH_PROVIDER_SETTINGS, DEFAULT_SOURCE_VERIFICATION_SETTINGS } from '@/types/search';
-import type { SpeechSettings, SpeechLanguageCode, SpeechProvider } from '@/types/speech';
-import { DEFAULT_SPEECH_SETTINGS } from '@/types/speech';
-import type { CompressionSettings, CompressionStrategy, CompressionTrigger, CompressionModelConfig } from '@/types/compression';
-import { DEFAULT_COMPRESSION_SETTINGS } from '@/types/compression';
+import type { SpeechSettings, SpeechLanguageCode, SpeechProvider } from '@/types/media/speech';
+import { DEFAULT_SPEECH_SETTINGS } from '@/types/media/speech';
+import type { CompressionSettings, CompressionStrategy, CompressionTrigger, CompressionModelConfig } from '@/types/system/compression';
+import { DEFAULT_COMPRESSION_SETTINGS } from '@/types/system/compression';
 import type { AutoDetectResult } from '@/lib/i18n/locale-auto-detect';
-import type { AutoRouterSettings, RoutingMode, RoutingStrategy, ModelTier } from '@/types/auto-router';
-import { DEFAULT_AUTO_ROUTER_SETTINGS } from '@/types/auto-router';
-import type { ChatHistoryContextSettings, HistoryContextCompressionLevel } from '@/types/chat-history-context';
-import { DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS } from '@/types/chat-history-context';
+import type { AutoRouterSettings, RoutingMode, RoutingStrategy, ModelTier } from '@/types/provider/auto-router';
+import { DEFAULT_AUTO_ROUTER_SETTINGS } from '@/types/provider/auto-router';
+import type { ChatHistoryContextSettings, HistoryContextCompressionLevel } from '@/types/core/chat-history-context';
+import { DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS } from '@/types/core/chat-history-context';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'en' | 'zh-CN';

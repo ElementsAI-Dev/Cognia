@@ -36,10 +36,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { ChatTemplate } from '@/types/template';
+import type { ChatTemplate } from '@/types/content/template';
 import { cn } from '@/lib/utils';
 import type { ChatMode } from '@/types';
-import type { AgentModeConfig } from '@/types/agent-mode';
+import type { AgentModeConfig } from '@/types/agent/agent-mode';
 import { AgentModeSelector } from '@/components/agent';
 import { WelcomeA2UIDemo } from './welcome-a2ui-demo';
 

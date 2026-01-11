@@ -32,7 +32,7 @@ import { ExecutionPanel } from './execution-panel';
 import { CustomEdge } from './custom-edge';
 import { CustomConnectionLine } from './custom-connection-line';
 import { NodeSearchCommand } from './node-search-command';
-import type { WorkflowNodeType, WorkflowNode } from '@/types/workflow-editor';
+import type { WorkflowNodeType, WorkflowNode } from '@/types/workflow/workflow-editor';
 
 // Define edge types for React Flow
 const edgeTypes = {

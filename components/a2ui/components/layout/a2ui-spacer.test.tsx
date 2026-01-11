@@ -5,7 +5,7 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import { A2UISpacer } from './a2ui-spacer';
-import type { A2UISpacerComponent, A2UIComponentProps } from '@/types/a2ui';
+import type { A2UISpacerComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 describe('A2UISpacer', () => {
   const mockOnAction = jest.fn();

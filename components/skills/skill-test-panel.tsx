@@ -41,7 +41,7 @@ import {
   estimateSkillTokens,
   matchSkillToQuery,
 } from '@/lib/skills/executor';
-import type { Skill } from '@/types/skill';
+import type { Skill } from '@/types/system/skill';
 
 interface ExecutionLog {
   id: string;

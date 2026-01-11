@@ -12,7 +12,7 @@ import type {
   A2UISurfaceReadyMessage,
   A2UIComponent,
   A2UIMessageContent,
-} from '@/types/a2ui';
+} from '@/types/artifact/a2ui';
 
 /**
  * Result of parsing A2UI content

@@ -4,7 +4,7 @@
  */
 
 import { usePluginStore } from '@/stores/plugin';
-import type { AgentModeConfig } from '@/types/agent-mode';
+import type { AgentModeConfig } from '@/types/agent/agent-mode';
 import type { PluginTool, Plugin } from '@/types/plugin';
 import { trackPluginEvent } from './analytics';
 

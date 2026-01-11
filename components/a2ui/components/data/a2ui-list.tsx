@@ -7,7 +7,7 @@
 
 import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import type { A2UIComponentProps, A2UIListComponent } from '@/types/a2ui';
+import type { A2UIComponentProps, A2UIListComponent } from '@/types/artifact/a2ui';
 import { useA2UIContext } from '../../a2ui-context';
 import { resolveArrayOrPath } from '@/lib/a2ui/data-model';
 import { A2UIChildRenderer } from '../../a2ui-renderer';

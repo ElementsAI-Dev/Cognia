@@ -85,14 +85,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { useSkillStore } from '@/stores/agent';
+import { useSkillStore } from '@/stores/skills';
 import { getAllTemplates, getTemplateById } from '@/lib/skills/templates';
 import { parseSkillMd, toHyphenCase } from '@/lib/skills/parser';
 // Download functions available for future export button integration
 // import { downloadSkillAsMarkdown, downloadSkillAsPackage } from '@/lib/skills/packager';
 import { SkillDetail } from '@/components/skills/skill-detail';
 import { SkillDiscovery } from '@/components/skills/skill-discovery';
-import type { Skill, SkillCategory, CreateSkillInput } from '@/types/skill';
+import type { Skill, SkillCategory, CreateSkillInput } from '@/types/system/skill';
 
 const CATEGORY_ICONS: Record<SkillCategory, React.ReactNode> = {
   'creative-design': <Palette className="h-4 w-4" />,

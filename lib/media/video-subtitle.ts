@@ -20,7 +20,7 @@ import type {
   VideoAnalysisInput,
   VideoAnalysisResult,
   KeyMoment,
-} from '@/types/subtitle';
+} from '@/types/media/subtitle';
 
 /**
  * Check if video has embedded subtitles

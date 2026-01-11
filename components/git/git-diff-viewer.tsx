@@ -32,7 +32,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import type { GitDiffInfo, GitFileStatus } from '@/types/git';
+import type { GitDiffInfo, GitFileStatus } from '@/types/system/git';
 
 interface DiffLine {
   type: 'add' | 'remove' | 'context' | 'header';

@@ -17,7 +17,7 @@ import type {
   SubtitleFormat,
   VideoSubtitleInfo,
   TranscriptionResult,
-} from '@/types/subtitle';
+} from '@/types/media/subtitle';
 
 export interface SubtitleClip {
   id: string;

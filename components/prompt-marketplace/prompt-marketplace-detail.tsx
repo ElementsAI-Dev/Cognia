@@ -42,8 +42,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { MarketplacePrompt, PromptReview } from '@/types/prompt-marketplace';
-import { QUALITY_TIER_INFO } from '@/types/prompt-marketplace';
+import type { MarketplacePrompt, PromptReview } from '@/types/content/prompt-marketplace';
+import { QUALITY_TIER_INFO } from '@/types/content/prompt-marketplace';
 import { usePromptMarketplaceStore } from '@/stores/prompt/prompt-marketplace-store';
 import { toast } from '@/components/ui/sonner';
 

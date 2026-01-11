@@ -3,8 +3,8 @@
  * Uses the Gemini API with response_modalities: ["AUDIO"]
  */
 
-import type { TTSResponse, GeminiTTSVoice } from '@/types/tts';
-import { getTTSError, TTS_PROVIDERS } from '@/types/tts';
+import type { TTSResponse, GeminiTTSVoice } from '@/types/media/tts';
+import { getTTSError, TTS_PROVIDERS } from '@/types/media/tts';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
 
 const GEMINI_TTS_MODEL = 'gemini-2.5-flash-preview-tts';

@@ -9,7 +9,7 @@ import type {
   KnowledgeMapTrace,
   KnowledgeMapNavigationTarget,
   KnowledgeAnnotation,
-} from '@/types/knowledge-map';
+} from '@/types/learning/knowledge-map';
 
 // Mock Tauri invoke
 jest.mock('@tauri-apps/api/core', () => ({

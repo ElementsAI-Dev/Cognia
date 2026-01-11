@@ -54,8 +54,8 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import type { LocalProviderName, LocalModelPullProgress } from '@/types/local-provider';
-import { formatLocalModelSize } from '@/types/local-provider';
+import type { LocalProviderName, LocalModelPullProgress } from '@/types/provider/local-provider';
+import { formatLocalModelSize } from '@/types/provider/local-provider';
 import { getInstallInstructions } from '@/lib/ai/providers/local-provider-service';
 import { useLocalProvider } from '@/hooks/use-local-provider';
 

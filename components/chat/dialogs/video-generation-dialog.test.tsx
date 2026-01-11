@@ -111,7 +111,7 @@ jest.mock('@/lib/ai/media/video-generation', () => ({
 }));
 
 // Mock types/video
-jest.mock('@/types/video', () => ({
+jest.mock('@/types/media/video', () => ({
   estimateVideoCost: jest.fn(() => 0.5),
   parseDurationToSeconds: jest.fn((duration: string) => parseInt(duration.replace('s', ''))),
 }));

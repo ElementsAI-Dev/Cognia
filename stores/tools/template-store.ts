@@ -10,8 +10,8 @@ import type {
   CreateTemplateInput,
   UpdateTemplateInput,
   TemplateCategory,
-} from '@/types/template';
-import { BUILT_IN_TEMPLATES } from '@/types/template';
+} from '@/types/content/template';
+import { BUILT_IN_TEMPLATES } from '@/types/content/template';
 
 interface TemplateState {
   templates: ChatTemplate[];

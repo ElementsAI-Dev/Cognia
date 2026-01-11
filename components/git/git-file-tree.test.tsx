@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { GitFileTree } from './git-file-tree';
-import type { GitFileStatus } from '@/types/git';
+import type { GitFileStatus } from '@/types/system/git';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

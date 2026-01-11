@@ -10,7 +10,7 @@ import {
   getEnhancedModeSuggestion,
   type IntentDetectionResult 
 } from '@/lib/ai/tools/intent-detection';
-import type { ChatMode } from '@/types/session';
+import type { ChatMode } from '@/types/core/session';
 
 interface UseIntentDetectionOptions {
   currentMode: ChatMode;

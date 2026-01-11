@@ -8,6 +8,7 @@
 //! - Dynamic tooltip updates
 //! - Shortcut key hints
 
+use crate::assistant_bubble::AssistantBubbleWindow;
 use crate::chat_widget::ChatWidgetWindow;
 use crate::screen_recording::ScreenRecordingManager;
 use crate::screenshot::ScreenshotManager;
@@ -54,6 +55,20 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
         app,
         "toggle-chat-widget",
         "🤖 AI 助手\t\tCtrl+Shift+Space",
+        true,
+        None::<&str>,
+    )?;
+    let bubble_show_item = MenuItem::with_id(
+        app,
+        "bubble-show",
+        "💬 显示悬浮气泡",
+        true,
+        None::<&str>,
+    )?;
+    let bubble_hide_item = MenuItem::with_id(
+        app,
+        "bubble-hide",
+        "🔽 隐藏悬浮气泡",
         true,
         None::<&str>,
     )?;
@@ -252,6 +267,8 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
             &show_item,
             &hide_item,
             &chat_widget_item,
+            &bubble_show_item,
+            &bubble_hide_item,
             &PredefinedMenuItem::separator(app)?,
             // Tools
             &screenshot_submenu,
@@ -461,6 +478,30 @@ pub fn handle_tray_menu_event(app: &AppHandle, item_id: String) {
                     }
                     Err(e) => {
                         log::error!("Failed to toggle chat widget: {}", e);
+                    }
+                }
+            }
+        }
+        "bubble-show" => {
+            if let Some(manager) = app.try_state::<AssistantBubbleWindow>() {
+                match manager.show() {
+                    Ok(()) => {
+                        log::info!("Assistant bubble shown via tray menu");
+                    }
+                    Err(e) => {
+                        log::error!("Failed to show assistant bubble: {}", e);
+                    }
+                }
+            }
+        }
+        "bubble-hide" => {
+            if let Some(manager) = app.try_state::<AssistantBubbleWindow>() {
+                match manager.hide() {
+                    Ok(()) => {
+                        log::info!("Assistant bubble hidden via tray menu");
+                    }
+                    Err(e) => {
+                        log::error!("Failed to hide assistant bubble: {}", e);
                     }
                 }
             }

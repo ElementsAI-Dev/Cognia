@@ -21,7 +21,7 @@ import {
   selectSelectionCount,
   selectIsEnvSelected,
 } from './virtual-env-store';
-import type { VirtualEnvInfo, ProjectEnvConfig } from '@/types/environment';
+import type { VirtualEnvInfo, ProjectEnvConfig } from '@/types/system/environment';
 
 describe('Virtual Environment Store', () => {
   beforeEach(() => {

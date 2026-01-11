@@ -9,7 +9,7 @@ import type {
   A2UICatalogEntry,
   A2UIComponentCatalog,
   A2UIComponentProps,
-} from '@/types/a2ui';
+} from '@/types/artifact/a2ui';
 
 /**
  * Default catalog ID

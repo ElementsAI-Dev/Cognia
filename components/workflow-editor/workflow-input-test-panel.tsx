@@ -40,7 +40,7 @@ import {
   FileJson,
   Copy,
 } from 'lucide-react';
-import type { StartNodeData } from '@/types/workflow-editor';
+import type { StartNodeData } from '@/types/workflow/workflow-editor';
 import type { WorkflowIOSchema } from '@/types/workflow';
 
 interface InputValue {

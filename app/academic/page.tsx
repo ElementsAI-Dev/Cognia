@@ -16,7 +16,7 @@ import { PaperRecommendations } from '@/components/academic/paper-recommendation
 import { SmartCollections } from '@/components/academic/smart-collections';
 import { AcademicChatPanel } from '@/components/academic/academic-chat-panel';
 import { useAcademicStore } from '@/stores/academic';
-import type { LibraryPaper, Paper } from '@/types/academic';
+import type { LibraryPaper, Paper } from '@/types/learning/academic';
 
 type AcademicTab = 'search' | 'library' | 'stats' | 'compare' | 'recommend' | 'smart' | 'analysis';
 

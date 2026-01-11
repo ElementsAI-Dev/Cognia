@@ -6,7 +6,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { AcademicStats } from './academic-stats';
 import { useAcademic } from '@/hooks/academic';
-import type { LibraryPaper, PaperCollection } from '@/types/academic';
+import type { LibraryPaper, PaperCollection } from '@/types/learning/academic';
 
 // Mock the useAcademic hook
 jest.mock('@/hooks/academic', () => ({

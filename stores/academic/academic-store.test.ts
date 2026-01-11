@@ -4,7 +4,7 @@
 
 import { act, renderHook } from '@testing-library/react';
 import { useAcademicStore } from './academic-store';
-import type { Paper, LibraryPaper, PaperCollection } from '@/types/academic';
+import type { Paper, LibraryPaper, PaperCollection } from '@/types/learning/academic';
 
 // Mock Tauri invoke
 const mockInvoke = jest.fn();

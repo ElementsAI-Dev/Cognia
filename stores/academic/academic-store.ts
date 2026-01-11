@@ -19,9 +19,9 @@ import type {
   AcademicModeSettings,
   AcademicStatistics,
   ImportResult,
-  ExportResult,
-} from '@/types/academic';
-import { DEFAULT_ACADEMIC_SETTINGS } from '@/types/academic';
+  AcademicExportResult,
+} from '@/types/learning/academic';
+import { DEFAULT_ACADEMIC_SETTINGS } from '@/types/learning/academic';
 
 interface SearchState {
   query: string;
@@ -100,7 +100,7 @@ interface AcademicState {
   
   // Import/Export actions
   importPapers: (data: string, format: string, options?: { mergeStrategy?: string; targetCollection?: string }) => Promise<ImportResult>;
-  exportPapers: (paperIds?: string[], collectionId?: string, format?: string) => Promise<ExportResult>;
+  exportPapers: (paperIds?: string[], collectionId?: string, format?: string) => Promise<AcademicExportResult>;
   
   // Provider actions
   getProviders: () => Promise<AcademicProviderConfig[]>;
@@ -621,7 +621,7 @@ export const useAcademicStore = create<AcademicState>()(
       exportPapers: async (paperIds, collectionId, format = 'bibtex') => {
         set({ isLoading: true, error: null });
         try {
-          const result = await invoke<ExportResult>('academic_export_papers', {
+          const result = await invoke<AcademicExportResult>('academic_export_papers', {
             paperIds,
             collectionId,
             format,

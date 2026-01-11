@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { A2UIText } from './a2ui-text';
-import type { A2UITextComponent, A2UIComponentProps } from '@/types/a2ui';
+import type { A2UITextComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
 jest.mock('../../a2ui-context', () => ({

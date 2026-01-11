@@ -4,7 +4,7 @@
  */
 
 import { geolocationService } from './geolocation';
-import { CountryInfo, LocaleInfo, GeolocationPosition } from '@/types/geolocation';
+import { CountryInfo, LocaleInfo, GeolocationPosition } from '@/types/system/geolocation';
 
 const COUNTRY_DATA: Record<string, CountryInfo> = {
   CN: {

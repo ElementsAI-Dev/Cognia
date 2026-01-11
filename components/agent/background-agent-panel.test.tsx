@@ -48,7 +48,7 @@ const mockAgents = [
   },
 ];
 
-jest.mock('@/hooks/ai/use-background-agent', () => ({
+jest.mock('@/hooks/agent/use-background-agent', () => ({
   useBackgroundAgent: () => ({
     agents: mockAgents,
     runningAgents: [mockAgents[0]],

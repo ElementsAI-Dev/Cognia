@@ -8,7 +8,7 @@
 import { useSettingsStore } from '@/stores/settings';
 import { MarkdownRenderer } from '@/components/chat/utils';
 import { cn } from '@/lib/utils';
-import type { TextPart as TextPartType } from '@/types/message';
+import type { TextPart as TextPartType } from '@/types/core/message';
 
 interface TextPartProps {
   part: TextPartType;

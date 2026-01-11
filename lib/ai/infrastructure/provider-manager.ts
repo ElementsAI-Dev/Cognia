@@ -93,7 +93,7 @@ export interface ExecutionContext {
   startTime: number;
 }
 
-export interface ExecutionResult<T> {
+export interface SandboxExecutionResult<T> {
   success: boolean;
   data?: T;
   error?: Error;
@@ -352,7 +352,7 @@ export class ProviderManager {
   async execute<T>(
     fn: (context: ExecutionContext) => Promise<T>,
     options: RequestOptions
-  ): Promise<ExecutionResult<T>> {
+  ): Promise<SandboxExecutionResult<T>> {
     const maxRetries = options.maxRetries || 3;
     let lastError: Error | null = null;
     let attempt = 0;
@@ -714,6 +714,6 @@ export function initializeProviderManager(
 export async function executeWithProviderManager<T>(
   fn: (context: ExecutionContext) => Promise<T>,
   options: RequestOptions
-): Promise<ExecutionResult<T>> {
+): Promise<SandboxExecutionResult<T>> {
   return getProviderManager().execute(fn, options);
 }

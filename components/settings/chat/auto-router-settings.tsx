@@ -44,7 +44,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useSettingsStore } from '@/stores';
 import { getRoutingStats, resetRoutingStats, clearRoutingCache, getCacheStats } from '@/lib/ai/generation/routing-cache';
-import type { RoutingMode, RoutingStrategy, ModelTier } from '@/types/auto-router';
+import type { RoutingMode, RoutingStrategy, ModelTier } from '@/types/provider/auto-router';
 import { cn } from '@/lib/utils';
 
 const routingModes: Array<{ value: RoutingMode; label: string; description: string }> = [

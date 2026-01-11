@@ -59,14 +59,14 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useSkillStore } from '@/stores/agent';
+import { useSkillStore } from '@/stores/skills';
 import { downloadSkillAsMarkdown } from '@/lib/skills/packager';
 import { processSelectionWithAI } from '@/lib/ai/generation/selection-ai';
 import { SkillCard } from './skill-card';
 import { SkillDetail } from './skill-detail';
 import { SkillEditor } from './skill-editor';
 import { SkillAnalytics } from './skill-analytics';
-import type { Skill, SkillCategory, SkillStatus } from '@/types/skill';
+import type { Skill, SkillCategory, SkillStatus } from '@/types/system/skill';
 
 const CATEGORY_OPTIONS: Array<{ value: SkillCategory | 'all'; labelKey: string; icon: React.ReactNode }> = [
   { value: 'all', labelKey: 'allCategories', icon: <Sparkles className="h-4 w-4" /> },

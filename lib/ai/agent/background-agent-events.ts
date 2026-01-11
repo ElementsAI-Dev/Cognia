@@ -9,8 +9,8 @@ import type {
   BackgroundAgentStep,
   BackgroundAgentNotification,
   BackgroundAgentResult,
-} from '@/types/background-agent';
-import type { SubAgent, SubAgentResult } from '@/types/sub-agent';
+} from '@/types/agent/background-agent';
+import type { SubAgent, SubAgentResult } from '@/types/agent/sub-agent';
 import type { ToolCall } from './agent-executor';
 
 /**

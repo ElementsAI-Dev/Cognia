@@ -15,7 +15,7 @@ import type {
   VideoSubtitleInfo,
   VideoAnalysisResult,
   TranscriptionResult,
-} from '@/types/subtitle';
+} from '@/types/media/subtitle';
 
 export interface UseVideoAnalysisOptions {
   /** Preferred language for subtitles/transcription */

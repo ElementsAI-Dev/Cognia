@@ -51,11 +51,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SkillMarkdownPreview, SkillMarkdownStyles } from './skill-markdown-preview';
 import { SkillResourceManager } from './skill-resource-manager';
 import { SkillEditor } from './skill-editor';
-import { useSkillStore } from '@/stores/agent';
+import { useSkillStore } from '@/stores/skills';
 import { estimateSkillTokens } from '@/lib/skills/executor';
 import { downloadSkillAsMarkdown, downloadSkillAsPackage } from '@/lib/skills/packager';
 import { processSelectionWithAI } from '@/lib/ai/generation/selection-ai';
-import type { Skill, SkillCategory } from '@/types/skill';
+import type { Skill, SkillCategory } from '@/types/system/skill';
 
 const CATEGORY_ICONS: Record<SkillCategory, React.ReactNode> = {
   'creative-design': <Palette className="h-4 w-4" />,

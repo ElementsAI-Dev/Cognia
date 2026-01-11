@@ -9,8 +9,8 @@ import type {
   TTSPlaybackState,
   TTSError,
   TTSSettings,
-} from '@/types/tts';
-import { getTTSError, TTS_PROVIDERS } from '@/types/tts';
+} from '@/types/media/tts';
+import { getTTSError, TTS_PROVIDERS } from '@/types/media/tts';
 import {
   speakWithSystemTTS,
   stopSystemTTS,

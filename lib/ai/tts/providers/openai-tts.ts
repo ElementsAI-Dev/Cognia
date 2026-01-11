@@ -3,8 +3,8 @@
  * Supports tts-1 and tts-1-hd models
  */
 
-import type { TTSResponse, OpenAITTSVoice, OpenAITTSModel } from '@/types/tts';
-import { getTTSError, TTS_PROVIDERS } from '@/types/tts';
+import type { TTSResponse, OpenAITTSVoice, OpenAITTSModel } from '@/types/media/tts';
+import { getTTSError, TTS_PROVIDERS } from '@/types/media/tts';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
 
 const OPENAI_TTS_URL = 'https://api.openai.com/v1/audio/speech';

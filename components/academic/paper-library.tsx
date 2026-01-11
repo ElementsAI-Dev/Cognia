@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/dialog';
 import { useAcademic } from '@/hooks/academic';
 import { cn } from '@/lib/utils';
-import type { LibraryPaper, PaperReadingStatus } from '@/types/academic';
+import type { LibraryPaper, PaperReadingStatus } from '@/types/learning/academic';
 
 const STATUS_ICONS: Record<PaperReadingStatus, typeof Clock> = {
   unread: Clock,

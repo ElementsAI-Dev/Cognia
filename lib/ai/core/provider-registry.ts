@@ -170,6 +170,12 @@ function createProviderInstance(
         baseURL: baseURL || 'http://localhost:5000/v1',
       });
 
+    case 'cliproxyapi':
+      return createOpenAI({
+        apiKey,
+        baseURL: baseURL || 'http://localhost:8317/v1',
+      });
+
     default:
       return null;
   }

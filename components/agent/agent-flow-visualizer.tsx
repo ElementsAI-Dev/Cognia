@@ -39,8 +39,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useSubAgent } from '@/hooks';
-import type { SubAgent, SubAgentStatus, SubAgentExecutionMode } from '@/types/sub-agent';
-import type { BackgroundAgent, BackgroundAgentStep } from '@/types/background-agent';
+import type { SubAgent, SubAgentStatus, SubAgentExecutionMode } from '@/types/agent/sub-agent';
+import type { BackgroundAgent, BackgroundAgentStep } from '@/types/agent/background-agent';
 
 interface AgentFlowVisualizerProps {
   agent: BackgroundAgent;

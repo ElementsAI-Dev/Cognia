@@ -14,7 +14,7 @@ jest.mock('@tauri-apps/plugin-geolocation', () => ({
 }));
 
 import { GeolocationService, geolocationService } from './geolocation';
-import type { GeolocationErrorCode as _GeolocationErrorCode } from '@/types/geolocation';
+import type { GeolocationErrorCode as _GeolocationErrorCode } from '@/types/system/geolocation';
 
 // Mock navigator.geolocation
 const mockGeolocation = {

@@ -20,7 +20,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { usePresetStore, useSessionStore } from '@/stores';
 import { toast } from '@/components/ui/sonner';
-import type { Preset } from '@/types/preset';
+import type { Preset } from '@/types/content/preset';
 import {
   DndContext,
   closestCenter,

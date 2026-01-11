@@ -9,8 +9,8 @@ import {
   DOCUMENT_TEMPLATES,
 } from './word-document-generator';
 import type { Session, UIMessage } from '@/types';
-import type { RichDocument } from '@/types/document-formatting';
-import { DEFAULT_DOCUMENT_OPTIONS, MARGIN_PRESETS } from '@/types/document-formatting';
+import type { RichDocument } from '@/types/document/document-formatting';
+import { DEFAULT_DOCUMENT_OPTIONS, MARGIN_PRESETS } from '@/types/document/document-formatting';
 
 // Mock the docx module
 jest.mock('docx', () => ({

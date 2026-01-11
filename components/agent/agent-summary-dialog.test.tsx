@@ -6,7 +6,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AgentSummaryDialog } from './agent-summary-dialog';
-import type { BackgroundAgent } from '@/types/background-agent';
+import type { BackgroundAgent } from '@/types/agent/background-agent';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

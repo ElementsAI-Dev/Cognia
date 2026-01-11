@@ -15,8 +15,8 @@ import type {
   VirtualEnvType,
   AgentEnvResult,
   PackageInfo,
-} from '@/types/environment';
-import { generateRequirements, parseRequirements } from '@/types/environment';
+} from '@/types/system/environment';
+import { generateRequirements, parseRequirements } from '@/types/system/environment';
 
 // ==================== Tool Input Schemas ====================
 

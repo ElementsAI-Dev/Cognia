@@ -80,8 +80,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useVirtualEnv } from '@/hooks/sandbox';
-import type { VirtualEnvInfo, VirtualEnvType, PackageInfo } from '@/types/environment';
-import { ENV_PRESETS, type EnvPresetTemplate } from '@/types/environment';
+import type { VirtualEnvInfo, VirtualEnvType, PackageInfo } from '@/types/system/environment';
+import { ENV_PRESETS, type EnvPresetTemplate } from '@/types/system/environment';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import {

@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { GitBranchManager } from './git-branch-manager';
-import type { GitBranchInfo } from '@/types/git';
+import type { GitBranchInfo } from '@/types/system/git';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

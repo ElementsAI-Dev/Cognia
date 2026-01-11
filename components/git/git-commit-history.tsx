@@ -41,8 +41,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { formatCommitDate, formatCommitMessage } from '@/types/git';
-import type { GitCommitInfo, GitDiffInfo } from '@/types/git';
+import { formatCommitDate, formatCommitMessage } from '@/types/system/git';
+import type { GitCommitInfo, GitDiffInfo } from '@/types/system/git';
 
 interface GitCommitHistoryProps {
   commits: GitCommitInfo[];

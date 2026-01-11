@@ -8,13 +8,13 @@
  * - Mindmap: Topic-based visualization
  */
 
-import type { UIMessage, ToolInvocationPart } from '@/types/message';
+import type { UIMessage, ToolInvocationPart } from '@/types/core/message';
 import type {
   DiagramOptions,
   DiagramResult,
   DiagramNode,
   DiagramEdge,
-} from '@/types/summary';
+} from '@/types/learning/summary';
 
 /**
  * Escape special characters for Mermaid

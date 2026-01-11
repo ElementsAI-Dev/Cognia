@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { useA2UI } from '@/hooks/a2ui';
 import { detectA2UIContent, extractA2UIFromResponse } from '@/lib/a2ui/parser';
 import { A2UIInlineSurface } from './a2ui-surface';
-import type { A2UIUserAction, A2UIDataModelChange } from '@/types/a2ui';
+import type { A2UIUserAction, A2UIDataModelChange } from '@/types/artifact/a2ui';
 
 interface A2UIMessageRendererProps {
   content: string;

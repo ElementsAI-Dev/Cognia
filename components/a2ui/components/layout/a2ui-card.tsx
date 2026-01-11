@@ -15,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import type { A2UIComponentProps, A2UICardComponent } from '@/types/a2ui';
+import type { A2UIComponentProps, A2UICardComponent } from '@/types/artifact/a2ui';
 import { useA2UIContext } from '../../a2ui-context';
 import { A2UIChildRenderer } from '../../a2ui-renderer';
 

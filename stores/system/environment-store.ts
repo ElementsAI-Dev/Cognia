@@ -17,8 +17,8 @@ import type {
   Platform,
   PythonEnvironment,
   NodeEnvironment,
-} from '@/types/environment';
-import { createDefaultToolStatus } from '@/types/environment';
+} from '@/types/system/environment';
+import { createDefaultToolStatus } from '@/types/system/environment';
 
 export interface EnvironmentState {
   // Platform info

@@ -18,7 +18,7 @@ import {
   getEnabledBYOKProviders,
   OpenRouterError,
 } from './openrouter';
-import type { OpenRouterModel } from '@/types/openrouter';
+import type { OpenRouterModel } from '@/types/provider/openrouter';
 import type { BYOKKeyEntry } from '@/types/provider';
 
 describe('OpenRouterError', () => {

@@ -18,7 +18,7 @@ import {
   countChatMessageTokens,
   countConversationTokens,
 } from './use-token-count';
-import type { UIMessage } from '@/types/message';
+import type { UIMessage } from '@/types/core/message';
 
 // Mock js-tiktoken
 jest.mock('js-tiktoken', () => ({

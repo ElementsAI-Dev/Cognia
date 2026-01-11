@@ -405,6 +405,37 @@ pub fn run() {
                 }
             });
 
+            // Register global shortcut for bubble toggle (Alt+B)
+            let app_handle_for_bubble = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+
+                let shortcut: Shortcut = "Alt+B".parse().unwrap();
+
+                if let Err(e) = app_handle_for_bubble.global_shortcut().on_shortcut(
+                    shortcut,
+                    move |app, _shortcut, _event| {
+                        if let Some(manager) = app.try_state::<AssistantBubbleWindow>() {
+                            if manager.is_visible() {
+                                if let Err(e) = manager.hide() {
+                                    log::error!("Failed to hide bubble via shortcut: {}", e);
+                                } else {
+                                    log::debug!("Bubble hidden via Alt+B shortcut");
+                                }
+                            } else if let Err(e) = manager.show() {
+                                log::error!("Failed to show bubble via shortcut: {}", e);
+                            } else {
+                                log::debug!("Bubble shown via Alt+B shortcut");
+                            }
+                        }
+                    },
+                ) {
+                    log::error!("Failed to register bubble toggle shortcut: {}", e);
+                } else {
+                    log::info!("Global shortcut registered: Alt+B for bubble toggle");
+                }
+            });
+
             // Initialize Jupyter State
             let jupyter_state = JupyterState::new();
             app.manage(jupyter_state);
@@ -835,8 +866,12 @@ pub fn run() {
             // Assistant bubble commands
             commands::assistant_bubble::assistant_bubble_show,
             commands::assistant_bubble::assistant_bubble_hide,
+            commands::assistant_bubble::assistant_bubble_toggle,
             commands::assistant_bubble::assistant_bubble_is_visible,
             commands::assistant_bubble::assistant_bubble_get_info,
+            commands::assistant_bubble::assistant_bubble_get_config,
+            commands::assistant_bubble::assistant_bubble_update_config,
+            commands::assistant_bubble::assistant_bubble_set_position,
             // Git commands
             commands::git::git_get_platform,
             commands::git::git_check_installed,
@@ -956,6 +991,8 @@ pub fn run() {
             commands::skill::skill_uninstall,
             commands::skill::skill_get_installed,
             commands::skill::skill_get,
+            commands::skill::skill_get_required,
+            commands::skill::skill_validate_install,
             commands::skill::skill_enable,
             commands::skill::skill_disable,
             commands::skill::skill_update,

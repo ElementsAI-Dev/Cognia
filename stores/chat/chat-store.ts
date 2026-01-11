@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import type { UIMessage, MessagePart, ToolInvocationPart, ToolState } from '@/types/message';
+import type { UIMessage, MessagePart, ToolInvocationPart, ToolState } from '@/types/core/message';
 
 interface ToolInvocationUpdate {
   state?: ToolState;

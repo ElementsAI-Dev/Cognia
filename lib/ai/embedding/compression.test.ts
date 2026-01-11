@@ -2,9 +2,9 @@
  * Tests for compression utility functions
  */
 
-import type { UIMessage } from '@/types/message';
-import type { CompressionSettings, ContextState, SessionCompressionOverrides } from '@/types/compression';
-import { DEFAULT_COMPRESSION_SETTINGS } from '@/types/compression';
+import type { UIMessage } from '@/types/core/message';
+import type { CompressionSettings, ContextState, SessionCompressionOverrides } from '@/types/system/compression';
+import { DEFAULT_COMPRESSION_SETTINGS } from '@/types/system/compression';
 
 // Extended UIMessage type for compression-specific properties
 interface ExtendedUIMessage extends UIMessage {

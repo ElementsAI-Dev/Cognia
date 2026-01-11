@@ -24,7 +24,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import type { VariableInfo } from '@/types/jupyter';
+import type { VariableInfo } from '@/types/system/jupyter';
 
 interface VariableInspectorProps {
   variables: VariableInfo[];

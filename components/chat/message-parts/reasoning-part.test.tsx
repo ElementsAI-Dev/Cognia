@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ReasoningPart } from './reasoning-part';
-import type { ReasoningPart as ReasoningPartType } from '@/types/message';
+import type { ReasoningPart as ReasoningPartType } from '@/types/core/message';
 
 // Mock Reasoning components
 jest.mock('@/components/ai-elements/reasoning', () => ({

@@ -11,14 +11,14 @@ import type {
   CreateSnippetRequest,
   DailyExecutionCount,
   ExecutionFilter,
-  ExecutionRecord,
+  SandboxExecutionRecord,
   ExecutionRequest,
-  ExecutionResult,
+  SandboxExecutionResult,
   ExecutionSession,
   LanguageStats,
   SandboxStats,
   SnippetFilter,
-} from '@/types/sandbox';
+} from '@/types/system/sandbox';
 
 // Check if we're in Tauri environment
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -40,7 +40,7 @@ export interface UseExecutionHistoryOptions {
 }
 
 export interface UseExecutionHistoryReturn {
-  executions: ExecutionRecord[];
+  executions: SandboxExecutionRecord[];
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
@@ -55,7 +55,7 @@ export function useExecutionHistory(
   options: UseExecutionHistoryOptions = {}
 ): UseExecutionHistoryReturn {
   const { filter = {}, autoRefresh = false, refreshInterval = 30000 } = options;
-  const [executions, setExecutions] = useState<ExecutionRecord[]>([]);
+  const [executions, setExecutions] = useState<SandboxExecutionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -166,7 +166,7 @@ export interface UseSnippetsReturn {
   createSnippet: (request: CreateSnippetRequest) => Promise<CodeSnippet | null>;
   updateSnippet: (snippet: CodeSnippet) => Promise<void>;
   deleteSnippet: (id: string) => Promise<boolean>;
-  executeSnippet: (id: string) => Promise<ExecutionResult | null>;
+  executeSnippet: (id: string) => Promise<SandboxExecutionResult | null>;
   createFromExecution: (
     executionId: string,
     title: string,
@@ -460,16 +460,16 @@ export function useSandboxStats(days: number = 30): UseSandboxStatsReturn {
 // ==================== Code Execution Hook ====================
 
 export interface UseCodeExecutionReturn {
-  result: ExecutionResult | null;
+  result: SandboxExecutionResult | null;
   executing: boolean;
   error: string | null;
-  execute: (request: ExecutionRequest) => Promise<ExecutionResult | null>;
-  quickExecute: (language: string, code: string) => Promise<ExecutionResult | null>;
+  execute: (request: ExecutionRequest) => Promise<SandboxExecutionResult | null>;
+  quickExecute: (language: string, code: string) => Promise<SandboxExecutionResult | null>;
   reset: () => void;
 }
 
 export function useCodeExecution(): UseCodeExecutionReturn {
-  const [result, setResult] = useState<ExecutionResult | null>(null);
+  const [result, setResult] = useState<SandboxExecutionResult | null>(null);
   const [executing, setExecuting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

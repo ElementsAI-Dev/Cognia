@@ -14,7 +14,7 @@ import {
   analyzeUsagePatterns,
   scorePromptQuality,
 } from './history-optimizer';
-import type { ToolCallRecord, ToolUsageStats } from '@/types/tool-history';
+import type { ToolCallRecord, ToolUsageStats } from '@/types/agent/tool-history';
 
 // Helper to create mock records
 function createMockRecord(

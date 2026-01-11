@@ -45,7 +45,7 @@ import {
   MousePointer,
   StickyNote,
 } from 'lucide-react';
-import { NODE_TYPE_COLORS, type WorkflowNodeType } from '@/types/workflow-editor';
+import { NODE_TYPE_COLORS, type WorkflowNodeType } from '@/types/workflow/workflow-editor';
 
 const NODE_ICONS: Record<WorkflowNodeType, React.ComponentType<{ className?: string }>> = {
   start: Play,

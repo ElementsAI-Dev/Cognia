@@ -74,7 +74,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import type { GeneratedVideo, VideoStatus } from '@/types/video';
+import type { GeneratedVideo, VideoStatus } from '@/types/media/video';
 import { downloadVideoAsBlob, saveVideoToFile, base64ToVideoDataUrl } from '@/lib/ai/media/video-generation';
 
 // Playback speed options

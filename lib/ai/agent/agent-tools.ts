@@ -26,7 +26,7 @@ import {
   type SearchAndScrapeInput,
 } from '../tools';
 import type { RAGConfig } from '../rag';
-import type { Skill } from '@/types/skill';
+import type { Skill } from '@/types/system/skill';
 import {
   createSkillTools,
   buildSkillSystemPrompt,
@@ -384,6 +384,41 @@ export function getToolsFromRegistry(
   }
 
   return tools;
+}
+
+/**
+ * Get tools for a custom agent mode based on its configured tool list
+ * This allows custom modes to have their own specific tool selection
+ */
+export function getToolsForCustomMode(
+  modeTools: string[],
+  config: Record<string, unknown>
+): Record<string, AgentTool> {
+  if (!modeTools || modeTools.length === 0) {
+    return {};
+  }
+  return getToolsFromRegistry(modeTools, config);
+}
+
+/**
+ * Filter initialized tools based on a custom mode's tool selection
+ * Returns only tools that are in the mode's allowed tools list
+ */
+export function filterToolsForMode(
+  allTools: Record<string, AgentTool>,
+  modeTools: string[]
+): Record<string, AgentTool> {
+  if (!modeTools || modeTools.length === 0) {
+    return allTools; // No filtering if no specific tools configured
+  }
+  
+  const filtered: Record<string, AgentTool> = {};
+  for (const toolName of modeTools) {
+    if (allTools[toolName]) {
+      filtered[toolName] = allTools[toolName];
+    }
+  }
+  return filtered;
 }
 
 /**

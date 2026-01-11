@@ -19,7 +19,7 @@ import type {
   OllamaPullProgress,
   OllamaRunningModel,
   OllamaModelInfo,
-} from '@/types/ollama';
+} from '@/types/provider/ollama';
 
 export interface UseOllamaOptions {
   baseUrl?: string;

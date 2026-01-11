@@ -41,7 +41,7 @@ import {
 } from 'lucide-react';
 import { usePresetStore, useSettingsStore, usePromptTemplateStore } from '@/stores';
 import { toast } from '@/components/ui/sonner';
-import { PRESET_COLORS, PRESET_ICONS, type Preset, type BuiltinPrompt } from '@/types/preset';
+import { PRESET_COLORS, PRESET_ICONS, type Preset, type BuiltinPrompt } from '@/types/content/preset';
 import { PROVIDERS, type ProviderName } from '@/types/provider';
 import { nanoid } from 'nanoid';
 import { cn } from '@/lib/utils';
@@ -336,7 +336,7 @@ export function CreatePresetDialog({
     }
   }, [name, description, systemPrompt, builtinPrompts, provider, getApiSettings, t]);
 
-  const handleApplyTemplate = useCallback((template: import('@/types/prompt-template').PromptTemplate) => {
+  const handleApplyTemplate = useCallback((template: import('@/types/content/prompt-template').PromptTemplate) => {
     setSystemPrompt(template.content);
     recordTemplateUsage(template.id);
     setTemplateSelectorOpen(false);

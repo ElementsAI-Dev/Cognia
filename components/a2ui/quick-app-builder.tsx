@@ -48,7 +48,7 @@ import { A2UIInlineSurface } from './a2ui-surface';
 import { templateCategories, type A2UIAppTemplate } from '@/lib/a2ui/templates';
 import { generateAppFromDescription } from '@/lib/a2ui/app-generator';
 import { useA2UI } from '@/hooks/a2ui';
-import type { A2UIUserAction, A2UIDataModelChange } from '@/types/a2ui';
+import type { A2UIUserAction, A2UIDataModelChange } from '@/types/artifact/a2ui';
 
 interface QuickAppBuilderProps {
   className?: string;

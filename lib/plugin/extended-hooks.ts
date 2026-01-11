@@ -33,7 +33,7 @@ export interface HookRegistration<T extends (...args: unknown[]) => unknown> {
   metadata?: Record<string, unknown>;
 }
 
-export interface HookExecutionResult<T> {
+export interface HookSandboxExecutionResult<T> {
   success: boolean;
   result?: T;
   error?: Error;
@@ -67,7 +67,7 @@ export class ExtendedHooksManager {
   private middleware: Map<string, HookMiddleware<AnyFunction>[]> = new Map();
   private cache: Map<string, { result: unknown; timestamp: number }> = new Map();
   private config: ExtendedHookConfig;
-  private executionHistory: Array<{ hookName: string; results: HookExecutionResult<unknown>[] }> = [];
+  private executionHistory: Array<{ hookName: string; results: HookSandboxExecutionResult<unknown>[] }> = [];
 
   constructor(config: Partial<ExtendedHookConfig> = {}) {
     this.config = {
@@ -170,7 +170,7 @@ export class ExtendedHooksManager {
       stopOnFirst?: boolean;
       filter?: (pluginId: string) => boolean;
     } = {}
-  ): Promise<HookExecutionResult<T>[]> {
+  ): Promise<HookSandboxExecutionResult<T>[]> {
     const hookMap = this.hooks.get(hookName);
     if (!hookMap || hookMap.size === 0) {
       return [];
@@ -180,7 +180,7 @@ export class ExtendedHooksManager {
     const sortedHooks = this.getSortedHooks(hookName, options.filter);
     const middlewares = this.middleware.get(hookName) || [];
 
-    const results: HookExecutionResult<T>[] = [];
+    const results: HookSandboxExecutionResult<T>[] = [];
 
     if (options.parallel) {
       // Execute hooks in parallel
@@ -211,7 +211,7 @@ export class ExtendedHooksManager {
     }
 
     // Record execution history
-    this.recordExecution(hookName, results as HookExecutionResult<unknown>[]);
+    this.recordExecution(hookName, results as HookSandboxExecutionResult<unknown>[]);
 
     return results;
   }
@@ -220,7 +220,7 @@ export class ExtendedHooksManager {
     registration: HookRegistration<AnyFunction>,
     args: unknown[],
     middlewares: HookMiddleware<AnyFunction>[]
-  ): Promise<HookExecutionResult<T>> {
+  ): Promise<HookSandboxExecutionResult<T>> {
     const startTime = Date.now();
 
     if (!registration.enabled) {
@@ -370,7 +370,7 @@ export class ExtendedHooksManager {
     ]);
   }
 
-  private recordExecution(hookName: string, results: HookExecutionResult<unknown>[]): void {
+  private recordExecution(hookName: string, results: HookSandboxExecutionResult<unknown>[]): void {
     this.executionHistory.push({ hookName, results });
     if (this.executionHistory.length > 100) {
       this.executionHistory = this.executionHistory.slice(-100);
@@ -416,7 +416,7 @@ export class ExtendedHooksManager {
     }
   }
 
-  getExecutionHistory(): Array<{ hookName: string; results: HookExecutionResult<unknown>[] }> {
+  getExecutionHistory(): Array<{ hookName: string; results: HookSandboxExecutionResult<unknown>[] }> {
     return [...this.executionHistory];
   }
 

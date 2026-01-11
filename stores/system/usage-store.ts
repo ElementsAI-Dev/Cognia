@@ -17,7 +17,7 @@ import {
   type DailyUsage,
   type ProviderUsage,
   calculateCost,
-} from '@/types/usage';
+} from '@/types/system/usage';
 
 /** Quota limits for a provider */
 export interface QuotaLimits {

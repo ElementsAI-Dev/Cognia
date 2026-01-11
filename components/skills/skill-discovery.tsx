@@ -46,9 +46,10 @@ import { toast } from '@/components/ui/toaster';
 import {
   useSkillSync,
   useSkillSyncAvailable,
+  useNativeSkills,
   type DiscoverableSkill,
-} from '@/hooks/ai';
-import { useNativeSkills, type SkillRepo } from '@/hooks/ai/use-native-skills';
+  type SkillRepo,
+} from '@/hooks/skills';
 
 interface SkillDiscoveryProps {
   className?: string;

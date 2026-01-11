@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { PromptAnalyticsPanel } from './prompt-analytics-panel';
-import type { PromptTemplate, PromptFeedback } from '@/types/prompt-template';
+import type { PromptTemplate, PromptFeedback } from '@/types/content/prompt-template';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

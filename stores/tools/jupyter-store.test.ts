@@ -9,7 +9,7 @@ import {
   useActiveKernel,
   useJupyterSessionForChat,
 } from './jupyter-store';
-import type { JupyterSession, KernelInfo, VariableInfo, KernelExecutionResult, ExecutableCell } from '@/types/jupyter';
+import type { JupyterSession, KernelInfo, VariableInfo, KernelSandboxExecutionResult, ExecutableCell } from '@/types/system/jupyter';
 
 const createMockSession = (overrides: Partial<JupyterSession> = {}): JupyterSession => ({
   id: `session-${Date.now()}`,
@@ -166,7 +166,7 @@ describe('useJupyterStore', () => {
 
     it('sets last execution result', () => {
       const { result } = renderHook(() => useJupyterStore());
-      const execResult: KernelExecutionResult = {
+      const execResult: KernelSandboxExecutionResult = {
         success: true,
         executionCount: 1,
         stdout: 'Hello',
@@ -177,10 +177,10 @@ describe('useJupyterStore', () => {
       };
 
       act(() => {
-        result.current.setLastExecutionResult(execResult);
+        result.current.setLastSandboxExecutionResult(execResult);
       });
 
-      expect(result.current.lastExecutionResult).toEqual(execResult);
+      expect(result.current.lastSandboxExecutionResult).toEqual(execResult);
     });
   });
 
@@ -233,7 +233,7 @@ describe('useJupyterStore', () => {
           id: 'h1',
           sessionId: 's1',
           code: 'print("hello")',
-          result: { success: true } as KernelExecutionResult,
+          result: { success: true } as KernelSandboxExecutionResult,
           timestamp: new Date().toISOString(),
         });
       });
@@ -250,7 +250,7 @@ describe('useJupyterStore', () => {
           id: 'h1',
           sessionId: 's1',
           code: 'x = 1',
-          result: { success: true } as KernelExecutionResult,
+          result: { success: true } as KernelSandboxExecutionResult,
           timestamp: new Date().toISOString(),
         });
       });
@@ -270,14 +270,14 @@ describe('useJupyterStore', () => {
           id: 'h1',
           sessionId: 's1',
           code: 'x = 1',
-          result: { success: true } as KernelExecutionResult,
+          result: { success: true } as KernelSandboxExecutionResult,
           timestamp: new Date().toISOString(),
         });
         result.current.addExecutionHistory({
           id: 'h2',
           sessionId: 's2',
           code: 'y = 2',
-          result: { success: true } as KernelExecutionResult,
+          result: { success: true } as KernelSandboxExecutionResult,
           timestamp: new Date().toISOString(),
         });
       });

@@ -12,7 +12,7 @@ import type {
   ConditionalNodeData,
   StartNodeData,
   EndNodeData,
-} from '@/types/workflow-editor';
+} from '@/types/workflow/workflow-editor';
 import type {
   WorkflowDefinition,
   WorkflowStepDefinition,
@@ -176,7 +176,7 @@ function createExtendedStep(
 
   switch (data.nodeType) {
     case 'code': {
-      const codeData = data as import('@/types/workflow-editor').CodeNodeData;
+      const codeData = data as import('@/types/workflow/workflow-editor').CodeNodeData;
       return {
         ...baseStep,
         type: 'code',
@@ -188,7 +188,7 @@ function createExtendedStep(
     }
 
     case 'transform': {
-      const transformData = data as import('@/types/workflow-editor').TransformNodeData;
+      const transformData = data as import('@/types/workflow/workflow-editor').TransformNodeData;
       return {
         ...baseStep,
         type: 'transform',
@@ -200,7 +200,7 @@ function createExtendedStep(
     }
 
     case 'loop': {
-      const loopData = data as import('@/types/workflow-editor').LoopNodeData;
+      const loopData = data as import('@/types/workflow/workflow-editor').LoopNodeData;
       return {
         ...baseStep,
         type: 'loop',
@@ -215,7 +215,7 @@ function createExtendedStep(
     }
 
     case 'webhook': {
-      const webhookData = data as import('@/types/workflow-editor').WebhookNodeData;
+      const webhookData = data as import('@/types/workflow/workflow-editor').WebhookNodeData;
       return {
         ...baseStep,
         type: 'webhook',
@@ -229,7 +229,7 @@ function createExtendedStep(
     }
 
     case 'delay': {
-      const delayData = data as import('@/types/workflow-editor').DelayNodeData;
+      const delayData = data as import('@/types/workflow/workflow-editor').DelayNodeData;
       return {
         ...baseStep,
         type: 'delay',
@@ -243,7 +243,7 @@ function createExtendedStep(
     }
 
     case 'merge': {
-      const mergeData = data as import('@/types/workflow-editor').MergeNodeData;
+      const mergeData = data as import('@/types/workflow/workflow-editor').MergeNodeData;
       return {
         ...baseStep,
         type: 'merge',
@@ -254,7 +254,7 @@ function createExtendedStep(
     }
 
     case 'subworkflow': {
-      const subworkflowData = data as import('@/types/workflow-editor').SubworkflowNodeData;
+      const subworkflowData = data as import('@/types/workflow/workflow-editor').SubworkflowNodeData;
       return {
         ...baseStep,
         type: 'subworkflow',

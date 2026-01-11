@@ -6,7 +6,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
-import type { GeneratedVideo, VideoProvider, VideoModel, VideoStatus } from '@/types/video';
+import type { GeneratedVideo, VideoProvider, VideoModel, VideoStatus } from '@/types/media/video';
 
 /**
  * Generated image record

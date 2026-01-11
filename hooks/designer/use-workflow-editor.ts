@@ -7,7 +7,7 @@ import { useCallback, useEffect } from 'react';
 import { useWorkflowEditorStore } from '@/stores/workflow';
 import { useWorkflow } from './use-workflow';
 import { visualToDefinition } from '@/lib/workflow-editor/converter';
-import type { VisualWorkflow, ValidationError } from '@/types/workflow-editor';
+import type { VisualWorkflow, ValidationError } from '@/types/workflow/workflow-editor';
 import type { WorkflowExecution } from '@/types/workflow';
 
 interface UseWorkflowEditorOptions {

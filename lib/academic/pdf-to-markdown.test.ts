@@ -8,7 +8,7 @@ import {
   generateKnowledgeMapFromPDF,
   parseMarkdownToElements,
 } from './pdf-to-markdown';
-import type { KnowledgeMapTrace } from '@/types/knowledge-map';
+import type { KnowledgeMapTrace } from '@/types/learning/knowledge-map';
 
 // Mock Tauri invoke
 jest.mock('@tauri-apps/api/core', () => ({

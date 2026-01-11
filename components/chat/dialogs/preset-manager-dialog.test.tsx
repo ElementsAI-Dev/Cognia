@@ -94,7 +94,7 @@ jest.mock('@/stores', () => ({
 }));
 
 // Mock types
-jest.mock('@/types/preset', () => ({
+jest.mock('@/types/content/preset', () => ({
   PRESET_COLORS: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'],
   PRESET_ICONS: ['💬', '🤖', '📝', '🎯'],
 }));

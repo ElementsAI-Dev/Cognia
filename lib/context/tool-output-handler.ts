@@ -15,7 +15,7 @@ import {
   CONTEXT_CONSTANTS,
   formatSize,
 } from './context-fs';
-import type { ToolOutputRef, ContextFile } from '@/types/context';
+import type { ToolOutputRef, ContextFile } from '@/types/system/context';
 
 /**
  * Result of processing a tool output

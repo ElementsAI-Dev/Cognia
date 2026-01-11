@@ -8,21 +8,13 @@ import React, { useState, useCallback } from 'react';
 import type { Plugin } from '@/types/plugin';
 import { usePluginStore } from '@/stores/plugin';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Save, RotateCcw } from 'lucide-react';
+import { Save, RotateCcw, Shield, CheckCircle, XCircle } from 'lucide-react';
+import { SchemaForm, type JSONSchema } from './schema-form';
+import { usePluginPermissions } from '@/hooks/plugin';
 
 interface PluginConfigProps {
   plugin: Plugin;
@@ -33,12 +25,13 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
   const { setPluginConfig } = usePluginStore();
   const [config, setConfig] = useState<Record<string, unknown>>(plugin.config);
   const [hasChanges, setHasChanges] = useState(false);
+  const { permissions, grants, hasPermission } = usePluginPermissions({ pluginId: plugin.manifest.id });
 
-  const configSchema = plugin.manifest.configSchema;
+  const configSchema = plugin.manifest.configSchema as JSONSchema | undefined;
 
-  const handleConfigChange = useCallback(
-    (key: string, value: unknown) => {
-      setConfig((prev) => ({ ...prev, [key]: value }));
+  const handleSchemaFormChange = useCallback(
+    (newConfig: Record<string, unknown>) => {
+      setConfig(newConfig);
       setHasChanges(true);
     },
     []
@@ -53,137 +46,6 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
     setConfig(plugin.manifest.defaultConfig || {});
     setHasChanges(true);
   }, [plugin.manifest.defaultConfig]);
-
-  const renderConfigField = (
-    key: string,
-    schema: Record<string, unknown>
-  ): React.ReactNode => {
-    const value = config[key];
-    const type = schema.type as string;
-    const title = (typeof schema.title === 'string' ? schema.title : key) as string;
-    const description = schema.description as string | undefined;
-    const enumValues = schema.enum as unknown[] | undefined;
-
-    switch (type) {
-      case 'boolean':
-        return (
-          <div className="flex items-center justify-between">
-            <div>
-              <Label htmlFor={key}>{title}</Label>
-              {description && (
-                <p className="text-xs text-muted-foreground">{description}</p>
-              )}
-            </div>
-            <Switch
-              id={key}
-              checked={Boolean(value)}
-              onCheckedChange={(checked) => handleConfigChange(key, checked)}
-            />
-          </div>
-        );
-
-      case 'string':
-        if (enumValues) {
-          return (
-            <div className="space-y-2">
-              <Label htmlFor={key}>{title}</Label>
-              {description && (
-                <p className="text-xs text-muted-foreground">{description}</p>
-              )}
-              <Select
-                value={String(value || '')}
-                onValueChange={(v) => handleConfigChange(key, v)}
-              >
-                <SelectTrigger id={key}>
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {enumValues.map((opt) => (
-                    <SelectItem key={String(opt)} value={String(opt)}>
-                      {String(opt)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          );
-        }
-
-        const isMultiline = (schema.maxLength as number | undefined) 
-          ? (schema.maxLength as number) > 100 
-          : false;
-
-        return (
-          <div className="space-y-2">
-            <Label htmlFor={key}>{title}</Label>
-            {description && (
-              <p className="text-xs text-muted-foreground">{description}</p>
-            )}
-            {isMultiline ? (
-              <Textarea
-                id={key}
-                value={String(value || '')}
-                onChange={(e) => handleConfigChange(key, e.target.value)}
-                rows={4}
-              />
-            ) : (
-              <Input
-                id={key}
-                value={String(value || '')}
-                onChange={(e) => handleConfigChange(key, e.target.value)}
-              />
-            )}
-          </div>
-        );
-
-      case 'number':
-      case 'integer':
-        return (
-          <div className="space-y-2">
-            <Label htmlFor={key}>{title}</Label>
-            {description && (
-              <p className="text-xs text-muted-foreground">{description}</p>
-            )}
-            <Input
-              id={key}
-              type="number"
-              value={String(value || '')}
-              onChange={(e) =>
-                handleConfigChange(
-                  key,
-                  type === 'integer'
-                    ? parseInt(e.target.value, 10)
-                    : parseFloat(e.target.value)
-                )
-              }
-              min={schema.minimum as number | undefined}
-              max={schema.maximum as number | undefined}
-            />
-          </div>
-        );
-
-      default:
-        return (
-          <div className="space-y-2">
-            <Label htmlFor={key}>{title}</Label>
-            {description && (
-              <p className="text-xs text-muted-foreground">{description}</p>
-            )}
-            <Input
-              id={key}
-              value={JSON.stringify(value)}
-              onChange={(e) => {
-                try {
-                  handleConfigChange(key, JSON.parse(e.target.value));
-                } catch {
-                  handleConfigChange(key, e.target.value);
-                }
-              }}
-            />
-          </div>
-        );
-    }
-  };
 
   return (
     <Tabs defaultValue="config" className="w-full">
@@ -202,15 +64,11 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
       <TabsContent value="config" className="mt-4">
         <ScrollArea className="h-[400px] pr-4">
           {configSchema?.properties ? (
-            <div className="space-y-6">
-              {Object.entries(configSchema.properties as Record<string, unknown>).map(
-                ([key, schema]) => (
-                  <div key={key}>
-                    {renderConfigField(key, schema as Record<string, unknown>)}
-                  </div>
-                )
-              )}
-            </div>
+            <SchemaForm
+              schema={configSchema}
+              value={config}
+              onChange={handleSchemaFormChange}
+            />
           ) : (
             <p className="text-muted-foreground text-center py-8">
               This plugin has no configuration options.
@@ -286,24 +144,38 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
 
       <TabsContent value="permissions" className="mt-4">
         <ScrollArea className="h-[400px]">
-          {plugin.manifest.permissions && plugin.manifest.permissions.length > 0 ? (
+          {permissions.length > 0 ? (
             <div className="space-y-2">
-              {plugin.manifest.permissions.map((perm) => (
-                <div
-                  key={perm}
-                  className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/50"
-                >
-                  <span className="font-mono text-sm">{perm}</span>
-                  <Badge variant="outline" className="text-xs">
-                    Required
-                  </Badge>
-                </div>
-              ))}
+              {permissions.map((perm) => {
+                const isGranted = hasPermission(perm);
+                const grant = grants.find((g) => g.permission === perm);
+                return (
+                  <div
+                    key={perm}
+                    className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/50"
+                  >
+                    <div className="flex items-center gap-2">
+                      {isGranted ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-500" />
+                      )}
+                      <span className="font-mono text-sm">{perm}</span>
+                    </div>
+                    <Badge variant={isGranted ? 'default' : 'outline'} className="text-xs">
+                      {grant?.grantedBy || 'Pending'}
+                    </Badge>
+                  </div>
+                );
+              })}
             </div>
           ) : (
-            <p className="text-muted-foreground text-center py-8">
-              This plugin requires no special permissions.
-            </p>
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <Shield className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">
+                This plugin requires no special permissions.
+              </p>
+            </div>
           )}
         </ScrollArea>
       </TabsContent>

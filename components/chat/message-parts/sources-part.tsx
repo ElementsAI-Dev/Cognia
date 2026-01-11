@@ -24,7 +24,7 @@ import {
   ShieldAlert, 
   ShieldQuestion 
 } from 'lucide-react';
-import type { SourcesPart as SourcesPartType } from '@/types/message';
+import type { SourcesPart as SourcesPartType } from '@/types/core/message';
 import type { CredibilityLevel } from '@/types/search';
 import { cn } from '@/lib/utils';
 

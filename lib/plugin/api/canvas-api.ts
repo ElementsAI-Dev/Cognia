@@ -10,7 +10,7 @@ import type {
   PluginCanvasDocument,
   CreateCanvasDocumentOptions,
   CanvasSelection,
-} from '@/types/plugin-extended';
+} from '@/types/plugin/plugin-extended';
 import type { CanvasDocumentVersion } from '@/types/artifact';
 
 /**

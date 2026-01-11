@@ -14,3 +14,7 @@ export { LocalProviderCard } from './local-provider-card';
 export { LocalProviderModelManager } from './local-provider-model-manager';
 export { LocalProviderSettings } from './local-provider-settings';
 export { LocalProviderSetupWizard } from './local-provider-setup-wizard';
+
+// Proxy/Aggregator provider components
+export { CLIProxyAPISettings } from './cliproxyapi-settings';
+export { OpenRouterSettings } from './openrouter-settings';

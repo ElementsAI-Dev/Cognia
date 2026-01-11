@@ -10,7 +10,7 @@ import type {
   OllamaPullProgress,
   OllamaRunningModel,
   OllamaModelInfo,
-} from '@/types/ollama';
+} from '@/types/provider/ollama';
 
 /**
  * Check if running in Tauri environment

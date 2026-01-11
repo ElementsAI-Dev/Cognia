@@ -69,7 +69,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useKnowledgeMap } from '@/hooks/academic/use-knowledge-map';
 import { MindMapCanvas } from './mind-map-canvas';
-import type { MindMapNode } from '@/types/knowledge-map';
+import type { MindMapNode } from '@/types/learning/knowledge-map';
 
 interface KnowledgeMapPanelProps {
   className?: string;

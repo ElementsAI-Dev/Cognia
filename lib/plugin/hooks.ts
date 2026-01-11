@@ -9,7 +9,7 @@ import type {
   PluginAgentStep,
   PluginMessage,
 } from '@/types/plugin';
-import type { A2UISurfaceType } from '@/types/a2ui';
+import type { A2UISurfaceType } from '@/types/artifact/a2ui';
 
 // =============================================================================
 // Types

@@ -12,7 +12,7 @@ import type {
   A2UIServerMessage,
   A2UIUserAction,
   A2UIDataModelChange,
-} from '@/types/a2ui';
+} from '@/types/artifact/a2ui';
 import {
   isCreateSurfaceMessage,
   isUpdateComponentsMessage,

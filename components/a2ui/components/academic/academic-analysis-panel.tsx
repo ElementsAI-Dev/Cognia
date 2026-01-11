@@ -34,7 +34,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import type { PaperAnalysisType } from '@/types/academic';
+import type { PaperAnalysisType } from '@/types/learning/academic';
 
 export interface AcademicAnalysisPanelProps {
   paperTitle: string;

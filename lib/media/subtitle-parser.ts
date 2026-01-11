@@ -14,8 +14,8 @@ import type {
   SubtitleMetadata,
   ParsedSubtitle,
   SubtitleParseError,
-} from '@/types/subtitle';
-import { parseSrtTimestamp, parseVttTimestamp } from '@/types/subtitle';
+} from '@/types/media/subtitle';
+import { parseSrtTimestamp, parseVttTimestamp } from '@/types/media/subtitle';
 
 /**
  * Detect subtitle format from content

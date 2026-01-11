@@ -20,7 +20,7 @@ import {
   Shrink,
 } from 'lucide-react';
 import { useSettingsStore } from '@/stores';
-import type { CompressionStrategy, CompressionTrigger } from '@/types/compression';
+import type { CompressionStrategy, CompressionTrigger } from '@/types/system/compression';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';

@@ -57,7 +57,7 @@ import type {
   PromptTemplateVersion,
   TemplateVariable,
   CreatePromptTemplateInput,
-} from '@/types/prompt-template';
+} from '@/types/content/prompt-template';
 import { usePromptTemplateStore } from '@/stores';
 import { buildTemplateVariables } from '@/lib/prompts/template-utils';
 

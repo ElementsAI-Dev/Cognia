@@ -31,7 +31,7 @@ import { Loader } from '@/components/ai-elements/loader';
 import { cn } from '@/lib/utils';
 import { useSettingsStore, useSessionStore } from '@/stores';
 import { optimizePrompt } from '@/lib/ai/generation/prompt-optimizer';
-import type { PromptOptimizationStyle, OptimizedPrompt } from '@/types/prompt';
+import type { PromptOptimizationStyle, OptimizedPrompt } from '@/types/content/prompt';
 import { PROVIDERS } from '@/types/provider';
 import {
   Sparkles,

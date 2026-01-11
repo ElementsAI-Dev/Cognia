@@ -9,7 +9,7 @@ import { type NodeProps } from '@xyflow/react';
 import { BaseNode } from './base-node';
 import { Badge } from '@/components/ui/badge';
 import { Shuffle, Filter, ArrowDownUp, Layers, Code } from 'lucide-react';
-import type { TransformNodeData } from '@/types/workflow-editor';
+import type { TransformNodeData } from '@/types/workflow/workflow-editor';
 
 const TRANSFORM_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   map: Shuffle,

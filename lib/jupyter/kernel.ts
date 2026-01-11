@@ -10,12 +10,12 @@ import { isTauri } from '@/lib/native/utils';
 import type {
   JupyterSession,
   KernelInfo,
-  KernelExecutionResult,
+  KernelSandboxExecutionResult,
   VariableInfo,
   KernelProgressEvent,
   CellOutputEvent,
   CreateSessionOptions,
-} from '@/types/jupyter';
+} from '@/types/system/jupyter';
 
 /** Check if kernel management is available */
 export function isKernelAvailable(): boolean {
@@ -121,12 +121,12 @@ export async function interruptKernel(sessionId: string): Promise<void> {
 export async function execute(
   sessionId: string,
   code: string
-): Promise<KernelExecutionResult> {
+): Promise<KernelSandboxExecutionResult> {
   if (!isTauri()) {
     throw new Error('Jupyter kernel requires Tauri environment');
   }
 
-  return invoke<KernelExecutionResult>('jupyter_execute', {
+  return invoke<KernelSandboxExecutionResult>('jupyter_execute', {
     sessionId,
     code,
   });
@@ -136,12 +136,12 @@ export async function execute(
 export async function quickExecute(
   envPath: string,
   code: string
-): Promise<KernelExecutionResult> {
+): Promise<KernelSandboxExecutionResult> {
   if (!isTauri()) {
     throw new Error('Jupyter kernel requires Tauri environment');
   }
 
-  return invoke<KernelExecutionResult>('jupyter_quick_execute', {
+  return invoke<KernelSandboxExecutionResult>('jupyter_quick_execute', {
     envPath,
     code,
   });
@@ -152,12 +152,12 @@ export async function executeCell(
   sessionId: string,
   cellIndex: number,
   code: string
-): Promise<KernelExecutionResult> {
+): Promise<KernelSandboxExecutionResult> {
   if (!isTauri()) {
     throw new Error('Jupyter kernel requires Tauri environment');
   }
 
-  return invoke<KernelExecutionResult>('jupyter_execute_cell', {
+  return invoke<KernelSandboxExecutionResult>('jupyter_execute_cell', {
     sessionId,
     cellIndex,
     code,
@@ -168,12 +168,12 @@ export async function executeCell(
 export async function executeNotebook(
   sessionId: string,
   cells: string[]
-): Promise<KernelExecutionResult[]> {
+): Promise<KernelSandboxExecutionResult[]> {
   if (!isTauri()) {
     throw new Error('Jupyter kernel requires Tauri environment');
   }
 
-  return invoke<KernelExecutionResult[]>('jupyter_execute_notebook', {
+  return invoke<KernelSandboxExecutionResult[]>('jupyter_execute_notebook', {
     sessionId,
     cells,
   });
@@ -202,12 +202,12 @@ export async function getVariables(
 export async function inspectVariable(
   sessionId: string,
   variableName: string
-): Promise<KernelExecutionResult> {
+): Promise<KernelSandboxExecutionResult> {
   if (!isTauri()) {
     throw new Error('Jupyter kernel requires Tauri environment');
   }
 
-  return invoke<KernelExecutionResult>('jupyter_inspect_variable', {
+  return invoke<KernelSandboxExecutionResult>('jupyter_inspect_variable', {
     sessionId,
     variableName,
   });
@@ -265,13 +265,13 @@ export async function onKernelStatus(
 
 /** Listen for kernel output events */
 export async function onKernelOutput(
-  callback: (result: KernelExecutionResult) => void
+  callback: (result: KernelSandboxExecutionResult) => void
 ): Promise<UnlistenFn> {
   if (!isTauri()) {
     return () => {};
   }
 
-  return listen<KernelExecutionResult>('jupyter-output', (event) => {
+  return listen<KernelSandboxExecutionResult>('jupyter-output', (event) => {
     callback(event.payload);
   });
 }

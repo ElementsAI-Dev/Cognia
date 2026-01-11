@@ -9,7 +9,7 @@ import Image from 'next/image';
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ImageIcon } from 'lucide-react';
-import type { A2UIComponentProps, A2UIImageComponent } from '@/types/a2ui';
+import type { A2UIComponentProps, A2UIImageComponent } from '@/types/artifact/a2ui';
 import { useA2UIContext } from '../../a2ui-context';
 
 const DEFAULT_IMAGE_WIDTH = 800;

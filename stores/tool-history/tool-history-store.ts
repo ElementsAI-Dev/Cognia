@@ -11,19 +11,19 @@ import type {
   ToolCallRecord,
   ToolUsageStats,
   ToolType,
-  ToolCallResult,
+  ToolCallResultStatus,
   ToolHistoryFilter,
   ToolHistorySettings,
   FrequentPrompt,
   PromptOptimizationSuggestion,
   ToolRecommendation,
   ToolSortOption,
-} from '@/types/tool-history';
+} from '@/types/agent/tool-history';
 import {
   DEFAULT_TOOL_HISTORY_SETTINGS,
   createToolId,
   truncatePrompt,
-} from '@/types/tool-history';
+} from '@/types/agent/tool-history';
 
 interface ToolHistoryState {
   // State
@@ -35,9 +35,9 @@ interface ToolHistoryState {
 
   // Record Management
   recordToolCall: (record: Omit<ToolCallRecord, 'id' | 'calledAt'>) => ToolCallRecord;
-  updateToolCallResult: (
+  updateToolCallResultStatus: (
     callId: string,
-    result: ToolCallResult,
+    result: ToolCallResultStatus,
     output?: string,
     errorMessage?: string,
     duration?: number
@@ -211,7 +211,7 @@ export const useToolHistoryStore = create<ToolHistoryState>()(
       },
 
       // Update a call's result
-      updateToolCallResult: (callId, result, output, errorMessage, duration) => {
+      updateToolCallResultStatus: (callId, result, output, errorMessage, duration) => {
         set((state) => {
           const recordIndex = state.history.findIndex(r => r.id === callId);
           if (recordIndex === -1) return state;

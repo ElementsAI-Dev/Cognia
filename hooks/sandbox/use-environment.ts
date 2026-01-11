@@ -13,7 +13,7 @@ import {
   environmentService,
   isEnvironmentAvailable,
 } from '@/lib/native/environment';
-import type { EnvironmentTool, ToolStatus, InstallProgress } from '@/types/environment';
+import type { EnvironmentTool, ToolStatus, InstallProgress } from '@/types/system/environment';
 
 export interface UseEnvironmentReturn {
   // State

@@ -4,7 +4,7 @@
  * Inspired by Lingguang's Flash App functionality
  */
 
-import type { A2UIComponent, A2UIServerMessage } from '@/types/a2ui';
+import type { A2UIComponent, A2UIServerMessage } from '@/types/artifact/a2ui';
 import { generateTemplateId } from './templates';
 
 /**

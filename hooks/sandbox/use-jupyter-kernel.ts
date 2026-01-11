@@ -14,12 +14,12 @@ import {
 import type {
   JupyterSession,
   KernelInfo,
-  KernelExecutionResult,
+  KernelSandboxExecutionResult,
   VariableInfo,
   CreateSessionOptions,
   KernelProgressEvent,
   CellOutputEvent,
-} from '@/types/jupyter';
+} from '@/types/system/jupyter';
 
 /** Hook return type */
 export interface UseJupyterKernelReturn {
@@ -30,7 +30,7 @@ export interface UseJupyterKernelReturn {
   activeKernel: KernelInfo | null;
   isExecuting: boolean;
   executingCellIndex: number | null;
-  lastResult: KernelExecutionResult | null;
+  lastResult: KernelSandboxExecutionResult | null;
   variables: VariableInfo[];
   variablesLoading: boolean;
   error: string | null;
@@ -48,23 +48,23 @@ export interface UseJupyterKernelReturn {
   interruptKernel: (sessionId?: string) => Promise<void>;
 
   // Execution
-  execute: (code: string, sessionId?: string) => Promise<KernelExecutionResult | null>;
+  execute: (code: string, sessionId?: string) => Promise<KernelSandboxExecutionResult | null>;
   executeCell: (
     cellIndex: number,
     code: string,
     sessionId?: string
-  ) => Promise<KernelExecutionResult | null>;
+  ) => Promise<KernelSandboxExecutionResult | null>;
   quickExecute: (
     envPath: string,
     code: string
-  ) => Promise<KernelExecutionResult | null>;
+  ) => Promise<KernelSandboxExecutionResult | null>;
 
   // Variables
   refreshVariables: (sessionId?: string) => Promise<void>;
   inspectVariable: (
     variableName: string,
     sessionId?: string
-  ) => Promise<KernelExecutionResult | null>;
+  ) => Promise<KernelSandboxExecutionResult | null>;
 
   // Utility
   checkKernelAvailable: (envPath: string) => Promise<boolean>;
@@ -90,7 +90,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     activeSessionId,
     isExecuting,
     executingCellIndex,
-    lastExecutionResult,
+    lastSandboxExecutionResult,
     variables,
     variablesLoading,
     error,
@@ -104,7 +104,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     setKernels,
     updateKernelStatus,
     setExecuting,
-    setLastExecutionResult,
+    setLastSandboxExecutionResult,
     setVariables,
     setVariablesLoading,
     addExecutionHistory,
@@ -141,8 +141,8 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
 
       // Listen for execution output
       const unlistenOutput = await kernelService.onKernelOutput(
-        (result: KernelExecutionResult) => {
-          setLastExecutionResult(result);
+        (result: KernelSandboxExecutionResult) => {
+          setLastSandboxExecutionResult(result);
         }
       );
 
@@ -150,7 +150,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
       const unlistenCellOutput = await kernelService.onCellOutput(
         (event: CellOutputEvent) => {
           // Update cell-specific state if needed
-          setLastExecutionResult(event.result);
+          setLastSandboxExecutionResult(event.result);
         }
       );
 
@@ -163,7 +163,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
       unlistenersRef.current.forEach((unlisten) => unlisten());
       unlistenersRef.current = [];
     };
-  }, [updateKernelStatus, setError, setLastExecutionResult]);
+  }, [updateKernelStatus, setError, setLastSandboxExecutionResult]);
 
   // Load sessions on mount
   useEffect(() => {
@@ -284,7 +284,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     async (
       code: string,
       sessionId?: string
-    ): Promise<KernelExecutionResult | null> => {
+    ): Promise<KernelSandboxExecutionResult | null> => {
       const targetSessionId = sessionId || activeSessionId;
       if (!targetSessionId || !kernelService.isAvailable()) {
         setError('No active session');
@@ -296,7 +296,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
 
       try {
         const result = await kernelService.execute(targetSessionId, code);
-        setLastExecutionResult(result);
+        setLastSandboxExecutionResult(result);
 
         // Add to history
         addExecutionHistory({
@@ -315,7 +315,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
         setExecuting(false);
       }
     },
-    [activeSessionId, setExecuting, clearError, setLastExecutionResult, addExecutionHistory, setError]
+    [activeSessionId, setExecuting, clearError, setLastSandboxExecutionResult, addExecutionHistory, setError]
   );
 
   // Execute a specific cell
@@ -324,7 +324,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
       cellIndex: number,
       code: string,
       sessionId?: string
-    ): Promise<KernelExecutionResult | null> => {
+    ): Promise<KernelSandboxExecutionResult | null> => {
       const targetSessionId = sessionId || activeSessionId;
       if (!targetSessionId || !kernelService.isAvailable()) {
         setError('No active session');
@@ -340,7 +340,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
           cellIndex,
           code
         );
-        setLastExecutionResult(result);
+        setLastSandboxExecutionResult(result);
 
         // Add to history
         addExecutionHistory({
@@ -359,7 +359,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
         setExecuting(false);
       }
     },
-    [activeSessionId, setExecuting, clearError, setLastExecutionResult, addExecutionHistory, setError]
+    [activeSessionId, setExecuting, clearError, setLastSandboxExecutionResult, addExecutionHistory, setError]
   );
 
   // Quick execute without session
@@ -367,7 +367,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     async (
       envPath: string,
       code: string
-    ): Promise<KernelExecutionResult | null> => {
+    ): Promise<KernelSandboxExecutionResult | null> => {
       if (!kernelService.isAvailable()) {
         setError('Jupyter kernel requires Tauri environment');
         return null;
@@ -378,7 +378,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
 
       try {
         const result = await kernelService.quickExecute(envPath, code);
-        setLastExecutionResult(result);
+        setLastSandboxExecutionResult(result);
         return result;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Execution failed');
@@ -387,7 +387,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
         setExecuting(false);
       }
     },
-    [setExecuting, clearError, setLastExecutionResult, setError]
+    [setExecuting, clearError, setLastSandboxExecutionResult, setError]
   );
 
   // Refresh variables
@@ -414,7 +414,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     async (
       variableName: string,
       sessionId?: string
-    ): Promise<KernelExecutionResult | null> => {
+    ): Promise<KernelSandboxExecutionResult | null> => {
       const targetSessionId = sessionId || activeSessionId;
       if (!targetSessionId || !kernelService.isAvailable()) return null;
 
@@ -497,7 +497,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     activeKernel,
     isExecuting,
     executingCellIndex,
-    lastResult: lastExecutionResult,
+    lastResult: lastSandboxExecutionResult,
     variables,
     variablesLoading,
     error,

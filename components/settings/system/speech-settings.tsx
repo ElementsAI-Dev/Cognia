@@ -38,7 +38,7 @@ import {
   OPENAI_TTS_VOICES,
   GEMINI_TTS_VOICES,
   EDGE_TTS_VOICES,
-} from '@/types/speech';
+} from '@/types/media/speech';
 import { useTTS } from '@/hooks';
 
 export function SpeechSettings() {

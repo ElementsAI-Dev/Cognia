@@ -7,7 +7,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { PageLayoutDialog, type PageLayoutSettings } from './page-layout-dialog';
-import { MARGIN_PRESETS } from '@/types/document-formatting';
+import { MARGIN_PRESETS } from '@/types/document/document-formatting';
 
 const messages = {
   document: {

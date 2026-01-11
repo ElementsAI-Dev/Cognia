@@ -6,7 +6,7 @@ import { act } from '@testing-library/react';
 import { useUsageStore } from './usage-store';
 
 // Mock calculateCost function
-jest.mock('@/types/usage', () => ({
+jest.mock('@/types/system/usage', () => ({
   calculateCost: jest.fn(() => 0.01),
 }));
 

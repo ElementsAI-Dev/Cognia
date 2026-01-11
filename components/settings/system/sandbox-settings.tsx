@@ -16,8 +16,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSandbox } from '@/hooks/sandbox';
-import { LANGUAGE_INFO } from '@/types/sandbox';
-import type { RuntimeType, SandboxConfig } from '@/types/sandbox';
+import { LANGUAGE_INFO } from '@/types/system/sandbox';
+import type { RuntimeType, BackendSandboxConfig } from '@/types/system/sandbox';
 
 export function SandboxSettings() {
   const t = useTranslations('sandboxSettings');
@@ -35,7 +35,7 @@ export function SandboxSettings() {
     toggleLanguage,
   } = useSandbox();
 
-  const [localConfig, setLocalConfig] = useState<SandboxConfig | null>(null);
+  const [localConfig, setLocalConfig] = useState<BackendSandboxConfig | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {

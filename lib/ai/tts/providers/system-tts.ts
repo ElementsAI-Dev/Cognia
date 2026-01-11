@@ -2,8 +2,8 @@
  * System TTS Provider - Browser's built-in Web Speech API
  */
 
-import type { TTSResponse, TTSError } from '@/types/tts';
-import { getTTSError } from '@/types/tts';
+import type { TTSResponse, TTSError } from '@/types/media/tts';
+import { getTTSError } from '@/types/media/tts';
 
 export interface SystemTTSOptions {
   voice?: string;

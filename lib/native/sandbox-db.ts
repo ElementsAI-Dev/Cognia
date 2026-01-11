@@ -11,18 +11,18 @@ import type {
   CreateSnippetRequest,
   DailyExecutionCount,
   ExecutionFilter,
-  ExecutionRecord,
+  SandboxExecutionRecord,
   ExecutionRequest,
-  ExecutionResult,
+  SandboxExecutionResult,
   ExecutionSession,
   Language,
   LanguageStats,
   RuntimeType,
-  SandboxConfig,
+  BackendSandboxConfig,
   SandboxStats,
   SandboxStatus,
   SnippetFilter,
-} from '@/types/sandbox';
+} from '@/types/system/sandbox';
 
 // ==================== Execution ====================
 
@@ -31,8 +31,8 @@ import type {
  */
 export async function executeCode(
   request: ExecutionRequest
-): Promise<ExecutionResult> {
-  return invoke<ExecutionResult>('sandbox_execute', { request });
+): Promise<SandboxExecutionResult> {
+  return invoke<SandboxExecutionResult>('sandbox_execute', { request });
 }
 
 /**
@@ -42,8 +42,8 @@ export async function executeCodeWithOptions(
   request: ExecutionRequest,
   tags: string[] = [],
   saveToHistory: boolean = true
-): Promise<ExecutionResult> {
-  return invoke<ExecutionResult>('sandbox_execute_with_options', {
+): Promise<SandboxExecutionResult> {
+  return invoke<SandboxExecutionResult>('sandbox_execute_with_options', {
     request,
     tags,
     saveToHistory,
@@ -56,8 +56,8 @@ export async function executeCodeWithOptions(
 export async function quickExecute(
   language: string,
   code: string
-): Promise<ExecutionResult> {
-  return invoke<ExecutionResult>('sandbox_quick_execute', { language, code });
+): Promise<SandboxExecutionResult> {
+  return invoke<SandboxExecutionResult>('sandbox_quick_execute', { language, code });
 }
 
 /**
@@ -67,8 +67,8 @@ export async function executeWithStdin(
   language: string,
   code: string,
   stdin: string
-): Promise<ExecutionResult> {
-  return invoke<ExecutionResult>('sandbox_execute_with_stdin', {
+): Promise<SandboxExecutionResult> {
+  return invoke<SandboxExecutionResult>('sandbox_execute_with_stdin', {
     language,
     code,
     stdin,
@@ -83,8 +83,8 @@ export async function executeWithLimits(
   code: string,
   timeoutSecs: number,
   memoryMb: number
-): Promise<ExecutionResult> {
-  return invoke<ExecutionResult>('sandbox_execute_with_limits', {
+): Promise<SandboxExecutionResult> {
+  return invoke<SandboxExecutionResult>('sandbox_execute_with_limits', {
     language,
     code,
     timeoutSecs,
@@ -104,15 +104,15 @@ export async function getSandboxStatus(): Promise<SandboxStatus> {
 /**
  * Get sandbox configuration
  */
-export async function getSandboxConfig(): Promise<SandboxConfig> {
-  return invoke<SandboxConfig>('sandbox_get_config');
+export async function getBackendSandboxConfig(): Promise<BackendSandboxConfig> {
+  return invoke<BackendSandboxConfig>('sandbox_get_config');
 }
 
 /**
  * Update sandbox configuration
  */
-export async function updateSandboxConfig(
-  config: SandboxConfig
+export async function updateBackendSandboxConfig(
+  config: BackendSandboxConfig
 ): Promise<void> {
   return invoke<void>('sandbox_update_config', { config });
 }
@@ -272,8 +272,8 @@ export async function deleteSession(
  */
 export async function getExecution(
   id: string
-): Promise<ExecutionRecord | null> {
-  return invoke<ExecutionRecord | null>('sandbox_get_execution', { id });
+): Promise<SandboxExecutionRecord | null> {
+  return invoke<SandboxExecutionRecord | null>('sandbox_get_execution', { id });
 }
 
 /**
@@ -281,8 +281,8 @@ export async function getExecution(
  */
 export async function queryExecutions(
   filter: ExecutionFilter = {}
-): Promise<ExecutionRecord[]> {
-  return invoke<ExecutionRecord[]>('sandbox_query_executions', { filter });
+): Promise<SandboxExecutionRecord[]> {
+  return invoke<SandboxExecutionRecord[]>('sandbox_query_executions', { filter });
 }
 
 /**
@@ -290,8 +290,8 @@ export async function queryExecutions(
  */
 export async function getRecentExecutions(
   limit: number = 50
-): Promise<ExecutionRecord[]> {
-  return invoke<ExecutionRecord[]>('sandbox_get_recent_executions', { limit });
+): Promise<SandboxExecutionRecord[]> {
+  return invoke<SandboxExecutionRecord[]>('sandbox_get_recent_executions', { limit });
 }
 
 /**
@@ -401,8 +401,8 @@ export async function createSnippetFromExecution(
 /**
  * Execute a snippet
  */
-export async function executeSnippet(id: string): Promise<ExecutionResult> {
-  return invoke<ExecutionResult>('sandbox_execute_snippet', { id });
+export async function executeSnippet(id: string): Promise<SandboxExecutionResult> {
+  return invoke<SandboxExecutionResult>('sandbox_execute_snippet', { id });
 }
 
 // ==================== Statistics ====================
@@ -575,8 +575,8 @@ export const SandboxDbApi = {
   executeWithLimits,
   // Configuration
   getSandboxStatus,
-  getSandboxConfig,
-  updateSandboxConfig,
+  getBackendSandboxConfig,
+  updateBackendSandboxConfig,
   getAvailableRuntimes,
   getSupportedLanguages,
   checkRuntime,

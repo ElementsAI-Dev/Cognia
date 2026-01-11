@@ -3,7 +3,7 @@
  * Predefined templates for quickly creating small applications
  */
 
-import type { A2UIComponent, A2UIServerMessage } from '@/types/a2ui';
+import type { A2UIComponent, A2UIServerMessage } from '@/types/artifact/a2ui';
 
 /**
  * App template definition

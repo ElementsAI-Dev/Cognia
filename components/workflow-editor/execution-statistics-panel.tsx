@@ -36,7 +36,7 @@ export function ExecutionStatisticsPanel() {
   const {
     currentWorkflow,
     getWorkflowStatistics,
-    clearExecutionRecords,
+    clearWorkflowExecutionRecords,
   } = useWorkflowEditorStore();
 
   const statistics = useMemo(() => {
@@ -223,7 +223,7 @@ export function ExecutionStatisticsPanel() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => clearExecutionRecords(currentWorkflow?.id)}
+                onClick={() => clearWorkflowExecutionRecords(currentWorkflow?.id)}
               >
                 <Trash2 className="h-4 w-4 mr-1" />
                 {t('clearHistory')}

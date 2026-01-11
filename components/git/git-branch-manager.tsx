@@ -48,7 +48,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
-import type { GitBranchInfo } from '@/types/git';
+import type { GitBranchInfo } from '@/types/system/git';
 
 interface GitBranchManagerProps {
   branches: GitBranchInfo[];

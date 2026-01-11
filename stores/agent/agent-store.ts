@@ -4,10 +4,10 @@
 
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
-import type { ToolExecution, ToolStatus } from '@/types/tool';
+import type { ToolExecution, AgentToolStatus as ToolStatus } from '@/types/agent/tool';
 import type { AgentPlan, PlanStep, PlanStepStatus, CreatePlanInput, UpdatePlanInput } from '@/types/agent';
-import type { SubAgent, CreateSubAgentInput, UpdateSubAgentInput } from '@/types/sub-agent';
-import { DEFAULT_SUB_AGENT_CONFIG } from '@/types/sub-agent';
+import type { SubAgent, CreateSubAgentInput, UpdateSubAgentInput } from '@/types/agent/sub-agent';
+import { DEFAULT_SUB_AGENT_CONFIG } from '@/types/agent/sub-agent';
 
 interface AgentState {
   // Agent running state

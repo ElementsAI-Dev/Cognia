@@ -50,9 +50,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useBackgroundAgent } from '@/hooks/ai';
+import { useBackgroundAgent } from '@/hooks/agent';
 import { AgentFlowVisualizer } from './agent-flow-visualizer';
-import type { BackgroundAgent, BackgroundAgentStatus, BackgroundAgentLog } from '@/types/background-agent';
+import type { BackgroundAgent, BackgroundAgentStatus, BackgroundAgentLog } from '@/types/agent/background-agent';
 
 const statusConfig: Record<BackgroundAgentStatus, {
   icon: React.ElementType;

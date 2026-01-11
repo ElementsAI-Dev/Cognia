@@ -50,7 +50,7 @@ import {
   type PageMargins,
   PAGE_SIZES,
   MARGIN_PRESETS,
-} from '@/types/document-formatting';
+} from '@/types/document/document-formatting';
 import { useMediaQuery } from '@/hooks';
 
 export interface PageLayoutSettings {

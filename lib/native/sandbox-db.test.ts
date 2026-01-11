@@ -16,8 +16,8 @@ import {
   executeWithStdin,
   executeWithLimits,
   getSandboxStatus,
-  getSandboxConfig,
-  updateSandboxConfig,
+  getBackendSandboxConfig,
+  updateBackendSandboxConfig,
   getAvailableRuntimes,
   getSupportedLanguages,
   checkRuntime,
@@ -131,19 +131,19 @@ describe('SandboxDb - Configuration', () => {
     });
   });
 
-  describe('getSandboxConfig', () => {
+  describe('getBackendSandboxConfig', () => {
     it('should call invoke', async () => {
       mockInvoke.mockResolvedValue({});
-      await getSandboxConfig();
+      await getBackendSandboxConfig();
       expect(mockInvoke).toHaveBeenCalledWith('sandbox_get_config');
     });
   });
 
-  describe('updateSandboxConfig', () => {
+  describe('updateBackendSandboxConfig', () => {
     it('should call invoke with config', async () => {
       const config = { preferred_runtime: 'docker' as const };
       mockInvoke.mockResolvedValue(undefined);
-      await updateSandboxConfig(config as Parameters<typeof updateSandboxConfig>[0]);
+      await updateBackendSandboxConfig(config as Parameters<typeof updateBackendSandboxConfig>[0]);
       expect(mockInvoke).toHaveBeenCalledWith('sandbox_update_config', { config });
     });
   });
@@ -361,7 +361,7 @@ describe('SandboxDb - SandboxDbApi', () => {
     expect(SandboxDbApi.executeCode).toBe(executeCode);
     expect(SandboxDbApi.quickExecute).toBe(quickExecute);
     expect(SandboxDbApi.getSandboxStatus).toBe(getSandboxStatus);
-    expect(SandboxDbApi.getSandboxConfig).toBe(getSandboxConfig);
+    expect(SandboxDbApi.getBackendSandboxConfig).toBe(getBackendSandboxConfig);
     expect(SandboxDbApi.startSession).toBe(startSession);
     expect(SandboxDbApi.getExecution).toBe(getExecution);
     expect(SandboxDbApi.createSnippet).toBe(createSnippet);

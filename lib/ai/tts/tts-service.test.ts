@@ -10,7 +10,7 @@ import {
   type TTSServiceOptions,
   type TTSServiceController,
 } from './tts-service';
-import { DEFAULT_TTS_SETTINGS } from '@/types/tts';
+import { DEFAULT_TTS_SETTINGS } from '@/types/media/tts';
 
 // Mock audio APIs
 jest.mock('./providers/openai-tts', () => ({

@@ -12,7 +12,7 @@ import {
   useEnvironmentRefreshing,
   useEnvironmentInstalling,
 } from './environment-store';
-import type { EnvironmentTool, ToolStatus } from '@/types/environment';
+import type { EnvironmentTool, ToolStatus } from '@/types/system/environment';
 
 describe('useEnvironmentStore', () => {
   beforeEach(() => {

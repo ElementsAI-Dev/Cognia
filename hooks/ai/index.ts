@@ -1,8 +1,10 @@
 /**
- * AI/Agent related hooks
+ * AI provider and model related hooks
+ * 
+ * Note: Agent-specific hooks have been moved to @/hooks/agent
+ * Note: Skills-related hooks have been moved to @/hooks/skills
  */
 
-export { useAgent, useConfiguredAgent, type UseAgentOptions, type UseAgentReturn } from './use-agent';
 export {
   useAIRegistry,
   useReasoningModel,
@@ -10,16 +12,6 @@ export {
   type UseAIRegistryOptions,
   type UseAIRegistryReturn,
 } from './use-ai-registry';
-export {
-  useBackgroundAgent,
-  type UseBackgroundAgentOptions,
-  type UseBackgroundAgentReturn,
-} from './use-background-agent';
-export {
-  useSubAgent,
-  type UseSubAgentOptions,
-  type UseSubAgentReturn,
-} from './use-sub-agent';
 export {
   useOllama,
   type UseOllamaOptions,
@@ -32,41 +24,8 @@ export {
   type UseStructuredOutputReturn,
 } from './use-structured-output';
 export {
-  useUnifiedTools,
-  type UseUnifiedToolsOptions,
-  type UseUnifiedToolsReturn,
-} from './use-unified-tools';
-export {
-  useSkills,
-  useSkillSystemPrompt,
-  useAutoMatchSkills,
-  useSkillTokenBudget,
-  type UseSkillsOptions,
-  type UseSkillsReturn,
-} from './use-skills';
-export { usePlanExecutor, type PlanExecutionOptions, type UsePlanExecutorReturn } from './use-plan-executor';
-export {
   usePromptOptimizer,
   type UsePromptOptimizerOptions,
   type UsePromptOptimizerReturn,
 } from './use-prompt-optimizer';
-export {
-  useNativeSkills,
-  useNativeSkillAvailable,
-  type UseNativeSkillsReturn,
-  type SkillRepo,
-  type DiscoverableSkill,
-  type InstalledSkill,
-  type NativeSkill,
-  type LocalSkill,
-} from './use-native-skills';
-export {
-  useSkillSync,
-  useSkillSyncAvailable,
-  type UseSkillSyncReturn,
-} from './use-skill-sync';
-export {
-  useToolHistory,
-  type UseToolHistoryOptions,
-  type UseToolHistoryReturn,
-} from './use-tool-history';
+export { useProviderManager } from './use-provider-manager';

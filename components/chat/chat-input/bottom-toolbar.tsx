@@ -22,7 +22,7 @@ interface BottomToolbarProps {
   onStreamingChange?: (enabled: boolean) => void;
   onOpenAISettings?: () => void;
   onOpenContextSettings?: () => void;
-  onPresetChange?: (preset: import('@/types/preset').Preset) => void;
+  onPresetChange?: (preset: import('@/types/content/preset').Preset) => void;
   onCreatePreset?: () => void;
   onManagePresets?: () => void;
   onSelectPrompt: (content: string) => void;

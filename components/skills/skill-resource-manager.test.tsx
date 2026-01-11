@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SkillResourceManager } from './skill-resource-manager';
-import type { SkillResource } from '@/types/skill';
+import type { SkillResource } from '@/types/system/skill';
 
 const mockResources: SkillResource[] = [
   {

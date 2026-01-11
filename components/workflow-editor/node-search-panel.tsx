@@ -42,7 +42,7 @@ import {
   Group,
   Circle,
 } from 'lucide-react';
-import type { WorkflowNodeType } from '@/types/workflow-editor';
+import type { WorkflowNodeType } from '@/types/workflow/workflow-editor';
 
 const NODE_TYPE_ICONS: Record<WorkflowNodeType, React.ReactNode> = {
   start: <Play className="h-3.5 w-3.5 text-green-500" />,

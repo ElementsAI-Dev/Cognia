@@ -15,13 +15,22 @@ export default function AssistantBubbleLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="overflow-hidden assistant-bubble-window">
+    <html lang="en" suppressHydrationWarning className="bg-transparent">
+      <body 
+        className="overflow-hidden assistant-bubble-window bg-transparent"
+        style={{
+          // Ensure true transparency on Windows
+          backgroundColor: 'transparent',
+          // Prevent any default background
+          margin: 0,
+          padding: 0,
+        }}
+      >
         <I18nProvider>
           <ThemeProvider
             attribute="class"
-            defaultTheme="system"
-            enableSystem
+            defaultTheme="dark"
+            enableSystem={false}
             disableTransitionOnChange
           >
             <TooltipProvider delayDuration={0}>{children}</TooltipProvider>

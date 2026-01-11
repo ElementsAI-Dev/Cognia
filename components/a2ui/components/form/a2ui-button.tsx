@@ -9,7 +9,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import type { A2UIComponentProps, A2UIButtonComponent } from '@/types/a2ui';
+import type { A2UIComponentProps, A2UIButtonComponent } from '@/types/artifact/a2ui';
 import { useA2UIContext } from '../../a2ui-context';
 
 const variantMap: Record<string, 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'> = {

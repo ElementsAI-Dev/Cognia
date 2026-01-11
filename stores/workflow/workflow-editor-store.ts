@@ -29,9 +29,9 @@ import type {
   NodeTemplate,
   WorkflowVersion,
   WorkflowExport,
-  ExecutionRecord,
+  WorkflowExecutionRecord,
   WorkflowStatistics,
-} from '@/types/workflow-editor';
+} from '@/types/workflow/workflow-editor';
 import {
   createEmptyVisualWorkflow,
   createDefaultNodeData,
@@ -39,7 +39,7 @@ import {
   createWorkflowVersion,
   createWorkflowExport,
   calculateWorkflowStatistics,
-} from '@/types/workflow-editor';
+} from '@/types/workflow/workflow-editor';
 import { nanoid } from 'nanoid';
 import {
   executeVisualWorkflow,
@@ -105,7 +105,7 @@ interface WorkflowEditorState {
   currentVersionNumber: number;
   
   // Execution statistics
-  executionRecords: ExecutionRecord[];
+  WorkflowExecutionRecords: WorkflowExecutionRecord[];
 }
 
 interface WorkflowEditorActions {
@@ -212,9 +212,9 @@ interface WorkflowEditorActions {
   importFromFile: (file: File) => Promise<void>;
   
   // Execution statistics
-  recordExecution: (record: Omit<ExecutionRecord, 'id'>) => void;
+  recordExecution: (record: Omit<WorkflowExecutionRecord, 'id'>) => void;
   getWorkflowStatistics: (workflowId?: string) => WorkflowStatistics | null;
-  clearExecutionRecords: (workflowId?: string) => void;
+  clearWorkflowExecutionRecords: (workflowId?: string) => void;
   
   // Reset
   reset: () => void;
@@ -229,7 +229,7 @@ const initialState: WorkflowEditorState = {
   nodeTemplates: [],
   workflowVersions: {},
   currentVersionNumber: 0,
-  executionRecords: [],
+  WorkflowExecutionRecords: [],
   history: [],
   historyIndex: -1,
   maxHistorySize: 50,
@@ -1715,31 +1715,31 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
 
       // Execution statistics
       recordExecution: (record) => {
-        const { executionRecords } = get();
-        const newRecord: ExecutionRecord = {
+        const { WorkflowExecutionRecords } = get();
+        const newRecord: WorkflowExecutionRecord = {
           ...record,
           id: `exec-${nanoid()}`,
         };
         set({
-          executionRecords: [newRecord, ...executionRecords].slice(0, 500),
+          WorkflowExecutionRecords: [newRecord, ...WorkflowExecutionRecords].slice(0, 500),
         });
       },
 
       getWorkflowStatistics: (workflowId) => {
-        const { currentWorkflow, executionRecords } = get();
+        const { currentWorkflow, WorkflowExecutionRecords } = get();
         const targetId = workflowId || currentWorkflow?.id;
         if (!targetId) return null;
-        return calculateWorkflowStatistics(targetId, executionRecords);
+        return calculateWorkflowStatistics(targetId, WorkflowExecutionRecords);
       },
 
-      clearExecutionRecords: (workflowId) => {
-        const { executionRecords } = get();
+      clearWorkflowExecutionRecords: (workflowId) => {
+        const { WorkflowExecutionRecords } = get();
         if (workflowId) {
           set({
-            executionRecords: executionRecords.filter((r) => r.workflowId !== workflowId),
+            WorkflowExecutionRecords: WorkflowExecutionRecords.filter((r) => r.workflowId !== workflowId),
           });
         } else {
-          set({ executionRecords: [] });
+          set({ WorkflowExecutionRecords: [] });
         }
       },
 
@@ -1754,7 +1754,7 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
         savedWorkflows: state.savedWorkflows,
         nodeTemplates: state.nodeTemplates,
         workflowVersions: state.workflowVersions,
-        executionRecords: state.executionRecords,
+        WorkflowExecutionRecords: state.WorkflowExecutionRecords,
         showNodePalette: state.showNodePalette,
         showConfigPanel: state.showConfigPanel,
         showMinimap: state.showMinimap,

@@ -41,7 +41,7 @@ import {
 import { useGit } from '@/hooks/native/use-git';
 import { useGitStore } from '@/stores/git';
 import { gitService } from '@/lib/native/git';
-import type { GitConfig } from '@/types/git';
+import type { GitConfig } from '@/types/system/git';
 
 export function GitSettings() {
   const t = useTranslations('settings.git');

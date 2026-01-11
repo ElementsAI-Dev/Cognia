@@ -43,7 +43,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useToolHistoryStore } from '@/stores';
-import type { ToolCallRecord, ToolCallResult, ToolType } from '@/types/tool-history';
+import type { ToolCallRecord, ToolCallResultStatus, ToolType } from '@/types/agent/tool-history';
 
 interface ToolHistoryPanelProps {
   /** Callback when a tool is selected for reuse */
@@ -78,7 +78,7 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-function getResultIcon(result: ToolCallResult) {
+function getResultIcon(result: ToolCallResultStatus) {
   switch (result) {
     case 'success':
       return <CheckCircle2 className="h-4 w-4 text-green-500" />;
@@ -233,7 +233,7 @@ function ToolHistoryContent({
   const _t = useTranslations('toolHistory');
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterResult, setFilterResult] = useState<ToolCallResult | 'all'>('all');
+  const [filterResult, setFilterResult] = useState<ToolCallResultStatus | 'all'>('all');
   const [filterType, setFilterType] = useState<ToolType | 'all'>('all');
 
   const history = useToolHistoryStore((state) => state.history);

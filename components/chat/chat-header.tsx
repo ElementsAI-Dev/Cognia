@@ -77,7 +77,7 @@ import { BranchSelector, SessionEnvSelector } from './selectors';
 import { PresetSelector, CreatePresetDialog, PresetsManager } from '@/components/presets';
 import { ActiveSkillsIndicator } from '@/components/skills';
 import { BackgroundAgentIndicator, AgentModeSelector } from '@/components/agent';
-import type { AgentModeConfig } from '@/types/agent-mode';
+import type { AgentModeConfig } from '@/types/agent/agent-mode';
 import {
   Dialog,
   DialogContent,
@@ -222,13 +222,27 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
   }, [session, messages, generateChatSummary]);
 
   // Handle agent sub-mode change (within agent mode)
+  // Supports both built-in and custom modes with full configuration
   const handleAgentModeChange = (agentMode: AgentModeConfig) => {
     if (session) {
-      updateSession(session.id, {
+      // Build update object with mode-specific settings
+      const sessionUpdate: Parameters<typeof updateSession>[1] = {
         agentModeId: agentMode.id,
         systemPrompt: agentMode.systemPrompt,
-        // Store agent-specific tools configuration
-      });
+      };
+
+      // Apply custom mode settings if available
+      if ('modelOverride' in agentMode && agentMode.modelOverride) {
+        sessionUpdate.model = agentMode.modelOverride as string;
+      }
+      if ('temperatureOverride' in agentMode && agentMode.temperatureOverride !== undefined) {
+        sessionUpdate.temperature = agentMode.temperatureOverride as number;
+      }
+      if ('maxTokensOverride' in agentMode && agentMode.maxTokensOverride !== undefined) {
+        sessionUpdate.maxTokens = agentMode.maxTokensOverride as number;
+      }
+
+      updateSession(session.id, sessionUpdate);
     }
   };
 

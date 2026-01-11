@@ -2,7 +2,7 @@
 //!
 //! Commands for controlling the floating assistant bubble window.
 
-use crate::assistant_bubble::AssistantBubbleWindow;
+use crate::assistant_bubble::{AssistantBubbleWindow, BubbleConfig};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -29,6 +29,18 @@ pub async fn assistant_bubble_hide(manager: State<'_, AssistantBubbleWindow>) ->
     manager.hide()
 }
 
+/// Toggle the assistant bubble window visibility
+#[tauri::command]
+pub async fn assistant_bubble_toggle(manager: State<'_, AssistantBubbleWindow>) -> Result<bool, String> {
+    if manager.is_visible() {
+        manager.hide()?;
+        Ok(false)
+    } else {
+        manager.show()?;
+        Ok(true)
+    }
+}
+
 /// Check if bubble is visible
 #[tauri::command]
 pub async fn assistant_bubble_is_visible(manager: State<'_, AssistantBubbleWindow>) -> Result<bool, String> {
@@ -49,4 +61,31 @@ pub async fn assistant_bubble_get_info(manager: State<'_, AssistantBubbleWindow>
         height,
         is_visible,
     })
+}
+
+/// Get bubble configuration
+#[tauri::command]
+pub async fn assistant_bubble_get_config(manager: State<'_, AssistantBubbleWindow>) -> Result<BubbleConfig, String> {
+    Ok(manager.get_config())
+}
+
+/// Update bubble configuration
+#[tauri::command]
+pub async fn assistant_bubble_update_config(
+    manager: State<'_, AssistantBubbleWindow>,
+    config: BubbleConfig,
+) -> Result<(), String> {
+    manager.update_config(config);
+    Ok(())
+}
+
+/// Set bubble position
+#[tauri::command]
+pub async fn assistant_bubble_set_position(
+    manager: State<'_, AssistantBubbleWindow>,
+    x: i32,
+    y: i32,
+) -> Result<(), String> {
+    manager.set_position(x, y);
+    Ok(())
 }

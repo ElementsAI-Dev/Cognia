@@ -11,10 +11,32 @@ const BUBBLE_SIZE: f64 = 56.0;
 /// Distance from screen edge
 const BUBBLE_PADDING: i32 = 16;
 
+/// Bubble configuration for persistence
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BubbleConfig {
+    pub x: Option<i32>,
+    pub y: Option<i32>,
+    pub auto_hide: bool,
+    pub remember_position: bool,
+}
+
+impl Default for BubbleConfig {
+    fn default() -> Self {
+        Self {
+            x: None,
+            y: None,
+            auto_hide: false,
+            remember_position: true,
+        }
+    }
+}
+
 pub struct AssistantBubbleWindow {
     app_handle: AppHandle,
     is_visible: Arc<AtomicBool>,
     position: Arc<RwLock<Option<(i32, i32)>>>,
+    config: Arc<RwLock<BubbleConfig>>,
 }
 
 impl AssistantBubbleWindow {
@@ -23,6 +45,29 @@ impl AssistantBubbleWindow {
             app_handle,
             is_visible: Arc::new(AtomicBool::new(false)),
             position: Arc::new(RwLock::new(None)),
+            config: Arc::new(RwLock::new(BubbleConfig::default())),
+        }
+    }
+
+    /// Get bubble configuration
+    pub fn get_config(&self) -> BubbleConfig {
+        self.config.read().clone()
+    }
+
+    /// Update bubble configuration
+    pub fn update_config(&self, config: BubbleConfig) {
+        *self.config.write() = config;
+    }
+
+    /// Set bubble position and optionally persist to config
+    pub fn set_position(&self, x: i32, y: i32) {
+        *self.position.write() = Some((x, y));
+        
+        // Also update config if remember_position is enabled
+        let mut config = self.config.write();
+        if config.remember_position {
+            config.x = Some(x);
+            config.y = Some(y);
         }
     }
 
@@ -35,7 +80,8 @@ impl AssistantBubbleWindow {
             return Ok(());
         }
 
-        let window = WebviewWindowBuilder::new(
+        // Build window with proper transparency settings for each platform
+        let mut builder = WebviewWindowBuilder::new(
             &self.app_handle,
             ASSISTANT_BUBBLE_WINDOW_LABEL,
             WebviewUrl::App("assistant-bubble".into()),
@@ -43,15 +89,28 @@ impl AssistantBubbleWindow {
         .title("Cognia")
         .inner_size(BUBBLE_SIZE, BUBBLE_SIZE)
         .decorations(false)
-        .transparent(true)
         .always_on_top(true)
         .skip_taskbar(true)
         .resizable(false)
         .visible(true)
         .focused(false)
-        .shadow(false)
-        .build()
-        .map_err(|e| format!("Failed to create assistant bubble window: {}", e))?;
+        .shadow(false);
+
+        // On Windows, transparent windows need special handling
+        // Using transparent(true) with a proper CSS background works best
+        #[cfg(target_os = "windows")]
+        {
+            builder = builder.transparent(true);
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            builder = builder.transparent(true);
+        }
+
+        let window = builder
+            .build()
+            .map_err(|e| format!("Failed to create assistant bubble window: {}", e))?;
 
         // Place bubble at bottom-right of primary work area
         let (x, y) = self.default_position();

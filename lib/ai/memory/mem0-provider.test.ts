@@ -3,7 +3,7 @@
  */
 
 import { Mem0Provider } from './mem0-provider';
-import { mem0ToLocalMemory, localToMem0Memory } from '@/types/memory-provider';
+import { mem0ToLocalMemory, localToMem0Memory } from '@/types/provider/memory-provider';
 import type { Memory, Mem0Memory } from '@/types';
 
 // Mock fetch

@@ -9,7 +9,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { Inbox, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { A2UIComponentProps, A2UIBaseComponent } from '@/types/a2ui';
+import type { A2UIComponentProps, A2UIBaseComponent } from '@/types/artifact/a2ui';
 
 export interface A2UIEmptyComponent extends A2UIBaseComponent {
   component: 'Empty';

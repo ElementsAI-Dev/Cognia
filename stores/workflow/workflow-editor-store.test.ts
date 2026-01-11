@@ -15,7 +15,7 @@ jest.mock('@xyflow/react', () => ({
   addEdge: jest.fn((connection, edges) => [...edges, { id: 'edge-1', ...connection }]),
 }));
 
-jest.mock('@/types/workflow-editor', () => ({
+jest.mock('@/types/workflow/workflow-editor', () => ({
   createEmptyVisualWorkflow: jest.fn(() => ({
     id: 'workflow-1',
     name: 'New Workflow',

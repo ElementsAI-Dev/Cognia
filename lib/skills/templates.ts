@@ -5,7 +5,7 @@
  * These templates provide starting points for common skill types.
  */
 
-import type { SkillTemplate, SkillCategory } from '@/types/skill';
+import type { SkillTemplate, SkillCategory } from '@/types/system/skill';
 
 /**
  * Skill Creator - Meta skill for creating other skills

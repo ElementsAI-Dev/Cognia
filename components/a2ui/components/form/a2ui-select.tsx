@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import type { A2UIComponentProps, A2UISelectComponent, A2UISelectOption } from '@/types/a2ui';
+import type { A2UIComponentProps, A2UISelectComponent, A2UISelectOption } from '@/types/artifact/a2ui';
 import { useA2UIContext } from '../../a2ui-context';
 import { getBindingPath, resolveArrayOrPath } from '@/lib/a2ui/data-model';
 

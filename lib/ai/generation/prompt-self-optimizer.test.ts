@@ -13,7 +13,7 @@ import {
   quickAnalyze,
   extractLearningPatterns,
 } from './prompt-self-optimizer';
-import type { PromptFeedback, PromptABTest } from '@/types/prompt-template';
+import type { PromptFeedback, PromptABTest } from '@/types/content/prompt-template';
 
 describe('prompt-self-optimizer', () => {
   describe('calculatePromptStats', () => {

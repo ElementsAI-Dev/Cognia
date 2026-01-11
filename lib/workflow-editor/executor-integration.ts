@@ -15,7 +15,7 @@ import {
   type WorkflowExecutorCallbacks,
   type WorkflowExecutorResult,
 } from '@/lib/ai/workflows';
-import type { VisualWorkflow } from '@/types/workflow-editor';
+import type { VisualWorkflow } from '@/types/workflow/workflow-editor';
 import type { WorkflowExecution, WorkflowDefinition } from '@/types/workflow';
 
 // Store for active executions with automatic cleanup

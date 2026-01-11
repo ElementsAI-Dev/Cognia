@@ -3,7 +3,7 @@
 //! Exposes skill management functionality to the frontend.
 
 use crate::skill::{
-    DiscoverableSkill, InstalledSkill, LocalSkill, Skill, SkillRepo, SkillService,
+    DiscoverableSkill, InstalledSkill, LocalSkill, Skill, SkillError, SkillRepo, SkillService,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -105,6 +105,7 @@ pub async fn skill_scan_local(
 
 /// Install a skill from repository
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn skill_install(
     state: State<'_, SkillServiceState>,
     key: String,
@@ -184,6 +185,44 @@ pub async fn skill_get(
 ) -> Result<Option<InstalledSkill>, String> {
     let service = state.0.read().await;
     Ok(service.get_installed_skill(&id).await)
+}
+
+/// Get a specific installed skill or return error (uses SkillError)
+#[tauri::command]
+pub async fn skill_get_required(
+    state: State<'_, SkillServiceState>,
+    id: String,
+) -> Result<InstalledSkill, String> {
+    let service = state.0.read().await;
+    service.get_skill_or_error(&id).await.map_err(|e: SkillError| e.to_string())
+}
+
+/// Validate if a skill can be installed
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn skill_validate_install(
+    state: State<'_, SkillServiceState>,
+    key: String,
+    name: String,
+    description: String,
+    directory: String,
+    repo_owner: String,
+    repo_name: String,
+    repo_branch: String,
+    readme_url: Option<String>,
+) -> Result<(), String> {
+    let service = state.0.read().await;
+    let skill = DiscoverableSkill {
+        key,
+        name,
+        description,
+        directory,
+        readme_url,
+        repo_owner,
+        repo_name,
+        repo_branch,
+    };
+    service.validate_install(&skill).await.map_err(|e: SkillError| e.to_string())
 }
 
 /// Enable a skill

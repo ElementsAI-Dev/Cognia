@@ -10,9 +10,9 @@ import {
   generateChatSummary,
   generateAgentSummary,
 } from './summarizer';
-import type { UIMessage } from '@/types/message';
-import type { BackgroundAgent } from '@/types/background-agent';
-import type { ChatSummaryOptions } from '@/types/summary';
+import type { UIMessage } from '@/types/core/message';
+import type { BackgroundAgent } from '@/types/agent/background-agent';
+import type { ChatSummaryOptions } from '@/types/learning/summary';
 
 // Mock messages for testing
 const mockMessages: UIMessage[] = [

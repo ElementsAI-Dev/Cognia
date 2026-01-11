@@ -9,7 +9,7 @@ import type {
   SkillCategory,
   GenerateSkillInput,
   SkillRefinementType,
-} from '@/types/skill';
+} from '@/types/system/skill';
 import { toHyphenCase, inferCategoryFromContent, extractTagsFromContent } from './parser';
 import { getTemplateById, TEMPLATE_SKILL } from './templates';
 

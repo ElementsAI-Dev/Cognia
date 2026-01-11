@@ -8,7 +8,7 @@ import {
   getInstallInstructions,
   createLocalProviderService,
 } from './local-provider-service';
-import type { LocalProviderName } from '@/types/local-provider';
+import type { LocalProviderName } from '@/types/provider/local-provider';
 
 // Mock fetch
 global.fetch = jest.fn();

@@ -9,7 +9,7 @@ import {
   type ConversationMessage,
 } from './memory-pipeline';
 import type { Memory, MemoryPipelineConfig } from '@/types';
-import { DEFAULT_PIPELINE_CONFIG } from '@/types/memory-provider';
+import { DEFAULT_PIPELINE_CONFIG } from '@/types/provider/memory-provider';
 
 // Mock embedding module
 jest.mock('../embedding', () => ({

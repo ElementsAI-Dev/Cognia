@@ -9,7 +9,7 @@ import { type NodeProps } from '@xyflow/react';
 import { BaseNode } from './base-node';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Calendar, Timer } from 'lucide-react';
-import type { DelayNodeData } from '@/types/workflow-editor';
+import type { DelayNodeData } from '@/types/workflow/workflow-editor';
 
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;

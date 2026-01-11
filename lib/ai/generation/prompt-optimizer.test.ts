@@ -3,7 +3,7 @@
  */
 
 import { optimizePrompt, quickOptimize, batchOptimize } from './prompt-optimizer';
-import type { PromptOptimizationStyle, PromptOptimizationConfig } from '@/types/prompt';
+import type { PromptOptimizationStyle, PromptOptimizationConfig } from '@/types/content/prompt';
 
 // Mock the AI SDK
 jest.mock('ai', () => ({

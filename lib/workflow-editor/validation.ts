@@ -20,7 +20,7 @@ import type {
   TransformNodeData,
   MergeNodeData,
   WorkflowNodeType,
-} from '@/types/workflow-editor';
+} from '@/types/workflow/workflow-editor';
 
 export interface ValidationResult {
   isValid: boolean;

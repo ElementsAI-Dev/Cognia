@@ -9,7 +9,7 @@ import { Position, type NodeProps } from '@xyflow/react';
 import { BaseNode } from './base-node';
 import { Badge } from '@/components/ui/badge';
 import { GitMerge, Layers, ChevronFirst, ChevronLast, Code } from 'lucide-react';
-import type { MergeNodeData } from '@/types/workflow-editor';
+import type { MergeNodeData } from '@/types/workflow/workflow-editor';
 
 const STRATEGY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   concat: Layers,

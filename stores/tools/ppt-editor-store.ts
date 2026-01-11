@@ -12,6 +12,7 @@ import type {
   PPTSlideLayout,
 } from '@/types/workflow';
 import { createEmptySlide, getDefaultPPTTheme } from '@/types/workflow';
+import type { SlideshowSettings } from '@/components/ppt/types';
 
 // History entry for undo/redo
 interface HistoryEntry {
@@ -65,6 +66,9 @@ interface PPTEditorState {
   // AI generation state
   isGenerating: boolean;
   generatingSlideId: string | null;
+  
+  // Slideshow settings (persisted)
+  slideshowSettings: SlideshowSettings;
 }
 
 interface PPTEditorActions {
@@ -138,12 +142,28 @@ interface PPTEditorActions {
   setGenerating: (isGenerating: boolean, slideId?: string | null) => void;
   regenerateSlide: (slideId: string) => Promise<void>;
   
+  // Slideshow settings
+  updateSlideshowSettings: (settings: Partial<SlideshowSettings>) => void;
+  resetSlideshowSettings: () => void;
+  
   // Utilities
   getCurrentSlide: () => PPTSlide | null;
   getSlideById: (slideId: string) => PPTSlide | null;
   getElementById: (slideId: string, elementId: string) => PPTSlideElement | null;
   reorderSlides: (slideIds: string[]) => void;
 }
+
+const DEFAULT_SLIDESHOW_SETTINGS: SlideshowSettings = {
+  showThumbnails: false,
+  showProgress: true,
+  showTimer: true,
+  showNotes: false,
+  autoPlay: false,
+  autoPlayInterval: 5,
+  enableTransitions: true,
+  transitionType: 'fade',
+  transitionDuration: 300,
+};
 
 const initialState: PPTEditorState = {
   presentation: null,
@@ -164,6 +184,7 @@ const initialState: PPTEditorState = {
   editingElementId: null,
   isGenerating: false,
   generatingSlideId: null,
+  slideshowSettings: DEFAULT_SLIDESHOW_SETTINGS,
 };
 
 // Generate unique ID
@@ -913,6 +934,21 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         set({ isGenerating: false, generatingSlideId: null });
       },
 
+      // Slideshow settings
+      updateSlideshowSettings: (settings) => {
+        const { slideshowSettings } = get();
+        set({
+          slideshowSettings: {
+            ...slideshowSettings,
+            ...settings,
+          },
+        });
+      },
+
+      resetSlideshowSettings: () => {
+        set({ slideshowSettings: DEFAULT_SLIDESHOW_SETTINGS });
+      },
+
       // Utilities
       getCurrentSlide: () => {
         const { presentation, currentSlideIndex } = get();
@@ -963,6 +999,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         showNotes: state.showNotes,
         zoom: state.zoom,
         panelWidth: state.panelWidth,
+        slideshowSettings: state.slideshowSettings,
       }),
     }
   )

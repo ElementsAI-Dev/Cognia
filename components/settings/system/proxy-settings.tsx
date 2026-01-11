@@ -54,7 +54,7 @@ import {
   type ProxyMode,
   type ProxyProtocol,
   type ManualProxyConfig,
-} from '@/types/proxy';
+} from '@/types/system/proxy';
 
 export function ProxySettings() {
   const t = useTranslations('proxySettings');

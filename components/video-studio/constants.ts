@@ -3,7 +3,7 @@ import type {
   VideoResolution,
   VideoAspectRatio,
   VideoDuration,
-} from '@/types/video';
+} from '@/types/media/video';
 
 // Prompt templates for video generation
 export const VIDEO_PROMPT_TEMPLATES = [

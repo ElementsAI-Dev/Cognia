@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle, Info, AlertTriangle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { A2UIComponentProps, A2UIAlertComponent } from '@/types/a2ui';
+import type { A2UIComponentProps, A2UIAlertComponent } from '@/types/artifact/a2ui';
 import { useA2UIContext } from '../../a2ui-context';
 
 const variantIcons = {

@@ -17,7 +17,7 @@ import type {
   GitOperationProgress,
   GitOperationStatus,
   ProjectGitConfig,
-} from '@/types/git';
+} from '@/types/system/git';
 
 export interface UseGitOptions {
   autoCheck?: boolean;

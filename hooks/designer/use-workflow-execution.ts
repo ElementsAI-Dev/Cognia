@@ -5,10 +5,10 @@
 
 import { useCallback, useEffect } from 'react';
 import { useWorkflowEditorStore } from '@/stores/workflow';
-import type { WorkflowExecutionState, ExecutionLog, NodeExecutionState } from '@/types/workflow-editor';
+import type { WorkflowExecutionState, ExecutionLog, NodeExecutionState } from '@/types/workflow/workflow-editor';
 
 // Execution result type
-export interface ExecutionResult {
+export interface SandboxExecutionResult {
   success: boolean;
   output?: Record<string, unknown>;
   error?: string;
@@ -19,7 +19,7 @@ export interface ExecutionResult {
 // Hook options
 export interface UseWorkflowExecutionOptions {
   /** Callback when execution completes successfully */
-  onSuccess?: (result: ExecutionResult) => void;
+  onSuccess?: (result: SandboxExecutionResult) => void;
   /** Callback when execution fails */
   onError?: (error: string) => void;
   /** Callback when execution is paused */

@@ -10,7 +10,7 @@ import {
   SUMMARY_STYLE_CONFIGS,
   SUMMARY_TEMPLATES,
 } from './summary-prompts';
-import type { UIMessage } from '@/types/message';
+import type { UIMessage } from '@/types/core/message';
 
 const createMockMessage = (content: string, role: 'user' | 'assistant' = 'user'): UIMessage => ({
   id: `msg-${Math.random()}`,

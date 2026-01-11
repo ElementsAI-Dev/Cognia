@@ -211,6 +211,11 @@ impl PluginManager {
 
     /// Copy directory recursively
     fn copy_dir_recursive(&self, src: &Path, dst: &Path) -> PluginResult<()> {
+        Self::copy_dir_recursive_impl(src, dst)
+    }
+
+    /// Implementation of recursive directory copy
+    fn copy_dir_recursive_impl(src: &Path, dst: &Path) -> PluginResult<()> {
         std::fs::create_dir_all(dst)?;
 
         for entry in std::fs::read_dir(src)? {
@@ -219,7 +224,7 @@ impl PluginManager {
             let dst_path = dst.join(entry.file_name());
 
             if src_path.is_dir() {
-                self.copy_dir_recursive(&src_path, &dst_path)?;
+                Self::copy_dir_recursive_impl(&src_path, &dst_path)?;
             } else {
                 std::fs::copy(&src_path, &dst_path)?;
             }

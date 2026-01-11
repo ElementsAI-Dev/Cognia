@@ -8,7 +8,7 @@ import type {
   A2UITemplateDef,
   A2UIPluginComponentProps,
 } from '@/types/plugin';
-import type { A2UIComponent as _A2UIComponent, A2UISurfaceType } from '@/types/a2ui';
+import type { A2UIComponent as _A2UIComponent, A2UISurfaceType } from '@/types/artifact/a2ui';
 import { useA2UIStore } from '@/stores/a2ui';
 import { registerComponent, unregisterComponent } from '@/lib/a2ui/catalog';
 import type { PluginRegistry } from './registry';

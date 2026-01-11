@@ -16,8 +16,8 @@ import {
   type BackgroundAgentQueueState,
   type CreateBackgroundAgentInput,
   type UpdateBackgroundAgentInput,
-} from '@/types/background-agent';
-import type { SubAgent } from '@/types/sub-agent';
+} from '@/types/agent/background-agent';
+import type { SubAgent } from '@/types/agent/sub-agent';
 
 interface BackgroundAgentState {
   agents: Record<string, BackgroundAgent>;

@@ -52,7 +52,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useEnvironment } from '@/hooks/sandbox';
-import { TOOL_INFO, type EnvironmentTool, type ToolStatus } from '@/types/environment';
+import { TOOL_INFO, type EnvironmentTool, type ToolStatus } from '@/types/system/environment';
 import { VirtualEnvPanel } from './virtual-env-panel';
 import { ProjectEnvConfigPanel } from './project-env-config';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';

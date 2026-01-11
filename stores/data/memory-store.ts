@@ -14,7 +14,7 @@ import type {
   UpdateMemoryInput,
   MemorySettings,
 } from '@/types';
-import { DEFAULT_MEMORY_SETTINGS } from '@/types/memory';
+import { DEFAULT_MEMORY_SETTINGS } from '@/types/system/memory';
 
 interface MemoryState {
   // State

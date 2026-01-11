@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { LocalProviderName, LocalServerStatus, LocalModelInfo, LocalModelPullProgress } from '@/types/local-provider';
+import type { LocalProviderName, LocalServerStatus, LocalModelInfo, LocalModelPullProgress } from '@/types/provider/local-provider';
 import { 
   LocalProviderService, 
   createLocalProviderService,

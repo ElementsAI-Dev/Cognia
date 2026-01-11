@@ -25,7 +25,7 @@ import {
   Cloud,
   CloudOff,
 } from 'lucide-react';
-import { getGitStatusColor, formatCommitDate, formatCommitMessage } from '@/types/git';
+import { getGitStatusColor, formatCommitDate, formatCommitMessage } from '@/types/system/git';
 
 export interface GitStatusPanelProps {
   repoPath?: string;

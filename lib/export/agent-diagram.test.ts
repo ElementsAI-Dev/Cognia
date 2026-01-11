@@ -9,8 +9,8 @@ import {
   generateAgentStateDiagram,
   generateAgentDiagram,
 } from './agent-diagram';
-import type { BackgroundAgent } from '@/types/background-agent';
-import type { DiagramOptions } from '@/types/summary';
+import type { BackgroundAgent } from '@/types/agent/background-agent';
+import type { DiagramOptions } from '@/types/learning/summary';
 
 // Mock agent for testing
 const mockAgent = {

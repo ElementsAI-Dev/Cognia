@@ -66,7 +66,7 @@ jest.mock('@/hooks/sandbox', () => ({
 }));
 
 // Mock environment types
-jest.mock('@/types/environment', () => ({
+jest.mock('@/types/system/environment', () => ({
   ENV_PRESETS: [
     { id: 'data-science', name: 'Data Science', pythonVersion: '3.11', packages: { python: ['numpy', 'pandas'] } },
     { id: 'web-dev', name: 'Web Development', pythonVersion: '3.10', packages: { python: ['flask', 'django'] } },

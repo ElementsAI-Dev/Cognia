@@ -8,7 +8,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { icons, HelpCircle, type LucideIcon } from 'lucide-react';
-import type { A2UIComponentProps, A2UIIconComponent } from '@/types/a2ui';
+import type { A2UIComponentProps, A2UIIconComponent } from '@/types/artifact/a2ui';
 
 export function A2UIIcon({ component }: A2UIComponentProps<A2UIIconComponent>) {
   const iconName = component.name;

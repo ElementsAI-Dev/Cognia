@@ -5,7 +5,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { useAcademic } from './use-academic';
 import { useAcademicStore } from '@/stores/academic';
-import type { Paper, LibraryPaper } from '@/types/academic';
+import type { Paper, LibraryPaper } from '@/types/learning/academic';
 
 // Mock the academic store
 jest.mock('@/stores/academic', () => ({

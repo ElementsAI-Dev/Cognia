@@ -4,7 +4,7 @@
 
 import { act } from '@testing-library/react';
 import { useAgentStore, selectIsAgentRunning, selectCurrentStep, selectAgentProgress } from './agent-store';
-import type { ToolStatus } from '@/types/tool';
+import type { AgentToolStatus } from '@/types/agent/tool';
 
 describe('useAgentStore', () => {
   beforeEach(() => {
@@ -91,7 +91,7 @@ describe('useAgentStore', () => {
         useAgentStore.getState().addToolExecution({
           id: 'tool-1',
           toolName: 'test-tool',
-          status: 'running' as ToolStatus,
+          status: 'running' as AgentToolStatus,
           state: 'input-available',
           input: { arg: 'value' },
         });
@@ -109,14 +109,14 @@ describe('useAgentStore', () => {
         useAgentStore.getState().addToolExecution({
           id: 'tool-1',
           toolName: 'test-tool',
-          status: 'running' as ToolStatus,
+          status: 'running' as AgentToolStatus,
           state: 'input-available',
           input: {},
         });
       });
 
       act(() => {
-        useAgentStore.getState().updateToolExecution('tool-1', { status: 'completed' as ToolStatus });
+        useAgentStore.getState().updateToolExecution('tool-1', { status: 'completed' as AgentToolStatus });
       });
 
       expect(useAgentStore.getState().toolExecutions[0].status).toBe('completed');
@@ -127,7 +127,7 @@ describe('useAgentStore', () => {
         useAgentStore.getState().addToolExecution({
           id: 'tool-1',
           toolName: 'test-tool',
-          status: 'running' as ToolStatus,
+          status: 'running' as AgentToolStatus,
           state: 'input-available',
           input: {},
         });
@@ -149,7 +149,7 @@ describe('useAgentStore', () => {
         useAgentStore.getState().addToolExecution({
           id: 'tool-1',
           toolName: 'test-tool',
-          status: 'running' as ToolStatus,
+          status: 'running' as AgentToolStatus,
           state: 'input-available',
           input: {},
         });

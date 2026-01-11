@@ -19,6 +19,9 @@ export {
   SetupWizard,
 } from './common';
 
+// Rules editor
+export { RulesEditor } from './rules';
+
 // Provider settings
 export {
   ProviderSettings,
@@ -27,6 +30,12 @@ export {
   ProviderImportExport,
   ProviderHealthStatus,
   OllamaModelManager,
+  LocalProviderCard,
+  LocalProviderModelManager,
+  LocalProviderSettings,
+  LocalProviderSetupWizard,
+  CLIProxyAPISettings,
+  OpenRouterSettings,
 } from './provider';
 
 // MCP settings
@@ -34,6 +43,8 @@ export {
   McpSettings,
   McpServerDialog,
   McpInstallWizard,
+  McpMarketplace,
+  McpMarketplaceDetailDialog,
 } from './mcp';
 
 // Vector database settings
@@ -47,6 +58,12 @@ export {
   AppearanceSettings,
   ThemeEditor,
   UICustomizationSettings,
+  BackgroundSettings,
+  SettingsProfiles,
+  ThemeImportExport,
+  ThemePreview,
+  ThemePreviewInline,
+  ThemeSchedule,
 } from './appearance';
 
 // Chat settings
@@ -54,6 +71,7 @@ export {
   ChatSettings,
   ResponseSettings,
   CustomInstructionsSettings,
+  AutoRouterSettings,
 } from './chat';
 
 // Tool settings
@@ -61,6 +79,7 @@ export {
   ToolSettings,
   SkillSettings,
   NativeToolsSettings,
+  SourceVerificationSettings,
 } from './tools';
 
 // Data settings
@@ -75,9 +94,13 @@ export {
   DesktopSettings,
   EnvironmentSettings,
   KeyboardSettings,
+  KeyboardShortcutsSettings,
   ProxySettings,
   SpeechSettings,
   SandboxSettings,
   SearchSettings,
   GitSettings,
 } from './system';
+
+// Model management (standalone)
+export { ModelManager } from './model-manager';

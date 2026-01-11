@@ -6,7 +6,7 @@
 
 import { usePluginStore } from '@/stores/plugin';
 import type { Plugin, PluginManifest } from '@/types/plugin';
-import type { ExtendedPluginHooks } from '@/types/plugin-hooks';
+import type { ExtendedPluginHooks } from '@/types/plugin/plugin-hooks';
 import type { FullPluginContext } from './context';
 
 // =============================================================================

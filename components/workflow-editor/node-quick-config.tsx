@@ -51,7 +51,7 @@ import type {
   AINodeData,
   ToolNodeData,
   CodeNodeData,
-} from '@/types/workflow-editor';
+} from '@/types/workflow/workflow-editor';
 
 interface NodeQuickConfigProps {
   nodeId: string;

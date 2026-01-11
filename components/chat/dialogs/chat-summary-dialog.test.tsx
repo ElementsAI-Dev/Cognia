@@ -6,7 +6,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ChatSummaryDialog } from './chat-summary-dialog';
-import type { UIMessage } from '@/types/message';
+import type { UIMessage } from '@/types/core/message';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

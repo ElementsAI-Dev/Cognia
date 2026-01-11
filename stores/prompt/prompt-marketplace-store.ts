@@ -15,8 +15,8 @@ import type {
   MarketplaceUserActivity,
   PromptCollection,
   PromptReview,
-} from '@/types/prompt-marketplace';
-import { SAMPLE_MARKETPLACE_PROMPTS } from '@/types/prompt-marketplace';
+} from '@/types/content/prompt-marketplace';
+import { SAMPLE_MARKETPLACE_PROMPTS } from '@/types/content/prompt-marketplace';
 import { usePromptTemplateStore } from './prompt-template-store';
 
 interface PromptMarketplaceState {

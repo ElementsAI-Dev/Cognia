@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PresetsManager } from './presets-manager';
-import type { Preset } from '@/types/preset';
+import type { Preset } from '@/types/content/preset';
 
 // Mock stores
 const mockSelectPreset = jest.fn();

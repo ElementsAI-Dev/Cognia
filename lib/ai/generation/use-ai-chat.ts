@@ -31,7 +31,7 @@ import {
   filterMessagesForContext,
   mergeCompressionSettings,
 } from '../embedding/compression';
-import type { UIMessage } from '@/types/message';
+import type { UIMessage } from '@/types/core/message';
 
 export interface ChatUsageInfo {
   promptTokens: number;

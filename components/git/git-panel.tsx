@@ -44,7 +44,7 @@ import { GitBranchManager } from './git-branch-manager';
 import { GitCommitHistory } from './git-commit-history';
 import { GitFileTree } from './git-file-tree';
 import { GitStashPanel } from './git-stash-panel';
-import { formatCommitDate, formatCommitMessage } from '@/types/git';
+import { formatCommitDate, formatCommitMessage } from '@/types/system/git';
 import { cn } from '@/lib/utils';
 
 interface GitPanelProps {

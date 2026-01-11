@@ -296,6 +296,7 @@ export function PPTEditor({
           currentIndex={currentSlideIndex}
           onPrev={prevSlide}
           onNext={nextSlide}
+          onGoToSlide={setCurrentSlide}
           onExit={() => {
             setMode('edit');
             setIsFullscreen(false);

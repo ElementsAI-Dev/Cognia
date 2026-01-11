@@ -10,3 +10,24 @@ export {
   usePluginComponentsFromPlugin,
   usePluginComponent,
 } from './use-plugin-components';
+
+// IPC & Events
+export {
+  usePluginIPC,
+  usePluginEvents as usePluginEventBus,
+  useEventSubscription,
+  type UsePluginIPCOptions,
+  type UsePluginIPCResult,
+  type UsePluginEventsOptions,
+  type UsePluginEventsResult,
+} from './use-plugin-ipc';
+
+// Permissions
+export {
+  usePluginPermissions,
+  usePermissionCheck,
+  usePermissionRequest,
+  type UsePluginPermissionsOptions,
+  type UsePluginPermissionsResult,
+  type UsePermissionRequestResult,
+} from './use-plugin-permissions';

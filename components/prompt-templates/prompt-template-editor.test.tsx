@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { PromptTemplate } from '@/types/prompt-template';
+import type { PromptTemplate } from '@/types/content/prompt-template';
 import { PromptTemplateEditor } from './prompt-template-editor';
 
 describe('PromptTemplateEditor', () => {

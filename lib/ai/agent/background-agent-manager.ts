@@ -35,9 +35,9 @@ import {
   type BackgroundAgentQueueState,
   type CreateBackgroundAgentInput,
   type UpdateBackgroundAgentInput,
-} from '@/types/background-agent';
+} from '@/types/agent/background-agent';
 import type { AgentTool } from './agent-executor';
-import type { Skill } from '@/types/skill';
+import type { Skill } from '@/types/system/skill';
 import { createSkillTools, buildMultiSkillSystemPrompt } from '@/lib/skills/executor';
 import type { McpServerState, ToolCallResult } from '@/types/mcp';
 import {

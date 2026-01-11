@@ -37,7 +37,7 @@ jest.mock('@/stores', () => ({
 }));
 
 // Mock usage types
-jest.mock('@/types/usage', () => ({
+jest.mock('@/types/system/usage', () => ({
   formatTokens: (n: number) => `${(n / 1000).toFixed(1)}K`,
   formatCost: (n: number) => `$${n.toFixed(2)}`,
 }));

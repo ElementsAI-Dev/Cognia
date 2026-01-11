@@ -10,8 +10,8 @@ import {
   generateChatStateDiagram,
   generateChatDiagram,
 } from './chat-diagram';
-import type { UIMessage } from '@/types/message';
-import type { DiagramOptions } from '@/types/summary';
+import type { UIMessage } from '@/types/core/message';
+import type { DiagramOptions } from '@/types/learning/summary';
 
 // Mock messages for testing
 const mockMessages: UIMessage[] = [

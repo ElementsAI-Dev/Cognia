@@ -7,7 +7,7 @@
 import type {
   PluginPermissionAPI,
   ExtendedPluginPermission,
-} from '@/types/plugin-extended';
+} from '@/types/plugin/plugin-extended';
 
 // Permission grants by plugin
 const grantedPermissions = new Map<string, Set<ExtendedPluginPermission>>();

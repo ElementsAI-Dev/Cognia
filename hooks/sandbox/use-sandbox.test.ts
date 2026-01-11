@@ -23,7 +23,7 @@ jest.mock('@/lib/native/sandbox', () => ({
 
 import { useSandbox, useCodeExecution } from './use-sandbox';
 import { sandboxService } from '@/lib/native/sandbox';
-import type { ExecutionResult, SandboxStatus } from '@/types/sandbox';
+import type { SandboxExecutionResult, SandboxStatus } from '@/types/system/sandbox';
 
 const mockSandboxService = sandboxService as jest.Mocked<typeof sandboxService>;
 
@@ -123,7 +123,7 @@ describe('useSandbox Hook', () => {
     });
 
     it('should call sandboxService.execute when available', async () => {
-      const mockResult: ExecutionResult = {
+      const mockResult: SandboxExecutionResult = {
         id: 'test-id',
         status: 'completed',
         stdout: 'Hello, World!',
@@ -167,7 +167,7 @@ describe('useSandbox Hook', () => {
 
   describe('quickExecute', () => {
     it('should call sandboxService.quickExecute', async () => {
-      const mockResult: ExecutionResult = {
+      const mockResult: SandboxExecutionResult = {
         id: 'test-id',
         status: 'completed',
         stdout: 'Hello',
@@ -246,7 +246,7 @@ describe('useCodeExecution Hook', () => {
   });
 
   it('should execute code and update state', async () => {
-    const mockResult: ExecutionResult = {
+    const mockResult: SandboxExecutionResult = {
       id: 'test-id',
       status: 'completed',
       stdout: 'Hello',
@@ -273,7 +273,7 @@ describe('useCodeExecution Hook', () => {
   });
 
   it('should handle execution with stdin', async () => {
-    const mockResult: ExecutionResult = {
+    const mockResult: SandboxExecutionResult = {
       id: 'test-id',
       status: 'completed',
       stdout: 'test input',
@@ -321,7 +321,7 @@ describe('useCodeExecution Hook', () => {
   });
 
   it('should reset state', async () => {
-    const mockResult: ExecutionResult = {
+    const mockResult: SandboxExecutionResult = {
       id: 'test-id',
       status: 'completed',
       stdout: 'Hello',

@@ -21,6 +21,7 @@ export {
 export {
   useNativeStore,
   type ShortcutConfig,
+  type NativeToolsConfig,
   type NativeState,
   type NativeActions,
 } from './native-store';

@@ -19,7 +19,7 @@ import type {
   MemoryUpdateDecision,
   MemoryPipelineConfig,
 } from '@/types';
-import { DEFAULT_PIPELINE_CONFIG } from '@/types/memory-provider';
+import { DEFAULT_PIPELINE_CONFIG } from '@/types/provider/memory-provider';
 import { cosineSimilarity, generateEmbedding, type EmbeddingConfig } from '../embedding';
 
 /**

@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { useUsageStore } from '@/stores';
-import { formatTokens, formatCost } from '@/types/usage';
+import { formatTokens, formatCost } from '@/types/system/usage';
 
 export function UsageSettings() {
   const t = useTranslations('usageSettings');

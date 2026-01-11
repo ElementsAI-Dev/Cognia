@@ -4,7 +4,7 @@
 
 import { act } from '@testing-library/react';
 import { useChatStore, selectMessages, selectIsLoading, selectIsStreaming, selectError } from './chat-store';
-import type { UIMessage } from '@/types/message';
+import type { UIMessage } from '@/types/core/message';
 
 // Helper to create mock message
 const createMockMessage = (overrides: Partial<UIMessage> = {}): UIMessage => ({

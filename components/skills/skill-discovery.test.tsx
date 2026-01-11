@@ -41,12 +41,9 @@ jest.mock('next-intl', () => ({
 }));
 
 // Mock hooks
-jest.mock('@/hooks/ai', () => ({
+jest.mock('@/hooks/skills', () => ({
   useSkillSync: jest.fn(),
   useSkillSyncAvailable: jest.fn(),
-}));
-
-jest.mock('@/hooks/ai/use-native-skills', () => ({
   useNativeSkills: jest.fn(),
 }));
 
@@ -59,10 +56,8 @@ jest.mock('@/components/ui/toaster', () => ({
 }));
 
 import { SkillDiscovery } from './skill-discovery';
-import { useSkillSync, useSkillSyncAvailable } from '@/hooks/ai';
-import { useNativeSkills } from '@/hooks/ai/use-native-skills';
+import { useSkillSync, useSkillSyncAvailable, useNativeSkills, type DiscoverableSkill, type InstalledSkill, type SkillRepo } from '@/hooks/skills';
 import { toast } from '@/components/ui/toaster';
-import type { DiscoverableSkill, InstalledSkill, SkillRepo } from '@/hooks/ai/use-native-skills';
 
 const mockUseSkillSync = jest.mocked(useSkillSync);
 const mockUseSkillSyncAvailable = jest.mocked(useSkillSyncAvailable);

@@ -5,11 +5,11 @@
  */
 
 import type {
-  PythonExecutionResult,
+  PythonSandboxExecutionResult,
   PythonExecutionProgress,
   PythonExecutionOptions,
   PythonInterpreterInfo,
-} from '@/types/environment';
+} from '@/types/system/environment';
 
 // Mock Tauri API
 jest.mock('@tauri-apps/api/core', () => ({
@@ -57,7 +57,7 @@ describe('Environment Service - Python Execution', () => {
 
     it('should call invoke with correct parameters', async () => {
       mockIsTauri.mockReturnValue(true);
-      const mockResult: PythonExecutionResult = {
+      const mockResult: PythonSandboxExecutionResult = {
         id: 'exec-123',
         status: 'completed',
         stdout: 'hello\n',
@@ -86,7 +86,7 @@ describe('Environment Service - Python Execution', () => {
         timeoutSecs: 60,
         cwd: '/working/dir',
       };
-      mockInvoke.mockResolvedValue({} as PythonExecutionResult);
+      mockInvoke.mockResolvedValue({} as PythonSandboxExecutionResult);
 
       await executePython('/path/to/env', 'code', options);
 
@@ -99,7 +99,7 @@ describe('Environment Service - Python Execution', () => {
 
     it('should handle execution errors', async () => {
       mockIsTauri.mockReturnValue(true);
-      const mockResult: PythonExecutionResult = {
+      const mockResult: PythonSandboxExecutionResult = {
         id: 'exec-456',
         status: 'failed',
         stdout: '',
@@ -119,7 +119,7 @@ describe('Environment Service - Python Execution', () => {
 
     it('should handle timeout', async () => {
       mockIsTauri.mockReturnValue(true);
-      const mockResult: PythonExecutionResult = {
+      const mockResult: PythonSandboxExecutionResult = {
         id: 'exec-789',
         status: 'timeout',
         stdout: '',
@@ -189,7 +189,7 @@ describe('Environment Service - Python Execution', () => {
 
     it('should call invoke with correct parameters', async () => {
       mockIsTauri.mockReturnValue(true);
-      const mockResult: PythonExecutionResult = {
+      const mockResult: PythonSandboxExecutionResult = {
         id: 'exec-file-123',
         status: 'completed',
         stdout: 'Script output',
@@ -342,9 +342,9 @@ describe('Environment Service - Python Execution', () => {
 });
 
 describe('Environment Types', () => {
-  describe('PythonExecutionResult', () => {
+  describe('PythonSandboxExecutionResult', () => {
     it('should have correct structure for successful execution', () => {
-      const result: PythonExecutionResult = {
+      const result: PythonSandboxExecutionResult = {
         id: 'test-id',
         status: 'completed',
         stdout: 'output',
@@ -361,7 +361,7 @@ describe('Environment Types', () => {
     });
 
     it('should have correct structure for failed execution', () => {
-      const result: PythonExecutionResult = {
+      const result: PythonSandboxExecutionResult = {
         id: 'test-id',
         status: 'failed',
         stdout: '',
@@ -378,7 +378,7 @@ describe('Environment Types', () => {
     });
 
     it('should have correct structure for timeout', () => {
-      const result: PythonExecutionResult = {
+      const result: PythonSandboxExecutionResult = {
         id: 'test-id',
         status: 'timeout',
         stdout: 'partial',

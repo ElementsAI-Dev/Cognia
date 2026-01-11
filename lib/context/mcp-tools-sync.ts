@@ -19,7 +19,7 @@ import {
   deleteContextFile,
   getFilesByCategory,
 } from './context-fs';
-import type { McpToolDescriptionFile, ContextFile } from '@/types/context';
+import type { McpToolDescriptionFile, ContextFile } from '@/types/system/context';
 import type { McpTool } from '@/types/mcp';
 
 /**

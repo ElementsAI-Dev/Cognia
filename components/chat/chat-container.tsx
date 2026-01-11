@@ -42,8 +42,8 @@ import { TextPart, ReasoningPart, ToolPart, SourcesPart, A2UIPart } from './mess
 import { A2UIEnhancedMessage, hasA2UIContent, useA2UIMessageIntegration } from '@/components/a2ui';
 import { MessageReactions } from './message';
 import { MessageArtifacts } from '@/components/artifacts';
-import type { EmojiReaction } from '@/types/message';
-import type { MessagePart } from '@/types/message';
+import type { EmojiReaction } from '@/types/core/message';
+import type { MessagePart } from '@/types/core/message';
 import { Suggestions, Suggestion } from '@/components/ai-elements/suggestion';
 import {
   ToolTimeline,
@@ -55,10 +55,11 @@ import {
 import { PPTPreview } from '@/components/ppt';
 import { SkillSuggestions } from '@/components/skills';
 import { LearningModePanel, LearningStartDialog } from '@/components/learning';
-import { useSkillStore } from '@/stores/agent';
+import { useSkillStore } from '@/stores/skills';
 import { buildProgressiveSkillsPrompt } from '@/lib/skills/executor';
 import { useWorkflowStore } from '@/stores/workflow';
-import { initializeAgentTools } from '@/lib/ai/agent';
+import { initializeAgentTools, filterToolsForMode, convertMcpToolToAgentTool } from '@/lib/ai/agent';
+import { useCustomModeStore, processPromptTemplateVariables } from '@/stores/agent/custom-mode-store';
 import {
   generateSuggestions,
   getDefaultSuggestions,
@@ -94,12 +95,12 @@ import { ModeSwitchSuggestion } from './mode-switch-suggestion';
 import type { ParsedToolCall, ToolCallResult } from '@/types/mcp';
 import { useAIChat, useAutoRouter, type ProviderName, isVisionModel, buildMultimodalContent, type MultimodalMessage, isAudioModel, isVideoModel } from '@/lib/ai';
 import { RoutingIndicator } from './routing-indicator';
-import type { ModelSelection } from '@/types/auto-router';
+import type { ModelSelection } from '@/types/provider/auto-router';
 import { messageRepository } from '@/lib/db';
 import { PROVIDERS } from '@/types/provider';
 import type { ChatMode, UIMessage } from '@/types';
 import { useSummary } from '@/hooks/chat';
-import type { AgentModeConfig } from '@/types/agent-mode';
+import type { AgentModeConfig } from '@/types/agent/agent-mode';
 import { useStickToBottomContext } from 'use-stick-to-bottom';
 
 interface ChatContainerProps {
@@ -425,16 +426,81 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     reject: (error: Error) => void;
   } | null>(null);
 
+  // Get custom mode configuration for tool filtering
+  const customModes = useCustomModeStore((state) => state.customModes);
+  const currentCustomMode = useMemo(() => {
+    if (currentMode !== 'agent' || !agentModeId) return null;
+    return customModes[agentModeId] || null;
+  }, [currentMode, agentModeId, customModes]);
+
   // Initialize agent tools based on available API keys
-  const agentTools = useMemo(() => {
+  const allAgentTools = useMemo(() => {
     const tavilyApiKey = providerSettings.tavily?.apiKey;
+    const openaiApiKey = providerSettings.openai?.apiKey;
     return initializeAgentTools({
       tavilyApiKey,
+      openaiApiKey,
       enableWebSearch: !!tavilyApiKey,
       enableCalculator: true,
       enableRAGSearch: true,
+      enableWebScraper: true,
+      enableDocumentTools: true,
+      enableAcademicTools: true,
+      enableImageTools: !!openaiApiKey,
+      enablePPTTools: true,
+      enableLearningTools: true,
     });
-  }, [providerSettings.tavily?.apiKey]);
+  }, [providerSettings.tavily?.apiKey, providerSettings.openai?.apiKey]);
+
+  // Create MCP tools for custom mode if configured
+  const customModeMcpTools = useMemo(() => {
+    if (!currentCustomMode?.mcpTools || currentCustomMode.mcpTools.length === 0) {
+      return {};
+    }
+    // Filter MCP servers to only include tools selected in custom mode
+    const selectedMcpTools: Record<string, typeof allAgentTools[string]> = {};
+    for (const mcpToolRef of currentCustomMode.mcpTools) {
+      const server = mcpServers.find(s => s.id === mcpToolRef.serverId);
+      if (server?.status.type === 'connected') {
+        // Find the tool definition from the server
+        const mcpTool = server.tools?.find(t => t.name === mcpToolRef.toolName);
+        if (mcpTool) {
+          // Use the proper conversion function
+          const agentTool = convertMcpToolToAgentTool(
+            mcpToolRef.serverId,
+            server.name,
+            mcpTool,
+            { callTool: mcpCallTool }
+          );
+          selectedMcpTools[agentTool.name] = agentTool;
+        }
+      }
+    }
+    return selectedMcpTools;
+  }, [currentCustomMode?.mcpTools, mcpServers, mcpCallTool]);
+
+  // Filter tools based on custom mode configuration and merge with MCP tools
+  const agentTools = useMemo(() => {
+    let tools = allAgentTools;
+    if (currentCustomMode?.tools && currentCustomMode.tools.length > 0) {
+      tools = filterToolsForMode(allAgentTools, currentCustomMode.tools);
+    }
+    // Merge with custom mode MCP tools
+    return { ...tools, ...customModeMcpTools };
+  }, [allAgentTools, currentCustomMode, customModeMcpTools]);
+
+  // Process system prompt with template variables
+  const processedSystemPrompt = useMemo(() => {
+    const basePrompt = session?.systemPrompt || 'You are a helpful AI assistant with access to tools.';
+    if (currentCustomMode) {
+      return processPromptTemplateVariables(basePrompt, {
+        modeName: currentCustomMode.name,
+        modeDescription: currentCustomMode.description,
+        tools: currentCustomMode.tools,
+      });
+    }
+    return basePrompt;
+  }, [session?.systemPrompt, currentCustomMode]);
 
   // Agent hook for multi-step execution
   const {
@@ -446,7 +512,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     stop: stopAgent,
     reset: _resetAgent,
   } = useAgent({
-    systemPrompt: session?.systemPrompt || 'You are a helpful AI assistant with access to tools.',
+    systemPrompt: processedSystemPrompt,
     maxSteps: 10,
     temperature: session?.temperature ?? 0.7,
     tools: agentTools,
@@ -619,7 +685,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   }, [session, updateSession]);
 
   // Handle preset selection
-  const handleSelectPreset = useCallback((preset: import('@/types/preset').Preset) => {
+  const handleSelectPreset = useCallback((preset: import('@/types/content/preset').Preset) => {
     trackPresetUsage(preset.id);
 
     if (session) {

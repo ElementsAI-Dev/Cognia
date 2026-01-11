@@ -28,10 +28,10 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useCopy } from '@/hooks/ui';
-import type { CodeExecutionResult } from '@/hooks/canvas/use-code-execution';
+import type { CodeSandboxExecutionResult } from '@/hooks/canvas/use-code-execution';
 
 interface CodeExecutionPanelProps {
-  result: CodeExecutionResult | null;
+  result: CodeSandboxExecutionResult | null;
   isExecuting: boolean;
   language: string;
   onExecute: () => void;

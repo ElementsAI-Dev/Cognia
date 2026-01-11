@@ -49,7 +49,7 @@ import {
 import { icons } from 'lucide-react';
 import { useA2UIAppBuilder, type A2UIAppInstance } from '@/hooks/a2ui/use-app-builder';
 import { A2UIInlineSurface } from './a2ui-surface';
-import type { A2UIUserAction, A2UIDataModelChange } from '@/types/a2ui';
+import type { A2UIUserAction, A2UIDataModelChange } from '@/types/artifact/a2ui';
 
 interface AppGalleryProps {
   className?: string;

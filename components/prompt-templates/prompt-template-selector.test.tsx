@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { usePromptTemplateStore } from '@/stores/prompt/prompt-template-store';
-import type { PromptTemplate } from '@/types/prompt-template';
+import type { PromptTemplate } from '@/types/content/prompt-template';
 import { PromptTemplateSelector } from './prompt-template-selector';
 
 // Bypass __mocks__/stores.ts which doesn't export usePromptTemplateStore

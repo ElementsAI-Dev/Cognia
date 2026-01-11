@@ -12,8 +12,8 @@
  */
 
 import { useState, useCallback } from 'react';
-import type { UIMessage } from '@/types/message';
-import type { BackgroundAgent } from '@/types/background-agent';
+import type { UIMessage } from '@/types/core/message';
+import type { BackgroundAgent } from '@/types/agent/background-agent';
 import type {
   ChatSummaryOptions,
   ChatSummaryResult,
@@ -27,7 +27,7 @@ import type {
   StoredSummary,
   ConversationAnalysis,
   SummaryTemplate,
-} from '@/types/summary';
+} from '@/types/learning/summary';
 import {
   generateChatSummary,
   generateChatSummaryWithAI,

@@ -6,7 +6,7 @@ import { renderHook, act } from '@testing-library/react';
 import { useSessionStore } from '@/stores/chat';
 import { useVirtualEnvStore } from '@/stores/system';
 import { useSessionEnv, getSessionEnvContext, selectSessionHasEnv } from './use-session-env';
-import type { VirtualEnvInfo, ProjectEnvConfig } from '@/types/environment';
+import type { VirtualEnvInfo, ProjectEnvConfig } from '@/types/system/environment';
 
 // Mock environments
 const mockEnvs: VirtualEnvInfo[] = [

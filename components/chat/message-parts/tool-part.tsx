@@ -34,7 +34,7 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
-import type { ToolInvocationPart, ToolState } from '@/types/message';
+import type { ToolInvocationPart, ToolState } from '@/types/core/message';
 import type { McpServerStatus } from '@/types/mcp';
 import { A2UIToolOutput, hasA2UIToolOutput } from '@/components/a2ui';
 import { MCPServerBadge } from '@/components/mcp';

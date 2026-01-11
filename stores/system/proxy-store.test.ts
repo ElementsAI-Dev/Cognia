@@ -15,7 +15,7 @@ import {
   getActiveProxyUrl,
 } from './proxy-store';
 import type { ProxyState } from './proxy-store';
-import type { DetectedProxy, ProxyTestResult } from '@/types/proxy';
+import type { DetectedProxy, ProxyTestResult } from '@/types/system/proxy';
 
 describe('useProxyStore', () => {
   beforeEach(() => {

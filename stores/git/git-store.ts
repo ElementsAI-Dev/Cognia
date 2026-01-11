@@ -15,7 +15,7 @@ import type {
   ProjectGitConfig,
   AutoCommitConfig,
   GitOperationStatus,
-} from '@/types/git';
+} from '@/types/system/git';
 import { gitService } from '@/lib/native/git';
 
 interface GitState {

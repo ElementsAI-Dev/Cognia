@@ -14,7 +14,7 @@ import {
   type ProviderManagerConfig,
   type ProviderState,
   type ExecutionContext,
-  type ExecutionResult,
+  type SandboxExecutionResult,
   type RequestOptions,
   type ProviderCredentials,
 } from '@/lib/ai/infrastructure/provider-manager';
@@ -51,7 +51,7 @@ export interface UseProviderManagerReturn {
   execute: <T>(
     fn: (context: ExecutionContext) => Promise<T>,
     options: RequestOptions
-  ) => Promise<ExecutionResult<T>>;
+  ) => Promise<SandboxExecutionResult<T>>;
   /** Check if a provider is available */
   isProviderAvailable: (providerId: string) => boolean;
   /** Get quota status for a provider */
@@ -195,7 +195,7 @@ export function useProviderManager(
     async <T>(
       fn: (context: ExecutionContext) => Promise<T>,
       requestOptions: RequestOptions
-    ): Promise<ExecutionResult<T>> => {
+    ): Promise<SandboxExecutionResult<T>> => {
       if (!managerInstance) {
         throw new Error('Provider Manager not initialized');
       }

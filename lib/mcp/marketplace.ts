@@ -14,7 +14,7 @@ import type {
   SmitheryResponse,
   GlamaServer,
   GlamaResponse,
-} from '@/types/mcp-marketplace';
+} from '@/types/mcp/mcp-marketplace';
 
 /** API Base URLs */
 const API_URLS = {

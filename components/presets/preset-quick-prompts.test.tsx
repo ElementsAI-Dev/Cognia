@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PresetQuickPrompts } from './preset-quick-prompts';
-import type { BuiltinPrompt } from '@/types/preset';
+import type { BuiltinPrompt } from '@/types/content/preset';
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({

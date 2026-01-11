@@ -51,6 +51,26 @@ export function ChatWidget({ className }: ChatWidgetProps) {
     return () => cancelAnimationFrame(rafId);
   }, []);
 
+  // Listen for bubble "open settings" event
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.__TAURI__) return;
+
+    let unlisten: (() => void) | undefined;
+
+    const setup = async () => {
+      const { listen } = await import("@tauri-apps/api/event");
+      unlisten = await listen("chat-widget-open-settings", () => {
+        setSettingsOpen(true);
+      });
+    };
+
+    setup();
+
+    return () => {
+      unlisten?.();
+    };
+  }, []);
+
   // Handle window dragging
   useEffect(() => {
     if (typeof window === "undefined" || !window.__TAURI__) return;

@@ -18,7 +18,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { ChatMode } from '@/types/session';
+import type { ChatMode } from '@/types/core/session';
 import type { IntentDetectionResult } from '@/lib/ai/tools/intent-detection';
 import { cn } from '@/lib/utils';
 

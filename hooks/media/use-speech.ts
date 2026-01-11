@@ -12,8 +12,8 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSettingsStore } from '@/stores';
-import type { SpeechLanguageCode, SpeechProvider, SpeechError } from '@/types/speech';
-import { getSpeechError } from '@/types/speech';
+import type { SpeechLanguageCode, SpeechProvider, SpeechError } from '@/types/media/speech';
+import { getSpeechError } from '@/types/media/speech';
 import { toast } from '@/components/ui/sonner';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

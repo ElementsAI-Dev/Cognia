@@ -25,14 +25,14 @@ import type {
   VideoStatus,
   VideoResolution,
   VideoAspectRatio,
-} from '@/types/video';
+} from '@/types/media/video';
 import {
   VIDEO_PROVIDERS,
   getVideoModelConfig,
   parseDurationToSeconds,
   getResolutionDimensions,
   estimateVideoCost,
-} from '@/types/video';
+} from '@/types/media/video';
 
 /**
  * In-memory job storage for tracking async video generation

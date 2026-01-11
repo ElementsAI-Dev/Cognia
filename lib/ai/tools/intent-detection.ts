@@ -8,7 +8,7 @@
  * When detected, it suggests switching to the appropriate mode.
  */
 
-import type { ChatMode } from '@/types/session';
+import type { ChatMode } from '@/types/core/session';
 
 /**
  * Intent detection result

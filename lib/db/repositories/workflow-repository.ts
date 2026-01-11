@@ -3,7 +3,7 @@
  */
 
 import { db, type DBWorkflow, type DBWorkflowExecution } from '../schema';
-import type { VisualWorkflow, WorkflowNode, WorkflowEdge, WorkflowSettings, WorkflowExecutionState, ExecutionLog } from '@/types/workflow-editor';
+import type { VisualWorkflow, WorkflowNode, WorkflowEdge, WorkflowSettings, WorkflowExecutionState, ExecutionLog } from '@/types/workflow/workflow-editor';
 import type { Viewport } from '@xyflow/react';
 import { nanoid } from 'nanoid';
 
@@ -68,7 +68,7 @@ function toDBWorkflow(workflow: VisualWorkflow, isTemplate = false): DBWorkflow 
 }
 
 // Workflow execution state interface for DB
-interface WorkflowExecutionRecord {
+interface WorkflowWorkflowExecutionRecord {
   id: string;
   workflowId: string;
   status: string;
@@ -81,8 +81,8 @@ interface WorkflowExecutionRecord {
   completedAt?: Date;
 }
 
-// Convert DBWorkflowExecution to WorkflowExecutionRecord
-function toWorkflowExecution(dbExecution: DBWorkflowExecution): WorkflowExecutionRecord {
+// Convert DBWorkflowExecution to WorkflowWorkflowExecutionRecord
+function toWorkflowExecution(dbExecution: DBWorkflowExecution): WorkflowWorkflowExecutionRecord {
   return {
     id: dbExecution.id,
     workflowId: dbExecution.workflowId,
@@ -97,8 +97,8 @@ function toWorkflowExecution(dbExecution: DBWorkflowExecution): WorkflowExecutio
   };
 }
 
-// Convert WorkflowExecutionRecord to DBWorkflowExecution
-function toDBWorkflowExecution(execution: WorkflowExecutionRecord): DBWorkflowExecution {
+// Convert WorkflowWorkflowExecutionRecord to DBWorkflowExecution
+function toDBWorkflowExecution(execution: WorkflowWorkflowExecutionRecord): DBWorkflowExecution {
   return {
     id: execution.id,
     workflowId: execution.workflowId,
@@ -327,9 +327,9 @@ export const workflowRepository = {
   async createExecution(
     workflowId: string,
     input: Record<string, unknown> = {}
-  ): Promise<WorkflowExecutionRecord> {
+  ): Promise<WorkflowWorkflowExecutionRecord> {
     const now = new Date();
-    const execution: WorkflowExecutionRecord = {
+    const execution: WorkflowWorkflowExecutionRecord = {
       id: `exec-${nanoid()}`,
       workflowId,
       status: 'pending',
@@ -346,8 +346,8 @@ export const workflowRepository = {
    */
   async updateExecution(
     id: string,
-    updates: Partial<Omit<WorkflowExecutionRecord, 'id' | 'workflowId' | 'startedAt'>>
-  ): Promise<WorkflowExecutionRecord | undefined> {
+    updates: Partial<Omit<WorkflowWorkflowExecutionRecord, 'id' | 'workflowId' | 'startedAt'>>
+  ): Promise<WorkflowWorkflowExecutionRecord | undefined> {
     const existing = await db.workflowExecutions.get(id);
     if (!existing) return undefined;
 
@@ -368,7 +368,7 @@ export const workflowRepository = {
   /**
    * Get execution history for a workflow
    */
-  async getExecutions(workflowId: string, limit = 50): Promise<WorkflowExecutionRecord[]> {
+  async getExecutions(workflowId: string, limit = 50): Promise<WorkflowWorkflowExecutionRecord[]> {
     const executions = await db.workflowExecutions
       .where('workflowId')
       .equals(workflowId)
@@ -381,7 +381,7 @@ export const workflowRepository = {
   /**
    * Get a single execution by ID
    */
-  async getExecution(id: string): Promise<WorkflowExecutionRecord | undefined> {
+  async getExecution(id: string): Promise<WorkflowWorkflowExecutionRecord | undefined> {
     const execution = await db.workflowExecutions.get(id);
     return execution ? toWorkflowExecution(execution) : undefined;
   },

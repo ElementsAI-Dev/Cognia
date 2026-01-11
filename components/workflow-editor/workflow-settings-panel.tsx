@@ -56,7 +56,7 @@ import {
   Tag,
   Sparkles,
 } from 'lucide-react';
-import type { WorkflowSettings } from '@/types/workflow-editor';
+import type { WorkflowSettings } from '@/types/workflow/workflow-editor';
 
 const WORKFLOW_ICONS = [
   'Workflow', 'Sparkles', 'Zap', 'Globe', 'FileText', 'Settings', 'Code', 'Database'

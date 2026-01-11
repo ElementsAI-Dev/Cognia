@@ -70,8 +70,8 @@ import {
 import { useCopy } from '@/hooks/ui';
 import { useSummary, type UseSummaryOptions } from '@/hooks/chat';
 import { MermaidBlock } from '../renderers/mermaid-block';
-import type { UIMessage } from '@/types/message';
-import type { DiagramType, SummaryFormat, SummaryStyle, SummaryTemplate } from '@/types/summary';
+import type { UIMessage } from '@/types/core/message';
+import type { DiagramType, SummaryFormat, SummaryStyle, SummaryTemplate } from '@/types/learning/summary';
 import { toast } from 'sonner';
 
 interface ChatSummaryDialogProps {

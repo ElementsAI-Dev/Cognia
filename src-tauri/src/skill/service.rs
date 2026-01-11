@@ -133,11 +133,11 @@ impl SkillService {
         let mut seen = HashMap::new();
         all_skills.retain(|skill| {
             let key = skill.key.to_lowercase();
-            if seen.contains_key(&key) {
-                false
-            } else {
-                seen.insert(key, true);
+            if let std::collections::hash_map::Entry::Vacant(e) = seen.entry(key) {
+                e.insert(true);
                 true
+            } else {
+                false
             }
         });
 
@@ -477,6 +477,44 @@ impl SkillService {
         }
         drop(store);
         self.save_store().await
+    }
+
+    // ========== Skill Validation with SkillError ==========
+
+    /// Get an installed skill or return SkillError
+    pub async fn get_skill_or_error(&self, id: &str) -> std::result::Result<InstalledSkill, SkillError> {
+        let store = self.store.read().await;
+        store
+            .skills
+            .values()
+            .find(|s| s.id == id)
+            .cloned()
+            .ok_or_else(|| SkillError::NotFound(id.to_string()))
+    }
+
+    /// Validate skill can be installed (not already installed)
+    pub async fn validate_install(&self, skill: &DiscoverableSkill) -> std::result::Result<(), SkillError> {
+        let install_name = Path::new(&skill.directory)
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| skill.directory.clone());
+
+        let store = self.store.read().await;
+        if store.skills.contains_key(&install_name) {
+            return Err(SkillError::AlreadyInstalled(install_name));
+        }
+        Ok(())
+    }
+
+    /// Check download with timeout, returns SkillError::DownloadTimeout on timeout
+    #[allow(dead_code)]
+    pub async fn check_download_timeout<T, F>(&self, duration_secs: u64, future: F) -> std::result::Result<T, SkillError>
+    where
+        F: std::future::Future<Output = std::result::Result<T, SkillError>>,
+    {
+        timeout(std::time::Duration::from_secs(duration_secs), future)
+            .await
+            .map_err(|_| SkillError::DownloadTimeout(duration_secs))?
     }
 
     // ========== Skill Content ==========

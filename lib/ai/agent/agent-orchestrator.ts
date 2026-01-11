@@ -26,7 +26,7 @@ import type {
   SubAgentExecutionOptions,
   SubAgentOrchestrationResult,
   SubAgentExecutionMode,
-} from '@/types/sub-agent';
+} from '@/types/agent/sub-agent';
 
 /**
  * Orchestrator configuration

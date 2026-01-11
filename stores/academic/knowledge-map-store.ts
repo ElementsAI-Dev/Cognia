@@ -20,12 +20,12 @@ import type {
   MindMapGenerationRequest,
   PDFConversionOptions,
   PDFConversionResult,
-} from '@/types/knowledge-map';
+} from '@/types/learning/knowledge-map';
 import {
   isValidCodemapFile,
   convertCodemapToKnowledgeMap,
   convertKnowledgeMapToCodemap,
-} from '@/types/knowledge-map';
+} from '@/types/learning/knowledge-map';
 import { extractPDFContent } from '@/lib/academic/pdf-to-markdown';
 
 interface KnowledgeMapState {

@@ -100,7 +100,7 @@ describe('useToolHistoryStore', () => {
     });
   });
 
-  describe('updateToolCallResult', () => {
+  describe('updateToolCallResultStatus', () => {
     it('should update a call result', () => {
       const { result } = renderHook(() => useToolHistoryStore());
 
@@ -117,7 +117,7 @@ describe('useToolHistoryStore', () => {
       });
 
       act(() => {
-        result.current.updateToolCallResult(callId, 'success', 'Output text', undefined, 100);
+        result.current.updateToolCallResultStatus(callId, 'success', 'Output text', undefined, 100);
       });
 
       expect(result.current.history[0].result).toBe('success');
@@ -141,7 +141,7 @@ describe('useToolHistoryStore', () => {
       });
 
       act(() => {
-        result.current.updateToolCallResult(callId, 'success', undefined, undefined, 100);
+        result.current.updateToolCallResultStatus(callId, 'success', undefined, undefined, 100);
       });
 
       const stats = result.current.usageStats['mcp:server1:tool1'];
@@ -381,7 +381,7 @@ describe('useToolHistoryStore', () => {
             prompt: 'Search for documents about AI',
             result: 'pending',
           });
-          result.current.updateToolCallResult(record.id, 'success');
+          result.current.updateToolCallResultStatus(record.id, 'success');
         }
       });
 

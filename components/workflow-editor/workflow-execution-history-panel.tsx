@@ -60,7 +60,7 @@ import { workflowRepository } from '@/lib/db/repositories';
 import { useWorkflowEditorStore } from '@/stores/workflow';
 
 // Execution record type (matches repository)
-interface ExecutionRecord {
+interface WorkflowExecutionRecord {
   id: string;
   workflowId: string;
   status: string;
@@ -87,7 +87,7 @@ export function WorkflowExecutionHistoryPanel({
 
   const effectiveWorkflowId = workflowId || currentWorkflow?.id;
 
-  const [executions, setExecutions] = useState<ExecutionRecord[]>([]);
+  const [executions, setExecutions] = useState<WorkflowExecutionRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [expandedExecution, setExpandedExecution] = useState<string | null>(null);
@@ -121,7 +121,7 @@ export function WorkflowExecutionHistoryPanel({
 
   // Group executions by date
   const groupedExecutions = useMemo(() => {
-    const groups: Record<string, ExecutionRecord[]> = {};
+    const groups: Record<string, WorkflowExecutionRecord[]> = {};
 
     filteredExecutions.forEach((execution) => {
       const date = new Date(execution.startedAt).toLocaleDateString();
@@ -136,7 +136,7 @@ export function WorkflowExecutionHistoryPanel({
 
   // Re-run with same input
   const handleRerun = useCallback(
-    (execution: ExecutionRecord) => {
+    (execution: WorkflowExecutionRecord) => {
       startExecution(execution.input || {});
     },
     [startExecution]
@@ -328,7 +328,7 @@ export function WorkflowExecutionHistoryPanel({
 }
 
 interface ExecutionItemProps {
-  execution: ExecutionRecord;
+  execution: WorkflowExecutionRecord;
   isExpanded: boolean;
   onToggle: () => void;
   onRerun: () => void;

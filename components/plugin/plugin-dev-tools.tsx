@@ -32,7 +32,9 @@ import {
   RefreshCw,
   Copy,
   Check,
+  Activity,
 } from 'lucide-react';
+import { PluginProfiler } from './plugin-profiler';
 import { invoke } from '@tauri-apps/api/core';
 
 interface PluginDevToolsProps {
@@ -147,6 +149,10 @@ export function PluginDevTools({ className }: PluginDevToolsProps) {
               <TabsTrigger value="info" className="gap-2">
                 <Bug className="h-4 w-4" />
                 Info
+              </TabsTrigger>
+              <TabsTrigger value="profiler" className="gap-2">
+                <Activity className="h-4 w-4" />
+                Performance
               </TabsTrigger>
             </TabsList>
           </div>
@@ -270,6 +276,15 @@ export function PluginDevTools({ className }: PluginDevToolsProps) {
                   </Card>
                 </div>
               </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="profiler" className="flex-1 m-0 overflow-hidden">
+              <PluginProfiler
+                pluginId={selectedPluginId}
+                autoRefresh
+                refreshInterval={2000}
+                className="h-full"
+              />
             </TabsContent>
 
             {/* Output Panel */}

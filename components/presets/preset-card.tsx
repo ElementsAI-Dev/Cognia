@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import type { Preset } from '@/types/preset';
+import type { Preset } from '@/types/content/preset';
 
 interface PresetCardProps {
   preset: Preset;

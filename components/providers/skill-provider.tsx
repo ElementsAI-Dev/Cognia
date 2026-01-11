@@ -8,9 +8,9 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { useSkillStore } from '@/stores/agent';
+import { useSkillStore } from '@/stores/skills';
 import { getAllBuiltinSkills } from '@/lib/skills/builtin';
-import type { CreateSkillInput } from '@/types/skill';
+import type { CreateSkillInput } from '@/types/system/skill';
 
 interface SkillProviderProps {
   children: React.ReactNode;

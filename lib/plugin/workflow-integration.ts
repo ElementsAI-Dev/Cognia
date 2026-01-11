@@ -7,7 +7,7 @@
 import { usePluginStore } from '@/stores/plugin';
 import { getExtendedHooksManager } from './hooks-manager';
 import type { PluginMessage } from '@/types/plugin';
-import type { ExtendedPluginHooks } from '@/types/plugin-hooks';
+import type { ExtendedPluginHooks } from '@/types/plugin/plugin-hooks';
 
 /**
  * Workflow integration for plugins

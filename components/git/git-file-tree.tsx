@@ -38,7 +38,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { cn } from '@/lib/utils';
-import type { GitFileStatus } from '@/types/git';
+import type { GitFileStatus } from '@/types/system/git';
 
 interface TreeNode {
   name: string;

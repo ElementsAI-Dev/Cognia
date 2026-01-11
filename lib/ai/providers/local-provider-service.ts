@@ -10,7 +10,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { LocalProviderName, LocalServerStatus, LocalModelInfo, LocalModelPullProgress } from '@/types/local-provider';
+import type { LocalProviderName, LocalServerStatus, LocalModelInfo, LocalModelPullProgress } from '@/types/provider/local-provider';
 import { LOCAL_PROVIDER_CONFIGS, normalizeBaseUrl, type LocalProviderConfig } from './local-providers';
 
 /**

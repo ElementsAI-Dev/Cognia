@@ -51,7 +51,7 @@ import {
   parseSuggestions,
   validateGeneratedContent,
 } from '@/lib/skills/generator';
-import type { SkillCategory, SkillRefinementType, GenerateSkillInput } from '@/types/skill';
+import type { SkillCategory, SkillRefinementType, GenerateSkillInput } from '@/types/system/skill';
 
 const REFINEMENT_OPTIONS: Array<{ value: SkillRefinementType; labelKey: string; icon: React.ReactNode; descKey: string }> = [
   {

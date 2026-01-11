@@ -49,13 +49,13 @@ jest.mock('@/lib/native/proxy', () => ({
   isProxyAvailable: jest.fn(() => true),
 }));
 
-jest.mock('@/types/proxy', () => ({
+jest.mock('@/types/system/proxy', () => ({
   buildProxyUrl: jest.fn((config) => `http://${config.host}:${config.port}`),
 }));
 
 import { useProxyStore } from '@/stores/system';
 import { proxyService, isProxyAvailable } from '@/lib/native/proxy';
-import { buildProxyUrl } from '@/types/proxy';
+import { buildProxyUrl } from '@/types/system/proxy';
 
 const mockUseProxyStore = useProxyStore as jest.MockedFunction<typeof useProxyStore>;
 const mockIsProxyAvailable = isProxyAvailable as jest.MockedFunction<typeof isProxyAvailable>;

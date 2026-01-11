@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Video, VideoGrid } from './video';
-import type { GeneratedVideo } from '@/types/video';
+import type { GeneratedVideo } from '@/types/media/video';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

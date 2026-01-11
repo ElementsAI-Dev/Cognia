@@ -7,7 +7,7 @@
 
 import { useCallback, useState, useRef } from 'react';
 import { useNativeStore } from '@/stores';
-import type { ExecutionResult, ExecutionRequest } from '@/types/sandbox';
+import type { SandboxExecutionResult, ExecutionRequest } from '@/types/system/sandbox';
 
 export interface ExecutionOptions {
   timeout?: number;
@@ -17,14 +17,14 @@ export interface ExecutionOptions {
 
 interface UseCodeExecutionReturn {
   isExecuting: boolean;
-  result: CodeExecutionResult | null;
+  result: CodeSandboxExecutionResult | null;
   error: string | null;
-  execute: (code: string, language: string, options?: ExecutionOptions) => Promise<CodeExecutionResult>;
+  execute: (code: string, language: string, options?: ExecutionOptions) => Promise<CodeSandboxExecutionResult>;
   cancel: () => void;
   clear: () => void;
 }
 
-export interface CodeExecutionResult {
+export interface CodeSandboxExecutionResult {
   success: boolean;
   stdout: string;
   stderr: string;
@@ -46,7 +46,7 @@ const SANDBOX_EXECUTABLE = ['python', 'go', 'rust', 'java', 'c', 'cpp', 'ruby', 
 async function simulateExecution(
   code: string,
   language: string
-): Promise<CodeExecutionResult> {
+): Promise<CodeSandboxExecutionResult> {
   await new Promise((resolve) => setTimeout(resolve, 500));
 
   const lineCount = code.split('\n').length;
@@ -76,7 +76,7 @@ async function simulateExecution(
 async function executeBrowser(
   code: string,
   language: string
-): Promise<CodeExecutionResult> {
+): Promise<CodeSandboxExecutionResult> {
   const startTime = performance.now();
   const logs: string[] = [];
   const errors: string[] = [];
@@ -153,7 +153,7 @@ async function executeTauri(
   code: string,
   language: string,
   options: ExecutionOptions = {}
-): Promise<CodeExecutionResult> {
+): Promise<CodeSandboxExecutionResult> {
   try {
     const { invoke } = await import('@tauri-apps/api/core');
     
@@ -164,7 +164,7 @@ async function executeTauri(
       timeout_secs: options.timeout ? Math.floor(options.timeout / 1000) : 30,
     };
 
-    const result = await invoke<ExecutionResult>('sandbox_execute', { request });
+    const result = await invoke<SandboxExecutionResult>('sandbox_execute', { request });
 
     return {
       success: result.status === 'completed' && result.exit_code === 0,
@@ -189,7 +189,7 @@ async function executeTauri(
 
 export function useCodeExecution(): UseCodeExecutionReturn {
   const [isExecuting, setIsExecuting] = useState(false);
-  const [result, setResult] = useState<CodeExecutionResult | null>(null);
+  const [result, setResult] = useState<CodeSandboxExecutionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef(false);
 
@@ -200,14 +200,14 @@ export function useCodeExecution(): UseCodeExecutionReturn {
       code: string,
       language: string,
       options: ExecutionOptions = {}
-    ): Promise<CodeExecutionResult> => {
+    ): Promise<CodeSandboxExecutionResult> => {
       setIsExecuting(true);
       setError(null);
       abortRef.current = false;
 
       try {
         const normalizedLang = language.toLowerCase();
-        let execResult: CodeExecutionResult;
+        let execResult: CodeSandboxExecutionResult;
 
         // Determine execution strategy
         if (BROWSER_EXECUTABLE.includes(normalizedLang)) {
@@ -230,7 +230,7 @@ export function useCodeExecution(): UseCodeExecutionReturn {
         const errorMessage = err instanceof Error ? err.message : 'Execution failed';
         setError(errorMessage);
 
-        const errorResult: CodeExecutionResult = {
+        const errorResult: CodeSandboxExecutionResult = {
           success: false,
           stdout: '',
           stderr: errorMessage,

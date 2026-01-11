@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SidebarWorkflows } from './sidebar-workflows';
-import type { VisualWorkflow } from '@/types/workflow-editor';
+import type { VisualWorkflow } from '@/types/workflow/workflow-editor';
 
 // Mock router
 const mockPush = jest.fn();

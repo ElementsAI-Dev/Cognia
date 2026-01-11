@@ -31,6 +31,8 @@ import {
   MousePointer2,
   Menu,
   Globe,
+  GitBranch,
+  Play,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -93,6 +95,8 @@ import {
   NativeToolsSettings,
   SkillSettings,
   SearchSettings,
+  SandboxSettings,
+  GitSettings,
 } from '@/components/settings';
 import { SelectionToolbarSettings } from '@/components/selection-toolbar/settings-panel';
 import { PromptTemplateManager } from '@/components/prompt-templates/prompt-template-manager';
@@ -118,7 +122,9 @@ type SettingsSection =
   | 'proxy'
   | 'selection'
   | 'native-tools'
-  | 'prompt-templates';
+  | 'prompt-templates'
+  | 'sandbox'
+  | 'git';
 
 type SettingsGroup = 'ai' | 'interface' | 'data' | 'system';
 
@@ -346,6 +352,20 @@ export default function SettingsPage() {
         description: 'Clipboard, screenshots, focus tracking',
         group: 'system' as const,
       },
+      {
+        id: 'sandbox' as const,
+        label: 'Sandbox',
+        icon: <Play className="h-4 w-4" />,
+        description: 'Code execution sandbox configuration',
+        group: 'system' as const,
+      },
+      {
+        id: 'git' as const,
+        label: 'Git',
+        icon: <GitBranch className="h-4 w-4" />,
+        description: 'Git version control settings',
+        group: 'system' as const,
+      },
     ] : []),
   ], [t, isDesktop]);
 
@@ -398,6 +418,10 @@ export default function SettingsPage() {
         return <NativeToolsSettings />;
       case 'prompt-templates':
         return <PromptTemplateManager />;
+      case 'sandbox':
+        return <SandboxSettings />;
+      case 'git':
+        return <GitSettings />;
       default:
         return <ProviderSettings />;
     }

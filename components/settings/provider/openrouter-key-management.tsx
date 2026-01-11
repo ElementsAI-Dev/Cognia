@@ -66,7 +66,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useSettingsStore } from '@/stores';
 import type { OpenRouterExtendedSettings } from '@/types/provider';
-import type { OpenRouterApiKey, LimitResetPeriod } from '@/types/openrouter';
+import type { OpenRouterApiKey, LimitResetPeriod } from '@/types/provider/openrouter';
 import {
   listApiKeys,
   createApiKey,

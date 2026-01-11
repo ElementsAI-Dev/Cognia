@@ -82,7 +82,7 @@ jest.mock('@/lib/ai/providers/local-provider-service', () => ({
 }));
 
 // Mock local-provider types
-jest.mock('@/types/local-provider', () => ({
+jest.mock('@/types/provider/local-provider', () => ({
   formatLocalModelSize: jest.fn((bytes: number) => {
     if (bytes >= 1024 * 1024 * 1024) {
       return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;

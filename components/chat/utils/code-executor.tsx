@@ -13,8 +13,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { sandboxService } from '@/lib/native/sandbox';
-import { getLanguageInfo } from '@/types/sandbox';
-import type { ExecutionResult as BackendExecutionResult } from '@/types/sandbox';
+import { getLanguageInfo } from '@/types/system/sandbox';
+import type { SandboxExecutionResult as BackendSandboxExecutionResult } from '@/types/system/sandbox';
 
 interface CodeExecutorProps {
   code: string;
@@ -24,7 +24,7 @@ interface CodeExecutorProps {
   useBackend?: boolean;
 }
 
-interface ExecutionResult {
+interface SandboxExecutionResult {
   success: boolean;
   output: string;
   error?: string;
@@ -45,7 +45,7 @@ const ALL_BACKEND_LANGUAGES = [
 export function CodeExecutor({ code, language, className, stdin, useBackend = true }: CodeExecutorProps) {
   const t = useTranslations('codeExecutor');
   const [isRunning, setIsRunning] = useState(false);
-  const [result, setResult] = useState<ExecutionResult | null>(null);
+  const [result, setResult] = useState<SandboxExecutionResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [backendAvailable, setBackendAvailable] = useState(false);
   const [executionMode, setExecutionMode] = useState<'frontend' | 'backend'>('frontend');
@@ -76,7 +76,7 @@ export function CodeExecutor({ code, language, className, stdin, useBackend = tr
   const executeBackend = useCallback(async () => {
     const startTime = performance.now();
     try {
-      const backendResult: BackendExecutionResult = stdin
+      const backendResult: BackendSandboxExecutionResult = stdin
         ? await sandboxService.executeWithStdin(langLower, code, stdin)
         : await sandboxService.quickExecute(langLower, code);
 

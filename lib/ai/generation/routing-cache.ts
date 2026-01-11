@@ -8,7 +8,7 @@ import type {
   RoutingCacheEntry, 
   RoutingStats,
   TaskCategory,
-} from '@/types/auto-router';
+} from '@/types/provider/auto-router';
 
 // Simple hash function for cache keys
 function hashString(str: string): string {

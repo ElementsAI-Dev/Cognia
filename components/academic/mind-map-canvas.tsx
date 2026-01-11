@@ -47,8 +47,8 @@ import type {
   MindMapNode,
   MindMapTheme,
   KnowledgeMapLocation,
-} from '@/types/knowledge-map';
-import { DEFAULT_MIND_MAP_THEME } from '@/types/knowledge-map';
+} from '@/types/learning/knowledge-map';
+import { DEFAULT_MIND_MAP_THEME } from '@/types/learning/knowledge-map';
 
 interface MindMapCanvasProps {
   data: MindMapData;

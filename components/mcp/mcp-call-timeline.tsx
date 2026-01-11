@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { MCPServerBadge } from './mcp-server-badge';
-import type { ToolState } from '@/types/message';
+import type { ToolState } from '@/types/core/message';
 import type { McpServerStatus } from '@/types/mcp';
 
 export interface MCPCallStep {

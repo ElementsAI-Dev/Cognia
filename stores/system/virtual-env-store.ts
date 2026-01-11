@@ -19,8 +19,8 @@ import type {
   VirtualEnvType,
   EnvFilterOptions,
   EnvHealthCheck,
-} from '@/types/environment';
-import { filterEnvironments } from '@/types/environment';
+} from '@/types/system/environment';
+import { filterEnvironments } from '@/types/system/environment';
 
 export interface VirtualEnvState {
   // Virtual environments

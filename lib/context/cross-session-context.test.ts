@@ -8,7 +8,7 @@ import {
   buildHistoryContext,
   shouldBuildHistoryContext,
 } from './cross-session-context';
-import { DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS } from '@/types/chat-history-context';
+import { DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS } from '@/types/core/chat-history-context';
 
 // Mock the database
 jest.mock('@/lib/db/schema', () => ({

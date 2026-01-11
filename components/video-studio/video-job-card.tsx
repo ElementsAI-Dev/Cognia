@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { VideoStatus } from '@/types/video';
+import type { VideoStatus } from '@/types/media/video';
 import type { VideoJob } from './types';
 
 export interface VideoJobCardProps {

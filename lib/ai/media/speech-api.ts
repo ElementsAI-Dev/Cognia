@@ -2,7 +2,7 @@
  * Speech API - OpenAI Whisper API integration for speech-to-text
  */
 
-import type { WhisperTranscriptionResponse, SpeechLanguageCode } from '@/types/speech';
+import type { WhisperTranscriptionResponse, SpeechLanguageCode } from '@/types/media/speech';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
 
 // Whisper API endpoint

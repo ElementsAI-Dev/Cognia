@@ -29,8 +29,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSettingsStore } from '@/stores';
 import { PROVIDERS } from '@/types/provider';
-import type { CompressionStrategy, CompressionTrigger } from '@/types/compression';
-import type { HistoryContextCompressionLevel } from '@/types/chat-history-context';
+import type { CompressionStrategy, CompressionTrigger } from '@/types/system/compression';
+import type { HistoryContextCompressionLevel } from '@/types/core/chat-history-context';
 
 // Tooltip helper component
 function SettingTooltip({ children, content }: { children: React.ReactNode; content: string }) {

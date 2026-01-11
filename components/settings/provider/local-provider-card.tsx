@@ -49,7 +49,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { LocalProviderName } from '@/types/local-provider';
+import type { LocalProviderName } from '@/types/provider/local-provider';
 import { LOCAL_PROVIDER_CONFIGS } from '@/lib/ai/providers/local-providers';
 import { getProviderCapabilities, getInstallInstructions } from '@/lib/ai/providers/local-provider-service';
 

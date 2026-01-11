@@ -43,7 +43,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useGit } from '@/hooks/native/use-git';
-import { formatCommitDate, formatCommitMessage } from '@/types/git';
+import { formatCommitDate, formatCommitMessage } from '@/types/system/git';
 
 interface ProjectGitPanelProps {
   projectId: string;

@@ -619,10 +619,12 @@ impl PaperStorage {
     pub async fn get_statistics(&self) -> Result<AcademicStatistics, String> {
         let data = self.data.read().map_err(|e| format!("Lock error: {}", e))?;
         
-        let mut stats = AcademicStatistics::default();
-        stats.total_papers = data.papers.len() as i32;
-        stats.total_collections = data.collections.len() as i32;
-        stats.total_annotations = data.annotations.values().map(|v| v.len()).sum::<usize>() as i32;
+        let mut stats = AcademicStatistics {
+            total_papers: data.papers.len() as i32,
+            total_collections: data.collections.len() as i32,
+            total_annotations: data.annotations.values().map(|v| v.len()).sum::<usize>() as i32,
+            ..Default::default()
+        };
         
         // Count by status
         for paper in data.papers.values() {

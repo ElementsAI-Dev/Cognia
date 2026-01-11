@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/input-group';
 import { Badge } from '@/components/ui/badge';
 import { usePresetStore } from '@/stores';
-import type { Preset } from '@/types/preset';
+import type { Preset } from '@/types/content/preset';
 
 interface PresetSelectorProps {
   onSelect?: (preset: Preset) => void;

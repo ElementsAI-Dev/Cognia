@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/command';
 import { useAcademic } from '@/hooks/academic';
 import { cn } from '@/lib/utils';
-import type { LibraryPaper } from '@/types/academic';
+import type { LibraryPaper } from '@/types/learning/academic';
 
 interface PaperComparisonProps {
   className?: string;

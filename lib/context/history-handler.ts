@@ -14,7 +14,7 @@ import {
   estimateTokens,
   CONTEXT_CONSTANTS,
 } from './context-fs';
-import type { HistoryReference, ContextFile } from '@/types/context';
+import type { HistoryReference, ContextFile } from '@/types/system/context';
 
 /**
  * Message format for history serialization

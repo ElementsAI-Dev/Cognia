@@ -39,7 +39,7 @@ import {
 } from '@/components/ui/select';
 import { useAcademic } from '@/hooks/academic';
 import { cn } from '@/lib/utils';
-import type { LibraryPaper, PaperReadingStatus, PaperAnalysisType } from '@/types/academic';
+import type { LibraryPaper, PaperReadingStatus, PaperAnalysisType } from '@/types/learning/academic';
 
 const ANALYSIS_TYPES: { value: PaperAnalysisType; label: string; description: string }[] = [
   { value: 'summary', label: 'Summary', description: 'Comprehensive paper summary' },

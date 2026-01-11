@@ -4,7 +4,7 @@
 
 import { useMemo } from 'react';
 import { usePluginStore } from '@/stores/plugin';
-import type { AgentModeConfig } from '@/types/agent-mode';
+import type { AgentModeConfig } from '@/types/agent/agent-mode';
 
 interface UsePluginModesReturn {
   modes: AgentModeConfig[];

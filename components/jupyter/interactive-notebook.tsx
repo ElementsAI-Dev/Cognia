@@ -27,7 +27,7 @@ import { KernelStatus } from './kernel-status';
 import { VariableInspector } from './variable-inspector';
 import { useJupyterKernel } from '@/hooks/sandbox';
 import { useVirtualEnv } from '@/hooks/sandbox';
-import type { VirtualEnvInfo } from '@/types/environment';
+import type { VirtualEnvInfo } from '@/types/system/environment';
 
 interface InteractiveNotebookProps {
   content: string;

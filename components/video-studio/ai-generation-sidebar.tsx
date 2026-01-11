@@ -56,7 +56,7 @@ import type {
   VideoAspectRatio,
   VideoDuration,
   VideoStyle,
-} from '@/types/video';
+} from '@/types/media/video';
 import {
   VIDEO_PROMPT_TEMPLATES,
   VIDEO_STYLE_PRESETS,

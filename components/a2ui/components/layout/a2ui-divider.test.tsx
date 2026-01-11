@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { A2UIDivider } from './a2ui-divider';
-import type { A2UIDividerComponent, A2UIComponentProps } from '@/types/a2ui';
+import type { A2UIDividerComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 describe('A2UIDivider', () => {
   const mockOnAction = jest.fn();

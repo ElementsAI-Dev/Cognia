@@ -16,8 +16,8 @@ import type {
   PDFBoundingBox,
   KnowledgeMap,
   MindMapData,
-} from '@/types/knowledge-map';
-import { DEFAULT_PDF_CONVERSION_OPTIONS } from '@/types/knowledge-map';
+} from '@/types/learning/knowledge-map';
+import { DEFAULT_PDF_CONVERSION_OPTIONS } from '@/types/learning/knowledge-map';
 
 // ============================================================================
 // PDF Extraction Functions
@@ -488,7 +488,7 @@ function generateMermaidDiagram(sections: Section[]): string {
 // ============================================================================
 
 function generateMindMapFromKnowledgeMap(knowledgeMap: KnowledgeMap): MindMapData {
-  const rootNode: import('@/types/knowledge-map').MindMapNode = {
+  const rootNode: import('@/types/learning/knowledge-map').MindMapNode = {
     id: 'root',
     type: 'root',
     label: knowledgeMap.title,
@@ -497,7 +497,7 @@ function generateMindMapFromKnowledgeMap(knowledgeMap: KnowledgeMap): MindMapDat
   };
 
   for (const trace of knowledgeMap.traces) {
-    const traceNode: import('@/types/knowledge-map').MindMapNode = {
+    const traceNode: import('@/types/learning/knowledge-map').MindMapNode = {
       id: trace.id,
       type: 'section',
       label: trace.title,
@@ -506,7 +506,7 @@ function generateMindMapFromKnowledgeMap(knowledgeMap: KnowledgeMap): MindMapDat
     };
 
     for (const location of trace.locations.slice(0, 5)) {
-      const locationNode: import('@/types/knowledge-map').MindMapNode = {
+      const locationNode: import('@/types/learning/knowledge-map').MindMapNode = {
         id: location.id,
         type: 'detail',
         label: location.title,
@@ -521,9 +521,9 @@ function generateMindMapFromKnowledgeMap(knowledgeMap: KnowledgeMap): MindMapDat
     rootNode.children.push(traceNode);
   }
 
-  const edges: import('@/types/knowledge-map').MindMapEdge[] = [];
+  const edges: import('@/types/learning/knowledge-map').MindMapEdge[] = [];
   
-  function createEdges(node: import('@/types/knowledge-map').MindMapNode) {
+  function createEdges(node: import('@/types/learning/knowledge-map').MindMapNode) {
     for (const child of node.children) {
       edges.push({
         id: `edge_${node.id}_${child.id}`,
@@ -544,8 +544,8 @@ function generateMindMapFromKnowledgeMap(knowledgeMap: KnowledgeMap): MindMapDat
   };
 }
 
-function flattenNodes(node: import('@/types/knowledge-map').MindMapNode): import('@/types/knowledge-map').MindMapNode[] {
-  const result: import('@/types/knowledge-map').MindMapNode[] = [node];
+function flattenNodes(node: import('@/types/learning/knowledge-map').MindMapNode): import('@/types/learning/knowledge-map').MindMapNode[] {
+  const result: import('@/types/learning/knowledge-map').MindMapNode[] = [node];
   for (const child of node.children) {
     result.push(...flattenNodes(child));
   }

@@ -22,7 +22,7 @@ import {
   getEnvironmentToolsSystemPrompt,
   getEnvironmentToolsPromptSnippet,
 } from './environment-tools';
-import type { AgentEnvResult } from '@/types/environment';
+import type { AgentEnvResult } from '@/types/system/environment';
 
 // Mock the native environment service
 jest.mock('@/lib/native/environment', () => ({

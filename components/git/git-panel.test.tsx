@@ -85,8 +85,8 @@ jest.mock('next-intl', () => ({
 }));
 
 // Mock formatCommitDate and formatCommitMessage from types/git
-jest.mock('@/types/git', () => ({
-  ...jest.requireActual('@/types/git'),
+jest.mock('@/types/system/git', () => ({
+  ...jest.requireActual('@/types/system/git'),
   formatCommitDate: (date: string) => new Date(date).toLocaleDateString(),
   formatCommitMessage: (commit: { message: string }) => commit.message,
 }));

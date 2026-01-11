@@ -9,7 +9,7 @@ import { type NodeProps } from '@xyflow/react';
 import { BaseNode } from './base-node';
 import { Badge } from '@/components/ui/badge';
 import { Globe, ArrowRight, Lock, Unlock } from 'lucide-react';
-import type { WebhookNodeData } from '@/types/workflow-editor';
+import type { WebhookNodeData } from '@/types/workflow/workflow-editor';
 
 const METHOD_COLORS: Record<string, string> = {
   GET: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',

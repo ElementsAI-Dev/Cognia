@@ -16,7 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAcademic } from '@/hooks/academic';
 import { cn } from '@/lib/utils';
-import type { Paper } from '@/types/academic';
+import type { Paper } from '@/types/learning/academic';
 
 interface RecommendationReason {
   type: 'author' | 'topic' | 'citation' | 'trending' | 'field';

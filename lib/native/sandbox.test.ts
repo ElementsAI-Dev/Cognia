@@ -9,14 +9,14 @@ import {
   getLanguageInfo,
   isValidLanguage,
   getLanguageFromExtension,
-} from '@/types/sandbox';
+} from '@/types/system/sandbox';
 import type {
   ExecutionRequest,
-  ExecutionResult,
+  SandboxExecutionResult,
   RuntimeType,
-  SandboxConfig,
+  BackendSandboxConfig,
   Language,
-} from '@/types/sandbox';
+} from '@/types/system/sandbox';
 
 describe('Sandbox Types', () => {
   describe('DEFAULT_SANDBOX_CONFIG', () => {
@@ -197,9 +197,9 @@ describe('ExecutionRequest Type', () => {
   });
 });
 
-describe('ExecutionResult Type', () => {
+describe('SandboxExecutionResult Type', () => {
   it('should represent successful execution', () => {
-    const result: ExecutionResult = {
+    const result: SandboxExecutionResult = {
       id: 'test-id',
       status: 'completed',
       stdout: 'Hello, World!',
@@ -218,7 +218,7 @@ describe('ExecutionResult Type', () => {
   });
 
   it('should represent failed execution', () => {
-    const result: ExecutionResult = {
+    const result: SandboxExecutionResult = {
       id: 'test-id',
       status: 'failed',
       stdout: '',
@@ -237,7 +237,7 @@ describe('ExecutionResult Type', () => {
   });
 
   it('should represent timeout', () => {
-    const result: ExecutionResult = {
+    const result: SandboxExecutionResult = {
       id: 'test-id',
       status: 'timeout',
       stdout: 'partial output',
@@ -268,14 +268,14 @@ describe('RuntimeType', () => {
   });
 });
 
-describe('SandboxConfig Type', () => {
+describe('BackendSandboxConfig Type', () => {
   it('should be assignable from default config', () => {
-    const config: SandboxConfig = { ...DEFAULT_SANDBOX_CONFIG };
+    const config: BackendSandboxConfig = { ...DEFAULT_SANDBOX_CONFIG };
     expect(config.preferred_runtime).toBe('docker');
   });
 
   it('should allow partial overrides', () => {
-    const config: SandboxConfig = {
+    const config: BackendSandboxConfig = {
       ...DEFAULT_SANDBOX_CONFIG,
       preferred_runtime: 'podman',
       default_timeout_secs: 60,

@@ -8,7 +8,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
-import type { A2UIComponentProps, A2UIBaseComponent } from '@/types/a2ui';
+import type { A2UIComponentProps, A2UIBaseComponent } from '@/types/artifact/a2ui';
 
 export interface A2UILoadingComponent extends A2UIBaseComponent {
   component: 'Loading';

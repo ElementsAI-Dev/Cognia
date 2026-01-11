@@ -42,11 +42,11 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { useSkillStore } from '@/stores/agent';
+import { useSkillStore } from '@/stores/skills';
 import { getAllTemplates } from '@/lib/skills/templates';
 import { parseSkillMd } from '@/lib/skills/parser';
 import { SkillMarkdownPreview, SkillMarkdownStyles } from './skill-markdown-preview';
-import type { SkillCategory, SkillTemplate, SkillResource } from '@/types/skill';
+import type { SkillCategory, SkillTemplate, SkillResource } from '@/types/system/skill';
 
 const CATEGORY_OPTIONS: Array<{ value: SkillCategory; label: string; icon: React.ReactNode; description: string }> = [
   { value: 'creative-design', label: 'Creative & Design', icon: <Palette className="h-5 w-5" />, description: 'Design, art, and creative tasks' },

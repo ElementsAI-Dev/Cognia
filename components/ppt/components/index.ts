@@ -17,3 +17,6 @@ export { ThemeCustomizer, type ThemeCustomizerProps } from './theme-customizer';
 export { PPTGenerationDialog, type PPTGenerationDialogProps, type PPTGenerationConfig } from './ppt-generation-dialog';
 export { PPTQuickAction, type PPTQuickActionProps } from './ppt-quick-action';
 export { PPTOutlinePreview, type PPTOutlinePreviewProps, type PPTOutline, type OutlineSlide } from './ppt-outline-preview';
+export { ThumbnailNavigator } from './thumbnail-navigator';
+export { SlideshowControls, KeyboardHelpModal } from './slideshow-controls';
+export { SlideContent, type SlideContentProps } from './slide-content';

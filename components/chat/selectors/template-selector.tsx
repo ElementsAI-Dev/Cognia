@@ -26,8 +26,8 @@ import {
 } from '@/components/ui/input-group';
 import { EmptyState } from '@/components/layout/empty-state';
 import { useTemplateStore } from '@/stores';
-import type { ChatTemplate, TemplateCategory } from '@/types/template';
-import { TEMPLATE_CATEGORY_LABELS } from '@/types/template';
+import type { ChatTemplate, TemplateCategory } from '@/types/content/template';
+import { TEMPLATE_CATEGORY_LABELS } from '@/types/content/template';
 
 interface TemplateSelectorProps {
   trigger?: React.ReactNode;

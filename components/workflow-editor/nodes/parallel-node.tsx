@@ -8,7 +8,7 @@ import { memo } from 'react';
 import { Position, type NodeProps } from '@xyflow/react';
 import { BaseNode } from './base-node';
 import { Badge } from '@/components/ui/badge';
-import type { ParallelNodeData } from '@/types/workflow-editor';
+import type { ParallelNodeData } from '@/types/workflow/workflow-editor';
 
 function ParallelNodeComponent(props: NodeProps) {
   const data = props.data as ParallelNodeData;

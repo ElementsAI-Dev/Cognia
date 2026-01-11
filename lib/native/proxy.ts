@@ -12,7 +12,7 @@ import { isTauri } from './utils';
 import type {
   DetectedProxy,
   ProxyTestResult,
-} from '@/types/proxy';
+} from '@/types/system/proxy';
 
 /** System proxy settings from OS */
 export interface SystemProxySettings {

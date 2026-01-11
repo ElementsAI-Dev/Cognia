@@ -8,7 +8,7 @@
  * - hybrid: Combination of sliding window + summary
  */
 
-import type { UIMessage } from '@/types/message';
+import type { UIMessage } from '@/types/core/message';
 import type {
   CompressionSettings,
   CompressionStrategy,
@@ -16,8 +16,8 @@ import type {
   CompressionHistoryEntry,
   ContextState,
   SessionCompressionOverrides,
-} from '@/types/compression';
-import { DEFAULT_COMPRESSION_SETTINGS } from '@/types/compression';
+} from '@/types/system/compression';
+import { DEFAULT_COMPRESSION_SETTINGS } from '@/types/system/compression';
 import { calculateTokenBreakdown, countTokens } from '@/hooks/chat/use-token-count';
 import { nanoid } from 'nanoid';
 

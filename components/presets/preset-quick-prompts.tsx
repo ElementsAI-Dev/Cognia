@@ -14,7 +14,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type { BuiltinPrompt } from '@/types/preset';
+import type { BuiltinPrompt } from '@/types/content/preset';
 
 interface PresetQuickPromptsProps {
   prompts: BuiltinPrompt[];

@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { NodePalette } from './node-palette';
-import { NODE_CATEGORIES } from '@/types/workflow-editor';
+import { NODE_CATEGORIES } from '@/types/workflow/workflow-editor';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

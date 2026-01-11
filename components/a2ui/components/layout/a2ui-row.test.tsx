@@ -5,7 +5,7 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import { A2UIRow } from './a2ui-row';
-import type { A2UIRowComponent, A2UIComponentProps } from '@/types/a2ui';
+import type { A2UIRowComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI renderer
 jest.mock('../../a2ui-renderer', () => ({

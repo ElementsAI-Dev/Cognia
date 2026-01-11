@@ -171,7 +171,7 @@ export function CanvasPanel() {
   // Code execution hook
   const {
     isExecuting: isCodeExecuting,
-    result: executionResult,
+    result: SandboxExecutionResult,
     execute: executeCode,
     cancel: cancelExecution,
     clear: clearExecution,
@@ -795,7 +795,7 @@ export function CanvasPanel() {
             {/* Code Execution Panel */}
             {showExecutionPanel && activeDocument?.type === 'code' && (
               <CodeExecutionPanel
-                result={executionResult}
+                result={SandboxExecutionResult}
                 isExecuting={isCodeExecuting}
                 language={activeDocument.language}
                 onExecute={() => executeCode(localContent, activeDocument.language)}

@@ -8,16 +8,16 @@
 
 import { db, type DBSummary } from '@/lib/db/schema';
 import { messageRepository } from '@/lib/db/repositories/message-repository';
-import type { UIMessage } from '@/types/message';
-import type { Session } from '@/types/session';
+import type { UIMessage } from '@/types/core/message';
+import type { Session } from '@/types/core/session';
 import type {
   ChatHistoryContextSettings,
   SessionContextSummary,
   HistoryContextResult,
   BuildHistoryContextOptions,
   HistoryContextCompressionLevel,
-} from '@/types/chat-history-context';
-import { DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS } from '@/types/chat-history-context';
+} from '@/types/core/chat-history-context';
+import { DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS } from '@/types/core/chat-history-context';
 import { estimateTokens } from './context-fs';
 import { extractTopicsSimple } from '@/lib/ai/generation/summarizer';
 

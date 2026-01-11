@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { A2UIRadioGroup } from './a2ui-radio';
-import type { A2UIRadioGroupComponent, A2UIComponentProps } from '@/types/a2ui';
+import type { A2UIRadioGroupComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
 jest.mock('../../a2ui-context', () => ({

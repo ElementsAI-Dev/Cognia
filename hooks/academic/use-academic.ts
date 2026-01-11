@@ -17,7 +17,7 @@ import type {
   AcademicProviderType,
   PaperSearchFilter,
   PaperAnalysisType,
-} from '@/types/academic';
+} from '@/types/learning/academic';
 
 export interface UseAcademicReturn {
   // Search state

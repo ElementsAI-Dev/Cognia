@@ -19,7 +19,7 @@ import type {
   Mem0Memory,
   Mem0Entity,
 } from '@/types';
-import { mem0ToLocalMemory } from '@/types/memory-provider';
+import { mem0ToLocalMemory } from '@/types/provider/memory-provider';
 import type { ToolCallResult } from '@/types/mcp';
 
 /**

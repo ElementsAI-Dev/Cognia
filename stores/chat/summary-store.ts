@@ -20,7 +20,7 @@ import type {
   SummaryStyle,
   SummaryTemplate,
   DiagramType,
-} from '@/types/summary';
+} from '@/types/learning/summary';
 
 interface SummaryState {
   // Configuration

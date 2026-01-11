@@ -4,7 +4,7 @@
  * This module provides pre-built skills that are loaded when the app starts.
  */
 
-import type { CreateSkillInput, SkillCategory } from '@/types/skill';
+import type { CreateSkillInput, SkillCategory } from '@/types/system/skill';
 import {
   SKILL_CREATOR_TEMPLATE,
   MCP_BUILDER_TEMPLATE,

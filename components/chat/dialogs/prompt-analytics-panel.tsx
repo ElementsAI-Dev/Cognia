@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { usePromptOptimizer } from '@/hooks/ai/use-prompt-optimizer';
-import type { PromptTemplate, PromptFeedback } from '@/types/prompt-template';
+import type { PromptTemplate, PromptFeedback } from '@/types/content/prompt-template';
 import {
   BarChart3,
   TrendingUp,

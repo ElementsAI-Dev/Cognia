@@ -10,7 +10,7 @@ import {
   type HealthCheckConfig,
 } from './background-agent-manager';
 import { getBackgroundAgentEventEmitter } from './background-agent-events';
-import type { CreateBackgroundAgentInput } from '@/types/background-agent';
+import type { CreateBackgroundAgentInput } from '@/types/agent/background-agent';
 
 // Mock dependencies
 jest.mock('./agent-orchestrator', () => ({

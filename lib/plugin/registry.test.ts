@@ -4,7 +4,7 @@
 
 import { PluginRegistry } from './registry';
 import type { PluginTool, PluginA2UIComponent, A2UITemplateDef } from '@/types/plugin';
-import type { AgentModeConfig } from '@/types/agent-mode';
+import type { AgentModeConfig } from '@/types/agent/agent-mode';
 
 describe('PluginRegistry', () => {
   let registry: PluginRegistry;

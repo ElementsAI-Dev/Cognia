@@ -8,7 +8,7 @@ import type {
   PluginNotificationCenterAPI,
   NotificationOptions,
   Notification,
-} from '@/types/plugin-extended';
+} from '@/types/plugin/plugin-extended';
 import { nanoid } from 'nanoid';
 
 // Global notification registry

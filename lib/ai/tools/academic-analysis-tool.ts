@@ -8,7 +8,7 @@ import type {
   Paper, 
   LibraryPaper,
   PaperAnalysisType,
-} from '@/types/academic';
+} from '@/types/learning/academic';
 
 export const academicAnalysisInputSchema = z.object({
   paperId: z.string().optional().describe('ID of paper from library to analyze'),

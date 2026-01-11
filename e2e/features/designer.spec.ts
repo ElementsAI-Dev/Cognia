@@ -753,7 +753,7 @@ test.describe('React Sandbox', () => {
     await page.goto('/designer');
 
     const result = await page.evaluate(() => {
-      const sandboxConfig = {
+      const BackendSandboxConfig = {
         allowedImports: ['react', '@/components/ui'],
         maxExecutionTime: 5000,
         memoryLimit: '50MB',
@@ -782,7 +782,7 @@ test.describe('React Sandbox', () => {
       return {
         safeValidation: validateCode(safeCode),
         unsafeValidation: validateCode(unsafeCode),
-        config: sandboxConfig,
+        config: BackendSandboxConfig,
       };
     });
 

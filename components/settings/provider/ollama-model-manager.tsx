@@ -64,7 +64,7 @@ import {
   formatPullProgress,
   parseModelName,
   POPULAR_OLLAMA_MODELS,
-} from '@/types/ollama';
+} from '@/types/provider/ollama';
 
 interface OllamaModelManagerProps {
   baseUrl: string;

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { usePromptTemplateStore } from '@/stores';
-import type { PromptTemplate } from '@/types/prompt-template';
+import type { PromptTemplate } from '@/types/content/prompt-template';
 
 interface PromptTemplateSelectorProps {
   open: boolean;

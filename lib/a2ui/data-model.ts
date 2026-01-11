@@ -3,7 +3,7 @@
  * Implements RFC 6901 JSON Pointer for data binding
  */
 
-import type { A2UIPathValue, A2UIStringOrPath, A2UINumberOrPath, A2UIBooleanOrPath, A2UIArrayOrPath } from '@/types/a2ui';
+import type { A2UIPathValue, A2UIStringOrPath, A2UINumberOrPath, A2UIBooleanOrPath, A2UIArrayOrPath } from '@/types/artifact/a2ui';
 
 /**
  * Parse a JSON Pointer string into path segments

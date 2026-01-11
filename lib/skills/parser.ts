@@ -12,7 +12,7 @@ import type {
   SkillResourceType,
   SkillValidationError,
   SkillCategory,
-} from '@/types/skill';
+} from '@/types/system/skill';
 
 /**
  * Result of parsing a SKILL.md file

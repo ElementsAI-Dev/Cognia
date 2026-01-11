@@ -11,7 +11,7 @@ jest.mock('date-fns', () => ({
 }));
 
 // Mock store functions
-const mockClearExecutionRecords = jest.fn();
+const mockclearWorkflowExecutionRecords = jest.fn();
 const mockGetWorkflowStatistics = jest.fn(() => ({
   totalExecutions: 10,
   successfulExecutions: 8,
@@ -34,7 +34,7 @@ jest.mock('@/stores/workflow', () => ({
   useWorkflowEditorStore: () => ({
     currentWorkflow: { id: 'workflow-1', name: 'Test Workflow' },
     getWorkflowStatistics: mockGetWorkflowStatistics,
-    clearExecutionRecords: mockClearExecutionRecords,
+    clearWorkflowExecutionRecords: mockclearWorkflowExecutionRecords,
   }),
 }));
 
@@ -177,13 +177,13 @@ describe('ExecutionStatisticsPanel', () => {
     expect(screen.getByText('Test error')).toBeInTheDocument();
   });
 
-  it('calls clearExecutionRecords when clear button is clicked', () => {
+  it('calls clearWorkflowExecutionRecords when clear button is clicked', () => {
     render(<ExecutionStatisticsPanel />);
     
     const clearButton = screen.getByText('Clear History').closest('button');
     if (clearButton) {
       fireEvent.click(clearButton);
-      expect(mockClearExecutionRecords).toHaveBeenCalledWith('workflow-1');
+      expect(mockclearWorkflowExecutionRecords).toHaveBeenCalledWith('workflow-1');
     }
   });
 

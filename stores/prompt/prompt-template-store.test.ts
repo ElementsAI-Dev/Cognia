@@ -5,7 +5,7 @@ import {
   DEFAULT_PROMPT_TEMPLATE_CATEGORIES,
   DEFAULT_PROMPT_TEMPLATES,
   type PromptTemplate,
-} from '@/types/prompt-template';
+} from '@/types/content/prompt-template';
 import { usePromptTemplateStore } from './prompt-template-store';
 
 describe('usePromptTemplateStore', () => {

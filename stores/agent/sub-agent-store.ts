@@ -15,7 +15,7 @@ import {
   type CreateSubAgentInput,
   type UpdateSubAgentInput,
   type SubAgentExecutionMode,
-} from '@/types/sub-agent';
+} from '@/types/agent/sub-agent';
 
 interface SubAgentState {
   // Sub-agents by ID

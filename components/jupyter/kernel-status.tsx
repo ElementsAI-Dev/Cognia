@@ -22,7 +22,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import type { KernelInfo, KernelStatus as KernelStatusType } from '@/types/jupyter';
+import type { KernelInfo, KernelStatus as KernelStatusType } from '@/types/system/jupyter';
 
 interface KernelStatusProps {
   kernel: KernelInfo | null;

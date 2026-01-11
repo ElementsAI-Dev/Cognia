@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { CreatePresetDialog } from './create-preset-dialog';
-import type { Preset } from '@/types/preset';
+import type { Preset } from '@/types/content/preset';
 
 // Mock stores
 const mockCreatePreset = jest.fn(() => ({ id: 'new-preset' }));
@@ -39,7 +39,7 @@ jest.mock('@/stores', () => ({
 }));
 
 // Mock types
-jest.mock('@/types/preset', () => ({
+jest.mock('@/types/content/preset', () => ({
   PRESET_COLORS: ['#6366f1', '#3B82F6', '#10B981', '#F59E0B'],
   PRESET_ICONS: ['💬', '🤖', '📝', '🔬'],
 }));

@@ -17,7 +17,7 @@ import type {
   A2UIDataModelChange,
   A2UIComponent,
   A2UISurfaceType,
-} from '@/types/a2ui';
+} from '@/types/artifact/a2ui';
 
 interface UseA2UIOptions {
   onAction?: (action: A2UIUserAction) => void;

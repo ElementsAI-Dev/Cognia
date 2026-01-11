@@ -191,7 +191,7 @@ describe('useA2UIAppBuilder', () => {
 
       let appId: string | null;
       act(() => {
-        appId = result.current.createCustomApp('My App', components as unknown as import('@/types/a2ui').A2UIComponent[], dataModel);
+        appId = result.current.createCustomApp('My App', components as unknown as import('@/types/artifact/a2ui').A2UIComponent[], dataModel);
       });
 
       expect(appId!).toBe('custom-app-123');

@@ -61,7 +61,7 @@ import {
   Zap,
   Heart,
 } from 'lucide-react';
-import { NODE_CATEGORIES, NODE_TYPE_COLORS, type WorkflowNodeType } from '@/types/workflow-editor';
+import { NODE_CATEGORIES, NODE_TYPE_COLORS, type WorkflowNodeType } from '@/types/workflow/workflow-editor';
 import { NodeTemplatePanel } from './node-template-manager';
 import { useWorkflowEditorStore } from '@/stores/workflow';
 

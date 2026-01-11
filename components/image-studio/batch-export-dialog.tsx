@@ -40,10 +40,10 @@ import {
   Check,
 } from 'lucide-react';
 
-import type { ExportFormat, ExportableImage } from '@/types';
+import type { ImageExportFormat as ExportFormat, ExportableImage } from '@/types/media/image-studio';
 
 // Re-export types for backward compatibility
-export type { ExportFormat, ExportableImage } from '@/types';
+export type { ImageExportFormat as ExportFormat, ExportableImage } from '@/types/media/image-studio';
 
 export interface BatchExportDialogProps {
   open: boolean;

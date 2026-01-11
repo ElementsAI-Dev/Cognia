@@ -9,9 +9,9 @@ import type { AgentTool } from '@/lib/ai/agent/agent-executor';
 import type {
   Skill,
   SkillExecutionContext,
-  SkillExecutionResult,
+  SkillSandboxExecutionResult,
   SkillResource,
-} from '@/types/skill';
+} from '@/types/system/skill';
 
 /**
  * Configuration for skill execution
@@ -178,7 +178,7 @@ export async function executeSkill(
   skill: Skill,
   context: SkillExecutionContext,
   config: SkillExecutorConfig = {}
-): Promise<SkillExecutionResult> {
+): Promise<SkillSandboxExecutionResult> {
   const startTime = Date.now();
   const loadedResources: string[] = [];
   

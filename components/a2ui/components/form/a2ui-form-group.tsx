@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import type { A2UIComponentProps, A2UIBaseComponent } from '@/types/a2ui';
+import type { A2UIComponentProps, A2UIBaseComponent } from '@/types/artifact/a2ui';
 import { A2UIChildRenderer } from '../../a2ui-renderer';
 
 export interface A2UIFormGroupComponent extends A2UIBaseComponent {

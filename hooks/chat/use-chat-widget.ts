@@ -128,8 +128,25 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
         }
       );
 
+      // Listen for bubble "new session" action
+      const unlistenBubbleNewSession = await listen('bubble-new-session', () => {
+        newSession();
+      });
+
+      // Listen for bubble "open settings" action
+      const unlistenBubbleOpenSettings = await listen('bubble-open-settings', async () => {
+        // Emit event to open settings panel in the chat widget
+        const { emit: emitLocal } = await import('@tauri-apps/api/event');
+        await emitLocal('chat-widget-open-settings', {});
+      });
+
       // Store for cleanup
-      (window as unknown as { __chatWidgetUnlistenSelection?: () => void }).__chatWidgetUnlistenSelection = unlistenSelectionSend;
+      const cleanupFns = {
+        selection: unlistenSelectionSend,
+        bubbleNewSession: unlistenBubbleNewSession,
+        bubbleOpenSettings: unlistenBubbleOpenSettings,
+      };
+      (window as unknown as { __chatWidgetCleanup?: typeof cleanupFns }).__chatWidgetCleanup = cleanupFns;
     };
 
     setupListeners();
@@ -140,11 +157,13 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
       unlistenSendText?.();
       unlistenFocusInput?.();
       unlistenConfigChanged?.();
-      // Cleanup selection listener
-      const win = window as unknown as { __chatWidgetUnlistenSelection?: () => void };
-      win.__chatWidgetUnlistenSelection?.();
+      // Cleanup all bubble and selection listeners
+      const win = window as unknown as { __chatWidgetCleanup?: { selection: () => void; bubbleNewSession: () => void; bubbleOpenSettings: () => void } };
+      win.__chatWidgetCleanup?.selection?.();
+      win.__chatWidgetCleanup?.bubbleNewSession?.();
+      win.__chatWidgetCleanup?.bubbleOpenSettings?.();
     };
-  }, [setVisible, setInputValue, updateConfig, options]);
+  }, [setVisible, setInputValue, updateConfig, options, newSession]);
 
   // In the dedicated chat-widget window, persist size/position changes so they survive app restart.
   useEffect(() => {
@@ -194,6 +213,28 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
     };
   }, [updateConfig]);
 
+  // Emit loading state to bubble
+  const emitLoadingState = useCallback(async (loading: boolean) => {
+    if (typeof window === 'undefined' || !window.__TAURI__) return;
+    try {
+      const { emit } = await import('@tauri-apps/api/event');
+      await emit('bubble-loading-state', loading);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Emit unread count to bubble (when chat is hidden)
+  const emitUnreadCount = useCallback(async (count: number) => {
+    if (typeof window === 'undefined' || !window.__TAURI__) return;
+    try {
+      const { emit } = await import('@tauri-apps/api/event');
+      await emit('bubble-unread-count', count);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Send message to AI
   const sendMessage = useCallback(
     async (text: string) => {
@@ -202,6 +243,7 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
       // Add user message
       addMessage({ role: 'user', content: text });
       setLoading(true);
+      emitLoadingState(true);
       clearInput();
 
       // Create abort controller for this request
@@ -261,18 +303,31 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
         }
 
         recordActivity();
+        
+        // If chat widget is not visible, increment unread count and play notification sound
+        if (!useChatWidgetStore.getState().isVisible) {
+          emitUnreadCount(1);
+          // Play notification sound for new message when widget is hidden
+          import('@/lib/native/sound').then(({ playNotificationSound }) => {
+            playNotificationSound();
+          }).catch(() => {
+            // Ignore sound errors
+          });
+        }
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
           // Request was cancelled
+          emitLoadingState(false);
           return;
         }
         setError(err instanceof Error ? err.message : 'Failed to send message');
       } finally {
         setLoading(false);
+        emitLoadingState(false);
         abortControllerRef.current = null;
       }
     },
-    [isLoading, messages, config, addMessage, setLoading, clearInput, setError, recordActivity]
+    [isLoading, messages, config, addMessage, setLoading, clearInput, setError, recordActivity, emitLoadingState, emitUnreadCount]
   );
 
   // Handle submit

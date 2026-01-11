@@ -27,9 +27,9 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { useSkillStore } from '@/stores/agent';
+import { useSkillStore } from '@/stores/skills';
 import { estimateSkillTokens } from '@/lib/skills/executor';
-import type { Skill, SkillUsageStats } from '@/types/skill';
+import type { Skill, SkillUsageStats } from '@/types/system/skill';
 
 interface SkillAnalyticsProps {
   skillId?: string; // If provided, show analytics for single skill

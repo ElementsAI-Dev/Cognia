@@ -96,7 +96,7 @@ struct OAAuthorship {
     institutions: Option<Vec<OAInstitution>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 struct OAAuthor {
     id: Option<String>,
     display_name: Option<String>,
@@ -262,16 +262,6 @@ impl From<OAWork> for Paper {
         }
         
         paper
-    }
-}
-
-impl Default for OAAuthor {
-    fn default() -> Self {
-        Self {
-            id: None,
-            display_name: None,
-            orcid: None,
-        }
     }
 }
 

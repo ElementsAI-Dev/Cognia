@@ -50,7 +50,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import type { SkillResource, SkillResourceType } from '@/types/skill';
+import type { SkillResource, SkillResourceType } from '@/types/system/skill';
 
 const RESOURCE_TYPE_ICONS: Record<SkillResourceType, React.ReactNode> = {
   script: <FileCode className="h-4 w-4" />,

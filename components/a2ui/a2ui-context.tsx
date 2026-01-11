@@ -10,7 +10,7 @@ import type {
   A2UISurfaceState,
   A2UIComponent,
   A2UIComponentCatalog,
-} from '@/types/a2ui';
+} from '@/types/artifact/a2ui';
 import { useA2UIStore } from '@/stores/a2ui';
 import {
   resolveStringOrPath,

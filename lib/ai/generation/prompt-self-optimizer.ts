@@ -13,7 +13,7 @@
 
 import { generateText } from 'ai';
 import { getProviderModel, type ProviderName } from '../core/client';
-import type { PromptTemplate, PromptFeedback, PromptABTest, PromptTemplateStats } from '@/types/prompt-template';
+import type { PromptTemplate, PromptFeedback, PromptABTest, PromptTemplateStats } from '@/types/content/prompt-template';
 import { nanoid } from 'nanoid';
 
 export interface SelfOptimizationConfig {

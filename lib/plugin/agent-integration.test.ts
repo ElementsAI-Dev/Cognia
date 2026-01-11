@@ -10,7 +10,7 @@ import {
   type PluginAgentTool,
 } from './agent-integration';
 import { usePluginStore } from '@/stores/plugin';
-import type { AgentModeConfig } from '@/types/agent-mode';
+import type { AgentModeConfig } from '@/types/agent/agent-mode';
 
 // Mock the plugin store
 jest.mock('@/stores/plugin', () => ({

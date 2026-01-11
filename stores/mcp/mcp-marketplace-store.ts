@@ -13,8 +13,8 @@ import type {
   McpDownloadResponse,
   McpInstallStatus,
   McpMarketplaceSource,
-} from '@/types/mcp-marketplace';
-import { DEFAULT_MARKETPLACE_FILTERS } from '@/types/mcp-marketplace';
+} from '@/types/mcp/mcp-marketplace';
+import { DEFAULT_MARKETPLACE_FILTERS } from '@/types/mcp/mcp-marketplace';
 import {
   fetchMcpMarketplace,
   downloadMcpServer,

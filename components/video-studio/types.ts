@@ -6,7 +6,7 @@ import type {
   VideoDuration,
   VideoStyle,
   VideoStatus,
-} from '@/types/video';
+} from '@/types/media/video';
 
 // Studio modes
 export type StudioMode = 'recording' | 'ai-generation';

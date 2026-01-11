@@ -12,7 +12,7 @@ import type {
   AIChatMessage,
   AIChatOptions,
   AIChatChunk,
-} from '@/types/plugin-extended';
+} from '@/types/plugin/plugin-extended';
 
 // Registry for custom AI providers
 const customProviders = new Map<string, AIProviderDefinition>();
@@ -104,4 +104,11 @@ export function createAIProviderAPI(pluginId: string): PluginAIProviderAPI {
  */
 export function getCustomAIProviders(): AIProviderDefinition[] {
   return Array.from(customProviders.values());
+}
+
+/**
+ * Clear all custom AI providers (for testing purposes)
+ */
+export function clearCustomAIProviders(): void {
+  customProviders.clear();
 }

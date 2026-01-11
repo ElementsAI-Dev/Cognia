@@ -24,7 +24,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import type { A2UIComponentProps, A2UIChartComponent } from '@/types/a2ui';
+import type { A2UIComponentProps, A2UIChartComponent } from '@/types/artifact/a2ui';
 import { useA2UIContext } from '../../a2ui-context';
 import { resolveArrayOrPath } from '@/lib/a2ui/data-model';
 

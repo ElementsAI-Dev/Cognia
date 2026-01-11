@@ -10,7 +10,7 @@ import type {
   KnowledgeMapGenerationRequest,
   MindMapData,
   PDFConversionOptions,
-} from '@/types/knowledge-map';
+} from '@/types/learning/knowledge-map';
 
 // ============================================================================
 // Knowledge Map Generation from Different Sources

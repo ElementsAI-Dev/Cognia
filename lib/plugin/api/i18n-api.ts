@@ -9,8 +9,8 @@ import { locales, localeNames, type Locale } from '@/lib/i18n/config';
 import type {
   PluginI18nAPI,
   TranslationParams,
-} from '@/types/plugin-extended';
-import type { Locale as PluginLocale } from '@/types/plugin-extended';
+} from '@/types/plugin/plugin-extended';
+import type { Locale as PluginLocale } from '@/types/plugin/plugin-extended';
 
 // Plugin translation registrations
 const pluginTranslations = new Map<string, Map<Locale, Record<string, string>>>();

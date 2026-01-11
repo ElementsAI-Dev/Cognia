@@ -81,6 +81,37 @@ export interface SlideshowViewProps {
   onPrev: () => void;
   onNext: () => void;
   onExit: () => void;
+  onGoToSlide?: (index: number) => void;
+}
+
+export interface SlideshowSettings {
+  showThumbnails: boolean;
+  showProgress: boolean;
+  showTimer: boolean;
+  showNotes: boolean;
+  autoPlay: boolean;
+  autoPlayInterval: number; // seconds
+  enableTransitions: boolean;
+  transitionType: 'none' | 'fade' | 'slide' | 'zoom';
+  transitionDuration: number; // milliseconds
+}
+
+export interface PresenterModeProps {
+  presentation: PPTPresentation;
+  currentIndex: number;
+  onPrev: () => void;
+  onNext: () => void;
+  onGoToSlide: (index: number) => void;
+  onExit: () => void;
+}
+
+export interface ThumbnailNavigatorProps {
+  slides: PPTSlide[];
+  theme: PPTTheme;
+  currentIndex: number;
+  onSelect: (index: number) => void;
+  orientation?: 'horizontal' | 'vertical';
+  size?: 'small' | 'medium' | 'large';
 }
 
 export interface SlideElementProps {

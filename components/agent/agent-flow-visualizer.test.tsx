@@ -1,6 +1,6 @@
 import { render, screen, act } from '@testing-library/react';
 import { AgentFlowVisualizer } from './agent-flow-visualizer';
-import type { BackgroundAgent } from '@/types/background-agent';
+import type { BackgroundAgent } from '@/types/agent/background-agent';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

@@ -902,7 +902,7 @@ fn convert_text_to_markdown(text: &str) -> String {
                 markdown.push_str(&format!("## {}\n\n", trimmed));
             } else {
                 markdown.push_str(trimmed);
-                markdown.push_str(" ");
+                markdown.push(' ');
             }
         }
     }

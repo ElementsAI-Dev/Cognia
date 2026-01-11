@@ -11,7 +11,7 @@ import {
   cancelAllSubAgents,
   type SubAgentExecutorConfig,
 } from './sub-agent-executor';
-import type { SubAgent as _SubAgent, SubAgentConfig as _SubAgentConfig } from '@/types/sub-agent';
+import type { SubAgent as _SubAgent, SubAgentConfig as _SubAgentConfig } from '@/types/agent/sub-agent';
 
 // Mock the agent executor
 jest.mock('./agent-executor', () => ({

@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import type { Paper, AcademicProviderType } from '@/types/academic';
+import type { Paper, AcademicProviderType } from '@/types/learning/academic';
 import { AcademicPaperCard } from './academic-paper-card';
 
 export interface AcademicSearchResultsProps {

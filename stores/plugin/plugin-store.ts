@@ -16,7 +16,7 @@ import type {
   PluginHooks,
   PluginSystemEvent,
 } from '@/types/plugin';
-import type { AgentModeConfig } from '@/types/agent-mode';
+import type { AgentModeConfig } from '@/types/agent/agent-mode';
 
 // =============================================================================
 // Store State Interface

@@ -95,7 +95,7 @@ jest.mock('@/components/ui/scroll-area', () => ({
   ScrollArea: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-jest.mock('@/types/sandbox', () => ({
+jest.mock('@/types/system/sandbox', () => ({
   LANGUAGE_INFO: {
     python: { name: 'Python', icon: '🐍', color: '#3776AB' },
     javascript: { name: 'JavaScript', icon: '📜', color: '#F7DF1E' },

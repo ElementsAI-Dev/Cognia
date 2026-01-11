@@ -22,7 +22,7 @@ import type {
   ExportData,
   ExportResult,
   CustomExporter,
-} from '@/types/plugin-extended';
+} from '@/types/plugin/plugin-extended';
 
 // Registry for custom exporters
 const customExporters = new Map<string, CustomExporter>();
@@ -276,4 +276,11 @@ async function performExport(
     blob,
     filename,
   };
+}
+
+/**
+ * Clear all custom exporters (for testing purposes)
+ */
+export function clearCustomExporters(): void {
+  customExporters.clear();
 }

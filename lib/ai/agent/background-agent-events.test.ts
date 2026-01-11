@@ -10,7 +10,7 @@ import {
   type HealthWarning,
   type ExecutionStatistics,
 } from './background-agent-events';
-import type { BackgroundAgent, BackgroundAgentResult } from '@/types/background-agent';
+import type { BackgroundAgent, BackgroundAgentResult } from '@/types/agent/background-agent';
 
 describe('BackgroundAgentEventEmitter', () => {
   let emitter: BackgroundAgentEventEmitter;

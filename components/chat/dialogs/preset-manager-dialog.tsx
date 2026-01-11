@@ -51,9 +51,9 @@ import {
   type BuiltinPrompt,
   PRESET_COLORS,
   PRESET_ICONS,
-} from '@/types/preset';
+} from '@/types/content/preset';
 import { PROVIDERS } from '@/types/provider';
-import type { ChatMode } from '@/types/session';
+import type { ChatMode } from '@/types/core/session';
 import { cn } from '@/lib/utils';
 import { nanoid } from 'nanoid';
 

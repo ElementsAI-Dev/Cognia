@@ -8,7 +8,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
-import type { A2UIComponentProps, A2UIProgressComponent } from '@/types/a2ui';
+import type { A2UIComponentProps, A2UIProgressComponent } from '@/types/artifact/a2ui';
 import { useA2UIContext } from '../../a2ui-context';
 
 export function A2UIProgress({ component }: A2UIComponentProps<A2UIProgressComponent>) {

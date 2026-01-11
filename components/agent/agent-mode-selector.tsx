@@ -2,10 +2,12 @@
 
 /**
  * AgentModeSelector - Select agent sub-modes in chat interface
+ * Enhanced with custom mode management, edit/delete capabilities
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import * as Icons from 'lucide-react';
 import {
   Bot,
   Layout,
@@ -17,6 +19,9 @@ import {
   ChevronDown,
   Plus,
   Check,
+  Edit,
+  Trash2,
+  Copy,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,23 +32,35 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { BUILT_IN_AGENT_MODES, type AgentModeConfig, type AgentModeType } from '@/types/agent-mode';
+import { BUILT_IN_AGENT_MODES, type AgentModeConfig } from '@/types/agent/agent-mode';
+import { useCustomModeStore, type CustomModeConfig } from '@/stores/agent/custom-mode-store';
+import { CustomModeEditor } from './custom-mode-editor';
 
-// Icon mapping
-const iconMap: Record<string, LucideIcon> = {
+// =============================================================================
+// Icon Mapping
+// =============================================================================
+
+const builtInIconMap: Record<string, LucideIcon> = {
   Bot,
   Layout,
   Code2,
@@ -53,19 +70,27 @@ const iconMap: Record<string, LucideIcon> = {
   Settings,
 };
 
-// Render icon by name
 function ModeIcon({ name, className }: { name: string; className?: string }) {
-  const Icon = iconMap[name] || Bot;
+  // First check built-in icons, then try to get from Icons namespace
+  const Icon = builtInIconMap[name] || (Icons[name as keyof typeof Icons] as LucideIcon) || Bot;
   return <Icon className={className} />;
 }
 
+// =============================================================================
+// Types
+// =============================================================================
+
 interface AgentModeSelectorProps {
   selectedModeId: string;
-  onModeChange: (mode: AgentModeConfig) => void;
+  onModeChange: (mode: AgentModeConfig | CustomModeConfig) => void;
   onCustomModeCreate?: (mode: Partial<AgentModeConfig>) => void;
   disabled?: boolean;
   className?: string;
 }
+
+// =============================================================================
+// Main Component
+// =============================================================================
 
 export function AgentModeSelector({
   selectedModeId,
@@ -76,32 +101,80 @@ export function AgentModeSelector({
 }: AgentModeSelectorProps) {
   const t = useTranslations('agentMode');
   const tCommon = useTranslations('common');
-  const [showCustomDialog, setShowCustomDialog] = useState(false);
-  const [customName, setCustomName] = useState('');
-  const [customDescription, setCustomDescription] = useState('');
-  const [customPrompt, setCustomPrompt] = useState('');
+  
+  // Custom mode store
+  const { 
+    customModes, 
+    deleteMode, 
+    duplicateMode,
+    recordModeUsage,
+  } = useCustomModeStore();
+  
+  // Local state
+  const [showEditor, setShowEditor] = useState(false);
+  const [editingMode, setEditingMode] = useState<CustomModeConfig | undefined>();
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const selectedMode = BUILT_IN_AGENT_MODES.find(m => m.id === selectedModeId) || BUILT_IN_AGENT_MODES[0];
+  // Get all custom modes as array
+  const customModesList = useMemo(() => Object.values(customModes), [customModes]);
 
-  const handleCreateCustomMode = () => {
-    if (!customName.trim()) return;
+  // Find selected mode from both built-in and custom
+  const selectedMode = useMemo(() => {
+    const builtIn = BUILT_IN_AGENT_MODES.find(m => m.id === selectedModeId);
+    if (builtIn) return builtIn;
+    return customModes[selectedModeId] || BUILT_IN_AGENT_MODES[0];
+  }, [selectedModeId, customModes]);
 
-    const customMode: Partial<AgentModeConfig> = {
-      id: `custom-${Date.now()}`,
-      type: 'custom' as AgentModeType,
-      name: customName,
-      description: customDescription,
-      icon: 'Settings',
-      systemPrompt: customPrompt,
-      outputFormat: 'text',
-      previewEnabled: false,
-    };
+  // Handle mode selection
+  const handleModeSelect = (mode: AgentModeConfig | CustomModeConfig) => {
+    onModeChange(mode);
+    // Track usage for custom modes
+    if ('isBuiltIn' in mode && mode.isBuiltIn === false) {
+      recordModeUsage(mode.id);
+    }
+  };
 
-    onCustomModeCreate?.(customMode);
-    setShowCustomDialog(false);
-    setCustomName('');
-    setCustomDescription('');
-    setCustomPrompt('');
+  // Handle edit
+  const handleEdit = (mode: CustomModeConfig, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingMode(mode);
+    setShowEditor(true);
+  };
+
+  // Handle duplicate
+  const handleDuplicate = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    duplicateMode(id);
+  };
+
+  // Handle delete confirmation
+  const handleDeleteConfirm = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeleteConfirmId(id);
+  };
+
+  // Handle actual delete
+  const handleDelete = () => {
+    if (deleteConfirmId) {
+      deleteMode(deleteConfirmId);
+      setDeleteConfirmId(null);
+    }
+  };
+
+  // Handle create new
+  const handleCreateNew = () => {
+    setEditingMode(undefined);
+    setShowEditor(true);
+  };
+
+  // Handle save from editor
+  const handleEditorSave = (mode: CustomModeConfig) => {
+    // If we have the legacy callback, use it
+    if (onCustomModeCreate && !editingMode) {
+      onCustomModeCreate(mode);
+    }
+    setShowEditor(false);
+    setEditingMode(undefined);
   };
 
   return (
@@ -119,107 +192,171 @@ export function AgentModeSelector({
             <ChevronDown className="h-3 w-3 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="center" className="w-72">
-          <div className="px-2 py-1.5">
-            <p className="text-xs font-medium text-muted-foreground">{t('title')}</p>
-          </div>
-          <ScrollArea className="max-h-[300px]">
-            {BUILT_IN_AGENT_MODES.map((mode) => {
-              const isSelected = mode.id === selectedModeId;
-              return (
-                <DropdownMenuItem
-                  key={mode.id}
-                  onClick={() => onModeChange(mode)}
-                  className="flex items-start gap-3 p-3"
-                >
-                  <div className={cn(
-                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
-                    isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                  )}>
-                    <ModeIcon name={mode.icon} className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{mode.name}</span>
-                      {isSelected && <Check className="h-3 w-3 text-primary" />}
+        <DropdownMenuContent align="center" className="w-80">
+          {/* Built-in Modes Section */}
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              {t('builtInModes')}
+            </DropdownMenuLabel>
+            <ScrollArea className="max-h-[200px]">
+              {BUILT_IN_AGENT_MODES.map((mode) => {
+                const isSelected = mode.id === selectedModeId;
+                return (
+                  <DropdownMenuItem
+                    key={mode.id}
+                    onClick={() => handleModeSelect(mode)}
+                    className="flex items-start gap-3 p-3"
+                  >
+                    <div className={cn(
+                      'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
+                      isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                    )}>
+                      <ModeIcon name={mode.icon} className="h-4 w-4" />
                     </div>
-                    <p className="text-xs text-muted-foreground line-clamp-2">
-                      {mode.description}
-                    </p>
-                    {mode.previewEnabled && (
-                      <Badge variant="secondary" className="mt-1 text-[10px]">
-                        {t('livePreview')}
-                      </Badge>
-                    )}
-                  </div>
-                </DropdownMenuItem>
-              );
-            })}
-          </ScrollArea>
-          {onCustomModeCreate && (
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{mode.name}</span>
+                        {isSelected && <Check className="h-3 w-3 text-primary" />}
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {mode.description}
+                      </p>
+                      {mode.previewEnabled && (
+                        <Badge variant="secondary" className="mt-1 text-[10px]">
+                          {t('livePreview')}
+                        </Badge>
+                      )}
+                    </div>
+                  </DropdownMenuItem>
+                );
+              })}
+            </ScrollArea>
+          </DropdownMenuGroup>
+
+          {/* Custom Modes Section */}
+          {customModesList.length > 0 && (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => setShowCustomDialog(true)}
-                className="gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                {t('createCustomMode')}
-              </DropdownMenuItem>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-xs text-muted-foreground">
+                  {t('customModes')}
+                </DropdownMenuLabel>
+                <ScrollArea className="max-h-[150px]">
+                  {customModesList.map((mode) => {
+                    const isSelected = mode.id === selectedModeId;
+                    return (
+                      <DropdownMenuItem
+                        key={mode.id}
+                        onClick={() => handleModeSelect(mode)}
+                        className="flex items-start gap-3 p-3 group"
+                      >
+                        <div className={cn(
+                          'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
+                          isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                        )}>
+                          <ModeIcon name={mode.icon} className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">{mode.name}</span>
+                            {isSelected && <Check className="h-3 w-3 text-primary" />}
+                          </div>
+                          <p className="text-xs text-muted-foreground line-clamp-1">
+                            {mode.description}
+                          </p>
+                          {mode.category && (
+                            <Badge variant="outline" className="mt-1 text-[10px]">
+                              {mode.category}
+                            </Badge>
+                          )}
+                        </div>
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={(e) => handleEdit(mode, e)}
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">{t('editMode')}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={(e) => handleDuplicate(mode.id, e)}
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">{t('duplicateMode')}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-destructive hover:text-destructive"
+                                onClick={(e) => handleDeleteConfirm(mode.id, e)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">{t('deleteMode')}</TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </ScrollArea>
+              </DropdownMenuGroup>
             </>
           )}
+
+          {/* Create New Mode */}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={handleCreateNew}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            {t('createCustomMode')}
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Custom Mode Dialog */}
-      <Dialog open={showCustomDialog} onOpenChange={setShowCustomDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('createCustomMode')}</DialogTitle>
-            <DialogDescription>
-              {t('createCustomModeDesc')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">{t('name')}</Label>
-              <Input
-                id="name"
-                value={customName}
-                onChange={(e) => setCustomName(e.target.value)}
-                placeholder={t('namePlaceholder')}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">{t('description')}</Label>
-              <Input
-                id="description"
-                value={customDescription}
-                onChange={(e) => setCustomDescription(e.target.value)}
-                placeholder={t('descriptionPlaceholder')}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="prompt">{t('systemPrompt')}</Label>
-              <Textarea
-                id="prompt"
-                value={customPrompt}
-                onChange={(e) => setCustomPrompt(e.target.value)}
-                placeholder={t('systemPromptPlaceholder')}
-                className="min-h-[120px]"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowCustomDialog(false)}>
-              {tCommon('cancel')}
-            </Button>
-            <Button onClick={handleCreateCustomMode} disabled={!customName.trim()}>
-              {t('create')}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Custom Mode Editor Dialog */}
+      <CustomModeEditor
+        open={showEditor}
+        onOpenChange={setShowEditor}
+        mode={editingMode}
+        onSave={handleEditorSave}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('deleteMode')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('deleteModeConfirm')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {tCommon('delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

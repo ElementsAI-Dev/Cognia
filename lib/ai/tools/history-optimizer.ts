@@ -11,7 +11,7 @@ import type {
   ToolUsageStats,
   PromptOptimizationSuggestion,
   ToolRecommendation,
-} from '@/types/tool-history';
+} from '@/types/agent/tool-history';
 
 /**
  * Configuration for the history optimizer

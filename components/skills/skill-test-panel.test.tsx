@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SkillTestPanel } from './skill-test-panel';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import type { Skill } from '@/types/skill';
+import type { Skill } from '@/types/system/skill';
 
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(<TooltipProvider>{ui}</TooltipProvider>);

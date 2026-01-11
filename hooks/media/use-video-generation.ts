@@ -27,7 +27,7 @@ import type {
   VideoGenerationResult,
   GeneratedVideo,
   VideoStatus,
-} from '@/types/video';
+} from '@/types/media/video';
 
 export interface UseVideoGenerationOptions {
   defaultProvider?: VideoProvider;

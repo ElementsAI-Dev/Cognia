@@ -9,8 +9,8 @@ import { useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { useA2UI } from '@/hooks/a2ui';
 import { A2UIInlineSurface, hasA2UIContent } from '@/components/a2ui';
-import type { A2UIPart as A2UIPartType } from '@/types/message';
-import type { A2UIUserAction, A2UIDataModelChange } from '@/types/a2ui';
+import type { A2UIPart as A2UIPartType } from '@/types/core/message';
+import type { A2UIUserAction, A2UIDataModelChange } from '@/types/artifact/a2ui';
 
 interface A2UIPartProps {
   part: A2UIPartType;

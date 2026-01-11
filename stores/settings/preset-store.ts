@@ -10,7 +10,7 @@ import {
   type CreatePresetInput,
   type UpdatePresetInput,
   DEFAULT_PRESETS,
-} from '@/types/preset';
+} from '@/types/content/preset';
 
 interface PresetState {
   // State

@@ -24,7 +24,7 @@ import type {
   GCResult,
   ContextStats,
   ToolOutputRef,
-} from '@/types/context';
+} from '@/types/system/context';
 
 /**
  * Constants for context management

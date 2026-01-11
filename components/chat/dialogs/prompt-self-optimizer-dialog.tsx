@@ -34,7 +34,7 @@ import {
   compareOptimization,
   type OptimizationComparison,
 } from '@/lib/ai/generation/prompt-self-optimizer';
-import type { PromptTemplate } from '@/types/prompt-template';
+import type { PromptTemplate } from '@/types/content/prompt-template';
 import {
   Sparkles,
   Wand2,

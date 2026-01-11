@@ -8,7 +8,7 @@ import type {
   WorkflowExecutionState,
   ExecutionLog,
   NodeExecutionState,
-} from '@/types/workflow-editor';
+} from '@/types/workflow/workflow-editor';
 
 /**
  * Format execution duration as human-readable string

@@ -7,7 +7,7 @@
 import type {
   Skill,
   SkillPackage,
-} from '@/types/skill';
+} from '@/types/system/skill';
 import { parseSkillMd, validateSkill } from './parser';
 
 /**

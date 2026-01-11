@@ -5,11 +5,11 @@
 import type {
   JupyterSession,
   KernelInfo,
-  KernelExecutionResult,
+  KernelSandboxExecutionResult,
   VariableInfo,
   KernelProgressEvent,
   CellOutputEvent,
-} from '@/types/jupyter';
+} from '@/types/system/jupyter';
 
 // Mock Tauri modules
 const mockInvoke = jest.fn();
@@ -76,7 +76,7 @@ const mockKernelInfo: KernelInfo = {
   lastActivityAt: null,
 };
 
-const mockExecutionResult: KernelExecutionResult = {
+const mockSandboxExecutionResult: KernelSandboxExecutionResult = {
   success: true,
   executionCount: 1,
   stdout: 'Hello, World!',
@@ -314,7 +314,7 @@ describe('Jupyter Kernel Service', () => {
     describe('execute', () => {
       it('should execute code when in Tauri environment', async () => {
         mockIsTauri.mockReturnValue(true);
-        mockInvoke.mockResolvedValue(mockExecutionResult);
+        mockInvoke.mockResolvedValue(mockSandboxExecutionResult);
 
         const result = await execute('session-1', 'print("hello")');
 
@@ -322,7 +322,7 @@ describe('Jupyter Kernel Service', () => {
           sessionId: 'session-1',
           code: 'print("hello")',
         });
-        expect(result).toEqual(mockExecutionResult);
+        expect(result).toEqual(mockSandboxExecutionResult);
       });
 
       it('should throw error when not in Tauri environment', async () => {
@@ -337,7 +337,7 @@ describe('Jupyter Kernel Service', () => {
     describe('quickExecute', () => {
       it('should execute code directly with env path', async () => {
         mockIsTauri.mockReturnValue(true);
-        mockInvoke.mockResolvedValue(mockExecutionResult);
+        mockInvoke.mockResolvedValue(mockSandboxExecutionResult);
 
         const result = await quickExecute('/path/to/env', 'print(1)');
 
@@ -345,7 +345,7 @@ describe('Jupyter Kernel Service', () => {
           envPath: '/path/to/env',
           code: 'print(1)',
         });
-        expect(result).toEqual(mockExecutionResult);
+        expect(result).toEqual(mockSandboxExecutionResult);
       });
 
       it('should throw error when not in Tauri environment', async () => {
@@ -360,7 +360,7 @@ describe('Jupyter Kernel Service', () => {
     describe('executeCell', () => {
       it('should execute a specific cell', async () => {
         mockIsTauri.mockReturnValue(true);
-        mockInvoke.mockResolvedValue(mockExecutionResult);
+        mockInvoke.mockResolvedValue(mockSandboxExecutionResult);
 
         const result = await executeCell('session-1', 0, 'x = 1');
 
@@ -369,7 +369,7 @@ describe('Jupyter Kernel Service', () => {
           cellIndex: 0,
           code: 'x = 1',
         });
-        expect(result).toEqual(mockExecutionResult);
+        expect(result).toEqual(mockSandboxExecutionResult);
       });
 
       it('should throw error when not in Tauri environment', async () => {
@@ -384,7 +384,7 @@ describe('Jupyter Kernel Service', () => {
     describe('executeNotebook', () => {
       it('should execute all notebook cells', async () => {
         mockIsTauri.mockReturnValue(true);
-        const results = [mockExecutionResult, mockExecutionResult];
+        const results = [mockSandboxExecutionResult, mockSandboxExecutionResult];
         mockInvoke.mockResolvedValue(results);
 
         const result = await executeNotebook('session-1', ['x = 1', 'print(x)']);
@@ -441,7 +441,7 @@ describe('Jupyter Kernel Service', () => {
     describe('inspectVariable', () => {
       it('should inspect a specific variable', async () => {
         mockIsTauri.mockReturnValue(true);
-        mockInvoke.mockResolvedValue(mockExecutionResult);
+        mockInvoke.mockResolvedValue(mockSandboxExecutionResult);
 
         const result = await inspectVariable('session-1', 'x');
 
@@ -449,7 +449,7 @@ describe('Jupyter Kernel Service', () => {
           sessionId: 'session-1',
           variableName: 'x',
         });
-        expect(result).toEqual(mockExecutionResult);
+        expect(result).toEqual(mockSandboxExecutionResult);
       });
 
       it('should throw error when not in Tauri environment', async () => {
@@ -605,8 +605,8 @@ describe('Jupyter Kernel Service', () => {
 
       it('should call callback with execution result', async () => {
         mockIsTauri.mockReturnValue(true);
-        let capturedHandler: (event: { payload: KernelExecutionResult }) => void;
-        mockListen.mockImplementation((_event: string, handler: (event: { payload: KernelExecutionResult }) => void) => {
+        let capturedHandler: (event: { payload: KernelSandboxExecutionResult }) => void;
+        mockListen.mockImplementation((_event: string, handler: (event: { payload: KernelSandboxExecutionResult }) => void) => {
           capturedHandler = handler;
           return Promise.resolve(jest.fn());
         });
@@ -614,9 +614,9 @@ describe('Jupyter Kernel Service', () => {
         const callback = jest.fn();
         await onKernelOutput(callback);
 
-        capturedHandler!({ payload: mockExecutionResult });
+        capturedHandler!({ payload: mockSandboxExecutionResult });
 
-        expect(callback).toHaveBeenCalledWith(mockExecutionResult);
+        expect(callback).toHaveBeenCalledWith(mockSandboxExecutionResult);
       });
 
       it('should return noop function when not in Tauri environment', async () => {
@@ -659,7 +659,7 @@ describe('Jupyter Kernel Service', () => {
 
         const mockCellEvent: CellOutputEvent = {
           cellIndex: 0,
-          result: mockExecutionResult,
+          result: mockSandboxExecutionResult,
           total: 5,
         };
         capturedHandler!({ payload: mockCellEvent });

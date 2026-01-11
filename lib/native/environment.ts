@@ -15,11 +15,11 @@ import type {
   ToolStatus,
   InstallProgress,
   Platform,
-  PythonExecutionResult,
+  PythonSandboxExecutionResult,
   PythonExecutionProgress,
   PythonExecutionOptions,
   PythonInterpreterInfo,
-} from '@/types/environment';
+} from '@/types/system/environment';
 
 /** Check if environment management is available */
 export function isEnvironmentAvailable(): boolean {
@@ -156,7 +156,7 @@ import type {
   CreateVirtualEnvOptions,
   VirtualEnvProgress,
   PackageInfo,
-} from '@/types/environment';
+} from '@/types/system/environment';
 
 /** Create a virtual environment */
 export async function createVirtualEnv(
@@ -277,12 +277,12 @@ export async function executePython(
   envPath: string,
   code: string,
   options?: PythonExecutionOptions
-): Promise<PythonExecutionResult> {
+): Promise<PythonSandboxExecutionResult> {
   if (!isTauri()) {
     throw new Error('Python execution requires Tauri environment');
   }
 
-  return invoke<PythonExecutionResult>('environment_execute_python', {
+  return invoke<PythonSandboxExecutionResult>('environment_execute_python', {
     envPath,
     code,
     options,
@@ -320,12 +320,12 @@ export async function executePythonFile(
   envPath: string,
   filePath: string,
   options?: PythonExecutionOptions
-): Promise<PythonExecutionResult> {
+): Promise<PythonSandboxExecutionResult> {
   if (!isTauri()) {
     throw new Error('Python execution requires Tauri environment');
   }
 
-  return invoke<PythonExecutionResult>('environment_execute_python_file', {
+  return invoke<PythonSandboxExecutionResult>('environment_execute_python_file', {
     envPath,
     filePath,
     options,

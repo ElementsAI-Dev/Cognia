@@ -15,7 +15,7 @@ import {
   importKnowledgeMapFromJSON,
 } from './knowledge-map-integration';
 import { useKnowledgeMapStore } from '@/stores/academic/knowledge-map-store';
-import type { KnowledgeMap } from '@/types/knowledge-map';
+import type { KnowledgeMap } from '@/types/learning/knowledge-map';
 
 // Mock the store
 jest.mock('@/stores/academic/knowledge-map-store');

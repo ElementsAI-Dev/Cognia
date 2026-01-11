@@ -8,7 +8,7 @@ import {
   isLearningTool,
   LEARNING_TOOL_NAMES,
 } from './learning-tool-part';
-import type { ToolInvocationPart } from '@/types/message';
+import type { ToolInvocationPart } from '@/types/core/message';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

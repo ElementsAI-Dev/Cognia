@@ -7,12 +7,12 @@
 import { usePluginStore } from '@/stores/plugin';
 import type { 
   ExtendedPluginHooks,
-  HookExecutionResult,
+  HookSandboxExecutionResult,
   HookPriority,
-} from '@/types/plugin-hooks';
+} from '@/types/plugin/plugin-hooks';
 import type { Project, KnowledgeFile } from '@/types/project';
 import type { Artifact } from '@/types/artifact';
-import type { PluginCanvasDocument } from '@/types/plugin-extended';
+import type { PluginCanvasDocument } from '@/types/plugin/plugin-extended';
 import type { PluginMessage } from '@/types/plugin';
 
 // Priority order mapping
@@ -73,10 +73,10 @@ export class ExtendedHooksManager {
   private async executeHook<T>(
     hookName: keyof ExtendedPluginHooks,
     executor: (hooks: ExtendedPluginHooks, pluginId: string) => T | Promise<T>
-  ): Promise<HookExecutionResult<T>[]> {
+  ): Promise<HookSandboxExecutionResult<T>[]> {
     const store = usePluginStore.getState();
     const pluginIds = this.getPluginsByPriority(hookName);
-    const results: HookExecutionResult<T>[] = [];
+    const results: HookSandboxExecutionResult<T>[] = [];
 
     for (const pluginId of pluginIds) {
       const plugin = store.plugins[pluginId];

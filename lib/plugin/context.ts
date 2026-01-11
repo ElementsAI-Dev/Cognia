@@ -54,13 +54,13 @@ import type {
   WindowOptions,
   PluginWindow,
 } from '@/types/plugin';
-import type { A2UIComponent, A2UISurfaceType } from '@/types/a2ui';
-import type { AgentModeConfig } from '@/types/agent-mode';
+import type { A2UIComponent, A2UISurfaceType } from '@/types/artifact/a2ui';
+import type { AgentModeConfig } from '@/types/agent/agent-mode';
 import { usePluginStore } from '@/stores/plugin';
 import { useA2UIStore } from '@/stores/a2ui';
 import { useSettingsStore } from '@/stores/settings';
 import type { PluginManager } from './manager';
-import type { ExtendedPluginContext } from '@/types/plugin-extended';
+import type { ExtendedPluginContext } from '@/types/plugin/plugin-extended';
 import {
   createSessionAPI,
   createProjectAPI,
@@ -75,6 +75,9 @@ import {
   createExtensionAPI,
   createPermissionAPI,
 } from './api';
+import { createIPCAPI } from './ipc';
+import { createEventAPI } from './message-bus';
+import { getPluginI18nLoader } from './i18n-loader';
 
 /**
  * Full plugin context combining base and extended APIs
@@ -145,10 +148,36 @@ export function createFullPluginContext(
     permissions: createPermissionAPI(pluginId, plugin.manifest.permissions || []),
   };
 
-  // Combine base and extended contexts
+  // Add new communication and utility APIs to base context
+  const ipcAPI = createIPCAPI(pluginId);
+  const eventAPI = createEventAPI(pluginId);
+  const i18nLoader = getPluginI18nLoader();
+  const pluginI18n = i18nLoader.createPluginAPI(pluginId);
+
+  // Merge IPC and events into the base context events
+  const enhancedEvents = {
+    ...baseContext.events,
+    ipc: ipcAPI,
+    bus: eventAPI,
+  };
+
+  // Enhanced i18n combining base API with loader
+  const enhancedI18n = {
+    ...extendedContext.i18n,
+    t: pluginI18n.t,
+    getLocale: pluginI18n.getLocale,
+    hasKey: pluginI18n.hasKey,
+    // Wrap onLocaleChange to match PluginI18nAPI signature (Locale instead of string)
+    onLocaleChange: (handler: (locale: import('@/types/plugin/plugin-extended').Locale) => void) => 
+      pluginI18n.onLocaleChange((locale: string) => handler(locale as import('@/types/plugin/plugin-extended').Locale)),
+  };
+
+  // Combine base and extended contexts with enhanced APIs
   return {
     ...baseContext,
     ...extendedContext,
+    events: enhancedEvents,
+    i18n: enhancedI18n,
   };
 }
 

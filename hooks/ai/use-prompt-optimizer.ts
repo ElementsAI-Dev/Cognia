@@ -17,7 +17,7 @@ import {
   type SelfOptimizationResult,
   type OptimizationSuggestion,
 } from '@/lib/ai/generation/prompt-self-optimizer';
-import type { PromptTemplate, PromptFeedback, PromptABTest } from '@/types/prompt-template';
+import type { PromptTemplate, PromptFeedback, PromptABTest } from '@/types/content/prompt-template';
 import type { ProviderName } from '@/lib/ai/core/client';
 
 export interface UsePromptOptimizerOptions {

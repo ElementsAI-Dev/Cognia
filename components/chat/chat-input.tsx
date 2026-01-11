@@ -26,7 +26,7 @@ import type { MentionItem, SelectedMention, ParsedToolCall } from '@/types/mcp';
 import { useMention, useSpeech } from '@/hooks';
 import { cn } from '@/lib/utils';
 import { transcribeViaApi, formatDuration } from '@/lib/ai/media/speech-api';
-import { getLanguageFlag } from '@/types/speech';
+import { getLanguageFlag } from '@/types/media/speech';
 import { nanoid } from 'nanoid';
 import { AttachmentsPreview } from './chat-input/attachments-preview';
 import { UploadErrorAlert } from './chat-input/upload-error-alert';
@@ -179,7 +179,7 @@ interface ChatInputProps {
   onModeClick?: () => void;
   onWorkflowClick?: () => void;
   // Preset management
-  onPresetChange?: (preset: import('@/types/preset').Preset) => void;
+  onPresetChange?: (preset: import('@/types/content/preset').Preset) => void;
   onCreatePreset?: () => void;
   onManagePresets?: () => void;
   // Workflow and prompt optimization
@@ -318,7 +318,7 @@ export function ChatInput({
     }
   }, [onChange, handleTextChange]);
 
-  const handleTemplateSelect = useCallback((template: import('@/types/prompt-template').PromptTemplate) => {
+  const handleTemplateSelect = useCallback((template: import('@/types/content/prompt-template').PromptTemplate) => {
     const insertion = template.content;
     const nextValue = value ? `${value}\n\n${insertion}` : insertion;
     onChange(nextValue);

@@ -25,7 +25,7 @@ import {
   ChevronRight,
   Terminal,
 } from 'lucide-react';
-import type { NodeExecutionStatus } from '@/types/workflow-editor';
+import type { NodeExecutionStatus } from '@/types/workflow/workflow-editor';
 
 interface ExecutionPanelProps {
   className?: string;

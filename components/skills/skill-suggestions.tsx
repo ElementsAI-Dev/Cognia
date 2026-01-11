@@ -31,9 +31,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useSkillStore } from '@/stores/agent';
+import { useSkillStore } from '@/stores/skills';
 import { findMatchingSkills } from '@/lib/skills/executor';
-import type { Skill, SkillCategory } from '@/types/skill';
+import type { Skill, SkillCategory } from '@/types/system/skill';
 
 const CATEGORY_ICONS: Record<SkillCategory, React.ReactNode> = {
   'creative-design': <Palette className="h-3.5 w-3.5" />,

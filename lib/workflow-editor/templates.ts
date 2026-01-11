@@ -3,7 +3,7 @@
  * Pre-built workflow templates for common use cases
  */
 
-import type { WorkflowEditorTemplate, VisualWorkflow, StartNodeData, EndNodeData, AINodeData } from '@/types/workflow-editor';
+import type { WorkflowEditorTemplate, VisualWorkflow, StartNodeData, EndNodeData, AINodeData } from '@/types/workflow/workflow-editor';
 
 /**
  * Create a basic workflow template

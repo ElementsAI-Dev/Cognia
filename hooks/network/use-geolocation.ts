@@ -11,7 +11,7 @@ import {
   GeolocationOptions,
   GeolocationPermissionStatus,
   LocaleInfo,
-} from '@/types/geolocation';
+} from '@/types/system/geolocation';
 import { geolocationService } from '@/lib/geolocation/geolocation';
 import { localeDetector } from '@/lib/geolocation/locale-detector';
 

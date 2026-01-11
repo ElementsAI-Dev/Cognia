@@ -4,8 +4,8 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { useSummary } from './use-summary';
-import type { UIMessage } from '@/types/message';
-import type { BackgroundAgent } from '@/types/background-agent';
+import type { UIMessage } from '@/types/core/message';
+import type { BackgroundAgent } from '@/types/agent/background-agent';
 
 // Mock the dependencies
 jest.mock('@/lib/ai/generation/summarizer', () => ({

@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { PromptTemplate } from '@/types/prompt-template';
+import type { PromptTemplate } from '@/types/content/prompt-template';
 
 interface PromptTemplateCardProps {
   template: PromptTemplate;

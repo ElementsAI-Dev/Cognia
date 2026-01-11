@@ -6,7 +6,7 @@
  */
 
 import React, { useMemo } from 'react';
-import type { A2UIComponent, A2UIComponentProps } from '@/types/a2ui';
+import type { A2UIComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 import { useA2UIContext, useA2UIVisibility, useA2UIDisabled } from './a2ui-context';
 import { getComponent } from '@/lib/a2ui/catalog';
 

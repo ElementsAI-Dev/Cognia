@@ -8,7 +8,7 @@ import { memo } from 'react';
 import { Position, type NodeProps } from '@xyflow/react';
 import { BaseNode } from './base-node';
 import { Badge } from '@/components/ui/badge';
-import type { ConditionalNodeData } from '@/types/workflow-editor';
+import type { ConditionalNodeData } from '@/types/workflow/workflow-editor';
 
 function ConditionalNodeComponent(props: NodeProps) {
   const data = props.data as ConditionalNodeData;

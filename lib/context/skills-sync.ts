@@ -13,8 +13,8 @@ import {
   searchContextFiles,
   grepContextFiles,
 } from './context-fs';
-import type { SkillDescriptionFile, ContextFile } from '@/types/context';
-import type { Skill } from '@/types/skill';
+import type { SkillDescriptionFile, ContextFile } from '@/types/system/context';
+import type { Skill } from '@/types/system/skill';
 
 /**
  * Minimal skill reference for static prompt

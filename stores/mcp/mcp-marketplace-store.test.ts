@@ -4,7 +4,7 @@
 
 import { useMcpMarketplaceStore } from './mcp-marketplace-store';
 import { act } from '@testing-library/react';
-import type { McpMarketplaceItem, McpMarketplaceCatalog } from '@/types/mcp-marketplace';
+import type { McpMarketplaceItem, McpMarketplaceCatalog } from '@/types/mcp/mcp-marketplace';
 
 // Mock the marketplace API
 jest.mock('@/lib/mcp/marketplace', () => ({

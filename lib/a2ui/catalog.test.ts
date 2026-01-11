@@ -16,7 +16,7 @@ import {
   getComponentCategory,
   validateComponent,
 } from './catalog';
-import type { A2UIComponent, A2UIComponentProps } from '@/types/a2ui';
+import type { A2UIComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 describe('A2UI Catalog', () => {
   beforeEach(() => {

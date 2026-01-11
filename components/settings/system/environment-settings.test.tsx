@@ -46,7 +46,7 @@ jest.mock('@/hooks/sandbox', () => ({
 }));
 
 // Mock environment types
-jest.mock('@/types/environment', () => ({
+jest.mock('@/types/system/environment', () => ({
   TOOL_INFO: {
     uv: { name: 'uv', description: 'Fast Python package manager', icon: '🐍', category: 'language_manager' },
     nvm: { name: 'nvm', description: 'Node.js version manager', icon: '📦', category: 'language_manager' },

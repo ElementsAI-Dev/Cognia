@@ -5,29 +5,29 @@
 import { useCallback, useEffect, useState } from 'react';
 import type {
   ExecutionRequest,
-  ExecutionResult,
+  SandboxExecutionResult,
   Language,
   RuntimeType,
-  SandboxConfig,
+  BackendSandboxConfig,
   SandboxStatus,
-} from '@/types/sandbox';
+} from '@/types/system/sandbox';
 import { sandboxService } from '@/lib/native/sandbox';
 
 interface UseSandboxState {
   isAvailable: boolean;
   isLoading: boolean;
   status: SandboxStatus | null;
-  config: SandboxConfig | null;
+  config: BackendSandboxConfig | null;
   languages: Language[];
   runtimes: RuntimeType[];
   error: string | null;
 }
 
 interface UseSandboxActions {
-  execute: (request: ExecutionRequest) => Promise<ExecutionResult>;
-  quickExecute: (language: string, code: string) => Promise<ExecutionResult>;
+  execute: (request: ExecutionRequest) => Promise<SandboxExecutionResult>;
+  quickExecute: (language: string, code: string) => Promise<SandboxExecutionResult>;
   refreshStatus: () => Promise<void>;
-  updateConfig: (config: SandboxConfig) => Promise<void>;
+  updateConfig: (config: BackendSandboxConfig) => Promise<void>;
   setRuntime: (runtime: RuntimeType) => Promise<void>;
   toggleLanguage: (language: string, enabled: boolean) => Promise<void>;
   prepareLanguage: (language: string) => Promise<void>;
@@ -92,7 +92,7 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
   }, [refreshStatus]);
 
   const execute = useCallback(
-    async (request: ExecutionRequest): Promise<ExecutionResult> => {
+    async (request: ExecutionRequest): Promise<SandboxExecutionResult> => {
       if (!state.isAvailable) {
         throw new Error('Sandbox is not available');
       }
@@ -102,7 +102,7 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
   );
 
   const quickExecute = useCallback(
-    async (language: string, code: string): Promise<ExecutionResult> => {
+    async (language: string, code: string): Promise<SandboxExecutionResult> => {
       if (!state.isAvailable) {
         throw new Error('Sandbox is not available');
       }
@@ -112,7 +112,7 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
   );
 
   const updateConfig = useCallback(
-    async (config: SandboxConfig): Promise<void> => {
+    async (config: BackendSandboxConfig): Promise<void> => {
       await sandboxService.updateConfig(config);
       await refreshStatus();
     },
@@ -159,7 +159,7 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
  */
 export function useCodeExecution() {
   const [isExecuting, setIsExecuting] = useState(false);
-  const [result, setResult] = useState<ExecutionResult | null>(null);
+  const [result, setResult] = useState<SandboxExecutionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const execute = useCallback(
@@ -169,12 +169,12 @@ export function useCodeExecution() {
       setResult(null);
 
       try {
-        const executionResult = stdin
+        const SandboxExecutionResult = stdin
           ? await sandboxService.executeWithStdin(language, code, stdin)
           : await sandboxService.quickExecute(language, code);
 
-        setResult(executionResult);
-        return executionResult;
+        setResult(SandboxExecutionResult);
+        return SandboxExecutionResult;
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : 'Execution failed';

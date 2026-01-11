@@ -20,6 +20,7 @@ import {
   List,
   Download,
   Upload,
+  Heart,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +45,10 @@ import { PluginList } from './plugin-list';
 import { PluginAnalytics } from './plugin-analytics';
 import { PluginCreateWizard } from './plugin-create-wizard';
 import { PluginDevTools } from './plugin-dev-tools';
+import { PluginHealth } from './plugin-health';
+import { PluginDependencyTree } from './plugin-dependency-tree';
+import { PluginConflicts } from './plugin-conflicts';
+import { PluginUpdates } from './plugin-updates';
 import { usePluginStore } from '@/stores/plugin';
 import { usePlugins } from '@/hooks/plugin';
 import type { PluginCapability, PluginType } from '@/types/plugin';
@@ -213,6 +218,10 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
               <Code2 className="h-4 w-4" />
               Develop
             </TabsTrigger>
+            <TabsTrigger value="health" className="gap-2">
+              <Heart className="h-4 w-4" />
+              Health
+            </TabsTrigger>
             <TabsTrigger value="settings" className="gap-2">
               <Settings2 className="h-4 w-4" />
               Settings
@@ -364,6 +373,23 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
         {/* Develop Tab */}
         <TabsContent value="develop" className="flex-1 m-0 p-4">
           <PluginDevTools />
+        </TabsContent>
+
+        {/* Health & Monitoring Tab */}
+        <TabsContent value="health" className="flex-1 m-0 p-4 overflow-auto">
+          <div className="space-y-6">
+            {/* Updates Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <PluginUpdates autoCheck />
+              <PluginConflicts autoDetect />
+            </div>
+
+            {/* Health Monitoring */}
+            <PluginHealth autoRefresh refreshInterval={30000} />
+
+            {/* Dependency Tree */}
+            <PluginDependencyTree />
+          </div>
         </TabsContent>
 
         {/* Settings Tab */}

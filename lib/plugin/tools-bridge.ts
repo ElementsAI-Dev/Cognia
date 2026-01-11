@@ -20,7 +20,7 @@ interface ToolsBridgeConfig {
   registry: PluginRegistry;
 }
 
-interface ToolExecutionResult {
+interface ToolSandboxExecutionResult {
   success: boolean;
   result?: unknown;
   error?: string;
@@ -33,7 +33,7 @@ interface ToolExecutionResult {
 
 export class PluginToolsBridge {
   private config: ToolsBridgeConfig;
-  private executionHistory: Map<string, ToolExecutionResult[]> = new Map();
+  private executionHistory: Map<string, ToolSandboxExecutionResult[]> = new Map();
 
   constructor(config: ToolsBridgeConfig) {
     this.config = config;
@@ -266,7 +266,7 @@ export class PluginToolsBridge {
   // Execution Tracking
   // ===========================================================================
 
-  private recordExecution(toolName: string, result: ToolExecutionResult): void {
+  private recordExecution(toolName: string, result: ToolSandboxExecutionResult): void {
     if (!this.executionHistory.has(toolName)) {
       this.executionHistory.set(toolName, []);
     }

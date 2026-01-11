@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { ModelSelection, TaskClassification, ModelTier } from '@/types/auto-router';
+import type { ModelSelection, TaskClassification, ModelTier } from '@/types/provider/auto-router';
 import type { ProviderName } from '@/types/provider';
 
 interface RoutingIndicatorProps {

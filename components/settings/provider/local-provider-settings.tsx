@@ -44,7 +44,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import type { LocalProviderName } from '@/types/local-provider';
+import type { LocalProviderName } from '@/types/provider/local-provider';
 import { LOCAL_PROVIDER_CONFIGS } from '@/lib/ai/providers/local-providers';
 import { getProviderCapabilities, checkAllProvidersInstallation, type InstallCheckResult } from '@/lib/ai/providers/local-provider-service';
 import { useSettingsStore } from '@/stores';

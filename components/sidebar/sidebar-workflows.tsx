@@ -35,7 +35,7 @@ import {
 import { cn } from '@/lib/utils';
 import { workflowRepository } from '@/lib/db/repositories';
 import { useWorkflowEditorStore } from '@/stores/workflow';
-import type { VisualWorkflow } from '@/types/workflow-editor';
+import type { VisualWorkflow } from '@/types/workflow/workflow-editor';
 
 interface SidebarWorkflowsProps {
   defaultOpen?: boolean;

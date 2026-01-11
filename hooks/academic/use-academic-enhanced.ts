@@ -36,7 +36,7 @@ import type {
   Paper, 
   LibraryPaper,
   PaperAnalysisType,
-} from '@/types/academic';
+} from '@/types/learning/academic';
 
 export interface UseAcademicEnhancedOptions {
   enableA2UI?: boolean;

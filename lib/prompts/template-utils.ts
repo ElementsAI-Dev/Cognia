@@ -2,7 +2,7 @@
  * Helpers for prompt template parsing and substitution
  */
 
-import type { PromptTemplate, TemplateVariable } from '@/types/prompt-template';
+import type { PromptTemplate, TemplateVariable } from '@/types/content/prompt-template';
 
 const VARIABLE_REGEX = /{{\s*([\w.-]+)\s*}}/g;
 

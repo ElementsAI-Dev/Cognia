@@ -13,6 +13,14 @@ export interface ShortcutConfig {
   action: string;
 }
 
+export interface NativeToolsConfig {
+  clipboardHistoryEnabled: boolean;
+  clipboardHistorySize: number;
+  screenshotOcrEnabled: boolean;
+  focusTrackingEnabled: boolean;
+  contextRefreshInterval: number;
+}
+
 export interface NativeState {
   // System info
   platform: string | null;
@@ -37,6 +45,9 @@ export interface NativeState {
   // Shortcut settings
   shortcuts: ShortcutConfig[];
   shortcutsEnabled: boolean;
+
+  // Native tools settings
+  nativeToolsConfig: NativeToolsConfig;
 }
 
 export interface NativeActions {
@@ -65,6 +76,9 @@ export interface NativeActions {
   updateShortcut: (id: string, config: Partial<ShortcutConfig>) => void;
   removeShortcut: (id: string) => void;
   setShortcutsEnabled: (enabled: boolean) => void;
+
+  // Native tools actions
+  setNativeToolsConfig: (config: Partial<NativeToolsConfig>) => void;
 
   // Reset
   reset: () => void;
@@ -129,6 +143,14 @@ const defaultShortcuts: ShortcutConfig[] = [
   },
 ];
 
+const defaultNativeToolsConfig: NativeToolsConfig = {
+  clipboardHistoryEnabled: true,
+  clipboardHistorySize: 100,
+  screenshotOcrEnabled: true,
+  focusTrackingEnabled: false,
+  contextRefreshInterval: 5,
+};
+
 const initialState: NativeState = {
   platform: null,
   appVersion: null,
@@ -144,6 +166,7 @@ const initialState: NativeState = {
   notificationPermission: false,
   shortcuts: defaultShortcuts,
   shortcutsEnabled: true,
+  nativeToolsConfig: defaultNativeToolsConfig,
 };
 
 export const useNativeStore = create<NativeState & NativeActions>()(
@@ -212,6 +235,11 @@ export const useNativeStore = create<NativeState & NativeActions>()(
       setShortcutsEnabled: (shortcutsEnabled) =>
         set({ shortcutsEnabled }),
 
+      setNativeToolsConfig: (config) =>
+        set((state) => ({
+          nativeToolsConfig: { ...state.nativeToolsConfig, ...config },
+        })),
+
       reset: () => set(initialState),
     }),
     {
@@ -221,6 +249,7 @@ export const useNativeStore = create<NativeState & NativeActions>()(
         notificationsEnabled: state.notificationsEnabled,
         shortcuts: state.shortcuts,
         shortcutsEnabled: state.shortcutsEnabled,
+        nativeToolsConfig: state.nativeToolsConfig,
       }),
     }
   )

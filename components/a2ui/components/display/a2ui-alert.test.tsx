@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { A2UIAlert } from './a2ui-alert';
-import type { A2UIAlertComponent, A2UIComponentProps } from '@/types/a2ui';
+import type { A2UIAlertComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
 jest.mock('../../a2ui-context', () => ({

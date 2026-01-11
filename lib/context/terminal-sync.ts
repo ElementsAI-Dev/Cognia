@@ -15,7 +15,7 @@ import {
   grepContextFiles,
   searchContextFiles,
 } from './context-fs';
-import type { ContextFile } from '@/types/context';
+import type { ContextFile } from '@/types/system/context';
 
 /**
  * Terminal session info

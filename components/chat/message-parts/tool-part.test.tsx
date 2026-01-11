@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ToolPart } from './tool-part';
-import type { ToolInvocationPart } from '@/types/message';
+import type { ToolInvocationPart } from '@/types/core/message';
 
 // Mock Tool components
 jest.mock('@/components/ai-elements/tool', () => ({

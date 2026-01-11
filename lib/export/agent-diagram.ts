@@ -8,13 +8,13 @@
  * - StateDiagram: Shows execution state transitions
  */
 
-import type { BackgroundAgent, BackgroundAgentStep } from '@/types/background-agent';
+import type { BackgroundAgent, BackgroundAgentStep } from '@/types/agent/background-agent';
 import type {
   DiagramOptions,
   DiagramResult,
   DiagramNode,
   DiagramEdge,
-} from '@/types/summary';
+} from '@/types/learning/summary';
 
 /**
  * Escape special characters for Mermaid

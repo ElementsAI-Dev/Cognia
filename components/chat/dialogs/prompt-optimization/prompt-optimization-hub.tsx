@@ -24,7 +24,7 @@ import { PromptSelfOptimizerDialog } from '../prompt-self-optimizer-dialog';
 import { PromptFeedbackDialog } from '../prompt-feedback-dialog';
 import { PromptABTestPanel } from '../prompt-ab-test-panel';
 import { PromptAnalyticsPanel } from '../prompt-analytics-panel';
-import type { PromptTemplate } from '@/types/prompt-template';
+import type { PromptTemplate } from '@/types/content/prompt-template';
 import {
   Sparkles,
   Wand2,

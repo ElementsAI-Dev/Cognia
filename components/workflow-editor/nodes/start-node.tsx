@@ -8,7 +8,7 @@ import { memo } from 'react';
 import { type NodeProps } from '@xyflow/react';
 import { BaseNode } from './base-node';
 import { Badge } from '@/components/ui/badge';
-import type { StartNodeData } from '@/types/workflow-editor';
+import type { StartNodeData } from '@/types/workflow/workflow-editor';
 
 function StartNodeComponent(props: NodeProps) {
   const data = props.data as StartNodeData;

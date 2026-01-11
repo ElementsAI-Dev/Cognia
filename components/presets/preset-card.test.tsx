@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PresetCard } from './preset-card';
-import type { Preset } from '@/types/preset';
+import type { Preset } from '@/types/content/preset';
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({

@@ -8,7 +8,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { AlertTriangle } from 'lucide-react';
-import type { A2UIComponentProps, A2UIBaseComponent } from '@/types/a2ui';
+import type { A2UIComponentProps, A2UIBaseComponent } from '@/types/artifact/a2ui';
 
 export function A2UIFallback({ component }: A2UIComponentProps<A2UIBaseComponent>) {
   return (

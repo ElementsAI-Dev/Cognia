@@ -37,7 +37,7 @@ import { ContentItemDisplay } from '@/components/chat/utils/tool-result-display'
 import { MCPServerBadge } from './mcp-server-badge';
 import { MCPProgressIndicator } from './mcp-progress-indicator';
 import type { McpServerStatus, ToolCallResult } from '@/types/mcp';
-import type { ToolState } from '@/types/message';
+import type { ToolState } from '@/types/core/message';
 
 export interface MCPToolCallCardProps {
   /** Unique call ID */

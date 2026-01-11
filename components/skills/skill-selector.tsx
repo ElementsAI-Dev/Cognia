@@ -36,8 +36,8 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
-import { useSkillStore } from '@/stores/agent';
-import type { Skill, SkillCategory } from '@/types/skill';
+import { useSkillStore } from '@/stores/skills';
+import type { Skill, SkillCategory } from '@/types/system/skill';
 
 const CATEGORY_LABEL_KEYS: Record<SkillCategory, string> = {
   'creative-design': 'categoryCreativeDesign',

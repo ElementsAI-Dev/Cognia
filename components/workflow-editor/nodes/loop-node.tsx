@@ -8,7 +8,7 @@ import { memo } from 'react';
 import { type NodeProps } from '@xyflow/react';
 import { BaseNode } from './base-node';
 import { Badge } from '@/components/ui/badge';
-import type { LoopNodeData } from '@/types/workflow-editor';
+import type { LoopNodeData } from '@/types/workflow/workflow-editor';
 
 function LoopNodeComponent(props: NodeProps) {
   const data = props.data as LoopNodeData;

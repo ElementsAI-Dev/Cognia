@@ -10,7 +10,7 @@ import {
   GeolocationOptions,
   GeolocationPermissionStatus,
   PermissionState,
-} from '@/types/geolocation';
+} from '@/types/system/geolocation';
 
 const isTauri = (): boolean => {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;

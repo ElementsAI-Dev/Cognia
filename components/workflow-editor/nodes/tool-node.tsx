@@ -8,7 +8,7 @@ import { memo } from 'react';
 import { type NodeProps } from '@xyflow/react';
 import { BaseNode } from './base-node';
 import { Badge } from '@/components/ui/badge';
-import type { ToolNodeData } from '@/types/workflow-editor';
+import type { ToolNodeData } from '@/types/workflow/workflow-editor';
 
 function ToolNodeComponent(props: NodeProps) {
   const data = props.data as ToolNodeData;

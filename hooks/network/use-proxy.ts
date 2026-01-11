@@ -15,8 +15,8 @@ import type {
   DetectedProxy,
   ManualProxyConfig,
   ProxySoftware,
-} from '@/types/proxy';
-import { buildProxyUrl } from '@/types/proxy';
+} from '@/types/system/proxy';
+import { buildProxyUrl } from '@/types/system/proxy';
 
 export interface UseProxyReturn {
   // Configuration

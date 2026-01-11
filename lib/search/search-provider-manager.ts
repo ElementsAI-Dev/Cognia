@@ -59,7 +59,7 @@ export interface SearchProviderManagerConfig {
   circuitBreakerConfig?: Partial<CircuitBreakerConfig>;
 }
 
-export interface SearchExecutionResult {
+export interface SearchSandboxExecutionResult {
   response: SearchResponse;
   providerId: SearchProviderType;
   latencyMs: number;
@@ -226,7 +226,7 @@ export class SearchProviderManager {
   async search(
     query: string,
     options: SearchOptions = {}
-  ): Promise<SearchExecutionResult> {
+  ): Promise<SearchSandboxExecutionResult> {
     const enabledProviders = this.getEnabledProvidersSorted();
 
     if (enabledProviders.length === 0) {
@@ -643,6 +643,6 @@ export function initializeSearchProviderManager(
 export async function searchWithManager(
   query: string,
   options?: SearchOptions
-): Promise<SearchExecutionResult> {
+): Promise<SearchSandboxExecutionResult> {
   return getSearchProviderManager().search(query, options);
 }

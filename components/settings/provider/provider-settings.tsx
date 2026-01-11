@@ -89,6 +89,7 @@ import { OllamaModelManager } from './ollama-model-manager';
 import { LocalProviderSettings } from './local-provider-settings';
 import { OpenRouterSettings } from './openrouter-settings';
 import { OpenRouterKeyManagement } from './openrouter-key-management';
+import { CLIProxyAPISettings } from './cliproxyapi-settings';
 import { testProviderConnection, type ApiTestResult } from '@/lib/ai/infrastructure/api-test';
 import { maskApiKey } from '@/lib/ai/infrastructure/api-key-rotation';
 
@@ -122,6 +123,8 @@ function getProviderDashboardUrl(providerId: string): string {
     textgenwebui: 'https://github.com/oobabooga/text-generation-webui',
     koboldcpp: 'https://github.com/LostRuins/koboldcpp',
     tabbyapi: 'https://github.com/theroyallab/tabbyAPI',
+    // Proxy/Aggregator providers
+    cliproxyapi: 'http://localhost:8317/management.html',
   };
   return urls[providerId] || '#';
 }
@@ -145,6 +148,7 @@ function getProviderDescription(providerId: string): string {
     fireworks: 'Ultra-fast compound AI',
     cerebras: 'Fastest inference with custom AI chips',
     sambanova: 'Enterprise AI with free tier',
+    cliproxyapi: 'Self-hosted AI proxy aggregating multiple providers',
     ollama: 'Run models locally on your machine',
     // New local providers
     lmstudio: 'Desktop app for running local LLMs',
@@ -178,7 +182,7 @@ type ProviderCategory = 'all' | 'flagship' | 'aggregator' | 'specialized' | 'loc
 const CATEGORY_CONFIG: Record<ProviderCategory, { label: string; icon: React.ReactNode; description: string }> = {
   all: { label: 'All', icon: null, description: 'All providers' },
   flagship: { label: 'Flagship', icon: <Sparkles className="h-3 w-3" />, description: 'OpenAI, Anthropic, Google, xAI' },
-  aggregator: { label: 'Aggregator', icon: <Globe className="h-3 w-3" />, description: 'OpenRouter, Together AI' },
+  aggregator: { label: 'Aggregator', icon: <Globe className="h-3 w-3" />, description: 'OpenRouter, CLIProxyAPI, Together AI' },
   specialized: { label: 'Fast', icon: <Zap className="h-3 w-3" />, description: 'Groq, Cerebras, DeepSeek' },
   local: { label: 'Local', icon: <Server className="h-3 w-3" />, description: 'Ollama, LM Studio, vLLM, llama.cpp' },
 };
@@ -190,6 +194,7 @@ const PROVIDER_CATEGORIES: Record<string, ProviderCategory> = {
   google: 'flagship',
   xai: 'flagship',
   openrouter: 'aggregator',
+  cliproxyapi: 'aggregator',
   togetherai: 'aggregator',
   groq: 'specialized',
   cerebras: 'specialized',
@@ -1287,6 +1292,13 @@ export function ProviderSettings() {
                     <div className="space-y-4 pt-2 border-t">
                       <OpenRouterSettings />
                       <OpenRouterKeyManagement />
+                    </div>
+                  )}
+
+                  {/* CLIProxyAPI-specific settings */}
+                  {providerId === 'cliproxyapi' && isEnabled && (
+                    <div className="space-y-4 pt-2 border-t">
+                      <CLIProxyAPISettings />
                     </div>
                   )}
                 </CardContent>

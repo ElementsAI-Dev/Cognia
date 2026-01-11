@@ -33,7 +33,7 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/sonner';
 import { usePromptTemplateStore } from '@/stores';
-import type { PromptFeedback } from '@/types/prompt-template';
+import type { PromptFeedback } from '@/types/content/prompt-template';
 
 interface PromptFeedbackCollectorProps {
   templateId: string;

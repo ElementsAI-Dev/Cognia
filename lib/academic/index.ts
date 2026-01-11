@@ -36,4 +36,4 @@ export type {
   MindMapData,
   MindMapNode,
   KnowledgeAnnotation,
-} from '@/types/knowledge-map';
+} from '@/types/learning/knowledge-map';

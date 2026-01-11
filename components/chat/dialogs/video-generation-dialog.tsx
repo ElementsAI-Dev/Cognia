@@ -68,8 +68,8 @@ import type {
   VideoDuration,
   VideoStyle,
   GeneratedVideo,
-} from '@/types/video';
-import { estimateVideoCost, parseDurationToSeconds } from '@/types/video';
+} from '@/types/media/video';
+import { estimateVideoCost, parseDurationToSeconds } from '@/types/media/video';
 
 interface VideoGenerationDialogProps {
   trigger?: React.ReactNode;

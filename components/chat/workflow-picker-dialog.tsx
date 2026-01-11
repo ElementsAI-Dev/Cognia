@@ -43,7 +43,7 @@ import {
 } from '@/components/ui/card';
 import { workflowRepository } from '@/lib/db/repositories';
 import { workflowEditorTemplates } from '@/lib/workflow-editor/templates';
-import type { VisualWorkflow, WorkflowEditorTemplate } from '@/types/workflow-editor';
+import type { VisualWorkflow, WorkflowEditorTemplate } from '@/types/workflow/workflow-editor';
 
 interface WorkflowPickerDialogProps {
   open: boolean;

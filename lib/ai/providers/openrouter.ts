@@ -14,7 +14,7 @@ import type {
   OpenRouterModel,
   OpenRouterModelsResponse,
   ProviderOrderingConfig,
-} from '@/types/openrouter';
+} from '@/types/provider/openrouter';
 import type { BYOKKeyEntry } from '@/types/provider';
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';

@@ -7,7 +7,7 @@
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { MARKETPLACE_CATEGORIES, type MarketplaceCategory } from '@/types/prompt-marketplace';
+import { MARKETPLACE_CATEGORIES, type MarketplaceCategory } from '@/types/content/prompt-marketplace';
 
 interface PromptMarketplaceCategoryNavProps {
   selected: MarketplaceCategory | 'all';

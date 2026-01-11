@@ -24,7 +24,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { useBackgroundAgent } from '@/hooks/ai';
+import { useBackgroundAgent } from '@/hooks/agent';
 
 interface BackgroundAgentIndicatorProps {
   className?: string;

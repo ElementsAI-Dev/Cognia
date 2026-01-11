@@ -18,7 +18,7 @@ import {
   validateWorkflowInput,
   sanitizeWorkflowOutput,
 } from './execution-utils';
-import type { WorkflowExecutionState, VisualWorkflow } from '@/types/workflow-editor';
+import type { WorkflowExecutionState, VisualWorkflow } from '@/types/workflow/workflow-editor';
 
 describe('Workflow Execution Utilities', () => {
   const mockExecutionState: WorkflowExecutionState = {

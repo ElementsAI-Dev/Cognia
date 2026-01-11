@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TemplateSelector } from './template-selector';
-import type { ChatTemplate, TemplateCategory } from '@/types/template';
+import type { ChatTemplate, TemplateCategory } from '@/types/content/template';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
@@ -77,7 +77,7 @@ jest.mock('@/stores', () => ({
 }));
 
 // Mock template types
-jest.mock('@/types/template', () => ({
+jest.mock('@/types/content/template', () => ({
   TEMPLATE_CATEGORY_LABELS: {
     coding: 'Coding',
     writing: 'Writing',

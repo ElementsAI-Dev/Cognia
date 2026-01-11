@@ -3,12 +3,12 @@
  * Bidirectional conversion between Skills and Prompt Templates
  */
 
-import type { Skill, CreateSkillInput } from '@/types/skill';
+import type { Skill, CreateSkillInput } from '@/types/system/skill';
 import type {
   PromptTemplate,
   CreatePromptTemplateInput,
   TemplateVariable,
-} from '@/types/prompt-template';
+} from '@/types/content/prompt-template';
 import { buildTemplateVariables } from './template-utils';
 
 /**

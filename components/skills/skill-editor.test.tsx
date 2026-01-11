@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { SkillEditor } from './skill-editor';
-import type { Skill } from '@/types/skill';
+import type { Skill } from '@/types/system/skill';
 
 const mockSkill: Skill = {
   id: 'test-skill-1',

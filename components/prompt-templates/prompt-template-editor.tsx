@@ -22,7 +22,7 @@ import type {
   PromptTemplate,
   PromptTemplateVariableType,
   TemplateVariable,
-} from '@/types/prompt-template';
+} from '@/types/content/prompt-template';
 import { cn } from '@/lib/utils';
 
 export interface PromptTemplateEditorProps {

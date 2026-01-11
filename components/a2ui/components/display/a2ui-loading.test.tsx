@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { A2UILoading, A2UILoadingComponent } from './a2ui-loading';
-import type { A2UIComponentProps } from '@/types/a2ui';
+import type { A2UIComponentProps } from '@/types/artifact/a2ui';
 
 describe('A2UILoading', () => {
   const mockOnAction = jest.fn();

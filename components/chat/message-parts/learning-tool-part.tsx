@@ -39,7 +39,7 @@ import type {
   ProgressSummaryToolOutput,
   ConceptExplanationToolOutput,
 } from '@/lib/ai/tools/learning-tools';
-import type { ToolInvocationPart } from '@/types/message';
+import type { ToolInvocationPart } from '@/types/core/message';
 
 /**
  * Learning tool names that this component handles

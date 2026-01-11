@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { usePromptTemplateStore } from '@/stores';
 import { PromptTemplateCard } from './prompt-template-card';
 import { PromptTemplateEditor } from './prompt-template-editor';
-import type { PromptTemplate } from '@/types/prompt-template';
+import type { PromptTemplate } from '@/types/content/prompt-template';
 
 export function PromptTemplateManager() {
   const templates = usePromptTemplateStore((state) => state.templates);

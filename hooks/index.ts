@@ -49,3 +49,9 @@ export * from './a2ui';
 
 // Canvas hooks
 export * from './canvas';
+
+// Agent hooks
+export * from './agent';
+
+// Skills hooks
+export * from './skills';

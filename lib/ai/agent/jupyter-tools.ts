@@ -13,7 +13,7 @@ import { z } from 'zod';
 import type { AgentTool } from './agent-executor';
 import { kernelService } from '@/lib/jupyter/kernel';
 import { virtualEnvService, isEnvironmentAvailable } from '@/lib/native/environment';
-import type { KernelExecutionResult } from '@/types/jupyter';
+import type { KernelSandboxExecutionResult } from '@/types/system/jupyter';
 
 // ==================== Tool Input Schemas ====================
 
@@ -93,7 +93,7 @@ Variables persist across executions within the same session.`,
 
       try {
         const input = args as z.infer<typeof executeCodeInputSchema>;
-        let result: KernelExecutionResult;
+        let result: KernelSandboxExecutionResult;
 
         if (input.sessionId) {
           // Execute in existing session
@@ -464,7 +464,7 @@ This tool automatically installs the required packages before running the code.`
 
 // ==================== Helper Functions ====================
 
-function getDisplayOutput(result: KernelExecutionResult): string {
+function getDisplayOutput(result: KernelSandboxExecutionResult): string {
   if (result.displayData.length > 0) {
     const textData = result.displayData.find((d) => d.mimeType === 'text/plain');
     if (textData) return textData.data;

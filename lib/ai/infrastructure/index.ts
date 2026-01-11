@@ -87,7 +87,7 @@ export {
   type ProviderCredentials as InfraProviderCredentials,
   type ProviderState,
   type ExecutionContext,
-  type ExecutionResult,
+  type SandboxExecutionResult,
   type RequestOptions,
 } from './provider-manager';
 

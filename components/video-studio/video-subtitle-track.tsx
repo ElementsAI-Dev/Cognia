@@ -39,7 +39,7 @@ import {
   Check,
   X,
 } from 'lucide-react';
-import type { SubtitleCue } from '@/types/subtitle';
+import type { SubtitleCue } from '@/types/media/subtitle';
 
 export interface VideoSubtitleTrackProps {
   trackId: string;

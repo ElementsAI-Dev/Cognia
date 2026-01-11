@@ -5,4 +5,4 @@
 
 mod bubble_window;
 
-pub use bubble_window::AssistantBubbleWindow;
+pub use bubble_window::{AssistantBubbleWindow, BubbleConfig};

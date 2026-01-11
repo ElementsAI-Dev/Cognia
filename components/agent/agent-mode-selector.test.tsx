@@ -5,7 +5,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AgentModeSelector } from './agent-mode-selector';
-import { BUILT_IN_AGENT_MODES } from '@/types/agent-mode';
+import { BUILT_IN_AGENT_MODES } from '@/types/agent/agent-mode';
 
 // Mock the UI components
 jest.mock('@/components/ui/button', () => ({

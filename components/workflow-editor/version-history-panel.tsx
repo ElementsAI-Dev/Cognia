@@ -35,7 +35,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { useWorkflowEditorStore } from '@/stores/workflow';
-import type { WorkflowVersion } from '@/types/workflow-editor';
+import type { WorkflowVersion } from '@/types/workflow/workflow-editor';
 import {
   History,
   Save,

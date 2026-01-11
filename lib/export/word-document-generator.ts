@@ -16,13 +16,13 @@ import type {
   RichDocument,
   DocumentTemplate,
   TableOfContentsSettings,
-} from '@/types/document-formatting';
+} from '@/types/document/document-formatting';
 import {
   DEFAULT_DOCUMENT_OPTIONS,
   PAGE_SIZES,
   DEFAULT_STYLES,
   MARGIN_PRESETS,
-} from '@/types/document-formatting';
+} from '@/types/document/document-formatting';
 
 interface DocxModule {
   Document: typeof import('docx').Document;

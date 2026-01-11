@@ -14,7 +14,7 @@ import {
   grepContextFiles,
   getContextStats,
 } from './context-fs';
-import type { ContextCategory } from '@/types/context';
+import type { ContextCategory } from '@/types/system/context';
 
 /**
  * Create the read_context_file tool

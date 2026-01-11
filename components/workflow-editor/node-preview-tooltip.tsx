@@ -47,8 +47,8 @@ import type {
   DelayNodeData,
   WebhookNodeData,
   SubworkflowNodeData,
-} from '@/types/workflow-editor';
-import { NODE_TYPE_COLORS } from '@/types/workflow-editor';
+} from '@/types/workflow/workflow-editor';
+import { NODE_TYPE_COLORS } from '@/types/workflow/workflow-editor';
 
 const NODE_ICONS: Record<WorkflowNodeType, React.ComponentType<{ className?: string }>> = {
   start: Play,

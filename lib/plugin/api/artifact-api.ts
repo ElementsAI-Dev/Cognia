@@ -10,7 +10,7 @@ import type {
   CreateArtifactOptions,
   ArtifactFilter,
   ArtifactRenderer,
-} from '@/types/plugin-extended';
+} from '@/types/plugin/plugin-extended';
 import type { Artifact } from '@/types/artifact';
 
 // Registry for custom artifact renderers
@@ -127,4 +127,11 @@ export function createArtifactAPI(pluginId: string): PluginArtifactAPI {
  */
 export function getArtifactRenderers(): ArtifactRenderer[] {
   return Array.from(artifactRenderers.values());
+}
+
+/**
+ * Clear all artifact renderers (for testing purposes)
+ */
+export function clearArtifactRenderers(): void {
+  artifactRenderers.clear();
 }

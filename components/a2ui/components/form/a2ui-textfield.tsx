@@ -9,7 +9,7 @@ import React, { useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { A2UIComponentProps, A2UITextFieldComponent } from '@/types/a2ui';
+import type { A2UIComponentProps, A2UITextFieldComponent } from '@/types/artifact/a2ui';
 import { useA2UIContext } from '../../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 

@@ -229,6 +229,66 @@ pub struct SkillDiscoveryResult {
     pub local: Vec<LocalSkill>,
 }
 
+/// Skill error types
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub enum SkillError {
+    /// Skill not found
+    NotFound(String),
+    /// Skill already installed
+    AlreadyInstalled(String),
+    /// Download timeout
+    DownloadTimeout(u64),
+    /// IO error
+    Io(String),
+    /// Network error
+    Network(String),
+    /// Parse error
+    Parse(String),
+}
+
+impl std::fmt::Display for SkillError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SkillError::NotFound(name) => write!(f, "Skill not found: {}", name),
+            SkillError::AlreadyInstalled(name) => write!(f, "Skill already installed: {}", name),
+            SkillError::DownloadTimeout(secs) => write!(f, "Download timeout after {} seconds", secs),
+            SkillError::Io(msg) => write!(f, "IO error: {}", msg),
+            SkillError::Network(msg) => write!(f, "Network error: {}", msg),
+            SkillError::Parse(msg) => write!(f, "Parse error: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for SkillError {}
+
+impl From<std::io::Error> for SkillError {
+    fn from(err: std::io::Error) -> Self {
+        SkillError::Io(err.to_string())
+    }
+}
+
+impl From<reqwest::Error> for SkillError {
+    fn from(err: reqwest::Error) -> Self {
+        SkillError::Network(err.to_string())
+    }
+}
+
+impl From<serde_json::Error> for SkillError {
+    fn from(err: serde_json::Error) -> Self {
+        SkillError::Parse(err.to_string())
+    }
+}
+
+impl Serialize for SkillError {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
 /// Skill search filters
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SkillSearchFilters {

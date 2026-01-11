@@ -20,7 +20,7 @@ import type {
   A2UIUserAction,
   A2UIDataModelChange,
   A2UISurfaceType,
-} from '@/types/a2ui';
+} from '@/types/artifact/a2ui';
 
 /**
  * App instance metadata

@@ -3,7 +3,7 @@
  * Shared utilities for MCP marketplace components
  */
 
-import type { McpMarketplaceSource } from '@/types/mcp-marketplace';
+import type { McpMarketplaceSource } from '@/types/mcp/mcp-marketplace';
 
 /**
  * Get source color class for badge styling

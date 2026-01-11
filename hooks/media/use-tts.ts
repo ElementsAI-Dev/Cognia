@@ -12,7 +12,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSettingsStore } from '@/stores';
-import type { TTSProvider } from '@/types/speech';
+import type { TTSProvider } from '@/types/media/speech';
 import { toast } from '@/components/ui/sonner';
 
 export type TTSPlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'stopped' | 'error';

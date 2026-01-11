@@ -22,7 +22,7 @@ import {
   type SubAgentExecutionOptions,
   type SubAgentOrchestrationResult,
   type CreateSubAgentInput,
-} from '@/types/sub-agent';
+} from '@/types/agent/sub-agent';
 
 /**
  * SubAgent executor configuration

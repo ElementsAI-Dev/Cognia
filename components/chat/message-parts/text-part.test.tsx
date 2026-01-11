@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { TextPart } from './text-part';
-import type { TextPart as TextPartType } from '@/types/message';
+import type { TextPart as TextPartType } from '@/types/core/message';
 
 // Mock MessageResponse component
 jest.mock('@/components/ai-elements/message', () => ({

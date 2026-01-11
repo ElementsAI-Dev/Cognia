@@ -12,7 +12,7 @@
 
 import { generateText } from 'ai';
 import { nanoid } from 'nanoid';
-import type { UIMessage, ToolInvocationPart } from '@/types/message';
+import type { UIMessage, ToolInvocationPart } from '@/types/core/message';
 import type {
   ChatSummaryOptions,
   ChatSummaryResult,
@@ -25,11 +25,11 @@ import type {
   IncrementalSummaryInput,
   ConversationAnalysis,
   KeyPointCategory,
-} from '@/types/summary';
+} from '@/types/learning/summary';
 import {
   DEFAULT_CHAT_SUMMARY_OPTIONS,
   DEFAULT_AGENT_SUMMARY_OPTIONS,
-} from '@/types/summary';
+} from '@/types/learning/summary';
 import { getProviderModel, type ProviderName } from '../core/client';
 import { countTokens } from '@/hooks/chat/use-token-count';
 import {

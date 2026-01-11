@@ -26,7 +26,7 @@ import type {
   WebhookNodeData,
   TransformNodeData,
   MergeNodeData,
-} from '@/types/workflow-editor';
+} from '@/types/workflow/workflow-editor';
 
 // Helper to create base node data
 const createBaseNodeData = (nodeType: string, label = 'Test Node') => ({

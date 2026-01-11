@@ -44,6 +44,8 @@ export {
   buildRAGConfigFromSettings,
   createDesignerTool,
   getToolsFromRegistry,
+  getToolsForCustomMode,
+  filterToolsForMode,
   getSkillsSystemPrompt,
   initializeAgentToolsWithSkills,
   buildEnvironmentToolsSystemPrompt,

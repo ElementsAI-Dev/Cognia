@@ -22,13 +22,13 @@ import type {
   ProjectEnvConfig,
   EnvFilterOptions,
   RequirementEntry,
-} from '@/types/environment';
+} from '@/types/system/environment';
 import {
   createDefaultProjectEnvConfig,
   parseRequirements,
   generateRequirements,
   filterEnvironments,
-} from '@/types/environment';
+} from '@/types/system/environment';
 
 export interface UseVirtualEnvReturn {
   // State

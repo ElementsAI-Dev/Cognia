@@ -6,7 +6,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PromptABTestPanel } from './prompt-ab-test-panel';
-import type { PromptTemplate, PromptABTest } from '@/types/prompt-template';
+import type { PromptTemplate, PromptABTest } from '@/types/content/prompt-template';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

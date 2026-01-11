@@ -17,8 +17,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useAcademic } from '@/hooks/academic';
 import { cn } from '@/lib/utils';
-import type { Paper, AcademicProviderType } from '@/types/academic';
-import { DEFAULT_ACADEMIC_PROVIDERS } from '@/types/academic';
+import type { Paper, AcademicProviderType } from '@/types/learning/academic';
+import { DEFAULT_ACADEMIC_PROVIDERS } from '@/types/learning/academic';
 
 const PROVIDER_OPTIONS: { id: AcademicProviderType; name: string }[] = [
   { id: 'arxiv', name: 'arXiv' },

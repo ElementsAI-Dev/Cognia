@@ -33,8 +33,8 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { useWorkflowEditorStore } from '@/stores/workflow';
-import { NODE_TYPE_COLORS } from '@/types/workflow-editor';
-import type { NodeTemplate } from '@/types/workflow-editor';
+import { NODE_TYPE_COLORS } from '@/types/workflow/workflow-editor';
+import type { NodeTemplate } from '@/types/workflow/workflow-editor';
 import {
   Bookmark,
   Plus,

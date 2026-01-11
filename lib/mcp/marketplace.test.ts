@@ -13,7 +13,7 @@ import {
   formatDownloadCount,
   formatStarCount,
 } from './marketplace';
-import type { McpMarketplaceItem, McpMarketplaceFilters } from '@/types/mcp-marketplace';
+import type { McpMarketplaceItem, McpMarketplaceFilters } from '@/types/mcp/mcp-marketplace';
 
 // Mock global fetch
 const mockFetch = jest.fn();

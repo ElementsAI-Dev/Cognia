@@ -22,6 +22,10 @@ export {
   selectSubAgentCount,
   selectActiveSubAgentCount,
   selectCompletedSubAgentCount,
+} from './agent';
+
+// Skills stores
+export {
   useSkillStore,
   selectAllSkills,
   selectActiveSkills,
@@ -30,7 +34,7 @@ export {
   selectSkillsByCategory,
   selectSkillsLoading,
   selectSkillsError,
-} from './agent';
+} from './skills';
 
 // Artifact stores
 export { useArtifactStore } from './artifact';

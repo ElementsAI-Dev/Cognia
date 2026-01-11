@@ -30,7 +30,7 @@ import { PresetCard } from './preset-card';
 import { CreatePresetDialog } from './create-preset-dialog';
 import { usePresetStore, useSettingsStore } from '@/stores';
 import { toast } from '@/components/ui/sonner';
-import type { Preset, CreatePresetInput } from '@/types/preset';
+import type { Preset, CreatePresetInput } from '@/types/content/preset';
 import { nanoid } from 'nanoid';
 
 interface PresetsManagerProps {

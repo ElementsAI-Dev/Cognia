@@ -362,7 +362,7 @@ jest.mock('@/stores', () => {
 });
 
 // Mock skill store separately (different import path)
-jest.mock('@/stores/agent/skill-store', () => ({
+jest.mock('@/stores/skills/skill-store', () => ({
   useSkillStore: (selector: (state: unknown) => unknown) => {
     const state = {
       getActiveSkills: jest.fn(() => []),

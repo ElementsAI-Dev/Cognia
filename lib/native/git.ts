@@ -34,7 +34,7 @@ import type {
   GitMergeOptions,
   GitOperationResult,
   Platform,
-} from '@/types/git';
+} from '@/types/system/git';
 
 // ==================== Git Installation Management ====================
 

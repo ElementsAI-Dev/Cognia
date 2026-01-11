@@ -3,7 +3,7 @@
  * Import this in test files to get consistent mock implementations
  */
 
-import type { ChatMode } from '@/types/session';
+import type { ChatMode } from '@/types/core/session';
 
 // Mock session data
 export const mockSessions = [

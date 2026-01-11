@@ -13,7 +13,7 @@ import type {
   ThemeColors,
   CustomTheme,
   ThemeState,
-} from '@/types/plugin-extended';
+} from '@/types/plugin/plugin-extended';
 
 /**
  * Get resolved theme mode (handles 'system' -> 'light' | 'dark')

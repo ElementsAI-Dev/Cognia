@@ -25,7 +25,7 @@ import {
   proxyService,
   type SystemProxySettings,
 } from './proxy';
-import type { DetectedProxy, ProxyTestResult } from '@/types/proxy';
+import type { DetectedProxy, ProxyTestResult } from '@/types/system/proxy';
 
 const mockInvoke = invoke as jest.MockedFunction<typeof invoke>;
 const mockIsTauri = isTauri as jest.MockedFunction<typeof isTauri>;

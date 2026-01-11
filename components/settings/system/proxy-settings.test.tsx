@@ -50,7 +50,7 @@ jest.mock('@/hooks/network', () => ({
 }));
 
 // Mock proxy types
-jest.mock('@/types/proxy', () => ({
+jest.mock('@/types/system/proxy', () => ({
   PROXY_SOFTWARE_INFO: {
     clash: { name: 'Clash', icon: '⚔️' },
     v2ray: { name: 'V2Ray', icon: '🚀' },

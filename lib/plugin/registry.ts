@@ -8,7 +8,7 @@ import type {
   PluginCommand,
   A2UITemplateDef,
 } from '@/types/plugin';
-import type { AgentModeConfig } from '@/types/agent-mode';
+import type { AgentModeConfig } from '@/types/agent/agent-mode';
 
 // =============================================================================
 // Registry Types

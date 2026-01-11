@@ -39,16 +39,28 @@ import {
 } from '@/components/native';
 import { RecordingHistoryPanel } from '@/components/screen-recording';
 import { isTauri } from '@/lib/native/utils';
+import { useNativeStore } from '@/stores/system';
 
 export function NativeToolsSettings() {
   const t = useTranslations('nativeToolsSettings');
 
   const [activeTab, setActiveTab] = useState('clipboard');
-  const [clipboardHistoryEnabled, setClipboardHistoryEnabled] = useState(true);
-  const [clipboardHistorySize, setClipboardHistorySize] = useState(100);
-  const [screenshotOcrEnabled, setScreenshotOcrEnabled] = useState(true);
-  const [focusTrackingEnabled, setFocusTrackingEnabled] = useState(false);
-  const [contextRefreshInterval, setContextRefreshInterval] = useState(5);
+  
+  // Persisted native tools configuration
+  const nativeToolsConfig = useNativeStore((state) => state.nativeToolsConfig);
+  const setNativeToolsConfig = useNativeStore((state) => state.setNativeToolsConfig);
+  
+  const clipboardHistoryEnabled = nativeToolsConfig.clipboardHistoryEnabled;
+  const clipboardHistorySize = nativeToolsConfig.clipboardHistorySize;
+  const screenshotOcrEnabled = nativeToolsConfig.screenshotOcrEnabled;
+  const focusTrackingEnabled = nativeToolsConfig.focusTrackingEnabled;
+  const contextRefreshInterval = nativeToolsConfig.contextRefreshInterval;
+  
+  const setClipboardHistoryEnabled = (enabled: boolean) => setNativeToolsConfig({ clipboardHistoryEnabled: enabled });
+  const setClipboardHistorySize = (size: number) => setNativeToolsConfig({ clipboardHistorySize: size });
+  const setScreenshotOcrEnabled = (enabled: boolean) => setNativeToolsConfig({ screenshotOcrEnabled: enabled });
+  const setFocusTrackingEnabled = (enabled: boolean) => setNativeToolsConfig({ focusTrackingEnabled: enabled });
+  const setContextRefreshInterval = (interval: number) => setNativeToolsConfig({ contextRefreshInterval: interval });
 
   if (!isTauri()) {
     return (

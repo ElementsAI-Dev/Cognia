@@ -3,8 +3,8 @@
  * Uses the Edge TTS service via API route
  */
 
-import type { TTSResponse, EdgeTTSVoice } from '@/types/tts';
-import { getTTSError, TTS_PROVIDERS, EDGE_TTS_VOICES } from '@/types/tts';
+import type { TTSResponse, EdgeTTSVoice } from '@/types/media/tts';
+import { getTTSError, TTS_PROVIDERS, EDGE_TTS_VOICES } from '@/types/media/tts';
 
 export interface EdgeTTSOptions {
   voice?: EdgeTTSVoice;

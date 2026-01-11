@@ -9,7 +9,7 @@ import { Position, type NodeProps } from '@xyflow/react';
 import { BaseNode } from './base-node';
 import { Badge } from '@/components/ui/badge';
 import { Workflow, ExternalLink } from 'lucide-react';
-import type { SubworkflowNodeData } from '@/types/workflow-editor';
+import type { SubworkflowNodeData } from '@/types/workflow/workflow-editor';
 
 function SubworkflowNodeComponent(props: NodeProps) {
   const data = props.data as SubworkflowNodeData;

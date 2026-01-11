@@ -11,7 +11,7 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import { getEncoding, type Tiktoken } from 'js-tiktoken';
-import type { UIMessage } from '@/types/message';
+import type { UIMessage } from '@/types/core/message';
 
 // Encoder cache for different encodings
 const encoderCache: Map<string, Tiktoken> = new Map();

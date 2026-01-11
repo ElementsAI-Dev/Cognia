@@ -65,7 +65,7 @@ import {
 } from '@/components/ui/select';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { FONT_FAMILIES, FONT_SIZES } from '@/types/document-formatting';
+import { FONT_FAMILIES, FONT_SIZES } from '@/types/document/document-formatting';
 
 export type FormatAction = 
   | 'bold' | 'italic' | 'underline' | 'strikethrough'

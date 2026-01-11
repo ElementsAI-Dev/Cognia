@@ -1,14 +1,14 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SkillSuggestions, ActiveSkillsIndicator } from './skill-suggestions';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { useSkillStore } from '@/stores/agent';
-import type { Skill } from '@/types/skill';
+import { useSkillStore } from '@/stores/skills';
+import type { Skill } from '@/types/system/skill';
 
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(<TooltipProvider>{ui}</TooltipProvider>);
 };
 
-jest.mock('@/stores/agent', () => ({
+jest.mock('@/stores/skills', () => ({
   useSkillStore: jest.fn(),
 }));
 jest.mock('@/lib/skills/executor', () => ({

@@ -14,7 +14,7 @@ import {
   createContextTools,
   getContextToolsPrompt,
 } from '@/lib/context';
-import type { ToolOutputRef } from '@/types/context';
+import type { ToolOutputRef } from '@/types/system/context';
 
 /**
  * Extended config for context-aware execution

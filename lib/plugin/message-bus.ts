@@ -404,8 +404,9 @@ export class MessageBus {
       events = events.filter((e) => e.source.id === options.sourceId);
     }
 
-    if (options?.since) {
-      events = events.filter((e) => e.timestamp >= options.since);
+    if (options?.since !== undefined) {
+      const since = options.since;
+      events = events.filter((e) => e.timestamp >= since);
     }
 
     if (options?.limit) {

@@ -53,7 +53,7 @@ function addMockHistory() {
     prompt: 'Find documents about AI',
     result: 'success',
   });
-  store.updateToolCallResult(record1.id, 'success', 'Found 10 documents', undefined, 150);
+  store.updateToolCallResultStatus(record1.id, 'success', 'Found 10 documents', undefined, 150);
 
   const record2 = store.recordToolCall({
     toolId: 'mcp:server1:analyze',
@@ -64,7 +64,7 @@ function addMockHistory() {
     prompt: 'Analyze this data',
     result: 'error',
   });
-  store.updateToolCallResult(record2.id, 'error', undefined, 'Connection failed', 50);
+  store.updateToolCallResultStatus(record2.id, 'error', undefined, 'Connection failed', 50);
 
   return { record1, record2 };
 }

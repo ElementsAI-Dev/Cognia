@@ -18,7 +18,7 @@ import {
   buildEnvironmentToolsSystemPrompt,
   buildAgentSystemPrompt,
 } from './agent-tools';
-import type { Skill } from '@/types/skill';
+import type { Skill } from '@/types/system/skill';
 
 // Mock dependencies
 jest.mock('../tools', () => ({

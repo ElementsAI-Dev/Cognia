@@ -71,8 +71,8 @@ import {
 import { useCopy } from '@/hooks/ui';
 import { useSummary } from '@/hooks/chat';
 import { MermaidBlock } from '@/components/chat/renderers/mermaid-block';
-import type { BackgroundAgent } from '@/types/background-agent';
-import type { DiagramType } from '@/types/summary';
+import type { BackgroundAgent } from '@/types/agent/background-agent';
+import type { DiagramType } from '@/types/learning/summary';
 import { toast } from 'sonner';
 
 interface AgentSummaryDialogProps {

@@ -15,7 +15,7 @@ const mockDeactivateSkill = jest.fn();
 const mockClearError = jest.fn();
 const mockImportSkill = jest.fn();
 
-jest.mock('@/stores/agent', () => ({
+jest.mock('@/stores/skills', () => ({
   useSkillStore: () => ({
     skills: {
       'skill-1': {
@@ -65,7 +65,25 @@ jest.mock('@/stores/agent', () => ({
 }));
 
 // Mock skill templates
-jest.mock('@/lib/skills/templates', () => ({
+jest.mock('@/lib/skills/templates', () => {
+  const mockTemplate = { 
+    id: 'mock-template', 
+    name: 'Mock Template', 
+    description: 'Mock template for testing', 
+    icon: '🔍', 
+    category: 'development', 
+    tags: ['mock'],
+    defaultContent: '# Mock Template' 
+  };
+  return {
+    SKILL_CREATOR_TEMPLATE: mockTemplate,
+    MCP_BUILDER_TEMPLATE: mockTemplate,
+    ARTIFACTS_BUILDER_TEMPLATE: mockTemplate,
+    CANVAS_DESIGN_TEMPLATE: mockTemplate,
+    INTERNAL_COMMS_TEMPLATE: mockTemplate,
+    BRAND_GUIDELINES_TEMPLATE: mockTemplate,
+    WEBAPP_TESTING_TEMPLATE: mockTemplate,
+    DATA_ANALYSIS_TEMPLATE: mockTemplate,
   getAllTemplates: () => [
     { id: 'template-1', name: 'Code Review', description: 'Review code', icon: '🔍', category: 'development', defaultContent: '# Code Review' },
     { id: 'template-2', name: 'Writing', description: 'Writing assistant', icon: '✍️', category: 'creative-design', defaultContent: '# Writing' },
@@ -77,7 +95,8 @@ jest.mock('@/lib/skills/templates', () => ({
     };
     return templates[id];
   },
-}));
+  };
+});
 
 // Mock skill parser
 jest.mock('@/lib/skills/parser', () => ({

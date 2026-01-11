@@ -97,7 +97,7 @@ import { downloadSkillAsMarkdown, downloadSkillAsPackage } from '@/lib/skills/pa
 import { SkillMarkdownPreview, SkillMarkdownStyles } from './skill-markdown-preview';
 import { SkillResourceManager } from './skill-resource-manager';
 import { SkillAIAssistant } from './skill-ai-assistant';
-import type { Skill, SkillResource } from '@/types/skill';
+import type { Skill, SkillResource } from '@/types/system/skill';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ssr: false,

@@ -20,7 +20,7 @@
  */
 
 import type { AgentTool } from '../agent/agent-executor';
-import type { Skill } from '@/types/skill';
+import type { Skill } from '@/types/system/skill';
 import type { McpServerState, ToolCallResult } from '@/types/mcp';
 import type { RAGConfig } from '../rag';
 import { getGlobalToolRegistry } from './registry';

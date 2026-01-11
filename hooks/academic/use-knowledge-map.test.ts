@@ -9,7 +9,7 @@ import type {
   KnowledgeMap,
   KnowledgeMapTrace,
   KnowledgeMapNavigationTarget,
-} from '@/types/knowledge-map';
+} from '@/types/learning/knowledge-map';
 
 // Mock the store
 jest.mock('@/stores/academic/knowledge-map-store');

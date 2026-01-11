@@ -59,7 +59,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMcpMarketplaceStore } from '@/stores/mcp';
 import { useMcpStore } from '@/stores/mcp';
-import type { McpMarketplaceItem } from '@/types/mcp-marketplace';
+import type { McpMarketplaceItem } from '@/types/mcp/mcp-marketplace';
 import { formatDownloadCount, formatStarCount, formatRelativeTime, parseInstallationConfig } from '@/lib/mcp/marketplace';
 import { getSourceColor, checkMcpEnvironment, type EnvironmentCheckResult } from '@/lib/mcp/marketplace-utils';
 

@@ -20,7 +20,7 @@ import type {
   PDFConversionOptions,
   PDFConversionResult,
   KnowledgeMapNavigationTarget,
-} from '@/types/knowledge-map';
+} from '@/types/learning/knowledge-map';
 
 export interface UseKnowledgeMapReturn {
   // State

@@ -26,7 +26,7 @@ import type {
   VideoDuration,
   VideoStyle,
   VideoGenerationResult,
-} from '@/types/video';
+} from '@/types/media/video';
 
 /**
  * Video generation input schema
