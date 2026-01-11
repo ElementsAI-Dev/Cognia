@@ -9,13 +9,13 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Bot,
-  Loader2,
   CheckCircle,
   XCircle,
   ChevronUp,
   ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LoadingSpinner } from '@/components/ui/loading-states';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -67,7 +67,7 @@ export function BackgroundAgentIndicator({ className }: BackgroundAgentIndicator
           )}
         >
           {hasRunning ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <LoadingSpinner size="sm" />
           ) : (
             <Bot className="h-4 w-4" />
           )}
@@ -121,7 +121,7 @@ export function BackgroundAgentIndicator({ className }: BackgroundAgentIndicator
                     key={agent.id}
                     className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/20"
                   >
-                    <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
+                    <LoadingSpinner size="sm" className="text-primary shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{agent.name}</p>
                       <div className="flex items-center gap-2 mt-1">

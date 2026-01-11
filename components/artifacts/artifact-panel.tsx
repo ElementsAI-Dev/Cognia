@@ -15,21 +15,17 @@ import {
   Pencil,
   Save,
   X,
-  Loader2,
   FolderOpen,
   Maximize2,
   Minimize2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ArtifactPanelLoading } from '@/components/ui/loading-states';
 
 // Dynamically import Monaco to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ssr: false,
-  loading: () => (
-    <div className="flex h-full items-center justify-center">
-      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-    </div>
-  ),
+  loading: () => <ArtifactPanelLoading />,
 });
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';

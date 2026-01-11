@@ -6,12 +6,13 @@
 
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { Bot, ChevronRight, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Bot, ChevronRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useBackgroundAgentStore } from '@/stores';
 import { cn } from '@/lib/utils';
+import { LoadingSpinner } from '@/components/ui/loading-states';
 
 interface SidebarBackgroundTasksProps {
   className?: string;
@@ -66,7 +67,7 @@ export function SidebarBackgroundTasks({ className, collapsed }: SidebarBackgrou
           >
             <div className="relative">
               {stats.running > 0 ? (
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <LoadingSpinner size="sm" className="text-primary" />
               ) : (
                 <Bot className="h-4 w-4" />
               )}
@@ -105,7 +106,7 @@ export function SidebarBackgroundTasks({ className, collapsed }: SidebarBackgrou
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           {stats.running > 0 ? (
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <LoadingSpinner size="sm" className="text-primary" />
           ) : (
             <Bot className="h-4 w-4 text-blue-500" />
           )}
@@ -130,7 +131,7 @@ export function SidebarBackgroundTasks({ className, collapsed }: SidebarBackgrou
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
         {stats.running > 0 && (
           <span className="flex items-center gap-1">
-            <Loader2 className="h-3 w-3 animate-spin" />
+            <LoadingSpinner size="sm" className="h-3 w-3" />
             {stats.running}
           </span>
         )}

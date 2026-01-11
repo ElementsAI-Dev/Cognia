@@ -17,7 +17,6 @@ import {
   ChevronRight,
   Plus,
   ExternalLink,
-  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +32,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { LoadingSpinner } from '@/components/ui/loading-states';
 import { workflowRepository } from '@/lib/db/repositories';
 import { useWorkflowEditorStore } from '@/stores/workflow';
 import type { VisualWorkflow } from '@/types/workflow/workflow-editor';
@@ -152,7 +152,7 @@ export function SidebarWorkflows({
       <CollapsibleContent className="space-y-1 pt-1">
         {isLoading ? (
           <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <LoadingSpinner size="sm" />
           </div>
         ) : workflows.length === 0 ? (
           <div className="px-2 py-3 text-center">
@@ -244,7 +244,7 @@ function WorkflowItem({
               disabled={isRunning}
             >
               {isRunning ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <LoadingSpinner size="sm" className="h-3.5 w-3.5" />
               ) : (
                 <Play className="h-3.5 w-3.5 text-green-500" />
               )}

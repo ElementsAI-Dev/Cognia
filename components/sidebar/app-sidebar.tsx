@@ -20,8 +20,10 @@ import {
   SidebarHeader,
   SidebarMenu,
   SidebarMenuAction,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSkeleton,
   SidebarSeparator,
   useSidebar,
 } from '@/components/ui/sidebar';
@@ -376,7 +378,7 @@ export function AppSidebar() {
                   )}
                   {groupLabels[groupKey]}
                 </span>
-                <span className="text-xs text-muted-foreground">{groupSessions.length}</span>
+                <SidebarMenuBadge>{groupSessions.length}</SidebarMenuBadge>
               </SidebarGroupLabel>
               {!isCollapsedGroup && (
                 <SidebarGroupContent>
@@ -397,6 +399,19 @@ export function AppSidebar() {
             </SidebarGroup>
           );
         })}
+
+        {/* Search loading skeleton */}
+        {searchQuery && isSearching && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuSkeleton showIcon />
+                <SidebarMenuSkeleton showIcon />
+                <SidebarMenuSkeleton showIcon />
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Search empty state */}
         {searchQuery && !isSearching && searchResults.length === 0 && (
