@@ -102,7 +102,7 @@ export {
 export { QuickAppBuilder } from './quick-app-builder';
 export { AppGallery } from './app-gallery';
 
-// Hooks
+// Hooks (re-exported from centralized hooks)
 export {
   useA2UIForm,
   useA2UIKeyboard,
@@ -113,4 +113,4 @@ export {
   type ValidationRule,
   type UseA2UIFormOptions,
   type KeyboardNavigationOptions,
-} from './hooks';
+} from '@/hooks/a2ui';

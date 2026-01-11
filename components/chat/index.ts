@@ -23,13 +23,16 @@
  * - CodeExecutor, ToolResultDisplay, ConversationSearch, MarkdownRenderer
  */
 
-// Main components
-export { ChatContainer } from './chat-container';
-export { ChatHeader } from './chat-header';
+// Main components (from core/)
+export { ChatContainer, ChatHeader, ChatDesignerPanel } from './core';
 export { ChatInput } from './chat-input';
-export { WelcomeState } from './welcome-state';
-export { ChatDesignerPanel } from './chat-designer-panel';
-export { CarriedContextBanner } from './carried-context-banner';
+
+// Welcome components
+export { WelcomeState, WelcomeA2UIDemo } from './welcome';
+
+// UI Enhancement components (from ui/)
+export { CarriedContextBanner, CopyButton, QuickReplyBar, MessageSwipeActions, type SwipeAction, RoutingIndicator, RoutingBadge, ModeSwitchSuggestion, InlineModeSuggestion } from './ui';
+export { useKeyboardShortcuts, getShortcutsByCategory, formatShortcut, type KeyboardShortcut } from './ui';
 
 // Dialogs
 export {
@@ -92,14 +95,5 @@ export {
 // Message parts (for rendering different message content types)
 export { TextPart, ReasoningPart, ToolPart, SourcesPart, A2UIPart, LearningToolPart, isLearningTool, LEARNING_TOOL_NAMES } from './message-parts';
 
-// Workflow components
-export { WorkflowPickerDialog } from './workflow-picker-dialog';
-export { WorkflowResultCard, type WorkflowResultData, type WorkflowExecutionStatus } from './workflow-result-card';
-
-// UI Enhancement components
-export { QuickReplyBar } from './quick-reply-bar';
-export { MessageSwipeActions, type SwipeAction } from './message-swipe-actions';
-export { useKeyboardShortcuts, getShortcutsByCategory, formatShortcut, type KeyboardShortcut } from './keyboard-shortcuts-handler';
-export { CopyButton } from './copy-button';
-export { RoutingIndicator } from './routing-indicator';
-export { ModeSwitchSuggestion } from './mode-switch-suggestion';
+// Workflow components (from workflow/)
+export { WorkflowPickerDialog, WorkflowResultCard, type WorkflowResultData, type WorkflowExecutionStatus } from './workflow';

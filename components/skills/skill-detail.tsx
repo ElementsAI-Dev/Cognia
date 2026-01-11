@@ -31,7 +31,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { CopyButton } from '@/components/chat/copy-button';
+import { CopyButton } from '@/components/chat/ui/copy-button';
 import {
   Card,
   CardContent,

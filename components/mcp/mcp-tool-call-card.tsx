@@ -32,7 +32,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { CodeBlock } from '@/components/ai-elements/code-block';
-import { CopyButton } from '@/components/chat/copy-button';
+import { CopyButton } from '@/components/chat/ui/copy-button';
 import { ContentItemDisplay } from '@/components/chat/utils/tool-result-display';
 import { MCPServerBadge } from './mcp-server-badge';
 import { MCPProgressIndicator } from './mcp-progress-indicator';

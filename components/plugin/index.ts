@@ -1,48 +1,53 @@
 /**
  * Plugin UI Components - Exports
+ * 
+ * Components are organized into the following subfolders:
+ * - core/       - Core plugin management (Manager, List, Card)
+ * - config/     - Configuration components (Config, SettingsPage, CreateWizard)
+ * - monitoring/ - Monitoring & analytics (Analytics, Health, Profiler, etc.)
+ * - extension/  - Extension point system
+ * - schema/     - JSON Schema form components
+ * - dev/        - Development tools
  */
 
-export { PluginManager } from './plugin-manager';
-export { PluginList } from './plugin-list';
-export { PluginCard } from './plugin-card';
-export { PluginConfig } from './plugin-config';
-export { PluginDevTools } from './plugin-dev-tools';
-export { PluginAnalytics } from './plugin-analytics';
-export { PluginCreateWizard } from './plugin-create-wizard';
-export { PluginSettingsPage } from './plugin-settings-page';
+// Core plugin management
+export { PluginManager, PluginList, PluginCard } from './core';
+
+// Configuration
+export { PluginConfig, PluginSettingsPage, PluginCreateWizard } from './config';
+
+// Monitoring & Analytics
+export { 
+  PluginAnalytics,
+  PluginHealth,
+  PluginProfiler,
+  PluginDependencyTree,
+  PluginConflicts,
+  PluginUpdates,
+  type PluginHealthProps,
+  type PluginProfilerProps,
+  type PluginDependencyTreeProps,
+  type PluginConflictsProps,
+  type PluginUpdatesProps,
+} from './monitoring';
 
 // Extension points
 export { 
   PluginExtensionPoint, 
   useHasExtensions, 
   useExtensions 
-} from './extension-point';
+} from './extension';
 
 // Schema Form
 export { 
   SchemaForm, 
   validateAgainstSchema,
+  SchemaField,
   type JSONSchema,
   type SchemaFormProps,
-} from './schema-form';
-
-export { 
-  SchemaField,
   type FieldSchema,
   type SchemaFieldProps,
-} from './schema-field';
+} from './schema';
 
-// Profiler
-export { PluginProfiler, type PluginProfilerProps } from './plugin-profiler';
-
-// Health Monitoring
-export { PluginHealth, type PluginHealthProps } from './plugin-health';
-
-// Dependency Tree
-export { PluginDependencyTree, type PluginDependencyTreeProps } from './plugin-dependency-tree';
-
-// Conflict Detection
-export { PluginConflicts, type PluginConflictsProps } from './plugin-conflicts';
-
-// Updates Management
-export { PluginUpdates, type PluginUpdatesProps } from './plugin-updates';
+// Development Tools
+export { PluginDevTools } from './dev';

@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Bot, User, AlertCircle, RefreshCw, Sparkles, Volume2, VolumeX, ThumbsUp, ThumbsDown, Pencil, Check, X, ArrowRight } from "lucide-react";
 import { Streamdown } from "streamdown";
-import { InlineCopyButton } from "@/components/chat/copy-button";
+import { InlineCopyButton } from "@/components/chat/ui/copy-button";
 import { LoadingAnimation } from "@/components/chat/renderers/loading-animation";
 import { EmptyState } from "@/components/layout/empty-state";
 import { useSpeech } from "@/hooks/media/use-speech";

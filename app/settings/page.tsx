@@ -33,6 +33,7 @@ import {
   Globe,
   GitBranch,
   Play,
+  ShoppingBag,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -99,7 +100,8 @@ import {
   GitSettings,
 } from '@/components/settings';
 import { SelectionToolbarSettings } from '@/components/selection-toolbar/settings-panel';
-import { PromptTemplateManager } from '@/components/prompt-templates/prompt-template-manager';
+import { PromptTemplateManager, PromptMarketplaceBrowser } from '@/components/prompt';
+import { PluginSettingsPage } from '@/components/plugin';
 
 type SettingsSection = 
   | 'providers'
@@ -107,6 +109,7 @@ type SettingsSection =
   | 'mcp'
   | 'tools'
   | 'skills'
+  | 'plugins'
   | 'instructions'
   | 'memory'
   | 'usage'
@@ -123,6 +126,7 @@ type SettingsSection =
   | 'selection'
   | 'native-tools'
   | 'prompt-templates'
+  | 'prompt-marketplace'
   | 'sandbox'
   | 'git';
 
@@ -240,6 +244,13 @@ export default function SettingsPage() {
       group: 'ai',
     },
     {
+      id: 'plugins',
+      label: 'Plugins',
+      icon: <Puzzle className="h-4 w-4" />,
+      description: 'Plugin management and development',
+      group: 'ai',
+    },
+    {
       id: 'instructions',
       label: 'Instructions',
       icon: <FileText className="h-4 w-4" />,
@@ -279,6 +290,13 @@ export default function SettingsPage() {
       label: 'Prompt Templates',
       icon: <FileText className="h-4 w-4" />,
       description: 'Manage reusable prompt instructions',
+      group: 'interface',
+    },
+    {
+      id: 'prompt-marketplace',
+      label: 'Prompt Marketplace',
+      icon: <ShoppingBag className="h-4 w-4" />,
+      description: 'Browse and install community prompts',
       group: 'interface',
     },
     {
@@ -406,6 +424,8 @@ export default function SettingsPage() {
         return <ToolSettings />;
       case 'skills':
         return <SkillSettings />;
+      case 'plugins':
+        return <PluginSettingsPage />;
       case 'desktop':
         return <DesktopSettings />;
       case 'environment':
@@ -418,6 +438,8 @@ export default function SettingsPage() {
         return <NativeToolsSettings />;
       case 'prompt-templates':
         return <PromptTemplateManager />;
+      case 'prompt-marketplace':
+        return <PromptMarketplaceBrowser />;
       case 'sandbox':
         return <SandboxSettings />;
       case 'git':

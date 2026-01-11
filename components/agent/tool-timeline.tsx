@@ -25,7 +25,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CopyButton } from '@/components/chat/copy-button';
+import { CopyButton } from '@/components/chat/ui/copy-button';
 import {
   Collapsible,
   CollapsibleContent,

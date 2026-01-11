@@ -45,7 +45,7 @@ import { PRESET_COLORS, PRESET_ICONS, type Preset, type BuiltinPrompt } from '@/
 import { PROVIDERS, type ProviderName } from '@/types/provider';
 import { nanoid } from 'nanoid';
 import { cn } from '@/lib/utils';
-import { PromptTemplateSelector } from '@/components/prompt-templates';
+import { PromptTemplateSelector } from '@/components/prompt';
 
 interface CreatePresetDialogProps {
   open: boolean;

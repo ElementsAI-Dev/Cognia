@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CopyButton } from "@/components/chat/copy-button";
+import { CopyButton } from "@/components/chat/ui/copy-button";
 import { cn } from "@/lib/utils";
 import { PanelRightOpen, Download } from "lucide-react";
 import { useArtifactStore } from "@/stores";

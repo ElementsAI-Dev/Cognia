@@ -34,7 +34,7 @@ import { DragOverlay } from './chat-input/drag-overlay';
 import { PreviewDialog } from './chat-input/preview-dialog';
 import { BottomToolbar } from './chat-input/bottom-toolbar';
 import { formatFileSize, getFileType } from './chat-input/utils';
-import { PromptTemplateSelector } from '@/components/prompt-templates';
+import { PromptTemplateSelector } from '@/components/prompt';
 
 // Helper to get caret coordinates in textarea for mention popover positioning
 function getCaretCoordinates(textarea: HTMLTextAreaElement): DOMRect | null {

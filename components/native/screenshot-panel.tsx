@@ -13,7 +13,7 @@ import {
   InputGroupInput,
   InputGroupButton,
 } from '@/components/ui/input-group';
-import { CopyButton } from '@/components/chat/copy-button';
+import { CopyButton } from '@/components/chat/ui/copy-button';
 import { EmptyState } from '@/components/layout/empty-state';
 import {
   Camera,

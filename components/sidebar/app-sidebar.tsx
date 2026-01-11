@@ -48,6 +48,7 @@ import { SidebarBackgroundTasks } from './sidebar-background-tasks';
 import { SidebarQuickActions } from './sidebar-quick-actions';
 import { SidebarRecentFiles } from './sidebar-recent-files';
 import { SidebarWorkflows } from './sidebar-workflows';
+import { PluginExtensionPoint } from '@/components/plugin';
 import type { Session } from '@/types';
 
 const COLLAPSED_GROUPS_KEY = 'cognia:sidebar:collapsed-groups';
@@ -439,6 +440,14 @@ export function AppSidebar() {
           <div className="px-2 pb-2">
             <SidebarWorkflows defaultOpen={false} limit={5} />
           </div>
+        )}
+
+        {/* Plugin Extension Point - sidebar bottom */}
+        {!isCollapsed && (
+          <PluginExtensionPoint 
+            point="sidebar.left.bottom" 
+            className="px-2 pb-2"
+          />
         )}
 
         {/* Session Artifacts - quick access */}
