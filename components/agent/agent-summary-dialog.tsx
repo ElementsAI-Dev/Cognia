@@ -18,7 +18,6 @@ import {
   Download,
   Copy,
   Check,
-  Loader2,
   ChevronDown,
   Sparkles,
   Clock,
@@ -30,6 +29,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LoadingSpinner } from '@/components/ui/loading-states';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -103,7 +103,7 @@ function getStatusIcon(status: string) {
     case 'failed':
       return <XCircle className="h-4 w-4 text-destructive" />;
     case 'running':
-      return <Loader2 className="h-4 w-4 text-primary animate-spin" />;
+      return <LoadingSpinner size="sm" className="text-primary" />;
     default:
       return <Clock className="h-4 w-4 text-muted-foreground" />;
   }
@@ -406,7 +406,7 @@ export function AgentSummaryDialog({
                     disabled={isGenerating}
                   >
                     {isGenerating ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <LoadingSpinner size="sm" className="mr-2" />
                     ) : (
                       <Sparkles className="h-4 w-4 mr-2" />
                     )}
@@ -560,7 +560,7 @@ export function AgentSummaryDialog({
               disabled={isGenerating}
             >
               {isGenerating ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                <LoadingSpinner size="sm" className="mr-1" />
               ) : (
                 <RefreshCw className="h-4 w-4 mr-1" />
               )}
@@ -569,7 +569,7 @@ export function AgentSummaryDialog({
 
             <Button onClick={handleGenerateBoth} disabled={isGenerating}>
               {isGenerating ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <LoadingSpinner size="sm" className="mr-2" />
               ) : (
                 <Sparkles className="h-4 w-4 mr-2" />
               )}
