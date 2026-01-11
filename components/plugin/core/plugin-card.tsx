@@ -37,6 +37,7 @@ import {
   LayoutGrid,
   FileCode2,
 } from 'lucide-react';
+import { InlineLoading } from '@/components/ui/loading-states';
 
 interface PluginCardProps {
   plugin: Plugin;
@@ -149,11 +150,7 @@ export function PluginCard({
           >
             {status}
           </Badge>
-          {isLoading && (
-            <span className="text-xs text-muted-foreground animate-pulse">
-              Loading...
-            </span>
-          )}
+          {isLoading && <InlineLoading />}
         </div>
 
         {/* Error message */}
