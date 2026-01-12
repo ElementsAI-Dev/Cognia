@@ -388,7 +388,11 @@
     "openInOtherAI": "Open in Other AI",
     "exportBasic": "Basic Export",
     "summarize": "Summarize & Diagram",
-    "videoEditor": "Video Editor"
+    "videoEditor": "Video Editor",
+    "projectLink": "Project Link",
+    "linkToProject": "Link to Project",
+    "unlinkProject": "Unlink from project",
+    "manageProjects": "Manage Projects"
   },
   "chatSummary": {
     "title": "Chat Summary & Diagram",
@@ -581,7 +585,15 @@
     "selectionToolbar": "Selection Toolbar",
     "selectionToolbarDesc": "Quick actions for selected text",
     "recentFiles": "Recent Files",
-    "filesCount": "{count} files"
+    "filesCount": "{count} files",
+    "allProjects": "All Projects",
+    "filtered": "Filtered",
+    "active": "Active",
+    "setAsActive": "Set as active project",
+    "manageProjects": "Manage Projects",
+    "moveToProject": "Move to Project",
+    "removeFromProject": "Remove from project",
+    "noProjects": "No projects"
   },
   "settings": {
     "title": "Settings",
@@ -3106,7 +3118,10 @@
     "wordExported": "Exported to Word",
     "csvExported": "Exported to CSV",
     "knowledgeMapGenerated": "Knowledge map generated",
-    "highlighted": "Text highlighted"
+    "highlighted": "Text highlighted",
+    "linkedToProject": "Linked to project",
+    "unlinkedFromProject": "Unlinked from project",
+    "movedToProject": "Moved to project"
   },
   "accessibility": {
     "toggleSidebar": "Toggle Sidebar",

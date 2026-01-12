@@ -8,8 +8,9 @@
 //! - Mode-specific sizing (debug vs production)
 //! - Proper window lifecycle management with event handling
 
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
@@ -105,6 +106,8 @@ pub struct ChatWidgetWindow {
     app_handle: AppHandle,
     /// Whether the window is currently visible
     is_visible: Arc<AtomicBool>,
+    /// Whether the window is minimized (folded)
+    is_minimized: Arc<AtomicBool>,
     /// Current position
     position: Arc<RwLock<Option<(i32, i32)>>>,
     /// Current size
@@ -112,19 +115,75 @@ pub struct ChatWidgetWindow {
     size_logical: Arc<RwLock<(f64, f64)>>,
     /// Configuration
     config: Arc<RwLock<ChatWidgetConfig>>,
+    /// Guard to prevent concurrent window creation
+    creation_lock: Arc<Mutex<()>>,
+    /// Config file path for persistence
+    config_path: PathBuf,
 }
 
 impl ChatWidgetWindow {
     pub fn new(app_handle: AppHandle) -> Self {
         log::debug!("[ChatWidgetWindow] Creating new instance");
+        
+        // Get config path from app data directory
+        let config_path = app_handle
+            .path()
+            .app_data_dir()
+            .map(|p| p.join("chat_widget_config.json"))
+            .unwrap_or_else(|_| PathBuf::from("chat_widget_config.json"));
+        
+        // Try to load existing config
+        let config = Self::load_config_from_file(&config_path).unwrap_or_default();
+        let position = config.x.zip(config.y);
+        let size_logical = (config.width, config.height);
+        let size_physical = (config.width as u32, config.height as u32);
+        
         Self {
             app_handle,
             is_visible: Arc::new(AtomicBool::new(false)),
-            position: Arc::new(RwLock::new(None)),
-            size_physical: Arc::new(RwLock::new((DEFAULT_WIDTH as u32, DEFAULT_HEIGHT as u32))),
-            size_logical: Arc::new(RwLock::new((DEFAULT_WIDTH, DEFAULT_HEIGHT))),
-            config: Arc::new(RwLock::new(ChatWidgetConfig::default())),
+            is_minimized: Arc::new(AtomicBool::new(false)),
+            position: Arc::new(RwLock::new(position)),
+            size_physical: Arc::new(RwLock::new(size_physical)),
+            size_logical: Arc::new(RwLock::new(size_logical)),
+            config: Arc::new(RwLock::new(config)),
+            creation_lock: Arc::new(Mutex::new(())),
+            config_path,
         }
+    }
+    
+    /// Load config from file
+    fn load_config_from_file(path: &PathBuf) -> Option<ChatWidgetConfig> {
+        if path.exists() {
+            match std::fs::read_to_string(path) {
+                Ok(content) => match serde_json::from_str(&content) {
+                    Ok(config) => {
+                        log::debug!("[ChatWidgetWindow] Loaded config from {:?}", path);
+                        return Some(config);
+                    }
+                    Err(e) => log::warn!("[ChatWidgetWindow] Failed to parse config: {}", e),
+                },
+                Err(e) => log::warn!("[ChatWidgetWindow] Failed to read config file: {}", e),
+            }
+        }
+        None
+    }
+    
+    /// Save config to file
+    pub fn save_config(&self) -> Result<(), String> {
+        let config = self.config.read().clone();
+        let content = serde_json::to_string_pretty(&config)
+            .map_err(|e| format!("Failed to serialize config: {}", e))?;
+        
+        // Ensure parent directory exists
+        if let Some(parent) = self.config_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        
+        std::fs::write(&self.config_path, content)
+            .map_err(|e| format!("Failed to write config file: {}", e))?;
+        
+        log::debug!("[ChatWidgetWindow] Config saved to {:?}", self.config_path);
+        Ok(())
     }
 
     /// Get current configuration
@@ -140,6 +199,10 @@ impl ChatWidgetWindow {
 
     /// Ensure the chat widget window exists
     pub fn ensure_window_exists(&self) -> Result<(), String> {
+        // Acquire lock to prevent concurrent window creation
+        let _guard = self.creation_lock.lock();
+        
+        // Double-check after acquiring lock
         if self
             .app_handle
             .get_webview_window(CHAT_WIDGET_WINDOW_LABEL)
@@ -265,6 +328,12 @@ impl ChatWidgetWindow {
                 tauri::WindowEvent::Focused(focused) => {
                     log::trace!("[ChatWidgetWindow] Focus changed: {}", focused);
                     let _ = app_handle.emit("chat-widget-focus-changed", focused);
+                }
+                tauri::WindowEvent::Destroyed => {
+                    // Window was destroyed, reset visibility state
+                    is_visible.store(false, Ordering::SeqCst);
+                    log::debug!("[ChatWidgetWindow] Window destroyed");
+                    let _ = app_handle.emit("chat-widget-destroyed", ());
                 }
                 _ => {}
             }
@@ -542,18 +611,86 @@ impl ChatWidgetWindow {
     pub fn destroy(&self) -> Result<(), String> {
         log::debug!("[ChatWidgetWindow] destroy() called");
 
-        // Save position before destroying
+        // Save position and config before destroying
         self.save_position();
+        if let Err(e) = self.save_config() {
+            log::warn!("[ChatWidgetWindow] Failed to save config on destroy: {}", e);
+        }
 
         if let Some(window) = self.app_handle.get_webview_window(CHAT_WIDGET_WINDOW_LABEL) {
+            let _ = window.hide();
             window
                 .destroy()
                 .map_err(|e| format!("Failed to destroy window: {}", e))?;
         }
 
         self.is_visible.store(false, Ordering::SeqCst);
+        self.is_minimized.store(false, Ordering::SeqCst);
         log::info!("[ChatWidgetWindow] Window destroyed");
         Ok(())
+    }
+    
+    /// Minimize (fold) the chat widget window
+    pub fn minimize(&self) -> Result<(), String> {
+        log::debug!("[ChatWidgetWindow] minimize() called");
+        
+        if let Some(window) = self.app_handle.get_webview_window(CHAT_WIDGET_WINDOW_LABEL) {
+            window
+                .minimize()
+                .map_err(|e| format!("Failed to minimize window: {}", e))?;
+            self.is_minimized.store(true, Ordering::SeqCst);
+            
+            let _ = self.app_handle.emit("chat-widget-minimized", true);
+            log::info!("[ChatWidgetWindow] Window minimized");
+        }
+        Ok(())
+    }
+    
+    /// Unminimize (unfold) the chat widget window
+    pub fn unminimize(&self) -> Result<(), String> {
+        log::debug!("[ChatWidgetWindow] unminimize() called");
+        
+        if let Some(window) = self.app_handle.get_webview_window(CHAT_WIDGET_WINDOW_LABEL) {
+            window
+                .unminimize()
+                .map_err(|e| format!("Failed to unminimize window: {}", e))?;
+            self.is_minimized.store(false, Ordering::SeqCst);
+            
+            let _ = self.app_handle.emit("chat-widget-minimized", false);
+            log::info!("[ChatWidgetWindow] Window unminimized");
+        }
+        Ok(())
+    }
+    
+    /// Check if window is minimized
+    pub fn is_minimized(&self) -> bool {
+        self.is_minimized.load(Ordering::SeqCst)
+    }
+    
+    /// Toggle minimized state
+    pub fn toggle_minimize(&self) -> Result<bool, String> {
+        if self.is_minimized() {
+            self.unminimize()?;
+            Ok(false)
+        } else {
+            self.minimize()?;
+            Ok(true)
+        }
+    }
+    
+    /// Recreate the window if it was destroyed unexpectedly
+    pub fn recreate_if_needed(&self) -> Result<bool, String> {
+        if self
+            .app_handle
+            .get_webview_window(CHAT_WIDGET_WINDOW_LABEL)
+            .is_none()
+        {
+            log::info!("[ChatWidgetWindow] Window was destroyed, recreating...");
+            self.ensure_window_exists()?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     /// Focus the input field in the chat widget
@@ -588,5 +725,26 @@ impl ChatWidgetWindow {
             .map_err(|e| format!("Failed to emit event: {}", e))?;
 
         Ok(())
+    }
+    
+    /// Sync visibility state with actual window state
+    /// Call this if you suspect the state might be out of sync
+    pub fn sync_visibility(&self) {
+        let actual_visible = self
+            .app_handle
+            .get_webview_window(CHAT_WIDGET_WINDOW_LABEL)
+            .map(|w| w.is_visible().unwrap_or(false))
+            .unwrap_or(false);
+        
+        let stored_visible = self.is_visible.load(Ordering::SeqCst);
+        
+        if actual_visible != stored_visible {
+            log::warn!(
+                "[ChatWidgetWindow] Visibility state mismatch: stored={}, actual={}. Syncing.",
+                stored_visible,
+                actual_visible
+            );
+            self.is_visible.store(actual_visible, Ordering::SeqCst);
+        }
     }
 }

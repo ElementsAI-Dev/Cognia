@@ -72,6 +72,13 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
         true,
         None::<&str>,
     )?;
+    let bubble_toggle_minimize_item = MenuItem::with_id(
+        app,
+        "bubble-toggle-minimize",
+        "📌 折叠/展开气泡\t\tAlt+M",
+        true,
+        None::<&str>,
+    )?;
 
     // ═══════════════════════════════════════════════════════════════════
     // Section 2: Tools - Screenshot
@@ -269,6 +276,7 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
             &chat_widget_item,
             &bubble_show_item,
             &bubble_hide_item,
+            &bubble_toggle_minimize_item,
             &PredefinedMenuItem::separator(app)?,
             // Tools
             &screenshot_submenu,
@@ -502,6 +510,21 @@ pub fn handle_tray_menu_event(app: &AppHandle, item_id: String) {
                     }
                     Err(e) => {
                         log::error!("Failed to hide assistant bubble: {}", e);
+                    }
+                }
+            }
+        }
+        "bubble-toggle-minimize" => {
+            if let Some(manager) = app.try_state::<AssistantBubbleWindow>() {
+                match manager.toggle_minimize() {
+                    Ok(minimized) => {
+                        log::info!(
+                            "Assistant bubble {}", 
+                            if minimized { "minimized (folded)" } else { "restored (unfolded)" }
+                        );
+                    }
+                    Err(e) => {
+                        log::error!("Failed to toggle bubble minimize: {}", e);
                     }
                 }
             }
@@ -1022,6 +1045,9 @@ mod tests {
         "show-window",
         "hide-window",
         "toggle-chat-widget",
+        "bubble-show",
+        "bubble-hide",
+        "bubble-toggle-minimize",
         "screenshot-fullscreen",
         "screenshot-region",
         "screenshot-window",
@@ -1046,7 +1072,7 @@ mod tests {
 
     #[test]
     fn test_all_menu_ids_documented() {
-        assert_eq!(EXPECTED_MENU_IDS.len(), 23, "Expected 23 menu item IDs");
+        assert_eq!(EXPECTED_MENU_IDS.len(), 26, "Expected 26 menu item IDs");
     }
 
     #[test]

@@ -1,5 +1,5 @@
 /**
- * AI Prompts Index - Export all prompt templates
+ * AI Prompts Index - Export all prompt templates and optimization utilities
  */
 
 // Summary prompts
@@ -27,3 +27,9 @@ export {
   buildA2UIFeedbackPrompt,
   type A2UITemplate,
 } from './a2ui-prompts';
+
+// Prompt optimizer
+export * from './prompt-optimizer';
+
+// Prompt self-optimizer (analysis, A/B testing, feedback)
+export * from './prompt-self-optimizer';

@@ -93,6 +93,41 @@ export interface PromptTemplateStats {
 }
 
 /**
+ * Optimization history entry for tracking prompt improvements
+ */
+export interface PromptOptimizationHistory {
+  id: string;
+  templateId: string;
+  originalContent: string;
+  optimizedContent: string;
+  style?: string;
+  suggestions: string[];
+  scores: {
+    before: { clarity: number; specificity: number; structure: number; overall: number };
+    after: { clarity: number; specificity: number; structure: number; overall: number };
+  };
+  appliedAt: Date;
+  appliedBy?: 'user' | 'auto';
+}
+
+/**
+ * Optimization recommendation for a template
+ */
+export interface OptimizationRecommendation {
+  templateId: string;
+  templateName: string;
+  priority: 'high' | 'medium' | 'low';
+  reason: string;
+  metrics: {
+    usageCount: number;
+    averageRating: number;
+    successRate: number;
+    daysSinceOptimized?: number;
+  };
+  suggestedActions: string[];
+}
+
+/**
  * A/B test configuration for prompt optimization
  */
 export interface PromptABTest {

@@ -33,6 +33,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
   InputGroup,
@@ -41,7 +44,7 @@ import {
   InputGroupButton,
 } from '@/components/ui/input-group';
 import { Input } from '@/components/ui/input';
-import { useSessionStore, useSettingsStore } from '@/stores';
+import { useSessionStore, useSettingsStore, useProjectStore } from '@/stores';
 import { ArtifactListCompact } from '@/components/artifacts';
 import { messageRepository } from '@/lib/db';
 import { KeyboardShortcutsDialog } from '@/components/layout/keyboard-shortcuts-dialog';
@@ -50,6 +53,7 @@ import { SidebarBackgroundTasks } from './sidebar-background-tasks';
 import { SidebarQuickActions } from './sidebar-quick-actions';
 import { SidebarRecentFiles } from './sidebar-recent-files';
 import { SidebarWorkflows } from './sidebar-workflows';
+import { SidebarProjectSelector } from './sidebar-project-selector';
 import { PluginExtensionPoint } from '@/components/plugin';
 import type { Session } from '@/types';
 
@@ -79,9 +83,32 @@ export function AppSidebar() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  
+  // Project filter state
+  const [filterProjectId, setFilterProjectId] = useState<string | null>(null);
+  
+  // Project store for auto-linking new chats
+  const activeProjectId = useProjectStore((state) => state.activeProjectId);
+  const getProject = useProjectStore((state) => state.getProject);
+  const addSessionToProject = useProjectStore((state) => state.addSessionToProject);
 
   const handleNewChat = () => {
-    createSession();
+    // Get active project to apply defaults
+    const activeProject = activeProjectId ? getProject(activeProjectId) : null;
+    
+    // Create session with project defaults if active project exists
+    const session = createSession(activeProject ? {
+      projectId: activeProject.id,
+      provider: activeProject.defaultProvider as 'openai' | 'anthropic' | 'google' | 'deepseek' | 'groq' | 'mistral' | 'ollama' | undefined,
+      model: activeProject.defaultModel,
+      mode: activeProject.defaultMode,
+      systemPrompt: activeProject.customInstructions,
+    } : undefined);
+    
+    // Link session to project
+    if (activeProject) {
+      addSessionToProject(activeProject.id, session.id);
+    }
   };
 
   const cycleTheme = () => {
@@ -101,13 +128,21 @@ export function AppSidebar() {
   };
 
   // Memoized and sorted sessions to keep grouping predictable (pinned first, then most recent)
+  // Also filters by project if filterProjectId is set
   const sortedSessions = useMemo(() => {
-    return [...sessions].sort((a, b) => {
+    let filtered = [...sessions];
+    
+    // Filter by project if a project filter is set
+    if (filterProjectId) {
+      filtered = filtered.filter((s) => s.projectId === filterProjectId);
+    }
+    
+    return filtered.sort((a, b) => {
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
       return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
-  }, [sessions]);
+  }, [sessions, filterProjectId]);
 
   // Search function
   const handleSearch = useCallback(async (query: string) => {
@@ -309,6 +344,13 @@ export function AppSidebar() {
             )}
           </div>
         )}
+
+        {/* Project Selector */}
+        <SidebarProjectSelector
+          onFilterChange={setFilterProjectId}
+          filterProjectId={filterProjectId}
+          collapsed={isCollapsed}
+        />
       </SidebarHeader>
 
       <SidebarSeparator />
@@ -629,6 +671,14 @@ function SessionMenuItem({
   const deleteSession = useSessionStore((state) => state.deleteSession);
   const duplicateSession = useSessionStore((state) => state.duplicateSession);
   const togglePinSession = useSessionStore((state) => state.togglePinSession);
+  
+  // Get project info for session
+  const getProject = useProjectStore((state) => state.getProject);
+  const getActiveProjects = useProjectStore((state) => state.getActiveProjects);
+  const addSessionToProject = useProjectStore((state) => state.addSessionToProject);
+  const removeSessionFromProject = useProjectStore((state) => state.removeSessionFromProject);
+  const linkedProject = session.projectId ? getProject(session.projectId) : null;
+  const activeProjects = useMemo(() => getActiveProjects(), [getActiveProjects]);
 
   const handleClick = () => {
     if (!isEditing) {
@@ -688,6 +738,13 @@ function SessionMenuItem({
           {session.pinned && (
             <Pin className="h-2.5 w-2.5 absolute -top-1 -right-1 text-primary" />
           )}
+          {linkedProject && !session.pinned && (
+            <div 
+              className="h-2 w-2 rounded-full absolute -bottom-0.5 -right-0.5 ring-1 ring-background"
+              style={{ backgroundColor: linkedProject.color || '#3B82F6' }}
+              title={linkedProject.name}
+            />
+          )}
         </div>
         <div className="flex flex-col overflow-hidden">
           {isEditing ? (
@@ -739,6 +796,58 @@ function SessionMenuItem({
             <Copy className="mr-2 h-4 w-4" />
             {t('duplicate')}
           </DropdownMenuItem>
+          
+          {/* Project submenu */}
+          <DropdownMenuSeparator />
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <FolderKanban className="mr-2 h-4 w-4" />
+              {linkedProject ? linkedProject.name : t('moveToProject') || 'Move to Project'}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-48">
+              {linkedProject && (
+                <>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      removeSessionFromProject(session.projectId!, session.id);
+                      updateSession(session.id, { projectId: undefined });
+                    }}
+                    className="text-muted-foreground"
+                  >
+                    {t('removeFromProject') || 'Remove from project'}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              {activeProjects.length > 0 ? (
+                activeProjects
+                  .filter(p => p.id !== session.projectId)
+                  .map((project) => (
+                    <DropdownMenuItem
+                      key={project.id}
+                      onClick={() => {
+                        if (session.projectId) {
+                          removeSessionFromProject(session.projectId, session.id);
+                        }
+                        addSessionToProject(project.id, session.id);
+                        updateSession(session.id, { projectId: project.id });
+                      }}
+                    >
+                      <span 
+                        className="mr-2 h-3 w-3 rounded-full shrink-0"
+                        style={{ backgroundColor: project.color || '#3B82F6' }}
+                      />
+                      <span className="truncate">{project.name}</span>
+                    </DropdownMenuItem>
+                  ))
+              ) : (
+                <div className="px-2 py-2 text-xs text-muted-foreground text-center">
+                  {t('noProjects') || 'No projects'}
+                </div>
+              )}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => deleteSession(session.id)}

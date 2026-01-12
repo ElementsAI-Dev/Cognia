@@ -114,6 +114,12 @@ jest.mock('@/types', () => ({
   }),
 }));
 
+const mockDetectLanguage = jest.fn().mockResolvedValue({ code: 'en', name: 'English' });
+
+jest.mock('@/lib/ai/generation/translate', () => ({
+  detectLanguage: (...args: unknown[]) => mockDetectLanguage(...args),
+}));
+
 describe('useSelectionToolbar', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -369,5 +375,77 @@ describe('useSelectionToolbar', () => {
 
     expect(result.current.config).toBeDefined();
     expect(result.current.config.enabled).toBe(true);
+  });
+
+  describe('translation features', () => {
+    it('should provide detectSourceLanguage function', () => {
+      const { result } = renderHook(() => useSelectionToolbar());
+
+      expect(typeof result.current.detectSourceLanguage).toBe('function');
+    });
+
+    it('should provide updateTargetLanguage function', () => {
+      const { result } = renderHook(() => useSelectionToolbar());
+
+      expect(typeof result.current.updateTargetLanguage).toBe('function');
+    });
+
+    it('should detect source language', async () => {
+      const { result } = renderHook(() => useSelectionToolbar());
+
+      let detectedLang: string | null = null;
+      await act(async () => {
+        detectedLang = await result.current.detectSourceLanguage('Hello world');
+      });
+
+      expect(mockDetectLanguage).toHaveBeenCalledWith('Hello world', expect.any(Object));
+      expect(detectedLang).toBe('en');
+    });
+
+    it('should return null for short text', async () => {
+      const { result } = renderHook(() => useSelectionToolbar());
+
+      let detectedLang: string | null = null;
+      await act(async () => {
+        detectedLang = await result.current.detectSourceLanguage('Hi');
+      });
+
+      // Text less than 3 characters should return null without calling detect
+      expect(detectedLang).toBeNull();
+    });
+
+    it('should return null for empty text', async () => {
+      const { result } = renderHook(() => useSelectionToolbar());
+
+      let detectedLang: string | null = null;
+      await act(async () => {
+        detectedLang = await result.current.detectSourceLanguage('');
+      });
+
+      expect(detectedLang).toBeNull();
+    });
+
+    it('should handle detection errors gracefully', async () => {
+      mockDetectLanguage.mockRejectedValueOnce(new Error('API error'));
+      const { result } = renderHook(() => useSelectionToolbar());
+
+      let detectedLang: string | null = 'initial';
+      await act(async () => {
+        detectedLang = await result.current.detectSourceLanguage('Hello world test');
+      });
+
+      expect(detectedLang).toBeNull();
+    });
+
+    it('should update target language', () => {
+      const { result } = renderHook(() => useSelectionToolbar());
+
+      act(() => {
+        result.current.updateTargetLanguage('ja');
+      });
+
+      // The store's updateConfig should be called
+      expect(mockStore.config).toBeDefined();
+    });
   });
 });

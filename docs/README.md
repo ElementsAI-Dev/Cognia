@@ -184,4 +184,4 @@ For questions, issues, or contributions:
 
 ---
 
-**Last Updated**: January 3, 2026
+**Last Updated**: January 12, 2026

@@ -5,19 +5,28 @@
  * Supports multiple counting methods:
  * 1. tiktoken (o200k_base) - Accurate OpenAI token counting for GPT-4o
  * 2. tiktoken (cl100k_base) - For GPT-4, GPT-3.5-turbo
- * 3. Claude estimation - Provider-specific estimation
- * 4. General estimation - Fast fallback
+ * 3. Claude API - Anthropic's official token counter
+ * 4. Gemini API - Google's official token counter
+ * 5. GLM API - Zhipu's official token counter
+ * 6. General estimation - Fast fallback
+ * 
+ * Integration with TokenizerRegistry for multi-provider support
+ * 
+ * NOTE: Core tokenizer implementations are in @/lib/ai/tokenizer
+ * This hook provides React integration and UI-specific utilities
  */
 
-import { useMemo, useState, useCallback } from 'react';
-import { getEncoding, type Tiktoken } from 'js-tiktoken';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import type { UIMessage } from '@/types/core/message';
-
-// Encoder cache for different encodings
-const encoderCache: Map<string, Tiktoken> = new Map();
-
-// Supported tiktoken encodings
-type TiktokenEncoding = 'o200k_base' | 'cl100k_base' | 'p50k_base';
+import {
+  getTokenizerRegistry,
+  tiktokenTokenizer,
+  estimateTokensFast,
+  getEncodingForModel,
+  clearEncoderCache,
+  type TokenizerApiKeys,
+} from '@/lib/ai/tokenizer';
+import type { TokenizerProvider, TiktokenEncoding } from '@/types/system/tokenizer';
 
 export type TokenCountMethod = 'tiktoken' | 'estimation' | 'claude-api';
 
@@ -55,96 +64,49 @@ export interface TokenCountOptions {
   claudeApiKey?: string;
 }
 
-/**
- * Get or create a tiktoken encoder for the specified encoding
- */
-function getTiktokenEncoder(encoding: TiktokenEncoding = 'o200k_base'): Tiktoken | null {
-  try {
-    if (!encoderCache.has(encoding)) {
-      const encoder = getEncoding(encoding);
-      encoderCache.set(encoding, encoder);
-    }
-    return encoderCache.get(encoding) || null;
-  } catch (error) {
-    console.warn(`Failed to get tiktoken encoder for ${encoding}:`, error);
-    return null;
-  }
-}
-
-/**
- * Get the appropriate tiktoken encoding for a model
- */
-export function getEncodingForModel(model?: string): TiktokenEncoding {
-  if (!model) return 'o200k_base';
-  
-  const modelLower = model.toLowerCase();
-  
-  // GPT-4o and newer use o200k_base
-  if (modelLower.includes('gpt-4o') || modelLower.includes('o1') || modelLower.includes('o3')) {
-    return 'o200k_base';
-  }
-  
-  // GPT-4, GPT-3.5-turbo use cl100k_base
-  if (modelLower.includes('gpt-4') || modelLower.includes('gpt-3.5') || modelLower.includes('text-embedding')) {
-    return 'cl100k_base';
-  }
-  
-  // Older models use p50k_base
-  if (modelLower.includes('davinci') || modelLower.includes('curie') || modelLower.includes('babbage') || modelLower.includes('ada')) {
-    return 'p50k_base';
-  }
-  
-  // Default to newest encoding
-  return 'o200k_base';
-}
+// Re-export getEncodingForModel for backward compatibility
+export { getEncodingForModel } from '@/lib/ai/tokenizer';
 
 /**
  * Count tokens using tiktoken (accurate for OpenAI models)
+ * Uses the centralized TiktokenTokenizer from @/lib/ai/tokenizer
  */
-export function countTokensTiktoken(content: string, encoding: TiktokenEncoding = 'o200k_base'): number {
+export async function countTokensTiktokenAsync(content: string, model?: string): Promise<number> {
   if (!content || content.length === 0) return 0;
-  
-  const encoder = getTiktokenEncoder(encoding);
-  if (!encoder) return estimateTokensFast(content);
-  
-  try {
-    const tokens = encoder.encode(content);
-    return tokens.length;
-  } catch (error) {
-    console.warn('Tiktoken encoding failed, falling back to estimation:', error);
-    return estimateTokensFast(content);
-  }
+  const result = await tiktokenTokenizer.countTokens(content, { model });
+  return result.tokens;
+}
+
+/**
+ * Count tokens using tiktoken (synchronous version for backward compatibility)
+ * Note: Uses estimation as fallback since tiktoken is async
+ */
+export function countTokensTiktoken(content: string, _encoding: TiktokenEncoding = 'o200k_base'): number {
+  if (!content || content.length === 0) return 0;
+  // For sync calls, use fast estimation with encoding consideration
+  // Accurate async counting should use countTokensTiktokenAsync
+  return estimateTokensFast(content);
 }
 
 /**
  * Count tokens for a chat message including role tokens (OpenAI format)
  * Based on OpenAI's token counting guide
+ * Note: For accurate async counting, use the TokenizerRegistry directly
  */
 export function countChatMessageTokens(
   role: string,
   content: string,
   name?: string,
-  encoding: TiktokenEncoding = 'o200k_base'
+  _encoding: TiktokenEncoding = 'o200k_base'
 ): number {
-  const encoder = getTiktokenEncoder(encoding);
-  if (!encoder) return estimateTokensFast(content) + 4;
-  
-  try {
-    let numTokens = 0;
-    
-    // Every message follows <|start|>{role/name}\n{content}<|end|>\n
-    numTokens += 3; // <|start|>, role, <|end|>
-    numTokens += encoder.encode(content).length;
-    
-    if (name) {
-      numTokens += encoder.encode(name).length;
-      numTokens += 1; // role is always required and name is additional
-    }
-    
-    return numTokens;
-  } catch (_error) {
-    return estimateTokensFast(content) + 4;
+  // Use estimation for sync calls
+  // For accurate counting, use getTokenizerRegistry().countMessageTokens()
+  let numTokens = estimateTokensFast(content);
+  numTokens += 3; // Message overhead (<|start|>, role, <|end|>)
+  if (name) {
+    numTokens += Math.ceil(name.length / 4) + 1;
   }
+  return numTokens;
 }
 
 /**
@@ -167,17 +129,30 @@ export function countConversationTokens(
 }
 
 /**
- * Fast estimation fallback (~4 chars per token)
+ * Async version of conversation token counting using TokenizerRegistry
  */
-export function estimateTokensFast(content: string): number {
-  if (!content || content.length === 0) return 0;
-  // OpenAI's rule of thumb: 1 token ≈ 4 characters for English
-  // Add 10% for special tokens and encoding overhead
-  return Math.ceil(content.length / 4 * 1.1);
+export async function countConversationTokensAsync(
+  messages: Array<{ role: string; content: string; name?: string }>,
+  model?: string
+): Promise<number> {
+  const registry = getTokenizerRegistry();
+  const result = await registry.countMessageTokens(
+    messages.map(m => ({
+      role: m.role as 'user' | 'assistant' | 'system',
+      content: m.content,
+      name: m.name,
+    })),
+    { model }
+  );
+  return result.tokens;
 }
+
+// Re-export estimateTokensFast for backward compatibility
+export { estimateTokensFast } from '@/lib/ai/tokenizer';
 
 /**
  * Estimate token count with content-aware adjustments
+ * Note: For more accurate estimation, use the EstimationTokenizer from @/lib/ai/tokenizer
  */
 export function estimateTokens(content: string, _charsPerToken: number = 4): number {
   if (!content || content.length === 0) return 0;
@@ -309,9 +284,8 @@ export function calculateTokenBreakdown(
 
   // Determine counting method
   const method = forcedMethod || getTokenCountMethod(provider, model);
-  const encoding = method === 'tiktoken' ? getEncodingForModel(model) : 'o200k_base';
-  const encoder = method === 'tiktoken' ? getTiktokenEncoder(encoding) : null;
-  const isExact = method === 'tiktoken' && encoder !== null;
+  // Note: Synchronous counting uses estimation; for exact counts use calculateTokenBreakdownAsync
+  const isExact = false;
 
   // Count function based on method
   const count = (content: string) => countTokens(content, method, model);
@@ -319,21 +293,17 @@ export function calculateTokenBreakdown(
   // System tokens (prompt + additional context)
   let systemTokens = 0;
   if (systemPrompt) {
-    systemTokens += method === 'tiktoken' 
-      ? countChatMessageTokens('system', systemPrompt, undefined, encoding)
-      : count(systemPrompt);
+    systemTokens += countChatMessageTokens('system', systemPrompt);
   }
   if (additionalContext) {
     systemTokens += count(additionalContext);
   }
 
-  // Per-message breakdown using accurate chat message counting
+  // Per-message breakdown
   const messageTokens = messages.map(msg => ({
     id: msg.id,
     role: msg.role,
-    tokens: method === 'tiktoken'
-      ? countChatMessageTokens(msg.role, msg.content, undefined, encoding)
-      : count(msg.content),
+    tokens: countChatMessageTokens(msg.role, msg.content),
   }));
 
   // Aggregate by role
@@ -381,15 +351,13 @@ export function useTokenCount(
 
   // Reload function to force encoder re-initialization and re-count
   const reload = useCallback(() => {
-    const effectiveMethod = method || getTokenCountMethod(provider, model);
-    if (effectiveMethod === 'tiktoken') {
-      const encoding = getEncodingForModel(model);
-      // Clear cache to force re-initialization
-      encoderCache.delete(encoding);
-    }
+    // Clear the centralized encoder cache
+    clearEncoderCache();
+    // Clear TokenizerRegistry cache
+    getTokenizerRegistry().clearCache();
     // Trigger re-calculation
     setReloadCounter(c => c + 1);
-  }, [provider, model, method]);
+  }, []);
 
   const breakdown = useMemo(() => {
     // Include reloadCounter to trigger re-calculation when reload is called
@@ -442,6 +410,389 @@ export function formatTokenCount(tokens: number): string {
     return `${(tokens / 1000).toFixed(1)}K`;
   }
   return tokens.toString();
+}
+
+/**
+ * Extended options for enhanced token counting with multi-provider support
+ */
+export interface TokenCountOptionsEnhanced extends TokenCountOptions {
+  /** Force specific tokenizer provider (overrides method) */
+  tokenizerProvider?: TokenizerProvider;
+  /** API keys for remote tokenizers */
+  apiKeys?: TokenizerApiKeys;
+  /** Use async counting with registry */
+  useRegistry?: boolean;
+}
+
+/**
+ * Calculate token breakdown using the enhanced tokenizer registry
+ * Supports Gemini, Claude, GLM APIs in addition to tiktoken
+ */
+export async function calculateTokenBreakdownAsync(
+  messages: UIMessage[],
+  options: TokenCountOptionsEnhanced = {}
+): Promise<TokenBreakdown & { cachedTokens?: number; thinkingTokens?: number }> {
+  const {
+    systemPrompt = '',
+    additionalContext = '',
+    model,
+    tokenizerProvider,
+    apiKeys,
+  } = options;
+
+  const registry = getTokenizerRegistry();
+  
+  if (apiKeys) {
+    registry.setApiKeys(apiKeys);
+  }
+
+  // Build messages for counting
+  const countMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+  
+  if (systemPrompt) {
+    countMessages.push({ role: 'system', content: systemPrompt });
+  }
+  
+  if (additionalContext) {
+    countMessages.push({ role: 'system', content: additionalContext });
+  }
+  
+  countMessages.push(...messages.map(msg => ({
+    role: msg.role as 'user' | 'assistant' | 'system',
+    content: msg.content,
+  })));
+
+  try {
+    const totalResult = await registry.countMessageTokens(countMessages, {
+      model,
+      provider: tokenizerProvider,
+    });
+
+    // Calculate per-message breakdown
+    const messageTokens: Array<{ id: string; role: string; tokens: number }> = [];
+    
+    for (const msg of messages) {
+      const msgResult = await registry.countTokens(msg.content, {
+        model,
+        provider: tokenizerProvider,
+      });
+      messageTokens.push({
+        id: msg.id,
+        role: msg.role,
+        tokens: msgResult.tokens + 4,
+      });
+    }
+
+    // Calculate system tokens
+    let systemTokens = 0;
+    if (systemPrompt) {
+      const systemResult = await registry.countTokens(systemPrompt, {
+        model,
+        provider: tokenizerProvider,
+      });
+      systemTokens += systemResult.tokens + 4;
+    }
+    if (additionalContext) {
+      const contextResult = await registry.countTokens(additionalContext, {
+        model,
+        provider: tokenizerProvider,
+      });
+      systemTokens += contextResult.tokens;
+    }
+
+    const userTokens = messageTokens
+      .filter((m) => m.role === 'user')
+      .reduce((sum, m) => sum + m.tokens, 0);
+
+    const assistantTokens = messageTokens
+      .filter((m) => m.role === 'assistant')
+      .reduce((sum, m) => sum + m.tokens, 0);
+
+    const contextTokens = userTokens + assistantTokens;
+
+    // Map provider to method for backward compatibility
+    const providerToMethod: Record<string, TokenCountMethod> = {
+      'tiktoken': 'tiktoken',
+      'claude-api': 'claude-api',
+      'gemini-api': 'estimation',
+      'glm-api': 'estimation',
+      'estimation': 'estimation',
+    };
+
+    return {
+      totalTokens: totalResult.tokens,
+      systemTokens,
+      contextTokens,
+      userTokens,
+      assistantTokens,
+      messageTokens,
+      method: providerToMethod[totalResult.provider] || 'estimation',
+      isExact: totalResult.isExact,
+      cachedTokens: totalResult.cachedTokens,
+      thinkingTokens: totalResult.thinkingTokens,
+    };
+  } catch (_error) {
+    // Fallback to synchronous calculation
+    return calculateTokenBreakdown(messages, options);
+  }
+}
+
+/**
+ * Enhanced async hook for precise token counting with loading states
+ * Uses TokenizerRegistry for accurate multi-provider token counting
+ */
+export function useTokenCountAsync(
+  messages: UIMessage[],
+  options: TokenCountOptionsEnhanced = {}
+): TokenBreakdown & { 
+  isLoading: boolean; 
+  error: string | null; 
+  reload: () => void;
+  cachedTokens?: number;
+  thinkingTokens?: number;
+} {
+  const { systemPrompt, additionalContext, provider, model, tokenizerProvider, apiKeys } = options;
+  
+  const [breakdown, setBreakdown] = useState<TokenBreakdown & { cachedTokens?: number; thinkingTokens?: number }>({
+    totalTokens: 0,
+    systemTokens: 0,
+    contextTokens: 0,
+    userTokens: 0,
+    assistantTokens: 0,
+    messageTokens: [],
+    method: 'estimation',
+    isExact: false,
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadCounter, setReloadCounter] = useState(0);
+
+  const reload = useCallback(() => {
+    clearEncoderCache();
+    getTokenizerRegistry().clearCache();
+    setReloadCounter(c => c + 1);
+  }, []);
+
+  // Effect for async token counting
+  useEffect(() => {
+    let cancelled = false;
+    
+    const calculate = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const result = await calculateTokenBreakdownAsync(messages, {
+          systemPrompt,
+          additionalContext,
+          provider,
+          model,
+          tokenizerProvider,
+          apiKeys,
+        });
+        
+        if (!cancelled) {
+          setBreakdown(result);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Token counting failed');
+          // Fallback to sync calculation
+          const fallback = calculateTokenBreakdown(messages, {
+            systemPrompt,
+            additionalContext,
+            provider,
+            model,
+          });
+          setBreakdown(fallback);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    calculate();
+    
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, systemPrompt, additionalContext, provider, model, tokenizerProvider, apiKeys, reloadCounter]);
+
+  return { ...breakdown, isLoading, error, reload };
+}
+
+/**
+ * Calculate estimated cost for token usage
+ */
+export function calculateEstimatedCost(
+  model: string,
+  promptTokens: number,
+  completionTokens: number
+): { inputCost: number; outputCost: number; totalCost: number } {
+  // Import pricing from types/system/usage
+  const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+    // OpenAI
+    'gpt-4o': { input: 2.5, output: 10 },
+    'gpt-4o-mini': { input: 0.15, output: 0.6 },
+    'gpt-4-turbo': { input: 10, output: 30 },
+    'gpt-3.5-turbo': { input: 0.5, output: 1.5 },
+    'o1': { input: 15, output: 60 },
+    'o1-mini': { input: 3, output: 12 },
+    // Anthropic
+    'claude-3-opus-20240229': { input: 15, output: 75 },
+    'claude-sonnet-4-20250514': { input: 3, output: 15 },
+    'claude-3-5-sonnet-20241022': { input: 3, output: 15 },
+    'claude-3-haiku-20240307': { input: 0.25, output: 1.25 },
+    // Google
+    'gemini-1.5-pro': { input: 1.25, output: 5 },
+    'gemini-1.5-flash': { input: 0.075, output: 0.3 },
+    'gemini-2.0-flash-exp': { input: 0, output: 0 },
+    // DeepSeek
+    'deepseek-chat': { input: 0.14, output: 0.28 },
+    'deepseek-reasoner': { input: 0.55, output: 2.19 },
+  };
+
+  const pricing = MODEL_PRICING[model];
+  if (!pricing) {
+    return { inputCost: 0, outputCost: 0, totalCost: 0 };
+  }
+
+  const inputCost = (promptTokens / 1_000_000) * pricing.input;
+  const outputCost = (completionTokens / 1_000_000) * pricing.output;
+
+  return {
+    inputCost,
+    outputCost,
+    totalCost: inputCost + outputCost,
+  };
+}
+
+/**
+ * Hook for real-time cost estimation
+ */
+export function useTokenCost(
+  model: string,
+  promptTokens: number,
+  estimatedCompletionTokens: number = 0
+): {
+  inputCost: number;
+  outputCost: number;
+  totalCost: number;
+  formattedCost: string;
+} {
+  return useMemo(() => {
+    const costs = calculateEstimatedCost(model, promptTokens, estimatedCompletionTokens);
+    return {
+      ...costs,
+      formattedCost: costs.totalCost < 0.01 
+        ? '< $0.01' 
+        : `$${costs.totalCost.toFixed(4)}`,
+    };
+  }, [model, promptTokens, estimatedCompletionTokens]);
+}
+
+/**
+ * Token budget status for context limit warnings
+ */
+export interface TokenBudgetStatus {
+  usedTokens: number;
+  maxTokens: number;
+  remainingTokens: number;
+  percentUsed: number;
+  status: 'healthy' | 'warning' | 'danger' | 'exceeded';
+  warningMessage?: string;
+}
+
+/**
+ * Model context limits (in tokens)
+ */
+export const MODEL_CONTEXT_LIMITS: Record<string, number> = {
+  // OpenAI
+  'gpt-4o': 128000,
+  'gpt-4o-mini': 128000,
+  'gpt-4-turbo': 128000,
+  'gpt-4': 8192,
+  'gpt-3.5-turbo': 16385,
+  'o1': 200000,
+  'o1-mini': 128000,
+  // Anthropic
+  'claude-3-opus-20240229': 200000,
+  'claude-sonnet-4-20250514': 200000,
+  'claude-3-5-sonnet-20241022': 200000,
+  'claude-3-haiku-20240307': 200000,
+  // Google
+  'gemini-1.5-pro': 2000000,
+  'gemini-1.5-flash': 1000000,
+  'gemini-2.0-flash-exp': 1000000,
+  // DeepSeek
+  'deepseek-chat': 64000,
+  'deepseek-reasoner': 64000,
+};
+
+/**
+ * Get token budget status for a model
+ */
+export function getTokenBudgetStatus(
+  usedTokens: number,
+  model: string,
+  customLimit?: number
+): TokenBudgetStatus {
+  const maxTokens = customLimit || MODEL_CONTEXT_LIMITS[model] || 8192;
+  const remainingTokens = Math.max(0, maxTokens - usedTokens);
+  const percentUsed = Math.min(100, (usedTokens / maxTokens) * 100);
+
+  let status: TokenBudgetStatus['status'];
+  let warningMessage: string | undefined;
+
+  if (percentUsed >= 100) {
+    status = 'exceeded';
+    warningMessage = 'Context limit exceeded. Some messages may be truncated.';
+  } else if (percentUsed >= 90) {
+    status = 'danger';
+    warningMessage = `Context nearly full (${percentUsed.toFixed(0)}%). Consider summarizing or starting a new conversation.`;
+  } else if (percentUsed >= 75) {
+    status = 'warning';
+    warningMessage = `Context usage at ${percentUsed.toFixed(0)}%.`;
+  } else {
+    status = 'healthy';
+  }
+
+  return {
+    usedTokens,
+    maxTokens,
+    remainingTokens,
+    percentUsed,
+    status,
+    warningMessage,
+  };
+}
+
+/**
+ * Hook for token budget monitoring
+ */
+export function useTokenBudget(
+  messages: UIMessage[],
+  model: string,
+  options: {
+    systemPrompt?: string;
+    additionalContext?: string;
+    customLimit?: number;
+  } = {}
+): TokenBudgetStatus & { breakdown: TokenBreakdown } {
+  const breakdown = useMemo(() => {
+    return calculateTokenBreakdown(messages, {
+      systemPrompt: options.systemPrompt,
+      additionalContext: options.additionalContext,
+    });
+  }, [messages, options.systemPrompt, options.additionalContext]);
+
+  const budgetStatus = useMemo(() => {
+    return getTokenBudgetStatus(breakdown.totalTokens, model, options.customLimit);
+  }, [breakdown.totalTokens, model, options.customLimit]);
+
+  return { ...budgetStatus, breakdown };
 }
 
 export default useTokenCount;

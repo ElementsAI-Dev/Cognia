@@ -8,6 +8,9 @@ export { ShortcutHints, ShortcutHintsBadge } from "./shortcut-hints";
 export { QuickActions } from "./quick-actions";
 export { OCRPanel } from "./ocr-panel";
 export { TemplatesPanel } from "./templates-panel";
+export { LanguageSelector } from "./language-selector";
+export type { LanguageSelectorProps } from "./language-selector";
+export type { ResultPanelProps } from "./result-panel";
 export type { 
   SelectionAction, 
   ToolbarState, 

@@ -332,7 +332,7 @@ describe('CogniaDB Schema', () => {
       const server: DBMCPServer = {
         id: 'server-1',
         name: 'Test Server',
-        url: 'http://localhost:3001',
+        url: 'http://localhost:3000',
         connected: true,
         tools: JSON.stringify([{ name: 'tool1', description: 'A tool' }]),
         createdAt: new Date(),
@@ -352,7 +352,7 @@ describe('CogniaDB Schema', () => {
         {
           id: 'server-1',
           name: 'Connected',
-          url: 'http://localhost:3001',
+          url: 'http://localhost:3000',
           connected: true,
           createdAt: new Date(),
           updatedAt: new Date(),

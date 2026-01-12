@@ -10,6 +10,5 @@ export { ExportDialog } from './export-dialog';
 export { ImageGenerationDialog } from './image-generation-dialog';
 export { ModelPickerDialog } from './model-picker-dialog';
 export { PresetManagerDialog } from './preset-manager-dialog';
-export { PromptOptimizerDialog } from './prompt-optimizer-dialog';
 export { VideoGenerationDialog } from './video-generation-dialog';
 export { ModeSwitchConfirmDialog, type ModeSwitchConfirmDialogProps } from './mode-switch-confirm-dialog';

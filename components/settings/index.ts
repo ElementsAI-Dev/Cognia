@@ -104,3 +104,6 @@ export {
 
 // Model management (standalone)
 export { ModelManager } from './model-manager';
+
+// Tokenizer settings
+export { TokenizerSettings } from './tokenizer-settings';

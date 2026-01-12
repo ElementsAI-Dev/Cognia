@@ -258,4 +258,140 @@ describe('usePromptTemplateStore', () => {
       expect(usePromptTemplateStore.getState().templates).toHaveLength(1);
     });
   });
+
+  describe('optimization history', () => {
+    it('records optimization and stores history', () => {
+      let template: PromptTemplate | undefined;
+      act(() => {
+        template = usePromptTemplateStore.getState().createTemplate({
+          name: 'Test Template',
+          content: 'Original content',
+        });
+      });
+
+      act(() => {
+        usePromptTemplateStore.getState().recordOptimization(
+          template!.id,
+          'Original content',
+          'Optimized content with improvements',
+          ['Improved clarity', 'Added structure'],
+          'concise',
+          'user'
+        );
+      });
+
+      const history = usePromptTemplateStore.getState().getOptimizationHistory(template!.id);
+      expect(history).toHaveLength(1);
+      expect(history[0].originalContent).toBe('Original content');
+      expect(history[0].optimizedContent).toBe('Optimized content with improvements');
+      expect(history[0].suggestions).toEqual(['Improved clarity', 'Added structure']);
+      expect(history[0].style).toBe('concise');
+      expect(history[0].appliedBy).toBe('user');
+    });
+
+    it('limits history to 20 entries per template', () => {
+      let template: PromptTemplate | undefined;
+      act(() => {
+        template = usePromptTemplateStore.getState().createTemplate({
+          name: 'Test Template',
+          content: 'Content',
+        });
+      });
+
+      // Record 25 optimizations
+      for (let i = 0; i < 25; i++) {
+        act(() => {
+          usePromptTemplateStore.getState().recordOptimization(
+            template!.id,
+            `Original ${i}`,
+            `Optimized ${i}`,
+            [`Suggestion ${i}`]
+          );
+        });
+      }
+
+      const history = usePromptTemplateStore.getState().getOptimizationHistory(template!.id);
+      expect(history).toHaveLength(20);
+    });
+
+    it('updates template stats when recording optimization', () => {
+      let template: PromptTemplate | undefined;
+      act(() => {
+        template = usePromptTemplateStore.getState().createTemplate({
+          name: 'Test Template',
+          content: 'Content',
+        });
+      });
+
+      act(() => {
+        usePromptTemplateStore.getState().recordOptimization(
+          template!.id,
+          'Original',
+          'Optimized',
+          ['Suggestion']
+        );
+      });
+
+      const updated = usePromptTemplateStore.getState().getTemplate(template!.id);
+      expect(updated?.stats?.optimizationCount).toBe(1);
+      expect(updated?.stats?.lastOptimizedAt).toBeInstanceOf(Date);
+    });
+
+    it('returns empty array for template with no history', () => {
+      const history = usePromptTemplateStore.getState().getOptimizationHistory('non-existent-id');
+      expect(history).toEqual([]);
+    });
+  });
+
+  describe('optimization recommendations', () => {
+    it('returns empty recommendations for templates without issues', () => {
+      // Create a template with good content
+      act(() => {
+        usePromptTemplateStore.getState().createTemplate({
+          name: 'Good Template',
+          content: 'Please analyze the following data and provide a detailed summary with key insights.',
+        });
+      });
+
+      const recommendations = usePromptTemplateStore.getState().getRecommendations();
+      // Without feedback data, no recommendations should be generated
+      expect(Array.isArray(recommendations)).toBe(true);
+    });
+
+    it('returns top candidates based on template quality', () => {
+      // Create templates with varying quality
+      act(() => {
+        usePromptTemplateStore.getState().createTemplate({
+          name: 'Low Quality',
+          content: 'do stuff',
+        });
+        usePromptTemplateStore.getState().createTemplate({
+          name: 'High Quality',
+          content: 'Please analyze the following code and provide detailed feedback on: 1) Code quality 2) Performance 3) Security considerations',
+        });
+      });
+
+      const candidates = usePromptTemplateStore.getState().getTopCandidates(5);
+      expect(Array.isArray(candidates)).toBe(true);
+      // Low quality templates should appear as candidates
+      if (candidates.length > 0) {
+        expect(candidates[0].reasons.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('respects limit parameter for top candidates', () => {
+      // Create multiple templates
+      for (let i = 0; i < 10; i++) {
+        act(() => {
+          usePromptTemplateStore.getState().createTemplate({
+            name: `Template ${i}`,
+            content: `short ${i}`,
+          });
+        });
+      }
+
+      const candidates = usePromptTemplateStore.getState().getTopCandidates(3);
+      expect(candidates.length).toBeLessThanOrEqual(3);
+    });
+  });
 });

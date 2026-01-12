@@ -19,12 +19,12 @@ describe('mcpServerRepository', () => {
     it('creates a server with required fields', async () => {
       const server = await mcpServerRepository.create({
         name: 'Test Server',
-        url: 'http://localhost:3001',
+        url: 'http://localhost:3000',
       });
 
       expect(server.id).toBeDefined();
       expect(server.name).toBe('Test Server');
-      expect(server.url).toBe('http://localhost:3001');
+      expect(server.url).toBe('http://localhost:3000');
       expect(server.connected).toBe(false);
       expect(server.tools).toEqual([]);
     });
@@ -32,7 +32,7 @@ describe('mcpServerRepository', () => {
     it('creates a server with optional fields', async () => {
       const server = await mcpServerRepository.create({
         name: 'Test Server',
-        url: 'http://localhost:3001',
+        url: 'http://localhost:3000',
         connected: true,
         tools: [{ name: 'tool1', description: 'A tool', inputSchema: {} }],
       });
@@ -47,7 +47,7 @@ describe('mcpServerRepository', () => {
     it('returns server when found', async () => {
       const created = await mcpServerRepository.create({
         name: 'Test Server',
-        url: 'http://localhost:3001',
+        url: 'http://localhost:3000',
       });
 
       const found = await mcpServerRepository.getById(created.id);
@@ -65,12 +65,12 @@ describe('mcpServerRepository', () => {
     it('returns server by name', async () => {
       await mcpServerRepository.create({
         name: 'Test Server',
-        url: 'http://localhost:3001',
+        url: 'http://localhost:3000',
       });
 
       const found = await mcpServerRepository.getByName('Test Server');
       expect(found).toBeDefined();
-      expect(found?.url).toBe('http://localhost:3001');
+      expect(found?.url).toBe('http://localhost:3000');
     });
   });
 
@@ -78,10 +78,10 @@ describe('mcpServerRepository', () => {
     it('returns server by URL', async () => {
       await mcpServerRepository.create({
         name: 'Test Server',
-        url: 'http://localhost:3001',
+        url: 'http://localhost:3000',
       });
 
-      const found = await mcpServerRepository.getByUrl('http://localhost:3001');
+      const found = await mcpServerRepository.getByUrl('http://localhost:3000');
       expect(found).toBeDefined();
       expect(found?.name).toBe('Test Server');
     });
@@ -89,7 +89,7 @@ describe('mcpServerRepository', () => {
 
   describe('getAll', () => {
     it('returns all servers', async () => {
-      await mcpServerRepository.create({ name: 'Server 1', url: 'http://localhost:3001' });
+      await mcpServerRepository.create({ name: 'Server 1', url: 'http://localhost:3000' });
       await mcpServerRepository.create({ name: 'Server 2', url: 'http://localhost:3002' });
 
       const all = await mcpServerRepository.getAll();
@@ -99,7 +99,7 @@ describe('mcpServerRepository', () => {
 
   describe('getConnected', () => {
     it('returns only connected servers', async () => {
-      await mcpServerRepository.create({ name: 'Server 1', url: 'http://localhost:3001', connected: true });
+      await mcpServerRepository.create({ name: 'Server 1', url: 'http://localhost:3000', connected: true });
       await mcpServerRepository.create({ name: 'Server 2', url: 'http://localhost:3002', connected: false });
       await mcpServerRepository.create({ name: 'Server 3', url: 'http://localhost:3003', connected: true });
 
@@ -110,7 +110,7 @@ describe('mcpServerRepository', () => {
 
   describe('getDisconnected', () => {
     it('returns only disconnected servers', async () => {
-      await mcpServerRepository.create({ name: 'Server 1', url: 'http://localhost:3001', connected: true });
+      await mcpServerRepository.create({ name: 'Server 1', url: 'http://localhost:3000', connected: true });
       await mcpServerRepository.create({ name: 'Server 2', url: 'http://localhost:3002', connected: false });
 
       const disconnected = await mcpServerRepository.getDisconnected();
@@ -123,7 +123,7 @@ describe('mcpServerRepository', () => {
     it('updates server fields', async () => {
       const created = await mcpServerRepository.create({
         name: 'Original',
-        url: 'http://localhost:3001',
+        url: 'http://localhost:3000',
       });
 
       const updated = await mcpServerRepository.update(created.id, {
@@ -147,7 +147,7 @@ describe('mcpServerRepository', () => {
     it('deletes a server', async () => {
       const created = await mcpServerRepository.create({
         name: 'Test Server',
-        url: 'http://localhost:3001',
+        url: 'http://localhost:3000',
       });
 
       await mcpServerRepository.delete(created.id);
@@ -160,7 +160,7 @@ describe('mcpServerRepository', () => {
     it('updates connection status', async () => {
       const created = await mcpServerRepository.create({
         name: 'Test Server',
-        url: 'http://localhost:3001',
+        url: 'http://localhost:3000',
         connected: false,
       });
 
@@ -175,7 +175,7 @@ describe('mcpServerRepository', () => {
     it('updates server tools', async () => {
       const created = await mcpServerRepository.create({
         name: 'Test Server',
-        url: 'http://localhost:3001',
+        url: 'http://localhost:3000',
       });
 
       await mcpServerRepository.updateTools(created.id, [
@@ -192,10 +192,10 @@ describe('mcpServerRepository', () => {
     it('returns true when server exists', async () => {
       await mcpServerRepository.create({
         name: 'Test Server',
-        url: 'http://localhost:3001',
+        url: 'http://localhost:3000',
       });
 
-      const exists = await mcpServerRepository.existsByUrl('http://localhost:3001');
+      const exists = await mcpServerRepository.existsByUrl('http://localhost:3000');
       expect(exists).toBe(true);
     });
 
@@ -208,7 +208,7 @@ describe('mcpServerRepository', () => {
   describe('bulkCreate', () => {
     it('creates multiple servers', async () => {
       const servers = await mcpServerRepository.bulkCreate([
-        { name: 'Server 1', url: 'http://localhost:3001' },
+        { name: 'Server 1', url: 'http://localhost:3000' },
         { name: 'Server 2', url: 'http://localhost:3002' },
       ]);
 
@@ -220,7 +220,7 @@ describe('mcpServerRepository', () => {
 
   describe('disconnectAll', () => {
     it('disconnects all servers', async () => {
-      await mcpServerRepository.create({ name: 'Server 1', url: 'http://localhost:3001', connected: true });
+      await mcpServerRepository.create({ name: 'Server 1', url: 'http://localhost:3000', connected: true });
       await mcpServerRepository.create({ name: 'Server 2', url: 'http://localhost:3002', connected: true });
 
       await mcpServerRepository.disconnectAll();
@@ -232,7 +232,7 @@ describe('mcpServerRepository', () => {
 
   describe('searchByName', () => {
     it('finds servers by name', async () => {
-      await mcpServerRepository.create({ name: 'Test Server', url: 'http://localhost:3001' });
+      await mcpServerRepository.create({ name: 'Test Server', url: 'http://localhost:3000' });
       await mcpServerRepository.create({ name: 'Production Server', url: 'http://localhost:3002' });
       await mcpServerRepository.create({ name: 'Dev Server', url: 'http://localhost:3003' });
 
@@ -246,7 +246,7 @@ describe('mcpServerRepository', () => {
 
   describe('getCount', () => {
     it('returns correct count', async () => {
-      await mcpServerRepository.create({ name: 'Server 1', url: 'http://localhost:3001' });
+      await mcpServerRepository.create({ name: 'Server 1', url: 'http://localhost:3000' });
       await mcpServerRepository.create({ name: 'Server 2', url: 'http://localhost:3002' });
 
       const count = await mcpServerRepository.getCount();
@@ -256,7 +256,7 @@ describe('mcpServerRepository', () => {
 
   describe('clear', () => {
     it('removes all servers', async () => {
-      await mcpServerRepository.create({ name: 'Server 1', url: 'http://localhost:3001' });
+      await mcpServerRepository.create({ name: 'Server 1', url: 'http://localhost:3000' });
       await mcpServerRepository.create({ name: 'Server 2', url: 'http://localhost:3002' });
 
       await mcpServerRepository.clear();

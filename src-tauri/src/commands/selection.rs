@@ -121,6 +121,14 @@ pub async fn selection_update_config(
     Ok(())
 }
 
+/// Save selection configuration to file
+#[tauri::command]
+pub async fn selection_save_config(
+    manager: State<'_, SelectionManager>,
+) -> Result<(), String> {
+    manager.save_config()
+}
+
 /// Get current selection configuration
 #[tauri::command]
 pub async fn selection_get_config(

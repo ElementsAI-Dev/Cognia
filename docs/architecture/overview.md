@@ -20,7 +20,7 @@ Cognia operates in two distinct modes:
 ### Development Mode (Web)
 
 - Runs as a standard Next.js development server
-- Accessible at `http://localhost:3001`
+- Accessible at `http://localhost:3000`
 - Full hot-reload and Fast Refresh support
 - Uses Turbopack for optimized builds
 
@@ -37,7 +37,7 @@ Cognia operates in two distinct modes:
 |                   |                       |                  |
 |  Next.js Dev      |   pnpm build          |  Static Files    |
 |  Server           |                       |  (out/ folder)   |
-|  (localhost:3001) |                       |                  |
+|  (localhost:3000) |                       |                  |
 +-------------------+                       +------------------+
        |                                           |
        v                                           v

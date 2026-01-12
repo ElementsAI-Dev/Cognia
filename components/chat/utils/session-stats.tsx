@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { UIMessage } from '@/types';
+import { estimateTokensFast } from '@/lib/ai/tokenizer';
 
 interface SessionStatsProps {
   messages: UIMessage[];
@@ -72,16 +73,19 @@ export function SessionStats({
     const userMessages = messages.filter((m) => m.role === 'user');
     const assistantMessages = messages.filter((m) => m.role === 'assistant');
     
-    // Calculate total characters
-    const totalChars = messages.reduce((acc, m) => acc + m.content.length, 0);
+    // Calculate total characters (kept for potential future use)
+    const _totalChars = messages.reduce((acc, m) => acc + m.content.length, 0);
     
     // Calculate average response length
     const avgResponseLength = assistantMessages.length > 0
       ? Math.round(assistantMessages.reduce((acc, m) => acc + m.content.length, 0) / assistantMessages.length)
       : 0;
 
-    // Estimate tokens (rough: 1 token ≈ 4 chars)
-    const estimatedTokens = Math.round(totalChars / 4);
+    // Estimate tokens using centralized tokenizer utility
+    const estimatedTokens = messages.reduce(
+      (acc, m) => acc + estimateTokensFast(m.content),
+      0
+    );
 
     // Count code blocks
     const codeBlocks = messages.reduce((acc, m) => {
@@ -191,8 +195,11 @@ export function SessionStatsCard({
   const stats = useMemo(() => {
     const userMessages = messages.filter((m) => m.role === 'user');
     const assistantMessages = messages.filter((m) => m.role === 'assistant');
-    const totalChars = messages.reduce((acc, m) => acc + m.content.length, 0);
-    const estimatedTokens = Math.round(totalChars / 4);
+    // Use centralized tokenizer utility for better estimation
+    const estimatedTokens = messages.reduce(
+      (acc, m) => acc + estimateTokensFast(m.content),
+      0
+    );
 
     return {
       totalMessages: messages.length,

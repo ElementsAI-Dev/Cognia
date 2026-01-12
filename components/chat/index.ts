@@ -45,13 +45,15 @@ export {
   ImageGenerationDialog,
   ModelPickerDialog,
   PresetManagerDialog,
-  PromptOptimizerDialog,
   VideoGenerationDialog,
   ModeSwitchConfirmDialog,
 } from './dialogs';
 
-// Prompt Optimization (advanced)
-export { PromptOptimizationHub } from './dialogs/prompt-optimization';
+// Prompt Optimization (re-exported from @/components/prompt)
+export {
+  PromptOptimizerDialog,
+  PromptOptimizationHub,
+} from '@/components/prompt';
 
 // Selectors
 export {

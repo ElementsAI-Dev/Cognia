@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { Search, X, Filter, Sparkles, Bot, GraduationCap } from 'lucide-react';
+import { Search, X, Filter, Sparkles, Bot, GraduationCap, FolderKanban } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +12,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { useSessionStore } from '@/stores';
+import { useSessionStore, useProjectStore } from '@/stores';
 import { messageRepository } from '@/lib/db';
 import type { Session } from '@/types';
 import type { ChatMode } from '@/types';
@@ -22,6 +22,7 @@ export interface SearchFilters {
   dateRange: 'today' | 'week' | 'month' | 'all';
   hasAttachments: boolean;
   pinned: boolean;
+  projectId: string | null;
 }
 
 interface SessionSearchProps {
@@ -56,13 +57,21 @@ export function SessionSearch({ onResultsChange, collapsed, className }: Session
     dateRange: 'all',
     hasAttachments: false,
     pinned: false,
+    projectId: null,
   });
+
+  // Get projects for filter
+  const getActiveProjects = useProjectStore((state) => state.getActiveProjects);
+  const getProject = useProjectStore((state) => state.getProject);
+  const activeProjects = useMemo(() => getActiveProjects(), [getActiveProjects]);
+  const selectedProject = filters.projectId ? getProject(filters.projectId) : null;
 
   const hasActiveFilters = useMemo(() => {
     return filters.modes.length > 0 || 
            filters.dateRange !== 'all' || 
            filters.hasAttachments || 
-           filters.pinned;
+           filters.pinned ||
+           filters.projectId !== null;
   }, [filters]);
 
   const filterSessions = useCallback(async (searchQuery: string, filterOptions: SearchFilters) => {
@@ -70,6 +79,11 @@ export function SessionSearch({ onResultsChange, collapsed, className }: Session
     
     try {
       let filtered = [...sessions];
+
+      // Filter by project
+      if (filterOptions.projectId) {
+        filtered = filtered.filter(s => s.projectId === filterOptions.projectId);
+      }
 
       // Filter by mode
       if (filterOptions.modes.length > 0) {
@@ -159,6 +173,7 @@ export function SessionSearch({ onResultsChange, collapsed, className }: Session
       dateRange: 'all',
       hasAttachments: false,
       pinned: false,
+      projectId: null,
     });
   };
 
@@ -257,6 +272,39 @@ export function SessionSearch({ onResultsChange, collapsed, className }: Session
                 </div>
               </div>
 
+              {/* Project filter */}
+              {activeProjects.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                    <FolderKanban className="h-3 w-3" />
+                    Project
+                  </label>
+                  <div className="flex flex-wrap gap-1">
+                    <Badge
+                      variant={!filters.projectId ? "default" : "outline"}
+                      className="cursor-pointer"
+                      onClick={() => setFilters(prev => ({ ...prev, projectId: null }))}
+                    >
+                      All
+                    </Badge>
+                    {activeProjects.slice(0, 5).map((project) => (
+                      <Badge
+                        key={project.id}
+                        variant={filters.projectId === project.id ? "default" : "outline"}
+                        className="cursor-pointer gap-1"
+                        onClick={() => setFilters(prev => ({ ...prev, projectId: project.id }))}
+                      >
+                        <span 
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: project.color || '#3B82F6' }}
+                        />
+                        <span className="truncate max-w-[60px]">{project.name}</span>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Quick filters */}
               <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground">Quick Filters</label>
@@ -313,6 +361,19 @@ export function SessionSearch({ onResultsChange, collapsed, className }: Session
               <X
                 className="h-2.5 w-2.5 cursor-pointer"
                 onClick={() => setFilters(prev => ({ ...prev, pinned: false }))}
+              />
+            </Badge>
+          )}
+          {selectedProject && (
+            <Badge variant="secondary" className="gap-1 text-xs">
+              <span 
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: selectedProject.color || '#3B82F6' }}
+              />
+              {selectedProject.name}
+              <X
+                className="h-2.5 w-2.5 cursor-pointer"
+                onClick={() => setFilters(prev => ({ ...prev, projectId: null }))}
               />
             </Badge>
           )}

@@ -94,3 +94,46 @@ pub async fn chat_widget_send_text(
 pub async fn chat_widget_destroy(manager: State<'_, ChatWidgetWindow>) -> Result<(), String> {
     manager.destroy()
 }
+
+/// Minimize (fold) the chat widget window
+#[tauri::command]
+pub async fn chat_widget_minimize(manager: State<'_, ChatWidgetWindow>) -> Result<(), String> {
+    manager.minimize()
+}
+
+/// Unminimize (unfold) the chat widget window
+#[tauri::command]
+pub async fn chat_widget_unminimize(manager: State<'_, ChatWidgetWindow>) -> Result<(), String> {
+    manager.unminimize()
+}
+
+/// Toggle minimized state
+#[tauri::command]
+pub async fn chat_widget_toggle_minimize(manager: State<'_, ChatWidgetWindow>) -> Result<bool, String> {
+    manager.toggle_minimize()
+}
+
+/// Check if widget is minimized
+#[tauri::command]
+pub async fn chat_widget_is_minimized(manager: State<'_, ChatWidgetWindow>) -> Result<bool, String> {
+    Ok(manager.is_minimized())
+}
+
+/// Save chat widget configuration to file
+#[tauri::command]
+pub async fn chat_widget_save_config(manager: State<'_, ChatWidgetWindow>) -> Result<(), String> {
+    manager.save_config()
+}
+
+/// Recreate the chat widget window if it was destroyed
+#[tauri::command]
+pub async fn chat_widget_recreate(manager: State<'_, ChatWidgetWindow>) -> Result<bool, String> {
+    manager.recreate_if_needed()
+}
+
+/// Sync visibility state with actual window state
+#[tauri::command]
+pub async fn chat_widget_sync_state(manager: State<'_, ChatWidgetWindow>) -> Result<(), String> {
+    manager.sync_visibility();
+    Ok(())
+}

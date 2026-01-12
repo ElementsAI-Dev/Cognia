@@ -1,24 +1,29 @@
 # Cognia
 
-Cognia 是一款现代化的 AI 原生聊天与创作应用，支持多种 AI 模型和服务商。项目采用 Next.js 16 和 React 19.2 构建前端，通过 Tauri 2.9 实现跨平台桌面应用。同一代码库可同时部署为 Web 应用和桌面原生应用。
+Cognia 是一款现代化的 AI 原生聊天与创作平台，支持全面的多服务商集成。采用 Next.js 16 和 React 19.2 构建，通过 Tauri 2.9 实现跨平台桌面应用。
 
-技术栈包括：Tailwind CSS v4、shadcn/ui、Zustand 状态管理、Dexie 持久化存储，以及 Vercel AI SDK v5 对接 OpenAI、Anthropic、Google、Mistral、Groq、DeepSeek、Ollama 等主流 AI 服务商。
+**技术栈**：Tailwind CSS v4、shadcn/ui、Zustand、Dexie、Vercel AI SDK v5，支持 **14 家 AI 服务商**（OpenAI、Anthropic、Google、Mistral、Groq、DeepSeek、Ollama、xAI、Together AI、OpenRouter、Cohere、Fireworks、Cerebras、SambaNova）。
 
 [English Documentation](./README.md)
 
 ## 目录
 
+- [概述](#概述)
 - [核心特性](#核心特性)
 - [技术架构](#技术架构)
-- [前置要求](#前置要求)
 - [快速开始](#快速开始)
 - [开发指南](#开发指南)
 - [项目结构](#项目结构)
-- [核心功能](#核心功能)
+- [核心系统](#核心系统)
   - [AI 模型集成](#ai-模型集成)
-  - [工件系统](#工件系统)
-  - [画布编辑器](#画布编辑器)
+  - [代理系统](#代理系统)
   - [MCP 支持](#mcp-支持)
+  - [原生工具](#原生工具)
+  - [设计器系统](#设计器系统)
+  - [工作流编辑器](#工作流编辑器)
+  - [技能系统](#技能系统)
+  - [学习模式](#学习模式)
+  - [工件与画布](#工件与画布)
   - [数据持久化](#数据持久化)
   - [项目管理](#项目管理)
 - [配置说明](#配置说明)
@@ -28,20 +33,39 @@ Cognia 是一款现代化的 AI 原生聊天与创作应用，支持多种 AI �
 - [故障排除](#故障排除)
 - [资源链接](#资源链接)
 
+## 概述
+
+Cognia 是一款全面的 AI 原生聊天与创作平台，支持 **14 家 AI 服务商**，具备高级功能：
+
+- **混合架构**：可作为 Next.js Web 应用或 Tauri 桌面应用运行
+- **代理系统**：自主 AI 代理，支持工具调用、规划和子代理协调
+- **原生工具**：桌面专属功能（选择、感知、上下文、截图）
+- **可视化编辑器**：V0 风格设计器、工作流编辑器、AI 建议画布
+- **学习模式**：交互式教育功能，含闪卡和测验
+- **完整 MCP 支持**：模型上下文协议扩展 AI 能力
+
 ## 核心特性
 
 ### AI 能力
 
-- **多模型支持**：集成 7 家主流 AI 服务商（OpenAI、Anthropic、Google、Mistral、Groq、DeepSeek、Ollama）
-- **智能路由**：自动根据任务复杂度选择最优模型（快速/平衡/强力三档）
+- **14 家 AI 服务商**：OpenAI、Anthropic、Google、Mistral、Groq、DeepSeek、Ollama、xAI、Together AI、OpenRouter、Cohere、Fireworks、Cerebras、SambaNova
+- **智能自动路由**：三层路由（快速/平衡/强力），支持规则和 LLM 两种模式
 - **流式响应**：实时显示 AI 生成内容
 - **多模态支持**：视觉模型支持图像分析
 - **图像生成**：集成 DALL-E 文生图功能
 - **工具调用**：支持 Function Calling 和 MCP 工具调用
 
+### 代理系统
+
+- **自主代理**：多步骤任务执行，支持规划和工具调用
+- **子代理协调**：协调多个代理完成复杂任务
+- **后台代理**：异步队列执行任务
+- **内置工具**：文件操作、搜索、网络访问
+- **技能集成**：自定义技能执行框架
+
 ### 聊天体验
 
-- **多种对话模式**：聊天模式、代理模式、研究模式
+- **多种对话模式**：聊天模式、代理模式、研究模式、学习模式
 - **对话分支**：从任意节点创建分支探索不同对话路径
 - **消息管理**：编辑消息、重试响应、删除对话
 - **语音输入**：集成 Web Speech API 语音转文字
@@ -52,110 +76,62 @@ Cognia 是一款现代化的 AI 原生聊天与创作应用，支持多种 AI �
 
 ### 内容创作
 
-- **工件系统**：AI 可生成代码、文档、图表、数学公式等独立内容
+- **工件系统**：AI 生成代码、文档、图表、数学公式
 - **画布编辑器**：Monaco 编辑器集成 AI 建议和代码转换
-- **版本历史**：画布文档自动保存和版本恢复
-- **多格式预览**：支持 HTML、React、SVG、Mermaid、图表等预览
+- **设计器**：V0 风格可视化网页设计器，40+ 组件
+- **工作流编辑器**：React Flow 可视化工作流自动化
+- **版本历史**：文档自动保存和版本恢复
 
-### 数据管理
+### 桌面能力（Tauri）
+
+- **原生工具**：选择、感知、上下文、OCR 截图
+- **MCP 集成**：完整支持 Model Context Protocol
+- **沙箱**：Docker/Podman 代码执行环境
+- **文件系统访问**：原生文件操作和对话框
+
+### 数据与导出
 
 - **项目组织**：将对话组织到项目中，支持知识库
-- **导出功能**：导出为 PDF、Markdown、JSON、HTML 等格式
+- **多格式导出**：PDF、Markdown、JSON、HTML、Word、Excel、PowerPoint
 - **预设管理**：保存和加载聊天配置预设
 - **使用统计**：Token 计数和成本估算
 
-### 桌面能力
-
-- **MCP 集成**：完整支持 Model Context Protocol，扩展 AI 能力
-- **原生功能**：文件系统访问、系统对话框、剪贴板等
-- **离线运行**：静态导出支持离线使用
-
 ## 技术架构
 
-### 技术栈
-
-#### 前端框架
-
-- Next.js 16（App Router）
-- React 19.2
-- TypeScript 5
-
-#### UI 组件
-
-- Tailwind CSS v4（PostCSS）
-- shadcn/ui + Radix UI（50+ 组件）
-- Lucide 图标库
-- Monaco 编辑器（代码编辑）
-- Shiki 语法高亮（30+ 语言）
-
-#### 状态管理
-
-- Zustand v5（客户端状态）
-- Dexie（IndexedDB 持久化）
-- localStorage 持久化中间件
-
-#### AI 集成
-
-- Vercel AI SDK v5
-- 7 家服务商支持
-- 流式响应处理
-- 工具调用支持
-
-#### 桌面应用
-
-- Tauri 2.9（跨平台）
-- Rust 后端
-- 原生能力封装
-
-#### 可视化
-
-- Recharts（数据图表）
-- Xyflow（流程图）
-- KaTeX（数学公式）
-- Mermaid（图表）
-
-#### 测试
-
-- Jest（单元测试）
-- React Testing Library
-- Playwright（端到端测试）
-
-### 架构原则
-
-- **静态优先**：生产环境使用静态导出，无服务器依赖
-- **客户端主导**：状态管理和数据持久化均在客户端完成
-- **渐进增强**：Web 端可通过 Tauri 增强为桌面应用
-- **类型安全**：全面使用 TypeScript 类型系统
-- **组件化**：功能模块化和 UI 组件复用
-
-## 前置要求
-
-### Web 开发
-
-- **Node.js** 20.x 或更高版本
-- **pnpm** 8.x 或更高版本（推荐）
-
-```bash
-# 安装 pnpm
-npm install -g pnpm
-```
-
-### 桌面开发（额外要求）
-
-- **Rust** 1.70 或更高版本
-
-```bash
-# 验证安装
-rustc --version
-cargo --version
-```
-
-- **系统依赖**
-  - Windows：Microsoft Visual Studio C++ 构建工具
-  - macOS：Xcode 命令行工具（`xcode-select --install`）
-  - Linux：参见 [Tauri 前置要求](https://tauri.app/v1/guides/getting-started/prerequisites)
+| 类别 | 技术 | 用途 |
+| ---- | ---- | ---- |
+| **前端框架** | Next.js 16 (App Router) | React SSR/SSG 框架 |
+| | React 19.2 | UI 库 |
+| | TypeScript 5 | 类型安全 |
+| **UI 组件** | Tailwind CSS v4 | 原子化 CSS |
+| | shadcn/ui + Radix UI | 组件库 |
+| | Lucide Icons | 图标库 |
+| | Monaco Editor | 代码编辑器 |
+| **状态管理** | Zustand v5 | 客户端状态 |
+| | Dexie | IndexedDB 封装 |
+| **AI 集成** | Vercel AI SDK v5 | LLM 集成 |
+| | 14 家服务商 | 多模型支持 |
+| **桌面** | Tauri 2.9 | 跨平台应用 |
+| | Rust | 原生后端 |
+| **可视化** | Recharts | 数据图表 |
+| | Xyflow | 流程图 |
+| | KaTeX | 数学公式 |
+| | Mermaid | 图表 |
+| **测试** | Jest | 单元测试 |
+| | Playwright | 端到端测试 |
 
 ## 快速开始
+
+### 前置要求
+
+**Web 开发**：
+
+- Node.js 20.x 或更高版本
+- pnpm 8.x 或更高版本
+
+**桌面开发（额外要求）**：
+
+- Rust 1.70 或更高版本
 
 ### 1. 克隆仓库
 
@@ -172,46 +148,25 @@ pnpm install
 
 ### 3. 配置环境变量
 
-创建 `.env.local` 文件并添加必要的 API 密钥：
+创建 `.env.local` 文件：
 
 ```env
-# OpenAI（可选）
 OPENAI_API_KEY=sk-your-openai-key
-
-# Anthropic（可选）
 ANTHROPIC_API_KEY=sk-ant-your-anthropic-key
-
-# Google Gemini（可选）
 GOOGLE_API_KEY=your-google-api-key
-
-# DeepSeek（可选）
-DEEPSEEK_API_KEY=sk-your-deepseek-key
-
-# Groq（可选）
-GROQ_API_KEY=gsk-your-groq-key
 ```
 
 ### 4. 启动开发服务器
 
-#### Web 应用
-
 ```bash
+# Web 应用
 pnpm dev
-```
 
-访问：<http://localhost:3000>
-
-#### 桌面应用
-
-```bash
+# 桌面应用
 pnpm tauri dev
 ```
 
-### 5. 验证安装
-
-- 检查 Next.js：访问开发服务器
-- 检查 Tauri：运行 `pnpm tauri info`
-- 运行测试：`pnpm test`
+访问：<http://localhost:3000>
 
 ## 开发指南
 
@@ -219,17 +174,16 @@ pnpm tauri dev
 
 ```bash
 # 开发
-pnpm dev              # 启动 Next.js 开发服务器（localhost:3000）
+pnpm dev              # 启动 Next.js 开发服务器
 pnpm tauri dev        # 启动 Tauri 桌面开发模式
 
 # 构建
 pnpm build            # 构建生产版本（静态导出到 out/）
-pnpm start            # 启动生产服务（需先运行 pnpm build）
 pnpm tauri build      # 构建桌面应用安装包
 
 # 代码质量
 pnpm lint             # 运行 ESLint 检查
-pnpm lint:fix         # 自动修复 ESLint 问题
+pnpm lint --fix       # 自动修复 ESLint 问题
 
 # 测试
 pnpm test             # 运行 Jest 单元测试
@@ -237,734 +191,272 @@ pnpm test:watch       # Jest 监视模式
 pnpm test:coverage    # Jest 测试覆盖率
 pnpm test:e2e         # 运行 Playwright 端到端测试
 pnpm test:e2e:ui      # Playwright UI 模式
-pnpm test:e2e:headed  # Playwright 有头浏览器模式
 ```
-
-### 添加 UI 组件
-
-使用 shadcn CLI 添加 Radix UI 组件：
-
-```bash
-pnpm dlx shadcn@latest add <component-name>
-```
-
-示例：
-
-```bash
-pnpm dlx shadcn@latest add button
-pnpm dlx shadcn@latest add dialog
-pnpm dlx shadcn@latest add dropdown-menu
-```
-
-### 创建新 Store
-
-Zustand stores 位于 `/stores/` 目录：
-
-```typescript
-// stores/example-store.ts
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-
-interface ExampleState {
-  data: string;
-  setData: (data: string) => void;
-}
-
-export const useExampleStore = create<ExampleState>()(
-  persist(
-    (set) => ({
-      data: '',
-      setData: (data) => set({ data }),
-    }),
-    {
-      name: 'cognia-example', // localStorage key
-    }
-  )
-);
-```
-
-### 添加新功能模块
-
-1. 在 `/components/` 创建功能组件
-2. 在 `/types/` 添加类型定义
-3. 在 `/stores/` 创建状态管理
-4. 在 `/hooks/` 创建自定义 Hook（如需要）
-5. 在 `/lib/` 添加工具函数（如需要）
 
 ## 项目结构
 
 ```text
 cognia/
 ├── app/                          # Next.js App Router
-│   ├── (chat)/                   # 聊天界面路由组
-│   │   └── page.tsx              # 主聊天界面
-│   ├── settings/                 # 设置页面
-│   │   └── page.tsx              # 设置主页面（7 个标签页）
-│   ├── projects/                 # 项目管理页面
-│   │   └── page.tsx              # 项目列表和详情
-│   ├── designer/                 # 设计器页面
-│   ├── api/                      # API 路由（开发时使用）
-│   ├── skills/                   # 技能路由
-│   ├── page.tsx                  # 应用主页
-│   ├── layout.tsx                # 根布局和全局配置
-│   ├── providers.tsx             # 客户端 Provider 包装器
-│   └── globals.css               # 全局样式和 Tailwind 配置
+│   ├── (chat)/                   # 主聊天界面
+│   ├── settings/                 # 设置页面（7 个标签页）
+│   ├── projects/                 # 项目管理
+│   ├── designer/                 # 可视化设计器
+│   ├── native-tools/             # 原生工具 UI
+│   ├── image-studio/             # 图像编辑
+│   ├── video-editor/             # 视频编辑
+│   ├── workflows/                # 工作流管理
+│   └── globals.css               # Tailwind v4 主题
 │
-├── components/                   # React 组件
-│   ├── ai-elements/              # AI 专用组件库（30+ 组件）
-│   │   ├── message.tsx           # 消息渲染
-│   │   ├── code-block.tsx        # 代码块显示
-│   │   ├── reasoning.tsx         # 推理过程可视化
-│   │   ├── artifact.tsx          # 工件卡片
-│   │   ├── plan.tsx              # 计划显示
-│   │   └── ...                   # 更多 AI 组件
+├── components/                   # React 组件（35+ 目录）
+│   ├── ui/                       # shadcn/Radix（50+ 组件）
+│   ├── chat/                     # 聊天界面
+│   ├── ai-elements/              # AI 组件（30+）
+│   ├── agent/                    # 代理模式
 │   ├── artifacts/                # 工件系统
-│   │   ├── artifact-panel.tsx    # 工件面板
-│   │   ├── artifact-preview.tsx  # 工件预览
-│   │   └── artifact-renderers.tsx # 各类型工件渲染器
 │   ├── canvas/                   # 画布编辑器
-│   │   ├── canvas-panel.tsx      # Monaco 编辑器面板
-│   │   ├── version-history-panel.tsx # 版本历史面板
-│   │   └── index.ts
-│   ├── agent/                    # 代理模式组件
-│   │   ├── agent-mode-selector.tsx
-│   │   ├── agent-plan-editor.tsx
-│   │   ├── agent-steps.tsx       # 执行步骤可视化
-│   │   └── workflow-selector.tsx
-│   ├── chat/                     # 聊天界面组件
-│   │   ├── chat-container.tsx    # 主容器和编排器
-│   │   ├── chat-input.tsx        # 输入框（语音+文件）
-│   │   ├── chat-header.tsx       # 模式/模型/预设选择器
-│   │   ├── welcome-state.tsx     # 模式特定欢迎页
-│   │   ├── branch-selector.tsx   # 对话分支选择器
-│   │   ├── export-dialog.tsx     # 导出对话框
-│   │   ├── image-generation-dialog.tsx # 图像生成对话框
-│   │   ├── context-settings-dialog.tsx  # 上下文设置
-│   │   ├── preset-manager-dialog.tsx    # 预设管理
-│   │   ├── model-picker-dialog.tsx      # 模型选择
-│   │   ├── mention-popover.tsx   # 提及功能
-│   │   ├── markdown-renderer.tsx # Markdown 渲染
-│   │   └── renderers/            # 专用渲染器
-│   │       ├── code-block.tsx
-│   │       ├── math-block.tsx
-│   │       ├── mermaid-block.tsx
-│   │       ├── vegalite-block.tsx
-│   │       └── enhanced-table.tsx
-│   ├── projects/                 # 项目管理组件
-│   │   ├── project-list.tsx      # 项目列表
-│   │   ├── project-card.tsx      # 项目卡片
-│   │   ├── create-project-dialog.tsx
-│   │   ├── knowledge-base.tsx    # 知识库管理
-│   │   ├── project-templates.tsx # 项目模板
-│   │   └── import-export-dialog.tsx
-│   ├── presets/                  # 预设系统
-│   │   ├── preset-selector.tsx   # 快速预设选择
-│   │   ├── preset-card.tsx       # 预设卡片
-│   │   ├── create-preset-dialog.tsx
-│   │   └── presets-manager.tsx
-│   ├── settings/                 # 设置页面组件
-│   │   ├── provider-settings.tsx # 服务商配置
-│   │   ├── custom-instructions-settings.tsx # 自定义指令
-│   │   ├── memory-settings.tsx   # 记忆管理
-│   │   ├── usage-settings.tsx    # 使用统计
-│   │   ├── keyboard-settings.tsx # 快捷键设置
-│   │   ├── speech-settings.tsx   # 语音设置
-│   │   ├── data-settings.tsx     # 数据管理
-│   │   ├── mcp-settings.tsx      # MCP 服务器管理
-│   │   ├── mcp-server-dialog.tsx # MCP 服务器对话框
-│   │   ├── mcp-install-wizard.tsx # MCP 快速安装向导
-│   │   └── setup-wizard.tsx      # 首次设置向导
-│   ├── export/                   # 导出功能
-│   │   ├── document-export-dialog.tsx
-│   │   └── index.ts
-│   ├── layout/                   # 布局组件
-│   │   ├── command-palette.tsx   # 命令面板
-│   │   ├── keyboard-shortcuts-dialog.tsx
-│   │   └── mobile-nav.tsx
-│   ├── sidebar/                  # 侧边栏组件
-│   │   └── app-sidebar.tsx
-│   ├── learning/                 # 学习模式组件
-│   ├── skills/                   # 技能组件
-│   ├── providers/                # Provider 组件
-│   │   ├── skill-provider.tsx
-│   │   └── index.ts
-│   └── ui/                       # shadcn/ui 基础组件（50+）
-│       ├── button.tsx
-│       ├── dialog.tsx
-│       ├── dropdown-menu.tsx
-│       └── ...
-│
-├── hooks/                        # 自定义 React Hooks
-│   ├── use-agent.ts              # 代理模式 Hook
-│   ├── use-messages.ts           # 消息持久化
-│   ├── use-session-search.ts     # 会话搜索
-│   ├── use-keyboard-shortcuts.ts # 全局快捷键
-│   ├── use-rag.ts                # RAG 检索
-│   ├── use-vector-db.ts          # 向量数据库
-│   ├── use-speech.ts             # 语音输入
-│   ├── use-learning-mode.ts      # 学习模式
-│   ├── use-workflow.ts           # 工作流
-│   ├── use-skills.ts             # 技能系统
-│   ├── use-structured-output.ts  # 结构化输出
-│   ├── use-translate.ts          # 翻译
-│   ├── use-global-shortcuts.test.ts
-│   └── index.ts
-│
-├── lib/                          # 工具库
-│   ├── ai/                       # AI 集成
-│   │   ├── client.ts             # 服务商客户端创建
-│   │   ├── use-ai-chat.ts        # 聊天 Hook（含使用跟踪）
-│   │   ├── auto-router.ts        # 智能模型路由
-│   │   ├── image-utils.ts        # 视觉支持工具
-│   │   ├── image-generation.ts   # DALL-E 集成
-│   │   ├── speech-api.ts         # 语音 API
-│   │   ├── agent-tools.ts        # 代理工具
-│   │   ├── tools/                # 工具定义
-│   │   ├── workflows/            # 工作流定义
-│   │   └── index.ts
-│   ├── db/                       # 数据库
-│   │   ├── index.ts              # Dexie 设置
-│   │   └── message-repository.ts # 消息持久化
-│   ├── document/                 # 文档处理
-│   │   └── table-extractor.ts    # 表格提取
-│   ├── export/                   # 导出功能
-│   │   ├── pdf-export.ts         # PDF 导出
-│   │   ├── markdown-export.ts    # Markdown 导出
-│   │   ├── json-export.ts        # JSON 导出
-│   │   ├── html-export.ts        # HTML 导出
-│   │   ├── word-export.ts        # Word 导出
-│   │   ├── excel-export.ts       # Excel 导出
-│   │   └── google-sheets-export.ts # Google Sheets 导出
-│   ├── file/                     # 文件工具
-│   ├── i18n/                     # 国际化
-│   │   └── messages/
-│   │       ├── en.json
-│   │       └── zh-CN.json
+│   ├── designer/                 # 可视化设计器
+│   ├── workflow-editor/          # 工作流编辑器
+│   ├── native/                   # 原生功能 UI
 │   ├── learning/                 # 学习模式
-│   ├── native/                   # Tauri 原生调用
-│   ├── search/                   # 搜索工具
 │   ├── skills/                   # 技能系统
-│   ├── themes/                   # 主题配置
-│   ├── vector/                   # 向量数据库集成
-│   │   ├── store.ts
-│   │   └── index.ts
-│   └── utils.ts                  # 通用工具（cn 等）
+│   ├── mcp/                      # MCP 管理
+│   ├── ppt/                      # PPT 生成
+│   └── settings/                 # 设置面板
 │
-├── stores/                       # Zustand 状态管理
-│   ├── artifact-store.ts         # 工件、画布、版本历史
-│   ├── settings-store.ts         # 用户设置和服务商配置
-│   ├── session-store.ts          # 会话和分支
-│   ├── agent-store.ts            # 代理执行跟踪
-│   ├── memory-store.ts           # 跨会话记忆
-│   ├── project-store.ts          # 项目管理
-│   ├── preset-store.ts           # 预设管理
-│   ├── usage-store.ts            # Token 和成本跟踪
-│   ├── mcp-store.ts              # MCP 服务器管理
-│   ├── workflow-store.ts         # 工作流管理
-│   ├── learning-store.ts         # 学习模式状态
-│   └── index.ts                  # Store 导出
+├── hooks/                        # 模块化 React Hooks
+│   ├── ai/                       # use-agent、use-background-agent、use-skills
+│   ├── chat/                     # use-summary、聊天工具
+│   ├── context/                  # use-clipboard-context、use-project-context
+│   ├── designer/                 # use-workflow-editor、use-workflow-execution
+│   ├── native/                   # use-native、use-notification、use-window
+│   ├── rag/                      # RAG 相关 hooks
+│   ├── sandbox/                  # use-environment、use-jupyter-kernel
+│   └── ui/                       # use-learning-mode、use-global-shortcuts
+│
+├── stores/                       # 模块化 Zustand Stores
+│   ├── agent/                    # 代理执行
+│   ├── artifact/                 # 工件、画布、版本
+│   ├── chat/                     # 聊天会话
+│   ├── designer/                 # 设计器状态
+│   ├── learning/                 # 学习模式
+│   ├── mcp/                      # MCP 服务器
+│   ├── project/                  # 项目、知识库
+│   ├── settings/                 # 偏好、预设、主题
+│   ├── system/                   # 原生、代理、使用统计
+│   └── workflow/                 # 工作流定义
+│
+├── lib/                          # 核心工具库
+│   ├── ai/                       # AI 集成
+│   │   ├── agent/                # 代理执行器、循环、编排器
+│   │   ├── tools/                # 工具定义
+│   │   └── workflows/            # 工作流定义
+│   ├── db/                       # Dexie 数据库
+│   ├── export/                   # PDF、Markdown、HTML、Word、Excel、PPT
+│   ├── designer/                 # 设计器工具
+│   ├── native/                   # Tauri 原生调用
+│   ├── skills/                   # 技能框架
+│   └── i18n/                     # 国际化（en、zh-CN）
 │
 ├── types/                        # TypeScript 类型定义
-│   ├── artifact.ts               # 工件类型（8 种类型、17+ 语言）
-│   ├── session.ts                # 会话和分支类型
-│   ├── message.ts                # 消息类型（含分支支持）
-│   ├── provider.ts               # 服务商配置
-│   ├── memory.ts                 # 记忆类型
-│   ├── project.ts                # 项目类型
-│   ├── preset.ts                 # 预设类型
-│   ├── usage.ts                  # 使用跟踪类型
-│   ├── mcp.ts                    # MCP 类型
-│   ├── agent-mode.ts             # 代理模式类型
-│   ├── learning.ts               # 学习模式类型
-│   ├── skill.ts                  # 技能类型
-│   ├── speech.ts                 # 语音类型
-│   ├── workflow.ts               # 工作流类型
-│   └── index.ts
-│
-├── e2e/                          # Playwright 端到端测试
-│   ├── ai/                       # AI 功能测试
-│   ├── core/                     # 核心功能测试
-│   ├── features/                 # 特性测试
-│   │   ├── math-renderer.spec.ts
-│   │   ├── settings-ollama.spec.ts
-│   │   ├── projects-knowledge-base.spec.ts
-│   │   ├── learning-mode.spec.ts
-│   │   ├── ppt-enhanced.spec.ts
-│   │   ├── ppt.spec.ts
-│   │   └── skills-enhanced.spec.ts
-│   └── ui/                       # UI 测试
 │
 ├── src-tauri/                    # Tauri Rust 后端
 │   ├── src/
-│   │   ├── main.rs               # Rust 入口点
-│   │   ├── lib.rs                # 库代码
-│   │   ├── commands/             # Tauri 命令
-│   │   │   ├── mod.rs
-│   │   │   └── vector.rs         # 向量数据库命令
-│   │   └── mcp/                  # MCP 实现
-│   │       ├── mod.rs
-│   │       ├── manager.rs        # 服务器生命周期管理
-│   │       ├── client.rs         # MCP 客户端
-│   │       ├── config.rs         # 配置管理
-│   │       ├── transport/        # 传输层
-│   │       └── protocol/         # 协议实现
-│   ├── tauri.conf.json           # Tauri 配置
-│   ├── Cargo.toml                # Rust 依赖
-│   └── capabilities/             # 权限配置
+│   │   ├── mcp/                  # MCP 实现
+│   │   ├── awareness/            # 系统监控
+│   │   ├── context/              # 上下文检测
+│   │   ├── screenshot/           # 截图捕获
+│   │   ├── selection/            # 文本选择
+│   │   └── sandbox/              # 代码执行
+│   └── tauri.conf.json           # Tauri 配置
 │
-├── llmdoc/                       # 项目文档
-│   ├── index.md                  # 文档索引
-│   └── feature/                  # 功能文档
-│       ├── phase-2-overview.md
-│       ├── enhanced-features.md
-│       ├── mcp-system.md
-│       └── ...
-│
-├── public/                       # 静态资源
-├── __mocks__/                    # Jest Mocks
-├── .github/                      # GitHub 配置
-├── components.json               # shadcn/ui 配置
-├── next.config.ts                # Next.js 配置
-├── tailwind.config.ts            # Tailwind 配置
-├── tsconfig.json                 # TypeScript 配置
-├── jest.config.ts                # Jest 配置
-├── playwright.config.ts          # Playwright 配置
-├── package.json                  # 依赖和脚本
-├── pnpm-lock.yaml                # pnpm 锁文件
-├── CLAUDE.md                     # Claude AI 指令
-├── CHANGELOG.md                  # 变更日志
-└── README_zh.md                  # 中文文档
+├── e2e/                          # Playwright 测试
+├── docs/                         # 文档
+└── [配置文件]                    # next、tailwind、jest、playwright 等
 ```
 
-## 核心功能
+## 核心系统
 
 ### AI 模型集成
 
-#### 支持的服务商
-
-Cognia 通过 Vercel AI SDK v5 集成以下服务商：
+#### 支持的服务商（共 14 家）
 
 | 服务商 | 模型示例 | 特性 |
 | ------- | -------- | ---- |
-| OpenAI | GPT-4o, GPT-4o-mini, o1, o1-mini | 视觉、工具调用、流式 |
-| Anthropic | Claude 4 Sonnet/Opus, Claude 3.5 Haiku | 长上下文、视觉 |
-| Google | Gemini 2.0 Flash, Gemini 1.5 Pro/Flash | 视觉、长上下文 |
-| Mistral | Mistral Large, Mistral Small | 高性能 |
-| DeepSeek | deepseek-chat, deepseek-coder | 代码优化 |
+| OpenAI | GPT-4o, GPT-4o-mini, o1 | 视觉、工具调用、流式 |
+| Anthropic | Claude 4 Sonnet/Opus | 长上下文、视觉 |
+| Google | Gemini 2.0 Flash, 1.5 Pro | 视觉、长上下文 |
+| Mistral | Mistral Large, Small | 高性能 |
+| DeepSeek | deepseek-chat, coder | 代码优化 |
 | Groq | Llama 3.3, Mixtral | 低延迟 |
+| xAI | Grok | OpenAI 兼容 |
+| Together AI | 多种模型 | OpenAI 兼容 |
+| OpenRouter | 多服务商 | 路由 |
+| Cohere | Command | 企业级 |
+| Fireworks | 多种模型 | 快速推理 |
+| Cerebras | 多种模型 | 硬件优化 |
+| SambaNova | 多种模型 | 企业级 |
 | Ollama | 本地模型 | 离线、隐私 |
 
 #### 智能自动路由
 
-`lib/ai/auto-router.ts` 实现三层智能路由：
+`lib/ai/auto-router.ts` 支持两种路由模式：
 
-```typescript
-// 快速档：简单查询
-- Groq Llama 3.3 (70 tokens/M)
-- Gemini Flash
-- GPT-4o Mini
-- Claude Haiku
+- **规则模式**：快速模式匹配检测简单/复杂任务
+- **LLM 模式**：使用小模型进行精确分类
 
-// 平衡档：常规任务
-- Gemini 1.5 Pro
-- GPT-4o
-- Claude Sonnet
+三层路由：
 
-// 强力档：复杂推理
-- Claude Opus
-- OpenAI o1
-- DeepSeek Reasoner
-```
+- **快速档**：Groq Llama 3.3、Gemini Flash、GPT-4o Mini、Claude Haiku
+- **平衡档**：Gemini 1.5 Pro、GPT-4o、Claude Sonnet
+- **强力档**：Claude Opus、OpenAI o1、DeepSeek Reasoner
 
-#### 流式响应
+### 代理系统
 
-所有服务商支持流式响应，实时显示 AI 生成内容：
+自主 AI 代理的三层架构：
 
-```typescript
-const { messages, handleSubmit, isLoading } = useAIChat({
-  api: '/api/chat',
-  stream: true,
-  onFinish: (message) => {
-    // 记录使用统计
-    addUsageRecord({ ... });
-  }
-});
-```
+1. **应用层**：React hooks（`useAgent`、`useBackgroundAgent`）、UI 面板
+2. **编排层**：代理循环、规划、子代理协调
+3. **执行层**：AgentExecutor 配合 AI SDK `generateText`，统一工具系统
 
-### 工件系统
+#### 工具集成
 
-工件系统允许 AI 生成独立的、可预览的内容片段。
-
-#### 支持的工件类型
-
-```typescript
-type ArtifactType =
-  | 'code'        // 代码片段（17+ 语言）
-  | 'document'    // 文本文档
-  | 'svg'         // SVG 矢量图
-  | 'html'        // HTML 页面
-  | 'react'       // React 组件
-  | 'mermaid'     // Mermaid 图表
-  | 'chart'       // 数据图表（Recharts）
-  | 'math';       // 数学公式（KaTeX）
-```
-
-#### 工件存储
-
-工件持久化到 localStorage（key: `cognia-artifacts`）：
-
-```typescript
-interface Artifact {
-  id: string;
-  sessionId: string;
-  messageId: string;
-  type: ArtifactType;
-  title: string;
-  content: string;
-  language?: string;
-  createdAt: Date;
-}
-```
-
-#### 使用示例
-
-```typescript
-import { useArtifactStore } from '@/stores/artifact-store';
-
-// 创建工件
-const { createArtifact } = useArtifactStore();
-createArtifact({
-  sessionId: 'session-123',
-  messageId: 'msg-456',
-  type: 'code',
-  title: '快速排序算法',
-  content: 'function quickSort(arr) { ... }',
-  language: 'typescript'
-});
-
-// 工件面板自动打开并显示工件
-```
-
-### 画布编辑器
-
-基于 Monaco 编辑器的代码编辑器，支持 AI 建议和版本历史。
-
-#### 核心功能
-
-- **Monaco 编辑器**：VS Code 同款编辑器
-- **语法高亮**：Shiki 支持 30+ 语言
-- **AI 建议**：AI 可添加改进建议
-- **代码转换**：重构、优化、解释等操作
-- **版本历史**：自动保存和手动版本点
-- **差异对比**：版本间对比
-
-#### 画布操作
-
-```typescript
-// 添加 AI 建议
-useArtifactStore().addSuggestion(documentId, {
-  type: 'fix', // fix | improve | refactor | explain
-  range: { startLine: 10, endLine: 15 },
-  originalText: 'const x = 1;',
-  suggestedText: 'const x: number = 1;',
-  explanation: '添加类型注解',
-  status: 'pending'
-});
-
-// 保存版本
-saveCanvasVersion(documentId, '优化性能', false);
-
-// 恢复版本
-restoreCanvasVersion(documentId, versionId);
-```
+- **内置工具**：文件操作、搜索、网络访问
+- **MCP 工具**：完整 Model Context Protocol 集成
+- **技能**：自定义技能执行框架
+- **RAG**：从知识库检索增强生成
 
 ### MCP 支持
 
-完整实现 Model Context Protocol，可扩展 AI 能力。
+完整实现 Model Context Protocol，扩展 AI 能力。
 
-#### MCP 架构
+#### 架构
 
 ```text
-Frontend (React)
-  ↓ Tauri IPC
-Rust Backend (Tauri)
-  ↓ stdio/SSE
-MCP Servers (External)
+Cognia 前端 (React)
+    ↓ Tauri IPC
+Cognia 后端 (Rust)
+    ↓ stdio / SSE
+MCP 服务器 (Node.js, Python 等)
 ```
 
-#### Rust 后端
+#### 内置服务器模板
 
-位置：`src-tauri/src/mcp/`
+Filesystem、GitHub、PostgreSQL、SQLite、Brave Search、Memory、Puppeteer、Slack
 
-- `manager.rs` - 服务器生命周期管理
-- `client.rs` - JSON-RPC 2.0 协议实现
-- `transport/stdio.rs` - stdio 传输
-- `transport/sse.rs` - SSE 传输
-- `protocol/tools.rs` - 工具协议
-- `protocol/resources.rs` - 资源协议
-- `protocol/prompts.rs` - 提示协议
+### 原生工具
 
-#### 前端 Store
+Tauri 构建中可用的桌面专属功能：
 
-位置：`stores/mcp-store.ts`
+| 功能 | 描述 | 平台支持 |
+| ---- | ---- | -------- |
+| **选择系统** | 12 种扩展模式、AI 操作、剪贴板历史 | Windows、macOS、Linux |
+| **感知系统** | CPU、内存、磁盘、电池、网络监控 | Windows（完整）、其他（部分） |
+| **上下文系统** | 窗口/应用/文件/浏览器检测 | Windows（完整）、其他（部分） |
+| **截图系统** | 多模式捕获含 OCR | Windows、macOS、Linux |
 
-```typescript
-interface McpState {
-  servers: McpServerState[];
-  initialize: () => Promise<void>;
-  addServer: (id: string, config: McpServerConfig) => Promise<void>;
-  connectServer: (id: string) => Promise<void>;
-  callTool: (serverId: string, toolName: string, args: Record<string, unknown>) => Promise<ToolCallResult>;
-  // ...
-}
-```
+### 设计器系统
 
-#### 支持的服务器模板
+V0 风格可视化网页设计器，支持 AI 编辑：
 
-内置快速安装模板：
+- **40+ 组件**：14 类组件，支持拖拽插入
+- **实时预览**：CDN 备用的实时预览
+- **AI 集成**：通过 `lib/designer/ai.ts` 实现 AI 内容生成
+- **导出**：导出为 HTML、React 组件
 
-1. **Filesystem** - 本地文件操作
-2. **GitHub** - GitHub API 访问
-3. **PostgreSQL** - 数据库查询
-4. **SQLite** - 数据库查询
-5. **Brave Search** - 网页搜索
-6. **Memory** - 持久化记忆
-7. **Puppeteer** - 浏览器自动化
-8. **Slack** - Slack 集成
+### 工作流编辑器
 
-#### 配置文件
+React Flow 可视化工作流自动化：
 
-位置：`{app_data}/mcp_servers.json`
+- **可视化编辑器**：支持拖拽的节点图编辑器
+- **节点类型**：注释、分组、自定义操作节点
+- **执行引擎**：支持调试的分步执行
+- **变量管理**：全局和局部作用域
 
-```json
-{
-  "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/dir"],
-      "env": {},
-      "connectionType": "stdio"
-    }
-  }
-}
-```
+### 技能系统
+
+扩展 AI 的自定义技能框架：
+
+- **技能定义**：带参数和执行逻辑的自定义技能
+- **技能建议**：基于上下文的 AI 推荐
+- **技能分析**：使用跟踪和指标
+- **技能向导**：引导式创建界面
+
+### 学习模式
+
+交互式教育内容学习系统：
+
+- **阶段**：问题分析、引导学习、总结
+- **闪卡**：间隔重复学习
+- **测验**：交互式知识测试
+- **进度跟踪**：成就和历史记录
+
+### 工件与画布
+
+#### 工件类型
+
+- **code**：代码片段（17+ 语言）
+- **document**：文本文档
+- **svg/html/react**：可视化内容
+- **mermaid/chart**：图表（Mermaid、Recharts）
+- **math**：数学公式（KaTeX）
+
+#### 画布编辑器
+
+基于 Monaco 的编辑器：
+
+- 语法高亮（Shiki，30+ 语言）
+- AI 建议和代码转换
+- 版本历史含差异对比
 
 ### 数据持久化
 
 #### IndexedDB（Dexie）
 
-消息和附件持久化到 IndexedDB：
-
-```typescript
-// lib/db/message-repository.ts
-export const messageRepository = {
-  async create(sessionId: string, message: CreateMessageInput): Promise<UIMessage>;
-  async update(id: string, updates: Partial<UIMessage>): Promise<void>;
-  async delete(id: string): Promise<void>;
-  async findBySession(sessionId: string): Promise<UIMessage[]>;
-};
-```
+消息和附件持久化到 IndexedDB。
 
 #### Zustand + localStorage
 
-所有 stores 使用 persist 中间件自动保存到 localStorage：
-
-```typescript
-export const useSettingsStore = create<SettingsState>()(
-  persist(
-    (set) => ({ ... }),
-    { name: 'cognia-settings' }
-  )
-);
-```
-
-#### 存储 Keys
-
-| Store | localStorage Key |
-| ----- | ---------------- |
-| settings | `cognia-settings` |
-| sessions | `cognia-sessions` |
-| artifacts | `cognia-artifacts` |
-| memory | `cognia-memory` |
-| projects | `cognia-projects` |
-| usage | `cognia-usage` |
-| presets | `cognia-presets` |
-| mcp | `cognia-mcp` |
+所有 stores 使用 persist 中间件自动保存到 localStorage。
 
 ### 项目管理
 
-#### 项目数据结构
-
-```typescript
-interface Project {
-  id: string;
-  name: string;
-  description?: string;
-  icon?: string;
-  color?: string;
-  customInstructions?: string;
-  defaultProvider?: string;
-  defaultModel?: string;
-  knowledgeBase: KnowledgeFile[];
-  sessionIds: string[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-```
-
-#### 知识库
-
-每个项目可关联知识库文件：
-
-```typescript
-interface KnowledgeFile {
-  id: string;
-  name: string;
-  type: 'text' | 'file' | 'url';
-  content: string;
-  size?: number;
-  addedAt: Date;
-}
-```
-
-#### 项目操作示例
-
-```typescript
-import { useProjectStore } from '@/stores/project-store';
-
-// 创建项目
-createProject({ name: '新项目', description: '...' });
-
-// 添加知识库文件
-addKnowledgeFile(projectId, { name: 'doc.txt', content: '...' });
-
-// 添加会话到项目
-addSessionToProject(projectId, sessionId);
-```
+每个项目可关联知识库文件，支持自定义指令和默认模型设置。
 
 ## 配置说明
 
-### 环境变量
+详细配置请参见 **[配置指南](docs/features/configuration.md)**。
 
-创建 `.env.local` 文件：
+### 快速设置
 
-```env
-# 仅服务器端可访问（构建时）
-DATABASE_URL=postgresql://...
-API_SECRET_KEY=your-secret-key
-
-# 客户端可访问（以 NEXT_PUBLIC_ 开头）
-NEXT_PUBLIC_APP_NAME=Cognia
-NEXT_PUBLIC_API_URL=https://api.example.com
-
-# AI 服务商密钥
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-GOOGLE_API_KEY=...
-DEEPSEEK_API_KEY=sk-...
-GROQ_API_KEY=gsk_...
-MISTRAL_API_KEY=...
-```
+1. **环境变量** - 创建 `.env.local` 文件配置 API 密钥
+2. **服务商设置** - 在设置 > 服务商中配置 AI 服务商
+3. **外观** - 在设置 > 外观中自定义主题和字体
+4. **快捷键** - 在设置 > 快捷键中自定义快捷键
 
 **安全提示**：
 
 - 切勿提交 `.env.local` 到版本控制
-- 仅添加使用的服务商密钥
-- 密钥存储在浏览器 localStorage，不加密
-
-### Tauri 配置
-
-编辑 `src-tauri/tauri.conf.json`：
-
-```json
-{
-  "productName": "Cognia",
-  "version": "1.0.0",
-  "identifier": "com.cognia.app",
-  "build": {
-    "frontendDist": "../out",
-    "devUrl": "http://localhost:3000"
-  },
-  "app": {
-    "windows": [{
-      "title": "Cognia",
-      "width": 1280,
-      "height": 800,
-      "resizable": true,
-      "fullscreen": false
-    }]
-  }
-}
-```
-
-### 路径别名
-
-在 `tsconfig.json` 中配置：
-
-```json
-{
-  "compilerOptions": {
-    "paths": {
-      "@/*": ["./*"],
-      "@/components/*": ["./components/*"],
-      "@/lib/*": ["./lib/*"],
-      "@/hooks/*": ["./hooks/*"],
-      "@/stores/*": ["./stores/*"],
-      "@/types/*": ["./types/*"],
-      "@/ui/*": ["./components/ui/*"]
-    }
-  }
-}
-```
-
-### Tailwind CSS
-
-使用 Tailwind v4 和 CSS 变量主题化：
-
-```css
-/* app/globals.css */
-@theme inline {
-  --color-primary: *;
-  --color-secondary: *;
-  --radius: 0.5rem;
-}
-
-.dark {
-  --color-background: oklch(0.1 0 0);
-  --color-foreground: oklch(0.95 0 0);
-}
-```
+- 密钥存储在浏览器 localStorage，未加密
 
 ## 生产构建
 
 ### Web 应用构建
 
 ```bash
-# 构建静态导出
 pnpm build
-
 # 输出目录：out/
-# 优化内容：HTML、CSS、JS、字体、图片
-
-# 预览生产构建
-pnpm start
 ```
 
 ### 桌面应用构建
 
 ```bash
-# 为当前平台构建
 pnpm tauri build
 
 # 输出位置：
 # - Windows: src-tauri/target/release/bundle/msi/
 # - macOS: src-tauri/target/release/bundle/dmg/
 # - Linux: src-tauri/target/release/bundle/appimage/
-
-# 构建选项
-pnpm tauri build --target x86_64-pc-windows-msvc  # 特定目标
-pnpm tauri build --debug                           # 调试符号
-pnpm tauri build --bundles none                    # 不打包
 ```
 
 ## 部署指南
@@ -973,44 +465,13 @@ pnpm tauri build --bundles none                    # 不打包
 
 `out/` 目录可部署到任何静态托管服务：
 
-#### Vercel
-
-```bash
-# 安装 Vercel CLI
-npm i -g vercel
-
-# 部署
-vercel --prod
-```
-
-#### Netlify
-
-```bash
-# 安装 Netlify CLI
-npm i -g netlify-cli
-
-# 部署
-netlify deploy --prod --dir=out
-```
-
-#### 静态 CDN
-
-直接上传 `out/` 目录到：
-
+- Vercel
+- Netlify
 - AWS S3 + CloudFront
-- Azure Static Web Apps
 - GitHub Pages
 - Cloudflare Pages
 
 ### 桌面应用分发
-
-构建产物位置：
-
-- Windows：`.msi` / `.exe`
-- macOS：`.dmg` / `.app`
-- Linux：`.AppImage` / `.deb`
-
-分发渠道：
 
 - GitHub Releases
 - 官网下载
@@ -1021,92 +482,38 @@ netlify deploy --prod --dir=out
 ### 单元测试（Jest）
 
 ```bash
-# 运行所有测试
 pnpm test
-
-# 监视模式
-pnpm test:watch
-
-# 覆盖率报告
 pnpm test:coverage
 ```
 
-覆盖率要求：
-
-- 语句覆盖率：70%
-- 分支覆盖率：60%
-- 函数覆盖率：60%
+覆盖率要求：语句 70%、分支 60%
 
 ### 端到端测试（Playwright）
 
 ```bash
-# 运行所有 E2E 测试
 pnpm test:e2e
-
-# UI 模式
 pnpm test:e2e:ui
-
-# 有头浏览器
-pnpm test:e2e:headed
-```
-
-测试组织：
-
-- `e2e/ai/` - AI 功能测试
-- `e2e/core/` - 核心功能测试
-- `e2e/features/` - 特性测试
-- `e2e/ui/` - UI 测试
-
-### Lint 检查
-
-```bash
-# 运行 ESLint
-pnpm lint
-
-# 自动修复
-pnpm lint:fix
 ```
 
 ## 故障排除
 
 ### 端口被占用
 
-#### Windows
-
 ```bash
+# Windows
 netstat -ano | findstr :3000
 taskkill /PID <PID> /F
-```
 
-#### macOS/Linux
-
-```bash
+# macOS/Linux
 lsof -ti:3000 | xargs kill -9
 ```
 
 ### Tauri 构建失败
 
 ```bash
-# 检查环境
 pnpm tauri info
-
-# 更新 Rust
 rustup update
-
-# 清理构建缓存
-cd src-tauri
-cargo clean
-```
-
-### 模块未找到
-
-```bash
-# 清除 Next.js 缓存
-rm -rf .next
-
-# 重新安装依赖
-rm -rf node_modules pnpm-lock.yaml
-pnpm install
+cd src-tauri && cargo clean
 ```
 
 ### Ollama 连接失败
@@ -1114,14 +521,6 @@ pnpm install
 1. 确保 Ollama 服务运行：`ollama serve`
 2. 验证端口：`curl http://localhost:11434`
 3. 检查防火墙设置
-4. 确认模型已下载：`ollama list`
-
-### MCP 服务器启动失败
-
-1. 检查命令路径：`which <command>`
-2. 验证环境变量配置
-3. 查看服务器日志
-4. 手动测试命令：`npx @modelcontextprotocol/server-filesystem --help`
 
 ## 资源链接
 
@@ -1135,94 +534,17 @@ pnpm install
 - [Tailwind CSS](https://tailwindcss.com/docs)
 - [shadcn/ui](https://ui.shadcn.com/)
 
-### 相关技术
-
-- [Radix UI](https://www.radix-ui.com/)
-- [Lucide 图标](https://lucide.dev/)
-- [Monaco 编辑器](https://microsoft.github.io/monaco-editor/)
-- [Dexie.js](https://dexie.org/)
-- [Playwright](https://playwright.dev/)
-- [Jest](https://jestjs.io/)
-
 ### 项目文档
 
-- [llmdoc/index.md](llmdoc/index.md) - 项目文档索引
-- [CLAUDE.md](CLAUDE.md) - Claude AI 指令
-- [CHANGELOG.md](CHANGELOG.md) - 变更日志
+- **[文档索引](docs/README.md)** - 主要文档入口
+- **[CLAUDE.md](CLAUDE.md)** - Claude AI 指令
+- **[CHANGELOG.md](CHANGELOG.md)** - 变更日志
 
-## 开发工作流
-
-### 典型开发流程
-
-1. 启动开发服务器
-
-   ```bash
-   pnpm dev        # Web 开发
-   pnpm tauri dev  # 桌面开发
-   ```
-
-2. 在 `app/`、`components/`、`lib/`、`stores/`、`hooks/` 中开发
-
-3. 添加 UI 组件（如需要）
-
-   ```bash
-   pnpm dlx shadcn@latest add <component>
-   ```
-
-4. 代码检查
-
-   ```bash
-   pnpm lint
-   pnpm lint:fix
-   ```
-
-5. 运行测试
-
-   ```bash
-   pnpm test
-   pnpm test:e2e
-   ```
-
-6. 构建验证
-
-   ```bash
-   pnpm build
-   pnpm tauri build
-   ```
-
-### 代码规范
-
-- **TypeScript**：使用严格模式
-- **组件**：函数组件 + Hooks
-- **样式**：Tailwind CSS + cn() 工具
-- **状态**：Zustand stores + persist
-- **类型**：使用 `/types/` 中的类型定义
-- **导入**：使用路径别名（@/components、@/lib 等）
-
-### Git 工作流
-
-```bash
-# 创建功能分支
-git checkout -b feature/amazing-feature
-
-# 提交更改（使用约定式提交）
-git commit -m 'feat: add amazing feature'
-
-# 推送分支
-git push origin feature/amazing-feature
-
-# 创建 Pull Request
-```
-
-## 许可证
-
-本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
-
-## 贡献
+## 贡献指南
 
 欢迎贡献！请遵循以下步骤：
 
-1. Fork 本仓库
+1. Fork 仓库
 2. 创建功能分支
 3. 提交更改（使用约定式提交）
 4. 推送到分支
@@ -1232,16 +554,20 @@ git push origin feature/amazing-feature
 
 ```text
 feat: 新功能
-fix: 修复 Bug
+fix: Bug 修复
 docs: 文档更新
-style: 代码格式（不影响功能）
+style: 代码格式（无功能变更）
 refactor: 重构
 test: 测试相关
 chore: 构建/工具相关
 ```
 
+## 许可证
+
+本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
+
 ---
 
-**最后更新**：2025 年 12 月 25 日
+**最后更新**：2026 年 1 月 12 日
 
 **维护者**：Cognia 开发团队

@@ -35,8 +35,9 @@ pub use types::{Selection, SourceAppInfo, TextType};
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::sync::Arc;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
@@ -123,12 +124,26 @@ pub struct SelectionManager {
     /// Clipboard context analyzer
     pub clipboard_analyzer: Arc<ClipboardContextAnalyzer>,
     app_handle: tauri::AppHandle,
+    /// Config file path for persistence
+    config_path: PathBuf,
 }
 
 impl SelectionManager {
     pub fn new(app_handle: tauri::AppHandle) -> Self {
         log::info!("[SelectionManager] Creating new instance");
-        let config = Arc::new(RwLock::new(SelectionConfig::default()));
+        
+        // Get config path from app data directory
+        let config_path = app_handle
+            .path()
+            .app_data_dir()
+            .map(|p| p.join("selection_config.json"))
+            .unwrap_or_else(|_| PathBuf::from("selection_config.json"));
+        
+        // Try to load existing config
+        let config = Self::load_config_from_file(&config_path).unwrap_or_default();
+        log::debug!("[SelectionManager] Config loaded: enabled={}, trigger_mode={}", config.enabled, config.trigger_mode);
+        
+        let config = Arc::new(RwLock::new(config));
         let detector = Arc::new(SelectionDetector::new());
         let mouse_hook = Arc::new(MouseHook::new());
         let toolbar_window = Arc::new(ToolbarWindow::new(app_handle.clone()));
@@ -151,7 +166,43 @@ impl SelectionManager {
             smart_selection,
             clipboard_analyzer,
             app_handle,
+            config_path,
         }
+    }
+    
+    /// Load config from file
+    fn load_config_from_file(path: &PathBuf) -> Option<SelectionConfig> {
+        if path.exists() {
+            match std::fs::read_to_string(path) {
+                Ok(content) => match serde_json::from_str(&content) {
+                    Ok(config) => {
+                        log::debug!("[SelectionManager] Loaded config from {:?}", path);
+                        return Some(config);
+                    }
+                    Err(e) => log::warn!("[SelectionManager] Failed to parse config: {}", e),
+                },
+                Err(e) => log::warn!("[SelectionManager] Failed to read config file: {}", e),
+            }
+        }
+        None
+    }
+    
+    /// Save config to file
+    pub fn save_config(&self) -> Result<(), String> {
+        let config = self.config.read().clone();
+        let content = serde_json::to_string_pretty(&config)
+            .map_err(|e| format!("Failed to serialize config: {}", e))?;
+        
+        // Ensure parent directory exists
+        if let Some(parent) = self.config_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        
+        std::fs::write(&self.config_path, content)
+            .map_err(|e| format!("Failed to write config file: {}", e))?;
+        
+        log::debug!("[SelectionManager] Config saved to {:?}", self.config_path);
+        Ok(())
     }
 
     /// Start the selection detection service

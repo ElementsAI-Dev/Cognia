@@ -13,11 +13,12 @@ import {
   optimizePromptFromAnalysis,
   analyzeUserFeedback,
   autoOptimize,
+  calculateOptimizationImprovement,
   type SelfOptimizationConfig,
   type SelfOptimizationResult,
   type OptimizationSuggestion,
-} from '@/lib/ai/generation/prompt-self-optimizer';
-import type { PromptTemplate, PromptFeedback, PromptABTest } from '@/types/content/prompt-template';
+} from '@/lib/ai/prompts/prompt-self-optimizer';
+import type { PromptTemplate, PromptFeedback, PromptABTest, PromptOptimizationHistory, OptimizationRecommendation } from '@/types/content/prompt-template';
 import type { ProviderName } from '@/lib/ai/core/client';
 
 export interface UsePromptOptimizerOptions {
@@ -41,7 +42,7 @@ export interface UsePromptOptimizerReturn {
   // Actions
   analyze: (template?: PromptTemplate) => Promise<SelfOptimizationResult | null>;
   optimize: (selectedSuggestions?: OptimizationSuggestion[]) => Promise<SelfOptimizationResult | null>;
-  applyOptimization: (optimizedContent: string) => void;
+  applyOptimization: (optimizedContent: string, style?: string) => void;
   runAutoOptimize: () => Promise<SelfOptimizationResult | null>;
   
   // Feedback
@@ -51,6 +52,12 @@ export interface UsePromptOptimizerReturn {
   startABTest: (variantContent: string, hypothesis: string) => PromptABTest | null;
   recordABTestResult: (variant: 'A' | 'B', success: boolean, rating?: number) => void;
   completeABTest: () => PromptABTest | null;
+  
+  // Optimization History & Recommendations
+  optimizationHistory: PromptOptimizationHistory[];
+  optimizationStats: { totalOptimizations: number; averageImprovement: number; bestImprovement: number; successRate: number };
+  recommendations: OptimizationRecommendation[];
+  topCandidates: Array<{ template: PromptTemplate; score: number; reasons: string[] }>;
   
   // Utils
   reset: () => void;
@@ -82,6 +89,10 @@ export function usePromptOptimizer(
   const recordABTestResultAction = usePromptTemplateStore((state) => state.recordABTestResult);
   const completeABTestAction = usePromptTemplateStore((state) => state.completeABTest);
   const markAsOptimized = usePromptTemplateStore((state) => state.markAsOptimized);
+  const recordOptimization = usePromptTemplateStore((state) => state.recordOptimization);
+  const getOptimizationHistory = usePromptTemplateStore((state) => state.getOptimizationHistory);
+  const getRecommendations = usePromptTemplateStore((state) => state.getRecommendations);
+  const getTopCandidates = usePromptTemplateStore((state) => state.getTopCandidates);
   
   // Derived state
   const template = useMemo(() => 
@@ -97,6 +108,28 @@ export function usePromptOptimizer(
   const activeABTest = useMemo(() => 
     templateId ? getActiveABTest(templateId) : null,
     [templateId, getActiveABTest]
+  );
+  
+  // Optimization history and stats
+  const optimizationHistory = useMemo(() => 
+    templateId ? getOptimizationHistory(templateId) : [],
+    [templateId, getOptimizationHistory]
+  );
+  
+  const optimizationStats = useMemo(() => 
+    calculateOptimizationImprovement(optimizationHistory),
+    [optimizationHistory]
+  );
+  
+  // Recommendations (computed across all templates)
+  const recommendations = useMemo(() => 
+    getRecommendations(),
+    [getRecommendations]
+  );
+  
+  const topCandidates = useMemo(() => 
+    getTopCandidates(5),
+    [getTopCandidates]
   );
   
   // Get optimization config from current session/settings
@@ -201,15 +234,18 @@ export function usePromptOptimizer(
   }, [template, suggestions, getConfig]);
   
   // Apply optimization to the template
-  const applyOptimization = useCallback((optimizedContent: string) => {
-    if (!templateId) {
+  const applyOptimization = useCallback((optimizedContent: string, style?: string) => {
+    if (!templateId || !template) {
       setError('No template ID to apply optimization');
       return;
     }
     
     const suggestionDescriptions = suggestions.map(s => s.description);
     markAsOptimized(templateId, optimizedContent, suggestionDescriptions);
-  }, [templateId, suggestions, markAsOptimized]);
+    
+    // Record optimization history
+    recordOptimization(templateId, template.content, optimizedContent, suggestionDescriptions, style, 'user');
+  }, [templateId, template, suggestions, markAsOptimized, recordOptimization]);
   
   // Run auto-optimization based on feedback
   const runAutoOptimize = useCallback(async (): Promise<SelfOptimizationResult | null> => {
@@ -329,6 +365,12 @@ export function usePromptOptimizer(
     startABTest,
     recordABTestResult,
     completeABTest,
+    
+    // Optimization History & Recommendations
+    optimizationHistory,
+    optimizationStats,
+    recommendations,
+    topCandidates,
     
     // Utils
     reset,

@@ -265,7 +265,7 @@ pnpm dev
 
 ```bash
 # Start on different port
-pnpm dev -- -p 3001
+pnpm dev -- -p 3000
 
 # Start with Turbopack (faster refresh)
 pnpm dev -- --turbo
@@ -281,7 +281,7 @@ pnpm tauri dev
 
 **What Happens**:
 
-1. Starts Next.js dev server on port 3001
+1. Starts Next.js dev server on port 3000
 2. Compiles Rust backend
 3. Opens desktop application window
 4. Enables hot reload for both frontend and backend
@@ -290,7 +290,7 @@ pnpm tauri dev
 
 ```
 Finished dev [unoptimized + debuginfo] target(s) in X.XXs
-Running `BeforeDevCommand` (`pnpm dev -p 3001`)
+Running `BeforeDevCommand` (`pnpm dev -p 3000`)
 Finished dev [unoptimized + debuginfo] target(s) in X.XXs
 ```
 
@@ -419,7 +419,7 @@ taskkill /PID <PID> /F
 lsof -ti:3000 | xargs kill -9
 
 # Alternative: Use different port
-pnpm dev -- -p 3001
+pnpm dev -- -p 3000
 ```
 
 ### Module Not Found Errors

@@ -136,6 +136,8 @@ describe('SelectionToolbar', () => {
       provideFeedback: jest.fn(),
       sendResultToChat: jest.fn(),
       stop: jest.fn(),
+      detectSourceLanguage: jest.fn().mockResolvedValue(null),
+      updateTargetLanguage: jest.fn(),
     });
 
     mockUseSelectionStore.mockReturnValue({

@@ -15,6 +15,7 @@ pub struct BubbleInfo {
     pub width: f64,
     pub height: f64,
     pub is_visible: bool,
+    pub is_minimized: bool,
 }
 
 /// Show the assistant bubble window
@@ -53,6 +54,7 @@ pub async fn assistant_bubble_get_info(manager: State<'_, AssistantBubbleWindow>
     let (x, y) = manager.get_position().unwrap_or((0, 0));
     let (width, height) = manager.get_size();
     let is_visible = manager.is_visible();
+    let is_minimized = manager.is_minimized();
     
     Ok(BubbleInfo {
         x,
@@ -60,6 +62,7 @@ pub async fn assistant_bubble_get_info(manager: State<'_, AssistantBubbleWindow>
         width,
         height,
         is_visible,
+        is_minimized,
     })
 }
 
@@ -86,6 +89,48 @@ pub async fn assistant_bubble_set_position(
     x: i32,
     y: i32,
 ) -> Result<(), String> {
-    manager.set_position(x, y);
+    manager.set_position(x, y)
+}
+
+/// Minimize (fold) the bubble window
+#[tauri::command]
+pub async fn assistant_bubble_minimize(manager: State<'_, AssistantBubbleWindow>) -> Result<(), String> {
+    manager.minimize()
+}
+
+/// Unminimize (unfold) the bubble window
+#[tauri::command]
+pub async fn assistant_bubble_unminimize(manager: State<'_, AssistantBubbleWindow>) -> Result<(), String> {
+    manager.unminimize()
+}
+
+/// Toggle minimized state
+#[tauri::command]
+pub async fn assistant_bubble_toggle_minimize(manager: State<'_, AssistantBubbleWindow>) -> Result<bool, String> {
+    manager.toggle_minimize()
+}
+
+/// Check if bubble is minimized
+#[tauri::command]
+pub async fn assistant_bubble_is_minimized(manager: State<'_, AssistantBubbleWindow>) -> Result<bool, String> {
+    Ok(manager.is_minimized())
+}
+
+/// Save bubble configuration to file
+#[tauri::command]
+pub async fn assistant_bubble_save_config(manager: State<'_, AssistantBubbleWindow>) -> Result<(), String> {
+    manager.save_config()
+}
+
+/// Recreate the bubble window if it was destroyed
+#[tauri::command]
+pub async fn assistant_bubble_recreate(manager: State<'_, AssistantBubbleWindow>) -> Result<bool, String> {
+    manager.recreate_if_needed()
+}
+
+/// Sync visibility state with actual window state
+#[tauri::command]
+pub async fn assistant_bubble_sync_state(manager: State<'_, AssistantBubbleWindow>) -> Result<(), String> {
+    manager.sync_visibility();
     Ok(())
 }

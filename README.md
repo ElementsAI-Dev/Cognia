@@ -1,8 +1,8 @@
 # Cognia
 
-Cognia is a modern AI-native chat and creation application supporting multiple AI model providers. Built with Next.js 16 and React 19.2 on the frontend, Tauri 2.9 enables cross-platform desktop apps from a single codebase for both web and native deployment.
+Cognia is a modern AI-native chat and creation platform with comprehensive multi-provider support. Built with Next.js 16 and React 19.2, Tauri 2.9 enables cross-platform desktop apps from a single codebase.
 
-The tech stack includes: Tailwind CSS v4, shadcn/ui, Zustand state management, Dexie persistence, and Vercel AI SDK v5 integration with OpenAI, Anthropic, Google, Mistral, Groq, DeepSeek, Ollama, and more.
+**Tech Stack**: Tailwind CSS v4, shadcn/ui, Zustand, Dexie, Vercel AI SDK v5 with **14 AI providers** (OpenAI, Anthropic, Google, Mistral, Groq, DeepSeek, Ollama, xAI, Together AI, OpenRouter, Cohere, Fireworks, Cerebras, SambaNova).
 
 [中文文档](./README_zh.md)
 
@@ -15,11 +15,16 @@ The tech stack includes: Tailwind CSS v4, shadcn/ui, Zustand state management, D
 - [Documentation](#documentation)
 - [Development Workflow](#development-workflow)
 - [Project Structure](#project-structure)
-- [Core Features](#core-features)
+- [Core Systems](#core-systems)
   - [AI Model Integration](#ai-model-integration)
-  - [Artifacts System](#artifacts-system)
-  - [Canvas Editor](#canvas-editor)
+  - [Agent System](#agent-system)
   - [MCP Support](#mcp-support)
+  - [Native Tools](#native-tools)
+  - [Designer System](#designer-system)
+  - [Workflow Editor](#workflow-editor)
+  - [Skills System](#skills-system)
+  - [Learning Mode](#learning-mode)
+  - [Artifacts & Canvas](#artifacts--canvas)
   - [Data Persistence](#data-persistence)
   - [Project Management](#project-management)
 - [Configuration](#configuration)
@@ -33,24 +38,37 @@ The tech stack includes: Tailwind CSS v4, shadcn/ui, Zustand state management, D
 
 ## Overview
 
-Cognia is a modern AI-native chat and creation application supporting multiple AI model providers. Built with Next.js 16 and React 19.2 on the frontend, Tauri 2.9 enables cross-platform desktop apps from a single codebase for both web and native deployment.
+Cognia is a comprehensive AI-native chat and creation platform supporting **14 AI providers** with advanced capabilities:
 
-Cognia provides an intelligent chat interface with advanced features like artifacts generation, canvas editing, conversation branching, MCP integration, and comprehensive data management.
+- **Hybrid Architecture**: Runs as Next.js web app or Tauri desktop application
+- **Agent System**: Autonomous AI agents with tool calling, planning, and sub-agent orchestration
+- **Native Tools**: Desktop-exclusive features (selection, awareness, context, screenshot)
+- **Visual Editors**: V0-style designer, workflow editor, canvas with AI suggestions
+- **Learning Mode**: Interactive educational features with flashcards and quizzes
+- **Full MCP Support**: Model Context Protocol for extended AI capabilities
 
 ## Key Features
 
 ### AI Capabilities
 
-- **Multi-Model Support**: Integration with 7 major AI providers (OpenAI, Anthropic, Google, Mistral, Groq, DeepSeek, Ollama)
-- **Intelligent Routing**: Automatic model selection based on task complexity (Fast/Balanced/Powerful tiers)
+- **14 AI Providers**: OpenAI, Anthropic, Google, Mistral, Groq, DeepSeek, Ollama, xAI, Together AI, OpenRouter, Cohere, Fireworks, Cerebras, SambaNova
+- **Intelligent Auto-Router**: Three-tier routing (Fast/Balanced/Powerful) with rule-based and LLM-based modes
 - **Streaming Responses**: Real-time display of AI-generated content
-- **Multimodal Support**: Vision models support image analysis
+- **Multimodal Support**: Vision models for image analysis
 - **Image Generation**: DALL-E text-to-image integration
 - **Tool Calling**: Function Calling and MCP tool support
 
+### Agent System
+
+- **Autonomous Agents**: Multi-step task execution with planning and tool calling
+- **Sub-Agent Orchestration**: Coordinate multiple agents for complex tasks
+- **Background Agents**: Queue and execute tasks asynchronously
+- **Built-in Tools**: File operations, search, web access
+- **Skills Integration**: Custom skill execution framework
+
 ### Chat Experience
 
-- **Multiple Chat Modes**: Chat mode, Agent mode, Research mode
+- **Multiple Chat Modes**: Chat mode, Agent mode, Research mode, Learning mode
 - **Conversation Branching**: Create branches from any message to explore different paths
 - **Message Management**: Edit messages, retry responses, delete conversations
 - **Voice Input**: Web Speech API integration for voice-to-text
@@ -61,23 +79,25 @@ Cognia provides an intelligent chat interface with advanced features like artifa
 
 ### Content Creation
 
-- **Artifacts System**: AI can generate independent content pieces (code, documents, charts, math formulas)
+- **Artifacts System**: AI generates code, documents, charts, math formulas
 - **Canvas Editor**: Monaco editor with AI suggestions and code transformations
-- **Version History**: Auto-save and version restore for canvas documents
-- **Multi-format Preview**: Support for HTML, React, SVG, Mermaid, charts, and more
+- **Designer**: V0-style visual web page designer with 40+ components
+- **Workflow Editor**: Visual workflow automation with React Flow
+- **Version History**: Auto-save and version restore for documents
 
-### Data Management
+### Desktop Capabilities (Tauri)
 
-- **Project Organization**: Organize conversations into projects with knowledge bases
-- **Export Functionality**: Export to PDF, Markdown, JSON, HTML formats
+- **Native Tools**: Selection, awareness, context, screenshot with OCR
+- **MCP Integration**: Full Model Context Protocol support
+- **Sandbox**: Docker/Podman code execution environment
+- **File System Access**: Native file operations and dialogs
+
+### Data & Export
+
+- **Project Organization**: Organize conversations with knowledge bases
+- **Multi-format Export**: PDF, Markdown, JSON, HTML, Word, Excel, PowerPoint
 - **Preset Management**: Save and load chat configuration presets
 - **Usage Tracking**: Token counting and cost estimation
-
-### Desktop Capabilities
-
-- **MCP Integration**: Full Model Context Protocol support for extended AI capabilities
-- **Native Features**: File system access, system dialogs, clipboard, and more
-- **Offline Operation**: Static export supports offline usage
 
 ## Tech Stack
 
@@ -161,6 +181,7 @@ Comprehensive documentation is available in the `docs/` directory:
 ### Legacy Documentation
 
 The `llmdoc/` directory contains additional feature documentation:
+
 - **[Documentation Index](llmdoc/index.md)** - Master documentation index
 - Feature docs for all major systems
 
@@ -381,253 +402,109 @@ export const useExampleStore = create<ExampleState>()(
 ```text
 cognia/
 ├── app/                          # Next.js App Router
-│   ├── (chat)/                   # Chat interface route group
-│   │   └── page.tsx              # Main chat interface
-│   ├── settings/                 # Settings page
-│   │   └── page.tsx              # Settings main page (7 tabs)
-│   ├── projects/                 # Project management page
-│   │   └── page.tsx              # Project list and details
-│   ├── designer/                 # Designer page
-│   ├── api/                      # API routes (dev time use)
-│   ├── skills/                   # Skills routes
-│   ├── page.tsx                  # Application home page
-│   ├── layout.tsx                # Root layout and global config
-│   ├── providers.tsx             # Client provider wrapper
-│   └── globals.css               # Global styles and Tailwind config
+│   ├── (chat)/                   # Main chat interface
+│   ├── settings/                 # Settings page (7 tabs)
+│   ├── projects/                 # Project management
+│   ├── designer/                 # Visual designer
+│   ├── native-tools/             # Native tools UI
+│   ├── image-studio/             # Image editing
+│   ├── video-editor/             # Video editing
+│   ├── workflows/                # Workflow management
+│   ├── api/                      # API routes (dev only)
+│   └── globals.css               # Tailwind v4 theme
 │
-├── components/                   # React components
-│   ├── ai-elements/              # AI-specific component library (30+ components)
-│   │   ├── message.tsx           # Message rendering
-│   │   ├── code-block.tsx        # Code block display
-│   │   ├── reasoning.tsx         # Reasoning visualization
-│   │   ├── artifact.tsx          # Artifact card
-│   │   ├── plan.tsx              # Plan display
-│   │   └── ...                   # More AI components
-│   ├── artifacts/                # Artifacts system
-│   │   ├── artifact-panel.tsx    # Artifact panel
-│   │   ├── artifact-preview.tsx  # Artifact preview
-│   │   └── artifact-renderers.tsx # Artifact type renderers
+├── components/                   # React components (35+ directories)
+│   ├── ui/                       # shadcn/Radix (50+ components)
+│   ├── chat/                     # Chat interface
+│   ├── ai-elements/              # AI components (30+)
+│   ├── agent/                    # Agent mode
+│   ├── artifacts/                # Artifact system
 │   ├── canvas/                   # Canvas editor
-│   │   ├── canvas-panel.tsx      # Monaco editor panel
-│   │   ├── version-history-panel.tsx # Version history panel
-│   │   └── index.ts
-│   ├── agent/                    # Agent mode components
-│   │   ├── agent-mode-selector.tsx
-│   │   ├── agent-plan-editor.tsx
-│   │   ├── agent-steps.tsx       # Execution steps visualization
-│   │   └── workflow-selector.tsx
-│   ├── chat/                     # Chat interface components
-│   │   ├── chat-container.tsx    # Main container and orchestrator
-│   │   ├── chat-input.tsx        # Input box (voice+file)
-│   │   ├── chat-header.tsx       # Mode/model/preset selector
-│   │   ├── welcome-state.tsx     # Mode-specific welcome page
-│   │   ├── branch-selector.tsx   # Conversation branch selector
-│   │   ├── export-dialog.tsx     # Export dialog
-│   │   ├── image-generation-dialog.tsx # Image generation dialog
-│   │   ├── context-settings-dialog.tsx  # Context settings
-│   │   ├── preset-manager-dialog.tsx    # Preset management
-│   │   ├── model-picker-dialog.tsx      # Model picker
-│   │   ├── mention-popover.tsx   # Mention feature
-│   │   ├── markdown-renderer.tsx # Markdown renderer
-│   │   └── renderers/            # Specialized renderers
-│   │       ├── code-block.tsx
-│   │       ├── math-block.tsx
-│   │       ├── mermaid-block.tsx
-│   │       ├── vegalite-block.tsx
-│   │       └── enhanced-table.tsx
-│   ├── projects/                 # Project management components
-│   │   ├── project-list.tsx      # Project list
-│   │   ├── project-card.tsx      # Project card
-│   │   ├── create-project-dialog.tsx
-│   │   ├── knowledge-base.tsx    # Knowledge base management
-│   │   ├── project-templates.tsx # Project templates
-│   │   └── import-export-dialog.tsx
-│   ├── presets/                  # Preset system
-│   │   ├── preset-selector.tsx   # Quick preset selector
-│   │   ├── preset-card.tsx       # Preset card
-│   │   ├── create-preset-dialog.tsx
-│   │   └── presets-manager.tsx
-│   ├── settings/                 # Settings page components
-│   │   ├── provider-settings.tsx # Provider configuration
-│   │   ├── custom-instructions-settings.tsx # Custom instructions
-│   │   ├── memory-settings.tsx   # Memory management
-│   │   ├── usage-settings.tsx    # Usage statistics
-│   │   ├── keyboard-settings.tsx # Keyboard shortcuts
-│   │   ├── speech-settings.tsx   # Speech settings
-│   │   ├── data-settings.tsx     # Data management
-│   │   ├── mcp-settings.tsx      # MCP server management
-│   │   ├── mcp-server-dialog.tsx # MCP server dialog
-│   │   ├── mcp-install-wizard.tsx # MCP quick install wizard
-│   │   └── setup-wizard.tsx      # First-time setup wizard
-│   ├── export/                   # Export functionality
-│   │   ├── document-export-dialog.tsx
-│   │   └── index.ts
-│   ├── layout/                   # Layout components
-│   │   ├── command-palette.tsx   # Command palette
-│   │   ├── keyboard-shortcuts-dialog.tsx
-│   │   └── mobile-nav.tsx
-│   ├── sidebar/                  # Sidebar components
-│   │   └── app-sidebar.tsx
-│   ├── learning/                 # Learning mode components
-│   ├── skills/                   # Skills components
-│   ├── providers/                # Provider components
-│   │   ├── skill-provider.tsx
-│   │   └── index.ts
-│   └── ui/                       # shadcn/ui base components (50+)
-│       ├── button.tsx
-│       ├── dialog.tsx
-│       ├── dropdown-menu.tsx
-│       └── ...
-│
-├── hooks/                        # Custom React Hooks
-│   ├── use-agent.ts              # Agent mode hook
-│   ├── use-messages.ts           # Message persistence
-│   ├── use-session-search.ts     # Session search
-│   ├── use-keyboard-shortcuts.ts # Global shortcuts
-│   ├── use-rag.ts                # RAG retrieval
-│   ├── use-vector-db.ts          # Vector database
-│   ├── use-speech.ts             # Voice input
-│   ├── use-learning-mode.ts      # Learning mode
-│   ├── use-workflow.ts           # Workflow
-│   ├── use-skills.ts             # Skills system
-│   ├── use-structured-output.ts  # Structured output
-│   ├── use-translate.ts          # Translation
-│   ├── use-global-shortcuts.test.ts
-│   └── index.ts
-│
-├── lib/                          # Utility libraries
-│   ├── ai/                       # AI integration
-│   │   ├── client.ts             # Provider client creation
-│   │   ├── use-ai-chat.ts        # Chat hook (with usage tracking)
-│   │   ├── auto-router.ts        # Intelligent model routing
-│   │   ├── image-utils.ts        # Vision support utilities
-│   │   ├── image-generation.ts   # DALL-E integration
-│   │   ├── speech-api.ts         # Speech API
-│   │   ├── agent-tools.ts        # Agent tools
-│   │   ├── tools/                # Tool definitions
-│   │   ├── workflows/            # Workflow definitions
-│   │   └── index.ts
-│   ├── db/                       # Database
-│   │   ├── index.ts              # Dexie setup
-│   │   └── message-repository.ts # Message persistence
-│   ├── document/                 # Document processing
-│   │   └── table-extractor.ts    # Table extraction
-│   ├── export/                   # Export functionality
-│   │   ├── pdf-export.ts         # PDF export
-│   │   ├── markdown-export.ts    # Markdown export
-│   │   ├── json-export.ts        # JSON export
-│   │   ├── html-export.ts        # HTML export
-│   │   ├── word-export.ts        # Word export
-│   │   ├── excel-export.ts       # Excel export
-│   │   └── google-sheets-export.ts # Google Sheets export
-│   ├── file/                     # File utilities
-│   ├── i18n/                     # Internationalization
-│   │   └── messages/
-│   │       ├── en.json
-│   │       └── zh-CN.json
+│   ├── designer/                 # Visual designer
+│   ├── workflow-editor/          # Workflow editor
+│   ├── native/                   # Native features UI
 │   ├── learning/                 # Learning mode
-│   ├── native/                   # Tauri native calls
-│   ├── search/                   # Search utilities
 │   ├── skills/                   # Skills system
-│   ├── themes/                   # Theme configuration
-│   ├── vector/                   # Vector database integration
-│   │   ├── store.ts
-│   │   └── index.ts
-│   └── utils.ts                  # Common utilities (cn, etc.)
+│   ├── mcp/                      # MCP management
+│   ├── ppt/                      # PPT generation
+│   ├── image-studio/             # Image editing
+│   ├── video-studio/             # Video editing
+│   ├── settings/                 # Settings panels
+│   ├── projects/                 # Project management
+│   ├── presets/                  # Preset system
+│   ├── export/                   # Export dialogs
+│   └── sidebar/                  # Navigation
 │
-├── stores/                       # Zustand state management
-│   ├── artifact-store.ts         # Artifacts, canvas, version history
-│   ├── settings-store.ts         # User settings and provider config
-│   ├── session-store.ts          # Sessions and branches
-│   ├── agent-store.ts            # Agent execution tracking
-│   ├── memory-store.ts           # Cross-session memory
-│   ├── project-store.ts          # Project management
-│   ├── preset-store.ts           # Preset management
-│   ├── usage-store.ts            # Token and cost tracking
-│   ├── mcp-store.ts              # MCP server management
-│   ├── workflow-store.ts         # Workflow management
-│   ├── learning-store.ts         # Learning mode state
-│   └── index.ts                  # Store exports
+├── hooks/                        # Modular React hooks
+│   ├── ai/                       # use-agent, use-background-agent, use-skills
+│   ├── chat/                     # use-summary, chat utilities
+│   ├── context/                  # use-clipboard-context, use-project-context
+│   ├── designer/                 # use-workflow-editor, use-workflow-execution
+│   ├── media/                    # use-speech
+│   ├── native/                   # use-native, use-notification, use-window
+│   ├── rag/                      # RAG-related hooks
+│   ├── sandbox/                  # use-environment, use-jupyter-kernel
+│   └── ui/                       # use-learning-mode, use-global-shortcuts
 │
-├── types/                        # TypeScript type definitions
-│   ├── artifact.ts               # Artifact types (8 types, 17+ languages)
-│   ├── session.ts                # Session and branch types
-│   ├── message.ts                # Message types (with branch support)
-│   ├── provider.ts               # Provider configuration
-│   ├── memory.ts                 # Memory types
-│   ├── project.ts                # Project types
-│   ├── preset.ts                 # Preset types
-│   ├── usage.ts                  # Usage tracking types
-│   ├── mcp.ts                    # MCP types
-│   ├── agent-mode.ts             # Agent mode types
-│   ├── learning.ts               # Learning mode types
-│   ├── skill.ts                  # Skill types
-│   ├── speech.ts                 # Speech types
-│   ├── workflow.ts               # Workflow types
-│   └── index.ts
+├── stores/                       # Modular Zustand stores
+│   ├── agent/                    # Agent execution
+│   ├── artifact/                 # Artifacts, canvas, versions
+│   ├── chat/                     # Chat sessions
+│   ├── context/                  # Clipboard, quotes
+│   ├── designer/                 # Designer state
+│   ├── learning/                 # Learning mode
+│   ├── mcp/                      # MCP servers
+│   ├── media/                    # Media, recordings
+│   ├── project/                  # Projects, knowledge bases
+│   ├── settings/                 # Preferences, presets, themes
+│   ├── system/                   # Native, proxy, usage
+│   ├── tools/                    # Skills
+│   └── workflow/                 # Workflow definitions
 │
-├── e2e/                          # Playwright end-to-end tests
-│   ├── ai/                       # AI feature tests
-│   ├── core/                     # Core feature tests
-│   ├── features/                 # Feature tests
-│   │   ├── math-renderer.spec.ts
-│   │   ├── settings-ollama.spec.ts
-│   │   ├── projects-knowledge-base.spec.ts
-│   │   ├── learning-mode.spec.ts
-│   │   ├── ppt-enhanced.spec.ts
-│   │   ├── ppt.spec.ts
-│   │   └── skills-enhanced.spec.ts
-│   └── ui/                       # UI tests
+├── lib/                          # Core utilities
+│   ├── ai/                       # AI integration
+│   │   ├── agent/                # Agent executor, loop, orchestrator
+│   │   ├── generation/           # Content generation
+│   │   ├── memory/               # Memory providers
+│   │   ├── tools/                # Tool definitions
+│   │   └── workflows/            # Workflow definitions
+│   ├── db/                       # Dexie database
+│   ├── export/                   # PDF, Markdown, HTML, Word, Excel, PPT
+│   ├── designer/                 # Designer utilities
+│   ├── native/                   # Tauri native calls
+│   ├── skills/                   # Skill framework
+│   ├── learning/                 # Learning utilities
+│   ├── i18n/                     # Internationalization (en, zh-CN)
+│   └── vector/                   # Vector database
+│
+├── types/                        # TypeScript definitions
+│   ├── provider.ts, message.ts, artifact.ts, session.ts
+│   ├── agent-mode.ts, workflow.ts, learning.ts, skill.ts
+│   └── mcp.ts, memory.ts, project.ts, preset.ts, usage.ts
 │
 ├── src-tauri/                    # Tauri Rust backend
 │   ├── src/
-│   │   ├── main.rs               # Rust entry point
-│   │   ├── lib.rs                # Library code
-│   │   ├── commands/             # Tauri commands
-│   │   │   ├── mod.rs
-│   │   │   └── vector.rs         # Vector database commands
-│   │   └── mcp/                  # MCP implementation
-│   │       ├── mod.rs
-│   │       ├── manager.rs        # Server lifecycle management
-│   │       ├── client.rs         # MCP client
-│   │       ├── config.rs         # Configuration management
-│   │       ├── transport/        # Transport layer
-│   │       └── protocol/         # Protocol implementation
+│   │   ├── mcp/                  # MCP implementation
+│   │   ├── awareness/            # System monitoring
+│   │   ├── context/              # Context detection
+│   │   ├── screenshot/           # Screenshot capture
+│   │   ├── selection/            # Text selection
+│   │   ├── sandbox/              # Code execution
+│   │   └── commands/             # Tauri commands
 │   ├── tauri.conf.json           # Tauri configuration
-│   ├── Cargo.toml                # Rust dependencies
-│   └── capabilities/             # Permissions config
+│   └── capabilities/             # Permissions
 │
-├── llmdoc/                       # Project documentation
-│   ├── index.md                  # Documentation index
-│   └── feature/                  # Feature documentation
-│       ├── phase-2-overview.md
-│       ├── enhanced-features.md
-│       ├── mcp-system.md
-│       └── ...
-│
-├── public/                       # Static assets
+├── e2e/                          # Playwright tests
+├── docs/                         # Documentation
 ├── __mocks__/                    # Jest mocks
-├── .github/                      # GitHub configuration
-├── components.json               # shadcn/ui configuration
-├── next.config.ts                # Next.js configuration
-├── tailwind.config.ts            # Tailwind configuration
-├── tsconfig.json                 # TypeScript configuration
-├── jest.config.ts                # Jest configuration
-├── playwright.config.ts          # Playwright configuration
-├── package.json                  # Dependencies and scripts
-├── pnpm-lock.yaml                # pnpm lock file
-├── CLAUDE.md                     # Claude AI instructions
-├── CHANGELOG.md                  # Changelog
-└── README_zh.md                  # Chinese documentation
+└── [config files]                # next, tailwind, jest, playwright, etc.
 ```
 
-## Core Features
+## Core Systems
 
 ### AI Model Integration
 
-#### Supported Providers
-
-Cognia integrates the following providers via Vercel AI SDK v5:
+#### Supported Providers (14 total)
 
 | Provider | Model Examples | Features |
 | -------- | -------------- | -------- |
@@ -637,202 +514,169 @@ Cognia integrates the following providers via Vercel AI SDK v5:
 | Mistral | Mistral Large, Mistral Small | High performance |
 | DeepSeek | deepseek-chat, deepseek-coder | Code optimization |
 | Groq | Llama 3.3, Mixtral | Low latency |
+| xAI | Grok | OpenAI-compatible |
+| Together AI | Various | OpenAI-compatible |
+| OpenRouter | Multi-provider | Routing |
+| Cohere | Command | Enterprise |
+| Fireworks | Various | Fast inference |
+| Cerebras | Various | Hardware-optimized |
+| SambaNova | Various | Enterprise |
 | Ollama | Local models | Offline, privacy |
 
 #### Intelligent Auto-Routing
 
-`lib/ai/auto-router.ts` implements three-tier intelligent routing:
+`lib/ai/auto-router.ts` supports two routing modes:
 
-```typescript
-// Fast tier: Simple queries
-- Groq Llama 3.3 (70 tokens/M)
-- Gemini Flash
-- GPT-4o Mini
-- Claude Haiku
+- **Rule-based**: Fast pattern matching for simple/complex detection
+- **LLM-based**: Uses small models for accurate classification
 
-// Balanced tier: General tasks
-- Gemini 1.5 Pro
-- GPT-4o
-- Claude Sonnet
+Three-tier routing:
 
-// Powerful tier: Complex reasoning
-- Claude Opus
-- OpenAI o1
-- DeepSeek Reasoner
-```
+- **Fast tier**: Groq Llama 3.3, Gemini Flash, GPT-4o Mini, Claude Haiku
+- **Balanced tier**: Gemini 1.5 Pro, GPT-4o, Claude Sonnet
+- **Powerful tier**: Claude Opus, OpenAI o1, DeepSeek Reasoner
 
-#### Streaming Responses
+### Agent System
 
-All providers support streaming responses with real-time AI content display:
+Three-tier architecture for autonomous AI agents:
 
-```typescript
-const { messages, handleSubmit, isLoading } = useAIChat({
-  api: '/api/chat',
-  stream: true,
-  onFinish: (message) => {
-    // Record usage statistics
-    addUsageRecord({ ... });
-  }
-});
-```
+1. **Application Layer**: React hooks (`useAgent`, `useBackgroundAgent`), UI panels
+2. **Orchestration Layer**: Agent loop, planning, sub-agent coordination
+3. **Execution Layer**: AgentExecutor with AI SDK `generateText`, unified tool system
 
-### Artifacts System
+#### Tool Integration
 
-The artifacts system allows AI to generate independent, previewable content pieces.
+- **Built-in Tools**: File operations, search, web access
+- **MCP Tools**: Full Model Context Protocol integration
+- **Skills**: Custom skill execution framework
+- **RAG**: Retrieval-augmented generation from knowledge bases
 
-#### Supported Artifact Types
+#### Key Files
 
-```typescript
-type ArtifactType =
-  | 'code'        // Code snippets (17+ languages)
-  | 'document'    // Text documents
-  | 'svg'         // SVG vector graphics
-  | 'html'        // HTML pages
-  | 'react'       // React components
-  | 'mermaid'     // Mermaid diagrams
-  | 'chart'       // Data charts (Recharts)
-  | 'math';       // Math formulas (KaTeX)
-```
-
-#### Artifact Storage
-
-Artifacts persist to localStorage (key: `cognia-artifacts`):
-
-```typescript
-interface Artifact {
-  id: string;
-  sessionId: string;
-  messageId: string;
-  type: ArtifactType;
-  title: string;
-  content: string;
-  language?: string;
-  createdAt: Date;
-}
-```
-
-#### Usage Example
-
-```typescript
-import { useArtifactStore } from '@/stores/artifact-store';
-
-// Create artifact
-const { createArtifact } = useArtifactStore();
-createArtifact({
-  sessionId: 'session-123',
-  messageId: 'msg-456',
-  type: 'code',
-  title: 'Quick Sort Algorithm',
-  content: 'function quickSort(arr) { ... }',
-  language: 'typescript'
-});
-
-// Artifact panel opens automatically and displays artifact
-```
-
-### Canvas Editor
-
-Code editor based on Monaco editor with AI suggestions and version history.
-
-#### Key Capabilities
-
-- **Monaco Editor**: VS Code's editor
-- **Syntax Highlighting**: Shiki supports 30+ languages
-- **AI Suggestions**: AI can add improvement suggestions
-- **Code Transformations**: Refactoring, optimization, explanation, etc.
-- **Version History**: Auto-save and manual version points
-- **Diff Comparison**: Version-to-version comparison
-
-#### Canvas Operations
-
-```typescript
-// Add AI suggestion
-useArtifactStore().addSuggestion(documentId, {
-  type: 'fix', // fix | improve | refactor | explain
-  range: { startLine: 10, endLine: 15 },
-  originalText: 'const x = 1;',
-  suggestedText: 'const x: number = 1;',
-  explanation: 'Add type annotation',
-  status: 'pending'
-});
-
-// Save version
-saveCanvasVersion(documentId, 'Performance optimization', false);
-
-// Restore version
-restoreCanvasVersion(documentId, versionId);
-```
+- `lib/ai/agent/agent-executor.ts` — Core execution with tool calling
+- `lib/ai/agent/agent-loop.ts` — Multi-step execution loop
+- `lib/ai/agent/agent-orchestrator.ts` — Sub-agent coordination
+- `hooks/ai/use-agent.ts` — React hook for agent mode
 
 ### MCP Support
 
-Complete Model Context Protocol implementation to extend AI capabilities.
+Complete Model Context Protocol implementation for extending AI capabilities.
 
-#### MCP Architecture
+#### Architecture
 
 ```text
-Frontend (React)
-  ↓ Tauri IPC
-Rust Backend (Tauri)
-  ↓ stdio/SSE
-MCP Servers (External)
+Cognia Frontend (React)
+    ↓ Tauri IPC
+Cognia Backend (Rust)
+    ↓ stdio / SSE
+MCP Servers (Node.js, Python, etc.)
 ```
 
-#### Rust Backend
+#### Rust Backend (`src-tauri/src/mcp/`)
 
-Location: `src-tauri/src/mcp/`
+- `manager.rs` — Server lifecycle management
+- `client.rs` — JSON-RPC 2.0 protocol
+- `transport/stdio.rs` — stdio transport
+- `transport/sse.rs` — SSE transport
 
-- `manager.rs` - Server lifecycle management
-- `client.rs` - JSON-RPC 2.0 protocol implementation
-- `transport/stdio.rs` - stdio transport
-- `transport/sse.rs` - SSE transport
-- `protocol/tools.rs` - Tools protocol
-- `protocol/resources.rs` - Resources protocol
-- `protocol/prompts.rs` - Prompts protocol
+#### Built-in Server Templates
 
-#### Frontend Store
+Filesystem, GitHub, PostgreSQL, SQLite, Brave Search, Memory, Puppeteer, Slack
 
-Location: `stores/mcp-store.ts`
+### Native Tools
 
-```typescript
-interface McpState {
-  servers: McpServerState[];
-  initialize: () => Promise<void>;
-  addServer: (id: string, config: McpServerConfig) => Promise<void>;
-  connectServer: (id: string) => Promise<void>;
-  callTool: (serverId: string, toolName: string, args: Record<string, unknown>) => Promise<ToolCallResult>;
-  // ...
-}
-```
+Desktop-only features available in Tauri builds:
 
-#### Supported Server Templates
+| Feature | Description | Platform Support |
+| ------- | ----------- | ---------------- |
+| **Selection System** | 12 expansion modes, AI actions, clipboard history | Windows, macOS, Linux |
+| **Awareness System** | CPU, memory, disk, battery, network monitoring | Windows (full), others (partial) |
+| **Context System** | Window/app/file/browser detection | Windows (full), others (partial) |
+| **Screenshot System** | Multi-mode capture with OCR | Windows, macOS, Linux |
 
-Built-in quick installation templates:
+#### Key Files
 
-1. **Filesystem** - Local file operations
-2. **GitHub** - GitHub API access
-3. **PostgreSQL** - Database queries
-4. **SQLite** - Database queries
-5. **Brave Search** - Web search
-6. **Memory** - Persistent memory
-7. **Puppeteer** - Browser automation
-8. **Slack** - Slack integration
+- Rust: `src-tauri/src/awareness/`, `context/`, `screenshot/`, `selection/`
+- Frontend: `lib/native/`, `hooks/native/`, `components/native/`
 
-#### Configuration File
+### Designer System
 
-Location: `{app_data}/mcp_servers.json`
+V0-style visual web page designer with AI-powered editing:
 
-```json
-{
-  "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/dir"],
-      "env": {},
-      "connectionType": "stdio"
-    }
-  }
-}
-```
+- **40+ Components**: 14 categories with drag-drop insertion
+- **Live Preview**: Real-time preview with CDN fallback
+- **AI Integration**: AI-powered content generation via `lib/designer/ai.ts`
+- **Export**: Export to HTML, React components
+
+#### Key Files
+
+- `components/designer/core/designer-panel.tsx` — Main designer
+- `components/designer/panels/element-tree.tsx` — Component hierarchy
+- `components/designer/panels/style-panel.tsx` — Visual style editor
+- `stores/designer/designer-store.ts` — State management
+
+### Workflow Editor
+
+Visual workflow automation with React Flow:
+
+- **Visual Editor**: Node graph editor with drag-drop
+- **Node Types**: Annotation, group, custom operation nodes
+- **Execution Engine**: Step-by-step with debug support
+- **Variable Management**: Global and local scope
+
+#### Key Files
+
+- `components/workflow-editor/workflow-editor-panel.tsx` — Main editor
+- `components/workflow-editor/node-palette.tsx` — Node types
+- `stores/workflow/` — Workflow state management
+
+### Skills System
+
+Custom skill framework for extending AI:
+
+- **Skill Definition**: Custom skills with parameters and execution logic
+- **Skill Suggestions**: AI-powered recommendations based on context
+- **Skill Analytics**: Usage tracking and metrics
+- **Skill Wizard**: Guided creation interface
+
+#### Key Files
+
+- `components/skills/skill-panel.tsx` — Management UI
+- `stores/tools/skill-store.ts` — State management
+- `hooks/ai/use-skills.ts` — React hook
+
+### Learning Mode
+
+Interactive learning system for educational content:
+
+- **Phases**: Question analysis, guided learning, summary
+- **Flashcards**: Spaced repetition learning
+- **Quizzes**: Interactive knowledge testing
+- **Progress Tracking**: Achievements and history
+
+#### Key Files
+
+- `components/learning/learning-mode-panel.tsx` — Main interface
+- `stores/learning/learning-store.ts` — State management
+- `hooks/ui/use-learning-mode.ts` — React hook
+
+### Artifacts & Canvas
+
+#### Artifact Types
+
+- **code**: Code snippets (17+ languages)
+- **document**: Text documents
+- **svg/html/react**: Visual content
+- **mermaid/chart**: Diagrams (Mermaid, Recharts)
+- **math**: Math formulas (KaTeX)
+
+#### Canvas Editor
+
+Monaco-based editor with:
+
+- Syntax highlighting (Shiki, 30+ languages)
+- AI suggestions and code transformations
+- Version history with diff comparison
 
 ### Data Persistence
 
@@ -942,12 +786,13 @@ ANTHROPIC_API_KEY=sk-ant-your-key
 GOOGLE_API_KEY=your-key
 ```
 
-2. **Provider Settings** - Configure AI providers in Settings > Providers
-3. **Appearance** - Customize theme and fonts in Settings > Appearance
-4. **Keyboard Shortcuts** - Customize shortcuts in Settings > Keyboard
-5. **Data Management** - Import/export data in Settings > Data
+1. **Provider Settings** - Configure AI providers in Settings > Providers
+2. **Appearance** - Customize theme and fonts in Settings > Appearance
+3. **Keyboard Shortcuts** - Customize shortcuts in Settings > Keyboard
+4. **Data Management** - Import/export data in Settings > Data
 
 For complete configuration options, including:
+
 - Provider setup and testing
 - Theme customization
 - Keyboard shortcuts
@@ -1272,6 +1117,6 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) file for 
 
 ---
 
-**Last Updated**: December 25, 2025
+**Last Updated**: January 12, 2026
 
 **Maintainers**: Cognia Development Team

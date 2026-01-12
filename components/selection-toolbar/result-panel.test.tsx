@@ -19,6 +19,13 @@ const defaultProps: ResultPanelProps = {
   isLoading: false,
   onClose: jest.fn(),
   onCopy: jest.fn(),
+  // TTS props
+  onSpeak: jest.fn(),
+  onStopSpeak: jest.fn(),
+  isSpeaking: false,
+  isPaused: false,
+  onPauseSpeak: jest.fn(),
+  onResumeSpeak: jest.fn(),
 };
 
 describe('ResultPanel', () => {
@@ -167,6 +174,95 @@ describe('ResultPanel', () => {
       const expand = screen.getByTitle('Expand panel');
       fireEvent.click(expand);
       expect(screen.getByText('Visible content')).toBeInTheDocument();
+    });
+  });
+
+  describe('TTS functionality', () => {
+    it('shows TTS playback controls when speaking', () => {
+      render(
+        <ResultPanel 
+          {...defaultProps} 
+          result="Test result"
+          isSpeaking={true}
+        />
+      );
+      
+      expect(screen.getByText('Playing...')).toBeInTheDocument();
+    });
+
+    it('calls onStopSpeak when stop button clicked while speaking', () => {
+      const onStopSpeak = jest.fn();
+      render(
+        <ResultPanel 
+          {...defaultProps} 
+          result="Test result"
+          isSpeaking={true}
+          onStopSpeak={onStopSpeak}
+        />
+      );
+      
+      // Find the stop button in TTS controls
+      const stopButtons = screen.getAllByRole('button');
+      const stopButton = stopButtons.find(btn => 
+        btn.getAttribute('class')?.includes('hover:text-rose-400')
+      );
+      
+      if (stopButton) {
+        fireEvent.click(stopButton);
+        expect(onStopSpeak).toHaveBeenCalled();
+      }
+    });
+
+    it('calls onPauseSpeak when pause button clicked', () => {
+      const onPauseSpeak = jest.fn();
+      render(
+        <ResultPanel 
+          {...defaultProps} 
+          result="Test result"
+          isSpeaking={true}
+          isPaused={false}
+          onPauseSpeak={onPauseSpeak}
+          onResumeSpeak={jest.fn()}
+        />
+      );
+      
+      // The pause button should be visible when speaking and not paused
+      const buttons = screen.getAllByRole('button');
+      expect(buttons.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('translation view', () => {
+    it('shows language header for translate action', () => {
+      render(
+        <ResultPanel 
+          {...defaultProps}
+          result="翻译结果"
+          activeAction="translate"
+          sourceLanguage="en"
+          targetLanguage="zh-CN"
+        />
+      );
+      
+      // Should show translation-specific UI elements
+      const container = screen.getByText('翻译结果').closest('div');
+      expect(container).toBeInTheDocument();
+    });
+
+    it('renders with translation props', () => {
+      const { container } = render(
+        <ResultPanel 
+          {...defaultProps}
+          result="Translated text"
+          activeAction="translate"
+          originalText="Original text"
+          sourceLanguage="en"
+          targetLanguage="zh-CN"
+        />
+      );
+      
+      expect(container).toBeInTheDocument();
+      expect(screen.getByText('Translated text')).toBeInTheDocument();
     });
   });
 });

@@ -13,6 +13,7 @@ import {
 import { useSelectionStore } from "@/stores/context";
 import { useSettingsStore } from "@/stores/settings";
 import { useAIChat } from "@/lib/ai/generation/use-ai-chat";
+import { detectLanguage } from "@/lib/ai/generation/translate";
 import type { ProviderName } from "@/lib/ai/core/client";
 import type { SelectionConfig as NativeSelectionConfig } from "@/lib/native/selection";
 
@@ -425,6 +426,32 @@ export function useSelectionToolbar() {
     hideToolbar();
   }, [state.result, state.streamingResult, state.selectedText, state.activeAction, hideToolbar]);
 
+  // Detect source language of selected text
+  const detectSourceLanguage = useCallback(async (text: string) => {
+    if (!text || text.length < 3) return null;
+    
+    try {
+      const apiKey = providerSettings[provider]?.apiKey || '';
+      const modelName = model;
+      
+      const result = await detectLanguage(text, {
+        provider,
+        model: modelName,
+        apiKey,
+      });
+      
+      return result?.code || null;
+    } catch (error) {
+      console.error("Failed to detect language:", error);
+      return null;
+    }
+  }, [provider, model, providerSettings]);
+
+  // Update target language in config
+  const updateTargetLanguage = useCallback((lang: string) => {
+    store.updateConfig({ targetLanguage: lang });
+  }, [store]);
+
   return {
     state,
     config,
@@ -438,5 +465,8 @@ export function useSelectionToolbar() {
     provideFeedback,
     sendResultToChat,
     stop, // Expose stop for external cancellation
+    // Translation-specific
+    detectSourceLanguage,
+    updateTargetLanguage,
   };
 }

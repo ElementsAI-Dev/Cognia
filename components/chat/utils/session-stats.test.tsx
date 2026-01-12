@@ -6,7 +6,14 @@ import { render, screen } from '@testing-library/react';
 import { SessionStats, SessionStatsCard } from './session-stats';
 import type { UIMessage } from '@/types';
 
-// No mocks needed - use real components
+// Mock the tokenizer module for consistent test results
+jest.mock('@/lib/ai/tokenizer', () => ({
+  estimateTokensFast: jest.fn((content: string) => {
+    // Simple mock: ~4 chars per token with 10% overhead
+    if (!content || content.length === 0) return 0;
+    return Math.ceil((content.length / 4) * 1.1);
+  }),
+}));
 
 describe('SessionStats', () => {
   const createMessage = (role: 'user' | 'assistant', content: string): UIMessage => ({
@@ -38,8 +45,10 @@ describe('SessionStats', () => {
 
   it('calculates estimated tokens', () => {
     render(<SessionStats messages={mockMessages} />);
-    // The component estimates tokens - check that a number appears
-    expect(screen.getByText('38')).toBeInTheDocument();
+    // The component estimates tokens using estimateTokensFast from @/lib/ai/tokenizer
+    // estimateTokensFast uses Math.ceil((content.length / 4) * 1.1) per message
+    // Expected: 6 + 18 + 7 + 13 = 44 tokens
+    expect(screen.getByText('44')).toBeInTheDocument();
   });
 
   it('counts code blocks correctly', () => {

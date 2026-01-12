@@ -4,7 +4,7 @@ Base Plugin class for Cognia plugins
 
 import json
 import os
-from abc import ABC
+from abc import ABCMeta
 from typing import Any, Callable, Dict, List, Optional, Type
 
 from .types import (
@@ -17,9 +17,10 @@ from .types import (
 )
 
 
-class PluginMeta(type):
+class PluginMeta(ABCMeta):
     """
-    Metaclass for Plugin that automatically collects tools and hooks
+    Metaclass for Plugin that automatically collects tools and hooks.
+    Inherits from ABCMeta to support abstract methods.
     """
     def __new__(mcs, name: str, bases: tuple, namespace: dict) -> type:
         cls = super().__new__(mcs, name, bases, namespace)
@@ -51,7 +52,7 @@ class PluginMeta(type):
         return cls
 
 
-class Plugin(ABC, metaclass=PluginMeta):
+class Plugin(metaclass=PluginMeta):
     """
     Base class for Cognia plugins.
     

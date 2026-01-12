@@ -14,6 +14,14 @@
  * - PromptTemplateCard: Template card display
  * - PromptTemplateSelector: Select templates
  * - PromptFeedbackCollector: Collect user feedback
+ * 
+ * Optimization (./optimization/):
+ * - PromptOptimizerDialog: Basic prompt optimization
+ * - PromptSelfOptimizerDialog: Advanced self-optimization with AI
+ * - PromptFeedbackDialog: Collect feedback on prompts
+ * - PromptABTestPanel: A/B testing for prompts
+ * - PromptAnalyticsPanel: Analytics and insights
+ * - PromptOptimizationHub: Unified optimization interface
  */
 
 // Marketplace components
@@ -33,3 +41,13 @@ export {
   PromptTemplateAdvancedEditor,
   PromptFeedbackCollector,
 } from './templates';
+
+// Optimization components
+export {
+  PromptOptimizerDialog,
+  PromptSelfOptimizerDialog,
+  PromptFeedbackDialog,
+  PromptABTestPanel,
+  PromptAnalyticsPanel,
+  PromptOptimizationHub,
+} from './optimization';

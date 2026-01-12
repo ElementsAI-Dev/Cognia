@@ -295,9 +295,11 @@ jest.mock('./dialogs/context-settings-dialog', () => ({
     open ? <div data-testid="context-settings-dialog">Context Settings</div> : null,
 }));
 
-jest.mock('./dialogs/prompt-optimizer-dialog', () => ({
+jest.mock('@/components/prompt', () => ({
   PromptOptimizerDialog: ({ open }: { open: boolean }) => 
     open ? <div data-testid="prompt-optimizer-dialog">Prompt Optimizer</div> : null,
+  PromptOptimizationHub: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="prompt-optimization-hub">Prompt Optimization Hub</div> : null,
 }));
 
 jest.mock('./dialogs/preset-manager-dialog', () => ({

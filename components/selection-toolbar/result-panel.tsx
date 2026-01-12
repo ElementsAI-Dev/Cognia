@@ -13,11 +13,18 @@ import {
   Maximize2,
   Minimize2,
   Volume2,
+  VolumeX,
   Share2,
   ThumbsUp,
   ThumbsDown,
   MoreHorizontal,
+  Languages,
+  ArrowRight,
+  Pause,
+  Play,
+  RotateCcw,
 } from "lucide-react";
+import { LANGUAGES } from "@/types";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { SelectionAction, ACTION_LABELS } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -41,6 +48,19 @@ export interface ResultPanelProps {
   onRetry?: () => void;
   onSendToChat?: () => void;
   onFeedback?: (positive: boolean) => void;
+  // Translation-specific props
+  originalText?: string;
+  sourceLanguage?: string | null;
+  targetLanguage?: string;
+  // TTS props
+  onSpeak?: (text: string) => void;
+  onStopSpeak?: () => void;
+  isSpeaking?: boolean;
+  isPaused?: boolean;
+  onPauseSpeak?: () => void;
+  onResumeSpeak?: () => void;
+  // Follow-up action props
+  onFollowUpAction?: (action: 'explain' | 'simplify' | 'formal' | 'casual') => void;
 }
 
 export function ResultPanel({
@@ -55,14 +75,42 @@ export function ResultPanel({
   onRetry,
   onSendToChat,
   onFeedback,
+  // Translation-specific
+  originalText,
+  sourceLanguage,
+  targetLanguage,
+  // TTS
+  onSpeak,
+  onStopSpeak,
+  isSpeaking = false,
+  isPaused = false,
+  onPauseSpeak,
+  onResumeSpeak,
+  // Follow-up actions
+  onFollowUpAction,
 }: ResultPanelProps) {
   const [copied, setCopied] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showActions, setShowActions] = useState(false);
+  const [showCompareView, setShowCompareView] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const [_contentHeight, setContentHeight] = useState(0);
   const [isOverflowing, setIsOverflowing] = useState(false);
+
+  // Translation helpers
+  const isTranslateAction = activeAction === "translate";
+  const sourceLang = sourceLanguage ? LANGUAGES.find(l => l.value === sourceLanguage) : null;
+  const targetLang = targetLanguage ? LANGUAGES.find(l => l.value === targetLanguage) : null;
+
+  // TTS handler
+  const handleSpeak = useCallback((text: string) => {
+    if (isSpeaking) {
+      onStopSpeak?.();
+    } else {
+      onSpeak?.(text);
+    }
+  }, [isSpeaking, onSpeak, onStopSpeak]);
 
   // The displayed content
   const displayContent = streamingResult || result;
@@ -109,6 +157,14 @@ export function ResultPanel({
 
   const actionLabel = activeAction ? ACTION_LABELS[activeAction] : "Result";
 
+  // Build translation header label (available for future use)
+  const _getTranslationLabel = () => {
+    if (!isTranslateAction) return actionLabel;
+    const source = sourceLang?.label || "Auto";
+    const target = targetLang?.label || "Unknown";
+    return `${source} → ${target}`;
+  };
+
   return (
     <div
       className={cn(
@@ -144,9 +200,22 @@ export function ResultPanel({
                 : "bg-emerald-400"
           )} />
           
-          <span className="text-xs font-medium text-white/80">
-            {isLoading ? "Processing..." : isStreaming ? "Generating..." : error ? "Error" : actionLabel}
-          </span>
+          {isTranslateAction && !isLoading && !error ? (
+            <div className="flex items-center gap-1.5">
+              <Languages className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="text-xs font-medium text-white/80">
+                {sourceLang?.flag || "🌐"}
+              </span>
+              <ArrowRight className="w-3 h-3 text-white/40" />
+              <span className="text-xs font-medium text-white/80">
+                {targetLang?.flag} {targetLang?.label}
+              </span>
+            </div>
+          ) : (
+            <span className="text-xs font-medium text-white/80">
+              {isLoading ? "Processing..." : isStreaming ? "Generating..." : error ? "Error" : actionLabel}
+            </span>
+          )}
 
           {/* Word count */}
           {displayContent && !isLoading && (
@@ -226,10 +295,33 @@ export function ResultPanel({
                     Continue in chat
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem className="text-xs gap-2">
-                  <Volume2 className="w-3.5 h-3.5" />
-                  Read aloud
-                </DropdownMenuItem>
+                {onSpeak && (
+                  <DropdownMenuItem 
+                    onClick={() => handleSpeak(displayContent || "")}
+                    className="text-xs gap-2"
+                  >
+                    {isSpeaking ? (
+                      <>
+                        <VolumeX className="w-3.5 h-3.5" />
+                        Stop reading
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="w-3.5 h-3.5" />
+                        Read aloud
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                )}
+                {isTranslateAction && originalText && (
+                  <DropdownMenuItem 
+                    onClick={() => setShowCompareView(!showCompareView)}
+                    className="text-xs gap-2"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    {showCompareView ? "Hide original" : "Show original"}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem className="text-xs gap-2">
                   <Share2 className="w-3.5 h-3.5" />
                   Share
@@ -308,6 +400,51 @@ export function ResultPanel({
               </div>
             ) : (
               <div className="space-y-3">
+                {/* Compare view for translation */}
+                {isTranslateAction && showCompareView && originalText && (
+                  <div className="mb-3 pb-3 border-b border-white/10">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="text-[10px] font-medium text-white/40 uppercase tracking-wider">
+                        Original {sourceLang?.flag}
+                      </span>
+                      {onSpeak && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleSpeak(originalText)}
+                          className="h-5 w-5 text-white/40 hover:text-white/80"
+                          title="Read original"
+                        >
+                          <Volume2 className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-sm text-white/60 whitespace-pre-wrap leading-relaxed">
+                      {originalText}
+                    </p>
+                  </div>
+                )}
+
+                {/* Translation label when in compare view */}
+                {isTranslateAction && showCompareView && (
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-[10px] font-medium text-white/40 uppercase tracking-wider">
+                      Translation {targetLang?.flag}
+                    </span>
+                    {onSpeak && displayContent && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleSpeak(displayContent)}
+                        className="h-5 w-5 text-white/40 hover:text-white/80"
+                        title="Read translation"
+                      >
+                        <Volume2 className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+
                 {/* Result content with typing effect indicator for streaming */}
                 <div className="relative">
                   <p className={cn(
@@ -320,9 +457,81 @@ export function ResultPanel({
                     )}
                   </p>
                 </div>
+
+                {/* TTS playback controls */}
+                {isSpeaking && (
+                  <div className="flex items-center gap-2 pt-2 border-t border-white/10">
+                    <div className="flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse" />
+                      <span className="text-[10px] text-cyan-400">Playing...</span>
+                    </div>
+                    <div className="flex-1" />
+                    {onPauseSpeak && onResumeSpeak && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={isPaused ? onResumeSpeak : onPauseSpeak}
+                        className="h-6 w-6 text-white/60 hover:text-white"
+                      >
+                        {isPaused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={onStopSpeak}
+                      className="h-6 w-6 text-white/60 hover:text-rose-400"
+                    >
+                      <VolumeX className="w-3 h-3" />
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
+
+          {/* Translation follow-up actions */}
+          {isTranslateAction && displayContent && !isLoading && !error && onFollowUpAction && (
+            <div className={cn(
+              "flex items-center gap-1 px-3 py-2",
+              "border-t border-white/6",
+              "bg-white/2"
+            )}>
+              <span className="text-[10px] text-white/40 mr-2">Quick actions:</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onFollowUpAction('explain')}
+                className="h-6 px-2 text-[10px] text-white/60 hover:text-white hover:bg-white/10"
+              >
+                Explain
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onFollowUpAction('simplify')}
+                className="h-6 px-2 text-[10px] text-white/60 hover:text-white hover:bg-white/10"
+              >
+                Simplify
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onFollowUpAction('formal')}
+                className="h-6 px-2 text-[10px] text-white/60 hover:text-white hover:bg-white/10"
+              >
+                Formal
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onFollowUpAction('casual')}
+                className="h-6 px-2 text-[10px] text-white/60 hover:text-white hover:bg-white/10"
+              >
+                Casual
+              </Button>
+            </div>
+          )}
 
           {/* Footer with feedback */}
           {displayContent && !isLoading && !error && onFeedback && (

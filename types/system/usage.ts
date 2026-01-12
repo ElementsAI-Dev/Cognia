@@ -1,11 +1,22 @@
 /**
  * Token Usage types and utilities
+ * 
+ * Unified token usage tracking across the application.
+ * Field naming follows AI SDK convention (inputTokens/outputTokens)
+ * with aliases for backward compatibility (prompt/completion).
  */
 
 export interface TokenUsage {
+  /** Input/prompt tokens */
   prompt: number;
+  /** Output/completion tokens */
   completion: number;
+  /** Total tokens (prompt + completion) */
   total: number;
+  /** Alias for prompt tokens (AI SDK naming) */
+  inputTokens?: number;
+  /** Alias for completion tokens (AI SDK naming) */
+  outputTokens?: number;
 }
 
 export interface UsageRecord {
@@ -90,6 +101,44 @@ export function calculateCost(
   const outputCost = (tokens.completion / 1_000_000) * pricing.output;
 
   return inputCost + outputCost;
+}
+
+/**
+ * Calculate cost from input/output tokens (AI SDK naming convention)
+ */
+export function calculateCostFromTokens(
+  model: string,
+  inputTokens: number,
+  outputTokens: number
+): number {
+  const pricing = MODEL_PRICING[model];
+  if (!pricing) return 0;
+
+  const inputCost = (inputTokens / 1_000_000) * pricing.input;
+  const outputCost = (outputTokens / 1_000_000) * pricing.output;
+
+  return inputCost + outputCost;
+}
+
+/**
+ * Normalize token usage to standard format
+ */
+export function normalizeTokenUsage(usage: {
+  prompt?: number;
+  completion?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  total?: number;
+}): TokenUsage {
+  const prompt = usage.prompt ?? usage.inputTokens ?? 0;
+  const completion = usage.completion ?? usage.outputTokens ?? 0;
+  return {
+    prompt,
+    completion,
+    total: usage.total ?? (prompt + completion),
+    inputTokens: prompt,
+    outputTokens: completion,
+  };
 }
 
 /**

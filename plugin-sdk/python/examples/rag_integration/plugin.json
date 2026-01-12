@@ -1,0 +1,42 @@
+{
+  "id": "rag-integration",
+  "name": "RAG Integration",
+  "version": "1.0.0",
+  "description": "Semantic search and RAG capabilities for enhanced knowledge retrieval",
+  "type": "python",
+  "capabilities": ["tools", "hooks"],
+  "pythonMain": "main.py",
+  "permissions": ["vector:read", "vector:write", "session:read"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "autoIndexMessages": {
+        "type": "boolean",
+        "title": "Auto-index Messages",
+        "description": "Automatically index chat messages for semantic search",
+        "default": false
+      },
+      "defaultTopK": {
+        "type": "integer",
+        "title": "Default Results",
+        "description": "Default number of search results",
+        "default": 5,
+        "minimum": 1,
+        "maximum": 50
+      },
+      "defaultThreshold": {
+        "type": "number",
+        "title": "Similarity Threshold",
+        "description": "Minimum similarity score (0-1)",
+        "default": 0.7,
+        "minimum": 0,
+        "maximum": 1
+      }
+    }
+  },
+  "defaultConfig": {
+    "autoIndexMessages": false,
+    "defaultTopK": 5,
+    "defaultThreshold": 0.7
+  }
+}

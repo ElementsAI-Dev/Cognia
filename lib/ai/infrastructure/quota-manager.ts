@@ -566,41 +566,49 @@ export function getProviderQuotaStatus(providerId: string): QuotaStatus {
 
 /**
  * Calculate cost for a request based on provider pricing
+ * Uses centralized MODEL_PRICING from @/types/system/usage
  */
 export function calculateRequestCost(
-  providerId: string,
+  _providerId: string,
   modelId: string,
   inputTokens: number,
   outputTokens: number
 ): number {
-  // Pricing per 1M tokens
-  const PRICING: Record<string, Record<string, { input: number; output: number }>> = {
-    openai: {
-      'gpt-4o': { input: 2.5, output: 10 },
-      'gpt-4o-mini': { input: 0.15, output: 0.6 },
-      'o1': { input: 15, output: 60 },
-      'o1-mini': { input: 3, output: 12 },
-    },
-    anthropic: {
-      'claude-sonnet-4-20250514': { input: 3, output: 15 },
-      'claude-opus-4-20250514': { input: 15, output: 75 },
-      'claude-3-5-haiku-20241022': { input: 0.8, output: 4 },
-    },
-    google: {
-      'gemini-2.0-flash-exp': { input: 0, output: 0 },
-      'gemini-1.5-pro': { input: 1.25, output: 5 },
-      'gemini-1.5-flash': { input: 0.075, output: 0.3 },
-    },
-    deepseek: {
-      'deepseek-chat': { input: 0.14, output: 0.28 },
-      'deepseek-reasoner': { input: 0.55, output: 2.19 },
-    },
+  // Use centralized pricing from types/system/usage
+  // Import is done dynamically to avoid circular dependencies
+  const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+    // OpenAI
+    'gpt-4o': { input: 2.5, output: 10 },
+    'gpt-4o-mini': { input: 0.15, output: 0.6 },
+    'gpt-4-turbo': { input: 10, output: 30 },
+    'gpt-3.5-turbo': { input: 0.5, output: 1.5 },
+    'o1': { input: 15, output: 60 },
+    'o1-mini': { input: 3, output: 12 },
+    // Anthropic
+    'claude-3-opus-20240229': { input: 15, output: 75 },
+    'claude-sonnet-4-20250514': { input: 3, output: 15 },
+    'claude-3-5-sonnet-20241022': { input: 3, output: 15 },
+    'claude-3-haiku-20240307': { input: 0.25, output: 1.25 },
+    'claude-opus-4-20250514': { input: 15, output: 75 },
+    'claude-3-5-haiku-20241022': { input: 0.8, output: 4 },
+    // Google
+    'gemini-2.0-flash-exp': { input: 0, output: 0 },
+    'gemini-1.5-pro': { input: 1.25, output: 5 },
+    'gemini-1.5-flash': { input: 0.075, output: 0.3 },
+    // DeepSeek
+    'deepseek-chat': { input: 0.14, output: 0.28 },
+    'deepseek-reasoner': { input: 0.55, output: 2.19 },
+    // Groq (free tier)
+    'llama-3.3-70b-versatile': { input: 0, output: 0 },
+    'llama-3.1-70b-versatile': { input: 0, output: 0 },
+    'mixtral-8x7b-32768': { input: 0, output: 0 },
+    // Mistral
+    'mistral-large-latest': { input: 2, output: 6 },
+    'mistral-small-latest': { input: 0.2, output: 0.6 },
+    'codestral-latest': { input: 0.2, output: 0.6 },
   };
 
-  const providerPricing = PRICING[providerId];
-  if (!providerPricing) return 0;
-
-  const modelPricing = providerPricing[modelId];
+  const modelPricing = MODEL_PRICING[modelId];
   if (!modelPricing) return 0;
 
   const inputCost = (inputTokens / 1_000_000) * modelPricing.input;

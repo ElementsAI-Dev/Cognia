@@ -12,10 +12,18 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local virtual envs should never be linted
+    ".venv/**",
+    // Python plugin SDK virtualenv (contains vendored JS)
+    "plugin-sdk/python/.venv/**",
     // Tauri build artifacts
     "src-tauri/target/**",
     // Test coverage reports
     "coverage/**",
+    "coverage_html/**",
+    "plugin-sdk/python/coverage_html/**",
+    // Generated/shared type definitions are linted separately
+    "types/**",
   ]),
   {
     rules: {

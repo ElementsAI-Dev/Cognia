@@ -73,7 +73,7 @@ import {
   OpenInv0,
   OpenInCursor,
 } from '@/components/ai-elements/open-in-chat';
-import { BranchSelector, SessionEnvSelector } from '../selectors';
+import { BranchSelector, SessionEnvSelector, ProjectSelector } from '../selectors';
 import { PresetSelector, CreatePresetDialog, PresetsManager } from '@/components/presets';
 import { ActiveSkillsIndicator } from '@/components/skills';
 import { BackgroundAgentIndicator, AgentModeSelector } from '@/components/agent';
@@ -134,9 +134,8 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
   const updateSession = useSessionStore((state) => state.updateSession);
   const selectPreset = usePresetStore((state) => state.selectPreset);
   
-  // Project context
-  const getProject = useProjectStore((state) => state.getProject);
-  const linkedProject = session?.projectId ? getProject(session.projectId) : null;
+  // Project context - ProjectSelector component handles the display now
+  const _getProject = useProjectStore((state) => state.getProject);
 
   // Get messages for search
   const { messages } = useMessages({ sessionId: session?.id || null });
@@ -424,27 +423,11 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
             </div>
           )}
 
-          {/* Project context indicator - hidden on small screens */}
-          {linkedProject && (
-            <div className="hidden md:flex items-center gap-2">
-              <Separator orientation="vertical" className="h-4" />
-              <Link href="/projects" className="group">
-                <Badge 
-                  variant="outline" 
-                  className="gap-1.5 px-2 py-1 bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors cursor-pointer"
-                >
-                  { }
-                  <span 
-                    className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: linkedProject.color || '#3b82f6' } as React.CSSProperties}
-                  />
-                  <span className="max-w-[80px] truncate text-xs font-medium">
-                    {linkedProject.name}
-                  </span>
-                </Badge>
-              </Link>
-            </div>
-          )}
+          {/* Project selector - hidden on small screens */}
+          <div className="hidden md:flex items-center gap-2">
+            <Separator orientation="vertical" className="h-4" />
+            <ProjectSelector sessionId={session?.id} />
+          </div>
 
           {/* Virtual environment selector - hidden on small screens */}
           <div className="hidden md:flex items-center gap-2">

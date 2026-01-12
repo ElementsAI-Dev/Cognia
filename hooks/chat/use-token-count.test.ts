@@ -5,6 +5,9 @@
 import { renderHook, act } from '@testing-library/react';
 import {
   useTokenCount,
+  useTokenCountAsync,
+  useTokenCost,
+  useTokenBudget,
   countTokens,
   countTokensTiktoken,
   estimateTokens,
@@ -13,10 +16,13 @@ import {
   getEncodingForModel,
   getTokenCountMethod,
   calculateTokenBreakdown,
+  calculateEstimatedCost,
   getContextUtilization,
+  getTokenBudgetStatus,
   formatTokenCount,
   countChatMessageTokens,
   countConversationTokens,
+  MODEL_CONTEXT_LIMITS,
 } from './use-token-count';
 import type { UIMessage } from '@/types/core/message';
 
@@ -347,6 +353,169 @@ describe('useTokenCount', () => {
 
       // Should recalculate (tokens may be same but function should work)
       expect(result.current.totalTokens).toBe(initialTokens);
+    });
+  });
+
+  describe('calculateEstimatedCost', () => {
+    it('should calculate cost for known models', () => {
+      const cost = calculateEstimatedCost('gpt-4o', 1000, 500);
+      expect(cost.inputCost).toBeGreaterThan(0);
+      expect(cost.outputCost).toBeGreaterThan(0);
+      expect(cost.totalCost).toBe(cost.inputCost + cost.outputCost);
+    });
+
+    it('should return 0 for unknown models', () => {
+      const cost = calculateEstimatedCost('unknown-model', 1000, 500);
+      expect(cost.inputCost).toBe(0);
+      expect(cost.outputCost).toBe(0);
+      expect(cost.totalCost).toBe(0);
+    });
+
+    it('should calculate correct cost for GPT-4o', () => {
+      // GPT-4o: $2.5 per 1M input, $10 per 1M output
+      const cost = calculateEstimatedCost('gpt-4o', 1_000_000, 1_000_000);
+      expect(cost.inputCost).toBeCloseTo(2.5, 2);
+      expect(cost.outputCost).toBeCloseTo(10, 2);
+    });
+
+    it('should handle zero tokens', () => {
+      const cost = calculateEstimatedCost('gpt-4o', 0, 0);
+      expect(cost.totalCost).toBe(0);
+    });
+  });
+
+  describe('getTokenBudgetStatus', () => {
+    it('should return healthy status for low usage', () => {
+      const status = getTokenBudgetStatus(1000, 'gpt-4o');
+      expect(status.status).toBe('healthy');
+      expect(status.percentUsed).toBeLessThan(75);
+      expect(status.warningMessage).toBeUndefined();
+    });
+
+    it('should return warning status at 75%+', () => {
+      // GPT-4o has 128000 context limit
+      const status = getTokenBudgetStatus(100000, 'gpt-4o');
+      expect(status.status).toBe('warning');
+      expect(status.warningMessage).toBeDefined();
+    });
+
+    it('should return danger status at 90%+', () => {
+      const status = getTokenBudgetStatus(120000, 'gpt-4o');
+      expect(status.status).toBe('danger');
+      expect(status.warningMessage).toBeDefined();
+    });
+
+    it('should return exceeded status at 100%+', () => {
+      const status = getTokenBudgetStatus(130000, 'gpt-4o');
+      expect(status.status).toBe('exceeded');
+      expect(status.warningMessage).toContain('exceeded');
+    });
+
+    it('should respect custom limit', () => {
+      const status = getTokenBudgetStatus(800, 'gpt-4o', 1000);
+      expect(status.maxTokens).toBe(1000);
+      expect(status.percentUsed).toBe(80);
+      expect(status.status).toBe('warning');
+    });
+
+    it('should use default limit for unknown models', () => {
+      const status = getTokenBudgetStatus(1000, 'unknown-model');
+      expect(status.maxTokens).toBe(8192); // default
+    });
+  });
+
+  describe('MODEL_CONTEXT_LIMITS', () => {
+    it('should have limits for common models', () => {
+      expect(MODEL_CONTEXT_LIMITS['gpt-4o']).toBe(128000);
+      expect(MODEL_CONTEXT_LIMITS['gpt-4']).toBe(8192);
+      expect(MODEL_CONTEXT_LIMITS['claude-3-opus-20240229']).toBe(200000);
+      expect(MODEL_CONTEXT_LIMITS['gemini-1.5-pro']).toBe(2000000);
+    });
+  });
+
+  describe('useTokenCost hook', () => {
+    it('should calculate cost for tokens', () => {
+      const { result } = renderHook(() => useTokenCost('gpt-4o', 1000, 500));
+      
+      expect(result.current.inputCost).toBeGreaterThan(0);
+      expect(result.current.outputCost).toBeGreaterThan(0);
+      expect(result.current.formattedCost).toMatch(/^\$|^</);
+    });
+
+    it('should update when inputs change', () => {
+      const { result, rerender } = renderHook(
+        ({ model, prompt, completion }) => useTokenCost(model, prompt, completion),
+        { initialProps: { model: 'gpt-4o', prompt: 1000, completion: 500 } }
+      );
+
+      const initialCost = result.current.totalCost;
+
+      rerender({ model: 'gpt-4o', prompt: 2000, completion: 1000 });
+
+      expect(result.current.totalCost).toBeGreaterThan(initialCost);
+    });
+
+    it('should format small costs correctly', () => {
+      const { result } = renderHook(() => useTokenCost('gpt-4o', 100, 50));
+      expect(result.current.formattedCost).toBe('< $0.01');
+    });
+  });
+
+  describe('useTokenBudget hook', () => {
+    const mockMessages: UIMessage[] = [
+      { id: '1', role: 'user', content: 'Hello world', createdAt: new Date() },
+      { id: '2', role: 'assistant', content: 'Hi there!', createdAt: new Date() },
+    ];
+
+    it('should return budget status and breakdown', () => {
+      const { result } = renderHook(() => useTokenBudget(mockMessages, 'gpt-4o'));
+
+      expect(result.current.usedTokens).toBeGreaterThan(0);
+      expect(result.current.maxTokens).toBe(128000);
+      expect(result.current.status).toBe('healthy');
+      expect(result.current.breakdown).toBeDefined();
+      expect(result.current.breakdown.totalTokens).toBeGreaterThan(0);
+    });
+
+    it('should include system prompt in token count', () => {
+      const { result: withoutSystem } = renderHook(() => 
+        useTokenBudget(mockMessages, 'gpt-4o')
+      );
+      
+      const { result: withSystem } = renderHook(() => 
+        useTokenBudget(mockMessages, 'gpt-4o', { systemPrompt: 'You are a helpful assistant.' })
+      );
+
+      expect(withSystem.current.usedTokens).toBeGreaterThan(withoutSystem.current.usedTokens);
+    });
+
+    it('should respect custom limit', () => {
+      const { result } = renderHook(() => 
+        useTokenBudget(mockMessages, 'gpt-4o', { customLimit: 100 })
+      );
+
+      expect(result.current.maxTokens).toBe(100);
+      expect(result.current.percentUsed).toBeGreaterThan(0);
+    });
+  });
+
+  describe('useTokenCountAsync hook', () => {
+    const mockMessages: UIMessage[] = [
+      { id: '1', role: 'user', content: 'Hello', createdAt: new Date() },
+    ];
+
+    it('should return token breakdown with loading state', async () => {
+      const { result } = renderHook(() => useTokenCountAsync(mockMessages));
+
+      // Initially may be loading or have calculated
+      expect(result.current.totalTokens).toBeGreaterThanOrEqual(0);
+      expect(typeof result.current.isLoading).toBe('boolean');
+      expect(result.current.error).toBeNull();
+    });
+
+    it('should have reload function', () => {
+      const { result } = renderHook(() => useTokenCountAsync(mockMessages));
+      expect(typeof result.current.reload).toBe('function');
     });
   });
 });

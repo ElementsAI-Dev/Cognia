@@ -21,6 +21,17 @@ export interface SelectionHistoryItem {
   isFavorite?: boolean;
 }
 
+// Translation memory entry for caching translations
+export interface TranslationMemoryEntry {
+  id: string;
+  sourceText: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  translation: string;
+  timestamp: number;
+  usageCount: number;
+}
+
 export interface SelectionState {
   config: SelectionConfig;
   isEnabled: boolean;
@@ -44,6 +55,8 @@ export interface SelectionState {
   isMultiSelectMode: boolean;
   // Reference resources
   references: ReferenceResource[];
+  // Translation memory
+  translationMemory: TranslationMemoryEntry[];
 }
 
 export interface SelectionActions {
@@ -83,6 +96,11 @@ export interface SelectionActions {
   removeReference: (id: string) => void;
   clearReferences: () => void;
   updateReference: (id: string, updates: Partial<ReferenceResource>) => void;
+  // Translation memory actions
+  addTranslationMemory: (entry: Omit<TranslationMemoryEntry, "id" | "timestamp" | "usageCount">) => void;
+  findTranslationMemory: (sourceText: string, targetLanguage: string) => TranslationMemoryEntry | null;
+  incrementTranslationUsage: (id: string) => void;
+  clearTranslationMemory: () => void;
 }
 
 type SelectionStore = SelectionState & SelectionActions;
@@ -113,6 +131,8 @@ export const useSelectionStore = create<SelectionStore>()(
       isMultiSelectMode: false,
       // References
       references: [],
+      // Translation memory
+      translationMemory: [],
 
       // Actions
       updateConfig: (config: Partial<SelectionConfig>) =>
@@ -350,6 +370,61 @@ export const useSelectionStore = create<SelectionStore>()(
             r.id === id ? { ...r, ...updates } : r
           ),
         })),
+
+      // Translation memory actions
+      addTranslationMemory: (entry: Omit<TranslationMemoryEntry, "id" | "timestamp" | "usageCount">) =>
+        set((state) => {
+          // Check if similar entry exists (same source text and target language)
+          const existingIndex = state.translationMemory.findIndex(
+            (tm) => 
+              tm.sourceText.toLowerCase() === entry.sourceText.toLowerCase() &&
+              tm.targetLanguage === entry.targetLanguage
+          );
+          
+          if (existingIndex !== -1) {
+            // Update existing entry
+            const updated = [...state.translationMemory];
+            updated[existingIndex] = {
+              ...updated[existingIndex],
+              translation: entry.translation,
+              timestamp: Date.now(),
+              usageCount: updated[existingIndex].usageCount + 1,
+            };
+            return { translationMemory: updated };
+          }
+          
+          // Add new entry (limit to 500 entries)
+          const newEntry: TranslationMemoryEntry = {
+            ...entry,
+            id: `tm-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+            timestamp: Date.now(),
+            usageCount: 1,
+          };
+          return {
+            translationMemory: [newEntry, ...state.translationMemory.slice(0, 499)],
+          };
+        }),
+
+      findTranslationMemory: (sourceText: string, targetLanguage: string) => {
+        const state = get();
+        return state.translationMemory.find(
+          (tm) =>
+            tm.sourceText.toLowerCase() === sourceText.toLowerCase() &&
+            tm.targetLanguage === targetLanguage
+        ) || null;
+      },
+
+      incrementTranslationUsage: (id: string) =>
+        set((state) => ({
+          translationMemory: state.translationMemory.map((tm) =>
+            tm.id === id ? { ...tm, usageCount: tm.usageCount + 1 } : tm
+          ),
+        })),
+
+      clearTranslationMemory: () =>
+        set({
+          translationMemory: [],
+        }),
     }),
     {
       name: "selection-toolbar-storage",
@@ -359,6 +434,7 @@ export const useSelectionStore = create<SelectionStore>()(
         isEnabled: state.isEnabled,
         history: state.history.slice(0, 50), // Only persist recent history
         feedbackGiven: state.feedbackGiven,
+        translationMemory: state.translationMemory.slice(0, 100), // Persist recent translation memory
       }),
     }
   )
@@ -386,6 +462,13 @@ export const selectRecentHistory = (state: SelectionState, count = 10) =>
 
 export const selectHistoryByAction = (state: SelectionState, action: SelectionAction) =>
   state.history.filter((item) => item.action === action);
+
+// Translation memory selectors
+export const selectTranslationMemory = (state: SelectionState) => state.translationMemory;
+export const selectRecentTranslations = (state: SelectionState, count = 10) =>
+  state.translationMemory.slice(0, count);
+export const selectMostUsedTranslations = (state: SelectionState, count = 10) =>
+  [...state.translationMemory].sort((a, b) => b.usageCount - a.usageCount).slice(0, count);
 
 // Multi-selection selectors
 export const selectSelections = (state: SelectionState) => state.selections;

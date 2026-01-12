@@ -531,7 +531,7 @@ fn main() {
 {
   "build": {
     "frontendDist": "../out",           // Static files from Next.js build
-    "beforeDevCommand": "pnpm dev -p 3001",
+    "beforeDevCommand": "pnpm dev -p 3000",
     "beforeBuildCommand": "pnpm build"
   },
   "app": {

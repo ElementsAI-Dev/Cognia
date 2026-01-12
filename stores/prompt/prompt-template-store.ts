@@ -12,11 +12,18 @@ import {
   type PromptFeedback,
   type PromptTemplateStats,
   type PromptABTest,
+  type PromptOptimizationHistory,
+  type OptimizationRecommendation,
   type CreatePromptTemplateInput,
   type UpdatePromptTemplateInput,
   DEFAULT_PROMPT_TEMPLATE_CATEGORIES,
   DEFAULT_PROMPT_TEMPLATES,
 } from '@/types/content/prompt-template';
+import {
+  createOptimizationHistoryEntry,
+  generateOptimizationRecommendations,
+  getTopOptimizationCandidates,
+} from '@/lib/ai/prompts/prompt-self-optimizer';
 import { buildTemplateVariables } from '@/lib/prompts/template-utils';
 
 interface PromptTemplateState {
@@ -28,6 +35,7 @@ interface PromptTemplateState {
   // Feedback & A/B Testing state
   feedback: Record<string, PromptFeedback[]>;
   abTests: Record<string, PromptABTest>;
+  optimizationHistory: Record<string, PromptOptimizationHistory[]>;
 
   initializeDefaults: () => void;
   createTemplate: (input: CreatePromptTemplateInput) => PromptTemplate;
@@ -65,6 +73,12 @@ interface PromptTemplateState {
   
   // Optimization
   markAsOptimized: (id: string, optimizedContent: string, suggestions?: string[]) => void;
+  
+  // Optimization History & Recommendations
+  recordOptimization: (templateId: string, originalContent: string, optimizedContent: string, suggestions: string[], style?: string, appliedBy?: 'user' | 'auto') => void;
+  getOptimizationHistory: (templateId: string) => PromptOptimizationHistory[];
+  getRecommendations: () => OptimizationRecommendation[];
+  getTopCandidates: (limit?: number) => Array<{ template: PromptTemplate; score: number; reasons: string[] }>;
 }
 
 function withTimestamps(template: Omit<PromptTemplate, 'createdAt' | 'updatedAt'>): PromptTemplate {
@@ -125,6 +139,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
       isInitialized: false,
       feedback: {},
       abTests: {},
+      optimizationHistory: {},
 
       initializeDefaults: () => {
         const { isInitialized, templates } = get();
@@ -546,6 +561,51 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
               : tpl
           ),
         }));
+      },
+
+      // Optimization History & Recommendations
+      recordOptimization: (templateId, originalContent, optimizedContent, suggestions, style, appliedBy = 'user') => {
+        const entry = createOptimizationHistoryEntry(
+          templateId,
+          originalContent,
+          optimizedContent,
+          suggestions,
+          style,
+          appliedBy
+        );
+
+        set((state) => ({
+          optimizationHistory: {
+            ...state.optimizationHistory,
+            [templateId]: [...(state.optimizationHistory[templateId] || []), entry].slice(-20), // Keep last 20
+          },
+          templates: state.templates.map((tpl) => {
+            if (tpl.id !== templateId) return tpl;
+            const currentStats = tpl.stats || { totalUses: 0, successfulUses: 0, averageRating: 0, ratingCount: 0, optimizationCount: 0 };
+            return {
+              ...tpl,
+              stats: {
+                ...currentStats,
+                lastOptimizedAt: new Date(),
+                optimizationCount: currentStats.optimizationCount + 1,
+              },
+            };
+          }),
+        }));
+      },
+
+      getOptimizationHistory: (templateId) => {
+        return get().optimizationHistory[templateId] || [];
+      },
+
+      getRecommendations: () => {
+        const { templates, feedback } = get();
+        return generateOptimizationRecommendations(templates, feedback);
+      },
+
+      getTopCandidates: (limit = 5) => {
+        const { templates } = get();
+        return getTopOptimizationCandidates(templates, limit);
       },
     }),
     {

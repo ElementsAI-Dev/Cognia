@@ -4,7 +4,7 @@
 
 #![allow(dead_code)]
 
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
@@ -16,7 +16,7 @@ pub const TOOLBAR_WINDOW_LABEL: &str = "selection-toolbar";
 
 /// Toolbar window dimensions (production)
 const TOOLBAR_WIDTH: f64 = 560.0;
-const TOOLBAR_HEIGHT: f64 = 380.0; // Increased height for full toolbar content
+const TOOLBAR_HEIGHT: f64 = 400.0; // Height for toolbar + popup panels
 
 /// Debug mode window dimensions (larger for Next.js debug info)
 #[cfg(debug_assertions)]
@@ -64,6 +64,8 @@ pub struct ToolbarWindow {
     last_shown: Arc<RwLock<Option<Instant>>>,
     /// Whether mouse is hovering over toolbar (prevents auto-hide)
     is_hovered: Arc<AtomicBool>,
+    /// Guard to prevent concurrent window creation
+    creation_lock: Arc<Mutex<()>>,
 }
 
 impl ToolbarWindow {
@@ -78,6 +80,7 @@ impl ToolbarWindow {
             auto_hide_cancel: Arc::new(RwLock::new(None)),
             last_shown: Arc::new(RwLock::new(None)),
             is_hovered: Arc::new(AtomicBool::new(false)),
+            creation_lock: Arc::new(Mutex::new(())),
         }
     }
 
@@ -162,6 +165,10 @@ impl ToolbarWindow {
 
     /// Create the toolbar window if it doesn't exist
     pub fn ensure_window_exists(&self) -> Result<(), String> {
+        // Acquire lock to prevent concurrent window creation
+        let _guard = self.creation_lock.lock();
+        
+        // Double-check after acquiring lock
         if self
             .app_handle
             .get_webview_window(TOOLBAR_WINDOW_LABEL)
@@ -187,20 +194,36 @@ impl ToolbarWindow {
         .title("")
         .inner_size(width, height)
         .decorations(false)
-        .transparent(false) // Changed: Use opaque window so content is visible
+        .transparent(true) // Enable transparent window for click-through
         .always_on_top(true)
         .skip_taskbar(true)
         .resizable(cfg!(debug_assertions)) // Allow resize in debug mode
         .visible(false)
         .focused(false)
-        .shadow(true) // Changed: Add shadow for better visibility
+        .shadow(false) // Disable shadow for transparent window
         .build()
         .map_err(|e| format!("Failed to create toolbar window: {}", e))?;
 
-        // Note: Window styling is handled by Tauri's window builder options
-        // The decorations(false), skip_taskbar(true), and focused(false) options
-        // provide the necessary behavior for a floating toolbar
-        let _ = window;
+        // Set up window event handlers
+        let is_visible = self.is_visible.clone();
+        let selected_text = self.selected_text.clone();
+        let is_hovered = self.is_hovered.clone();
+        let auto_hide_cancel = self.auto_hide_cancel.clone();
+        
+        window.on_window_event(move |event| match event {
+            tauri::WindowEvent::Destroyed => {
+                // Window was destroyed, reset state
+                is_visible.store(false, Ordering::SeqCst);
+                is_hovered.store(false, Ordering::SeqCst);
+                *selected_text.write() = None;
+                // Cancel any pending auto-hide
+                if let Some(token) = auto_hide_cancel.write().take() {
+                    token.cancel();
+                }
+                log::debug!("[ToolbarWindow] Window destroyed");
+            }
+            _ => {}
+        });
 
         log::info!(
             "[ToolbarWindow] Window created successfully ({}x{})",
@@ -516,6 +539,55 @@ impl ToolbarWindow {
     /// Get current position
     pub fn get_position(&self) -> (i32, i32) {
         *self.position.read()
+    }
+    
+    /// Destroy the toolbar window and clean up resources
+    pub fn destroy(&self) -> Result<(), String> {
+        log::debug!("[ToolbarWindow] destroy() called");
+        
+        // Cancel any pending auto-hide
+        self.cancel_auto_hide();
+        
+        if let Some(window) = self.app_handle.get_webview_window(TOOLBAR_WINDOW_LABEL) {
+            // Hide first to avoid visual glitch
+            let _ = window.hide();
+            window
+                .destroy()
+                .map_err(|e| format!("Failed to destroy toolbar window: {}", e))?;
+        }
+        
+        // Reset state
+        self.is_visible.store(false, Ordering::SeqCst);
+        self.is_hovered.store(false, Ordering::SeqCst);
+        *self.selected_text.write() = None;
+        
+        log::info!("[ToolbarWindow] Window destroyed");
+        Ok(())
+    }
+    
+    /// Sync visibility state with actual window state
+    pub fn sync_visibility(&self) {
+        let actual_visible = self
+            .app_handle
+            .get_webview_window(TOOLBAR_WINDOW_LABEL)
+            .map(|w| w.is_visible().unwrap_or(false))
+            .unwrap_or(false);
+        
+        let stored_visible = self.is_visible.load(Ordering::SeqCst);
+        
+        if actual_visible != stored_visible {
+            log::warn!(
+                "[ToolbarWindow] Visibility state mismatch: stored={}, actual={}. Syncing.",
+                stored_visible,
+                actual_visible
+            );
+            self.is_visible.store(actual_visible, Ordering::SeqCst);
+            
+            // If not visible, clear selected text
+            if !actual_visible {
+                *self.selected_text.write() = None;
+            }
+        }
     }
 }
 

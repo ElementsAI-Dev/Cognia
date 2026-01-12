@@ -37,6 +37,7 @@ import {
   StickyNote,
   Keyboard,
   Clock,
+  Volume2,
 } from "lucide-react";
 import { useEffect, useCallback, useState, useRef } from "react";
 import { ToolbarButton } from "./toolbar-button";
@@ -46,7 +47,9 @@ import { ClipboardPanel } from "./clipboard-panel";
 import { OCRPanel } from "./ocr-panel";
 import { TemplatesPanel } from "./templates-panel";
 import { SelectionHistoryPanel } from "./history-panel";
+import { LanguageSelector } from "./language-selector";
 import { SelectionAction, ActionDefinition, ActionCategory, SelectionMode } from "@/types";
+import { useTTS } from "@/hooks/media/use-tts";
 import { useSelectionToolbar } from '@/hooks/ui';
 import { useSelectionStore } from "@/stores/context";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -114,6 +117,16 @@ const CATEGORY_INFO: Record<ActionCategory, { label: string; color: string }> = 
   utility: { label: "Utility", color: "text-amber-400" },
 };
 
+// Quick translation language shortcuts (T+number)
+const QUICK_TRANSLATE_LANGUAGES: Record<string, string> = {
+  '1': 'zh-CN',  // Chinese
+  '2': 'en',     // English
+  '3': 'ja',     // Japanese
+  '4': 'ko',     // Korean
+  '5': 'fr',     // French
+  '6': 'de',     // German
+};
+
 export function SelectionToolbar() {
   const {
     state,
@@ -136,7 +149,65 @@ export function SelectionToolbar() {
   const [showOCRPanel, setShowOCRPanel] = useState(false);
   const [showTemplatesPanel, setShowTemplatesPanel] = useState(false);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+
+  // TTS hook for read aloud functionality
+  const {
+    speak,
+    stop: stopTTS,
+    pause: pauseTTS,
+    resume: resumeTTS,
+    isPlaying: isSpeaking,
+    isPaused: isTTSPaused,
+  } = useTTS();
+
+  // Handle TTS speak
+  const handleSpeak = useCallback((text: string) => {
+    speak(text);
+  }, [speak]);
+
+  // Auto-detect and switch language if translating to same language
+  const getSmartTargetLanguage = useCallback((targetLang: string, detectedSource: string | null) => {
+    // If detected source is same as target, swap to a sensible default
+    if (detectedSource && detectedSource === targetLang) {
+      // Common swap pairs
+      const swapPairs: Record<string, string> = {
+        'zh-CN': 'en',
+        'zh-TW': 'en',
+        'en': 'zh-CN',
+        'ja': 'en',
+        'ko': 'en',
+        'fr': 'en',
+        'de': 'en',
+        'es': 'en',
+        'ru': 'en',
+      };
+      return swapPairs[targetLang] || 'en';
+    }
+    return targetLang;
+  }, []);
+
+  // Handle translate with specific language
+  const handleTranslateWithLanguage = useCallback(async (targetLang: string) => {
+    // Smart language switching - detect source and swap if needed
+    const smartTarget = getSmartTargetLanguage(targetLang, detectedLanguage);
+    
+    // Update config target language
+    if (smartTarget !== config.targetLanguage) {
+      // This would ideally call updateTargetLanguage from the hook
+      // For now, we'll use the store directly via updateConfig
+    }
+    
+    await executeAction("translate");
+  }, [executeAction, getSmartTargetLanguage, detectedLanguage, config.targetLanguage]);
+
+  // Clear detected language when result changes
+  useEffect(() => {
+    if (!state.result) {
+      setDetectedLanguage(null);
+    }
+  }, [state.result]);
 
   // Helper to close all panels
   const closeAllPanels = useCallback(() => {
@@ -301,6 +372,10 @@ export function SelectionToolbar() {
     }
   };
 
+  // Track if T key was pressed for quick translation combo
+  const [waitingForTranslateNumber, setWaitingForTranslateNumber] = useState(false);
+  const translateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Keyboard shortcuts
   useEffect(() => {
     if (!state.isVisible) return;
@@ -314,6 +389,7 @@ export function SelectionToolbar() {
       // Escape to close panels, menus, or toolbar (in priority order)
       if (e.key === "Escape") {
         e.preventDefault();
+        setWaitingForTranslateNumber(false);
         // First close any open panels
         if (showShortcutHints || showClipboardPanel || showOCRPanel || showTemplatesPanel || showHistoryPanel) {
           closeAllPanels();
@@ -332,20 +408,82 @@ export function SelectionToolbar() {
       // Don't process other shortcuts when loading
       if (state.isLoading) return;
 
-      // Enter key for send-to-chat
-      if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        e.preventDefault();
-        handleAction("send-to-chat");
-        return;
-      }
-
-      // Find action by shortcut (case-insensitive, single key)
-      // Skip if Ctrl/Cmd is pressed to allow native copy (Ctrl+C)
+      // Skip if Ctrl/Cmd/Alt is pressed (except for Shift+C)
       if (e.ctrlKey || e.metaKey || e.altKey) {
         return;
       }
 
       const key = e.key.toUpperCase();
+
+      // Handle T+number quick translation
+      if (waitingForTranslateNumber) {
+        const targetLang = QUICK_TRANSLATE_LANGUAGES[e.key];
+        if (targetLang) {
+          e.preventDefault();
+          setWaitingForTranslateNumber(false);
+          if (translateTimeoutRef.current) {
+            clearTimeout(translateTimeoutRef.current);
+          }
+          // Update target language and execute translate
+          handleTranslateWithLanguage(targetLang);
+          return;
+        } else {
+          // Invalid key after T, cancel the combo and execute default translate
+          setWaitingForTranslateNumber(false);
+          if (translateTimeoutRef.current) {
+            clearTimeout(translateTimeoutRef.current);
+          }
+          handleAction("translate");
+          return;
+        }
+      }
+
+      // T key starts quick translation combo
+      if (key === 'T') {
+        e.preventDefault();
+        setWaitingForTranslateNumber(true);
+        // Auto-cancel after 1.5 seconds and execute default translate
+        translateTimeoutRef.current = setTimeout(() => {
+          setWaitingForTranslateNumber(false);
+          handleAction("translate");
+        }, 1500);
+        return;
+      }
+
+      // Shift+C for copy original + translation
+      if (key === 'C' && e.shiftKey && state.result && state.activeAction === 'translate') {
+        e.preventDefault();
+        const combinedText = `Original:\n${state.selectedText}\n\nTranslation:\n${state.result}`;
+        navigator.clipboard.writeText(combinedText);
+        return;
+      }
+
+      // V key for TTS read aloud
+      if (key === 'V') {
+        e.preventDefault();
+        if (isSpeaking) {
+          stopTTS();
+        } else {
+          const textToRead = state.result || state.selectedText;
+          if (textToRead) handleSpeak(textToRead);
+        }
+        return;
+      }
+
+      // L key for language selector (would need popover state)
+      // For now, just trigger translate action
+      if (key === 'L') {
+        e.preventDefault();
+        // Could open language selector popover here
+        return;
+      }
+
+      // Enter key for send-to-chat
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleAction("send-to-chat");
+        return;
+      }
 
       // Panel shortcuts
       const panelShortcuts: Record<string, 'templates' | 'clipboard' | 'ocr' | 'history' | 'shortcuts'> = {
@@ -372,8 +510,13 @@ export function SelectionToolbar() {
     };
 
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [state.isVisible, state.isLoading, handleAction, hideToolbar, showMoreMenu, showModeSelector, showReferences, togglePanel, closeAllPanels, showShortcutHints, showClipboardPanel, showOCRPanel, showTemplatesPanel, showHistoryPanel]);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      if (translateTimeoutRef.current) {
+        clearTimeout(translateTimeoutRef.current);
+      }
+    };
+  }, [state.isVisible, state.isLoading, state.result, state.selectedText, state.activeAction, waitingForTranslateNumber, isSpeaking, handleAction, handleTranslateWithLanguage, handleSpeak, stopTTS, hideToolbar, showMoreMenu, showModeSelector, showReferences, togglePanel, closeAllPanels, showShortcutHints, showClipboardPanel, showOCRPanel, showTemplatesPanel, showHistoryPanel]);
 
   // Don't render anything if toolbar is not visible
   if (!state.isVisible) {
@@ -470,19 +613,61 @@ export function SelectionToolbar() {
 
           {/* Primary Actions */}
           {pinnedActions.map(({ action, icon, labelKey, shortcut, descKey }) => (
-            <ToolbarButton
-              key={action}
-              icon={icon}
-              label={t(labelKey)}
-              shortcut={shortcut}
-              description={t(descKey)}
-              isActive={state.activeAction === action}
-              isLoading={state.isLoading && state.activeAction === action}
-              onClick={() => handleAction(action)}
-              disabled={state.isLoading}
-              variant={action === "send-to-chat" ? "primary" : "default"}
-            />
+            action === "translate" ? (
+              // Translate button with language selector
+              <div key={action} className="flex items-center">
+                <ToolbarButton
+                  icon={icon}
+                  label={t(labelKey)}
+                  shortcut={shortcut}
+                  description={t(descKey)}
+                  isActive={state.activeAction === action}
+                  isLoading={state.isLoading && state.activeAction === action}
+                  onClick={() => handleAction(action)}
+                  disabled={state.isLoading}
+                />
+                <LanguageSelector
+                  selectedLanguage={config.targetLanguage}
+                  onLanguageChange={(lang) => handleTranslateWithLanguage(lang)}
+                  onQuickTranslate={handleTranslateWithLanguage}
+                  detectedLanguage={detectedLanguage}
+                  disabled={state.isLoading}
+                  compact
+                />
+              </div>
+            ) : (
+              <ToolbarButton
+                key={action}
+                icon={icon}
+                label={t(labelKey)}
+                shortcut={shortcut}
+                description={t(descKey)}
+                isActive={state.activeAction === action}
+                isLoading={state.isLoading && state.activeAction === action}
+                onClick={() => handleAction(action)}
+                disabled={state.isLoading}
+                variant={action === "send-to-chat" ? "primary" : "default"}
+              />
+            )
           ))}
+
+          {/* TTS Read Aloud Button */}
+          <ToolbarButton
+            icon={Volume2}
+            label="Read Aloud"
+            shortcut="V"
+            description={isSpeaking ? "Stop reading" : "Read selected text aloud"}
+            isActive={isSpeaking}
+            onClick={() => {
+              if (isSpeaking) {
+                stopTTS();
+              } else {
+                const textToRead = state.result || state.selectedText;
+                if (textToRead) handleSpeak(textToRead);
+              }
+            }}
+            disabled={!state.selectedText && !state.result}
+          />
 
           {/* Divider */}
           <Separator orientation="vertical" className="h-6 bg-white/6 mx-0.5" />
@@ -931,10 +1116,46 @@ export function SelectionToolbar() {
         {/* Result Panel */}
         <ResultPanel
           result={state.result}
+          streamingResult={state.streamingResult}
           error={state.error}
           isLoading={state.isLoading}
+          isStreaming={state.isStreaming}
+          activeAction={state.activeAction}
           onClose={clearResult}
           onCopy={copyResult}
+          onRetry={() => state.activeAction && executeAction(state.activeAction)}
+          onSendToChat={() => {
+            if (state.result && typeof window !== "undefined" && window.__TAURI__) {
+              import("@tauri-apps/api/event").then(({ emit }) => {
+                emit("selection-send-to-chat", { text: state.result });
+              });
+            }
+          }}
+          // Translation-specific props
+          originalText={state.selectedText}
+          sourceLanguage={detectedLanguage}
+          targetLanguage={config.targetLanguage}
+          // TTS props
+          onSpeak={handleSpeak}
+          onStopSpeak={stopTTS}
+          isSpeaking={isSpeaking}
+          isPaused={isTTSPaused}
+          onPauseSpeak={pauseTTS}
+          onResumeSpeak={resumeTTS}
+          // Follow-up actions
+          onFollowUpAction={(action) => {
+            // Map follow-up actions to toolbar actions
+            const actionMap: Record<string, SelectionAction> = {
+              'explain': 'explain',
+              'simplify': 'rewrite',
+              'formal': 'tone-formal',
+              'casual': 'tone-casual',
+            };
+            const toolbarAction = actionMap[action];
+            if (toolbarAction) {
+              executeAction(toolbarAction);
+            }
+          }}
         />
 
         {/* Shortcut Hints Panel */}

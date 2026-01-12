@@ -1,0 +1,32 @@
+{
+  "id": "theme-customizer",
+  "name": "Theme Customizer",
+  "version": "1.0.0",
+  "description": "Create, manage, and switch between custom themes",
+  "type": "python",
+  "capabilities": ["tools", "hooks", "commands"],
+  "pythonMain": "main.py",
+  "permissions": ["theme:read", "theme:write"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "cleanupOnDisable": {
+        "type": "boolean",
+        "title": "Cleanup on Disable",
+        "description": "Remove created themes when plugin is disabled",
+        "default": false
+      },
+      "defaultPalette": {
+        "type": "string",
+        "title": "Default Palette",
+        "description": "Default color palette for new themes",
+        "enum": ["nord", "dracula", "solarized_dark", "catppuccin_mocha", "github_dark"],
+        "default": "catppuccin_mocha"
+      }
+    }
+  },
+  "defaultConfig": {
+    "cleanupOnDisable": false,
+    "defaultPalette": "catppuccin_mocha"
+  }
+}

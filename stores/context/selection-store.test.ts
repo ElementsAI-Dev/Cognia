@@ -768,4 +768,194 @@ describe('useSelectionStore', () => {
       expect(success!).toBe(false);
     });
   });
+
+  describe('translation memory', () => {
+    beforeEach(() => {
+      const { result } = renderHook(() => useSelectionStore());
+      act(() => {
+        result.current.clearTranslationMemory();
+      });
+    });
+
+    it('should have initial empty translation memory', () => {
+      const { result } = renderHook(() => useSelectionStore());
+      expect(result.current.translationMemory).toEqual([]);
+    });
+
+    it('should add translation memory entry', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.addTranslationMemory({
+          sourceText: 'Hello',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh-CN',
+          translation: '你好',
+        });
+      });
+
+      expect(result.current.translationMemory).toHaveLength(1);
+      expect(result.current.translationMemory[0]).toMatchObject({
+        sourceText: 'Hello',
+        sourceLanguage: 'en',
+        targetLanguage: 'zh-CN',
+        translation: '你好',
+        usageCount: 1,
+      });
+      expect(result.current.translationMemory[0].id).toBeDefined();
+      expect(result.current.translationMemory[0].timestamp).toBeDefined();
+    });
+
+    it('should update existing entry instead of adding duplicate', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.addTranslationMemory({
+          sourceText: 'Hello',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh-CN',
+          translation: '你好',
+        });
+      });
+
+      act(() => {
+        result.current.addTranslationMemory({
+          sourceText: 'Hello',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh-CN',
+          translation: '您好', // Different translation
+        });
+      });
+
+      expect(result.current.translationMemory).toHaveLength(1);
+      expect(result.current.translationMemory[0].translation).toBe('您好');
+      expect(result.current.translationMemory[0].usageCount).toBe(2);
+    });
+
+    it('should find translation memory entry', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.addTranslationMemory({
+          sourceText: 'Hello',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh-CN',
+          translation: '你好',
+        });
+      });
+
+      const found = result.current.findTranslationMemory('Hello', 'zh-CN');
+      expect(found).not.toBeNull();
+      expect(found?.translation).toBe('你好');
+    });
+
+    it('should find translation memory case-insensitively', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.addTranslationMemory({
+          sourceText: 'Hello',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh-CN',
+          translation: '你好',
+        });
+      });
+
+      const found = result.current.findTranslationMemory('HELLO', 'zh-CN');
+      expect(found).not.toBeNull();
+    });
+
+    it('should return null when no match found', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.addTranslationMemory({
+          sourceText: 'Hello',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh-CN',
+          translation: '你好',
+        });
+      });
+
+      const found = result.current.findTranslationMemory('Goodbye', 'zh-CN');
+      expect(found).toBeNull();
+    });
+
+    it('should not match different target language', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.addTranslationMemory({
+          sourceText: 'Hello',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh-CN',
+          translation: '你好',
+        });
+      });
+
+      const found = result.current.findTranslationMemory('Hello', 'ja');
+      expect(found).toBeNull();
+    });
+
+    it('should increment usage count', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.addTranslationMemory({
+          sourceText: 'Hello',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh-CN',
+          translation: '你好',
+        });
+      });
+
+      const entryId = result.current.translationMemory[0].id;
+
+      act(() => {
+        result.current.incrementTranslationUsage(entryId);
+        result.current.incrementTranslationUsage(entryId);
+      });
+
+      expect(result.current.translationMemory[0].usageCount).toBe(3);
+    });
+
+    it('should clear translation memory', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.addTranslationMemory({
+          sourceText: 'Hello',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh-CN',
+          translation: '你好',
+        });
+        result.current.addTranslationMemory({
+          sourceText: 'Goodbye',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh-CN',
+          translation: '再见',
+        });
+        result.current.clearTranslationMemory();
+      });
+
+      expect(result.current.translationMemory).toEqual([]);
+    });
+
+    it('should limit translation memory to 500 entries', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        for (let i = 0; i < 510; i++) {
+          result.current.addTranslationMemory({
+            sourceText: `text ${i}`,
+            sourceLanguage: 'en',
+            targetLanguage: 'zh-CN',
+            translation: `翻译 ${i}`,
+          });
+        }
+      });
+
+      expect(result.current.translationMemory.length).toBeLessThanOrEqual(500);
+    });
+  });
 });

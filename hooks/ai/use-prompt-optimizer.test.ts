@@ -39,6 +39,10 @@ const mockStartABTest = jest.fn();
 const mockRecordABTestResult = jest.fn();
 const mockCompleteABTest = jest.fn();
 const mockMarkAsOptimized = jest.fn();
+const mockRecordOptimization = jest.fn();
+const mockGetOptimizationHistory = jest.fn().mockReturnValue([]);
+const mockGetRecommendations = jest.fn().mockReturnValue([]);
+const mockGetTopCandidates = jest.fn().mockReturnValue([]);
 
 jest.mock('@/stores/prompt/prompt-template-store', () => ({
   usePromptTemplateStore: jest.fn((selector) => {
@@ -51,23 +55,33 @@ jest.mock('@/stores/prompt/prompt-template-store', () => ({
       recordABTestResult: mockRecordABTestResult,
       completeABTest: mockCompleteABTest,
       markAsOptimized: mockMarkAsOptimized,
+      recordOptimization: mockRecordOptimization,
+      getOptimizationHistory: mockGetOptimizationHistory,
+      getRecommendations: mockGetRecommendations,
+      getTopCandidates: mockGetTopCandidates,
     };
     return selector(state);
   }),
 }));
 
 // Mock prompt-self-optimizer functions
-jest.mock('@/lib/ai/generation/prompt-self-optimizer', () => ({
+jest.mock('@/lib/ai/prompts/prompt-self-optimizer', () => ({
   analyzePrompt: jest.fn(),
   optimizePromptFromAnalysis: jest.fn(),
   analyzeUserFeedback: jest.fn(),
   autoOptimize: jest.fn(),
+  calculateOptimizationImprovement: jest.fn().mockReturnValue({
+    totalOptimizations: 0,
+    averageImprovement: 0,
+    bestImprovement: 0,
+    successRate: 0,
+  }),
 }));
 
 import {
   analyzePrompt,
   optimizePromptFromAnalysis,
-} from '@/lib/ai/generation/prompt-self-optimizer';
+} from '@/lib/ai/prompts/prompt-self-optimizer';
 
 const mockAnalyzePrompt = analyzePrompt as jest.MockedFunction<typeof analyzePrompt>;
 const mockOptimizePromptFromAnalysis = optimizePromptFromAnalysis as jest.MockedFunction<typeof optimizePromptFromAnalysis>;
@@ -426,6 +440,109 @@ describe('usePromptOptimizer', () => {
       expect(result.current.analysisResult).toBeNull();
       expect(result.current.suggestions).toEqual([]);
       expect(result.current.error).toBeNull();
+    });
+  });
+
+  describe('optimization history and recommendations', () => {
+    it('should return optimization history for template', () => {
+      const mockHistory = [
+        {
+          id: 'hist-1',
+          templateId: 'test-template-id',
+          originalContent: 'Original',
+          optimizedContent: 'Optimized',
+          suggestions: ['Improved clarity'],
+          scores: {
+            before: { clarity: 50, specificity: 50, structure: 50, overall: 50 },
+            after: { clarity: 75, specificity: 75, structure: 75, overall: 75 },
+          },
+          appliedAt: new Date(),
+          appliedBy: 'user' as const,
+        },
+      ];
+      mockGetOptimizationHistory.mockReturnValue(mockHistory);
+
+      const { result } = renderHook(() => 
+        usePromptOptimizer({ templateId: 'test-template-id' })
+      );
+
+      expect(result.current.optimizationHistory).toEqual(mockHistory);
+    });
+
+    it('should return empty history when no templateId', () => {
+      const { result } = renderHook(() => usePromptOptimizer());
+
+      expect(result.current.optimizationHistory).toEqual([]);
+    });
+
+    it('should return optimization stats', () => {
+      const { result } = renderHook(() => 
+        usePromptOptimizer({ templateId: 'test-template-id' })
+      );
+
+      expect(result.current.optimizationStats).toEqual({
+        totalOptimizations: 0,
+        averageImprovement: 0,
+        bestImprovement: 0,
+        successRate: 0,
+      });
+    });
+
+    it('should return recommendations across all templates', () => {
+      const mockRecommendations = [
+        {
+          templateId: 'tpl-1',
+          templateName: 'Template 1',
+          priority: 'high' as const,
+          reason: 'Low success rate',
+          metrics: { usageCount: 20, averageRating: 2, successRate: 0.4 },
+          suggestedActions: ['Run AI analysis'],
+        },
+      ];
+      mockGetRecommendations.mockReturnValue(mockRecommendations);
+
+      const { result } = renderHook(() => usePromptOptimizer());
+
+      expect(result.current.recommendations).toEqual(mockRecommendations);
+    });
+
+    it('should return top optimization candidates', () => {
+      const mockCandidates = [
+        {
+          template: mockTemplate,
+          score: 75,
+          reasons: ['Low overall quality score', 'Never been optimized'],
+        },
+      ];
+      mockGetTopCandidates.mockReturnValue(mockCandidates);
+
+      const { result } = renderHook(() => usePromptOptimizer());
+
+      expect(result.current.topCandidates).toEqual(mockCandidates);
+    });
+
+    it('should call recordOptimization when applying optimization', () => {
+      const { result } = renderHook(() => 
+        usePromptOptimizer({ templateId: 'test-template-id' })
+      );
+
+      act(() => {
+        result.current.applyOptimization('New optimized content', 'concise');
+      });
+
+      expect(mockMarkAsOptimized).toHaveBeenCalledWith(
+        'test-template-id',
+        'New optimized content',
+        []
+      );
+      expect(mockRecordOptimization).toHaveBeenCalledWith(
+        'test-template-id',
+        'Test content',
+        'New optimized content',
+        [],
+        'concise',
+        'user'
+      );
     });
   });
 });

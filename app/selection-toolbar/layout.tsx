@@ -16,7 +16,7 @@ export default function SelectionToolbarLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className="dark">
-      <body className="min-h-screen w-full overflow-auto bg-transparent">
+      <body className="min-h-screen w-full overflow-hidden bg-transparent" style={{ background: 'transparent' }}>
         {/* 
           Selection toolbar window layout:
           - Dark theme for the floating toolbar appearance

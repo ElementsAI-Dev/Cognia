@@ -1,0 +1,41 @@
+{
+  "id": "session-manager",
+  "name": "Session Manager",
+  "version": "1.0.0",
+  "description": "Advanced session management, backup, and export capabilities",
+  "type": "python",
+  "capabilities": ["tools", "hooks", "commands"],
+  "pythonMain": "main.py",
+  "permissions": ["session:read", "session:write", "export:session"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "autoBackup": {
+        "type": "boolean",
+        "title": "Auto Backup",
+        "description": "Automatically backup sessions periodically",
+        "default": false
+      },
+      "backupFormat": {
+        "type": "string",
+        "title": "Backup Format",
+        "description": "Default format for session backups",
+        "enum": ["json", "markdown"],
+        "default": "json"
+      },
+      "retentionDays": {
+        "type": "integer",
+        "title": "Retention Days",
+        "description": "Days to keep old sessions before cleanup suggestion",
+        "default": 90,
+        "minimum": 7,
+        "maximum": 365
+      }
+    }
+  },
+  "defaultConfig": {
+    "autoBackup": false,
+    "backupFormat": "json",
+    "retentionDays": 90
+  }
+}

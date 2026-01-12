@@ -29,7 +29,7 @@ pnpm dev
 
 ```bash
 # Start on different port
-pnpm dev -- -p 3001
+pnpm dev -- -p 3000
 
 # Start with Turbopack (faster refresh)
 pnpm dev -- --turbo
@@ -45,7 +45,7 @@ pnpm dev --experimental-app
 pnpm tauri dev
 
 # This will:
-# 1. Start Next.js on port 3001
+# 1. Start Next.js on port 3000
 # 2. Compile Rust backend in debug mode
 # 3. Open desktop window
 # 4. Enable hot reload for both frontend and backend
@@ -222,8 +222,8 @@ src-tauri/target/release/bundle/
 
   "build": {
     "frontendDist": "../out",
-    "devUrl": "http://localhost:3001",
-    "beforeDevCommand": "cross-env TAURI=true pnpm dev -p 3001",
+    "devUrl": "http://localhost:3000",
+    "beforeDevCommand": "cross-env TAURI=true pnpm dev -p 3000",
     "beforeBuildCommand": "pnpm build"
   },
 

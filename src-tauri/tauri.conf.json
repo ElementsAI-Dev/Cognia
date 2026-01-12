@@ -5,8 +5,8 @@
   "identifier": "com.elementsai.cognia",
   "build": {
     "frontendDist": "../out",
-    "devUrl": "http://localhost:3001",
-    "beforeDevCommand": "cross-env TAURI=true pnpm dev -p 3001",
+    "devUrl": "http://localhost:3000",
+    "beforeDevCommand": "cross-env TAURI=true pnpm dev -p 3000",
     "beforeBuildCommand": "pnpm build"
   },
   "app": {
@@ -44,15 +44,15 @@
         "title": "",
         "url": "selection-toolbar",
         "width": 560,
-        "height": 160,
+        "height": 400,
         "visible": false,
         "decorations": false,
-        "transparent": false,
+        "transparent": true,
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "resizable": false,
         "focus": false,
-        "shadow": true
+        "shadow": false
       },
       {
         "label": "chat-widget",

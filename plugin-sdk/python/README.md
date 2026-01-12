@@ -1,6 +1,6 @@
 # Cognia Plugin SDK for Python
 
-Create powerful Python plugins for Cognia with ease.
+Create powerful Python plugins for Cognia with ease. This SDK provides full access to Cognia's extensive API including session management, RAG/vector search, theme customization, and more.
 
 ## Installation
 
@@ -20,12 +20,17 @@ pip install -e .
 Create a new plugin by subclassing `Plugin`:
 
 ```python
-from cognia import Plugin, tool, hook
+from cognia import Plugin, tool, hook, ExtendedPluginContext
 
 class MyPlugin(Plugin):
     name = "my-awesome-plugin"
     version = "1.0.0"
     description = "An awesome plugin that does cool things"
+    capabilities = ["tools", "hooks"]
+    permissions = ["session:read", "network:fetch"]
+    
+    def __init__(self, context: ExtendedPluginContext = None):
+        super().__init__(context)
     
     @tool(description="Add two numbers together")
     def add(self, a: int, b: int) -> int:
@@ -52,6 +57,14 @@ class MyPlugin(Plugin):
     @hook("on_agent_step")
     async def on_agent_step(self, agent_id: str, step: dict):
         self.logger.log_info(f"Agent {agent_id} completed step: {step.get('type')}")
+    
+    @hook("on_message_receive")
+    async def on_message(self, message):
+        # Access extended APIs via context
+        if self.context.session:
+            session = self.context.session.get_current_session()
+            self.logger.log_info(f"Message in session: {session.title}")
+        return message
 ```
 
 ## Decorators
@@ -199,40 +212,203 @@ class DataAnalysisPlugin(Plugin):
 
 ### Plugin Class
 
-| Attribute | Type | Description |
-|-----------|------|-------------|
-| `name` | `str` | Plugin identifier |
-| `version` | `str` | Semantic version |
-| `description` | `str` | Plugin description |
-| `capabilities` | `List[PluginCapability]` | What the plugin provides |
-| `permissions` | `List[str]` | Required permissions |
-| `python_dependencies` | `List[str]` | pip packages needed |
+**Attributes:**
 
-| Method | Description |
-|--------|-------------|
-| `on_load()` | Called when plugin loads |
-| `on_enable()` | Called when plugin enables |
-| `on_disable()` | Called when plugin disables |
-| `on_unload()` | Called when plugin unloads |
-| `on_config_change(config)` | Called when config changes |
-| `get_manifest()` | Get plugin manifest |
-| `get_tools()` | Get registered tools |
-| `get_hooks()` | Get registered hooks |
+- **`name`** (`str`): Plugin identifier
+- **`version`** (`str`): Semantic version
+- **`description`** (`str`): Plugin description
+- **`capabilities`** (`List[PluginCapability]`): What the plugin provides
+- **`permissions`** (`List[str]`): Required permissions
+- **`python_dependencies`** (`List[str]`): pip packages needed
 
-### PluginContext
+**Lifecycle Methods:**
 
-| Property | Description |
-|----------|-------------|
-| `plugin_id` | Plugin identifier |
-| `plugin_path` | Path to plugin directory |
-| `config` | Plugin configuration dict |
+- **`on_load()`**: Called when plugin loads
+- **`on_enable()`**: Called when plugin enables
+- **`on_disable()`**: Called when plugin disables
+- **`on_unload()`**: Called when plugin unloads
+- **`on_config_change(config)`**: Called when config changes
 
-| Method | Description |
-|--------|-------------|
-| `log_debug(msg)` | Log debug message |
-| `log_info(msg)` | Log info message |
-| `log_warn(msg)` | Log warning message |
-| `log_error(msg)` | Log error message |
+**Utility Methods:**
+
+- **`get_manifest()`**: Get plugin manifest
+- **`get_tools()`**: Get registered tools
+- **`get_hooks()`**: Get registered hooks
+
+### ExtendedPluginContext
+
+The `ExtendedPluginContext` provides access to all Cognia APIs:
+
+**Core Properties:**
+
+- **`plugin_id`**: Plugin identifier
+- **`plugin_path`**: Path to plugin directory
+- **`config`**: Plugin configuration dict
+
+**Logging:**
+
+- **`log_debug(msg)`**: Log debug message
+- **`log_info(msg)`**: Log info message
+- **`log_warn(msg)`**: Log warning message
+- **`log_error(msg)`**: Log error message
+
+**Extended APIs:**
+
+- **`session`** (`SessionAPI`): Chat session management
+- **`project`** (`ProjectAPI`): Project management
+- **`vector`** (`VectorAPI`): Vector/RAG operations
+- **`theme`** (`ThemeAPI`): Theme customization
+- **`export`** (`ExportAPI`): Export sessions/projects
+- **`canvas`** (`CanvasAPI`): Canvas document editing
+- **`artifact`** (`ArtifactAPI`): Artifact management
+- **`notifications`** (`NotificationCenterAPI`): Notification center
+- **`ai`** (`AIProviderAPI`): AI model access
+- **`permissions`** (`PermissionAPI`): Permission management
+- **`network`** (`NetworkAPI`): HTTP requests
+- **`fs`** (`FileSystemAPI`): File operations
+- **`shell`** (`ShellAPI`): Shell command execution
+- **`db`** (`DatabaseAPI`): Local database operations
+- **`shortcuts`** (`ShortcutsAPI`): Keyboard shortcuts
+- **`context_menu`** (`ContextMenuAPI`): Context menu items
+- **`storage`** (`StorageAPI`): Persistent key-value storage
+- **`events`** (`EventsAPI`): Event emitter
+- **`ui`** (`UIAPI`): UI utilities (notifications, dialogs)
+- **`secrets`** (`SecretsAPI`): Secure credential storage
+- **`i18n`** (`I18nAPI`): Internationalization
+
+### Session API Example
+
+```python
+# Get current session
+session = self.context.session.get_current_session()
+
+# List sessions
+sessions = await self.context.session.list_sessions(
+    SessionFilter(limit=20, sort_by="updatedAt")
+)
+
+# Get messages
+messages = await self.context.session.get_messages(session_id)
+
+# Add a message
+await self.context.session.add_message(
+    session_id, 
+    "Hello from plugin!",
+    SendMessageOptions(role="assistant")
+)
+```
+
+### Vector/RAG API Example
+
+```python
+# Add documents
+await self.context.vector.add_documents("my_collection", [
+    VectorDocument(content="Document text", metadata={"source": "web"})
+])
+
+# Semantic search
+results = await self.context.vector.search(
+    "my_collection",
+    "search query",
+    VectorSearchOptions(top_k=5, threshold=0.7)
+)
+
+# Generate embeddings
+embedding = await self.context.vector.embed("Text to embed")
+```
+
+### Theme API Example
+
+```python
+# Get current theme
+state = self.context.theme.get_theme()
+
+# Set dark mode
+self.context.theme.set_mode(ThemeMode.DARK)
+
+# Create custom theme
+theme_id = self.context.theme.register_custom_theme(
+    "My Theme",
+    ThemeColors(primary="#007ACC", background="#1E1E1E", ...),
+    is_dark=True
+)
+
+# Activate custom theme
+self.context.theme.activate_custom_theme(theme_id)
+```
+
+### Network API Example
+
+```python
+# HTTP GET request
+response = await self.context.network.get("https://api.example.com/data")
+if response.ok:
+    data = response.data
+
+# HTTP POST request
+response = await self.context.network.post(
+    "https://api.example.com/data",
+    body={"key": "value"},
+    options=NetworkRequestOptions(headers={"Authorization": "Bearer token"})
+)
+
+# Download file
+result = await self.context.network.download(
+    "https://example.com/file.pdf",
+    "/path/to/save/file.pdf"
+)
+```
+
+## Available Hooks
+
+### Lifecycle Hooks
+
+- `on_load`, `on_enable`, `on_disable`, `on_unload`, `on_config_change`
+
+### Agent Hooks
+
+- `on_agent_start`, `on_agent_step`, `on_agent_tool_call`, `on_agent_complete`, `on_agent_error`
+
+### Message Hooks
+
+- `on_message_send`, `on_message_receive`, `on_message_render`
+
+### Session Hooks
+
+- `on_session_create`, `on_session_switch`, `on_session_delete`
+
+### Project Hooks
+
+- `on_project_create`, `on_project_update`, `on_project_delete`, `on_project_switch`
+
+### Canvas Hooks
+
+- `on_canvas_create`, `on_canvas_update`, `on_canvas_delete`, `on_canvas_content_change`
+
+### Artifact Hooks
+
+- `on_artifact_create`, `on_artifact_update`, `on_artifact_delete`, `on_artifact_open`
+
+### Theme Hooks
+
+- `on_theme_mode_change`, `on_color_preset_change`, `on_custom_theme_activate`
+
+### AI Hooks
+
+- `on_chat_request`, `on_stream_start`, `on_stream_chunk`, `on_stream_end`, `on_chat_error`
+
+### Vector/RAG Hooks
+
+- `on_documents_indexed`, `on_vector_search`, `on_rag_context_retrieved`
+
+## Examples
+
+See the `examples/` directory for complete plugin examples:
+
+- **`data_analysis/`** - Analyze CSV/JSON data with pandas
+- **`rag_integration/`** - Semantic search and RAG capabilities
+- **`session_manager/`** - Session management and export
+- **`theme_customizer/`** - Custom theme creation with predefined palettes
 
 ## License
 

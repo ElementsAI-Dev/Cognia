@@ -11,6 +11,7 @@ mod http;
 mod jupyter;
 mod mcp;
 mod plugin;
+mod port_utils;
 mod process;
 mod sandbox;
 mod screen_recording;
@@ -41,8 +42,31 @@ use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
 /// Prevent running cleanup twice (window destroy and shortcut teardown are idempotent but we guard anyway)
 static CLEANUP_CALLED: AtomicBool = AtomicBool::new(false);
 
+/// Default port for the development server
+const DEV_SERVER_PORT: u16 = 3000;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Check and free the development server port before starting
+    // This runs in both debug and release builds to handle port conflicts
+    match port_utils::ensure_port_available(DEV_SERVER_PORT) {
+        Ok(true) => {
+            log::info!("Port {} was occupied and has been freed", DEV_SERVER_PORT);
+        }
+        Ok(false) => {
+            log::debug!("Port {} is available", DEV_SERVER_PORT);
+        }
+        Err(e) => {
+            log::error!("Failed to ensure port {} is available: {}", DEV_SERVER_PORT, e);
+            // In development, we might want to show a dialog or continue anyway
+            // In production, this is less critical as we're not starting a dev server
+            #[cfg(debug_assertions)]
+            {
+                eprintln!("Warning: Could not free port {}: {}", DEV_SERVER_PORT, e);
+            }
+        }
+    }
+
     // Initialize CrabNebula DevTools for debugging (only in development builds)
     #[cfg(debug_assertions)]
     let devtools = tauri_plugin_devtools::init();
@@ -405,7 +429,7 @@ pub fn run() {
                 }
             });
 
-            // Register global shortcut for bubble toggle (Alt+B)
+            // Register global shortcut for bubble visibility toggle (Alt+B)
             let app_handle_for_bubble = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
@@ -432,7 +456,38 @@ pub fn run() {
                 ) {
                     log::error!("Failed to register bubble toggle shortcut: {}", e);
                 } else {
-                    log::info!("Global shortcut registered: Alt+B for bubble toggle");
+                    log::info!("Global shortcut registered: Alt+B for bubble visibility toggle");
+                }
+            });
+
+            // Register global shortcut for bubble minimize/fold toggle (Alt+M)
+            let app_handle_for_bubble_minimize = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+
+                let shortcut: Shortcut = "Alt+M".parse().unwrap();
+
+                if let Err(e) = app_handle_for_bubble_minimize.global_shortcut().on_shortcut(
+                    shortcut,
+                    move |app, _shortcut, _event| {
+                        if let Some(manager) = app.try_state::<AssistantBubbleWindow>() {
+                            match manager.toggle_minimize() {
+                                Ok(minimized) => {
+                                    log::debug!(
+                                        "Bubble {} via Alt+M shortcut",
+                                        if minimized { "minimized" } else { "restored" }
+                                    );
+                                }
+                                Err(e) => {
+                                    log::error!("Failed to toggle bubble minimize via shortcut: {}", e);
+                                }
+                            }
+                        }
+                    },
+                ) {
+                    log::error!("Failed to register bubble minimize shortcut: {}", e);
+                } else {
+                    log::info!("Global shortcut registered: Alt+M for bubble minimize toggle");
                 }
             });
 
@@ -544,6 +599,12 @@ pub fn run() {
             commands::ollama::ollama_copy_model,
             commands::ollama::ollama_generate_embedding,
             commands::ollama::ollama_stop_model,
+            // Port management commands
+            commands::port::port_check_status,
+            commands::port::port_is_available,
+            commands::port::port_ensure_available,
+            commands::port::port_kill_process,
+            commands::port::port_find_process,
             // Local provider commands (LM Studio, llama.cpp, vLLM, etc.)
             commands::local_provider::local_provider_get_status,
             commands::local_provider::local_provider_list_models,
@@ -578,6 +639,7 @@ pub fn run() {
             commands::selection::selection_is_toolbar_visible,
             commands::selection::selection_get_toolbar_text,
             commands::selection::selection_update_config,
+            commands::selection::selection_save_config,
             commands::selection::selection_get_config,
             commands::selection::selection_trigger,
             commands::selection::selection_get_status,
@@ -863,6 +925,13 @@ pub fn run() {
             commands::chat_widget::chat_widget_focus_input,
             commands::chat_widget::chat_widget_send_text,
             commands::chat_widget::chat_widget_destroy,
+            commands::chat_widget::chat_widget_minimize,
+            commands::chat_widget::chat_widget_unminimize,
+            commands::chat_widget::chat_widget_toggle_minimize,
+            commands::chat_widget::chat_widget_is_minimized,
+            commands::chat_widget::chat_widget_save_config,
+            commands::chat_widget::chat_widget_recreate,
+            commands::chat_widget::chat_widget_sync_state,
             // Assistant bubble commands
             commands::assistant_bubble::assistant_bubble_show,
             commands::assistant_bubble::assistant_bubble_hide,
@@ -872,6 +941,20 @@ pub fn run() {
             commands::assistant_bubble::assistant_bubble_get_config,
             commands::assistant_bubble::assistant_bubble_update_config,
             commands::assistant_bubble::assistant_bubble_set_position,
+            commands::assistant_bubble::assistant_bubble_minimize,
+            commands::assistant_bubble::assistant_bubble_unminimize,
+            commands::assistant_bubble::assistant_bubble_toggle_minimize,
+            commands::assistant_bubble::assistant_bubble_is_minimized,
+            commands::assistant_bubble::assistant_bubble_save_config,
+            commands::assistant_bubble::assistant_bubble_recreate,
+            commands::assistant_bubble::assistant_bubble_sync_state,
+            // Window diagnostics commands
+            commands::window_diagnostics::window_get_diagnostics,
+            commands::window_diagnostics::window_get_state,
+            commands::window_diagnostics::window_exists,
+            commands::window_diagnostics::window_sync_all_states,
+            commands::window_diagnostics::window_save_all_configs,
+            commands::window_diagnostics::window_recreate_destroyed,
             // Git commands
             commands::git::git_get_platform,
             commands::git::git_check_installed,
@@ -1478,7 +1561,7 @@ fn perform_full_cleanup(app: &tauri::AppHandle) {
     log::info!("Full cleanup completed");
 }
 
-/// Tear down auxiliary windows safely (chat widget, selection toolbar, splash)
+/// Tear down auxiliary windows safely (chat widget, selection toolbar, assistant bubble, splash)
 fn destroy_aux_windows(app: &tauri::AppHandle) {
     // Prefer manager-aware destroy for chat widget to persist position
     if let Some(manager) = app.try_state::<ChatWidgetWindow>() {
@@ -1490,20 +1573,28 @@ fn destroy_aux_windows(app: &tauri::AppHandle) {
         let _ = window.destroy();
     }
 
-    // Selection toolbar: destroy if present (no manager destroy helper)
-    if let Some(window) = app.get_webview_window("selection-toolbar") {
+    // Selection toolbar: use manager destroy for proper cleanup
+    if let Some(manager) = app.try_state::<SelectionManager>() {
+        if let Err(e) = manager.toolbar_window.destroy() {
+            log::debug!("Failed to destroy selection toolbar via manager: {}", e);
+        }
+    } else if let Some(window) = app.get_webview_window("selection-toolbar") {
+        let _ = window.hide();
+        let _ = window.destroy();
+    }
+
+    // Assistant bubble: use manager destroy for proper cleanup
+    if let Some(manager) = app.try_state::<AssistantBubbleWindow>() {
+        if let Err(e) = manager.destroy() {
+            log::debug!("Failed to destroy assistant bubble via manager: {}", e);
+        }
+    } else if let Some(window) = app.get_webview_window("assistant-bubble") {
         let _ = window.hide();
         let _ = window.destroy();
     }
 
     // Splashscreen: ensure it is cleaned up to avoid stray window classes
     if let Some(window) = app.get_webview_window("splashscreen") {
-        let _ = window.hide();
-        let _ = window.destroy();
-    }
-
-    // Assistant bubble: long-lived window, ensure clean teardown
-    if let Some(window) = app.get_webview_window("assistant-bubble") {
         let _ = window.hide();
         let _ = window.destroy();
     }

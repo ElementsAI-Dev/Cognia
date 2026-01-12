@@ -8,3 +8,5 @@ export { ConversationSearch } from './conversation-search';
 export { MarkdownRenderer } from './markdown-renderer';
 export { AutoSummaryPrompt } from './auto-summary-prompt';
 export { SessionStats } from './session-stats';
+export { TokenBudgetIndicator, TokenBudgetBadge, TokenIndicatorInline } from './token-budget-indicator';
+export { UsageAnalyticsCard, UsageSummaryBadge, UsageStatsMini } from './usage-analytics-card';

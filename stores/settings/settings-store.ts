@@ -26,6 +26,8 @@ import type { AutoRouterSettings, RoutingMode, RoutingStrategy, ModelTier } from
 import { DEFAULT_AUTO_ROUTER_SETTINGS } from '@/types/provider/auto-router';
 import type { ChatHistoryContextSettings, HistoryContextCompressionLevel } from '@/types/core/chat-history-context';
 import { DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS } from '@/types/core/chat-history-context';
+import type { TokenizerSettings, TokenizerProvider } from '@/types/system/tokenizer';
+import { DEFAULT_TOKENIZER_SETTINGS } from '@/types/system/tokenizer';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'en' | 'zh-CN';
@@ -388,6 +390,21 @@ interface SettingsState {
   hasCompletedOnboarding: boolean;
   setOnboardingCompleted: (completed: boolean) => void;
 
+  // Tokenizer settings
+  tokenizerSettings: TokenizerSettings;
+  setTokenizerSettings: (settings: Partial<TokenizerSettings>) => void;
+  setTokenizerEnabled: (enabled: boolean) => void;
+  setTokenizerProvider: (provider: TokenizerProvider) => void;
+  setTokenizerAutoDetect: (enabled: boolean) => void;
+  setTokenizerCache: (enabled: boolean) => void;
+  setTokenizerCacheTTL: (ttl: number) => void;
+  setTokenizerTimeout: (timeout: number) => void;
+  setTokenizerFallback: (enabled: boolean) => void;
+  setTokenizerShowBreakdown: (show: boolean) => void;
+  setTokenizerContextWarning: (show: boolean) => void;
+  setTokenizerContextThreshold: (threshold: number) => void;
+  resetTokenizerSettings: () => void;
+
   // Reset
   resetSettings: () => void;
 }
@@ -650,6 +667,9 @@ const initialState = {
 
   // Chat History Context settings
   chatHistoryContextSettings: { ...DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS },
+
+  // Tokenizer settings
+  tokenizerSettings: { ...DEFAULT_TOKENIZER_SETTINGS },
 
   // Onboarding
   hasCompletedOnboarding: false,
@@ -1460,6 +1480,63 @@ export const useSettingsStore = create<SettingsState>()(
       resetChatHistoryContextSettings: () =>
         set({ chatHistoryContextSettings: { ...DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS } }),
 
+      // Tokenizer settings actions
+      setTokenizerSettings: (settings) =>
+        set((state) => ({
+          tokenizerSettings: { ...state.tokenizerSettings, ...settings },
+        })),
+      setTokenizerEnabled: (enablePreciseCounting) =>
+        set((state) => ({
+          tokenizerSettings: { ...state.tokenizerSettings, enablePreciseCounting },
+        })),
+      setTokenizerProvider: (preferredProvider) =>
+        set((state) => ({
+          tokenizerSettings: { ...state.tokenizerSettings, preferredProvider },
+        })),
+      setTokenizerAutoDetect: (autoDetect) =>
+        set((state) => ({
+          tokenizerSettings: { ...state.tokenizerSettings, autoDetect },
+        })),
+      setTokenizerCache: (enableCache) =>
+        set((state) => ({
+          tokenizerSettings: { ...state.tokenizerSettings, enableCache },
+        })),
+      setTokenizerCacheTTL: (cacheTTL) =>
+        set((state) => ({
+          tokenizerSettings: {
+            ...state.tokenizerSettings,
+            cacheTTL: Math.min(3600, Math.max(60, cacheTTL)),
+          },
+        })),
+      setTokenizerTimeout: (apiTimeout) =>
+        set((state) => ({
+          tokenizerSettings: {
+            ...state.tokenizerSettings,
+            apiTimeout: Math.min(30000, Math.max(1000, apiTimeout)),
+          },
+        })),
+      setTokenizerFallback: (fallbackToEstimation) =>
+        set((state) => ({
+          tokenizerSettings: { ...state.tokenizerSettings, fallbackToEstimation },
+        })),
+      setTokenizerShowBreakdown: (showBreakdown) =>
+        set((state) => ({
+          tokenizerSettings: { ...state.tokenizerSettings, showBreakdown },
+        })),
+      setTokenizerContextWarning: (showContextWarning) =>
+        set((state) => ({
+          tokenizerSettings: { ...state.tokenizerSettings, showContextWarning },
+        })),
+      setTokenizerContextThreshold: (contextWarningThreshold) =>
+        set((state) => ({
+          tokenizerSettings: {
+            ...state.tokenizerSettings,
+            contextWarningThreshold: Math.min(100, Math.max(50, contextWarningThreshold)),
+          },
+        })),
+      resetTokenizerSettings: () =>
+        set({ tokenizerSettings: { ...DEFAULT_TOKENIZER_SETTINGS } }),
+
       // Onboarding actions
       setOnboardingCompleted: (hasCompletedOnboarding) => set({ hasCompletedOnboarding }),
 
@@ -1549,6 +1626,8 @@ export const useSettingsStore = create<SettingsState>()(
         autoRouterSettings: state.autoRouterSettings,
         // Chat History Context settings
         chatHistoryContextSettings: state.chatHistoryContextSettings,
+        // Tokenizer settings
+        tokenizerSettings: state.tokenizerSettings,
         // Onboarding
         hasCompletedOnboarding: state.hasCompletedOnboarding,
       }),
@@ -1571,3 +1650,5 @@ export const selectAutoRouterSettings = (state: SettingsState) => state.autoRout
 export const selectAutoRouterEnabled = (state: SettingsState) => state.autoRouterSettings.enabled;
 export const selectChatHistoryContextSettings = (state: SettingsState) => state.chatHistoryContextSettings;
 export const selectChatHistoryContextEnabled = (state: SettingsState) => state.chatHistoryContextSettings.enabled;
+export const selectTokenizerSettings = (state: SettingsState) => state.tokenizerSettings;
+export const selectTokenizerEnabled = (state: SettingsState) => state.tokenizerSettings.enablePreciseCounting;
