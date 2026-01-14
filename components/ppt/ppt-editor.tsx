@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { usePPTEditorStore } from '@/stores/tools/ppt-editor-store';
+import { useWindowControls } from '@/hooks';
 import type { PPTSlideLayout } from '@/types/workflow';
 import { SLIDE_LAYOUT_INFO, DEFAULT_PPT_THEMES } from '@/types/workflow';
 import { SlideEditor } from './slide-editor';
@@ -110,6 +111,25 @@ export function PPTEditor({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSlidePanel, setShowSlidePanel] = useState(true);
   const [showThemeCustomizer, setShowThemeCustomizer] = useState(false);
+
+  // Native window controls for Tauri
+  const {
+    isTauri,
+    isFullscreen: isNativeFullscreen,
+    toggleFullscreen: toggleNativeFullscreen,
+  } = useWindowControls();
+
+  // Determine actual fullscreen state (native or CSS-based)
+  const effectiveFullscreen = isTauri ? isNativeFullscreen : isFullscreen;
+
+  // Toggle fullscreen - use native when available
+  const handleToggleFullscreen = useCallback(async () => {
+    if (isTauri) {
+      await toggleNativeFullscreen();
+    } else {
+      setIsFullscreen(prev => !prev);
+    }
+  }, [isTauri, toggleNativeFullscreen]);
 
   // Get additional store methods for alignment operations
   const {
@@ -225,7 +245,7 @@ export function PPTEditor({
         if (mode === 'slideshow') {
           setMode('edit');
         }
-        if (isFullscreen) {
+        if (effectiveFullscreen && !isTauri) {
           setIsFullscreen(false);
         }
       }
@@ -233,13 +253,18 @@ export function PPTEditor({
       if (e.key === 'F5') {
         e.preventDefault();
         setMode('slideshow');
-        setIsFullscreen(true);
+        handleToggleFullscreen();
+      }
+      // F11: Toggle fullscreen (native or CSS)
+      if (e.key === 'F11') {
+        e.preventDefault();
+        handleToggleFullscreen();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mode, isFullscreen, canUndo, canRedo, undo, redo, prevSlide, nextSlide, setMode, handleSave]);
+  }, [mode, effectiveFullscreen, isTauri, canUndo, canRedo, undo, redo, prevSlide, nextSlide, setMode, handleSave, handleToggleFullscreen]);
 
   // DnD sensors
   const sensors = useSensors(
@@ -289,7 +314,7 @@ export function PPTEditor({
     return (
       <div className={cn(
         'fixed inset-0 z-50 bg-black flex flex-col',
-        isFullscreen && 'cursor-none'
+        effectiveFullscreen && 'cursor-none'
       )}>
         <SlideshowView
           presentation={presentation}
@@ -297,9 +322,13 @@ export function PPTEditor({
           onPrev={prevSlide}
           onNext={nextSlide}
           onGoToSlide={setCurrentSlide}
-          onExit={() => {
+          onExit={async () => {
             setMode('edit');
-            setIsFullscreen(false);
+            if (isTauri && isNativeFullscreen) {
+              await toggleNativeFullscreen();
+            } else {
+              setIsFullscreen(false);
+            }
           }}
         />
       </div>
@@ -504,7 +533,7 @@ export function PPTEditor({
             size="sm"
             onClick={() => {
               setMode('slideshow');
-              setIsFullscreen(true);
+              handleToggleFullscreen();
             }}
           >
             <Play className="h-4 w-4 mr-1" />
@@ -546,9 +575,9 @@ export function PPTEditor({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setIsFullscreen(!isFullscreen)}
+                  onClick={handleToggleFullscreen}
                 >
-                  {isFullscreen ? (
+                  {effectiveFullscreen ? (
                     <Minimize2 className="h-4 w-4" />
                   ) : (
                     <Maximize2 className="h-4 w-4" />
@@ -556,7 +585,7 @@ export function PPTEditor({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                {isFullscreen ? t('exitFullscreen') : t('fullscreen')}
+                {effectiveFullscreen ? t('exitFullscreen') : t('fullscreen')}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

@@ -584,7 +584,12 @@ export function TitleBar() {
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              onClick={minimize}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                minimize();
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
               className="flex h-full w-11 items-center justify-center transition-colors hover:bg-accent hover:text-accent-foreground"
               aria-label="Minimize"
               type="button"
@@ -601,7 +606,12 @@ export function TitleBar() {
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              onClick={toggleMaximize}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleMaximize();
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
               className="flex h-full w-11 items-center justify-center transition-colors hover:bg-accent hover:text-accent-foreground"
               aria-label={isMaximized ? 'Restore' : 'Maximize'}
               type="button"
@@ -622,7 +632,12 @@ export function TitleBar() {
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              onClick={close}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                close();
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
               className="flex h-full w-11 items-center justify-center transition-colors hover:bg-destructive hover:text-destructive-foreground"
               aria-label="Close"
               type="button"

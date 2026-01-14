@@ -81,6 +81,12 @@ export {
   filterMcpToolsByServers,
   getMcpToolByOriginalName,
   formatMcpToolResult,
+  // Intelligent tool selection
+  scoreMcpToolRelevance,
+  selectMcpToolsByRelevance,
+  applyToolSelection,
+  getMcpToolsWithSelection,
+  getRecommendedMcpTools,
   type McpToolAdapterConfig,
 } from './mcp-tools';
 

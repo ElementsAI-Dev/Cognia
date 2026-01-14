@@ -162,9 +162,16 @@ describe('AssistantBubblePage', () => {
   });
 
   it('persists bubble position to localStorage on move', async () => {
-    // Mock screen size for edge snapping
-    Object.defineProperty(window.screen, 'availWidth', { value: 1920, writable: true });
-    Object.defineProperty(window.screen, 'availHeight', { value: 1080, writable: true });
+    // Mock work area for multi-monitor support
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'assistant_bubble_get_work_area') {
+        return Promise.resolve({ width: 1920, height: 1080, x: 0, y: 0 });
+      }
+      if (cmd === 'assistant_bubble_set_position') {
+        return Promise.resolve(undefined);
+      }
+      return Promise.resolve(undefined);
+    });
 
     let moveCallback: ((event: { payload: { x: number; y: number } }) => Promise<void>) | null = null;
 
@@ -353,9 +360,16 @@ describe('AssistantBubblePage', () => {
   });
 
   it('edge snapping adjusts position near screen edge', async () => {
-    // Mock screen size
-    Object.defineProperty(window.screen, 'availWidth', { value: 1920, writable: true });
-    Object.defineProperty(window.screen, 'availHeight', { value: 1080, writable: true });
+    // Mock work area for multi-monitor support
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'assistant_bubble_get_work_area') {
+        return Promise.resolve({ width: 1920, height: 1080, x: 0, y: 0 });
+      }
+      if (cmd === 'assistant_bubble_set_position') {
+        return Promise.resolve(undefined);
+      }
+      return Promise.resolve(undefined);
+    });
 
     let moveCallback: ((event: { payload: { x: number; y: number } }) => Promise<void>) | null = null;
 
@@ -378,6 +392,44 @@ describe('AssistantBubblePage', () => {
     }
 
     // Should have called setPosition with snapped coordinates
+    await waitFor(() => {
+      expect(mockSetPosition).toHaveBeenCalled();
+    });
+  });
+
+  it('handles multi-monitor with offset work area', async () => {
+    // Mock work area for secondary monitor (x: 1920 means monitor is to the right)
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'assistant_bubble_get_work_area') {
+        return Promise.resolve({ width: 1920, height: 1080, x: 1920, y: 0 });
+      }
+      if (cmd === 'assistant_bubble_set_position') {
+        return Promise.resolve(undefined);
+      }
+      return Promise.resolve(undefined);
+    });
+
+    let moveCallback: ((event: { payload: { x: number; y: number } }) => Promise<void>) | null = null;
+
+    mockOnMoved.mockImplementation((callback) => {
+      moveCallback = callback;
+      return Promise.resolve(() => {});
+    });
+
+    await act(async () => {
+      render(<AssistantBubblePage />);
+      await Promise.resolve();
+      jest.runAllTimers();
+    });
+
+    // Simulate window move on secondary monitor near its left edge
+    if (moveCallback) {
+      await act(async () => {
+        await moveCallback!({ payload: { x: 1930, y: 500 } });
+      });
+    }
+
+    // Should have called setPosition with snapped coordinates relative to secondary monitor
     await waitFor(() => {
       expect(mockSetPosition).toHaveBeenCalled();
     });

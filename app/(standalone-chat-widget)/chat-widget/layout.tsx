@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/lib/i18n";
-import "../globals.css";
+import "../../globals.css";
 
 export const metadata: Metadata = {
   title: "Cognia Assistant",

@@ -125,6 +125,8 @@ const createMockStoreState = (overrides = {}) => ({
   currentPage: 1,
   viewMode: 'grid' as const,
   showFavoritesOnly: false,
+  recentlyViewed: [],
+  searchHistory: [],
   fetchCatalog: jest.fn(),
   setFilters: jest.fn(),
   resetFilters: jest.fn(),
@@ -144,6 +146,11 @@ const createMockStoreState = (overrides = {}) => ({
   setShowFavoritesOnly: jest.fn(),
   setCurrentPage: jest.fn(),
   setViewMode: jest.fn(),
+  addToRecentlyViewed: jest.fn(),
+  getRecentlyViewedItems: jest.fn().mockReturnValue([]),
+  clearRecentlyViewed: jest.fn(),
+  addToSearchHistory: jest.fn(),
+  clearSearchHistory: jest.fn(),
   ...overrides,
 });
 

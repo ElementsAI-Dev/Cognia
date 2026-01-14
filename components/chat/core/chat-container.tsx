@@ -27,6 +27,7 @@ import { ErrorMessage } from '../message';
 import { ChatHeader } from './chat-header';
 import { ChatInput, type Attachment } from '../chat-input';
 import { QuickReplyBar } from '../ui/quick-reply-bar';
+import { WorkflowIndicator, type WorkflowStatus } from '../ui/workflow-indicator';
 import { useKeyboardShortcuts } from '../ui/keyboard-shortcuts-handler';
 import { ContextSettingsDialog, AISettingsDialog, type AISettings, ModelPickerDialog, PresetManagerDialog, ModeSwitchConfirmDialog } from '../dialogs';
 import { PromptOptimizerDialog, PromptOptimizationHub } from '@/components/prompt';
@@ -98,8 +99,9 @@ import { RoutingIndicator } from '../ui/routing-indicator';
 import type { ModelSelection } from '@/types/provider/auto-router';
 import { messageRepository } from '@/lib/db';
 import { PROVIDERS } from '@/types/provider';
-import type { ChatMode, UIMessage } from '@/types';
+import type { ChatMode, UIMessage, ChatViewMode } from '@/types';
 import { useSummary } from '@/hooks/chat';
+import { FlowChatCanvas } from '../flow';
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
 import { useStickToBottomContext } from 'use-stick-to-bottom';
 
@@ -128,6 +130,23 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   
   const activeSessionId = session?.id || null;
   const activeBranchId = session?.activeBranchId;
+
+  // View mode state (list or flow canvas)
+  const getViewMode = useSessionStore((state) => state.getViewMode);
+  const setViewMode = useSessionStore((state) => state.setViewMode);
+  const getFlowCanvasState = useSessionStore((state) => state.getFlowCanvasState);
+  const updateFlowCanvasState = useSessionStore((state) => state.updateFlowCanvasState);
+  const getBranches = useSessionStore((state) => state.getBranches);
+
+  const viewMode: ChatViewMode = activeSessionId ? getViewMode(activeSessionId) : 'list';
+  const flowCanvasState = activeSessionId ? getFlowCanvasState(activeSessionId) : undefined;
+  const branches = activeSessionId ? getBranches(activeSessionId) : [];
+
+  const handleViewModeChange = useCallback((mode: ChatViewMode) => {
+    if (activeSessionId) {
+      setViewMode(activeSessionId, mode);
+    }
+  }, [activeSessionId, setViewMode]);
 
   // Project context for knowledge base integration
   const getProject = useProjectStore((state) => state.getProject);
@@ -211,6 +230,16 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const [showWorkflowPicker, setShowWorkflowPicker] = useState(false);
   const [showPPTPreview, setShowPPTPreview] = useState(false);
   const [workflowResults, setWorkflowResults] = useState<Map<string, WorkflowResultData>>(new Map());
+  
+  // Active workflow indicator state
+  const [activeWorkflow, setActiveWorkflow] = useState<{
+    id: string;
+    name: string;
+    icon?: string;
+    status: WorkflowStatus;
+    progress: number;
+    currentStep?: string;
+  } | null>(null);
 
   // Learning mode states
   const [showLearningPanel, setShowLearningPanel] = useState(false);
@@ -1536,7 +1565,7 @@ Be thorough in your thinking but concise in your final answer.`;
   }, [providerSettings, currentProvider, currentModel, addMessage]);
 
   // Handle workflow selection from WorkflowPickerDialog
-  const handleWorkflowSelect = useCallback(async (workflow: { id: string; name: string }, input: Record<string, unknown>) => {
+  const handleWorkflowSelect = useCallback(async (workflow: { id: string; name: string; icon?: string }, input: Record<string, unknown>) => {
     setShowWorkflowPicker(false);
     
     // Create a workflow result entry
@@ -1553,6 +1582,16 @@ Be thorough in your thinking but concise in your final answer.`;
     
     setWorkflowResults(prev => new Map(prev).set(resultId, resultData));
     
+    // Set active workflow for the indicator
+    setActiveWorkflow({
+      id: resultId,
+      name: workflow.name,
+      icon: workflow.icon,
+      status: 'running',
+      progress: 0,
+      currentStep: 'Starting workflow...',
+    });
+    
     // Add a message indicating workflow started
     const workflowMessage: UIMessage = {
       id: resultId,
@@ -1561,6 +1600,13 @@ Be thorough in your thinking but concise in your final answer.`;
       createdAt: new Date(),
     };
     await addMessage(workflowMessage);
+    
+    // Simulate workflow completion after a delay (in real implementation, this would be tied to actual workflow execution)
+    setTimeout(() => {
+      setActiveWorkflow(prev => prev ? { ...prev, status: 'completed', progress: 100 } : null);
+      // Auto-dismiss after 3 seconds
+      setTimeout(() => setActiveWorkflow(null), 3000);
+    }, 5000);
   }, [addMessage]);
 
   // Retry last assistant message
@@ -1595,7 +1641,11 @@ Be thorough in your thinking but concise in your final answer.`;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background" data-chat-container>
-      <ChatHeader sessionId={sessionId} />
+      <ChatHeader 
+        sessionId={sessionId} 
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
+      />
 
       {error && (
         <ErrorMessage
@@ -1615,72 +1665,106 @@ Be thorough in your thinking but concise in your final answer.`;
         />
       )}
 
-      <Conversation>
-        {isEmpty ? (
-          <>
-            {/* Show carried context banner if session was created with context from mode switch */}
-            {session?.carriedContext && (
-              <CarriedContextBanner
-                fromMode={session.carriedContext.fromMode}
-                toMode={currentMode}
-                summary={session.carriedContext.summary}
-                carriedAt={new Date(session.carriedContext.carriedAt)}
-                onDismiss={() => {
-                  // Clear carried context from session
+      {/* Flow Canvas View */}
+      {viewMode === 'flow' && activeSessionId && flowCanvasState ? (
+        <div className="flex-1 min-h-0">
+          <FlowChatCanvas
+            sessionId={activeSessionId}
+            messages={messages}
+            branches={branches}
+            activeBranchId={activeBranchId}
+            canvasState={flowCanvasState}
+            isLoading={isLoading}
+            isStreaming={isStreaming}
+            onCanvasStateChange={(updates) => updateFlowCanvasState(activeSessionId, updates)}
+            onFollowUp={(messageId, content) => {
+              // Set up for follow-up from specific message
+              setInputValue(content);
+            }}
+            onRegenerate={(messageId) => {
+              handleRetry(messageId);
+            }}
+            onCreateBranch={(messageId) => {
+              // Branch creation is handled by the store
+              const createBranch = useSessionStore.getState().createBranch;
+              createBranch(activeSessionId, messageId);
+            }}
+            onDeleteNode={(messageId, deleteSubsequent) => {
+              if (deleteSubsequent) {
+                deleteMessagesAfter(messageId);
+              }
+            }}
+          />
+        </div>
+      ) : (
+        /* List View (default) */
+        <Conversation>
+          {isEmpty ? (
+            <>
+              {/* Show carried context banner if session was created with context from mode switch */}
+              {session?.carriedContext && (
+                <CarriedContextBanner
+                  fromMode={session.carriedContext.fromMode}
+                  toMode={currentMode}
+                  summary={session.carriedContext.summary}
+                  carriedAt={new Date(session.carriedContext.carriedAt)}
+                  onDismiss={() => {
+                    // Clear carried context from session
+                    if (session) {
+                      updateSession(session.id, { carriedContext: undefined } as Parameters<typeof updateSession>[1]);
+                    }
+                  }}
+                />
+              )}
+              <WelcomeState
+                mode={currentMode}
+                onSuggestionClick={handleSuggestionClick}
+                onModeChange={handleModeChange}
+                agentModeId={agentModeId}
+                onAgentModeChange={handleAgentModeChange}
+                onSelectTemplate={(template) => {
+                  // Apply template settings to session
                   if (session) {
-                    updateSession(session.id, { carriedContext: undefined } as Parameters<typeof updateSession>[1]);
+                    updateSession(session.id, {
+                      systemPrompt: template.systemPrompt,
+                      provider: (template.provider as ProviderName) || session.provider,
+                      model: template.model || session.model,
+                    });
+                  }
+                  // Set initial message if provided
+                  if (template.initialMessage) {
+                    setInputValue(template.initialMessage);
                   }
                 }}
               />
-            )}
-            <WelcomeState
-              mode={currentMode}
-              onSuggestionClick={handleSuggestionClick}
-              onModeChange={handleModeChange}
-              agentModeId={agentModeId}
-              onAgentModeChange={handleAgentModeChange}
-              onSelectTemplate={(template) => {
-                // Apply template settings to session
-                if (session) {
-                  updateSession(session.id, {
-                    systemPrompt: template.systemPrompt,
-                    provider: (template.provider as ProviderName) || session.provider,
-                    model: template.model || session.model,
-                  });
-                }
-                // Set initial message if provided
-                if (template.initialMessage) {
-                  setInputValue(template.initialMessage);
-                }
-              }}
-            />
-          </>
-        ) : (
-          <ConversationContent>
-            <VirtualizedChatMessageList
-              messages={messages}
-              sessionId={activeSessionId!}
-              isStreaming={isStreaming}
-              isLoading={isLoading}
-              editingMessageId={editingMessageId}
-              editContent={editContent}
-              onEditContentChange={setEditContent}
-              onEditMessage={handleEditMessage}
-              onCancelEdit={handleCancelEdit}
-              onSaveEdit={handleSaveEdit}
-              onRetry={handleRetry}
-              onCopyMessagesForBranch={copyMessagesForBranch}
-              onTranslate={handleTranslateMessage}
-              hasOlderMessages={hasOlderMessages}
-              isLoadingOlder={isLoadingOlder}
-              loadOlderMessages={loadOlderMessages}
-              workflowResults={workflowResults}
-              onWorkflowRerun={(_input) => setShowWorkflowPicker(true)}
-            />
-          </ConversationContent>
-        )}
-        <ConversationScrollButton />
-      </Conversation>
+            </>
+          ) : (
+            <ConversationContent>
+              <VirtualizedChatMessageList
+                messages={messages}
+                sessionId={activeSessionId!}
+                isStreaming={isStreaming}
+                isLoading={isLoading}
+                editingMessageId={editingMessageId}
+                editContent={editContent}
+                onEditContentChange={setEditContent}
+                onEditMessage={handleEditMessage}
+                onCancelEdit={handleCancelEdit}
+                onSaveEdit={handleSaveEdit}
+                onRetry={handleRetry}
+                onCopyMessagesForBranch={copyMessagesForBranch}
+                onTranslate={handleTranslateMessage}
+                hasOlderMessages={hasOlderMessages}
+                isLoadingOlder={isLoadingOlder}
+                loadOlderMessages={loadOlderMessages}
+                workflowResults={workflowResults}
+                onWorkflowRerun={(_input) => setShowWorkflowPicker(true)}
+              />
+            </ConversationContent>
+          )}
+          <ConversationScrollButton />
+        </Conversation>
+      )}
 
       {/* Suggestions after AI response */}
       {!isLoading && !isStreaming && suggestions.length > 0 && messages.length > 0 && (
@@ -1734,15 +1818,34 @@ Be thorough in your thinking but concise in your final answer.`;
         </div>
       )}
 
-      {/* Quick Reply Bar - AI-powered suggestions */}
-      <QuickReplyBar
-        messages={messages}
-        onSelect={(text) => {
-          setInputValue(text);
-          inputRef.current?.focus();
-        }}
-        disabled={isLoading || isStreaming}
-      />
+      {/* Quick Reply Bar - AI-powered suggestions (only show after assistant messages) */}
+      {messages.length > 0 && 
+       messages[messages.length - 1]?.role === 'assistant' && 
+       !isLoading && 
+       !isStreaming && (
+        <QuickReplyBar
+          messages={messages}
+          onSelect={(text) => {
+            setInputValue(text);
+            inputRef.current?.focus();
+          }}
+          disabled={isLoading || isStreaming}
+        />
+      )}
+
+      {/* Workflow Indicator - shown when a workflow is selected/running */}
+      {activeWorkflow && (
+        <WorkflowIndicator
+          name={activeWorkflow.name}
+          icon={activeWorkflow.icon}
+          status={activeWorkflow.status}
+          progress={activeWorkflow.progress}
+          currentStep={activeWorkflow.currentStep}
+          onCancel={() => setActiveWorkflow(null)}
+          onPause={() => setActiveWorkflow(prev => prev ? { ...prev, status: 'paused' } : null)}
+          onResume={() => setActiveWorkflow(prev => prev ? { ...prev, status: 'running' } : null)}
+        />
+      )}
 
       <ChatInput
         value={inputValue}

@@ -173,15 +173,9 @@ export class PluginLoader {
     // Option 2: Use a bundler to create runtime-loadable modules
     // Option 3: Use a plugin sandbox with postMessage
     
-    // For now, attempt standard dynamic import
-    // In production, this would be replaced with a more robust solution
-    try {
-      // Try dynamic import first (works for ESM modules)
-      return await import(/* @vite-ignore */ modulePath);
-    } catch {
-      // Fallback: try loading as a script
-      return this.loadAsScript(modulePath);
-    }
+    // Use script tag loading as the primary method to avoid bundler issues
+    // with dynamic imports (Next.js/Turbopack can't statically analyze dynamic paths)
+    return this.loadAsScript(modulePath);
   }
 
   /**

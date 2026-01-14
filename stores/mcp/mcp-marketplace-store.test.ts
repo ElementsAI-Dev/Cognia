@@ -36,6 +36,7 @@ jest.mock('@/lib/mcp/marketplace', () => ({
 jest.mock('@/lib/mcp/marketplace-utils', () => ({
   getCachedDetails: jest.fn(),
   setCachedDetails: jest.fn(),
+  clearDetailsCache: jest.fn(),
 }));
 
 import { fetchMcpMarketplace, downloadMcpServer } from '@/lib/mcp/marketplace';

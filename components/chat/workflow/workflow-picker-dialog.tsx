@@ -190,13 +190,13 @@ export function WorkflowPickerDialog({
     return [
       {
         key: 'message',
-        label: 'Input Message',
+        label: t('inputMessage') || 'Input Message',
         type: 'string',
-        description: 'The input message for the workflow',
+        description: t('inputMessageDesc') || 'The input message for the workflow',
         required: false,
       },
     ];
-  }, [selectedWorkflow]);
+  }, [selectedWorkflow, t]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -226,7 +226,7 @@ export function WorkflowPickerDialog({
                 className="mb-3"
               >
                 <ChevronRight className="h-4 w-4 rotate-180 mr-1" />
-                Back to list
+                {t('backToList') || 'Back to list'}
               </Button>
 
               <div className="flex items-start gap-3">
@@ -234,11 +234,11 @@ export function WorkflowPickerDialog({
                 <div className="flex-1">
                   <h3 className="font-semibold">{selectedWorkflow.name}</h3>
                   <p className="text-sm text-muted-foreground">
-                    {selectedWorkflow.description || 'No description'}
+                    {selectedWorkflow.description || t('noDescription') || 'No description'}
                   </p>
                   <div className="flex items-center gap-2 mt-2">
                     <Badge variant="secondary">
-                      {selectedWorkflow.nodes?.length || 0} nodes
+                      {selectedWorkflow.nodes?.length || 0} {t('nodes') || 'nodes'}
                     </Badge>
                     {selectedWorkflow.category && (
                       <Badge variant="outline">{selectedWorkflow.category}</Badge>
@@ -252,7 +252,7 @@ export function WorkflowPickerDialog({
               <div className="space-y-4">
                 <h4 className="text-sm font-medium flex items-center gap-2">
                   <Settings className="h-4 w-4" />
-                  Input Parameters
+                  {t('inputParameters') || 'Input Parameters'}
                 </h4>
 
                 {inputFields.map((field) => (
@@ -300,7 +300,7 @@ export function WorkflowPickerDialog({
             <div className="p-6 pt-4 border-t">
               <Button onClick={handleRunWorkflow} className="w-full">
                 <Play className="h-4 w-4 mr-2" />
-                Run Workflow
+                {t('runWorkflow') || 'Run Workflow'}
               </Button>
             </div>
           </div>
@@ -340,11 +340,11 @@ export function WorkflowPickerDialog({
                 <TabsList className="w-full">
                   <TabsTrigger value="workflows" className="flex-1">
                     <FileText className="h-4 w-4 mr-1" />
-                    My Workflows
+                    {t('myWorkflows') || 'My Workflows'}
                   </TabsTrigger>
                   <TabsTrigger value="templates" className="flex-1">
                     <Sparkles className="h-4 w-4 mr-1" />
-                    Templates
+                    {t('templates') || 'Templates'}
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -364,13 +364,13 @@ export function WorkflowPickerDialog({
                         <Workflow className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
                         <p className="text-sm text-muted-foreground">
                           {searchQuery
-                            ? 'No workflows found'
-                            : 'No workflows yet'}
+                            ? t('noWorkflowsFound') || 'No workflows found'
+                            : t('noWorkflowsYet') || 'No workflows yet'}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {searchQuery
-                            ? 'Try a different search term'
-                            : 'Create a workflow in the editor first'}
+                            ? t('tryDifferentSearch') || 'Try a different search term'
+                            : t('createWorkflowFirst') || 'Create a workflow in the editor first'}
                         </p>
                       </div>
                     ) : (
@@ -379,6 +379,8 @@ export function WorkflowPickerDialog({
                           key={workflow.id}
                           workflow={workflow}
                           onClick={() => handleSelectWorkflow(workflow)}
+                          noDescriptionText={t('noDescription') || 'No description'}
+                          nodesText={t('nodes') || 'nodes'}
                         />
                       ))
                     )}
@@ -396,7 +398,7 @@ export function WorkflowPickerDialog({
                       <div className="text-center py-8">
                         <Sparkles className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
                         <p className="text-sm text-muted-foreground">
-                          No templates found
+                          {t('noTemplatesFound') || 'No templates found'}
                         </p>
                       </div>
                     ) : (
@@ -405,6 +407,7 @@ export function WorkflowPickerDialog({
                           key={template.id}
                           template={template}
                           onClick={() => handleSelectTemplate(template)}
+                          noDescriptionText={t('noDescription') || 'No description'}
                         />
                       ))
                     )}
@@ -422,9 +425,11 @@ export function WorkflowPickerDialog({
 interface WorkflowCardProps {
   workflow: VisualWorkflow;
   onClick: () => void;
+  noDescriptionText?: string;
+  nodesText?: string;
 }
 
-function WorkflowCard({ workflow, onClick }: WorkflowCardProps) {
+function WorkflowCard({ workflow, onClick, noDescriptionText = 'No description', nodesText = 'nodes' }: WorkflowCardProps) {
   return (
     <Card
       className="cursor-pointer hover:border-primary/50 transition-colors"
@@ -436,7 +441,7 @@ function WorkflowCard({ workflow, onClick }: WorkflowCardProps) {
           <div className="flex-1 min-w-0">
             <CardTitle className="text-sm">{workflow.name}</CardTitle>
             <CardDescription className="text-xs line-clamp-2">
-              {workflow.description || 'No description'}
+              {workflow.description || noDescriptionText}
             </CardDescription>
           </div>
           <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -445,7 +450,7 @@ function WorkflowCard({ workflow, onClick }: WorkflowCardProps) {
       <CardContent className="p-4 pt-0">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Badge variant="secondary" className="text-xs">
-            {workflow.nodes?.length || 0} nodes
+            {workflow.nodes?.length || 0} {nodesText}
           </Badge>
           {workflow.category && (
             <Badge variant="outline" className="text-xs">
@@ -465,9 +470,10 @@ function WorkflowCard({ workflow, onClick }: WorkflowCardProps) {
 interface TemplateCardProps {
   template: WorkflowEditorTemplate;
   onClick: () => void;
+  noDescriptionText?: string;
 }
 
-function TemplateCard({ template, onClick }: TemplateCardProps) {
+function TemplateCard({ template, onClick, noDescriptionText = 'No description' }: TemplateCardProps) {
   return (
     <Card
       className="cursor-pointer hover:border-primary/50 transition-colors"
@@ -481,7 +487,7 @@ function TemplateCard({ template, onClick }: TemplateCardProps) {
           <div className="flex-1 min-w-0">
             <CardTitle className="text-sm">{template.name}</CardTitle>
             <CardDescription className="text-xs line-clamp-2">
-              {template.description || 'No description'}
+              {template.description || noDescriptionText}
             </CardDescription>
           </div>
           <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />

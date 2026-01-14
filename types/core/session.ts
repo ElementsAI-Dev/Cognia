@@ -5,8 +5,9 @@
 import type { UIMessage } from './message';
 import type { ProviderName } from '../provider/provider';
 import type { SessionCompressionOverrides } from '../system/compression';
+import type { ChatViewMode, FlowChatCanvasState } from '../chat/flow-chat';
 
-export type { ProviderName, UIMessage };
+export type { ProviderName, UIMessage, ChatViewMode, FlowChatCanvasState };
 
 export type ChatMode = 'chat' | 'agent' | 'research' | 'learning';
 
@@ -94,6 +95,10 @@ export interface Session {
     sessionCount: number;
     generatedAt: Date;
   };
+
+  // Flow chat canvas state (for flow view mode)
+  viewMode?: ChatViewMode;
+  flowCanvasState?: FlowChatCanvasState;
 }
 
 export interface SessionWithMessages extends Session {
@@ -142,4 +147,6 @@ export interface UpdateSessionInput {
   compressionOverrides?: SessionCompressionOverrides;
   virtualEnvId?: string;
   virtualEnvPath?: string;
+  viewMode?: ChatViewMode;
+  flowCanvasState?: FlowChatCanvasState;
 }

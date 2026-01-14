@@ -35,21 +35,10 @@ export async function parsePDF(data: ArrayBuffer): Promise<PDFParseResult> {
   // Dynamic import to avoid SSR issues
   const pdfjsLib = await import('pdfjs-dist');
   
-  // Set worker source - use bundled worker
-  if (typeof window !== 'undefined') {
-    try {
-      // Prefer local worker for offline/desktop (Tauri) usage
-      const workerUrl = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
-      pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
-    } catch {
-      try {
-        const fallbackWorkerUrl = new URL('pdfjs-dist/build/pdf.worker.min.js', import.meta.url).toString();
-        pdfjsLib.GlobalWorkerOptions.workerSrc = fallbackWorkerUrl;
-      } catch {
-        // Final fallback to CDN when bundler URLs are unavailable
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-      }
-    }
+  // Set worker source - use CDN for reliable cross-platform support
+  // Note: We use CDN instead of bundled worker to avoid Next.js/Turbopack URL resolution issues
+  if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
   }
 
   const loadingTask = pdfjsLib.getDocument({ data });

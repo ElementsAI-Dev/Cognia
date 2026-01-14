@@ -15,7 +15,11 @@ import type {
   LogLevel,
   McpNotificationEvent,
   ToolCallProgress,
+  McpToolSelectionConfig,
+  ToolUsageRecord,
+  ToolSelectionResult,
 } from '@/types/mcp';
+import { DEFAULT_TOOL_SELECTION_CONFIG } from '@/types/mcp';
 
 interface McpState {
   // State
@@ -23,6 +27,11 @@ interface McpState {
   isLoading: boolean;
   error: string | null;
   isInitialized: boolean;
+  
+  // Tool selection state
+  toolSelectionConfig: McpToolSelectionConfig;
+  toolUsageHistory: Map<string, ToolUsageRecord>;
+  lastToolSelection: ToolSelectionResult | null;
 
   // Actions
   initialize: () => Promise<void>;
@@ -48,6 +57,13 @@ interface McpState {
   pingServer: (serverId: string) => Promise<number>;
   setLogLevel: (serverId: string, level: LogLevel) => Promise<void>;
   clearError: () => void;
+  
+  // Tool selection actions
+  setToolSelectionConfig: (config: Partial<McpToolSelectionConfig>) => void;
+  recordToolUsage: (toolName: string, success: boolean, executionTime?: number) => void;
+  getToolUsageHistory: () => Map<string, ToolUsageRecord>;
+  setLastToolSelection: (selection: ToolSelectionResult | null) => void;
+  resetToolUsageHistory: () => void;
 
   // Internal
   _updateServer: (state: McpServerState) => void;
@@ -66,6 +82,11 @@ export const useMcpStore = create<McpState>((set, get) => ({
   isLoading: false,
   error: null,
   isInitialized: false,
+  
+  // Tool selection state
+  toolSelectionConfig: { ...DEFAULT_TOOL_SELECTION_CONFIG },
+  toolUsageHistory: new Map<string, ToolUsageRecord>(),
+  lastToolSelection: null,
 
   initialize: async () => {
     if (get().isInitialized) return;
@@ -225,6 +246,64 @@ export const useMcpStore = create<McpState>((set, get) => ({
 
   clearError: () => {
     set({ error: null });
+  },
+  
+  // Tool selection actions
+  setToolSelectionConfig: (config) => {
+    set((prev) => ({
+      toolSelectionConfig: {
+        ...prev.toolSelectionConfig,
+        ...config,
+      },
+    }));
+  },
+  
+  recordToolUsage: (toolName, success, executionTime) => {
+    set((prev) => {
+      const history = new Map(prev.toolUsageHistory);
+      const existing = history.get(toolName);
+      
+      if (existing) {
+        const newUsageCount = existing.usageCount + 1;
+        const newSuccessCount = existing.successCount + (success ? 1 : 0);
+        const newFailureCount = existing.failureCount + (success ? 0 : 1);
+        const newAvgTime = executionTime 
+          ? (existing.avgExecutionTime * existing.usageCount + executionTime) / newUsageCount
+          : existing.avgExecutionTime;
+        
+        history.set(toolName, {
+          toolName,
+          usageCount: newUsageCount,
+          successCount: newSuccessCount,
+          failureCount: newFailureCount,
+          lastUsedAt: Date.now(),
+          avgExecutionTime: newAvgTime,
+        });
+      } else {
+        history.set(toolName, {
+          toolName,
+          usageCount: 1,
+          successCount: success ? 1 : 0,
+          failureCount: success ? 0 : 1,
+          lastUsedAt: Date.now(),
+          avgExecutionTime: executionTime || 0,
+        });
+      }
+      
+      return { toolUsageHistory: history };
+    });
+  },
+  
+  getToolUsageHistory: () => {
+    return get().toolUsageHistory;
+  },
+  
+  setLastToolSelection: (selection) => {
+    set({ lastToolSelection: selection });
+  },
+  
+  resetToolUsageHistory: () => {
+    set({ toolUsageHistory: new Map<string, ToolUsageRecord>() });
   },
 
   _updateServer: (state) => {

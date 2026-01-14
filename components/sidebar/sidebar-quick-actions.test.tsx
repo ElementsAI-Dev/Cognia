@@ -84,7 +84,7 @@ describe('SidebarQuickActions', () => {
     expect(hrefs).toContain('/image-studio');
     expect(hrefs).toContain('/video-studio');
     expect(hrefs).toContain('/video-editor');
-    expect(hrefs).toContain('/selection-toolbar');
+    expect(hrefs).toContain('/settings?section=selection');
   });
 
   it('respects defaultOpen prop', () => {

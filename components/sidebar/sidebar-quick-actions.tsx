@@ -69,10 +69,10 @@ const quickActions: QuickAction[] = [
     description: 'videoEditorDesc',
   },
   {
-    id: 'selection-toolbar',
+    id: 'selection-toolbar-settings',
     label: 'selectionToolbar',
     icon: <Palette className="h-4 w-4" />,
-    href: '/selection-toolbar',
+    href: '/settings?section=selection',
     color: 'text-cyan-500',
     description: 'selectionToolbarDesc',
   },

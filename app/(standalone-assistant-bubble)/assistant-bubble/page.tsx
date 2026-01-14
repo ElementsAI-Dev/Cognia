@@ -17,6 +17,9 @@ type BubbleState = {
   isChatVisible: boolean;
 };
 
+// Track if we're near the top of the screen to flip menu/tooltip position
+type MenuPosition = 'above' | 'below';
+
 export default function AssistantBubblePage() {
   const pressTimerRef = useRef<number | null>(null);
   const didDragRef = useRef(false);
@@ -26,6 +29,7 @@ export default function AssistantBubblePage() {
   const [isDragging, setIsDragging] = useState(false);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<MenuPosition>('above');
   const [bubbleState, setBubbleState] = useState<BubbleState>({
     isLoading: false,
     unreadCount: 0,
@@ -66,32 +70,47 @@ export default function AssistantBubblePage() {
         // ignore
       }
 
-      // Persist on move with edge snapping
+      // Persist on move with edge snapping (multi-monitor aware)
       unlistenMove = await appWindow.onMoved(async ({ payload }) => {
         try {
-          // Get screen size for edge snapping
-          const { availWidth, availHeight } = window.screen;
+          const { invoke } = await import("@tauri-apps/api/core");
+          
+          // Get work area from Rust backend (properly handles multi-monitor)
+          const workArea = await invoke<{
+            width: number;
+            height: number;
+            x: number;
+            y: number;
+          }>("assistant_bubble_get_work_area");
+          
           const bubbleSize = 56; // BUBBLE_SIZE from Rust
           const snapThreshold = 20; // Snap when within 20px of edge
           const edgePadding = 8; // Final padding from edge
+          const menuHeight = 180; // Approximate height of context menu + tooltip
 
           let { x, y } = payload;
 
+          // Calculate edges relative to the work area (handles multi-monitor offsets)
+          const workLeft = workArea.x;
+          const workRight = workArea.x + workArea.width;
+          const workTop = workArea.y;
+          const workBottom = workArea.y + workArea.height;
+
           // Snap to left edge
-          if (x < snapThreshold) {
-            x = edgePadding;
+          if (x < workLeft + snapThreshold) {
+            x = workLeft + edgePadding;
           }
           // Snap to right edge
-          if (x > availWidth - bubbleSize - snapThreshold) {
-            x = availWidth - bubbleSize - edgePadding;
+          if (x > workRight - bubbleSize - snapThreshold) {
+            x = workRight - bubbleSize - edgePadding;
           }
           // Snap to top edge
-          if (y < snapThreshold) {
-            y = edgePadding;
+          if (y < workTop + snapThreshold) {
+            y = workTop + edgePadding;
           }
           // Snap to bottom edge
-          if (y > availHeight - bubbleSize - snapThreshold) {
-            y = availHeight - bubbleSize - edgePadding;
+          if (y > workBottom - bubbleSize - snapThreshold) {
+            y = workBottom - bubbleSize - edgePadding;
           }
 
           // Apply snapped position if different
@@ -103,8 +122,16 @@ export default function AssistantBubblePage() {
           window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
 
           // Also sync to Rust backend
-          const { invoke } = await import("@tauri-apps/api/core");
           await invoke("assistant_bubble_set_position", { x, y });
+          
+          // Determine menu position based on available space above
+          // If bubble is near top of screen, show menu below
+          const spaceAbove = y - workTop;
+          if (spaceAbove < menuHeight) {
+            setMenuPosition('below');
+          } else {
+            setMenuPosition('above');
+          }
         } catch {
           // ignore
         }
@@ -146,10 +173,34 @@ export default function AssistantBubblePage() {
       return;
     }
 
-    const { invoke } = await import("@tauri-apps/api/core");
-    const visible = await invoke<boolean>("chat_widget_toggle");
-    if (visible) {
-      await invoke("chat_widget_focus_input");
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      
+      // First ensure the chat widget window exists and sync state
+      await invoke("chat_widget_sync_state");
+      await invoke("chat_widget_recreate");
+      
+      // Now toggle visibility
+      const visible = await invoke<boolean>("chat_widget_toggle");
+      if (visible) {
+        // Small delay to ensure window is fully shown before focusing
+        setTimeout(async () => {
+          try {
+            await invoke("chat_widget_focus_input");
+          } catch {
+            // ignore focus errors
+          }
+        }, 100);
+      }
+    } catch (error) {
+      console.error("[AssistantBubble] Failed to toggle chat widget:", error);
+      // Try to recreate and show as fallback
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        await invoke("chat_widget_show");
+      } catch {
+        // ignore fallback errors
+      }
     }
   }, []);
 
@@ -287,7 +338,8 @@ export default function AssistantBubblePage() {
       {showTooltip && !showContextMenu && (
         <div
           className={cn(
-            "absolute bottom-full left-1/2 -translate-x-1/2 mb-2",
+            "absolute left-1/2 -translate-x-1/2",
+            menuPosition === 'above' ? "bottom-full mb-2" : "top-full mt-2",
             "px-2 py-1 text-xs font-medium",
             "bg-popover text-popover-foreground border border-border rounded-md shadow-md",
             "whitespace-nowrap",
@@ -299,7 +351,10 @@ export default function AssistantBubblePage() {
             <div className="text-muted-foreground text-[10px]">双击新建 | 右键菜单</div>
           </div>
           {/* Tooltip arrow */}
-          <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-popover border-r border-b border-border rotate-45" />
+          <div className={cn(
+            "absolute left-1/2 -translate-x-1/2 w-2 h-2 bg-popover border-border rotate-45",
+            menuPosition === 'above' ? "-bottom-1 border-r border-b" : "-top-1 border-l border-t"
+          )} />
         </div>
       )}
 
@@ -391,7 +446,8 @@ export default function AssistantBubblePage() {
       {showContextMenu && (
         <div
           className={cn(
-            "absolute bottom-full left-1/2 -translate-x-1/2 mb-2",
+            "absolute left-1/2 -translate-x-1/2",
+            menuPosition === 'above' ? "bottom-full mb-2" : "top-full mt-2",
             "w-40 py-1",
             "bg-popover border border-border rounded-lg shadow-xl",
             "animate-in fade-in-0 zoom-in-95 duration-150"

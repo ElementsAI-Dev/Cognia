@@ -573,3 +573,104 @@ export interface McpLogMessageEvent {
   message: LogMessageNotification;
 }
 
+// ============================================================================
+// MCP Tool Selection Types
+// ============================================================================
+
+/** Tool selection strategy */
+export type McpToolSelectionStrategy = 'auto' | 'manual' | 'hybrid';
+
+/** Configuration for intelligent MCP tool selection */
+export interface McpToolSelectionConfig {
+  /** Maximum number of tools to include (default: 20) */
+  maxTools: number;
+  /** Selection strategy: auto (AI decides), manual (user picks), hybrid (user picks + AI supplements) */
+  strategy: McpToolSelectionStrategy;
+  /** Enable relevance scoring based on query (default: true) */
+  enableRelevanceScoring: boolean;
+  /** Boost frequently used tools in selection (default: true) */
+  useHistoryBoost: boolean;
+  /** Minimum relevance score threshold 0-1 (default: 0.1) */
+  minRelevanceScore: number;
+  /** Server IDs to prioritize (optional) */
+  priorityServerIds?: string[];
+  /** Tool names to always include regardless of relevance */
+  alwaysIncludeTools?: string[];
+  /** Tool names to always exclude */
+  alwaysExcludeTools?: string[];
+}
+
+/** Default tool selection configuration */
+export const DEFAULT_TOOL_SELECTION_CONFIG: McpToolSelectionConfig = {
+  maxTools: 20,
+  strategy: 'auto',
+  enableRelevanceScoring: true,
+  useHistoryBoost: true,
+  minRelevanceScore: 0.1,
+};
+
+/** Tool usage history record */
+export interface ToolUsageRecord {
+  /** Tool full name (mcp_serverId_toolName) */
+  toolName: string;
+  /** Number of times the tool was called */
+  usageCount: number;
+  /** Number of successful calls */
+  successCount: number;
+  /** Number of failed calls */
+  failureCount: number;
+  /** Timestamp of last use */
+  lastUsedAt: number;
+  /** Average execution time in ms */
+  avgExecutionTime: number;
+}
+
+/** Result of tool selection process */
+export interface ToolSelectionResult {
+  /** Selected tools mapped by name */
+  selectedToolNames: string[];
+  /** Tools that were excluded */
+  excludedToolNames: string[];
+  /** Total number of available tools before selection */
+  totalAvailable: number;
+  /** Reason for the selection */
+  selectionReason: string;
+  /** Relevance scores for each selected tool */
+  relevanceScores: Record<string, number>;
+  /** Whether selection was limited by maxTools */
+  wasLimited: boolean;
+}
+
+/** Context for tool selection */
+export interface ToolSelectionContext {
+  /** User query or task description */
+  query: string;
+  /** Current conversation context (optional) */
+  conversationContext?: string;
+  /** Active mode/agent type (optional) */
+  activeMode?: string;
+  /** Previously used tools in this session */
+  sessionToolHistory?: string[];
+}
+
+/** Tool with computed relevance score */
+export interface ScoredTool {
+  /** Tool full name */
+  name: string;
+  /** Original tool description */
+  description: string;
+  /** Server ID */
+  serverId: string;
+  /** Server display name */
+  serverName: string;
+  /** Computed relevance score (0-1) */
+  relevanceScore: number;
+  /** Breakdown of score components */
+  scoreBreakdown: {
+    descriptionMatch: number;
+    nameMatch: number;
+    historyBoost: number;
+    priorityBoost: number;
+  };
+}
+

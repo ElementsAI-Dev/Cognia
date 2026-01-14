@@ -261,7 +261,7 @@ export function AppearanceSettings() {
           {/* Preset Themes */}
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
             {colorThemeOptions.map((option) => {
-              const preset = THEME_PRESETS[option.value];
+              const _preset = THEME_PRESETS[option.value];
               const isSelected = colorTheme === option.value && !activeCustomThemeId;
 
               return (
@@ -281,7 +281,9 @@ export function AppearanceSettings() {
                     </div>
                   )}
                   <div className={cn('h-6 w-6 rounded-full shadow-sm', option.color)} />
-                  <span className="text-[10px] font-medium">{preset.name}</span>
+                  <span className="text-[10px] font-medium">
+                    {t(`themePreset${option.value.charAt(0).toUpperCase() + option.value.slice(1)}`)}
+                  </span>
                 </button>
               );
             })}

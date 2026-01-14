@@ -134,3 +134,30 @@ pub async fn assistant_bubble_sync_state(manager: State<'_, AssistantBubbleWindo
     manager.sync_visibility();
     Ok(())
 }
+
+/// Work area info for a monitor
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkAreaInfo {
+    pub width: i32,
+    pub height: i32,
+    pub x: i32,
+    pub y: i32,
+}
+
+/// Get the work area of the monitor containing the bubble
+#[tauri::command]
+pub async fn assistant_bubble_get_work_area(
+    manager: State<'_, AssistantBubbleWindow>,
+) -> Result<WorkAreaInfo, String> {
+    let (width, height, x, y) = manager.get_work_area_for_position(None);
+    Ok(WorkAreaInfo { width, height, x, y })
+}
+
+/// Clamp bubble position to stay within current monitor's work area
+#[tauri::command]
+pub async fn assistant_bubble_clamp_to_work_area(
+    manager: State<'_, AssistantBubbleWindow>,
+) -> Result<(), String> {
+    manager.clamp_to_work_area()
+}

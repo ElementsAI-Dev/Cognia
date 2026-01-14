@@ -837,12 +837,15 @@ fn perform_graceful_shutdown(app: &AppHandle) {
     // 3. Stop screen recording if active
     if app.try_state::<ScreenRecordingManager>().is_some() {
         let app_clone = app.clone();
-        tauri::async_runtime::block_on(async {
-            if let Some(mgr) = app_clone.try_state::<ScreenRecordingManager>() {
-                let _ = mgr.stop().await;
-            }
-        });
-        log::debug!("Screen recording stopped");
+        // Use spawn to avoid blocking within async runtime context
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            handle.spawn(async move {
+                if let Some(mgr) = app_clone.try_state::<ScreenRecordingManager>() {
+                    let _ = mgr.stop().await;
+                }
+            });
+        }
+        log::debug!("Screen recording stop requested");
     }
 
     // 4. Hide tray icon before exit

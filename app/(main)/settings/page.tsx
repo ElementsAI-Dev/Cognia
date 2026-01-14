@@ -140,12 +140,12 @@ interface NavItem {
   group: SettingsGroup;
 }
 
-const groupLabels: Record<SettingsGroup, string> = {
-  ai: 'AI & Models',
-  interface: 'Interface',
-  data: 'Data & Privacy',
-  system: 'System',
-};
+const getGroupLabels = (t: ReturnType<typeof useTranslations<'settings'>>) => ({
+  ai: t('groupAi'),
+  interface: t('groupInterface'),
+  data: t('groupData'),
+  system: t('groupSystem'),
+});
 
 export default function SettingsPage() {
   const t = useTranslations('settings');
@@ -207,181 +207,183 @@ export default function SettingsPage() {
     event.target.value = '';
   };
 
+  const groupLabels = useMemo(() => getGroupLabels(t), [t]);
+
   const navItems: NavItem[] = useMemo(() => [
     {
       id: 'providers',
       label: t('tabProviders'),
       icon: <Cpu className="h-4 w-4" />,
-      description: 'Configure AI provider API keys',
+      description: t('descProviders'),
       group: 'ai',
     },
     {
       id: 'chat',
-      label: 'Chat',
+      label: t('tabChat'),
       icon: <Settings2 className="h-4 w-4" />,
-      description: 'Chat behavior settings',
+      description: t('descChat'),
       group: 'ai',
     },
     {
       id: 'mcp',
-      label: 'MCP',
+      label: t('tabMcp'),
       icon: <Puzzle className="h-4 w-4" />,
-      description: 'Model Context Protocol servers',
+      description: t('descMcp'),
       group: 'ai',
     },
     {
       id: 'tools',
-      label: 'Tools',
+      label: t('tabTools'),
       icon: <Wrench className="h-4 w-4" />,
-      description: 'Built-in AI tools configuration',
+      description: t('descTools'),
       group: 'ai',
     },
     {
       id: 'skills',
-      label: 'Skills',
+      label: t('tabSkills'),
       icon: <Puzzle className="h-4 w-4" />,
-      description: 'Claude Skills for specialized workflows',
+      description: t('descSkills'),
       group: 'ai',
     },
     {
       id: 'plugins',
-      label: 'Plugins',
+      label: t('tabPlugins'),
       icon: <Puzzle className="h-4 w-4" />,
-      description: 'Plugin management and development',
+      description: t('descPlugins'),
       group: 'ai',
     },
     {
       id: 'instructions',
-      label: 'Instructions',
+      label: t('tabInstructions'),
       icon: <FileText className="h-4 w-4" />,
-      description: 'Custom AI instructions',
+      description: t('descInstructions'),
       group: 'ai',
     },
     {
       id: 'memory',
-      label: 'Memory',
+      label: t('tabMemory'),
       icon: <Brain className="h-4 w-4" />,
-      description: 'AI memory and context',
+      description: t('descMemory'),
       group: 'ai',
     },
     {
       id: 'search',
       label: t('tabSearch'),
       icon: <Search className="h-4 w-4" />,
-      description: 'Web search configuration',
+      description: t('descSearch'),
       group: 'ai',
     },
     {
       id: 'appearance',
       label: t('tabAppearance'),
       icon: <Palette className="h-4 w-4" />,
-      description: 'Theme and display settings',
+      description: t('descAppearance'),
       group: 'interface',
     },
     {
       id: 'response',
-      label: 'Response',
+      label: t('tabResponse'),
       icon: <MessageSquare className="h-4 w-4" />,
-      description: 'AI response formatting',
+      description: t('descResponse'),
       group: 'interface',
     },
     {
       id: 'prompt-templates',
-      label: 'Prompt Templates',
+      label: t('tabPromptTemplates'),
       icon: <FileText className="h-4 w-4" />,
-      description: 'Manage reusable prompt instructions',
+      description: t('descPromptTemplates'),
       group: 'interface',
     },
     {
       id: 'prompt-marketplace',
-      label: 'Prompt Marketplace',
+      label: t('tabPromptMarketplace'),
       icon: <ShoppingBag className="h-4 w-4" />,
-      description: 'Browse and install community prompts',
+      description: t('descPromptMarketplace'),
       group: 'interface',
     },
     {
       id: 'keyboard',
-      label: 'Shortcuts',
+      label: t('tabKeyboard'),
       icon: <Keyboard className="h-4 w-4" />,
-      description: 'Keyboard shortcuts',
+      description: t('descKeyboard'),
       group: 'interface',
     },
     {
       id: 'speech',
-      label: 'Speech',
+      label: t('tabSpeech'),
       icon: <Mic className="h-4 w-4" />,
-      description: 'Voice input and text-to-speech',
+      description: t('descSpeech'),
       group: 'interface',
     },
     {
       id: 'usage',
-      label: 'Usage',
+      label: t('tabUsage'),
       icon: <BarChart3 className="h-4 w-4" />,
-      description: 'Token usage and costs',
+      description: t('descUsage'),
       group: 'data',
     },
     {
       id: 'data',
       label: t('tabData'),
       icon: <Database className="h-4 w-4" />,
-      description: 'Data management and export',
+      description: t('descData'),
       group: 'data',
     },
     {
       id: 'vector',
-      label: 'Vector DB',
+      label: t('tabVector'),
       icon: <Database className="h-4 w-4" />,
-      description: 'Vector database provider and collections',
+      description: t('descVector'),
       group: 'data',
     },
     ...(isDesktop ? [
       {
         id: 'desktop' as const,
-        label: 'Desktop',
+        label: t('tabDesktop'),
         icon: <Monitor className="h-4 w-4" />,
-        description: 'Desktop app settings',
+        description: t('descDesktop'),
         group: 'system' as const,
       },
       {
         id: 'environment' as const,
-        label: 'Environment',
+        label: t('tabEnvironment'),
         icon: <Settings2 className="h-4 w-4" />,
-        description: 'Install uv, nvm, Docker, Podman',
+        description: t('descEnvironment'),
         group: 'system' as const,
       },
       {
         id: 'proxy' as const,
-        label: 'Proxy',
+        label: t('tabProxy'),
         icon: <Globe className="h-4 w-4" />,
-        description: 'Network proxy configuration',
+        description: t('descProxy'),
         group: 'system' as const,
       },
       {
         id: 'selection' as const,
-        label: 'Selection Toolbar',
+        label: t('tabSelection'),
         icon: <MousePointer2 className="h-4 w-4" />,
-        description: 'AI-powered text selection actions',
+        description: t('descSelection'),
         group: 'system' as const,
       },
       {
         id: 'native-tools' as const,
-        label: 'Native Tools',
+        label: t('tabNativeTools'),
         icon: <Wrench className="h-4 w-4" />,
-        description: 'Clipboard, screenshots, focus tracking',
+        description: t('descNativeTools'),
         group: 'system' as const,
       },
       {
         id: 'sandbox' as const,
-        label: 'Sandbox',
+        label: t('tabSandbox'),
         icon: <Play className="h-4 w-4" />,
-        description: 'Code execution sandbox configuration',
+        description: t('descSandbox'),
         group: 'system' as const,
       },
       {
         id: 'git' as const,
-        label: 'Git',
+        label: t('tabGit'),
         icon: <GitBranch className="h-4 w-4" />,
-        description: 'Git version control settings',
+        description: t('descGit'),
         group: 'system' as const,
       },
     ] : []),
@@ -500,12 +502,12 @@ export default function SettingsPage() {
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={handleExportSettings}>
               <Download className="mr-2 h-3.5 w-3.5" />
-              Export Settings
+              {t('exportSettings')}
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <label className="cursor-pointer flex items-center">
                 <Upload className="mr-2 h-3.5 w-3.5" />
-                Import Settings
+                {t('importSettings')}
                 <input
                   type="file"
                   accept=".json"
@@ -520,7 +522,7 @@ export default function SettingsPage() {
               onClick={() => setResetDialogOpen(true)}
             >
               <RotateCcw className="mr-2 h-3.5 w-3.5" />
-              Reset All Settings
+              {t('resetAllSettings')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -529,17 +531,17 @@ export default function SettingsPage() {
         <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Reset All Settings?</DialogTitle>
+              <DialogTitle>{t('resetDialogTitle')}</DialogTitle>
               <DialogDescription>
-                This will reset all settings to their default values. Your API keys and chat history will be preserved.
+                {t('resetDialogDescription')}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setResetDialogOpen(false)}>
-                Cancel
+                {t('cancel')}
               </Button>
               <Button variant="destructive" onClick={handleResetSettings}>
-                Reset Settings
+                {t('resetSettings')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -621,7 +623,7 @@ export default function SettingsPage() {
                   })
                 ) : (
                   <div className="text-center py-3 text-xs text-muted-foreground">
-                    No settings found
+                    {t('noSettingsFound')}
                   </div>
                 )}
               </nav>
@@ -717,7 +719,7 @@ export default function SettingsPage() {
                       })
                     ) : (
                       <div className="text-center py-4 text-sm text-muted-foreground">
-                        No settings found
+                        {t('noSettingsFound')}
                       </div>
                     )}
                   </nav>

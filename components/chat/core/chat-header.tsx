@@ -28,6 +28,8 @@ import {
   ExternalLink,
   FileText,
   Film,
+  List,
+  GitBranch,
 } from 'lucide-react';
 import { ConversationSearch, SessionStats } from '../utils';
 import { useMessages } from '@/hooks';
@@ -84,12 +86,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { ChatMode, Preset } from '@/types';
+import type { ChatMode, Preset, ChatViewMode } from '@/types';
 import { useSummary } from '@/hooks/chat';
 import { useSettingsStore } from '@/stores';
 
 interface ChatHeaderProps {
   sessionId?: string;
+  viewMode?: ChatViewMode;
+  onViewModeChange?: (mode: ChatViewMode) => void;
 }
 
 const modeIcons: Record<ChatMode, React.ReactNode> = {
@@ -107,8 +111,9 @@ const modeColors: Record<ChatMode, string> = {
 };
 
 
-export function ChatHeader({ sessionId }: ChatHeaderProps) {
+export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: ChatHeaderProps) {
   const t = useTranslations('chatHeader');
+  const tFlow = useTranslations('flowChat');
   const [createPresetOpen, setCreatePresetOpen] = useState(false);
   const [managePresetsOpen, setManagePresetsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -458,6 +463,38 @@ export function ChatHeader({ sessionId }: ChatHeaderProps) {
 
         {/* Right side actions */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* View mode toggle - List/Flow */}
+          {session && (
+            <div className="flex items-center border rounded-md">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="h-8 w-8 rounded-r-none"
+                    onClick={() => onViewModeChange?.('list')}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{tFlow('viewList')}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={viewMode === 'flow' ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="h-8 w-8 rounded-l-none"
+                    onClick={() => onViewModeChange?.('flow')}
+                  >
+                    <GitBranch className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{tFlow('viewFlow')}</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
+
           {/* Background Agent Indicator */}
           <BackgroundAgentIndicator />
 

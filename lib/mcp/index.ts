@@ -3,3 +3,4 @@
  */
 
 export * from './marketplace';
+export * from './marketplace-utils';

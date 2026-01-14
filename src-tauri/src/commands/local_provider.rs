@@ -235,12 +235,18 @@ pub async fn local_provider_get_status(
                     .get(format!("{}{}", url, provider_id.models_endpoint()))
                     .send()
                     .await;
-                models_result.ok().and_then(|r| {
-                    let body: serde_json::Value = futures::executor::block_on(r.json()).ok()?;
-                    body.get("data")
-                        .and_then(|d| d.as_array())
-                        .map(|a| a.len() as u32)
-                })
+                match models_result {
+                    Ok(r) => {
+                        if let Ok(body) = r.json::<serde_json::Value>().await {
+                            body.get("data")
+                                .and_then(|d| d.as_array())
+                                .map(|a| a.len() as u32)
+                        } else {
+                            None
+                        }
+                    }
+                    Err(_) => None,
+                }
             };
 
             Ok(LocalServerStatus {

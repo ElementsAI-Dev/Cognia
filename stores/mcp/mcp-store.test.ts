@@ -4,7 +4,8 @@
 
 import { useMcpStore } from './mcp-store';
 import { act } from '@testing-library/react';
-import type { McpServerConfig, McpServerState, McpServerStatus } from '@/types/mcp';
+import type { McpServerConfig, McpServerState, McpServerStatus, ToolUsageRecord } from '@/types/mcp';
+import { DEFAULT_TOOL_SELECTION_CONFIG } from '@/types/mcp';
 
 // Mock Tauri environment
 Object.defineProperty(window, '__TAURI_INTERNALS__', {
@@ -328,6 +329,158 @@ describe('useMcpStore', () => {
       });
 
       expect(useMcpStore.getState().servers).toEqual(newServers);
+    });
+  });
+
+  // =========================================================================
+  // Tool Selection State Tests
+  // =========================================================================
+
+  describe('tool selection config', () => {
+    beforeEach(() => {
+      useMcpStore.setState({
+        toolSelectionConfig: { ...DEFAULT_TOOL_SELECTION_CONFIG },
+        toolUsageHistory: new Map<string, ToolUsageRecord>(),
+        lastToolSelection: null,
+      });
+    });
+
+    it('has default tool selection config', () => {
+      const state = useMcpStore.getState();
+      expect(state.toolSelectionConfig).toEqual(DEFAULT_TOOL_SELECTION_CONFIG);
+    });
+
+    it('setToolSelectionConfig updates config partially', () => {
+      act(() => {
+        useMcpStore.getState().setToolSelectionConfig({ maxTools: 30 });
+      });
+
+      const state = useMcpStore.getState();
+      expect(state.toolSelectionConfig.maxTools).toBe(30);
+      expect(state.toolSelectionConfig.strategy).toBe(DEFAULT_TOOL_SELECTION_CONFIG.strategy);
+    });
+
+    it('setToolSelectionConfig merges multiple updates', () => {
+      act(() => {
+        useMcpStore.getState().setToolSelectionConfig({ maxTools: 25 });
+        useMcpStore.getState().setToolSelectionConfig({ strategy: 'manual' });
+      });
+
+      const state = useMcpStore.getState();
+      expect(state.toolSelectionConfig.maxTools).toBe(25);
+      expect(state.toolSelectionConfig.strategy).toBe('manual');
+    });
+  });
+
+  describe('tool usage history', () => {
+    beforeEach(() => {
+      useMcpStore.setState({
+        toolUsageHistory: new Map<string, ToolUsageRecord>(),
+      });
+    });
+
+    it('recordToolUsage creates new record', () => {
+      act(() => {
+        useMcpStore.getState().recordToolUsage('mcp_server1_tool', true, 100);
+      });
+
+      const history = useMcpStore.getState().getToolUsageHistory();
+      const record = history.get('mcp_server1_tool');
+
+      expect(record).toBeDefined();
+      expect(record?.usageCount).toBe(1);
+      expect(record?.successCount).toBe(1);
+      expect(record?.failureCount).toBe(0);
+      expect(record?.avgExecutionTime).toBe(100);
+    });
+
+    it('recordToolUsage updates existing record', () => {
+      act(() => {
+        useMcpStore.getState().recordToolUsage('mcp_server1_tool', true, 100);
+        useMcpStore.getState().recordToolUsage('mcp_server1_tool', true, 200);
+      });
+
+      const history = useMcpStore.getState().getToolUsageHistory();
+      const record = history.get('mcp_server1_tool');
+
+      expect(record?.usageCount).toBe(2);
+      expect(record?.successCount).toBe(2);
+      expect(record?.avgExecutionTime).toBe(150); // (100 + 200) / 2
+    });
+
+    it('recordToolUsage tracks failures', () => {
+      act(() => {
+        useMcpStore.getState().recordToolUsage('mcp_server1_tool', true, 100);
+        useMcpStore.getState().recordToolUsage('mcp_server1_tool', false, 50);
+      });
+
+      const history = useMcpStore.getState().getToolUsageHistory();
+      const record = history.get('mcp_server1_tool');
+
+      expect(record?.usageCount).toBe(2);
+      expect(record?.successCount).toBe(1);
+      expect(record?.failureCount).toBe(1);
+    });
+
+    it('recordToolUsage updates lastUsedAt', () => {
+      const beforeTime = Date.now();
+
+      act(() => {
+        useMcpStore.getState().recordToolUsage('mcp_server1_tool', true);
+      });
+
+      const afterTime = Date.now();
+      const history = useMcpStore.getState().getToolUsageHistory();
+      const record = history.get('mcp_server1_tool');
+
+      expect(record?.lastUsedAt).toBeGreaterThanOrEqual(beforeTime);
+      expect(record?.lastUsedAt).toBeLessThanOrEqual(afterTime);
+    });
+
+    it('resetToolUsageHistory clears all history', () => {
+      act(() => {
+        useMcpStore.getState().recordToolUsage('tool1', true);
+        useMcpStore.getState().recordToolUsage('tool2', true);
+        useMcpStore.getState().resetToolUsageHistory();
+      });
+
+      const history = useMcpStore.getState().getToolUsageHistory();
+      expect(history.size).toBe(0);
+    });
+  });
+
+  describe('last tool selection', () => {
+    it('setLastToolSelection stores selection result', () => {
+      const selection = {
+        selectedToolNames: ['tool1', 'tool2'],
+        excludedToolNames: ['tool3'],
+        totalAvailable: 3,
+        selectionReason: 'Test selection',
+        relevanceScores: { tool1: 0.8, tool2: 0.6 },
+        wasLimited: true,
+      };
+
+      act(() => {
+        useMcpStore.getState().setLastToolSelection(selection);
+      });
+
+      expect(useMcpStore.getState().lastToolSelection).toEqual(selection);
+    });
+
+    it('setLastToolSelection can clear selection', () => {
+      act(() => {
+        useMcpStore.getState().setLastToolSelection({
+          selectedToolNames: ['tool1'],
+          excludedToolNames: [],
+          totalAvailable: 1,
+          selectionReason: 'Test',
+          relevanceScores: {},
+          wasLimited: false,
+        });
+        useMcpStore.getState().setLastToolSelection(null);
+      });
+
+      expect(useMcpStore.getState().lastToolSelection).toBeNull();
     });
   });
 });

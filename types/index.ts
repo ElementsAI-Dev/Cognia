@@ -5,6 +5,9 @@
 // Core chat types
 export * from './core';
 
+// Chat flow types
+export * from './chat';
+
 // AI provider types
 export * from './provider';
 

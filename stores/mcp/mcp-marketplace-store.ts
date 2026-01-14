@@ -21,7 +21,7 @@ import {
   filterMarketplaceItems,
   getUniqueTags,
 } from '@/lib/mcp/marketplace';
-import { getCachedDetails, setCachedDetails } from '@/lib/mcp/marketplace-utils';
+import { getCachedDetails, setCachedDetails, clearDetailsCache } from '@/lib/mcp/marketplace-utils';
 
 interface McpMarketplaceState {
   // State
@@ -50,6 +50,12 @@ interface McpMarketplaceState {
   // Favorites
   favorites: Set<string>;
   
+  // Recently viewed
+  recentlyViewed: string[];
+  
+  // Search history
+  searchHistory: string[];
+  
   // Pagination
   currentPage: number;
   itemsPerPage: number;
@@ -76,6 +82,15 @@ interface McpMarketplaceState {
   toggleFavorite: (mcpId: string) => void;
   isFavorite: (mcpId: string) => boolean;
   setShowFavoritesOnly: (show: boolean) => void;
+  
+  // Recently viewed actions
+  addToRecentlyViewed: (mcpId: string) => void;
+  getRecentlyViewedItems: () => McpMarketplaceItem[];
+  clearRecentlyViewed: () => void;
+  
+  // Search history actions
+  addToSearchHistory: (query: string) => void;
+  clearSearchHistory: () => void;
   
   // Pagination actions
   setCurrentPage: (page: number) => void;
@@ -123,6 +138,8 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
       isLoadingDetails: false,
       smitheryApiKey: null,
       favorites: new Set(),
+      recentlyViewed: [],
+      searchHistory: [],
       currentPage: 1,
       itemsPerPage: 24,
       viewMode: 'grid',
@@ -141,6 +158,11 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
           Date.now() - state.lastFetched < state.cacheDuration
         ) {
           return;
+        }
+
+        // Clear details cache on force refresh to ensure fresh data
+        if (force) {
+          clearDetailsCache();
         }
 
         set({ isLoading: true, error: null });
@@ -305,6 +327,43 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
         set({ showFavoritesOnly: show, currentPage: 1 });
       },
 
+      // Recently viewed actions
+      addToRecentlyViewed: (mcpId) => {
+        set((state) => {
+          const filtered = state.recentlyViewed.filter((id) => id !== mcpId);
+          return {
+            recentlyViewed: [mcpId, ...filtered].slice(0, 20), // Keep last 20
+          };
+        });
+      },
+
+      getRecentlyViewedItems: () => {
+        const state = get();
+        if (!state.catalog) return [];
+        return state.recentlyViewed
+          .map((id) => state.catalog?.items.find((item) => item.mcpId === id))
+          .filter(Boolean) as McpMarketplaceItem[];
+      },
+
+      clearRecentlyViewed: () => {
+        set({ recentlyViewed: [] });
+      },
+
+      // Search history actions
+      addToSearchHistory: (query) => {
+        if (!query.trim()) return;
+        set((state) => {
+          const filtered = state.searchHistory.filter((q) => q !== query);
+          return {
+            searchHistory: [query, ...filtered].slice(0, 10), // Keep last 10
+          };
+        });
+      },
+
+      clearSearchHistory: () => {
+        set({ searchHistory: [] });
+      },
+
       // Pagination actions
       setCurrentPage: (page) => {
         set({ currentPage: page });
@@ -379,6 +438,8 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
         installingItems: Array.from(state.installingItems.entries()),
         installErrors: Array.from(state.installErrors.entries()),
         favorites: Array.from(state.favorites),
+        recentlyViewed: state.recentlyViewed,
+        searchHistory: state.searchHistory,
         viewMode: state.viewMode,
         itemsPerPage: state.itemsPerPage,
         smitheryApiKey: state.smitheryApiKey,
@@ -388,6 +449,8 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
           installingItems?: [string, McpInstallStatus][];
           installErrors?: [string, string][];
           favorites?: string[];
+          recentlyViewed?: string[];
+          searchHistory?: string[];
           viewMode?: 'grid' | 'list';
           itemsPerPage?: number;
           smitheryApiKey?: string | null;
@@ -397,6 +460,8 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
           installingItems: new Map(persistedState.installingItems || []),
           installErrors: new Map(persistedState.installErrors || []),
           favorites: new Set(persistedState.favorites || []),
+          recentlyViewed: persistedState.recentlyViewed || [],
+          searchHistory: persistedState.searchHistory || [],
           viewMode: persistedState.viewMode || 'grid',
           itemsPerPage: persistedState.itemsPerPage || 24,
           smitheryApiKey: persistedState.smitheryApiKey || null,

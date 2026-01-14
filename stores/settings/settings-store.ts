@@ -24,6 +24,8 @@ import { DEFAULT_COMPRESSION_SETTINGS } from '@/types/system/compression';
 import type { AutoDetectResult } from '@/lib/i18n/locale-auto-detect';
 import type { AutoRouterSettings, RoutingMode, RoutingStrategy, ModelTier } from '@/types/provider/auto-router';
 import { DEFAULT_AUTO_ROUTER_SETTINGS } from '@/types/provider/auto-router';
+import type { LoadBalancerSettings, LoadBalancingStrategy, ProviderWeight, CircuitBreakerSettings } from '@/types/provider/load-balancer';
+import { DEFAULT_LOAD_BALANCER_SETTINGS } from '@/types/provider/load-balancer';
 import type { ChatHistoryContextSettings, HistoryContextCompressionLevel } from '@/types/core/chat-history-context';
 import { DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS } from '@/types/core/chat-history-context';
 import type { TokenizerSettings, TokenizerProvider } from '@/types/system/tokenizer';
@@ -372,6 +374,20 @@ interface SettingsState {
   setAutoRouterFallbackTier: (tier: ModelTier) => void;
   resetAutoRouterSettings: () => void;
 
+  // Load Balancer settings
+  loadBalancerSettings: LoadBalancerSettings;
+  setLoadBalancerSettings: (settings: Partial<LoadBalancerSettings>) => void;
+  setLoadBalancerEnabled: (enabled: boolean) => void;
+  setLoadBalancingStrategy: (strategy: LoadBalancingStrategy) => void;
+  setLoadBalancerWeights: (weights: ProviderWeight[]) => void;
+  setLoadBalancerStickySession: (enabled: boolean) => void;
+  setLoadBalancerFallbackOrder: (providers: string[]) => void;
+  setLoadBalancerAutoFailover: (enabled: boolean) => void;
+  setLoadBalancerMaxRetries: (retries: number) => void;
+  setCircuitBreakerSettings: (settings: Partial<CircuitBreakerSettings>) => void;
+  setCircuitBreakerEnabled: (enabled: boolean) => void;
+  resetLoadBalancerSettings: () => void;
+
   // Chat History Context settings
   chatHistoryContextSettings: ChatHistoryContextSettings;
   setChatHistoryContextSettings: (settings: Partial<ChatHistoryContextSettings>) => void;
@@ -664,6 +680,9 @@ const initialState = {
 
   // Auto Router settings
   autoRouterSettings: { ...DEFAULT_AUTO_ROUTER_SETTINGS },
+
+  // Load Balancer settings
+  loadBalancerSettings: { ...DEFAULT_LOAD_BALANCER_SETTINGS },
 
   // Chat History Context settings
   chatHistoryContextSettings: { ...DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS },
@@ -1427,6 +1446,62 @@ export const useSettingsStore = create<SettingsState>()(
       resetAutoRouterSettings: () =>
         set({ autoRouterSettings: { ...DEFAULT_AUTO_ROUTER_SETTINGS } }),
 
+      // Load Balancer settings actions
+      setLoadBalancerSettings: (settings) =>
+        set((state) => ({
+          loadBalancerSettings: { ...state.loadBalancerSettings, ...settings },
+        })),
+      setLoadBalancerEnabled: (enabled) =>
+        set((state) => ({
+          loadBalancerSettings: { ...state.loadBalancerSettings, enabled },
+        })),
+      setLoadBalancingStrategy: (strategy) =>
+        set((state) => ({
+          loadBalancerSettings: { ...state.loadBalancerSettings, strategy },
+        })),
+      setLoadBalancerWeights: (weights) =>
+        set((state) => ({
+          loadBalancerSettings: { ...state.loadBalancerSettings, weights },
+        })),
+      setLoadBalancerStickySession: (stickySession) =>
+        set((state) => ({
+          loadBalancerSettings: { ...state.loadBalancerSettings, stickySession },
+        })),
+      setLoadBalancerFallbackOrder: (fallbackOrder) =>
+        set((state) => ({
+          loadBalancerSettings: { 
+            ...state.loadBalancerSettings, 
+            fallbackOrder: fallbackOrder as LoadBalancerSettings['fallbackOrder']
+          },
+        })),
+      setLoadBalancerAutoFailover: (autoFailover) =>
+        set((state) => ({
+          loadBalancerSettings: { ...state.loadBalancerSettings, autoFailover },
+        })),
+      setLoadBalancerMaxRetries: (maxRetries) =>
+        set((state) => ({
+          loadBalancerSettings: {
+            ...state.loadBalancerSettings,
+            maxRetries: Math.min(10, Math.max(1, maxRetries)),
+          },
+        })),
+      setCircuitBreakerSettings: (settings) =>
+        set((state) => ({
+          loadBalancerSettings: {
+            ...state.loadBalancerSettings,
+            circuitBreaker: { ...state.loadBalancerSettings.circuitBreaker, ...settings },
+          },
+        })),
+      setCircuitBreakerEnabled: (enabled) =>
+        set((state) => ({
+          loadBalancerSettings: {
+            ...state.loadBalancerSettings,
+            circuitBreaker: { ...state.loadBalancerSettings.circuitBreaker, enabled },
+          },
+        })),
+      resetLoadBalancerSettings: () =>
+        set({ loadBalancerSettings: { ...DEFAULT_LOAD_BALANCER_SETTINGS } }),
+
       // Chat History Context settings actions
       setChatHistoryContextSettings: (settings) =>
         set((state) => ({
@@ -1624,6 +1699,8 @@ export const useSettingsStore = create<SettingsState>()(
         compressionSettings: state.compressionSettings,
         // Auto Router settings
         autoRouterSettings: state.autoRouterSettings,
+        // Load Balancer settings
+        loadBalancerSettings: state.loadBalancerSettings,
         // Chat History Context settings
         chatHistoryContextSettings: state.chatHistoryContextSettings,
         // Tokenizer settings
@@ -1648,6 +1725,10 @@ export const selectBackgroundSettings = (state: SettingsState) => state.backgrou
 export const selectBackgroundEnabled = (state: SettingsState) => state.backgroundSettings.enabled;
 export const selectAutoRouterSettings = (state: SettingsState) => state.autoRouterSettings;
 export const selectAutoRouterEnabled = (state: SettingsState) => state.autoRouterSettings.enabled;
+export const selectLoadBalancerSettings = (state: SettingsState) => state.loadBalancerSettings;
+export const selectLoadBalancerEnabled = (state: SettingsState) => state.loadBalancerSettings.enabled;
+export const selectLoadBalancingStrategy = (state: SettingsState) => state.loadBalancerSettings.strategy;
+export const selectCircuitBreakerSettings = (state: SettingsState) => state.loadBalancerSettings.circuitBreaker;
 export const selectChatHistoryContextSettings = (state: SettingsState) => state.chatHistoryContextSettings;
 export const selectChatHistoryContextEnabled = (state: SettingsState) => state.chatHistoryContextSettings.enabled;
 export const selectTokenizerSettings = (state: SettingsState) => state.tokenizerSettings;

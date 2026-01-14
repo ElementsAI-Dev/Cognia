@@ -13,9 +13,15 @@ import {
   filterMcpToolsByServers,
   getMcpToolByOriginalName,
   formatMcpToolResult,
+  scoreMcpToolRelevance,
+  selectMcpToolsByRelevance,
+  applyToolSelection,
+  getMcpToolsWithSelection,
+  getRecommendedMcpTools,
   type McpToolAdapterConfig,
 } from './mcp-tools';
-import type { McpTool, McpServerState, ToolCallResult, McpServerConfig } from '@/types/mcp';
+import type { McpTool, McpServerState, ToolCallResult, McpServerConfig, ToolUsageRecord } from '@/types/mcp';
+import type { AgentTool } from './agent-executor';
 
 const createMockServerConfig = (): McpServerConfig => ({
   name: 'Test',
@@ -578,5 +584,273 @@ describe('getMcpToolByOriginalName', () => {
     const found = getMcpToolByOriginalName(tools, 'server-1', 'my-special-tool');
 
     expect(found).toBe(tool);
+  });
+});
+
+// =============================================================================
+// Intelligent Tool Selection Tests
+// =============================================================================
+
+const createMockAgentTool = (name: string, description: string): AgentTool => ({
+  name,
+  description,
+  parameters: z.object({}),
+  execute: jest.fn(),
+});
+
+describe('scoreMcpToolRelevance', () => {
+  it('scores tool with matching description higher', () => {
+    const tool = createMockAgentTool('mcp_server1_web_search', 'Search the web for information');
+    const context = { query: 'search for information on the web' };
+
+    const scored = scoreMcpToolRelevance(tool, context);
+
+    expect(scored.relevanceScore).toBeGreaterThan(0.3);
+    expect(scored.scoreBreakdown.descriptionMatch).toBeGreaterThan(0);
+  });
+
+  it('scores tool with matching name higher', () => {
+    const tool = createMockAgentTool('mcp_browser_search', 'A browser tool');
+    const context = { query: 'I need to search something' };
+
+    const scored = scoreMcpToolRelevance(tool, context);
+
+    expect(scored.scoreBreakdown.nameMatch).toBeGreaterThan(0);
+  });
+
+  it('scores unrelated tool lower', () => {
+    const tool = createMockAgentTool('mcp_server1_calculator', 'Perform math calculations');
+    const context = { query: 'search for images of cats' };
+
+    const scored = scoreMcpToolRelevance(tool, context);
+
+    expect(scored.relevanceScore).toBeLessThan(0.3);
+  });
+
+  it('applies history boost when usage history provided', () => {
+    const tool = createMockAgentTool('mcp_server1_tool', 'A tool');
+    const context = { query: 'any query' };
+    const usageHistory = new Map<string, ToolUsageRecord>([
+      ['mcp_server1_tool', {
+        toolName: 'mcp_server1_tool',
+        usageCount: 10,
+        successCount: 9,
+        failureCount: 1,
+        lastUsedAt: Date.now(),
+        avgExecutionTime: 100,
+      }],
+    ]);
+
+    const scoredWithHistory = scoreMcpToolRelevance(tool, context, usageHistory);
+    const scoredWithoutHistory = scoreMcpToolRelevance(tool, context);
+
+    expect(scoredWithHistory.scoreBreakdown.historyBoost).toBeGreaterThan(0);
+    expect(scoredWithHistory.relevanceScore).toBeGreaterThan(scoredWithoutHistory.relevanceScore);
+  });
+
+  it('applies priority boost for priority servers', () => {
+    const tool = createMockAgentTool('mcp_priorityserver_tool', 'A tool');
+    const context = { query: 'any query' };
+
+    const scoredWithPriority = scoreMcpToolRelevance(tool, context, undefined, ['priorityserver']);
+    const scoredWithoutPriority = scoreMcpToolRelevance(tool, context);
+
+    expect(scoredWithPriority.scoreBreakdown.priorityBoost).toBeGreaterThan(0);
+    expect(scoredWithPriority.relevanceScore).toBeGreaterThan(scoredWithoutPriority.relevanceScore);
+  });
+});
+
+describe('selectMcpToolsByRelevance', () => {
+  const createToolSet = () => ({
+    mcp_server1_web_search: createMockAgentTool('mcp_server1_web_search', 'Search the web for information'),
+    mcp_server1_file_read: createMockAgentTool('mcp_server1_file_read', 'Read files from filesystem'),
+    mcp_server2_calculator: createMockAgentTool('mcp_server2_calculator', 'Perform math calculations'),
+    mcp_server2_image_gen: createMockAgentTool('mcp_server2_image_gen', 'Generate images from text'),
+    mcp_server3_code_run: createMockAgentTool('mcp_server3_code_run', 'Execute code snippets'),
+  });
+
+  it('selects tools by relevance when over limit', () => {
+    const tools = createToolSet();
+    const context = { query: 'search for web information' };
+
+    const result = selectMcpToolsByRelevance(tools, context, { maxTools: 2, minRelevanceScore: 0 });
+
+    expect(result.selectedToolNames.length).toBe(2);
+    expect(result.wasLimited).toBe(true);
+    expect(result.selectedToolNames).toContain('mcp_server1_web_search');
+  });
+
+  it('includes all tools when under limit', () => {
+    const tools = createToolSet();
+    const context = { query: 'any query' };
+
+    const result = selectMcpToolsByRelevance(tools, context, { maxTools: 10, enableRelevanceScoring: false });
+
+    expect(result.selectedToolNames.length).toBe(5);
+    expect(result.wasLimited).toBe(false);
+  });
+
+  it('respects alwaysIncludeTools', () => {
+    const tools = createToolSet();
+    const context = { query: 'search web' };
+
+    const result = selectMcpToolsByRelevance(tools, context, {
+      maxTools: 2,
+      alwaysIncludeTools: ['mcp_server2_calculator'],
+    });
+
+    expect(result.selectedToolNames).toContain('mcp_server2_calculator');
+  });
+
+  it('respects alwaysExcludeTools', () => {
+    const tools = createToolSet();
+    const context = { query: 'search web' };
+
+    const result = selectMcpToolsByRelevance(tools, context, {
+      maxTools: 10,
+      alwaysExcludeTools: ['mcp_server1_web_search'],
+    });
+
+    expect(result.selectedToolNames).not.toContain('mcp_server1_web_search');
+    expect(result.excludedToolNames).toContain('mcp_server1_web_search');
+  });
+
+  it('filters by minimum relevance score', () => {
+    const tools = createToolSet();
+    const context = { query: 'very specific unique query xyz123' };
+
+    const result = selectMcpToolsByRelevance(tools, context, {
+      maxTools: 10,
+      enableRelevanceScoring: true,
+      minRelevanceScore: 0.5,
+    });
+
+    // Most tools won't match a very specific query
+    expect(result.selectedToolNames.length).toBeLessThan(5);
+  });
+
+  it('provides relevance scores in result', () => {
+    const tools = createToolSet();
+    const context = { query: 'search web' };
+
+    const result = selectMcpToolsByRelevance(tools, context, { maxTools: 3 });
+
+    expect(Object.keys(result.relevanceScores).length).toBeGreaterThan(0);
+    expect(result.relevanceScores['mcp_server1_web_search']).toBeDefined();
+  });
+});
+
+describe('applyToolSelection', () => {
+  it('filters tools based on selection result', () => {
+    const tools = {
+      tool1: createMockAgentTool('tool1', 'Tool 1'),
+      tool2: createMockAgentTool('tool2', 'Tool 2'),
+      tool3: createMockAgentTool('tool3', 'Tool 3'),
+    };
+
+    const selection = {
+      selectedToolNames: ['tool1', 'tool3'],
+      excludedToolNames: ['tool2'],
+      totalAvailable: 3,
+      selectionReason: 'Test',
+      relevanceScores: {},
+      wasLimited: true,
+    };
+
+    const filtered = applyToolSelection(tools, selection);
+
+    expect(Object.keys(filtered)).toHaveLength(2);
+    expect(filtered.tool1).toBeDefined();
+    expect(filtered.tool3).toBeDefined();
+    expect(filtered.tool2).toBeUndefined();
+  });
+});
+
+describe('getMcpToolsWithSelection', () => {
+  it('returns all tools when under limit', () => {
+    const tools = {
+      tool1: createMockAgentTool('tool1', 'Tool 1'),
+      tool2: createMockAgentTool('tool2', 'Tool 2'),
+    };
+
+    const result = getMcpToolsWithSelection(tools, { query: 'test' }, { maxTools: 10 });
+
+    expect(Object.keys(result.tools)).toHaveLength(2);
+    expect(result.selection.wasLimited).toBe(false);
+  });
+
+  it('applies selection when over limit', () => {
+    const tools = {
+      tool1: createMockAgentTool('tool1', 'Search the web for information'),
+      tool2: createMockAgentTool('tool2', 'Search and browse websites'),
+      tool3: createMockAgentTool('tool3', 'Calculate numbers'),
+      tool4: createMockAgentTool('tool4', 'Generate images'),
+    };
+
+    const result = getMcpToolsWithSelection(
+      tools,
+      { query: 'search web information' },
+      { maxTools: 2, minRelevanceScore: 0 } // Disable min score filter for this test
+    );
+
+    expect(Object.keys(result.tools)).toHaveLength(2);
+    expect(result.selection.wasLimited).toBe(true);
+  });
+
+  it('returns all tools when strategy is manual', () => {
+    const tools = {
+      tool1: createMockAgentTool('tool1', 'Tool 1'),
+      tool2: createMockAgentTool('tool2', 'Tool 2'),
+      tool3: createMockAgentTool('tool3', 'Tool 3'),
+    };
+
+    const result = getMcpToolsWithSelection(
+      tools,
+      { query: 'test' },
+      { maxTools: 1, strategy: 'manual' }
+    );
+
+    expect(Object.keys(result.tools)).toHaveLength(3);
+  });
+});
+
+describe('getRecommendedMcpTools', () => {
+  it('returns top N recommended tools', () => {
+    const tools = {
+      mcp_s1_web_search: createMockAgentTool('mcp_s1_web_search', 'Search the web'),
+      mcp_s1_file_read: createMockAgentTool('mcp_s1_file_read', 'Read files'),
+      mcp_s2_calculator: createMockAgentTool('mcp_s2_calculator', 'Calculate numbers'),
+    };
+
+    const recommended = getRecommendedMcpTools(tools, 'search web', 2);
+
+    expect(recommended.length).toBe(2);
+    expect(recommended[0].relevanceScore).toBeGreaterThanOrEqual(recommended[1].relevanceScore);
+  });
+
+  it('sorts by relevance score descending', () => {
+    const tools = {
+      mcp_s1_web_search: createMockAgentTool('mcp_s1_web_search', 'Search the web for anything'),
+      mcp_s1_other: createMockAgentTool('mcp_s1_other', 'Something else entirely different'),
+    };
+
+    const recommended = getRecommendedMcpTools(tools, 'search web information', 2);
+
+    expect(recommended[0].name).toBe('mcp_s1_web_search');
+    expect(recommended[0].relevanceScore).toBeGreaterThan(recommended[1].relevanceScore);
+  });
+
+  it('respects limit parameter', () => {
+    const tools = {
+      tool1: createMockAgentTool('tool1', 'Tool 1'),
+      tool2: createMockAgentTool('tool2', 'Tool 2'),
+      tool3: createMockAgentTool('tool3', 'Tool 3'),
+      tool4: createMockAgentTool('tool4', 'Tool 4'),
+      tool5: createMockAgentTool('tool5', 'Tool 5'),
+    };
+
+    const recommended = getRecommendedMcpTools(tools, 'any query', 3);
+
+    expect(recommended.length).toBe(3);
   });
 });

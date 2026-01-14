@@ -10,3 +10,4 @@ export { ModeSwitchSuggestion, InlineModeSuggestion } from './mode-switch-sugges
 export { QuickReplyBar } from './quick-reply-bar';
 export { RoutingIndicator, RoutingBadge } from './routing-indicator';
 export { CarriedContextBanner } from './carried-context-banner';
+export { WorkflowIndicator, type WorkflowIndicatorProps, type WorkflowStatus } from './workflow-indicator';

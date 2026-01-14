@@ -17,12 +17,15 @@ import {
   createRAGSearchTool,
   createListRAGCollectionsTool,
   buildRAGConfigFromSettings,
+  getMcpToolsWithSelection,
   type AgentConfig,
   type AgentResult,
   type AgentTool,
   type ToolCall,
   type AgentLoopResult,
 } from '@/lib/ai/agent';
+import type { McpToolSelectionConfig, ToolUsageRecord } from '@/types/mcp';
+import { DEFAULT_TOOL_SELECTION_CONFIG } from '@/types/mcp';
 import { buildMultiSkillSystemPrompt, createSkillTools } from '@/lib/skills/executor';
 import { useBackgroundAgentStore } from '@/stores/agent';
 import type { BackgroundAgent } from '@/types/agent/background-agent';
@@ -37,10 +40,18 @@ export interface UseAgentOptions {
   enableMcpTools?: boolean;
   enableRAG?: boolean;
   mcpRequireApproval?: boolean;
+  /** Configuration for intelligent MCP tool selection */
+  mcpToolSelectionConfig?: Partial<McpToolSelectionConfig>;
+  /** Tool usage history for relevance boosting */
+  mcpToolUsageHistory?: Map<string, ToolUsageRecord>;
+  /** Current query for tool relevance scoring (updated dynamically) */
+  currentQuery?: string;
   onStepStart?: (step: number) => void;
   onStepComplete?: (step: number, response: string, toolCalls: ToolCall[]) => void;
   onToolCall?: (toolCall: ToolCall) => void;
   onToolResult?: (toolCall: ToolCall) => void;
+  /** Called when tool selection is applied */
+  onToolSelection?: (selectedCount: number, totalCount: number, reason: string) => void;
 }
 
 export interface UseAgentReturn {
@@ -78,10 +89,14 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     enableMcpTools = true,
     enableRAG = true,
     mcpRequireApproval = false,
+    mcpToolSelectionConfig,
+    mcpToolUsageHistory,
+    currentQuery = '',
     onStepStart,
     onStepComplete,
     onToolCall,
     onToolResult,
+    onToolSelection,
   } = options;
 
   // Get provider settings first (needed for RAG config)
@@ -122,13 +137,54 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     return createSkillTools(activeSkills);
   }, [enableSkills, activeSkills]);
 
-  // Create MCP tools for agent to use
+  // Create MCP tools for agent to use with intelligent selection
   const mcpTools = useMemo(() => {
     if (!enableMcpTools || mcpServers.length === 0) return {};
-    return createMcpToolsFromStore(mcpServers, mcpCallTool, {
+    
+    // First, create all MCP tools
+    const allMcpTools = createMcpToolsFromStore(mcpServers, mcpCallTool, {
       requireApproval: mcpRequireApproval,
     });
-  }, [enableMcpTools, mcpServers, mcpCallTool, mcpRequireApproval]);
+    
+    // Merge with default config
+    const selectionConfig: McpToolSelectionConfig = {
+      ...DEFAULT_TOOL_SELECTION_CONFIG,
+      ...mcpToolSelectionConfig,
+    };
+    
+    // If selection is enabled and we have a query, apply intelligent selection
+    const totalToolCount = Object.keys(allMcpTools).length;
+    if (selectionConfig.strategy !== 'manual' && totalToolCount > selectionConfig.maxTools) {
+      const { tools: selectedTools, selection } = getMcpToolsWithSelection(
+        allMcpTools,
+        { query: currentQuery },
+        selectionConfig,
+        mcpToolUsageHistory
+      );
+      
+      // Notify about selection
+      if (onToolSelection && selection.wasLimited) {
+        onToolSelection(
+          selection.selectedToolNames.length,
+          selection.totalAvailable,
+          selection.selectionReason
+        );
+      }
+      
+      return selectedTools;
+    }
+    
+    return allMcpTools;
+  }, [
+    enableMcpTools,
+    mcpServers,
+    mcpCallTool,
+    mcpRequireApproval,
+    mcpToolSelectionConfig,
+    mcpToolUsageHistory,
+    currentQuery,
+    onToolSelection,
+  ]);
 
   // Build RAG config from vector store settings
   const ragConfig = useMemo(() => {

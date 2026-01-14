@@ -481,17 +481,31 @@ impl AssistantBubbleWindow {
         }
     }
 
+    /// Get work area of the monitor containing the bubble, or primary monitor as fallback
     fn get_primary_work_area(&self) -> (i32, i32, i32, i32) {
+        self.get_work_area_for_position(None)
+    }
+    
+    /// Get work area for a specific position, or use bubble position / primary monitor as fallback
+    pub fn get_work_area_for_position(&self, position: Option<(i32, i32)>) -> (i32, i32, i32, i32) {
         #[cfg(target_os = "windows")]
         {
             use windows::Win32::Foundation::POINT;
             use windows::Win32::Graphics::Gdi::{
-                GetMonitorInfoW, MonitorFromPoint, MONITORINFO, MONITOR_DEFAULTTOPRIMARY,
+                GetMonitorInfoW, MonitorFromPoint, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+                MONITOR_DEFAULTTOPRIMARY,
             };
 
             unsafe {
-                let point = POINT { x: 0, y: 0 };
-                let monitor = MonitorFromPoint(point, MONITOR_DEFAULTTOPRIMARY);
+                // Get the position to check - either provided, bubble position, or (0,0) for primary
+                let (check_x, check_y) = position
+                    .or_else(|| *self.position.read())
+                    .unwrap_or((0, 0));
+                
+                let point = POINT { x: check_x, y: check_y };
+                
+                // Use MONITOR_DEFAULTTONEAREST to get the monitor containing/nearest to this point
+                let monitor = MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST);
 
                 let mut info = MONITORINFO {
                     cbSize: std::mem::size_of::<MONITORINFO>() as u32,
@@ -507,10 +521,39 @@ impl AssistantBubbleWindow {
                         rect.top,
                     );
                 }
+                
+                // If that fails, try primary monitor
+                let primary_monitor = MonitorFromPoint(POINT { x: 0, y: 0 }, MONITOR_DEFAULTTOPRIMARY);
+                if GetMonitorInfoW(primary_monitor, &mut info).as_bool() {
+                    let rect = info.rcWork;
+                    return (
+                        rect.right - rect.left,
+                        rect.bottom - rect.top,
+                        rect.left,
+                        rect.top,
+                    );
+                }
             }
         }
 
         // Fallback
         (1920, 1080, 0, 0)
+    }
+    
+    /// Ensure bubble stays within the current monitor's work area
+    pub fn clamp_to_work_area(&self) -> Result<(), String> {
+        if let Some((x, y)) = self.get_position() {
+            let (work_w, work_h, work_x, work_y) = self.get_work_area_for_position(Some((x, y)));
+            let size = BUBBLE_SIZE as i32;
+            
+            let new_x = x.max(work_x + BUBBLE_PADDING).min(work_x + work_w - size - BUBBLE_PADDING);
+            let new_y = y.max(work_y + BUBBLE_PADDING).min(work_y + work_h - size - BUBBLE_PADDING);
+            
+            if new_x != x || new_y != y {
+                self.set_position(new_x, new_y)?;
+                log::debug!("[AssistantBubbleWindow] Clamped position from ({}, {}) to ({}, {})", x, y, new_x, new_y);
+            }
+        }
+        Ok(())
     }
 }

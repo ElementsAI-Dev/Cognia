@@ -210,8 +210,8 @@ impl ToolbarWindow {
         let is_hovered = self.is_hovered.clone();
         let auto_hide_cancel = self.auto_hide_cancel.clone();
         
-        window.on_window_event(move |event| match event {
-            tauri::WindowEvent::Destroyed => {
+        window.on_window_event(move |event| {
+            if let tauri::WindowEvent::Destroyed = event {
                 // Window was destroyed, reset state
                 is_visible.store(false, Ordering::SeqCst);
                 is_hovered.store(false, Ordering::SeqCst);
@@ -222,7 +222,6 @@ impl ToolbarWindow {
                 }
                 log::debug!("[ToolbarWindow] Window destroyed");
             }
-            _ => {}
         });
 
         log::info!(

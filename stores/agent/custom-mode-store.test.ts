@@ -17,7 +17,10 @@ import {
   processPromptTemplateVariables,
   getTemplateVariablePreview,
   getModeTemplate,
+  getRecommendedMcpToolsForMode,
+  autoSelectMcpToolsForMode,
   type CustomModeConfig,
+  type McpToolReference,
 } from './custom-mode-store';
 
 describe('useCustomModeStore', () => {
@@ -633,5 +636,160 @@ describe('Prompt Template Variables', () => {
     const preview = getTemplateVariablePreview({});
     expect(preview['{{mode_name}}']).toBe('Custom Mode');
     expect(preview['{{tools_list}}']).toBe('No specific tools configured');
+  });
+});
+
+// =============================================================================
+// MCP Tool Recommendations Tests
+// =============================================================================
+
+describe('MCP Tool Recommendations', () => {
+  const createMockMcpTools = (): McpToolReference[] => [
+    { serverId: 'browser', toolName: 'web_search', displayName: 'Web Search' },
+    { serverId: 'browser', toolName: 'scrape_page', displayName: 'Scrape Page' },
+    { serverId: 'filesystem', toolName: 'file_read', displayName: 'File Read' },
+    { serverId: 'filesystem', toolName: 'file_write', displayName: 'File Write' },
+    { serverId: 'code', toolName: 'execute_code', displayName: 'Execute Code' },
+    { serverId: 'code', toolName: 'debug_code', displayName: 'Debug Code' },
+    { serverId: 'database', toolName: 'query_db', displayName: 'Query Database' },
+    { serverId: 'image', toolName: 'generate_image', displayName: 'Generate Image' },
+  ];
+
+  describe('getRecommendedMcpToolsForMode', () => {
+    it('should recommend tools matching mode description', () => {
+      const tools = createMockMcpTools();
+      const recommended = getRecommendedMcpToolsForMode(tools, {
+        name: 'Web Research',
+        description: 'Search the web and scrape content',
+        systemPrompt: 'You are a web research assistant',
+      });
+
+      expect(recommended.length).toBeGreaterThan(0);
+      expect(recommended.some(t => t.toolName === 'web_search')).toBe(true);
+      expect(recommended.some(t => t.toolName === 'scrape_page')).toBe(true);
+    });
+
+    it('should recommend tools matching mode name', () => {
+      const tools = createMockMcpTools();
+      const recommended = getRecommendedMcpToolsForMode(tools, {
+        name: 'Code Debugger',
+        description: 'Help with debugging',
+        systemPrompt: 'You help debug issues',
+      });
+
+      expect(recommended.some(t => t.toolName === 'debug_code')).toBe(true);
+    });
+
+    it('should boost tools based on category', () => {
+      const tools = createMockMcpTools();
+      const recommended = getRecommendedMcpToolsForMode(tools, {
+        name: 'Developer Assistant',
+        description: 'Help with coding tasks',
+        systemPrompt: 'You are a coding assistant',
+        category: 'technical',
+      });
+
+      // Technical category should boost code-related tools
+      const codeTools = recommended.filter(t => 
+        t.toolName.includes('code') || t.toolName.includes('execute') || t.toolName.includes('debug')
+      );
+      expect(codeTools.length).toBeGreaterThan(0);
+    });
+
+    it('should respect limit parameter', () => {
+      const tools = createMockMcpTools();
+      const recommended = getRecommendedMcpToolsForMode(tools, {
+        name: 'General',
+        description: 'search file code image database',
+        systemPrompt: 'search file code image database',
+      }, 3);
+
+      expect(recommended.length).toBeLessThanOrEqual(3);
+    });
+
+    it('should include relevance scores', () => {
+      const tools = createMockMcpTools();
+      const recommended = getRecommendedMcpToolsForMode(tools, {
+        name: 'Web Search',
+        description: 'Search the web',
+        systemPrompt: 'Search assistant',
+      });
+
+      for (const tool of recommended) {
+        expect(tool.relevanceScore).toBeDefined();
+        expect(tool.relevanceScore).toBeGreaterThanOrEqual(0);
+        expect(tool.relevanceScore).toBeLessThanOrEqual(1);
+      }
+    });
+
+    it('should sort by relevance score descending', () => {
+      const tools = createMockMcpTools();
+      const recommended = getRecommendedMcpToolsForMode(tools, {
+        name: 'Web Scraper',
+        description: 'Scrape web pages',
+        systemPrompt: 'Web scraping assistant',
+      });
+
+      for (let i = 1; i < recommended.length; i++) {
+        expect(recommended[i - 1].relevanceScore).toBeGreaterThanOrEqual(recommended[i].relevanceScore);
+      }
+    });
+
+    it('should filter out low relevance tools', () => {
+      const tools = createMockMcpTools();
+      const recommended = getRecommendedMcpToolsForMode(tools, {
+        name: 'Very Specific Tool',
+        description: 'xyz123 unique description',
+        systemPrompt: 'xyz123 unique prompt',
+      });
+
+      // All returned tools should have relevance > 0.1
+      for (const tool of recommended) {
+        expect(tool.relevanceScore).toBeGreaterThan(0.1);
+      }
+    });
+  });
+
+  describe('autoSelectMcpToolsForMode', () => {
+    it('should auto-select tools based on description', () => {
+      const tools = createMockMcpTools();
+      const selected = autoSelectMcpToolsForMode(tools, 'Search the web and read files');
+
+      expect(selected.length).toBeGreaterThan(0);
+      expect(selected.some(t => t.toolName === 'web_search')).toBe(true);
+      expect(selected.some(t => t.toolName === 'file_read')).toBe(true);
+    });
+
+    it('should respect maxTools parameter', () => {
+      const tools = createMockMcpTools();
+      const selected = autoSelectMcpToolsForMode(tools, 'search file code image database', 2);
+
+      expect(selected.length).toBeLessThanOrEqual(2);
+    });
+
+    it('should return tools without relevance score', () => {
+      const tools = createMockMcpTools();
+      const selected = autoSelectMcpToolsForMode(tools, 'Search the web');
+
+      for (const tool of selected) {
+        expect(tool).toHaveProperty('serverId');
+        expect(tool).toHaveProperty('toolName');
+        // Should not have relevanceScore (it's stripped)
+        expect((tool as McpToolReference & { relevanceScore?: number }).relevanceScore).toBeUndefined();
+      }
+    });
+
+    it('should handle empty description', () => {
+      const tools = createMockMcpTools();
+      const selected = autoSelectMcpToolsForMode(tools, '');
+
+      // Should return empty or minimal results for empty description
+      expect(selected.length).toBeLessThanOrEqual(tools.length);
+    });
+
+    it('should handle empty tools array', () => {
+      const selected = autoSelectMcpToolsForMode([], 'Search the web');
+      expect(selected).toEqual([]);
+    });
   });
 });

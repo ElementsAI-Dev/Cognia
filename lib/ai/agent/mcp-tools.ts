@@ -13,7 +13,13 @@ import type {
   McpServerState,
   ToolCallResult,
   ContentItem,
+  McpToolSelectionConfig,
+  ToolUsageRecord,
+  ToolSelectionResult,
+  ToolSelectionContext,
+  ScoredTool,
 } from '@/types/mcp';
+import { DEFAULT_TOOL_SELECTION_CONFIG } from '@/types/mcp';
 
 /**
  * Configuration for MCP tool adapter
@@ -391,6 +397,327 @@ export function getMcpToolByOriginalName(
   return tools[prefixedName];
 }
 
+// =============================================================================
+// Intelligent Tool Selection
+// =============================================================================
+
+/**
+ * Tokenize text into lowercase words for matching
+ */
+function tokenize(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fa5\s]/g, ' ')
+    .split(/\s+/)
+    .filter(t => t.length > 1);
+}
+
+/**
+ * Calculate word overlap score between two token sets
+ */
+function calculateOverlap(tokens1: string[], tokens2: string[]): number {
+  if (tokens1.length === 0 || tokens2.length === 0) return 0;
+  
+  const set2 = new Set(tokens2);
+  const matches = tokens1.filter(t => set2.has(t)).length;
+  
+  // Jaccard-like similarity
+  return matches / Math.max(tokens1.length, 1);
+}
+
+/**
+ * Calculate fuzzy name similarity
+ */
+function calculateNameSimilarity(query: string, toolName: string): number {
+  const queryLower = query.toLowerCase();
+  const nameLower = toolName.toLowerCase();
+  
+  // Exact match
+  if (queryLower.includes(nameLower) || nameLower.includes(queryLower)) {
+    return 1.0;
+  }
+  
+  // Check if any query word matches tool name parts
+  const queryTokens = tokenize(query);
+  const nameTokens = nameLower.split(/[_\-\s]+/);
+  
+  let matchScore = 0;
+  for (const qt of queryTokens) {
+    for (const nt of nameTokens) {
+      if (nt.includes(qt) || qt.includes(nt)) {
+        matchScore += 0.5;
+      }
+    }
+  }
+  
+  return Math.min(1.0, matchScore / Math.max(queryTokens.length, 1));
+}
+
+/**
+ * Calculate history-based boost for a tool
+ */
+function calculateHistoryBoost(
+  toolName: string,
+  usageHistory?: Map<string, ToolUsageRecord>
+): number {
+  if (!usageHistory) return 0;
+  
+  const record = usageHistory.get(toolName);
+  if (!record) return 0;
+  
+  // Factors: usage count, recency, success rate
+  const usageScore = Math.min(1, record.usageCount / 10);
+  const successRate = record.usageCount > 0 
+    ? record.successCount / record.usageCount 
+    : 0;
+  
+  // Recency: decay over 7 days
+  const daysSinceUse = (Date.now() - record.lastUsedAt) / (1000 * 60 * 60 * 24);
+  const recencyScore = Math.max(0, 1 - daysSinceUse / 7);
+  
+  return (usageScore * 0.4 + successRate * 0.3 + recencyScore * 0.3);
+}
+
+/**
+ * Score a single tool's relevance to a query
+ */
+export function scoreMcpToolRelevance(
+  tool: AgentTool,
+  context: ToolSelectionContext,
+  usageHistory?: Map<string, ToolUsageRecord>,
+  priorityServerIds?: string[]
+): ScoredTool {
+  const { query } = context;
+  const queryTokens = tokenize(query);
+  const descTokens = tokenize(tool.description || '');
+  
+  // Extract server info from tool name
+  const serverInfo = extractMcpServerInfo(tool.name);
+  const serverId = serverInfo?.serverId || '';
+  
+  // Calculate score components
+  const descriptionMatch = calculateOverlap(queryTokens, descTokens) * 0.4;
+  const nameMatch = calculateNameSimilarity(query, tool.name) * 0.25;
+  const historyBoost = calculateHistoryBoost(tool.name, usageHistory) * 0.2;
+  
+  // Priority boost for preferred servers
+  const priorityBoost = priorityServerIds?.includes(serverId) ? 0.15 : 0;
+  
+  const totalScore = Math.min(1, descriptionMatch + nameMatch + historyBoost + priorityBoost);
+  
+  return {
+    name: tool.name,
+    description: tool.description || '',
+    serverId,
+    serverName: serverInfo?.originalToolName || '',
+    relevanceScore: totalScore,
+    scoreBreakdown: {
+      descriptionMatch,
+      nameMatch,
+      historyBoost,
+      priorityBoost,
+    },
+  };
+}
+
+/**
+ * Select relevant MCP tools based on query and configuration
+ */
+export function selectMcpToolsByRelevance(
+  tools: Record<string, AgentTool>,
+  context: ToolSelectionContext,
+  config: Partial<McpToolSelectionConfig> = {},
+  usageHistory?: Map<string, ToolUsageRecord>
+): ToolSelectionResult {
+  const mergedConfig: McpToolSelectionConfig = {
+    ...DEFAULT_TOOL_SELECTION_CONFIG,
+    ...config,
+  };
+  
+  const {
+    maxTools,
+    enableRelevanceScoring,
+    minRelevanceScore,
+    priorityServerIds,
+    alwaysIncludeTools,
+    alwaysExcludeTools,
+  } = mergedConfig;
+  
+  const allToolNames = Object.keys(tools);
+  const totalAvailable = allToolNames.length;
+  
+  // If tools count is within limit, return all
+  if (totalAvailable <= maxTools && !enableRelevanceScoring) {
+    return {
+      selectedToolNames: allToolNames,
+      excludedToolNames: [],
+      totalAvailable,
+      selectionReason: 'All tools included (within limit)',
+      relevanceScores: {},
+      wasLimited: false,
+    };
+  }
+  
+  // Score all tools
+  const scoredTools: ScoredTool[] = [];
+  const relevanceScores: Record<string, number> = {};
+  
+  for (const [name, tool] of Object.entries(tools)) {
+    // Skip excluded tools
+    if (alwaysExcludeTools?.includes(name)) continue;
+    
+    const scored = scoreMcpToolRelevance(
+      tool,
+      context,
+      usageHistory,
+      priorityServerIds
+    );
+    scoredTools.push(scored);
+    relevanceScores[name] = scored.relevanceScore;
+  }
+  
+  // Sort by relevance score
+  scoredTools.sort((a, b) => b.relevanceScore - a.relevanceScore);
+  
+  // Build selection
+  const selectedToolNames: string[] = [];
+  const excludedToolNames: string[] = [];
+  
+  // First, add always-include tools
+  if (alwaysIncludeTools) {
+    for (const toolName of alwaysIncludeTools) {
+      if (tools[toolName] && !selectedToolNames.includes(toolName)) {
+        selectedToolNames.push(toolName);
+      }
+    }
+  }
+  
+  // Then, add by relevance score
+  for (const scored of scoredTools) {
+    if (selectedToolNames.length >= maxTools) {
+      excludedToolNames.push(scored.name);
+      continue;
+    }
+    
+    if (selectedToolNames.includes(scored.name)) continue;
+    
+    // Check minimum score threshold
+    if (enableRelevanceScoring && scored.relevanceScore < minRelevanceScore) {
+      excludedToolNames.push(scored.name);
+      continue;
+    }
+    
+    selectedToolNames.push(scored.name);
+  }
+  
+  // Add any excluded tools that weren't processed
+  for (const name of alwaysExcludeTools || []) {
+    if (!excludedToolNames.includes(name)) {
+      excludedToolNames.push(name);
+    }
+  }
+  
+  const wasLimited = selectedToolNames.length < totalAvailable;
+  let selectionReason = wasLimited
+    ? `Selected top ${selectedToolNames.length} of ${totalAvailable} tools by relevance`
+    : 'All qualifying tools included';
+  
+  if (enableRelevanceScoring && context.query) {
+    selectionReason += ` (query: "${context.query.slice(0, 50)}${context.query.length > 50 ? '...' : ''}")`;
+  }
+  
+  return {
+    selectedToolNames,
+    excludedToolNames,
+    totalAvailable,
+    selectionReason,
+    relevanceScores,
+    wasLimited,
+  };
+}
+
+/**
+ * Filter tools by selection result
+ */
+export function applyToolSelection(
+  tools: Record<string, AgentTool>,
+  selection: ToolSelectionResult
+): Record<string, AgentTool> {
+  const filtered: Record<string, AgentTool> = {};
+  
+  for (const name of selection.selectedToolNames) {
+    if (tools[name]) {
+      filtered[name] = tools[name];
+    }
+  }
+  
+  return filtered;
+}
+
+/**
+ * Get MCP tools with automatic selection if needed
+ * This is the main entry point for intelligent tool selection
+ */
+export function getMcpToolsWithSelection(
+  tools: Record<string, AgentTool>,
+  context: ToolSelectionContext,
+  config?: Partial<McpToolSelectionConfig>,
+  usageHistory?: Map<string, ToolUsageRecord>
+): {
+  tools: Record<string, AgentTool>;
+  selection: ToolSelectionResult;
+} {
+  const mergedConfig: McpToolSelectionConfig = {
+    ...DEFAULT_TOOL_SELECTION_CONFIG,
+    ...config,
+  };
+  
+  const totalTools = Object.keys(tools).length;
+  
+  // If manual strategy or tools within limit, return all
+  if (mergedConfig.strategy === 'manual' || totalTools <= mergedConfig.maxTools) {
+    return {
+      tools,
+      selection: {
+        selectedToolNames: Object.keys(tools),
+        excludedToolNames: [],
+        totalAvailable: totalTools,
+        selectionReason: 'All tools included',
+        relevanceScores: {},
+        wasLimited: false,
+      },
+    };
+  }
+  
+  // Apply intelligent selection
+  const selection = selectMcpToolsByRelevance(tools, context, mergedConfig, usageHistory);
+  const selectedTools = applyToolSelection(tools, selection);
+  
+  return { tools: selectedTools, selection };
+}
+
+/**
+ * Get recommended tools for a query (for UI suggestions)
+ */
+export function getRecommendedMcpTools(
+  tools: Record<string, AgentTool>,
+  query: string,
+  limit: number = 5,
+  usageHistory?: Map<string, ToolUsageRecord>
+): ScoredTool[] {
+  const context: ToolSelectionContext = { query };
+  const scoredTools: ScoredTool[] = [];
+  
+  for (const tool of Object.values(tools)) {
+    const scored = scoreMcpToolRelevance(tool, context, usageHistory);
+    scoredTools.push(scored);
+  }
+  
+  return scoredTools
+    .sort((a, b) => b.relevanceScore - a.relevanceScore)
+    .slice(0, limit);
+}
+
 const mcpToolsAdapter = {
   convertMcpToolToAgentTool,
   convertMcpServerTools,
@@ -400,6 +727,12 @@ const mcpToolsAdapter = {
   filterMcpToolsByServers,
   getMcpToolByOriginalName,
   formatMcpToolResult,
+  // New intelligent selection functions
+  scoreMcpToolRelevance,
+  selectMcpToolsByRelevance,
+  applyToolSelection,
+  getMcpToolsWithSelection,
+  getRecommendedMcpTools,
 };
 
 export default mcpToolsAdapter;

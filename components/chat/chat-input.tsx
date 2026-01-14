@@ -775,7 +775,7 @@ export function ChatInput({
                   <FileText className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Insert template</TooltipContent>
+              <TooltipContent>{t('insertTemplate')}</TooltipContent>
             </Tooltip>
 
             {/* Prompt optimizer button */}

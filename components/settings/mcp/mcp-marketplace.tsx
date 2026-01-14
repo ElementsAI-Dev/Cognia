@@ -29,6 +29,9 @@ import {
   List,
   ChevronLeft,
   ChevronRight,
+  Clock,
+  Package,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -78,7 +81,7 @@ import { useMcpStore } from '@/stores/mcp';
 import type { McpMarketplaceItem, McpMarketplaceSortOption, McpMarketplaceSource } from '@/types/mcp/mcp-marketplace';
 import { MARKETPLACE_SORT_OPTIONS, MARKETPLACE_SOURCES } from '@/types/mcp/mcp-marketplace';
 import { formatDownloadCount, formatStarCount } from '@/lib/mcp/marketplace';
-import { getSourceColor, highlightSearchQuery, type HighlightSegment } from '@/lib/mcp/marketplace-utils';
+import { getSourceColor, highlightSearchQuery, handleGridKeyNavigation, type HighlightSegment } from '@/lib/mcp/marketplace-utils';
 import { useDebounce } from '@/hooks';
 import { McpMarketplaceDetailDialog } from './mcp-marketplace-detail-dialog';
 
@@ -362,10 +365,30 @@ export function McpMarketplace() {
     return servers.some((server) => server.id === mcpId || server.name === mcpId);
   }, [servers]);
 
+  const { addToRecentlyViewed, getRecentlyViewedItems, clearRecentlyViewed } = useMcpMarketplaceStore();
+
+  const [showInstalledOnly, setShowInstalledOnly] = useState(false);
+
+  // Get recently viewed items
+  const recentlyViewedItems = useMemo(() => getRecentlyViewedItems().slice(0, 5), [getRecentlyViewedItems]);
+
+  // Count installed items
+  const installedCount = useMemo(() => {
+    if (!catalog) return 0;
+    return catalog.items.filter((item) => isItemInstalled(item.mcpId)).length;
+  }, [catalog, isItemInstalled]);
+
+  // Filter by installed if enabled
+  const displayItems = useMemo(() => {
+    if (!showInstalledOnly) return paginatedItems;
+    return filteredItems.filter((item) => isItemInstalled(item.mcpId));
+  }, [showInstalledOnly, paginatedItems, filteredItems, isItemInstalled]);
+
   const handleSelectItem = useCallback((item: McpMarketplaceItem) => {
     selectItem(item);
+    addToRecentlyViewed(item.mcpId);
     setDetailDialogOpen(true);
-  }, [selectItem]);
+  }, [selectItem, addToRecentlyViewed]);
 
   const handleInstall = useCallback(async (item: McpMarketplaceItem) => {
     setInstallStatus(item.mcpId, 'installing');
@@ -385,49 +408,18 @@ export function McpMarketplace() {
     setFilters({ source });
   }, [setFilters]);
 
-  // Keyboard navigation handler
+  // Keyboard navigation handler using utility function
   const handleGridKeyDown = useCallback((e: React.KeyboardEvent) => {
     const itemCount = paginatedItems.length;
     if (itemCount === 0) return;
 
     // Calculate columns based on viewport
     const columnsPerRow = window.innerWidth >= 1024 ? 3 : window.innerWidth >= 640 ? 2 : 1;
-    let newIndex = focusedIndex;
 
-    switch (e.key) {
-      case 'ArrowRight':
-        newIndex = Math.min(focusedIndex + 1, itemCount - 1);
-        break;
-      case 'ArrowLeft':
-        newIndex = Math.max(focusedIndex - 1, 0);
-        break;
-      case 'ArrowDown':
-        newIndex = Math.min(focusedIndex + columnsPerRow, itemCount - 1);
-        break;
-      case 'ArrowUp':
-        newIndex = Math.max(focusedIndex - columnsPerRow, 0);
-        break;
-      case 'Home':
-        newIndex = 0;
-        break;
-      case 'End':
-        newIndex = itemCount - 1;
-        break;
-      case 'Enter':
-      case ' ':
-        if (focusedIndex >= 0 && focusedIndex < itemCount) {
-          e.preventDefault();
-          handleSelectItem(paginatedItems[focusedIndex]);
-        }
-        return;
-      default:
-        return;
-    }
-
-    if (newIndex !== focusedIndex) {
-      e.preventDefault();
-      setFocusedIndex(newIndex);
-    }
+    handleGridKeyNavigation(e, { focusedIndex, itemCount }, columnsPerRow, {
+      onFocusChange: setFocusedIndex,
+      onSelect: (index) => handleSelectItem(paginatedItems[index]),
+    });
   }, [focusedIndex, paginatedItems, handleSelectItem]);
 
   const hasActiveFilters = filters.search || filters.tags.length > 0 || filters.requiresApiKey !== undefined || filters.verified !== undefined || filters.remote !== undefined || showFavoritesOnly;
@@ -701,6 +693,26 @@ export function McpMarketplace() {
               {t('resultsCount', { count: filteredItems.length, total: catalog.items.length })}
             </div>
             <div className="flex items-center gap-2">
+              {/* Installed Filter Toggle */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={showInstalledOnly ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-7 gap-1.5"
+                    onClick={() => setShowInstalledOnly(!showInstalledOnly)}
+                  >
+                    <Package className="h-3.5 w-3.5" />
+                    {installedCount > 0 && (
+                      <Badge variant="secondary" className="text-[10px] px-1 h-4">
+                        {installedCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('showInstalledOnly')}</TooltipContent>
+              </Tooltip>
+
               {/* Favorites Filter Toggle */}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -754,6 +766,43 @@ export function McpMarketplace() {
           </div>
         )}
 
+        {/* Recently Viewed Section */}
+        {!isLoading && recentlyViewedItems.length > 0 && !hasActiveFilters && !showFavoritesOnly && !showInstalledOnly && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                {t('recentlyViewed')}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs text-muted-foreground"
+                onClick={() => clearRecentlyViewed()}
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                {t('clear')}
+              </Button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {recentlyViewedItems.map((item) => (
+                <Button
+                  key={item.mcpId}
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs shrink-0 gap-1.5"
+                  onClick={() => handleSelectItem(item)}
+                >
+                  {item.name}
+                  {isItemInstalled(item.mcpId) && (
+                    <Check className="h-3 w-3 text-green-500" />
+                  )}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Loading State */}
         {isLoading && !catalog && (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -782,7 +831,7 @@ export function McpMarketplace() {
         )}
 
         {/* Marketplace Grid */}
-        {!isLoading && paginatedItems.length > 0 && (
+        {!isLoading && displayItems.length > 0 && (
           <div 
             ref={gridRef}
             className={viewMode === 'grid' 
@@ -793,7 +842,7 @@ export function McpMarketplace() {
             role="grid"
             aria-label={t('title')}
           >
-            {paginatedItems.map((item, index) => (
+            {displayItems.map((item, index) => (
               <MarketplaceCard
                 key={item.mcpId}
                 item={item}

@@ -1133,6 +1133,131 @@ export function getTemplateVariablePreview(context: PromptTemplateContext = {}):
 }
 
 // =============================================================================
+// Intelligent MCP Tool Recommendations
+// =============================================================================
+
+/**
+ * Score MCP tool relevance for a custom mode
+ */
+function scoreMcpToolForMode(
+  tool: McpToolReference,
+  modeDescription: string,
+  modeName: string,
+  systemPrompt: string
+): number {
+  const toolName = tool.toolName.toLowerCase();
+  const displayName = (tool.displayName || tool.toolName).toLowerCase();
+  const modeDescLower = modeDescription.toLowerCase();
+  const modeNameLower = modeName.toLowerCase();
+  const promptLower = systemPrompt.toLowerCase();
+  
+  let score = 0;
+  
+  // Check if tool name appears in mode description, name, or prompt
+  if (modeDescLower.includes(toolName) || modeDescLower.includes(displayName)) {
+    score += 0.4;
+  }
+  if (modeNameLower.includes(toolName) || modeNameLower.includes(displayName)) {
+    score += 0.3;
+  }
+  if (promptLower.includes(toolName) || promptLower.includes(displayName)) {
+    score += 0.3;
+  }
+  
+  // Boost for common tool patterns
+  const searchTerms = ['search', 'find', 'query', 'lookup'];
+  const fileTerms = ['file', 'read', 'write', 'document'];
+  const webTerms = ['web', 'browse', 'scrape', 'url'];
+  const codeTerms = ['code', 'execute', 'run', 'script'];
+  
+  const combinedText = `${modeDescLower} ${modeNameLower} ${promptLower}`;
+  
+  if (searchTerms.some(t => toolName.includes(t)) && searchTerms.some(t => combinedText.includes(t))) {
+    score += 0.2;
+  }
+  if (fileTerms.some(t => toolName.includes(t)) && fileTerms.some(t => combinedText.includes(t))) {
+    score += 0.2;
+  }
+  if (webTerms.some(t => toolName.includes(t)) && webTerms.some(t => combinedText.includes(t))) {
+    score += 0.2;
+  }
+  if (codeTerms.some(t => toolName.includes(t)) && codeTerms.some(t => combinedText.includes(t))) {
+    score += 0.2;
+  }
+  
+  return Math.min(1.0, score);
+}
+
+/**
+ * Get recommended MCP tools for a custom mode based on its configuration
+ */
+export function getRecommendedMcpToolsForMode(
+  availableTools: McpToolReference[],
+  modeConfig: {
+    name: string;
+    description: string;
+    systemPrompt: string;
+    category?: CustomModeCategory;
+  },
+  limit: number = 10
+): Array<McpToolReference & { relevanceScore: number }> {
+  const { name, description, systemPrompt, category } = modeConfig;
+  
+  // Score each tool
+  const scoredTools = availableTools.map(tool => ({
+    ...tool,
+    relevanceScore: scoreMcpToolForMode(tool, description, name, systemPrompt),
+  }));
+  
+  // Category-based boost
+  const categoryToolPatterns: Record<string, string[]> = {
+    technical: ['code', 'execute', 'debug', 'compile', 'git', 'terminal'],
+    research: ['search', 'academic', 'paper', 'citation', 'web'],
+    creative: ['image', 'generate', 'design', 'art', 'media'],
+    productivity: ['file', 'document', 'calendar', 'email', 'task'],
+    education: ['quiz', 'flashcard', 'learn', 'explain', 'tutor'],
+    business: ['spreadsheet', 'chart', 'report', 'analyze', 'database'],
+  };
+  
+  if (category && categoryToolPatterns[category]) {
+    const patterns = categoryToolPatterns[category];
+    for (const tool of scoredTools) {
+      const toolNameLower = tool.toolName.toLowerCase();
+      if (patterns.some(p => toolNameLower.includes(p))) {
+        tool.relevanceScore = Math.min(1.0, tool.relevanceScore + 0.15);
+      }
+    }
+  }
+  
+  // Sort by score and return top N
+  return scoredTools
+    .filter(t => t.relevanceScore > 0.1)
+    .sort((a, b) => b.relevanceScore - a.relevanceScore)
+    .slice(0, limit);
+}
+
+/**
+ * Auto-select MCP tools for a mode based on its description
+ */
+export function autoSelectMcpToolsForMode(
+  availableTools: McpToolReference[],
+  modeDescription: string,
+  maxTools: number = 10
+): McpToolReference[] {
+  const recommended = getRecommendedMcpToolsForMode(
+    availableTools,
+    {
+      name: '',
+      description: modeDescription,
+      systemPrompt: modeDescription,
+    },
+    maxTools
+  );
+  
+  return recommended.map(({ relevanceScore: _, ...tool }) => tool);
+}
+
+// =============================================================================
 // Selectors
 // =============================================================================
 
