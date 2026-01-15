@@ -2,7 +2,7 @@
  * Sandbox/Environment related hooks
  */
 
-export { useSandbox } from './use-sandbox';
+export { useSandbox, useQuickCodeExecution } from './use-sandbox';
 export {
   useExecutionHistory,
   useSnippets,

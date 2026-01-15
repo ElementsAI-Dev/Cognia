@@ -32,6 +32,15 @@ import {
   not,
   namedCondition,
 } from './stop-conditions';
+import {
+  checkToolCallSafety,
+  type SafetyCheckOptions,
+  getSafetyWarningMessage,
+} from '../core/middleware';
+import {
+  createAgentObservabilityManager,
+  type AgentObservabilityManager,
+} from '../observability/agent-observability';
 
 export interface ToolCall {
   id: string;
@@ -103,6 +112,16 @@ export interface AgentConfig {
   onFinish?: (result: AgentResult) => void;
   /** Callback when stop condition is triggered */
   onStopCondition?: (result: StopConditionResult) => void;
+  /** Safety check options for tool calls */
+  safetyOptions?: SafetyCheckOptions;
+  /** Session ID for observability tracking */
+  sessionId?: string;
+  /** User ID for observability tracking */
+  userId?: string;
+  /** Agent name for observability (defaults to 'agent') */
+  agentName?: string;
+  /** Enable observability tracking */
+  enableObservability?: boolean;
 }
 
 export interface AgentResult {
@@ -138,7 +157,8 @@ function createSDKTool(
   toolCallTracker: Map<string, ToolCall>,
   onToolCall?: (toolCall: ToolCall) => void,
   onToolResult?: (toolCall: ToolCall) => void,
-  requireApproval?: (toolCall: ToolCall) => Promise<boolean>
+  requireApproval?: (toolCall: ToolCall) => Promise<boolean>,
+  safetyOptions?: SafetyCheckOptions
 ) {
   // Extract MCP server info if this is an MCP tool
   const mcpInfo = isMcpTool(name) ? extractMcpServerInfo(name) : null;
@@ -160,6 +180,18 @@ function createSDKTool(
 
       toolCallTracker.set(toolCallId, toolCall);
       onToolCall?.(toolCall);
+
+      // Apply safety checks if enabled
+      if (safetyOptions && safetyOptions.checkToolCalls) {
+        const safetyCheck = checkToolCallSafety(name, args as Record<string, unknown>, safetyOptions);
+        if (safetyCheck.blocked) {
+          toolCall.status = 'error';
+          toolCall.error = getSafetyWarningMessage(safetyCheck) || 'Tool call blocked by safety mode';
+          toolCall.completedAt = new Date();
+          onToolResult?.(toolCall);
+          throw new Error(toolCall.error);
+        }
+      }
 
       // Check if approval is required
       if (agentTool.requiresApproval && requireApproval) {
@@ -201,7 +233,8 @@ function convertToAISDKTools(
   toolCallTracker: Map<string, ToolCall>,
   onToolCall?: (toolCall: ToolCall) => void,
   onToolResult?: (toolCall: ToolCall) => void,
-  requireApproval?: (toolCall: ToolCall) => Promise<boolean>
+  requireApproval?: (toolCall: ToolCall) => Promise<boolean>,
+  safetyOptions?: SafetyCheckOptions
 ) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sdkTools: Record<string, any> = {};
@@ -213,7 +246,8 @@ function convertToAISDKTools(
       toolCallTracker,
       onToolCall,
       onToolResult,
-      requireApproval
+      requireApproval,
+      safetyOptions
     );
   }
 
@@ -248,12 +282,46 @@ export async function executeAgent(
     prepareStep: prepareStepCallback,
     onFinish,
     onStopCondition,
+    sessionId,
+    userId,
+    agentName = 'agent',
+    enableObservability = true,
   } = config;
+
+  // Initialize observability manager if enabled
+  let observabilityManager: AgentObservabilityManager | null = null;
+  if (enableObservability && sessionId) {
+    observabilityManager = createAgentObservabilityManager({
+      sessionId,
+      userId,
+      agentName,
+      task: prompt,
+      enableLangfuse: true,
+      enableOpenTelemetry: true,
+      metadata: {
+        provider,
+        model,
+        maxSteps,
+      },
+    });
+    observabilityManager.startAgentExecution();
+  }
 
   const modelInstance = getProviderModel(provider, model, apiKey, baseURL);
   const startTime = new Date();
   const steps: AgentStep[] = [];
   const toolCallTracker = new Map<string, ToolCall>();
+
+  const cleanupToolCalls = (reason: string) => {
+    for (const toolCall of toolCallTracker.values()) {
+      if (toolCall.status === 'pending' || toolCall.status === 'running') {
+        toolCall.status = 'error';
+        toolCall.error = reason;
+        toolCall.completedAt = new Date();
+        onToolResult?.(toolCall);
+      }
+    }
+  };
 
   // Track step count for callbacks
   let stepCount = 0;
@@ -354,7 +422,8 @@ export async function executeAgent(
         toolCallTracker,
         onToolCall,
         onToolResult,
-        requireApproval
+        requireApproval,
+        config.safetyOptions
       )
     : undefined;
 
@@ -375,6 +444,7 @@ export async function executeAgent(
         if (stepCount > 1) {
           const stopResult = checkStopConditions();
           if (stopResult) {
+            cleanupToolCalls(stopResult.reason ?? 'Agent execution stopped');
             // Call the onStopCondition callback
             onStopCondition?.(stopResult);
             // Return signal to stop (AI SDK will handle this)
@@ -486,13 +556,26 @@ export async function executeAgent(
       toolResults: allToolResults.length > 0 ? allToolResults : undefined,
     };
 
+    // End observability tracking
+    if (observabilityManager) {
+      const allToolCalls: ToolCall[] = steps.flatMap(s => s.toolCalls);
+      observabilityManager.endAgentExecution(result.text, allToolCalls);
+    }
+
     // Call onFinish callback
     onFinish?.(agentResult);
 
     return agentResult;
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Agent execution failed');
+    cleanupToolCalls(err.message);
     onError?.(err);
+
+    // End observability tracking on error
+    if (observabilityManager) {
+      const allToolCalls: ToolCall[] = steps.flatMap(s => s.toolCalls);
+      observabilityManager.endAgentExecution(`Error: ${err.message}`, allToolCalls);
+    }
 
     return {
       success: false,

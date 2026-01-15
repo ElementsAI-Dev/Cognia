@@ -179,6 +179,36 @@ pub async fn screenshot_clear_history(manager: State<'_, ScreenshotManager>) -> 
     Ok(())
 }
 
+/// Add tag to screenshot
+#[tauri::command]
+pub async fn screenshot_add_tag(
+    manager: State<'_, ScreenshotManager>,
+    id: String,
+    tag: String,
+) -> Result<bool, String> {
+    Ok(manager.add_tag(&id, tag))
+}
+
+/// Remove tag from screenshot
+#[tauri::command]
+pub async fn screenshot_remove_tag(
+    manager: State<'_, ScreenshotManager>,
+    id: String,
+    tag: String,
+) -> Result<bool, String> {
+    Ok(manager.remove_tag(&id, &tag))
+}
+
+/// Set label for screenshot
+#[tauri::command]
+pub async fn screenshot_set_label(
+    manager: State<'_, ScreenshotManager>,
+    id: String,
+    label: String,
+) -> Result<bool, String> {
+    Ok(manager.set_label(&id, label))
+}
+
 // ============== Windows OCR Commands ==============
 
 /// Extract text using Windows OCR

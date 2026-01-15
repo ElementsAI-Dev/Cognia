@@ -36,6 +36,7 @@ import { WorkflowResultCard, type WorkflowResultData, type WorkflowExecutionStat
 import { MessageSwipeActions, type SwipeAction } from '../ui/message-swipe-actions';
 import { WelcomeState } from '../welcome/welcome-state';
 import { CarriedContextBanner } from '../ui/carried-context-banner';
+import { ChatGoalBanner } from '../goal';
 import { BranchButton } from '../selectors';
 import { TextSelectionPopover } from '../popovers';
 import { QuotedContent } from '../message';
@@ -1646,6 +1647,32 @@ Be thorough in your thinking but concise in your final answer.`;
         viewMode={viewMode}
         onViewModeChange={handleViewModeChange}
       />
+
+      {/* Chat Goal Banner */}
+      {session?.goal && (
+        <div className="px-4 py-2 border-b border-border/50">
+          <ChatGoalBanner
+            goal={session.goal}
+            onEdit={() => {
+              // Goal editing is handled in ChatHeader's goal dialog
+              // We could emit an event or use a store to open it
+            }}
+            onComplete={() => {
+              useSessionStore.getState().completeGoal(session.id);
+            }}
+            onPause={() => {
+              useSessionStore.getState().pauseGoal(session.id);
+            }}
+            onResume={() => {
+              useSessionStore.getState().resumeGoal(session.id);
+            }}
+            onClear={() => {
+              useSessionStore.getState().clearGoal(session.id);
+            }}
+            compact
+          />
+        </div>
+      )}
 
       {error && (
         <ErrorMessage

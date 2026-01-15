@@ -11,6 +11,30 @@ export type { ProviderName, UIMessage, ChatViewMode, FlowChatCanvasState };
 
 export type ChatMode = 'chat' | 'agent' | 'research' | 'learning';
 
+export type ChatGoalStatus = 'active' | 'completed' | 'paused';
+
+export interface GoalStep {
+  id: string;
+  content: string;
+  completed: boolean;
+  order: number;
+  createdAt: Date;
+  completedAt?: Date;
+}
+
+export interface ChatGoal {
+  id: string;
+  content: string;
+  status: ChatGoalStatus;
+  progress?: number; // 0-100, auto-calculated from steps if steps exist
+  steps?: GoalStep[]; // Multi-step goal support
+  originalContent?: string; // Original content before AI polish
+  isPolished?: boolean; // Whether the goal was polished by AI
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt?: Date;
+}
+
 export interface ConversationBranch {
   id: string;
   name: string;
@@ -99,6 +123,9 @@ export interface Session {
   // Flow chat canvas state (for flow view mode)
   viewMode?: ChatViewMode;
   flowCanvasState?: FlowChatCanvasState;
+
+  // Conversation goal - what this chat aims to achieve
+  goal?: ChatGoal;
 }
 
 export interface SessionWithMessages extends Session {
@@ -149,4 +176,30 @@ export interface UpdateSessionInput {
   virtualEnvPath?: string;
   viewMode?: ChatViewMode;
   flowCanvasState?: FlowChatCanvasState;
+  goal?: ChatGoal;
+}
+
+export interface CreateGoalInput {
+  content: string;
+  progress?: number;
+  steps?: Array<{ content: string }>;
+  originalContent?: string;
+  isPolished?: boolean;
+}
+
+export interface UpdateGoalInput {
+  content?: string;
+  status?: ChatGoalStatus;
+  progress?: number;
+  originalContent?: string;
+  isPolished?: boolean;
+}
+
+export interface CreateStepInput {
+  content: string;
+}
+
+export interface UpdateStepInput {
+  content?: string;
+  completed?: boolean;
 }

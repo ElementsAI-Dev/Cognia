@@ -426,6 +426,95 @@ describe('executeAgent', () => {
     expect(onError).toHaveBeenCalled();
   });
 
+  it('marks pending tool calls as error when execution fails', async () => {
+    const onToolResult = jest.fn();
+    let resolvePending = () => {};
+    const pending = new Promise<void>((resolve) => {
+      resolvePending = resolve;
+    });
+
+    mockGenerateText.mockImplementation(async (config: MockConfig) => {
+      const { tools } = config;
+      if (tools?.long_tool) {
+        void tools.long_tool.execute({});
+      }
+      throw new Error('Boom');
+    });
+
+    const tools: Record<string, AgentTool> = {
+      long_tool: {
+        name: 'long_tool',
+        description: 'Long running tool',
+        parameters: z.object({}),
+        execute: jest.fn(() => pending),
+      },
+    };
+
+    const result = await executeAgent('Test', {
+      ...baseConfig,
+      tools,
+      onToolResult,
+    });
+
+    resolvePending();
+
+    expect(result.success).toBe(false);
+    expect(onToolResult).toHaveBeenCalled();
+    expect(onToolResult.mock.calls[0][0].status).toBe('error');
+    expect(onToolResult.mock.calls[0][0].error).toBe('Boom');
+  });
+
+  it('cleans up running tools when stop condition triggers', async () => {
+    const onToolResult = jest.fn();
+    let resolvePending = () => {};
+    const pending = new Promise<void>((resolve) => {
+      resolvePending = resolve;
+    });
+
+    mockGenerateText.mockImplementation(async (config: MockConfig) => {
+      const { prepareStep, tools } = config;
+
+      const first = await prepareStep?.();
+      if (first && 'stop' in first) {
+        return { text: '', finishReason: 'stop', usage: {}, steps: [] };
+      }
+
+      if (tools?.long_tool) {
+        void tools.long_tool.execute({});
+      }
+
+      const second = await prepareStep?.();
+      if (second && 'stop' in second) {
+        return { text: 'Stopped', finishReason: 'stop', usage: {}, steps: [] };
+      }
+
+      return { text: 'Done', finishReason: 'stop', usage: {}, steps: [] };
+    });
+
+    const tools: Record<string, AgentTool> = {
+      long_tool: {
+        name: 'long_tool',
+        description: 'Long running tool',
+        parameters: z.object({}),
+        execute: jest.fn(() => pending),
+      },
+    };
+
+    const result = await executeAgent('Test', {
+      ...baseConfig,
+      tools,
+      stopConditions: [{ type: 'stepCount', count: 1 }],
+      onToolResult,
+    });
+
+    resolvePending();
+
+    expect(result.success).toBe(true);
+    expect(onToolResult).toHaveBeenCalled();
+    expect(onToolResult.mock.calls[0][0].status).toBe('error');
+    expect(onToolResult.mock.calls[0][0].error).toBe('Step count reached: 1');
+  });
+
   it('handles tool approval rejection', async () => {
     const requireApproval = jest.fn().mockResolvedValue(false);
 
@@ -707,6 +796,169 @@ describe('ToolCall interface', () => {
 
     expect(toolCall.status).toBe('error');
     expect(toolCall.error).toBe('Something went wrong');
+  });
+});
+
+describe('Safety Mode - Tool Call Safety', () => {
+  const baseConfig: AgentConfig = {
+    provider: 'openai',
+    model: 'gpt-4o',
+    apiKey: 'test-key',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('blocks dangerous tool calls when safety mode is enabled', async () => {
+    mockGenerateText.mockResolvedValue({
+      text: 'Response',
+      finishReason: 'stop',
+      usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      steps: [{
+        text: 'Response',
+        finishReason: 'stop',
+        toolCalls: [],
+        usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      }],
+    });
+
+    const dangerousTool: AgentTool = {
+      name: 'shell_execute',
+      description: 'Execute shell commands',
+      parameters: z.object({ command: z.string() }),
+      execute: jest.fn().mockResolvedValue({ success: true }),
+    };
+
+    await executeAgent('Execute command', {
+      ...baseConfig,
+      tools: { shell_execute: dangerousTool },
+      safetyOptions: {
+        mode: 'block',
+        checkUserInput: false,
+        checkSystemPrompt: false,
+        checkToolCalls: true,
+        blockDangerousCommands: true,
+        customBlockedPatterns: [],
+        customAllowedPatterns: [],
+      },
+    });
+
+    // Dangerous tool should not be executed
+    expect(dangerousTool.execute).not.toHaveBeenCalled();
+  });
+
+  it('allows safe tool calls when safety mode is enabled', async () => {
+    mockGenerateText.mockResolvedValue({
+      text: 'Response',
+      finishReason: 'stop',
+      usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      steps: [{
+        text: 'Response',
+        finishReason: 'stop',
+        toolCalls: [],
+        usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      }],
+    });
+
+    const safeTool: AgentTool = {
+      name: 'file_read',
+      description: 'Read file contents',
+      parameters: z.object({ path: z.string() }),
+      execute: jest.fn().mockResolvedValue({ success: true, content: 'test' }),
+    };
+
+    const result = await executeAgent('Read file', {
+      ...baseConfig,
+      tools: { file_read: safeTool },
+      safetyOptions: {
+        mode: 'block',
+        checkUserInput: false,
+        checkSystemPrompt: false,
+        checkToolCalls: true,
+        blockDangerousCommands: true,
+        customBlockedPatterns: [],
+        customAllowedPatterns: [],
+      },
+    });
+
+    // Safe tool should be executed (if called by AI)
+    expect(result.success).toBe(true);
+  });
+
+  it('skips tool call safety checks when disabled', async () => {
+    mockGenerateText.mockResolvedValue({
+      text: 'Response',
+      finishReason: 'stop',
+      usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      steps: [{
+        text: 'Response',
+        finishReason: 'stop',
+        toolCalls: [],
+        usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      }],
+    });
+
+    const tool: AgentTool = {
+      name: 'any_tool',
+      description: 'Any tool',
+      parameters: z.object({}),
+      execute: jest.fn().mockResolvedValue({ success: true }),
+    };
+
+    const result = await executeAgent('Execute', {
+      ...baseConfig,
+      tools: { any_tool: tool },
+      safetyOptions: {
+        mode: 'off',
+        checkUserInput: false,
+        checkSystemPrompt: false,
+        checkToolCalls: false,
+        blockDangerousCommands: false,
+        customBlockedPatterns: [],
+        customAllowedPatterns: [],
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('warns on suspicious tool calls in warn mode', async () => {
+    mockGenerateText.mockResolvedValue({
+      text: 'Response',
+      finishReason: 'stop',
+      usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      steps: [{
+        text: 'Response',
+        finishReason: 'stop',
+        toolCalls: [],
+        usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      }],
+    });
+
+    const suspiciousTool: AgentTool = {
+      name: 'system_modify',
+      description: 'Modify system settings',
+      parameters: z.object({}),
+      execute: jest.fn().mockResolvedValue({ success: true }),
+    };
+
+    const result = await executeAgent('Modify system', {
+      ...baseConfig,
+      tools: { system_modify: suspiciousTool },
+      safetyOptions: {
+        mode: 'warn',
+        checkUserInput: false,
+        checkSystemPrompt: false,
+        checkToolCalls: true,
+        blockDangerousCommands: true,
+        customBlockedPatterns: [],
+        customAllowedPatterns: [],
+      },
+    });
+
+    // In warn mode, execution continues but warnings should be logged
+    expect(result.success).toBe(true);
   });
 });
 

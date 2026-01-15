@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   SelectionAction,
   ToolbarState,
@@ -84,9 +84,15 @@ const toNativeConfig = (config: ToolbarConfig): NativeSelectionConfig => ({
 });
 
 
+// Cooldown period after hiding to prevent immediate re-show (prevents flashing)
+const HIDE_COOLDOWN_MS = 300;
+
 export function useSelectionToolbar() {
   const [state, setState] = useState<ToolbarState>(initialState);
   const store = useSelectionStore();
+  
+  // Track when toolbar was last hidden to prevent immediate re-show (flashing)
+  const lastHideTimeRef = useRef<number>(0);
   
   // Get config from store
   const config = store.config;
@@ -208,6 +214,14 @@ export function useSelectionToolbar() {
       const { listen } = await import("@tauri-apps/api/event");
       
       unlistenShow = await listen<SelectionPayload>("selection-toolbar-show", (event) => {
+        // Check if we're in cooldown period after a recent hide
+        // This prevents the "flash" issue where toolbar hides then immediately re-shows
+        const timeSinceHide = Date.now() - lastHideTimeRef.current;
+        if (timeSinceHide < HIDE_COOLDOWN_MS) {
+          console.debug(`[SelectionToolbar] Ignoring show event during cooldown (${timeSinceHide}ms since hide)`);
+          return;
+        }
+        
         setState((prev) => ({
           ...prev,
           isVisible: true,
@@ -352,6 +366,9 @@ export function useSelectionToolbar() {
   const hideToolbar = useCallback(async () => {
     // Cancel any ongoing request
     stop();
+
+    // Record hide time to enable cooldown (prevents flash on immediate re-show)
+    lastHideTimeRef.current = Date.now();
 
     setState(initialState);
 

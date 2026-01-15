@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Sparkles, MessageCircle, Settings, X, RotateCcw } from "lucide-react";
+import { isTauri } from "@/lib/native/utils";
 
 const STORAGE_KEY = "cognia-assistant-bubble";
 
@@ -21,7 +22,7 @@ type BubbleState = {
 type MenuPosition = 'above' | 'below';
 
 export default function AssistantBubblePage() {
-  const pressTimerRef = useRef<number | null>(null);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const didDragRef = useRef(false);
   const lastClickTimeRef = useRef<number>(0);
   const [isHovered, setIsHovered] = useState(false);
@@ -41,7 +42,7 @@ export default function AssistantBubblePage() {
 
   // Restore last bubble position and keep it persisted + listen for state updates
   useEffect(() => {
-    if (typeof window === "undefined" || !(window as typeof window & { __TAURI__?: unknown }).__TAURI__) {
+    if (!isTauri()) {
       return;
     }
 
@@ -169,7 +170,7 @@ export default function AssistantBubblePage() {
   }, []);
 
   const handleClick = useCallback(async () => {
-    if (typeof window === "undefined" || !(window as typeof window & { __TAURI__?: unknown }).__TAURI__) {
+    if (!isTauri()) {
       return;
     }
 
@@ -207,7 +208,7 @@ export default function AssistantBubblePage() {
   // Create new session (moved before onPointerUp to fix declaration order)
   const handleNewSession = useCallback(async () => {
     setShowContextMenu(false);
-    if (typeof window === "undefined" || !(window as typeof window & { __TAURI__?: unknown }).__TAURI__) {
+    if (!isTauri()) {
       return;
     }
     const { invoke } = await import("@tauri-apps/api/core");
@@ -218,51 +219,32 @@ export default function AssistantBubblePage() {
   }, []);
 
   const startDrag = useCallback(async () => {
-    if (typeof window === "undefined" || !(window as typeof window & { __TAURI__?: unknown }).__TAURI__) {
+    if (!isTauri() || isDragging) {
       return;
     }
+
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     const appWindow = getCurrentWindow();
     didDragRef.current = true;
     setIsDragging(true);
-    
-    // Listen for drag end
-    const unlistenDragEnd = await appWindow.onDragDropEvent(() => {
-      setIsDragging(false);
-    });
-    
-    await appWindow.startDragging();
-    
-    // Clean up after a short delay (drag usually ends quickly)
-    setTimeout(() => {
-      setIsDragging(false);
-      unlistenDragEnd();
-    }, 100);
-  }, []);
 
-  const onPointerDown = useCallback(() => {
+    try {
+      await appWindow.startDragging();
+    } finally {
+      setIsDragging(false);
+    }
+  }, [isDragging]);
+
+  const onPointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
     didDragRef.current = false;
     setIsPressed(true);
     setShowContextMenu(false);
-
-    if (pressTimerRef.current) {
-      window.clearTimeout(pressTimerRef.current);
-      pressTimerRef.current = null;
-    }
-
-    pressTimerRef.current = window.setTimeout(() => {
-      startDrag().catch(() => {
-        // ignore
-      });
-    }, 140);
-  }, [startDrag]);
+    pointerStartRef.current = { x: event.clientX, y: event.clientY };
+  }, []);
 
   const onPointerUp = useCallback(() => {
     setIsPressed(false);
-    if (pressTimerRef.current) {
-      window.clearTimeout(pressTimerRef.current);
-      pressTimerRef.current = null;
-    }
+    pointerStartRef.current = null;
 
     if (!didDragRef.current) {
       const now = Date.now();
@@ -284,15 +266,28 @@ export default function AssistantBubblePage() {
     setIsPressed(false);
     setIsHovered(false);
     setShowTooltip(false);
-    if (pressTimerRef.current) {
-      window.clearTimeout(pressTimerRef.current);
-      pressTimerRef.current = null;
-    }
+    pointerStartRef.current = null;
     if (tooltipTimerRef.current) {
       window.clearTimeout(tooltipTimerRef.current);
       tooltipTimerRef.current = null;
     }
   }, []);
+
+  const onPointerMove = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    if (!isPressed || isDragging || !pointerStartRef.current) {
+      return;
+    }
+
+    const deltaX = event.clientX - pointerStartRef.current.x;
+    const deltaY = event.clientY - pointerStartRef.current.y;
+    const distance = Math.hypot(deltaX, deltaY);
+
+    if (distance > 4) {
+      startDrag().catch(() => {
+        // ignore
+      });
+    }
+  }, [isPressed, isDragging, startDrag]);
 
   // Show tooltip after hover delay
   const onPointerEnterHandler = useCallback(() => {
@@ -313,7 +308,7 @@ export default function AssistantBubblePage() {
 
   const handleOpenSettings = useCallback(async () => {
     setShowContextMenu(false);
-    if (typeof window === "undefined" || !(window as typeof window & { __TAURI__?: unknown }).__TAURI__) {
+    if (!isTauri()) {
       return;
     }
     const { invoke } = await import("@tauri-apps/api/core");
@@ -324,7 +319,7 @@ export default function AssistantBubblePage() {
 
   const handleHideBubble = useCallback(async () => {
     setShowContextMenu(false);
-    if (typeof window === "undefined" || !(window as typeof window & { __TAURI__?: unknown }).__TAURI__) {
+    if (!isTauri()) {
       return;
     }
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
@@ -333,7 +328,7 @@ export default function AssistantBubblePage() {
   }, []);
 
   return (
-    <div className="relative h-full w-full bg-transparent">
+    <div className="assistant-bubble-window relative h-full w-full bg-transparent">
       {/* Tooltip */}
       {showTooltip && !showContextMenu && (
         <div
@@ -362,12 +357,13 @@ export default function AssistantBubblePage() {
       <button
         type="button"
         onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerEnter={onPointerEnterHandler}
         onPointerLeave={onPointerLeave}
         onContextMenu={onContextMenu}
         className={cn(
-          "relative h-full w-full rounded-full",
+          "relative h-full w-full rounded-full bubble-breathe bubble-glow",
           "flex items-center justify-center",
           "transition-all duration-300 ease-out",
           // Gradient background
@@ -416,7 +412,7 @@ export default function AssistantBubblePage() {
         {/* Icon */}
         <Sparkles
           className={cn(
-            "h-6 w-6 text-white drop-shadow-md",
+            "h-6 w-6 text-white drop-shadow-md bubble-sparkle",
             "transition-transform duration-300",
             isHovered && !isDragging && "scale-110 rotate-12",
             isDragging && "scale-90",

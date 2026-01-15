@@ -305,3 +305,23 @@ export {
   selectSettings as selectToolHistorySettings,
   createToolId,
 } from './tool-history';
+
+// Sandbox stores
+export {
+  useSandboxStore,
+  selectIsExecuting as selectSandboxIsExecuting,
+  selectLastResult as selectSandboxLastResult,
+  selectExecutionError as selectSandboxExecutionError,
+  selectSandboxConfig,
+  selectAvailableRuntimes,
+  selectSupportedLanguages,
+  selectRecentExecutions,
+  selectSnippets,
+  selectCurrentSession as selectSandboxCurrentSession,
+  selectSandboxStats,
+  selectSelectedLanguage,
+  selectEditorCode,
+  type SandboxState,
+  type SandboxActions,
+  type SandboxExecutionState,
+} from './sandbox';

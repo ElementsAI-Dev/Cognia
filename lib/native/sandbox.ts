@@ -266,6 +266,58 @@ export async function executeWithLimits(
 }
 
 /**
+ * Execute with specific options including history tracking
+ */
+export async function executeWithOptions(
+  request: ExecutionRequest,
+  tags: string[] = [],
+  saveToHistory: boolean = true
+): Promise<SandboxExecutionResult> {
+  if (!isTauri()) {
+    throw new Error('Sandbox execution requires Tauri environment');
+  }
+
+  return invoke<SandboxExecutionResult>('sandbox_execute_with_options', {
+    request,
+    tags,
+    save_to_history: saveToHistory,
+  });
+}
+
+/**
+ * Export all sandbox data to JSON
+ */
+export async function exportData(): Promise<string> {
+  if (!isTauri()) {
+    throw new Error('Sandbox requires Tauri environment');
+  }
+
+  return invoke<string>('sandbox_export_data');
+}
+
+/**
+ * Get database size in bytes
+ */
+export async function getDatabaseSize(): Promise<number> {
+  if (!isTauri()) {
+    throw new Error('Sandbox requires Tauri environment');
+  }
+
+  return invoke<number>('sandbox_get_db_size');
+}
+
+/**
+ * Vacuum database to reclaim space
+ */
+export async function vacuumDatabase(): Promise<void> {
+  if (!isTauri()) {
+    throw new Error('Sandbox requires Tauri environment');
+  }
+
+  return invoke('sandbox_vacuum_db');
+}
+
+/**
  * Sandbox service object for convenient access
  */
 export const sandboxService = {
@@ -273,6 +325,7 @@ export const sandboxService = {
   quickExecute,
   executeWithStdin,
   executeWithLimits,
+  executeWithOptions,
   getStatus: getSandboxStatus,
   getConfig: getBackendSandboxConfig,
   updateConfig: updateBackendSandboxConfig,
@@ -288,6 +341,9 @@ export const sandboxService = {
   setNetworkEnabled,
   cleanup: cleanupRuntimes,
   isAvailable: isSandboxAvailable,
+  exportData,
+  getDatabaseSize,
+  vacuumDatabase,
 };
 
 export default sandboxService;

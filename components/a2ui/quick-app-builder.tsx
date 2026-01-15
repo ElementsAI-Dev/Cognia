@@ -5,7 +5,7 @@
  * AI-driven interface for quickly building and managing A2UI mini-apps
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Plus,
   Search,
   Sparkles,
@@ -41,6 +48,17 @@ import {
   Zap,
   Loader2,
   Send,
+  Download,
+  Upload,
+  MoreVertical,
+  FileJson,
+  Share2,
+  Link,
+  Check,
+  Twitter,
+  Facebook,
+  Mail,
+  MessageCircle,
 } from 'lucide-react';
 import { icons } from 'lucide-react';
 import { useA2UIAppBuilder, type A2UIAppInstance } from '@/hooks/a2ui/use-app-builder';
@@ -76,6 +94,9 @@ export function QuickAppBuilder({
   // Flash App state (like Lingguang)
   const [flashPrompt, setFlashPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // File input ref for import
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const a2ui = useA2UI({ onAction, onDataChange });
 
@@ -165,6 +186,91 @@ export function QuickAppBuilder({
       if (newAppId) {
         setPreviewAppId(newAppId);
       }
+    },
+    [appBuilder]
+  );
+
+  // Handle import click (opens file dialog)
+  const handleImportClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  // Handle file import
+  const handleFileImport = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      try {
+        const appId = await appBuilder.importAppFromFile(file);
+        if (appId) {
+          setPreviewAppId(appId);
+          setActiveTab('my-apps');
+        }
+      } catch (error) {
+        console.error('[QuickAppBuilder] Import failed:', error);
+      }
+
+      // Reset input value to allow importing same file again
+      e.target.value = '';
+    },
+    [appBuilder]
+  );
+
+  // Handle export all apps
+  const handleExportAllApps = useCallback(() => {
+    const jsonData = appBuilder.exportAllApps();
+    const blob = new Blob([jsonData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `a2ui-apps-backup-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [appBuilder]);
+
+  // Handle single app download
+  const handleDownloadApp = useCallback(
+    (appId: string) => {
+      appBuilder.downloadApp(appId);
+    },
+    [appBuilder]
+  );
+
+  // Share state
+  const [shareMenuAppId, setShareMenuAppId] = useState<string | null>(null);
+  const [copiedFormat, setCopiedFormat] = useState<string | null>(null);
+
+  // Handle copy to clipboard
+  const handleCopyToClipboard = useCallback(
+    async (appId: string, format: 'json' | 'code' | 'url') => {
+      const success = await appBuilder.copyAppToClipboard(appId, format);
+      if (success) {
+        setCopiedFormat(format);
+        setTimeout(() => setCopiedFormat(null), 2000);
+      }
+    },
+    [appBuilder]
+  );
+
+  // Handle native share
+  const handleNativeShare = useCallback(
+    async (appId: string) => {
+      await appBuilder.shareAppNative(appId);
+    },
+    [appBuilder]
+  );
+
+  // Handle social share
+  const handleSocialShare = useCallback(
+    (appId: string, platform: string) => {
+      const urls = appBuilder.getSocialShareUrls(appId);
+      if (urls && urls[platform]) {
+        window.open(urls[platform], '_blank', 'noopener,noreferrer');
+      }
+      setShareMenuAppId(null);
     },
     [appBuilder]
   );
@@ -295,14 +401,65 @@ export function QuickAppBuilder({
             variant="ghost"
             className="h-8 w-8"
             onClick={() => handleDuplicateApp(app.id)}
+            title="复制"
           >
             <Copy className="h-4 w-4" />
           </Button>
           <Button
             size="icon"
             variant="ghost"
+            className="h-8 w-8"
+            onClick={() => handleDownloadApp(app.id)}
+            title="导出"
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+          <DropdownMenu open={shareMenuAppId === app.id} onOpenChange={(open) => setShareMenuAppId(open ? app.id : null)}>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-8 w-8" title="分享">
+                <Share2 className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => handleCopyToClipboard(app.id, 'url')}>
+                <Link className="h-4 w-4 mr-2" />
+                {copiedFormat === 'url' ? '已复制!' : '复制链接'}
+                {copiedFormat === 'url' && <Check className="h-4 w-4 ml-auto text-green-500" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleCopyToClipboard(app.id, 'code')}>
+                <FileJson className="h-4 w-4 mr-2" />
+                {copiedFormat === 'code' ? '已复制!' : '复制分享码'}
+                {copiedFormat === 'code' && <Check className="h-4 w-4 ml-auto text-green-500" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleNativeShare(app.id)}>
+                <Share2 className="h-4 w-4 mr-2" />
+                系统分享
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleSocialShare(app.id, 'twitter')}>
+                <Twitter className="h-4 w-4 mr-2" />
+                分享到 Twitter
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSocialShare(app.id, 'facebook')}>
+                <Facebook className="h-4 w-4 mr-2" />
+                分享到 Facebook
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSocialShare(app.id, 'telegram')}>
+                <MessageCircle className="h-4 w-4 mr-2" />
+                分享到 Telegram
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSocialShare(app.id, 'email')}>
+                <Mail className="h-4 w-4 mr-2" />
+                通过邮件分享
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            size="icon"
+            variant="ghost"
             className="h-8 w-8 text-destructive hover:text-destructive"
             onClick={() => setDeleteConfirmId(app.id)}
+            title="删除"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -336,6 +493,35 @@ export function QuickAppBuilder({
           >
             <List className="h-4 w-4" />
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-8 w-8 touch-manipulation">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleImportClick}>
+                <Upload className="h-4 w-4 mr-2" />
+                导入应用
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportAllApps}>
+                <Download className="h-4 w-4 mr-2" />
+                导出所有应用
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                <FileJson className="h-4 w-4 mr-2" />
+                从文件导入
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={handleFileImport}
+          />
         </div>
       </div>
 

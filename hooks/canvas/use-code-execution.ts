@@ -7,7 +7,7 @@
 
 import { useCallback, useState, useRef } from 'react';
 import { useNativeStore } from '@/stores';
-import type { SandboxExecutionResult, ExecutionRequest } from '@/types/system/sandbox';
+import * as sandboxService from '@/lib/native/sandbox';
 
 export interface ExecutionOptions {
   timeout?: number;
@@ -147,7 +147,7 @@ async function executeBrowser(
 }
 
 /**
- * Execute code via Tauri sandbox
+ * Execute code via Tauri sandbox using sandbox service
  */
 async function executeTauri(
   code: string,
@@ -155,16 +155,11 @@ async function executeTauri(
   options: ExecutionOptions = {}
 ): Promise<CodeSandboxExecutionResult> {
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    
-    const request: ExecutionRequest = {
+    const result = await sandboxService.executeWithStdin(
       language,
       code,
-      stdin: options.stdin,
-      timeout_secs: options.timeout ? Math.floor(options.timeout / 1000) : 30,
-    };
-
-    const result = await invoke<SandboxExecutionResult>('sandbox_execute', { request });
+      options.stdin || ''
+    );
 
     return {
       success: result.status === 'completed' && result.exit_code === 0,

@@ -15,6 +15,13 @@ import type {
   ChatViewMode,
   FlowChatCanvasState,
   NodePosition,
+  ChatGoal,
+  CreateGoalInput,
+  UpdateGoalInput,
+  ChatGoalStatus,
+  GoalStep,
+  CreateStepInput,
+  UpdateStepInput,
 } from '@/types';
 import { DEFAULT_FLOW_CANVAS_STATE } from '@/types/chat/flow-chat';
 
@@ -86,6 +93,22 @@ interface SessionState {
 
   getSession: (id: string) => Session | undefined;
   getActiveSession: () => Session | undefined;
+
+  // Goal management
+  setGoal: (sessionId: string, input: CreateGoalInput) => ChatGoal;
+  updateGoal: (sessionId: string, updates: UpdateGoalInput) => void;
+  clearGoal: (sessionId: string) => void;
+  completeGoal: (sessionId: string) => void;
+  pauseGoal: (sessionId: string) => void;
+  resumeGoal: (sessionId: string) => void;
+  getGoal: (sessionId: string) => ChatGoal | undefined;
+
+  // Step management (for multi-step goals)
+  addStep: (sessionId: string, input: CreateStepInput) => GoalStep | undefined;
+  updateStep: (sessionId: string, stepId: string, updates: UpdateStepInput) => void;
+  removeStep: (sessionId: string, stepId: string) => void;
+  toggleStepComplete: (sessionId: string, stepId: string) => void;
+  reorderSteps: (sessionId: string, stepIds: string[]) => void;
 }
 
 const DEFAULT_PROVIDER: ProviderName = 'openai';
@@ -200,9 +223,16 @@ export const useSessionStore = create<SessionState>()(
 
       switchMode: (sessionId: string, mode: ChatMode) => {
         set((state) => {
+          const targetSession = state.sessions.find((s) => s.id === sessionId);
+          if (!targetSession || targetSession.mode === mode) {
+            return state;
+          }
+
           const historyEntry: ModeHistoryEntry = { mode, timestamp: new Date(), sessionId };
           return {
-            sessions: state.sessions.map((s) => s.id === sessionId ? { ...s, mode, updatedAt: new Date() } : s),
+            sessions: state.sessions.map((s) =>
+              s.id === sessionId ? { ...s, mode, updatedAt: new Date() } : s
+            ),
             modeHistory: [...state.modeHistory.slice(-49), historyEntry],
           };
         });
@@ -213,49 +243,65 @@ export const useSessionStore = create<SessionState>()(
         targetMode: ChatMode,
         options?: { carryContext?: boolean; summary?: string }
       ) => {
-        const { sessions } = get();
-        const currentSession = sessions.find((s) => s.id === currentSessionId);
-        
-        // Build carried context if provided
-        const carriedContext = options?.carryContext && options?.summary && currentSession
-          ? {
-              fromSessionId: currentSessionId,
-              fromMode: currentSession.mode,
-              summary: options.summary,
-              carriedAt: new Date(),
-            }
-          : undefined;
+        let createdSession: Session | null = null;
 
-        // Create new session with target mode, inheriting some settings from current session
-        const newSession: Session = {
-          id: nanoid(),
-          title: 'New Chat',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          provider: currentSession?.provider || DEFAULT_PROVIDER,
-          model: currentSession?.model || DEFAULT_MODEL,
-          mode: targetMode,
-          systemPrompt: MODE_CONFIGS[targetMode].defaultSystemPrompt || currentSession?.systemPrompt,
-          projectId: currentSession?.projectId,
-          virtualEnvId: currentSession?.virtualEnvId,
-          messageCount: 0,
-          carriedContext,
-        };
+        set((state) => {
+          const currentSession = state.sessions.find((s) => s.id === currentSessionId);
 
-        // Add mode history entry for the new session
-        const historyEntry: ModeHistoryEntry = {
-          mode: targetMode,
-          timestamp: new Date(),
-          sessionId: newSession.id,
-        };
+          const carriedContext = options?.carryContext && options?.summary && currentSession
+            ? {
+                fromSessionId: currentSessionId,
+                fromMode: currentSession.mode,
+                summary: options.summary,
+                carriedAt: new Date(),
+              }
+            : undefined;
 
-        set((state) => ({
-          sessions: [newSession, ...state.sessions],
-          activeSessionId: newSession.id,
-          modeHistory: [...state.modeHistory.slice(-49), historyEntry],
-        }));
+          const newSession: Session = {
+            id: nanoid(),
+            title: 'New Chat',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            provider: currentSession?.provider || DEFAULT_PROVIDER,
+            model: currentSession?.model || DEFAULT_MODEL,
+            mode: targetMode,
+            systemPrompt: MODE_CONFIGS[targetMode].defaultSystemPrompt || currentSession?.systemPrompt,
+            projectId: currentSession?.projectId,
+            virtualEnvId: currentSession?.virtualEnvId,
+            messageCount: 0,
+            carriedContext,
+          };
 
-        return newSession;
+          createdSession = newSession;
+
+          const historyEntry: ModeHistoryEntry = {
+            mode: targetMode,
+            timestamp: new Date(),
+            sessionId: newSession.id,
+          };
+
+          return {
+            sessions: [newSession, ...state.sessions],
+            activeSessionId: newSession.id,
+            modeHistory: [...state.modeHistory.slice(-49), historyEntry],
+          };
+        });
+
+        if (!createdSession) {
+          return {
+            id: nanoid(),
+            title: 'New Chat',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            provider: DEFAULT_PROVIDER,
+            model: DEFAULT_MODEL,
+            mode: targetMode,
+            systemPrompt: MODE_CONFIGS[targetMode].defaultSystemPrompt,
+            messageCount: 0,
+          };
+        }
+
+        return createdSession;
       },
 
       getModeHistory: (sessionId?: string) => {
@@ -462,6 +508,261 @@ export const useSessionStore = create<SessionState>()(
       importSessions: (sessions) => set((state) => ({ sessions: [...sessions, ...state.sessions] })),
       getSession: (id) => get().sessions.find((s) => s.id === id),
       getActiveSession: () => { const { sessions, activeSessionId } = get(); return sessions.find((s) => s.id === activeSessionId); },
+
+      // Goal management
+      setGoal: (sessionId, input) => {
+        const now = new Date();
+        // Create initial steps if provided
+        const steps: GoalStep[] | undefined = input.steps?.map((stepInput, index) => ({
+          id: nanoid(),
+          content: stepInput.content,
+          completed: false,
+          order: index,
+          createdAt: now,
+        }));
+        const goal: ChatGoal = {
+          id: nanoid(),
+          content: input.content,
+          status: 'active',
+          progress: input.progress ?? 0,
+          steps,
+          originalContent: input.originalContent,
+          isPolished: input.isPolished,
+          createdAt: now,
+          updatedAt: now,
+        };
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId
+              ? { ...s, goal, updatedAt: now }
+              : s
+          ),
+        }));
+        return goal;
+      },
+
+      updateGoal: (sessionId, updates) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) => {
+            if (s.id !== sessionId || !s.goal) return s;
+            const now = new Date();
+            return {
+              ...s,
+              goal: {
+                ...s.goal,
+                ...updates,
+                updatedAt: now,
+                completedAt: updates.status === 'completed' ? now : s.goal.completedAt,
+              },
+              updatedAt: now,
+            };
+          }),
+        })),
+
+      clearGoal: (sessionId) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId
+              ? { ...s, goal: undefined, updatedAt: new Date() }
+              : s
+          ),
+        })),
+
+      completeGoal: (sessionId) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) => {
+            if (s.id !== sessionId || !s.goal) return s;
+            const now = new Date();
+            return {
+              ...s,
+              goal: {
+                ...s.goal,
+                status: 'completed' as ChatGoalStatus,
+                progress: 100,
+                completedAt: now,
+                updatedAt: now,
+              },
+              updatedAt: now,
+            };
+          }),
+        })),
+
+      pauseGoal: (sessionId) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) => {
+            if (s.id !== sessionId || !s.goal) return s;
+            const now = new Date();
+            return {
+              ...s,
+              goal: {
+                ...s.goal,
+                status: 'paused' as ChatGoalStatus,
+                updatedAt: now,
+              },
+              updatedAt: now,
+            };
+          }),
+        })),
+
+      resumeGoal: (sessionId) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) => {
+            if (s.id !== sessionId || !s.goal) return s;
+            const now = new Date();
+            return {
+              ...s,
+              goal: {
+                ...s.goal,
+                status: 'active' as ChatGoalStatus,
+                updatedAt: now,
+              },
+              updatedAt: now,
+            };
+          }),
+        })),
+
+      getGoal: (sessionId) => get().sessions.find((s) => s.id === sessionId)?.goal,
+
+      // Step management (for multi-step goals)
+      addStep: (sessionId, input) => {
+        const session = get().sessions.find((s) => s.id === sessionId);
+        if (!session?.goal) return undefined;
+
+        const now = new Date();
+        const existingSteps = session.goal.steps || [];
+        const newStep: GoalStep = {
+          id: nanoid(),
+          content: input.content,
+          completed: false,
+          order: existingSteps.length,
+          createdAt: now,
+        };
+
+        set((state) => ({
+          sessions: state.sessions.map((s) => {
+            if (s.id !== sessionId || !s.goal) return s;
+            const steps = [...(s.goal.steps || []), newStep];
+            return {
+              ...s,
+              goal: {
+                ...s.goal,
+                steps,
+                updatedAt: now,
+              },
+              updatedAt: now,
+            };
+          }),
+        }));
+        return newStep;
+      },
+
+      updateStep: (sessionId, stepId, updates) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) => {
+            if (s.id !== sessionId || !s.goal?.steps) return s;
+            const now = new Date();
+            const steps = s.goal.steps.map((step) =>
+              step.id === stepId
+                ? {
+                    ...step,
+                    ...updates,
+                    completedAt: updates.completed ? now : step.completedAt,
+                  }
+                : step
+            );
+            // Auto-calculate progress from steps
+            const completedCount = steps.filter((step) => step.completed).length;
+            const progress = steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : 0;
+            return {
+              ...s,
+              goal: {
+                ...s.goal,
+                steps,
+                progress,
+                updatedAt: now,
+              },
+              updatedAt: now,
+            };
+          }),
+        })),
+
+      removeStep: (sessionId, stepId) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) => {
+            if (s.id !== sessionId || !s.goal?.steps) return s;
+            const now = new Date();
+            const steps = s.goal.steps
+              .filter((step) => step.id !== stepId)
+              .map((step, index) => ({ ...step, order: index }));
+            // Auto-calculate progress from remaining steps
+            const completedCount = steps.filter((step) => step.completed).length;
+            const progress = steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : 0;
+            return {
+              ...s,
+              goal: {
+                ...s.goal,
+                steps,
+                progress,
+                updatedAt: now,
+              },
+              updatedAt: now,
+            };
+          }),
+        })),
+
+      toggleStepComplete: (sessionId, stepId) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) => {
+            if (s.id !== sessionId || !s.goal?.steps) return s;
+            const now = new Date();
+            const steps = s.goal.steps.map((step) =>
+              step.id === stepId
+                ? { ...step, completed: !step.completed, completedAt: !step.completed ? now : undefined }
+                : step
+            );
+            // Auto-calculate progress from steps
+            const completedCount = steps.filter((step) => step.completed).length;
+            const progress = steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : 0;
+            // Auto-complete goal if all steps are completed
+            const allCompleted = steps.length > 0 && steps.every((step) => step.completed);
+            return {
+              ...s,
+              goal: {
+                ...s.goal,
+                steps,
+                progress,
+                status: allCompleted ? 'completed' : s.goal.status,
+                completedAt: allCompleted ? now : s.goal.completedAt,
+                updatedAt: now,
+              },
+              updatedAt: now,
+            };
+          }),
+        })),
+
+      reorderSteps: (sessionId, stepIds) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) => {
+            if (s.id !== sessionId || !s.goal?.steps) return s;
+            const now = new Date();
+            const stepMap = new Map(s.goal.steps.map((step) => [step.id, step]));
+            const steps = stepIds
+              .map((id, index) => {
+                const step = stepMap.get(id);
+                return step ? { ...step, order: index } : null;
+              })
+              .filter((step): step is GoalStep => step !== null);
+            return {
+              ...s,
+              goal: {
+                ...s.goal,
+                steps,
+                updatedAt: now,
+              },
+              updatedAt: now,
+            };
+          }),
+        })),
     }),
     {
       name: 'cognia-sessions',
@@ -472,13 +773,40 @@ export const useSessionStore = create<SessionState>()(
           createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : s.createdAt,
           updatedAt: s.updatedAt instanceof Date ? s.updatedAt.toISOString() : s.updatedAt,
           branches: s.branches?.map((b) => ({ ...b, createdAt: b.createdAt instanceof Date ? b.createdAt.toISOString() : b.createdAt, updatedAt: b.updatedAt instanceof Date ? b.updatedAt.toISOString() : b.updatedAt })),
+          goal: s.goal ? {
+            ...s.goal,
+            createdAt: s.goal.createdAt instanceof Date ? s.goal.createdAt.toISOString() : s.goal.createdAt,
+            updatedAt: s.goal.updatedAt instanceof Date ? s.goal.updatedAt.toISOString() : s.goal.updatedAt,
+            completedAt: s.goal.completedAt instanceof Date ? s.goal.completedAt.toISOString() : s.goal.completedAt,
+            steps: s.goal.steps?.map((step) => ({
+              ...step,
+              createdAt: step.createdAt instanceof Date ? step.createdAt.toISOString() : step.createdAt,
+              completedAt: step.completedAt instanceof Date ? step.completedAt.toISOString() : step.completedAt,
+            })),
+          } : undefined,
         })),
         activeSessionId: state.activeSessionId,
         modeHistory: state.modeHistory.map((h) => ({ ...h, timestamp: h.timestamp instanceof Date ? h.timestamp.toISOString() : h.timestamp })),
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.sessions) {
-          state.sessions = state.sessions.map((s) => ({ ...s, createdAt: new Date(s.createdAt), updatedAt: new Date(s.updatedAt), branches: s.branches?.map((b) => ({ ...b, createdAt: new Date(b.createdAt), updatedAt: new Date(b.updatedAt) })) }));
+          state.sessions = state.sessions.map((s) => ({
+            ...s,
+            createdAt: new Date(s.createdAt),
+            updatedAt: new Date(s.updatedAt),
+            branches: s.branches?.map((b) => ({ ...b, createdAt: new Date(b.createdAt), updatedAt: new Date(b.updatedAt) })),
+            goal: s.goal ? {
+              ...s.goal,
+              createdAt: new Date(s.goal.createdAt as unknown as string),
+              updatedAt: new Date(s.goal.updatedAt as unknown as string),
+              completedAt: s.goal.completedAt ? new Date(s.goal.completedAt as unknown as string) : undefined,
+              steps: s.goal.steps?.map((step) => ({
+                ...step,
+                createdAt: new Date(step.createdAt as unknown as string),
+                completedAt: step.completedAt ? new Date(step.completedAt as unknown as string) : undefined,
+              })),
+            } : undefined,
+          }));
         }
         if (state?.modeHistory) {
           state.modeHistory = state.modeHistory.map((h) => ({ ...h, timestamp: new Date(h.timestamp as unknown as string) }));

@@ -25,3 +25,15 @@ export {
   useSkillSyncAvailable,
   type UseSkillSyncReturn,
 } from './use-skill-sync';
+export {
+  useSkillSecurity,
+  getSeverityColor,
+  getSeverityLabel,
+  getCategoryLabel,
+  getRiskScoreColor,
+  type UseSkillSecurityReturn,
+  type SecurityScanReport,
+  type SecurityScanOptions,
+  type SecurityFinding,
+  type SecuritySeverity,
+} from './use-skill-security';

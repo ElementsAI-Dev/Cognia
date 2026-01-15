@@ -163,10 +163,17 @@ describe('ConflictDetector', () => {
 
   describe('Version Conflicts', () => {
     it('should detect version conflicts', () => {
+      // Version conflict detection requires multiple plugins depending on the same dependency
+      // with at least one having an unsatisfied constraint
       detector.setPlugins([
         createRegistration(createManifest('core', '1.5.0')),
         createRegistration(
           createManifest('plugin-a', '1.0.0', {
+            dependencies: { core: '^1.0.0' },
+          })
+        ),
+        createRegistration(
+          createManifest('plugin-b', '1.0.0', {
             dependencies: { core: '^2.0.0' },
           })
         ),

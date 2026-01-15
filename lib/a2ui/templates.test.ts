@@ -12,6 +12,11 @@ import {
   notesTemplate,
   weatherTemplate,
   contactFormTemplate,
+  unitConverterTemplate,
+  habitTrackerTemplate,
+  shoppingListTemplate,
+  expenseTrackerTemplate,
+  profileCardTemplate,
   appTemplates,
   getTemplateById,
   getTemplatesByCategory,
@@ -349,6 +354,146 @@ describe('A2UI Templates', () => {
           }
         });
       });
+    });
+  });
+
+  describe('unitConverterTemplate', () => {
+    it('should have required template properties', () => {
+      expect(unitConverterTemplate.id).toBe('unit-converter');
+      expect(unitConverterTemplate.name).toBe('Unit Converter');
+      expect(unitConverterTemplate.category).toBe('utility');
+    });
+
+    it('should have converter data model', () => {
+      expect(unitConverterTemplate.dataModel).toHaveProperty('inputValue');
+      expect(unitConverterTemplate.dataModel).toHaveProperty('fromUnit');
+      expect(unitConverterTemplate.dataModel).toHaveProperty('toUnit');
+      expect(unitConverterTemplate.dataModel).toHaveProperty('result');
+    });
+
+    it('should have convert button', () => {
+      const convertBtn = unitConverterTemplate.components.find(
+        c => c.component === 'Button' && (c as { action?: string }).action === 'convert'
+      );
+      expect(convertBtn).toBeDefined();
+    });
+  });
+
+  describe('habitTrackerTemplate', () => {
+    it('should have required template properties', () => {
+      expect(habitTrackerTemplate.id).toBe('habit-tracker');
+      expect(habitTrackerTemplate.name).toBe('Habit Tracker');
+      expect(habitTrackerTemplate.category).toBe('productivity');
+    });
+
+    it('should have habits data model', () => {
+      expect(habitTrackerTemplate.dataModel).toHaveProperty('newHabit');
+      expect(habitTrackerTemplate.dataModel).toHaveProperty('habits');
+      expect(habitTrackerTemplate.dataModel).toHaveProperty('stats');
+    });
+
+    it('should have add habit action', () => {
+      const addBtn = habitTrackerTemplate.components.find(
+        c => c.component === 'Button' && (c as { action?: string }).action === 'add_habit'
+      );
+      expect(addBtn).toBeDefined();
+    });
+  });
+
+  describe('shoppingListTemplate', () => {
+    it('should have required template properties', () => {
+      expect(shoppingListTemplate.id).toBe('shopping-list');
+      expect(shoppingListTemplate.name).toBe('Shopping List');
+      expect(shoppingListTemplate.category).toBe('productivity');
+    });
+
+    it('should have items data model', () => {
+      expect(shoppingListTemplate.dataModel).toHaveProperty('newItem');
+      expect(shoppingListTemplate.dataModel).toHaveProperty('items');
+      expect(shoppingListTemplate.dataModel).toHaveProperty('totalText');
+    });
+
+    it('should have add item action', () => {
+      const addBtn = shoppingListTemplate.components.find(
+        c => c.component === 'Button' && (c as { action?: string }).action === 'add_item'
+      );
+      expect(addBtn).toBeDefined();
+    });
+  });
+
+  describe('expenseTrackerTemplate', () => {
+    it('should have required template properties', () => {
+      expect(expenseTrackerTemplate.id).toBe('expense-tracker');
+      expect(expenseTrackerTemplate.name).toBe('Expense Tracker');
+      expect(expenseTrackerTemplate.category).toBe('data');
+    });
+
+    it('should have expense data model', () => {
+      expect(expenseTrackerTemplate.dataModel).toHaveProperty('newExpense');
+      expect(expenseTrackerTemplate.dataModel).toHaveProperty('expenses');
+      expect(expenseTrackerTemplate.dataModel).toHaveProperty('stats');
+    });
+
+    it('should have add expense action', () => {
+      const addBtn = expenseTrackerTemplate.components.find(
+        c => c.component === 'Button' && (c as { action?: string }).action === 'add_expense'
+      );
+      expect(addBtn).toBeDefined();
+    });
+
+    it('should have category selector', () => {
+      const categorySelect = expenseTrackerTemplate.components.find(
+        c => c.component === 'Select'
+      );
+      expect(categorySelect).toBeDefined();
+    });
+  });
+
+  describe('profileCardTemplate', () => {
+    it('should have required template properties', () => {
+      expect(profileCardTemplate.id).toBe('profile-card');
+      expect(profileCardTemplate.name).toBe('Profile Card');
+      expect(profileCardTemplate.category).toBe('social');
+    });
+
+    it('should have profile data model', () => {
+      expect(profileCardTemplate.dataModel).toHaveProperty('profile');
+      expect(profileCardTemplate.dataModel).toHaveProperty('stats');
+      const profile = profileCardTemplate.dataModel.profile as Record<string, unknown>;
+      expect(profile).toHaveProperty('name');
+      expect(profile).toHaveProperty('title');
+      expect(profile).toHaveProperty('bio');
+    });
+
+    it('should have action buttons', () => {
+      const followBtn = profileCardTemplate.components.find(
+        c => c.component === 'Button' && (c as { action?: string }).action === 'follow'
+      );
+      const messageBtn = profileCardTemplate.components.find(
+        c => c.component === 'Button' && (c as { action?: string }).action === 'message'
+      );
+      expect(followBtn).toBeDefined();
+      expect(messageBtn).toBeDefined();
+    });
+  });
+
+  describe('appTemplates array', () => {
+    it('should include all 13 templates', () => {
+      expect(appTemplates.length).toBe(13);
+    });
+
+    it('should include all new templates', () => {
+      const templateIds = appTemplates.map(t => t.id);
+      expect(templateIds).toContain('unit-converter');
+      expect(templateIds).toContain('habit-tracker');
+      expect(templateIds).toContain('shopping-list');
+      expect(templateIds).toContain('expense-tracker');
+      expect(templateIds).toContain('profile-card');
+    });
+
+    it('should have social category template', () => {
+      const socialTemplates = getTemplatesByCategory('social');
+      expect(socialTemplates.length).toBeGreaterThan(0);
     });
   });
 });

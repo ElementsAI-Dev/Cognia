@@ -57,6 +57,7 @@ This report documents a comprehensive investigation of all Agent-related UI comp
 **Purpose**: Display individual tool invocation details
 
 **Props**:
+
 ```typescript
 {
   tool: ToolUIPart;
@@ -65,6 +66,7 @@ This report documents a comprehensive investigation of all Agent-related UI comp
 ```
 
 **Dependencies**:
+
 - `@/components/ai-elements/tool` - Tool components
 
 **Usage**: Not found in current grep (likely used in message rendering)
@@ -78,10 +80,12 @@ This report documents a comprehensive investigation of all Agent-related UI comp
 **Purpose**: Display agent execution steps with status indicators
 
 **Components Exported**:
+
 1. `AgentSteps` - Main step display component
 2. `AgentStepsPanel` - Panel wrapper with controls
 
 **Props (AgentSteps)**:
+
 ```typescript
 {
   steps: AgentStep[];
@@ -90,6 +94,7 @@ This report documents a comprehensive investigation of all Agent-related UI comp
 ```
 
 **Props (AgentStepsPanel)**:
+
 ```typescript
 {
   className?: string;
@@ -97,6 +102,7 @@ This report documents a comprehensive investigation of all Agent-related UI comp
 ```
 
 **Hooks Used**:
+
 - `useAgentStore` - For `isAgentRunning` and `toolExecutions`
 
 **Status**: ✅ Properly exported, hooks exist
@@ -108,6 +114,7 @@ This report documents a comprehensive investigation of all Agent-related UI comp
 **Purpose**: Dropdown selector for agent operating modes
 
 **Props**:
+
 ```typescript
 {
   selectedModeId: string;
@@ -119,6 +126,7 @@ This report documents a comprehensive investigation of all Agent-related UI comp
 ```
 
 **Dependencies**:
+
 - `BUILT_IN_AGENT_MODES` from `@/types/agent-mode`
 
 **Status**: ✅ Properly exported
@@ -130,6 +138,7 @@ This report documents a comprehensive investigation of all Agent-related UI comp
 **Purpose**: PPT/workflow generation dialog
 
 **Props**:
+
 ```typescript
 {
   open?: boolean;
@@ -141,6 +150,7 @@ This report documents a comprehensive investigation of all Agent-related UI comp
 ```
 
 **Hooks Used**:
+
 - `useWorkflow` - Workflow execution hook
 - `useWorkflowStore` - Workflow state management
 
@@ -157,9 +167,11 @@ This report documents a comprehensive investigation of all Agent-related UI comp
 **Props**: None (gets state from hook)
 
 **Hooks Used**:
+
 - `useBackgroundAgent` - Background agent state and actions
 
 **Child Components**:
+
 - `AgentFlowVisualizer` - Renders visual execution flow
 
 **Status**: ✅ Properly exported
@@ -171,6 +183,7 @@ This report documents a comprehensive investigation of all Agent-related UI comp
 **Purpose**: Compact status indicator for background agent activity
 
 **Props**:
+
 ```typescript
 {
   className?: string;
@@ -178,6 +191,7 @@ This report documents a comprehensive investigation of all Agent-related UI comp
 ```
 
 **Hooks Used**:
+
 - `useBackgroundAgent` - Background agent state
 
 **Used In**: `chat-header.tsx` (line 275)
@@ -191,6 +205,7 @@ This report documents a comprehensive investigation of all Agent-related UI comp
 **Purpose**: Visual representation of agent execution flow with sub-agents
 
 **Props**:
+
 ```typescript
 {
   agent: BackgroundAgent;
@@ -201,6 +216,7 @@ This report documents a comprehensive investigation of all Agent-related UI comp
 ```
 
 **Type Dependencies**:
+
 - `@/types/sub-agent` - SubAgent types
 - `@/types/background-agent` - BackgroundAgent types
 
@@ -215,6 +231,7 @@ This report documents a comprehensive investigation of all Agent-related UI comp
 **Purpose**: Interactive plan editor with AI refinement for agent mode
 
 **Props**:
+
 ```typescript
 {
   sessionId: string;
@@ -224,18 +241,21 @@ This report documents a comprehensive investigation of all Agent-related UI comp
 ```
 
 **Hooks/Stores Used**:
+
 - `useAgentStore` - Agent state management (createPlan, updatePlan, etc.)
 - `useSettingsStore` - Provider settings for AI refinement
 - `useSessionStore` - Session context
 - `usePlanExecutor` - Plan execution hook
 
 **Dependencies**:
+
 - `@/components/ai-elements/plan` - Plan primitive components
 - Uses AI SDK `generateText` for plan refinement
 
 **Used In**: `chat-container.tsx` (line 1163)
 
 **Import Pattern**:
+
 ```typescript
 import { AgentPlanEditor } from '@/components/agent/agent-plan-editor';
 // ❌ Direct import, bypassing index.ts
@@ -252,6 +272,7 @@ import { AgentPlanEditor } from '@/components/agent/agent-plan-editor';
 **Purpose**: Timeline visualization of tool executions
 
 **Props**:
+
 ```typescript
 {
   executions: ToolExecution[];
@@ -260,6 +281,7 @@ import { AgentPlanEditor } from '@/components/agent/agent-plan-editor';
 ```
 
 **Types Exported**:
+
 ```typescript
 interface ToolExecution {
   id: string;
@@ -274,6 +296,7 @@ interface ToolExecution {
 **Used In**: `chat-container.tsx` (line 1292)
 
 **Import Pattern**:
+
 ```typescript
 import { ToolTimeline, type ToolExecution } from '@/components/agent/tool-timeline';
 // ❌ Direct import, bypassing index.ts
@@ -290,6 +313,7 @@ import { ToolTimeline, type ToolExecution } from '@/components/agent/tool-timeli
 **Purpose**: User approval dialog for sensitive tool operations
 
 **Props**:
+
 ```typescript
 {
   request: ToolApprovalRequest | null;
@@ -301,6 +325,7 @@ import { ToolTimeline, type ToolExecution } from '@/components/agent/tool-timeli
 ```
 
 **Types Exported**:
+
 ```typescript
 interface ToolApprovalRequest {
   id: string;
@@ -315,6 +340,7 @@ interface ToolApprovalRequest {
 **Used In**: `chat-container.tsx` (line 1281-1287)
 
 **Import Pattern**:
+
 ```typescript
 import { ToolApprovalDialog, type ToolApprovalRequest } from '@/components/agent/tool-approval-dialog';
 // ❌ Direct import, bypassing index.ts
@@ -331,19 +357,23 @@ import { ToolApprovalDialog, type ToolApprovalRequest } from '@/components/agent
 ### `chat-header.tsx`
 
 **Agent-Related Features**:
+
 1. Mode selector dropdown (lines 191-213)
    - Modes: 'chat', 'agent', 'research', 'learning'
    - Icons mapped in `modeIcons` object (lines 90-95)
    - Uses `handleModeChange` to update session mode
 
 2. BackgroundAgentIndicator (line 275)
+
    ```typescript
    <BackgroundAgentIndicator />
    ```
+
    - Shows status of background agent tasks
    - Properly imported from `@/components/agent`
 
 **Mode Handling**:
+
 ```typescript
 const currentMode = session?.mode || 'chat';
 const handleModeChange = (mode: ChatMode) => {
@@ -362,11 +392,13 @@ const handleModeChange = (mode: ChatMode) => {
 **Agent-Related Features**:
 
 1. **Agent Mode Detection** (line 193):
+
    ```typescript
    const currentMode: ChatMode = session?.mode || 'chat';
    ```
 
 2. **Agent Hook Integration** (lines 302-339):
+
    ```typescript
    const {
      isRunning: isAgentExecuting,
@@ -383,6 +415,7 @@ const handleModeChange = (mode: ChatMode) => {
    ```
 
 3. **Agent Message Handler** (lines 610-669):
+
    ```typescript
    const handleAgentMessage = useCallback(async (content: string, currentSessionId: string) => {
      // Runs the agent with multi-step execution
@@ -392,6 +425,7 @@ const handleModeChange = (mode: ChatMode) => {
    ```
 
 4. **Mode-Specific Routing** (lines 714-721):
+
    ```typescript
    if (currentMode === 'agent') {
      try {
@@ -404,6 +438,7 @@ const handleModeChange = (mode: ChatMode) => {
    ```
 
 5. **Agent Plan Editor** (lines 1160-1166):
+
    ```typescript
    {currentMode === 'agent' && activeSessionId && (
      <div className="relative mx-auto w-full max-w-4xl px-4">
@@ -415,6 +450,7 @@ const handleModeChange = (mode: ChatMode) => {
    ```
 
 6. **Tool Timeline** (lines 1290-1294):
+
    ```typescript
    {currentMode === 'agent' && toolTimelineExecutions.length > 0 && (
      <div className="fixed bottom-24 right-4 z-50 w-80">
@@ -424,6 +460,7 @@ const handleModeChange = (mode: ChatMode) => {
    ```
 
 7. **Tool Approval Dialog** (lines 1280-1287):
+
    ```typescript
    <ToolApprovalDialog
      request={toolApprovalRequest}
@@ -435,6 +472,7 @@ const handleModeChange = (mode: ChatMode) => {
    ```
 
 8. **Workflow Selector** (lines 1297-1300):
+
    ```typescript
    <WorkflowSelector
      open={showWorkflowSelector}
@@ -443,6 +481,7 @@ const handleModeChange = (mode: ChatMode) => {
    ```
 
 **Stores Used**:
+
 - `useAgentStore` - For tool executions, plan management
 - `useSessionStore` - For mode and session state
 - `useWorkflowStore` - For workflow presentations
@@ -456,16 +495,20 @@ const handleModeChange = (mode: ChatMode) => {
 **Agent-Related Features**:
 
 1. **Mode Name Display** (line 177, 237):
+
    ```typescript
    modeName?: string; // Prop for displaying current mode
    ```
+
    - Not directly used for agent-specific logic
    - Mode is controlled by parent (chat-container/chat-header)
 
 2. **Workflow Button** (line 181):
+
    ```typescript
    onWorkflowClick?: () => void;
    ```
+
    - Callback to open workflow selector
    - Used for PPT generation in agent workflows
 
@@ -480,6 +523,7 @@ const handleModeChange = (mode: ChatMode) => {
 **Purpose**: Reusable primitives for building plan-based UI (used by AgentPlanEditor)
 
 **Components Exported**:
+
 1. `Plan` - Root collapsible container with context
 2. `PlanHeader` - Header section
 3. `PlanTitle` - Title with streaming shimmer effect
@@ -490,6 +534,7 @@ const handleModeChange = (mode: ChatMode) => {
 8. `PlanTrigger` - Collapse/expand button
 
 **Context**:
+
 ```typescript
 type PlanContextValue = {
   isStreaming: boolean;
@@ -511,16 +556,19 @@ type PlanContextValue = {
 #### Issue #1: Missing Exports from index.ts
 
 **Components Affected**:
+
 - `AgentPlanEditor`
 - `ToolTimeline`
 - `ToolApprovalDialog`
 
 **Current Behavior**:
+
 - All 3 components are imported directly in `chat-container.tsx`
 - Bypasses the index.ts export hub
 
 **Recommended Fix**:
 Add to `components/agent/index.ts`:
+
 ```typescript
 export { AgentPlanEditor } from './agent-plan-editor';
 export { ToolTimeline, type ToolExecution } from './tool-timeline';
@@ -536,6 +584,7 @@ export { ToolApprovalDialog, type ToolApprovalRequest } from './tool-approval-di
 #### Issue #2: Unused Exported Components
 
 **Components**:
+
 - `ToolCallCard` - Exported but usage not found in grep
 - `AgentSteps` - Exported but usage not found in grep
 - `AgentStepsPanel` - Exported but usage not found in grep
@@ -543,12 +592,14 @@ export { ToolApprovalDialog, type ToolApprovalRequest } from './tool-approval-di
 - `BackgroundAgentPanel` - Exported but usage not found in grep
 
 **Possible Reasons**:
+
 1. Used in files not searched by grep (e.g., dynamically imported, used in other features)
 2. Future/planned usage
 3. Part of public API for extensibility
 4. Used in routes not yet explored (designer, image-studio, etc.)
 
 **Recommended Action**:
+
 - Extended grep search across entire codebase
 - Document intended usage if components are for future use
 - Consider deprecation if truly unused
@@ -562,6 +613,7 @@ export { ToolApprovalDialog, type ToolApprovalRequest } from './tool-approval-di
 #### Observation #1: Comprehensive Agent Architecture
 
 The agent system shows a well-designed three-tier architecture:
+
 1. **UI Layer**: Components in `components/agent/`
 2. **Hook Layer**: `useAgent`, `useBackgroundAgent`, `usePlanExecutor`, `useWorkflow`
 3. **Store Layer**: `useAgentStore`, `useWorkflowStore`
@@ -573,6 +625,7 @@ All layers are properly connected and functional.
 #### Observation #2: Proper Mode Switching
 
 Agent mode is correctly integrated:
+
 - Mode state stored in session (`useSessionStore`)
 - Mode selector in `chat-header.tsx`
 - Mode-specific behavior in `chat-container.tsx`
@@ -583,6 +636,7 @@ Agent mode is correctly integrated:
 #### Observation #3: Plan Editor Complexity
 
 `AgentPlanEditor` is the most complex agent component with:
+
 - AI-powered plan refinement using `generateText`
 - Full CRUD operations on plan steps
 - Drag-to-reorder functionality
@@ -644,12 +698,14 @@ All referenced hooks and stores appear to exist based on import statements and g
 ### Feature Documentation
 
 From `llmdoc/index.md`:
+
 - [Agent System](feature/agent-system.md) - Three-tier architecture documentation
 - [AI Elements Library](feature/ai-elements-library.md) - Plan primitives documentation
 
 ### Architecture Documentation
 
 From `llmdoc/feature/agent-system.md`:
+
 - Agent execution layer: `lib/ai/agent/agent-executor.ts`
 - Agent loop: `lib/ai/agent/agent-loop.ts`
 - Agent orchestrator: `lib/ai/agent/agent-orchestrator.ts`
@@ -664,6 +720,7 @@ The agent UI component system is **well-architected and functional**, with prope
 ### Summary of Findings
 
 ✅ **Strengths**:
+
 - All components are actively used (no dead code)
 - All hooks and stores exist and are properly implemented
 - Agent mode is comprehensively integrated
@@ -671,6 +728,7 @@ The agent UI component system is **well-architected and functional**, with prope
 - Clear separation between UI, hooks, and stores
 
 ❌ **Issues**:
+
 - 3 components missing from index.ts exports (HIGH priority fix)
 - Several exported components have no usage found (needs investigation)
 

@@ -298,3 +298,43 @@ pub async fn skill_get_ssot_dir(
     let service = state.0.read().await;
     Ok(service.get_ssot_dir().to_string_lossy().to_string())
 }
+
+// ========== Security Scanning Commands ==========
+
+use crate::skill::{SecurityScanOptions, SecurityScanReport, SkillSecurityScanner};
+
+/// Scan an installed skill for security issues
+#[tauri::command]
+pub async fn skill_scan_installed(
+    state: State<'_, SkillServiceState>,
+    directory: String,
+    options: Option<SecurityScanOptions>,
+) -> Result<SecurityScanReport, String> {
+    let service = state.0.read().await;
+    let scanner = SkillSecurityScanner::new();
+    let opts = options.unwrap_or_default();
+    scanner
+        .scan_installed(service.get_ssot_dir(), &directory, &opts)
+        .map_err(|e| e.to_string())
+}
+
+/// Scan a local path for security issues (pre-install check)
+#[tauri::command]
+pub async fn skill_scan_path(
+    path: String,
+    options: Option<SecurityScanOptions>,
+) -> Result<SecurityScanReport, String> {
+    let scanner = SkillSecurityScanner::new();
+    let opts = options.unwrap_or_default();
+    let skill_path = std::path::Path::new(&path);
+    if !skill_path.exists() {
+        return Err(format!("Path does not exist: {}", path));
+    }
+    scanner.scan(skill_path, &opts).map_err(|e| e.to_string())
+}
+
+/// Get the number of security rules available
+#[tauri::command]
+pub fn skill_security_rule_count() -> usize {
+    SkillSecurityScanner::new().rule_count()
+}

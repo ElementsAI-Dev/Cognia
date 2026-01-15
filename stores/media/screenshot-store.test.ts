@@ -79,7 +79,7 @@ describe('useScreenshotStore', () => {
         switch (command) {
           case 'screenshot_get_monitors':
             return Promise.resolve(mockMonitors);
-          case 'screenshot_is_ocr_available':
+          case 'screenshot_ocr_is_available':
             return Promise.resolve(true);
           case 'screenshot_get_history':
             return Promise.resolve([]);
@@ -368,6 +368,91 @@ describe('useScreenshotStore', () => {
 
       expect(result.current.history).toEqual([]);
       expect(result.current.pinnedCount).toBe(0);
+    });
+
+    it('should add tag to screenshot', async () => {
+      mockInvoke.mockImplementation((command: string) => {
+        if (command === 'screenshot_add_tag') {
+          return Promise.resolve(true);
+        }
+        if (command === 'screenshot_get_history') {
+          return Promise.resolve([{
+            id: '1',
+            timestamp: Date.now(),
+            width: 1920,
+            height: 1080,
+            mode: 'fullscreen',
+            tags: ['new-tag'],
+            is_pinned: false,
+          }]);
+        }
+        return Promise.resolve();
+      });
+
+      const { result } = renderHook(() => useScreenshotStore());
+
+      await act(async () => {
+        await result.current.addTag('1', 'new-tag');
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_add_tag', { id: '1', tag: 'new-tag' });
+    });
+
+    it('should remove tag from screenshot', async () => {
+      mockInvoke.mockImplementation((command: string) => {
+        if (command === 'screenshot_remove_tag') {
+          return Promise.resolve(true);
+        }
+        if (command === 'screenshot_get_history') {
+          return Promise.resolve([{
+            id: '1',
+            timestamp: Date.now(),
+            width: 1920,
+            height: 1080,
+            mode: 'fullscreen',
+            tags: [],
+            is_pinned: false,
+          }]);
+        }
+        return Promise.resolve();
+      });
+
+      const { result } = renderHook(() => useScreenshotStore());
+
+      await act(async () => {
+        await result.current.removeTag('1', 'old-tag');
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_remove_tag', { id: '1', tag: 'old-tag' });
+    });
+
+    it('should set label for screenshot', async () => {
+      mockInvoke.mockImplementation((command: string) => {
+        if (command === 'screenshot_set_label') {
+          return Promise.resolve(true);
+        }
+        if (command === 'screenshot_get_history') {
+          return Promise.resolve([{
+            id: '1',
+            timestamp: Date.now(),
+            width: 1920,
+            height: 1080,
+            mode: 'fullscreen',
+            tags: [],
+            label: 'My Label',
+            is_pinned: false,
+          }]);
+        }
+        return Promise.resolve();
+      });
+
+      const { result } = renderHook(() => useScreenshotStore());
+
+      await act(async () => {
+        await result.current.setLabel('1', 'My Label');
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_set_label', { id: '1', label: 'My Label' });
     });
   });
 

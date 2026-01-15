@@ -51,6 +51,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SkillMarkdownPreview, SkillMarkdownStyles } from './skill-markdown-preview';
 import { SkillResourceManager } from './skill-resource-manager';
 import { SkillEditor } from './skill-editor';
+import { SkillSecurityScanner } from './skill-security-scanner';
 import { useSkillStore } from '@/stores/skills';
 import { estimateSkillTokens } from '@/lib/skills/executor';
 import { downloadSkillAsMarkdown, downloadSkillAsPackage } from '@/lib/skills/packager';
@@ -87,7 +88,7 @@ interface SkillDetailProps {
 
 export function SkillDetail({ skillId, onClose, onEdit: _onEdit }: SkillDetailProps) {
   const t = useTranslations('skills');
-  const [activeTab, setActiveTab] = useState<'overview' | 'content' | 'resources' | 'edit'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'content' | 'resources' | 'security' | 'edit'>('overview');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showTestDialog, setShowTestDialog] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
@@ -240,6 +241,7 @@ Status: ${skill.status}
             <TabsTrigger value="overview">{t('previewTab')}</TabsTrigger>
             <TabsTrigger value="content">{t('content')}</TabsTrigger>
             <TabsTrigger value="resources">{t('resourcesTab')}</TabsTrigger>
+            <TabsTrigger value="security">{t('securityTab')}</TabsTrigger>
             <TabsTrigger value="edit">{t('editTab')}</TabsTrigger>
           </TabsList>
 
@@ -403,6 +405,14 @@ Status: ${skill.status}
               onAddResource={() => {}}
               onRemoveResource={() => {}}
               readOnly={true}
+            />
+          </TabsContent>
+
+          {/* Security Tab */}
+          <TabsContent value="security" className="p-4">
+            <SkillSecurityScanner
+              skillDirectory={skill.id.startsWith('local:') ? skill.id.replace('local:', '') : skill.metadata.name}
+              skillName={skill.metadata.name}
             />
           </TabsContent>
 

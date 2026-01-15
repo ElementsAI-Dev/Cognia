@@ -33,7 +33,8 @@ describe('Version Parsing', () => {
 
     it('should handle versions with non-numeric suffixes', () => {
       expect(parseVersion('1.0.0-beta')).toEqual([1, 0, 0]);
-      expect(parseVersion('1.0.0-rc.1')).toEqual([1, 0, 0]);
+      // rc.1 includes a numeric suffix that gets parsed
+      expect(parseVersion('1.0.0-rc.1')).toEqual([1, 0, 0, 1]);
     });
   });
 

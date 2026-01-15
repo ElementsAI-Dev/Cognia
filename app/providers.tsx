@@ -39,6 +39,7 @@ import {
   NativeProvider,
   StoreInitializer,
 } from '@/components/providers';
+import { ObservabilityInitializer } from '@/components/observability';
 import { LocaleInitializer } from '@/components/providers/locale-initializer';
 import { ChatAssistantContainer } from '@/components/chat-widget';
 import { useChatWidgetStore } from '@/stores/chat';
@@ -757,6 +758,7 @@ export function Providers({ children }: ProvidersProps) {
                     <SkillProvider loadBuiltinSkills={true}>
                       <NativeProvider checkUpdatesOnMount={true}>
                         <StoreInitializer />
+                        <ObservabilityInitializer />
                         <SelectionNativeSync />
                         <OnboardingProvider>
                           {children}

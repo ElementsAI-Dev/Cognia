@@ -402,7 +402,54 @@
     "projectLink": "项目链接",
     "linkToProject": "关联到项目",
     "unlinkProject": "取消关联项目",
-    "manageProjects": "管理项目"
+    "manageProjects": "管理项目",
+    "goal": "目标",
+    "setGoal": "设置目标",
+    "goalSet": "目标设置成功",
+    "goalUpdated": "目标已更新",
+    "goalCompleted": "目标已完成！🎉",
+    "goalPaused": "目标已暂停",
+    "goalResumed": "目标已恢复",
+    "goalCleared": "目标已清除"
+  },
+  "chatGoal": {
+    "label": "对话目标",
+    "moreSteps": "更多步骤",
+    "status": {
+      "active": "进行中",
+      "completed": "已完成",
+      "paused": "已暂停"
+    },
+    "actions": {
+      "complete": "标记完成",
+      "pause": "暂停目标",
+      "resume": "恢复目标",
+      "edit": "编辑目标",
+      "clear": "清除目标"
+    },
+    "dialog": {
+      "title": "设置对话目标",
+      "editTitle": "编辑对话目标",
+      "description": "定义您希望在本次对话中实现的目标。AI 将在整个对话过程中牢记此目标。",
+      "goalLabel": "您的目标",
+      "goalPlaceholder": "例如：学习如何实现一个用于数据获取的 React Hook...",
+      "goalHint": "请具体描述您想要完成的内容",
+      "suggestions": "建议",
+      "trackProgress": "跟踪进度",
+      "currentProgress": "当前进度",
+      "cancel": "取消",
+      "save": "设置目标",
+      "update": "更新目标",
+      "saving": "保存中...",
+      "polish": "AI 润色",
+      "polishSuccess": "目标润色成功",
+      "polishError": "目标润色失败",
+      "polishNoApi": "未配置 AI 提供商",
+      "originalGoal": "原始目标",
+      "useMultiStep": "分解为步骤",
+      "steps": "步骤",
+      "addStepPlaceholder": "添加步骤..."
+    }
   },
   "chatSummary": {
     "title": "聊天总结与图表",
@@ -1089,7 +1136,52 @@
     "success": "成功",
     "failed": "失败",
     "timeout": "超时",
-    "average": "平均"
+    "average": "平均",
+    "common": {
+      "cancel": "取消",
+      "confirm": "确认",
+      "save": "保存",
+      "create": "创建",
+      "delete": "删除",
+      "edit": "编辑"
+    },
+    "history": {
+      "title": "执行历史",
+      "description": "查看和管理代码执行历史记录",
+      "searchPlaceholder": "搜索执行记录...",
+      "language": "语言",
+      "allLanguages": "所有语言",
+      "status": "状态",
+      "allStatus": "所有状态",
+      "completed": "已完成",
+      "error": "错误",
+      "timeout": "超时",
+      "empty": "暂无执行历史",
+      "clearConfirmTitle": "清除执行历史",
+      "clearConfirmDescription": "确定要清除所有执行历史吗？此操作无法撤销。"
+    },
+    "snippets": {
+      "title": "代码片段",
+      "description": "管理已保存的代码片段和模板",
+      "create": "新建片段",
+      "createTitle": "创建代码片段",
+      "createDescription": "保存可重用的代码片段以便快速访问",
+      "editTitle": "编辑代码片段",
+      "editDescription": "更新已保存的代码片段",
+      "searchPlaceholder": "搜索片段...",
+      "language": "语言",
+      "allLanguages": "所有语言",
+      "category": "分类",
+      "categoryPlaceholder": "输入分类",
+      "allCategories": "所有分类",
+      "titlePlaceholder": "输入片段标题",
+      "descriptionPlaceholder": "输入描述（可选）",
+      "codePlaceholder": "在此输入代码...",
+      "tags": "标签",
+      "tagsPlaceholder": "输入标签，用逗号分隔",
+      "template": "模板",
+      "empty": "暂无代码片段"
+    }
   },
   "sandboxPanel": {
     "title": "代码沙箱",

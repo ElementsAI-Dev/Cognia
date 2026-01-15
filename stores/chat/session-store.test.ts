@@ -13,6 +13,45 @@ describe('useSessionStore', () => {
     });
   });
 
+  describe('mode switching', () => {
+    it('should ignore switchMode when session is missing or same mode', () => {
+      let session;
+      act(() => {
+        session = useSessionStore.getState().createSession({ mode: 'chat' });
+      });
+
+      const originalHistory = useSessionStore.getState().modeHistory.length;
+
+      act(() => {
+        useSessionStore.getState().switchMode('missing', 'agent');
+        useSessionStore.getState().switchMode(session!.id, 'chat');
+      });
+
+      expect(useSessionStore.getState().modeHistory).toHaveLength(originalHistory);
+      expect(useSessionStore.getState().getSession(session!.id)?.mode).toBe('chat');
+    });
+
+    it('creates a new session when switching modes with context', () => {
+      let session;
+      act(() => {
+        session = useSessionStore.getState().createSession({ mode: 'chat', title: 'Base' });
+      });
+
+      let newSession;
+      act(() => {
+        newSession = useSessionStore.getState().switchModeWithNewSession(session!.id, 'agent', {
+          carryContext: true,
+          summary: 'summary text',
+        });
+      });
+
+      expect(newSession!.id).not.toBe(session!.id);
+      expect(newSession!.mode).toBe('agent');
+      expect(newSession!.carriedContext?.fromSessionId).toBe(session!.id);
+      expect(useSessionStore.getState().activeSessionId).toBe(newSession!.id);
+    });
+  });
+
   describe('initial state', () => {
     it('has correct initial state', () => {
       const state = useSessionStore.getState();

@@ -99,3 +99,6 @@ export { TextPart, ReasoningPart, ToolPart, SourcesPart, A2UIPart, LearningToolP
 
 // Workflow components (from workflow/)
 export { WorkflowPickerDialog, WorkflowResultCard, type WorkflowResultData, type WorkflowExecutionStatus } from './workflow';
+
+// Goal components (from goal/)
+export { ChatGoalBanner, ChatGoalDialog } from './goal';

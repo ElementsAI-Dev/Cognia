@@ -5,10 +5,54 @@
 import { act } from '@testing-library/react';
 import { useSettingsStore, selectTheme, selectLanguage, selectDefaultProvider } from './settings-store';
 
+const mockIsStrongholdAvailable = jest.fn(() => false);
+const mockSecureStoreProviderApiKey = jest.fn();
+const mockSecureStoreProviderApiKeys = jest.fn();
+const mockSecureStoreSearchApiKey = jest.fn();
+const mockSecureStoreCustomProviderApiKey = jest.fn();
+const mockSecureRemoveProviderApiKey = jest.fn();
+
+jest.mock('@/lib/native/stronghold-integration', () => ({
+  isStrongholdAvailable: () => mockIsStrongholdAvailable(),
+  secureStoreProviderApiKey: (...args: unknown[]) => mockSecureStoreProviderApiKey(...args),
+  secureStoreProviderApiKeys: (...args: unknown[]) => mockSecureStoreProviderApiKeys(...args),
+  secureStoreSearchApiKey: (...args: unknown[]) => mockSecureStoreSearchApiKey(...args),
+  secureStoreCustomProviderApiKey: (...args: unknown[]) => mockSecureStoreCustomProviderApiKey(...args),
+  secureRemoveProviderApiKey: (...args: unknown[]) => mockSecureRemoveProviderApiKey(...args),
+}));
+
 describe('useSettingsStore', () => {
   beforeEach(() => {
+    mockIsStrongholdAvailable.mockReturnValue(false);
+    mockSecureStoreProviderApiKey.mockReset();
+    mockSecureStoreProviderApiKeys.mockReset();
+    mockSecureStoreSearchApiKey.mockReset();
+    mockSecureStoreCustomProviderApiKey.mockReset();
+    mockSecureRemoveProviderApiKey.mockReset();
     act(() => {
       useSettingsStore.getState().resetSettings();
+    });
+  });
+
+  describe('search provider settings', () => {
+    it('syncs search api keys to stronghold when available', () => {
+      mockIsStrongholdAvailable.mockReturnValue(true);
+
+      act(() => {
+        useSettingsStore.getState().setSearchProviderApiKey('tavily', 'search-key');
+      });
+
+      expect(mockSecureStoreSearchApiKey).toHaveBeenCalledWith('tavily', 'search-key');
+    });
+
+    it('syncs legacy tavily key to stronghold when available', () => {
+      mockIsStrongholdAvailable.mockReturnValue(true);
+
+      act(() => {
+        useSettingsStore.getState().setTavilyApiKey('legacy-key');
+      });
+
+      expect(mockSecureStoreSearchApiKey).toHaveBeenCalledWith('tavily', 'legacy-key');
     });
   });
 
@@ -166,6 +210,20 @@ describe('useSettingsStore', () => {
       expect(settings.defaultModel).toBe('gpt-4-turbo');
     });
 
+    it('syncs provider keys to stronghold when available', () => {
+      mockIsStrongholdAvailable.mockReturnValue(true);
+
+      act(() => {
+        useSettingsStore.getState().setProviderSettings('openai', {
+          apiKey: 'secure-key',
+          apiKeys: ['key-1'],
+        });
+      });
+
+      expect(mockSecureStoreProviderApiKey).toHaveBeenCalledWith('openai', 'secure-key');
+      expect(mockSecureStoreProviderApiKeys).toHaveBeenCalledWith('openai', ['key-1']);
+    });
+
     it('should get provider settings', () => {
       const settings = useSettingsStore.getState().getProviderSettings('openai');
       expect(settings).toBeDefined();
@@ -192,6 +250,21 @@ describe('useSettingsStore', () => {
 
       const settings = useSettingsStore.getState().providerSettings.openai;
       expect(settings.apiKeys).toHaveLength(1);
+    });
+
+    it('removes secure keys when last api key is removed', () => {
+      mockIsStrongholdAvailable.mockReturnValue(true);
+
+      act(() => {
+        useSettingsStore.getState().addApiKey('openai', 'key-1');
+      });
+
+      act(() => {
+        useSettingsStore.getState().removeApiKey('openai', 0);
+      });
+
+      expect(mockSecureRemoveProviderApiKey).toHaveBeenCalledWith('openai');
+      expect(mockSecureStoreProviderApiKeys).toHaveBeenCalledWith('openai', []);
     });
 
     it('should remove API key', () => {
@@ -236,6 +309,23 @@ describe('useSettingsStore', () => {
 
       expect(providerId).toContain('custom-');
       expect(useSettingsStore.getState().getCustomProvider(providerId!)).toBeDefined();
+    });
+
+    it('syncs custom provider api key to stronghold when available', () => {
+      mockIsStrongholdAvailable.mockReturnValue(true);
+
+      act(() => {
+        useSettingsStore.getState().addCustomProvider({
+          providerId: '',
+          customName: 'Secure',
+          customModels: ['model-1'],
+          defaultModel: 'model-1',
+          apiKey: 'custom-key',
+          enabled: true,
+        });
+      });
+
+      expect(mockSecureStoreCustomProviderApiKey).toHaveBeenCalled();
     });
 
     it('should update custom provider', () => {

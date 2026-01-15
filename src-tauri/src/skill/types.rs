@@ -304,6 +304,233 @@ pub struct SkillSearchFilters {
     pub query: Option<String>,
 }
 
+// ========== Security Scanning Types ==========
+
+/// Severity level for security findings
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SecuritySeverity {
+    /// Critical security issue - must be fixed
+    Critical,
+    /// High severity - strongly recommended to fix
+    High,
+    /// Medium severity - should be reviewed
+    Medium,
+    /// Low severity - informational
+    Low,
+    /// Informational only
+    Info,
+}
+
+impl SecuritySeverity {
+    /// Get numeric weight for sorting (higher = more severe)
+    pub fn weight(&self) -> u8 {
+        match self {
+            SecuritySeverity::Critical => 5,
+            SecuritySeverity::High => 4,
+            SecuritySeverity::Medium => 3,
+            SecuritySeverity::Low => 2,
+            SecuritySeverity::Info => 1,
+        }
+    }
+}
+
+/// Category of security finding
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecurityCategory {
+    /// Dangerous command execution
+    CommandExecution,
+    /// Code injection vulnerabilities
+    CodeInjection,
+    /// Filesystem access risks
+    FilesystemAccess,
+    /// Network/external access
+    NetworkAccess,
+    /// Sensitive data exposure
+    SensitiveData,
+    /// Privilege escalation
+    PrivilegeEscalation,
+    /// Obfuscated or suspicious code
+    ObfuscatedCode,
+    /// Other security concerns
+    Other,
+}
+
+/// A single security finding from scanning
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SecurityFinding {
+    /// Unique rule identifier
+    #[serde(rename = "ruleId")]
+    pub rule_id: String,
+    /// Human-readable title
+    pub title: String,
+    /// Detailed description of the issue
+    pub description: String,
+    /// Severity level
+    pub severity: SecuritySeverity,
+    /// Category of finding
+    pub category: SecurityCategory,
+    /// Relative file path within the skill
+    #[serde(rename = "filePath")]
+    pub file_path: String,
+    /// Line number (1-indexed, 0 if unknown)
+    pub line: u32,
+    /// Column number (1-indexed, 0 if unknown)
+    pub column: u32,
+    /// Code snippet showing the issue
+    pub snippet: Option<String>,
+    /// Suggested fix or remediation
+    pub suggestion: Option<String>,
+}
+
+/// Summary statistics for a security scan
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SecurityScanSummary {
+    /// Total files scanned
+    #[serde(rename = "filesScanned")]
+    pub files_scanned: u32,
+    /// Total findings count
+    #[serde(rename = "totalFindings")]
+    pub total_findings: u32,
+    /// Count by severity
+    pub critical: u32,
+    pub high: u32,
+    pub medium: u32,
+    pub low: u32,
+    pub info: u32,
+    /// Whether the skill is considered safe to install
+    #[serde(rename = "isSafe")]
+    pub is_safe: bool,
+    /// Risk score (0-100, higher = more risk)
+    #[serde(rename = "riskScore")]
+    pub risk_score: u32,
+}
+
+/// Complete security scan report
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SecurityScanReport {
+    /// Skill identifier or path that was scanned
+    #[serde(rename = "skillId")]
+    pub skill_id: String,
+    /// Skill name (if available)
+    #[serde(rename = "skillName")]
+    pub skill_name: Option<String>,
+    /// Path that was scanned
+    #[serde(rename = "scannedPath")]
+    pub scanned_path: String,
+    /// Scan timestamp (Unix epoch milliseconds)
+    #[serde(rename = "scannedAt")]
+    pub scanned_at: i64,
+    /// Scan duration in milliseconds
+    #[serde(rename = "durationMs")]
+    pub duration_ms: u64,
+    /// Summary statistics
+    pub summary: SecurityScanSummary,
+    /// Individual findings
+    pub findings: Vec<SecurityFinding>,
+}
+
+impl SecurityScanReport {
+    /// Create a new empty report
+    pub fn new(skill_id: String, scanned_path: String) -> Self {
+        Self {
+            skill_id,
+            skill_name: None,
+            scanned_path,
+            scanned_at: chrono::Utc::now().timestamp_millis(),
+            duration_ms: 0,
+            summary: SecurityScanSummary::default(),
+            findings: Vec::new(),
+        }
+    }
+
+    /// Calculate summary from findings
+    pub fn calculate_summary(&mut self) {
+        self.summary.total_findings = self.findings.len() as u32;
+        self.summary.critical = 0;
+        self.summary.high = 0;
+        self.summary.medium = 0;
+        self.summary.low = 0;
+        self.summary.info = 0;
+
+        for finding in &self.findings {
+            match finding.severity {
+                SecuritySeverity::Critical => self.summary.critical += 1,
+                SecuritySeverity::High => self.summary.high += 1,
+                SecuritySeverity::Medium => self.summary.medium += 1,
+                SecuritySeverity::Low => self.summary.low += 1,
+                SecuritySeverity::Info => self.summary.info += 1,
+            }
+        }
+
+        // Calculate risk score (weighted sum, capped at 100)
+        let risk = (self.summary.critical * 25)
+            + (self.summary.high * 15)
+            + (self.summary.medium * 8)
+            + (self.summary.low * 3)
+            + (self.summary.info * 1);
+        self.summary.risk_score = risk.min(100);
+
+        // Safe if no critical or high findings
+        self.summary.is_safe = self.summary.critical == 0 && self.summary.high == 0;
+    }
+
+    /// Sort findings by severity (most severe first)
+    pub fn sort_findings(&mut self) {
+        self.findings.sort_by(|a, b| {
+            b.severity.weight().cmp(&a.severity.weight())
+                .then_with(|| a.file_path.cmp(&b.file_path))
+                .then_with(|| a.line.cmp(&b.line))
+        });
+    }
+}
+
+/// Options for security scanning
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SecurityScanOptions {
+    /// Maximum file size to scan (bytes)
+    #[serde(rename = "maxFileSize", default = "default_max_file_size")]
+    pub max_file_size: u64,
+    /// Maximum total files to scan
+    #[serde(rename = "maxFiles", default = "default_max_files")]
+    pub max_files: u32,
+    /// File extensions to scan (empty = all text files)
+    #[serde(default)]
+    pub extensions: Vec<String>,
+    /// Skip files matching these patterns
+    #[serde(rename = "skipPatterns", default)]
+    pub skip_patterns: Vec<String>,
+    /// Minimum severity to report
+    #[serde(rename = "minSeverity", default)]
+    pub min_severity: Option<SecuritySeverity>,
+}
+
+fn default_max_file_size() -> u64 {
+    1024 * 1024 // 1MB
+}
+
+fn default_max_files() -> u32 {
+    500
+}
+
+impl Default for SecurityScanOptions {
+    fn default() -> Self {
+        Self {
+            max_file_size: default_max_file_size(),
+            max_files: default_max_files(),
+            extensions: vec![],
+            skip_patterns: vec![
+                "node_modules".to_string(),
+                ".git".to_string(),
+                "__pycache__".to_string(),
+                ".venv".to_string(),
+            ],
+            min_severity: None,
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -473,5 +700,205 @@ mod tests {
         assert!(filters.installed.is_none());
         assert!(filters.enabled.is_none());
         assert!(filters.query.is_none());
+    }
+
+    // ========== Security Scanning Tests ==========
+
+    #[test]
+    fn test_security_severity_weight() {
+        assert!(SecuritySeverity::Critical.weight() > SecuritySeverity::High.weight());
+        assert!(SecuritySeverity::High.weight() > SecuritySeverity::Medium.weight());
+        assert!(SecuritySeverity::Medium.weight() > SecuritySeverity::Low.weight());
+        assert!(SecuritySeverity::Low.weight() > SecuritySeverity::Info.weight());
+        assert_eq!(SecuritySeverity::Critical.weight(), 5);
+        assert_eq!(SecuritySeverity::Info.weight(), 1);
+    }
+
+    #[test]
+    fn test_security_severity_serialization() {
+        let severity = SecuritySeverity::Critical;
+        let json = serde_json::to_string(&severity).unwrap();
+        assert_eq!(json, "\"critical\"");
+
+        let parsed: SecuritySeverity = serde_json::from_str("\"high\"").unwrap();
+        assert_eq!(parsed, SecuritySeverity::High);
+    }
+
+    #[test]
+    fn test_security_category_serialization() {
+        let category = SecurityCategory::CommandExecution;
+        let json = serde_json::to_string(&category).unwrap();
+        assert_eq!(json, "\"command_execution\"");
+
+        let parsed: SecurityCategory = serde_json::from_str("\"code_injection\"").unwrap();
+        assert_eq!(parsed, SecurityCategory::CodeInjection);
+    }
+
+    #[test]
+    fn test_security_finding_serialization() {
+        let finding = SecurityFinding {
+            rule_id: "SEC001".to_string(),
+            title: "Test Finding".to_string(),
+            description: "Test description".to_string(),
+            severity: SecuritySeverity::High,
+            category: SecurityCategory::CommandExecution,
+            file_path: "test.js".to_string(),
+            line: 10,
+            column: 5,
+            snippet: Some("eval(x)".to_string()),
+            suggestion: Some("Don't use eval".to_string()),
+        };
+
+        let json = serde_json::to_string(&finding).unwrap();
+        assert!(json.contains("\"ruleId\":\"SEC001\""));
+        assert!(json.contains("\"filePath\":\"test.js\""));
+        assert!(json.contains("\"severity\":\"high\""));
+    }
+
+    #[test]
+    fn test_security_scan_summary_default() {
+        let summary = SecurityScanSummary::default();
+        assert_eq!(summary.files_scanned, 0);
+        assert_eq!(summary.total_findings, 0);
+        assert_eq!(summary.critical, 0);
+        assert_eq!(summary.high, 0);
+        assert_eq!(summary.medium, 0);
+        assert_eq!(summary.low, 0);
+        assert_eq!(summary.info, 0);
+        assert!(!summary.is_safe);
+        assert_eq!(summary.risk_score, 0);
+    }
+
+    #[test]
+    fn test_security_scan_report_new() {
+        let report = SecurityScanReport::new("test-skill".to_string(), "/path/to/skill".to_string());
+        assert_eq!(report.skill_id, "test-skill");
+        assert_eq!(report.scanned_path, "/path/to/skill");
+        assert!(report.skill_name.is_none());
+        assert!(report.findings.is_empty());
+        assert_eq!(report.duration_ms, 0);
+    }
+
+    #[test]
+    fn test_security_scan_report_calculate_summary() {
+        let mut report = SecurityScanReport::new("test".to_string(), "/path".to_string());
+        report.findings = vec![
+            SecurityFinding {
+                rule_id: "SEC001".to_string(),
+                title: "Critical".to_string(),
+                description: "".to_string(),
+                severity: SecuritySeverity::Critical,
+                category: SecurityCategory::CommandExecution,
+                file_path: "a.js".to_string(),
+                line: 1,
+                column: 1,
+                snippet: None,
+                suggestion: None,
+            },
+            SecurityFinding {
+                rule_id: "SEC002".to_string(),
+                title: "High".to_string(),
+                description: "".to_string(),
+                severity: SecuritySeverity::High,
+                category: SecurityCategory::CodeInjection,
+                file_path: "b.js".to_string(),
+                line: 2,
+                column: 1,
+                snippet: None,
+                suggestion: None,
+            },
+            SecurityFinding {
+                rule_id: "SEC003".to_string(),
+                title: "Medium".to_string(),
+                description: "".to_string(),
+                severity: SecuritySeverity::Medium,
+                category: SecurityCategory::NetworkAccess,
+                file_path: "c.js".to_string(),
+                line: 3,
+                column: 1,
+                snippet: None,
+                suggestion: None,
+            },
+        ];
+
+        report.calculate_summary();
+
+        assert_eq!(report.summary.total_findings, 3);
+        assert_eq!(report.summary.critical, 1);
+        assert_eq!(report.summary.high, 1);
+        assert_eq!(report.summary.medium, 1);
+        assert_eq!(report.summary.low, 0);
+        assert_eq!(report.summary.info, 0);
+        assert!(!report.summary.is_safe); // Has critical/high findings
+        assert!(report.summary.risk_score > 0);
+    }
+
+    #[test]
+    fn test_security_scan_report_sort_findings() {
+        let mut report = SecurityScanReport::new("test".to_string(), "/path".to_string());
+        report.findings = vec![
+            SecurityFinding {
+                rule_id: "SEC001".to_string(),
+                title: "Low".to_string(),
+                description: "".to_string(),
+                severity: SecuritySeverity::Low,
+                category: SecurityCategory::Other,
+                file_path: "a.js".to_string(),
+                line: 1,
+                column: 1,
+                snippet: None,
+                suggestion: None,
+            },
+            SecurityFinding {
+                rule_id: "SEC002".to_string(),
+                title: "Critical".to_string(),
+                description: "".to_string(),
+                severity: SecuritySeverity::Critical,
+                category: SecurityCategory::CommandExecution,
+                file_path: "b.js".to_string(),
+                line: 2,
+                column: 1,
+                snippet: None,
+                suggestion: None,
+            },
+        ];
+
+        report.sort_findings();
+
+        assert_eq!(report.findings[0].severity, SecuritySeverity::Critical);
+        assert_eq!(report.findings[1].severity, SecuritySeverity::Low);
+    }
+
+    #[test]
+    fn test_security_scan_report_is_safe() {
+        let mut report = SecurityScanReport::new("test".to_string(), "/path".to_string());
+        report.findings = vec![
+            SecurityFinding {
+                rule_id: "SEC001".to_string(),
+                title: "Info".to_string(),
+                description: "".to_string(),
+                severity: SecuritySeverity::Info,
+                category: SecurityCategory::Other,
+                file_path: "a.js".to_string(),
+                line: 1,
+                column: 1,
+                snippet: None,
+                suggestion: None,
+            },
+        ];
+
+        report.calculate_summary();
+        assert!(report.summary.is_safe); // Only info findings = safe
+    }
+
+    #[test]
+    fn test_security_scan_options_default() {
+        let opts = SecurityScanOptions::default();
+        assert_eq!(opts.max_file_size, 1024 * 1024);
+        assert_eq!(opts.max_files, 500);
+        assert!(opts.extensions.is_empty());
+        assert!(!opts.skip_patterns.is_empty());
+        assert!(opts.skip_patterns.contains(&"node_modules".to_string()));
+        assert!(opts.min_severity.is_none());
     }
 }

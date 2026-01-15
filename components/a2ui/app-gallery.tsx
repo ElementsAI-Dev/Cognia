@@ -3,28 +3,15 @@
 /**
  * A2UI App Gallery Component
  * Displays and manages created A2UI mini-apps in a gallery view
+ * Enhanced with thumbnail support, metadata display, and app store preparation
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Card,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -34,22 +21,46 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   Search,
-  MoreVertical,
-  Play,
-  Copy,
-  Trash2,
-  Edit2,
   ExternalLink,
-  RefreshCw,
   Sparkles,
-  Clock,
   LayoutGrid,
+  LayoutList,
+  Filter,
+  SortAsc,
+  SortDesc,
 } from 'lucide-react';
-import { icons } from 'lucide-react';
 import { useA2UIAppBuilder, type A2UIAppInstance } from '@/hooks/a2ui/use-app-builder';
 import { A2UIInlineSurface } from './a2ui-surface';
+import { AppCard } from './app-card';
+import { AppDetailDialog } from './app-detail-dialog';
+import { captureSurfaceThumbnail } from '@/lib/a2ui/thumbnail';
 import type { A2UIUserAction, A2UIDataModelChange } from '@/types/artifact/a2ui';
+
+type ViewMode = 'grid' | 'list';
+type SortField = 'name' | 'lastModified' | 'createdAt';
+type SortOrder = 'asc' | 'desc';
+
+const CATEGORY_OPTIONS = [
+  { value: 'all', label: '全部分类' },
+  { value: 'productivity', label: '效率工具' },
+  { value: 'data', label: '数据分析' },
+  { value: 'form', label: '表单' },
+  { value: 'utility', label: '实用工具' },
+  { value: 'social', label: '社交' },
+];
 
 interface AppGalleryProps {
   className?: string;
@@ -57,7 +68,9 @@ interface AppGalleryProps {
   onDataChange?: (change: A2UIDataModelChange) => void;
   onAppOpen?: (appId: string) => void;
   showPreview?: boolean;
+  showThumbnails?: boolean;
   columns?: 1 | 2 | 3 | 4;
+  defaultViewMode?: ViewMode;
 }
 
 export function AppGallery({
@@ -66,13 +79,20 @@ export function AppGallery({
   onDataChange,
   onAppOpen,
   showPreview = true,
+  showThumbnails = true,
   columns = 2,
+  defaultViewMode = 'grid',
 }: AppGalleryProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [renameDialogId, setRenameDialogId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
+  const [detailApp, setDetailApp] = useState<A2UIAppInstance | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [sortField, setSortField] = useState<SortField>('lastModified');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   const appBuilder = useA2UIAppBuilder({
     onAction: (action) => {
@@ -84,19 +104,50 @@ export function AppGallery({
 
   // Get and filter apps
   const apps = useMemo(() => {
-    const allApps = appBuilder.getAllApps();
-    if (!searchQuery) return allApps;
+    let filteredApps = appBuilder.getAllApps();
 
-    const query = searchQuery.toLowerCase();
-    return allApps.filter((app) => {
-      const template = appBuilder.getTemplate(app.templateId);
-      return (
-        app.name.toLowerCase().includes(query) ||
-        template?.name.toLowerCase().includes(query) ||
-        template?.tags.some((t) => t.toLowerCase().includes(query))
-      );
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filteredApps = filteredApps.filter((app) => {
+        const template = appBuilder.getTemplate(app.templateId);
+        return (
+          app.name.toLowerCase().includes(query) ||
+          app.description?.toLowerCase().includes(query) ||
+          template?.name.toLowerCase().includes(query) ||
+          template?.tags.some((t) => t.toLowerCase().includes(query)) ||
+          app.tags?.some((t) => t.toLowerCase().includes(query))
+        );
+      });
+    }
+
+    // Category filter
+    if (categoryFilter !== 'all') {
+      filteredApps = filteredApps.filter((app) => {
+        const template = appBuilder.getTemplate(app.templateId);
+        return app.category === categoryFilter || template?.category === categoryFilter;
+      });
+    }
+
+    // Sort
+    filteredApps.sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'lastModified':
+          comparison = a.lastModified - b.lastModified;
+          break;
+        case 'createdAt':
+          comparison = a.createdAt - b.createdAt;
+          break;
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
     });
-  }, [appBuilder, searchQuery]);
+
+    return filteredApps;
+  }, [appBuilder, searchQuery, categoryFilter, sortField, sortOrder]);
 
   // Handle app selection
   const handleSelectApp = useCallback(
@@ -118,6 +169,48 @@ export function AppGallery({
     },
     [appBuilder, selectedAppId]
   );
+
+  // Handle thumbnail generation
+  const handleThumbnailGenerated = useCallback(
+    (appId: string, thumbnail: string) => {
+      appBuilder.setAppThumbnail(appId, thumbnail);
+    },
+    [appBuilder]
+  );
+
+  // Handle generate thumbnail for selected app
+  const handleGenerateThumbnail = useCallback(
+    async (appId: string) => {
+      try {
+        const result = await captureSurfaceThumbnail(appId);
+        if (result) {
+          appBuilder.setAppThumbnail(appId, result.dataUrl);
+        }
+      } catch (error) {
+        console.error('[AppGallery] Failed to generate thumbnail:', error);
+      }
+    },
+    [appBuilder]
+  );
+
+  // Handle metadata save
+  const handleMetadataSave = useCallback(
+    (appId: string, metadata: Partial<A2UIAppInstance>) => {
+      appBuilder.updateAppMetadata(appId, metadata);
+    },
+    [appBuilder]
+  );
+
+  // Handle view details
+  const handleViewDetails = useCallback((app: A2UIAppInstance) => {
+    setDetailApp(app);
+    appBuilder.incrementAppViews(app.id);
+  }, [appBuilder]);
+
+  // Toggle sort order
+  const toggleSortOrder = useCallback(() => {
+    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+  }, []);
 
   // Handle duplicate
   const handleDuplicate = useCallback(
@@ -147,6 +240,7 @@ export function AppGallery({
 
   // Get column class
   const getGridClass = () => {
+    if (viewMode === 'list') return 'grid-cols-1';
     switch (columns) {
       case 1:
         return 'grid-cols-1';
@@ -161,120 +255,30 @@ export function AppGallery({
     }
   };
 
-  // Format date - localized
-  const formatDate = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-
-    if (diff < 60000) return '刚刚';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`;
-    if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`;
-
-    return date.toLocaleDateString();
-  };
-
   // Render app card
   const renderAppCard = (app: A2UIAppInstance) => {
     const template = appBuilder.getTemplate(app.templateId);
-    const IconComponent = template?.icon
-      ? icons[template.icon as keyof typeof icons]
-      : null;
     const isSelected = selectedAppId === app.id;
 
     return (
-      <Card
+      <AppCard
         key={app.id}
-        className={cn(
-          'group relative transition-all hover:shadow-md active:shadow-md cursor-pointer touch-manipulation',
-          isSelected && 'ring-2 ring-primary shadow-md'
-        )}
-        onClick={() => handleSelectApp(app.id)}
-      >
-        <CardHeader className="p-3 sm:p-4 pb-2">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <div
-                className={cn(
-                  'flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg',
-                  isSelected ? 'bg-primary/20' : 'bg-muted'
-                )}
-              >
-                {IconComponent ? (
-                  <IconComponent
-                    className={cn(
-                      'h-4 w-4 sm:h-5 sm:w-5',
-                      isSelected ? 'text-primary' : 'text-muted-foreground'
-                    )}
-                  />
-                ) : (
-                  <Sparkles
-                    className={cn(
-                      'h-4 w-4 sm:h-5 sm:w-5',
-                      isSelected ? 'text-primary' : 'text-muted-foreground'
-                    )}
-                  />
-                )}
-              </div>
-              <div className="min-w-0">
-                <CardTitle className="text-xs sm:text-sm truncate">{app.name}</CardTitle>
-                <CardDescription className="text-xs truncate">
-                  {template?.name || '自定义应用'}
-                </CardDescription>
-              </div>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleSelectApp(app.id)}>
-                  <Play className="h-4 w-4 mr-2" />
-                  打开
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => openRenameDialog(app)}>
-                  <Edit2 className="h-4 w-4 mr-2" />
-                  重命名
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDuplicate(app.id)}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  复制
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => appBuilder.resetAppData(app.id)}>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  重置数据
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={() => setDeleteConfirmId(app.id)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  删除
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </CardHeader>
-        <CardFooter className="pt-0 pb-2 sm:pb-3 px-3 sm:px-4">
-          <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-muted-foreground">
-            <Clock className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">{formatDate(app.lastModified)}</span>
-            {template && (
-              <Badge variant="outline" className="text-xs py-0 hidden sm:inline-flex">
-                {template.category}
-              </Badge>
-            )}
-          </div>
-        </CardFooter>
-      </Card>
+        app={app}
+        template={template}
+        isSelected={isSelected}
+        showThumbnail={showThumbnails && viewMode === 'grid'}
+        showStats={true}
+        showDescription={viewMode === 'grid'}
+        compact={viewMode === 'list'}
+        onSelect={handleSelectApp}
+        onOpen={onAppOpen}
+        onRename={openRenameDialog}
+        onDuplicate={handleDuplicate}
+        onDelete={(id) => setDeleteConfirmId(id)}
+        onReset={(id) => appBuilder.resetAppData(id)}
+        onViewDetails={handleViewDetails}
+        onThumbnailGenerated={handleThumbnailGenerated}
+      />
     );
   };
 
@@ -289,18 +293,89 @@ export function AppGallery({
             {apps.length}
           </Badge>
         </div>
+        <div className="flex items-center gap-1">
+          {/* View mode toggle */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                className="h-8 w-8"
+                onClick={() => setViewMode('grid')}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>网格视图</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                className="h-8 w-8"
+                onClick={() => setViewMode('list')}
+              >
+                <LayoutList className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>列表视图</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
-      {/* Search - Mobile optimized */}
-      <div className="p-3 sm:p-4 border-b">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="搜索应用..."
-            className="pl-9 text-sm sm:text-base"
-          />
+      {/* Search and Filters */}
+      <div className="p-3 sm:p-4 border-b space-y-2">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="搜索应用..."
+              className="pl-9 text-sm sm:text-base"
+            />
+          </div>
+          {/* Category filter */}
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-32 sm:w-36">
+              <Filter className="h-4 w-4 mr-1" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORY_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {/* Sort options */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>排序:</span>
+          <Select value={sortField} onValueChange={(v) => setSortField(v as SortField)}>
+            <SelectTrigger className="h-7 w-24 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="lastModified">修改时间</SelectItem>
+              <SelectItem value="createdAt">创建时间</SelectItem>
+              <SelectItem value="name">名称</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+            onClick={toggleSortOrder}
+          >
+            {sortOrder === 'asc' ? (
+              <SortAsc className="h-3 w-3" />
+            ) : (
+              <SortDesc className="h-3 w-3" />
+            )}
+          </Button>
         </div>
       </div>
 
@@ -448,6 +523,17 @@ export function AppGallery({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* App detail dialog */}
+      <AppDetailDialog
+        app={detailApp}
+        template={detailApp ? appBuilder.getTemplate(detailApp.templateId) : undefined}
+        open={!!detailApp}
+        onOpenChange={(open) => !open && setDetailApp(null)}
+        onSave={handleMetadataSave}
+        onGenerateThumbnail={handleGenerateThumbnail}
+        onPreparePublish={appBuilder.prepareForPublish}
+      />
     </div>
   );
 }

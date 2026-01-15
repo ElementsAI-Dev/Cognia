@@ -360,7 +360,7 @@ impl AssistantBubbleWindow {
     /// Calculate optimal position for chat widget relative to bubble
     pub fn calculate_chat_widget_position(&self, widget_width: i32, widget_height: i32) -> (i32, i32) {
         let bubble_pos = self.get_position().unwrap_or_else(|| self.default_position());
-        let bubble_size = BUBBLE_SIZE as i32;
+        let bubble_size = self.bubble_size_physical();
         let (work_w, work_h, work_x, work_y) = self.get_primary_work_area();
         
         // Gap between bubble and widget
@@ -413,10 +413,23 @@ impl AssistantBubbleWindow {
 
     fn default_position(&self) -> (i32, i32) {
         let (work_w, work_h, work_x, work_y) = self.get_primary_work_area();
-        let size = BUBBLE_SIZE as i32;
+        let size = self.bubble_size_physical();
         let x = work_x + work_w - size - BUBBLE_PADDING;
         let y = work_y + work_h - size - BUBBLE_PADDING;
         (x.max(work_x), y.max(work_y))
+    }
+
+    /// Get bubble size in physical pixels based on current scale factor
+    fn bubble_size_physical(&self) -> i32 {
+        if let Some(window) = self
+            .app_handle
+            .get_webview_window(ASSISTANT_BUBBLE_WINDOW_LABEL)
+        {
+            let scale = window.scale_factor().unwrap_or(1.0);
+            return (BUBBLE_SIZE * scale).round() as i32;
+        }
+
+        BUBBLE_SIZE as i32
     }
 
     /// Destroy the bubble window and clean up resources
@@ -544,7 +557,7 @@ impl AssistantBubbleWindow {
     pub fn clamp_to_work_area(&self) -> Result<(), String> {
         if let Some((x, y)) = self.get_position() {
             let (work_w, work_h, work_x, work_y) = self.get_work_area_for_position(Some((x, y)));
-            let size = BUBBLE_SIZE as i32;
+            let size = self.bubble_size_physical();
             
             let new_x = x.max(work_x + BUBBLE_PADDING).min(work_x + work_w - size - BUBBLE_PADDING);
             let new_y = y.max(work_y + BUBBLE_PADDING).min(work_y + work_h - size - BUBBLE_PADDING);

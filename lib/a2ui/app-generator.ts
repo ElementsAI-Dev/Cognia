@@ -8,12 +8,128 @@ import type { A2UIComponent, A2UIServerMessage } from '@/types/artifact/a2ui';
 import { generateTemplateId } from './templates';
 
 /**
+ * Localized text configuration
+ */
+interface LocalizedTexts {
+  defaultAppName: string;
+  execute: string;
+  submit: string;
+  add: string;
+  clear: string;
+  refresh: string;
+  start: string;
+  pause: string;
+  reset: string;
+  save: string;
+  delete: string;
+  search: string;
+  noTasks: string;
+  noNotes: string;
+  completed: string;
+  pending: string;
+}
+
+const texts: Record<'zh' | 'en', LocalizedTexts> = {
+  zh: {
+    defaultAppName: '我的应用',
+    execute: '执行',
+    submit: '提交',
+    add: '添加',
+    clear: '清除',
+    refresh: '刷新',
+    start: '开始',
+    pause: '暂停',
+    reset: '重置',
+    save: '保存',
+    delete: '删除',
+    search: '搜索',
+    noTasks: '暂无任务',
+    noNotes: '暂无笔记',
+    completed: '已完成',
+    pending: '待完成',
+  },
+  en: {
+    defaultAppName: 'My App',
+    execute: 'Execute',
+    submit: 'Submit',
+    add: 'Add',
+    clear: 'Clear',
+    refresh: 'Refresh',
+    start: 'Start',
+    pause: 'Pause',
+    reset: 'Reset',
+    save: 'Save',
+    delete: 'Delete',
+    search: 'Search',
+    noTasks: 'No tasks yet',
+    noNotes: 'No notes yet',
+    completed: 'completed',
+    pending: 'pending',
+  },
+};
+
+/**
+ * Style configuration for app appearance
+ */
+interface StyleConfig {
+  cardClassName: string;
+  buttonVariant: 'primary' | 'secondary' | 'outline';
+  headerClassName: string;
+  accentColor: string;
+}
+
+const styles: Record<'minimal' | 'colorful' | 'professional', StyleConfig> = {
+  minimal: {
+    cardClassName: 'border-0 shadow-none',
+    buttonVariant: 'outline',
+    headerClassName: 'text-foreground',
+    accentColor: 'muted',
+  },
+  colorful: {
+    cardClassName: 'border-primary/20 shadow-md',
+    buttonVariant: 'primary',
+    headerClassName: 'text-primary',
+    accentColor: 'primary',
+  },
+  professional: {
+    cardClassName: 'border shadow-sm',
+    buttonVariant: 'secondary',
+    headerClassName: 'text-foreground font-semibold',
+    accentColor: 'secondary',
+  },
+};
+
+/**
+ * Get localized texts based on language
+ */
+export function getLocalizedTexts(language: 'zh' | 'en' = 'zh'): LocalizedTexts {
+  return texts[language];
+}
+
+/**
+ * Get style configuration
+ */
+export function getStyleConfig(style: 'minimal' | 'colorful' | 'professional' = 'colorful'): StyleConfig {
+  return styles[style];
+}
+
+/**
  * App generation request
  */
 export interface AppGenerationRequest {
   description: string;
   language?: 'zh' | 'en';
   style?: 'minimal' | 'colorful' | 'professional';
+}
+
+/**
+ * Internal generation context with resolved options
+ */
+interface GenerationContext {
+  language: 'zh' | 'en';
+  style: 'minimal' | 'colorful' | 'professional';
+  texts: LocalizedTexts;
+  styleConfig: StyleConfig;
 }
 
 /**
@@ -84,7 +200,7 @@ export function detectAppType(description: string): string | null {
 /**
  * Extract app name from description
  */
-export function extractAppName(description: string): string {
+export function extractAppName(description: string, ctx?: GenerationContext): string {
   // Try to extract name patterns
   const patterns = [
     /(?:做|创建|生成|制作|建一个|做一个|create|make|build|generate)\s*(?:一个|个)?\s*[「「"']?([^「」"'\s,，。.]+)[」」"']?/i,
@@ -98,29 +214,32 @@ export function extractAppName(description: string): string {
     }
   }
   
-  // Generate default name
+  // Generate default name based on app type and language
   const appType = detectAppType(description);
+  const isEnglish = ctx?.language === 'en';
+  
   if (appType) {
-    const typeNames: Record<string, string> = {
-      calculator: '计算器',
-      timer: '计时器',
-      todo: '待办事项',
-      notes: '快速笔记',
-      survey: '调查问卷',
-      contact: '联系表单',
-      weather: '天气查看',
-      dashboard: '数据仪表盘',
+    const typeNames: Record<string, { zh: string; en: string }> = {
+      calculator: { zh: '计算器', en: 'Calculator' },
+      timer: { zh: '计时器', en: 'Timer' },
+      todo: { zh: '待办事项', en: 'Todo List' },
+      notes: { zh: '快速笔记', en: 'Quick Notes' },
+      survey: { zh: '调查问卷', en: 'Survey' },
+      contact: { zh: '联系表单', en: 'Contact Form' },
+      weather: { zh: '天气查看', en: 'Weather' },
+      dashboard: { zh: '数据仪表盘', en: 'Dashboard' },
     };
-    return typeNames[appType] || '我的应用';
+    const names = typeNames[appType];
+    return names ? (isEnglish ? names.en : names.zh) : (ctx?.texts.defaultAppName || '我的应用');
   }
   
-  return '我的应用';
+  return ctx?.texts.defaultAppName || '我的应用';
 }
 
 /**
  * Generate custom calculator app
  */
-export function generateCalculatorApp(name: string, description: string): GeneratedApp {
+export function generateCalculatorApp(name: string, description: string, _ctx?: GenerationContext): GeneratedApp {
   const id = generateTemplateId('calc');
   
   // Parse description for specific calculator type
@@ -164,7 +283,7 @@ export function generateCalculatorApp(name: string, description: string): Genera
 /**
  * Generate countdown/timer app
  */
-export function generateTimerApp(name: string, description: string): GeneratedApp {
+export function generateTimerApp(name: string, description: string, _ctx?: GenerationContext): GeneratedApp {
   const id = generateTemplateId('timer');
   
   const _isCountdown = /倒计时|countdown/i.test(description);
@@ -199,7 +318,7 @@ export function generateTimerApp(name: string, description: string): GeneratedAp
 /**
  * Generate todo/task list app
  */
-export function generateTodoApp(name: string, description: string): GeneratedApp {
+export function generateTodoApp(name: string, description: string, _ctx?: GenerationContext): GeneratedApp {
   const id = generateTemplateId('todo');
   
   const hasCategories = /分类|category|类别/i.test(description);
@@ -227,7 +346,7 @@ export function generateTodoApp(name: string, description: string): GeneratedApp
 /**
  * Generate notes app
  */
-export function generateNotesApp(name: string, description: string): GeneratedApp {
+export function generateNotesApp(name: string, description: string, _ctx?: GenerationContext): GeneratedApp {
   const id = generateTemplateId('notes');
   
   const components = createNotesComponents();
@@ -251,7 +370,7 @@ export function generateNotesApp(name: string, description: string): GeneratedAp
 /**
  * Generate form app (survey/contact)
  */
-export function generateFormApp(name: string, description: string, type: 'survey' | 'contact'): GeneratedApp {
+export function generateFormApp(name: string, description: string, type: 'survey' | 'contact', _ctx?: GenerationContext): GeneratedApp {
   const id = generateTemplateId('form');
   
   const components = type === 'survey' ? createSurveyComponents() : createContactComponents();
@@ -274,7 +393,7 @@ export function generateFormApp(name: string, description: string, type: 'survey
 /**
  * Generate tracker app (habits, expenses, etc.)
  */
-export function generateTrackerApp(name: string, description: string): GeneratedApp {
+export function generateTrackerApp(name: string, description: string, _ctx?: GenerationContext): GeneratedApp {
   const id = generateTemplateId('tracker');
   
   const isExpense = /支出|花费|expense|消费|记账/i.test(description);
@@ -320,22 +439,107 @@ export function generateTrackerApp(name: string, description: string): Generated
 }
 
 /**
+ * Generate unit converter app
+ */
+export function generateUnitConverterApp(name: string, description: string, ctx?: GenerationContext): GeneratedApp {
+  const id = generateTemplateId('converter');
+  const t = ctx?.texts || texts.zh;
+  const isEnglish = ctx?.language === 'en';
+  
+  // Detect conversion type
+  const _isLength = /长度|length|米|厘米|英尺|inch|feet|cm|meter/i.test(description);
+  const isWeight = /重量|weight|千克|磅|kg|pound|lb/i.test(description);
+  const isTemperature = /温度|temperature|摄氏|华氏|celsius|fahrenheit/i.test(description);
+  const isCurrency = /货币|汇率|currency|exchange|美元|人民币|usd|cny|eur/i.test(description);
+  
+  let converterType = 'length';
+  let units: { value: string; label: string }[] = [];
+  
+  if (isTemperature) {
+    converterType = 'temperature';
+    units = isEnglish 
+      ? [{ value: 'celsius', label: 'Celsius (°C)' }, { value: 'fahrenheit', label: 'Fahrenheit (°F)' }, { value: 'kelvin', label: 'Kelvin (K)' }]
+      : [{ value: 'celsius', label: '摄氏度 (°C)' }, { value: 'fahrenheit', label: '华氏度 (°F)' }, { value: 'kelvin', label: '开尔文 (K)' }];
+  } else if (isWeight) {
+    converterType = 'weight';
+    units = isEnglish
+      ? [{ value: 'kg', label: 'Kilogram (kg)' }, { value: 'lb', label: 'Pound (lb)' }, { value: 'g', label: 'Gram (g)' }, { value: 'oz', label: 'Ounce (oz)' }]
+      : [{ value: 'kg', label: '千克 (kg)' }, { value: 'lb', label: '磅 (lb)' }, { value: 'g', label: '克 (g)' }, { value: 'oz', label: '盎司 (oz)' }];
+  } else if (isCurrency) {
+    converterType = 'currency';
+    units = isEnglish
+      ? [{ value: 'usd', label: 'USD ($)' }, { value: 'cny', label: 'CNY (¥)' }, { value: 'eur', label: 'EUR (€)' }, { value: 'jpy', label: 'JPY (¥)' }]
+      : [{ value: 'usd', label: '美元 ($)' }, { value: 'cny', label: '人民币 (¥)' }, { value: 'eur', label: '欧元 (€)' }, { value: 'jpy', label: '日元 (¥)' }];
+  } else {
+    // Default to length
+    units = isEnglish
+      ? [{ value: 'm', label: 'Meter (m)' }, { value: 'cm', label: 'Centimeter (cm)' }, { value: 'ft', label: 'Feet (ft)' }, { value: 'in', label: 'Inch (in)' }]
+      : [{ value: 'm', label: '米 (m)' }, { value: 'cm', label: '厘米 (cm)' }, { value: 'ft', label: '英尺 (ft)' }, { value: 'in', label: '英寸 (in)' }];
+  }
+  
+  const headerText = isEnglish ? `🔄 ${name}` : `🔄 ${name}`;
+  const fromLabel = isEnglish ? 'From' : '从';
+  const toLabel = isEnglish ? 'To' : '到';
+  const inputLabel = isEnglish ? 'Value' : '数值';
+  const resultLabel = isEnglish ? 'Result' : '结果';
+  
+  const components: A2UIComponent[] = [
+    { id: 'root', component: 'Column', children: ['header', 'converter-card', 'result-card'], className: 'gap-4 p-4' },
+    { id: 'header', component: 'Text', text: headerText, variant: 'heading2' },
+    { id: 'converter-card', component: 'Card', children: ['input-row', 'unit-row', 'convert-btn'], className: 'p-4 gap-4' },
+    { id: 'input-row', component: 'TextField', value: { path: '/inputValue' }, label: inputLabel, type: 'number', placeholder: '0' },
+    { id: 'unit-row', component: 'Row', children: ['from-unit', 'arrow', 'to-unit'], className: 'gap-2 items-center' },
+    { id: 'from-unit', component: 'Select', value: { path: '/fromUnit' }, label: fromLabel, options: units, className: 'flex-1' },
+    { id: 'arrow', component: 'Icon', name: 'ArrowRight', size: 20, className: 'text-muted-foreground' },
+    { id: 'to-unit', component: 'Select', value: { path: '/toUnit' }, label: toLabel, options: units, className: 'flex-1' },
+    { id: 'convert-btn', component: 'Button', text: t.execute, action: 'convert', variant: ctx?.styleConfig.buttonVariant || 'primary', className: 'mt-2' },
+    { id: 'result-card', component: 'Card', children: ['result-label', 'result-value'], className: 'text-center p-6' },
+    { id: 'result-label', component: 'Text', text: resultLabel, variant: 'caption' },
+    { id: 'result-value', component: 'Text', text: { path: '/result' }, variant: 'heading1', className: 'font-mono' },
+  ] as A2UIComponent[];
+  
+  const dataModel = {
+    inputValue: '',
+    fromUnit: units[0]?.value || '',
+    toUnit: units[1]?.value || '',
+    result: '0',
+    converterType,
+  };
+  
+  return {
+    id,
+    name,
+    description,
+    components,
+    dataModel,
+    messages: createAppMessages(id, name, components, dataModel),
+  };
+}
+
+/**
  * Generate a generic custom app based on description
  */
-export function generateCustomApp(name: string, description: string): GeneratedApp {
+export function generateCustomApp(name: string, description: string, ctx?: GenerationContext): GeneratedApp {
   const id = generateTemplateId('custom');
+  const isEnglish = ctx?.language === 'en';
+  const styleConfig = ctx?.styleConfig || styles.colorful;
   
   // Analyze description for common elements
   const hasInput = /输入|input|填写|enter/i.test(description);
   const hasButton = /按钮|button|点击|click/i.test(description);
-  const _hasList = /列表|list|记录|records/i.test(description);
-  const _hasChart = /图表|chart|统计|graph/i.test(description);
+  const hasList = /列表|list|记录|records/i.test(description);
+  const hasChart = /图表|chart|统计|graph/i.test(description);
+  
+  const children = ['header', 'content'];
+  if (hasList) children.push('list-section');
+  if (hasChart) children.push('chart-section');
+  children.push('actions');
   
   const components: A2UIComponent[] = [
     {
       id: 'root',
       component: 'Column',
-      children: ['header', 'content', 'actions'],
+      children,
       className: 'gap-4 p-4',
     },
     {
@@ -343,16 +547,19 @@ export function generateCustomApp(name: string, description: string): GeneratedA
       component: 'Text',
       text: name,
       variant: 'heading2',
+      className: ctx?.styleConfig.headerClassName,
     },
     {
       id: 'content',
       component: 'Card',
       children: hasInput ? ['input-section'] : ['info-text'],
-      className: 'p-4',
+      className: `p-4 ${ctx?.styleConfig.cardClassName || ''}`,
     },
   ];
   
   if (hasInput) {
+    const inputPlaceholder = isEnglish ? 'Enter value...' : '请输入...';
+    const inputLabel = isEnglish ? 'Input' : '输入';
     components.push({
       id: 'input-section',
       component: 'Column',
@@ -363,15 +570,15 @@ export function generateCustomApp(name: string, description: string): GeneratedA
       id: 'main-input',
       component: 'TextField',
       value: { path: '/inputValue' },
-      placeholder: '请输入...',
-      label: '输入',
+      placeholder: inputPlaceholder,
+      label: inputLabel,
     } as A2UIComponent);
     components.push({
       id: 'submit-btn',
       component: 'Button',
-      text: '提交',
+      text: isEnglish ? 'Submit' : '提交',
       action: 'submit',
-      variant: 'primary',
+      variant: styleConfig.buttonVariant,
     } as A2UIComponent);
   } else {
     components.push({
@@ -415,41 +622,69 @@ export function generateCustomApp(name: string, description: string): GeneratedA
 }
 
 /**
+ * Create generation context from request
+ */
+function createGenerationContext(request: AppGenerationRequest): GenerationContext {
+  const language = request.language || detectLanguage(request.description);
+  const style = request.style || 'colorful';
+  return {
+    language,
+    style,
+    texts: getLocalizedTexts(language),
+    styleConfig: getStyleConfig(style),
+  };
+}
+
+/**
+ * Auto-detect language from description
+ */
+function detectLanguage(description: string): 'zh' | 'en' {
+  // Check for Chinese characters
+  const chineseRegex = /[\u4e00-\u9fff]/;
+  return chineseRegex.test(description) ? 'zh' : 'en';
+}
+
+/**
  * Main app generation function
  */
 export function generateAppFromDescription(request: AppGenerationRequest): GeneratedApp {
   const { description } = request;
+  const ctx = createGenerationContext(request);
   const appType = detectAppType(description);
-  const name = extractAppName(description);
+  const name = extractAppName(description, ctx);
   
   switch (appType) {
     case 'calculator':
-      return generateCalculatorApp(name, description);
+      return generateCalculatorApp(name, description, ctx);
     case 'timer':
-      return generateTimerApp(name, description);
+      return generateTimerApp(name, description, ctx);
     case 'todo':
-      return generateTodoApp(name, description);
+      return generateTodoApp(name, description, ctx);
     case 'notes':
-      return generateNotesApp(name, description);
+      return generateNotesApp(name, description, ctx);
     case 'survey':
-      return generateFormApp(name, description, 'survey');
+      return generateFormApp(name, description, 'survey', ctx);
     case 'contact':
-      return generateFormApp(name, description, 'contact');
+      return generateFormApp(name, description, 'contact', ctx);
     case 'dashboard':
-      return generateDashboardApp(name, description);
+      return generateDashboardApp(name, description, ctx);
     default:
       // Check for tracker patterns
       if (/追踪|track|记录|log|打卡/i.test(description)) {
-        return generateTrackerApp(name, description);
+        return generateTrackerApp(name, description, ctx);
       }
-      return generateCustomApp(name, description);
+      // Check for unit converter
+      if (/转换|换算|convert/i.test(description)) {
+        return generateUnitConverterApp(name, description, ctx);
+      }
+      return generateCustomApp(name, description, ctx);
   }
 }
 
 /**
  * Generate dashboard app
  */
-function generateDashboardApp(name: string, description: string): GeneratedApp {
+function generateDashboardApp(name: string, description: string, _ctx?: GenerationContext): GeneratedApp {
   const id = generateTemplateId('dashboard');
   
   const components: A2UIComponent[] = [

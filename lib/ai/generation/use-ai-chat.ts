@@ -32,6 +32,15 @@ import {
   mergeCompressionSettings,
 } from '../embedding/compression';
 import type { UIMessage } from '@/types/core/message';
+import {
+  checkSafety,
+  type SafetyCheckOptions,
+  getSafetyWarningMessage,
+} from '../core/middleware';
+import {
+  createChatObservabilityManager,
+  type ChatObservabilityManager,
+} from '../observability/chat-observability';
 
 export interface ChatUsageInfo {
   promptTokens: number;
@@ -126,6 +135,7 @@ export function useAIChat({
 }: UseAIChatOptions) {
   const abortControllerRef = useRef<AbortController | null>(null);
   const reasoningRef = useRef<string>('');
+  const observabilityManagerRef = useRef<ChatObservabilityManager | null>(null);
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const streamingEnabled = useSettingsStore((state) => state.streamResponses);
 
@@ -147,6 +157,9 @@ export function useAIChat({
 
   // Usage tracking
   const addUsageRecord = useUsageStore((state) => state.addUsageRecord);
+
+  // Safety mode settings
+  const safetyModeSettings = useSettingsStore((state) => state.safetyModeSettings);
 
   const sendMessage = useCallback(
     async (
@@ -211,6 +224,56 @@ export function useAIChat({
       abortControllerRef.current = new AbortController();
 
       const { messages, systemPrompt, temperature = 0.7, maxTokens, topP, frequencyPenalty, presencePenalty, sessionId, messageId, streaming } = options;
+
+      // Initialize observability manager for this session
+      if (sessionId && !observabilityManagerRef.current) {
+        observabilityManagerRef.current = createChatObservabilityManager({
+          sessionId,
+          userId: undefined, // TODO: Get from user store when available
+          enableLangfuse: true,
+          enableOpenTelemetry: true,
+          metadata: {
+            provider,
+            model,
+          },
+        });
+        observabilityManagerRef.current.startChat();
+      }
+
+      // Apply safety mode checks if enabled
+      if (safetyModeSettings.enabled) {
+        const safetyOptions: SafetyCheckOptions = {
+          mode: safetyModeSettings.mode,
+          checkUserInput: safetyModeSettings.checkUserInput,
+          checkSystemPrompt: safetyModeSettings.checkSystemPrompt,
+          checkToolCalls: safetyModeSettings.checkToolCalls,
+          blockDangerousCommands: safetyModeSettings.blockDangerousCommands,
+          customBlockedPatterns: safetyModeSettings.customBlockedPatterns,
+          customAllowedPatterns: safetyModeSettings.customAllowedPatterns,
+        };
+
+        // Check system prompt if enabled
+        if (safetyModeSettings.checkSystemPrompt && systemPrompt) {
+          const systemCheck = checkSafety(systemPrompt, safetyOptions);
+          if (systemCheck.blocked) {
+            const errorMsg = getSafetyWarningMessage(systemCheck);
+            throw new Error(errorMsg || 'System prompt blocked by safety mode');
+          }
+        }
+
+        // Check user messages if enabled
+        if (safetyModeSettings.checkUserInput) {
+          for (const message of messages) {
+            if (message.role === 'user' && typeof message.content === 'string') {
+              const userCheck = checkSafety(message.content, safetyOptions);
+              if (userCheck.blocked) {
+                const errorMsg = getSafetyWarningMessage(userCheck);
+                throw new Error(errorMsg || 'User message blocked by safety mode');
+              }
+            }
+          }
+        }
+      }
 
       // Determine effective streaming setting: per-request override > global setting
       const useStreaming = streaming !== undefined ? streaming : streamingEnabled;
@@ -470,6 +533,14 @@ export function useAIChat({
             pluginIntegration.notifyStreamStart(sessionId);
           }
 
+          // Start observability tracking for streaming
+          const streamingTracker = observabilityManagerRef.current?.trackStreamingGeneration(
+            model,
+            provider,
+            convertedMessages,
+            { temperature, maxTokens, topP }
+          );
+
           const result = await streamText(commonOptions);
 
           let fullText = '';
@@ -513,6 +584,9 @@ export function useAIChat({
           const rawUsage = await result.usage;
           const usage = normalizeUsage(rawUsage);
           recordUsage(usage);
+
+          // End observability tracking for streaming
+          streamingTracker?.end(finalContent, usage);
           
           // Notify plugins of token usage
           if (sessionId && usage) {
@@ -562,14 +636,29 @@ export function useAIChat({
           onStreamEnd?.();
           return extractReasoning ? finalContent : fullText;
         } else {
-          const result = await generateText(commonOptions);
+          // Track non-streaming generation with observability
+          const generateWithObservability = async () => {
+            const result = await generateText(commonOptions);
+            const usage = normalizeUsage(result.usage);
+            return { text: result.text, usage, finishReason: result.finishReason };
+          };
+
+          const result = observabilityManagerRef.current
+            ? await observabilityManagerRef.current.trackGeneration(
+                model,
+                provider,
+                convertedMessages,
+                generateWithObservability,
+                { temperature, maxTokens, topP }
+              )
+            : await generateWithObservability();
 
           // Extract reasoning from result
           const { content: finalContent, reasoning } = extractReasoningFromText(result.text);
           reasoningRef.current = reasoning;
 
           // Record usage for non-streaming
-          const usage = normalizeUsage(result.usage);
+          const usage = result.usage;
           recordUsage(usage);
 
           // Call onStepFinish
@@ -583,7 +672,7 @@ export function useAIChat({
           onFinish?.({
             text: finalContent,
             usage,
-            finishReason: result.finishReason,
+            finishReason: (result as { finishReason?: string }).finishReason,
             reasoning,
           });
 
@@ -641,7 +730,7 @@ export function useAIChat({
         throw error;
       }
     },
-    [provider, model, providerSettings, streamingEnabled, onStreamStart, onStreamEnd, onError, onFinish, onStepFinish, extractReasoning, reasoningTagName, getMemoriesForPrompt, detectMemoryFromText, createMemory, memorySettings, customInstructions, customInstructionsEnabled, aboutUser, responsePreferences, addUsageRecord, compressionSettings, getSession]
+    [provider, model, providerSettings, streamingEnabled, onStreamStart, onStreamEnd, onError, onFinish, onStepFinish, extractReasoning, reasoningTagName, getMemoriesForPrompt, detectMemoryFromText, createMemory, memorySettings, customInstructions, customInstructionsEnabled, aboutUser, responsePreferences, addUsageRecord, compressionSettings, getSession, safetyModeSettings]
   );
 
   // Get the last extracted reasoning

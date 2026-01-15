@@ -34,6 +34,8 @@ import {
   GitBranch,
   Play,
   ShoppingBag,
+  Shield,
+  Activity,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -98,7 +100,9 @@ import {
   SearchSettings,
   SandboxSettings,
   GitSettings,
+  SafetySettings,
 } from '@/components/settings';
+import { ObservabilitySettings } from '@/components/observability';
 import { SelectionToolbarSettings } from '@/components/selection-toolbar/settings-panel';
 import { PromptTemplateManager, PromptMarketplaceBrowser } from '@/components/prompt';
 import { PluginSettingsPage } from '@/components/plugin';
@@ -128,7 +132,9 @@ type SettingsSection =
   | 'prompt-templates'
   | 'prompt-marketplace'
   | 'sandbox'
-  | 'git';
+  | 'git'
+  | 'safety'
+  | 'observability';
 
 type SettingsGroup = 'ai' | 'interface' | 'data' | 'system';
 
@@ -271,6 +277,20 @@ export default function SettingsPage() {
       label: t('tabSearch'),
       icon: <Search className="h-4 w-4" />,
       description: t('descSearch'),
+      group: 'ai',
+    },
+    {
+      id: 'safety',
+      label: 'Safety Mode',
+      icon: <Shield className="h-4 w-4" />,
+      description: 'Configure security checks and content filtering',
+      group: 'ai',
+    },
+    {
+      id: 'observability',
+      label: t('tabObservability') || 'Observability',
+      icon: <Activity className="h-4 w-4" />,
+      description: t('descObservability') || 'AI tracing, metrics, and cost analysis',
       group: 'ai',
     },
     {
@@ -446,6 +466,10 @@ export default function SettingsPage() {
         return <SandboxSettings />;
       case 'git':
         return <GitSettings />;
+      case 'safety':
+        return <SafetySettings />;
+      case 'observability':
+        return <ObservabilitySettings />;
       default:
         return <ProviderSettings />;
     }

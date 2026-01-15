@@ -234,6 +234,17 @@ impl ScreenshotHistory {
         }
     }
 
+    /// Remove tag from entry
+    pub fn remove_tag(&self, id: &str, tag: &str) -> bool {
+        let mut entries = self.entries.write();
+        if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
+            entry.tags.retain(|t| t != tag);
+            true
+        } else {
+            false
+        }
+    }
+
     /// Clear all non-pinned entries
     pub fn clear_unpinned(&self) {
         let mut entries = self.entries.write();
@@ -416,6 +427,44 @@ mod tests {
         let found = history.get_by_id(&id).unwrap();
         assert_eq!(found.tags.len(), 2);
         assert!(found.tags.contains(&"bug".to_string()));
+    }
+
+    #[test]
+    fn test_remove_tag() {
+        let history = ScreenshotHistory::new();
+        let entry = ScreenshotHistoryEntry::new(100, 100, "region");
+        let id = entry.id.clone();
+
+        history.add(entry);
+
+        assert!(history.add_tag(&id, "bug".to_string()));
+        assert!(history.add_tag(&id, "ui".to_string()));
+        
+        let found = history.get_by_id(&id).unwrap();
+        assert_eq!(found.tags.len(), 2);
+
+        assert!(history.remove_tag(&id, "bug"));
+        
+        let found = history.get_by_id(&id).unwrap();
+        assert_eq!(found.tags.len(), 1);
+        assert!(found.tags.contains(&"ui".to_string()));
+        assert!(!found.tags.contains(&"bug".to_string()));
+    }
+
+    #[test]
+    fn test_remove_tag_nonexistent() {
+        let history = ScreenshotHistory::new();
+        let entry = ScreenshotHistoryEntry::new(100, 100, "region");
+        let id = entry.id.clone();
+
+        history.add(entry);
+        assert!(history.add_tag(&id, "test".to_string()));
+
+        // Try to remove a tag that doesn't exist
+        assert!(history.remove_tag(&id, "nonexistent"));
+        
+        let found = history.get_by_id(&id).unwrap();
+        assert_eq!(found.tags.len(), 1);
     }
 
     #[test]

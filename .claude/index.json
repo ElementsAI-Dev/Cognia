@@ -1,0 +1,309 @@
+{
+  "timestamp": "2025-01-14T00:00:00.000Z",
+  "project": {
+    "name": "Cognia",
+    "description": "AI-native chat and creation application with multi-provider support",
+    "version": "0.1.0",
+    "type": "hybrid-web-desktop",
+    "frontend": "Next.js 16 with React 19.2, TypeScript, Tailwind CSS v4",
+    "desktop": "Tauri 2.9",
+    "stateManagement": "Zustand + Dexie for IndexedDB persistence"
+  },
+  "modules": [
+    {
+      "name": "app",
+      "path": "app/",
+      "type": "frontend",
+      "description": "Next.js App Router - main application routes and layouts",
+      "entryPoints": [
+        "app/layout.tsx",
+        "app/(main)/layout.tsx",
+        "app/(main)/(chat)/page.tsx"
+      ],
+      "keyFiles": [
+        "app/providers.tsx",
+        "app/globals.css"
+      ],
+      "hasTests": true,
+      "coverage": "partial"
+    },
+    {
+      "name": "components",
+      "path": "components/",
+      "type": "frontend",
+      "description": "Feature-based React components organized by domain",
+      "subdirectories": [
+        "ui/",
+        "chat/",
+        "sidebar/",
+        "settings/",
+        "artifacts/",
+        "canvas/",
+        "designer/",
+        "projects/",
+        "agent/",
+        "ai-elements/",
+        "native/",
+        "workflow-editor/",
+        "learning/",
+        "skills/"
+      ],
+      "hasTests": true,
+      "coverage": "good"
+    },
+    {
+      "name": "lib",
+      "path": "lib/",
+      "type": "frontend",
+      "description": "Domain utilities and business logic",
+      "subdirectories": [
+        "ai/",
+        "db/",
+        "document/",
+        "export/",
+        "file/",
+        "i18n/",
+        "search/",
+        "themes/",
+        "vector/",
+        "native/",
+        "skills/",
+        "learning/",
+        "designer/"
+      ],
+      "keyFiles": [
+        "lib/ai/index.ts",
+        "lib/utils.ts"
+      ],
+      "hasTests": true,
+      "coverage": "good"
+    },
+    {
+      "name": "hooks",
+      "path": "hooks/",
+      "type": "frontend",
+      "description": "Custom React hooks organized by domain",
+      "subdirectories": [
+        "ai/",
+        "agent/",
+        "chat/",
+        "context/",
+        "designer/",
+        "media/",
+        "native/",
+        "network/",
+        "rag/",
+        "sandbox/",
+        "ui/",
+        "utils/"
+      ],
+      "keyFiles": [
+        "hooks/index.ts"
+      ],
+      "hasTests": true,
+      "coverage": "good"
+    },
+    {
+      "name": "stores",
+      "path": "stores/",
+      "type": "frontend",
+      "description": "Zustand state management stores with localStorage persistence",
+      "subdirectories": [
+        "agent/",
+        "artifact/",
+        "chat/",
+        "context/",
+        "data/",
+        "designer/",
+        "document/",
+        "learning/",
+        "mcp/",
+        "media/",
+        "project/",
+        "settings/",
+        "system/",
+        "tools/",
+        "workflow/"
+      ],
+      "keyFiles": [
+        "stores/index.ts"
+      ],
+      "hasTests": true,
+      "coverage": "good"
+    },
+    {
+      "name": "types",
+      "path": "types/",
+      "type": "frontend",
+      "description": "TypeScript type definitions organized by domain",
+      "subdirectories": [
+        "agent/",
+        "artifact/",
+        "chat/",
+        "content/",
+        "core/",
+        "designer/",
+        "document/",
+        "learning/",
+        "media/",
+        "mcp/",
+        "plugin/",
+        "provider/",
+        "project/",
+        "search/",
+        "system/",
+        "workflow/"
+      ],
+      "keyFiles": [
+        "types/index.ts"
+      ],
+      "hasTests": false,
+      "coverage": "complete"
+    },
+    {
+      "name": "src-tauri",
+      "path": "src-tauri/",
+      "type": "backend",
+      "description": "Tauri Rust backend for native capabilities",
+      "entryPoints": [
+        "src-tauri/src/main.rs",
+        "src-tauri/src/lib.rs"
+      ],
+      "subdirectories": [
+        "awareness/",
+        "chat_widget/",
+        "assistant_bubble/",
+        "commands/",
+        "context/",
+        "jupyter/",
+        "mcp/",
+        "plugin/",
+        "process/",
+        "sandbox/",
+        "screen_recording/",
+        "screenshot/",
+        "selection/",
+        "skill/",
+        "tray/"
+      ],
+      "keyFiles": [
+        "src-tauri/Cargo.toml",
+        "src-tauri/tauri.conf.json",
+        "src-tauri/build.rs"
+      ],
+      "hasTests": false,
+      "coverage": "partial"
+    }
+  ],
+  "configuration": {
+    "typescript": {
+      "file": "tsconfig.json",
+      "strict": true,
+      "target": "ES2017",
+      "jsx": "react-jsx",
+      "pathAlias": "@/*"
+    },
+    "next": {
+      "file": "next.config.ts",
+      "staticExport": true,
+      "outputDirectory": "out/",
+      "imagesUnoptimized": true
+    },
+    "jest": {
+      "file": "jest.config.ts",
+      "environment": "jsdom",
+      "coverageThreshold": {
+        "branches": 50,
+        "functions": 40,
+        "lines": 55,
+        "statements": 55
+      }
+    },
+    "tailwind": {
+      "file": "tailwind.config.ts",
+      "version": "v4"
+    },
+    "tauri": {
+      "file": "src-tauri/tauri.conf.json",
+      "version": "2.9",
+      "windows": [
+        "main",
+        "splashscreen",
+        "selection-toolbar",
+        "chat-widget",
+        "region-selector"
+      ]
+    }
+  },
+  "testing": {
+    "framework": "Jest",
+    "coverageTool": "v8",
+    "e2eFramework": "Playwright",
+    "coverageExclusions": [
+      "lib/search/",
+      "lib/vector/",
+      "lib/native/",
+      "lib/project/import-export.ts"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.?([mc])[jt]s?(x)",
+      "**/?(*.)+(spec|test).?([mc])[jt]s?(x)"
+    ]
+  },
+  "ignoreRules": {
+    "gitignore": [
+      "node_modules",
+      ".next",
+      "out",
+      "coverage",
+      "dist",
+      "build",
+      ".git",
+      ".github",
+      "__pycache__",
+      "*.lock",
+      "*.log",
+      "*.bin",
+      "*.pdf",
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.mp4",
+      "*.zip",
+      "*.tar",
+      "*.gz"
+    ],
+    "additional": [
+      "llmdoc/",
+      "output/",
+      "playwright-report/",
+      "test-results/",
+      ".ace-tool/",
+      "src-tauri/target/"
+    ]
+  },
+  "coverage": {
+    "totalFiles": "estimated 2000+",
+    "scannedFiles": 500,
+    "coveragePercentage": 25,
+    "truncated": true,
+    "reason": "Large codebase with extensive dependencies. Initial scan focused on core application files, configuration, and key modules."
+  },
+  "gaps": [
+    "Deep scan of lib/ai/ subdirectories for detailed AI integration patterns",
+    "Complete scan of components/ subdirectories for component inventory",
+    "Full exploration of src-tauri/src/ commands and native modules",
+    "Detailed analysis of workflow-editor components and hooks",
+    "Comprehensive scan of test files for coverage analysis",
+    "Analysis of i18n message files and translation patterns"
+  ],
+  "nextSteps": [
+    "Scan lib/ai/agent/ for agent system implementation details",
+    "Scan components/designer/ for visual designer components",
+    "Scan src-tauri/src/commands/ for Tauri command APIs",
+    "Scan components/workflow-editor/ for workflow editing components",
+    "Analyze test coverage patterns across modules",
+    "Document MCP integration patterns in lib/ai/ and stores/mcp/"
+  ]
+}

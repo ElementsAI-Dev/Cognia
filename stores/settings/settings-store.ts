@@ -5,6 +5,14 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
+import {
+  isStrongholdAvailable,
+  secureStoreProviderApiKey,
+  secureStoreProviderApiKeys,
+  secureStoreSearchApiKey,
+  secureStoreCustomProviderApiKey,
+  secureRemoveProviderApiKey,
+} from '@/lib/native/stronghold-integration';
 import type { UserProviderSettings, ApiKeyRotationStrategy, ProviderName } from '@/types/provider';
 import {
   getNextApiKey,
@@ -30,6 +38,111 @@ import type { ChatHistoryContextSettings, HistoryContextCompressionLevel } from 
 import { DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS } from '@/types/core/chat-history-context';
 import type { TokenizerSettings, TokenizerProvider } from '@/types/system/tokenizer';
 import { DEFAULT_TOKENIZER_SETTINGS } from '@/types/system/tokenizer';
+
+// Safety Mode types
+export type SafetyMode = 'off' | 'warn' | 'block';
+export type SafetyCheckType = 'input' | 'system' | 'toolCall';
+
+export interface SafetyRule {
+  id: string;
+  name: string;
+  pattern: string | RegExp;
+  type: SafetyCheckType[];
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  description: string;
+  enabled: boolean;
+}
+
+export interface ExternalReviewConfig {
+  enabled: boolean;
+  endpoint: string;
+  apiKey?: string;
+  headers?: Record<string, string>;
+  timeoutMs: number;
+  minSeverity: 'low' | 'medium' | 'high' | 'critical';
+  fallbackMode: 'allow' | 'block';
+}
+
+export interface SafetyModeSettings {
+  enabled: boolean;
+  mode: SafetyMode;
+  checkUserInput: boolean;
+  checkSystemPrompt: boolean;
+  checkToolCalls: boolean;
+  blockDangerousCommands: boolean;
+  rules: SafetyRule[];
+  customBlockedPatterns: (string | RegExp)[];
+  customAllowedPatterns: (string | RegExp)[];
+  externalReview: ExternalReviewConfig;
+  logSafetyEvents: boolean;
+  showSafetyWarnings: boolean;
+}
+
+const DEFAULT_SAFETY_MODE_SETTINGS: SafetyModeSettings = {
+  enabled: false,
+  mode: 'warn',
+  checkUserInput: true,
+  checkSystemPrompt: true,
+  checkToolCalls: true,
+  blockDangerousCommands: true,
+  rules: [],
+  customBlockedPatterns: [],
+  customAllowedPatterns: [],
+  externalReview: {
+    enabled: false,
+    endpoint: '',
+    timeoutMs: 5000,
+    minSeverity: 'high',
+    fallbackMode: 'allow',
+  },
+  logSafetyEvents: true,
+  showSafetyWarnings: true,
+};
+
+const syncProviderKeysToStronghold = (providerId: string, get: () => SettingsState): void => {
+  if (!isStrongholdAvailable()) return;
+  const settings = get().providerSettings[providerId];
+  if (!settings) return;
+  if (settings.apiKey) {
+    void secureStoreProviderApiKey(providerId, settings.apiKey);
+  }
+  if (settings.apiKeys && settings.apiKeys.length > 0) {
+    void secureStoreProviderApiKeys(providerId, settings.apiKeys);
+  }
+};
+
+const syncSearchKeyToStronghold = (providerId: string, apiKey: string | undefined): void => {
+  if (!apiKey || !isStrongholdAvailable()) return;
+  void secureStoreSearchApiKey(providerId, apiKey);
+};
+
+const syncCustomKeyToStronghold = (providerId: string, apiKey: string | undefined): void => {
+  if (!apiKey || !isStrongholdAvailable()) return;
+  void secureStoreCustomProviderApiKey(providerId, apiKey);
+};
+
+// Observability settings
+export interface ObservabilitySettings {
+  enabled: boolean;
+  langfuseEnabled: boolean;
+  langfusePublicKey: string;
+  langfuseSecretKey: string;
+  langfuseHost: string;
+  openTelemetryEnabled: boolean;
+  openTelemetryEndpoint: string;
+  serviceName: string;
+}
+
+const DEFAULT_OBSERVABILITY_SETTINGS: ObservabilitySettings = {
+  enabled: false,
+  langfuseEnabled: true,
+  langfusePublicKey: '',
+  langfuseSecretKey: '',
+  langfuseHost: 'https://cloud.langfuse.com',
+  openTelemetryEnabled: false,
+  openTelemetryEndpoint: 'http://localhost:4318/v1/traces',
+  serviceName: 'cognia-ai',
+};
 
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'en' | 'zh-CN';
@@ -421,6 +534,34 @@ interface SettingsState {
   setTokenizerContextThreshold: (threshold: number) => void;
   resetTokenizerSettings: () => void;
 
+  // Safety Mode settings
+  safetyModeSettings: SafetyModeSettings;
+  setSafetyModeSettings: (settings: Partial<SafetyModeSettings>) => void;
+  setSafetyModeEnabled: (enabled: boolean) => void;
+  setSafetyMode: (mode: SafetyMode) => void;
+  setCheckUserInput: (enabled: boolean) => void;
+  setCheckSystemPrompt: (enabled: boolean) => void;
+  setCheckToolCalls: (enabled: boolean) => void;
+  setBlockDangerousCommands: (enabled: boolean) => void;
+  addSafetyRule: (rule: Omit<SafetyRule, 'id'>) => string;
+  updateSafetyRule: (id: string, updates: Partial<SafetyRule>) => void;
+  removeSafetyRule: (id: string) => void;
+  enableSafetyRule: (id: string) => void;
+  disableSafetyRule: (id: string) => void;
+  addCustomBlockedPattern: (pattern: string | RegExp) => void;
+  removeCustomBlockedPattern: (pattern: string | RegExp) => void;
+  addCustomAllowedPattern: (pattern: string | RegExp) => void;
+  removeCustomAllowedPattern: (pattern: string | RegExp) => void;
+  setExternalReviewConfig: (config: Partial<ExternalReviewConfig>) => void;
+  setLogSafetyEvents: (enabled: boolean) => void;
+  setShowSafetyWarnings: (enabled: boolean) => void;
+  resetSafetyModeSettings: () => void;
+
+  // Observability settings
+  observabilitySettings: ObservabilitySettings;
+  updateObservabilitySettings: (settings: Partial<ObservabilitySettings>) => void;
+  setObservabilityEnabled: (enabled: boolean) => void;
+
   // Reset
   resetSettings: () => void;
 }
@@ -690,6 +831,12 @@ const initialState = {
   // Tokenizer settings
   tokenizerSettings: { ...DEFAULT_TOKENIZER_SETTINGS },
 
+  // Safety Mode settings
+  safetyModeSettings: { ...DEFAULT_SAFETY_MODE_SETTINGS },
+
+  // Observability settings
+  observabilitySettings: { ...DEFAULT_OBSERVABILITY_SETTINGS },
+
   // Onboarding
   hasCompletedOnboarding: false,
 };
@@ -784,7 +931,7 @@ export const useSettingsStore = create<SettingsState>()(
       setResponsePreferences: (responsePreferences) => set({ responsePreferences }),
 
       // Provider actions
-      setProviderSettings: (providerId, settings) =>
+      setProviderSettings: (providerId, settings) => {
         set((state) => ({
           providerSettings: {
             ...state.providerSettings,
@@ -793,8 +940,10 @@ export const useSettingsStore = create<SettingsState>()(
               ...settings,
             },
           },
-        })),
-      updateProviderSettings: (providerId, settings) =>
+        }));
+        syncProviderKeysToStronghold(providerId, get);
+      },
+      updateProviderSettings: (providerId, settings) => {
         set((state) => ({
           providerSettings: {
             ...state.providerSettings,
@@ -803,14 +952,16 @@ export const useSettingsStore = create<SettingsState>()(
               ...settings,
             },
           },
-        })),
+        }));
+        syncProviderKeysToStronghold(providerId, get);
+      },
       getProviderSettings: (providerId) => {
         const { providerSettings, customProviders } = get();
         return providerSettings[providerId] || customProviders[providerId];
       },
 
       // Multi-API Key management actions
-      addApiKey: (providerId, apiKey) =>
+      addApiKey: (providerId, apiKey) => {
         set((state) => {
           const settings = state.providerSettings[providerId];
           if (!settings) return state;
@@ -837,9 +988,11 @@ export const useSettingsStore = create<SettingsState>()(
               },
             },
           };
-        }),
+        });
+        syncProviderKeysToStronghold(providerId, get);
+      },
 
-      removeApiKey: (providerId, apiKeyIndex) =>
+      removeApiKey: (providerId, apiKeyIndex) => {
         set((state) => {
           const settings = state.providerSettings[providerId];
           if (!settings || !settings.apiKeys) return state;
@@ -867,7 +1020,21 @@ export const useSettingsStore = create<SettingsState>()(
               },
             },
           };
-        }),
+        });
+        if (isStrongholdAvailable()) {
+          const updated = get().providerSettings[providerId];
+          if (updated?.apiKey) {
+            void secureStoreProviderApiKey(providerId, updated.apiKey);
+          } else {
+            void secureRemoveProviderApiKey(providerId);
+          }
+          if (updated?.apiKeys && updated.apiKeys.length > 0) {
+            void secureStoreProviderApiKeys(providerId, updated.apiKeys);
+          } else {
+            void secureStoreProviderApiKeys(providerId, []);
+          }
+        }
+      },
 
       setApiKeyRotation: (providerId, enabled, strategy = 'round-robin') =>
         set((state) => {
@@ -986,9 +1153,10 @@ export const useSettingsStore = create<SettingsState>()(
             [id]: newProvider,
           },
         }));
+        syncCustomKeyToStronghold(id, newProvider.apiKey);
         return id;
       },
-      updateCustomProvider: (id, updates) =>
+      updateCustomProvider: (id, updates) => {
         set((state) => ({
           customProviders: {
             ...state.customProviders,
@@ -997,7 +1165,10 @@ export const useSettingsStore = create<SettingsState>()(
               ...updates,
             },
           },
-        })),
+        }));
+        const apiKey = get().customProviders[id]?.apiKey;
+        syncCustomKeyToStronghold(id, apiKey);
+      },
       removeCustomProvider: (id) =>
         set((state) => {
           const { [id]: _removed, ...rest } = state.customProviders;
@@ -1026,12 +1197,15 @@ export const useSettingsStore = create<SettingsState>()(
       setEnableMarkdownRendering: (enableMarkdownRendering) => set({ enableMarkdownRendering }),
 
       // Search actions (Legacy)
-      setTavilyApiKey: (tavilyApiKey) => set({ tavilyApiKey }),
+      setTavilyApiKey: (tavilyApiKey) => {
+        set({ tavilyApiKey });
+        syncSearchKeyToStronghold('tavily', tavilyApiKey);
+      },
       setSearchEnabled: (searchEnabled) => set({ searchEnabled }),
       setSearchMaxResults: (searchMaxResults) => set({ searchMaxResults }),
 
       // Search actions (Multi-provider)
-      setSearchProviderSettings: (providerId, settings) =>
+      setSearchProviderSettings: (providerId, settings) => {
         set((state) => ({
           searchProviders: {
             ...state.searchProviders,
@@ -1040,8 +1214,10 @@ export const useSettingsStore = create<SettingsState>()(
               ...settings,
             },
           },
-        })),
-      setSearchProviderApiKey: (providerId, apiKey) =>
+        }));
+        syncSearchKeyToStronghold(providerId, get().searchProviders[providerId]?.apiKey);
+      },
+      setSearchProviderApiKey: (providerId, apiKey) => {
         set((state) => ({
           searchProviders: {
             ...state.searchProviders,
@@ -1050,7 +1226,9 @@ export const useSettingsStore = create<SettingsState>()(
               apiKey,
             },
           },
-        })),
+        }));
+        syncSearchKeyToStronghold(providerId, apiKey);
+      },
       setSearchProviderEnabled: (providerId, enabled) =>
         set((state) => ({
           searchProviders: {
@@ -1612,6 +1790,144 @@ export const useSettingsStore = create<SettingsState>()(
       resetTokenizerSettings: () =>
         set({ tokenizerSettings: { ...DEFAULT_TOKENIZER_SETTINGS } }),
 
+      // Safety Mode settings actions
+      setSafetyModeSettings: (settings) =>
+        set((state) => ({
+          safetyModeSettings: { ...state.safetyModeSettings, ...settings },
+        })),
+      setSafetyModeEnabled: (enabled) =>
+        set((state) => ({
+          safetyModeSettings: { ...state.safetyModeSettings, enabled },
+        })),
+      setSafetyMode: (mode) =>
+        set((state) => ({
+          safetyModeSettings: { ...state.safetyModeSettings, mode },
+        })),
+      setCheckUserInput: (enabled) =>
+        set((state) => ({
+          safetyModeSettings: { ...state.safetyModeSettings, checkUserInput: enabled },
+        })),
+      setCheckSystemPrompt: (enabled) =>
+        set((state) => ({
+          safetyModeSettings: { ...state.safetyModeSettings, checkSystemPrompt: enabled },
+        })),
+      setCheckToolCalls: (enabled) =>
+        set((state) => ({
+          safetyModeSettings: { ...state.safetyModeSettings, checkToolCalls: enabled },
+        })),
+      setBlockDangerousCommands: (enabled) =>
+        set((state) => ({
+          safetyModeSettings: { ...state.safetyModeSettings, blockDangerousCommands: enabled },
+        })),
+      addSafetyRule: (rule) => {
+        const id = nanoid();
+        const newRule: SafetyRule = { ...rule, id };
+        set((state) => ({
+          safetyModeSettings: {
+            ...state.safetyModeSettings,
+            rules: [...state.safetyModeSettings.rules, newRule],
+          },
+        }));
+        return id;
+      },
+      updateSafetyRule: (id, updates) =>
+        set((state) => ({
+          safetyModeSettings: {
+            ...state.safetyModeSettings,
+            rules: state.safetyModeSettings.rules.map((r) =>
+              r.id === id ? { ...r, ...updates } : r
+            ),
+          },
+        })),
+      removeSafetyRule: (id) =>
+        set((state) => ({
+          safetyModeSettings: {
+            ...state.safetyModeSettings,
+            rules: state.safetyModeSettings.rules.filter((r) => r.id !== id),
+          },
+        })),
+      enableSafetyRule: (id) =>
+        set((state) => ({
+          safetyModeSettings: {
+            ...state.safetyModeSettings,
+            rules: state.safetyModeSettings.rules.map((r) =>
+              r.id === id ? { ...r, enabled: true } : r
+            ),
+          },
+        })),
+      disableSafetyRule: (id) =>
+        set((state) => ({
+          safetyModeSettings: {
+            ...state.safetyModeSettings,
+            rules: state.safetyModeSettings.rules.map((r) =>
+              r.id === id ? { ...r, enabled: false } : r
+            ),
+          },
+        })),
+      addCustomBlockedPattern: (pattern) =>
+        set((state) => ({
+          safetyModeSettings: {
+            ...state.safetyModeSettings,
+            customBlockedPatterns: state.safetyModeSettings.customBlockedPatterns.includes(pattern)
+              ? state.safetyModeSettings.customBlockedPatterns
+              : [...state.safetyModeSettings.customBlockedPatterns, pattern],
+          },
+        })),
+      removeCustomBlockedPattern: (pattern) =>
+        set((state) => ({
+          safetyModeSettings: {
+            ...state.safetyModeSettings,
+            customBlockedPatterns: state.safetyModeSettings.customBlockedPatterns.filter(
+              (p) => p !== pattern
+            ),
+          },
+        })),
+      addCustomAllowedPattern: (pattern) =>
+        set((state) => ({
+          safetyModeSettings: {
+            ...state.safetyModeSettings,
+            customAllowedPatterns: state.safetyModeSettings.customAllowedPatterns.includes(pattern)
+              ? state.safetyModeSettings.customAllowedPatterns
+              : [...state.safetyModeSettings.customAllowedPatterns, pattern],
+          },
+        })),
+      removeCustomAllowedPattern: (pattern) =>
+        set((state) => ({
+          safetyModeSettings: {
+            ...state.safetyModeSettings,
+            customAllowedPatterns: state.safetyModeSettings.customAllowedPatterns.filter(
+              (p) => p !== pattern
+            ),
+          },
+        })),
+      setExternalReviewConfig: (config) =>
+        set((state) => ({
+          safetyModeSettings: {
+            ...state.safetyModeSettings,
+            externalReview: { ...state.safetyModeSettings.externalReview, ...config },
+          },
+        })),
+      setLogSafetyEvents: (enabled) =>
+        set((state) => ({
+          safetyModeSettings: { ...state.safetyModeSettings, logSafetyEvents: enabled },
+        })),
+      setShowSafetyWarnings: (enabled) =>
+        set((state) => ({
+          safetyModeSettings: { ...state.safetyModeSettings, showSafetyWarnings: enabled },
+        })),
+      resetSafetyModeSettings: () =>
+        set({ safetyModeSettings: { ...DEFAULT_SAFETY_MODE_SETTINGS } }),
+
+      // Observability actions
+      updateObservabilitySettings: (settings) =>
+        set((state) => ({
+          observabilitySettings: { ...state.observabilitySettings, ...settings },
+        })),
+      setObservabilityEnabled: (enabled) =>
+        set((state) => ({
+          observabilitySettings: { ...state.observabilitySettings, enabled },
+        })),
+
       // Onboarding actions
       setOnboardingCompleted: (hasCompletedOnboarding) => set({ hasCompletedOnboarding }),
 
@@ -1620,7 +1936,45 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: 'cognia-settings',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
+      partialize: (state) => {
+        const shouldStripSecrets = isStrongholdAvailable();
+        const providerSettings = shouldStripSecrets
+          ? Object.fromEntries(
+              Object.entries(state.providerSettings).map(([id, settings]) => [
+                id,
+                {
+                  ...settings,
+                  apiKey: '',
+                  apiKeys: [],
+                },
+              ])
+            )
+          : state.providerSettings;
+        const customProviders = shouldStripSecrets
+          ? Object.fromEntries(
+              Object.entries(state.customProviders).map(([id, settings]) => [
+                id,
+                {
+                  ...settings,
+                  apiKey: '',
+                },
+              ])
+            )
+          : state.customProviders;
+        const searchProviders = shouldStripSecrets
+          ? Object.fromEntries(
+              Object.entries(state.searchProviders).map(([id, settings]) => [
+                id,
+                {
+                  ...settings,
+                  apiKey: '',
+                },
+              ])
+            )
+          : state.searchProviders;
+        const tavilyApiKey = shouldStripSecrets ? '' : state.tavilyApiKey;
+
+        return {
         theme: state.theme,
         colorTheme: state.colorTheme,
         customThemes: state.customThemes,
@@ -1635,8 +1989,8 @@ export const useSettingsStore = create<SettingsState>()(
         customInstructionsEnabled: state.customInstructionsEnabled,
         aboutUser: state.aboutUser,
         responsePreferences: state.responsePreferences,
-        providerSettings: state.providerSettings,
-        customProviders: state.customProviders,
+        providerSettings,
+        customProviders,
         defaultProvider: state.defaultProvider,
         sidebarCollapsed: state.sidebarCollapsed,
         streamingEnabled: state.streamingEnabled,
@@ -1649,10 +2003,10 @@ export const useSettingsStore = create<SettingsState>()(
         autoTitleGeneration: state.autoTitleGeneration,
         showModelInChat: state.showModelInChat,
         enableMarkdownRendering: state.enableMarkdownRendering,
-        tavilyApiKey: state.tavilyApiKey,
+        tavilyApiKey,
         searchEnabled: state.searchEnabled,
         searchMaxResults: state.searchMaxResults,
-        searchProviders: state.searchProviders,
+        searchProviders,
         defaultSearchProvider: state.defaultSearchProvider,
         searchFallbackEnabled: state.searchFallbackEnabled,
         defaultSearchSources: state.defaultSearchSources,
@@ -1705,9 +2059,12 @@ export const useSettingsStore = create<SettingsState>()(
         chatHistoryContextSettings: state.chatHistoryContextSettings,
         // Tokenizer settings
         tokenizerSettings: state.tokenizerSettings,
+        // Safety Mode settings
+        safetyModeSettings: state.safetyModeSettings,
         // Onboarding
         hasCompletedOnboarding: state.hasCompletedOnboarding,
-      }),
+        };
+      },
     }
   )
 );

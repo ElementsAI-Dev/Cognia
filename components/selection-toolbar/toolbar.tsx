@@ -310,38 +310,25 @@ export function SelectionToolbar() {
   );
 
   // Handle click outside - use Tauri window blur event for standalone window
+  // NOTE: We do NOT auto-hide on blur for the selection toolbar because:
+  // 1. The toolbar is a standalone always-on-top window
+  // 2. Users need to interact with the source app while toolbar is visible
+  // 3. Auto-hide is handled by the native side via auto_hide_timeout
+  // 4. Clicking outside should NOT hide the toolbar - only explicit actions should
   useEffect(() => {
-    // In Tauri standalone window, use window blur event
+    // In Tauri standalone window, we only listen for explicit hide events
+    // The native side handles auto-hide via timeout if configured
     if (typeof window !== "undefined" && window.__TAURI__) {
-      let unlistenBlur: (() => void) | undefined;
-      
-      const setupBlurListener = async () => {
-        try {
-          const { getCurrentWindow } = await import("@tauri-apps/api/window");
-          const currentWindow = getCurrentWindow();
-          unlistenBlur = await currentWindow.onFocusChanged(({ payload: focused }) => {
-            // When the window loses focus, hide the toolbar
-            // unless user is interacting with the toolbar
-            if (!focused && !showMoreMenu && !showModeSelector && !showReferences && 
-                !showClipboardPanel && !showOCRPanel && !showTemplatesPanel && !showHistoryPanel) {
-              // Small delay to allow for popover interactions
-              setTimeout(() => {
-                hideToolbar();
-              }, 150);
-            }
-          });
-        } catch (e) {
-          console.error("Failed to setup Tauri blur listener:", e);
-        }
-      };
-      
-      setupBlurListener();
-      return () => {
-        unlistenBlur?.();
-      };
+      // No blur-based hiding - this was causing conflicts with the main window
+      // Users can close via:
+      // - Escape key
+      // - Close button
+      // - Auto-hide timeout (if configured)
+      // - Clicking away clears selection which triggers native hide
+      return;
     }
     
-    // Fallback for non-Tauri (web) environment
+    // Fallback for non-Tauri (web) environment only
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target.closest(".selection-toolbar")) {
@@ -351,7 +338,7 @@ export function SelectionToolbar() {
 
     document.addEventListener("mouseup", handleClickOutside);
     return () => document.removeEventListener("mouseup", handleClickOutside);
-  }, [hideToolbar, showMoreMenu, showModeSelector, showReferences, showClipboardPanel, showOCRPanel, showTemplatesPanel, showHistoryPanel]);
+  }, [hideToolbar]);
 
   // Handle selection mode change
   const handleModeChange = async (mode: SelectionMode) => {
@@ -558,7 +545,7 @@ export function SelectionToolbar() {
         <div
           className={cn(
             "flex flex-wrap items-center gap-0.5 px-1.5 py-1",
-            "bg-linear-to-br from-gray-900/98 via-gray-800/98 to-gray-900/98",
+            "bg-gradient-to-br from-gray-900/98 via-gray-800/98 to-gray-900/98",
             "backdrop-blur-xl",
             "rounded-2xl",
             "shadow-2xl shadow-black/60",

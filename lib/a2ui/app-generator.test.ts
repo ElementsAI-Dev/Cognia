@@ -14,6 +14,9 @@ import {
   generateTrackerApp,
   generateCustomApp,
   generateAppFromDescription,
+  generateUnitConverterApp,
+  getLocalizedTexts,
+  getStyleConfig,
   type AppGenerationRequest,
 } from './app-generator';
 
@@ -303,6 +306,159 @@ describe('A2UI App Generator', () => {
       const app2 = generateCalculatorApp('Calc2', 'Second calculator');
 
       expect(app1.id).not.toBe(app2.id);
+    });
+  });
+
+  describe('generateUnitConverterApp', () => {
+    it('should generate a unit converter app', () => {
+      const app = generateUnitConverterApp('Unit Converter', 'Convert units');
+      
+      expect(app).toBeDefined();
+      expect(app.id).toContain('converter');
+      expect(app.name).toBe('Unit Converter');
+      expect(app.components.length).toBeGreaterThan(0);
+      expect(app.dataModel).toHaveProperty('inputValue');
+      expect(app.dataModel).toHaveProperty('fromUnit');
+      expect(app.dataModel).toHaveProperty('toUnit');
+      expect(app.dataModel).toHaveProperty('result');
+    });
+
+    it('should detect temperature converter', () => {
+      const app = generateUnitConverterApp('Temp Convert', '温度转换器 celsius fahrenheit');
+      
+      expect(app).toBeDefined();
+      expect(app.id).toContain('converter');
+    });
+
+    it('should detect weight converter', () => {
+      const app = generateUnitConverterApp('Weight Convert', 'weight converter kg lb');
+      
+      expect(app).toBeDefined();
+      expect(app.id).toContain('converter');
+    });
+
+    it('should detect currency converter', () => {
+      const app = generateUnitConverterApp('Currency Convert', '货币汇率转换');
+      
+      expect(app).toBeDefined();
+      expect(app.id).toContain('converter');
+    });
+  });
+
+  describe('getLocalizedTexts', () => {
+    it('should return Chinese texts by default', () => {
+      const texts = getLocalizedTexts();
+      
+      expect(texts).toBeDefined();
+      expect(texts.defaultAppName).toBe('我的应用');
+    });
+
+    it('should return Chinese texts for zh', () => {
+      const texts = getLocalizedTexts('zh');
+      
+      expect(texts).toBeDefined();
+      expect(texts.defaultAppName).toBe('我的应用');
+    });
+
+    it('should return English texts for en', () => {
+      const texts = getLocalizedTexts('en');
+      
+      expect(texts).toBeDefined();
+      expect(texts.defaultAppName).toBe('My App');
+    });
+  });
+
+  describe('getStyleConfig', () => {
+    it('should return colorful style by default', () => {
+      const style = getStyleConfig();
+      
+      expect(style).toBeDefined();
+      expect(style.headerClassName).toContain('text-primary');
+    });
+
+    it('should return minimal style', () => {
+      const style = getStyleConfig('minimal');
+      
+      expect(style).toBeDefined();
+      expect(style.buttonVariant).toBe('outline');
+    });
+
+    it('should return colorful style', () => {
+      const style = getStyleConfig('colorful');
+      
+      expect(style).toBeDefined();
+      expect(style.buttonVariant).toBe('primary');
+    });
+
+    it('should return professional style', () => {
+      const style = getStyleConfig('professional');
+      
+      expect(style).toBeDefined();
+      expect(style.buttonVariant).toBe('secondary');
+    });
+  });
+
+  describe('generateAppFromDescription with language/style', () => {
+    it('should support language parameter', () => {
+      const request: AppGenerationRequest = { 
+        description: 'calculator app',
+        language: 'en'
+      };
+      const app = generateAppFromDescription(request);
+      
+      expect(app).toBeDefined();
+      expect(app.id).toContain('calc');
+    });
+
+    it('should support style parameter', () => {
+      const request: AppGenerationRequest = { 
+        description: '计算器',
+        style: 'professional'
+      };
+      const app = generateAppFromDescription(request);
+      
+      expect(app).toBeDefined();
+      expect(app.id).toContain('calc');
+    });
+
+    it('should route to unit converter for conversion requests', () => {
+      const request: AppGenerationRequest = { description: '单位转换器' };
+      const app = generateAppFromDescription(request);
+      
+      expect(app).toBeDefined();
+      expect(app.id).toContain('converter');
+    });
+
+    it('should detect unit converter from description', () => {
+      const request: AppGenerationRequest = { description: '温度转换工具' };
+      const app = generateAppFromDescription(request);
+      
+      expect(app).toBeDefined();
+      expect(app.id).toContain('converter');
+    });
+  });
+
+  describe('extractAppName with language support', () => {
+    it('should extract English names for en language', () => {
+      const name = extractAppName('create a calculator', { 
+        language: 'en', 
+        style: 'colorful',
+        texts: getLocalizedTexts('en'),
+        styleConfig: getStyleConfig('colorful')
+      });
+      
+      expect(name).toBeTruthy();
+    });
+
+    it('should extract Chinese names for zh language', () => {
+      const name = extractAppName('做一个计算器', { 
+        language: 'zh', 
+        style: 'colorful',
+        texts: getLocalizedTexts('zh'),
+        styleConfig: getStyleConfig('colorful')
+      });
+      
+      expect(name).toBeTruthy();
     });
   });
 });

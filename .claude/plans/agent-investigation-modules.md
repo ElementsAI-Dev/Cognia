@@ -11,6 +11,7 @@
 Found 12 files in `lib/ai/agent/`:
 
 ### Source Files (9)
+
 - `agent-executor.ts` - Core agent execution engine
 - `agent-loop.ts` - Higher-level orchestration with planning
 - `agent-orchestrator.ts` - Sub-agent coordination
@@ -22,6 +23,7 @@ Found 12 files in `lib/ai/agent/`:
 - `index.ts` - Central export file
 
 ### Test Files (3)
+
 - `agent-executor.test.ts`
 - `agent-loop.test.ts`
 - `stop-conditions.test.ts`
@@ -33,11 +35,13 @@ Found 12 files in `lib/ai/agent/`:
 ### 1. agent-executor.ts (Core Execution)
 
 **Exports**:
+
 - **Types/Interfaces**: `ToolCall`, `AgentExecutionState`, `AgentTool`, `StopCondition`, `PrepareStepResult`, `AgentConfig`, `AgentResult`, `AgentStep`
 - **Functions**: `executeAgent()`, `createAgent()`
 - **Utilities**: `stopConditions` object with helpers (`afterSteps`, `whenToolCalled`, `whenNoToolsCalled`, `custom`)
 
 **Import Usage**: ✅ **Well-used** (12 files)
+
 - `agent-loop.ts`
 - `agent-loop.test.ts`
 - `agent-orchestrator.ts`
@@ -52,6 +56,7 @@ Found 12 files in `lib/ai/agent/`:
 - `lib/ai/agent/mcp-tools.ts`
 
 **Issues**:
+
 - ⚠️ **Partial Export**: The `stopConditions` object (`afterSteps`, `whenToolCalled`, `whenNoToolsCalled`, `custom`) is NOT re-exported through `index.ts`, but individual functions from `stop-conditions.ts` are exported instead
 
 **TODO Comments**: None found
@@ -61,14 +66,17 @@ Found 12 files in `lib/ai/agent/`:
 ### 2. agent-loop.ts (Planning & Orchestration)
 
 **Exports**:
+
 - **Types/Interfaces**: `AgentTask`, `AgentLoopConfig`, `AgentLoopResult`
 - **Functions**: `executeAgentLoop()`, `createAgentLoop()`
 
 **Import Usage**: ⚠️ **Underutilized** (2 files only)
+
 - `index.ts` (re-export)
 - `agent-loop.test.ts` (tests)
 
 **Issues**:
+
 - ⚠️ **Underutilized**: Despite being a higher-level orchestration layer, `executeAgentLoop()` and `createAgentLoop()` are not imported by any production code
 - The `background-agent-manager.ts` uses `AgentOrchestrator` directly instead of using `executeAgentLoop()`
 - Potential dead code or designed for future use
@@ -80,15 +88,18 @@ Found 12 files in `lib/ai/agent/`:
 ### 3. agent-orchestrator.ts (Sub-Agent Coordination)
 
 **Exports**:
+
 - **Class**: `AgentOrchestrator`
 - **Types/Interfaces**: `OrchestratorConfig`, `OrchestratorExecutionOptions`, `SubAgentPlan`, `OrchestratorProgress`, `OrchestratorResult`
 - **Functions**: `createOrchestrator()`, `executeOrchestrated()`
 
 **Import Usage**: ✅ **Used** (2 files)
+
 - `index.ts` (re-export)
 - `background-agent-manager.ts` (production use)
 
 **Issues**:
+
 - ⚠️ **Underutilized Helpers**: `createOrchestrator()` and `executeOrchestrated()` are exported but not used anywhere
 - Only `AgentOrchestrator` class is used directly in `background-agent-manager.ts`
 
@@ -99,14 +110,17 @@ Found 12 files in `lib/ai/agent/`:
 ### 4. background-agent-manager.ts (Background Execution)
 
 **Exports**:
+
 - **Class**: `BackgroundAgentManager`
 - **Functions**: `createBackgroundAgentManager()`, `getBackgroundAgentManager()`, `setBackgroundAgentManager()`
 
 **Import Usage**: ✅ **Used** (2 files)
+
 - `index.ts` (re-export)
 - `hooks/use-background-agent.ts` (production use)
 
 **Dependencies**:
+
 - Imports: `AgentOrchestrator` from `agent-orchestrator.ts`
 - Imports: `createMcpToolsFromStore` from `mcp-tools.ts`
 - Imports: `createRAGSearchTool`, `buildRAGConfigFromSettings` from `agent-tools.ts`
@@ -121,6 +135,7 @@ Found 12 files in `lib/ai/agent/`:
 ### 5. agent-tools.ts (Tool Initialization)
 
 **Exports**:
+
 - **Types/Interfaces**: `AgentToolsConfig`
 - **Functions**:
   - `createCalculatorTool()`
@@ -137,10 +152,12 @@ Found 12 files in `lib/ai/agent/`:
 - **Default Export**: `initializeAgentTools`
 
 **Import Usage**: ✅ **Used** (2 files)
+
 - `index.ts` (re-export)
 - `background-agent-manager.ts` (imports `createRAGSearchTool`, `buildRAGConfigFromSettings`)
 
 **Issues**:
+
 - ⚠️ **Missing from index.ts**: The following functions are NOT re-exported through `index.ts`:
   - `createDesignerTool()`
   - `getToolsFromRegistry()`
@@ -155,6 +172,7 @@ Found 12 files in `lib/ai/agent/`:
 ### 6. mcp-tools.ts (MCP Adapter)
 
 **Exports**:
+
 - **Types/Interfaces**: `McpToolAdapterConfig`
 - **Functions**:
   - `formatMcpToolResult()`
@@ -169,11 +187,13 @@ Found 12 files in `lib/ai/agent/`:
 - **Default Export**: `mcpToolsAdapter` object
 
 **Import Usage**: ✅ **Used** (3 files)
+
 - `index.ts` (re-export)
 - `background-agent-manager.ts` (imports `createMcpToolsFromStore`)
 - `agent-tools.ts` (imports `createMcpToolsFromBackend`)
 
 **Issues**:
+
 - ⚠️ **Underutilized**: Several helper functions are exported but never used:
   - `convertMcpToolToAgentTool()` (internal only)
   - `convertMcpServerTools()` (internal only)
@@ -191,6 +211,7 @@ Found 12 files in `lib/ai/agent/`:
 ### 7. sub-agent-executor.ts (Sub-Agent Execution)
 
 **Exports**:
+
 - **Types/Interfaces**: `SubAgentExecutorConfig`
 - **Functions**:
   - `createSubAgent()`
@@ -201,6 +222,7 @@ Found 12 files in `lib/ai/agent/`:
   - `cancelAllSubAgents()`
 
 **Import Usage**: ✅ **Used** (internally by agent-orchestrator.ts)
+
 - Re-exported through `index.ts`
 - Used by `agent-orchestrator.ts` for sub-agent coordination
 
@@ -213,6 +235,7 @@ Found 12 files in `lib/ai/agent/`:
 ### 8. stop-conditions.ts (Stop Condition Helpers)
 
 **Exports**:
+
 - **Types/Interfaces**: `AgentExecutionState`, `StopCondition`, `StopConditionResult`
 - **Functions**:
   - `stepCountIs()`
@@ -230,11 +253,13 @@ Found 12 files in `lib/ai/agent/`:
   - `namedCondition()`
 
 **Import Usage**: ⚠️ **Mixed**
+
 - All functions are re-exported through `index.ts`
 - Used internally by `agent-executor.ts`
 - Not widely used in production code outside agent system
 
 **Issues**:
+
 - ⚠️ **Underutilized**: All the helper functions are exported but rarely used outside the agent system internals
 - These may be designed for external consumption but are not yet adopted
 
@@ -247,6 +272,7 @@ Found 12 files in `lib/ai/agent/`:
 **Purpose**: Re-exports from all agent modules
 
 **Exports**:
+
 - From `agent-executor.ts`: All types/functions ✅
 - From `agent-loop.ts`: All types/functions ✅
 - From `stop-conditions.ts`: All types/functions ✅
@@ -259,6 +285,7 @@ Found 12 files in `lib/ai/agent/`:
 - From `background-agent-manager.ts`: All exports ✅
 
 **Issues**:
+
 - ⚠️ **Incomplete Re-export**: Missing 4 functions from `agent-tools.ts`
 
 ---
@@ -266,11 +293,13 @@ Found 12 files in `lib/ai/agent/`:
 ## Summary of Findings
 
 ### ✅ Well-Used Modules
+
 1. **agent-executor.ts** - Core execution, imported by 12 files
 2. **background-agent-manager.ts** - Used by hooks
 3. **sub-agent-executor.ts** - Used by agent-orchestrator
 
 ### ⚠️ Underutilized Modules
+
 1. **agent-loop.ts** - Only imported by tests and index.ts
    - `executeAgentLoop()` and `createAgentLoop()` not used in production
 2. **agent-orchestrator.ts** - Only `AgentOrchestrator` class is used
@@ -286,16 +315,20 @@ Found 12 files in `lib/ai/agent/`:
 ### ⚠️ Export Issues
 
 #### Missing from index.ts
+
 From `agent-tools.ts`:
+
 - `createDesignerTool()`
 - `getToolsFromRegistry()`
 - `getSkillsSystemPrompt()`
 - `initializeAgentToolsWithSkills()`
 
 #### Inconsistent Exports
+
 - `agent-executor.ts` exports `stopConditions` object internally, but `index.ts` re-exports individual functions from `stop-conditions.ts` instead
 
 ### ✅ Code Quality
+
 - **No TODO/FIXME comments** found in any agent module
 - **No incomplete implementations** detected
 - **No dead code** - all exports are intentional, though some are underutilized
@@ -305,19 +338,24 @@ From `agent-tools.ts`:
 ## Recommendations
 
 ### 1. Review Underutilized Exports
+
 Consider whether the following should be:
+
 - Marked as internal (not exported through index.ts)
 - Documented as public API for future use
 - Used in production code
 
 **Underutilized exports**:
+
 - `executeAgentLoop()`, `createAgentLoop()` from agent-loop.ts
 - `createOrchestrator()`, `executeOrchestrated()` from agent-orchestrator.ts
 - All stop condition helper functions from stop-conditions.ts
 - Helper functions from mcp-tools.ts
 
 ### 2. Complete index.ts Re-exports
+
 Add missing exports from agent-tools.ts:
+
 ```typescript
 export {
   createDesignerTool,
@@ -328,13 +366,17 @@ export {
 ```
 
 ### 3. Document Public API
+
 Add JSDoc comments to clarify which exports are:
+
 - **Public API**: Stable, recommended for external use
 - **Internal API**: Subject to change, used within agent system
 - **Experimental**: Available but not yet stable
 
 ### 4. Consider Deprecation
+
 If agent-loop.ts functions are truly unused, consider:
+
 - Marking as deprecated
 - Removing if not needed
 - Adding usage examples in documentation if intended for external use

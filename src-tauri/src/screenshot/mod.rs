@@ -301,6 +301,21 @@ impl ScreenshotManager {
         self.history.clear_unpinned()
     }
 
+    /// Add tag to screenshot
+    pub fn add_tag(&self, id: &str, tag: String) -> bool {
+        self.history.add_tag(id, tag)
+    }
+
+    /// Remove tag from screenshot
+    pub fn remove_tag(&self, id: &str, tag: &str) -> bool {
+        self.history.remove_tag(id, tag)
+    }
+
+    /// Set label for screenshot
+    pub fn set_label(&self, id: &str, label: String) -> bool {
+        self.history.update_label(id, label)
+    }
+
     /// Add screenshot to history
     fn add_to_history(&self, result: &ScreenshotResult) {
         let entry = ScreenshotHistoryEntry::new(

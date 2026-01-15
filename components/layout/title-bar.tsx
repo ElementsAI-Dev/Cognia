@@ -121,15 +121,20 @@ export function TitleBar() {
 
   // Setup Tauri-specific document classes
   useEffect(() => {
-    if (isTauri) {
-      document.documentElement.style.setProperty('--titlebar-height', '32px');
-      document.documentElement.classList.add('tauri-app');
+    if (!isTauri || !isMain) {
+      document.documentElement.style.removeProperty('--titlebar-height');
+      document.documentElement.classList.remove('tauri-app');
+      return;
     }
+
+    document.documentElement.style.setProperty('--titlebar-height', '32px');
+    document.documentElement.classList.add('tauri-app');
+
     return () => {
       document.documentElement.style.removeProperty('--titlebar-height');
       document.documentElement.classList.remove('tauri-app');
     };
-  }, [isTauri]);
+  }, [isTauri, isMain]);
 
   // Window property toggle handlers
   const handleToggleContentProtected = useCallback(async () => {

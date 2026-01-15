@@ -253,7 +253,8 @@ impl ToolbarWindow {
             })?;
 
         // Calculate position (above the mouse cursor with some offset)
-        let (adjusted_x, adjusted_y) = self.calculate_position(x, y);
+        let scale_factor = window.scale_factor().unwrap_or(1.0);
+        let (adjusted_x, adjusted_y) = self.calculate_position(x, y, scale_factor);
         log::trace!(
             "[ToolbarWindow] Position adjusted: ({}, {}) -> ({}, {})",
             x,
@@ -282,6 +283,9 @@ impl ToolbarWindow {
             log::error!("[ToolbarWindow] Failed to show window: {}", e);
             format!("Failed to show window: {}", e)
         })?;
+
+        // Re-assert always-on-top to ensure proper z-order without stealing focus
+        let _ = window.set_always_on_top(true);
 
         // Note: We intentionally don't call set_focus() here to avoid stealing focus
         // from the application where text was selected, which would lose the selection.
@@ -331,7 +335,8 @@ impl ToolbarWindow {
             .get_webview_window(TOOLBAR_WINDOW_LABEL)
             .ok_or("Toolbar window not found")?;
 
-        let (adjusted_x, adjusted_y) = self.calculate_position(x, y);
+        let scale_factor = window.scale_factor().unwrap_or(1.0);
+        let (adjusted_x, adjusted_y) = self.calculate_position(x, y, scale_factor);
         *self.position.write() = (adjusted_x, adjusted_y);
 
         window
@@ -404,7 +409,7 @@ impl ToolbarWindow {
     }
 
     /// Calculate the best position for the toolbar
-    fn calculate_position(&self, mouse_x: i32, mouse_y: i32) -> (i32, i32) {
+    fn calculate_position(&self, mouse_x: i32, mouse_y: i32, scale_factor: f64) -> (i32, i32) {
         log::trace!(
             "[ToolbarWindow] calculate_position for mouse ({}, {})",
             mouse_x,
@@ -412,6 +417,8 @@ impl ToolbarWindow {
         );
         // Get current window dimensions based on build mode
         let (toolbar_width, toolbar_height) = get_current_dimensions();
+        let toolbar_width = (toolbar_width * scale_factor).round() as i32;
+        let toolbar_height = (toolbar_height * scale_factor).round() as i32;
 
         // Get screen dimensions for the monitor containing the cursor
         let (screen_width, screen_height, screen_x, screen_y) =
@@ -427,14 +434,14 @@ impl ToolbarWindow {
         );
 
         // Position toolbar above and centered on the mouse cursor
-        let toolbar_x = (mouse_x as f64 - toolbar_width / 2.0) as i32;
-        let toolbar_y = mouse_y - toolbar_height as i32 - CURSOR_OFFSET_Y;
+        let toolbar_x = mouse_x - toolbar_width / 2;
+        let toolbar_y = mouse_y - toolbar_height - CURSOR_OFFSET_Y;
 
         // Calculate bounds relative to the current monitor
         let min_x = screen_x + SCREEN_EDGE_PADDING;
-        let max_x = screen_x + screen_width - toolbar_width as i32 - SCREEN_EDGE_PADDING;
+        let max_x = screen_x + screen_width - toolbar_width - SCREEN_EDGE_PADDING;
         let min_y = screen_y + SCREEN_EDGE_PADDING;
-        let max_y = screen_y + screen_height - toolbar_height as i32 - SCREEN_EDGE_PADDING;
+        let max_y = screen_y + screen_height - toolbar_height - SCREEN_EDGE_PADDING;
 
         // Ensure toolbar stays within screen bounds
         let adjusted_x = toolbar_x.max(min_x).min(max_x);
@@ -603,7 +610,7 @@ mod tests {
     fn test_toolbar_dimensions_constants() {
         // Production dimensions
         assert_eq!(TOOLBAR_WIDTH, 560.0);
-        assert_eq!(TOOLBAR_HEIGHT, 380.0);
+        assert_eq!(TOOLBAR_HEIGHT, 400.0);
 
         // Debug dimensions (only in debug builds)
         #[cfg(debug_assertions)]
@@ -641,10 +648,13 @@ mod tests {
 
         // Get current dimensions (varies by build mode)
         let (toolbar_width, toolbar_height) = get_current_dimensions();
+        let scale_factor = 1.0;
+        let toolbar_width = (toolbar_width * scale_factor).round() as i32;
+        let toolbar_height = (toolbar_height * scale_factor).round() as i32;
 
         // Calculate expected position (formula from calculate_position)
-        let toolbar_x = (mouse_x as f64 - toolbar_width / 2.0) as i32;
-        let toolbar_y = mouse_y - toolbar_height as i32 - CURSOR_OFFSET_Y;
+        let toolbar_x = mouse_x - toolbar_width / 2;
+        let toolbar_y = mouse_y - toolbar_height - CURSOR_OFFSET_Y;
 
         // Toolbar should be centered above cursor
         // In debug: 800/2 = 400, so 500 - 400 = 100
@@ -672,11 +682,14 @@ mod tests {
 
         // Get current dimensions (varies by build mode)
         let (toolbar_width, toolbar_height) = get_current_dimensions();
+        let scale_factor = 1.0;
+        let toolbar_width = (toolbar_width * scale_factor).round() as i32;
+        let toolbar_height = (toolbar_height * scale_factor).round() as i32;
 
         let min_x = screen_x + SCREEN_EDGE_PADDING;
-        let max_x = screen_x + screen_width - toolbar_width as i32 - SCREEN_EDGE_PADDING;
+        let max_x = screen_x + screen_width - toolbar_width - SCREEN_EDGE_PADDING;
         let min_y = screen_y + SCREEN_EDGE_PADDING;
-        let max_y = screen_y + screen_height - toolbar_height as i32 - SCREEN_EDGE_PADDING;
+        let max_y = screen_y + screen_height - toolbar_height - SCREEN_EDGE_PADDING;
 
         assert_eq!(min_x, 10);
         assert_eq!(min_y, 10);
@@ -700,11 +713,14 @@ mod tests {
     fn test_toolbar_below_cursor_when_near_top() {
         // When not enough space above, toolbar should go below cursor
         let (toolbar_width, toolbar_height) = get_current_dimensions();
+        let scale_factor = 1.0;
+        let toolbar_width = (toolbar_width * scale_factor).round() as i32;
+        let toolbar_height = (toolbar_height * scale_factor).round() as i32;
         let _ = toolbar_width; // Unused but good to verify it's accessible
 
         // Use a position that would be near top in any build mode
         let mouse_y: i32 = 50;
-        let toolbar_y = mouse_y - toolbar_height as i32 - CURSOR_OFFSET_Y;
+        let toolbar_y = mouse_y - toolbar_height - CURSOR_OFFSET_Y;
         let min_y = SCREEN_EDGE_PADDING;
 
         // toolbar_y would be negative in both modes

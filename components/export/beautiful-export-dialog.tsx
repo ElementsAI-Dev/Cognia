@@ -28,6 +28,8 @@ import {
   Trash2,
   Table2,
   ExternalLink,
+  Share2,
+  Image as ImageIcon,
 } from 'lucide-react';
 import {
   Dialog,
@@ -55,6 +57,8 @@ import type { Session, UIMessage } from '@/types';
 import { type SyntaxThemeName, getAvailableSyntaxThemes } from '@/lib/export/syntax-themes';
 import { useCustomThemeStore } from '@/stores/settings';
 import { CustomThemeEditor } from './custom-theme-editor';
+import { SocialShareDialog } from './social-share-dialog';
+import { ImageExportDialog } from './image-export-dialog';
 
 type ExportFormat = 'beautiful-html' | 'pdf' | 'markdown' | 'word' | 'excel' | 'csv' | 'animated-html' | 'json';
 type ThemeOption = 'light' | 'dark' | 'system';
@@ -914,11 +918,34 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
         )}
 
         {/* Export button */}
-        <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            {t('cancel')}
-          </Button>
-          <Button
+        <div className="flex justify-between items-center gap-2 mt-4 pt-4 border-t">
+          {/* Share & Image buttons */}
+          <div className="flex gap-2">
+            <SocialShareDialog
+              session={session}
+              trigger={
+                <Button variant="outline" size="sm" disabled={messages.length === 0}>
+                  <Share2 className="h-4 w-4 mr-2" />
+                  分享
+                </Button>
+              }
+            />
+            <ImageExportDialog
+              session={session}
+              trigger={
+                <Button variant="outline" size="sm" disabled={messages.length === 0}>
+                  <ImageIcon className="h-4 w-4 mr-2" />
+                  图片
+                </Button>
+              }
+            />
+          </div>
+          
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              {t('cancel')}
+            </Button>
+            <Button
             onClick={handleExport}
             disabled={isExporting || isLoading || messages.length === 0}
             className="min-w-[140px]"
@@ -935,6 +962,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
               </>
             )}
           </Button>
+          </div>
         </div>
       </DialogContent>
 

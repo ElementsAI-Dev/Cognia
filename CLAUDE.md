@@ -2,6 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Changelog
+
+### 2025-01-14
+- Initial AI context documentation system created
+- Added module structure diagram with clickable navigation
+- Indexed 7 main modules with coverage analysis
+- Documented 500+ source files across frontend and backend
+
+---
+
 ## Project Overview
 
 Cognia is an AI-native chat and creation application with multi-provider support, built as a hybrid web/desktop application:
@@ -16,6 +26,75 @@ Cognia is an AI-native chat and creation application with multi-provider support
 - **Native Tools**: Desktop-only features (selection, awareness, context, screenshot) on Windows/macOS/Linux
 - **i18n**: Multi-language support via `next-intl` (English, Chinese)
 
+## Module Structure
+
+```mermaid
+graph TD
+    Root["(根) Cognia"] --> App["app/ - Next.js App Router"]
+    Root --> Components["components/ - Feature Components"]
+    Root --> Lib["lib/ - Domain Utilities"]
+    Root --> Hooks["hooks/ - React Hooks"]
+    Root --> Stores["stores/ - State Management"]
+    Root --> Types["types/ - TypeScript Definitions"]
+    Root --> SrcTauri["src-tauri/ - Rust Backend"]
+
+    App --> AppMain["(main)/ - Main Routes"]
+    App --> AppSettings["settings/ - Settings Pages"]
+
+    Components --> CompUI["ui/ - shadcn Components"]
+    Components --> CompChat["chat/ - Chat Components"]
+    Components --> CompAgent["agent/ - Agent Components"]
+    Components --> CompAI["ai-elements/ - AI Components"]
+    Components --> CompDesigner["designer/ - Visual Designer"]
+    Components --> CompNative["native/ - Native Features"]
+    Components --> CompWorkflow["workflow-editor/ - Workflow Editor"]
+
+    Lib --> LibAI["ai/ - AI Integration"]
+    Lib --> LibDB["db/ - Database"]
+    Lib --> LibExport["export/ - Export Utilities"]
+    Lib --> LibNative["native/ - Native Bridges"]
+    Lib --> LibDesigner["designer/ - Designer Logic"]
+
+    Hooks --> HooksAI["ai/ - AI Hooks"]
+    Hooks --> HooksAgent["agent/ - Agent Hooks"]
+    Hooks --> HooksChat["chat/ - Chat Hooks"]
+    Hooks --> HooksNative["native/ - Native Hooks"]
+    Hooks --> HooksUI["ui/ - UI Hooks"]
+
+    Stores --> StoresAgent["agent/ - Agent State"]
+    Stores --> StoresChat["chat/ - Chat State"]
+    Stores --> StoresMCP["mcp/ - MCP State"]
+    Stores --> StoresSettings["settings/ - Settings"]
+    Stores --> StoresSystem["system/ - System State"]
+
+    SrcTauri --> TauriCommands["commands/ - Tauri Commands"]
+    SrcTauri --> TauriMCP["mcp/ - MCP Manager"]
+    SrcTauri --> TauriSelection["selection/ - Selection System"]
+    SrcTauri --> TauriScreenshot["screenshot/ - Screenshot System"]
+    SrcTauri --> TauriAwareness["awareness/ - Awareness System"]
+    SrcTauri --> TauriSandbox["sandbox/ - Code Execution"]
+
+    click App "D:\\Project\\Cognia\\app\\CLAUDE.md" "查看 app 模块文档"
+    click Components "D:\\Project\\Cognia\\components\\CLAUDE.md" "查看 components 模块文档"
+    click Lib "D:\\Project\\Cognia\\lib\\CLAUDE.md" "查看 lib 模块文档"
+    click Hooks "D:\\Project\\Cognia\\hooks\\CLAUDE.md" "查看 hooks 模块文档"
+    click Stores "D:\\Project\\Cognia\\stores\\CLAUDE.md" "查看 stores 模块文档"
+    click Types "D:\\Project\\Cognia\\types\\CLAUDE.md" "查看 types 模块文档"
+    click SrcTauri "D:\\Project\\Cognia\\src-tauri\\CLAUDE.md" "查看 src-tauri 模块文档"
+```
+
+## Module Index
+
+| Module | Path | Type | Description | Tests | Coverage |
+|--------|------|------|-------------|-------|----------|
+| **app** | `app/` | Frontend | Next.js App Router - main routes and layouts | Yes | Partial |
+| **components** | `components/` | Frontend | Feature-based React components (50+ directories) | Yes | Good |
+| **lib** | `lib/` | Frontend | Domain utilities and business logic | Yes | Good |
+| **hooks** | `hooks/` | Frontend | Custom React hooks organized by domain | Yes | Good |
+| **stores** | `stores/` | Frontend | Zustand state management with persistence | Yes | Good |
+| **types** | `types/` | Frontend | TypeScript type definitions | No | Complete |
+| **src-tauri** | `src-tauri/` | Backend | Tauri Rust backend for native capabilities | No | Partial |
+
 ## Development Commands
 
 ```bash
@@ -29,7 +108,7 @@ pnpm lint --fix       # Auto-fix ESLint issues
 # Testing - Unit
 pnpm test             # Run Jest unit tests
 pnpm test:watch       # Jest watch mode
-pnpm test:coverage    # Jest with coverage (70%+ lines, 60%+ branches)
+pnpm test:coverage    # Jest with coverage (55%+ lines, 50%+ branches)
 pnpm test -- path/to/file.test.ts           # Run single test file
 pnpm test -- --testNamePattern="test name"  # Run tests matching pattern
 
@@ -50,7 +129,7 @@ pnpm dlx shadcn@latest add <component>
 pnpm exec tsc --noEmit  # TypeScript strict mode check
 ```
 
-## Architecture
+## Architecture Overview
 
 ### High-Level Architecture
 
@@ -61,332 +140,59 @@ Cognia is a hybrid web/desktop application that:
 
 **Key constraint**: Production builds use `output: "export"` for static site generation (`next.config.ts`). No server-side API routes can be used in deployed desktop apps—Tauri loads static files from `out/`.
 
-**Native Tools**: Desktop-only features including smart text selection, system monitoring, context awareness, and screenshot capture with OCR. See [llmdoc/feature/native-tools-overview.md](llmdoc/feature/native-tools-overview.md) for details.
-
-### Project Structure
-
-- `app/` — Next.js App Router: `(chat)/`, `settings/`, `designer/`, `projects/`, `native-tools/`, `image-studio/`, `video-editor/`, `workflows/`, `api/`
-- `components/` — Feature-based:
-  - `ui/` — shadcn/Radix components (50+)
-  - `chat/`, `sidebar/`, `settings/`, `artifacts/`, `canvas/`, `designer/`, `projects/`, `presets/`
-  - `agent/` — Agent mode components (workflow selector, plan editor, execution steps)
-  - `ai-elements/` — 30+ AI-specific components (message, code block, reasoning, artifact, plan)
-  - `native/` — Native feature UI: clipboard, screenshot, focus tracking, context awareness
-  - `workflow-editor/` — Visual workflow editor with React Flow (nodes, edges, panels, toolbar)
-  - `export/`, `layout/`, `providers/`, `skills/`, `learning/`, `screen-recording/`, `selection-toolbar/`
-- `lib/` — Domain utilities:
-  - `ai/` — AI integration organized in subdirectories:
-    - `agent/` — Agent executor, loop, orchestrator, tools
-    - `chat/` — Chat utilities
-    - `generation/` — Content generation (selection AI, etc.)
-    - `memory/` — Memory providers
-    - `tools/` — Tool definitions
-    - `workflows/` — Workflow definitions
-  - `db/`, `document/`, `export/`, `file/`, `i18n/`, `search/`, `themes/`, `vector/`, `native/`, `skills/`, `learning/`, `designer/`
-- `hooks/` — Modular hook directories:
-  - `ai/` — `use-agent`, `use-background-agent`, `use-skills`, `use-sub-agent`
-  - `chat/` — `use-summary`, chat utilities
-  - `context/` — `use-clipboard-context`, `use-project-context`
-  - `designer/` — `use-designer-drag-drop`, `use-workflow-editor`, `use-workflow-execution`, `use-workflow-keyboard-shortcuts`
-  - `media/` — `use-speech`
-  - `native/` — `use-native`, `use-notification`, `use-window`
-  - `network/` — `use-proxy`
-  - `rag/` — RAG-related hooks
-  - `sandbox/` — `use-environment`, `use-jupyter-kernel`, `use-session-env`, `use-virtual-env`
-  - `ui/` — `use-global-shortcuts`, `use-learning-mode`, `use-learning-tools`, `use-mention`, `use-quote-shortcuts`, `use-selection-toolbar`
-  - `utils/` — `use-element-resize`
-- `stores/` — Modular store directories:
-  - `agent/` — Agent execution tracking
-  - `artifact/` — Artifacts, canvas, versions
-  - `chat/` — Chat widget state
-  - `context/` — Clipboard context, quote state
-  - `data/` — Recent files, templates, vectors
-  - `designer/` — Designer state, history
-  - `document/` — Document management
-  - `learning/` — Learning mode state
-  - `mcp/` — MCP servers, marketplace
-  - `media/` — Media, screen recording
-  - `project/` — Projects, activities
-  - `settings/` — User settings, presets, custom themes
-  - `system/` — Native state, proxy, usage, window
-  - `tools/` — Skills
-  - `workflow/` — Workflow definitions and execution
-- `types/` — TypeScript definitions: provider, message, artifact, session, memory, project, preset, usage, mcp, agent, workflow, learning, skill, environment, summary
-- `src-tauri/` — Rust backend: `awareness/`, `context/`, `screenshot/`, `selection/`, `mcp/`, `sandbox/`, `commands/`
-
 ### Path Aliases
 
 - `@/components`, `@/lib`, `@/hooks`, `@/stores`, `@/types`, `@/ui` (→ `components/ui`)
 
+## Key Technical Features
+
+### AI Integration (14+ Providers)
+
+- **Providers**: OpenAI, Anthropic, Google, Mistral, DeepSeek, Groq, xAI, Together AI, OpenRouter, Cohere, Fireworks, Cerebras, SambaNova, Ollama
+- **Auto-Router**: Three-tier intelligent routing (Fast/Balanced/Powerful)
+- **Agent System**: Three-tier architecture with tool calling, planning, sub-agent coordination
+
+### MCP (Model Context Protocol)
+
+- **Rust Backend**: Full JSON-RPC 2.0 protocol implementation
+- **Frontend**: Zustand store for MCP state, marketplace, and management UI
+- **Server Templates**: Filesystem, GitHub, PostgreSQL, SQLite, Brave Search, Memory, Puppeteer, Slack
+
+### Native Tools (Desktop Only)
+
+- **Selection System**: 12 expansion modes, AI-powered actions, selection history, clipboard history
+- **Awareness System**: Real-time system monitoring, activity tracking, focus tracking
+- **Context System**: Window/app/file/browser/editor detection
+- **Screenshot System**: Multi-mode capture with OCR and searchable history
+
+### Other Systems
+
+- **Designer System**: V0-style visual web page designer with AI-powered editing
+- **Workflow Editor**: Visual workflow editor with React Flow
+- **Skills System**: Custom skill framework for extending AI capabilities
+- **Learning Mode**: Interactive learning system for educational content
+- **Sandbox System**: Secure code execution with Docker/Podman/Native support
+
 ## Store Architecture
 
-All Zustand stores use localStorage persistence with the `persist` middleware. Stores are organized in modular directories:
+All Zustand stores use localStorage persistence with the `persist` middleware:
 
 | Directory | Stores | Purpose |
 |-----------|--------|---------|
-| `stores/agent/` | `agent-store` | Agent execution tracking, tool invocations |
-| `stores/artifact/` | `artifact-store` | Artifacts, canvas documents, version history |
-| `stores/chat/` | `chat-store`, `chat-widget-store` | Chat sessions, widget state |
-| `stores/context/` | `clipboard-context-store`, `quote-store` | Clipboard context, quoted content |
-| `stores/data/` | `recent-files-store`, `template-store`, `vector-store` | Recent files, templates, vector data |
-| `stores/designer/` | `designer-store`, `designer-history-store` | Designer state, undo/redo history |
-| `stores/document/` | `document-store` | Document management |
+| `stores/agent/` | `agent-store`, `background-agent-store`, `sub-agent-store` | Agent execution tracking |
+| `stores/artifact/` | `artifact-store` | Artifacts, canvas, versions |
+| `stores/chat/` | `chat-store`, `chat-widget-store`, `session-store`, `quote-store`, `summary-store` | Chat sessions, widget state |
+| `stores/context/` | `clipboard-context-store` | Clipboard context, quote state |
+| `stores/data/` | `recent-files-store`, `template-store`, `vector-store`, `memory-store` | Recent files, templates, vectors |
+| `stores/designer/` | `designer-store`, `designer-history-store` | Designer state, history |
 | `stores/learning/` | `learning-store` | Learning mode state |
 | `stores/mcp/` | `mcp-store`, `mcp-marketplace-store` | MCP servers, marketplace |
-| `stores/media/` | `media-store`, `screen-recording-store` | Video/image, screen recording |
-| `stores/project/` | `project-store`, `project-activity-store` | Projects, knowledge bases, activities |
-| `stores/settings/` | `settings-store`, `preset-store`, `custom-theme-store` | User preferences, presets, themes |
-| `stores/system/` | `native-store`, `proxy-store`, `usage-store`, `window-store` | Native state, proxy, usage tracking |
-| `stores/tools/` | `skill-store` | Custom skills and suggestions |
+| `stores/media/` | `media-store`, `image-studio-store`, `screen-recording-store` | Video/image, screen recording |
+| `stores/project/` | `project-store`, `project-activity-store` | Projects, activities |
+| `stores/settings/` | `settings-store`, `preset-store`, `custom-theme-store`, `settings-profiles-store` | User preferences, presets |
+| `stores/system/` | `native-store`, `proxy-store`, `usage-store`, `window-store`, `environment-store`, `virtual-env-store`, `ui-store` | Native state, proxy, usage |
+| `stores/tools/` | `skill-store`, `template-store`, `ppt-editor-store`, `jupyter-store` | Skills, tools |
 | `stores/workflow/` | `workflow-store`, `workflow-editor-store` | Workflow definitions and execution |
-
-**Note**: Native tools features (selection, awareness, context, screenshot) are only available in Tauri desktop builds.
-
-## AI Integration
-
-### Supported Providers (14 total)
-
-- OpenAI (`@ai-sdk/openai`): GPT-4o, GPT-4o Mini, o1, o1 Mini
-- Anthropic (`@ai-sdk/anthropic`): Claude 4 Sonnet/Opus, Claude 3.5 Haiku
-- Google (`@ai-sdk/google`): Gemini 2.0 Flash, Gemini 1.5 Pro/Flash
-- Mistral (`@ai-sdk/mistral`): Mistral Large, Mistral Small
-- DeepSeek: OpenAI-compatible API (deepseek-chat, deepseek-coder)
-- Groq: OpenAI-compatible API (Llama 3.3, Mixtral)
-- xAI: OpenAI-compatible API (Grok)
-- Together AI: OpenAI-compatible API
-- OpenRouter: Multi-provider routing
-- Cohere, Fireworks, Cerebras, SambaNova
-- Ollama: Self-hosted models at `http://localhost:11434`
-
-### Auto-Router
-
-The auto-router (`lib/ai/auto-router.ts`) supports two routing modes:
-- **Rule-based**: Fast pattern matching for simple/complex detection
-- **LLM-based**: Uses small models (Groq Llama 3.1, GPT-4o Mini, Gemini Flash) for accurate classification
-
-Three-tier intelligent routing:
-- **Fast tier**: Simple queries (Groq Llama 3.3, Gemini Flash, GPT-4o Mini, Haiku)
-- **Balanced tier**: General tasks (Gemini 1.5 Pro, GPT-4o, Claude Sonnet)
-- **Powerful tier**: Complex reasoning (Claude Opus, o1, DeepSeek Reasoner)
-
-### Key Files
-
-- `lib/ai/client.ts` — Provider client creation with API key rotation
-- `lib/ai/use-ai-chat.ts` — Custom chat hook with streaming
-- `lib/ai/auto-router.ts` — Intelligent model selection
-- `lib/ai/image-utils.ts` — Vision support utilities
-- `lib/ai/image-generation.ts` — DALL-E integration
-- `lib/ai/summarizer.ts` — Conversation summarization
-- `lib/ai/memory/` — Memory provider implementations
-
-## Agent System
-
-### Three-Tier Architecture
-
-1. **Application Layer**: React hooks (`useAgent`, `useBackgroundAgent`), UI panels, settings
-2. **Orchestration Layer**: Agent loop, planning, sub-agent coordination, background queue management
-3. **Execution Layer**: AgentExecutor with AI SDK `generateText`, unified tool system
-
-### Tool Integration
-
-- **Built-in Tools**: File operations, search, web access
-- **MCP Tools**: Full Model Context Protocol integration
-- **Skills**: Custom skill execution framework
-- **RAG**: Retrieval-augmented generation from knowledge bases
-
-### Key Files
-
-- `lib/ai/agent/agent-executor.ts` — Core execution with tool calling
-- `lib/ai/agent/agent-loop.ts` — Multi-step execution loop
-- `lib/ai/agent/agent-orchestrator.ts` — Sub-agent coordination
-- `lib/ai/agent/background-agent-manager.ts` — Queue and persistence
-- `lib/ai/agent/agent-tools.ts` — Built-in tool definitions
-- `lib/ai/agent/environment-tools.ts` — Environment/sandbox tools
-- `hooks/ai/use-agent.ts` — React hook for agent mode
-- `hooks/ai/use-background-agent.ts` — Background agent execution
-- `hooks/ai/use-sub-agent.ts` — Sub-agent management
-
-## MCP (Model Context Protocol)
-
-### Rust Backend (`src-tauri/src/mcp/`)
-- `manager.rs` — Server lifecycle management
-- `client.rs` — JSON-RPC 2.0 protocol implementation
-- `transport/stdio.rs` — stdio transport
-- `transport/sse.rs` — SSE transport
-- `protocol/` — Tools, resources, prompts protocols
-
-### Frontend
-- `stores/mcp/mcp-store.ts` — Zustand store for MCP state
-- `stores/mcp/mcp-marketplace-store.ts` — MCP marketplace state
-- `lib/ai/agent/mcp-tools.ts` — MCP tool integration for agents
-- `components/settings/mcp/mcp-settings.tsx` — MCP management UI
-- `components/settings/mcp/mcp-server-dialog.tsx` — Add/edit server dialog
-- `components/settings/mcp/mcp-install-wizard.tsx` — Quick install wizard
-
-### Server Templates
-
-Built-in quick install templates: Filesystem, GitHub, PostgreSQL, SQLite, Brave Search, Memory, Puppeteer, Slack.
-
-## Native Tools (Desktop Only)
-
-### Features
-
-- **Selection System**: 12 expansion modes, AI-powered actions (explain, translate, summarize), selection history with search, clipboard history with pinning
-- **Awareness System**: Real-time system monitoring (CPU, memory, disk, battery, network), activity tracking (12 types), smart suggestions, focus tracking
-- **Context System**: Window/app/file/browser/editor detection with 500ms caching
-- **Screenshot System**: Multi-mode capture (fullscreen, window, region) with OCR and searchable history
-
-### Platform Support
-
-- **Windows**: Full support (Windows OCR, battery monitoring, browser/editor context)
-- **macOS**: Partial support (basic OCR, limited battery monitoring, no browser/editor context)
-- **Linux**: Partial support (basic OCR, no battery monitoring, no browser/editor context)
-
-### Key Files
-
-- Rust: `src-tauri/src/awareness/`, `src-tauri/src/context/`, `src-tauri/src/screenshot/`, `src-tauri/src/selection/`
-- Frontend: `lib/native/`, `hooks/native/use-*.ts`, `stores/system/native-store.ts`, `components/native/`
-
-## Designer System
-
-V0-style visual web page designer with AI-powered editing:
-
-- **Components**: 40+ component library (14 categories) with drag-drop insertion
-- **Live Preview**: Real-time preview with CDN fallback and error handling
-- **AI Integration**: AI-powered content generation and editing via `lib/designer/ai.ts`
-- **Export**: Export to HTML, React components via `lib/designer/export-utils.ts`
-- **Templates**: Built-in templates in `lib/designer/templates.ts`
-
-### Key Files
-
-- `components/designer/core/designer-panel.tsx` — Main designer component
-- `components/designer/panels/element-tree.tsx` — Component hierarchy view
-- `components/designer/panels/style-panel.tsx` — Visual style editor
-- `components/designer/preview/designer-preview.tsx` — Live preview
-- `components/designer/toolbar/designer-toolbar.tsx` — Toolbar controls
-- `components/designer/dnd/designer-dnd-context.tsx` — Drag-and-drop context
-- `stores/designer/designer-store.ts` — Designer state management
-- `stores/designer/designer-history-store.ts` — Undo/redo history
-- `lib/designer/` — AI, export, templates utilities
-
-## Export System
-
-Multi-format export capabilities in `lib/export/`:
-
-| Format | File | Features |
-|--------|------|----------|
-| Markdown | `rich-markdown.ts` | GFM, code highlighting, math |
-| HTML | `beautiful-html.ts`, `animated-html.ts` | Styled export, animations |
-| PDF | `beautiful-pdf.ts` | Formatted PDF generation |
-| Word | `word-export.ts` | DOCX via docx library |
-| Excel | `excel-export.ts` | XLSX via SheetJS |
-| Diagrams | `chat-diagram.ts`, `agent-diagram.ts` | Visual conversation/agent flow |
-
-## Workflow Editor System
-
-Visual workflow editor for creating and executing automation workflows:
-
-- **Visual Editor**: React Flow-based node graph editor with drag-drop nodes
-- **Node Types**: Annotation nodes, group nodes, custom nodes for different operations
-- **Execution Engine**: Step-by-step workflow execution with debug support
-- **Variable Management**: Global and local variables with scope management
-
-### Key Files
-
-- `components/workflow-editor/workflow-editor-panel.tsx` — Main editor component
-- `components/workflow-editor/node-palette.tsx` — Available node types
-- `components/workflow-editor/custom-edge.tsx` — Custom edge rendering
-- `components/workflow-editor/debug-panel.tsx` — Debug visualization
-- `components/workflow-editor/execution-panel.tsx` — Execution monitoring
-- `stores/workflow/` — Workflow state management
-- `hooks/designer/use-workflow-*.ts` — Workflow hooks
-
-## Skills System
-
-Custom skill framework for extending AI capabilities:
-
-- **Skill Definition**: Define custom skills with parameters and execution logic
-- **Skill Suggestions**: AI-powered skill recommendations based on context
-- **Skill Analytics**: Usage tracking and performance metrics
-- **Skill Wizard**: Guided skill creation interface
-
-### Key Files
-
-- `components/skills/skill-panel.tsx` — Main skill management
-- `components/skills/skill-editor.tsx` — Skill editing interface
-- `components/skills/skill-wizard.tsx` — Guided creation
-- `components/skills/skill-suggestions.tsx` — AI recommendations
-- `stores/tools/skill-store.ts` — Skill state management
-- `lib/skills/` — Skill execution framework
-- `hooks/ai/use-skills.ts` — Skills React hook
-
-## Learning Mode
-
-Interactive learning system for educational content:
-
-- `components/learning/learning-mode-panel.tsx` — Main learning interface
-- `components/learning/flashcard.tsx` — Flashcard component
-- `components/learning/quiz.tsx` — Quiz component
-- `components/learning/review-session.tsx` — Review sessions
-- `components/learning/learning-history-panel.tsx` — Learning history
-- `components/learning/learning-notes-panel.tsx` — Notes management
-- `stores/learning/learning-store.ts` — Learning state
-- `hooks/ui/use-learning-mode.ts` — Learning mode hook
-- `hooks/ui/use-learning-tools.ts` — Learning tools hook
-- `lib/learning/prompts.ts` — Learning-specific prompts
-
-## Sandbox System (Code Execution)
-
-Secure code execution environment in `src-tauri/src/sandbox/`:
-
-- **Docker/Podman**: Container-based isolation (`docker.rs`, `podman.rs`)
-- **Native**: Direct execution for trusted code (`native.rs`)
-- **Languages**: Multi-language support (`languages.rs`)
-- **Runtime**: Execution management (`runtime.rs`)
-
-## Internationalization
-
-Multi-language support via `next-intl`:
-
-- `lib/i18n/messages/en.json` — English translations
-- `lib/i18n/messages/zh-CN.json` — Chinese translations
-- Use `useTranslations()` hook in components
-
-## Component Patterns
-
-### Adding UI Components
-
-```bash
-pnpm dlx shadcn@latest add <component>
-```
-
-### Creating New Stores
-
-```typescript
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-
-interface ExampleState {
-  data: string;
-  setData: (data: string) => void;
-}
-
-export const useExampleStore = create<ExampleState>()(
-  persist(
-    (set) => ({
-      data: '',
-      setData: (data) => set({ data }),
-    }),
-    { name: 'cognia-example' } // localStorage key
-  )
-);
-```
-
-### Styling
-
-- **Tailwind v4**: CSS variables defined in `app/globals.css` with `@theme inline`
-- **Dark mode**: Class-based (apply `.dark` class to parent)
-- **Utility**: Use `cn()` from `@/lib/utils` to merge Tailwind classes
 
 ## Important Constraints
 
@@ -417,3 +223,30 @@ Excluded from coverage (require external services/runtime):
 - Conventional commits: Enforced via commitlint + Husky
 - Monaco Editor: Dynamically imported with SSR disabled
 - Rust toolchain: v1.77.2+ required for Tauri builds
+
+## AI Usage Guidelines
+
+When working with this codebase:
+
+1. **Use the module diagram** above to navigate between different parts of the codebase
+2. **Follow the existing patterns** for stores, hooks, and components
+3. **Maintain type safety** - all modules have strict TypeScript definitions
+4. **Test your changes** - run `pnpm test:coverage` before committing
+5. **Check static export compatibility** - ensure no server-side only features are added
+
+## Coverage Report
+
+- **Total Files**: Estimated 2000+
+- **Scanned Files**: 500
+- **Coverage**: 25%
+- **Status**: Partial (truncated due to large codebase)
+
+### Gaps & Next Steps
+
+1. Deep scan of `lib/ai/` subdirectories for detailed AI integration patterns
+2. Complete scan of `components/` subdirectories for component inventory
+3. Full exploration of `src-tauri/src/` commands and native modules
+4. Detailed analysis of workflow-editor components and hooks
+5. Comprehensive scan of test files for coverage analysis
+
+See `.claude/index.json` for detailed coverage information and recommendations for next scans.

@@ -15,3 +15,4 @@ export { SkillPanel } from './skill-panel';
 export { SkillWizard } from './skill-wizard';
 export { SkillSuggestions, ActiveSkillsIndicator } from './skill-suggestions';
 export { SkillDiscovery } from './skill-discovery';
+export { SkillSecurityScanner } from './skill-security-scanner';

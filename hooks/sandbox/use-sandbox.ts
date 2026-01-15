@@ -155,9 +155,10 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
 }
 
 /**
- * useCodeExecution - Hook for executing code with loading state
+ * useQuickCodeExecution - Hook for simple code execution with loading state
+ * @deprecated Use useCodeExecution from use-sandbox-db.ts for more features
  */
-export function useCodeExecution() {
+export function useQuickCodeExecution() {
   const [isExecuting, setIsExecuting] = useState(false);
   const [result, setResult] = useState<SandboxExecutionResult | null>(null);
   const [error, setError] = useState<string | null>(null);

@@ -14,6 +14,19 @@ export * from './google-sheets-export';
 export * from './beautiful-html';
 export * from './beautiful-pdf';
 export * from './syntax-themes';
+export * from './social-share';
+export {
+  exportToImage,
+  downloadAsImage,
+  exportMessageAsImage,
+  generateThumbnail,
+  copyImageToClipboard as copyChatImageToClipboard,
+  getImageExportFormats,
+  estimateImageSize,
+  type ImageExportOptions,
+  type ImageExportResult,
+} from './image-export';
+export * from './agent-demo-export';
 
 export interface ExportData {
   session: Session;

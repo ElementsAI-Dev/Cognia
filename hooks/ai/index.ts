@@ -29,3 +29,5 @@ export {
   type UsePromptOptimizerReturn,
 } from './use-prompt-optimizer';
 export { useProviderManager } from './use-provider-manager';
+export { useChatObservability } from './use-chat-observability';
+export { useAgentObservability } from './use-agent-observability';

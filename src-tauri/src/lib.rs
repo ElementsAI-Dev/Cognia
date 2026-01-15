@@ -718,6 +718,10 @@ pub fn run() {
             commands::screenshot::screenshot_unpin,
             commands::screenshot::screenshot_delete,
             commands::screenshot::screenshot_clear_history,
+            // Screenshot tag/label management commands
+            commands::screenshot::screenshot_add_tag,
+            commands::screenshot::screenshot_remove_tag,
+            commands::screenshot::screenshot_set_label,
             // Windows OCR commands (legacy)
             commands::screenshot::screenshot_ocr_windows,
             commands::screenshot::screenshot_get_ocr_languages,
@@ -1085,6 +1089,9 @@ pub fn run() {
             commands::skill::skill_list_resources,
             commands::skill::skill_read_resource,
             commands::skill::skill_get_ssot_dir,
+            commands::skill::skill_scan_installed,
+            commands::skill::skill_scan_path,
+            commands::skill::skill_security_rule_count,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

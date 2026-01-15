@@ -72,6 +72,7 @@ export {
   ResponseSettings,
   CustomInstructionsSettings,
   AutoRouterSettings,
+  SafetySettings,
 } from './chat';
 
 // Tool settings

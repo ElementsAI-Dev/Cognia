@@ -254,7 +254,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
               is_primary: boolean;
               scale_factor: number;
             }>>('screenshot_get_monitors'),
-            invoke<boolean>('screenshot_is_ocr_available').catch(() => false),
+            invoke<boolean>('screenshot_ocr_is_available').catch(() => false),
           ]);
 
           const transformedMonitors = monitors.map(transformMonitorInfo);

@@ -70,6 +70,21 @@
         "resizable": true,
         "center": true,
         "shadow": true
+      },
+      {
+        "label": "region-selector",
+        "title": "",
+        "url": "region-selector",
+        "width": 1920,
+        "height": 1080,
+        "visible": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "focus": true,
+        "shadow": false
       }
     ],
     "security": {

@@ -98,18 +98,42 @@ export {
   notesTemplate,
   weatherTemplate,
   contactFormTemplate,
+  unitConverterTemplate,
+  habitTrackerTemplate,
+  shoppingListTemplate,
+  expenseTrackerTemplate,
+  profileCardTemplate,
   type A2UIAppTemplate,
 } from './templates';
 
 // App Generator (AI-powered app generation)
 export {
   generateAppFromDescription,
+  generateUnitConverterApp,
   detectAppType,
   extractAppName,
   appPatterns,
+  getLocalizedTexts,
+  getStyleConfig,
   type AppGenerationRequest,
   type GeneratedApp,
 } from './app-generator';
+
+// Thumbnail Generation
+export {
+  generateThumbnail,
+  captureSurfaceThumbnail,
+  generatePlaceholderThumbnail,
+  saveThumbnail,
+  getThumbnail,
+  deleteThumbnail,
+  isThumbnailStale,
+  getAllThumbnails,
+  clearAllThumbnails,
+  syncThumbnailsWithApps,
+  type ThumbnailOptions,
+  type ThumbnailResult,
+} from './thumbnail';
 
 // Academic Templates
 export {

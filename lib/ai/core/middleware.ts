@@ -454,3 +454,379 @@ export { wrapLanguageModel };
 
 // Export type for external use
 export type { LanguageModelMiddleware };
+
+// ============================================================================
+// Safety Mode - Security Rules and Patterns
+// ============================================================================
+
+export interface SafetyCheckResult {
+  blocked: boolean;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  matchedRule?: string;
+  reason?: string;
+  category?: 'injection' | 'jailbreak' | 'dangerous_command' | 'data_leak' | 'other';
+}
+
+export interface SafetyCheckOptions {
+  mode: 'off' | 'warn' | 'block';
+  checkUserInput: boolean;
+  checkSystemPrompt: boolean;
+  checkToolCalls: boolean;
+  blockDangerousCommands: boolean;
+  customBlockedPatterns: (string | RegExp)[];
+  customAllowedPatterns: (string | RegExp)[];
+}
+
+/**
+ * Default safety rules for prompt injection, jailbreak, and dangerous commands
+ */
+export const DEFAULT_SAFETY_RULES = {
+  // Prompt injection patterns
+  injection: [
+    { pattern: /ignore\s+(all\s+)?(previous|above|preceding)\s+instructions/gi, severity: 'critical' as const, category: 'injection' as const },
+    { pattern: /disregard\s+(all\s+)?(previous|above|preceding)\s+instructions/gi, severity: 'critical' as const, category: 'injection' as const },
+    { pattern: /forget\s+(everything|all\s+instructions|previous\s+instructions)/gi, severity: 'critical' as const, category: 'injection' as const },
+    { pattern: /new\s+(system\s+)?prompt:/gi, severity: 'critical' as const, category: 'injection' as const },
+    { pattern: /system\s+prompt\s*:/gi, severity: 'high' as const, category: 'injection' as const },
+    { pattern: /developer\s+message\s*:/gi, severity: 'high' as const, category: 'injection' as const },
+    { pattern: /user\s+message\s*:/gi, severity: 'medium' as const, category: 'injection' as const },
+    { pattern: /assistant\s+message\s*:/gi, severity: 'medium' as const, category: 'injection' as const },
+  ],
+
+  // Jailbreak patterns
+  jailbreak: [
+    { pattern: /\b(jailbreak|jail\s*break|bypass|circumvent|override)\b/gi, severity: 'high' as const, category: 'jailbreak' as const },
+    { pattern: /\b(dan|developer\s+access\s+mode)\b/gi, severity: 'high' as const, category: 'jailbreak' as const },
+    { pattern: /\b(above\s+policy|policy\s+override)\b/gi, severity: 'high' as const, category: 'jailbreak' as const },
+    { pattern: /\b(no\s+restrictions|without\s+restrictions|ignore\s+restrictions)\b/gi, severity: 'medium' as const, category: 'jailbreak' as const },
+    { pattern: /\b(assume\s+role|pretend\s+to\s+be|act\s+as)\s+(unrestricted|uncensored|unfiltered)\b/gi, severity: 'high' as const, category: 'jailbreak' as const },
+    { pattern: /\b(above\s+ethics|ignore\s+ethics|without\s+ethics)\b/gi, severity: 'high' as const, category: 'jailbreak' as const },
+  ],
+
+  // Dangerous command patterns
+  dangerousCommands: [
+    { pattern: /\b(rm\s+-rf|del\s+\/f|format\s+c\s*:)\b/gi, severity: 'critical' as const, category: 'dangerous_command' as const },
+    { pattern: /\b(shutdown\s+(now|\/s\/t\s*0)|reboot\s+\/f)\b/gi, severity: 'critical' as const, category: 'dangerous_command' as const },
+    { pattern: /\b(sudo\s+(rm|del|format|shutdown|reboot))\b/gi, severity: 'critical' as const, category: 'dangerous_command' as const },
+    { pattern: /\b(exec\(|execSync\(|spawn\(|child_process)\b/gi, severity: 'high' as const, category: 'dangerous_command' as const },
+    { pattern: /\b(os\.system|subprocess\.run|subprocess\.Popen)\b/gi, severity: 'high' as const, category: 'dangerous_command' as const },
+    { pattern: /\b(Invoke-Expression|iex)\s+\(/gi, severity: 'critical' as const, category: 'dangerous_command' as const },
+    { pattern: /\b(eval\(|Function\(|setTimeout\(.*\()\b/gi, severity: 'high' as const, category: 'dangerous_command' as const },
+  ],
+
+  // Data leak patterns
+  dataLeak: [
+    { pattern: /\b(reveal|show|display|expose|leak)\s+(system\s+prompt|instructions|secrets|api\s+key|password)\b/gi, severity: 'high' as const, category: 'data_leak' as const },
+    { pattern: /\b(print|output|echo)\s+(system\s+prompt|instructions)\b/gi, severity: 'medium' as const, category: 'data_leak' as const },
+    { pattern: /\b(ignore\s+confidentiality|bypass\s+security|leak\s+data)\b/gi, severity: 'high' as const, category: 'data_leak' as const },
+  ],
+};
+
+/**
+ * Check content against safety rules
+ */
+export function checkSafety(
+  content: string,
+  options: SafetyCheckOptions
+): SafetyCheckResult {
+  // If safety mode is off, always allow
+  if (options.mode === 'off') {
+    return { blocked: false, severity: 'low' };
+  }
+
+  // Check custom allowed patterns first (whitelist)
+  for (const pattern of options.customAllowedPatterns) {
+    if (typeof pattern === 'string') {
+      if (content.includes(pattern)) {
+        return { blocked: false, severity: 'low' };
+      }
+    } else {
+      if (pattern.test(content)) {
+        return { blocked: false, severity: 'low' };
+      }
+    }
+  }
+
+  // Check custom blocked patterns (blacklist)
+  for (const pattern of options.customBlockedPatterns) {
+    if (typeof pattern === 'string') {
+      if (content.includes(pattern)) {
+        return {
+          blocked: options.mode === 'block',
+          severity: 'high',
+          matchedRule: pattern,
+          reason: 'Content matches custom blocked pattern',
+          category: 'other',
+        };
+      }
+    } else {
+      if (pattern.test(content)) {
+        return {
+          blocked: options.mode === 'block',
+          severity: 'high',
+          matchedRule: pattern.toString(),
+          reason: 'Content matches custom blocked pattern',
+          category: 'other',
+        };
+      }
+    }
+  }
+
+  // Check default safety rules
+  const allRules = [
+    ...DEFAULT_SAFETY_RULES.injection,
+    ...DEFAULT_SAFETY_RULES.jailbreak,
+    ...DEFAULT_SAFETY_RULES.dangerousCommands,
+    ...DEFAULT_SAFETY_RULES.dataLeak,
+  ];
+
+  for (const rule of allRules) {
+    if (rule.pattern.test(content)) {
+      const blocked = options.mode === 'block' || 
+        (options.mode === 'warn' && rule.severity === 'critical');
+      
+      return {
+        blocked,
+        severity: rule.severity,
+        matchedRule: rule.pattern.toString(),
+        reason: `Content matches ${rule.category} pattern`,
+        category: rule.category,
+      };
+    }
+  }
+
+  return { blocked: false, severity: 'low' };
+}
+
+/**
+ * Check if a tool call is safe
+ */
+export function checkToolCallSafety(
+  toolName: string,
+  args: Record<string, unknown>,
+  options: SafetyCheckOptions
+): SafetyCheckResult {
+  // If safety mode is off or tool checking is disabled, always allow
+  if (options.mode === 'off' || !options.checkToolCalls) {
+    return { blocked: false, severity: 'low' };
+  }
+
+  // Check tool name for dangerous patterns
+  const toolCheck = checkSafety(toolName, options);
+  if (toolCheck.blocked) {
+    return {
+      ...toolCheck,
+      reason: `Tool name is potentially dangerous: ${toolCheck.reason}`,
+    };
+  }
+
+  // Check arguments for dangerous patterns
+  const argsString = JSON.stringify(args);
+  const argsCheck = checkSafety(argsString, options);
+  if (argsCheck.blocked) {
+    return {
+      ...argsCheck,
+      reason: `Tool arguments contain potentially dangerous content: ${argsCheck.reason}`,
+    };
+  }
+
+  // Specific dangerous tool checks
+  const dangerousTools = [
+    'execute_shell',
+    'run_command',
+    'exec',
+    'spawn',
+    'file_delete',
+    'file_write',
+    'process_terminate',
+  ];
+
+  if (dangerousTools.some(dt => toolName.includes(dt))) {
+    if (options.blockDangerousCommands) {
+      return {
+        blocked: options.mode === 'block',
+        severity: 'high',
+        matchedRule: toolName,
+        reason: 'Tool is classified as potentially dangerous',
+        category: 'dangerous_command',
+      };
+    }
+  }
+
+  return { blocked: false, severity: 'low' };
+}
+
+/**
+ * Create a safety check middleware that filters content before sending to model
+ */
+export function createSafetyCheckMiddleware(options: SafetyCheckOptions): LanguageModelMiddleware {
+  return {
+    wrapGenerate: async ({ doGenerate, params }) => {
+      // Check system prompt if enabled
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const paramsAny = params as any;
+      if (options.checkSystemPrompt && paramsAny.system) {
+        const systemCheck = checkSafety(paramsAny.system as string, options);
+        if (systemCheck.blocked) {
+          throw new Error(
+            `System prompt blocked by safety mode: ${systemCheck.reason} (severity: ${systemCheck.severity})`
+          );
+        }
+      }
+
+      // Check user messages if enabled
+      if (options.checkUserInput && paramsAny.messages) {
+        for (const message of paramsAny.messages) {
+          if (message.role === 'user' && typeof message.content === 'string') {
+            const userCheck = checkSafety(message.content, options);
+            if (userCheck.blocked) {
+              throw new Error(
+                `User message blocked by safety mode: ${userCheck.reason} (severity: ${userCheck.severity})`
+              );
+            }
+          }
+        }
+      }
+
+      return doGenerate();
+    },
+  };
+}
+
+/**
+ * Get a human-readable safety warning message
+ */
+export function getSafetyWarningMessage(result: SafetyCheckResult): string {
+  if (!result.blocked) {
+    return '';
+  }
+
+  const severityMessages = {
+    critical: 'This content has been blocked for security reasons.',
+    high: 'This content appears to violate safety guidelines.',
+    medium: 'This content may be unsafe.',
+    low: 'This content triggered a safety warning.',
+  };
+
+  return `${severityMessages[result.severity]} ${result.reason || ''}`;
+}
+
+/**
+ * External review API response interface
+ */
+export interface ExternalReviewResponse {
+  safe: boolean;
+  severity?: 'low' | 'medium' | 'high' | 'critical';
+  reason?: string;
+  category?: 'injection' | 'jailbreak' | 'dangerous_command' | 'data_leak' | 'other';
+  details?: Record<string, unknown>;
+}
+
+/**
+ * Call external review API to check content safety
+ */
+export async function callExternalReviewAPI(
+  content: string,
+  config: {
+    endpoint: string;
+    apiKey?: string;
+    headers?: Record<string, string>;
+    timeoutMs: number;
+  }
+): Promise<ExternalReviewResponse> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), config.timeoutMs);
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...config.headers,
+    };
+
+    if (config.apiKey) {
+      headers['Authorization'] = `Bearer ${config.apiKey}`;
+    }
+
+    const response = await fetch(config.endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ content }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`External review API failed: ${response.status} ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as ExternalReviewResponse;
+    return data;
+  } catch (error) {
+    throw new Error(`External review API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Check content safety with external API as fallback
+ */
+export async function checkSafetyWithExternalAPI(
+  content: string,
+  localCheck: SafetyCheckResult,
+  externalReviewConfig: {
+    enabled: boolean;
+    endpoint: string;
+    apiKey?: string;
+    headers?: Record<string, string>;
+    timeoutMs: number;
+    minSeverity: 'low' | 'medium' | 'high' | 'critical';
+    fallbackMode: 'allow' | 'block';
+  }
+): Promise<SafetyCheckResult> {
+  // If local check already blocked, return it immediately
+  if (localCheck.blocked) {
+    return localCheck;
+  }
+
+  // If external review is disabled, return local check
+  if (!externalReviewConfig.enabled || !externalReviewConfig.endpoint) {
+    return localCheck;
+  }
+
+  try {
+    const externalResult = await callExternalReviewAPI(content, externalReviewConfig);
+
+    // Convert external result to SafetyCheckResult
+    const result: SafetyCheckResult = {
+      blocked: !externalResult.safe,
+      severity: externalResult.severity || 'medium',
+      reason: externalResult.reason || 'External review flagged content',
+      category: externalResult.category || 'other',
+    };
+
+    // Apply severity threshold
+    const severityOrder = ['low', 'medium', 'high', 'critical'] as const;
+    const minSeverityIndex = severityOrder.indexOf(externalReviewConfig.minSeverity);
+    const resultSeverityIndex = severityOrder.indexOf(result.severity);
+
+    if (resultSeverityIndex < minSeverityIndex) {
+      // Below threshold, treat as safe
+      return { blocked: false, severity: result.severity };
+    }
+
+    return result;
+  } catch (error) {
+    // External API failed, apply fallback mode
+    if (externalReviewConfig.fallbackMode === 'block') {
+      return {
+        blocked: true,
+        severity: 'high',
+        reason: `External review failed and fallback mode is block: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      };
+    }
+
+    // Allow mode - log warning but don't block
+    console.warn(`[Safety Mode] External review API failed, allowing content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return { blocked: false, severity: 'low' };
+  }
+}

@@ -5,7 +5,7 @@
  * Provides navigation, session list, search, and settings access
  */
 
-import { Plus, Settings, Moon, Sun, Monitor, MessageSquare, MoreHorizontal, Pencil, Trash2, Copy, Search, X, FolderKanban, Keyboard, Pin, PinOff, Wand2, ChevronDown, ChevronRight, Sparkles, Workflow, Wrench, GitBranch } from 'lucide-react';
+import { Plus, Settings, Moon, Sun, Monitor, MessageSquare, MoreHorizontal, Pencil, Trash2, Copy, Search, X, FolderKanban, Keyboard, Pin, PinOff, Wand2, ChevronDown, ChevronRight, Sparkles, Workflow, Wrench, GitBranch, Activity } from 'lucide-react';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
@@ -630,6 +630,14 @@ export function AppSidebar() {
             <SidebarMenuButton onClick={cycleTheme} tooltip={t('theme')}>
               {getThemeIcon()}
               <span>{t('themeLabel', { theme })}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip={t('observability') || 'Observability'}>
+              <Link href="/observability">
+                <Activity className="h-4 w-4 text-emerald-500" />
+                <span>{t('observability') || 'Observability'}</span>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>

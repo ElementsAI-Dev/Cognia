@@ -261,6 +261,110 @@ export async function getSkillSsotDir(): Promise<string> {
   return invoke<string>('skill_get_ssot_dir');
 }
 
+// ========== Security Scanning Types ==========
+
+/**
+ * Security finding severity level
+ */
+export type SecuritySeverity = 'critical' | 'high' | 'medium' | 'low' | 'info';
+
+/**
+ * Security finding category
+ */
+export type SecurityCategory =
+  | 'command_execution'
+  | 'code_injection'
+  | 'filesystem_access'
+  | 'network_access'
+  | 'sensitive_data'
+  | 'privilege_escalation'
+  | 'obfuscated_code'
+  | 'other';
+
+/**
+ * A single security finding from scanning
+ */
+export interface SecurityFinding {
+  ruleId: string;
+  title: string;
+  description: string;
+  severity: SecuritySeverity;
+  category: SecurityCategory;
+  filePath: string;
+  line: number;
+  column: number;
+  snippet: string | null;
+  suggestion: string | null;
+}
+
+/**
+ * Summary statistics for a security scan
+ */
+export interface SecurityScanSummary {
+  filesScanned: number;
+  totalFindings: number;
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  info: number;
+  isSafe: boolean;
+  riskScore: number;
+}
+
+/**
+ * Complete security scan report
+ */
+export interface SecurityScanReport {
+  skillId: string;
+  skillName: string | null;
+  scannedPath: string;
+  scannedAt: number;
+  durationMs: number;
+  summary: SecurityScanSummary;
+  findings: SecurityFinding[];
+}
+
+/**
+ * Options for security scanning
+ */
+export interface SecurityScanOptions {
+  maxFileSize?: number;
+  maxFiles?: number;
+  extensions?: string[];
+  skipPatterns?: string[];
+  minSeverity?: SecuritySeverity;
+}
+
+// ========== Security Scanning Commands ==========
+
+/**
+ * Scan an installed skill for security issues
+ */
+export async function scanInstalledSkill(
+  directory: string,
+  options?: SecurityScanOptions
+): Promise<SecurityScanReport> {
+  return invoke<SecurityScanReport>('skill_scan_installed', { directory, options });
+}
+
+/**
+ * Scan a local path for security issues (pre-install check)
+ */
+export async function scanSkillPath(
+  path: string,
+  options?: SecurityScanOptions
+): Promise<SecurityScanReport> {
+  return invoke<SecurityScanReport>('skill_scan_path', { path, options });
+}
+
+/**
+ * Get the number of security rules available
+ */
+export async function getSecurityRuleCount(): Promise<number> {
+  return invoke<number>('skill_security_rule_count');
+}
+
 // ========== Utility Functions ==========
 
 /**

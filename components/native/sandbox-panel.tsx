@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface SandboxPanelProps {
+export interface SandboxPanelProps {
   className?: string;
   onExecutionComplete?: (result: { stdout: string; stderr: string; success: boolean }) => void;
 }

@@ -276,12 +276,17 @@ impl SelectionManager {
                             continue;
                         }
 
-                        // Extract position from event
-                        let (x, y) = match &event {
-                            MouseEvent::LeftButtonUp { x, y } => (*x, *y),
-                            MouseEvent::DoubleClick { x, y } => (*x, *y),
-                            MouseEvent::TripleClick { x, y } => (*x, *y),
-                            MouseEvent::DragEnd { x, y, .. } => (*x, *y),
+                        // Extract position from event and determine if this is a selection action
+                        // Simple LeftButtonUp (single click) should only be used to HIDE toolbar
+                        // when selection is cleared, not to SHOW a new toolbar
+                        let (x, y, is_selection_action) = match &event {
+                            MouseEvent::LeftButtonUp { x, y } => {
+                                // Simple left button up - only used to detect selection clearing
+                                (*x, *y, false)
+                            }
+                            MouseEvent::DoubleClick { x, y } => (*x, *y, true),
+                            MouseEvent::TripleClick { x, y } => (*x, *y, true),
+                            MouseEvent::DragEnd { x, y, .. } => (*x, *y, true),
                         };
 
                         // Wait for the configured delay (allows selection to complete)
@@ -290,6 +295,13 @@ impl SelectionManager {
                         // Try to get selected text
                         match detector.get_selected_text() {
                             Ok(Some(text)) if !text.is_empty() => {
+                                // For simple clicks (not selection actions), don't show new toolbar
+                                // This prevents false triggers when clicking to position cursor
+                                if !is_selection_action {
+                                    log::trace!("[SelectionManager] Simple click with existing selection, ignoring");
+                                    continue;
+                                }
+
                                 // Check text length
                                 if text.len() < cfg.min_text_length || text.len() > cfg.max_text_length {
                                     log::debug!("[SelectionManager] Text length {} outside bounds [{}, {}]",

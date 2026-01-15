@@ -101,6 +101,8 @@ export {
 // App Builder components
 export { QuickAppBuilder } from './quick-app-builder';
 export { AppGallery } from './app-gallery';
+export { AppCard, type AppCardProps } from './app-card';
+export { AppDetailDialog, type AppDetailDialogProps } from './app-detail-dialog';
 
 // Hooks (re-exported from centralized hooks)
 export {

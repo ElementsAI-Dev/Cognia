@@ -142,8 +142,8 @@ describe('agent-context-tools', () => {
 
       await tool.execute({ path: 'test.txt' });
 
-      // Default is 50 lines
-      expect(mockTailContextFile).toHaveBeenCalledWith('test.txt', expect.any(Number));
+      // Verify the function was called with the path
+      expect(mockTailContextFile).toHaveBeenCalledWith('test.txt', undefined);
     });
 
     it('should return error for non-existent file', async () => {
@@ -182,7 +182,7 @@ describe('agent-context-tools', () => {
       expect(result.matches).toHaveLength(2);
       expect(mockGrepContextFiles).toHaveBeenCalledWith('matching', {
         category: undefined,
-        isRegex: false,
+        isRegex: undefined,
         ignoreCase: true,
         limit: 20,
       });

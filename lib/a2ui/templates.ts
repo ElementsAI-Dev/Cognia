@@ -961,6 +961,210 @@ export const contactFormTemplate: A2UIAppTemplate = {
 };
 
 /**
+ * Unit Converter Template
+ */
+export const unitConverterTemplate: A2UIAppTemplate = {
+  id: 'unit-converter',
+  name: 'Unit Converter',
+  description: 'Convert between different units of measurement',
+  icon: 'ArrowLeftRight',
+  category: 'utility',
+  tags: ['converter', 'units', 'utility', 'measurement'],
+  components: [
+    { id: 'root', component: 'Column', children: ['header', 'converter-card', 'result-card'], className: 'gap-4 p-4 max-w-md' },
+    { id: 'header', component: 'Text', text: '🔄 Unit Converter', variant: 'heading2' },
+    { id: 'converter-card', component: 'Card', children: ['type-select', 'input-row', 'unit-row', 'convert-btn'], className: 'p-4' },
+    { id: 'type-select', component: 'Select', value: { path: '/converterType' }, label: 'Type', options: [
+      { value: 'length', label: 'Length' },
+      { value: 'weight', label: 'Weight' },
+      { value: 'temperature', label: 'Temperature' },
+    ] },
+    { id: 'input-row', component: 'TextField', value: { path: '/inputValue' }, label: 'Value', type: 'number', placeholder: '0' },
+    { id: 'unit-row', component: 'Row', children: ['from-unit', 'arrow', 'to-unit'], className: 'gap-2 items-center' },
+    { id: 'from-unit', component: 'Select', value: { path: '/fromUnit' }, label: 'From', options: [
+      { value: 'm', label: 'Meter' }, { value: 'cm', label: 'Centimeter' }, { value: 'ft', label: 'Feet' },
+    ], className: 'flex-1' },
+    { id: 'arrow', component: 'Icon', name: 'ArrowRight', size: 20 },
+    { id: 'to-unit', component: 'Select', value: { path: '/toUnit' }, label: 'To', options: [
+      { value: 'm', label: 'Meter' }, { value: 'cm', label: 'Centimeter' }, { value: 'ft', label: 'Feet' },
+    ], className: 'flex-1' },
+    { id: 'convert-btn', component: 'Button', text: 'Convert', action: 'convert', variant: 'primary', className: 'mt-4 w-full' },
+    { id: 'result-card', component: 'Card', children: ['result-label', 'result-value'], className: 'text-center p-6 bg-muted' },
+    { id: 'result-label', component: 'Text', text: 'Result', variant: 'caption' },
+    { id: 'result-value', component: 'Text', text: { path: '/result' }, variant: 'heading1', className: 'font-mono' },
+  ] as A2UIComponent[],
+  dataModel: {
+    converterType: 'length',
+    inputValue: '',
+    fromUnit: 'm',
+    toUnit: 'cm',
+    result: '0',
+  },
+};
+
+/**
+ * Habit Tracker Template
+ */
+export const habitTrackerTemplate: A2UIAppTemplate = {
+  id: 'habit-tracker',
+  name: 'Habit Tracker',
+  description: 'Track your daily habits and build streaks',
+  icon: 'Target',
+  category: 'productivity',
+  tags: ['habits', 'tracking', 'daily', 'goals', 'productivity'],
+  components: [
+    { id: 'root', component: 'Column', children: ['header', 'add-row', 'habits-list', 'stats-row'], className: 'gap-4 p-4' },
+    { id: 'header', component: 'Text', text: '🎯 Habit Tracker', variant: 'heading2' },
+    { id: 'add-row', component: 'Row', children: ['habit-input', 'add-btn'], className: 'gap-2' },
+    { id: 'habit-input', component: 'TextField', value: { path: '/newHabit' }, placeholder: 'New habit...', className: 'flex-1' },
+    { id: 'add-btn', component: 'Button', text: 'Add', action: 'add_habit', variant: 'primary', icon: 'Plus' },
+    { id: 'habits-list', component: 'List', items: { path: '/habits' }, emptyText: 'No habits yet. Add one above!', itemClickAction: 'toggle_habit', dividers: true },
+    { id: 'stats-row', component: 'Row', children: ['streak-badge', 'completed-badge'], className: 'gap-2 justify-center' },
+    { id: 'streak-badge', component: 'Badge', text: { path: '/stats/streakText' }, variant: 'default' },
+    { id: 'completed-badge', component: 'Badge', text: { path: '/stats/todayText' }, variant: 'secondary' },
+  ] as A2UIComponent[],
+  dataModel: {
+    newHabit: '',
+    habits: [],
+    stats: {
+      streak: 0,
+      streakText: '0 day streak',
+      todayCompleted: 0,
+      todayText: '0 completed today',
+    },
+  },
+};
+
+/**
+ * Shopping List Template
+ */
+export const shoppingListTemplate: A2UIAppTemplate = {
+  id: 'shopping-list',
+  name: 'Shopping List',
+  description: 'Simple grocery and shopping list manager',
+  icon: 'ShoppingCart',
+  category: 'productivity',
+  tags: ['shopping', 'grocery', 'list', 'productivity'],
+  components: [
+    { id: 'root', component: 'Column', children: ['header', 'add-section', 'items-list', 'total-row'], className: 'gap-4 p-4' },
+    { id: 'header', component: 'Row', children: ['title', 'clear-btn'], className: 'justify-between items-center' },
+    { id: 'title', component: 'Text', text: '🛒 Shopping List', variant: 'heading2' },
+    { id: 'clear-btn', component: 'Button', text: 'Clear All', action: 'clear_list', variant: 'ghost', icon: 'Trash2' },
+    { id: 'add-section', component: 'Row', children: ['item-input', 'qty-input', 'add-btn'], className: 'gap-2' },
+    { id: 'item-input', component: 'TextField', value: { path: '/newItem/name' }, placeholder: 'Item name...', className: 'flex-1' },
+    { id: 'qty-input', component: 'TextField', value: { path: '/newItem/quantity' }, placeholder: 'Qty', type: 'number', className: 'w-16' },
+    { id: 'add-btn', component: 'Button', text: 'Add', action: 'add_item', variant: 'primary', icon: 'Plus' },
+    { id: 'items-list', component: 'List', items: { path: '/items' }, emptyText: 'Your shopping list is empty', itemClickAction: 'toggle_item', dividers: true },
+    { id: 'total-row', component: 'Card', children: ['total-text'], className: 'p-3 text-center' },
+    { id: 'total-text', component: 'Text', text: { path: '/totalText' }, variant: 'body' },
+  ] as A2UIComponent[],
+  dataModel: {
+    newItem: { name: '', quantity: 1 },
+    items: [],
+    totalText: '0 items',
+  },
+};
+
+/**
+ * Expense Tracker Template
+ */
+export const expenseTrackerTemplate: A2UIAppTemplate = {
+  id: 'expense-tracker',
+  name: 'Expense Tracker',
+  description: 'Track your daily expenses and budget',
+  icon: 'Wallet',
+  category: 'data',
+  tags: ['expenses', 'money', 'budget', 'finance', 'tracking'],
+  components: [
+    { id: 'root', component: 'Column', children: ['header', 'summary-row', 'add-card', 'expenses-list'], className: 'gap-4 p-4' },
+    { id: 'header', component: 'Text', text: '💰 Expense Tracker', variant: 'heading2' },
+    { id: 'summary-row', component: 'Row', children: ['total-card', 'today-card'], className: 'gap-4' },
+    { id: 'total-card', component: 'Card', children: ['total-label', 'total-value'], className: 'flex-1 p-4 text-center' },
+    { id: 'total-label', component: 'Text', text: 'Total Spent', variant: 'caption' },
+    { id: 'total-value', component: 'Text', text: { path: '/stats/totalText' }, variant: 'heading2', color: 'primary' },
+    { id: 'today-card', component: 'Card', children: ['today-label', 'today-value'], className: 'flex-1 p-4 text-center' },
+    { id: 'today-label', component: 'Text', text: 'Today', variant: 'caption' },
+    { id: 'today-value', component: 'Text', text: { path: '/stats/todayText' }, variant: 'heading2' },
+    { id: 'add-card', component: 'Card', children: ['expense-input-row', 'category-row', 'add-btn'], className: 'p-4' },
+    { id: 'expense-input-row', component: 'Row', children: ['desc-input', 'amount-input'], className: 'gap-2' },
+    { id: 'desc-input', component: 'TextField', value: { path: '/newExpense/description' }, placeholder: 'Description...', label: 'What', className: 'flex-1' },
+    { id: 'amount-input', component: 'TextField', value: { path: '/newExpense/amount' }, placeholder: '0.00', type: 'number', label: 'Amount', className: 'w-24' },
+    { id: 'category-row', component: 'Select', value: { path: '/newExpense/category' }, label: 'Category', options: [
+      { value: 'food', label: '🍔 Food' },
+      { value: 'transport', label: '🚗 Transport' },
+      { value: 'shopping', label: '🛍️ Shopping' },
+      { value: 'entertainment', label: '🎬 Entertainment' },
+      { value: 'other', label: '📦 Other' },
+    ] },
+    { id: 'add-btn', component: 'Button', text: 'Add Expense', action: 'add_expense', variant: 'primary', className: 'mt-2 w-full' },
+    { id: 'expenses-list', component: 'List', items: { path: '/expenses' }, emptyText: 'No expenses recorded', dividers: true },
+  ] as A2UIComponent[],
+  dataModel: {
+    newExpense: { description: '', amount: '', category: 'food' },
+    expenses: [],
+    stats: {
+      total: 0,
+      totalText: '$0.00',
+      today: 0,
+      todayText: '$0.00',
+    },
+  },
+};
+
+/**
+ * Profile Card Template (Social category)
+ */
+export const profileCardTemplate: A2UIAppTemplate = {
+  id: 'profile-card',
+  name: 'Profile Card',
+  description: 'Display user profile information',
+  icon: 'User',
+  category: 'social',
+  tags: ['profile', 'user', 'card', 'social'],
+  components: [
+    { id: 'root', component: 'Column', children: ['card'], className: 'gap-4 p-4 max-w-sm' },
+    { id: 'card', component: 'Card', children: ['avatar-row', 'info-section', 'stats-row', 'actions-row'], className: 'p-6' },
+    { id: 'avatar-row', component: 'Row', children: ['avatar', 'name-col'], className: 'gap-4 items-center' },
+    { id: 'avatar', component: 'Image', src: { path: '/profile/avatar' }, alt: 'Avatar', className: 'w-16 h-16 rounded-full' },
+    { id: 'name-col', component: 'Column', children: ['name', 'title'], className: 'gap-1' },
+    { id: 'name', component: 'Text', text: { path: '/profile/name' }, variant: 'heading3' },
+    { id: 'title', component: 'Text', text: { path: '/profile/title' }, variant: 'caption', color: 'muted' },
+    { id: 'info-section', component: 'Column', children: ['bio', 'location-row'], className: 'gap-2 mt-4' },
+    { id: 'bio', component: 'Text', text: { path: '/profile/bio' }, variant: 'body' },
+    { id: 'location-row', component: 'Row', children: ['location-icon', 'location-text'], className: 'gap-1 items-center' },
+    { id: 'location-icon', component: 'Icon', name: 'MapPin', size: 14 },
+    { id: 'location-text', component: 'Text', text: { path: '/profile/location' }, variant: 'caption' },
+    { id: 'stats-row', component: 'Row', children: ['followers-stat', 'following-stat', 'posts-stat'], className: 'gap-4 mt-4 justify-center' },
+    { id: 'followers-stat', component: 'Column', children: ['followers-count', 'followers-label'], className: 'text-center' },
+    { id: 'followers-count', component: 'Text', text: { path: '/stats/followers' }, variant: 'heading4' },
+    { id: 'followers-label', component: 'Text', text: 'Followers', variant: 'caption' },
+    { id: 'following-stat', component: 'Column', children: ['following-count', 'following-label'], className: 'text-center' },
+    { id: 'following-count', component: 'Text', text: { path: '/stats/following' }, variant: 'heading4' },
+    { id: 'following-label', component: 'Text', text: 'Following', variant: 'caption' },
+    { id: 'posts-stat', component: 'Column', children: ['posts-count', 'posts-label'], className: 'text-center' },
+    { id: 'posts-count', component: 'Text', text: { path: '/stats/posts' }, variant: 'heading4' },
+    { id: 'posts-label', component: 'Text', text: 'Posts', variant: 'caption' },
+    { id: 'actions-row', component: 'Row', children: ['follow-btn', 'message-btn'], className: 'gap-2 mt-4' },
+    { id: 'follow-btn', component: 'Button', text: 'Follow', action: 'follow', variant: 'primary', className: 'flex-1' },
+    { id: 'message-btn', component: 'Button', text: 'Message', action: 'message', variant: 'outline', className: 'flex-1' },
+  ] as A2UIComponent[],
+  dataModel: {
+    profile: {
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=default',
+      name: 'John Doe',
+      title: 'Software Developer',
+      bio: 'Building great products with code.',
+      location: 'San Francisco, CA',
+    },
+    stats: {
+      followers: '1.2k',
+      following: '345',
+      posts: '42',
+    },
+  },
+};
+
+/**
  * All available templates
  */
 export const appTemplates: A2UIAppTemplate[] = [
@@ -972,6 +1176,11 @@ export const appTemplates: A2UIAppTemplate[] = [
   notesTemplate,
   weatherTemplate,
   contactFormTemplate,
+  unitConverterTemplate,
+  habitTrackerTemplate,
+  shoppingListTemplate,
+  expenseTrackerTemplate,
+  profileCardTemplate,
 ];
 
 /**

@@ -30,6 +30,7 @@ import {
   Film,
   List,
   GitBranch,
+  Target,
 } from 'lucide-react';
 import { ConversationSearch, SessionStats } from '../utils';
 import { useMessages } from '@/hooks';
@@ -86,7 +87,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { ChatMode, Preset, ChatViewMode } from '@/types';
+import type { ChatMode, Preset, ChatViewMode, CreateGoalInput } from '@/types';
+import { ChatGoalDialog } from '../goal';
 import { useSummary } from '@/hooks/chat';
 import { useSettingsStore } from '@/stores';
 
@@ -121,6 +123,7 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
   const [modeSwitchDialogOpen, setModeSwitchDialogOpen] = useState(false);
   const [pendingTargetMode, setPendingTargetMode] = useState<ChatMode | null>(null);
+  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
 
   // Artifact panel state
   const openPanel = useArtifactStore((state) => state.openPanel);
@@ -137,6 +140,8 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
     ? sessions.find(s => s.id === sessionId) 
     : sessions.find(s => s.id === activeSessionId);
   const updateSession = useSessionStore((state) => state.updateSession);
+  const setGoal = useSessionStore((state) => state.setGoal);
+  const updateGoal = useSessionStore((state) => state.updateGoal);
   const selectPreset = usePresetStore((state) => state.selectPreset);
   
   // Project context - ProjectSelector component handles the display now
@@ -293,6 +298,18 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
       toast.success(session.pinned ? tToasts('unpinned') : tToasts('pinned'));
     }
   };
+
+  const handleSaveGoal = useCallback((input: CreateGoalInput) => {
+    if (!session) return;
+    if (session.goal) {
+      updateGoal(session.id, { content: input.content, progress: input.progress });
+      toast.success(t('goalUpdated') || 'Goal updated');
+    } else {
+      setGoal(session.id, input);
+      toast.success(t('goalSet') || 'Goal set');
+    }
+  }, [session, setGoal, updateGoal, t]);
+
 
 
   return (
@@ -603,6 +620,37 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* Goal indicator button */}
+          {session && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={session.goal ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className={cn(
+                    'h-8 w-8',
+                    session.goal?.status === 'active' && 'text-blue-600 dark:text-blue-400',
+                    session.goal?.status === 'completed' && 'text-green-600 dark:text-green-400',
+                    session.goal?.status === 'paused' && 'text-yellow-600 dark:text-yellow-400'
+                  )}
+                  onClick={() => setGoalDialogOpen(true)}
+                >
+                  <Target className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {session.goal ? (
+                  <div className="max-w-[200px]">
+                    <p className="font-medium text-xs mb-1">{t('goal') || 'Goal'}</p>
+                    <p className="text-xs text-muted-foreground truncate">{session.goal.content}</p>
+                  </div>
+                ) : (
+                  t('setGoal') || 'Set Goal'
+                )}
+              </TooltipContent>
+            </Tooltip>
+          )}
+
           {/* More actions dropdown */}
           {session && (
             <DropdownMenu>
@@ -743,6 +791,15 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
         onGenerateSummary={handleGenerateSummaryForModeSwitch}
       />
     )}
+
+    {/* Chat Goal Dialog */}
+    <ChatGoalDialog
+      open={goalDialogOpen}
+      onOpenChange={setGoalDialogOpen}
+      onSave={handleSaveGoal}
+      existingGoal={session?.goal}
+      sessionTitle={session?.title}
+    />
 
     </>
   );
