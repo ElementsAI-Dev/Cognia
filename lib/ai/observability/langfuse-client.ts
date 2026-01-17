@@ -51,10 +51,20 @@ try {
         end: () => {},
         generation: () => ({
           update: () => {},
+          end: () => {},
+        }),
+        span: () => ({
+          update: () => {},
+          end: () => {},
+        }),
+      } as LangfuseTrace;
+    }
+  } as new (options: Record<string, unknown>) => LangfuseClient;
 }
 
-// Dynamic import to handle dynamic import issues in test environment
-let Langfuse: new (options: Record<string, unknown>) => LangfuseClient;
+/**
+ * Langfuse configuration
+ */
 export interface LangfuseConfig {
   /** Langfuse public key */
   publicKey?: string;
@@ -197,7 +207,7 @@ function createNoOpLangfuse(): LangfuseClient {
   return {
     trace: noopTrace,
     flush: noopAsync,
-  };
+  } as LangfuseClient;
 }
 
 /**

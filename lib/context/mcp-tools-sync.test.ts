@@ -39,7 +39,7 @@ const createMockTool = (name: string, description: string = ''): McpTool => ({
 });
 
 // Mock context file
-const createMockContextFile = (content: string, path: string = ''): ContextFile => ({
+const createMockContextFile = (content: string, path: string = '', filename?: string): ContextFile => ({
   path,
   content,
   metadata: {
@@ -51,6 +51,7 @@ const createMockContextFile = (content: string, path: string = ''): ContextFile 
     estimatedTokens: Math.ceil(content.length / 4),
     createdAt: new Date(),
     accessedAt: new Date(),
+    ...(filename && { filename }),
   },
 });
 
@@ -488,13 +489,15 @@ describe('mcp-tools-sync', () => {
 
       await updateMcpServerStatus('server', 'Server', 'disconnected', 'Connection lost');
 
-      expect(mockedContextFs.writeContextFile).toHaveBeenCalledWith(
-        expect.stringContaining('"status":"disconnected"'),
-        expect.objectContaining({
-          filename: 'server_status.json',
-          tags: expect.arrayContaining(['status', 'disconnected']),
-        })
-      );
+      const writeCall = mockedContextFs.writeContextFile.mock.calls[0];
+      const content = JSON.parse(writeCall[0]);
+      expect(content.status).toBe('disconnected');
+      expect(writeCall[1]).toMatchObject({
+        category: 'mcp',
+        source: 'server',
+        filename: 'server_status.json',
+        tags: ['mcp-server', 'status', 'disconnected'],
+      });
     });
 
     it('should include message in status', async () => {
