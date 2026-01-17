@@ -32,13 +32,12 @@ import {
   Scissors,
   Sparkles,
   Film,
-  Upload,
-  Save,
   Undo,
   Redo,
   FolderOpen,
   Type,
-  Mic,
+  ArrowRight,
+  Download,
 } from 'lucide-react';
 
 import { VideoTimeline } from './video-timeline';
@@ -64,7 +63,7 @@ type EditorMode = 'timeline' | 'trim' | 'effects' | 'transitions' | 'subtitles';
 export function VideoEditorPanel({
   initialVideoUrl,
   onExport,
-  onSave,
+  onSave: _onSave,
   className,
 }: VideoEditorPanelProps) {
   // State
@@ -177,13 +176,6 @@ export function VideoEditorPanel({
   }, []);
 
   // Handle transitions
-  const handleOpenTransitions = useCallback(() => {
-    if (selectedClip) {
-      setTransitionClipId(selectedClip.id);
-      setShowTransitionsDialog(true);
-    }
-  }, [selectedClip]);
-
   const handleTransitionApply = useCallback(() => {
     if (transitionClipId && selectedTransitionId) {
       editor.addTransition(transitionClipId, '', selectedTransitionId, transitionDuration);
@@ -270,8 +262,8 @@ export function VideoEditorPanel({
   return (
     <div className={cn('flex flex-col h-full', className)}>
       {/* Toolbar */}
-      <div className="flex items-center justify-between p-2 border-b">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between p-2 border-b gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="outline" size="icon" onClick={handleImportVideo}>
@@ -281,7 +273,7 @@ export function VideoEditorPanel({
             <TooltipContent>Import Video</TooltipContent>
           </Tooltip>
 
-          <div className="w-px h-6 bg-border" />
+          <div className="w-px h-6 bg-border hidden sm:block" />
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -301,7 +293,7 @@ export function VideoEditorPanel({
             <TooltipContent>Redo</TooltipContent>
           </Tooltip>
 
-          <div className="w-px h-6 bg-border" />
+          <div className="w-px h-6 bg-border hidden sm:block" />
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -322,7 +314,7 @@ export function VideoEditorPanel({
               <Button
                 variant={editorMode === 'effects' ? 'secondary' : 'ghost'}
                 size="icon"
-                onClick={() => setEditorMode(editorMode === 'effects' ? 'timeline' : 'effects')}
+                onClick={() => setEditorMode('effects')}
               >
                 <Sparkles className="h-4 w-4" />
               </Button>
@@ -335,55 +327,47 @@ export function VideoEditorPanel({
               <Button
                 variant={editorMode === 'transitions' ? 'secondary' : 'ghost'}
                 size="icon"
-                onClick={handleOpenTransitions}
-                disabled={!selectedClip}
+                onClick={() => setEditorMode('transitions')}
               >
-                <Film className="h-4 w-4" />
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Transitions</TooltipContent>
           </Tooltip>
-
-          <div className="w-px h-6 bg-border" />
 
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant={editorMode === 'subtitles' ? 'secondary' : 'ghost'}
                 size="icon"
-                onClick={() => setEditorMode(editorMode === 'subtitles' ? 'timeline' : 'subtitles')}
+                onClick={() => setEditorMode('subtitles')}
               >
                 <Type className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Subtitles</TooltipContent>
           </Tooltip>
+        </div>
+
+        <div className="flex items-center gap-1 sm:gap-2">
+          <ZoomControls
+            zoom={editor.state.zoom}
+            minZoom={0.1}
+            maxZoom={10}
+            step={0.25}
+            onZoomChange={editor.setZoom}
+            onFitToView={() => editor.setZoom(1)}
+            compact
+          />
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => subtitles.transcribeVideo(previewUrl)}
-                disabled={!previewUrl || subtitles.isTranscribing}
-              >
-                <Mic className="h-4 w-4" />
+              <Button variant="ghost" size="icon" onClick={handleExport}>
+                <Download className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Transcribe Audio</TooltipContent>
+            <TooltipContent>Export</TooltipContent>
           </Tooltip>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={onSave}>
-            <Save className="h-4 w-4 mr-2" />
-            Save
-          </Button>
-
-          <Button size="sm" onClick={handleExport} disabled={editor.state.isProcessing}>
-            <Upload className="h-4 w-4 mr-2" />
-            Export
-          </Button>
         </div>
       </div>
 

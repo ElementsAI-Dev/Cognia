@@ -16,7 +16,6 @@ import {
   clearMcpServerTools,
   type McpServerStatus,
   type McpToolRef,
-  type McpSyncResult,
 } from './mcp-tools-sync';
 import * as contextFs from './context-fs';
 import type { McpTool } from '@/types/mcp';
@@ -47,7 +46,6 @@ const createMockContextFile = (content: string, path: string = ''): ContextFile 
     id: 'test-id',
     category: 'mcp',
     source: 'test-server',
-    filename: 'test.json',
     tags: ['mcp-tool'],
     sizeBytes: content.length,
     estimatedTokens: Math.ceil(content.length / 4),

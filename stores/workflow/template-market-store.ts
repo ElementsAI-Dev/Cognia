@@ -10,7 +10,6 @@ import type {
   WorkflowTemplate,
   TemplateCategory,
   TemplateFilters,
-  TemplateUsageStats,
 } from '@/types/workflow/template';
 
 interface TemplateMarketState {
@@ -129,8 +128,8 @@ export const useTemplateMarketStore = create<TemplateMarketState>()(
 
       deleteTemplate: (id) => {
         set((state) => {
-          const { [id]: removedTemplate, ...remainingTemplates } = state.templates;
-          const { [id]: removedUserTemplate, ...remainingUserTemplates } = state.userTemplates;
+          const { [id]: _removedTemplate, ...remainingTemplates } = state.templates;
+          const { [id]: _removedUserTemplate, ...remainingUserTemplates } = state.userTemplates;
 
           return {
             templates: remainingTemplates,

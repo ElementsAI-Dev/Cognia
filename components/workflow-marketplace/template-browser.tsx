@@ -7,6 +7,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Search, Filter, Star, Download, GitBranch } from 'lucide-react';
 import { useTemplateMarketStore } from '@/stores/workflow/template-market-store';
 import type { WorkflowTemplate } from '@/types/workflow/template';
@@ -24,7 +25,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { TemplatePreview } from './template-preview';
 
@@ -36,8 +36,6 @@ export function TemplateBrowser() {
     categories,
     cloneTemplate,
     incrementUsage,
-    getTemplate,
-    selectedTemplateId,
     setSelectedTemplate,
   } = useTemplateMarketStore();
 
@@ -201,12 +199,14 @@ function TemplateCard({ template, onPreview, onUse, onClone }: TemplateCardProps
   return (
     <div className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
       {/* Thumbnail */}
-      <div className="aspect-video bg-muted flex items-center justify-center">
+      <div className="aspect-video bg-muted flex items-center justify-center relative">
         {template.metadata.thumbnail ? (
-          <img
+          <Image
             src={template.metadata.thumbnail}
             alt={template.name}
             className="w-full h-full object-cover"
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         ) : (
           <div className="text-4xl">{template.workflow.icon || '📦'}</div>

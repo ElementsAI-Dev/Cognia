@@ -14,7 +14,7 @@
  * Follows existing patterns from video-editor page and audio-provider
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -29,6 +29,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Play,
   Pause,
@@ -105,8 +110,6 @@ export function PlaybackControls({
   onReset,
   className,
 }: PlaybackControlsProps) {
-  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
-
   // Format time as MM:SS or HH:MM:SS
   const formatTime = useCallback((seconds: number): string => {
     if (!isFinite(seconds) || seconds < 0) return '0:00';
@@ -281,41 +284,36 @@ export function PlaybackControls({
 
         {/* Volume control */}
         {showVolumeControl && (
-          <div
-            className="relative flex items-center"
-            onMouseEnter={() => setShowVolumeSlider(true)}
-            onMouseLeave={() => setShowVolumeSlider(false)}
-          >
+          <Popover>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size={buttonSize}
-                  onClick={() => onMutedChange?.(!muted)}
-                >
-                  {muted || volume === 0 ? (
-                    <VolumeX className={iconSize} />
-                  ) : (
-                    <Volume2 className={iconSize} />
-                  )}
-                </Button>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size={buttonSize}
+                    onClick={() => onMutedChange?.(!muted)}
+                  >
+                    {muted || volume === 0 ? (
+                      <VolumeX className={iconSize} />
+                    ) : (
+                      <Volume2 className={iconSize} />
+                    )}
+                  </Button>
+                </PopoverTrigger>
               </TooltipTrigger>
               <TooltipContent>{muted ? 'Unmute' : 'Mute'}</TooltipContent>
             </Tooltip>
-            
-            {showVolumeSlider && (
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-2 bg-popover border rounded-md shadow-md">
-                <Slider
-                  value={[muted ? 0 : volume * 100]}
-                  onValueChange={handleVolumeChange}
-                  max={100}
-                  step={1}
-                  orientation="vertical"
-                  className="h-20"
-                />
-              </div>
-            )}
-          </div>
+            <PopoverContent align="center" side="top">
+              <Slider
+                value={[muted ? 0 : volume * 100]}
+                onValueChange={handleVolumeChange}
+                max={100}
+                step={1}
+                orientation="vertical"
+                className="h-20"
+              />
+            </PopoverContent>
+          </Popover>
         )}
 
         {/* Speed control */}

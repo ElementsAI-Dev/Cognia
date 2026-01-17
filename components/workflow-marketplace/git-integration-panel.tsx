@@ -9,12 +9,9 @@
 import { useState } from 'react';
 import {
   GitBranch,
-  GitPull,
-  GitPush,
   RefreshCw,
   Plus,
   Trash2,
-  FileText,
   AlertCircle,
   CheckCircle2,
 } from 'lucide-react';
@@ -28,15 +25,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { getGitIntegrationService } from '@/lib/workflow/git-integration-service';
 import type { GitRepository } from '@/types/workflow/template';
 
@@ -264,11 +253,11 @@ export function GitIntegrationPanel() {
           </h3>
           <div className="flex gap-2">
             <Button variant="outline" onClick={handlePull}>
-              <GitPull className="h-4 w-4 mr-2" />
+              <GitBranch className="h-4 w-4 mr-2" />
               Pull
             </Button>
             <Button variant="outline" onClick={handlePush}>
-              <GitPush className="h-4 w-4 mr-2" />
+              <GitBranch className="h-4 w-4 mr-2" />
               Push
             </Button>
             <Button variant="outline" onClick={handleCheckUpdates}>
@@ -354,7 +343,7 @@ function RepositoryCard({
             onPull();
           }}
         >
-          <GitPull className="h-3 w-3 mr-1" />
+          <GitBranch className="h-3 w-3 mr-1" />
           Pull
         </Button>
         <Button
@@ -365,7 +354,7 @@ function RepositoryCard({
             onPush();
           }}
         >
-          <GitPush className="h-3 w-3 mr-1" />
+          <GitBranch className="h-3 w-3 mr-1" />
           Push
         </Button>
         <Button

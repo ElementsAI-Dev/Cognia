@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import {
   Popover,
   PopoverContent,
@@ -142,7 +143,7 @@ export function PromptFeedbackCollector({
       
       {/* Star Rating */}
       <div className="space-y-2">
-        <label className="text-sm text-muted-foreground">Rate this prompt</label>
+        <Label className="text-sm text-muted-foreground">Rate this prompt</Label>
         <div className="flex items-center gap-1">
           {[1, 2, 3, 4, 5].map((star) => (
             <button
@@ -173,7 +174,7 @@ export function PromptFeedbackCollector({
       
       {/* Effectiveness */}
       <div className="space-y-2">
-        <label className="text-sm text-muted-foreground">How effective was it?</label>
+        <Label className="text-sm text-muted-foreground">How effective was it?</Label>
         <div className="flex flex-wrap gap-2">
           {EFFECTIVENESS_OPTIONS.map((option) => (
             <Button
@@ -195,7 +196,7 @@ export function PromptFeedbackCollector({
       
       {/* Comment */}
       <div className="space-y-2">
-        <label className="text-sm text-muted-foreground">Additional comments (optional)</label>
+        <Label className="text-sm text-muted-foreground">Additional comments (optional)</Label>
         <Textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}

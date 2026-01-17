@@ -17,19 +17,23 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import {
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+} from 'lucide-react';
 
 export interface ZoomControlsProps {
   zoom: number;
   minZoom?: number;
   maxZoom?: number;
   step?: number;
-  showFitToView?: boolean;
-  showZoomValue?: boolean;
-  compact?: boolean;
-  vertical?: boolean;
   onZoomChange: (zoom: number) => void;
   onFitToView?: () => void;
+  showZoomValue?: boolean;
+  showFitToView?: boolean;
+  vertical?: boolean;
+  compact?: boolean;
   className?: string;
 }
 
@@ -38,35 +42,34 @@ export function ZoomControls({
   minZoom = 0.1,
   maxZoom = 10,
   step = 0.25,
-  showFitToView = true,
-  showZoomValue = true,
-  compact = false,
-  vertical = false,
   onZoomChange,
   onFitToView,
+  showZoomValue = true,
+  showFitToView = true,
+  vertical = false,
+  compact = false,
   className,
 }: ZoomControlsProps) {
   // Handle zoom in
   const handleZoomIn = useCallback(() => {
-    const newZoom = Math.min(maxZoom, zoom + step);
-    onZoomChange(newZoom);
-  }, [zoom, maxZoom, step, onZoomChange]);
+    onZoomChange(Math.min(zoom + step, maxZoom));
+  }, [zoom, step, maxZoom, onZoomChange]);
 
   // Handle zoom out
   const handleZoomOut = useCallback(() => {
-    const newZoom = Math.max(minZoom, zoom - step);
-    onZoomChange(newZoom);
-  }, [zoom, minZoom, step, onZoomChange]);
+    onZoomChange(Math.max(zoom - step, minZoom));
+  }, [zoom, step, minZoom, onZoomChange]);
 
-  // Handle zoom reset (100%)
+  // Handle zoom reset
   const handleZoomReset = useCallback(() => {
     onZoomChange(1);
   }, [onZoomChange]);
 
-  // Format zoom as percentage
+  // Calculate zoom percentage
   const zoomPercent = Math.round(zoom * 100);
 
-  const buttonSize = compact ? 'icon' : 'default';
+  // Determine button size based on compact mode
+  const buttonSize = compact ? 'icon' : 'icon';
   const buttonClass = compact ? 'h-7 w-7' : 'h-8 w-8';
   const iconClass = compact ? 'h-3.5 w-3.5' : 'h-4 w-4';
 
@@ -96,16 +99,18 @@ export function ZoomControls({
       </Tooltip>
 
       {showZoomValue && (
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           className={cn(
-            'text-xs text-muted-foreground hover:bg-accent rounded py-1 transition-colors',
-            compact ? 'min-w-[40px] px-1' : 'min-w-[50px] px-2'
+            'text-xs text-muted-foreground hover:bg-accent',
+            compact ? 'min-w-[35px] sm:min-w-[40px] px-1 h-7' : 'min-w-[45px] sm:min-w-[50px] px-2 h-8'
           )}
           onClick={handleZoomReset}
-          title="Reset to 100%"
         >
-          {zoomPercent}%
-        </button>
+          <span className="hidden sm:inline">{zoomPercent}%</span>
+          <span className="sm:hidden">{zoomPercent}</span>
+        </Button>
       )}
 
       <Tooltip>
@@ -138,10 +143,13 @@ export function ZoomControls({
             </Button>
           </TooltipTrigger>
           <TooltipContent side={vertical ? 'left' : 'bottom'}>
-            Fit to View
+            <span className="hidden sm:inline">Fit to View</span>
+            <span className="sm:hidden">Fit</span>
           </TooltipContent>
         </Tooltip>
       )}
     </div>
   );
 }
+
+export default ZoomControls;

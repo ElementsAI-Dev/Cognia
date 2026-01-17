@@ -17,7 +17,7 @@ import type {
 import { PluginLoader } from './loader';
 import { PluginRegistry } from './registry';
 import { createFullPluginContext } from './context';
-import { PluginHooksManager } from './hooks';
+import { PluginLifecycleHooks } from './hooks-system';
 import { validatePluginManifest } from './validation';
 
 // =============================================================================
@@ -69,7 +69,7 @@ export class PluginManager {
   private config: PluginManagerConfig;
   private loader: PluginLoader;
   private registry: PluginRegistry;
-  private hooksManager: PluginHooksManager;
+  private hooksManager: PluginLifecycleHooks;
   private contexts: Map<string, PluginContext> = new Map();
   private initialized = false;
 
@@ -77,7 +77,7 @@ export class PluginManager {
     this.config = config;
     this.loader = new PluginLoader();
     this.registry = new PluginRegistry();
-    this.hooksManager = new PluginHooksManager();
+    this.hooksManager = new PluginLifecycleHooks();
   }
 
   // ===========================================================================
@@ -474,7 +474,7 @@ export class PluginManager {
     return this.registry;
   }
 
-  getHooksManager(): PluginHooksManager {
+  getHooksManager(): PluginLifecycleHooks {
     return this.hooksManager;
   }
 

@@ -12,12 +12,49 @@
  * https://langfuse.com/docs/sdk/typescript/low-level-sdk
  */
 
-import { Langfuse, LangfuseTraceClient, LangfuseGenerationClient } from 'langfuse';
 import type { CoreMessage } from 'ai';
 
-/**
- * Langfuse configuration
- */
+// Type definitions for Langfuse (when available)
+interface LangfuseTrace {
+  update: (data: Record<string, unknown>) => void;
+  end: () => void;
+  generation: (data: Record<string, unknown>) => LangfuseGeneration;
+  span: (data: Record<string, unknown>) => Record<string, unknown>;
+}
+
+interface LangfuseGeneration {
+  update: (data: Record<string, unknown>) => void;
+  end: () => void;
+}
+
+interface LangfuseClient {
+  trace: (data: Record<string, unknown>) => LangfuseTrace;
+  flush: () => Promise<void>;
+}
+
+// Dynamic import to handle dynamic import issues in test environment
+let Langfuse: new (options: Record<string, unknown>) => LangfuseClient;
+
+try {
+  // Use dynamic import to avoid require() issues
+  const langfuseModule = eval('require')('langfuse');
+  Langfuse = langfuseModule.Langfuse;
+} catch (_error) {
+  // Langfuse not available (e.g., in test environment)
+  // Provide mock implementations
+  Langfuse = class MockLangfuse implements LangfuseClient {
+    constructor() {}
+    async flush() {}
+    trace() {
+      return {
+        update: () => {},
+        end: () => {},
+        generation: () => ({
+          update: () => {},
+}
+
+// Dynamic import to handle dynamic import issues in test environment
+let Langfuse: new (options: Record<string, unknown>) => LangfuseClient;
 export interface LangfuseConfig {
   /** Langfuse public key */
   publicKey?: string;
@@ -108,12 +145,12 @@ export interface ScoreOptions {
 }
 
 // Global Langfuse instance
-let langfuseInstance: Langfuse | null = null;
+let langfuseInstance: LangfuseClient | null = null;
 
 /**
  * Get or create Langfuse instance
  */
-export function getLangfuse(config?: LangfuseConfig): Langfuse {
+export function getLangfuse(config?: LangfuseConfig): LangfuseClient {
   if (langfuseInstance) {
     return langfuseInstance;
   }
@@ -140,7 +177,7 @@ export function getLangfuse(config?: LangfuseConfig): Langfuse {
 /**
  * Create a no-op Langfuse client for when observability is disabled
  */
-function createNoOpLangfuse(): Langfuse {
+function createNoOpLangfuse(): LangfuseClient {
   const noop = () => {};
   const noopAsync = async () => {};
   const noopTrace = () => ({
@@ -159,28 +196,76 @@ function createNoOpLangfuse(): Langfuse {
 
   return {
     trace: noopTrace,
-    flushAsync: noopAsync,
-  } as unknown as Langfuse;
+    flush: noopAsync,
+  };
+}
+
+/**
+ * Langfuse trace metadata
+ */
+export interface LangfuseTraceMetadata {
+  userId?: string;
+  tags?: string[];
+  [key: string]: unknown;
+}
+
+/**
+ * Langfuse generation metadata
+ */
+export interface LangfuseGenerationMetadata {
+  [key: string]: unknown;
+}
+
+/**
+ * Langfuse score options
+ */
+export interface LangfuseScore {
+  name: string;
+  value: number;
+  comment?: string;
+  dataType?: 'NUMERIC' | 'CATEGORICAL' | 'BOOLEAN';
 }
 
 /**
  * Create a chat trace
  */
 export function createChatTrace(
-  options: ChatTraceOptions
-): LangfuseTraceClient {
-  const langfuse = getLangfuse();
+  sessionId: string,
+  messages: CoreMessage[],
+  config?: LangfuseConfig,
+  metadata?: LangfuseTraceMetadata
+): LangfuseTrace {
+  const langfuse = getLangfuse(config);
 
   return langfuse.trace({
     name: 'ai-chat',
-    sessionId: options.sessionId,
-    userId: options.userId,
+    sessionId,
+    userId: metadata?.userId,
     metadata: {
       environment: process.env.NODE_ENV,
       version: process.env.APP_VERSION || '1.0.0',
-      ...options.metadata,
+      ...metadata,
     },
-    tags: options.tags,
+    tags: metadata?.tags,
+  });
+}
+
+/**
+ * Create a generation within a trace
+ */
+export function createGenerationTrace(
+  trace: LangfuseTrace,
+  model: string,
+  input: string,
+  output: string,
+  metadata?: LangfuseGenerationMetadata
+): LangfuseGeneration {
+  return trace.generation({
+    name: 'ai-generation',
+    model,
+    input,
+    output,
+    metadata,
   });
 }
 
@@ -188,24 +273,25 @@ export function createChatTrace(
  * Create a generation within a trace
  */
 export function createGeneration(
-  trace: LangfuseTraceClient,
+  trace: LangfuseTrace,
   options: GenerationOptions
-): LangfuseGenerationClient {
+): LangfuseGeneration {
   return trace.generation({
     name: options.name || 'ai-generation',
     model: options.model,
-    modelParameters: options.modelParameters as Record<string, string | number | boolean | string[] | null> | undefined,
     input: options.input,
     output: options.output,
     usage: options.usage ? {
       input: options.usage.promptTokens,
       output: options.usage.completionTokens,
       total: options.usage.totalTokens,
-      unit: 'TOKENS' as const,
+      unit: 'TOKENS',
     } : undefined,
+    modelParameters: options.modelParameters,
     completionStartTime: options.completionStartTime,
-    metadata: options.metadata as Record<string, string | number | boolean | string[] | null> | undefined,
-    level: options.level || 'DEFAULT',
+    finishReason: options.finishReason,
+    metadata: options.metadata,
+    level: options.level,
   });
 }
 
@@ -213,30 +299,32 @@ export function createGeneration(
  * Create a span within a trace
  */
 export function createSpan(
-  trace: LangfuseTraceClient,
+  trace: LangfuseTrace,
   options: SpanOptions
-) {
+): { update: (data: Record<string, unknown>) => void; end: () => void } {
   return trace.span({
     name: options.name,
     input: options.input,
     output: options.output,
     metadata: options.metadata,
-    level: options.level || 'DEFAULT',
-  });
+    level: options.level,
+  }) as { update: (data: Record<string, unknown>) => void; end: () => void };
 }
 
 /**
  * Add a score to a trace
  */
 export function addScore(
-  trace: LangfuseTraceClient,
-  options: ScoreOptions
-) {
-  trace.score({
-    name: options.name,
-    value: options.value,
-    comment: options.comment,
-    dataType: options.dataType || 'NUMERIC',
+  traceOrGeneration: { update: (data: Record<string, unknown>) => void },
+  score: LangfuseScore
+): void {
+  traceOrGeneration.update({
+    scores: [{
+      name: score.name,
+      value: score.value,
+      comment: score.comment,
+      dataType: score.dataType || 'NUMERIC',
+    }],
   });
 }
 
@@ -245,7 +333,7 @@ export function addScore(
  */
 export async function flushLangfuse(): Promise<void> {
   const langfuse = getLangfuse();
-  await langfuse.flushAsync();
+  await langfuse.flush();
 }
 
 /**
@@ -253,7 +341,7 @@ export async function flushLangfuse(): Promise<void> {
  */
 export async function shutdownLangfuse(): Promise<void> {
   if (langfuseInstance) {
-    await langfuseInstance.flushAsync();
+    await langfuseInstance.flush();
     langfuseInstance = null;
   }
 }
@@ -278,7 +366,7 @@ export function getTraceUrl(traceId: string): string {
  * Create a generation with automatic error handling
  */
 export async function createGenerationWithErrorHandling(
-  trace: LangfuseTraceClient,
+  trace: LangfuseTrace,
   options: GenerationOptions,
   fn: () => Promise<{ text: string; usage?: { promptTokens: number; completionTokens: number; totalTokens: number }; finishReason?: string }>
 ): Promise<{ text: string; usage?: { promptTokens: number; completionTokens: number; totalTokens: number }; finishReason?: string }> {
@@ -319,7 +407,7 @@ export async function createGenerationWithErrorHandling(
  * Create a span with automatic error handling
  */
 export async function createSpanWithErrorHandling(
-  trace: LangfuseTraceClient,
+  trace: LangfuseTrace,
   options: SpanOptions,
   fn: () => Promise<unknown>
 ): Promise<unknown> {
@@ -367,10 +455,9 @@ export const LangfuseUtils = {
     usage: { promptTokens: number; completionTokens: number; totalTokens: number },
     metadata?: Record<string, unknown>
   ) {
-    const trace = createChatTrace({
-      sessionId,
+    const trace = createChatTrace(sessionId, messages, undefined, {
       userId,
-      metadata,
+      ...metadata,
     });
 
     const generation = createGeneration(trace, {
@@ -400,15 +487,10 @@ export const LangfuseUtils = {
     toolCalls: Array<{ name: string; args: Record<string, unknown>; result: unknown }>,
     metadata?: Record<string, unknown>
   ) {
-    const trace = createChatTrace({
-      sessionId,
-      userId,
-      tags: ['agent', agentName],
-      metadata: {
-        agentName,
-        task,
-        ...metadata,
-      },
+    const trace = createChatTrace(sessionId, userId, ['agent', agentName], {
+      agentName,
+      task,
+      ...metadata,
     });
 
     // Create spans for each tool call
@@ -451,8 +533,7 @@ export const LangfuseUtils = {
     nodes: Array<{ id: string; type: string; status: string; duration?: number }>,
     metadata?: Record<string, unknown>
   ) {
-    const trace = createChatTrace({
-      sessionId,
+    const trace = createChatTrace(sessionId, [], undefined, {
       userId,
       tags: ['workflow', workflowName],
       metadata: {

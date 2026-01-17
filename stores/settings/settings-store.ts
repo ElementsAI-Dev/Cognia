@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
+import { getPluginEventHooks } from '@/lib/plugin/hooks-system';
 import {
   isStrongholdAvailable,
   secureStoreProviderApiKey,
@@ -847,8 +848,17 @@ export const useSettingsStore = create<SettingsState>()(
       ...initialState,
 
       // Theme actions
-      setTheme: (theme) => set({ theme }),
-      setColorTheme: (colorTheme) => set({ colorTheme, activeCustomThemeId: null }),
+      setTheme: (theme) =>
+        set((state) => {
+          const previousMode = state.theme;
+          getPluginEventHooks().dispatchThemeModeChange(previousMode, theme);
+          return { theme };
+        }),
+      setColorTheme: (colorTheme) =>
+        set(() => {
+          getPluginEventHooks().dispatchColorPresetChange(colorTheme);
+          return { colorTheme, activeCustomThemeId: null };
+        }),
 
       // Theme schedule actions
       setThemeSchedule: (updates) =>
@@ -880,7 +890,13 @@ export const useSettingsStore = create<SettingsState>()(
           customThemes: state.customThemes.filter((t) => t.id !== id),
           activeCustomThemeId: state.activeCustomThemeId === id ? null : state.activeCustomThemeId,
         })),
-      setActiveCustomTheme: (activeCustomThemeId) => set({ activeCustomThemeId }),
+      setActiveCustomTheme: (activeCustomThemeId) =>
+        set((_state) => {
+          if (activeCustomThemeId) {
+            getPluginEventHooks().dispatchCustomThemeActivate(activeCustomThemeId);
+          }
+          return { activeCustomThemeId };
+        }),
 
       // UI Customization actions
       setUICustomization: (customization) =>

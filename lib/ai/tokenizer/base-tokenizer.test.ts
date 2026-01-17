@@ -55,7 +55,7 @@ describe('base-tokenizer', () => {
         const plainText = 'Some plain text here';
         const codeText = '```javascript\nconst x = 1;\nconsole.log(x);\n```';
         
-        const plainResult = await tokenizer.countTokens(plainText);
+        const _plainResult = await tokenizer.countTokens(plainText);
         const codeResult = await tokenizer.countTokens(codeText);
         
         // Code should have adjustment
