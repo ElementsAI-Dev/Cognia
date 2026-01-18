@@ -134,6 +134,8 @@ import {
   type DisplayProgressSummaryInput,
   type DisplayConceptExplanationInput,
 } from './learning-tools';
+import { registerArtifactTools } from './artifact-tool';
+import { registerMemoryTools } from './memory-tool';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ToolFunction = (...args: any[]) => any;
@@ -143,7 +145,7 @@ export interface ToolDefinition<T extends z.ZodType = z.ZodType> {
   description: string;
   parameters: T;
   requiresApproval?: boolean;
-  category?: 'search' | 'code' | 'file' | 'system' | 'custom' | 'ppt' | 'video' | 'image' | 'academic' | 'learning';
+  category?: 'search' | 'code' | 'file' | 'system' | 'custom' | 'ppt' | 'video' | 'image' | 'academic' | 'learning' | 'artifact' | 'memory';
   create: (config: Record<string, unknown>) => ToolFunction;
 }
 
@@ -699,4 +701,10 @@ Features: multiple sizes, quality options, style options, and batch generation.`
     category: 'learning',
     create: () => (input: unknown) => executeDisplayConceptExplanation(input as DisplayConceptExplanationInput),
   });
+
+  // Artifact tools
+  registerArtifactTools(registry);
+
+  // Memory tools
+  registerMemoryTools(registry);
 }

@@ -2,6 +2,7 @@
 
 import { memo, useState } from "react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   MessageSquare,
   Code,
@@ -96,46 +97,48 @@ export const ChatWidgetSuggestions = memo(function ChatWidgetSuggestions({
     <div className={cn("px-3 py-2", className)}>
       <div className="flex flex-wrap gap-1.5">
         {visibleSuggestions.map((suggestion, index) => (
-          <button
+          <Button
             key={index}
-            onClick={() => onSelect(suggestion.prompt)}
+            variant="outline"
+            size="sm"
             className={cn(
-              "inline-flex items-center gap-1 px-2 py-1 rounded-full",
+              "h-auto px-2 py-1 rounded-full",
               "text-xs font-medium",
-              "bg-muted/50 hover:bg-muted",
-              "border border-border/50 hover:border-border",
-              "transition-all duration-200",
-              "hover:shadow-sm"
+              "hover:bg-muted/50 hover:shadow-sm",
+              "transition-all duration-200"
             )}
+            onClick={() => onSelect(suggestion.prompt)}
           >
-            <span className="text-primary">{suggestion.icon}</span>
+            <span className="text-primary mr-1">{suggestion.icon}</span>
             <span>{suggestion.label}</span>
-          </button>
+          </Button>
         ))}
         
         {/* Expand/Collapse button */}
         {advancedSuggestions.length > 0 && (
-          <button
-            onClick={() => setExpanded(!expanded)}
+          <Button
+            variant="secondary"
+            size="sm"
             className={cn(
-              "inline-flex items-center gap-0.5 px-2 py-1 rounded-full",
+              "h-auto px-2 py-1 rounded-full",
               "text-xs font-medium text-muted-foreground",
               "hover:bg-muted/50",
               "transition-all duration-200"
             )}
+            onClick={() => setExpanded(!expanded)}
           >
             {expanded ? (
               <>
-                <ChevronUp className="h-3 w-3" />
+                <ChevronUp className="h-3 w-3 mr-1" />
                 <span>收起</span>
               </>
             ) : (
               <>
-                <ChevronDown className="h-3 w-3" />
+                <ChevronDown className="h-3 w-3 mr-1" />
                 <span>更多</span>
               </>
             )}
-          </button>
+          </Button>
         )}
       </div>
     </div>

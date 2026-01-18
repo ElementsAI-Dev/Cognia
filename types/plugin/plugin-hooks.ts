@@ -338,16 +338,22 @@ export interface HookRegistrationOptions {
 export interface HookSandboxExecutionResult<T = unknown> {
   /** Whether hook executed successfully */
   success: boolean;
-  
+
   /** Result value if any */
   result?: T;
-  
+
   /** Error if hook failed */
   error?: Error;
-  
+
   /** Plugin ID that produced the result */
   pluginId: string;
-  
+
   /** Execution time in ms */
   executionTime: number;
+
+  /** Duration in ms (alternative to executionTime) */
+  duration?: number;
+
+  /** Whether hook was skipped */
+  skipped?: boolean;
 }

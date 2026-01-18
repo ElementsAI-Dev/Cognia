@@ -5,7 +5,7 @@
  */
 
 import { usePluginStore } from '@/stores/plugin';
-import { getExtendedHooksManager } from './hooks-manager';
+import { getPluginEventHooks } from './hooks-system';
 import type { PluginMessage } from '@/types/plugin';
 import type { ExtendedPluginHooks } from '@/types/plugin/plugin-hooks';
 
@@ -15,7 +15,7 @@ import type { ExtendedPluginHooks } from '@/types/plugin/plugin-hooks';
  * Provides methods to integrate plugin hooks with the agent workflow system.
  */
 export class PluginWorkflowIntegration {
-  private hooksManager = getExtendedHooksManager();
+  private hooksManager = getPluginEventHooks();
 
   /**
    * Process a message through plugin hooks before sending

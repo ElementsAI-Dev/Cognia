@@ -20,6 +20,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
 import {
   Brush,
   Eraser,
@@ -546,7 +547,7 @@ export function MaskCanvas({
         </div>
 
         {/* Divider */}
-        <div className="w-px h-6 bg-border" />
+        <Separator orientation="vertical" className="h-6" />
 
         {/* Undo/Redo */}
         <div className="flex items-center gap-1">
@@ -582,7 +583,7 @@ export function MaskCanvas({
         </div>
 
         {/* Divider */}
-        <div className="w-px h-6 bg-border" />
+        <Separator orientation="vertical" className="h-6" />
 
         {/* Zoom controls */}
         <div className="flex items-center gap-1">
@@ -634,7 +635,7 @@ export function MaskCanvas({
         </div>
 
         {/* Divider */}
-        <div className="w-px h-6 bg-border" />
+        <Separator orientation="vertical" className="h-6" />
 
         {/* Actions */}
         <div className="flex items-center gap-1">

@@ -206,4 +206,37 @@ describe('VideoStudioHeader', () => {
       expect(true).toBe(true);
     }
   });
+
+  it('renders responsive layout with correct classes', () => {
+    const { container } = render(<VideoStudioHeader {...defaultProps} />);
+    
+    // Check that responsive classes are present
+    const header = container.querySelector('header');
+    expect(header).toHaveClass('px-2', 'sm:px-4');
+  });
+
+  it('hides mode selector on mobile screens', () => {
+    const { container } = render(<VideoStudioHeader {...defaultProps} />);
+    
+    // Mode selector should have hidden sm:flex class
+    const modeSelector = container.querySelector('.hidden.sm\\:flex');
+    expect(modeSelector).toBeInTheDocument();
+  });
+
+  it('hides separator on mobile screens', () => {
+    const { container } = render(<VideoStudioHeader {...defaultProps} />);
+    
+    // Separator should have hidden sm:block class
+    const separator = container.querySelector('.hidden.sm\\:block');
+    expect(separator).toBeInTheDocument();
+  });
+
+  it('shows back button text only on larger screens', () => {
+    const { container } = render(<VideoStudioHeader {...defaultProps} />);
+    
+    // Back button text should be hidden on mobile
+    const backText = container.querySelector('.hidden.sm\\:inline');
+    expect(backText).toBeInTheDocument();
+    expect(backText).toHaveTextContent('back');
+  });
 });

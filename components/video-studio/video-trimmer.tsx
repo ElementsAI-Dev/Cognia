@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import {
   Tooltip,
   TooltipContent,
@@ -303,8 +304,10 @@ export function VideoTrimmer({
         </div>
       </div>
 
+      <Separator />
+
       {/* Controls */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4">
         <div className="flex items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -334,7 +337,7 @@ export function VideoTrimmer({
           </Tooltip>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
           {/* In point */}
           <div className="flex items-center gap-2">
             <Label className="text-xs text-green-500">In</Label>
@@ -346,7 +349,7 @@ export function VideoTrimmer({
                   onInPointChange(time);
                 }
               }}
-              className="w-24 h-8 text-xs font-mono"
+              className="w-20 sm:w-24 h-8 text-xs font-mono"
             />
             <Button variant="ghost" size="sm" onClick={setInToCurrent}>
               Set
@@ -364,7 +367,7 @@ export function VideoTrimmer({
                   onOutPointChange(time);
                 }
               }}
-              className="w-24 h-8 text-xs font-mono"
+              className="w-20 sm:w-24 h-8 text-xs font-mono"
             />
             <Button variant="ghost" size="sm" onClick={setOutToCurrent}>
               Set

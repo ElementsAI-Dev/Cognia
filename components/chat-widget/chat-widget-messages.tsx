@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
   TooltipContent,
@@ -214,12 +215,12 @@ const MessageBubble = memo(function MessageBubble({
         >
           {isEditing ? (
             <div className="flex flex-col gap-2">
-              <textarea
+              <Textarea
                 value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                className="w-full min-h-[60px] p-2 rounded border bg-background text-foreground text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditContent(e.target.value)}
+                className="min-h-[60px] text-sm resize-none"
                 autoFocus
-                onKeyDown={(e) => {
+                onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     handleSaveEdit();

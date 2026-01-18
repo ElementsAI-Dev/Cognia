@@ -26,6 +26,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
   Play,
   Pause,
   SkipBack,
@@ -90,7 +95,6 @@ export function VideoPreview({
   const [internalMuted, setInternalMuted] = useState(externalMuted);
   const [internalPlaybackSpeed, setInternalPlaybackSpeed] = useState(playbackSpeed);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
 
   // Use external values if provided, otherwise use internal state
@@ -358,12 +362,12 @@ export function VideoPreview({
       {showControls && (
         <div
           className={cn(
-            'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity',
+            'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4 transition-opacity',
             isHovering || !isPlaying ? 'opacity-100' : 'opacity-0'
           )}
         >
           {/* Progress bar */}
-          <div className="mb-3">
+          <div className="mb-2 sm:mb-3">
             <Slider
               value={[currentTime]}
               max={internalDuration || 100}
@@ -374,7 +378,7 @@ export function VideoPreview({
           </div>
 
           {/* Controls row */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1">
               {/* Play/Pause */}
               <Tooltip>
@@ -382,14 +386,14 @@ export function VideoPreview({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-white hover:bg-white/20"
+                    className="h-7 w-7 sm:h-8 sm:w-8 text-white hover:bg-white/20"
                     onClick={togglePlayback}
                     aria-label={isPlaying ? 'Pause' : 'Play'}
                   >
                     {isPlaying ? (
-                      <Pause className="h-4 w-4" />
+                      <Pause className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     ) : (
-                      <Play className="h-4 w-4" />
+                      <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     )}
                   </Button>
                 </TooltipTrigger>
@@ -402,11 +406,11 @@ export function VideoPreview({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-white hover:bg-white/20"
+                    className="h-7 w-7 sm:h-8 sm:w-8 text-white hover:bg-white/20"
                     onClick={() => seek(currentTime - 10)}
                     aria-label="Skip back 10 seconds"
                   >
-                    <SkipBack className="h-4 w-4" />
+                    <SkipBack className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>-10 seconds</TooltipContent>
@@ -418,11 +422,11 @@ export function VideoPreview({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-white hover:bg-white/20"
+                    className="h-7 w-7 sm:h-8 sm:w-8 text-white hover:bg-white/20"
                     onClick={stepBackward}
                     aria-label="Previous frame"
                   >
-                    <ChevronLeft className="h-4 w-4" />
+                    <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Previous frame (,)</TooltipContent>
@@ -434,11 +438,11 @@ export function VideoPreview({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-white hover:bg-white/20"
+                    className="h-7 w-7 sm:h-8 sm:w-8 text-white hover:bg-white/20"
                     onClick={stepForward}
                     aria-label="Next frame"
                   >
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Next frame (.)</TooltipContent>
@@ -450,57 +454,52 @@ export function VideoPreview({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-white hover:bg-white/20"
+                    className="h-7 w-7 sm:h-8 sm:w-8 text-white hover:bg-white/20"
                     onClick={() => seek(currentTime + 10)}
                     aria-label="Skip forward 10 seconds"
                   >
-                    <SkipForward className="h-4 w-4" />
+                    <SkipForward className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>+10 seconds</TooltipContent>
               </Tooltip>
 
               {/* Volume */}
-              <div
-                className="relative flex items-center"
-                onMouseEnter={() => setShowVolumeSlider(true)}
-                onMouseLeave={() => setShowVolumeSlider(false)}
-              >
+              <Popover>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-white hover:bg-white/20"
-                      onClick={toggleMute}
-                      aria-label={muted ? 'Unmute' : 'Mute'}
-                    >
-                      {muted || volume === 0 ? (
-                        <VolumeX className="h-4 w-4" />
-                      ) : (
-                        <Volume2 className="h-4 w-4" />
-                      )}
-                    </Button>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 sm:h-8 sm:w-8 text-white hover:bg-white/20"
+                        onClick={toggleMute}
+                        aria-label={muted ? 'Unmute' : 'Mute'}
+                      >
+                        {muted || volume === 0 ? (
+                          <VolumeX className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        ) : (
+                          <Volume2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        )}
+                      </Button>
+                    </PopoverTrigger>
                   </TooltipTrigger>
                   <TooltipContent>{muted ? 'Unmute (M)' : 'Mute (M)'}</TooltipContent>
                 </Tooltip>
-
-                {showVolumeSlider && (
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-2 bg-black/90 rounded">
-                    <Slider
-                      orientation="vertical"
-                      value={[muted ? 0 : volume]}
-                      max={1}
-                      step={0.01}
-                      onValueChange={handleVolumeChange}
-                      className="h-20"
-                    />
-                  </div>
-                )}
-              </div>
+                <PopoverContent align="center" side="top" className="bg-black/90">
+                  <Slider
+                    orientation="vertical"
+                    value={[muted ? 0 : volume]}
+                    max={1}
+                    step={0.01}
+                    onValueChange={handleVolumeChange}
+                    className="h-20"
+                  />
+                </PopoverContent>
+              </Popover>
 
               {/* Time display */}
-              <span className="text-white text-sm font-mono ml-2">
+              <span className="text-white text-xs sm:text-sm font-mono ml-1 sm:ml-2">
                 {formatTime(currentTime)} / {formatTime(internalDuration)}
               </span>
             </div>
@@ -512,10 +511,10 @@ export function VideoPreview({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 text-white hover:bg-white/20"
+                    className="h-7 sm:h-8 text-white hover:bg-white/20"
                   >
-                    <Settings className="h-4 w-4 mr-1" />
-                    {internalPlaybackSpeed}x
+                    <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-0.5 sm:mr-1" />
+                    <span className="text-xs sm:text-sm">{internalPlaybackSpeed}x</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -539,14 +538,14 @@ export function VideoPreview({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-white hover:bg-white/20"
+                    className="h-7 w-7 sm:h-8 sm:w-8 text-white hover:bg-white/20"
                     onClick={toggleFullscreen}
                     aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
                   >
                     {isFullscreen ? (
-                      <Minimize className="h-4 w-4" />
+                      <Minimize className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     ) : (
-                      <Maximize className="h-4 w-4" />
+                      <Maximize className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     )}
                   </Button>
                 </TooltipTrigger>

@@ -146,4 +146,51 @@ new line`}
     );
     expect(container.firstChild).toHaveClass('custom-class');
   });
+
+  describe('Responsive Layout', () => {
+    it('applies responsive font sizes to diff content', () => {
+      const { container } = render(
+        <VersionDiffView
+          oldContent="line 1"
+          newContent="line 2"
+        />
+      );
+      const diffContent = container.querySelector('.font-mono');
+      expect(diffContent).toHaveClass('text-xs');
+      expect(diffContent).toHaveClass('sm:text-sm');
+    });
+
+    it('applies responsive line number width', () => {
+      render(
+        <VersionDiffView
+          oldContent="line 1"
+          newContent="line 1"
+        />
+      );
+      const lineNumberContainer = document.querySelector('.w-12.sm\\:w-16');
+      expect(lineNumberContainer).toBeInTheDocument();
+    });
+
+    it('uses break-words instead of break-all for better readability', () => {
+      render(
+        <VersionDiffView
+          oldContent="verylongwordthatshouldwrapproperly"
+          newContent="verylongwordthatshouldwrapproperly"
+        />
+      );
+      const contentSpan = document.querySelector('.break-words');
+      expect(contentSpan).toBeInTheDocument();
+    });
+
+    it('applies horizontal overflow to code content', () => {
+      render(
+        <VersionDiffView
+          oldContent="line 1"
+          newContent="line 1"
+        />
+      );
+      const contentSpan = document.querySelector('.overflow-x-auto');
+      expect(contentSpan).toBeInTheDocument();
+    });
+  });
 });

@@ -11,6 +11,7 @@ import {
 } from './context-aware-executor';
 import { executeAgent } from './agent-executor';
 import { processToolOutput, createContextTools, getContextToolsPrompt } from '@/lib/context';
+import { z } from 'zod';
 
 // Mock dependencies
 jest.mock('./agent-executor', () => ({
@@ -36,14 +37,16 @@ describe('context-aware-executor', () => {
     jest.clearAllMocks();
     mockExecuteAgent.mockResolvedValue({
       success: true,
-      result: 'Test result',
+      finalResponse: 'Test result',
       totalSteps: 3,
-      toolCalls: [],
+      steps: [],
       duration: 1500,
     });
     mockProcessToolOutput.mockResolvedValue({
       writtenToFile: false,
       inlineContent: 'processed output',
+      originalSize: 0,
+      wasTruncated: false,
     });
   });
 
@@ -56,7 +59,7 @@ describe('context-aware-executor', () => {
         test_tool: {
           name: 'test_tool',
           description: 'A test tool',
-          parameters: {} as never,
+          parameters: {} as z.ZodType,
           execute: jest.fn().mockResolvedValue('tool result'),
         },
       },
@@ -123,11 +126,14 @@ describe('context-aware-executor', () => {
         writtenToFile: true,
         ref: {
           id: 'ref-1',
+          toolName: 'test_tool',
           path: 'context/tool-output/test.txt',
           sizeSummary: '~500 tokens',
-          previewLines: 3,
+          timestamp: new Date(),
         },
         inlineContent: 'File reference...',
+        originalSize: 500,
+        wasTruncated: true,
       });
 
       const result = await executeContextAwareAgent('Test prompt', {
@@ -143,11 +149,14 @@ describe('context-aware-executor', () => {
         writtenToFile: true,
         ref: {
           id: 'ref-1',
+          toolName: 'test_tool',
           path: 'test.txt',
           sizeSummary: '~1000 tokens',
-          previewLines: 5,
+          timestamp: new Date(),
         },
         inlineContent: 'reference',
+        originalSize: 1000,
+        wasTruncated: true,
       });
 
       const result = await executeContextAwareAgent('Test prompt', baseConfig);
@@ -203,7 +212,7 @@ describe('context-aware-executor', () => {
       const newTool = {
         name: 'new_tool',
         description: 'A new tool',
-        parameters: {} as never,
+        parameters: {} as z.ZodType,
         execute: jest.fn(),
       };
 
@@ -250,9 +259,9 @@ describe('context-aware-executor', () => {
     it('should generate basic summary', () => {
       const result: ContextAwareAgentResult = {
         success: true,
-        result: 'Done',
+        finalResponse: 'Done',
         totalSteps: 5,
-        toolCalls: [],
+        steps: [],
         duration: 2000,
       };
 
@@ -267,22 +276,24 @@ describe('context-aware-executor', () => {
     it('should include persisted outputs info', () => {
       const result: ContextAwareAgentResult = {
         success: true,
-        result: 'Done',
+        finalResponse: 'Done',
         totalSteps: 3,
-        toolCalls: [],
+        steps: [],
         duration: 1500,
         persistedOutputs: [
           {
             id: 'ref-1',
+            toolName: 'tool1',
             path: 'context/tool-output/file1.txt',
             sizeSummary: '~500 tokens',
-            previewLines: 3,
+            timestamp: new Date(),
           },
           {
             id: 'ref-2',
+            toolName: 'tool2',
             path: 'context/tool-output/file2.txt',
             sizeSummary: '~300 tokens',
-            previewLines: 2,
+            timestamp: new Date(),
           },
         ],
         tokensSaved: 600,
@@ -300,9 +311,9 @@ describe('context-aware-executor', () => {
     it('should handle result without persisted outputs', () => {
       const result: ContextAwareAgentResult = {
         success: false,
-        result: 'Failed',
+        finalResponse: 'Failed',
         totalSteps: 1,
-        toolCalls: [],
+        steps: [],
         duration: 500,
       };
 
@@ -315,9 +326,9 @@ describe('context-aware-executor', () => {
     it('should handle empty persisted outputs array', () => {
       const result: ContextAwareAgentResult = {
         success: true,
-        result: 'Done',
+        finalResponse: 'Done',
         totalSteps: 2,
-        toolCalls: [],
+        steps: [],
         duration: 1000,
         persistedOutputs: [],
       };

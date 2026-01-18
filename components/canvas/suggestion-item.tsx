@@ -10,7 +10,6 @@ import {
   Check,
   X,
   ChevronDown,
-  ChevronUp,
   Bug,
   Sparkles,
   MessageSquare,
@@ -18,6 +17,11 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import type { CanvasSuggestion } from '@/types';
 
@@ -49,7 +53,7 @@ export const SuggestionItem = memo(function SuggestionItem({
   className,
 }: SuggestionItemProps) {
   const t = useTranslations('canvas');
-  const [expanded, setExpanded] = useState(false);
+  const [open, setOpen] = useState(false);
 
   const Icon = TYPE_ICONS[suggestion.type] || Edit3;
   const colorClass = TYPE_COLORS[suggestion.type] || TYPE_COLORS.edit;
@@ -89,41 +93,36 @@ export const SuggestionItem = memo(function SuggestionItem({
 
       {/* Code diff preview */}
       {hasCodeDiff && (
-        <div className="space-y-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs w-full justify-between"
-            onClick={() => setExpanded(!expanded)}
-          >
-            <span>{t('viewChanges')}</span>
-            {expanded ? (
-              <ChevronUp className="h-3 w-3" />
-            ) : (
-              <ChevronDown className="h-3 w-3" />
-            )}
-          </Button>
-          {expanded && (
-            <div className="rounded-md border bg-muted/30 p-2 space-y-2 text-xs font-mono">
-              <div className="space-y-1">
-                <div className="text-[10px] text-muted-foreground font-sans">
-                  {t('original')}:
-                </div>
-                <pre className="p-2 rounded bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 whitespace-pre-wrap overflow-x-auto">
-                  {suggestion.originalText}
-                </pre>
+        <Collapsible open={open} onOpenChange={setOpen} className="space-y-1">
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs w-full justify-between"
+            >
+              <span>{t('viewChanges')}</span>
+              <ChevronDown className="h-3 w-3 transition-transform data-[state=open]:rotate-180" />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="rounded-md border bg-muted/30 p-2 space-y-2 text-xs sm:text-sm font-mono">
+            <div className="space-y-1">
+              <div className="text-[10px] text-muted-foreground font-sans">
+                {t('original')}:
               </div>
-              <div className="space-y-1">
-                <div className="text-[10px] text-muted-foreground font-sans">
-                  {t('suggested')}:
-                </div>
-                <pre className="p-2 rounded bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 whitespace-pre-wrap overflow-x-auto">
-                  {suggestion.suggestedText}
-                </pre>
-              </div>
+              <pre className="p-2 rounded bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 whitespace-pre-wrap overflow-x-auto">
+                {suggestion.originalText}
+              </pre>
             </div>
-          )}
-        </div>
+            <div className="space-y-1">
+              <div className="text-[10px] text-muted-foreground font-sans">
+                {t('suggested')}:
+              </div>
+              <pre className="p-2 rounded bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 whitespace-pre-wrap overflow-x-auto">
+                {suggestion.suggestedText}
+              </pre>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       )}
 
       {/* Actions */}
@@ -131,7 +130,7 @@ export const SuggestionItem = memo(function SuggestionItem({
         <div className="flex items-center gap-2 pt-1">
           <Button
             size="sm"
-            className="h-7 flex-1"
+            className="h-9 flex-1"
             onClick={() => onApply(suggestion.id)}
           >
             <Check className="h-3.5 w-3.5 mr-1" />
@@ -140,7 +139,7 @@ export const SuggestionItem = memo(function SuggestionItem({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 flex-1"
+            className="h-9 flex-1"
             onClick={() => onReject(suggestion.id)}
           >
             <X className="h-3.5 w-3.5 mr-1" />

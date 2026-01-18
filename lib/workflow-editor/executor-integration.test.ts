@@ -17,8 +17,8 @@ import {
 } from './executor-integration';
 import * as converter from './converter';
 import * as workflows from '@/lib/ai/workflows';
-import type { VisualWorkflow, VisualWorkflowNode, VisualWorkflowEdge } from '@/types/workflow/workflow-editor';
-import type { WorkflowExecution, WorkflowDefinition } from '@/types/workflow';
+import type { VisualWorkflow, WorkflowNode, WorkflowEdge } from '@/types/workflow/workflow-editor';
+import type { WorkflowExecution, WorkflowDefinition, WorkflowExecutionStatus } from '@/types/workflow';
 
 // Mock converter
 jest.mock('./converter', () => ({
@@ -44,18 +44,25 @@ const mockedWorkflows = workflows as jest.Mocked<typeof workflows>;
 const createMockVisualWorkflow = (options: {
   hasStart?: boolean;
   hasEnd?: boolean;
-  extraNodes?: VisualWorkflowNode[];
-  extraEdges?: VisualWorkflowEdge[];
+  extraNodes?: WorkflowNode[];
+  extraEdges?: WorkflowEdge[];
 } = {}): VisualWorkflow => {
-  const nodes: VisualWorkflowNode[] = [];
-  const edges: VisualWorkflowEdge[] = [];
+  const nodes: WorkflowNode[] = [];
+  const edges: WorkflowEdge[] = [];
 
   if (options.hasStart !== false) {
     nodes.push({
       id: 'start-1',
       type: 'start',
       position: { x: 0, y: 0 },
-      data: { label: 'Start', isConfigured: true },
+      data: {
+        label: 'Start',
+        nodeType: 'start',
+        executionStatus: 'idle',
+        isConfigured: true,
+        hasError: false,
+        workflowInputs: {},
+      },
     });
   }
 
@@ -64,7 +71,15 @@ const createMockVisualWorkflow = (options: {
       id: 'end-1',
       type: 'end',
       position: { x: 200, y: 0 },
-      data: { label: 'End', isConfigured: true },
+      data: {
+        label: 'End',
+        nodeType: 'end',
+        executionStatus: 'idle',
+        isConfigured: true,
+        hasError: false,
+        workflowOutputs: {},
+        outputMapping: {},
+      },
     });
   }
 
@@ -88,14 +103,30 @@ const createMockVisualWorkflow = (options: {
     id: 'test-workflow',
     name: 'Test Workflow',
     description: 'A test workflow',
+    type: 'custom',
     version: '1.0.0',
+    icon: 'Workflow',
+    category: 'custom',
+    tags: [],
     nodes,
     edges,
-    variables: [],
-    metadata: {
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    viewport: { x: 0, y: 0, zoom: 1 },
+    inputs: {},
+    outputs: {},
+    variables: {},
+    settings: {
+      autoSave: true,
+      autoLayout: false,
+      showMinimap: true,
+      showGrid: true,
+      snapToGrid: true,
+      gridSize: 20,
+      retryOnFailure: true,
+      maxRetries: 3,
+      logLevel: 'info',
     },
+    createdAt: new Date(),
+    updatedAt: new Date(),
   };
 };
 
@@ -103,24 +134,34 @@ const createMockVisualWorkflow = (options: {
 const createMockDefinition = (): WorkflowDefinition => ({
   id: 'test-workflow-def',
   name: 'Test Workflow',
+  type: 'custom',
   version: '1.0.0',
   description: 'Test',
+  icon: 'Workflow',
+  category: 'custom',
+  tags: [],
   steps: [],
   inputs: {},
   outputs: {},
 });
 
 // Helper to create mock execution
-const createMockExecution = (id: string, status: WorkflowExecution['status'] = 'running'): WorkflowExecution => ({
+const createMockExecution = (id: string, status: WorkflowExecutionStatus = 'executing'): WorkflowExecution => ({
   id,
   workflowId: 'test-workflow',
+  workflowName: 'Test Workflow',
+  workflowType: 'custom',
   sessionId: 'test-session',
   status,
-  currentStep: 'step-1',
-  variables: {},
-  stepResults: {},
+  config: {},
+  input: {},
+  output: {},
+  steps: [],
+  currentStepId: 'step-1',
+  progress: 0,
   startedAt: new Date(),
   completedAt: status === 'completed' ? new Date() : undefined,
+  logs: [],
 });
 
 describe('executor-integration', () => {
@@ -140,13 +181,18 @@ describe('executor-integration', () => {
       mockedConverter.visualToDefinition.mockReturnValue(definition);
       mockedWorkflows.executeWorkflow.mockResolvedValue({
         execution,
+        success: true,
         output: { result: 'success' },
       });
 
       const result = await executeVisualWorkflow(
         workflow,
         { input: 'value' },
-        { maxSteps: 10 }
+        {
+          provider: 'openai',
+          model: 'gpt-4o',
+          apiKey: 'test-api-key',
+        }
       );
 
       expect(mockedConverter.visualToDefinition).toHaveBeenCalledWith(workflow);
@@ -154,7 +200,11 @@ describe('executor-integration', () => {
         definition.id,
         expect.stringContaining('visual-test-workflow'),
         { input: 'value' },
-        { maxSteps: 10 },
+        {
+          provider: 'openai',
+          model: 'gpt-4o',
+          apiKey: 'test-api-key',
+        },
         expect.any(Object)
       );
       expect(result.execution).toBe(execution);
@@ -169,10 +219,15 @@ describe('executor-integration', () => {
       mockedWorkflows.getGlobalWorkflowRegistry.mockReturnValue({ register: mockRegister } as never);
       mockedWorkflows.executeWorkflow.mockResolvedValue({
         execution: createMockExecution('exec-1'),
+        success: true,
         output: {},
       });
 
-      await executeVisualWorkflow(workflow, {}, {});
+      await executeVisualWorkflow(workflow, {}, {
+        provider: 'openai',
+        model: 'gpt-4o',
+        apiKey: 'test-api-key',
+      });
 
       expect(mockRegister).toHaveBeenCalledWith(definition);
     });
@@ -184,10 +239,15 @@ describe('executor-integration', () => {
       mockedConverter.visualToDefinition.mockReturnValue(createMockDefinition());
       mockedWorkflows.executeWorkflow.mockResolvedValue({
         execution,
+        success: true,
         output: {},
       });
 
-      await executeVisualWorkflow(workflow, {}, {});
+      await executeVisualWorkflow(workflow, {}, {
+        provider: 'openai',
+        model: 'gpt-4o',
+        apiKey: 'test-api-key',
+      });
 
       expect(getActiveExecutionCount()).toBeGreaterThan(0);
     });
@@ -200,10 +260,15 @@ describe('executor-integration', () => {
       mockedConverter.visualToDefinition.mockReturnValue(createMockDefinition());
       mockedWorkflows.executeWorkflow.mockResolvedValue({
         execution,
+        success: true,
         output: {},
       });
 
-      await executeVisualWorkflow(workflow, {}, {}, { onComplete });
+      await executeVisualWorkflow(workflow, {}, {
+        provider: 'openai',
+        model: 'gpt-4o',
+        apiKey: 'test-api-key',
+      }, { onComplete });
 
       // The wrapped callback should be passed
       const passedCallbacks = mockedWorkflows.executeWorkflow.mock.calls[0][4];
@@ -268,8 +333,12 @@ describe('executor-integration', () => {
       
       // Set up active execution
       mockedConverter.visualToDefinition.mockReturnValue(createMockDefinition());
-      mockedWorkflows.executeWorkflow.mockResolvedValue({ execution, output: {} });
-      await executeVisualWorkflow(createMockVisualWorkflow(), {}, {});
+      mockedWorkflows.executeWorkflow.mockResolvedValue({ execution, success: true, output: {} });
+      await executeVisualWorkflow(createMockVisualWorkflow(), {}, {
+        provider: 'openai',
+        model: 'gpt-4o',
+        apiKey: 'test-api-key',
+      });
 
       pauseVisualWorkflow('pause-exec');
 
@@ -288,8 +357,12 @@ describe('executor-integration', () => {
       const execution = createMockExecution('resume-exec', 'paused');
       
       mockedConverter.visualToDefinition.mockReturnValue(createMockDefinition());
-      mockedWorkflows.executeWorkflow.mockResolvedValue({ execution, output: {} });
-      await executeVisualWorkflow(createMockVisualWorkflow(), {}, {});
+      mockedWorkflows.executeWorkflow.mockResolvedValue({ execution, success: true, output: {} });
+      await executeVisualWorkflow(createMockVisualWorkflow(), {}, {
+        provider: 'openai',
+        model: 'gpt-4o',
+        apiKey: 'test-api-key',
+      });
 
       resumeVisualWorkflow('resume-exec');
 
@@ -302,8 +375,12 @@ describe('executor-integration', () => {
       const execution = createMockExecution('cancel-exec');
       
       mockedConverter.visualToDefinition.mockReturnValue(createMockDefinition());
-      mockedWorkflows.executeWorkflow.mockResolvedValue({ execution, output: {} });
-      await executeVisualWorkflow(createMockVisualWorkflow(), {}, {});
+      mockedWorkflows.executeWorkflow.mockResolvedValue({ execution, success: true, output: {} });
+      await executeVisualWorkflow(createMockVisualWorkflow(), {}, {
+        provider: 'openai',
+        model: 'gpt-4o',
+        apiKey: 'test-api-key',
+      });
 
       cancelVisualWorkflow('cancel-exec');
 
@@ -349,7 +426,14 @@ describe('executor-integration', () => {
           id: 'start-2',
           type: 'start',
           position: { x: 100, y: 100 },
-          data: { label: 'Start 2', isConfigured: true },
+          data: {
+            label: 'Start 2',
+            nodeType: 'start',
+            executionStatus: 'idle',
+            isConfigured: true,
+            hasError: false,
+            workflowInputs: {},
+          },
         }],
       });
 
@@ -367,7 +451,15 @@ describe('executor-integration', () => {
           id: 'end-2',
           type: 'end',
           position: { x: 300, y: 0 },
-          data: { label: 'End 2', isConfigured: true },
+          data: {
+            label: 'End 2',
+            nodeType: 'end',
+            executionStatus: 'idle',
+            isConfigured: true,
+            hasError: false,
+            workflowOutputs: {},
+            outputMapping: {},
+          },
         }],
       });
 
@@ -383,9 +475,18 @@ describe('executor-integration', () => {
       const workflow = createMockVisualWorkflow({
         extraNodes: [{
           id: 'disconnected',
-          type: 'action',
+          type: 'ai',
           position: { x: 400, y: 0 },
-          data: { label: 'Disconnected', isConfigured: true },
+          data: {
+            label: 'Disconnected',
+            nodeType: 'ai',
+            executionStatus: 'idle',
+            isConfigured: true,
+            hasError: false,
+            aiPrompt: '',
+            inputs: {},
+            outputs: {},
+          },
         }],
       });
 
@@ -404,9 +505,18 @@ describe('executor-integration', () => {
       const workflow = createMockVisualWorkflow({
         extraNodes: [{
           id: 'unconfigured',
-          type: 'action',
+          type: 'ai',
           position: { x: 100, y: 100 },
-          data: { label: 'Unconfigured', isConfigured: false },
+          data: {
+            label: 'Unconfigured',
+            nodeType: 'ai',
+            executionStatus: 'idle',
+            isConfigured: false,
+            hasError: false,
+            aiPrompt: '',
+            inputs: {},
+            outputs: {},
+          },
         }],
         extraEdges: [
           { id: 'e1', source: 'start-1', target: 'unconfigured' },
@@ -430,8 +540,36 @@ describe('executor-integration', () => {
     it('should detect cycles', () => {
       const workflow = createMockVisualWorkflow({
         extraNodes: [
-          { id: 'node-a', type: 'action', position: { x: 100, y: 0 }, data: { label: 'A', isConfigured: true } },
-          { id: 'node-b', type: 'action', position: { x: 150, y: 0 }, data: { label: 'B', isConfigured: true } },
+          {
+            id: 'node-a',
+            type: 'ai',
+            position: { x: 100, y: 0 },
+            data: {
+              label: 'A',
+              nodeType: 'ai',
+              executionStatus: 'idle',
+              isConfigured: true,
+              hasError: false,
+              aiPrompt: '',
+              inputs: {},
+              outputs: {},
+            },
+          },
+          {
+            id: 'node-b',
+            type: 'ai',
+            position: { x: 150, y: 0 },
+            data: {
+              label: 'B',
+              nodeType: 'ai',
+              executionStatus: 'idle',
+              isConfigured: true,
+              hasError: false,
+              aiPrompt: '',
+              inputs: {},
+              outputs: {},
+            },
+          },
         ],
         extraEdges: [
           { id: 'e1', source: 'start-1', target: 'node-a' },
@@ -454,9 +592,18 @@ describe('executor-integration', () => {
       const workflow = createMockVisualWorkflow({
         extraNodes: [{
           id: 'unconfigured',
-          type: 'action',
+          type: 'ai',
           position: { x: 100, y: 100 },
-          data: { label: 'Unconfigured', isConfigured: false },
+          data: {
+            label: 'Unconfigured',
+            nodeType: 'ai',
+            executionStatus: 'idle',
+            isConfigured: false,
+            hasError: false,
+            aiPrompt: '',
+            inputs: {},
+            outputs: {},
+          },
         }],
         extraEdges: [
           { id: 'e1', source: 'start-1', target: 'unconfigured' },
@@ -479,8 +626,12 @@ describe('executor-integration', () => {
       const execution = createMockExecution('get-exec');
       
       mockedConverter.visualToDefinition.mockReturnValue(createMockDefinition());
-      mockedWorkflows.executeWorkflow.mockResolvedValue({ execution, output: {} });
-      await executeVisualWorkflow(createMockVisualWorkflow(), {}, {});
+      mockedWorkflows.executeWorkflow.mockResolvedValue({ execution, success: true, output: {} });
+      await executeVisualWorkflow(createMockVisualWorkflow(), {}, {
+        provider: 'openai',
+        model: 'gpt-4o',
+        apiKey: 'test-api-key',
+      });
 
       const executions = getActiveExecutions();
 
@@ -496,9 +647,14 @@ describe('executor-integration', () => {
       mockedConverter.visualToDefinition.mockReturnValue(createMockDefinition());
       mockedWorkflows.executeWorkflow.mockResolvedValue({
         execution: createMockExecution('count-exec'),
+        success: true,
         output: {},
       });
-      await executeVisualWorkflow(createMockVisualWorkflow(), {}, {});
+      await executeVisualWorkflow(createMockVisualWorkflow(), {}, {
+        provider: 'openai',
+        model: 'gpt-4o',
+        apiKey: 'test-api-key',
+      });
 
       expect(getActiveExecutionCount()).toBe(1);
     });
@@ -509,8 +665,12 @@ describe('executor-integration', () => {
       const execution = createMockExecution('remove-exec');
       
       mockedConverter.visualToDefinition.mockReturnValue(createMockDefinition());
-      mockedWorkflows.executeWorkflow.mockResolvedValue({ execution, output: {} });
-      await executeVisualWorkflow(createMockVisualWorkflow(), {}, {});
+      mockedWorkflows.executeWorkflow.mockResolvedValue({ execution, success: true, output: {} });
+      await executeVisualWorkflow(createMockVisualWorkflow(), {}, {
+        provider: 'openai',
+        model: 'gpt-4o',
+        apiKey: 'test-api-key',
+      });
 
       expect(getActiveExecutionCount()).toBe(1);
 

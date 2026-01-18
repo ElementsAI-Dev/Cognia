@@ -21,7 +21,7 @@ jest.mock('@/lib/native/sandbox', () => ({
   },
 }));
 
-import { useSandbox, useCodeExecution } from './use-sandbox';
+import { useSandbox, useQuickCodeExecution } from './use-sandbox';
 import { sandboxService } from '@/lib/native/sandbox';
 import type { SandboxExecutionResult, SandboxStatus } from '@/types/system/sandbox';
 
@@ -232,13 +232,13 @@ describe('useSandbox Hook', () => {
   });
 });
 
-describe('useCodeExecution Hook', () => {
+describe('useQuickCodeExecution Hook', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   it('should start with initial state', () => {
-    const { result } = renderHook(() => useCodeExecution());
+    const { result } = renderHook(() => useQuickCodeExecution());
 
     expect(result.current.isExecuting).toBe(false);
     expect(result.current.result).toBeNull();
@@ -261,7 +261,7 @@ describe('useCodeExecution Hook', () => {
 
     mockSandboxService.quickExecute.mockResolvedValue(mockResult);
 
-    const { result } = renderHook(() => useCodeExecution());
+    const { result } = renderHook(() => useQuickCodeExecution());
 
     await act(async () => {
       await result.current.execute('python', 'print("hello")');
@@ -288,7 +288,7 @@ describe('useCodeExecution Hook', () => {
 
     mockSandboxService.executeWithStdin.mockResolvedValue(mockResult);
 
-    const { result } = renderHook(() => useCodeExecution());
+    const { result } = renderHook(() => useQuickCodeExecution());
 
     await act(async () => {
       await result.current.execute('python', 'print(input())', 'test input');
@@ -305,7 +305,7 @@ describe('useCodeExecution Hook', () => {
   it('should handle execution error', async () => {
     mockSandboxService.quickExecute.mockRejectedValue(new Error('Execution failed'));
 
-    const { result } = renderHook(() => useCodeExecution());
+    const { result } = renderHook(() => useQuickCodeExecution());
 
     await act(async () => {
       try {
@@ -336,7 +336,7 @@ describe('useCodeExecution Hook', () => {
 
     mockSandboxService.quickExecute.mockResolvedValue(mockResult);
 
-    const { result } = renderHook(() => useCodeExecution());
+    const { result } = renderHook(() => useQuickCodeExecution());
 
     await act(async () => {
       await result.current.execute('python', 'print("hello")');

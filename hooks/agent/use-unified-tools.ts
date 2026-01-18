@@ -29,7 +29,7 @@ import {
   type RegisteredTool,
   type ToolFilterOptions,
   type ToolSource,
-  type ToolCategory,
+  type UnifiedToolCategory as ToolCategory,
 } from '@/lib/ai/tools';
 import {
   initializeAgentTools,

@@ -151,7 +151,7 @@ describe('useProviderManager', () => {
       enabled: true,
       circuitState: 'open',
       availability: { status: 'unavailable' },
-      metrics: null,
+      metrics: { successRate: 0, avgLatency: 0 },
       quota: null,
     });
 
@@ -176,7 +176,7 @@ describe('useProviderManager', () => {
     
     await act(async () => {
       const execResult = await result.current.execute(testFn, {
-        providerId: 'openai',
+        preferredProvider: 'openai',
         modelId: 'gpt-4',
       });
       expect(execResult.success).toBe(true);
@@ -193,7 +193,7 @@ describe('useProviderManager', () => {
     const testFn = jest.fn();
 
     await expect(
-      result.current.execute(testFn, { providerId: 'openai', modelId: 'gpt-4' })
+      result.current.execute(testFn, { preferredProvider: 'openai', modelId: 'gpt-4' })
     ).rejects.toThrow('Provider Manager not initialized');
   });
 
@@ -275,7 +275,7 @@ describe('useProviderExecution', () => {
 
     await act(async () => {
       const execResult = await result.current.executeAI(testFn, {
-        providerId: 'openai',
+        preferredProvider: 'openai',
         modelId: 'gpt-4',
       });
       expect(execResult).toBe('ai-result');
@@ -299,7 +299,7 @@ describe('useProviderExecution', () => {
     const testFn = jest.fn();
 
     await expect(
-      result.current.executeAI(testFn, { providerId: 'openai', modelId: 'gpt-4' })
+      result.current.executeAI(testFn, { preferredProvider: 'openai', modelId: 'gpt-4' })
     ).rejects.toThrow('Execution failed');
   });
 });

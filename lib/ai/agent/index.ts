@@ -28,6 +28,11 @@ export {
   type AgentStep,
   type ToolCall,
   type AgentExecutionState,
+  type RetryConfig,
+  type ReActFormat,
+  DEFAULT_RETRY_CONFIG,
+  buildReActSystemPrompt,
+  parseReActResponse,
 } from './agent-executor';
 
 export {
@@ -177,3 +182,129 @@ export {
   type CanvasUpdateInput,
   type CanvasReadInput,
 } from './canvas-tool';
+
+// Tool Cache exports
+export {
+  ToolCache,
+  globalToolCache,
+  type ToolCacheEntry,
+  type ToolCacheConfig,
+  type ToolCacheStats,
+} from './tool-cache';
+
+// Performance Metrics exports
+export {
+  globalMetricsCollector,
+  type AgentMetrics,
+  type StepMetrics,
+  type ToolCallMetrics,
+  type TokenUsageMetrics,
+  type CacheMetrics,
+  type MetricsSummary,
+} from './performance-metrics';
+
+// Memory Manager exports
+export {
+  MemoryManager,
+  globalMemoryManager,
+  type MemoryEntry,
+  type MemoryQuery,
+  type MemoryStats,
+  type MemoryManagerConfig,
+} from './memory-manager';
+
+// Artifact Tools exports (from lib/ai/tools)
+export {
+  artifactTools,
+  artifactCreateTool,
+  artifactUpdateTool,
+  artifactReadTool,
+  artifactSearchTool,
+  artifactRenderTool,
+  artifactExportTool,
+  artifactDeleteTool,
+  executeArtifactCreate,
+  executeArtifactUpdate,
+  executeArtifactRead,
+  executeArtifactSearch,
+  executeArtifactRender,
+  executeArtifactExport,
+  executeArtifactDelete,
+  registerArtifactTools,
+  getArtifactToolsPrompt,
+  artifactCreateInputSchema,
+  artifactUpdateInputSchema,
+  artifactReadInputSchema,
+  artifactSearchInputSchema,
+  artifactRenderInputSchema,
+  artifactExportInputSchema,
+  artifactDeleteInputSchema,
+  ARTIFACT_TYPES,
+  type ArtifactCreateInput,
+  type ArtifactUpdateInput,
+  type ArtifactReadInput,
+  type ArtifactSearchInput,
+  type ArtifactRenderInput,
+  type ArtifactExportInput,
+  type ArtifactDeleteInput,
+  type ArtifactToolResult,
+} from '../tools';
+
+// Memory Tools exports (from lib/ai/tools)
+export {
+  memoryTools,
+  memoryStoreTool,
+  memoryRecallTool,
+  memorySearchTool,
+  memoryDeleteTool,
+  memoryListTool,
+  memoryUpdateTool,
+  executeMemoryStore,
+  executeMemoryRecall,
+  executeMemorySearch,
+  executeMemoryDelete,
+  executeMemoryList,
+  executeMemoryUpdate,
+  registerMemoryTools,
+  getMemoryToolsPrompt,
+  memoryStoreInputSchema,
+  memoryRecallInputSchema,
+  memorySearchInputSchema,
+  memoryDeleteInputSchema,
+  memoryListInputSchema,
+  memoryUpdateInputSchema,
+  type MemoryStoreInput,
+  type MemoryRecallInput,
+  type MemorySearchInput,
+  type MemoryDeleteInput,
+  type MemoryListInput,
+  type MemoryUpdateInput,
+  type MemoryToolResult,
+} from '../tools';
+
+// Capabilities exports
+export {
+  detectCapabilities,
+  isTauriEnvironment,
+  getCapabilitySummary,
+  getCapabilitySystemPrompt,
+  hasCapability,
+  createCapabilityAwareTool,
+  type AgentCapabilities,
+} from './capabilities';
+
+// Prompts exports
+export {
+  getBaseAgentPrompt,
+  getRolePrompt,
+  getReActPrompt,
+  getReActFormat,
+  getToolGuidancePrompt,
+  getToolCategoryPrompt,
+  getToolUsageExamples,
+  PromptBuilder,
+  createPromptBuilder,
+  type AgentRole,
+  type ReActStyle,
+  type ToolCategory,
+} from './prompts';

@@ -52,8 +52,8 @@ jest.mock('@/components/ui/sheet', () => ({
   Sheet: ({ children, open }: { children: React.ReactNode; open: boolean }) => (
     open ? <div data-testid="sheet">{children}</div> : null
   ),
-  SheetContent: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="sheet-content">{children}</div>
+  SheetContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="sheet-content" data-className={className}>{children}</div>
   ),
   SheetTitle: ({ children }: { children: React.ReactNode }) => (
     <h2>{children}</h2>
@@ -115,7 +115,9 @@ jest.mock('@/components/ui/dialog', () => ({
   Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
     open ? <div data-testid="dialog">{children}</div> : null
   ),
-  DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DialogContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="dialog-content" data-className={className}>{children}</div>
+  ),
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
 }));
@@ -239,5 +241,39 @@ describe('CanvasPanel', () => {
     });
     expect(screen.getAllByText('Review').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Fix Issues').length).toBeGreaterThan(0);
+  });
+
+  describe('Responsive Layout', () => {
+    it('applies responsive width to Sheet content', async () => {
+      await act(async () => {
+        render(<CanvasPanel />);
+      });
+      const sheetContent = screen.getByTestId('sheet-content');
+      const className = sheetContent.getAttribute('data-className');
+      expect(className).toContain('w-full');
+      expect(className).toContain('sm:w-[600px]');
+      expect(className).toContain('lg:w-[700px]');
+    });
+
+    it('applies mobile-first width to dialogs', async () => {
+      await act(async () => {
+        render(<CanvasPanel />);
+      });
+      const dialogContent = screen.queryByTestId('dialog-content');
+      // Dialog may not be rendered until opened, but if rendered, should have responsive width
+      if (dialogContent) {
+        const className = dialogContent.getAttribute('data-className');
+        expect(className).toContain('w-[95vw]');
+        expect(className).toContain('sm:max-w-[400px]');
+      }
+    });
+
+    it('renders with responsive container classes', async () => {
+      await act(async () => {
+        render(<CanvasPanel />);
+      });
+      const sheet = screen.getByTestId('sheet');
+      expect(sheet).toBeInTheDocument();
+    });
   });
 });

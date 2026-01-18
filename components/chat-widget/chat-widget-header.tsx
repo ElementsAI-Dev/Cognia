@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -73,9 +74,9 @@ export function ChatWidgetHeader({
           <Sparkles className="h-4 w-4 text-primary" />
           <span className="text-sm font-medium">Cognia</span>
           {messages && messages.length > 0 && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+            <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
               {messages.length}
-            </span>
+            </Badge>
           )}
         </div>
         {config.pinned && (

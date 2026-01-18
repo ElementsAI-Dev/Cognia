@@ -75,6 +75,7 @@ export function AppSidebar() {
   const createSession = useSessionStore((state) => state.createSession);
   const theme = useSettingsStore((state) => state.theme);
   const setTheme = useSettingsStore((state) => state.setTheme);
+  const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
 
   const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
@@ -632,6 +633,7 @@ export function AppSidebar() {
               <span>{t('themeLabel', { theme })}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          {observabilitySettings?.enabled && (
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip={t('observability') || 'Observability'}>
               <Link href="/observability">
@@ -640,6 +642,7 @@ export function AppSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip={t('settings')}>
               <Link href="/settings">

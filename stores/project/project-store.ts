@@ -11,6 +11,7 @@ import type {
   UpdateProjectInput,
   KnowledgeFile,
 } from '@/types';
+import { getPluginEventHooks } from '@/lib/plugin/hooks-system';
 
 interface ProjectState {
   // State
@@ -93,6 +94,8 @@ export const useProjectStore = create<ProjectState>()(
           activeProjectId: project.id,
         }));
 
+        getPluginEventHooks().dispatchProjectCreate(project);
+
         return project;
       },
 
@@ -104,6 +107,8 @@ export const useProjectStore = create<ProjectState>()(
               ? null
               : state.activeProjectId;
 
+          getPluginEventHooks().dispatchProjectDelete(id);
+
           return {
             projects: newProjects,
             activeProjectId: newActiveId,
@@ -111,8 +116,8 @@ export const useProjectStore = create<ProjectState>()(
         }),
 
       updateProject: (id, updates) =>
-        set((state) => ({
-          projects: state.projects.map((p) =>
+        set((state) => {
+          const updatedProjects = state.projects.map((p) =>
             p.id === id
               ? {
                   ...p,
@@ -120,8 +125,13 @@ export const useProjectStore = create<ProjectState>()(
                   updatedAt: new Date(),
                 }
               : p
-          ),
-        })),
+          );
+          const updatedProject = updatedProjects.find((p) => p.id === id);
+          if (updatedProject) {
+            getPluginEventHooks().dispatchProjectUpdate(updatedProject, updates);
+          }
+          return { projects: updatedProjects };
+        }),
 
       setActiveProject: (id) =>
         set((state) => {
@@ -133,6 +143,11 @@ export const useProjectStore = create<ProjectState>()(
                   : p
               )
             : state.projects;
+
+          if (state.activeProjectId !== id) {
+            const previous = state.activeProjectId;
+            getPluginEventHooks().dispatchProjectSwitch(id, previous);
+          }
 
           return {
             projects: updatedProjects,
@@ -167,8 +182,8 @@ export const useProjectStore = create<ProjectState>()(
       },
 
       addSessionToProject: (projectId, sessionId) =>
-        set((state) => ({
-          projects: state.projects.map((p) =>
+        set((state) => {
+          const updatedProjects = state.projects.map((p) =>
             p.id === projectId && !p.sessionIds.includes(sessionId)
               ? {
                   ...p,
@@ -177,12 +192,17 @@ export const useProjectStore = create<ProjectState>()(
                   updatedAt: new Date(),
                 }
               : p
-          ),
-        })),
+          );
+          const project = state.projects.find((p) => p.id === projectId);
+          if (project && !project.sessionIds.includes(sessionId)) {
+            getPluginEventHooks().dispatchSessionLinked(projectId, sessionId);
+          }
+          return { projects: updatedProjects };
+        }),
 
       removeSessionFromProject: (projectId, sessionId) =>
-        set((state) => ({
-          projects: state.projects.map((p) =>
+        set((state) => {
+          const updatedProjects = state.projects.map((p) =>
             p.id === projectId
               ? {
                   ...p,
@@ -191,8 +211,10 @@ export const useProjectStore = create<ProjectState>()(
                   updatedAt: new Date(),
                 }
               : p
-          ),
-        })),
+          );
+          getPluginEventHooks().dispatchSessionUnlinked(projectId, sessionId);
+          return { projects: updatedProjects };
+        }),
 
       getProjectForSession: (sessionId) => {
         const { projects } = get();
@@ -200,29 +222,32 @@ export const useProjectStore = create<ProjectState>()(
       },
 
       addKnowledgeFile: (projectId, file) =>
-        set((state) => ({
-          projects: state.projects.map((p) =>
+        set((state) => {
+          const knowledgeFile = {
+            ...file,
+            id: nanoid(),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+          const updatedProjects = state.projects.map((p) =>
             p.id === projectId
               ? {
                   ...p,
                   knowledgeBase: [
                     ...p.knowledgeBase,
-                    {
-                      ...file,
-                      id: nanoid(),
-                      createdAt: new Date(),
-                      updatedAt: new Date(),
-                    },
+                    knowledgeFile,
                   ],
                   updatedAt: new Date(),
                 }
               : p
-          ),
-        })),
+          );
+          getPluginEventHooks().dispatchKnowledgeFileAdd(projectId, knowledgeFile);
+          return { projects: updatedProjects };
+        }),
 
       removeKnowledgeFile: (projectId, fileId) =>
-        set((state) => ({
-          projects: state.projects.map((p) =>
+        set((state) => {
+          const updatedProjects = state.projects.map((p) =>
             p.id === projectId
               ? {
                   ...p,
@@ -230,8 +255,10 @@ export const useProjectStore = create<ProjectState>()(
                   updatedAt: new Date(),
                 }
               : p
-          ),
-        })),
+          );
+          getPluginEventHooks().dispatchKnowledgeFileRemove(projectId, fileId);
+          return { projects: updatedProjects };
+        }),
 
       updateKnowledgeFile: (projectId, fileId, content) =>
         set((state) => ({

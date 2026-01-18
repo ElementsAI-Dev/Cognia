@@ -38,6 +38,7 @@ import { initializeEnvironmentTools, getEnvironmentToolsSystemPrompt, getEnviron
 import { getJupyterTools, getJupyterToolsSystemPrompt } from './jupyter-tools';
 import { initializeProcessTools, getProcessToolsSystemPrompt, getProcessToolsPromptSnippet } from './process-tools';
 import { createCanvasTools } from './canvas-tool';
+import { artifactTools, memoryTools } from '../tools';
 
 export interface AgentToolsConfig {
   tavilyApiKey?: string;
@@ -69,6 +70,10 @@ export interface AgentToolsConfig {
   enableLearningTools?: boolean;
   /** Enable Canvas document tools (canvas_create, canvas_update, canvas_read, canvas_open) */
   enableCanvasTools?: boolean;
+  /** Enable Artifact tools (artifact_create, artifact_update, artifact_read, artifact_search, etc.) */
+  enableArtifactTools?: boolean;
+  /** Enable Memory tools (memory_store, memory_recall, memory_search, memory_forget, etc.) */
+  enableMemoryTools?: boolean;
   ragConfig?: RAGConfig;
   customTools?: Record<string, AgentTool>;
   activeSkills?: Skill[];
@@ -608,6 +613,34 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
     const canvasTools = createCanvasTools();
     for (const tool of canvasTools) {
       tools[tool.name] = tool;
+    }
+  }
+
+  // Artifact tools - create and manage rich artifacts (from lib/ai/tools)
+  if (config.enableArtifactTools !== false) {
+    for (const toolDef of artifactTools) {
+      const executeFn = toolDef.create({});
+      tools[toolDef.name] = {
+        name: toolDef.name,
+        description: toolDef.description,
+        parameters: toolDef.parameters,
+        execute: async (args) => executeFn(args),
+        requiresApproval: toolDef.requiresApproval ?? false,
+      };
+    }
+  }
+
+  // Memory tools - persistent memory for agents (from lib/ai/tools)
+  if (config.enableMemoryTools !== false) {
+    for (const toolDef of memoryTools) {
+      const executeFn = toolDef.create({});
+      tools[toolDef.name] = {
+        name: toolDef.name,
+        description: toolDef.description,
+        parameters: toolDef.parameters,
+        execute: async (args) => executeFn(args),
+        requiresApproval: toolDef.requiresApproval ?? false,
+      };
     }
   }
 

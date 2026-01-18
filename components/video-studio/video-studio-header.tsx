@@ -19,6 +19,7 @@ import {
   PanelLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -131,6 +132,8 @@ export function VideoStudioHeader({
           </Button>
         </div>
       </div>
+
+      <Separator orientation="vertical" className="h-6 hidden sm:block" />
 
       {/* Recording Controls (only in recording mode and when available) */}
       {studioMode === 'recording' && isRecordingAvailable && (

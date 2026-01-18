@@ -173,7 +173,7 @@ export function VersionDiffView({
 
       {/* Diff content */}
       <ScrollArea className="flex-1">
-        <div className="font-mono text-sm">
+        <div className="font-mono text-xs sm:text-sm">
           {diff.map((line, index) => (
             <div
               key={index}
@@ -185,11 +185,11 @@ export function VersionDiffView({
               )}
             >
               {/* Line numbers */}
-              <div className="flex shrink-0 w-16 text-muted-foreground text-xs select-none">
-                <span className="w-8 text-right pr-1">
+              <div className="flex shrink-0 w-12 sm:w-16 text-muted-foreground text-xs select-none">
+                <span className="w-6 sm:w-8 text-right pr-1">
                   {line.lineNumber.old || ''}
                 </span>
-                <span className="w-8 text-right pr-1">
+                <span className="w-6 sm:w-8 text-right pr-1">
                   {line.lineNumber.new || ''}
                 </span>
               </div>
@@ -203,7 +203,7 @@ export function VersionDiffView({
                 {line.type === 'removed' && '-'}
               </span>
               {/* Content */}
-              <span className="flex-1 whitespace-pre-wrap break-all">
+              <span className="flex-1 whitespace-pre-wrap break-words overflow-x-auto">
                 {line.content || ' '}
               </span>
             </div>

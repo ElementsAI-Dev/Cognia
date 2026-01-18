@@ -9,11 +9,35 @@ export { createPluginContext, createFullPluginContext, isFullPluginContext, type
 export { PluginSandbox } from './sandbox';
 export { PluginA2UIBridge } from './a2ui-bridge';
 export { PluginToolsBridge } from './tools-bridge';
-export { PluginHooksManager } from './hooks';
-export { ExtendedHooksManager, getExtendedHooksManager, resetExtendedHooksManager } from './hooks-manager';
-export { 
-  PluginWorkflowIntegration, 
-  getPluginWorkflowIntegration, 
+// Hooks System - Unified hook management
+export {
+  HookDispatcher,
+  PluginLifecycleHooks,
+  PluginEventHooks,
+  getPluginLifecycleHooks,
+  getPluginEventHooks,
+  resetPluginLifecycleHooks,
+  resetPluginEventHooks,
+  normalizePriority,
+  priorityToNumber,
+  priorityToString,
+  type HookPriority,
+  type HookRegistration,
+  type HookSandboxExecutionResult,
+  type HookMiddleware,
+  type HookExecutionConfig,
+} from './hooks-system';
+// Backward compatibility (deprecated aliases)
+export { PluginLifecycleHooks as PluginHooksManager } from './hooks-system';
+export { PluginEventHooks as ExtendedHooksManager } from './hooks-system';
+export { getPluginEventHooks as getExtendedHooksManager } from './hooks-system';
+export { resetPluginEventHooks as resetExtendedHooksManager } from './hooks-system';
+export { PluginEventHooks as AdvancedHooksManager } from './hooks-system';
+export { getPluginEventHooks as getAdvancedHooksManager } from './hooks-system';
+export { resetPluginEventHooks as resetAdvancedHooksManager } from './hooks-system';
+export {
+  PluginWorkflowIntegration,
+  getPluginWorkflowIntegration,
   resetPluginWorkflowIntegration,
   usePluginWorkflowIntegration,
 } from './workflow-integration';
@@ -172,17 +196,6 @@ export {
   type RollbackPlan,
   type MigrationScript,
 } from './rollback';
-
-// Extended Hooks
-export {
-  ExtendedHooksManager as AdvancedHooksManager,
-  getExtendedHooksManager as getAdvancedHooksManager,
-  resetExtendedHooksManager as resetAdvancedHooksManager,
-  type HookPriority,
-  type HookRegistration,
-  type HookSandboxExecutionResult,
-  type HookMiddleware,
-} from './extended-hooks';
 
 // Profiler
 export {

@@ -132,7 +132,7 @@ export function TemplatePreview({ template }: TemplatePreviewProps) {
             <h4 className="font-semibold mb-2">Source</h4>
             <Badge
               variant={
-                template.metadata.source === 'official'
+                template.metadata.source === 'built-in'
                   ? 'default'
                   : template.metadata.source === 'user'
                   ? 'secondary'

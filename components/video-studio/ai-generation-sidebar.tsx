@@ -171,18 +171,18 @@ export function AIGenerationSidebar({
 
   return (
     <Tabs value={activeTab} onValueChange={(v) => onActiveTabChange(v as typeof activeTab)} className="flex-1 flex flex-col">
-      <TabsList className="mx-4 mt-4">
-        <TabsTrigger value="text-to-video" className="flex-1">
-          <Wand2 className="h-4 w-4 mr-2" />
-          Text
+      <TabsList className="mx-2 sm:mx-4 mt-4">
+        <TabsTrigger value="text-to-video" className="flex-1 text-xs sm:text-sm">
+          <Wand2 className="h-4 w-4 mr-1 sm:mr-2" />
+          <span className="hidden sm:inline">Text</span>
         </TabsTrigger>
-        <TabsTrigger value="image-to-video" className="flex-1">
-          <ImageIcon className="h-4 w-4 mr-2" />
-          Image
+        <TabsTrigger value="image-to-video" className="flex-1 text-xs sm:text-sm">
+          <ImageIcon className="h-4 w-4 mr-1 sm:mr-2" />
+          <span className="hidden sm:inline">Image</span>
         </TabsTrigger>
       </TabsList>
 
-      <ScrollArea className="flex-1 p-4">
+      <ScrollArea className="flex-1 p-2 sm:p-4">
         <TabsContent value="text-to-video" className="mt-0 space-y-4">
           {/* Prompt */}
           <div className="space-y-2">
@@ -211,7 +211,7 @@ export function AIGenerationSidebar({
                   key={template.label}
                   variant="outline"
                   size="sm"
-                  className="text-xs"
+                  className="text-xs flex-1 sm:flex-none"
                   onClick={() => handleApplyTemplate(template.prompt)}
                 >
                   {template.label}
@@ -225,7 +225,7 @@ export function AIGenerationSidebar({
                     key={template.label}
                     variant="outline"
                     size="sm"
-                    className="text-xs"
+                    className="text-xs flex-1 sm:flex-none"
                     onClick={() => handleApplyTemplate(template.prompt)}
                   >
                     {template.label}
@@ -498,13 +498,13 @@ export function AIGenerationSidebar({
         {error && (
           <Alert variant="destructive" className="mt-4">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription className="text-xs sm:text-sm">{error}</AlertDescription>
           </Alert>
         )}
 
         {/* Generate Button */}
         <Button
-          className="w-full mt-4"
+          className="w-full mt-4 text-sm sm:text-base"
           onClick={onGenerate}
           disabled={isGenerating || (!prompt.trim() && !referenceImage)}
         >
@@ -516,7 +516,8 @@ export function AIGenerationSidebar({
           ) : (
             <>
               <Sparkles className="h-4 w-4 mr-2" />
-              Generate Video
+              <span className="hidden sm:inline">Generate Video</span>
+              <span className="sm:hidden">Generate</span>
             </>
           )}
         </Button>

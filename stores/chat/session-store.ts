@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
+import { getPluginLifecycleHooks } from '@/lib/plugin/hooks-system';
 import type {
   Session,
   CreateSessionInput,
@@ -177,6 +178,9 @@ export const useSessionStore = create<SessionState>()(
           sessions: [session, ...state.sessions],
           activeSessionId: session.id,
         }));
+
+        getPluginLifecycleHooks().dispatchOnSessionCreate(session.id);
+
         return session;
       },
 
@@ -184,6 +188,9 @@ export const useSessionStore = create<SessionState>()(
         set((state) => {
           const newSessions = state.sessions.filter((s) => s.id !== id);
           const newActiveId = state.activeSessionId === id ? newSessions[0]?.id || null : state.activeSessionId;
+
+          getPluginLifecycleHooks().dispatchOnSessionDelete(id);
+
           return { sessions: newSessions, activeSessionId: newActiveId };
         }),
 
@@ -192,7 +199,15 @@ export const useSessionStore = create<SessionState>()(
           sessions: state.sessions.map((s) => s.id === id ? { ...s, ...updates, updatedAt: new Date() } : s),
         })),
 
-      setActiveSession: (id) => set({ activeSessionId: id }),
+      setActiveSession: (id) =>
+        set((state) => {
+          if (state.activeSessionId !== id) {
+            if (id) {
+              getPluginLifecycleHooks().dispatchOnSessionSwitch(id);
+            }
+          }
+          return { activeSessionId: id };
+        }),
 
       duplicateSession: (id) => {
         const { sessions } = get();

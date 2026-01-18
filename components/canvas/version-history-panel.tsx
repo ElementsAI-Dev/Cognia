@@ -186,7 +186,7 @@ export function VersionHistoryPanel({
             </Button>
           )}
         </SheetTrigger>
-        <SheetContent side="right" className="w-[400px] sm:w-[450px]">
+        <SheetContent side="right" className="w-full sm:w-[400px]">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <History className="h-5 w-5" />
@@ -310,7 +310,7 @@ export function VersionHistoryPanel({
 
       {/* Preview Dialog */}
       <Dialog open={!!previewVersion} onOpenChange={() => setPreviewVersion(null)}>
-        <DialogContent className="max-w-3xl max-h-[80vh]">
+        <DialogContent className="w-[95vw] sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="h-5 w-5" />
@@ -323,7 +323,7 @@ export function VersionHistoryPanel({
             </DialogTitle>
           </DialogHeader>
           <ScrollArea className="h-[60vh]">
-            <pre className="p-4 rounded-lg bg-muted text-sm font-mono whitespace-pre-wrap">
+            <pre className="p-4 rounded-lg bg-muted text-sm sm:text-base font-mono whitespace-pre-wrap">
               {previewVersion?.content}
             </pre>
           </ScrollArea>
@@ -368,7 +368,7 @@ export function VersionHistoryPanel({
 
       {/* Diff View Dialog */}
       <Dialog open={showDiff} onOpenChange={() => setShowDiff(false)}>
-        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+        <DialogContent className="w-[95vw] max-w-4xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <GitCompare className="h-5 w-5" />
@@ -471,21 +471,21 @@ function VersionItem({
         </div>
       ) : (
         <div className="mt-2 flex gap-1">
-          <Button variant="ghost" size="sm" onClick={onPreview}>
+          <Button variant="ghost" size="sm" className="h-9" onClick={onPreview}>
             <Eye className="h-3.5 w-3.5 mr-1" />
             {t('previewAction')}
           </Button>
           {!isCurrent && (
-            <Button variant="ghost" size="sm" onClick={onRestore}>
+            <Button variant="ghost" size="sm" className="h-9" onClick={onRestore}>
               <RotateCcw className="h-3.5 w-3.5 mr-1" />
               {t('restore')}
             </Button>
           )}
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
+            className="h-9 w-9 text-destructive hover:text-destructive"
             onClick={onDelete}
-            className="text-destructive hover:text-destructive"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>

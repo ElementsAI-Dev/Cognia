@@ -30,6 +30,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
 import {
   Type,
   Plus,
@@ -513,7 +514,7 @@ export function TextOverlay({
 
             {selectedLayer && (
               <>
-                <div className="w-full h-px bg-border" />
+                <Separator />
 
                 {/* Text input */}
                 <div className="space-y-2">
@@ -596,7 +597,7 @@ export function TextOverlay({
                     </TooltipTrigger>
                     <TooltipContent>Italic</TooltipContent>
                   </Tooltip>
-                  <div className="w-px h-6 bg-border mx-1" />
+                  <Separator orientation="vertical" className="h-6 mx-1" />
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -722,7 +723,7 @@ export function TextOverlay({
                   </div>
                 </div>
 
-                <div className="w-full h-px bg-border" />
+                <Separator />
 
                 {/* Shadow */}
                 <div className="space-y-2">

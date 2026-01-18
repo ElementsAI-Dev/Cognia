@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import {
   History,
   Undo2,
@@ -279,9 +280,7 @@ export function HistoryPanel({
                             {OPERATION_LABELS[entry.type]}
                           </span>
                           {isCurrent && (
-                            <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                              Current
-                            </span>
+                            <Badge variant="secondary" className="text-xs">Current</Badge>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground truncate">{entry.description}</p>

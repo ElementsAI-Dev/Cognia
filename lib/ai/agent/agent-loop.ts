@@ -165,10 +165,6 @@ export async function executeAgentLoop(
         baseURL,
         tools,
         maxSteps: maxStepsPerTask,
-        systemPrompt: `You are executing a subtask as part of a larger goal. Focus on completing this specific task efficiently.
-        
-Original goal: ${task}
-Current subtask: ${currentTask.description}`,
       });
 
       totalSteps += taskResult.totalSteps;

@@ -15,11 +15,13 @@ import { useRef, useCallback, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
 import {
   Play,
   Pause,
@@ -77,7 +79,6 @@ export interface VideoTimelineProps {
 
 const TRACK_HEIGHT = 60;
 const RULER_HEIGHT = 30;
-const TRACK_HEADER_WIDTH = 150;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 10;
 
@@ -369,7 +370,7 @@ export function VideoTimeline({
             <TooltipContent>Go to end</TooltipContent>
           </Tooltip>
 
-          <div className="w-px h-6 bg-border mx-2" />
+          <Separator orientation="vertical" className="h-6 mx-2" />
 
           {/* Time display */}
           <div className="text-sm font-mono px-2">
@@ -424,7 +425,7 @@ export function VideoTimeline({
             <TooltipContent>Delete</TooltipContent>
           </Tooltip>
 
-          <div className="w-px h-6 bg-border mx-2" />
+          <Separator orientation="vertical" className="h-6 mx-2" />
 
           {/* Snap toggle */}
           <Tooltip>
@@ -491,103 +492,105 @@ export function VideoTimeline({
       </div>
 
       {/* Timeline content */}
-      <div className="flex flex-1 overflow-hidden">
+      <ResizablePanelGroup direction="horizontal" className="flex flex-1 overflow-hidden">
         {/* Track headers */}
-        <div
-          className="shrink-0 border-r bg-muted/30"
-          style={{ width: TRACK_HEADER_WIDTH }}
-        >
-          {/* Ruler header */}
-          <div
-            className="flex items-center justify-between px-2 border-b bg-muted/50"
-            style={{ height: RULER_HEIGHT }}
-          >
-            <span className="text-xs font-medium">Tracks</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={() => onTrackAdd('video')}
-            >
-              <Plus className="h-3 w-3" />
-            </Button>
-          </div>
-
-          {/* Track headers */}
-          {tracks.map((track) => (
+        <ResizablePanel defaultSize={20} minSize={10} maxSize={30}>
+          <div className="h-full border-r bg-muted/30 overflow-hidden">
+            {/* Ruler header */}
             <div
-              key={track.id}
-              className={cn(
-                'flex items-center gap-2 px-2 border-b cursor-pointer transition-colors',
-                selectedTrackId === track.id ? 'bg-muted' : 'hover:bg-muted/50'
-              )}
-              style={{ height: track.height || TRACK_HEIGHT }}
-              onClick={() => handleTrackClick(track.id)}
+              className="flex items-center justify-between px-2 border-b bg-muted/50"
+              style={{ height: RULER_HEIGHT }}
             >
-              <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-              
-              <div className="flex-1 min-w-0">
-                <span className="text-xs font-medium truncate block">{track.name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {track.clips.length} clip{track.clips.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-0.5">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTrackVisible(track.id, !track.visible);
-                  }}
-                >
-                  {track.visible ? (
-                    <Eye className="h-3 w-3" />
-                  ) : (
-                    <EyeOff className="h-3 w-3 text-muted-foreground" />
-                  )}
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTrackMute(track.id, !track.muted);
-                  }}
-                >
-                  {track.muted ? (
-                    <VolumeX className="h-3 w-3 text-muted-foreground" />
-                  ) : (
-                    <Volume2 className="h-3 w-3" />
-                  )}
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTrackLock(track.id, !track.locked);
-                  }}
-                >
-                  {track.locked ? (
-                    <Lock className="h-3 w-3" />
-                  ) : (
-                    <Unlock className="h-3 w-3 text-muted-foreground" />
-                  )}
-                </Button>
-              </div>
+              <span className="text-xs font-medium">Tracks</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => onTrackAdd('video')}
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
             </div>
-          ))}
-        </div>
+
+            {/* Track headers */}
+            {tracks.map((track) => (
+              <div
+                key={track.id}
+                className={cn(
+                  'flex items-center gap-2 px-2 border-b cursor-pointer transition-colors',
+                  selectedTrackId === track.id ? 'bg-muted' : 'hover:bg-muted/50'
+                )}
+                style={{ height: track.height || TRACK_HEIGHT }}
+                onClick={() => handleTrackClick(track.id)}
+              >
+                <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+                
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-medium truncate block">{track.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {track.clips.length} clip{track.clips.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-0.5">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTrackVisible(track.id, !track.visible);
+                    }}
+                  >
+                    {track.visible ? (
+                      <Eye className="h-3 w-3" />
+                    ) : (
+                      <EyeOff className="h-3 w-3 text-muted-foreground" />
+                    )}
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTrackMute(track.id, !track.muted);
+                    }}
+                  >
+                    {track.muted ? (
+                      <VolumeX className="h-3 w-3 text-muted-foreground" />
+                    ) : (
+                      <Volume2 className="h-3 w-3" />
+                    )}
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTrackLock(track.id, !track.locked);
+                    }}
+                  >
+                    {track.locked ? (
+                      <Lock className="h-3 w-3" />
+                    ) : (
+                      <Unlock className="h-3 w-3 text-muted-foreground" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </ResizablePanel>
+
+        <ResizableHandle />
 
         {/* Timeline area */}
-        <ScrollArea className="flex-1">
+        <ResizablePanel defaultSize={80}>
+          <ScrollArea className="h-full">
           <div
             ref={timelineRef}
             className="relative"
@@ -705,7 +708,8 @@ export function VideoTimeline({
           </div>
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }

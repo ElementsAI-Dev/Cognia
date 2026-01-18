@@ -19,6 +19,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
 import {
   RotateCw,
   RotateCcw,
@@ -639,7 +640,7 @@ export function ImageCropper({
         </div>
 
         {/* Divider */}
-        <div className="w-px h-6 bg-border" />
+        <Separator orientation="vertical" className="h-6" />
 
         {/* Transform controls */}
         <div className="flex items-center gap-1">
@@ -715,7 +716,7 @@ export function ImageCropper({
         </div>
 
         {/* Divider */}
-        <div className="w-px h-6 bg-border" />
+        <Separator orientation="vertical" className="h-6" />
 
         {/* Actions */}
         <div className="flex items-center gap-1 ml-auto">

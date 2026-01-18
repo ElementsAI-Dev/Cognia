@@ -20,6 +20,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
 import {
   SplitSquareHorizontal,
   SplitSquareVertical,
@@ -179,7 +180,7 @@ export function ImageComparison({
           ))}
         </div>
 
-        <div className="w-px h-6 bg-border" />
+        <Separator orientation="vertical" className="h-6" />
 
         {(mode === 'slider-h' || mode === 'slider-v') && (
           <div className="flex items-center gap-2 min-w-[140px]">

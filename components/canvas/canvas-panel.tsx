@@ -513,7 +513,7 @@ export function CanvasPanel() {
 
   return (
     <Sheet open={panelOpen && panelView === 'canvas'} onOpenChange={(open) => !open && closePanel()}>
-      <SheetContent side="right" className="w-full sm:w-[700px] sm:max-w-[700px] p-0 flex flex-col" showCloseButton={false}>
+      <SheetContent side="right" className="w-full sm:w-[600px] lg:w-[700px] p-0 flex flex-col" showCloseButton={false}>
         <SheetTitle className="sr-only">Canvas Panel</SheetTitle>
         {activeDocument ? (
           <>
@@ -937,7 +937,7 @@ export function CanvasPanel() {
 
             {/* Translate language selection dialog */}
             <Dialog open={showTranslateDialog} onOpenChange={setShowTranslateDialog}>
-              <DialogContent className="sm:max-w-[400px]">
+              <DialogContent className="w-[95vw] sm:max-w-[400px]">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <Languages className="h-5 w-5" />

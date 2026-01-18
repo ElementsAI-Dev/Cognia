@@ -26,6 +26,11 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import {
+  Card,
+  CardHeader,
+  CardContent,
+} from '@/components/ui/card';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -218,9 +223,9 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
           </div>
 
           {/* Filters and sort */}
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-2 text-xs flex-wrap">
             <Select value={filterLanguage} onValueChange={setFilterLanguage}>
-              <SelectTrigger className="h-7 w-[100px]">
+              <SelectTrigger className="h-7 w-full sm:w-[100px] min-w-[80px]">
                 <Filter className="h-3 w-3 mr-1" />
                 <SelectValue />
               </SelectTrigger>
@@ -235,7 +240,7 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
             </Select>
 
             <Select value={sortField} onValueChange={(v) => setSortField(v as SortField)}>
-              <SelectTrigger className="h-7 w-[100px]">
+              <SelectTrigger className="h-7 w-full sm:w-[100px] min-w-[80px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -278,66 +283,70 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
           ) : (
             <div className="p-2 space-y-1">
               {filteredDocuments.map((doc) => (
-                <div
+                <Card
                   key={doc.id}
                   className={cn(
-                    'flex items-center gap-2 p-2 rounded-md cursor-pointer transition-colors group',
+                    'group cursor-pointer transition-colors py-3',
                     doc.id === activeDocumentId
-                      ? 'bg-primary/10 border border-primary/20'
+                      ? 'bg-primary/10 border-primary/30'
                       : 'hover:bg-muted/50'
                   )}
                   onClick={() => onSelectDocument(doc.id)}
                 >
-                  {doc.type === 'code' ? (
-                    <FileCode className="h-4 w-4 text-muted-foreground shrink-0" />
-                  ) : (
-                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
+                  <CardContent className="p-2">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm truncate">{doc.title}</span>
-                      <Badge variant="secondary" className="text-[10px] shrink-0">
-                        {doc.language}
-                      </Badge>
+                      {doc.type === 'code' ? (
+                        <FileCode className="h-4 w-4 text-muted-foreground shrink-0" />
+                      ) : (
+                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm truncate">{doc.title}</span>
+                          <Badge variant="secondary" className="text-[10px] shrink-0">
+                            {doc.language}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          <span>{formatDate(doc.updatedAt)}</span>
+                          <span className="mx-1">•</span>
+                          <span>{doc.content.split('\n').length} {t('lines')}</span>
+                        </div>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleStartRename(doc)}>
+                            <Edit2 className="h-4 w-4 mr-2" />
+                            {t('rename')}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onDuplicateDocument(doc.id)}>
+                            <Copy className="h-4 w-4 mr-2" />
+                            {t('duplicate')}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => onDeleteDocument(doc.id)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            {t('delete')}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      <span>{formatDate(doc.updatedAt)}</span>
-                      <span className="mx-1">•</span>
-                      <span>{doc.content.split('\n').length} {t('lines')}</span>
-                    </div>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleStartRename(doc)}>
-                        <Edit2 className="h-4 w-4 mr-2" />
-                        {t('rename')}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onDuplicateDocument(doc.id)}>
-                        <Copy className="h-4 w-4 mr-2" />
-                        {t('duplicate')}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => onDeleteDocument(doc.id)}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        {t('delete')}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
@@ -352,7 +361,7 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
 
       {/* Create Document Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="w-[95vw] sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>{t('createDocument')}</DialogTitle>
           </DialogHeader>

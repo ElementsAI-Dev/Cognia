@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import {
   Sun,
   Contrast,
@@ -385,7 +386,7 @@ export function ImageAdjustmentsPanel({
               </div>
             </div>
 
-            <div className="w-full h-px bg-border" />
+            <Separator />
 
             {/* Basic adjustments */}
             <div className="space-y-4">
@@ -430,7 +431,7 @@ export function ImageAdjustmentsPanel({
               />
             </div>
 
-            <div className="w-full h-px bg-border" />
+            <Separator />
 
             {/* Effects */}
             <div className="space-y-4">

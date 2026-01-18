@@ -367,8 +367,8 @@ export function VideoEffectsPanel({
             </ScrollArea>
 
             {/* Effects grid */}
-            <ScrollArea className="h-[400px]">
-              <div className="grid grid-cols-2 gap-2">
+            <ScrollArea className="h-[300px] sm:h-[400px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {filteredEffects.map((effect) => {
                   const isApplied = appliedEffects.some((e) => e.effectId === effect.id);
                   const isPlugin = effect.id.includes(':');
@@ -437,7 +437,7 @@ export function VideoEffectsPanel({
               <p className="text-sm">Browse effects to add some</p>
             </div>
           ) : (
-            <ScrollArea className="h-[400px]">
+            <ScrollArea className="h-[300px] sm:h-[400px]">
               <div className="space-y-2">
                 {appliedEffects.map((applied, index) => {
                   const effectDef = getEffectDef(applied.effectId);

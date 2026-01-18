@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
+import { getPluginEventHooks } from '@/lib/plugin/hooks-system';
 import type {
   Artifact,
   ArtifactType,
@@ -202,6 +203,8 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
           panelView: 'artifact',
         }));
 
+        getPluginEventHooks().dispatchArtifactCreate(artifact);
+
         return artifact;
       },
 
@@ -217,6 +220,8 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
             updatedAt: new Date(),
           };
 
+          getPluginEventHooks().dispatchArtifactUpdate(updated, updates);
+
           return {
             artifacts: { ...state.artifacts, [id]: updated },
           };
@@ -226,6 +231,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
       deleteArtifact: (id) => {
         set((state) => {
           const { [id]: _removed, ...rest } = state.artifacts;
+          getPluginEventHooks().dispatchArtifactDelete(id);
           return {
             artifacts: rest,
             activeArtifactId:
@@ -246,9 +252,13 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
           .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
 
       setActiveArtifact: (id) => {
+        const previousId = get().activeArtifactId;
         set({ activeArtifactId: id });
         if (id) {
           set({ panelOpen: true, panelView: 'artifact' });
+          getPluginEventHooks().dispatchArtifactOpen(id);
+        } else if (previousId) {
+          getPluginEventHooks().dispatchArtifactClose();
         }
       },
 
@@ -386,6 +396,8 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
           panelView: 'canvas',
         }));
 
+        getPluginEventHooks().dispatchCanvasCreate(doc);
+
         return doc.id;
       },
 
@@ -394,10 +406,27 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
           const doc = state.canvasDocuments[id];
           if (!doc) return state;
 
+          const updated = {
+            ...doc,
+            ...updates,
+            updatedAt: new Date(),
+          };
+
+          // Track content changes
+          if ('content' in updates && updates.content !== doc.content) {
+            getPluginEventHooks().dispatchCanvasContentChange(
+              id,
+              updates.content as string,
+              doc.content
+            );
+          }
+
+          getPluginEventHooks().dispatchCanvasUpdate(updated, updates);
+
           return {
             canvasDocuments: {
               ...state.canvasDocuments,
-              [id]: { ...doc, ...updates, updatedAt: new Date() },
+              [id]: updated,
             },
           };
         });
@@ -406,6 +435,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
       deleteCanvasDocument: (id) => {
         set((state) => {
           const { [id]: _removed, ...rest } = state.canvasDocuments;
+          getPluginEventHooks().dispatchCanvasDelete(id);
           return {
             canvasDocuments: rest,
             activeCanvasId: state.activeCanvasId === id ? null : state.activeCanvasId,
@@ -418,6 +448,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
         if (id) {
           set({ canvasOpen: true, panelView: 'canvas' });
         }
+        getPluginEventHooks().dispatchCanvasSwitch(id);
       },
 
       openCanvas: () => set({ canvasOpen: true, panelView: 'canvas' }),
@@ -536,6 +567,8 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
           },
         }));
 
+        getPluginEventHooks().dispatchCanvasVersionSave(documentId, version.id);
+
         return version;
       },
 
@@ -556,6 +589,8 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
             description: 'Auto-saved before restore',
             isAutoSave: true,
           };
+
+          getPluginEventHooks().dispatchCanvasVersionRestore(documentId, versionId);
 
           return {
             canvasDocuments: {

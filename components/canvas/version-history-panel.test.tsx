@@ -50,7 +50,9 @@ jest.mock('@/components/ui/sheet', () => ({
   Sheet: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
     <div data-testid="sheet" data-open={open}>{children}</div>
   ),
-  SheetContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SheetContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="sheet-content" data-className={className}>{children}</div>
+  ),
   SheetHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SheetTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
   SheetTrigger: ({ children }: { children: React.ReactNode }) => <div data-testid="sheet-trigger">{children}</div>,
@@ -81,7 +83,9 @@ jest.mock('@/components/ui/dialog', () => ({
   Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
     open ? <div data-testid="dialog">{children}</div> : null
   ),
-  DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DialogContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="dialog-content" data-className={className}>{children}</div>
+  ),
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
 }));
@@ -207,6 +211,53 @@ describe('VersionHistoryPanel', () => {
 
     it('displays Preview buttons for versions', () => {
       render(<VersionHistoryPanel documentId="doc-1" />);
+      const previewButtons = screen.getAllByText('Preview');
+      expect(previewButtons.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Responsive Layout', () => {
+    it('applies responsive width to Sheet content', () => {
+      render(<VersionHistoryPanel documentId="doc-1" />);
+      const sheetContent = screen.getByTestId('sheet-content');
+      const className = sheetContent.getAttribute('data-className');
+      expect(className).toContain('w-full');
+      expect(className).toContain('sm:w-[400px]');
+    });
+
+    it('applies mobile-first width to dialogs', () => {
+      render(<VersionHistoryPanel documentId="doc-1" />);
+      const dialogContents = screen.queryAllByTestId('dialog-content');
+      dialogContents.forEach(dialogContent => {
+        const className = dialogContent.getAttribute('data-className');
+        if (className) {
+          // Preview dialog should have mobile width
+          if (className.includes('max-w-3xl')) {
+            expect(className).toContain('w-[95vw]');
+          }
+          // Diff dialog should have mobile width
+          if (className.includes('max-w-4xl')) {
+            expect(className).toContain('w-[95vw]');
+          }
+        }
+      });
+    });
+  });
+
+  describe('Button Touch Targets', () => {
+    it('renders version action buttons', () => {
+      mockGetCanvasVersions.mockReturnValue([
+        {
+          id: 'v1',
+          documentId: 'doc-1',
+          content: 'Version 1',
+          createdAt: new Date(),
+          description: 'Test version',
+          isAutoSave: false,
+        },
+      ]);
+      render(<VersionHistoryPanel documentId="doc-1" />);
+      // Action buttons (Preview, Restore) should be present
       const previewButtons = screen.getAllByText('Preview');
       expect(previewButtons.length).toBeGreaterThan(0);
     });

@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Sparkles, Users, Target, MessageSquare, Palette } from 'lucide-react';
 import { DEFAULT_PPT_THEMES } from '@/types/workflow';
 import type { PPTGenerationConfig } from '@/hooks/ppt';
@@ -286,24 +287,26 @@ export function PPTGenerationDialog({
 
           {/* Options */}
           <div className="flex flex-wrap gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="include-images"
                 checked={config.includeImages}
-                onChange={(e) => setConfig(prev => ({ ...prev, includeImages: e.target.checked }))}
-                className="rounded border-gray-300"
+                onCheckedChange={(checked) => setConfig(prev => ({ ...prev, includeImages: checked === true }))}
               />
-              <span className="text-sm">{t('includeImages')}</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
+              <Label htmlFor="include-images" className="text-sm cursor-pointer">
+                {t('includeImages')}
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="include-charts"
                 checked={config.includeCharts}
-                onChange={(e) => setConfig(prev => ({ ...prev, includeCharts: e.target.checked }))}
-                className="rounded border-gray-300"
+                onCheckedChange={(checked) => setConfig(prev => ({ ...prev, includeCharts: checked === true }))}
               />
-              <span className="text-sm">{t('includeCharts')}</span>
-            </label>
+              <Label htmlFor="include-charts" className="text-sm cursor-pointer">
+                {t('includeCharts')}
+              </Label>
+            </div>
           </div>
         </div>
 

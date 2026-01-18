@@ -183,7 +183,7 @@ export class ChatObservabilityManager {
    * Get trace URL
    */
   getTraceUrl(): string | null {
-    if (this.langfuseTrace) {
+    if (this.langfuseTrace && this.langfuseTrace.getTraceUrl) {
       return this.langfuseTrace.getTraceUrl();
     }
     return null;

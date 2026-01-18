@@ -162,6 +162,44 @@ describe('VideoJobCard', () => {
     const starIcon = container.querySelector('.fill-yellow-500');
     expect(starIcon).toBeInTheDocument();
   });
+
+  describe('responsive layout', () => {
+    it('renders overlay actions with responsive gap', () => {
+      const { container } = render(
+        <VideoJobCard
+          job={mockCompletedJob}
+          isSelected={false}
+          onSelect={mockOnSelect}
+          onPreview={mockOnPreview}
+          onDownload={mockOnDownload}
+          onToggleFavorite={mockOnToggleFavorite}
+          formatTime={mockFormatTime}
+        />
+      );
+
+      // Overlay actions should have responsive gap classes
+      const overlay = container.querySelector('.gap-1.sm\\:gap-2');
+      expect(overlay).toBeInTheDocument();
+    });
+
+    it('renders action buttons with responsive icon sizes', () => {
+      const { container } = render(
+        <VideoJobCard
+          job={mockCompletedJob}
+          isSelected={false}
+ onSelect={mockOnSelect}
+          onPreview={mockOnPreview}
+          onDownload={mockOnDownload}
+          onToggleFavorite={mockOnToggleFavorite}
+          formatTime={mockFormatTime}
+        />
+      );
+
+      // Action buttons should have responsive icon size classes
+      const icons = container.querySelectorAll('.h-3.w-3.sm\\:h-4.sm\\:w-4');
+      expect(icons.length).toBeGreaterThan(0);
+    });
+  });
 });
 
 describe('getStatusBadge', () => {

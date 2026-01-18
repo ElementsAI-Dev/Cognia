@@ -98,7 +98,7 @@ export function VideoJobCard({
         )}
         
         {/* Overlay actions */}
-        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 sm:gap-2">
           {job.status === 'completed' && (
             <>
               {onPreview && (
@@ -110,7 +110,7 @@ export function VideoJobCard({
                     onPreview(job);
                   }}
                 >
-                  <Play className="h-4 w-4" />
+                  <Play className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               )}
               {onDownload && (
@@ -122,7 +122,7 @@ export function VideoJobCard({
                     onDownload(job);
                   }}
                 >
-                  <Download className="h-4 w-4" />
+                  <Download className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               )}
             </>
@@ -136,7 +136,7 @@ export function VideoJobCard({
                 onToggleFavorite(job.id);
               }}
             >
-              <Star className={cn("h-4 w-4", job.isFavorite && "fill-yellow-500 text-yellow-500")} />
+              <Star className={cn("h-3 w-3 sm:h-4 sm:w-4", job.isFavorite && "fill-yellow-500 text-yellow-500")} />
             </Button>
           )}
         </div>

@@ -21,6 +21,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
 import {
   Pencil,
   Square,
@@ -558,7 +559,7 @@ export function DrawingTools({
             ))}
           </div>
 
-          <div className="w-px h-6 bg-border" />
+          <Separator orientation="vertical" className="h-6" />
 
           {/* Undo/Redo */}
           <div className="flex items-center gap-1">
@@ -592,7 +593,7 @@ export function DrawingTools({
             </Tooltip>
           </div>
 
-          <div className="w-px h-6 bg-border" />
+          <Separator orientation="vertical" className="h-6" />
 
           {/* Clear */}
           <Tooltip>
@@ -720,7 +721,7 @@ export function DrawingTools({
             {/* Fill (for shapes) */}
             {(currentTool === 'rectangle' || currentTool === 'circle') && (
               <>
-                <div className="w-full h-px bg-border" />
+                <Separator />
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs">Fill Shape</Label>
@@ -755,7 +756,7 @@ export function DrawingTools({
               </>
             )}
 
-            <div className="w-full h-px bg-border" />
+            <Separator />
 
             {/* Tips */}
             <div className="text-xs text-muted-foreground space-y-1">

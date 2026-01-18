@@ -273,8 +273,8 @@ export function VideoTransitions({
       </div>
 
       {/* Transition grid */}
-      <ScrollArea className="h-[300px]">
-        <div className="grid grid-cols-3 gap-2 p-1">
+      <ScrollArea className="h-[250px] sm:h-[300px]">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-1">
           {transitions.map((transition) => {
             const isSelected = selectedTransitionId === transition.id;
             const isHovered = hoveredId === transition.id;

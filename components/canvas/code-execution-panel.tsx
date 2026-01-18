@@ -103,7 +103,7 @@ export const CodeExecutionPanel = memo(function CodeExecutionPanel({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6"
+                    className="h-9 w-9"
                     onClick={handleCopyOutput}
                     disabled={isCopying}
                   >
@@ -115,7 +115,7 @@ export const CodeExecutionPanel = memo(function CodeExecutionPanel({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6"
+                className="h-9 w-9"
                 onClick={onClear}
               >
                 <X className="h-3 w-3" />
@@ -126,7 +126,7 @@ export const CodeExecutionPanel = memo(function CodeExecutionPanel({
             <Button
               variant="destructive"
               size="sm"
-              className="h-7 px-2"
+              className="h-9 px-2"
               onClick={onCancel}
             >
               <Square className="h-3 w-3 mr-1" />
@@ -136,7 +136,7 @@ export const CodeExecutionPanel = memo(function CodeExecutionPanel({
             <Button
               variant="default"
               size="sm"
-              className="h-7 px-2"
+              className="h-9 px-2"
               onClick={onExecute}
             >
               <Play className="h-3 w-3 mr-1" />
@@ -182,7 +182,7 @@ export const CodeExecutionPanel = memo(function CodeExecutionPanel({
                     <div className="text-xs font-medium text-muted-foreground">
                       {t('output')}:
                     </div>
-                    <pre className="p-2 rounded bg-muted text-xs font-mono whitespace-pre-wrap overflow-x-auto">
+                    <pre className="p-2 rounded bg-muted text-xs sm:text-sm font-mono whitespace-pre-wrap overflow-x-auto">
                       {result.stdout}
                     </pre>
                   </div>
@@ -195,7 +195,7 @@ export const CodeExecutionPanel = memo(function CodeExecutionPanel({
                       <AlertTriangle className="h-3 w-3" />
                       {t('errors')}:
                     </div>
-                    <pre className="p-2 rounded bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-xs font-mono whitespace-pre-wrap overflow-x-auto">
+                    <pre className="p-2 rounded bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-xs sm:text-sm font-mono whitespace-pre-wrap overflow-x-auto">
                       {result.stderr}
                     </pre>
                   </div>

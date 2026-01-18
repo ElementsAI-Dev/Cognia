@@ -5,6 +5,7 @@
 
 import type { UIMessage, Session } from '@/types';
 import type { TableData } from './excel-export';
+import { getPluginEventHooks } from '@/lib/plugin/hooks-system';
 
 export interface WordExportOptions {
   title?: string;
@@ -74,9 +75,18 @@ export async function exportChatToWord(
   filename?: string,
   options: WordExportOptions = {}
 ): Promise<WordExportResult> {
+  const pluginHooks = getPluginEventHooks();
+  await pluginHooks.dispatchExportStart(session.id, 'word');
+
   try {
     const docx = await loadDocx();
     const opts = { ...DEFAULT_OPTIONS, ...options };
+
+    // Allow plugins to transform messages content
+    let transformedMessages = messages;
+    transformedMessages = await pluginHooks.dispatchExportTransform(JSON.stringify(messages), 'word')
+      .then(transformed => transformed ? JSON.parse(transformed) : messages)
+      .catch(() => messages);
 
     const children: InstanceType<DocxModule['Paragraph']>[] = [];
 
@@ -150,7 +160,7 @@ export async function exportChatToWord(
     );
 
     // Messages
-    for (const message of messages) {
+    for (const message of transformedMessages) {
       const roleLabel = message.role === 'user' ? 'You' : 'Assistant';
       const timestamp = opts.includeTimestamps
         ? ` (${message.createdAt.toLocaleTimeString()})`
@@ -442,12 +452,15 @@ export async function exportChatToWord(
 
     const exportFilename = filename || generateWordFilename(session.title);
 
+    pluginHooks.dispatchExportComplete(session.id, 'word', true);
+
     return {
       success: true,
       filename: ensureWordExtension(exportFilename),
       blob,
     };
   } catch (error) {
+    pluginHooks.dispatchExportComplete(session.id, 'word', false);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to export Word document',
@@ -464,9 +477,19 @@ export async function exportContentToWord(
   filename?: string,
   options: WordExportOptions = {}
 ): Promise<WordExportResult> {
+  const pluginHooks = getPluginEventHooks();
+  const exportId = `content-${Date.now()}`;
+  await pluginHooks.dispatchExportStart(exportId, 'word');
+
   try {
     const docx = await loadDocx();
     const opts = { ...DEFAULT_OPTIONS, ...options };
+
+    // Allow plugins to transform content
+    let transformedContent = content;
+    transformedContent = await pluginHooks.dispatchExportTransform(content, 'word')
+      .then(transformed => transformed ?? content)
+      .catch(() => content);
 
     const children: InstanceType<DocxModule['Paragraph']>[] = [];
 
@@ -480,7 +503,7 @@ export async function exportContentToWord(
     );
 
     // Parse content (simple markdown-like parsing)
-    const lines = content.split('\n');
+    const lines = transformedContent.split('\n');
     let inCodeBlock = false;
     let codeBlockContent: string[] = [];
 
@@ -609,12 +632,15 @@ export async function exportContentToWord(
 
     const exportFilename = filename || generateWordFilename(title);
 
+    pluginHooks.dispatchExportComplete(exportId, 'word', true);
+
     return {
       success: true,
       filename: ensureWordExtension(exportFilename),
       blob,
     };
   } catch (error) {
+    pluginHooks.dispatchExportComplete(exportId, 'word', false);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to export Word document',
@@ -630,6 +656,10 @@ export async function exportTableToWord(
   title: string,
   filename?: string
 ): Promise<WordExportResult> {
+  const pluginHooks = getPluginEventHooks();
+  const exportId = `table-${Date.now()}`;
+  await pluginHooks.dispatchExportStart(exportId, 'word');
+
   try {
     const docx = await loadDocx();
 
@@ -739,12 +769,15 @@ export async function exportTableToWord(
 
     const exportFilename = filename || generateWordFilename(title);
 
+    pluginHooks.dispatchExportComplete(exportId, 'word', true);
+
     return {
       success: true,
       filename: ensureWordExtension(exportFilename),
       blob,
     };
   } catch (error) {
+    pluginHooks.dispatchExportComplete(exportId, 'word', false);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to export table to Word',

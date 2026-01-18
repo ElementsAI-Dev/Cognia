@@ -236,11 +236,11 @@ export function VideoSubtitleTrack({
       style={{ height: TRACK_HEIGHT }}
     >
       {/* Track header */}
-      <div className="w-[150px] flex-shrink-0 flex items-center gap-2 px-2 bg-muted/50 border-r">
+      <div className="w-[120px] sm:w-[150px] flex-shrink-0 flex items-center gap-1 sm:gap-2 px-2 bg-muted/50 border-r">
         <Type className="h-4 w-4 text-muted-foreground" />
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium truncate">{trackName}</div>
-          <div className="text-xs text-muted-foreground">{language}</div>
+          <div className="text-xs sm:text-sm font-medium truncate">{trackName}</div>
+          <div className="text-[10px] sm:text-xs text-muted-foreground">{language}</div>
         </div>
       </div>
 

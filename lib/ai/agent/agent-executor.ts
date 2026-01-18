@@ -14,6 +14,10 @@ import { generateText, stepCountIs } from 'ai';
 import { z } from 'zod';
 import { getProviderModel, type ProviderName } from '../core/client';
 import { isMcpTool, extractMcpServerInfo } from './mcp-tools';
+import { globalToolCache, type ToolCacheConfig } from './tool-cache';
+import { globalMetricsCollector } from './performance-metrics';
+import { globalMemoryManager, type MemoryEntry } from './memory-manager';
+import { getPluginLifecycleHooks } from '@/lib/plugin/hooks-system';
 import {
   type StopCondition as FunctionalStopCondition,
   type StopConditionResult,
@@ -41,6 +45,18 @@ import {
   createAgentObservabilityManager,
   type AgentObservabilityManager,
 } from '../observability/agent-observability';
+
+/**
+ * Format memory entries as context for the system prompt
+ */
+function formatMemoriesAsContext(memories: MemoryEntry[]): string {
+  return memories
+    .map((m, i) => {
+      const valueStr = typeof m.value === 'string' ? m.value : JSON.stringify(m.value);
+      return `${i + 1}. [${m.key}] ${valueStr.slice(0, 300)}${valueStr.length > 300 ? '...' : ''}`;
+    })
+    .join('\n');
+}
 
 export interface ToolCall {
   id: string;
@@ -75,6 +91,112 @@ export interface AgentTool {
   requiresApproval?: boolean;
 }
 
+/**
+ * Retry configuration for tool calls
+ */
+export interface RetryConfig {
+  maxRetries: number;
+  retryDelay: number;
+  exponentialBackoff: boolean;
+  retryableErrors: string[];
+}
+
+export const DEFAULT_RETRY_CONFIG: RetryConfig = {
+  maxRetries: 2,
+  retryDelay: 1000,
+  exponentialBackoff: true,
+  retryableErrors: ['timeout', 'rate_limit', 'network', 'econnrefused', 'etimedout'],
+};
+
+/**
+ * ReAct format options
+ */
+export type ReActFormat = 'standard' | 'detailed' | 'minimal' | 'disabled';
+
+/**
+ * Build ReAct system prompt for explicit reasoning
+ */
+export function buildReActSystemPrompt(format: ReActFormat): string {
+  if (format === 'disabled') return '';
+
+  const basePrompt = `You are a reasoning agent. For each step, you MUST think explicitly before acting.`;
+
+  switch (format) {
+    case 'standard':
+      return `${basePrompt}
+
+Format your response as:
+Thought: [your reasoning about what to do next]
+Action: [tool name and parameters, or "finish" if done]
+
+Example:
+Thought: I need to search for information about X
+Action: web_search(query="X")`;
+
+    case 'detailed':
+      return `${basePrompt}
+
+Format your response as:
+Thought: [your reasoning about what to do next]
+Action: [tool name and parameters, or "finish" if done]
+Observation: [will be filled automatically after tool execution]
+
+Example:
+Thought: The user is asking about X. I should search for current information.
+Action: web_search(query="X", max_results=5)
+Observation: [search results will appear here]
+Thought: Based on the results, I now have enough information to answer.
+Action: finish`;
+
+    case 'minimal':
+      return `${basePrompt}
+
+Think step-by-step before taking any action. Use tools when needed to gather information.`;
+
+    default:
+      return '';
+  }
+}
+
+/**
+ * Parse ReAct response to extract thought and action
+ */
+export function parseReActResponse(response: string, format: ReActFormat): {
+  thought?: string;
+  actionDescription?: string;
+  observation?: string;
+} {
+  if (format === 'disabled' || format === 'minimal') {
+    return {};
+  }
+
+  const result: {
+    thought?: string;
+    actionDescription?: string;
+    observation?: string;
+  } = {};
+
+  // Extract Thought
+  const thoughtMatch = response.match(/Thought:\s*([\s\S]*?)(?=\n(?:Action|Observation)|$)/i);
+  if (thoughtMatch) {
+    result.thought = thoughtMatch[1].trim();
+  }
+
+  // Extract Action
+  const actionMatch = response.match(/Action:\s*([\s\S]*?)(?=\n(?:Thought|Observation)|$)/i);
+  if (actionMatch) {
+    result.actionDescription = actionMatch[1].trim();
+  }
+
+  // Extract Observation
+  const observationMatch = response.match(/Observation:\s*([\s\S]*?)(?=\n(?:Thought|Action)|$)/i);
+  if (observationMatch) {
+    result.observation = observationMatch[1].trim();
+  }
+
+  return result;
+}
+
 export type StopCondition =
   | { type: 'stepCount'; count: number }
   | { type: 'hasToolCall'; toolName: string }
@@ -93,25 +215,39 @@ export interface AgentConfig {
   model: string;
   apiKey: string;
   baseURL?: string;
+  /** System prompt for the agent */
   systemPrompt?: string;
   temperature?: number;
+  /** Maximum number of steps */
   maxSteps?: number;
+  /** Stop conditions for agent execution */
   stopConditions?: StopCondition[];
   /** Functional stop conditions from stop-conditions.ts API */
   functionalStopConditions?: FunctionalStopCondition[];
   /** Use default stop condition (stepCount OR noToolCalls) */
   useDefaultStopCondition?: boolean;
+  /** Available tools */
   tools?: Record<string, AgentTool>;
+  /** Callback when agent starts */
+  onStart?: () => void;
+  /** Callback when a step starts */
   onStepStart?: (step: number) => void;
+  /** Callback when a step completes */
   onStepComplete?: (step: number, response: string, toolCalls: ToolCall[]) => void;
+  /** Callback when a tool is called */
   onToolCall?: (toolCall: ToolCall) => void;
+  /** Callback when a tool returns a result */
   onToolResult?: (toolCall: ToolCall) => void;
-  onError?: (error: Error) => void;
-  requireApproval?: (toolCall: ToolCall) => Promise<boolean>;
-  prepareStep?: (step: number, state: AgentExecutionState) => PrepareStepResult | Promise<PrepareStepResult>;
+  /** Callback when agent finishes */
   onFinish?: (result: AgentResult) => void;
   /** Callback when stop condition is triggered */
   onStopCondition?: (result: StopConditionResult) => void;
+  /** Callback when error occurs */
+  onError?: (error: Error) => void;
+  /** Function to require approval for tool calls */
+  requireApproval?: (toolCall: ToolCall) => Promise<boolean>;
+  /** Prepare step callback for dynamic step configuration */
+  prepareStep?: (step: number, state: AgentExecutionState) => Promise<PrepareStepResult>;
   /** Safety check options for tool calls */
   safetyOptions?: SafetyCheckOptions;
   /** Session ID for observability tracking */
@@ -122,6 +258,28 @@ export interface AgentConfig {
   agentName?: string;
   /** Enable observability tracking */
   enableObservability?: boolean;
+  /** Enable Langfuse tracking */
+  enableLangfuse?: boolean;
+  /** Enable OpenTelemetry tracking */
+  enableOpenTelemetry?: boolean;
+  /** Enable explicit ReAct format */
+  enableReAct?: boolean;
+  /** ReAct format style */
+  reactFormat?: ReActFormat;
+  /** Tool cache configuration */
+  toolCacheConfig?: Partial<ToolCacheConfig>;
+  /** Tool retry configuration */
+  toolRetryConfig?: RetryConfig;
+  /** Enable performance metrics collection */
+  enableMetrics?: boolean;
+  /** Enable memory integration for context persistence */
+  enableMemory?: boolean;
+  /** Tags for memory queries */
+  memoryTags?: string[];
+  /** Maximum number of memories to load as context */
+  memoryLimit?: number;
+  /** Whether to persist execution results to memory */
+  persistToMemory?: boolean;
 }
 
 export interface AgentResult {
@@ -145,6 +303,10 @@ export interface AgentStep {
     completionTokens: number;
     totalTokens: number;
   };
+  // Explicit ReAct fields
+  thought?: string;
+  actionDescription?: string;
+  observation?: string;
 }
 
 /**
@@ -158,7 +320,10 @@ function createSDKTool(
   onToolCall?: (toolCall: ToolCall) => void,
   onToolResult?: (toolCall: ToolCall) => void,
   requireApproval?: (toolCall: ToolCall) => Promise<boolean>,
-  safetyOptions?: SafetyCheckOptions
+  safetyOptions?: SafetyCheckOptions,
+  retryConfig?: RetryConfig,
+  enableCache?: boolean,
+  agentId?: string
 ) {
   // Extract MCP server info if this is an MCP tool
   const mcpInfo = isMcpTool(name) ? extractMcpServerInfo(name) : null;
@@ -180,6 +345,20 @@ function createSDKTool(
 
       toolCallTracker.set(toolCallId, toolCall);
       onToolCall?.(toolCall);
+
+      // Check cache if enabled
+      let cached = false;
+      if (enableCache) {
+        const cachedResult = globalToolCache.get(name, args as Record<string, unknown>);
+        if (cachedResult !== null) {
+          cached = true;
+          toolCall.status = 'completed';
+          toolCall.result = cachedResult;
+          toolCall.completedAt = new Date();
+          onToolResult?.(toolCall);
+          return cachedResult;
+        }
+      }
 
       // Apply safety checks if enabled
       if (safetyOptions && safetyOptions.checkToolCalls) {
@@ -207,20 +386,61 @@ function createSDKTool(
 
       toolCall.status = 'running';
 
-      try {
-        const result = await agentTool.execute(args as Record<string, unknown>);
-        toolCall.status = 'completed';
-        toolCall.result = result;
-        toolCall.completedAt = new Date();
-        onToolResult?.(toolCall);
-        return result;
-      } catch (error) {
-        toolCall.status = 'error';
-        toolCall.error = error instanceof Error ? error.message : 'Tool execution failed';
-        toolCall.completedAt = new Date();
-        onToolResult?.(toolCall);
-        throw error;
+      // Dispatch tool call hook before execution
+      if (agentId) {
+        try {
+          await getPluginLifecycleHooks().dispatchOnAgentToolCall(agentId, name, args as Record<string, unknown>);
+        } catch (hookError) {
+          // If hook throws, log but don't block execution
+          console.warn('Agent tool call hook error:', hookError);
+        }
       }
+
+      // Execute with retry logic
+      const actualRetryConfig = retryConfig || DEFAULT_RETRY_CONFIG;
+      let lastError: Error | null = null;
+
+      for (let attempt = 0; attempt <= actualRetryConfig.maxRetries; attempt++) {
+        try {
+          const result = await agentTool.execute(args as Record<string, unknown>);
+          
+          // Cache the result if not from cache
+          if (!cached && enableCache) {
+            globalToolCache.set(name, args as Record<string, unknown>, result);
+          }
+
+          toolCall.status = 'completed';
+          toolCall.result = result;
+          toolCall.completedAt = new Date();
+          onToolResult?.(toolCall);
+          return result;
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error('Tool execution failed');
+          
+          // Check if error is retryable
+          const isRetryable = actualRetryConfig.retryableErrors.some(pattern => 
+            lastError!.message.toLowerCase().includes(pattern.toLowerCase())
+          );
+          
+          if (!isRetryable || attempt === actualRetryConfig.maxRetries) {
+            toolCall.status = 'error';
+            toolCall.error = lastError.message;
+            toolCall.completedAt = new Date();
+            onToolResult?.(toolCall);
+            throw lastError;
+          }
+          
+          // Calculate delay with exponential backoff
+          const delay = actualRetryConfig.exponentialBackoff
+            ? actualRetryConfig.retryDelay * Math.pow(2, attempt)
+            : actualRetryConfig.retryDelay;
+          
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+
+      // This should never be reached, but TypeScript needs it
+      throw lastError || new Error('Tool execution failed');
     },
   };
 }
@@ -234,7 +454,10 @@ function convertToAISDKTools(
   onToolCall?: (toolCall: ToolCall) => void,
   onToolResult?: (toolCall: ToolCall) => void,
   requireApproval?: (toolCall: ToolCall) => Promise<boolean>,
-  safetyOptions?: SafetyCheckOptions
+  safetyOptions?: SafetyCheckOptions,
+  retryConfig?: RetryConfig,
+  enableCache?: boolean,
+  agentId?: string
 ) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sdkTools: Record<string, any> = {};
@@ -247,7 +470,10 @@ function convertToAISDKTools(
       onToolCall,
       onToolResult,
       requireApproval,
-      safetyOptions
+      safetyOptions,
+      retryConfig,
+      enableCache,
+      agentId
     );
   }
 
@@ -286,7 +512,18 @@ export async function executeAgent(
     userId,
     agentName = 'agent',
     enableObservability = true,
+    enableReAct = false,
+    reactFormat = 'standard',
+    toolCacheConfig,
+    toolRetryConfig,
+    enableMetrics = true,
   } = config;
+
+  // Memory configuration
+  const enableMemoryValue = config.enableMemory ?? false;
+  const memoryTagsValue = config.memoryTags ?? ['agent-context'];
+  const memoryLimitValue = config.memoryLimit ?? 5;
+  const persistToMemoryValue = config.persistToMemory ?? false;
 
   // Initialize observability manager if enabled
   let observabilityManager: AgentObservabilityManager | null = null;
@@ -296,8 +533,8 @@ export async function executeAgent(
       userId,
       agentName,
       task: prompt,
-      enableLangfuse: true,
-      enableOpenTelemetry: true,
+      enableLangfuse: config.enableLangfuse ?? true,
+      enableOpenTelemetry: config.enableOpenTelemetry ?? true,
       metadata: {
         provider,
         model,
@@ -311,6 +548,21 @@ export async function executeAgent(
   const startTime = new Date();
   const steps: AgentStep[] = [];
   const toolCallTracker = new Map<string, ToolCall>();
+
+  // Generate agent ID for tracking
+  const agentId = `agent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  // Dispatch agent start hook
+  getPluginLifecycleHooks().dispatchOnAgentStart(agentId, {
+    provider,
+    model,
+    prompt,
+    maxSteps,
+    tools: Object.keys(tools),
+  });
+
+  // Start metrics collection if enabled
+  const executionId = enableMetrics ? globalMetricsCollector.startExecution(undefined, sessionId) : undefined;
 
   const cleanupToolCalls = (reason: string) => {
     for (const toolCall of toolCallTracker.values()) {
@@ -327,6 +579,27 @@ export async function executeAgent(
   let stepCount = 0;
   let currentTemperature = temperature;
   let currentSystemPrompt = systemPrompt;
+  
+  // Add ReAct prompt if enabled
+  if (enableReAct && reactFormat !== 'disabled') {
+    const reactPrompt = buildReActSystemPrompt(reactFormat);
+    currentSystemPrompt = reactPrompt
+      ? `${reactPrompt}\n\n${currentSystemPrompt}`
+      : currentSystemPrompt;
+  }
+
+  // Load relevant memories if enabled
+  if (enableMemoryValue) {
+    const relevantMemories = globalMemoryManager.query({
+      tags: memoryTagsValue,
+      limit: memoryLimitValue,
+    });
+
+    if (relevantMemories.length > 0) {
+      const memoryContext = formatMemoriesAsContext(relevantMemories);
+      currentSystemPrompt = `${currentSystemPrompt}\n\n## Relevant Past Context\n${memoryContext}`;
+    }
+  }
 
   // Build execution state for callbacks and stop conditions
   const getExecutionState = (): AgentExecutionState => ({
@@ -423,7 +696,10 @@ export async function executeAgent(
         onToolCall,
         onToolResult,
         requireApproval,
-        config.safetyOptions
+        config.safetyOptions,
+        toolRetryConfig,
+        toolCacheConfig?.enabled !== false,
+        agentId
       )
     : undefined;
 
@@ -473,6 +749,8 @@ export async function executeAgent(
         return {};
       },
       onStepFinish: (event) => {
+        const stepStartTime = new Date();
+        
         // Use AI SDK's event data for accurate step-to-tool-call mapping
         const stepToolCalls: ToolCall[] = [];
         
@@ -516,6 +794,20 @@ export async function executeAgent(
           };
         }
 
+        // Parse ReAct response if enabled
+        let thought: string | undefined;
+        let actionDescription: string | undefined;
+        let observation: string | undefined;
+        
+        if (enableReAct && reactFormat !== 'disabled') {
+          const parsed = parseReActResponse(event.text || '', reactFormat);
+          thought = parsed.thought;
+          actionDescription = parsed.actionDescription;
+          observation = parsed.observation;
+        }
+
+        const stepEndTime = new Date();
+        
         steps.push({
           stepNumber: stepCount,
           response: event.text || '',
@@ -523,9 +815,42 @@ export async function executeAgent(
           timestamp: new Date(),
           finishReason: event.finishReason as AgentStep['finishReason'],
           usage,
+          thought,
+          actionDescription,
+          observation,
         });
 
+        // Record metrics if enabled
+        if (enableMetrics && executionId) {
+          globalMetricsCollector.recordStep(
+            executionId,
+            stepCount,
+            stepStartTime,
+            stepEndTime,
+            stepToolCalls,
+            event.finishReason as string
+          );
+          
+          if (usage) {
+            globalMetricsCollector.recordTokenUsage(
+              executionId,
+              stepCount,
+              usage.promptTokens,
+              usage.completionTokens
+            );
+          }
+        }
+
         onStepComplete?.(stepCount, event.text || '', stepToolCalls);
+
+        // Dispatch agent step hook
+        getPluginLifecycleHooks().dispatchOnAgentStep(agentId, {
+          stepNumber: stepCount,
+          type: stepToolCalls.length > 0 ? 'tool_call' : 'response',
+          content: event.text || '',
+          tool: stepToolCalls[0]?.name,
+          toolArgs: stepToolCalls[0]?.args,
+        });
       },
     });
 
@@ -562,19 +887,50 @@ export async function executeAgent(
       observabilityManager.endAgentExecution(result.text, allToolCalls);
     }
 
+    // Persist to memory if enabled
+    if (enableMemoryValue && persistToMemoryValue && agentResult.success) {
+      const memoryKey = `execution:${Date.now()}`;
+      globalMemoryManager.set(memoryKey, {
+        prompt: prompt.slice(0, 500),
+        response: agentResult.finalResponse.slice(0, 1000),
+        toolsUsed: agentResult.toolResults?.map(t => t.toolName) || [],
+        duration: agentResult.duration,
+        stepCount: agentResult.totalSteps,
+      }, {
+        tags: [...memoryTagsValue, 'agent-execution'],
+        metadata: {
+          sessionId,
+          provider,
+          model,
+        },
+      });
+    }
+
     // Call onFinish callback
     onFinish?.(agentResult);
+
+    // Dispatch agent complete hook
+    getPluginLifecycleHooks().dispatchOnAgentComplete(agentId, agentResult);
 
     return agentResult;
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Agent execution failed');
     cleanupToolCalls(err.message);
+
+    // Dispatch agent error hook
+    getPluginLifecycleHooks().dispatchOnAgentError(agentId, err);
+
     onError?.(err);
 
     // End observability tracking on error
     if (observabilityManager) {
       const allToolCalls: ToolCall[] = steps.flatMap(s => s.toolCalls);
       observabilityManager.endAgentExecution(`Error: ${err.message}`, allToolCalls);
+    }
+
+    // End metrics collection on error if enabled
+    if (enableMetrics && executionId) {
+      globalMetricsCollector.endExecution(executionId, 'error');
     }
 
     return {
@@ -591,7 +947,10 @@ export async function executeAgent(
 /**
  * Create a simple agent with predefined tools
  */
-export function createAgent(config: Omit<AgentConfig, 'provider' | 'model' | 'apiKey'>) {
+export function createAgent(initialConfig: Omit<AgentConfig, 'provider' | 'model' | 'apiKey'>) {
+  // Create mutable config copy
+  const config: Partial<AgentConfig> = { ...initialConfig };
+  
   return {
     run: async (
       prompt: string,
@@ -600,7 +959,7 @@ export function createAgent(config: Omit<AgentConfig, 'provider' | 'model' | 'ap
       return executeAgent(prompt, {
         ...config,
         ...providerConfig,
-      });
+      } as AgentConfig);
     },
     addTool: (name: string, agentTool: AgentTool) => {
       config.tools = config.tools || {};
@@ -637,7 +996,7 @@ export const stopConditions = {
   }),
 };
 
-// Re-export functional stop condition builders for convenience
+// Re-export functional stop condition builders
 export {
   functionalStepCountIs,
   durationExceeds,

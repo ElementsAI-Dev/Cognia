@@ -104,6 +104,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   const defaultProvider = defaultProviderRaw as ProviderName;
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const defaultModel = providerSettings[defaultProvider]?.defaultModel || 'gpt-4o';
+  const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
 
   // Get active skills from store
   const activeSkillIds = useSkillStore((state) => state.activeSkillIds);
@@ -251,12 +252,16 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   }), [skillTools, mcpTools, ragTools, registeredTools]);
 
   // Build agent config
-  const buildConfig = useCallback((): Omit<AgentConfig, 'provider' | 'model' | 'apiKey'> => {
+  const buildConfig = useCallback((): Omit<AgentConfig, 'provider' | 'model' | 'apiKey'> & { systemPrompt?: string } => {
     return {
       systemPrompt: effectiveSystemPrompt,
       temperature,
       maxSteps,
       tools: allTools,
+      sessionId: `agent-${Date.now()}`, // Generate session ID for observability
+      enableObservability: observabilitySettings?.enabled ?? false,
+      enableLangfuse: observabilitySettings?.langfuseEnabled,
+      enableOpenTelemetry: observabilitySettings?.openTelemetryEnabled,
       onStepStart: (step) => {
         setCurrentStep(step);
         onStepStart?.(step);
@@ -274,15 +279,13 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
         );
         onToolResult?.(call);
       },
-      onError: (err) => {
-        setError(err.message);
-      },
     };
   }, [
     effectiveSystemPrompt,
     temperature,
     maxSteps,
     allTools,
+    observabilitySettings,
     onStepStart,
     onStepComplete,
     onToolCall,
@@ -312,7 +315,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
         setError(agentResult.error || 'Agent execution failed');
       }
       return agentResult;
-    } catch (err) {
+    } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Agent execution failed';
       setError(message);
       return {

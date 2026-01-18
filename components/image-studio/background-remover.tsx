@@ -21,6 +21,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
 import {
   Eraser,
   Brush,
@@ -536,7 +537,7 @@ export function BackgroundRemover({
         )}
 
         {/* Divider */}
-        <div className="w-px h-6 bg-border" />
+        <Separator orientation="vertical" className="h-6" />
 
         {/* Background options */}
         <div className="flex items-center gap-1">
@@ -609,7 +610,7 @@ export function BackgroundRemover({
         </div>
 
         {/* Divider */}
-        <div className="w-px h-6 bg-border" />
+        <Separator orientation="vertical" className="h-6" />
 
         {/* Actions */}
         <div className="flex items-center gap-1">

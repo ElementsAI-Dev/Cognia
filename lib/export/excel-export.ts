@@ -4,6 +4,7 @@
  */
 
 import type { UIMessage, Session } from '@/types';
+import { getPluginEventHooks } from '@/lib/plugin/hooks-system';
 
 export interface ExcelExportOptions {
   sheetName?: string;
@@ -168,8 +169,17 @@ export async function exportChatToExcel(
   messages: UIMessage[],
   filename?: string
 ): Promise<ExcelExportResult> {
+  const pluginHooks = getPluginEventHooks();
+  await pluginHooks.dispatchExportStart(session.id, 'excel');
+
   try {
     const XLSX = await import('xlsx');
+
+    // Allow plugins to transform messages
+    let transformedMessages = messages;
+    transformedMessages = await pluginHooks.dispatchExportTransform(JSON.stringify(messages), 'excel')
+      .then(transformed => transformed ? JSON.parse(transformed) : messages)
+      .catch(() => messages);
 
     // Create workbook
     const workbook = XLSX.utils.book_new();
@@ -192,7 +202,7 @@ export async function exportChatToExcel(
 
     // Sheet 2: Messages
     const messageHeaders = ['#', 'Role', 'Content', 'Model', 'Timestamp', 'Tokens'];
-    const messageRows = messages.map((msg, index) => [
+    const messageRows = transformedMessages.map((msg, index) => [
       index + 1,
       msg.role,
       msg.content,
@@ -230,7 +240,7 @@ export async function exportChatToExcel(
     const videoProviders = new Set<string>();
     const videoModels = new Set<string>();
 
-    for (const msg of messages) {
+    for (const msg of transformedMessages) {
       if (msg.parts) {
         for (const part of msg.parts) {
           if (part.type === 'image') {
@@ -293,7 +303,7 @@ export async function exportChatToExcel(
       const mediaRows: (string | number)[][] = [];
       let mediaIndex = 1;
 
-      for (const msg of messages) {
+      for (const msg of transformedMessages) {
         if (msg.parts) {
           for (const part of msg.parts) {
             if (part.type === 'image') {
@@ -356,12 +366,15 @@ export async function exportChatToExcel(
 
     const exportFilename = filename || generateExcelFilename(session.title);
 
+    pluginHooks.dispatchExportComplete(session.id, 'excel', true);
+
     return {
       success: true,
       filename: ensureExcelExtension(exportFilename),
       blob,
     };
   } catch (error) {
+    pluginHooks.dispatchExportComplete(session.id, 'excel', false);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to export chat to Excel',
