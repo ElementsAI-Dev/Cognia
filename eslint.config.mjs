@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     ".venv/**",
     // Python plugin SDK virtualenv (contains vendored JS)
     "plugin-sdk/python/.venv/**",
+    // Plugin SDK uses its own ESLint configuration
+    "plugin-sdk/**",
     // Tauri build artifacts
     "src-tauri/target/**",
     // Test coverage reports

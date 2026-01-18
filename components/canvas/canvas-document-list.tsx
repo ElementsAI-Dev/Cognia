@@ -27,7 +27,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import {
   Card,
-  CardHeader,
   CardContent,
 } from '@/components/ui/card';
 import {
@@ -225,7 +224,7 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
           {/* Filters and sort */}
           <div className="flex items-center gap-2 text-xs flex-wrap">
             <Select value={filterLanguage} onValueChange={setFilterLanguage}>
-              <SelectTrigger className="h-7 w-full sm:w-[100px] min-w-[80px]">
+              <SelectTrigger className="h-7 w-full sm:w-25 min-w-20">
                 <Filter className="h-3 w-3 mr-1" />
                 <SelectValue />
               </SelectTrigger>
@@ -240,7 +239,7 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
             </Select>
 
             <Select value={sortField} onValueChange={(v) => setSortField(v as SortField)}>
-              <SelectTrigger className="h-7 w-full sm:w-[100px] min-w-[80px]">
+              <SelectTrigger className="h-7 w-full sm:w-25 min-w-20">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -361,7 +360,7 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
 
       {/* Create Document Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-[400px]">
+        <DialogContent className="w-[95vw] sm:max-w-100">
           <DialogHeader>
             <DialogTitle>{t('createDocument')}</DialogTitle>
           </DialogHeader>
@@ -418,7 +417,7 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
 
       {/* Rename Dialog */}
       <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-100">
           <DialogHeader>
             <DialogTitle>{t('renameDocument')}</DialogTitle>
           </DialogHeader>

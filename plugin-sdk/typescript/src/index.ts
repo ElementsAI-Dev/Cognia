@@ -1,65 +1,136 @@
 /**
  * Cognia Plugin SDK for TypeScript/JavaScript
- * 
- * Create powerful frontend plugins for Cognia with full type safety.
+ * @version 2.0.0
+ * @description Create powerful frontend plugins for Cognia with full type safety and comprehensive API access.
+ *
+ * @overview
+ * This SDK provides everything you need to create plugins for Cognia, including:
+ * - Complete type definitions for all plugin APIs
+ * - Helper functions for defining plugins, tools, commands, and modes
+ * - JSON Schema builders for tool parameters
+ * - Comprehensive JSDoc documentation
+ *
+ * @example
+ * ```typescript
+ * import { definePlugin, defineTool, Schema, parameters } from '@cognia/plugin-sdk';
+ * import type { PluginContext, PluginHooks } from '@cognia/plugin-sdk';
+ *
+ * export default definePlugin({
+ *   activate(context: PluginContext): PluginHooks {
+ *     context.logger.info('Plugin activated!');
+ *
+ *     context.agent.registerTool({
+ *       name: 'my_tool',
+ *       pluginId: context.pluginId,
+ *       definition: {
+ *         name: 'my_tool',
+ *         description: 'Does something cool',
+ *         parametersSchema: parameters({
+ *           input: Schema.string('Input text'),
+ *         }, ['input']),
+ *       },
+ *       execute: async (args, toolContext) => {
+ *         return { result: 'Success!' };
+ *       },
+ *     });
+ *
+ *     return {
+ *       onAgentStep: (agentId, step) => {
+ *         context.logger.debug(`Agent step: ${step.type}`);
+ *       },
+ *     };
+ *   },
+ * });
+ * ```
+ *
+ * @module @cognia/plugin-sdk
  */
 
-// Re-export types from the main application
+// =============================================================================
+// CORE TYPES
+// =============================================================================
+
 export type {
-  // Core Plugin Types
   PluginType,
   PluginCapability,
   PluginStatus,
   PluginSource,
   PluginPermission,
+  ExtendedPluginPermission,
+} from './core';
+
+// =============================================================================
+// MANIFEST TYPES
+// =============================================================================
+
+export type {
   PluginManifest,
   PluginConfigSchema,
   PluginConfigProperty,
   PluginActivationEvent,
-  
-  // A2UI Types
+} from './manifest';
+
+// =============================================================================
+// A2UI TYPES
+// =============================================================================
+
+export type {
   A2UIPluginComponentDef,
   A2UITemplateDef,
   PluginA2UIComponent,
   A2UIPluginComponentProps,
-  
-  // Tool Types
+  PluginA2UIAction,
+  PluginA2UIDataChange,
+  PluginA2UIAPI,
+} from './a2ui';
+
+// =============================================================================
+// TOOL TYPES
+// =============================================================================
+
+export type {
   PluginToolDef,
   PluginTool,
   PluginToolContext,
-  
-  // Mode Types
-  PluginModeDef,
-  
-  // Hook Types
-  PluginHooks,
-  PluginA2UIAction,
-  PluginA2UIDataChange,
   PluginAgentStep,
-  PluginMessage,
-  
-  // Command Types
-  PluginCommand,
-  
-  // Context Types
-  PluginContext,
-  PluginLogger,
-  PluginStorage,
-  PluginEventEmitter,
-  PluginUIAPI,
-  PluginNotification,
-  PluginDialog,
-  PluginInputDialog,
-  PluginConfirmDialog,
-  PluginStatusBarItem,
-  PluginSidebarPanel,
-  PluginA2UIAPI,
   PluginAgentAPI,
-  PluginSettingsAPI,
-  PluginPythonAPI,
-  PluginPythonModule,
-  
-  // Extended API Types
+} from './tools';
+
+// =============================================================================
+// MODE TYPES
+// =============================================================================
+
+export type {
+  PluginModeDef,
+} from './modes';
+
+// =============================================================================
+// HOOK TYPES
+// =============================================================================
+
+export type {
+  PluginMessage,
+  PluginHooks,
+  HookPriority,
+  HookRegistrationOptions,
+  HookSandboxExecutionResult,
+  ExtendedPluginHooks,
+} from './hooks';
+
+// =============================================================================
+// COMMAND TYPES
+// =============================================================================
+
+export type {
+  PluginCommand,
+} from './commands';
+
+// =============================================================================
+// API TYPES
+// =============================================================================
+
+// Network API
+export type {
   PluginNetworkAPI,
   NetworkRequestOptions,
   NetworkResponse,
@@ -67,50 +138,85 @@ export type {
   DownloadProgress,
   DownloadResult,
   UploadOptions,
+} from './api/network';
+
+// File System API
+export type {
   PluginFileSystemAPI,
   FileEntry,
   FileStat,
   FileWatchEvent,
   PluginClipboardAPI,
+} from './api/filesystem';
+
+// Shell API
+export type {
   PluginShellAPI,
   ShellOptions,
   ShellResult,
   SpawnOptions,
   ChildProcess,
+} from './api/shell';
+
+// Database API
+export type {
   PluginDatabaseAPI,
   DatabaseResult,
   DatabaseTransaction,
   TableSchema,
   TableColumn,
   TableIndex,
+} from './api/database';
+
+// UI API
+export type {
+  PluginUIAPI,
+  PluginNotification,
+  PluginDialog,
+  PluginInputDialog,
+  PluginConfirmDialog,
+  PluginStatusBarItem,
+  PluginSidebarPanel,
   PluginShortcutsAPI,
   ShortcutOptions,
   ShortcutRegistration,
   PluginContextMenuAPI,
   ContextMenuItem,
-  ContextMenuContext,
   ContextMenuClickContext,
   PluginWindowAPI,
   WindowOptions,
   PluginWindow,
   PluginSecretsAPI,
-} from '@/types/plugin';
+} from './api/ui';
 
-// Extended Plugin Types
+// =============================================================================
+// CONTEXT TYPES
+// =============================================================================
+
+// Base Context
+export type {
+  PluginLogger,
+  PluginStorage,
+  PluginEventEmitter,
+  PluginSettingsAPI,
+  PluginPythonAPI,
+  PluginPythonModule,
+  PluginContext,
+} from './context/base';
+
+// Extended Context
 export type {
   // Session API
   SessionFilter,
   MessageQueryOptions,
   SendMessageOptions,
   MessageAttachment,
-  PluginSessionAPI,
   SessionStats,
-  
+  PluginSessionAPI,
   // Project API
   ProjectFilter,
   ProjectFileInput,
   PluginProjectAPI,
-  
   // Vector API
   VectorDocument,
   VectorSearchOptions,
@@ -119,7 +225,6 @@ export type {
   CollectionOptions,
   CollectionStats,
   PluginVectorAPI,
-  
   // Theme API
   ThemeMode,
   ColorThemePreset,
@@ -127,38 +232,32 @@ export type {
   CustomTheme,
   ThemeState,
   PluginThemeAPI,
-  
   // Export API
   ExportFormat,
   ExportOptions,
   CustomExporter,
-  ExportData,
   ExportResult,
   PluginExportAPI,
-  
   // I18n API
   Locale,
   TranslationParams,
   PluginI18nAPI,
-  
   // Canvas API
+  ArtifactLanguage,
   PluginCanvasDocument,
   CreateCanvasDocumentOptions,
   CanvasSelection,
   PluginCanvasAPI,
-  
   // Artifact API
   CreateArtifactOptions,
   ArtifactFilter,
-  PluginArtifactAPI,
   ArtifactRenderer,
-  
+  PluginArtifactAPI,
   // Notification API
   NotificationOptions,
   NotificationAction,
   Notification,
   PluginNotificationCenterAPI,
-  
   // AI Provider API
   AIChatMessage,
   AIChatOptions,
@@ -166,148 +265,22 @@ export type {
   AIModel,
   AIProviderDefinition,
   PluginAIProviderAPI,
-  
-  // Extension Points API
+  // Extension API
   ExtensionPoint,
   ExtensionOptions,
   ExtensionRegistration,
   ExtensionProps,
   PluginExtensionAPI,
-  
   // Permission API
-  ExtendedPluginPermission,
   PluginPermissionAPI,
-  
   // Extended Context
   ExtendedPluginContext,
-} from '@/types/plugin/plugin-extended';
+} from './context/extended';
 
-// Extended Hooks
-export type {
-  ProjectHookEvents,
-  CanvasHookEvents,
-  ArtifactHookEvents,
-  ExportHookEvents,
-  ThemeHookEvents,
-  AIHookEvents,
-  VectorHookEvents,
-  WorkflowHookEvents,
-  UIHookEvents,
-  ExtendedPluginHooks,
-  HookPriority,
-  HookRegistrationOptions,
-  HookSandboxExecutionResult,
-} from '@/types/plugin/plugin-hooks';
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
 
-/**
- * Plugin definition that should be exported from your plugin
- */
-export interface PluginDefinition {
-  /** Plugin activation - called when plugin is enabled */
-  activate: (context: import('@/types/plugin').PluginContext) => 
-    Promise<import('@/types/plugin').PluginHooks | void> | 
-    import('@/types/plugin').PluginHooks | 
-    void;
-  
-  /** Plugin deactivation - called when plugin is disabled */
-  deactivate?: () => Promise<void> | void;
-}
-
-/**
- * Helper to create a properly typed plugin
- */
-export function definePlugin(definition: PluginDefinition): PluginDefinition {
-  return definition;
-}
-
-/**
- * Helper to create a tool definition
- */
-export function defineTool(
-  name: string,
-  description: string,
-  parametersSchema: Record<string, unknown>,
-  execute: (args: Record<string, unknown>, context: import('@/types/plugin').PluginToolContext) => Promise<unknown>,
-  options?: {
-    requiresApproval?: boolean;
-    category?: string;
-  }
-): import('@/types/plugin').PluginToolDef & { execute: typeof execute } {
-  return {
-    name,
-    description,
-    parametersSchema,
-    requiresApproval: options?.requiresApproval,
-    category: options?.category,
-    execute,
-  };
-}
-
-/**
- * Helper to create a command definition
- */
-export function defineCommand(
-  id: string,
-  name: string,
-  execute: (args?: Record<string, unknown>) => void | Promise<void>,
-  options?: {
-    description?: string;
-    icon?: string;
-    shortcut?: string;
-    enabled?: boolean | (() => boolean);
-  }
-): import('@/types/plugin').PluginCommand {
-  return {
-    id,
-    name,
-    execute,
-    ...options,
-  };
-}
-
-/**
- * JSON Schema helpers for tool parameter definitions
- */
-export const Schema = {
-  string(description?: string, options?: { enum?: string[]; minLength?: number; maxLength?: number }) {
-    return { type: 'string' as const, description, ...options };
-  },
-  
-  number(description?: string, options?: { minimum?: number; maximum?: number }) {
-    return { type: 'number' as const, description, ...options };
-  },
-  
-  integer(description?: string, options?: { minimum?: number; maximum?: number }) {
-    return { type: 'integer' as const, description, ...options };
-  },
-  
-  boolean(description?: string) {
-    return { type: 'boolean' as const, description };
-  },
-  
-  array(items: Record<string, unknown>, description?: string) {
-    return { type: 'array' as const, items, description };
-  },
-  
-  object(properties: Record<string, unknown>, required?: string[], description?: string) {
-    return { type: 'object' as const, properties, required, description };
-  },
-  
-  optional<T extends Record<string, unknown>>(schema: T): T & { required: false } {
-    return { ...schema, required: false as const };
-  },
-};
-
-/**
- * Type-safe parameter builder
- */
-export function parameters<T extends Record<string, unknown>>(
-  props: T,
-  required?: (keyof T)[]
-): { type: 'object'; properties: T; required?: string[] } {
-  return {
-    type: 'object',
-    properties: props,
-    required: required as string[] | undefined,
-  };
-}
+export { Schema, parameters } from './helpers/schema';
+export { definePlugin, defineTool, defineCommand } from './helpers/plugin';
+export type { PluginDefinition } from './helpers/plugin';

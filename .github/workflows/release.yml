@@ -203,10 +203,14 @@ jobs:
 
       - name: Get release info
         id: release_info
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_DRAFT: ${{ inputs.draft }}
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "tag=${{ inputs.tag }}" >> $GITHUB_OUTPUT
-            echo "is_draft=${{ inputs.draft }}" >> $GITHUB_OUTPUT
+          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
+            echo "tag=$INPUT_TAG" >> $GITHUB_OUTPUT
+            echo "is_draft=$INPUT_DRAFT" >> $GITHUB_OUTPUT
           else
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
             echo "is_draft=true" >> $GITHUB_OUTPUT

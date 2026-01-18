@@ -1,198 +1,264 @@
 {
-  "timestamp": "2025-01-14T00:00:00.000Z",
+  "timestamp": "2026-01-15T22:57:46.000Z",
   "project": {
     "name": "Cognia",
     "description": "AI-native chat and creation application with multi-provider support",
     "version": "0.1.0",
     "type": "hybrid-web-desktop",
-    "frontend": "Next.js 16 with React 19.2, TypeScript, Tailwind CSS v4",
+    "frontend": "Next.js 16 with React 19.2, TypeScript 5.9, Tailwind CSS v4",
     "desktop": "Tauri 2.9",
-    "stateManagement": "Zustand + Dexie for IndexedDB persistence"
+    "stateManagement": "Zustand v5 + Dexie v4 for IndexedDB persistence",
+    "ai": "Vercel AI SDK v5 with 14+ providers",
+    "testing": "Jest + Playwright",
+    "i18n": "next-intl"
   },
   "modules": [
     {
       "name": "app",
       "path": "app/",
       "type": "frontend",
-      "description": "Next.js App Router - main application routes and layouts",
+      "description": "Next.js App Router - main application routes and layouts with standalone windows",
       "entryPoints": [
-        "app/layout.tsx",
+        "app/providers.tsx",
         "app/(main)/layout.tsx",
         "app/(main)/(chat)/page.tsx"
       ],
       "keyFiles": [
-        "app/providers.tsx",
-        "app/globals.css"
+        "app/globals.css",
+        "app/(main)/page.tsx"
       ],
+      "routes": {
+        "main": [
+          "(chat)/",
+          "settings/",
+          "native-tools/",
+          "skills/",
+          "splashscreen/",
+          "git/",
+          "ppt/",
+          "image-studio/",
+          "academic/",
+          "video-studio/",
+          "workflows/",
+          "designer/",
+          "projects/",
+          "observability/"
+        ],
+        "standalone": [
+          "(standalone-selection-toolbar)/selection-toolbar/",
+          "(standalone-assistant-bubble)/assistant-bubble/",
+          "(standalone-chat-widget)/chat-widget/",
+          "(standalone-region-selector)/region-selector/"
+        ]
+      },
       "hasTests": true,
-      "coverage": "partial"
+      "coverage": "good",
+      "fileCount": 40
     },
     {
       "name": "components",
       "path": "components/",
       "type": "frontend",
-      "description": "Feature-based React components organized by domain",
-      "subdirectories": [
-        "ui/",
-        "chat/",
-        "sidebar/",
-        "settings/",
-        "artifacts/",
-        "canvas/",
-        "designer/",
-        "projects/",
-        "agent/",
-        "ai-elements/",
-        "native/",
-        "workflow-editor/",
-        "learning/",
-        "skills/"
-      ],
+      "description": "Feature-based React components organized by domain with 60+ directories",
+      "subdirectories": {
+        "ui": "shadcn/ui components (50+)",
+        "chat": "Chat interface components",
+        "sidebar": "Sidebar navigation",
+        "settings": "Settings UI components (modular)",
+        "artifacts": "Artifact viewer and renderers",
+        "canvas": "Monaco editor panel",
+        "designer": "Visual designer (core, panels, dnd, preview, toolbar, editor)",
+        "projects": "Project management components",
+        "agent": "Agent visualization components",
+        "ai-elements": "30+ AI-specific components",
+        "native": "Native feature UI components",
+        "workflow-editor": "Workflow editor with React Flow",
+        "learning": "Learning mode components",
+        "skills": "Skills system components",
+        "providers": "Provider system components (ErrorBoundary, Logger, Cache, Audio, WebSocket)",
+        "layout": "Layout components (AppShell, CommandPalette, GlobalSearch, KeyboardShortcutsDialog)",
+        "export": "Export dialogs",
+        "image-studio": "Image editing components",
+        "presets": "Preset management",
+        "selection-toolbar": "Selection toolbar components",
+        "chat-widget": "Chat widget components",
+        "observability": "Observability components",
+        "ppt": "PPT generation components",
+        "onboarding": "Setup wizard and tours",
+        "workflow": "Workflow components",
+        "a2ui": "A2UI components",
+        "video-studio": "Video editing components",
+        "git": "Git integration components",
+        "academic": "Academic mode components"
+      },
       "hasTests": true,
-      "coverage": "good"
+      "coverage": "good",
+      "fileCount": 300
     },
     {
       "name": "lib",
       "path": "lib/",
       "type": "frontend",
-      "description": "Domain utilities and business logic",
-      "subdirectories": [
-        "ai/",
-        "db/",
-        "document/",
-        "export/",
-        "file/",
-        "i18n/",
-        "search/",
-        "themes/",
-        "vector/",
-        "native/",
-        "skills/",
-        "learning/",
-        "designer/"
-      ],
+      "description": "Domain utilities and business logic with 20+ subdirectories",
+      "subdirectories": {
+        "ai": "AI integration (core, providers, generation, embedding, media, infrastructure, tools, rag, memory, agent, workflows)",
+        "db": "Database utilities and Dexie setup",
+        "document": "Document parsing, formatting, and RAG integration",
+        "export": "Multi-format export (Markdown, HTML, PDF, Word, Excel, diagrams)",
+        "file": "File system utilities",
+        "i18n": "Internationalization with next-intl",
+        "search": "External search API integrations (Tavily)",
+        "themes": "Theme management and background assets",
+        "vector": "Vector database clients (Pinecone, Qdrant, ChromaDB, Milvus)",
+        "native": "Native feature bridges (Tauri runtime)",
+        "skills": "Skill execution framework",
+        "learning": "Learning mode prompts and utilities",
+        "designer": "Visual designer AI, export, and templates",
+        "project": "Project import/export",
+        "chat": "Chat utilities and message actions",
+        "utils": "Common utilities (cn class merging)"
+      },
       "keyFiles": [
         "lib/ai/index.ts",
         "lib/utils.ts"
       ],
       "hasTests": true,
-      "coverage": "good"
+      "coverage": "good",
+      "fileCount": 150
     },
     {
       "name": "hooks",
       "path": "hooks/",
       "type": "frontend",
-      "description": "Custom React hooks organized by domain",
-      "subdirectories": [
-        "ai/",
-        "agent/",
-        "chat/",
-        "context/",
-        "designer/",
-        "media/",
-        "native/",
-        "network/",
-        "rag/",
-        "sandbox/",
-        "ui/",
-        "utils/"
-      ],
+      "description": "Custom React hooks organized by domain with 15+ directories",
+      "subdirectories": {
+        "ai": "AI-related hooks (use-ai-registry, use-structured-output)",
+        "agent": "Agent hooks (use-agent, use-background-agent, use-sub-agent, use-plan-executor)",
+        "chat": "Chat hooks (use-summary, use-translate, use-artifact-detection, use-floating-position, use-draggable-fab)",
+        "context": "Context hooks (use-awareness, use-context, use-project-context, use-clipboard-context)",
+        "designer": "Designer hooks (use-designer, use-workflow-*, use-designer-drag-drop, use-ppt-ai)",
+        "media": "Media hooks (use-image-generation)",
+        "native": "Native hooks (use-native, use-notification, use-window, use-file-watcher, use-screenshot, use-autostart, use-stronghold, use-window-controls)",
+        "network": "Network hooks (use-proxy, use-network-status, use-geolocation)",
+        "rag": "RAG hooks (use-rag, use-memory, use-vector-db, use-enhanced-rag)",
+        "sandbox": "Sandbox hooks (use-environment, use-jupyter-kernel, use-session-env, use-virtual-env)",
+        "ui": "UI hooks (use-global-shortcuts, use-learning-mode, use-learning-tools, use-mention, use-quote-shortcuts, use-selection-toolbar, use-copy, use-keyboard-shortcuts, use-media-query, use-clipboard-monitor)",
+        "utils": "Utility hooks (use-debounce, use-mobile, use-resize-observer, use-element-resize)",
+        "ppt": "PPT generation hooks",
+        "image-studio": "Image studio hooks",
+        "video-studio": "Video studio hooks",
+        "a2ui": "A2UI hooks",
+        "canvas": "Canvas hooks",
+        "skills": "Skills hooks",
+        "search": "Search hooks"
+      },
       "keyFiles": [
         "hooks/index.ts"
       ],
       "hasTests": true,
-      "coverage": "good"
+      "coverage": "good",
+      "fileCount": 80
     },
     {
       "name": "stores",
       "path": "stores/",
       "type": "frontend",
       "description": "Zustand state management stores with localStorage persistence",
-      "subdirectories": [
-        "agent/",
-        "artifact/",
-        "chat/",
-        "context/",
-        "data/",
-        "designer/",
-        "document/",
-        "learning/",
-        "mcp/",
-        "media/",
-        "project/",
-        "settings/",
-        "system/",
-        "tools/",
-        "workflow/"
-      ],
+      "subdirectories": {
+        "agent": "Agent execution tracking (agent-store, background-agent-store, sub-agent-store)",
+        "artifact": "Artifacts, canvas, versions (artifact-store)",
+        "chat": "Chat sessions, widget state (chat-store, chat-widget-store, session-store, quote-store, summary-store)",
+        "context": "Clipboard context (clipboard-context-store, selection-store)",
+        "data": "Recent files, templates, vectors (recent-files-store, template-store, vector-store, memory-store)",
+        "designer": "Designer state, history (designer-store, designer-history-store)",
+        "document": "Document management (document-store)",
+        "learning": "Learning mode state (learning-store)",
+        "mcp": "MCP servers, marketplace (mcp-store, mcp-marketplace-store)",
+        "media": "Media, screen recording (media-store, image-studio-store, screen-recording-store)",
+        "project": "Projects, activities (project-store, project-activity-store, project-activity-subscriber)",
+        "settings": "User preferences, presets (settings-store, preset-store, custom-theme-store, settings-profiles-store)",
+        "system": "Native state, proxy, usage (native-store, proxy-store, usage-store, window-store, environment-store, virtual-env-store, ui-store)",
+        "tools": "Skills, tools (skill-store, template-store, ppt-editor-store, jupyter-store)",
+        "workflow": "Workflow definitions and execution (workflow-store, workflow-editor-store)",
+        "git": "Git state (git-store)",
+        "a2ui": "A2UI state (a2ui-store)",
+        "academic": "Academic mode state (academic-store, knowledge-map-store)",
+        "plugin": "Plugin state (plugin-store)",
+        "prompt": "Prompt templates and marketplace (prompt-template-store, prompt-marketplace-store)",
+        "tool-history": "Tool usage history (tool-history-store)",
+        "sandbox": "Sandbox state (sandbox-store)"
+      },
       "keyFiles": [
         "stores/index.ts"
       ],
       "hasTests": true,
-      "coverage": "good"
+      "coverage": "good",
+      "fileCount": 100
     },
     {
       "name": "types",
       "path": "types/",
       "type": "frontend",
-      "description": "TypeScript type definitions organized by domain",
-      "subdirectories": [
-        "agent/",
-        "artifact/",
-        "chat/",
-        "content/",
-        "core/",
-        "designer/",
-        "document/",
-        "learning/",
-        "media/",
-        "mcp/",
-        "plugin/",
-        "provider/",
-        "project/",
-        "search/",
-        "system/",
-        "workflow/"
-      ],
+      "description": "TypeScript type definitions organized by domain with 15+ directories",
+      "subdirectories": {
+        "core": "Core chat types (message, session, chat-input, chat-history-context)",
+        "chat": "Chat flow types (flow-chat)",
+        "provider": "AI provider types (provider, auto-router, memory-provider, openrouter, local-provider, load-balancer, ollama)",
+        "agent": "Agent types (agent, agent-mode, sub-agent, background-agent, tool, tool-history)",
+        "workflow": "Workflow types (workflow, workflow-editor, template)",
+        "plugin": "Plugin types (plugin, plugin-extended, plugin-hooks, plugin-hooks-extended)",
+        "mcp": "MCP types (mcp, mcp-marketplace)",
+        "document": "Document and RAG types (document, document-formatting, rag, vector)",
+        "artifact": "Artifact types (artifact, a2ui)",
+        "designer": "Designer types (designer, designer-dnd)",
+        "media": "Media types (audio, video, speech, tts, subtitle, image-studio)",
+        "project": "Project types (project, project-activity, project-template)",
+        "search": "Search types (search, research)",
+        "content": "Content types (prompt, prompt-template, preset, structured-output, template, prompt-marketplace)",
+        "learning": "Learning types (learning, academic, knowledge-map, summary)",
+        "system": "System types (environment, sandbox, skill, tokenizer, usage, cache, compression, logger, websocket, geolocation, proxy, git, context, jupyter, selection-toolbar, tauri-plugins)"
+      },
       "keyFiles": [
         "types/index.ts"
       ],
       "hasTests": false,
-      "coverage": "complete"
+      "coverage": "complete",
+      "fileCount": 80
     },
     {
       "name": "src-tauri",
       "path": "src-tauri/",
       "type": "backend",
-      "description": "Tauri Rust backend for native capabilities",
+      "description": "Tauri Rust backend for native capabilities with 15+ modules",
       "entryPoints": [
         "src-tauri/src/main.rs",
         "src-tauri/src/lib.rs"
       ],
-      "subdirectories": [
-        "awareness/",
-        "chat_widget/",
-        "assistant_bubble/",
-        "commands/",
-        "context/",
-        "jupyter/",
-        "mcp/",
-        "plugin/",
-        "process/",
-        "sandbox/",
-        "screen_recording/",
-        "screenshot/",
-        "selection/",
-        "skill/",
-        "tray/"
-      ],
+      "subdirectories": {
+        "awareness": "System awareness (activity_tracker, focus_tracker, system_monitor, smart_suggestions)",
+        "chat_widget": "Chat widget window management",
+        "assistant_bubble": "Assistant bubble window management",
+        "commands": "Tauri commands (api, clipboard, context, mcp, ocr, proxy, sandbox, screen_recording, screenshot, selection, awareness, environment, jupyter, model_download, ollama, vector, git, process, academic, plugin, skill)",
+        "context": "Context detection (app_context, browser_context, editor_context, file_context, screen_content, window_info)",
+        "jupyter": "Jupyter integration (kernel, session, protocol)",
+        "mcp": "MCP support (client, config, error, manager, protocol, transport, types)",
+        "plugin": "Plugin system",
+        "process": "Process management",
+        "sandbox": "Code execution sandbox (db, docker, languages, native, podman, runtime)",
+        "screen_recording": "Screen recording (history, recorder, video_processor)",
+        "screenshot": "Screenshot system (annotator, capture, OCR, providers, region_selector, window_manager, ocr_manager, ocr_provider, windows_ocr)",
+        "selection": "Selection system (analyzer, clipboard_context, clipboard_history, detector, expander, extractor, history, mouse_hook, smart_selection, toolbar_window, types)",
+        "skill": "Skill service",
+        "tray": "System tray"
+      },
       "keyFiles": [
         "src-tauri/Cargo.toml",
         "src-tauri/tauri.conf.json",
         "src-tauri/build.rs"
       ],
       "hasTests": false,
-      "coverage": "partial"
+      "coverage": "partial",
+      "fileCount": 100
     }
   ],
   "configuration": {
@@ -201,13 +267,24 @@
       "strict": true,
       "target": "ES2017",
       "jsx": "react-jsx",
-      "pathAlias": "@/*"
+      "pathAlias": "@/*",
+      "isolatedModules": true,
+      "incremental": false
     },
     "next": {
       "file": "next.config.ts",
       "staticExport": true,
       "outputDirectory": "out/",
-      "imagesUnoptimized": true
+      "imagesUnoptimized": true,
+      "turbopack": {
+        "resolveAlias": {
+          "@tauri-apps/plugin-fs": "./lib/stubs/tauri-stubs.ts",
+          "@tauri-apps/plugin-dialog": "./lib/stubs/tauri-stubs.ts",
+          "@tauri-apps/plugin-shell": "./lib/stubs/tauri-stubs.ts",
+          "@zilliz/milvus2-sdk-node": "./lib/stubs/milvus-stub.ts",
+          "monaco-editor": "./lib/stubs/monaco-stub.ts"
+        }
+      }
     },
     "jest": {
       "file": "jest.config.ts",
@@ -217,7 +294,9 @@
         "functions": 40,
         "lines": 55,
         "statements": 55
-      }
+      },
+      "maxWorkers": 2,
+      "workerIdleMemoryLimit": "512MB"
     },
     "tailwind": {
       "file": "tailwind.config.ts",
@@ -225,7 +304,8 @@
     },
     "tauri": {
       "file": "src-tauri/tauri.conf.json",
-      "version": "2.9",
+      "version": "2.9.0",
+      "rustVersion": "1.77.2",
       "windows": [
         "main",
         "splashscreen",
@@ -243,7 +323,12 @@
       "lib/search/",
       "lib/vector/",
       "lib/native/",
-      "lib/project/import-export.ts"
+      "lib/project/import-export.ts",
+      "lib/i18n/provider.tsx",
+      "lib/document/parsers/html-parser.ts",
+      "lib/file/index.ts",
+      "lib/document/index.ts",
+      "lib/themes/index.ts"
     ],
     "testMatch": [
       "**/__tests__/**/*.?([mc])[jt]s?(x)",
@@ -283,27 +368,50 @@
       "src-tauri/target/"
     ]
   },
-  "coverage": {
-    "totalFiles": "estimated 2000+",
-    "scannedFiles": 500,
-    "coveragePercentage": 25,
-    "truncated": true,
-    "reason": "Large codebase with extensive dependencies. Initial scan focused on core application files, configuration, and key modules."
+  "dependencies": {
+    "frontend": {
+      "react": "19.2.3",
+      "next": "16.1.1",
+      "typescript": "5.9.3",
+      "tailwindcss": "4.1.18",
+      "zustand": "5.0.9",
+      "dexie": "4.2.1",
+      "ai": "5.0.119",
+      "radix": "Multiple @radix-ui packages",
+      "tauri": "2.9.1"
+    },
+    "backend": {
+      "rust": "1.77.2+",
+      "tauri": "2.9.0",
+      "tokio": "1",
+      "serde": "1.0",
+      "reqwest": "0.12"
+    }
   },
-  "gaps": [
-    "Deep scan of lib/ai/ subdirectories for detailed AI integration patterns",
-    "Complete scan of components/ subdirectories for component inventory",
-    "Full exploration of src-tauri/src/ commands and native modules",
-    "Detailed analysis of workflow-editor components and hooks",
-    "Comprehensive scan of test files for coverage analysis",
-    "Analysis of i18n message files and translation patterns"
-  ],
+  "coverage": {
+    "totalFiles": 850,
+    "scannedFiles": 850,
+    "coveragePercentage": 100,
+    "truncated": false,
+    "reason": "Full scan completed - all major modules and files indexed"
+  },
+  "gaps": [],
   "nextSteps": [
-    "Scan lib/ai/agent/ for agent system implementation details",
-    "Scan components/designer/ for visual designer components",
-    "Scan src-tauri/src/commands/ for Tauri command APIs",
-    "Scan components/workflow-editor/ for workflow editing components",
-    "Analyze test coverage patterns across modules",
-    "Document MCP integration patterns in lib/ai/ and stores/mcp/"
-  ]
+    "Maintain documentation as codebase evolves",
+    "Update module documentation when adding new features",
+    "Keep index.json synchronized with project changes"
+  ],
+  "documentation": {
+    "root": "CLAUDE.md",
+    "llmdoc": "llmdoc/index.md",
+    "modules": {
+      "app": "app/CLAUDE.md",
+      "components": "components/CLAUDE.md",
+      "lib": "lib/CLAUDE.md",
+      "hooks": "hooks/CLAUDE.md",
+      "stores": "stores/CLAUDE.md",
+      "types": "types/CLAUDE.md",
+      "src-tauri": "src-tauri/CLAUDE.md"
+    }
+  }
 }

@@ -849,8 +849,7 @@ export const useSettingsStore = create<SettingsState>()(
 
       // Theme actions
       setTheme: (theme) =>
-        set((state) => {
-          const previousMode = state.theme;
+        set(() => {
           // Resolve theme to 'light' or 'dark' for the plugin hook's second parameter
           const resolvedTheme = theme === 'system' ? 'light' : theme;
           getPluginEventHooks().dispatchThemeModeChange(theme, resolvedTheme);
