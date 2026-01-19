@@ -51,12 +51,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
 import {
@@ -116,9 +111,10 @@ export function KnowledgeMapPanel({
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const filteredMaps = knowledgeMaps.filter(map =>
-    map.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    map.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredMaps = knowledgeMaps.filter(
+    (map) =>
+      map.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      map.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleCreateFromPDF = useCallback(async () => {
@@ -149,18 +145,21 @@ export function KnowledgeMapPanel({
     }
   }, [newMapTitle, newMapMode, paperId, pdfPath, createKnowledgeMap]);
 
-  const handleImportFile = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const handleImportFile = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
 
-    try {
-      await importFromFile(file);
-    } catch (err) {
-      console.error('Failed to import knowledge map:', err);
-    }
+      try {
+        await importFromFile(file);
+      } catch (err) {
+        console.error('Failed to import knowledge map:', err);
+      }
 
-    event.target.value = '';
-  }, [importFromFile]);
+      event.target.value = '';
+    },
+    [importFromFile]
+  );
 
   const handleExport = useCallback(() => {
     exportToFile();
@@ -178,34 +177,45 @@ export function KnowledgeMapPanel({
     }
   }, [activeKnowledgeMap]);
 
-  const handleNodeClick = useCallback((node: MindMapNode) => {
-    if (node.locationRef && activeKnowledgeMap) {
-      const trace = activeKnowledgeMap.traces.find(t =>
-        t.locations.some(l => l.id === node.locationRef)
-      );
-      if (trace) {
-        navigateToLocation(activeKnowledgeMap.id, trace.id, node.locationRef);
-        setSelectedTraceId(trace.id);
+  const handleNodeClick = useCallback(
+    (node: MindMapNode) => {
+      if (node.locationRef && activeKnowledgeMap) {
+        const trace = activeKnowledgeMap.traces.find((t) =>
+          t.locations.some((l) => l.id === node.locationRef)
+        );
+        if (trace) {
+          navigateToLocation(activeKnowledgeMap.id, trace.id, node.locationRef);
+          setSelectedTraceId(trace.id);
+        }
       }
-    }
-  }, [activeKnowledgeMap, navigateToLocation]);
+    },
+    [activeKnowledgeMap, navigateToLocation]
+  );
 
-  const handleDelete = useCallback((id: string) => {
-    deleteKnowledgeMap(id);
-    setShowDeleteConfirm(null);
-  }, [deleteKnowledgeMap]);
+  const handleDelete = useCallback(
+    (id: string) => {
+      deleteKnowledgeMap(id);
+      setShowDeleteConfirm(null);
+    },
+    [deleteKnowledgeMap]
+  );
 
-  const selectedTrace = activeKnowledgeMap?.traces.find(t => t.id === selectedTraceId);
+  const selectedTrace = activeKnowledgeMap?.traces.find((t) => t.id === selectedTraceId);
 
   return (
-    <div className={cn('flex flex-col h-full bg-background', className)} data-testid="knowledge-map-panel">
+    <div
+      className={cn('flex flex-col h-full bg-background', className)}
+      data-testid="knowledge-map-panel"
+    >
       {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-3">
           <Map className="h-5 w-5 text-primary" />
           <h2 className="font-semibold">{t('title')}</h2>
           {activeKnowledgeMap && (
-            <Badge variant="secondary" data-testid="active-map-badge">{activeKnowledgeMap.title}</Badge>
+            <Badge variant="secondary" data-testid="active-map-badge">
+              {activeKnowledgeMap.title}
+            </Badge>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -264,7 +274,10 @@ export function KnowledgeMapPanel({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="mode">{t('createDialog.mode')}</Label>
-                  <Select value={newMapMode} onValueChange={(v) => setNewMapMode(v as typeof newMapMode)}>
+                  <Select
+                    value={newMapMode}
+                    onValueChange={(v) => setNewMapMode(v as typeof newMapMode)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -436,7 +449,11 @@ export function KnowledgeMapPanel({
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {activeKnowledgeMap ? (
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="flex-1 flex flex-col">
+            <Tabs
+              value={activeTab}
+              onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+              className="flex-1 flex flex-col"
+            >
               <div className="border-b px-4">
                 <TabsList className="h-10">
                   <TabsTrigger value="traces" className="gap-2">

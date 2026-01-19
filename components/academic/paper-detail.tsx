@@ -6,10 +6,28 @@
 
 import { useState, useCallback } from 'react';
 import {
-  ExternalLink, Download, Star, BookOpen, Users, Calendar,
-  Quote, Link2, Tag, Clock, FileText, Brain, MessageSquare,
-  ChevronDown, ChevronUp, Copy, Check, Bookmark,
-  GraduationCap, Building2, Globe, Hash
+  ExternalLink,
+  Download,
+  Star,
+  BookOpen,
+  Users,
+  Calendar,
+  Quote,
+  Link2,
+  Tag,
+  Clock,
+  FileText,
+  Brain,
+  MessageSquare,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Check,
+  Bookmark,
+  GraduationCap,
+  Building2,
+  Globe,
+  Hash,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,18 +36,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Select,
   SelectContent,
@@ -39,7 +47,11 @@ import {
 } from '@/components/ui/select';
 import { useAcademic } from '@/hooks/academic';
 import { cn } from '@/lib/utils';
-import type { LibraryPaper, PaperReadingStatus, PaperAnalysisType } from '@/types/learning/academic';
+import type {
+  LibraryPaper,
+  PaperReadingStatus,
+  PaperAnalysisType,
+} from '@/types/learning/academic';
 
 const ANALYSIS_TYPES: { value: PaperAnalysisType; label: string; description: string }[] = [
   { value: 'summary', label: 'Summary', description: 'Comprehensive paper summary' },
@@ -49,7 +61,11 @@ const ANALYSIS_TYPES: { value: PaperAnalysisType; label: string; description: st
   { value: 'limitations', label: 'Limitations', description: 'Study limitations' },
   { value: 'future-work', label: 'Future Work', description: 'Suggested research directions' },
   { value: 'related-work', label: 'Related Work', description: 'Connection to other research' },
-  { value: 'technical-details', label: 'Technical Details', description: 'Implementation specifics' },
+  {
+    value: 'technical-details',
+    label: 'Technical Details',
+    description: 'Implementation specifics',
+  },
   { value: 'critique', label: 'Critical Analysis', description: 'Strengths and weaknesses' },
   { value: 'eli5', label: 'ELI5', description: 'Simple explanation' },
 ];
@@ -79,7 +95,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
     addToCollection,
     collections,
   } = useAcademic();
-  
+
   const [activeTab, setActiveTab] = useState('overview');
   const [isAbstractExpanded, setIsAbstractExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -88,7 +104,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
   const [selectedAnalysisType, setSelectedAnalysisType] = useState<PaperAnalysisType>('summary');
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  
+
   const handleCopyDoi = useCallback(async () => {
     if (paper?.metadata?.doi) {
       await navigator.clipboard.writeText(paper.metadata.doi);
@@ -96,23 +112,23 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
       setTimeout(() => setCopied(false), 2000);
     }
   }, [paper?.metadata?.doi]);
-  
+
   const handleCopyCitation = useCallback(async () => {
     if (!paper) return;
-    const authors = paper.authors.map(a => a.name).join(', ');
+    const authors = paper.authors.map((a) => a.name).join(', ');
     const doi = paper.metadata?.doi;
     const citation = `${authors} (${paper.year}). ${paper.title}. ${paper.venue || ''}${doi ? ` https://doi.org/${doi}` : ''}`;
     await navigator.clipboard.writeText(citation);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [paper]);
-  
+
   const handleSaveNote = useCallback(async () => {
     if (paper) {
       await addPaperNote(paper.id, userNote);
     }
   }, [paper, userNote, addPaperNote]);
-  
+
   const handleAnalyze = useCallback(async () => {
     if (!paper) return;
     setIsAnalyzing(true);
@@ -125,17 +141,17 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
       setIsAnalyzing(false);
     }
   }, [paper, selectedAnalysisType, analyzePaper]);
-  
+
   const handleDownloadPdf = useCallback(async () => {
     if (paper?.pdfUrl) {
       await downloadPdf(paper.id, paper.pdfUrl);
     }
   }, [paper, downloadPdf]);
-  
+
   if (!paper) return null;
-  
+
   const hasLocalPdf = hasPdf(paper.id);
-  
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-[600px] sm:max-w-[600px] p-0 flex flex-col">
@@ -146,7 +162,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
             </SheetTitle>
           </div>
         </SheetHeader>
-        
+
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-4">
             {/* Authors */}
@@ -166,7 +182,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                 ))}
               </div>
             </div>
-            
+
             {/* Metadata row */}
             <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
               {paper.year && (
@@ -194,15 +210,15 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                 </span>
               )}
             </div>
-            
+
             {/* Identifiers */}
             <div className="flex flex-wrap gap-2">
               {paper.metadata?.doi && (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Badge 
-                        variant="outline" 
+                      <Badge
+                        variant="outline"
                         className="cursor-pointer gap-1"
                         onClick={handleCopyDoi}
                       >
@@ -231,7 +247,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                 </Badge>
               )}
             </div>
-            
+
             {/* Action buttons */}
             <div className="flex flex-wrap gap-2">
               {paper.pdfUrl && (
@@ -257,9 +273,9 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                 Start Learning
               </Button>
             </div>
-            
+
             <Separator />
-            
+
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="w-full justify-start">
@@ -268,7 +284,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                 <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
                 <TabsTrigger value="citations">Citations</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="overview" className="space-y-4 mt-4">
                 {/* Abstract */}
                 {paper.abstract && (
@@ -277,16 +293,18 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                       <BookOpen className="h-4 w-4" />
                       Abstract
                     </h4>
-                    <p className={cn(
-                      "text-sm text-muted-foreground leading-relaxed",
-                      !isAbstractExpanded && "line-clamp-4"
-                    )}>
+                    <p
+                      className={cn(
+                        'text-sm text-muted-foreground leading-relaxed',
+                        !isAbstractExpanded && 'line-clamp-4'
+                      )}
+                    >
                       {paper.abstract}
                     </p>
                     {paper.abstract.length > 300 && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setIsAbstractExpanded(!isAbstractExpanded)}
                         className="h-7 px-2"
                       >
@@ -305,7 +323,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                     )}
                   </div>
                 )}
-                
+
                 {/* Keywords/Topics */}
                 {paper.fieldsOfStudy && paper.fieldsOfStudy.length > 0 && (
                   <div className="space-y-2">
@@ -322,7 +340,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Reading Status */}
                 <div className="space-y-2">
                   <h4 className="font-medium flex items-center gap-2">
@@ -330,25 +348,25 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                     Reading Status
                   </h4>
                   <div className="flex items-center gap-4">
-                    <Select 
-                      value={paper.readingStatus} 
+                    <Select
+                      value={paper.readingStatus}
                       onValueChange={(v) => updatePaperStatus(paper.id, v)}
                     >
                       <SelectTrigger className="w-40">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {STATUS_OPTIONS.map(opt => (
+                        {STATUS_OPTIONS.map((opt) => (
                           <SelectItem key={opt.value} value={opt.value}>
                             {opt.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    
+
                     {/* Rating */}
                     <div className="flex items-center gap-1">
-                      {[1, 2, 3, 4, 5].map(i => (
+                      {[1, 2, 3, 4, 5].map((i) => (
                         <Star
                           key={i}
                           className={cn(
@@ -363,7 +381,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Collections */}
                 <div className="space-y-2">
                   <h4 className="font-medium flex items-center gap-2">
@@ -371,11 +389,11 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                     Collections
                   </h4>
                   <div className="flex flex-wrap gap-1">
-                    {paper.collections?.map(collId => {
-                      const coll = collections.find(c => c.id === collId);
+                    {paper.collections?.map((collId) => {
+                      const coll = collections.find((c) => c.id === collId);
                       return coll ? (
                         <Badge key={collId} variant="outline" className="gap-1">
-                          <div 
+                          <div
                             className="h-2 w-2 rounded-full"
                             style={{ backgroundColor: coll.color || '#888' }}
                           />
@@ -389,18 +407,17 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                       </SelectTrigger>
                       <SelectContent>
                         {collections
-                          .filter(c => !paper.collections?.includes(c.id))
-                          .map(coll => (
+                          .filter((c) => !paper.collections?.includes(c.id))
+                          .map((coll) => (
                             <SelectItem key={coll.id} value={coll.id}>
                               {coll.name}
                             </SelectItem>
-                          ))
-                        }
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
-                
+
                 {/* Tags */}
                 <div className="space-y-2">
                   <h4 className="font-medium flex items-center gap-2">
@@ -430,7 +447,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                   </div>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="notes" className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <h4 className="font-medium flex items-center gap-2">
@@ -448,7 +465,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                   </Button>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="analysis" className="space-y-4 mt-4">
                 <div className="space-y-3">
                   <h4 className="font-medium flex items-center gap-2">
@@ -458,17 +475,17 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                   <p className="text-sm text-muted-foreground">
                     Use AI to analyze this paper and extract insights
                   </p>
-                  
+
                   <div className="flex gap-2">
-                    <Select 
-                      value={selectedAnalysisType} 
+                    <Select
+                      value={selectedAnalysisType}
                       onValueChange={(v) => setSelectedAnalysisType(v as PaperAnalysisType)}
                     >
                       <SelectTrigger className="w-48">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {ANALYSIS_TYPES.map(type => (
+                        {ANALYSIS_TYPES.map((type) => (
                           <SelectItem key={type.value} value={type.value}>
                             <div>
                               <div>{type.label}</div>
@@ -484,7 +501,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                       {isAnalyzing ? 'Analyzing...' : 'Analyze'}
                     </Button>
                   </div>
-                  
+
                   {analysisResult && (
                     <div className="mt-4 p-4 bg-muted rounded-lg">
                       <pre className="text-sm whitespace-pre-wrap">{analysisResult}</pre>
@@ -492,14 +509,12 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                   )}
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="citations" className="space-y-4 mt-4">
                 <div className="text-center text-muted-foreground py-8">
                   <Quote className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p>Citation network coming soon</p>
-                  <p className="text-sm mt-1">
-                    View papers that cite this work and references
-                  </p>
+                  <p className="text-sm mt-1">View papers that cite this work and references</p>
                 </div>
               </TabsContent>
             </Tabs>

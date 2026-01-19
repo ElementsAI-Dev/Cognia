@@ -5,10 +5,7 @@
  */
 
 import { useMemo, useState, useCallback } from 'react';
-import {
-  Wand2, Loader2, Tag,
-  Calendar, BookOpen, Star, Filter, Zap
-} from 'lucide-react';
+import { Wand2, Loader2, Tag, Calendar, BookOpen, Star, Filter, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,9 +23,9 @@ interface SmartCollectionRule {
   color: string;
   enabled: boolean;
   matchCount: number;
-  criteria: (paper: { 
-    year?: number; 
-    citationCount?: number; 
+  criteria: (paper: {
+    year?: number;
+    citationCount?: number;
     fieldsOfStudy?: string[];
     readingStatus?: string;
     userRating?: number;
@@ -45,17 +42,17 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [enabledRules, setEnabledRules] = useState<Record<string, boolean>>({
-    'recent': true,
+    recent: true,
     'highly-cited': true,
     'open-access': true,
-    'favorites': true,
-    'unread': true,
+    favorites: true,
+    unread: true,
   });
-  
+
   // Define smart collection rules
   const smartRules = useMemo((): SmartCollectionRule[] => {
     const currentYear = new Date().getFullYear();
-    
+
     return [
       {
         id: 'recent',
@@ -64,7 +61,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
         icon: Calendar,
         color: '#3b82f6',
         enabled: enabledRules['recent'] ?? true,
-        matchCount: libraryPapers.filter(p => (p.year || 0) >= currentYear - 2).length,
+        matchCount: libraryPapers.filter((p) => (p.year || 0) >= currentYear - 2).length,
         criteria: (p) => (p.year || 0) >= currentYear - 2,
       },
       {
@@ -74,7 +71,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
         icon: Star,
         color: '#f59e0b',
         enabled: enabledRules['highly-cited'] ?? true,
-        matchCount: libraryPapers.filter(p => (p.citationCount || 0) >= 100).length,
+        matchCount: libraryPapers.filter((p) => (p.citationCount || 0) >= 100).length,
         criteria: (p) => (p.citationCount || 0) >= 100,
       },
       {
@@ -84,7 +81,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
         icon: BookOpen,
         color: '#10b981',
         enabled: enabledRules['open-access'] ?? true,
-        matchCount: libraryPapers.filter(p => p.isOpenAccess).length,
+        matchCount: libraryPapers.filter((p) => p.isOpenAccess).length,
         criteria: (p) => p.isOpenAccess === true,
       },
       {
@@ -94,7 +91,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
         icon: Star,
         color: '#ec4899',
         enabled: enabledRules['favorites'] ?? true,
-        matchCount: libraryPapers.filter(p => (p.userRating || 0) >= 4).length,
+        matchCount: libraryPapers.filter((p) => (p.userRating || 0) >= 4).length,
         criteria: (p) => (p.userRating || 0) >= 4,
       },
       {
@@ -104,45 +101,45 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
         icon: BookOpen,
         color: '#8b5cf6',
         enabled: enabledRules['unread'] ?? true,
-        matchCount: libraryPapers.filter(p => p.readingStatus === 'unread').length,
+        matchCount: libraryPapers.filter((p) => p.readingStatus === 'unread').length,
         criteria: (p) => p.readingStatus === 'unread',
       },
     ];
   }, [libraryPapers, enabledRules]);
-  
+
   // Auto-detected topics from library
   const detectedTopics = useMemo(() => {
     const topicCounts: Record<string, number> = {};
-    
-    libraryPapers.forEach(paper => {
-      paper.fieldsOfStudy?.forEach(field => {
+
+    libraryPapers.forEach((paper) => {
+      paper.fieldsOfStudy?.forEach((field) => {
         topicCounts[field] = (topicCounts[field] || 0) + 1;
       });
     });
-    
+
     return Object.entries(topicCounts)
       .filter(([, count]) => count >= 2)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
       .map(([topic, count]) => ({ topic, count }));
   }, [libraryPapers]);
-  
+
   const toggleRule = useCallback((ruleId: string) => {
-    setEnabledRules(prev => ({
+    setEnabledRules((prev) => ({
       ...prev,
       [ruleId]: !prev[ruleId],
     }));
   }, []);
-  
+
   const handleGenerateCollections = useCallback(async () => {
     setIsGenerating(true);
     setGenerationProgress(0);
-    
+
     try {
-      const enabledSmartRules = smartRules.filter(r => r.enabled && r.matchCount > 0);
+      const enabledSmartRules = smartRules.filter((r) => r.enabled && r.matchCount > 0);
       const totalSteps = enabledSmartRules.length + detectedTopics.length;
       let completed = 0;
-      
+
       // Create smart rule collections
       for (const rule of enabledSmartRules) {
         try {
@@ -151,7 +148,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
             rule.description,
             rule.color
           );
-          
+
           // Add matching papers
           for (const paper of libraryPapers) {
             if (rule.criteria(paper)) {
@@ -161,11 +158,11 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
         } catch {
           console.error(`Failed to create collection for ${rule.name}`);
         }
-        
+
         completed++;
         setGenerationProgress((completed / totalSteps) * 100);
       }
-      
+
       // Create topic collections
       for (const { topic } of detectedTopics) {
         try {
@@ -174,7 +171,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
             `Papers about ${topic}`,
             '#6b7280'
           );
-          
+
           for (const paper of libraryPapers) {
             if (paper.fieldsOfStudy?.includes(topic)) {
               await addToCollection(paper.id, collection.id);
@@ -183,7 +180,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
         } catch {
           console.error(`Failed to create collection for ${topic}`);
         }
-        
+
         completed++;
         setGenerationProgress((completed / totalSteps) * 100);
       }
@@ -192,7 +189,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
       setGenerationProgress(100);
     }
   }, [smartRules, detectedTopics, libraryPapers, createCollection, addToCollection]);
-  
+
   return (
     <div className={cn('flex flex-col h-full', className)}>
       {/* Header */}
@@ -207,7 +204,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
               Auto-organize papers based on rules and topics
             </p>
           </div>
-          <Button 
+          <Button
             onClick={handleGenerateCollections}
             disabled={isGenerating || libraryPapers.length === 0}
           >
@@ -224,7 +221,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
             )}
           </Button>
         </div>
-        
+
         {isGenerating && (
           <div className="mt-4 space-y-2">
             <Progress value={generationProgress} className="h-2" />
@@ -234,7 +231,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
           </div>
         )}
       </div>
-      
+
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-6">
           {/* Smart Rules */}
@@ -244,17 +241,17 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
               Smart Rules
             </h4>
             <div className="grid gap-3">
-              {smartRules.map(rule => {
+              {smartRules.map((rule) => {
                 const Icon = rule.icon;
                 return (
-                  <Card key={rule.id} className={cn(
-                    "transition-opacity",
-                    !rule.enabled && "opacity-50"
-                  )}>
+                  <Card
+                    key={rule.id}
+                    className={cn('transition-opacity', !rule.enabled && 'opacity-50')}
+                  >
                     <CardHeader className="py-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div 
+                          <div
                             className="h-8 w-8 rounded-full flex items-center justify-center"
                             style={{ backgroundColor: `${rule.color}20` }}
                           >
@@ -281,7 +278,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
               })}
             </div>
           </div>
-          
+
           {/* Detected Topics */}
           <div className="space-y-3">
             <h4 className="font-medium flex items-center gap-2">
@@ -291,15 +288,9 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
             {detectedTopics.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {detectedTopics.map(({ topic, count }) => (
-                  <Badge 
-                    key={topic} 
-                    variant="secondary"
-                    className="text-sm py-1 px-3"
-                  >
+                  <Badge key={topic} variant="secondary" className="text-sm py-1 px-3">
                     {topic}
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      ({count})
-                    </span>
+                    <span className="ml-2 text-xs text-muted-foreground">({count})</span>
                   </Badge>
                 ))}
               </div>
@@ -309,7 +300,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
               </p>
             )}
           </div>
-          
+
           {/* Info */}
           <Card className="bg-muted/50">
             <CardContent className="pt-4">

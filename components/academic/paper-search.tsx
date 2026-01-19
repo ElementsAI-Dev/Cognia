@@ -6,7 +6,17 @@
  */
 
 import { useState, useCallback } from 'react';
-import { Search, Filter, Loader2, Plus, ExternalLink, BookOpen, Calendar, Users, Quote } from 'lucide-react';
+import {
+  Search,
+  Filter,
+  Loader2,
+  Plus,
+  ExternalLink,
+  BookOpen,
+  Calendar,
+  Users,
+  Quote,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -45,12 +55,15 @@ export function PaperSearch({ onPaperSelect, className }: PaperSearchProps) {
     setSearchFilter,
     addToLibrary,
   } = useAcademic();
-  
-  const [selectedProviders, setSelectedProviders] = useState<AcademicProviderType[]>(['arxiv', 'semantic-scholar']);
+
+  const [selectedProviders, setSelectedProviders] = useState<AcademicProviderType[]>([
+    'arxiv',
+    'semantic-scholar',
+  ]);
   const [yearFrom, setYearFrom] = useState<string>('');
   const [yearTo, setYearTo] = useState<string>('');
   const [openAccessOnly, setOpenAccessOnly] = useState(false);
-  
+
   const handleSearch = useCallback(async () => {
     setSearchFilter({
       providers: selectedProviders,
@@ -60,30 +73,34 @@ export function PaperSearch({ onPaperSelect, className }: PaperSearchProps) {
     });
     await search(searchQuery);
   }, [search, searchQuery, selectedProviders, yearFrom, yearTo, openAccessOnly, setSearchFilter]);
-  
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSearch();
-    }
-  }, [handleSearch]);
-  
-  const handleAddToLibrary = useCallback(async (paper: Paper, e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      await addToLibrary(paper);
-    } catch (error) {
-      console.error('Failed to add paper to library:', error);
-    }
-  }, [addToLibrary]);
-  
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        handleSearch();
+      }
+    },
+    [handleSearch]
+  );
+
+  const handleAddToLibrary = useCallback(
+    async (paper: Paper, e: React.MouseEvent) => {
+      e.stopPropagation();
+      try {
+        await addToLibrary(paper);
+      } catch (error) {
+        console.error('Failed to add paper to library:', error);
+      }
+    },
+    [addToLibrary]
+  );
+
   const toggleProvider = useCallback((providerId: AcademicProviderType) => {
-    setSelectedProviders(prev => 
-      prev.includes(providerId)
-        ? prev.filter(p => p !== providerId)
-        : [...prev, providerId]
+    setSelectedProviders((prev) =>
+      prev.includes(providerId) ? prev.filter((p) => p !== providerId) : [...prev, providerId]
     );
   }, []);
-  
+
   return (
     <div className={cn('flex flex-col h-full', className)}>
       {/* Search Header */}
@@ -110,7 +127,7 @@ export function PaperSearch({ onPaperSelect, className }: PaperSearchProps) {
                 <div>
                   <Label className="text-sm font-medium">Providers</Label>
                   <div className="grid grid-cols-2 gap-2 mt-2">
-                    {PROVIDER_OPTIONS.map(provider => (
+                    {PROVIDER_OPTIONS.map((provider) => (
                       <div key={provider.id} className="flex items-center space-x-2">
                         <Checkbox
                           id={provider.id}
@@ -124,7 +141,7 @@ export function PaperSearch({ onPaperSelect, className }: PaperSearchProps) {
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="text-sm">Year From</Label>
@@ -147,7 +164,7 @@ export function PaperSearch({ onPaperSelect, className }: PaperSearchProps) {
                     />
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="openAccess"
@@ -162,39 +179,31 @@ export function PaperSearch({ onPaperSelect, className }: PaperSearchProps) {
             </PopoverContent>
           </Popover>
           <Button onClick={handleSearch} disabled={isSearching || !searchQuery.trim()}>
-            {isSearching ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              'Search'
-            )}
+            {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
           </Button>
         </div>
-        
+
         {/* Provider badges */}
         <div className="flex flex-wrap gap-1">
-          {selectedProviders.map(providerId => (
+          {selectedProviders.map((providerId) => (
             <Badge key={providerId} variant="secondary" className="text-xs">
               {DEFAULT_ACADEMIC_PROVIDERS[providerId]?.name || providerId}
             </Badge>
           ))}
         </div>
       </div>
-      
+
       {/* Results */}
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-3">
-          {searchError && (
-            <div className="text-center text-destructive py-4">
-              {searchError}
-            </div>
-          )}
-          
+          {searchError && <div className="text-center text-destructive py-4">{searchError}</div>}
+
           {!isSearching && searchResults.length === 0 && searchQuery && !searchError && (
             <div className="text-center text-muted-foreground py-8">
               No papers found. Try adjusting your search or filters.
             </div>
           )}
-          
+
           {!isSearching && searchResults.length === 0 && !searchQuery && (
             <div className="text-center text-muted-foreground py-8">
               <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -202,13 +211,13 @@ export function PaperSearch({ onPaperSelect, className }: PaperSearchProps) {
               <p className="text-sm mt-2">Supports arXiv, Semantic Scholar, CORE, and more</p>
             </div>
           )}
-          
+
           {totalResults > 0 && (
             <div className="text-sm text-muted-foreground mb-2">
               Found {totalResults.toLocaleString()} papers
             </div>
           )}
-          
+
           {searchResults.map((paper) => (
             <PaperCard
               key={paper.id}
@@ -230,14 +239,14 @@ interface PaperCardProps {
 }
 
 function PaperCard({ paper, onSelect, onAddToLibrary }: PaperCardProps) {
-  const authors = paper.authors.slice(0, 3).map(a => a.name).join(', ');
+  const authors = paper.authors
+    .slice(0, 3)
+    .map((a) => a.name)
+    .join(', ');
   const hasMoreAuthors = paper.authors.length > 3;
-  
+
   return (
-    <Card 
-      className="cursor-pointer hover:bg-accent/50 transition-colors"
-      onClick={onSelect}
-    >
+    <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={onSelect}>
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-base font-medium leading-tight line-clamp-2">
@@ -257,26 +266,20 @@ function PaperCard({ paper, onSelect, onAddToLibrary }: PaperCardProps) {
                 <ExternalLink className="h-3.5 w-3.5" />
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={onAddToLibrary}
-            >
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onAddToLibrary}>
               <Plus className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
         <CardDescription className="flex items-center gap-2 text-xs">
           <Users className="h-3 w-3" />
-          {authors}{hasMoreAuthors && ' et al.'}
+          {authors}
+          {hasMoreAuthors && ' et al.'}
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
         {paper.abstract && (
-          <p className="text-sm text-muted-foreground line-clamp-3 mb-3">
-            {paper.abstract}
-          </p>
+          <p className="text-sm text-muted-foreground line-clamp-3 mb-3">{paper.abstract}</p>
         )}
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           {paper.year && (
@@ -285,9 +288,7 @@ function PaperCard({ paper, onSelect, onAddToLibrary }: PaperCardProps) {
               {paper.year}
             </span>
           )}
-          {paper.venue && (
-            <span className="truncate max-w-[200px]">{paper.venue}</span>
-          )}
+          {paper.venue && <span className="truncate max-w-[200px]">{paper.venue}</span>}
           {paper.citationCount !== undefined && paper.citationCount > 0 && (
             <span className="flex items-center gap-1">
               <Quote className="h-3 w-3" />

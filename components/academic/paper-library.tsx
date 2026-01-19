@@ -5,10 +5,22 @@
  */
 
 import { useState, useMemo } from 'react';
-import { 
-  Library, Grid, List, Table2, Star, Trash2, 
-  FolderPlus, Download, FileText, MoreVertical, Eye,
-  Clock, CheckCircle2, Archive, BookMarked
+import {
+  Library,
+  Grid,
+  List,
+  Table2,
+  Star,
+  Trash2,
+  FolderPlus,
+  Download,
+  FileText,
+  MoreVertical,
+  Eye,
+  Clock,
+  CheckCircle2,
+  Archive,
+  BookMarked,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,52 +84,51 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
     // deleteCollection available for future use
     exportBibtex,
   } = useAcademic();
-  
+
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<PaperReadingStatus | 'all'>('all');
   const [newCollectionName, setNewCollectionName] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  
+
   // Filter papers
   const filteredPapers = useMemo(() => {
     let papers = libraryPapers;
-    
+
     // Filter by collection
     if (selectedCollection) {
-      papers = papers.filter(p => 
-        p.collections?.includes(selectedCollection.id)
-      );
+      papers = papers.filter((p) => p.collections?.includes(selectedCollection.id));
     }
-    
+
     // Filter by status
     if (statusFilter !== 'all') {
-      papers = papers.filter(p => p.readingStatus === statusFilter);
+      papers = papers.filter((p) => p.readingStatus === statusFilter);
     }
-    
+
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      papers = papers.filter(p =>
-        p.title.toLowerCase().includes(query) ||
-        p.authors.some((a: { name: string }) => a.name.toLowerCase().includes(query)) ||
-        p.tags?.some(t => t.toLowerCase().includes(query))
+      papers = papers.filter(
+        (p) =>
+          p.title.toLowerCase().includes(query) ||
+          p.authors.some((a: { name: string }) => a.name.toLowerCase().includes(query)) ||
+          p.tags?.some((t) => t.toLowerCase().includes(query))
       );
     }
-    
+
     return papers;
   }, [libraryPapers, selectedCollection, statusFilter, searchQuery]);
-  
+
   const handleCreateCollection = async () => {
     if (!newCollectionName.trim()) return;
     await createCollection(newCollectionName.trim());
     setNewCollectionName('');
     setIsCreateDialogOpen(false);
   };
-  
+
   const handleExport = async () => {
-    const paperIds = filteredPapers.map(p => p.id);
+    const paperIds = filteredPapers.map((p) => p.id);
     const bibtex = await exportBibtex(paperIds);
-    
+
     // Download as file
     const blob = new Blob([bibtex], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -127,7 +138,7 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
     a.click();
     URL.revokeObjectURL(url);
   };
-  
+
   return (
     <div className={cn('flex h-full', className)}>
       {/* Sidebar - Collections */}
@@ -164,7 +175,7 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
             </Dialog>
           </div>
         </div>
-        
+
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-1">
             <Button
@@ -178,15 +189,15 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
                 {libraryPapers.length}
               </Badge>
             </Button>
-            
-            {collections.map(collection => (
+
+            {collections.map((collection) => (
               <div key={collection.id} className="group">
                 <Button
                   variant={selectedCollection?.id === collection.id ? 'secondary' : 'ghost'}
                   className="w-full justify-start text-sm h-8"
                   onClick={() => selectCollection(collection.id)}
                 >
-                  <div 
+                  <div
                     className="h-3 w-3 rounded-full mr-2"
                     style={{ backgroundColor: collection.color || '#888' }}
                   />
@@ -200,7 +211,7 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
           </div>
         </ScrollArea>
       </div>
-      
+
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
@@ -243,25 +254,35 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
               Export
             </Button>
           </div>
-          
+
           {/* Status filters */}
-          <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as PaperReadingStatus | 'all')}>
+          <Tabs
+            value={statusFilter}
+            onValueChange={(v) => setStatusFilter(v as PaperReadingStatus | 'all')}
+          >
             <TabsList className="h-8">
-              <TabsTrigger value="all" className="text-xs h-7">All</TabsTrigger>
-              <TabsTrigger value="unread" className="text-xs h-7">Unread</TabsTrigger>
-              <TabsTrigger value="reading" className="text-xs h-7">Reading</TabsTrigger>
-              <TabsTrigger value="completed" className="text-xs h-7">Completed</TabsTrigger>
-              <TabsTrigger value="archived" className="text-xs h-7">Archived</TabsTrigger>
+              <TabsTrigger value="all" className="text-xs h-7">
+                All
+              </TabsTrigger>
+              <TabsTrigger value="unread" className="text-xs h-7">
+                Unread
+              </TabsTrigger>
+              <TabsTrigger value="reading" className="text-xs h-7">
+                Reading
+              </TabsTrigger>
+              <TabsTrigger value="completed" className="text-xs h-7">
+                Completed
+              </TabsTrigger>
+              <TabsTrigger value="archived" className="text-xs h-7">
+                Archived
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
-        
+
         {/* Papers list */}
         <ScrollArea className="flex-1">
-          <div className={cn(
-            'p-3',
-            viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-2'
-          )}>
+          <div className={cn('p-3', viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-2')}>
             {filteredPapers.length === 0 ? (
               <div className="text-center text-muted-foreground py-12">
                 <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -269,7 +290,7 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
                 <p className="text-sm mt-2">Search and add papers to get started</p>
               </div>
             ) : (
-              filteredPapers.map(paper => (
+              filteredPapers.map((paper) => (
                 <LibraryPaperCard
                   key={paper.libraryId}
                   paper={paper}
@@ -313,19 +334,18 @@ function LibraryPaperCard({
 }: LibraryPaperCardProps) {
   const StatusIcon = STATUS_ICONS[paper.readingStatus];
   const statusColor = STATUS_COLORS[paper.readingStatus];
-  
-  const authors = paper.authors.slice(0, 2).map((a: { name: string }) => a.name).join(', ');
-  
+
+  const authors = paper.authors
+    .slice(0, 2)
+    .map((a: { name: string }) => a.name)
+    .join(', ');
+
   if (viewMode === 'grid') {
     return (
       <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={onSelect}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium line-clamp-2">
-            {paper.title}
-          </CardTitle>
-          <CardDescription className="text-xs line-clamp-1">
-            {authors}
-          </CardDescription>
+          <CardTitle className="text-sm font-medium line-clamp-2">{paper.title}</CardTitle>
+          <CardDescription className="text-xs line-clamp-1">{authors}</CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="flex items-center justify-between">
@@ -337,12 +357,14 @@ function LibraryPaperCard({
             </div>
             {paper.userRating && (
               <div className="flex items-center gap-0.5">
-                {[1,2,3,4,5].map(i => (
+                {[1, 2, 3, 4, 5].map((i) => (
                   <Star
                     key={i}
                     className={cn(
                       'h-3 w-3',
-                      i <= paper.userRating! ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/30'
+                      i <= paper.userRating!
+                        ? 'fill-yellow-400 text-yellow-400'
+                        : 'text-muted-foreground/30'
                     )}
                   />
                 ))}
@@ -353,29 +375,31 @@ function LibraryPaperCard({
       </Card>
     );
   }
-  
+
   return (
-    <div 
+    <div
       className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/50 cursor-pointer transition-colors"
       onClick={onSelect}
     >
       <StatusIcon className={cn('h-5 w-5 shrink-0', statusColor)} />
-      
+
       <div className="flex-1 min-w-0">
         <h4 className="font-medium text-sm truncate">{paper.title}</h4>
         <p className="text-xs text-muted-foreground truncate">
           {authors} • {paper.year}
         </p>
       </div>
-      
+
       {paper.userRating && (
         <div className="flex items-center gap-0.5 shrink-0">
-          {[1,2,3,4,5].map(i => (
+          {[1, 2, 3, 4, 5].map((i) => (
             <Star
               key={i}
               className={cn(
                 'h-3 w-3',
-                i <= paper.userRating! ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/30'
+                i <= paper.userRating!
+                  ? 'fill-yellow-400 text-yellow-400'
+                  : 'text-muted-foreground/30'
               )}
               onClick={(e) => {
                 e.stopPropagation();
@@ -385,11 +409,13 @@ function LibraryPaperCard({
           ))}
         </div>
       )}
-      
+
       {paper.hasCachedPdf && (
-        <Badge variant="outline" className="text-xs shrink-0">PDF</Badge>
+        <Badge variant="outline" className="text-xs shrink-0">
+          PDF
+        </Badge>
       )}
-      
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
           <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
@@ -397,27 +423,50 @@ function LibraryPaperCard({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+          <DropdownMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect();
+            }}
+          >
             <Eye className="h-4 w-4 mr-2" />
             View Details
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onStatusChange('reading'); }}>
+          <DropdownMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              onStatusChange('reading');
+            }}
+          >
             <BookMarked className="h-4 w-4 mr-2" />
             Mark as Reading
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onStatusChange('completed'); }}>
+          <DropdownMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              onStatusChange('completed');
+            }}
+          >
             <CheckCircle2 className="h-4 w-4 mr-2" />
             Mark as Completed
           </DropdownMenuItem>
           {paper.pdfUrl && (
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDownloadPdf(); }}>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownloadPdf();
+              }}
+            >
               <Download className="h-4 w-4 mr-2" />
               Download PDF
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem 
-            onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          <DropdownMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
             className="text-destructive"
           >
             <Trash2 className="h-4 w-4 mr-2" />

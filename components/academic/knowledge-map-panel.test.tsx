@@ -25,9 +25,7 @@ const createMockTrace = (id: string): KnowledgeMapTrace => ({
   id,
   title: `Trace ${id}`,
   description: `Description for trace ${id}`,
-  locations: [
-    { id: `loc-${id}-1`, title: 'Location 1', description: 'Location description' },
-  ],
+  locations: [{ id: `loc-${id}-1`, title: 'Location 1', description: 'Location description' }],
   traceTextDiagram: 'A -> B -> C',
   traceGuide: 'Guide for trace',
 });
@@ -75,35 +73,35 @@ describe('KnowledgeMapPanel', () => {
   describe('Rendering', () => {
     it('should render the component', () => {
       render(<KnowledgeMapPanel />);
-      
+
       expect(screen.getByTestId('knowledge-map-panel')).toBeInTheDocument();
       expect(screen.getByText('title')).toBeInTheDocument();
     });
 
     it('should render navigation buttons', () => {
       render(<KnowledgeMapPanel />);
-      
+
       expect(screen.getByLabelText('Navigate back')).toBeInTheDocument();
       expect(screen.getByLabelText('Navigate forward')).toBeInTheDocument();
     });
 
     it('should render create and import buttons', () => {
       render(<KnowledgeMapPanel />);
-      
+
       expect(screen.getByText('create')).toBeInTheDocument();
       expect(screen.getByText('import')).toBeInTheDocument();
     });
 
     it('should apply custom className', () => {
       const { container } = render(<KnowledgeMapPanel className="custom-class" />);
-      
+
       expect(container.firstChild).toHaveClass('custom-class');
     });
 
     it('should render close button when onClose is provided', () => {
       const mockOnClose = jest.fn();
       render(<KnowledgeMapPanel onClose={mockOnClose} />);
-      
+
       // Close button should be present
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
@@ -113,7 +111,7 @@ describe('KnowledgeMapPanel', () => {
   describe('Empty State', () => {
     it('should show empty state when no knowledge maps', () => {
       render(<KnowledgeMapPanel />);
-      
+
       expect(screen.getByText('noMaps')).toBeInTheDocument();
     });
 
@@ -122,9 +120,9 @@ describe('KnowledgeMapPanel', () => {
         ...defaultMockReturn,
         knowledgeMaps: [createMockKnowledgeMap('1')],
       });
-      
+
       render(<KnowledgeMapPanel />);
-      
+
       expect(screen.getByText('noMapSelected')).toBeInTheDocument();
     });
   });
@@ -133,14 +131,11 @@ describe('KnowledgeMapPanel', () => {
     it('should display knowledge maps in sidebar', () => {
       mockUseKnowledgeMap.mockReturnValue({
         ...defaultMockReturn,
-        knowledgeMaps: [
-          createMockKnowledgeMap('1'),
-          createMockKnowledgeMap('2'),
-        ],
+        knowledgeMaps: [createMockKnowledgeMap('1'), createMockKnowledgeMap('2')],
       });
-      
+
       render(<KnowledgeMapPanel />);
-      
+
       expect(screen.getByText('Knowledge Map 1')).toBeInTheDocument();
       expect(screen.getByText('Knowledge Map 2')).toBeInTheDocument();
     });
@@ -153,13 +148,13 @@ describe('KnowledgeMapPanel', () => {
           { ...createMockKnowledgeMap('2'), title: 'Special Map' },
         ],
       });
-      
+
       const user = userEvent.setup();
       render(<KnowledgeMapPanel />);
-      
+
       const searchInput = screen.getByPlaceholderText(/search/i);
       await user.type(searchInput, 'Special');
-      
+
       expect(screen.getByText('Special Map')).toBeInTheDocument();
       expect(screen.queryByText('Knowledge Map 1')).not.toBeInTheDocument();
     });
@@ -171,12 +166,12 @@ describe('KnowledgeMapPanel', () => {
         knowledgeMaps: [createMockKnowledgeMap('1')],
         setActiveKnowledgeMap: mockSetActive,
       });
-      
+
       const user = userEvent.setup();
       render(<KnowledgeMapPanel />);
-      
+
       await user.click(screen.getByText('Knowledge Map 1'));
-      
+
       expect(mockSetActive).toHaveBeenCalledWith('1');
     });
   });
@@ -188,9 +183,9 @@ describe('KnowledgeMapPanel', () => {
         knowledgeMaps: [createMockKnowledgeMap('1')],
         activeKnowledgeMap: createMockKnowledgeMap('1'),
       });
-      
+
       render(<KnowledgeMapPanel />);
-      
+
       expect(screen.getByTestId('active-map-badge')).toBeInTheDocument();
     });
 
@@ -200,9 +195,9 @@ describe('KnowledgeMapPanel', () => {
         knowledgeMaps: [createMockKnowledgeMap('1')],
         activeKnowledgeMap: createMockKnowledgeMap('1'),
       });
-      
+
       render(<KnowledgeMapPanel />);
-      
+
       expect(screen.getByText('tabs.traces')).toBeInTheDocument();
       expect(screen.getByText('tabs.mindMap')).toBeInTheDocument();
       expect(screen.getByText('tabs.markdown')).toBeInTheDocument();
@@ -214,9 +209,9 @@ describe('KnowledgeMapPanel', () => {
         knowledgeMaps: [createMockKnowledgeMap('1')],
         activeKnowledgeMap: createMockKnowledgeMap('1'),
       });
-      
+
       render(<KnowledgeMapPanel />);
-      
+
       expect(screen.getByTestId('trace-list')).toBeInTheDocument();
     });
 
@@ -226,9 +221,9 @@ describe('KnowledgeMapPanel', () => {
         knowledgeMaps: [createMockKnowledgeMap('1')],
         activeKnowledgeMap: createMockKnowledgeMap('1'),
       });
-      
+
       render(<KnowledgeMapPanel />);
-      
+
       expect(screen.getByText('export')).toBeInTheDocument();
     });
   });
@@ -239,9 +234,9 @@ describe('KnowledgeMapPanel', () => {
         ...defaultMockReturn,
         canNavigateBack: false,
       });
-      
+
       render(<KnowledgeMapPanel />);
-      
+
       expect(screen.getByLabelText('Navigate back')).toBeDisabled();
     });
 
@@ -250,9 +245,9 @@ describe('KnowledgeMapPanel', () => {
         ...defaultMockReturn,
         canNavigateBack: true,
       });
-      
+
       render(<KnowledgeMapPanel />);
-      
+
       expect(screen.getByLabelText('Navigate back')).not.toBeDisabled();
     });
 
@@ -263,12 +258,12 @@ describe('KnowledgeMapPanel', () => {
         canNavigateBack: true,
         navigateBack: mockNavigateBack,
       });
-      
+
       const user = userEvent.setup();
       render(<KnowledgeMapPanel />);
-      
+
       await user.click(screen.getByLabelText('Navigate back'));
-      
+
       expect(mockNavigateBack).toHaveBeenCalled();
     });
   });
@@ -277,9 +272,9 @@ describe('KnowledgeMapPanel', () => {
     it('should open create dialog when create button clicked', async () => {
       const user = userEvent.setup();
       render(<KnowledgeMapPanel />);
-      
+
       await user.click(screen.getByText('create'));
-      
+
       expect(screen.getByText('createDialog.title')).toBeInTheDocument();
     });
 
@@ -289,23 +284,25 @@ describe('KnowledgeMapPanel', () => {
         ...defaultMockReturn,
         createKnowledgeMap: mockCreate,
       });
-      
+
       const user = userEvent.setup();
       render(<KnowledgeMapPanel />);
-      
+
       await user.click(screen.getByText('create'));
-      
+
       const titleInput = screen.getByPlaceholderText(/title/i);
       await user.type(titleInput, 'New Map');
-      
+
       // Find and click the create button in the dialog
       const buttons = screen.getAllByText('create');
       await user.click(buttons[buttons.length - 1]);
-      
+
       await waitFor(() => {
-        expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
-          title: 'New Map',
-        }));
+        expect(mockCreate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: 'New Map',
+          })
+        );
       });
     });
   });
@@ -317,9 +314,9 @@ describe('KnowledgeMapPanel', () => {
         isGenerating: true,
         generationProgress: 50,
       });
-      
+
       render(<KnowledgeMapPanel />);
-      
+
       expect(screen.getByText('generatingProgress')).toBeInTheDocument();
       expect(screen.getByText('50%')).toBeInTheDocument();
     });
@@ -331,9 +328,9 @@ describe('KnowledgeMapPanel', () => {
         ...defaultMockReturn,
         error: 'Something went wrong',
       });
-      
+
       render(<KnowledgeMapPanel />);
-      
+
       expect(screen.getByText('Something went wrong')).toBeInTheDocument();
     });
 
@@ -344,12 +341,12 @@ describe('KnowledgeMapPanel', () => {
         error: 'Test error',
         clearError: mockClearError,
       });
-      
+
       const user = userEvent.setup();
       render(<KnowledgeMapPanel />);
-      
+
       await user.click(screen.getByText('dismiss'));
-      
+
       expect(mockClearError).toHaveBeenCalled();
     });
   });
@@ -361,13 +358,13 @@ describe('KnowledgeMapPanel', () => {
         knowledgeMaps: [createMockKnowledgeMap('1')],
         activeKnowledgeMap: createMockKnowledgeMap('1'),
       });
-      
+
       const user = userEvent.setup();
       render(<KnowledgeMapPanel />);
-      
+
       const traceItems = screen.getAllByTestId('trace-item');
       await user.click(traceItems[0]);
-      
+
       const traceDetail = screen.getByTestId('trace-detail');
       expect(traceDetail).toBeInTheDocument();
     });
@@ -382,12 +379,12 @@ describe('KnowledgeMapPanel', () => {
         activeKnowledgeMap: createMockKnowledgeMap('1'),
         exportToFile: mockExport,
       });
-      
+
       const user = userEvent.setup();
       render(<KnowledgeMapPanel />);
-      
+
       await user.click(screen.getByText('export'));
-      
+
       expect(mockExport).toHaveBeenCalled();
     });
   });
@@ -398,10 +395,10 @@ describe('KnowledgeMapPanel', () => {
         ...defaultMockReturn,
         knowledgeMaps: [createMockKnowledgeMap('1')],
       });
-      
+
       const user = userEvent.setup();
       render(<KnowledgeMapPanel />);
-      
+
       // Open dropdown menu for the map
       const moreButtons = screen.getAllByRole('button');
       // Find the more options button in the card

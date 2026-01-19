@@ -34,7 +34,10 @@ const createMockPaper = (id: string, overrides: Partial<Paper> = {}): Paper => (
   ...overrides,
 });
 
-const createMockLibraryPaper = (id: string, overrides: Partial<LibraryPaper> = {}): LibraryPaper => ({
+const createMockLibraryPaper = (
+  id: string,
+  overrides: Partial<LibraryPaper> = {}
+): LibraryPaper => ({
   ...createMockPaper(id),
   libraryId: `lib-${id}`,
   addedAt: new Date(),
@@ -96,13 +99,13 @@ describe('PaperRecommendations', () => {
   describe('Rendering', () => {
     it('should render the component', () => {
       render(<PaperRecommendations />);
-      
+
       expect(screen.getByText('Recommendations')).toBeInTheDocument();
     });
 
     it('should render tabs', () => {
       render(<PaperRecommendations />);
-      
+
       expect(screen.getByText('Related')).toBeInTheDocument();
       expect(screen.getByText('Trending')).toBeInTheDocument();
       expect(screen.getByText('By Authors')).toBeInTheDocument();
@@ -110,13 +113,13 @@ describe('PaperRecommendations', () => {
 
     it('should render refresh button', () => {
       render(<PaperRecommendations />);
-      
+
       expect(screen.getByText('Refresh')).toBeInTheDocument();
     });
 
     it('should apply custom className', () => {
       const { container } = render(<PaperRecommendations className="custom-class" />);
-      
+
       expect(container.firstChild).toHaveClass('custom-class');
     });
   });
@@ -124,7 +127,7 @@ describe('PaperRecommendations', () => {
   describe('Empty State', () => {
     it('should show empty state when no library papers', () => {
       render(<PaperRecommendations />);
-      
+
       expect(screen.getByText(/Add papers to your library/i)).toBeInTheDocument();
     });
   });
@@ -133,33 +136,27 @@ describe('PaperRecommendations', () => {
     it('should display related papers based on library', () => {
       mockUseAcademic.mockReturnValue({
         ...defaultMockReturn,
-        libraryPapers: [
-          createMockLibraryPaper('1', { fieldsOfStudy: ['ML'] }),
-        ],
+        libraryPapers: [createMockLibraryPaper('1', { fieldsOfStudy: ['ML'] })],
         searchResults: [
           createMockPaper('r1', { fieldsOfStudy: ['ML'] }),
           createMockPaper('r2', { fieldsOfStudy: ['ML'] }),
         ],
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperRecommendations />);
-      
+
       expect(screen.getByText('Recommended Paper r1')).toBeInTheDocument();
     });
 
     it('should show field overlap badge', () => {
       mockUseAcademic.mockReturnValue({
         ...defaultMockReturn,
-        libraryPapers: [
-          createMockLibraryPaper('1', { fieldsOfStudy: ['Machine Learning'] }),
-        ],
-        searchResults: [
-          createMockPaper('r1', { fieldsOfStudy: ['Machine Learning', 'AI'] }),
-        ],
+        libraryPapers: [createMockLibraryPaper('1', { fieldsOfStudy: ['Machine Learning'] })],
+        searchResults: [createMockPaper('r1', { fieldsOfStudy: ['Machine Learning', 'AI'] })],
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperRecommendations />);
-      
+
       expect(screen.getByText('Machine Learning')).toBeInTheDocument();
     });
   });
@@ -169,16 +166,14 @@ describe('PaperRecommendations', () => {
       mockUseAcademic.mockReturnValue({
         ...defaultMockReturn,
         libraryPapers: [createMockLibraryPaper('1')],
-        searchResults: [
-          createMockPaper('t1', { citationCount: 1000 }),
-        ],
+        searchResults: [createMockPaper('t1', { citationCount: 1000 })],
       } as ReturnType<typeof useAcademic>);
-      
+
       const user = userEvent.setup();
       render(<PaperRecommendations />);
-      
+
       await user.click(screen.getByText('Trending'));
-      
+
       expect(screen.getByRole('tab', { selected: true })).toHaveTextContent('Trending');
     });
 
@@ -191,12 +186,12 @@ describe('PaperRecommendations', () => {
           createMockPaper('t2', { citationCount: 1000 }),
         ],
       } as ReturnType<typeof useAcademic>);
-      
+
       const user = userEvent.setup();
       render(<PaperRecommendations />);
-      
+
       await user.click(screen.getByText('Trending'));
-      
+
       // Higher cited paper should appear
     });
   });
@@ -205,38 +200,30 @@ describe('PaperRecommendations', () => {
     it('should switch to by authors tab', async () => {
       mockUseAcademic.mockReturnValue({
         ...defaultMockReturn,
-        libraryPapers: [
-          createMockLibraryPaper('1', { authors: [{ name: 'John Doe' }] }),
-        ],
-        searchResults: [
-          createMockPaper('a1', { authors: [{ name: 'John Doe' }] }),
-        ],
+        libraryPapers: [createMockLibraryPaper('1', { authors: [{ name: 'John Doe' }] })],
+        searchResults: [createMockPaper('a1', { authors: [{ name: 'John Doe' }] })],
       } as ReturnType<typeof useAcademic>);
-      
+
       const user = userEvent.setup();
       render(<PaperRecommendations />);
-      
+
       await user.click(screen.getByText('By Authors'));
-      
+
       expect(screen.getByRole('tab', { selected: true })).toHaveTextContent('By Authors');
     });
 
     it('should show papers by same authors', async () => {
       mockUseAcademic.mockReturnValue({
         ...defaultMockReturn,
-        libraryPapers: [
-          createMockLibraryPaper('1', { authors: [{ name: 'Famous Researcher' }] }),
-        ],
-        searchResults: [
-          createMockPaper('a1', { authors: [{ name: 'Famous Researcher' }] }),
-        ],
+        libraryPapers: [createMockLibraryPaper('1', { authors: [{ name: 'Famous Researcher' }] })],
+        searchResults: [createMockPaper('a1', { authors: [{ name: 'Famous Researcher' }] })],
       } as ReturnType<typeof useAcademic>);
-      
+
       const user = userEvent.setup();
       render(<PaperRecommendations />);
-      
+
       await user.click(screen.getByText('By Authors'));
-      
+
       expect(screen.getByText('Recommended Paper a1')).toBeInTheDocument();
     });
   });
@@ -248,9 +235,9 @@ describe('PaperRecommendations', () => {
         libraryPapers: [createMockLibraryPaper('1')],
         searchResults: [createMockPaper('r1')],
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperRecommendations />);
-      
+
       expect(screen.getByText('Add to Library')).toBeInTheDocument();
     });
 
@@ -262,12 +249,12 @@ describe('PaperRecommendations', () => {
         searchResults: [createMockPaper('r1')],
         addToLibrary: mockAdd,
       } as ReturnType<typeof useAcademic>);
-      
+
       const user = userEvent.setup();
       render(<PaperRecommendations />);
-      
+
       await user.click(screen.getByText('Add to Library'));
-      
+
       expect(mockAdd).toHaveBeenCalled();
     });
   });
@@ -280,12 +267,12 @@ describe('PaperRecommendations', () => {
         libraryPapers: [createMockLibraryPaper('1')],
         refresh: mockRefresh,
       } as ReturnType<typeof useAcademic>);
-      
+
       const user = userEvent.setup();
       render(<PaperRecommendations />);
-      
+
       await user.click(screen.getByText('Refresh'));
-      
+
       expect(mockRefresh).toHaveBeenCalled();
     });
   });
@@ -297,9 +284,9 @@ describe('PaperRecommendations', () => {
         libraryPapers: [createMockLibraryPaper('1')],
         searchResults: [createMockPaper('r1', { title: 'Custom Title' })],
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperRecommendations />);
-      
+
       expect(screen.getByText('Custom Title')).toBeInTheDocument();
     });
 
@@ -309,9 +296,9 @@ describe('PaperRecommendations', () => {
         libraryPapers: [createMockLibraryPaper('1')],
         searchResults: [createMockPaper('r1', { authors: [{ name: 'Jane Doe' }] })],
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperRecommendations />);
-      
+
       expect(screen.getByText('Jane Doe')).toBeInTheDocument();
     });
 
@@ -321,9 +308,9 @@ describe('PaperRecommendations', () => {
         libraryPapers: [createMockLibraryPaper('1')],
         searchResults: [createMockPaper('r1', { citationCount: 250 })],
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperRecommendations />);
-      
+
       expect(screen.getByText('250')).toBeInTheDocument();
     });
   });
@@ -335,9 +322,9 @@ describe('PaperRecommendations', () => {
         libraryPapers: [createMockLibraryPaper('1')],
         isSearching: true,
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperRecommendations />);
-      
+
       expect(screen.getByText(/Loading/i)).toBeInTheDocument();
     });
   });

@@ -7,7 +7,10 @@ export { PaperLibrary, default as PaperLibraryDefault } from './paper-library';
 export { PaperDetail, default as PaperDetailDefault } from './paper-detail';
 export { AcademicStats, default as AcademicStatsDefault } from './academic-stats';
 export { PaperComparison, default as PaperComparisonDefault } from './paper-comparison';
-export { PaperRecommendations, default as PaperRecommendationsDefault } from './paper-recommendations';
+export {
+  PaperRecommendations,
+  default as PaperRecommendationsDefault,
+} from './paper-recommendations';
 export { SmartCollections, default as SmartCollectionsDefault } from './smart-collections';
 
 export { MindMapCanvas, default as MindMapCanvasDefault } from './mind-map-canvas';

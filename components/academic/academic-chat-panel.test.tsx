@@ -18,7 +18,9 @@ jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-const mockUseAcademicEnhanced = useAcademicEnhanced as jest.MockedFunction<typeof useAcademicEnhanced>;
+const mockUseAcademicEnhanced = useAcademicEnhanced as jest.MockedFunction<
+  typeof useAcademicEnhanced
+>;
 
 // Mock paper data
 const createMockPaper = (id: string): Paper => ({
@@ -41,7 +43,7 @@ describe('AcademicChatPanel', () => {
   const mockSearchPapersEnhanced = jest.fn();
   const mockAnalyzePaperEnhanced = jest.fn();
   const mockAddToLibrary = jest.fn();
-  
+
   const defaultMockReturn = {
     // From base useAcademic
     searchQuery: '',
@@ -81,13 +83,13 @@ describe('AcademicChatPanel', () => {
   describe('Rendering', () => {
     it('should render the component', () => {
       render(<AcademicChatPanel />);
-      
+
       expect(screen.getByText('Academic Research Assistant')).toBeInTheDocument();
     });
 
     it('should render quick actions when no messages', () => {
       render(<AcademicChatPanel />);
-      
+
       expect(screen.getByText('Quick Actions')).toBeInTheDocument();
       expect(screen.getByText('Search Papers')).toBeInTheDocument();
       expect(screen.getByText('Summarize')).toBeInTheDocument();
@@ -97,27 +99,33 @@ describe('AcademicChatPanel', () => {
 
     it('should render suggested queries when no messages', () => {
       render(<AcademicChatPanel />);
-      
+
       expect(screen.getByText('Try asking...')).toBeInTheDocument();
-      expect(screen.getByText('Find recent papers on transformer architectures')).toBeInTheDocument();
+      expect(
+        screen.getByText('Find recent papers on transformer architectures')
+      ).toBeInTheDocument();
     });
 
     it('should render input textarea', () => {
       render(<AcademicChatPanel />);
-      
-      expect(screen.getByPlaceholderText('Search for papers or ask a research question...')).toBeInTheDocument();
+
+      expect(
+        screen.getByPlaceholderText('Search for papers or ask a research question...')
+      ).toBeInTheDocument();
     });
 
     it('should apply custom className', () => {
       const { container } = render(<AcademicChatPanel className="custom-class" />);
-      
+
       expect(container.firstChild).toHaveClass('custom-class');
     });
 
     it('should use initialQuery if provided', () => {
       render(<AcademicChatPanel initialQuery="machine learning" />);
-      
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       expect(textarea).toHaveValue('machine learning');
     });
   });
@@ -126,20 +134,24 @@ describe('AcademicChatPanel', () => {
     it('should set input when quick action is clicked', async () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
-      
+
       await user.click(screen.getByText('Search Papers'));
-      
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       expect(textarea).toHaveValue('Find papers about ');
     });
 
     it('should set input for Summarize action', async () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
-      
+
       await user.click(screen.getByText('Summarize'));
-      
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       expect(textarea).toHaveValue('Summarize this paper: ');
     });
   });
@@ -148,10 +160,12 @@ describe('AcademicChatPanel', () => {
     it('should fill input when suggested query is clicked', async () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
-      
+
       await user.click(screen.getByText('Find recent papers on transformer architectures'));
-      
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       expect(textarea).toHaveValue('Find recent papers on transformer architectures');
     });
   });
@@ -162,14 +176,16 @@ describe('AcademicChatPanel', () => {
         success: true,
         papers: [createMockPaper('1'), createMockPaper('2')],
       });
-      
+
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
-      
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       await user.type(textarea, 'machine learning papers');
       await user.keyboard('{Enter}');
-      
+
       await waitFor(() => {
         expect(mockSearchPapersEnhanced).toHaveBeenCalledWith(
           'machine learning papers',
@@ -186,14 +202,16 @@ describe('AcademicChatPanel', () => {
         success: true,
         papers: [createMockPaper('1')],
       });
-      
+
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
-      
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       await user.type(textarea, 'find papers about AI');
       await user.keyboard('{Enter}');
-      
+
       await waitFor(() => {
         expect(screen.getByText(/Found 1 papers/)).toBeInTheDocument();
       });
@@ -204,14 +222,16 @@ describe('AcademicChatPanel', () => {
         success: true,
         papers: [],
       });
-      
+
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
-      
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       await user.type(textarea, 'search unknown topic xyz');
       await user.keyboard('{Enter}');
-      
+
       await waitFor(() => {
         expect(screen.getByText(/No papers found/)).toBeInTheDocument();
       });
@@ -219,14 +239,16 @@ describe('AcademicChatPanel', () => {
 
     it('should show error message on search failure', async () => {
       mockSearchPapersEnhanced.mockRejectedValue(new Error('Search failed'));
-      
+
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
-      
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       await user.type(textarea, 'find papers');
       await user.keyboard('{Enter}');
-      
+
       await waitFor(() => {
         expect(screen.getByText(/Search failed/)).toBeInTheDocument();
       });
@@ -235,27 +257,29 @@ describe('AcademicChatPanel', () => {
     it('should not submit when input is empty', async () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
-      
+
       const submitButton = screen.getByRole('button', { name: '' });
       await user.click(submitButton);
-      
+
       expect(mockSearchPapersEnhanced).not.toHaveBeenCalled();
     });
 
     it('should not submit when loading', async () => {
       mockSearchPapersEnhanced.mockImplementation(() => new Promise(() => {})); // Never resolves
-      
+
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
-      
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       await user.type(textarea, 'first search');
       await user.keyboard('{Enter}');
-      
+
       // Try to submit again
       await user.type(textarea, 'second search');
       await user.keyboard('{Enter}');
-      
+
       expect(mockSearchPapersEnhanced).toHaveBeenCalledTimes(1);
     });
   });
@@ -263,16 +287,19 @@ describe('AcademicChatPanel', () => {
   describe('Loading State', () => {
     it('should show loading indicator during search', async () => {
       mockSearchPapersEnhanced.mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve({ success: true, papers: [] }), 1000))
+        () =>
+          new Promise((resolve) => setTimeout(() => resolve({ success: true, papers: [] }), 1000))
       );
-      
+
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
-      
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       await user.type(textarea, 'test search');
       await user.keyboard('{Enter}');
-      
+
       expect(screen.getByText('Searching...')).toBeInTheDocument();
     });
 
@@ -281,9 +308,9 @@ describe('AcademicChatPanel', () => {
         ...defaultMockReturn,
         isAnalyzing: true,
       } as ReturnType<typeof useAcademicEnhanced>);
-      
+
       render(<AcademicChatPanel />);
-      
+
       // The component would show this when analyzing
       // Since we need to trigger the analysis first, this test verifies the hook is called correctly
       expect(mockUseAcademicEnhanced).toHaveBeenCalled();
@@ -297,14 +324,16 @@ describe('AcademicChatPanel', () => {
         success: true,
         papers: [createMockPaper('1')],
       });
-      
+
       const user = userEvent.setup();
       render(<AcademicChatPanel onPaperSelect={mockOnPaperSelect} />);
-      
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       await user.type(textarea, 'find papers');
       await user.keyboard('{Enter}');
-      
+
       await waitFor(() => {
         expect(screen.getByText(/Test Paper 1/)).toBeInTheDocument();
       });
@@ -318,14 +347,16 @@ describe('AcademicChatPanel', () => {
         papers: [createMockPaper('1')],
       });
       mockAddToLibrary.mockResolvedValue(undefined);
-      
+
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
-      
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       await user.type(textarea, 'find papers about machine learning');
       await user.keyboard('{Enter}');
-      
+
       await waitFor(() => {
         expect(screen.getByText(/Found 1 papers/)).toBeInTheDocument();
       });
@@ -338,9 +369,9 @@ describe('AcademicChatPanel', () => {
         papers: [createMockPaper('1')],
       });
       mockAddToLibrary.mockResolvedValue(undefined);
-      
+
       render(<AcademicChatPanel onAddToLibrary={mockOnAddToLibrary} />);
-      
+
       // The callback would be called when a paper is added
       expect(mockUseAcademicEnhanced).toHaveBeenCalled();
     });
@@ -353,15 +384,17 @@ describe('AcademicChatPanel', () => {
         analysis: 'This paper discusses...',
         suggestedQuestions: ['What are the main findings?'],
       });
-      
+
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
-      
+
       // First need to select a paper, then analyze
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       await user.type(textarea, 'summarize this paper');
       await user.keyboard('{Enter}');
-      
+
       // Should show message about selecting a paper first
       await waitFor(() => {
         expect(screen.getByText(/select a paper first/i)).toBeInTheDocument();
@@ -372,7 +405,7 @@ describe('AcademicChatPanel', () => {
   describe('Selected Papers', () => {
     it('should not show selected papers section when no papers selected', () => {
       render(<AcademicChatPanel />);
-      
+
       expect(screen.queryByText(/Selected Papers/)).not.toBeInTheDocument();
     });
   });
@@ -383,14 +416,16 @@ describe('AcademicChatPanel', () => {
         success: true,
         papers: [],
       });
-      
+
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
-      
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       await user.type(textarea, 'test query');
       await user.keyboard('{Enter}');
-      
+
       await waitFor(() => {
         expect(mockSearchPapersEnhanced).toHaveBeenCalled();
       });
@@ -399,11 +434,13 @@ describe('AcademicChatPanel', () => {
     it('should not submit on Shift+Enter', async () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
-      
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       await user.type(textarea, 'test query');
       await user.keyboard('{Shift>}{Enter}{/Shift}');
-      
+
       expect(mockSearchPapersEnhanced).not.toHaveBeenCalled();
     });
   });
@@ -414,14 +451,16 @@ describe('AcademicChatPanel', () => {
         success: true,
         papers: [],
       });
-      
+
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
-      
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       await user.type(textarea, 'My search query');
       await user.keyboard('{Enter}');
-      
+
       await waitFor(() => {
         const userMessage = screen.getByText('My search query');
         // Find the message bubble container
@@ -435,14 +474,16 @@ describe('AcademicChatPanel', () => {
         success: true,
         papers: [],
       });
-      
+
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
-      
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       await user.type(textarea, 'find something');
       await user.keyboard('{Enter}');
-      
+
       await waitFor(() => {
         const assistantMessage = screen.getByText(/No papers found/);
         // Find the message bubble container
@@ -458,14 +499,16 @@ describe('AcademicChatPanel', () => {
         success: true,
         papers: [],
       });
-      
+
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
-      
-      const textarea = screen.getByPlaceholderText('Search for papers or ask a research question...');
+
+      const textarea = screen.getByPlaceholderText(
+        'Search for papers or ask a research question...'
+      );
       await user.type(textarea, 'test query');
       await user.keyboard('{Enter}');
-      
+
       await waitFor(() => {
         expect(textarea).toHaveValue('');
       });
@@ -473,10 +516,10 @@ describe('AcademicChatPanel', () => {
 
     it('should disable submit button when input is empty', () => {
       render(<AcademicChatPanel />);
-      
+
       const buttons = screen.getAllByRole('button');
-      const submitButton = buttons.find(btn => btn.getAttribute('type') === 'submit');
-      
+      const submitButton = buttons.find((btn) => btn.getAttribute('type') === 'submit');
+
       expect(submitButton).toBeDisabled();
     });
   });

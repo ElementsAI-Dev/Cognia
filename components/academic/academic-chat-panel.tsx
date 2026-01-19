@@ -24,11 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { useAcademicEnhanced } from '@/hooks/academic/use-academic-enhanced';
 import type { Paper, PaperAnalysisType } from '@/types/learning/academic';
@@ -70,12 +66,8 @@ export function AcademicChatPanel({
   initialQuery,
   className,
 }: AcademicChatPanelProps) {
-  const {
-    searchPapersEnhanced,
-    analyzePaperEnhanced,
-    isAnalyzing,
-    addToLibrary,
-  } = useAcademicEnhanced();
+  const { searchPapersEnhanced, analyzePaperEnhanced, isAnalyzing, addToLibrary } =
+    useAcademicEnhanced();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState(initialQuery || '');
@@ -91,122 +83,168 @@ export function AcademicChatPanel({
     }
   }, [messages]);
 
-  const addMessage = useCallback((role: 'user' | 'assistant', content: string, extra?: Partial<ChatMessage>) => {
-    const message: ChatMessage = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      role,
-      content,
-      timestamp: new Date(),
-      ...extra,
-    };
-    setMessages(prev => [...prev, message]);
-    return message;
-  }, []);
+  const addMessage = useCallback(
+    (role: 'user' | 'assistant', content: string, extra?: Partial<ChatMessage>) => {
+      const message: ChatMessage = {
+        id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        role,
+        content,
+        timestamp: new Date(),
+        ...extra,
+      };
+      setMessages((prev) => [...prev, message]);
+      return message;
+    },
+    []
+  );
 
-  const handleSearch = useCallback(async (query: string) => {
-    setIsLoading(true);
-    setShowSuggestions(false);
-    
-    addMessage('user', query);
-    
-    try {
-      const result = await searchPapersEnhanced(query, {
-        maxResults: 10,
-        providers: ['arxiv', 'semantic-scholar'],
-      });
+  const handleSearch = useCallback(
+    async (query: string) => {
+      setIsLoading(true);
+      setShowSuggestions(false);
 
-      if (result.success && result.papers.length > 0) {
-        const responseContent = `Found ${result.papers.length} papers for "${query}". Here are the results:`;
-        addMessage('assistant', responseContent, { papers: result.papers });
-      } else {
-        addMessage('assistant', `No papers found for "${query}". Try different search terms or check the spelling.`);
+      addMessage('user', query);
+
+      try {
+        const result = await searchPapersEnhanced(query, {
+          maxResults: 10,
+          providers: ['arxiv', 'semantic-scholar'],
+        });
+
+        if (result.success && result.papers.length > 0) {
+          const responseContent = `Found ${result.papers.length} papers for "${query}". Here are the results:`;
+          addMessage('assistant', responseContent, { papers: result.papers });
+        } else {
+          addMessage(
+            'assistant',
+            `No papers found for "${query}". Try different search terms or check the spelling.`
+          );
+        }
+      } catch (error) {
+        addMessage(
+          'assistant',
+          `Search failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      addMessage('assistant', `Search failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [searchPapersEnhanced, addMessage]);
+    },
+    [searchPapersEnhanced, addMessage]
+  );
 
-  const handleAnalyze = useCallback(async (paper: Paper, analysisType: PaperAnalysisType = 'summary') => {
-    setIsLoading(true);
-    
-    addMessage('user', `Analyze "${paper.title}" - ${analysisType}`);
-    
-    try {
-      const result = await analyzePaperEnhanced(paper, analysisType);
-      
-      if (result.success) {
-        addMessage('assistant', result.analysis, { analysisType });
-        
-        if (result.suggestedQuestions && result.suggestedQuestions.length > 0) {
-          addMessage('assistant', `**Suggested follow-up questions:**\n${result.suggestedQuestions.map(q => `- ${q}`).join('\n')}`);
+  const handleAnalyze = useCallback(
+    async (paper: Paper, analysisType: PaperAnalysisType = 'summary') => {
+      setIsLoading(true);
+
+      addMessage('user', `Analyze "${paper.title}" - ${analysisType}`);
+
+      try {
+        const result = await analyzePaperEnhanced(paper, analysisType);
+
+        if (result.success) {
+          addMessage('assistant', result.analysis, { analysisType });
+
+          if (result.suggestedQuestions && result.suggestedQuestions.length > 0) {
+            addMessage(
+              'assistant',
+              `**Suggested follow-up questions:**\n${result.suggestedQuestions.map((q) => `- ${q}`).join('\n')}`
+            );
+          }
+        } else {
+          addMessage('assistant', `Analysis failed: ${result.error || 'Unknown error'}`);
+        }
+      } catch (error) {
+        addMessage(
+          'assistant',
+          `Analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [analyzePaperEnhanced, addMessage]
+  );
+
+  const handleSubmit = useCallback(
+    async (e?: React.FormEvent) => {
+      e?.preventDefault();
+
+      const query = input.trim();
+      if (!query || isLoading) return;
+
+      setInput('');
+
+      const lowerQuery = query.toLowerCase();
+      if (
+        lowerQuery.includes('search') ||
+        lowerQuery.includes('find') ||
+        lowerQuery.includes('papers about')
+      ) {
+        const searchTerms = query
+          .replace(
+            /^(search|find|look for|get)\s+(papers?|articles?|research)?\s*(about|on|for)?\s*/i,
+            ''
+          )
+          .trim();
+        await handleSearch(searchTerms || query);
+      } else if (lowerQuery.includes('analyze') || lowerQuery.includes('summarize')) {
+        if (selectedPapers.length > 0) {
+          await handleAnalyze(selectedPapers[0], 'summary');
+        } else {
+          addMessage(
+            'assistant',
+            'Please select a paper first or provide a paper title to analyze.'
+          );
         }
       } else {
-        addMessage('assistant', `Analysis failed: ${result.error || 'Unknown error'}`);
+        await handleSearch(query);
       }
-    } catch (error) {
-      addMessage('assistant', `Analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [analyzePaperEnhanced, addMessage]);
+    },
+    [input, isLoading, handleSearch, handleAnalyze, selectedPapers, addMessage]
+  );
 
-  const handleSubmit = useCallback(async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    
-    const query = input.trim();
-    if (!query || isLoading) return;
-    
-    setInput('');
-    
-    const lowerQuery = query.toLowerCase();
-    if (lowerQuery.includes('search') || lowerQuery.includes('find') || lowerQuery.includes('papers about')) {
-      const searchTerms = query
-        .replace(/^(search|find|look for|get)\s+(papers?|articles?|research)?\s*(about|on|for)?\s*/i, '')
-        .trim();
-      await handleSearch(searchTerms || query);
-    } else if (lowerQuery.includes('analyze') || lowerQuery.includes('summarize')) {
-      if (selectedPapers.length > 0) {
-        await handleAnalyze(selectedPapers[0], 'summary');
-      } else {
-        addMessage('assistant', 'Please select a paper first or provide a paper title to analyze.');
-      }
-    } else {
-      await handleSearch(query);
-    }
-  }, [input, isLoading, handleSearch, handleAnalyze, selectedPapers, addMessage]);
-
-  const handleQuickAction = useCallback((action: typeof QUICK_ACTIONS[0]) => {
+  const handleQuickAction = useCallback((action: (typeof QUICK_ACTIONS)[0]) => {
     setInput(action.prompt);
     inputRef.current?.focus();
   }, []);
 
-  const handleSuggestedQuery = useCallback((query: string) => {
-    setInput(query);
-    handleSubmit();
-  }, [handleSubmit]);
+  const handleSuggestedQuery = useCallback(
+    (query: string) => {
+      setInput(query);
+      handleSubmit();
+    },
+    [handleSubmit]
+  );
 
-  const handlePaperClick = useCallback((paper: Paper) => {
-    setSelectedPapers(prev => {
-      const exists = prev.some(p => p.id === paper.id);
-      if (exists) {
-        return prev.filter(p => p.id !== paper.id);
+  const handlePaperClick = useCallback(
+    (paper: Paper) => {
+      setSelectedPapers((prev) => {
+        const exists = prev.some((p) => p.id === paper.id);
+        if (exists) {
+          return prev.filter((p) => p.id !== paper.id);
+        }
+        return [...prev, paper];
+      });
+      onPaperSelect?.(paper);
+    },
+    [onPaperSelect]
+  );
+
+  const handleAddToLibrary = useCallback(
+    async (paper: Paper) => {
+      try {
+        await addToLibrary(paper);
+        onAddToLibrary?.(paper);
+        addMessage('assistant', `Added "${paper.title}" to your library.`);
+      } catch (error) {
+        addMessage(
+          'assistant',
+          `Failed to add paper to library: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
       }
-      return [...prev, paper];
-    });
-    onPaperSelect?.(paper);
-  }, [onPaperSelect]);
-
-  const handleAddToLibrary = useCallback(async (paper: Paper) => {
-    try {
-      await addToLibrary(paper);
-      onAddToLibrary?.(paper);
-      addMessage('assistant', `Added "${paper.title}" to your library.`);
-    } catch (error) {
-      addMessage('assistant', `Failed to add paper to library: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }, [addToLibrary, onAddToLibrary, addMessage]);
+    },
+    [addToLibrary, onAddToLibrary, addMessage]
+  );
 
   return (
     <div className={cn('flex flex-col h-full bg-background', className)}>
@@ -232,7 +270,7 @@ export function AcademicChatPanel({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-2">
-                  {QUICK_ACTIONS.map(action => (
+                  {QUICK_ACTIONS.map((action) => (
                     <Button
                       key={action.id}
                       variant="outline"
@@ -271,7 +309,7 @@ export function AcademicChatPanel({
             </div>
           )}
 
-          {messages.map(message => (
+          {messages.map((message) => (
             <div
               key={message.id}
               className={cn(
@@ -282,15 +320,11 @@ export function AcademicChatPanel({
               <div
                 className={cn(
                   'max-w-[85%] rounded-lg px-4 py-3',
-                  message.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
+                  message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
                 )}
               >
                 <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <div className="whitespace-pre-wrap text-sm">
-                    {message.content}
-                  </div>
+                  <div className="whitespace-pre-wrap text-sm">{message.content}</div>
                 </div>
 
                 {message.papers && message.papers.length > 0 && (
@@ -311,7 +345,9 @@ export function AcademicChatPanel({
                         variant="ghost"
                         size="sm"
                         className="w-full"
-                        onClick={() => {/* Show all results */}}
+                        onClick={() => {
+                          /* Show all results */
+                        }}
                       >
                         Show {message.papers.length - 5} more results
                       </Button>
@@ -325,9 +361,7 @@ export function AcademicChatPanel({
           {isLoading && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm">
-                {isAnalyzing ? 'Analyzing paper...' : 'Searching...'}
-              </span>
+              <span className="text-sm">{isAnalyzing ? 'Analyzing paper...' : 'Searching...'}</span>
             </div>
           )}
         </div>
@@ -340,15 +374,13 @@ export function AcademicChatPanel({
               variant="ghost"
               className="w-full flex items-center justify-between px-4 py-2 h-auto"
             >
-              <span className="text-sm font-medium">
-                Selected Papers ({selectedPapers.length})
-              </span>
+              <span className="text-sm font-medium">Selected Papers ({selectedPapers.length})</span>
               <ChevronUp className="h-4 w-4" />
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="px-4 pb-2">
             <div className="flex flex-wrap gap-2">
-              {selectedPapers.map(paper => (
+              {selectedPapers.map((paper) => (
                 <Badge
                   key={paper.id}
                   variant="secondary"
@@ -370,11 +402,7 @@ export function AcademicChatPanel({
                 <Brain className="h-3 w-3 mr-1" />
                 Analyze
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setSelectedPapers([])}
-              >
+              <Button size="sm" variant="outline" onClick={() => setSelectedPapers([])}>
                 Clear
               </Button>
             </div>

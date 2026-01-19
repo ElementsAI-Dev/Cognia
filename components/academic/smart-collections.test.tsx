@@ -14,7 +14,10 @@ jest.mock('@/hooks/academic', () => ({
 
 const mockUseAcademic = useAcademic as jest.MockedFunction<typeof useAcademic>;
 
-const createMockLibraryPaper = (id: string, overrides: Partial<LibraryPaper> = {}): LibraryPaper => ({
+const createMockLibraryPaper = (
+  id: string,
+  overrides: Partial<LibraryPaper> = {}
+): LibraryPaper => ({
   id,
   providerId: 'arxiv',
   externalId: `arxiv-${id}`,
@@ -122,7 +125,7 @@ describe('SmartCollections', () => {
     it('should toggle rule when switch clicked', async () => {
       const user = userEvent.setup();
       render(<SmartCollections />);
-      
+
       const switches = screen.getAllByRole('switch');
       await user.click(switches[0]);
     });
@@ -137,7 +140,7 @@ describe('SmartCollections', () => {
           createMockLibraryPaper('2', { fieldsOfStudy: ['Machine Learning'] }),
         ],
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<SmartCollections />);
       expect(screen.getByText('Machine Learning')).toBeInTheDocument();
     });
@@ -156,12 +159,12 @@ describe('SmartCollections', () => {
         libraryPapers: [createMockLibraryPaper('1')],
         createCollection: mockCreate,
       } as ReturnType<typeof useAcademic>);
-      
+
       const user = userEvent.setup();
       render(<SmartCollections />);
-      
+
       await user.click(screen.getByText('Generate Collections'));
-      
+
       await waitFor(() => {
         expect(mockCreate).toHaveBeenCalled();
       });
@@ -174,12 +177,12 @@ describe('SmartCollections', () => {
         ...defaultMockReturn,
         libraryPapers: [createMockLibraryPaper('1')],
       } as ReturnType<typeof useAcademic>);
-      
+
       const user = userEvent.setup();
       render(<SmartCollections />);
-      
+
       await user.click(screen.getByText('Generate Collections'));
-      
+
       // Generation should trigger, button should still be visible
       expect(screen.getByText('Generate Collections')).toBeInTheDocument();
     });

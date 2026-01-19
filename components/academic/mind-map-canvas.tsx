@@ -22,12 +22,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,12 +30,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import type {
   MindMapData,
@@ -114,7 +104,9 @@ export function MindMapCanvas({
   });
 
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number; width: number; height: number }>>(new Map());
+  const [nodePositions, setNodePositions] = useState<
+    Map<string, { x: number; y: number; width: number; height: number }>
+  >(new Map());
 
   const flatNodes = useMemo(() => {
     const result: MindMapNode[] = [];
@@ -126,53 +118,61 @@ export function MindMapCanvas({
     return result;
   }, [data.nodes]);
 
-  const calculateLayout = useCallback((canvas: HTMLCanvasElement | null) => {
-    const positions = new Map<string, { x: number; y: number; width: number; height: number }>();
-    if (!canvas) return positions;
+  const calculateLayout = useCallback(
+    (canvas: HTMLCanvasElement | null) => {
+      const positions = new Map<string, { x: number; y: number; width: number; height: number }>();
+      if (!canvas) return positions;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return positions;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return positions;
 
-    ctx.font = '14px Inter, system-ui, sans-serif';
+      ctx.font = '14px Inter, system-ui, sans-serif';
 
-    const measureNode = (node: MindMapNode): number => {
-      const textWidth = ctx.measureText(node.label).width;
-      return Math.max(NODE_MIN_WIDTH, textWidth + NODE_PADDING * 2);
-    };
+      const measureNode = (node: MindMapNode): number => {
+        const textWidth = ctx.measureText(node.label).width;
+        return Math.max(NODE_MIN_WIDTH, textWidth + NODE_PADDING * 2);
+      };
 
-    const rootNode = data.nodes.find(n => n.id === data.rootId);
-    if (!rootNode) return positions;
+      const rootNode = data.nodes.find((n) => n.id === data.rootId);
+      if (!rootNode) return positions;
 
-    const layoutTree = (node: MindMapNode, x: number, y: number, _level: number): { minY: number; maxY: number } => {
-      const width = measureNode(node);
-      const height = NODE_HEIGHT;
+      const layoutTree = (
+        node: MindMapNode,
+        x: number,
+        y: number,
+        _level: number
+      ): { minY: number; maxY: number } => {
+        const width = measureNode(node);
+        const height = NODE_HEIGHT;
 
-      if (!node.children || node.children.length === 0) {
-        positions.set(node.id, { x, y, width, height });
-        return { minY: y, maxY: y + height };
-      }
+        if (!node.children || node.children.length === 0) {
+          positions.set(node.id, { x, y, width, height });
+          return { minY: y, maxY: y + height };
+        }
 
-      let currentY = y;
-      let minY = Infinity;
-      let maxY = -Infinity;
+        let currentY = y;
+        let minY = Infinity;
+        let maxY = -Infinity;
 
-      for (const child of node.children) {
-        const childResult = layoutTree(child, x + LEVEL_GAP_X, currentY, _level + 1);
-        minY = Math.min(minY, childResult.minY);
-        maxY = Math.max(maxY, childResult.maxY);
-        currentY = childResult.maxY + LEVEL_GAP_Y;
-      }
+        for (const child of node.children) {
+          const childResult = layoutTree(child, x + LEVEL_GAP_X, currentY, _level + 1);
+          minY = Math.min(minY, childResult.minY);
+          maxY = Math.max(maxY, childResult.maxY);
+          currentY = childResult.maxY + LEVEL_GAP_Y;
+        }
 
-      const nodeY = (minY + maxY) / 2 - height / 2;
-      positions.set(node.id, { x, y: nodeY, width, height });
+        const nodeY = (minY + maxY) / 2 - height / 2;
+        positions.set(node.id, { x, y: nodeY, width, height });
 
-      return { minY, maxY };
-    };
+        return { minY, maxY };
+      };
 
-    layoutTree(rootNode, 100, 100, 0);
+      layoutTree(rootNode, 100, 100, 0);
 
-    return positions;
-  }, [data.nodes, data.rootId]);
+      return positions;
+    },
+    [data.nodes, data.rootId]
+  );
 
   useEffect(() => {
     const positions = calculateLayout(canvasRef.current);
@@ -197,7 +197,7 @@ export function MindMapCanvas({
     ctx.translate(state.panX, state.panY);
     ctx.scale(state.zoom, state.zoom);
 
-    data.edges.forEach(edge => {
+    data.edges.forEach((edge) => {
       const sourcePos = nodePositions.get(edge.source);
       const targetPos = nodePositions.get(edge.target);
       if (!sourcePos || !targetPos) return;
@@ -221,7 +221,7 @@ export function MindMapCanvas({
       ctx.stroke();
     });
 
-    flatNodes.forEach(node => {
+    flatNodes.forEach((node) => {
       const pos = nodePositions.get(node.id);
       if (!pos) return;
 
@@ -229,8 +229,13 @@ export function MindMapCanvas({
       const isHovered = state.hoveredNodeId === node.id;
       const isHighlighted = state.highlightedNodes.has(node.id);
 
-      const bgColor = node.style?.backgroundColor || theme.nodeColors[node.type] || theme.nodeColors.detail;
-      const borderColor = isSelected ? '#3b82f6' : isHovered ? '#60a5fa' : node.style?.borderColor || bgColor;
+      const bgColor =
+        node.style?.backgroundColor || theme.nodeColors[node.type] || theme.nodeColors.detail;
+      const borderColor = isSelected
+        ? '#3b82f6'
+        : isHovered
+          ? '#60a5fa'
+          : node.style?.borderColor || bgColor;
 
       ctx.fillStyle = bgColor;
       ctx.strokeStyle = borderColor;
@@ -295,106 +300,115 @@ export function MindMapCanvas({
     };
   }, [draw]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left - state.panX) / state.zoom;
-    const y = (e.clientY - rect.top - state.panY) / state.zoom;
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left - state.panX) / state.zoom;
+      const y = (e.clientY - rect.top - state.panY) / state.zoom;
 
-    let clickedNode: MindMapNode | null = null;
-    for (const node of flatNodes) {
-      const pos = nodePositions.get(node.id);
-      if (pos && x >= pos.x && x <= pos.x + pos.width && y >= pos.y && y <= pos.y + pos.height) {
-        clickedNode = node;
-        break;
+      let clickedNode: MindMapNode | null = null;
+      for (const node of flatNodes) {
+        const pos = nodePositions.get(node.id);
+        if (pos && x >= pos.x && x <= pos.x + pos.width && y >= pos.y && y <= pos.y + pos.height) {
+          clickedNode = node;
+          break;
+        }
       }
-    }
 
-    if (clickedNode) {
-      setState(prev => ({ ...prev, selectedNodeId: clickedNode!.id }));
-      onNodeClick?.(clickedNode);
-    } else {
-      setState(prev => ({ ...prev, isDragging: true, selectedNodeId: null }));
-      setDragStart({ x: e.clientX - state.panX, y: e.clientY - state.panY });
-    }
-  }, [flatNodes, nodePositions, state.panX, state.panY, state.zoom, onNodeClick]);
+      if (clickedNode) {
+        setState((prev) => ({ ...prev, selectedNodeId: clickedNode!.id }));
+        onNodeClick?.(clickedNode);
+      } else {
+        setState((prev) => ({ ...prev, isDragging: true, selectedNodeId: null }));
+        setDragStart({ x: e.clientX - state.panX, y: e.clientY - state.panY });
+      }
+    },
+    [flatNodes, nodePositions, state.panX, state.panY, state.zoom, onNodeClick]
+  );
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    if (state.isDragging) {
-      setState(prev => ({
+      if (state.isDragging) {
+        setState((prev) => ({
+          ...prev,
+          panX: e.clientX - dragStart.x,
+          panY: e.clientY - dragStart.y,
+        }));
+        return;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left - state.panX) / state.zoom;
+      const y = (e.clientY - rect.top - state.panY) / state.zoom;
+
+      let hoveredNode: MindMapNode | null = null;
+      for (const node of flatNodes) {
+        const pos = nodePositions.get(node.id);
+        if (pos && x >= pos.x && x <= pos.x + pos.width && y >= pos.y && y <= pos.y + pos.height) {
+          hoveredNode = node;
+          break;
+        }
+      }
+
+      setState((prev) => ({
         ...prev,
-        panX: e.clientX - dragStart.x,
-        panY: e.clientY - dragStart.y,
+        hoveredNodeId: hoveredNode?.id || null,
       }));
-      return;
-    }
 
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left - state.panX) / state.zoom;
-    const y = (e.clientY - rect.top - state.panY) / state.zoom;
-
-    let hoveredNode: MindMapNode | null = null;
-    for (const node of flatNodes) {
-      const pos = nodePositions.get(node.id);
-      if (pos && x >= pos.x && x <= pos.x + pos.width && y >= pos.y && y <= pos.y + pos.height) {
-        hoveredNode = node;
-        break;
-      }
-    }
-
-    setState(prev => ({
-      ...prev,
-      hoveredNodeId: hoveredNode?.id || null,
-    }));
-
-    canvas.style.cursor = hoveredNode ? 'pointer' : state.isDragging ? 'grabbing' : 'grab';
-  }, [dragStart, flatNodes, nodePositions, state.isDragging, state.panX, state.panY, state.zoom]);
+      canvas.style.cursor = hoveredNode ? 'pointer' : state.isDragging ? 'grabbing' : 'grab';
+    },
+    [dragStart, flatNodes, nodePositions, state.isDragging, state.panX, state.panY, state.zoom]
+  );
 
   const handleMouseUp = useCallback(() => {
-    setState(prev => ({ ...prev, isDragging: false }));
+    setState((prev) => ({ ...prev, isDragging: false }));
   }, []);
 
-  const handleDoubleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left - state.panX) / state.zoom;
-    const y = (e.clientY - rect.top - state.panY) / state.zoom;
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left - state.panX) / state.zoom;
+      const y = (e.clientY - rect.top - state.panY) / state.zoom;
 
-    for (const node of flatNodes) {
-      const pos = nodePositions.get(node.id);
-      if (pos && x >= pos.x && x <= pos.x + pos.width && y >= pos.y && y <= pos.y + pos.height) {
-        onNodeDoubleClick?.(node);
-        break;
+      for (const node of flatNodes) {
+        const pos = nodePositions.get(node.id);
+        if (pos && x >= pos.x && x <= pos.x + pos.width && y >= pos.y && y <= pos.y + pos.height) {
+          onNodeDoubleClick?.(node);
+          break;
+        }
       }
-    }
-  }, [flatNodes, nodePositions, state.panX, state.panY, state.zoom, onNodeDoubleClick]);
+    },
+    [flatNodes, nodePositions, state.panX, state.panY, state.zoom, onNodeDoubleClick]
+  );
 
   const handleWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
       zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, prev.zoom + delta)),
     }));
   }, []);
 
   const handleZoomIn = () => {
-    setState(prev => ({ ...prev, zoom: Math.min(MAX_ZOOM, prev.zoom + ZOOM_STEP) }));
+    setState((prev) => ({ ...prev, zoom: Math.min(MAX_ZOOM, prev.zoom + ZOOM_STEP) }));
   };
 
   const handleZoomOut = () => {
-    setState(prev => ({ ...prev, zoom: Math.max(MIN_ZOOM, prev.zoom - ZOOM_STEP) }));
+    setState((prev) => ({ ...prev, zoom: Math.max(MIN_ZOOM, prev.zoom - ZOOM_STEP) }));
   };
 
   const handleResetView = () => {
-    setState(prev => ({ ...prev, zoom: 1, panX: 0, panY: 0 }));
+    setState((prev) => ({ ...prev, zoom: 1, panX: 0, panY: 0 }));
   };
 
   const handleFitView = () => {
@@ -402,10 +416,10 @@ export function MindMapCanvas({
     if (!canvas || nodePositions.size === 0) return;
 
     const positions = Array.from(nodePositions.values());
-    const minX = Math.min(...positions.map(p => p.x));
-    const maxX = Math.max(...positions.map(p => p.x + p.width));
-    const minY = Math.min(...positions.map(p => p.y));
-    const maxY = Math.max(...positions.map(p => p.y + p.height));
+    const minX = Math.min(...positions.map((p) => p.x));
+    const maxX = Math.max(...positions.map((p) => p.x + p.width));
+    const minY = Math.min(...positions.map((p) => p.y));
+    const maxY = Math.max(...positions.map((p) => p.y + p.height));
 
     const contentWidth = maxX - minX;
     const contentHeight = maxY - minY;
@@ -418,19 +432,19 @@ export function MindMapCanvas({
     const panX = (width - contentWidth * zoom) / 2 - minX * zoom;
     const panY = (height - contentHeight * zoom) / 2 - minY * zoom;
 
-    setState(prev => ({ ...prev, zoom, panX, panY }));
+    setState((prev) => ({ ...prev, zoom, panX, panY }));
   };
 
   const handleSearch = (query: string) => {
-    setState(prev => ({ ...prev, searchQuery: query }));
+    setState((prev) => ({ ...prev, searchQuery: query }));
 
     if (!query) {
-      setState(prev => ({ ...prev, highlightedNodes: new Set() }));
+      setState((prev) => ({ ...prev, highlightedNodes: new Set() }));
       return;
     }
 
     const matches = new Set<string>();
-    flatNodes.forEach(node => {
+    flatNodes.forEach((node) => {
       if (
         node.label.toLowerCase().includes(query.toLowerCase()) ||
         node.description?.toLowerCase().includes(query.toLowerCase())
@@ -439,7 +453,7 @@ export function MindMapCanvas({
       }
     });
 
-    setState(prev => ({ ...prev, highlightedNodes: matches }));
+    setState((prev) => ({ ...prev, highlightedNodes: matches }));
   };
 
   const handleExport = (format: 'svg' | 'png' | 'json') => {
@@ -461,17 +475,27 @@ export function MindMapCanvas({
     onExport?.(format);
   };
 
-  const selectedNode = flatNodes.find(n => n.id === state.selectedNodeId);
+  const selectedNode = flatNodes.find((n) => n.id === state.selectedNodeId);
 
   return (
-    <div ref={containerRef} className={cn('relative flex flex-col h-full bg-background', className)} data-testid="mind-map-canvas">
+    <div
+      ref={containerRef}
+      className={cn('relative flex flex-col h-full bg-background', className)}
+      data-testid="mind-map-canvas"
+    >
       {showControls && (
         <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
           <TooltipProvider>
             <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm rounded-lg border p-1 shadow-sm">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleZoomOut} aria-label="Zoom out">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handleZoomOut}
+                    aria-label="Zoom out"
+                  >
                     <ZoomOut className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
@@ -482,7 +506,13 @@ export function MindMapCanvas({
               </span>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleZoomIn} aria-label="Zoom in">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handleZoomIn}
+                    aria-label="Zoom in"
+                  >
                     <ZoomIn className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
@@ -493,7 +523,13 @@ export function MindMapCanvas({
             <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm rounded-lg border p-1 shadow-sm">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleResetView} aria-label="Reset view">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handleResetView}
+                    aria-label="Reset view"
+                  >
                     <RotateCcw className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
@@ -501,7 +537,13 @@ export function MindMapCanvas({
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleFitView} aria-label="Fit to view">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handleFitView}
+                    aria-label="Fit to view"
+                  >
                     <Maximize2 className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
@@ -516,13 +558,19 @@ export function MindMapCanvas({
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
-                    onClick={() => setState(prev => ({ ...prev, showLabels: !prev.showLabels }))}
+                    onClick={() => setState((prev) => ({ ...prev, showLabels: !prev.showLabels }))}
                     aria-label={state.showLabels ? 'Hide labels' : 'Show labels'}
                   >
-                    {state.showLabels ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    {state.showLabels ? (
+                      <Eye className="h-4 w-4" />
+                    ) : (
+                      <EyeOff className="h-4 w-4" />
+                    )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{state.showLabels ? t('hideLabels') : t('showLabels')}</TooltipContent>
+                <TooltipContent>
+                  {state.showLabels ? t('hideLabels') : t('showLabels')}
+                </TooltipContent>
               </Tooltip>
             </div>
           </TooltipProvider>
@@ -594,7 +642,11 @@ export function MindMapCanvas({
       />
 
       {selectedNode && (
-        <Sheet open={!!selectedNode} onOpenChange={() => setState(prev => ({ ...prev, selectedNodeId: null }))} data-testid="node-detail-sheet">
+        <Sheet
+          open={!!selectedNode}
+          onOpenChange={() => setState((prev) => ({ ...prev, selectedNodeId: null }))}
+          data-testid="node-detail-sheet"
+        >
           <SheetContent side="right" className="w-80">
             <SheetHeader>
               <SheetTitle className="flex items-center gap-2">
@@ -615,7 +667,9 @@ export function MindMapCanvas({
 
               {selectedNode.description && (
                 <div>
-                  <span className="text-sm font-medium text-muted-foreground">{t('description')}</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {t('description')}
+                  </span>
                   <p className="text-sm mt-1">{selectedNode.description}</p>
                 </div>
               )}
@@ -650,11 +704,11 @@ export function MindMapCanvas({
                 <div>
                   <span className="text-sm font-medium text-muted-foreground">{t('children')}</span>
                   <ul className="mt-2 space-y-1">
-                    {selectedNode.children.slice(0, 5).map(child => (
+                    {selectedNode.children.slice(0, 5).map((child) => (
                       <li
                         key={child.id}
                         className="text-sm text-muted-foreground hover:text-foreground cursor-pointer"
-                        onClick={() => setState(prev => ({ ...prev, selectedNodeId: child.id }))}
+                        onClick={() => setState((prev) => ({ ...prev, selectedNodeId: child.id }))}
                       >
                         • {child.label}
                       </li>

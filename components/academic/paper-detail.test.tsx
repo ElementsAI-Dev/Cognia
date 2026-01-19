@@ -16,7 +16,10 @@ jest.mock('@/hooks/academic', () => ({
 const mockUseAcademic = useAcademic as jest.MockedFunction<typeof useAcademic>;
 
 // Mock paper data
-const createMockLibraryPaper = (id: string, overrides: Partial<LibraryPaper> = {}): LibraryPaper => ({
+const createMockLibraryPaper = (
+  id: string,
+  overrides: Partial<LibraryPaper> = {}
+): LibraryPaper => ({
   id,
   providerId: 'arxiv',
   externalId: `arxiv-${id}`,
@@ -42,7 +45,7 @@ const createMockLibraryPaper = (id: string, overrides: Partial<LibraryPaper> = {
 
 describe('PaperDetail', () => {
   const mockPaper = createMockLibraryPaper('1');
-  
+
   const defaultMockReturn = {
     libraryPapers: [mockPaper],
     collections: [],
@@ -94,33 +97,33 @@ describe('PaperDetail', () => {
   describe('Rendering', () => {
     it('should render the component with paper', () => {
       render(<PaperDetail paper={mockPaper} open onOpenChange={() => {}} />);
-      
+
       expect(screen.getByText('Test Paper 1')).toBeInTheDocument();
     });
 
     it('should render paper metadata', () => {
       render(<PaperDetail paper={mockPaper} open onOpenChange={() => {}} />);
-      
+
       expect(screen.getByText('2023')).toBeInTheDocument();
       expect(screen.getByText('ICML 2023')).toBeInTheDocument();
     });
 
     it('should render authors', () => {
       render(<PaperDetail paper={mockPaper} open onOpenChange={() => {}} />);
-      
+
       expect(screen.getByText(/John Doe/)).toBeInTheDocument();
       expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();
     });
 
     it('should render abstract', () => {
       render(<PaperDetail paper={mockPaper} open onOpenChange={() => {}} />);
-      
+
       expect(screen.getByText('This is a test abstract for the paper.')).toBeInTheDocument();
     });
 
     it('should render citation count', () => {
       render(<PaperDetail paper={mockPaper} open onOpenChange={() => {}} />);
-      
+
       // Verify component renders with paper data
       expect(screen.getByText('Test Paper 1')).toBeInTheDocument();
     });
@@ -129,13 +132,13 @@ describe('PaperDetail', () => {
   describe('Status Management', () => {
     it('should display current reading status', () => {
       render(<PaperDetail paper={mockPaper} open onOpenChange={() => {}} />);
-      
+
       expect(screen.getByText('Unread')).toBeInTheDocument();
     });
 
     it('should display status indicator', () => {
       render(<PaperDetail paper={mockPaper} open onOpenChange={() => {}} />);
-      
+
       // Verify component renders
       expect(screen.getByText('Test Paper 1')).toBeInTheDocument();
     });
@@ -144,7 +147,7 @@ describe('PaperDetail', () => {
   describe('Rating', () => {
     it('should render rating section', () => {
       render(<PaperDetail paper={mockPaper} open onOpenChange={() => {}} />);
-      
+
       // Verify the component renders without errors
       expect(screen.getByText('Test Paper 1')).toBeInTheDocument();
     });
@@ -153,7 +156,7 @@ describe('PaperDetail', () => {
   describe('Notes', () => {
     it('should render notes section', () => {
       render(<PaperDetail paper={mockPaper} open onOpenChange={() => {}} />);
-      
+
       // Verify the component renders
       expect(screen.getByText('Test Paper 1')).toBeInTheDocument();
     });
@@ -162,7 +165,7 @@ describe('PaperDetail', () => {
   describe('PDF Actions', () => {
     it('should render PDF section', () => {
       render(<PaperDetail paper={mockPaper} open onOpenChange={() => {}} />);
-      
+
       // Verify component renders
       expect(screen.getByText('Test Paper 1')).toBeInTheDocument();
     });
@@ -171,7 +174,7 @@ describe('PaperDetail', () => {
   describe('Analysis', () => {
     it('should render analysis section', () => {
       render(<PaperDetail paper={mockPaper} open onOpenChange={() => {}} />);
-      
+
       expect(screen.getByText('Test Paper 1')).toBeInTheDocument();
     });
   });
@@ -179,7 +182,7 @@ describe('PaperDetail', () => {
   describe('Guided Learning', () => {
     it('should render paper detail', () => {
       render(<PaperDetail paper={mockPaper} open onOpenChange={() => {}} />);
-      
+
       expect(screen.getByText('Test Paper 1')).toBeInTheDocument();
     });
   });
@@ -187,7 +190,7 @@ describe('PaperDetail', () => {
   describe('External Links', () => {
     it('should render external links section', () => {
       render(<PaperDetail paper={mockPaper} open onOpenChange={() => {}} />);
-      
+
       expect(screen.getByText('Test Paper 1')).toBeInTheDocument();
     });
   });
@@ -195,7 +198,7 @@ describe('PaperDetail', () => {
   describe('Collections', () => {
     it('should render collections section', () => {
       render(<PaperDetail paper={mockPaper} open onOpenChange={() => {}} />);
-      
+
       expect(screen.getByText('Test Paper 1')).toBeInTheDocument();
     });
   });
@@ -203,14 +206,14 @@ describe('PaperDetail', () => {
   describe('Tabs', () => {
     it('should render tab navigation', () => {
       render(<PaperDetail paper={mockPaper} open onOpenChange={() => {}} />);
-      
+
       expect(screen.getByRole('tablist')).toBeInTheDocument();
     });
 
     it('should switch tabs when clicked', async () => {
       const user = userEvent.setup();
       render(<PaperDetail paper={mockPaper} open onOpenChange={() => {}} />);
-      
+
       const tabs = screen.getAllByRole('tab');
       if (tabs.length > 1) {
         await user.click(tabs[1]);
@@ -222,7 +225,7 @@ describe('PaperDetail', () => {
     it('should render with close capability', () => {
       const mockOnOpenChange = jest.fn();
       render(<PaperDetail paper={mockPaper} open onOpenChange={mockOnOpenChange} />);
-      
+
       expect(screen.getByText('Test Paper 1')).toBeInTheDocument();
     });
   });

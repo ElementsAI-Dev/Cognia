@@ -100,7 +100,7 @@ describe('AcademicStats', () => {
   describe('Rendering', () => {
     it('should render the component', () => {
       render(<AcademicStats />);
-      
+
       expect(screen.getByText('Total Papers')).toBeInTheDocument();
       expect(screen.getAllByText('Completed').length).toBeGreaterThan(0);
       expect(screen.getByText('Currently Reading')).toBeInTheDocument();
@@ -109,26 +109,26 @@ describe('AcademicStats', () => {
 
     it('should render reading progress section', () => {
       render(<AcademicStats />);
-      
+
       expect(screen.getByText('Reading Progress')).toBeInTheDocument();
       expect(screen.getByText('Your overall reading status breakdown')).toBeInTheDocument();
     });
 
     it('should render top research fields section', () => {
       render(<AcademicStats />);
-      
+
       expect(screen.getByText('Top Research Fields')).toBeInTheDocument();
     });
 
     it('should render paper sources section', () => {
       render(<AcademicStats />);
-      
+
       expect(screen.getByText('Paper Sources')).toBeInTheDocument();
     });
 
     it('should render engagement metrics section', () => {
       render(<AcademicStats />);
-      
+
       expect(screen.getByText('Engagement Metrics')).toBeInTheDocument();
     });
   });
@@ -136,14 +136,14 @@ describe('AcademicStats', () => {
   describe('Empty State', () => {
     it('should display zero values when library is empty', () => {
       render(<AcademicStats />);
-      
+
       // Check that zero values are displayed (may appear multiple times)
       expect(screen.getAllByText('0').length).toBeGreaterThan(0);
     });
 
     it('should show no fields data message when empty', () => {
       render(<AcademicStats />);
-      
+
       expect(screen.getByText('No fields data available yet')).toBeInTheDocument();
     });
   });
@@ -158,9 +158,9 @@ describe('AcademicStats', () => {
           createMockLibraryPaper('3'),
         ],
       });
-      
+
       render(<AcademicStats />);
-      
+
       // Verify papers count appears (may appear multiple times)
       expect(screen.getAllByText('3').length).toBeGreaterThan(0);
     });
@@ -176,9 +176,9 @@ describe('AcademicStats', () => {
           createMockLibraryPaper('5', { readingStatus: 'archived' }),
         ],
       });
-      
+
       render(<AcademicStats />);
-      
+
       // Verify papers are rendered by checking total papers card exists
       expect(screen.getByText('Total Papers')).toBeInTheDocument();
       // Verify completed section exists
@@ -195,9 +195,9 @@ describe('AcademicStats', () => {
           createMockLibraryPaper('4', { readingStatus: 'reading' }),
         ],
       });
-      
+
       render(<AcademicStats />);
-      
+
       // Verify completion rate text appears
       expect(screen.getByText(/completion rate/)).toBeInTheDocument();
     });
@@ -205,16 +205,14 @@ describe('AcademicStats', () => {
     it('should count collections correctly', () => {
       mockUseAcademic.mockReturnValue({
         ...defaultMockReturn,
-        collections: [
-          createMockCollection('1'),
-          createMockCollection('2'),
-        ],
+        collections: [createMockCollection('1'), createMockCollection('2')],
       });
-      
+
       render(<AcademicStats />);
-      
+
       // Collections count should show 2
-      const collectionsCard = screen.getByText('Collections').closest('div')?.parentElement?.parentElement;
+      const collectionsCard = screen.getByText('Collections').closest('div')
+        ?.parentElement?.parentElement;
       expect(collectionsCard).toBeTruthy();
     });
   });
@@ -229,9 +227,9 @@ describe('AcademicStats', () => {
           createMockLibraryPaper('3', { fieldsOfStudy: ['AI', 'Robotics'] }),
         ],
       });
-      
+
       render(<AcademicStats />);
-      
+
       expect(screen.getByText('Machine Learning')).toBeInTheDocument();
       expect(screen.getByText('AI')).toBeInTheDocument();
     });
@@ -245,9 +243,9 @@ describe('AcademicStats', () => {
           createMockLibraryPaper('3', { fieldsOfStudy: ['ML', 'AI'] }),
         ],
       });
-      
+
       render(<AcademicStats />);
-      
+
       // ML should appear first (3 counts)
       expect(screen.getByText('ML')).toBeInTheDocument();
       expect(screen.getByText('AI')).toBeInTheDocument();
@@ -257,17 +255,17 @@ describe('AcademicStats', () => {
       mockUseAcademic.mockReturnValue({
         ...defaultMockReturn,
         libraryPapers: [
-          createMockLibraryPaper('1', { 
-            fieldsOfStudy: ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7'] 
+          createMockLibraryPaper('1', {
+            fieldsOfStudy: ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7'],
           }),
-          createMockLibraryPaper('2', { 
-            fieldsOfStudy: ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7'] 
+          createMockLibraryPaper('2', {
+            fieldsOfStudy: ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7'],
           }),
         ],
       });
-      
+
       render(<AcademicStats />);
-      
+
       // Should not show F6 and F7
       expect(screen.queryByText('F6')).not.toBeInTheDocument();
       expect(screen.queryByText('F7')).not.toBeInTheDocument();
@@ -284,9 +282,9 @@ describe('AcademicStats', () => {
           createMockLibraryPaper('3', { providerId: 'semantic-scholar' }),
         ],
       });
-      
+
       render(<AcademicStats />);
-      
+
       expect(screen.getByText('arxiv')).toBeInTheDocument();
       expect(screen.getByText('semantic scholar')).toBeInTheDocument();
     });
@@ -302,9 +300,9 @@ describe('AcademicStats', () => {
           createMockLibraryPaper('3', { hasCachedPdf: false }),
         ],
       });
-      
+
       render(<AcademicStats />);
-      
+
       expect(screen.getByText('PDFs Downloaded')).toBeInTheDocument();
     });
 
@@ -313,13 +311,15 @@ describe('AcademicStats', () => {
         ...defaultMockReturn,
         libraryPapers: [
           createMockLibraryPaper('1', { userNotes: 'Some notes' }),
-          createMockLibraryPaper('2', { notes: [{ id: '1', content: 'note' }] as unknown as string[] }),
+          createMockLibraryPaper('2', {
+            notes: [{ id: '1', content: 'note' }] as unknown as string[],
+          }),
           createMockLibraryPaper('3'),
         ],
       });
-      
+
       render(<AcademicStats />);
-      
+
       expect(screen.getByText('Papers with Notes')).toBeInTheDocument();
     });
 
@@ -327,15 +327,15 @@ describe('AcademicStats', () => {
       mockUseAcademic.mockReturnValue({
         ...defaultMockReturn,
         libraryPapers: [
-          createMockLibraryPaper('1', { 
-            annotations: [{ id: '1', content: 'annotation' }] as unknown as undefined
+          createMockLibraryPaper('1', {
+            annotations: [{ id: '1', content: 'annotation' }] as unknown as undefined,
           }),
           createMockLibraryPaper('2'),
         ],
       });
-      
+
       render(<AcademicStats />);
-      
+
       expect(screen.getByText('With Annotations')).toBeInTheDocument();
     });
 
@@ -348,9 +348,9 @@ describe('AcademicStats', () => {
           createMockLibraryPaper('3'), // No rating
         ],
       });
-      
+
       render(<AcademicStats />);
-      
+
       // Average of 5 and 3 = 4.0
       expect(screen.getByText('Avg Rating')).toBeInTheDocument();
       expect(screen.getByText('4.0')).toBeInTheDocument();
@@ -359,14 +359,11 @@ describe('AcademicStats', () => {
     it('should show 0.0 average rating when no papers have ratings', () => {
       mockUseAcademic.mockReturnValue({
         ...defaultMockReturn,
-        libraryPapers: [
-          createMockLibraryPaper('1'),
-          createMockLibraryPaper('2'),
-        ],
+        libraryPapers: [createMockLibraryPaper('1'), createMockLibraryPaper('2')],
       });
-      
+
       render(<AcademicStats />);
-      
+
       expect(screen.getByText('0.0')).toBeInTheDocument();
     });
   });
@@ -376,7 +373,7 @@ describe('AcademicStats', () => {
       const today = new Date();
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 10);
-      
+
       mockUseAcademic.mockReturnValue({
         ...defaultMockReturn,
         libraryPapers: [
@@ -385,9 +382,9 @@ describe('AcademicStats', () => {
           createMockLibraryPaper('3', { addedAt: weekAgo }),
         ],
       });
-      
+
       render(<AcademicStats />);
-      
+
       expect(screen.getByText('2 added this week')).toBeInTheDocument();
     });
   });
@@ -402,9 +399,9 @@ describe('AcademicStats', () => {
           createMockLibraryPaper('3', { readingStatus: 'completed' }),
         ],
       });
-      
+
       render(<AcademicStats />);
-      
+
       // Check that progress bar labels exist (using getAllByText since some labels appear multiple times)
       expect(screen.getAllByText('Unread').length).toBeGreaterThan(0);
       expect(screen.getAllByText(/Reading/).length).toBeGreaterThan(0);

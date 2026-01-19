@@ -86,25 +86,25 @@ describe('PaperSearch', () => {
   describe('Rendering', () => {
     it('should render the component', () => {
       render(<PaperSearch />);
-      
+
       expect(screen.getByPlaceholderText(/Search papers/i)).toBeInTheDocument();
     });
 
     it('should render search button', () => {
       render(<PaperSearch />);
-      
+
       expect(screen.getByRole('button', { name: /search/i })).toBeInTheDocument();
     });
 
     it('should render filter button', () => {
       render(<PaperSearch />);
-      
+
       expect(screen.getByText('Filters')).toBeInTheDocument();
     });
 
     it('should apply custom className', () => {
       const { container } = render(<PaperSearch className="custom-class" />);
-      
+
       expect(container.firstChild).toHaveClass('custom-class');
     });
   });
@@ -116,14 +116,14 @@ describe('PaperSearch', () => {
         ...defaultMockReturn,
         search: mockSearch,
       } as ReturnType<typeof useAcademic>);
-      
+
       const user = userEvent.setup();
       render(<PaperSearch />);
-      
+
       const input = screen.getByPlaceholderText(/Search papers/i);
       await user.type(input, 'machine learning');
       await user.click(screen.getByRole('button', { name: /search/i }));
-      
+
       expect(mockSearch).toHaveBeenCalledWith('machine learning');
     });
 
@@ -133,13 +133,13 @@ describe('PaperSearch', () => {
         ...defaultMockReturn,
         search: mockSearch,
       } as ReturnType<typeof useAcademic>);
-      
+
       const user = userEvent.setup();
       render(<PaperSearch />);
-      
+
       const input = screen.getByPlaceholderText(/Search papers/i);
       await user.type(input, 'deep learning{Enter}');
-      
+
       expect(mockSearch).toHaveBeenCalledWith('deep learning');
     });
 
@@ -149,13 +149,13 @@ describe('PaperSearch', () => {
         ...defaultMockReturn,
         setSearchQuery: mockSetQuery,
       } as ReturnType<typeof useAcademic>);
-      
+
       const user = userEvent.setup();
       render(<PaperSearch />);
-      
+
       const input = screen.getByPlaceholderText(/Search papers/i);
       await user.type(input, 'neural networks');
-      
+
       expect(mockSetQuery).toHaveBeenCalled();
     });
   });
@@ -164,15 +164,12 @@ describe('PaperSearch', () => {
     it('should display search results', () => {
       mockUseAcademic.mockReturnValue({
         ...defaultMockReturn,
-        searchResults: [
-          createMockPaper('1'),
-          createMockPaper('2'),
-        ],
+        searchResults: [createMockPaper('1'), createMockPaper('2')],
         totalResults: 2,
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperSearch />);
-      
+
       expect(screen.getByText('Search Result 1')).toBeInTheDocument();
       expect(screen.getByText('Search Result 2')).toBeInTheDocument();
     });
@@ -183,9 +180,9 @@ describe('PaperSearch', () => {
         searchResults: [createMockPaper('1')],
         totalResults: 100,
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperSearch />);
-      
+
       expect(screen.getByText(/100 results/i)).toBeInTheDocument();
     });
 
@@ -196,9 +193,9 @@ describe('PaperSearch', () => {
         searchResults: [],
         totalResults: 0,
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperSearch />);
-      
+
       expect(screen.getByText(/No results found/i)).toBeInTheDocument();
     });
   });
@@ -207,9 +204,9 @@ describe('PaperSearch', () => {
     it('should open filter popover', async () => {
       const user = userEvent.setup();
       render(<PaperSearch />);
-      
+
       await user.click(screen.getByText('Filters'));
-      
+
       expect(screen.getByText('Year Range')).toBeInTheDocument();
     });
 
@@ -219,17 +216,17 @@ describe('PaperSearch', () => {
         ...defaultMockReturn,
         setSearchFilter: mockSetFilter,
       } as ReturnType<typeof useAcademic>);
-      
+
       const user = userEvent.setup();
       render(<PaperSearch />);
-      
+
       await user.click(screen.getByText('Filters'));
-      
+
       // Year filter inputs
       const yearFromInput = screen.getByLabelText(/From year/i);
       await user.clear(yearFromInput);
       await user.type(yearFromInput, '2020');
-      
+
       expect(mockSetFilter).toHaveBeenCalled();
     });
 
@@ -239,13 +236,13 @@ describe('PaperSearch', () => {
         ...defaultMockReturn,
         setSearchFilter: mockSetFilter,
       } as ReturnType<typeof useAcademic>);
-      
+
       const user = userEvent.setup();
       render(<PaperSearch />);
-      
+
       await user.click(screen.getByText('Filters'));
       await user.click(screen.getByText('Open Access Only'));
-      
+
       expect(mockSetFilter).toHaveBeenCalled();
     });
   });
@@ -254,9 +251,9 @@ describe('PaperSearch', () => {
     it('should show provider options', async () => {
       const user = userEvent.setup();
       render(<PaperSearch />);
-      
+
       await user.click(screen.getByText('Filters'));
-      
+
       expect(screen.getByText('arXiv')).toBeInTheDocument();
       expect(screen.getByText('Semantic Scholar')).toBeInTheDocument();
     });
@@ -267,13 +264,13 @@ describe('PaperSearch', () => {
         ...defaultMockReturn,
         setSearchFilter: mockSetFilter,
       } as ReturnType<typeof useAcademic>);
-      
+
       const user = userEvent.setup();
       render(<PaperSearch />);
-      
+
       await user.click(screen.getByText('Filters'));
       await user.click(screen.getByLabelText('arXiv'));
-      
+
       expect(mockSetFilter).toHaveBeenCalled();
     });
   });
@@ -284,9 +281,9 @@ describe('PaperSearch', () => {
         ...defaultMockReturn,
         searchResults: [createMockPaper('1')],
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperSearch />);
-      
+
       expect(screen.getByText('Add to Library')).toBeInTheDocument();
     });
 
@@ -297,12 +294,12 @@ describe('PaperSearch', () => {
         searchResults: [createMockPaper('1')],
         addToLibrary: mockAdd,
       } as ReturnType<typeof useAcademic>);
-      
+
       const user = userEvent.setup();
       render(<PaperSearch />);
-      
+
       await user.click(screen.getByText('Add to Library'));
-      
+
       expect(mockAdd).toHaveBeenCalled();
     });
 
@@ -311,11 +308,20 @@ describe('PaperSearch', () => {
       mockUseAcademic.mockReturnValue({
         ...defaultMockReturn,
         searchResults: [paper],
-        libraryPapers: [{ ...paper, libraryId: 'lib-1', addedAt: new Date(), readingStatus: 'unread', priority: 'medium', hasCachedPdf: false }],
+        libraryPapers: [
+          {
+            ...paper,
+            libraryId: 'lib-1',
+            addedAt: new Date(),
+            readingStatus: 'unread',
+            priority: 'medium',
+            hasCachedPdf: false,
+          },
+        ],
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperSearch />);
-      
+
       expect(screen.getByText('In Library')).toBeInTheDocument();
     });
   });
@@ -326,9 +332,9 @@ describe('PaperSearch', () => {
         ...defaultMockReturn,
         isSearching: true,
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperSearch />);
-      
+
       expect(screen.getByText(/Searching/i)).toBeInTheDocument();
     });
 
@@ -337,9 +343,9 @@ describe('PaperSearch', () => {
         ...defaultMockReturn,
         isSearching: true,
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperSearch />);
-      
+
       expect(screen.getByRole('button', { name: /search/i })).toBeDisabled();
     });
   });
@@ -350,9 +356,9 @@ describe('PaperSearch', () => {
         ...defaultMockReturn,
         searchError: 'Search failed',
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperSearch />);
-      
+
       expect(screen.getByText('Search failed')).toBeInTheDocument();
     });
   });
@@ -363,9 +369,9 @@ describe('PaperSearch', () => {
         ...defaultMockReturn,
         searchResults: [createMockPaper('1', { title: 'Custom Title' })],
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperSearch />);
-      
+
       expect(screen.getByText('Custom Title')).toBeInTheDocument();
     });
 
@@ -374,9 +380,9 @@ describe('PaperSearch', () => {
         ...defaultMockReturn,
         searchResults: [createMockPaper('1', { authors: [{ name: 'Jane Doe' }] })],
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperSearch />);
-      
+
       expect(screen.getByText('Jane Doe')).toBeInTheDocument();
     });
 
@@ -385,9 +391,9 @@ describe('PaperSearch', () => {
         ...defaultMockReturn,
         searchResults: [createMockPaper('1', { isOpenAccess: true })],
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperSearch />);
-      
+
       expect(screen.getByText('Open Access')).toBeInTheDocument();
     });
 
@@ -396,9 +402,9 @@ describe('PaperSearch', () => {
         ...defaultMockReturn,
         searchResults: [createMockPaper('1')],
       } as ReturnType<typeof useAcademic>);
-      
+
       render(<PaperSearch />);
-      
+
       expect(screen.getByLabelText(/View source/i)).toBeInTheDocument();
     });
   });
