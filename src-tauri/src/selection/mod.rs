@@ -457,11 +457,17 @@ impl SelectionManager {
     /// Set enabled state
     pub fn set_enabled(&self, enabled: bool) {
         log::debug!("[SelectionManager] set_enabled({})", enabled);
-        let mut config = self.config.write();
-        if config.enabled != enabled {
-            config.enabled = enabled;
+        let changed;
+        {
+            let mut config = self.config.write();
+            changed = config.enabled != enabled;
+            if changed {
+                config.enabled = enabled;
+            }
+        }
+        
+        if changed {
             if !enabled {
-                drop(config); // Release lock before hiding
                 let _ = self.toolbar_window.hide();
             }
             let _ = self.app_handle.emit("selection-enabled-changed", enabled);

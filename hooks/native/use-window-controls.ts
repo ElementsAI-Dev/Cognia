@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { getCurrentWindow, currentMonitor, primaryMonitor, availableMonitors } from '@tauri-apps/api/window';
-import type { PhysicalSize, PhysicalPosition, ProgressBarStatus, CursorIcon as TauriCursorIcon } from '@tauri-apps/api/window';
+import type { PhysicalPosition, ProgressBarStatus, CursorIcon as TauriCursorIcon } from '@tauri-apps/api/window';
 import { LogicalSize, LogicalPosition } from '@tauri-apps/api/dpi';
 import { useWindowStore, type UserAttentionType } from '@/stores';
 
@@ -87,12 +87,17 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
 
         // Set up event listeners
         const unlistenResize = await appWindow.onResized(async () => {
-          const [max, size] = await Promise.all([
+          const [max, size, currentScaleFactor] = await Promise.all([
             appWindow.isMaximized(),
             appWindow.innerSize(),
+            appWindow.scaleFactor(),
           ]);
           setIsMaximized(max);
-          setSize({ width: size.width, height: size.height });
+          // Convert physical pixels to logical pixels for consistent storage
+          // innerSize() returns physical pixels, but we store logical pixels
+          const logicalWidth = Math.round(size.width / currentScaleFactor);
+          const logicalHeight = Math.round(size.height / currentScaleFactor);
+          setSize({ width: logicalWidth, height: logicalHeight });
         });
         unlistenersRef.current.push(unlistenResize);
 
@@ -302,7 +307,8 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
     if (!isTauri) return;
     try {
       const appWindow = getCurrentWindow();
-      await appWindow.setSize({ type: 'Physical', width, height } as PhysicalSize);
+      // Use LogicalSize for consistency - store values are in logical pixels
+      await appWindow.setSize(new LogicalSize(width, height));
       setSize({ width, height });
     } catch (error) {
       console.error('Failed to set size:', error);
@@ -324,7 +330,8 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
     if (!isTauri) return;
     try {
       const appWindow = getCurrentWindow();
-      await appWindow.setMinSize({ type: 'Physical', width, height } as PhysicalSize);
+      // Use LogicalSize for consistency - all size values are in logical pixels
+      await appWindow.setMinSize(new LogicalSize(width, height));
     } catch (error) {
       console.error('Failed to set min size:', error);
     }
@@ -334,7 +341,8 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
     if (!isTauri) return;
     try {
       const appWindow = getCurrentWindow();
-      await appWindow.setMaxSize({ type: 'Physical', width, height } as PhysicalSize);
+      // Use LogicalSize for consistency - all size values are in logical pixels
+      await appWindow.setMaxSize(new LogicalSize(width, height));
     } catch (error) {
       console.error('Failed to set max size:', error);
     }

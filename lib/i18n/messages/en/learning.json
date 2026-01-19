@@ -1,0 +1,552 @@
+{
+  "learningMode": {
+    "title": "Learning Mode",
+    "noActiveSession": "No active learning session. Start one to begin guided learning.",
+    "progress": "Progress",
+    "phases": "Learning Phases",
+    "phase": {
+      "clarification": "Clarifying your learning goals",
+      "deconstruction": "Breaking down the topic",
+      "questioning": "Exploring through questions",
+      "feedback": "Refining understanding",
+      "summary": "Summarizing learnings"
+    },
+    "goals": "Learning Goals",
+    "noGoalsYet": "No goals defined yet",
+    "subQuestions": "Sub-Questions",
+    "noQuestionsYet": "No sub-questions identified yet",
+    "nextPhase": "Next Phase",
+    "endSession": "End Session",
+    "attempts": "{count} attempts",
+    "startDialog": {
+      "title": "Start Learning Session",
+      "description": "Define what you want to learn. The AI mentor will guide you through step-by-step discovery using the Socratic method.",
+      "topic": "What do you want to learn?",
+      "topicPlaceholder": "e.g., How does recursion work in programming?",
+      "background": "What do you already know?",
+      "backgroundPlaceholder": "Describe your current understanding of this topic...",
+      "optional": "optional",
+      "goals": "Learning Goals",
+      "goalPlaceholder": "Add a learning goal...",
+      "goalHint": "Press Enter to add a goal",
+      "cancel": "Cancel",
+      "start": "Start Learning",
+      "difficulty": "Preferred Difficulty",
+      "difficultyHint": "Select your comfort level",
+      "learningStyle": "Learning Style",
+      "learningStyleHint": "How do you learn best?"
+    },
+    "stats": {
+      "timeSpent": "Time Spent",
+      "accuracy": "Accuracy",
+      "avgResponse": "Avg Response",
+      "conceptsLearned": "Concepts",
+      "currentDifficulty": "Current Difficulty",
+      "engagement": "Engagement",
+      "engagementHigh": "You're highly engaged! Keep it up!",
+      "engagementMedium": "Steady engagement. Stay focused!",
+      "engagementLow": "Try to stay engaged with the material.",
+      "conceptMastery": "Concept Mastery",
+      "currentStreak": "Current Streak",
+      "achievements": "Achievements"
+    },
+    "notes": {
+      "title": "Learning Notes",
+      "placeholder": "Write a note about what you've learned...",
+      "highlighted": "Highlighted",
+      "all": "All Notes",
+      "empty": "No notes yet. Start taking notes to remember key insights!",
+      "addFirst": "Add Your First Note"
+    },
+    "history": {
+      "overallProgress": "Overall Progress",
+      "sessionsCompleted": "Sessions Completed",
+      "totalTime": "Total Learning Time",
+      "overallAccuracy": "Overall Accuracy",
+      "conceptsMastered": "Concepts Mastered",
+      "currentStreak": "Current Streak",
+      "longestStreak": "Longest Streak",
+      "achievements": "Achievements",
+      "achievementsEarned": "achievements earned",
+      "recentSessions": "Recent Sessions",
+      "noSessions": "No completed sessions yet. Start learning to track your progress!"
+    },
+    "difficulty": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced",
+      "expert": "Expert"
+    },
+    "style": {
+      "visual": "Visual",
+      "auditory": "Auditory",
+      "reading": "Reading/Writing",
+      "kinesthetic": "Hands-on"
+    },
+    "visualization": {
+      "title": "Concept Visualization",
+      "legend": "Legend",
+      "annotations": "Annotations",
+      "clickToExplore": "Click on a node to explore details",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "resetZoom": "Reset zoom",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "nodeTypes": {
+        "input": "Input",
+        "output": "Output",
+        "process": "Process",
+        "decision": "Decision",
+        "data": "Data",
+        "default": "Default"
+      }
+    },
+    "animation": {
+      "title": "Interactive Animation",
+      "play": "Play",
+      "pause": "Pause",
+      "reset": "Reset",
+      "stepForward": "Step forward",
+      "stepBackward": "Step backward",
+      "speedNormal": "Normal",
+      "loopEnabled": "Looping enabled",
+      "enableLoop": "Enable loop",
+      "currentStep": "Step {current} of {total}",
+      "difficulty": {
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "advanced": "Advanced"
+      }
+    },
+    "guide": {
+      "title": "Step Guide",
+      "skipGuide": "Skip guide",
+      "stepProgress": "Step {current} of {total}",
+      "previousStep": "Previous",
+      "nextStep": "Next",
+      "complete": "Complete",
+      "tips": "Tips",
+      "showHints": "Show hints ({count})",
+      "hideHints": "Hide hints",
+      "relatedResources": "Related Resources",
+      "confirmUnderstanding": "I understand",
+      "confirmed": "Confirmed",
+      "estimatedTime": "~{minutes} min"
+    },
+    "transformer": {
+      "title": "Transformer Architecture",
+      "interactive": "Interactive",
+      "description": "Click on components to learn more, or use the controls to animate the data flow.",
+      "encoderLayer": "Encoder Layer × N",
+      "attentionWeights": "Attention Weights (simplified)",
+      "stepOf": "Step {current} of {total}",
+      "formula": "Formula",
+      "components": {
+        "inputEmbedding": {
+          "name": "Input Embedding",
+          "shortName": "Embed",
+          "description": "Converts input tokens to dense vectors",
+          "details": "Each token in the input sequence is mapped to a d-model dimensional vector using a learned embedding matrix. This transforms discrete tokens into a continuous vector space."
+        },
+        "positionalEncoding": {
+          "name": "Positional Encoding",
+          "shortName": "Pos",
+          "description": "Adds position information to embeddings",
+          "details": "Since the Transformer has no inherent notion of sequence order, positional encodings are added to give the model information about token positions."
+        },
+        "multiHeadAttention": {
+          "name": "Multi-Head Attention",
+          "shortName": "Attention",
+          "description": "Learns relationships between tokens",
+          "details": "The core mechanism of Transformers. Computes attention weights to determine how much each token should attend to every other token. Multiple heads learn different relationship patterns."
+        },
+        "addNorm": {
+          "name": "Add & Normalize",
+          "shortName": "Add&Norm",
+          "description": "Residual connection + layer normalization",
+          "details": "Adds the input back to the output (residual connection) and applies layer normalization. This helps with gradient flow and training stability."
+        },
+        "feedForward": {
+          "name": "Feed-Forward Network",
+          "shortName": "FFN",
+          "description": "Position-wise fully connected layers",
+          "details": "A simple two-layer neural network applied to each position independently. Typically expands the dimension by 4x and then projects back."
+        },
+        "encoder": {
+          "name": "Encoder Stack",
+          "shortName": "Encoder",
+          "description": "Processes input sequence (N layers)",
+          "details": "The encoder processes the input sequence and creates representations that capture the meaning and relationships within the input. Typically consists of N=6 identical layers."
+        },
+        "decoder": {
+          "name": "Decoder Stack",
+          "shortName": "Decoder",
+          "description": "Generates output sequence (N layers)",
+          "details": "The decoder generates the output sequence one token at a time, attending to both the encoder output and previously generated tokens. Also consists of N=6 identical layers."
+        },
+        "outputLinear": {
+          "name": "Linear Projection",
+          "shortName": "Linear",
+          "description": "Projects to vocabulary size",
+          "details": "A linear transformation that maps the decoder output to the vocabulary dimension, producing logits for each possible token."
+        },
+        "softmax": {
+          "name": "Softmax",
+          "shortName": "Softmax",
+          "description": "Converts logits to probabilities",
+          "details": "Applies the softmax function to convert raw logits into a probability distribution over the vocabulary."
+        }
+      },
+      "steps": {
+        "inputProcessing": {
+          "title": "Input Processing",
+          "description": "The input sequence is first converted to embeddings and combined with positional encodings.",
+          "highlight": "The sequence \"Hello, world!\" is tokenized and converted to vectors."
+        },
+        "selfAttention": {
+          "title": "Self-Attention",
+          "description": "Each token computes attention over all other tokens to understand context and relationships.",
+          "highlight": "The word \"world\" attends to \"Hello\" to understand the greeting context."
+        },
+        "residualNorm1": {
+          "title": "Residual & Normalize",
+          "description": "The attention output is added back to the input (residual connection) and normalized."
+        },
+        "feedForward": {
+          "title": "Feed-Forward Processing",
+          "description": "Each position is processed independently through a feed-forward network.",
+          "highlight": "This adds non-linear transformations to the representations."
+        },
+        "residualNorm2": {
+          "title": "Second Residual & Normalize",
+          "description": "Another residual connection and normalization completes one encoder layer."
+        },
+        "fullEncoder": {
+          "title": "Full Encoder",
+          "description": "The complete encoder stack processes the input through N identical layers.",
+          "highlight": "Typically N=6 layers, each with attention and feed-forward sublayers."
+        },
+        "decoderProcessing": {
+          "title": "Decoder Processing",
+          "description": "The decoder generates output tokens, attending to both encoder output and previous tokens.",
+          "highlight": "Uses masked attention to prevent looking at future tokens."
+        },
+        "outputGeneration": {
+          "title": "Output Generation",
+          "description": "The final output is projected to vocabulary size and converted to probabilities.",
+          "highlight": "The highest probability token is selected as the next output."
+        }
+      }
+    }
+  },
+  "learning": {
+    "visualization": {
+      "title": "Concept Visualization",
+      "legend": "Legend",
+      "annotations": "Annotations",
+      "clickToExplore": "Click on a node to explore details",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "resetZoom": "Reset zoom",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "nodeTypes": {
+        "input": "Input",
+        "output": "Output",
+        "process": "Process",
+        "decision": "Decision",
+        "data": "Data",
+        "default": "Default"
+      }
+    },
+    "animation": {
+      "title": "Interactive Animation",
+      "play": "Play",
+      "pause": "Pause",
+      "reset": "Reset",
+      "stepForward": "Step forward",
+      "stepBackward": "Step backward",
+      "speedNormal": "Normal",
+      "loopEnabled": "Looping enabled",
+      "enableLoop": "Enable loop",
+      "currentStep": "Step {current} of {total}",
+      "difficulty": {
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "advanced": "Advanced"
+      }
+    },
+    "guide": {
+      "title": "Step Guide",
+      "skipGuide": "Skip guide",
+      "stepProgress": "Step {current} of {total}",
+      "previousStep": "Previous",
+      "nextStep": "Next",
+      "complete": "Complete",
+      "tips": "Tips",
+      "showHints": "Show hints ({count})",
+      "hideHints": "Hide hints",
+      "relatedResources": "Related Resources",
+      "confirmUnderstanding": "I understand",
+      "confirmed": "Confirmed",
+      "estimatedTime": "~{minutes} min"
+    },
+    "transformer": {
+      "title": "Transformer Architecture",
+      "interactive": "Interactive",
+      "description": "Click on components to learn more, or use the controls to animate the data flow.",
+      "encoderLayer": "Encoder Layer × N",
+      "attentionWeights": "Attention Weights (simplified)",
+      "stepOf": "Step {current} of {total}",
+      "formula": "Formula",
+      "components": {
+        "inputEmbedding": {
+          "name": "Input Embedding",
+          "shortName": "Embed",
+          "description": "Converts input tokens to dense vectors",
+          "details": "Each token in the input sequence is mapped to a d-model dimensional vector using a learned embedding matrix. This transforms discrete tokens into a continuous vector space."
+        },
+        "positionalEncoding": {
+          "name": "Positional Encoding",
+          "shortName": "Pos",
+          "description": "Adds position information to embeddings",
+          "details": "Since the Transformer has no inherent notion of sequence order, positional encodings are added to give the model information about token positions."
+        },
+        "multiHeadAttention": {
+          "name": "Multi-Head Attention",
+          "shortName": "Attention",
+          "description": "Learns relationships between tokens",
+          "details": "The core mechanism of Transformers. Computes attention weights to determine how much each token should attend to every other token. Multiple heads learn different relationship patterns."
+        },
+        "addNorm": {
+          "name": "Add & Normalize",
+          "shortName": "Add&Norm",
+          "description": "Residual connection + layer normalization",
+          "details": "Adds the input back to the output (residual connection) and applies layer normalization. This helps with gradient flow and training stability."
+        },
+        "feedForward": {
+          "name": "Feed-Forward Network",
+          "shortName": "FFN",
+          "description": "Position-wise fully connected layers",
+          "details": "A simple two-layer neural network applied to each position independently. Typically expands the dimension by 4x and then projects back."
+        },
+        "encoder": {
+          "name": "Encoder Stack",
+          "shortName": "Encoder",
+          "description": "Processes input sequence (N layers)",
+          "details": "The encoder processes the input sequence and creates representations that capture the meaning and relationships within the input. Typically consists of N=6 identical layers."
+        },
+        "decoder": {
+          "name": "Decoder Stack",
+          "shortName": "Decoder",
+          "description": "Generates output sequence (N layers)",
+          "details": "The decoder generates the output sequence one token at a time, attending to both the encoder output and previously generated tokens. Also consists of N=6 identical layers."
+        },
+        "outputLinear": {
+          "name": "Linear Projection",
+          "shortName": "Linear",
+          "description": "Projects to vocabulary size",
+          "details": "A linear transformation that maps the decoder output to the vocabulary dimension, producing logits for each possible token."
+        },
+        "softmax": {
+          "name": "Softmax",
+          "shortName": "Softmax",
+          "description": "Converts logits to probabilities",
+          "details": "Applies the softmax function to convert raw logits into a probability distribution over the vocabulary."
+        }
+      },
+      "steps": {
+        "inputProcessing": {
+          "title": "Input Processing",
+          "description": "The input sequence is first converted to embeddings and combined with positional encodings.",
+          "highlight": "The sequence \"Hello, world!\" is tokenized and converted to vectors."
+        },
+        "selfAttention": {
+          "title": "Self-Attention",
+          "description": "Each token computes attention over all other tokens to understand context and relationships.",
+          "highlight": "The word \"world\" attends to \"Hello\" to understand the greeting context."
+        },
+        "residualNorm1": {
+          "title": "Residual & Normalize",
+          "description": "The attention output is added back to the input (residual connection) and normalized."
+        },
+        "feedForward": {
+          "title": "Feed-Forward Processing",
+          "description": "Each position is processed independently through a feed-forward network.",
+          "highlight": "This adds non-linear transformations to the representations."
+        },
+        "residualNorm2": {
+          "title": "Second Residual & Normalize",
+          "description": "Another residual connection and normalization completes one encoder layer."
+        },
+        "fullEncoder": {
+          "title": "Full Encoder",
+          "description": "The complete encoder stack processes the input through N identical layers.",
+          "highlight": "Typically N=6 layers, each with attention and feed-forward sublayers."
+        },
+        "decoderProcessing": {
+          "title": "Decoder Processing",
+          "description": "The decoder generates output tokens, attending to both encoder output and previous tokens.",
+          "highlight": "Uses masked attention to prevent looking at future tokens."
+        },
+        "outputGeneration": {
+          "title": "Output Generation",
+          "description": "The final output is projected to vocabulary size and converted to probabilities.",
+          "highlight": "The highest probability token is selected as the next output."
+        }
+      }
+    }
+  },
+  "academic": {
+    "knowledgeMap": {
+      "title": "Knowledge Map",
+      "create": "Create",
+      "import": "Import",
+      "export": "Export",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "generating": "Generating...",
+      "generatingProgress": "Generating knowledge map...",
+      "error": "Error",
+      "dismiss": "Dismiss",
+      "searchMaps": "Search knowledge maps...",
+      "noMaps": "No knowledge maps yet",
+      "traces": "traces",
+      "locations": "locations",
+      "navigateBack": "Go back",
+      "navigateForward": "Go forward",
+      "createDialog": {
+        "title": "Create Knowledge Map",
+        "description": "Create a new knowledge map from content or PDF",
+        "mapTitle": "Title",
+        "titlePlaceholder": "Enter a title...",
+        "mode": "Generation Mode",
+        "fromPDF": "Generate from PDF"
+      },
+      "modes": {
+        "fast": "Fast",
+        "detailed": "Detailed",
+        "comprehensive": "Comprehensive"
+      },
+      "tabs": {
+        "traces": "Traces",
+        "mindMap": "Mind Map",
+        "markdown": "Markdown"
+      },
+      "traceList": "Trace List",
+      "selectTrace": "Select a trace to view details",
+      "traceDiagram": "Trace Diagram",
+      "traceGuide": "Trace Guide",
+      "page": "Page",
+      "noMindMap": "No mind map available",
+      "generateMindMap": "Generate Mind Map",
+      "mermaidDiagram": "Mermaid Diagram",
+      "noMermaidDiagram": "No Mermaid diagram available",
+      "copy": "Copy",
+      "copied": "Copied",
+      "noMapSelected": "No Knowledge Map Selected",
+      "selectOrCreate": "Select a knowledge map from the list or create a new one",
+      "createFirst": "Create Knowledge Map",
+      "deleteConfirm": {
+        "title": "Delete Knowledge Map",
+        "description": "Are you sure you want to delete this knowledge map? This action cannot be undone."
+      }
+    },
+    "mindMap": {
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "resetView": "Reset view",
+      "fitView": "Fit to view",
+      "showLabels": "Show labels",
+      "hideLabels": "Hide labels",
+      "searchNodes": "Search nodes...",
+      "export": "Export",
+      "exportPNG": "Export as PNG",
+      "exportSVG": "Export as SVG",
+      "exportJSON": "Export as JSON",
+      "matchesFound": "matches found",
+      "minimap": "Minimap",
+      "type": "Type",
+      "description": "Description",
+      "page": "Page",
+      "navigateToLocation": "Navigate to Location",
+      "children": "Children",
+      "andMore": "and {count} more..."
+    }
+  },
+  "flowChat": {
+    "viewList": "List View",
+    "viewFlow": "Flow View",
+    "createBranch": "Create Branch",
+    "regenerate": "Regenerate",
+    "followUp": "Follow Up",
+    "reference": "Reference",
+    "parallelGenerate": "Parallel Generate",
+    "copy": "Copy",
+    "copied": "Copied",
+    "delete": "Delete",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "branchPoint": "Branch Point",
+    "branchPointHint": "This message has conversation branches",
+    "zoomIn": "Zoom In",
+    "zoomOut": "Zoom Out",
+    "fitView": "Fit View",
+    "layout": "Layout",
+    "layoutDirection": "Layout Direction",
+    "layoutTB": "Top to Bottom",
+    "layoutLR": "Left to Right",
+    "autoLayout": "Auto Layout",
+    "viewOptions": "View Options",
+    "showGrid": "Show Grid",
+    "snapToGrid": "Snap to Grid",
+    "showMinimap": "Show Minimap",
+    "export": "Export",
+    "emptyCanvas": "Start a conversation",
+    "emptyCanvasHint": "Your messages will appear as nodes on this canvas",
+    "switchToFlow": "Switch to Flow View",
+    "switchToList": "Switch to List View",
+    "nodeActions": "Node Actions",
+    "selectModel": "Select Model",
+    "parallelModels": "Generate with Multiple Models",
+    "branchName": "Branch Name",
+    "createBranchHint": "Create a new conversation branch from this point",
+    "addToCompare": "Add to Compare",
+    "addBookmark": "Add Bookmark",
+    "removeBookmark": "Remove Bookmark",
+    "bookmarked": "Bookmarked",
+    "rateResponse": "Rate Response",
+    "addNote": "Add Note",
+    "moreAttachments": "{count} more attachments",
+    "availableTags": "Available Tags",
+    "createNewTag": "Create New Tag",
+    "tagName": "Tag name",
+    "tagColor": "Color",
+    "cancel": "Cancel",
+    "create": "Create",
+    "searchNodes": "Search nodes...",
+    "filters": "Filters",
+    "clearAll": "Clear All",
+    "filterByRole": "Filter by Role",
+    "filterByTags": "Filter by Tags",
+    "quickFilters": "Quick Filters",
+    "bookmarkedOnly": "Bookmarked only",
+    "withMediaOnly": "With media only",
+    "resultsFound": "results found",
+    "noResults": "No results found",
+    "rename": "Rename",
+    "changeColor": "Change Color",
+    "deleteGroup": "Delete Group",
+    "dropNodesToGroup": "Drag nodes here to add to group",
+    "compareResponses": "Compare Responses",
+    "responses": "responses",
+    "preferred": "Preferred",
+    "selectPreferred": "Select as Preferred",
+    "preferredResponse": "Preferred response",
+    "done": "Done",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit Fullscreen",
+    "keyboardShortcuts": "Keyboard Shortcuts"
+  }
+}

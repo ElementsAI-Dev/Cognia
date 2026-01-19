@@ -7,8 +7,8 @@ import { render, RenderOptions } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
-// Import English messages for testing
-import enMessages from '@/lib/i18n/messages/en.json';
+// Import English messages for testing (from split files)
+import enMessages from '@/lib/i18n/messages/en';
 
 /**
  * All providers wrapper for testing

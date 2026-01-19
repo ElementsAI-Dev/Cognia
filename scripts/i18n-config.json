@@ -155,8 +155,9 @@
     "html": false
   },
   "existingTranslations": {
-    "enPath": "lib/i18n/messages/en.json",
-    "zhCNPath": "lib/i18n/messages/zh-CN.json"
+    "enPath": "lib/i18n/messages/en",
+    "zhCNPath": "lib/i18n/messages/zh-CN",
+    "useSplitFiles": true
   },
   "backupSettings": {
     "enabled": true,

@@ -169,6 +169,18 @@ function getProviderIcon(providerId: string) {
   return <ProviderIcon icon={`/icons/providers/${providerId}.svg`} size={16} className="shrink-0" />;
 }
 
+// Get category icon
+function getCategoryIcon(category?: string): React.ReactNode {
+  const icons: Record<string, React.ReactNode> = {
+    flagship: <Sparkles className="h-4 w-4" />,
+    aggregator: <Globe className="h-4 w-4" />,
+    specialized: <Zap className="h-4 w-4" />,
+    local: <Server className="h-4 w-4" />,
+    enterprise: <Cpu className="h-4 w-4" />,
+  };
+  return category ? icons[category] || <Cpu className="h-4 w-4" /> : <Cpu className="h-4 w-4" />;
+}
+
 // Provider categories for filtering
 type ProviderCategory = 'all' | 'flagship' | 'aggregator' | 'specialized' | 'local';
 

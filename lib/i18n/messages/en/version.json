@@ -1,0 +1,41 @@
+{
+  "versionHistory": {
+    "title": "Version History",
+    "saveVersion": "Save Version",
+    "saveDescription": "Create a snapshot of the current workflow state.",
+    "versionName": "Version Name",
+    "descriptionOptional": "Description (optional)",
+    "descriptionPlaceholder": "Describe the changes in this version...",
+    "cancel": "Cancel",
+    "importExport": "Import / Export Workflow",
+    "importExportDescription": "Export your workflow to a JSON file or import from an existing file.",
+    "exportWorkflow": "Export Workflow",
+    "saveAsJson": "Save as JSON file",
+    "importWorkflow": "Import Workflow",
+    "importing": "Importing...",
+    "loadFromJson": "Load from JSON file",
+    "close": "Close",
+    "unknown": "Unknown",
+    "manageVersions": "Manage workflow versions and restore previous states.",
+    "saveNewVersion": "Save New Version",
+    "noVersions": "No versions saved yet",
+    "saveToCreateRestorePoint": "Save a version to create a restore point",
+    "restore": "Restore",
+    "delete": "Delete"
+  },
+  "versionHistoryPanel": {
+    "title": "Version History",
+    "history": "History",
+    "noHistory": "No history yet",
+    "noHistoryDesc": "Changes will appear here as you edit",
+    "undoTooltip": "Undo (Ctrl+Z)",
+    "redoTooltip": "Redo (Ctrl+Y)",
+    "current": "Current",
+    "modified": "Modified",
+    "justNow": "Just now",
+    "minutesAgo": "{count}m ago",
+    "hoursAgo": "{count}h ago",
+    "undoHint": "Ctrl+Z to undo",
+    "redoHint": "Ctrl+Y to redo"
+  }
+}

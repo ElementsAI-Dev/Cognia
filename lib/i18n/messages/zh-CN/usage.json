@@ -1,0 +1,19 @@
+{
+  "usageSettings": {
+    "overview": "概览",
+    "tokens": "令牌",
+    "cost": "费用",
+    "estimated": "预估",
+    "since": "起始",
+    "byProvider": "按提供商",
+    "noProviderData": "暂无提供商使用数据",
+    "last7Days": "最近 7 天",
+    "recentActivity": "最近活动",
+    "noRecords": "暂无使用记录",
+    "export": "导出",
+    "clear": "清除",
+    "clearTitle": "清除使用记录",
+    "clearDesc": "确定要清除所有使用记录吗？此操作无法撤销，将重置您的使用统计数据。",
+    "clearAll": "全部清除"
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "artifacts": {
+    "title": "作品",
+    "code": "代码",
+    "preview": "预览",
+    "download": "下载",
+    "editInCanvas": "在画布中编辑",
+    "previewInDesigner": "在设计器中预览",
+    "openFullDesigner": "打开完整设计器",
+    "noArtifact": "未选择作品",
+    "createArtifact": "创建作品",
+    "artifactTypes": {
+      "code": "代码",
+      "document": "文档",
+      "svg": "SVG",
+      "html": "HTML",
+      "react": "React 组件",
+      "mermaid": "Mermaid 图表",
+      "chart": "图表",
+      "math": "数学"
+    },
+    "typeCode": "代码",
+    "typeDocument": "文档",
+    "typeSvg": "SVG",
+    "typeHtml": "HTML",
+    "typeReact": "React",
+    "typeMermaid": "图表",
+    "typeChart": "图表",
+    "typeMath": "数学",
+    "typeJupyter": "Jupyter"
+  },
+  "artifactPreview": {
+    "previewError": "预览错误",
+    "previewTitle": "预览: {title}"
+  },
+  "artifactList": {
+    "noArtifacts": "暂无 Artifact",
+    "noArtifactsDesc": "代码片段和内容将显示在这里",
+    "open": "打开",
+    "delete": "删除",
+    "types": {
+      "code": "代码",
+      "document": "文档",
+      "svg": "SVG",
+      "html": "HTML",
+      "react": "React",
+      "mermaid": "图表",
+      "chart": "图表",
+      "math": "数学",
+      "jupyter": "Jupyter"
+    }
+  },
+  "artifactCreateButton": {
+    "createArtifact": "创建 Artifact",
+    "asCode": "作为代码",
+    "asReact": "作为 React 组件",
+    "asHtml": "作为 HTML 页面",
+    "asDocument": "作为文档",
+    "asMermaid": "作为 Mermaid 图表",
+    "asChart": "作为图表",
+    "asMath": "作为数学表达式"
+  }
+}

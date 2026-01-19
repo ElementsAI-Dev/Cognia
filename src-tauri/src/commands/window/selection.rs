@@ -177,6 +177,28 @@ pub async fn selection_set_toolbar_hovered(
     Ok(())
 }
 
+/// Get current toolbar state (called by frontend on initialization to sync state)
+/// Returns the current selection text and position if toolbar is visible
+#[tauri::command]
+pub async fn selection_get_toolbar_state(
+    manager: State<'_, SelectionManager>,
+) -> Result<Option<serde_json::Value>, String> {
+    if manager.toolbar_window.is_visible() {
+        let text = manager.toolbar_window.get_selected_text();
+        let (x, y) = manager.toolbar_window.get_position();
+        
+        if let Some(text) = text {
+            return Ok(Some(serde_json::json!({
+                "text": text,
+                "x": x,
+                "y": y,
+                "textLength": text.len(),
+            })));
+        }
+    }
+    Ok(None)
+}
+
 /// Set auto-hide timeout for toolbar (0 to disable)
 #[tauri::command]
 pub async fn selection_set_auto_hide_timeout(

@@ -363,7 +363,7 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
 
         <div className="space-y-4 py-4">
           {/* Theme Name & Dark Mode Row */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 items-end">
             <div className="space-y-1.5">
               <Label htmlFor="theme-name" className="text-xs">{t('themeName')}</Label>
               <Input
@@ -374,9 +374,11 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
                 className="h-8"
               />
             </div>
-            <div className="flex items-end justify-between rounded-lg border px-3 py-2">
+            <div className="space-y-1.5">
               <Label className="text-xs">{t('darkTheme')}</Label>
-              <Switch checked={isDark} onCheckedChange={setIsDark} />
+              <div className="flex items-center justify-end rounded-lg border px-3 h-8">
+                <Switch checked={isDark} onCheckedChange={setIsDark} />
+              </div>
             </div>
           </div>
 
@@ -385,18 +387,18 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="colors" className="text-xs">
                 <Palette className="h-3.5 w-3.5 mr-1.5" />
-                Custom Colors
+                {t('customColors')}
               </TabsTrigger>
               <TabsTrigger value="palettes" className="text-xs">
                 <Wand2 className="h-3.5 w-3.5 mr-1.5" />
-                Palette Suggestions
+                {t('paletteSuggestions')}
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="colors" className="space-y-4 mt-3">
               {/* Core Color Swatches */}
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Core Colors</Label>
+                <Label className="text-xs text-muted-foreground">{t('coreColors')}</Label>
                 <div className="grid grid-cols-3 gap-2">
                   {colorLabels.filter(c => c.category === 'core').map(({ key, labelKey, description }) => (
                     <TooltipProvider key={key}>
@@ -429,7 +431,7 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
 
               {/* Extended Color Swatches */}
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Extended Colors (Optional)</Label>
+                <Label className="text-xs text-muted-foreground">{t('extendedColors')}</Label>
                 <div className="grid grid-cols-4 gap-1.5">
                   {colorLabels.filter(c => c.category === 'extended').map(({ key, labelKey, description }) => (
                     <TooltipProvider key={key}>
@@ -465,7 +467,7 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
                 <div className="text-xs text-center mb-1">
                   <span className="font-medium">{t(colorLabels.find(c => c.key === activeColor)?.labelKey || activeColor)}</span>
                   <span className="text-muted-foreground ml-1">
-                    ({colorLabels.find(c => c.key === activeColor)?.category === 'extended' ? 'optional' : 'required'})
+                    ({colorLabels.find(c => c.key === activeColor)?.category === 'extended' ? t('optional') : t('required')})
                   </span>
                 </div>
                 <HexColorPicker
@@ -491,7 +493,7 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
                     onClick={handleGenerateFromPrimary}
                   >
                     <Wand2 className="h-3 w-3 mr-1" />
-                    Auto-fill
+                    {t('autoFill')}
                   </Button>
                 </div>
               </div>
@@ -500,15 +502,15 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
               <div className="rounded-lg border p-3 space-y-2">
                 <Label className="text-xs flex items-center gap-1.5">
                   <AlertTriangle className="h-3.5 w-3.5" />
-                  Contrast Check (WCAG)
+                  {t('contrastCheck')}
                 </Label>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="flex items-center justify-between p-2 rounded bg-muted/50">
-                    <span className="text-muted-foreground">Text on Background</span>
+                    <span className="text-muted-foreground">{t('textOnBackground')}</span>
                     {renderContrastBadge(contrastResults.foregroundOnBg)}
                   </div>
                   <div className="flex items-center justify-between p-2 rounded bg-muted/50">
-                    <span className="text-muted-foreground">Text on Secondary</span>
+                    <span className="text-muted-foreground">{t('textOnSecondary')}</span>
                     {renderContrastBadge(contrastResults.foregroundOnSecondary)}
                   </div>
                 </div>

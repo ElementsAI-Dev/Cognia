@@ -46,6 +46,7 @@ import { useSettingsStore } from '@/stores';
 import { getRoutingStats, resetRoutingStats, clearRoutingCache, getCacheStats } from '@/lib/ai/generation/routing-cache';
 import type { RoutingMode, RoutingStrategy, ModelTier } from '@/types/provider/auto-router';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 const routingModes: Array<{ value: RoutingMode; label: string; description: string }> = [
   { 
@@ -106,6 +107,7 @@ const fallbackTiers: Array<{ value: ModelTier; label: string; icon: React.ReactN
 ];
 
 export function AutoRouterSettings() {
+  const t = useTranslations('autoRouterSettings');
   const autoRouterSettings = useSettingsStore((state) => state.autoRouterSettings);
   const setAutoRouterSettings = useSettingsStore((state) => state.setAutoRouterSettings);
   const setAutoRouterEnabled = useSettingsStore((state) => state.setAutoRouterEnabled);
@@ -134,9 +136,9 @@ export function AutoRouterSettings() {
       {/* Enable/Disable */}
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
-          <Label className="text-base font-medium">Auto Model Routing</Label>
+          <Label className="text-base font-medium">{t('autoModelRouting')}</Label>
           <p className="text-sm text-muted-foreground">
-            Automatically select the best model based on task complexity
+            {t('autoModelRoutingDesc')}
           </p>
         </div>
         <Switch
@@ -149,7 +151,7 @@ export function AutoRouterSettings() {
         <>
           {/* Routing Mode */}
           <div className="space-y-2">
-            <Label>Routing Mode</Label>
+            <Label>{t('routingMode')}</Label>
             <Select
               value={autoRouterSettings.routingMode}
               onValueChange={(value) => setAutoRouterMode(value as RoutingMode)}
@@ -172,7 +174,7 @@ export function AutoRouterSettings() {
 
           {/* Routing Strategy */}
           <div className="space-y-2">
-            <Label>Routing Strategy</Label>
+            <Label>{t('routingStrategy')}</Label>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {routingStrategies.map((strategy) => (
                 <TooltipProvider key={strategy.value}>
@@ -202,9 +204,9 @@ export function AutoRouterSettings() {
 
           {/* Fallback Tier */}
           <div className="space-y-2">
-            <Label>Default Fallback Tier</Label>
-            <p className="text-xs text-muted-foreground mb-2">
-              Model tier to use when no suitable model is found
+            <Label>{t('fallbackTier')}</Label>
+            <p className="text-xs text-muted-foreground">
+              {t('fallbackTierDesc')}
             </p>
             <Select
               value={autoRouterSettings.fallbackTier}
@@ -229,9 +231,9 @@ export function AutoRouterSettings() {
           {/* Show Routing Indicator */}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label>Show Routing Indicator</Label>
+              <Label>{t('showRoutingIndicator')}</Label>
               <p className="text-sm text-muted-foreground">
-                Display routing decisions in the chat interface
+                {t('showRoutingIndicatorDesc')}
               </p>
             </div>
             <Switch
@@ -243,9 +245,9 @@ export function AutoRouterSettings() {
           {/* Allow Override */}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label>Allow Manual Override</Label>
+              <Label>{t('allowManualOverride')}</Label>
               <p className="text-sm text-muted-foreground">
-                Let users override automatic model selection
+                {t('allowManualOverrideDesc')}
               </p>
             </div>
             <Switch
@@ -260,9 +262,9 @@ export function AutoRouterSettings() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Enable Routing Cache</Label>
+                <Label>{t('enableRoutingCache')}</Label>
                 <p className="text-sm text-muted-foreground">
-                  Cache routing decisions for faster responses
+                  {t('enableRoutingCacheDesc')}
                 </p>
               </div>
               <Switch
@@ -275,7 +277,7 @@ export function AutoRouterSettings() {
             
             {autoRouterSettings.enableCache && (
               <div className="space-y-2 pl-4 border-l-2 border-muted">
-                <Label className="text-sm">Cache TTL (seconds)</Label>
+                <Label className="text-sm">{t('cacheTtl')}</Label>
                 <div className="flex items-center gap-4">
                   <Slider
                     value={[autoRouterSettings.cacheTTL]}
@@ -301,7 +303,7 @@ export function AutoRouterSettings() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
                   <BarChart3 className="h-4 w-4" />
-                  Routing Statistics
+                  {t('routingStatistics')}
                 </CardTitle>
                 <div className="flex gap-2">
                   <Button variant="ghost" size="sm" onClick={refreshStats}>
@@ -313,48 +315,48 @@ export function AutoRouterSettings() {
                 </div>
               </div>
               <CardDescription>
-                Performance and usage metrics
+                {t('performanceMetrics')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Total Requests</p>
+                  <p className="text-xs text-muted-foreground">{t('totalRequests')}</p>
                   <p className="text-2xl font-bold">{stats.totalRequests}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Avg Latency</p>
+                  <p className="text-xs text-muted-foreground">{t('avgLatency')}</p>
                   <p className="text-2xl font-bold">{stats.avgLatency.toFixed(1)}ms</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Cache Hit Rate</p>
+                  <p className="text-xs text-muted-foreground">{t('cacheHitRate')}</p>
                   <p className="text-2xl font-bold">{(stats.cacheHitRate * 100).toFixed(1)}%</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Cache Size</p>
+                  <p className="text-xs text-muted-foreground">{t('cacheSize')}</p>
                   <p className="text-2xl font-bold">{cacheStats.size}</p>
                 </div>
               </div>
 
               {/* Tier Distribution */}
               <div className="mt-4 space-y-2">
-                <p className="text-xs text-muted-foreground">Tier Distribution</p>
+                <p className="text-xs text-muted-foreground">{t('tierDistribution')}</p>
                 <div className="flex gap-2 flex-wrap">
                   <Badge variant="outline" className="gap-1">
                     <Zap className="h-3 w-3 text-green-500" />
-                    Fast: {stats.byTier.fast}
+                    {t('tierFast')}: {stats.byTier.fast}
                   </Badge>
                   <Badge variant="outline" className="gap-1">
                     <Scale className="h-3 w-3 text-blue-500" />
-                    Balanced: {stats.byTier.balanced}
+                    {t('tierBalanced')}: {stats.byTier.balanced}
                   </Badge>
                   <Badge variant="outline" className="gap-1">
                     <Brain className="h-3 w-3 text-purple-500" />
-                    Powerful: {stats.byTier.powerful}
+                    {t('tierPowerful')}: {stats.byTier.powerful}
                   </Badge>
                   <Badge variant="outline" className="gap-1">
                     <Sparkles className="h-3 w-3 text-amber-500" />
-                    Reasoning: {stats.byTier.reasoning}
+                    {t('tierReasoning')}: {stats.byTier.reasoning}
                   </Badge>
                 </div>
               </div>
@@ -362,7 +364,7 @@ export function AutoRouterSettings() {
               {/* Cost Savings */}
               {stats.estimatedCostSaved > 0 && (
                 <div className="mt-4 p-3 bg-green-500/10 rounded-lg">
-                  <p className="text-xs text-muted-foreground">Estimated Cost Saved</p>
+                  <p className="text-xs text-muted-foreground">{t('estimatedCostSaved')}</p>
                   <p className="text-lg font-bold text-green-600">
                     ${stats.estimatedCostSaved.toFixed(4)}
                   </p>
@@ -378,7 +380,7 @@ export function AutoRouterSettings() {
             className="w-full"
           >
             <Settings2 className="h-4 w-4 mr-2" />
-            Reset to Defaults
+            {t('resetToDefaults')}
           </Button>
         </>
       )}

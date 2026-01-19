@@ -6,6 +6,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Puzzle,
   Plus,
@@ -21,6 +22,7 @@ import {
   Download,
   Upload,
   Heart,
+  MoreHorizontal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,6 +74,7 @@ interface PluginSettingsPageProps {
 // =============================================================================
 
 export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
+  const t = useTranslations('pluginSettings');
   const { plugins, enabledPlugins, disabledPlugins, errorPlugins, initialized } = usePlugins();
   const { scanPlugins, initialize, enablePlugin, disablePlugin, uninstallPlugin } = usePluginStore();
   
@@ -145,19 +148,20 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
+      {/* Header - Responsive */}
+      <div className="flex flex-col gap-3 p-4 border-b sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <Puzzle className="h-6 w-6" />
+          <Puzzle className="h-5 w-5 sm:h-6 sm:w-6" />
           <div>
-            <h1 className="text-xl font-semibold">Plugins</h1>
-            <p className="text-sm text-muted-foreground">
-              {enabledPlugins.length} enabled · {plugins.length} installed
+            <h1 className="text-lg font-semibold sm:text-xl">{t('title')}</h1>
+            <p className="text-xs text-muted-foreground sm:text-sm">
+              {t('enabledCount', { count: enabledPlugins.length })} · {t('installedCount', { count: plugins.length })}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Desktop buttons */}
+        <div className="hidden sm:flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -165,171 +169,223 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
             disabled={isRefreshing}
           >
             <RefreshCw className={cn('h-4 w-4 mr-2', isRefreshing && 'animate-spin')} />
-            Refresh
+            {t('refresh')}
           </Button>
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <Download className="h-4 w-4 mr-2" />
-                Import
+                {t('import')}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem>
                 <FolderOpen className="h-4 w-4 mr-2" />
-                From Folder
+                {t('fromFolder')}
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Upload className="h-4 w-4 mr-2" />
-                From ZIP
+                {t('fromZip')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <Code2 className="h-4 w-4 mr-2" />
-                From Git URL
+                {t('fromGitUrl')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           <Button size="sm" onClick={() => setIsCreateWizardOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Create Plugin
+            {t('createPlugin')}
           </Button>
+        </div>
+
+        {/* Mobile buttons */}
+        <div className="flex items-center gap-2 sm:hidden">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex-1"
+          >
+            <RefreshCw className={cn('h-4 w-4 mr-2', isRefreshing && 'animate-spin')} />
+            {t('refresh')}
+          </Button>
+          
+          <Button size="sm" onClick={() => setIsCreateWizardOpen(true)} className="flex-1">
+            <Plus className="h-4 w-4 mr-2" />
+            {t('createPlugin')}
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="px-2">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem>
+                <FolderOpen className="h-4 w-4 mr-2" />
+                {t('fromFolder')}
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Upload className="h-4 w-4 mr-2" />
+                {t('fromZip')}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <Code2 className="h-4 w-4 mr-2" />
+                {t('fromGitUrl')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs - Responsive with horizontal scroll on mobile */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <div className="border-b px-4">
-          <TabsList className="h-12">
-            <TabsTrigger value="installed" className="gap-2">
-              <Puzzle className="h-4 w-4" />
-              Installed
-              <Badge variant="secondary" className="ml-1">
+        <div className="border-b px-2 sm:px-4 overflow-x-auto scrollbar-none">
+          <TabsList className="h-10 sm:h-12 w-max sm:w-auto inline-flex">
+            <TabsTrigger value="installed" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
+              <Puzzle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">{t('tabs.installed')}</span>
+              <span className="xs:hidden">插件</span>
+              <Badge variant="secondary" className="ml-1 text-xs">
                 {plugins.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Analytics
+            <TabsTrigger value="analytics" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
+              <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">{t('tabs.analytics')}</span>
+              <span className="sm:hidden">统计</span>
             </TabsTrigger>
-            <TabsTrigger value="develop" className="gap-2">
-              <Code2 className="h-4 w-4" />
-              Develop
+            <TabsTrigger value="develop" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
+              <Code2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">{t('tabs.develop')}</span>
+              <span className="sm:hidden">开发</span>
             </TabsTrigger>
-            <TabsTrigger value="health" className="gap-2">
-              <Heart className="h-4 w-4" />
-              Health
+            <TabsTrigger value="health" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
+              <Heart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">{t('tabs.health')}</span>
+              <span className="sm:hidden">健康</span>
             </TabsTrigger>
-            <TabsTrigger value="settings" className="gap-2">
-              <Settings2 className="h-4 w-4" />
-              Settings
+            <TabsTrigger value="settings" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
+              <Settings2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">{t('tabs.settings')}</span>
+              <span className="sm:hidden">设置</span>
             </TabsTrigger>
           </TabsList>
         </div>
 
         {/* Installed Plugins Tab */}
         <TabsContent value="installed" className="flex-1 flex flex-col m-0">
-          {/* Filters Bar */}
-          <div className="flex items-center gap-3 p-4 border-b bg-muted/30">
-            <div className="relative flex-1 max-w-sm">
+          {/* Filters Bar - Responsive */}
+          <div className="flex flex-wrap items-center gap-2 p-3 sm:p-4 border-b bg-muted/30">
+            {/* Search - Full width on mobile */}
+            <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search plugins..."
+                placeholder={t('filters.searchPlaceholder')}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="pl-9"
+                className="pl-9 h-9"
               />
             </div>
 
-            <Select value={filterBy} onValueChange={v => setFilterBy(v as FilterOption)}>
-              <SelectTrigger className="w-[130px]">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="enabled">Enabled</SelectItem>
-                <SelectItem value="disabled">Disabled</SelectItem>
-                <SelectItem value="error">Error</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Filters group - Collapsible on mobile */}
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <Select value={filterBy} onValueChange={v => setFilterBy(v as FilterOption)}>
+                <SelectTrigger className="h-9 w-[calc(50%-4px)] sm:w-[120px]">
+                  <Filter className="h-3.5 w-3.5 mr-1.5" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('filters.allStatus')}</SelectItem>
+                  <SelectItem value="enabled">{t('filters.enabled')}</SelectItem>
+                  <SelectItem value="disabled">{t('filters.disabled')}</SelectItem>
+                  <SelectItem value="error">{t('filters.error')}</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={typeFilter} onValueChange={v => setTypeFilter(v as PluginType | 'all')}>
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="frontend">Frontend</SelectItem>
-                <SelectItem value="python">Python</SelectItem>
-                <SelectItem value="hybrid">Hybrid</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={typeFilter} onValueChange={v => setTypeFilter(v as PluginType | 'all')}>
+                <SelectTrigger className="h-9 w-[calc(50%-4px)] sm:w-[110px]">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('filters.allTypes')}</SelectItem>
+                  <SelectItem value="frontend">{t('filters.frontend')}</SelectItem>
+                  <SelectItem value="python">{t('filters.python')}</SelectItem>
+                  <SelectItem value="hybrid">{t('filters.hybrid')}</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={capabilityFilter} onValueChange={v => setCapabilityFilter(v as PluginCapability | 'all')}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Capability" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Capabilities</SelectItem>
-                <SelectItem value="tools">Tools</SelectItem>
-                <SelectItem value="components">Components</SelectItem>
-                <SelectItem value="modes">Modes</SelectItem>
-                <SelectItem value="commands">Commands</SelectItem>
-                <SelectItem value="hooks">Hooks</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={capabilityFilter} onValueChange={v => setCapabilityFilter(v as PluginCapability | 'all')}>
+                <SelectTrigger className="h-9 w-[calc(50%-4px)] sm:w-[120px] hidden sm:flex">
+                  <SelectValue placeholder="Capability" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('filters.allCapabilities')}</SelectItem>
+                  <SelectItem value="tools">{t('filters.tools')}</SelectItem>
+                  <SelectItem value="components">{t('filters.components')}</SelectItem>
+                  <SelectItem value="modes">{t('filters.modes')}</SelectItem>
+                  <SelectItem value="commands">{t('filters.commands')}</SelectItem>
+                  <SelectItem value="hooks">{t('filters.hooks')}</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <div className="flex items-center border rounded-md">
-              <Button
-                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="rounded-r-none"
-                onClick={() => setViewMode('grid')}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="rounded-l-none"
-                onClick={() => setViewMode('list')}
-              >
-                <List className="h-4 w-4" />
-              </Button>
+              {/* View mode toggle */}
+              <div className="flex items-center border rounded-md h-9 ml-auto sm:ml-0">
+                <Button
+                  variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="rounded-r-none h-full px-2.5"
+                  onClick={() => setViewMode('grid')}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="rounded-l-none h-full px-2.5"
+                  onClick={() => setViewMode('list')}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <Select value={sortBy} onValueChange={v => setSortBy(v as SortOption)}>
+                <SelectTrigger className="h-9 w-[calc(50%-4px)] sm:w-[110px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name">{t('filters.sortByName')}</SelectItem>
+                  <SelectItem value="recent">{t('filters.sortByRecent')}</SelectItem>
+                  <SelectItem value="status">{t('filters.sortByStatus')}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-
-            <Select value={sortBy} onValueChange={v => setSortBy(v as SortOption)}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">Name</SelectItem>
-                <SelectItem value="recent">Recent</SelectItem>
-                <SelectItem value="status">Status</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Plugin List */}
-          <ScrollArea className="flex-1 p-4">
+          <ScrollArea className="flex-1 p-3 sm:p-4">
             {filteredPlugins.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                <Puzzle className="h-12 w-12 mb-4 opacity-50" />
+                <Puzzle className="h-10 w-10 sm:h-12 sm:w-12 mb-4 opacity-50" />
                 {searchQuery || filterBy !== 'all' || typeFilter !== 'all' || capabilityFilter !== 'all' ? (
                   <>
-                    <p className="text-lg font-medium">No plugins match your filters</p>
-                    <p className="text-sm">Try adjusting your search or filters</p>
+                    <p className="text-base sm:text-lg font-medium">{t('emptyState.noMatch')}</p>
+                    <p className="text-sm">{t('emptyState.tryAdjusting')}</p>
                   </>
                 ) : (
                   <>
-                    <p className="text-lg font-medium">No plugins installed</p>
-                    <p className="text-sm mb-4">Create your first plugin or import one</p>
+                    <p className="text-base sm:text-lg font-medium">{t('emptyState.noPlugins')}</p>
+                    <p className="text-sm mb-4">{t('emptyState.createFirst')}</p>
                     <Button onClick={() => setIsCreateWizardOpen(true)}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Create Plugin
+                      {t('createPlugin')}
                     </Button>
                   </>
                 )}
@@ -337,6 +393,7 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
             ) : (
               <PluginList
                 plugins={filteredPlugins}
+                viewMode={viewMode}
                 onToggle={(plugin) => {
                   if (plugin.status === 'enabled') {
                     disablePlugin(plugin.manifest.id);
@@ -350,36 +407,36 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
             )}
           </ScrollArea>
 
-          {/* Status Bar */}
-          <div className="flex items-center justify-between px-4 py-2 border-t bg-muted/30 text-sm text-muted-foreground">
-            <div className="flex items-center gap-4">
-              <span>{filteredPlugins.length} plugins shown</span>
+          {/* Status Bar - Responsive */}
+          <div className="flex flex-col gap-1 px-3 py-2 border-t bg-muted/30 text-xs sm:text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-4">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <span>{t('statusBar.pluginsShown', { count: filteredPlugins.length })}</span>
               {errorPlugins.length > 0 && (
-                <Badge variant="destructive">{errorPlugins.length} errors</Badge>
+                <Badge variant="destructive" className="text-xs">{t('statusBar.errors', { count: errorPlugins.length })}</Badge>
               )}
             </div>
-            <div className="flex items-center gap-4">
-              <span>{enabledPlugins.length} enabled</span>
-              <span>{disabledPlugins.length} disabled</span>
+            <div className="flex items-center gap-2 sm:gap-4">
+              <span>{t('statusBar.enabledCount', { count: enabledPlugins.length })}</span>
+              <span>{t('statusBar.disabledCount', { count: disabledPlugins.length })}</span>
             </div>
           </div>
         </TabsContent>
 
         {/* Analytics Tab */}
-        <TabsContent value="analytics" className="flex-1 m-0 p-4">
-          <PluginAnalytics />
+        <TabsContent value="analytics" className="flex-1 m-0 p-3 sm:p-4 flex flex-col overflow-hidden">
+          <PluginAnalytics className="flex-1 min-h-0" />
         </TabsContent>
 
         {/* Develop Tab */}
-        <TabsContent value="develop" className="flex-1 m-0 p-4">
-          <PluginDevTools />
+        <TabsContent value="develop" className="flex-1 m-0 flex flex-col overflow-hidden">
+          <PluginDevTools className="flex-1 min-h-0" />
         </TabsContent>
 
         {/* Health & Monitoring Tab */}
-        <TabsContent value="health" className="flex-1 m-0 p-4 overflow-auto">
-          <div className="space-y-6">
-            {/* Updates Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <TabsContent value="health" className="flex-1 m-0 p-3 sm:p-4 overflow-auto flex flex-col">
+          <div className="space-y-3 sm:space-y-4 flex-1">
+            {/* Updates Section - Stack on mobile */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <PluginUpdates autoCheck />
               <PluginConflicts autoDetect />
             </div>
@@ -392,58 +449,59 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
           </div>
         </TabsContent>
 
-        {/* Settings Tab */}
-        <TabsContent value="settings" className="flex-1 m-0 p-4">
-          <div className="max-w-2xl space-y-6">
+        {/* Settings Tab - Better space utilization */}
+        <TabsContent value="settings" className="flex-1 m-0 p-3 sm:p-4 overflow-auto">
+          <div className="space-y-4 sm:space-y-6">
             <div>
-              <h3 className="text-lg font-medium mb-2">Plugin Settings</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Configure global plugin system settings
+              <h3 className="text-base sm:text-lg font-medium mb-2">{t('settingsTab.title')}</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground mb-4">
+                {t('settingsTab.description')}
               </p>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <p className="font-medium">Auto-enable plugins</p>
-                  <p className="text-sm text-muted-foreground">
-                    Automatically enable newly installed plugins
+            {/* Settings Grid - 2 columns on large screens */}
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
+              <div className="flex flex-col gap-3 p-3 sm:p-4 border rounded-lg sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm sm:text-base">{t('settingsTab.autoEnable')}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    {t('settingsTab.autoEnableDesc')}
                   </p>
                 </div>
-                <Button variant="outline" size="sm">Configure</Button>
+                <Button variant="outline" size="sm" className="self-start sm:self-center shrink-0">{t('settingsTab.configure')}</Button>
               </div>
 
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <p className="font-medium">Plugin directory</p>
-                  <p className="text-sm text-muted-foreground font-mono">
+              <div className="flex flex-col gap-3 p-3 sm:p-4 border rounded-lg sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm sm:text-base">{t('settingsTab.pluginDirectory')}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground font-mono truncate">
                     ~/.cognia/plugins
                   </p>
                 </div>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="self-start sm:self-center shrink-0">
                   <FolderOpen className="h-4 w-4 mr-2" />
-                  Open
+                  {t('settingsTab.open')}
                 </Button>
               </div>
 
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <p className="font-medium">Python environment</p>
-                  <p className="text-sm text-muted-foreground">
-                    Configure Python runtime for plugins
+              <div className="flex flex-col gap-3 p-3 sm:p-4 border rounded-lg sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm sm:text-base">{t('settingsTab.pythonEnvironment')}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    {t('settingsTab.pythonEnvironmentDesc')}
                   </p>
                 </div>
-                <Button variant="outline" size="sm">Configure</Button>
+                <Button variant="outline" size="sm" className="self-start sm:self-center shrink-0">{t('settingsTab.configure')}</Button>
               </div>
 
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <p className="font-medium">Clear plugin cache</p>
-                  <p className="text-sm text-muted-foreground">
-                    Remove cached plugin data and reload
+              <div className="flex flex-col gap-3 p-3 sm:p-4 border rounded-lg sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm sm:text-base">{t('settingsTab.clearCache')}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    {t('settingsTab.clearCacheDesc')}
                   </p>
                 </div>
-                <Button variant="outline" size="sm">Clear Cache</Button>
+                <Button variant="outline" size="sm" className="self-start sm:self-center shrink-0">{t('settingsTab.clearCacheBtn')}</Button>
               </div>
             </div>
           </div>

@@ -51,3 +51,7 @@ export {
   type UseScreenRecordingReturn,
   type RecordingMode,
 } from './use-screen-recording';
+export {
+  useSelectionSettings,
+  type UseSelectionSettingsReturn,
+} from './use-selection-settings';

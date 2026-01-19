@@ -48,23 +48,42 @@ function debounce<T extends (...args: unknown[]) => void>(
   };
 }
 
+function loadTranslationsFromPath(basePath: string): Record<string, unknown> {
+  const fullPath = path.join(process.cwd(), basePath);
+  
+  // Check if it's a directory (split files)
+  if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
+    const combined: Record<string, unknown> = {};
+    const files = fs.readdirSync(fullPath).filter(f => f.endsWith('.json'));
+    
+    for (const file of files) {
+      const filePath = path.join(fullPath, file);
+      const content = fs.readFileSync(filePath, 'utf-8');
+      Object.assign(combined, JSON.parse(content));
+    }
+    return combined;
+  }
+  
+  // Try as JSON file
+  const jsonPath = fullPath.endsWith('.json') ? fullPath : `${fullPath}.json`;
+  if (fs.existsSync(jsonPath)) {
+    return JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+  }
+  
+  return {};
+}
+
 function quickValidate(config: ReturnType<typeof loadConfig>): void {
   const timestamp = getTimeString();
   console.log(`\n${colors.dim}[${timestamp}]${colors.reset} Running quick validation...`);
 
   try {
-    const enPath = path.join(process.cwd(), config.existingTranslations.enPath);
-    const zhPath = path.join(process.cwd(), config.existingTranslations.zhCNPath);
-
-    const enContent = fs.readFileSync(enPath, 'utf-8');
-    const zhContent = fs.readFileSync(zhPath, 'utf-8');
-
     let enData: Record<string, unknown>;
     let zhData: Record<string, unknown>;
 
     try {
-      enData = JSON.parse(enContent);
-      zhData = JSON.parse(zhContent);
+      enData = loadTranslationsFromPath(config.existingTranslations.enPath);
+      zhData = loadTranslationsFromPath(config.existingTranslations.zhCNPath);
     } catch {
       log.error('Invalid JSON in translation files!');
       return;
@@ -140,30 +159,43 @@ export function main(): void {
 
   const debouncedValidate = debounce(() => quickValidate(config), 500);
 
-  // Watch translation files
+  // Watch translation files/directories
   const enPath = path.join(process.cwd(), config.existingTranslations.enPath);
   const zhPath = path.join(process.cwd(), config.existingTranslations.zhCNPath);
 
-  const watchFile = (filePath: string, name: string): void => {
-    if (!fs.existsSync(filePath)) {
-      log.warn(`File not found: ${filePath}`);
+  const watchPath = (targetPath: string, name: string): void => {
+    if (!fs.existsSync(targetPath)) {
+      log.warn(`Path not found: ${targetPath}`);
       return;
     }
 
-    fs.watch(filePath, (eventType) => {
-      if (eventType === 'change') {
-        console.log(`${colors.cyan}${name}${colors.reset} changed`);
-        debouncedValidate();
-      }
-    });
+    const stat = fs.statSync(targetPath);
+    
+    if (stat.isDirectory()) {
+      // Watch directory for split files
+      fs.watch(targetPath, { recursive: true }, (eventType, filename) => {
+        if (filename && filename.endsWith('.json')) {
+          console.log(`${colors.cyan}${name}/${filename}${colors.reset} changed`);
+          debouncedValidate();
+        }
+      });
+    } else {
+      // Watch single file
+      fs.watch(targetPath, (eventType) => {
+        if (eventType === 'change') {
+          console.log(`${colors.cyan}${name}${colors.reset} changed`);
+          debouncedValidate();
+        }
+      });
+    }
 
     if (cliOptions.verbose) {
-      log.info(`Watching: ${filePath}`);
+      log.info(`Watching: ${targetPath}`);
     }
   };
 
-  watchFile(enPath, 'en.json');
-  watchFile(zhPath, 'zh-CN.json');
+  watchPath(enPath, 'en');
+  watchPath(zhPath, 'zh-CN');
 
   // Watch component directories
   for (const targetDir of config.targetDirectories) {

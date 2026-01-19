@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { usePluginStore } from '@/stores/plugin';
 import {
   getConflictDetector,
@@ -43,6 +44,7 @@ export function PluginConflicts({
   className,
   autoDetect = true,
 }: PluginConflictsProps) {
+  const t = useTranslations('pluginConflicts');
   const { plugins, getEnabledPlugins, disablePlugin } = usePluginStore();
   const [conflicts, setConflicts] = useState<PluginConflict[]>([]);
   const [isDetecting, setIsDetecting] = useState(false);
@@ -140,12 +142,12 @@ export function PluginConflicts({
   const _infoCount = conflicts.filter((c) => c.severity === 'info').length;
 
   return (
-    <Card className={className}>
-      <CardHeader className="pb-2">
+    <Card className={cn('flex flex-col', className)}>
+      <CardHeader className="pb-2 shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" />
-            Plugin Conflicts
+            {t('title')}
             {conflicts.length > 0 && (
               <Badge variant="destructive" className="ml-2">
                 {conflicts.length}
@@ -164,41 +166,41 @@ export function PluginConflicts({
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 flex flex-col min-h-0">
         {/* Summary */}
         {conflicts.length > 0 && (
-          <div className="flex gap-3 mb-4 text-sm">
+          <div className="flex flex-wrap gap-2 mb-3 text-sm shrink-0">
             {_errorCount > 0 && (
               <Badge variant="destructive" className="gap-1">
                 <AlertCircle className="h-3 w-3" />
-                {_errorCount} Errors
+                {t('errors', { count: _errorCount })}
               </Badge>
             )}
             {_warningCount > 0 && (
               <Badge className="gap-1 bg-yellow-500 text-black">
                 <AlertTriangle className="h-3 w-3" />
-                {_warningCount} Warnings
+                {t('warnings', { count: _warningCount })}
               </Badge>
             )}
             {_infoCount > 0 && (
               <Badge variant="secondary" className="gap-1">
                 <Info className="h-3 w-3" />
-                {_infoCount} Info
+                {t('info', { count: _infoCount })}
               </Badge>
             )}
           </div>
         )}
 
         {/* Conflicts List */}
-        <ScrollArea className="h-[300px]">
+        <ScrollArea className="flex-1 min-h-0">
           {conflicts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
               <p className="text-muted-foreground">
-                No conflicts detected
+                {t('noConflicts')}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                All enabled plugins are compatible
+                {t('allCompatible')}
               </p>
             </div>
           ) : (
@@ -215,7 +217,7 @@ export function PluginConflicts({
                     <div className="flex-1 min-w-0">
                       <AlertTitle className="flex items-center gap-2 text-sm">
                         {getConflictIcon(conflict.type)}
-                        <span className="capitalize">{conflict.type} Conflict</span>
+                        <span className="capitalize">{t('conflictType', { type: conflict.type })}</span>
                         <Badge variant="outline" className="text-xs capitalize">
                           {conflict.severity}
                         </Badge>
@@ -239,7 +241,7 @@ export function PluginConflicts({
                         {conflict.resolution && (
                           <div className="mt-3 flex items-center gap-2">
                             <p className="text-xs text-muted-foreground">
-                              Suggestion: {conflict.resolution}
+                              {t('suggestion')} {conflict.resolution}
                             </p>
                             {conflict.autoResolvable && (
                               <Button
@@ -248,7 +250,7 @@ export function PluginConflicts({
                                 className="h-6 text-xs"
                                 onClick={() => handleResolve(conflict)}
                               >
-                                Apply
+                                {t('apply')}
                               </Button>
                             )}
                           </div>

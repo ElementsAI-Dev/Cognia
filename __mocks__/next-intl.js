@@ -4,28 +4,43 @@ const React = require('react');
 const fs = require('fs');
 const path = require('path');
 
-// Load English translations - try multiple path resolution strategies
+// Load English translations from split files
+// The split files are compiled via index.ts, so we load them dynamically
 let messages = {};
-const pathsToTry = [
-  path.resolve(__dirname, '..', 'lib', 'i18n', 'messages', 'en.json'),
-  path.resolve(process.cwd(), 'lib', 'i18n', 'messages', 'en.json'),
-  path.join(__dirname, '..', 'lib', 'i18n', 'messages', 'en.json'),
-];
 
-for (const messagesPath of pathsToTry) {
-  try {
-    if (fs.existsSync(messagesPath)) {
-      const content = fs.readFileSync(messagesPath, 'utf-8');
-      messages = JSON.parse(content);
-      // Verify load was successful
-      if (Object.keys(messages).length > 0) {
-        break;
+// Try to load from the compiled split files
+const loadSplitMessages = () => {
+  const splitDir = path.resolve(__dirname, '..', 'lib', 'i18n', 'messages', 'en');
+  const altSplitDir = path.resolve(process.cwd(), 'lib', 'i18n', 'messages', 'en');
+  
+  const dirsToTry = [splitDir, altSplitDir];
+  
+  for (const dir of dirsToTry) {
+    try {
+      if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
+        const combined = {};
+        const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
+        
+        for (const file of files) {
+          const filePath = path.join(dir, file);
+          const content = fs.readFileSync(filePath, 'utf-8');
+          const parsed = JSON.parse(content);
+          Object.assign(combined, parsed);
+        }
+        
+        if (Object.keys(combined).length > 0) {
+          return combined;
+        }
       }
+    } catch {
+      // Continue to next path
     }
-  } catch {
-    // Continue to next path
   }
-}
+  
+  return {};
+};
+
+messages = loadSplitMessages();
 
 // Helper to get nested value from object
 const getNestedValue = (obj, keyPath) => {

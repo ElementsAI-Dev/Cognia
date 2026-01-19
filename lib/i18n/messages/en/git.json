@@ -1,0 +1,203 @@
+{
+  "git": {
+    "repository": "Repository",
+    "checking": "Checking Git installation...",
+    "notInstalled": {
+      "title": "Git Not Installed",
+      "description": "Git is required for version control features.",
+      "install": "Install Git",
+      "website": "Visit Website"
+    },
+    "desktopRequired": {
+      "title": "Desktop App Required",
+      "description": "Git features are only available in the Cognia desktop application.",
+      "learnMore": "Learn More"
+    },
+    "noRepo": {
+      "title": "Not a Git Repository",
+      "description": "This directory is not initialized as a Git repository."
+    },
+    "status": {
+      "clean": "Clean",
+      "dirty": "Modified",
+      "detached": "Detached HEAD"
+    },
+    "tabs": {
+      "changes": "Changes",
+      "branches": "Branches",
+      "history": "History",
+      "stash": "Stash"
+    },
+    "actions": {
+      "commit": "Commit",
+      "push": "Push",
+      "pull": "Pull",
+      "fetch": "Fetch"
+    },
+    "commitDialog": {
+      "title": "Commit Changes",
+      "description": "Create a new commit with the staged changes.",
+      "message": "Commit Message",
+      "messagePlaceholder": "Describe your changes...",
+      "staged": "{count} staged",
+      "unstaged": "{count} unstaged",
+      "willStageAll": "All unstaged changes will be staged before committing.",
+      "commit": "Commit"
+    },
+    "branches": {
+      "title": "Branches",
+      "new": "New",
+      "noBranch": "No branch",
+      "searchBranches": "Search branches...",
+      "localBranches": "Local Branches",
+      "remoteBranches": "Remote Branches",
+      "createBranch": "Create Branch",
+      "createBranchDescription": "Create a new branch from the current HEAD or a specific commit.",
+      "branchName": "Branch Name",
+      "branchNamePlaceholder": "feature/my-feature",
+      "startPoint": "Start Point (optional)",
+      "startPointPlaceholder": "HEAD, commit hash, or branch name",
+      "startPointHint": "Leave empty to create from current HEAD.",
+      "create": "Create",
+      "cancel": "Cancel",
+      "deleteBranch": "Delete Branch",
+      "deleteBranchConfirm": "Are you sure you want to delete branch '{branch}'?",
+      "delete": "Delete",
+      "mergeBranch": "Merge Branch",
+      "mergeBranchConfirm": "Merge '{source}' into '{target}'?",
+      "merge": "Merge"
+    },
+    "history": {
+      "title": "Commit History",
+      "noCommits": "No commits yet",
+      "copyHash": "Copy Hash",
+      "viewDetails": "View Details",
+      "checkout": "Checkout",
+      "revert": "Revert",
+      "loadingChanges": "Loading changes...",
+      "filesChanged": "{count} files changed",
+      "loadMore": "Load More",
+      "commitDetails": "Commit Details",
+      "hash": "Hash",
+      "author": "Author",
+      "date": "Date",
+      "message": "Message"
+    },
+    "stash": {
+      "title": "Stash",
+      "save": "Save",
+      "noStashes": "No stashes",
+      "noStashesHint": "Save your work in progress to the stash.",
+      "onBranch": "on {branch}",
+      "pop": "Pop",
+      "apply": "Apply",
+      "drop": "Drop",
+      "clearAll": "Clear All",
+      "saveStash": "Save to Stash",
+      "saveStashDescription": "Temporarily save your uncommitted changes.",
+      "message": "Message (optional)",
+      "messagePlaceholder": "Work in progress...",
+      "includeUntracked": "Include Untracked Files",
+      "includeUntrackedHint": "Also stash files that are not tracked by Git.",
+      "cancel": "Cancel",
+      "dropStash": "Drop Stash",
+      "dropStashConfirm": "Are you sure you want to drop stash@{{{index}}}?",
+      "clearAllStashes": "Clear All Stashes",
+      "clearAllConfirm": "Are you sure you want to clear all {count} stashes? This cannot be undone.",
+      "comingSoon": "Stash management coming soon"
+    },
+    "fileTree": {
+      "title": "Changed Files",
+      "noChanges": "No changes",
+      "selectedCount": "{count} selected",
+      "deselectAll": "Deselect",
+      "stage": "Stage",
+      "unstage": "Unstage",
+      "discard": "Discard",
+      "selectAll": "Select All",
+      "stageAll": "Stage All",
+      "unstageAll": "Unstage All",
+      "staged": "Staged",
+      "unstaged": "Changes",
+      "stageFile": "Stage File",
+      "unstageFile": "Unstage File",
+      "discardChanges": "Discard Changes"
+    },
+    "diff": {
+      "noChanges": "No changes to display",
+      "filesChanged": "{count} files changed",
+      "expandAll": "Expand All",
+      "collapseAll": "Collapse All",
+      "copyPath": "Copy Path",
+      "fullscreen": "Fullscreen",
+      "stage": "Stage",
+      "unstage": "Unstage",
+      "discard": "Discard",
+      "binaryOrEmpty": "Binary file or no content available"
+    }
+  },
+  "projectGit": {
+    "notInstalled": {
+      "title": "Git Not Installed",
+      "description": "Install Git to enable version control for this project."
+    },
+    "checkAgain": "Check Again",
+    "notConfigured": {
+      "title": "Git Not Configured",
+      "description": "Enable Git to track changes in this project."
+    },
+    "enableGit": "Enable Git",
+    "initDialog": {
+      "title": "Initialize Git Repository",
+      "description": "Set up version control for this project.",
+      "repoPath": "Repository Path",
+      "repoPathPlaceholder": "/path/to/repository",
+      "repoPathHint": "Select or enter the path where you want to initialize Git.",
+      "initialize": "Initialize"
+    },
+    "repoStatus": {
+      "title": "Repository"
+    },
+    "loadingStatus": "Loading repository status...",
+    "hasRemote": "Remote",
+    "localOnly": "Local Only",
+    "quickActions": {
+      "title": "Quick Actions",
+      "commit": "Commit",
+      "push": "Push",
+      "pull": "Pull",
+      "fetch": "Fetch"
+    },
+    "commitDialog": {
+      "title": "Commit Changes",
+      "description": "Create a new commit with all staged changes.",
+      "changes": "Changes to commit",
+      "message": "Commit Message",
+      "messagePlaceholder": "Describe your changes...",
+      "commit": "Commit"
+    },
+    "recentCommits": {
+      "title": "Recent Commits"
+    },
+    "settings": {
+      "title": "Git Settings",
+      "autoCommit": "Auto-Commit",
+      "autoCommitDescription": "Automatically commit changes periodically",
+      "commitOnSessionEnd": "Commit on Session End",
+      "commitOnSessionEndDescription": "Create a commit when the chat session ends",
+      "disableGit": "Disable Git"
+    }
+  },
+  "branchSelector": {
+    "title": "Conversation Branches",
+    "main": "Main",
+    "active": "Active",
+    "hint": "Click \"Branch\" on a message to create a new branch",
+    "deleteTitle": "Delete Branch",
+    "deleteDesc": "Are you sure you want to delete \"{name}\"? This will delete all messages in this branch. This action cannot be undone.",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "branch": "Branch",
+    "creating": "Creating..."
+  }
+}

@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { usePluginStore } from '@/stores/plugin';
 import {
   pluginHealthMonitor,
@@ -49,6 +50,7 @@ export function PluginHealth({
   autoRefresh = true,
   refreshInterval = 30000,
 }: PluginHealthProps) {
+  const t = useTranslations('pluginHealth');
   const { getEnabledPlugins, plugins } = usePluginStore();
   const [healthStatuses, setHealthStatuses] = useState<PluginHealthStatus[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -116,67 +118,67 @@ export function PluginHealth({
   const unhealthyCount = healthStatuses.filter((s) => s.status === 'unhealthy').length;
 
   return (
-    <div className={cn('space-y-4', className)}>
-      {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-4">
+    <div className={cn('flex flex-col gap-3 sm:gap-4 h-full', className)}>
+      {/* Summary Cards - Responsive grid */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4 md:gap-4">
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="p-3 sm:pt-4 sm:px-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Overall Health</p>
-                <p className={cn('text-2xl font-bold', getScoreColor(overallScore))}>
+                <p className="text-xs sm:text-sm text-muted-foreground">{t('summary.overallHealth')}</p>
+                <p className={cn('text-xl sm:text-2xl font-bold', getScoreColor(overallScore))}>
                   {overallScore}%
                 </p>
               </div>
-              <Heart className={cn('h-8 w-8', getScoreColor(overallScore))} />
+              <Heart className={cn('h-6 w-6 sm:h-8 sm:w-8', getScoreColor(overallScore))} />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="p-3 sm:pt-4 sm:px-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Healthy</p>
-                <p className="text-2xl font-bold text-green-500">{healthyCount}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">{t('summary.healthy')}</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-500">{healthyCount}</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-green-500" />
+              <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="p-3 sm:pt-4 sm:px-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Degraded</p>
-                <p className="text-2xl font-bold text-yellow-500">{degradedCount}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">{t('summary.degraded')}</p>
+                <p className="text-xl sm:text-2xl font-bold text-yellow-500">{degradedCount}</p>
               </div>
-              <AlertTriangle className="h-8 w-8 text-yellow-500" />
+              <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="p-3 sm:pt-4 sm:px-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Unhealthy</p>
-                <p className="text-2xl font-bold text-red-500">{unhealthyCount}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">{t('summary.unhealthy')}</p>
+                <p className="text-xl sm:text-2xl font-bold text-red-500">{unhealthyCount}</p>
               </div>
-              <AlertCircle className="h-8 w-8 text-red-500" />
+              <AlertCircle className="h-6 w-6 sm:h-8 sm:w-8 text-red-500" />
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Plugin Health List */}
-      <Card>
-        <CardHeader className="pb-2">
+      <Card className="flex-1 flex flex-col min-h-0">
+        <CardHeader className="p-3 sm:p-4 pb-2 shrink-0">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="text-sm sm:text-base flex items-center gap-2">
               <Activity className="h-4 w-4" />
-              Plugin Health Status
+              {t('list.title')}
             </CardTitle>
             <Button
               variant="ghost"
@@ -190,17 +192,17 @@ export function PluginHealth({
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[300px]">
+        <CardContent className="p-3 sm:p-4 pt-0 flex-1 min-h-0">
+          <ScrollArea className="h-full">
             {healthStatuses.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <Heart className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">
-                  No plugins to monitor
+              <div className="flex flex-col items-center justify-center py-6 sm:py-8 text-center">
+                <Heart className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-3 sm:mb-4" />
+                <p className="text-sm text-muted-foreground">
+                  {t('list.noPlugins')}
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {healthStatuses.map((status) => {
                   const plugin = plugins[status.pluginId];
                   const stats = pluginAnalyticsStore.getStats(status.pluginId);
@@ -208,54 +210,58 @@ export function PluginHealth({
                   return (
                     <div
                       key={status.pluginId}
-                      className="flex items-center gap-4 p-3 rounded-lg bg-muted/50"
+                      className="flex flex-col gap-2 p-2.5 sm:p-3 rounded-lg bg-muted/50 sm:flex-row sm:items-center sm:gap-4"
                     >
-                      <div className="flex-shrink-0">
-                        {getStatusIcon(status.status)}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium truncate">
-                            {plugin?.manifest.name || status.pluginId}
-                          </span>
-                          <Badge
-                            variant={
-                              status.status === 'healthy'
-                                ? 'default'
-                                : status.status === 'degraded'
-                                ? 'secondary'
-                                : 'destructive'
-                            }
-                            className="text-xs"
-                          >
-                            {status.status}
-                          </Badge>
+                      {/* Status icon and main info */}
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="flex-shrink-0">
+                          {getStatusIcon(status.status)}
                         </div>
 
-                        {status.issues.length > 0 && (
-                          <div className="mt-1 space-y-1">
-                            {status.issues.slice(0, 2).map((issue, idx) => (
-                              <TooltipProvider key={idx}>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <p className="text-xs text-muted-foreground truncate cursor-help">
-                                      {issue.message}
-                                    </p>
-                                  </TooltipTrigger>
-                                  {issue.suggestion && (
-                                    <TooltipContent>
-                                      <p>{issue.suggestion}</p>
-                                    </TooltipContent>
-                                  )}
-                                </Tooltip>
-                              </TooltipProvider>
-                            ))}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm truncate">
+                              {plugin?.manifest.name || status.pluginId}
+                            </span>
+                            <Badge
+                              variant={
+                                status.status === 'healthy'
+                                  ? 'default'
+                                  : status.status === 'degraded'
+                                  ? 'secondary'
+                                  : 'destructive'
+                              }
+                              className="text-[10px] sm:text-xs"
+                            >
+                              {status.status}
+                            </Badge>
                           </div>
-                        )}
+
+                          {status.issues.length > 0 && (
+                            <div className="mt-1 space-y-0.5">
+                              {status.issues.slice(0, 1).map((issue, idx) => (
+                                <TooltipProvider key={idx}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <p className="text-[10px] sm:text-xs text-muted-foreground truncate cursor-help">
+                                        {issue.message}
+                                      </p>
+                                    </TooltipTrigger>
+                                    {issue.suggestion && (
+                                      <TooltipContent>
+                                        <p>{issue.suggestion}</p>
+                                      </TooltipContent>
+                                    )}
+                                  </Tooltip>
+                                </TooltipProvider>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-4 text-sm">
+                      {/* Stats - hidden on very small screens */}
+                      <div className="hidden sm:flex items-center gap-3 text-xs text-muted-foreground">
                         {stats && (
                           <>
                             <TooltipProvider>
@@ -264,7 +270,7 @@ export function PluginHealth({
                                   <Zap className="h-3 w-3" />
                                   <span>{stats.totalCalls}</span>
                                 </TooltipTrigger>
-                                <TooltipContent>Total calls</TooltipContent>
+                                <TooltipContent>{t('list.totalCalls')}</TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
 
@@ -274,7 +280,7 @@ export function PluginHealth({
                                   <Clock className="h-3 w-3" />
                                   <span>{Math.round(stats.averageDuration)}ms</span>
                                 </TooltipTrigger>
-                                <TooltipContent>Avg response time</TooltipContent>
+                                <TooltipContent>{t('list.avgResponseTime')}</TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
 
@@ -290,21 +296,22 @@ export function PluginHealth({
                                     {((1 - stats.failedCalls / (stats.totalCalls || 1)) * 100).toFixed(0)}%
                                   </span>
                                 </TooltipTrigger>
-                                <TooltipContent>Success rate</TooltipContent>
+                                <TooltipContent>{t('list.successRate')}</TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                           </>
                         )}
                       </div>
 
-                      <div className="w-20 flex-shrink-0">
+                      {/* Progress bar */}
+                      <div className="w-full sm:w-20 flex-shrink-0">
                         <div className="flex items-center gap-2">
                           <Progress
                             value={status.score}
-                            className="h-2"
+                            className="h-1.5 sm:h-2 flex-1"
                             indicatorClassName={getProgressColor(status.score)}
                           />
-                          <span className={cn('text-xs font-medium', getScoreColor(status.score))}>
+                          <span className={cn('text-xs font-medium w-6 text-right', getScoreColor(status.score))}>
                             {status.score}
                           </span>
                         </div>

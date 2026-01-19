@@ -6,6 +6,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Activity,
   AlertTriangle,
@@ -63,14 +64,14 @@ function StatCard({
 }) {
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1 sm:p-4 sm:pb-2">
+        <CardTitle className="text-xs sm:text-sm font-medium">{title}</CardTitle>
+        <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
       </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+      <CardContent className="p-3 pt-0 sm:p-4 sm:pt-0">
+        <div className="text-lg sm:text-2xl font-bold">{value}</div>
         {description && (
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
+          <p className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1">
             {trend === 'up' && <TrendingUp className="h-3 w-3 text-green-500" />}
             {trend === 'down' && <TrendingUp className="h-3 w-3 text-red-500 rotate-180" />}
             {description}
@@ -83,18 +84,19 @@ function StatCard({
 
 function HealthBadge({ status }: { status: PluginHealthStatus['status'] }) {
   const config = {
-    healthy: { color: 'bg-green-500', icon: CheckCircle2, label: 'Healthy' },
-    degraded: { color: 'bg-yellow-500', icon: AlertCircle, label: 'Degraded' },
-    unhealthy: { color: 'bg-red-500', icon: XCircle, label: 'Unhealthy' },
+    healthy: { color: 'bg-green-500', icon: CheckCircle2, labelKey: 'health.healthy' },
+    degraded: { color: 'bg-yellow-500', icon: AlertCircle, labelKey: 'health.degraded' },
+    unhealthy: { color: 'bg-red-500', icon: XCircle, labelKey: 'health.unhealthy' },
   };
 
-  const { color, icon: Icon, label } = config[status];
+  const { color, icon: Icon } = config[status];
+  const tHealth = useTranslations('pluginAnalytics');
 
   return (
     <Badge variant="outline" className="gap-1">
       <span className={cn('h-2 w-2 rounded-full', color)} />
       <Icon className="h-3 w-3" />
-      {label}
+      {tHealth(config[status].labelKey)}
     </Badge>
   );
 }
@@ -156,10 +158,11 @@ function UsageChart({ dailyUsage }: { dailyUsage: { date: string; calls: number 
 }
 
 function ToolUsageList({ toolUsage }: { toolUsage: Record<string, { name: string; callCount: number; successCount: number }> }) {
+  const t = useTranslations('pluginAnalytics');
   const tools = Object.values(toolUsage).sort((a, b) => b.callCount - a.callCount);
 
   if (tools.length === 0) {
-    return <p className="text-sm text-muted-foreground">No tool usage recorded</p>;
+    return <p className="text-sm text-muted-foreground">{t('usage.noToolUsage')}</p>;
   }
 
   return (
@@ -185,6 +188,7 @@ function ToolUsageList({ toolUsage }: { toolUsage: Record<string, { name: string
 // =============================================================================
 
 export function PluginAnalytics({ pluginId, className }: PluginAnalyticsProps) {
+  const t = useTranslations('pluginAnalytics');
   const { plugins } = usePluginStore();
   const [selectedPlugin, setSelectedPlugin] = useState<string | null>(pluginId || null);
 
@@ -240,70 +244,73 @@ export function PluginAnalytics({ pluginId, className }: PluginAnalyticsProps) {
   };
 
   return (
-    <div className={cn('space-y-6', className)}>
-      {/* Overview Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+    <div className={cn('flex flex-col gap-4 sm:gap-6 h-full', className)}>
+      {/* Overview Stats - Responsive grid */}
+      <div className="grid gap-2 sm:gap-3 grid-cols-2 md:grid-cols-4 md:gap-4">
         <StatCard
-          title="Total Calls"
+          title={t('stats.totalCalls')}
           value={aggregateStats.totalCalls.toLocaleString()}
-          description="Across all plugins"
+          description={t('stats.acrossAll')}
           icon={Activity}
         />
         <StatCard
-          title="Success Rate"
+          title={t('stats.successRate')}
           value={`${overallSuccessRate}%`}
-          description={`${aggregateStats.successfulCalls} successful`}
+          description={t('stats.successful', { count: aggregateStats.successfulCalls })}
           icon={CheckCircle2}
           trend={parseFloat(overallSuccessRate) >= 90 ? 'up' : 'down'}
         />
         <StatCard
-          title="Active Plugins"
+          title={t('stats.activePlugins')}
           value={Object.values(plugins).filter(p => p.status === 'enabled').length}
-          description={`of ${Object.keys(plugins).length} installed`}
+          description={t('stats.ofInstalled', { count: Object.keys(plugins).length })}
           icon={Zap}
         />
         <StatCard
-          title="Avg Response"
+          title={t('stats.avgResponse')}
           value={`${(aggregateStats.avgDuration / Math.max(stats.length, 1) / 1000).toFixed(1)}s`}
-          description="Average duration"
+          description={t('stats.avgDuration')}
           icon={Clock}
         />
       </div>
 
-      <Tabs defaultValue="insights" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="insights" className="gap-2">
-            <Lightbulb className="h-4 w-4" />
-            Insights
+      <Tabs defaultValue="insights" className="flex-1 flex flex-col min-h-0">
+        <TabsList className="h-9 sm:h-10">
+          <TabsTrigger value="insights" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
+            <Lightbulb className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden xs:inline">{t('tabs.insights')}</span>
+            <span className="xs:hidden">洞察</span>
           </TabsTrigger>
-          <TabsTrigger value="health" className="gap-2">
-            <Heart className="h-4 w-4" />
-            Health
+          <TabsTrigger value="health" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
+            <Heart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden xs:inline">{t('tabs.health')}</span>
+            <span className="xs:hidden">健康</span>
           </TabsTrigger>
-          <TabsTrigger value="usage" className="gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Usage
+          <TabsTrigger value="usage" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
+            <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden xs:inline">{t('tabs.usage')}</span>
+            <span className="xs:hidden">使用</span>
           </TabsTrigger>
         </TabsList>
 
         {/* Insights Tab */}
-        <TabsContent value="insights" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Learning Insights</CardTitle>
-              <CardDescription>
-                AI-powered recommendations based on your plugin usage
+        <TabsContent value="insights" className="flex-1 flex flex-col min-h-0 mt-3 sm:mt-4">
+          <Card className="flex-1 flex flex-col min-h-0">
+            <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3 shrink-0">
+              <CardTitle className="text-sm sm:text-base">{t('insights.title')}</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                {t('insights.description')}
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[300px] pr-4">
+            <CardContent className="p-3 sm:p-4 pt-0 flex-1 min-h-0">
+              <ScrollArea className="h-full pr-2 sm:pr-4">
                 {insights.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                    <Lightbulb className="h-8 w-8 mb-2" />
-                    <p>No insights yet. Keep using plugins to generate recommendations!</p>
+                    <Lightbulb className="h-6 w-6 sm:h-8 sm:w-8 mb-2" />
+                    <p className="text-sm">{t('insights.noInsights')}</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {insights.map((insight, i) => (
                       <InsightCard
                         key={i}
@@ -319,35 +326,35 @@ export function PluginAnalytics({ pluginId, className }: PluginAnalyticsProps) {
         </TabsContent>
 
         {/* Health Tab */}
-        <TabsContent value="health" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Plugin Health Status</CardTitle>
-              <CardDescription>
-                Real-time health monitoring for all installed plugins
+        <TabsContent value="health" className="flex-1 flex flex-col min-h-0 mt-3 sm:mt-4">
+          <Card className="flex-1 flex flex-col min-h-0">
+            <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3 shrink-0">
+              <CardTitle className="text-sm sm:text-base">{t('health.title')}</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                {t('health.description')}
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[300px] pr-4">
-                <div className="space-y-4">
+            <CardContent className="p-3 sm:p-4 pt-0 flex-1 min-h-0">
+              <ScrollArea className="h-full pr-2 sm:pr-4">
+                <div className="space-y-2 sm:space-y-4">
                   {Object.entries(plugins).map(([id, plugin]) => {
                     const health = healthStatuses.get(id);
                     return (
                       <div
                         key={id}
-                        className="flex items-center justify-between p-3 rounded-lg border"
+                        className="flex flex-col gap-2 p-2.5 sm:p-3 rounded-lg border sm:flex-row sm:items-center sm:justify-between"
                       >
-                        <div className="space-y-1">
-                          <p className="font-medium">{plugin.manifest.name}</p>
-                          <p className="text-xs text-muted-foreground">{id}</p>
+                        <div className="space-y-0.5 min-w-0 flex-1">
+                          <p className="font-medium text-sm truncate">{plugin.manifest.name}</p>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{id}</p>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-between gap-2 sm:gap-3">
                           {health && (
                             <>
-                              <div className="text-right">
-                                <p className="text-sm font-medium">{health.score}/100</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {health.issues.length} issues
+                              <div className="text-left sm:text-right">
+                                <p className="text-xs sm:text-sm font-medium">{health.score}/100</p>
+                                <p className="text-[10px] sm:text-xs text-muted-foreground">
+                                  {t('health.issues', { count: health.issues.length })}
                                 </p>
                               </div>
                               <HealthBadge status={health.status} />
@@ -364,37 +371,37 @@ export function PluginAnalytics({ pluginId, className }: PluginAnalyticsProps) {
         </TabsContent>
 
         {/* Usage Tab */}
-        <TabsContent value="usage" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+        <TabsContent value="usage" className="flex-1 min-h-0 mt-3 sm:mt-4">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 h-full">
             {/* Plugin Selector */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Plugin Usage</CardTitle>
-                <CardDescription>Select a plugin to view detailed stats</CardDescription>
+            <Card className="flex flex-col min-h-0">
+              <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3 shrink-0">
+                <CardTitle className="text-sm sm:text-base">{t('usage.title')}</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">{t('usage.description')}</CardDescription>
               </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[250px]">
-                  <div className="space-y-2">
+              <CardContent className="p-3 sm:p-4 pt-0 flex-1 min-h-0">
+                <ScrollArea className="h-full">
+                  <div className="space-y-1.5 sm:space-y-2">
                     {stats.map(s => (
                       <button
                         key={s.pluginId}
                         onClick={() => setSelectedPlugin(s.pluginId)}
                         className={cn(
-                          'w-full text-left p-3 rounded-lg border transition-colors',
+                          'w-full text-left p-2.5 sm:p-3 rounded-lg border transition-colors',
                           selectedPlugin === s.pluginId
                             ? 'border-primary bg-primary/5'
                             : 'hover:bg-muted/50'
                         )}
                       >
-                        <div className="flex justify-between">
-                          <span className="font-medium">{s.pluginId}</span>
-                          <span className="text-muted-foreground">{s.totalCalls} calls</span>
+                        <div className="flex justify-between gap-2">
+                          <span className="font-medium text-sm truncate">{s.pluginId}</span>
+                          <span className="text-xs sm:text-sm text-muted-foreground shrink-0">{t('usage.calls', { count: s.totalCalls })}</span>
                         </div>
                       </button>
                     ))}
                     {stats.length === 0 && (
-                      <p className="text-center text-muted-foreground py-8">
-                        No usage data yet
+                      <p className="text-center text-sm text-muted-foreground py-6 sm:py-8">
+                        {t('usage.noUsageData')}
                       </p>
                     )}
                   </div>
@@ -403,56 +410,56 @@ export function PluginAnalytics({ pluginId, className }: PluginAnalyticsProps) {
             </Card>
 
             {/* Selected Plugin Stats */}
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  {selectedStats ? plugins[selectedStats.pluginId]?.manifest.name || selectedStats.pluginId : 'Select a Plugin'}
+            <Card className="flex flex-col min-h-0">
+              <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3 shrink-0">
+                <CardTitle className="text-sm sm:text-base truncate">
+                  {selectedStats ? plugins[selectedStats.pluginId]?.manifest.name || selectedStats.pluginId : t('usage.selectPlugin')}
                 </CardTitle>
-                <CardDescription>
-                  {selectedStats ? 'Detailed usage statistics' : 'Click a plugin to view stats'}
+                <CardDescription className="text-xs sm:text-sm">
+                  {selectedStats ? t('usage.description') : t('usage.clickToView')}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-3 sm:p-4 pt-0 flex-1 min-h-0 overflow-auto">
                 {selectedStats ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-4 text-sm">
                       <div>
-                        <p className="text-muted-foreground">Total Calls</p>
-                        <p className="text-lg font-bold">{selectedStats.totalCalls}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">{t('usage.totalCalls')}</p>
+                        <p className="text-base sm:text-lg font-bold">{selectedStats.totalCalls}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Success Rate</p>
-                        <p className="text-lg font-bold">
+                        <p className="text-xs sm:text-sm text-muted-foreground">{t('usage.successRate')}</p>
+                        <p className="text-base sm:text-lg font-bold">
                           {((selectedStats.successfulCalls / Math.max(selectedStats.totalCalls, 1)) * 100).toFixed(0)}%
                         </p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Avg Duration</p>
-                        <p className="text-lg font-bold">
+                        <p className="text-xs sm:text-sm text-muted-foreground">{t('usage.avgDuration')}</p>
+                        <p className="text-base sm:text-lg font-bold">
                           {(selectedStats.averageDuration / 1000).toFixed(1)}s
                         </p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Last Used</p>
-                        <p className="text-lg font-bold">
+                        <p className="text-xs sm:text-sm text-muted-foreground">{t('usage.lastUsed')}</p>
+                        <p className="text-base sm:text-lg font-bold">
                           {new Date(selectedStats.lastUsed).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
 
                     <div>
-                      <p className="text-sm font-medium mb-2">Daily Usage (14 days)</p>
+                      <p className="text-xs sm:text-sm font-medium mb-2">{t('usage.dailyUsage')}</p>
                       <UsageChart dailyUsage={selectedStats.dailyUsage} />
                     </div>
 
                     <div>
-                      <p className="text-sm font-medium mb-2">Top Tools</p>
+                      <p className="text-xs sm:text-sm font-medium mb-2">{t('usage.topTools')}</p>
                       <ToolUsageList toolUsage={selectedStats.toolUsage} />
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center h-[200px] text-muted-foreground">
-                    <BarChart3 className="h-8 w-8" />
+                  <div className="flex items-center justify-center h-[150px] sm:h-[200px] text-muted-foreground">
+                    <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8" />
                   </div>
                 )}
               </CardContent>

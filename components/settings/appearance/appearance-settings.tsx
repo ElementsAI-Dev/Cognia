@@ -56,6 +56,7 @@ const colorThemeOptions: { value: ColorThemePreset; color: string }[] = [
 
 export function AppearanceSettings() {
   const t = useTranslations('settings');
+  const tAppearance = useTranslations('appearanceSettings');
 
   const theme = useSettingsStore((state) => state.theme);
   const setTheme = useSettingsStore((state) => state.setTheme);
@@ -152,7 +153,7 @@ export function AppearanceSettings() {
               <div className="flex items-center gap-2">
                 <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                 <Label htmlFor="auto-detect-locale" className="text-xs">
-                  {language === 'zh-CN' ? '自动检测语言' : 'Auto-detect'}
+                  {tAppearance('autoDetectLocale')}
                 </Label>
               </div>
               <div className="flex items-center gap-2">
@@ -162,7 +163,7 @@ export function AppearanceSettings() {
                   className="h-6 w-6"
                   onClick={handleDetectLocale}
                   disabled={isDetecting}
-                  title={language === 'zh-CN' ? '重新检测' : 'Detect now'}
+                  title={tAppearance('detectNow')}
                 >
                   <RefreshCw className={cn("h-3 w-3", isDetecting && "animate-spin")} />
                 </Button>
@@ -178,23 +179,23 @@ export function AppearanceSettings() {
             {localeDetectionResult && (
               <div className="text-[10px] text-muted-foreground bg-muted/50 rounded px-2 py-1.5 space-y-0.5">
                 <div className="flex items-center justify-between">
-                  <span>{language === 'zh-CN' ? '检测来源' : 'Source'}:</span>
+                  <span>{tAppearance('detectionSource')}:</span>
                   <span className="capitalize">{localeDetectionResult.source}</span>
                 </div>
                 {localeDetectionResult.country && (
                   <div className="flex items-center justify-between">
-                    <span>{language === 'zh-CN' ? '国家/地区' : 'Region'}:</span>
+                    <span>{tAppearance('detectionRegion')}:</span>
                     <span>{localeDetectionResult.country}</span>
                   </div>
                 )}
                 {detectedTimezone && (
                   <div className="flex items-center justify-between">
-                    <span>{language === 'zh-CN' ? '时区' : 'Timezone'}:</span>
+                    <span>{tAppearance('detectionTimezone')}:</span>
                     <span>{detectedTimezone}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between">
-                  <span>{language === 'zh-CN' ? '置信度' : 'Confidence'}:</span>
+                  <span>{tAppearance('detectionConfidence')}:</span>
                   <span className={cn(
                     "capitalize",
                     localeDetectionResult.confidence === 'high' && "text-green-600",
@@ -252,7 +253,7 @@ export function AppearanceSettings() {
             <div>
               <CardTitle className="text-base">{t('colorTheme')}</CardTitle>
               <CardDescription className="text-xs">
-                {language === 'zh-CN' ? '选择配色方案' : 'Choose a color scheme'}
+                {tAppearance('chooseColorScheme')}
               </CardDescription>
             </div>
           </div>
@@ -308,7 +309,7 @@ export function AppearanceSettings() {
                           ? 'border-primary bg-primary/5'
                           : 'border-transparent bg-muted hover:bg-muted/80'
                       )}
-                      title={language === 'zh-CN' ? '双击编辑' : 'Double-click to edit'}
+                      title={tAppearance('doubleClickToEdit')}
                     >
                       {isSelected && (
                         <div className="absolute top-1 right-1">
@@ -355,9 +356,9 @@ export function AppearanceSettings() {
             <div className="flex items-center gap-2">
               <Type className="h-4 w-4 text-muted-foreground" />
               <div>
-                <CardTitle className="text-sm font-medium">UI Font Size</CardTitle>
+                <CardTitle className="text-sm font-medium">{tAppearance('uiFontSize')}</CardTitle>
                 <CardDescription className="text-[10px]">
-                  Adjust the base font size
+                  {tAppearance('uiFontSizeDesc')}
                 </CardDescription>
               </div>
             </div>
@@ -365,9 +366,9 @@ export function AppearanceSettings() {
           <CardContent className="space-y-3">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm">Font Size: {uiFontSize}px</Label>
+                <Label className="text-sm">{tAppearance('fontSizeLabel', { size: uiFontSize })}</Label>
                 <span className="text-xs text-muted-foreground">
-                  {uiFontSize <= 13 ? 'Compact' : uiFontSize <= 15 ? 'Default' : 'Large'}
+                  {uiFontSize <= 13 ? tAppearance('compact') : uiFontSize <= 15 ? tAppearance('default') : tAppearance('large')}
                 </span>
               </div>
               <Slider
@@ -387,8 +388,8 @@ export function AppearanceSettings() {
               className="p-2 rounded-lg border bg-muted/30"
               style={{ fontSize: `${uiFontSize}px` }}
             >
-              <p className="font-medium text-sm">Preview Text</p>
-              <p className="text-muted-foreground text-xs">This is how text will appear.</p>
+              <p className="font-medium text-sm">{tAppearance('previewText')}</p>
+              <p className="text-muted-foreground text-xs">{tAppearance('previewTextDesc')}</p>
             </div>
           </CardContent>
         </Card>
@@ -399,9 +400,9 @@ export function AppearanceSettings() {
             <div className="flex items-center gap-2">
               <MessageCircle className="h-4 w-4 text-muted-foreground" />
               <div>
-                <CardTitle className="text-sm font-medium">Message Style</CardTitle>
+                <CardTitle className="text-sm font-medium">{tAppearance('messageStyle')}</CardTitle>
                 <CardDescription className="text-[10px]">
-                  Chat message appearance
+                  {tAppearance('messageStyleDesc')}
                 </CardDescription>
               </div>
             </div>
@@ -409,10 +410,10 @@ export function AppearanceSettings() {
           <CardContent>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { value: 'default', label: 'Default', desc: 'Standard bubbles' },
-                { value: 'minimal', label: 'Minimal', desc: 'Clean, no borders' },
-                { value: 'bordered', label: 'Bordered', desc: 'With outlines' },
-                { value: 'gradient', label: 'Gradient', desc: 'Subtle gradients' },
+                { value: 'default', label: tAppearance('styleDefault'), desc: tAppearance('styleDefaultDesc') },
+                { value: 'minimal', label: tAppearance('styleMinimal'), desc: tAppearance('styleMinimalDesc') },
+                { value: 'bordered', label: tAppearance('styleBordered'), desc: tAppearance('styleBorderedDesc') },
+                { value: 'gradient', label: tAppearance('styleGradient'), desc: tAppearance('styleGradientDesc') },
               ].map((style) => (
                 <button
                   key={style.value}
@@ -490,11 +491,11 @@ export function AppearanceSettings() {
                 <div className="flex items-center gap-1.5">
                   <Power className="h-3.5 w-3.5 text-muted-foreground" />
                   <Label htmlFor="autostart" className="text-sm">
-                    {language === 'zh-CN' ? '开机自启' : 'Launch at Startup'}
+                    {tAppearance('launchAtStartup')}
                   </Label>
                 </div>
                 <p className="text-[10px] text-muted-foreground line-clamp-2">
-                  {language === 'zh-CN' ? '系统启动时自动运行应用' : 'Automatically start app on system boot'}
+                  {tAppearance('launchAtStartupDesc')}
                 </p>
               </div>
               <Switch

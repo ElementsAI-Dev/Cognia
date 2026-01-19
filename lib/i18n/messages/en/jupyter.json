@@ -1,0 +1,33 @@
+{
+  "jupyter": {
+    "noKernel": "No kernel",
+    "connectKernel": "Connect to kernel",
+    "connecting": "Connecting...",
+    "interrupt": "Interrupt execution",
+    "restart": "Restart kernel",
+    "variables": "Variables",
+    "searchVariables": "Search variables...",
+    "noVariables": "No variables defined",
+    "noMatchingVariables": "No matching variables",
+    "selectEnvironment": "Select environment",
+    "connect": "Connect",
+    "runAll": "Run All"
+  },
+  "jupyterRenderer": {
+    "parseError": "Failed to parse Jupyter notebook",
+    "cells": "cells",
+    "runCell": "Run cell",
+    "output": "Output",
+    "outputs": "outputs",
+    "codeCells": "code cells",
+    "markdownCells": "markdown cells",
+    "expandAll": "Expand all cells",
+    "collapseAll": "Collapse all cells",
+    "exportScript": "Export as Python script",
+    "exportMarkdown": "Export as Markdown",
+    "exportNotebook": "Download notebook",
+    "clearOutputs": "Clear all outputs",
+    "copyCell": "Copy cell",
+    "copied": "Copied!"
+  }
+}

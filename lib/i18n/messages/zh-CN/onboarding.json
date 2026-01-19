@@ -1,0 +1,267 @@
+{
+  "welcome": {
+    "templates": "模板",
+    "designer": "设计器",
+    "designerDesc": "使用 AI 构建 UI 组件",
+    "projects": "项目",
+    "projectsDesc": "管理知识和上下文",
+    "tryPrompts": "尝试这些提示开始使用",
+    "tryIt": "试试看",
+    "modes": {
+      "chat": {
+        "title": "聊天模式",
+        "description": "与 AI 进行自然对话。适合快速提问、头脑风暴和日常辅助。",
+        "features": {
+          "fast": "快速响应",
+          "languages": "多语言支持",
+          "context": "上下文感知",
+          "creative": "创意写作"
+        }
+      },
+      "agent": {
+        "title": "智能体模式",
+        "description": "具有工具访问能力的 AI 智能体，用于复杂任务。执行代码、分析数据和构建应用。",
+        "features": {
+          "code": "代码执行",
+          "file": "文件操作",
+          "data": "数据分析",
+          "multi": "多步骤任务"
+        }
+      },
+      "research": {
+        "title": "研究模式",
+        "description": "带来源引用的深度网络研究。搜索、分析并综合网络信息。",
+        "features": {
+          "search": "网络搜索",
+          "citations": "来源引用",
+          "factCheck": "事实核查",
+          "report": "报告生成"
+        }
+      },
+      "learning": {
+        "title": "学习模式",
+        "description": "使用苏格拉底方法进行逐步引导式学习。通过提问而非直接给出答案来构建理解。",
+        "features": {
+          "socratic": "苏格拉底方法",
+          "stepByStep": "逐步引导",
+          "noDirectAnswers": "发现式学习",
+          "discovery": "自主发现"
+        }
+      }
+    },
+    "suggestions": {
+      "chat": {
+        "conversation": {
+          "title": "对话",
+          "description": "进行自然对话",
+          "prompt": "让我们聊聊有趣的话题。"
+        },
+        "codeHelp": {
+          "title": "代码帮助",
+          "description": "获取编程帮助",
+          "prompt": "帮我写一个函数..."
+        },
+        "writing": {
+          "title": "写作",
+          "description": "撰写邮件、文章或内容",
+          "prompt": "帮我写一封关于...的专业邮件"
+        },
+        "translation": {
+          "title": "翻译",
+          "description": "在语言之间翻译文本",
+          "prompt": "将以下文本翻译成..."
+        }
+      },
+      "agent": {
+        "buildProject": {
+          "title": "构建项目",
+          "description": "创建完整的应用程序",
+          "prompt": "构建一个 React 组件..."
+        },
+        "dataAnalysis": {
+          "title": "数据分析",
+          "description": "分析和转换数据",
+          "prompt": "分析这个数据集并提供见解..."
+        },
+        "imageTasks": {
+          "title": "图像任务",
+          "description": "处理和分析图像",
+          "prompt": "分析这张图片并描述..."
+        },
+        "complexTask": {
+          "title": "复杂任务",
+          "description": "多步骤问题解决",
+          "prompt": "帮我一步步解决这个复杂问题..."
+        }
+      },
+      "research": {
+        "webResearch": {
+          "title": "网络研究",
+          "description": "搜索和总结网络内容",
+          "prompt": "研究...的最新发展"
+        },
+        "marketAnalysis": {
+          "title": "市场分析",
+          "description": "分析市场趋势和数据",
+          "prompt": "分析...的当前市场趋势"
+        },
+        "literatureReview": {
+          "title": "文献综述",
+          "description": "总结学术论文",
+          "prompt": "总结关于...的主要发现"
+        },
+        "factCheck": {
+          "title": "事实核查",
+          "description": "验证声明并查找来源",
+          "prompt": "核实以下声明..."
+        }
+      },
+      "learning": {
+        "conceptExplore": {
+          "title": "探索概念",
+          "description": "通过引导式提问理解主题",
+          "prompt": "我想理解...的概念"
+        },
+        "problemSolving": {
+          "title": "问题解决",
+          "description": "逐步解决问题",
+          "prompt": "帮我理解如何解决..."
+        },
+        "deepUnderstanding": {
+          "title": "深入理解",
+          "description": "构建全面的知识",
+          "prompt": "我想深入理解为什么..."
+        },
+        "skillMastery": {
+          "title": "技能掌握",
+          "description": "通过练习学习新技能",
+          "prompt": "教我如何..."
+        }
+      }
+    }
+  },
+  "onboarding": {
+    "welcome": "欢迎使用 Cognia",
+    "welcomeDescription": "只需几步即可完成设置",
+    "featureChat": "AI 对话",
+    "featureChatDesc": "与先进 AI 模型进行自然对话",
+    "featureAgent": "智能体模式",
+    "featureAgentDesc": "执行代码、分析数据、自动化任务",
+    "featureResearch": "研究模式",
+    "featureResearchDesc": "深度网络研究，附带来源引用",
+    "selectProvider": "选择 AI 服务商",
+    "selectProviderDescription": "选择一个默认的 AI 服务商开始使用。您可以稍后添加更多服务商。",
+    "configureApiKey": "配置 {provider}",
+    "configureApiKeyDescription": "输入您的 API 密钥以开始使用此服务商。",
+    "configureOllamaDescription": "配置 Ollama 服务器地址以使用本地模型。",
+    "ollamaUrl": "Ollama 服务器地址",
+    "ollamaHint": "请确保 Ollama 正在本地运行。下载地址：",
+    "apiKey": "API 密钥",
+    "apiKeyPlaceholder": "输入您的 API 密钥...",
+    "getApiKeyFrom": "获取 API 密钥：",
+    "testing": "测试中...",
+    "testConnection": "测试连接",
+    "searchConfig": "网络搜索设置",
+    "searchConfigDescription": "启用 AI 搜索网络以获取最新信息。",
+    "enableWebSearch": "启用网络搜索",
+    "enableWebSearchDesc": "允许 AI 在对话中搜索网络",
+    "tavilyApiKey": "Tavily API 密钥",
+    "tavilyApiKeyPlaceholder": "tvly-...",
+    "getTavilyKey": "获取免费 API 密钥：",
+    "searchOptionalHint": "此步骤可选。您可以稍后在设置中配置。",
+    "mcpConfig": "MCP 服务器",
+    "mcpConfigDescription": "通过模型上下文协议服务器扩展 AI 能力。",
+    "mcpOptionalHint": "此步骤可选。您可以稍后在设置中添加更多服务器。",
+    "appearance": "个性化设置",
+    "appearanceDescription": "选择您喜欢的主题和语言。",
+    "themeLabel": "主题",
+    "themeLight": "浅色",
+    "themeDark": "深色",
+    "themeSystem": "跟随系统",
+    "languageLabel": "语言",
+    "complete": "设置完成！",
+    "completeDescription": "您的配置已完成。您可以随时在设置中更改这些选项。",
+    "summaryProvider": "默认服务商",
+    "summarySearch": "网络搜索",
+    "summaryMcp": "MCP 服务器",
+    "summaryMcpCount": "已选 {count} 个",
+    "summaryConfigured": "已配置",
+    "summarySkipped": "已跳过",
+    "summaryTheme": "主题",
+    "summaryLanguage": "语言",
+    "skip": "稍后设置",
+    "skipStep": "跳过",
+    "next": "继续",
+    "getStarted": "开始设置",
+    "saveAndContinue": "保存并继续",
+    "installAndContinue": "安装并继续",
+    "installing": "安装中...",
+    "finish": "开始使用 Cognia",
+    "localProvider": "本地",
+    "previous": "返回",
+    "step": "步骤",
+    "skipTour": "跳过引导",
+    "tour": {
+      "welcomeTitle": "欢迎使用 Cognia",
+      "welcomeDesc": "您的 AI 智能助手，支持对话、编程、研究和学习。让我带您了解一下！",
+      "modesTitle": "多种模式",
+      "modesDesc": "根据您的任务，在对话、智能体、研究和学习模式之间切换。",
+      "sidebarTitle": "会话管理",
+      "sidebarDesc": "您的所有对话都保存在这里。搜索、整理和收藏您喜欢的对话。",
+      "inputTitle": "开始对话",
+      "inputDesc": "输入消息、附加文件、使用语音输入，或使用 @工具 触发特殊功能。",
+      "completeTitle": "设置完成！",
+      "completeDesc": "探索设置以了解更多自定义选项。开始愉快的对话吧！",
+      "settingsWelcome": "设置概览",
+      "settingsWelcomeDesc": "自定义 Cognia 以匹配您的偏好和工作流程。",
+      "settingsProviders": "AI 服务商",
+      "settingsProvidersDesc": "配置您的 AI 服务商和 API 密钥。添加 OpenAI、Anthropic、Google 等。",
+      "settingsAppearance": "外观设置",
+      "settingsAppearanceDesc": "通过主题、颜色和背景设置自定义外观。",
+      "settingsMcp": "MCP 服务器",
+      "settingsMcpDesc": "通过模型上下文协议服务器扩展 AI 能力，添加工具和集成。",
+      "settingsSearch": "网络搜索",
+      "settingsSearchDesc": "配置搜索服务商以启用 AI 网络搜索和研究功能。",
+      "settingsData": "数据管理",
+      "settingsDataDesc": "导出、导入和管理您的聊天记录和设置。",
+      "projectsWelcome": "项目概览",
+      "projectsWelcomeDesc": "将工作组织到项目中，设置自定义上下文和知识库。",
+      "projectsCreate": "创建项目",
+      "projectsCreateDesc": "创建新项目，按主题或任务组织您的对话和文档。",
+      "projectsKnowledge": "知识库",
+      "projectsKnowledgeDesc": "添加文档、代码和文件，构建项目专属的 AI 上下文知识库。",
+      "projectsContext": "项目上下文",
+      "projectsContextDesc": "设置适用于该项目所有对话的自定义指令和上下文。",
+      "designerWelcome": "AI 应用设计器",
+      "designerWelcomeDesc": "使用可视化设计器构建交互式 AI 驱动的应用程序。",
+      "designerTemplates": "模板",
+      "designerTemplatesDesc": "从预构建模板开始，用于聊天机器人、表单和仪表板等常见用例。",
+      "designerCanvas": "设计画布",
+      "designerCanvasDesc": "拖放组件以构建您的应用程序界面。",
+      "designerPreview": "预览与部署",
+      "designerPreviewDesc": "实时预览您的应用，准备好后即可部署。",
+      "academicWelcome": "学术模式",
+      "academicWelcomeDesc": "专为研究、学习和学术写作设计的环境。",
+      "academicResearch": "研究工具",
+      "academicResearchDesc": "搜索学术论文、分析来源并自动生成引用。",
+      "academicKnowledge": "知识图谱",
+      "academicKnowledgeDesc": "可视化概念之间的联系，构建结构化的知识库。",
+      "academicWriting": "写作助手",
+      "academicWritingDesc": "获得学术写作帮助，包括大纲、草稿和引用。"
+    }
+  },
+  "templates": {
+    "title": "聊天模板",
+    "description": "选择一个模板，使用预配置的设置开始新对话",
+    "search": "搜索模板...",
+    "all": "全部",
+    "noTemplates": "未找到模板",
+    "builtIn": "内置",
+    "useTemplate": "使用模板",
+    "selectToPreview": "选择模板以预览详情",
+    "systemPrompt": "系统提示",
+    "suggestedPrompts": "建议提示",
+    "provider": "服务商",
+    "model": "模型"
+  }
+}

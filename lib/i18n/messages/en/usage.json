@@ -1,0 +1,19 @@
+{
+  "usageSettings": {
+    "overview": "Overview",
+    "tokens": "Tokens",
+    "cost": "Cost",
+    "estimated": "Estimated",
+    "since": "Since",
+    "byProvider": "By Provider",
+    "noProviderData": "No provider usage data yet",
+    "last7Days": "Last 7 Days",
+    "recentActivity": "Recent Activity",
+    "noRecords": "No usage records yet",
+    "export": "Export",
+    "clear": "Clear",
+    "clearTitle": "Clear Usage Records",
+    "clearDesc": "Are you sure you want to clear all usage records? This action cannot be undone and will reset your usage statistics.",
+    "clearAll": "Clear All"
+  }
+}

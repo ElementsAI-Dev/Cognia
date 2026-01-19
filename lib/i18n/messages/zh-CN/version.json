@@ -1,0 +1,41 @@
+{
+  "versionHistory": {
+    "title": "版本历史",
+    "saveVersion": "保存版本",
+    "saveDescription": "创建当前工作流状态的快照。",
+    "versionName": "版本名称",
+    "descriptionOptional": "描述（可选）",
+    "descriptionPlaceholder": "描述此版本的更改...",
+    "cancel": "取消",
+    "importExport": "导入/导出工作流",
+    "importExportDescription": "将工作流导出为 JSON 文件或从现有文件导入。",
+    "exportWorkflow": "导出工作流",
+    "saveAsJson": "保存为 JSON 文件",
+    "importWorkflow": "导入工作流",
+    "importing": "导入中...",
+    "loadFromJson": "从 JSON 文件加载",
+    "close": "关闭",
+    "unknown": "未知",
+    "manageVersions": "管理工作流版本并恢复之前的状态。",
+    "saveNewVersion": "保存新版本",
+    "noVersions": "暂无保存的版本",
+    "saveToCreateRestorePoint": "保存版本以创建还原点",
+    "restore": "还原",
+    "delete": "删除"
+  },
+  "versionHistoryPanel": {
+    "title": "版本历史",
+    "history": "历史",
+    "noHistory": "暂无历史",
+    "noHistoryDesc": "编辑时更改将显示在这里",
+    "undoTooltip": "撤销 (Ctrl+Z)",
+    "redoTooltip": "重做 (Ctrl+Y)",
+    "current": "当前",
+    "modified": "已修改",
+    "justNow": "刚刚",
+    "minutesAgo": "{count}分钟前",
+    "hoursAgo": "{count}小时前",
+    "undoHint": "Ctrl+Z 撤销",
+    "redoHint": "Ctrl+Y 重做"
+  }
+}

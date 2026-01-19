@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { usePluginStore } from '@/stores/plugin';
 import {
   getPluginUpdater,
@@ -38,6 +39,7 @@ export function PluginUpdates({
   className,
   autoCheck = true,
 }: PluginUpdatesProps) {
+  const t = useTranslations('pluginUpdates');
   const { plugins, getEnabledPlugins } = usePluginStore();
   const [updates, setUpdates] = useState<UpdateInfo[]>([]);
   const [isChecking, setIsChecking] = useState(false);
@@ -137,12 +139,12 @@ export function PluginUpdates({
   const regularUpdates = updates.filter((u) => !u.breaking);
 
   return (
-    <Card className={className}>
-      <CardHeader className="pb-2">
+    <Card className={cn('flex flex-col', className)}>
+      <CardHeader className="pb-2 shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
             <ArrowUpCircle className="h-4 w-4" />
-            Plugin Updates
+            {t('title')}
             {updates.length > 0 && (
               <Badge className="ml-2">{updates.length}</Badge>
             )}
@@ -168,15 +170,15 @@ export function PluginUpdates({
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 flex flex-col min-h-0">
         {/* Settings Panel */}
         {showSettings && (
           <div className="mb-4 p-3 rounded-lg bg-muted/50 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <Label htmlFor="auto-update">Auto-check for updates</Label>
+                <Label htmlFor="auto-update">{t('settings.autoCheck')}</Label>
                 <p className="text-xs text-muted-foreground">
-                  Automatically check for updates every 24 hours
+                  {t('settings.autoCheckDesc')}
                 </p>
               </div>
               <Switch
@@ -190,25 +192,26 @@ export function PluginUpdates({
 
         {/* Update All Button */}
         {updates.length > 1 && (
-          <div className="mb-4">
+          <div className="mb-3 shrink-0">
             <Button
               onClick={handleUpdateAll}
               disabled={updatingPlugins.size > 0}
               className="w-full"
+              size="sm"
             >
               <Download className="h-4 w-4 mr-2" />
-              Update All ({updates.length})
+              {t('updateAll', { count: updates.length })}
             </Button>
           </div>
         )}
 
         {/* Critical Updates */}
         {criticalUpdates.length > 0 && (
-          <div className="mb-4">
+          <div className="mb-3 shrink-0">
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="h-4 w-4 text-red-500" />
-              <span className="text-sm font-medium text-red-500">
-                Breaking Changes
+              <span className="text-xs sm:text-sm font-medium text-red-500">
+                {t('breakingChanges')}
               </span>
             </div>
             <div className="space-y-2">
@@ -227,15 +230,15 @@ export function PluginUpdates({
         )}
 
         {/* Regular Updates */}
-        <ScrollArea className="h-[250px]">
+        <ScrollArea className="flex-1 min-h-0">
           {updates.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
               <p className="text-muted-foreground">
-                All plugins are up to date
+                {t('allUpToDate')}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {isChecking ? 'Checking...' : 'Last checked just now'}
+                {isChecking ? t('checking') : t('lastChecked')}
               </p>
             </div>
           ) : (

@@ -1,0 +1,203 @@
+{
+  "git": {
+    "repository": "仓库",
+    "checking": "检查 Git 安装状态...",
+    "notInstalled": {
+      "title": "Git 未安装",
+      "description": "版本控制功能需要 Git。",
+      "install": "安装 Git",
+      "website": "访问官网"
+    },
+    "desktopRequired": {
+      "title": "需要桌面应用",
+      "description": "Git 功能仅在 Cognia 桌面应用程序中可用。",
+      "learnMore": "了解更多"
+    },
+    "noRepo": {
+      "title": "不是 Git 仓库",
+      "description": "此目录未初始化为 Git 仓库。"
+    },
+    "status": {
+      "clean": "干净",
+      "dirty": "已修改",
+      "detached": "分离 HEAD"
+    },
+    "tabs": {
+      "changes": "更改",
+      "branches": "分支",
+      "history": "历史",
+      "stash": "暂存"
+    },
+    "actions": {
+      "commit": "提交",
+      "push": "推送",
+      "pull": "拉取",
+      "fetch": "获取"
+    },
+    "commitDialog": {
+      "title": "提交更改",
+      "description": "创建一个包含已暂存更改的新提交。",
+      "message": "提交信息",
+      "messagePlaceholder": "描述您的更改...",
+      "staged": "{count} 个已暂存",
+      "unstaged": "{count} 个未暂存",
+      "willStageAll": "所有未暂存的更改将在提交前被暂存。",
+      "commit": "提交"
+    },
+    "branches": {
+      "title": "分支",
+      "new": "新建",
+      "noBranch": "无分支",
+      "searchBranches": "搜索分支...",
+      "localBranches": "本地分支",
+      "remoteBranches": "远程分支",
+      "createBranch": "创建分支",
+      "createBranchDescription": "从当前 HEAD 或特定提交创建新分支。",
+      "branchName": "分支名称",
+      "branchNamePlaceholder": "feature/my-feature",
+      "startPoint": "起始点（可选）",
+      "startPointPlaceholder": "HEAD、提交哈希或分支名称",
+      "startPointHint": "留空则从当前 HEAD 创建。",
+      "create": "创建",
+      "cancel": "取消",
+      "deleteBranch": "删除分支",
+      "deleteBranchConfirm": "确定要删除分支 '{branch}' 吗？",
+      "delete": "删除",
+      "mergeBranch": "合并分支",
+      "mergeBranchConfirm": "将 '{source}' 合并到 '{target}'？",
+      "merge": "合并"
+    },
+    "history": {
+      "title": "提交历史",
+      "noCommits": "暂无提交",
+      "copyHash": "复制哈希",
+      "viewDetails": "查看详情",
+      "checkout": "检出",
+      "revert": "还原",
+      "loadingChanges": "加载更改...",
+      "filesChanged": "{count} 个文件已更改",
+      "loadMore": "加载更多",
+      "commitDetails": "提交详情",
+      "hash": "哈希",
+      "author": "作者",
+      "date": "日期",
+      "message": "信息"
+    },
+    "stash": {
+      "title": "暂存区",
+      "save": "保存",
+      "noStashes": "无暂存",
+      "noStashesHint": "将进行中的工作保存到暂存区。",
+      "onBranch": "在 {branch} 分支",
+      "pop": "弹出",
+      "apply": "应用",
+      "drop": "丢弃",
+      "clearAll": "清空全部",
+      "saveStash": "保存到暂存区",
+      "saveStashDescription": "临时保存未提交的更改。",
+      "message": "信息（可选）",
+      "messagePlaceholder": "进行中的工作...",
+      "includeUntracked": "包含未跟踪文件",
+      "includeUntrackedHint": "同时暂存未被 Git 跟踪的文件。",
+      "cancel": "取消",
+      "dropStash": "丢弃暂存",
+      "dropStashConfirm": "确定要丢弃 stash@{{{index}}} 吗？",
+      "clearAllStashes": "清空所有暂存",
+      "clearAllConfirm": "确定要清空全部 {count} 个暂存吗？此操作无法撤销。",
+      "comingSoon": "暂存管理即将推出"
+    },
+    "fileTree": {
+      "title": "已更改文件",
+      "noChanges": "无更改",
+      "selectedCount": "已选择 {count} 个",
+      "deselectAll": "取消选择",
+      "stage": "暂存",
+      "unstage": "取消暂存",
+      "discard": "放弃",
+      "selectAll": "全选",
+      "stageAll": "全部暂存",
+      "unstageAll": "全部取消暂存",
+      "staged": "已暂存",
+      "unstaged": "更改",
+      "stageFile": "暂存文件",
+      "unstageFile": "取消暂存文件",
+      "discardChanges": "放弃更改"
+    },
+    "diff": {
+      "noChanges": "无更改可显示",
+      "filesChanged": "{count} 个文件已更改",
+      "expandAll": "全部展开",
+      "collapseAll": "全部折叠",
+      "copyPath": "复制路径",
+      "fullscreen": "全屏",
+      "stage": "暂存",
+      "unstage": "取消暂存",
+      "discard": "放弃",
+      "binaryOrEmpty": "二进制文件或无可用内容"
+    }
+  },
+  "projectGit": {
+    "notInstalled": {
+      "title": "Git 未安装",
+      "description": "安装 Git 以启用此项目的版本控制。"
+    },
+    "checkAgain": "重新检查",
+    "notConfigured": {
+      "title": "Git 未配置",
+      "description": "启用 Git 以跟踪此项目的更改。"
+    },
+    "enableGit": "启用 Git",
+    "initDialog": {
+      "title": "初始化 Git 仓库",
+      "description": "为此项目设置版本控制。",
+      "repoPath": "仓库路径",
+      "repoPathPlaceholder": "/path/to/repository",
+      "repoPathHint": "选择或输入要初始化 Git 的路径。",
+      "initialize": "初始化"
+    },
+    "repoStatus": {
+      "title": "仓库"
+    },
+    "loadingStatus": "加载仓库状态...",
+    "hasRemote": "远程",
+    "localOnly": "仅本地",
+    "quickActions": {
+      "title": "快速操作",
+      "commit": "提交",
+      "push": "推送",
+      "pull": "拉取",
+      "fetch": "获取"
+    },
+    "commitDialog": {
+      "title": "提交更改",
+      "description": "创建一个包含所有已暂存更改的新提交。",
+      "changes": "待提交的更改",
+      "message": "提交信息",
+      "messagePlaceholder": "描述您的更改...",
+      "commit": "提交"
+    },
+    "recentCommits": {
+      "title": "最近提交"
+    },
+    "settings": {
+      "title": "Git 设置",
+      "autoCommit": "自动提交",
+      "autoCommitDescription": "定期自动提交更改",
+      "commitOnSessionEnd": "会话结束时提交",
+      "commitOnSessionEndDescription": "聊天会话结束时创建提交",
+      "disableGit": "禁用 Git"
+    }
+  },
+  "branchSelector": {
+    "title": "对话分支",
+    "main": "主分支",
+    "active": "活跃",
+    "hint": "点击消息上的\"分支\"按钮创建新分支",
+    "deleteTitle": "删除分支",
+    "deleteDesc": "确定要删除\"{name}\"吗？这将删除该分支中的所有消息。此操作无法撤销。",
+    "cancel": "取消",
+    "delete": "删除",
+    "branch": "分支",
+    "creating": "创建中..."
+  }
+}

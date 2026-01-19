@@ -78,6 +78,7 @@ export function CustomModeSettings() {
   const t = useTranslations('customMode');
   const tCommon = useTranslations('common');
   const tSettings = useTranslations('settings');
+  const tCustomMode = useTranslations('customModeSettings');
   
   // Store
   const {
@@ -156,9 +157,9 @@ export function CustomModeSettings() {
   const handleDuplicate = useCallback((id: string) => {
     const duplicated = duplicateMode(id);
     if (duplicated) {
-      toast.success('Mode duplicated');
+      toast.success(tCustomMode('modeDuplicated'));
     }
-  }, [duplicateMode]);
+  }, [duplicateMode, tCustomMode]);
 
   // Handle delete
   const handleDelete = useCallback(() => {
@@ -170,9 +171,9 @@ export function CustomModeSettings() {
         next.delete(deleteConfirmId);
         return next;
       });
-      toast.success('Mode deleted');
+      toast.success(tCustomMode('modeDeleted'));
     }
-  }, [deleteConfirmId, deleteMode]);
+  }, [deleteConfirmId, deleteMode, tCustomMode]);
 
   // Handle export single
   const handleExportSingle = useCallback((id: string) => {
@@ -185,9 +186,9 @@ export function CustomModeSettings() {
       a.download = `custom-mode-${id}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success('Mode exported');
+      toast.success(tCustomMode('modeExported'));
     }
-  }, [exportMode]);
+  }, [exportMode, tCustomMode]);
 
   // Handle export all
   const handleExportAll = useCallback(() => {
@@ -199,8 +200,8 @@ export function CustomModeSettings() {
     a.download = `custom-modes-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success(`Exported ${modesArray.length} modes`);
-  }, [exportAllModes, modesArray.length]);
+    toast.success(tCustomMode('exportedModes', { count: modesArray.length }));
+  }, [exportAllModes, modesArray.length, tCustomMode]);
 
   // Handle import
   const handleImport = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -214,19 +215,19 @@ export function CustomModeSettings() {
         const data = JSON.parse(content);
         if (data.type === 'custom-modes-collection') {
           const count = importModes(content);
-          toast.success(`Imported ${count} modes`);
+          toast.success(tCustomMode('importedModes', { count }));
         } else if (data.type === 'custom-mode') {
           const imported = importMode(content);
           if (imported) {
-            toast.success(`Imported "${imported.name}"`);
+            toast.success(tCustomMode('importedMode', { name: imported.name }));
           } else {
-            toast.error('Failed to import mode');
+            toast.error(tCustomMode('failedToImportMode'));
           }
         } else {
-          toast.error('Invalid file format');
+          toast.error(tCustomMode('invalidFileFormat'));
         }
       } catch {
-        toast.error('Failed to parse import file');
+        toast.error(tCustomMode('failedToParseFile'));
       }
     };
     reader.readAsText(file);
@@ -235,14 +236,14 @@ export function CustomModeSettings() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [importMode, importModes]);
+  }, [importMode, importModes, tCustomMode]);
 
   // Handle bulk delete
   const handleBulkDelete = useCallback(() => {
     selectedModes.forEach(id => deleteMode(id));
-    toast.success(`Deleted ${selectedModes.size} modes`);
+    toast.success(tCustomMode('deletedModes', { count: selectedModes.size }));
     setSelectedModes(new Set());
-  }, [selectedModes, deleteMode]);
+  }, [selectedModes, deleteMode, tCustomMode]);
 
   // Toggle mode selection
   const toggleModeSelection = useCallback((id: string) => {
@@ -305,7 +306,7 @@ export function CustomModeSettings() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search modes..."
+                  placeholder={tCustomMode('searchModes')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9"
@@ -318,7 +319,7 @@ export function CustomModeSettings() {
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="all">{tCustomMode('allCategories')}</SelectItem>
                 <SelectItem value="productivity">{t('categoryProductivity')}</SelectItem>
                 <SelectItem value="creative">{t('categoryCreative')}</SelectItem>
                 <SelectItem value="technical">{t('categoryTechnical')}</SelectItem>
@@ -334,10 +335,10 @@ export function CustomModeSettings() {
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="name">Name</SelectItem>
-                <SelectItem value="created">Created</SelectItem>
-                <SelectItem value="updated">Updated</SelectItem>
-                <SelectItem value="usage">Most Used</SelectItem>
+                <SelectItem value="name">{tCustomMode('sortByName')}</SelectItem>
+                <SelectItem value="created">{tCustomMode('sortByCreated')}</SelectItem>
+                <SelectItem value="updated">{tCustomMode('sortByUpdated')}</SelectItem>
+                <SelectItem value="usage">{tCustomMode('sortByMostUsed')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -346,18 +347,18 @@ export function CustomModeSettings() {
           {selectedModes.size > 0 && (
             <div className="flex items-center gap-2 mb-4 p-2 bg-muted rounded-md">
               <span className="text-sm text-muted-foreground">
-                {selectedModes.size} selected
+                {tCustomMode('selected', { count: selectedModes.size })}
               </span>
               <Button variant="ghost" size="sm" onClick={clearSelection}>
-                Clear
+                {tCustomMode('clear')}
               </Button>
               <Button variant="ghost" size="sm" onClick={selectAll}>
-                Select All
+                {tCustomMode('selectAll')}
               </Button>
               <div className="flex-1" />
               <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete Selected
+                {tCustomMode('deleteSelected')}
               </Button>
             </div>
           )}
@@ -367,11 +368,11 @@ export function CustomModeSettings() {
             {filteredModes.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
                 <Bot className="h-12 w-12 mb-4 opacity-50" />
-                <p>{modesArray.length === 0 ? 'No custom modes yet' : 'No modes match your filters'}</p>
+                <p>{modesArray.length === 0 ? tCustomMode('noCustomModesYet') : tCustomMode('noModesMatchFilters')}</p>
                 {modesArray.length === 0 && (
                   <Button variant="outline" size="sm" className="mt-4" onClick={handleCreateNew}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Create your first mode
+                    {tCustomMode('createFirstMode')}
                   </Button>
                 )}
               </div>
@@ -409,12 +410,12 @@ export function CustomModeSettings() {
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground truncate">
-                        {mode.description || 'No description'}
+                        {mode.description || tCustomMode('noDescription')}
                       </p>
                       <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                        <span>{mode.tools?.length || 0} tools</span>
+                        <span>{tCustomMode('tools', { count: mode.tools?.length || 0 })}</span>
                         <span>•</span>
-                        <span>Used {mode.usageCount || 0} times</span>
+                        <span>{tCustomMode('usedTimes', { count: mode.usageCount || 0 })}</span>
                       </div>
                     </div>
                     
@@ -432,7 +433,7 @@ export function CustomModeSettings() {
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDuplicate(mode.id)}>
                           <Copy className="h-4 w-4 mr-2" />
-                          Duplicate
+                          {tCustomMode('duplicate')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleExportSingle(mode.id)}>
                           <Download className="h-4 w-4 mr-2" />
@@ -479,7 +480,7 @@ export function CustomModeSettings() {
           <AlertDialogHeader>
             <AlertDialogTitle>{tCommon('delete')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this mode? This action cannot be undone.
+              {tCustomMode('deleteConfirmDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

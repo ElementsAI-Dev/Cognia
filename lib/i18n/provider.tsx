@@ -9,9 +9,9 @@ import { useSettingsStore } from '@/stores';
 import { useState } from 'react';
 import type { Locale } from './config';
 
-// Import messages statically to avoid dynamic import issues
-import enMessages from './messages/en.json';
-import zhCNMessages from './messages/zh-CN.json';
+// Import messages from split files
+import enMessages from './messages/en';
+import zhCNMessages from './messages/zh-CN';
 
 const messages: Record<Locale, AbstractIntlMessages> = {
   'en': enMessages,

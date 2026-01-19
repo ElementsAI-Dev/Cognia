@@ -1,0 +1,358 @@
+{
+  "pluginSettings": {
+    "title": "插件",
+    "enabledCount": "已启用 {count} 个",
+    "installedCount": "已安装 {count} 个",
+    "refresh": "刷新",
+    "import": "导入",
+    "fromFolder": "从文件夹",
+    "fromZip": "从 ZIP 文件",
+    "fromGitUrl": "从 Git URL",
+    "createPlugin": "创建插件",
+    "tabs": {
+      "installed": "已安装",
+      "analytics": "分析",
+      "develop": "开发",
+      "health": "健康",
+      "settings": "设置"
+    },
+    "filters": {
+      "searchPlaceholder": "搜索插件...",
+      "allStatus": "所有状态",
+      "enabled": "已启用",
+      "disabled": "已禁用",
+      "error": "错误",
+      "allTypes": "所有类型",
+      "frontend": "前端",
+      "python": "Python",
+      "hybrid": "混合",
+      "allCapabilities": "所有功能",
+      "tools": "工具",
+      "components": "组件",
+      "modes": "模式",
+      "commands": "命令",
+      "hooks": "钩子",
+      "sortByName": "名称",
+      "sortByRecent": "最近",
+      "sortByStatus": "状态"
+    },
+    "emptyState": {
+      "noMatch": "没有匹配的插件",
+      "tryAdjusting": "尝试调整搜索或筛选条件",
+      "noPlugins": "未安装任何插件",
+      "createFirst": "创建您的第一个插件或导入一个"
+    },
+    "statusBar": {
+      "pluginsShown": "显示 {count} 个插件",
+      "errors": "{count} 个错误",
+      "enabledCount": "已启用 {count} 个",
+      "disabledCount": "已禁用 {count} 个"
+    },
+    "settingsTab": {
+      "title": "插件设置",
+      "description": "配置全局插件系统设置",
+      "autoEnable": "自动启用插件",
+      "autoEnableDesc": "自动启用新安装的插件",
+      "configure": "配置",
+      "pluginDirectory": "插件目录",
+      "open": "打开",
+      "pythonEnvironment": "Python 环境",
+      "pythonEnvironmentDesc": "配置插件的 Python 运行时",
+      "clearCache": "清除插件缓存",
+      "clearCacheDesc": "删除缓存的插件数据并重新加载",
+      "clearCacheBtn": "清除缓存"
+    }
+  },
+  "pluginConfig": {
+    "tabs": {
+      "configuration": "配置",
+      "information": "信息",
+      "permissions": "权限"
+    },
+    "noConfig": "此插件没有配置选项。",
+    "reset": "重置",
+    "save": "保存",
+    "info": {
+      "id": "ID",
+      "version": "版本",
+      "type": "类型",
+      "author": "作者",
+      "homepage": "主页",
+      "capabilities": "功能",
+      "path": "路径"
+    },
+    "permissions": {
+      "noPermissions": "此插件不需要特殊权限。",
+      "pending": "待授权"
+    }
+  },
+  "pluginCreateWizard": {
+    "title": "创建新插件",
+    "steps": {
+      "template": "选择模板",
+      "templateDesc": "从模板开始或从头创建",
+      "details": "插件详情",
+      "detailsDesc": "关于插件的基本信息",
+      "capabilities": "功能",
+      "capabilitiesDesc": "插件将提供什么功能",
+      "preview": "预览并创建",
+      "previewDesc": "检查并生成插件"
+    },
+    "template": {
+      "skipToScratch": "或跳过从头创建"
+    },
+    "details": {
+      "pluginName": "插件名称",
+      "pluginNamePlaceholder": "我的插件",
+      "pluginId": "插件 ID",
+      "pluginIdPlaceholder": "my-awesome-plugin",
+      "pluginIdHint": "唯一标识符（仅小写字母和连字符）",
+      "description": "描述",
+      "descriptionPlaceholder": "简要描述插件的功能...",
+      "authorName": "作者名称",
+      "authorNamePlaceholder": "您的名字",
+      "authorEmail": "作者邮箱",
+      "authorEmailPlaceholder": "you@example.com",
+      "pluginType": "插件类型"
+    },
+    "types": {
+      "frontend": "前端",
+      "frontendDesc": "在浏览器中运行的 TypeScript/React 插件",
+      "python": "Python",
+      "pythonDesc": "用于数据处理和后端任务的 Python 插件",
+      "hybrid": "混合",
+      "hybridDesc": "结合前端 UI 和 Python 后端"
+    },
+    "capabilities": {
+      "selectPrompt": "选择插件将提供的功能：",
+      "usingTemplate": "使用 {name} 模板",
+      "preConfigured": "此模板的功能已预先配置：",
+      "tools": "工具",
+      "toolsDesc": "为 AI 代理提供工具",
+      "components": "组件",
+      "componentsDesc": "自定义 A2UI 组件",
+      "modes": "代理模式",
+      "modesDesc": "自定义代理行为模式",
+      "skills": "技能",
+      "skillsDesc": "打包的技能定义",
+      "themes": "主题",
+      "themesDesc": "UI 主题自定义",
+      "commands": "命令",
+      "commandsDesc": "斜杠命令",
+      "hooks": "钩子",
+      "hooksDesc": "生命周期事件处理器",
+      "processors": "处理器",
+      "processorsDesc": "消息处理器",
+      "providers": "提供者",
+      "providersDesc": "AI 模型提供者",
+      "exporters": "导出器",
+      "exportersDesc": "导出格式",
+      "importers": "导入器",
+      "importersDesc": "导入处理器",
+      "a2ui": "A2UI",
+      "a2uiDesc": "A2UI 集成",
+      "pythonCap": "Python",
+      "pythonCapDesc": "Python 运行时支持"
+    },
+    "preview": {
+      "files": "文件",
+      "filesCount": "{count} 个文件"
+    },
+    "navigation": {
+      "back": "返回",
+      "next": "下一步",
+      "downloadZip": "下载 ZIP",
+      "createInPlugins": "在插件目录创建"
+    },
+    "difficulty": {
+      "beginner": "初级",
+      "intermediate": "中级",
+      "advanced": "高级"
+    }
+  },
+  "pluginCard": {
+    "configure": "配置",
+    "homepage": "主页",
+    "uninstall": "卸载",
+    "stats": {
+      "tools": "{count} 个工具",
+      "components": "{count} 个组件",
+      "modes": "{count} 个模式"
+    }
+  },
+  "pluginList": {
+    "noPlugins": "未找到插件"
+  },
+  "pluginDevTools": {
+    "title": "插件开发工具",
+    "selectPlugin": "选择插件",
+    "selectPlaceholder": "选择一个 Python 插件...",
+    "selectPrompt": "选择一个 Python 插件以使用开发工具",
+    "tabs": {
+      "eval": "执行",
+      "tools": "工具",
+      "info": "信息",
+      "performance": "性能"
+    },
+    "eval": {
+      "pythonCode": "Python 代码",
+      "placeholder": "输入要执行的 Python 代码...",
+      "execute": "执行"
+    },
+    "tools": {
+      "toolName": "工具名称",
+      "selectTool": "选择工具...",
+      "arguments": "参数 (JSON)",
+      "callTool": "调用工具"
+    },
+    "info": {
+      "registeredTools": "已注册工具",
+      "noTools": "没有已注册的工具",
+      "pluginState": "插件状态"
+    },
+    "output": {
+      "title": "输出",
+      "noOutput": "暂无输出"
+    }
+  },
+  "pluginAnalytics": {
+    "stats": {
+      "totalCalls": "总调用次数",
+      "acrossAll": "所有插件",
+      "successRate": "成功率",
+      "successful": "{count} 次成功",
+      "activePlugins": "活跃插件",
+      "ofInstalled": "共安装 {count} 个",
+      "avgResponse": "平均响应",
+      "avgDuration": "平均时长"
+    },
+    "tabs": {
+      "insights": "洞察",
+      "health": "健康",
+      "usage": "使用"
+    },
+    "insights": {
+      "title": "学习洞察",
+      "description": "基于插件使用情况的 AI 驱动建议",
+      "noInsights": "暂无洞察。继续使用插件以生成建议！"
+    },
+    "health": {
+      "title": "插件健康状态",
+      "description": "所有已安装插件的实时健康监控",
+      "issues": "{count} 个问题",
+      "healthy": "健康",
+      "degraded": "降级",
+      "unhealthy": "不健康"
+    },
+    "usage": {
+      "title": "插件使用",
+      "description": "选择一个插件查看详细统计",
+      "selectPlugin": "选择插件",
+      "clickToView": "点击插件查看统计",
+      "noUsageData": "暂无使用数据",
+      "totalCalls": "总调用次数",
+      "successRate": "成功率",
+      "avgDuration": "平均时长",
+      "lastUsed": "上次使用",
+      "dailyUsage": "每日使用（14 天）",
+      "topTools": "热门工具",
+      "noToolUsage": "暂无工具使用记录",
+      "calls": "{count} 次调用"
+    }
+  },
+  "pluginHealth": {
+    "summary": {
+      "overallHealth": "整体健康",
+      "healthy": "健康",
+      "degraded": "降级",
+      "unhealthy": "不健康"
+    },
+    "list": {
+      "title": "插件健康状态",
+      "noPlugins": "没有可监控的插件",
+      "totalCalls": "总调用次数",
+      "avgResponseTime": "平均响应时间",
+      "successRate": "成功率"
+    }
+  },
+  "pluginConflicts": {
+    "title": "插件冲突",
+    "errors": "{count} 个错误",
+    "warnings": "{count} 个警告",
+    "info": "{count} 个信息",
+    "noConflicts": "未检测到冲突",
+    "allCompatible": "所有已启用的插件都是兼容的",
+    "conflictType": "{type} 冲突",
+    "suggestion": "建议：",
+    "apply": "应用"
+  },
+  "pluginUpdates": {
+    "title": "插件更新",
+    "settings": {
+      "autoCheck": "自动检查更新",
+      "autoCheckDesc": "每 24 小时自动检查更新"
+    },
+    "updateAll": "全部更新（{count}）",
+    "breakingChanges": "重大变更",
+    "breaking": "重大",
+    "allUpToDate": "所有插件都是最新的",
+    "lastChecked": "刚刚检查",
+    "checking": "检查中..."
+  },
+  "pluginProfiler": {
+    "controls": {
+      "pause": "暂停",
+      "start": "开始",
+      "refresh": "刷新",
+      "clear": "清除",
+      "recording": "记录中",
+      "paused": "已暂停"
+    },
+    "stats": {
+      "totalOperations": "总操作数",
+      "totalDuration": "总时长",
+      "avgDuration": "平均时长",
+      "errors": "错误"
+    },
+    "tabs": {
+      "timeline": "时间线",
+      "hotspots": "热点",
+      "slowOperations": "慢操作",
+      "errorsTab": "错误"
+    },
+    "timeline": {
+      "title": "操作时间线",
+      "description": "带有时长条的最近操作",
+      "noData": "暂无分析数据。开始分析以查看时间线。"
+    },
+    "hotspots": {
+      "title": "性能热点",
+      "description": "消耗最多时间的操作",
+      "noData": "暂无热点数据。",
+      "calls": "{count} 次调用"
+    },
+    "operations": {
+      "slowTitle": "慢操作（>100ms）",
+      "errorTitle": "错误操作",
+      "noOperations": "未找到操作。",
+      "headers": {
+        "operation": "操作",
+        "duration": "时长",
+        "status": "状态",
+        "error": "错误"
+      }
+    }
+  },
+  "pluginDependencyTree": {
+    "title": "依赖树",
+    "stats": {
+      "dependencies": "{count} 个依赖",
+      "satisfied": "{count} 个已满足",
+      "missing": "{count} 个缺失"
+    },
+    "emptyState": {
+      "selectPlugin": "选择一个插件以查看其依赖",
+      "noDependencies": "未找到依赖"
+    }
+  }
+}

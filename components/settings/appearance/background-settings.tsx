@@ -61,28 +61,27 @@ import { getBackgroundImageAssetBlob } from '@/lib/themes/background-assets';
 import { cn } from '@/lib/utils';
 import { BackgroundImportExport } from './background-import-export';
 
-const fitOptions: { value: BackgroundImageFit; label: string; labelZh: string }[] = [
-  { value: 'cover', label: 'Cover', labelZh: '覆盖' },
-  { value: 'contain', label: 'Contain', labelZh: '包含' },
-  { value: 'fill', label: 'Stretch', labelZh: '拉伸' },
-  { value: 'tile', label: 'Tile', labelZh: '平铺' },
+const fitOptions: { value: BackgroundImageFit; labelKey: string }[] = [
+  { value: 'cover', labelKey: 'fitCover' },
+  { value: 'contain', labelKey: 'fitContain' },
+  { value: 'fill', labelKey: 'fitStretch' },
+  { value: 'tile', labelKey: 'fitTile' },
 ];
 
-const positionOptions: { value: BackgroundImagePosition; label: string; labelZh: string }[] = [
-  { value: 'center', label: 'Center', labelZh: '居中' },
-  { value: 'top', label: 'Top', labelZh: '顶部' },
-  { value: 'bottom', label: 'Bottom', labelZh: '底部' },
-  { value: 'left', label: 'Left', labelZh: '左侧' },
-  { value: 'right', label: 'Right', labelZh: '右侧' },
-  { value: 'top-left', label: 'Top Left', labelZh: '左上' },
-  { value: 'top-right', label: 'Top Right', labelZh: '右上' },
-  { value: 'bottom-left', label: 'Bottom Left', labelZh: '左下' },
-  { value: 'bottom-right', label: 'Bottom Right', labelZh: '右下' },
+const positionOptions: { value: BackgroundImagePosition; labelKey: string }[] = [
+  { value: 'center', labelKey: 'positionCenter' },
+  { value: 'top', labelKey: 'positionTop' },
+  { value: 'bottom', labelKey: 'positionBottom' },
+  { value: 'left', labelKey: 'positionLeft' },
+  { value: 'right', labelKey: 'positionRight' },
+  { value: 'top-left', labelKey: 'positionTopLeft' },
+  { value: 'top-right', labelKey: 'positionTopRight' },
+  { value: 'bottom-left', labelKey: 'positionBottomLeft' },
+  { value: 'bottom-right', labelKey: 'positionBottomRight' },
 ];
 
 export function BackgroundSettings() {
-  const _t = useTranslations('settings');
-  const language = useSettingsStore((state) => state.language);
+  const t = useTranslations('backgroundSettings');
   
   const backgroundSettings = useSettingsStore((state) => state.backgroundSettings);
   const setBackgroundSettings = useSettingsStore((state) => state.setBackgroundSettings);
@@ -152,8 +151,6 @@ export function BackgroundSettings() {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [backgroundSettings.enabled, backgroundSettings.source, backgroundSettings.localAssetId]);
-
-  const isZh = language === 'zh-CN';
 
   const handleUrlSubmit = useCallback(() => {
     if (urlInput.trim()) {
@@ -277,10 +274,10 @@ export function BackgroundSettings() {
             <ImageIcon className="h-4 w-4 text-muted-foreground" />
             <div>
               <CardTitle className="text-base">
-                {isZh ? '背景图片' : 'Background Image'}
+                {t('title')}
               </CardTitle>
               <CardDescription className="text-xs">
-                {isZh ? '自定义窗口背景' : 'Customize window background'}
+                {t('description')}
               </CardDescription>
             </div>
           </div>
@@ -294,7 +291,7 @@ export function BackgroundSettings() {
                 className="h-7 text-xs"
               >
                 <X className="h-3 w-3 mr-1" />
-                {isZh ? '清除' : 'Clear'}
+                {t('clear')}
               </Button>
             )}
             <Switch
@@ -324,7 +321,7 @@ export function BackgroundSettings() {
             )}
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="bg-background/80 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-muted-foreground">
-                {isZh ? '背景预览' : 'Background Preview'}
+                {t('backgroundPreview')}
               </div>
             </div>
             <Button
@@ -345,7 +342,7 @@ export function BackgroundSettings() {
             className="w-full h-8"
           >
             <Eye className="h-3 w-3 mr-1.5" />
-            {isZh ? '显示预览' : 'Show Preview'}
+            {t('showPreview')}
           </Button>
         )}
 
@@ -354,7 +351,7 @@ export function BackgroundSettings() {
           <TabsList className="grid w-full grid-cols-3 h-8">
             <TabsTrigger value="presets" className="text-xs">
               <Palette className="h-3 w-3 mr-1" />
-              {isZh ? '预设' : 'Presets'}
+              {t('presets')}
             </TabsTrigger>
             <TabsTrigger value="url" className="text-xs">
               <LinkIcon className="h-3 w-3 mr-1" />
@@ -362,7 +359,7 @@ export function BackgroundSettings() {
             </TabsTrigger>
             <TabsTrigger value="file" className="text-xs">
               <Upload className="h-3 w-3 mr-1" />
-              {isZh ? '文件' : 'File'}
+              {t('file')}
             </TabsTrigger>
           </TabsList>
 
@@ -378,10 +375,10 @@ export function BackgroundSettings() {
                   className="h-6 text-[10px] px-2"
                   onClick={() => setPresetCategory(cat)}
                 >
-                  {cat === 'all' ? (isZh ? '全部' : 'All') :
-                   cat === 'gradient' ? (isZh ? '渐变' : 'Gradient') :
-                   cat === 'mesh' ? (isZh ? '网格' : 'Mesh') :
-                   (isZh ? '抽象' : 'Abstract')}
+                  {cat === 'all' ? t('categoryAll') :
+                   cat === 'gradient' ? t('categoryGradient') :
+                   cat === 'mesh' ? t('categoryMesh') :
+                   t('categoryAbstract')}
                 </Button>
               ))}
             </div>
@@ -421,7 +418,7 @@ export function BackgroundSettings() {
           <TabsContent value="url" className="mt-3 space-y-2">
             <div className="flex gap-2">
               <Input
-                placeholder={isZh ? '输入图片URL...' : 'Enter image URL...'}
+                placeholder={t('enterImageUrl')}
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
                 className="h-8 text-xs"
@@ -432,13 +429,11 @@ export function BackgroundSettings() {
                 disabled={!urlInput.trim()}
                 className="h-8"
               >
-                {isZh ? '应用' : 'Apply'}
+                {t('apply')}
               </Button>
             </div>
             <p className="text-[10px] text-muted-foreground">
-              {isZh
-                ? '支持 PNG, JPG, WebP, GIF, SVG 格式'
-                : 'Supports PNG, JPG, WebP, GIF, SVG formats'}
+              {t('supportedFormats')}
             </p>
           </TabsContent>
 
@@ -451,7 +446,7 @@ export function BackgroundSettings() {
             >
               <Upload className="h-5 w-5 text-muted-foreground" />
               <span className="text-xs">
-                {isZh ? '点击选择图片文件' : 'Click to select image file'}
+                {t('clickToSelectFile')}
               </span>
             </Button>
           </TabsContent>
@@ -464,7 +459,7 @@ export function BackgroundSettings() {
             <div className="grid grid-cols-2 gap-3">
               {/* Fit */}
               <div className="space-y-1.5">
-                <Label className="text-xs">{isZh ? '填充方式' : 'Fit'}</Label>
+                <Label className="text-xs">{t('fit')}</Label>
                 <Select
                   value={backgroundSettings.fit}
                   onValueChange={(v) => setBackgroundFit(v as BackgroundImageFit)}
@@ -475,7 +470,7 @@ export function BackgroundSettings() {
                   <SelectContent>
                     {fitOptions.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                        {isZh ? opt.labelZh : opt.label}
+                        {t(opt.labelKey)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -484,7 +479,7 @@ export function BackgroundSettings() {
 
               {/* Position */}
               <div className="space-y-1.5">
-                <Label className="text-xs">{isZh ? '位置' : 'Position'}</Label>
+                <Label className="text-xs">{t('position')}</Label>
                 <Select
                   value={backgroundSettings.position}
                   onValueChange={(v) => setBackgroundPosition(v as BackgroundImagePosition)}
@@ -495,7 +490,7 @@ export function BackgroundSettings() {
                   <SelectContent>
                     {positionOptions.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                        {isZh ? opt.labelZh : opt.label}
+                        {t(opt.labelKey)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -506,7 +501,7 @@ export function BackgroundSettings() {
             {/* Opacity */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs">{isZh ? '透明度' : 'Opacity'}</Label>
+                <Label className="text-xs">{t('opacity')}</Label>
                 <span className="text-xs text-muted-foreground">{backgroundSettings.opacity}%</span>
               </div>
               <Slider
@@ -521,7 +516,7 @@ export function BackgroundSettings() {
             {/* Blur */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs">{isZh ? '模糊度' : 'Blur'}</Label>
+                <Label className="text-xs">{t('blur')}</Label>
                 <span className="text-xs text-muted-foreground">{backgroundSettings.blur}px</span>
               </div>
               <Slider
@@ -538,7 +533,7 @@ export function BackgroundSettings() {
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" size="sm" className="w-full h-7 text-xs">
                   <Sliders className="h-3 w-3 mr-1.5" />
-                  {isZh ? '高级设置' : 'Advanced Settings'}
+                  {t('advancedSettings')}
                   <RefreshCw className={cn('h-3 w-3 ml-auto transition-transform', showAdvanced && 'rotate-180')} />
                 </Button>
               </CollapsibleTrigger>
@@ -547,7 +542,7 @@ export function BackgroundSettings() {
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-3 w-3 text-muted-foreground" />
-                    <Label className="text-xs">{isZh ? '叠加层' : 'Overlay'}</Label>
+                    <Label className="text-xs">{t('overlay')}</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <input
@@ -555,11 +550,11 @@ export function BackgroundSettings() {
                       value={backgroundSettings.overlayColor}
                       onChange={(e) => setBackgroundOverlay(e.target.value, backgroundSettings.overlayOpacity)}
                       className="h-8 w-12 rounded border cursor-pointer"
-                      title={isZh ? '选择叠加层颜色' : 'Select overlay color'}
+                      title={t('selectOverlayColor')}
                     />
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-muted-foreground">{isZh ? '不透明度' : 'Opacity'}</span>
+                        <span className="text-[10px] text-muted-foreground">{t('opacity')}</span>
                         <span className="text-xs text-muted-foreground">{backgroundSettings.overlayOpacity}%</span>
                       </div>
                       <Slider
@@ -578,7 +573,7 @@ export function BackgroundSettings() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Sun className="h-3 w-3 text-muted-foreground" />
-                      <Label className="text-xs">{isZh ? '亮度' : 'Brightness'}</Label>
+                      <Label className="text-xs">{t('brightness')}</Label>
                     </div>
                     <span className="text-xs text-muted-foreground">{backgroundSettings.brightness}%</span>
                   </div>
@@ -596,7 +591,7 @@ export function BackgroundSettings() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Droplets className="h-3 w-3 text-muted-foreground" />
-                      <Label className="text-xs">{isZh ? '饱和度' : 'Saturation'}</Label>
+                      <Label className="text-xs">{t('saturation')}</Label>
                     </div>
                     <span className="text-xs text-muted-foreground">{backgroundSettings.saturation}%</span>
                   </div>
@@ -612,7 +607,7 @@ export function BackgroundSettings() {
                 {/* Contrast */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs">{isZh ? '对比度' : 'Contrast'}</Label>
+                    <Label className="text-xs">{t('contrast')}</Label>
                     <span className="text-xs text-muted-foreground">{backgroundSettings.contrast ?? 100}%</span>
                   </div>
                   <Slider
@@ -627,7 +622,7 @@ export function BackgroundSettings() {
                 {/* Grayscale */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs">{isZh ? '灰度' : 'Grayscale'}</Label>
+                    <Label className="text-xs">{t('grayscale')}</Label>
                     <span className="text-xs text-muted-foreground">{backgroundSettings.grayscale ?? 0}%</span>
                   </div>
                   <Slider
@@ -641,7 +636,7 @@ export function BackgroundSettings() {
 
                 {/* Attachment Mode */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs">{isZh ? '附着模式' : 'Attachment'}</Label>
+                  <Label className="text-xs">{t('attachment')}</Label>
                   <Select
                     value={backgroundSettings.attachment ?? 'fixed'}
                     onValueChange={(v) => setBackgroundAttachment(v as 'fixed' | 'scroll' | 'local')}
@@ -651,13 +646,13 @@ export function BackgroundSettings() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="fixed" className="text-xs">
-                        {isZh ? '固定' : 'Fixed'}
+                        {t('attachmentFixed')}
                       </SelectItem>
                       <SelectItem value="scroll" className="text-xs">
-                        {isZh ? '滚动' : 'Scroll'}
+                        {t('attachmentScroll')}
                       </SelectItem>
                       <SelectItem value="local" className="text-xs">
-                        {isZh ? '本地' : 'Local'}
+                        {t('attachmentLocal')}
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -665,7 +660,7 @@ export function BackgroundSettings() {
 
                 {/* Animation */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs">{isZh ? '动画效果' : 'Animation'}</Label>
+                  <Label className="text-xs">{t('animation')}</Label>
                   <Select
                     value={backgroundSettings.animation ?? 'none'}
                     onValueChange={(v) => setBackgroundAnimation(v as 'none' | 'kenburns' | 'parallax' | 'gradient-shift')}
@@ -675,16 +670,16 @@ export function BackgroundSettings() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none" className="text-xs">
-                        {isZh ? '无' : 'None'}
+                        {t('animationNone')}
                       </SelectItem>
                       <SelectItem value="kenburns" className="text-xs">
                         Ken Burns
                       </SelectItem>
                       <SelectItem value="parallax" className="text-xs">
-                        {isZh ? '视差' : 'Parallax'}
+                        {t('animationParallax')}
                       </SelectItem>
                       <SelectItem value="gradient-shift" className="text-xs">
-                        {isZh ? '渐变变换' : 'Gradient Shift'}
+                        {t('animationGradientShift')}
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -694,7 +689,7 @@ export function BackgroundSettings() {
                 {(backgroundSettings.animation ?? 'none') !== 'none' && (
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <Label className="text-xs">{isZh ? '动画速度' : 'Animation Speed'}</Label>
+                      <Label className="text-xs">{t('animationSpeed')}</Label>
                       <span className="text-xs text-muted-foreground">{backgroundSettings.animationSpeed ?? 5}</span>
                     </div>
                     <Slider
@@ -715,7 +710,7 @@ export function BackgroundSettings() {
                   onClick={() => void clearBackground()}
                 >
                   <RefreshCw className="h-3 w-3 mr-1.5" />
-                  {isZh ? '重置所有设置' : 'Reset All Settings'}
+                  {t('resetAllSettings')}
                 </Button>
               </CollapsibleContent>
             </Collapsible>

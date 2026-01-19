@@ -1,0 +1,33 @@
+{
+  "jupyter": {
+    "noKernel": "无内核",
+    "connectKernel": "连接内核",
+    "connecting": "连接中...",
+    "interrupt": "中断执行",
+    "restart": "重启内核",
+    "variables": "变量",
+    "searchVariables": "搜索变量...",
+    "noVariables": "暂无定义的变量",
+    "noMatchingVariables": "无匹配的变量",
+    "selectEnvironment": "选择环境",
+    "connect": "连接",
+    "runAll": "全部运行"
+  },
+  "jupyterRenderer": {
+    "parseError": "无法解析 Jupyter 笔记本",
+    "cells": "单元格",
+    "runCell": "运行单元格",
+    "output": "输出",
+    "outputs": "个输出",
+    "codeCells": "代码单元格",
+    "markdownCells": "Markdown 单元格",
+    "expandAll": "展开所有单元格",
+    "collapseAll": "折叠所有单元格",
+    "exportScript": "导出为 Python 脚本",
+    "exportMarkdown": "导出为 Markdown",
+    "exportNotebook": "下载笔记本",
+    "clearOutputs": "清空所有输出",
+    "copyCell": "复制单元格",
+    "copied": "已复制！"
+  }
+}

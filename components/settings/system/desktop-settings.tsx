@@ -26,8 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { useNativeStore } from '@/stores/system';
-import { useSelectionStore } from '@/stores/context/selection-store';
-import { useWindow } from '@/hooks/native';
+import { useWindow, useSelectionSettings } from '@/hooks/native';
 import { isTauri } from '@/lib/native/utils';
 import { requestNotificationPermission, sendNotification } from '@/lib/native/notification';
 import { checkForUpdates, downloadAndInstallUpdate, type UpdateInfo } from '@/lib/native/updater';
@@ -50,7 +49,7 @@ export function DesktopSettings() {
     setNotificationPermission,
   } = useNativeStore();
 
-  const { isEnabled: isSelectionEnabled, setEnabled: setSelectionEnabled } = useSelectionStore();
+  const { isEnabled: isSelectionEnabled, setEnabled: setSelectionEnabled, isLoading: isSelectionLoading } = useSelectionSettings();
 
   const { isAlwaysOnTop, toggleAlwaysOnTop, toggleFullscreen, isFullscreen } = useWindow();
 
@@ -202,7 +201,8 @@ export function DesktopSettings() {
             <Switch
               id="selection-toolbar-toggle"
               checked={isSelectionEnabled}
-              onCheckedChange={setSelectionEnabled}
+              onCheckedChange={(checked) => setSelectionEnabled(checked)}
+              disabled={isSelectionLoading}
             />
           </div>
         </CardContent>

@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import type { Plugin } from '@/types/plugin';
 import { usePluginStore } from '@/stores/plugin';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ interface PluginConfigProps {
 }
 
 export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
+  const t = useTranslations('pluginConfig');
   const { setPluginConfig } = usePluginStore();
   const [config, setConfig] = useState<Record<string, unknown>>(plugin.config);
   const [hasChanges, setHasChanges] = useState(false);
@@ -51,13 +53,13 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
     <Tabs defaultValue="config" className="w-full">
       <TabsList className="w-full">
         <TabsTrigger value="config" className="flex-1">
-          Configuration
+          {t('tabs.configuration')}
         </TabsTrigger>
         <TabsTrigger value="info" className="flex-1">
-          Information
+          {t('tabs.information')}
         </TabsTrigger>
         <TabsTrigger value="permissions" className="flex-1">
-          Permissions
+          {t('tabs.permissions')}
         </TabsTrigger>
       </TabsList>
 
@@ -71,7 +73,7 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
             />
           ) : (
             <p className="text-muted-foreground text-center py-8">
-              This plugin has no configuration options.
+              {t('noConfig')}
             </p>
           )}
         </ScrollArea>
@@ -80,11 +82,11 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
           <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
             <Button variant="outline" onClick={handleReset}>
               <RotateCcw className="h-4 w-4 mr-2" />
-              Reset
+              {t('reset')}
             </Button>
             <Button onClick={handleSave} disabled={!hasChanges}>
               <Save className="h-4 w-4 mr-2" />
-              Save
+              {t('save')}
             </Button>
           </div>
         )}
@@ -94,26 +96,26 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
         <ScrollArea className="h-[400px]">
           <div className="space-y-4">
             <div>
-              <Label className="text-muted-foreground">ID</Label>
+              <Label className="text-muted-foreground">{t('info.id')}</Label>
               <p className="font-mono text-sm">{plugin.manifest.id}</p>
             </div>
             <div>
-              <Label className="text-muted-foreground">Version</Label>
+              <Label className="text-muted-foreground">{t('info.version')}</Label>
               <p>{plugin.manifest.version}</p>
             </div>
             <div>
-              <Label className="text-muted-foreground">Type</Label>
+              <Label className="text-muted-foreground">{t('info.type')}</Label>
               <p className="capitalize">{plugin.manifest.type}</p>
             </div>
             {plugin.manifest.author && (
               <div>
-                <Label className="text-muted-foreground">Author</Label>
+                <Label className="text-muted-foreground">{t('info.author')}</Label>
                 <p>{plugin.manifest.author.name}</p>
               </div>
             )}
             {plugin.manifest.homepage && (
               <div>
-                <Label className="text-muted-foreground">Homepage</Label>
+                <Label className="text-muted-foreground">{t('info.homepage')}</Label>
                 <a
                   href={plugin.manifest.homepage}
                   target="_blank"
@@ -125,7 +127,7 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
               </div>
             )}
             <div>
-              <Label className="text-muted-foreground">Capabilities</Label>
+              <Label className="text-muted-foreground">{t('info.capabilities')}</Label>
               <div className="flex flex-wrap gap-1 mt-1">
                 {plugin.manifest.capabilities.map((cap) => (
                   <Badge key={cap} variant="secondary">
@@ -135,7 +137,7 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
               </div>
             </div>
             <div>
-              <Label className="text-muted-foreground">Path</Label>
+              <Label className="text-muted-foreground">{t('info.path')}</Label>
               <p className="font-mono text-xs break-all">{plugin.path}</p>
             </div>
           </div>
@@ -163,7 +165,7 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
                       <span className="font-mono text-sm">{perm}</span>
                     </div>
                     <Badge variant={isGranted ? 'default' : 'outline'} className="text-xs">
-                      {grant?.grantedBy || 'Pending'}
+                      {grant?.grantedBy || t('permissions.pending')}
                     </Badge>
                   </div>
                 );
@@ -173,7 +175,7 @@ export function PluginConfig({ plugin, onClose: _onClose }: PluginConfigProps) {
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <Shield className="h-12 w-12 text-muted-foreground mb-4" />
               <p className="text-muted-foreground">
-                This plugin requires no special permissions.
+                {t('permissions.noPermissions')}
               </p>
             </div>
           )}

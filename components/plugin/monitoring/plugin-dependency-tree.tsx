@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { usePluginStore } from '@/stores/plugin';
 import {
   getDependencyResolver,
@@ -109,6 +110,7 @@ export function PluginDependencyTree({
   pluginId,
   className,
 }: PluginDependencyTreeProps) {
+  const t = useTranslations('pluginDependencyTree');
   const { plugins, getEnabledPlugins } = usePluginStore();
   const [selectedPlugin, setSelectedPlugin] = useState<string | undefined>(pluginId);
   const [dependencyTree, setDependencyTree] = useState<DependencyNode | null>(null);
@@ -170,19 +172,19 @@ export function PluginDependencyTree({
   }, [dependencyTree, installedPlugins]);
 
   return (
-    <Card className={className}>
-      <CardHeader className="pb-2">
+    <Card className={cn('flex flex-col', className)}>
+      <CardHeader className="pb-2 shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
             <GitBranch className="h-4 w-4" />
-            Dependency Tree
+            {t('title')}
           </CardTitle>
           {isLoading && <RefreshCw className="h-4 w-4 animate-spin" />}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 flex flex-col min-h-0">
         {/* Plugin Selector */}
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-3 shrink-0">
           {enabledPlugins.map((plugin) => (
             <Button
               key={plugin.manifest.id}
@@ -197,38 +199,38 @@ export function PluginDependencyTree({
 
         {/* Stats */}
         {dependencyTree && stats.total > 0 && (
-          <div className="flex gap-4 mb-4 text-sm">
+          <div className="flex flex-wrap gap-3 mb-3 text-xs sm:text-sm shrink-0">
             <div className="flex items-center gap-1">
               <Package className="h-4 w-4 text-muted-foreground" />
-              <span>{stats.total} dependencies</span>
+              <span>{t('stats.dependencies', { count: stats.total })}</span>
             </div>
             <div className="flex items-center gap-1">
               <CheckCircle className="h-4 w-4 text-green-500" />
-              <span>{stats.satisfied} satisfied</span>
+              <span>{t('stats.satisfied', { count: stats.satisfied })}</span>
             </div>
             {stats.missing > 0 && (
               <div className="flex items-center gap-1">
                 <XCircle className="h-4 w-4 text-red-500" />
-                <span>{stats.missing} missing</span>
+                <span>{t('stats.missing', { count: stats.missing })}</span>
               </div>
             )}
           </div>
         )}
 
         {/* Tree View */}
-        <ScrollArea className="h-[300px]">
+        <ScrollArea className="flex-1 min-h-0">
           {!selectedPlugin ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <GitBranch className="h-12 w-12 text-muted-foreground mb-4" />
               <p className="text-muted-foreground">
-                Select a plugin to view its dependencies
+                {t('emptyState.selectPlugin')}
               </p>
             </div>
           ) : !dependencyTree ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <Package className="h-12 w-12 text-muted-foreground mb-4" />
               <p className="text-muted-foreground">
-                No dependencies found
+                {t('emptyState.noDependencies')}
               </p>
             </div>
           ) : (

@@ -16,10 +16,12 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useSettingsStore } from '@/stores';
+import { useTranslations } from 'next-intl';
 import type { SafetyMode, SafetyRule } from '@/stores/settings/settings-store';
 import { Separator } from '@/components/ui/separator';
 
 export function SafetySettings() {
+  const t = useTranslations('safetySettings');
   const {
     safetyModeSettings,
     setSafetyModeEnabled,
@@ -117,7 +119,7 @@ export function SafetySettings() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Shield className="h-5 w-5" />
-              <CardTitle>Safety Mode</CardTitle>
+              <CardTitle>{t('title')}</CardTitle>
             </div>
             <Switch
               checked={safetyModeSettings.enabled}
@@ -125,7 +127,7 @@ export function SafetySettings() {
             />
           </div>
           <CardDescription>
-            Enable security checks to filter dangerous content and prevent prompt injection attacks
+            {t('description')}
           </CardDescription>
         </CardHeader>
         {safetyModeSettings.enabled && (
@@ -133,9 +135,9 @@ export function SafetySettings() {
             {/* Mode Selection */}
             <div className="flex items-center justify-between">
               <div>
-                <Label htmlFor="safety-mode">Detection Mode</Label>
+                <Label htmlFor="safety-mode">{t('detectionMode')}</Label>
                 <p className="text-xs text-muted-foreground">
-                  Choose how to handle detected threats
+                  {t('detectionModeDesc')}
                 </p>
               </div>
               <Select
@@ -146,20 +148,20 @@ export function SafetySettings() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="off">Off</SelectItem>
-                  <SelectItem value="warn">Warn Only</SelectItem>
-                  <SelectItem value="block">Block</SelectItem>
+                  <SelectItem value="off">{t('modeOff')}</SelectItem>
+                  <SelectItem value="warn">{t('modeWarn')}</SelectItem>
+                  <SelectItem value="block">{t('modeBlock')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* Check Options */}
             <div className="space-y-3">
-              <Label>Check Targets</Label>
+              <Label>{t('checkTargets')}</Label>
               <div className="flex items-center justify-between">
                 <Label htmlFor="check-user-input" className="flex items-center gap-2 cursor-pointer">
                   <MessageSquare className="h-4 w-4" />
-                  User Messages
+                  {t('userMessages')}
                 </Label>
                 <Switch
                   id="check-user-input"
@@ -170,7 +172,7 @@ export function SafetySettings() {
               <div className="flex items-center justify-between">
                 <Label htmlFor="check-system-prompt" className="flex items-center gap-2 cursor-pointer">
                   <Settings2 className="h-4 w-4" />
-                  System Prompts
+                  {t('systemPrompts')}
                 </Label>
                 <Switch
                   id="check-system-prompt"
@@ -181,7 +183,7 @@ export function SafetySettings() {
               <div className="flex items-center justify-between">
                 <Label htmlFor="check-tool-calls" className="flex items-center gap-2 cursor-pointer">
                   <Wrench className="h-4 w-4" />
-                  Tool Calls
+                  {t('toolCalls')}
                 </Label>
                 <Switch
                   id="check-tool-calls"
@@ -192,7 +194,7 @@ export function SafetySettings() {
               <div className="flex items-center justify-between">
                 <Label htmlFor="block-dangerous" className="flex items-center gap-2 cursor-pointer">
                   <AlertTriangle className="h-4 w-4" />
-                  Block Dangerous Commands
+                  {t('blockDangerousCommands')}
                 </Label>
                 <Switch
                   id="block-dangerous"
@@ -204,10 +206,10 @@ export function SafetySettings() {
 
             {/* Logging Options */}
             <div className="space-y-3">
-              <Label>Logging & Notifications</Label>
+              <Label>{t('loggingNotifications')}</Label>
               <div className="flex items-center justify-between">
                 <Label htmlFor="log-events" className="flex items-center gap-2 cursor-pointer">
-                  Log Safety Events
+                  {t('logSafetyEvents')}
                 </Label>
                 <Switch
                   id="log-events"
@@ -217,7 +219,7 @@ export function SafetySettings() {
               </div>
               <div className="flex items-center justify-between">
                 <Label htmlFor="show-warnings" className="flex items-center gap-2 cursor-pointer">
-                  Show Warnings
+                  {t('showWarnings')}
                 </Label>
                 <Switch
                   id="show-warnings"
@@ -237,10 +239,10 @@ export function SafetySettings() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ShieldAlert className="h-5 w-5" />
-                Custom Patterns
+                {t('customPatterns')}
               </CardTitle>
               <CardDescription>
-                Add custom patterns to block or allow specific content
+                {t('customPatternsDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -249,13 +251,13 @@ export function SafetySettings() {
                 <CollapsibleTrigger className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-2">
                     <X className="h-4 w-4 text-red-500" />
-                    <Label>Blocked Patterns</Label>
+                    <Label>{t('blockedPatterns')}</Label>
                   </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-4 space-y-3">
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Enter pattern to block..."
+                      placeholder={t('enterPatternToBlock')}
                       value={newBlockedPattern}
                       onChange={(e) => setNewBlockedPattern(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && handleAddCustomBlockedPattern()}
@@ -287,13 +289,13 @@ export function SafetySettings() {
                 <CollapsibleTrigger className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4 text-green-500" />
-                    <Label>Allowed Patterns (Whitelist)</Label>
+                    <Label>{t('allowedPatterns')}</Label>
                   </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-4 space-y-3">
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Enter pattern to allow..."
+                      placeholder={t('enterPatternToAllow')}
                       value={newAllowedPattern}
                       onChange={(e) => setNewAllowedPattern(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && handleAddCustomAllowedPattern()}
@@ -325,10 +327,10 @@ export function SafetySettings() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5" />
-                Safety Rules
+                {t('safetyRules')}
               </CardTitle>
               <CardDescription>
-                Manage custom safety rules for content filtering
+                {t('safetyRulesDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -336,16 +338,16 @@ export function SafetySettings() {
               <div className="space-y-3 p-4 border rounded-lg">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="rule-name">Rule Name</Label>
+                    <Label htmlFor="rule-name">{t('ruleName')}</Label>
                     <Input
                       id="rule-name"
-                      placeholder="e.g., Block SQL Injection"
+                      placeholder={t('ruleNamePlaceholder')}
                       value={newRuleName}
                       onChange={(e) => setNewRuleName(e.target.value)}
                     />
                   </div>
                   <div>
-                    <Label htmlFor="rule-severity">Severity</Label>
+                    <Label htmlFor="rule-severity">{t('severity')}</Label>
                     <Select
                       value={newRuleSeverity}
                       onValueChange={(value: 'low' | 'medium' | 'high' | 'critical') => setNewRuleSeverity(value)}
@@ -354,16 +356,16 @@ export function SafetySettings() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="critical">Critical</SelectItem>
+                        <SelectItem value="low">{t('severityLow')}</SelectItem>
+                        <SelectItem value="medium">{t('severityMedium')}</SelectItem>
+                        <SelectItem value="high">{t('severityHigh')}</SelectItem>
+                        <SelectItem value="critical">{t('severityCritical')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="rule-pattern">Pattern (Regex)</Label>
+                  <Label htmlFor="rule-pattern">{t('patternRegex')}</Label>
                   <Input
                     id="rule-pattern"
                     placeholder="e.g., /\\b(SELECT|INSERT|UPDATE|DELETE)\\b/gi"
@@ -372,17 +374,17 @@ export function SafetySettings() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="rule-description">Description</Label>
+                  <Label htmlFor="rule-description">{t('ruleDescription')}</Label>
                   <Textarea
                     id="rule-description"
-                    placeholder="Describe what this rule detects..."
+                    placeholder={t('ruleDescriptionPlaceholder')}
                     value={newRuleDescription}
                     onChange={(e) => setNewRuleDescription(e.target.value)}
                     rows={2}
                   />
                 </div>
                 <div>
-                  <Label>Apply To</Label>
+                  <Label>{t('applyTo')}</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {(['input', 'system', 'toolCall'] as const).map((type) => (
                       <label key={type} className="flex items-center gap-2 cursor-pointer">
@@ -404,7 +406,7 @@ export function SafetySettings() {
                 </div>
                 <Button onClick={handleAddSafetyRule} className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Rule
+                  {t('addRule')}
                 </Button>
               </div>
 
@@ -412,7 +414,7 @@ export function SafetySettings() {
               <div className="space-y-2">
                 {safetyModeSettings.rules.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    No custom rules defined yet
+                    {t('noCustomRules')}
                   </p>
                 ) : (
                   safetyModeSettings.rules.map((rule) => (
@@ -461,15 +463,15 @@ export function SafetySettings() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ExternalLink className="h-5 w-5" />
-                External Review API
+                {t('externalReviewApi')}
               </CardTitle>
               <CardDescription>
-                Integrate with external content moderation services for enhanced safety checks
+                {t('externalReviewApiDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label htmlFor="external-review-enabled">Enable External Review</Label>
+                <Label htmlFor="external-review-enabled">{t('enableExternalReview')}</Label>
                 <Switch
                   id="external-review-enabled"
                   checked={safetyModeSettings.externalReview.enabled}
@@ -482,7 +484,7 @@ export function SafetySettings() {
               {safetyModeSettings.externalReview.enabled && (
                 <div className="space-y-3">
                   <div>
-                    <Label htmlFor="api-endpoint">API Endpoint</Label>
+                    <Label htmlFor="api-endpoint">{t('apiEndpoint')}</Label>
                     <Input
                       id="api-endpoint"
                       placeholder="https://api.example.com/review"
@@ -493,7 +495,7 @@ export function SafetySettings() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="api-key">API Key (Optional)</Label>
+                    <Label htmlFor="api-key">{t('apiKey')}</Label>
                     <Input
                       id="api-key"
                       type="password"
@@ -505,7 +507,7 @@ export function SafetySettings() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="timeout">Timeout (ms)</Label>
+                    <Label htmlFor="timeout">{t('timeout')}</Label>
                     <Input
                       id="timeout"
                       type="number"
@@ -521,7 +523,7 @@ export function SafetySettings() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="min-severity">Minimum Severity to Block</Label>
+                    <Label htmlFor="min-severity">{t('minSeverityToBlock')}</Label>
                     <Select
                       value={safetyModeSettings.externalReview.minSeverity}
                       onValueChange={(value: 'low' | 'medium' | 'high' | 'critical') =>
@@ -532,15 +534,15 @@ export function SafetySettings() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="critical">Critical</SelectItem>
+                        <SelectItem value="low">{t('severityLow')}</SelectItem>
+                        <SelectItem value="medium">{t('severityMedium')}</SelectItem>
+                        <SelectItem value="high">{t('severityHigh')}</SelectItem>
+                        <SelectItem value="critical">{t('severityCritical')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="fallback-mode">Fallback Mode</Label>
+                    <Label htmlFor="fallback-mode">{t('fallbackMode')}</Label>
                     <Select
                       value={safetyModeSettings.externalReview.fallbackMode}
                       onValueChange={(value: 'allow' | 'block') =>
@@ -551,8 +553,8 @@ export function SafetySettings() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="allow">Allow (pass through)</SelectItem>
-                        <SelectItem value="block">Block (reject)</SelectItem>
+                        <SelectItem value="allow">{t('fallbackAllow')}</SelectItem>
+                        <SelectItem value="block">{t('fallbackBlock')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -568,7 +570,7 @@ export function SafetySettings() {
             className="w-full"
           >
             <RotateCcw className="h-4 w-4 mr-2" />
-            Reset to Defaults
+            {t('resetToDefaults')}
           </Button>
         </>
       )}

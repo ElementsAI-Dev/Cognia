@@ -33,8 +33,7 @@ function parseTimeToMinutes(time: string): number {
  */
 
 export function ThemeSchedule() {
-  const t = useTranslations('settings');
-  const language = useSettingsStore((state) => state.language);
+  const t = useTranslations('themeScheduleSettings');
   const theme = useSettingsStore((state) => state.theme);
   const schedule = useSettingsStore((state) => state.themeSchedule);
   const setThemeSchedule = useSettingsStore((state) => state.setThemeSchedule);
@@ -51,21 +50,19 @@ export function ThemeSchedule() {
       <CardHeader>
         <div className="flex items-center gap-2">
           <Clock className="h-5 w-5" />
-          <CardTitle>{t('themeSchedule') || 'Theme Schedule'}</CardTitle>
+          <CardTitle>{t('title')}</CardTitle>
         </div>
         <CardDescription>
-          {t('themeScheduleDescription') || 'Automatically switch between light and dark mode'}
+          {t('description')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Enable Schedule */}
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
-            <Label>{t('enableSchedule') || 'Enable Schedule'}</Label>
+            <Label>{t('enableSchedule')}</Label>
             <p className="text-xs text-muted-foreground">
-              {language === 'zh-CN' 
-                ? '根据时间自动切换主题' 
-                : 'Automatically switch theme based on time'}
+              {t('enableScheduleDesc')}
             </p>
           </div>
           <Switch
@@ -76,9 +73,7 @@ export function ThemeSchedule() {
 
         {theme === 'system' && schedule.enabled && (
           <p className="text-xs text-amber-600 dark:text-amber-400">
-            {language === 'zh-CN'
-              ? '提示：当主题设置为“跟随系统”时，定时切换不会生效'
-              : 'Note: Schedule will not apply when theme is set to "System"'}
+            {t('systemThemeNote')}
           </p>
         )}
 
@@ -89,7 +84,7 @@ export function ThemeSchedule() {
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5 text-xs">
                   <Sunrise className="h-3.5 w-3.5 text-amber-500" />
-                  {t('lightModeStart') || 'Light Mode Start'}
+                  {t('lightModeStart')}
                 </Label>
                 <div className="flex items-center gap-2">
                   <Sun className="h-4 w-4 text-amber-500" />
@@ -106,7 +101,7 @@ export function ThemeSchedule() {
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5 text-xs">
                   <Sunset className="h-3.5 w-3.5 text-indigo-500" />
-                  {t('darkModeStart') || 'Dark Mode Start'}
+                  {t('darkModeStart')}
                 </Label>
                 <div className="flex items-center gap-2">
                   <Moon className="h-4 w-4 text-indigo-500" />
@@ -175,11 +170,11 @@ export function ThemeSchedule() {
               <div className="flex items-center gap-4 mt-2 text-xs">
                 <div className="flex items-center gap-1">
                   <div className="h-2 w-2 rounded bg-amber-400" />
-                  <span>{language === 'zh-CN' ? '亮色模式' : 'Light'}</span>
+                  <span>{t('lightMode')}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <div className="h-2 w-2 rounded bg-indigo-500/50" />
-                  <span>{language === 'zh-CN' ? '暗色模式' : 'Dark'}</span>
+                  <span>{t('darkMode')}</span>
                 </div>
               </div>
             </div>

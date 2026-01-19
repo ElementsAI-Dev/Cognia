@@ -165,15 +165,16 @@ export function main(): void {
   const usedKeys = findUsedKeys(config);
   console.log(`   Found ${usedKeys.size} used keys`);
 
-  // Load translations
+  // Load translations (supports both single file and split directory)
   const enPath = path.join(process.cwd(), config.existingTranslations.enPath);
   const zhPath = path.join(process.cwd(), config.existingTranslations.zhCNPath);
+  const isSplitFiles = fs.existsSync(enPath) && fs.statSync(enPath).isDirectory();
 
   const enTranslations = loadTranslations(config.existingTranslations.enPath);
   const zhTranslations = loadTranslations(config.existingTranslations.zhCNPath);
 
   const enKeys = flattenKeys(enTranslations as unknown as TranslationObject);
-  console.log(`   Total keys in en.json: ${enKeys.size}`);
+  console.log(`   Total keys in ${isSplitFiles ? 'en/' : 'en.json'}: ${enKeys.size}`);
 
   // Remove orphaned keys
   const enResult = removeOrphanedKeys(enTranslations, usedKeys, cliOptions.namespace);
@@ -214,14 +215,54 @@ export function main(): void {
     if (!cliOptions.noBackup && config.backupSettings.enabled) {
       const backupDir = path.join(process.cwd(), config.backupSettings.backupDir, 'pre-cleanup');
       ensureDir(backupDir);
-      createBackup(enPath, backupDir);
-      createBackup(zhPath, backupDir);
+      
+      if (isSplitFiles) {
+        // Backup split files by copying the directory
+        const enBackupDir = path.join(backupDir, 'en');
+        const zhBackupDir = path.join(backupDir, 'zh-CN');
+        ensureDir(enBackupDir);
+        ensureDir(zhBackupDir);
+        
+        for (const file of fs.readdirSync(enPath).filter(f => f.endsWith('.json'))) {
+          fs.copyFileSync(path.join(enPath, file), path.join(enBackupDir, file));
+        }
+        for (const file of fs.readdirSync(zhPath).filter(f => f.endsWith('.json'))) {
+          fs.copyFileSync(path.join(zhPath, file), path.join(zhBackupDir, file));
+        }
+      } else {
+        createBackup(enPath, backupDir);
+        createBackup(zhPath, backupDir);
+      }
       log.success('Backups created');
     }
 
     // Write cleaned translations
-    writeJSON(enPath, sortKeys(enResult.cleaned as Record<string, unknown>));
-    writeJSON(zhPath, sortKeys(zhResult.cleaned as Record<string, unknown>));
+    if (isSplitFiles) {
+      // For split files, we need to update each JSON file in the directory
+      const updateSplitFiles = (dirPath: string, cleaned: Translations): void => {
+        for (const file of fs.readdirSync(dirPath).filter(f => f.endsWith('.json'))) {
+          const filePath = path.join(dirPath, file);
+          const original = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+          const filtered: Record<string, unknown> = {};
+          
+          for (const [key, value] of Object.entries(original)) {
+            if (key in cleaned || (typeof value === 'object' && value !== null)) {
+              filtered[key] = value;
+            }
+          }
+          
+          if (Object.keys(filtered).length > 0) {
+            writeJSON(filePath, sortKeys(filtered));
+          }
+        }
+      };
+      
+      updateSplitFiles(enPath, enResult.cleaned);
+      updateSplitFiles(zhPath, zhResult.cleaned);
+    } else {
+      writeJSON(enPath, sortKeys(enResult.cleaned as Record<string, unknown>));
+      writeJSON(zhPath, sortKeys(zhResult.cleaned as Record<string, unknown>));
+    }
 
     log.success(`Updated: ${enPath}`);
     log.success(`Updated: ${zhPath}`);

@@ -1,0 +1,552 @@
+{
+  "learningMode": {
+    "title": "学习模式",
+    "noActiveSession": "没有活跃的学习会话。开始一个会话以开始引导式学习。",
+    "progress": "进度",
+    "phases": "学习阶段",
+    "phase": {
+      "clarification": "明确学习目标",
+      "deconstruction": "分解主题",
+      "questioning": "通过提问探索",
+      "feedback": "完善理解",
+      "summary": "总结学习成果"
+    },
+    "goals": "学习目标",
+    "noGoalsYet": "尚未定义目标",
+    "subQuestions": "子问题",
+    "noQuestionsYet": "尚未识别子问题",
+    "nextPhase": "下一阶段",
+    "endSession": "结束会话",
+    "attempts": "{count} 次尝试",
+    "startDialog": {
+      "title": "开始学习会话",
+      "description": "定义您想学习的内容。AI 导师将使用苏格拉底方法引导您逐步发现知识。",
+      "topic": "您想学习什么？",
+      "topicPlaceholder": "例如：编程中的递归是如何工作的？",
+      "background": "您已经了解什么？",
+      "backgroundPlaceholder": "描述您对这个主题的当前理解...",
+      "optional": "可选",
+      "goals": "学习目标",
+      "goalPlaceholder": "添加学习目标...",
+      "goalHint": "按回车添加目标",
+      "cancel": "取消",
+      "start": "开始学习",
+      "difficulty": "首选难度",
+      "difficultyHint": "选择您的舒适级别",
+      "learningStyle": "学习风格",
+      "learningStyleHint": "您最喜欢的学习方式？"
+    },
+    "stats": {
+      "timeSpent": "学习时长",
+      "accuracy": "准确率",
+      "avgResponse": "平均响应",
+      "conceptsLearned": "概念掌握",
+      "currentDifficulty": "当前难度",
+      "engagement": "参与度",
+      "engagementHigh": "您非常投入！继续保持！",
+      "engagementMedium": "参与度稳定。保持专注！",
+      "engagementLow": "尝试更专注于学习内容。",
+      "conceptMastery": "概念掌握度",
+      "currentStreak": "当前连续",
+      "achievements": "成就"
+    },
+    "notes": {
+      "title": "学习笔记",
+      "placeholder": "记录您学到的内容...",
+      "highlighted": "已标记",
+      "all": "全部笔记",
+      "empty": "还没有笔记。开始记录关键见解！",
+      "addFirst": "添加第一条笔记"
+    },
+    "history": {
+      "overallProgress": "总体进度",
+      "sessionsCompleted": "已完成会话",
+      "totalTime": "总学习时长",
+      "overallAccuracy": "总体准确率",
+      "conceptsMastered": "已掌握概念",
+      "currentStreak": "当前连续",
+      "longestStreak": "最长连续",
+      "achievements": "成就",
+      "achievementsEarned": "已获得成就",
+      "recentSessions": "最近会话",
+      "noSessions": "还没有完成的会话。开始学习以跟踪您的进度！"
+    },
+    "difficulty": {
+      "beginner": "初学者",
+      "intermediate": "中级",
+      "advanced": "高级",
+      "expert": "专家"
+    },
+    "style": {
+      "visual": "视觉型",
+      "auditory": "听觉型",
+      "reading": "阅读/写作型",
+      "kinesthetic": "动手实践型"
+    },
+    "visualization": {
+      "title": "概念可视化",
+      "legend": "图例",
+      "annotations": "注释",
+      "clickToExplore": "点击节点查看详情",
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "resetZoom": "重置缩放",
+      "expand": "展开",
+      "collapse": "折叠",
+      "nodeTypes": {
+        "input": "输入",
+        "output": "输出",
+        "process": "处理",
+        "decision": "决策",
+        "data": "数据",
+        "default": "默认"
+      }
+    },
+    "animation": {
+      "title": "交互式动画",
+      "play": "播放",
+      "pause": "暂停",
+      "reset": "重置",
+      "stepForward": "下一步",
+      "stepBackward": "上一步",
+      "speedNormal": "正常",
+      "loopEnabled": "循环已启用",
+      "enableLoop": "启用循环",
+      "currentStep": "步骤 {current} / {total}",
+      "difficulty": {
+        "beginner": "初学者",
+        "intermediate": "中级",
+        "advanced": "高级"
+      }
+    },
+    "guide": {
+      "title": "分步指南",
+      "skipGuide": "跳过指南",
+      "stepProgress": "步骤 {current} / {total}",
+      "previousStep": "上一步",
+      "nextStep": "下一步",
+      "complete": "完成",
+      "tips": "提示",
+      "showHints": "显示提示 ({count})",
+      "hideHints": "隐藏提示",
+      "relatedResources": "相关资源",
+      "confirmUnderstanding": "我已理解",
+      "confirmed": "已确认",
+      "estimatedTime": "约 {minutes} 分钟"
+    },
+    "transformer": {
+      "title": "Transformer 架构",
+      "interactive": "交互式",
+      "description": "点击组件了解更多，或使用控件查看数据流动画。",
+      "encoderLayer": "编码器层 × N",
+      "attentionWeights": "注意力权重（简化版）",
+      "stepOf": "步骤 {current} / {total}",
+      "formula": "公式",
+      "components": {
+        "inputEmbedding": {
+          "name": "输入嵌入",
+          "shortName": "嵌入",
+          "description": "将输入词元转换为稠密向量",
+          "details": "输入序列中的每个词元都通过学习的嵌入矩阵映射为 d-model 维向量。这将离散词元转换为连续向量空间。"
+        },
+        "positionalEncoding": {
+          "name": "位置编码",
+          "shortName": "位置",
+          "description": "为嵌入添加位置信息",
+          "details": "由于 Transformer 本身没有序列顺序的概念，需要添加位置编码来提供词元位置信息。"
+        },
+        "multiHeadAttention": {
+          "name": "多头注意力",
+          "shortName": "注意力",
+          "description": "学习词元之间的关系",
+          "details": "Transformer 的核心机制。计算注意力权重以确定每个词元应该关注其他词元的程度。多个注意力头学习不同的关系模式。"
+        },
+        "addNorm": {
+          "name": "相加与归一化",
+          "shortName": "Add&Norm",
+          "description": "残差连接 + 层归一化",
+          "details": "将输入加回到输出（残差连接）并应用层归一化。这有助于梯度流动和训练稳定性。"
+        },
+        "feedForward": {
+          "name": "前馈网络",
+          "shortName": "FFN",
+          "description": "位置级全连接层",
+          "details": "独立应用于每个位置的简单两层神经网络。通常先将维度扩展4倍，然后再投影回原维度。"
+        },
+        "encoder": {
+          "name": "编码器堆栈",
+          "shortName": "编码器",
+          "description": "处理输入序列（N层）",
+          "details": "编码器处理输入序列并创建捕获输入含义和关系的表示。通常由N=6个相同的层组成。"
+        },
+        "decoder": {
+          "name": "解码器堆栈",
+          "shortName": "解码器",
+          "description": "生成输出序列（N层）",
+          "details": "解码器逐个词元生成输出序列，同时关注编码器输出和先前生成的词元。同样由N=6个相同的层组成。"
+        },
+        "outputLinear": {
+          "name": "线性投影",
+          "shortName": "线性",
+          "description": "投影到词表大小",
+          "details": "将解码器输出映射到词表维度的线性变换，为每个可能的词元生成 logits。"
+        },
+        "softmax": {
+          "name": "Softmax",
+          "shortName": "Softmax",
+          "description": "将 logits 转换为概率",
+          "details": "应用 softmax 函数将原始 logits 转换为词表上的概率分布。"
+        }
+      },
+      "steps": {
+        "inputProcessing": {
+          "title": "输入处理",
+          "description": "输入序列首先被转换为嵌入，然后与位置编码结合。",
+          "highlight": "序列 \"Hello, world!\" 被分词并转换为向量。"
+        },
+        "selfAttention": {
+          "title": "自注意力",
+          "description": "每个词元计算对所有其他词元的注意力，以理解上下文和关系。",
+          "highlight": "\"world\" 这个词关注 \"Hello\" 以理解问候的上下文。"
+        },
+        "residualNorm1": {
+          "title": "残差与归一化",
+          "description": "注意力输出被加回到输入（残差连接）并归一化。"
+        },
+        "feedForward": {
+          "title": "前馈处理",
+          "description": "每个位置独立通过前馈网络处理。",
+          "highlight": "这为表示添加非线性变换。"
+        },
+        "residualNorm2": {
+          "title": "第二次残差与归一化",
+          "description": "另一个残差连接和归一化完成一个编码器层。"
+        },
+        "fullEncoder": {
+          "title": "完整编码器",
+          "description": "完整的编码器堆栈通过N个相同的层处理输入。",
+          "highlight": "通常N=6层，每层包含注意力和前馈子层。"
+        },
+        "decoderProcessing": {
+          "title": "解码器处理",
+          "description": "解码器生成输出词元，同时关注编码器输出和先前的词元。",
+          "highlight": "使用掩码注意力防止查看未来的词元。"
+        },
+        "outputGeneration": {
+          "title": "输出生成",
+          "description": "最终输出被投影到词表大小并转换为概率。",
+          "highlight": "选择概率最高的词元作为下一个输出。"
+        }
+      }
+    }
+  },
+  "learning": {
+    "visualization": {
+      "title": "概念可视化",
+      "legend": "图例",
+      "annotations": "注释",
+      "clickToExplore": "点击节点查看详情",
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "resetZoom": "重置缩放",
+      "expand": "展开",
+      "collapse": "折叠",
+      "nodeTypes": {
+        "input": "输入",
+        "output": "输出",
+        "process": "处理",
+        "decision": "决策",
+        "data": "数据",
+        "default": "默认"
+      }
+    },
+    "animation": {
+      "title": "交互式动画",
+      "play": "播放",
+      "pause": "暂停",
+      "reset": "重置",
+      "stepForward": "下一步",
+      "stepBackward": "上一步",
+      "speedNormal": "正常",
+      "loopEnabled": "循环已启用",
+      "enableLoop": "启用循环",
+      "currentStep": "步骤 {current} / {total}",
+      "difficulty": {
+        "beginner": "初学者",
+        "intermediate": "中级",
+        "advanced": "高级"
+      }
+    },
+    "guide": {
+      "title": "分步指南",
+      "skipGuide": "跳过指南",
+      "stepProgress": "步骤 {current} / {total}",
+      "previousStep": "上一步",
+      "nextStep": "下一步",
+      "complete": "完成",
+      "tips": "提示",
+      "showHints": "显示提示 ({count})",
+      "hideHints": "隐藏提示",
+      "relatedResources": "相关资源",
+      "confirmUnderstanding": "我已理解",
+      "confirmed": "已确认",
+      "estimatedTime": "约 {minutes} 分钟"
+    },
+    "transformer": {
+      "title": "Transformer 架构",
+      "interactive": "交互式",
+      "description": "点击组件了解更多，或使用控件查看数据流动画。",
+      "encoderLayer": "编码器层 × N",
+      "attentionWeights": "注意力权重（简化版）",
+      "stepOf": "步骤 {current} / {total}",
+      "formula": "公式",
+      "components": {
+        "inputEmbedding": {
+          "name": "输入嵌入",
+          "shortName": "嵌入",
+          "description": "将输入词元转换为稠密向量",
+          "details": "输入序列中的每个词元都通过学习的嵌入矩阵映射为 d-model 维向量。这将离散词元转换为连续向量空间。"
+        },
+        "positionalEncoding": {
+          "name": "位置编码",
+          "shortName": "位置",
+          "description": "为嵌入添加位置信息",
+          "details": "由于 Transformer 本身没有序列顺序的概念，需要添加位置编码来提供词元位置信息。"
+        },
+        "multiHeadAttention": {
+          "name": "多头注意力",
+          "shortName": "注意力",
+          "description": "学习词元之间的关系",
+          "details": "Transformer 的核心机制。计算注意力权重以确定每个词元应该关注其他词元的程度。多个注意力头学习不同的关系模式。"
+        },
+        "addNorm": {
+          "name": "相加与归一化",
+          "shortName": "Add&Norm",
+          "description": "残差连接 + 层归一化",
+          "details": "将输入加回到输出（残差连接）并应用层归一化。这有助于梯度流动和训练稳定性。"
+        },
+        "feedForward": {
+          "name": "前馈网络",
+          "shortName": "FFN",
+          "description": "位置级全连接层",
+          "details": "独立应用于每个位置的简单两层神经网络。通常先将维度扩展4倍，然后再投影回原维度。"
+        },
+        "encoder": {
+          "name": "编码器堆栈",
+          "shortName": "编码器",
+          "description": "处理输入序列（N层）",
+          "details": "编码器处理输入序列并创建捕获输入含义和关系的表示。通常由N=6个相同的层组成。"
+        },
+        "decoder": {
+          "name": "解码器堆栈",
+          "shortName": "解码器",
+          "description": "生成输出序列（N层）",
+          "details": "解码器逐个词元生成输出序列，同时关注编码器输出和先前生成的词元。同样由N=6个相同的层组成。"
+        },
+        "outputLinear": {
+          "name": "线性投影",
+          "shortName": "线性",
+          "description": "投影到词表大小",
+          "details": "将解码器输出映射到词表维度的线性变换，为每个可能的词元生成 logits。"
+        },
+        "softmax": {
+          "name": "Softmax",
+          "shortName": "Softmax",
+          "description": "将 logits 转换为概率",
+          "details": "应用 softmax 函数将原始 logits 转换为词表上的概率分布。"
+        }
+      },
+      "steps": {
+        "inputProcessing": {
+          "title": "输入处理",
+          "description": "输入序列首先被转换为嵌入，然后与位置编码结合。",
+          "highlight": "序列 \"Hello, world!\" 被分词并转换为向量。"
+        },
+        "selfAttention": {
+          "title": "自注意力",
+          "description": "每个词元计算对所有其他词元的注意力，以理解上下文和关系。",
+          "highlight": "\"world\" 这个词关注 \"Hello\" 以理解问候的上下文。"
+        },
+        "residualNorm1": {
+          "title": "残差与归一化",
+          "description": "注意力输出被加回到输入（残差连接）并归一化。"
+        },
+        "feedForward": {
+          "title": "前馈处理",
+          "description": "每个位置独立通过前馈网络处理。",
+          "highlight": "这为表示添加非线性变换。"
+        },
+        "residualNorm2": {
+          "title": "第二次残差与归一化",
+          "description": "另一个残差连接和归一化完成一个编码器层。"
+        },
+        "fullEncoder": {
+          "title": "完整编码器",
+          "description": "完整的编码器堆栈通过N个相同的层处理输入。",
+          "highlight": "通常N=6层，每层包含注意力和前馈子层。"
+        },
+        "decoderProcessing": {
+          "title": "解码器处理",
+          "description": "解码器生成输出词元，同时关注编码器输出和先前的词元。",
+          "highlight": "使用掩码注意力防止查看未来的词元。"
+        },
+        "outputGeneration": {
+          "title": "输出生成",
+          "description": "最终输出被投影到词表大小并转换为概率。",
+          "highlight": "选择概率最高的词元作为下一个输出。"
+        }
+      }
+    }
+  },
+  "academic": {
+    "knowledgeMap": {
+      "title": "知识地图",
+      "create": "创建",
+      "import": "导入",
+      "export": "导出",
+      "delete": "删除",
+      "cancel": "取消",
+      "generating": "生成中...",
+      "generatingProgress": "正在生成知识地图...",
+      "error": "错误",
+      "dismiss": "关闭",
+      "searchMaps": "搜索知识地图...",
+      "noMaps": "暂无知识地图",
+      "traces": "条轨迹",
+      "locations": "个位置",
+      "navigateBack": "返回",
+      "navigateForward": "前进",
+      "createDialog": {
+        "title": "创建知识地图",
+        "description": "从内容或PDF创建新的知识地图",
+        "mapTitle": "标题",
+        "titlePlaceholder": "输入标题...",
+        "mode": "生成模式",
+        "fromPDF": "从PDF生成"
+      },
+      "modes": {
+        "fast": "快速",
+        "detailed": "详细",
+        "comprehensive": "全面"
+      },
+      "tabs": {
+        "traces": "轨迹",
+        "mindMap": "思维导图",
+        "markdown": "Markdown"
+      },
+      "traceList": "轨迹列表",
+      "selectTrace": "选择一个轨迹查看详情",
+      "traceDiagram": "轨迹图",
+      "traceGuide": "轨迹指南",
+      "page": "页",
+      "noMindMap": "暂无思维导图",
+      "generateMindMap": "生成思维导图",
+      "mermaidDiagram": "Mermaid 图表",
+      "noMermaidDiagram": "暂无 Mermaid 图表",
+      "copy": "复制",
+      "copied": "已复制",
+      "noMapSelected": "未选择知识地图",
+      "selectOrCreate": "从列表中选择一个知识地图或创建新的",
+      "createFirst": "创建知识地图",
+      "deleteConfirm": {
+        "title": "删除知识地图",
+        "description": "确定要删除此知识地图吗？此操作无法撤销。"
+      }
+    },
+    "mindMap": {
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "resetView": "重置视图",
+      "fitView": "适应视图",
+      "showLabels": "显示标签",
+      "hideLabels": "隐藏标签",
+      "searchNodes": "搜索节点...",
+      "export": "导出",
+      "exportPNG": "导出为 PNG",
+      "exportSVG": "导出为 SVG",
+      "exportJSON": "导出为 JSON",
+      "matchesFound": "个匹配",
+      "minimap": "小地图",
+      "type": "类型",
+      "description": "描述",
+      "page": "页码",
+      "navigateToLocation": "跳转到位置",
+      "children": "子节点",
+      "andMore": "还有 {count} 个..."
+    }
+  },
+  "flowChat": {
+    "viewList": "列表视图",
+    "viewFlow": "画布视图",
+    "createBranch": "创建分支",
+    "regenerate": "重新生成",
+    "followUp": "追问",
+    "reference": "引用",
+    "parallelGenerate": "并行生成",
+    "copy": "复制",
+    "copied": "已复制",
+    "delete": "删除",
+    "expand": "展开",
+    "collapse": "折叠",
+    "branchPoint": "分支点",
+    "branchPointHint": "此消息有对话分支",
+    "zoomIn": "放大",
+    "zoomOut": "缩小",
+    "fitView": "适应视图",
+    "layout": "布局",
+    "layoutDirection": "布局方向",
+    "layoutTB": "从上到下",
+    "layoutLR": "从左到右",
+    "autoLayout": "自动布局",
+    "viewOptions": "视图选项",
+    "showGrid": "显示网格",
+    "snapToGrid": "对齐网格",
+    "showMinimap": "显示小地图",
+    "export": "导出",
+    "emptyCanvas": "开始对话",
+    "emptyCanvasHint": "您的消息将显示为画布上的节点",
+    "switchToFlow": "切换到画布视图",
+    "switchToList": "切换到列表视图",
+    "nodeActions": "节点操作",
+    "selectModel": "选择模型",
+    "parallelModels": "使用多个模型生成",
+    "branchName": "分支名称",
+    "createBranchHint": "从此处创建新的对话分支",
+    "addToCompare": "添加到对比",
+    "addBookmark": "添加书签",
+    "removeBookmark": "移除书签",
+    "bookmarked": "已收藏",
+    "rateResponse": "评价回复",
+    "addNote": "添加备注",
+    "moreAttachments": "还有 {count} 个附件",
+    "availableTags": "可用标签",
+    "createNewTag": "创建新标签",
+    "tagName": "标签名称",
+    "tagColor": "颜色",
+    "cancel": "取消",
+    "create": "创建",
+    "searchNodes": "搜索节点...",
+    "filters": "筛选器",
+    "clearAll": "清除全部",
+    "filterByRole": "按角色筛选",
+    "filterByTags": "按标签筛选",
+    "quickFilters": "快捷筛选",
+    "bookmarkedOnly": "仅显示收藏",
+    "withMediaOnly": "仅显示含媒体",
+    "resultsFound": "个结果",
+    "noResults": "未找到结果",
+    "rename": "重命名",
+    "changeColor": "更改颜色",
+    "deleteGroup": "删除分组",
+    "dropNodesToGroup": "拖放节点到此处添加到分组",
+    "compareResponses": "对比回复",
+    "responses": "个回复",
+    "preferred": "首选",
+    "selectPreferred": "设为首选",
+    "preferredResponse": "首选回复",
+    "done": "完成",
+    "fullscreen": "全屏",
+    "exitFullscreen": "退出全屏",
+    "keyboardShortcuts": "键盘快捷键"
+  }
+}

@@ -57,18 +57,90 @@ export function loadJSON<T>(filePath: string): T | null {
 }
 
 /**
- * Load translations from file
+ * Load translations from file or split directory
  */
 export function loadTranslations(filePath: string): Translations {
   try {
     const fullPath = path.isAbsolute(filePath)
       ? filePath
       : path.join(process.cwd(), filePath);
-    const content = fs.readFileSync(fullPath, 'utf-8');
-    return JSON.parse(content) as Translations;
+    
+    // Check if it's a directory (split files)
+    if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
+      return loadSplitTranslations(fullPath);
+    }
+    
+    // Try as JSON file
+    const jsonPath = fullPath.endsWith('.json') ? fullPath : `${fullPath}.json`;
+    if (fs.existsSync(jsonPath)) {
+      const content = fs.readFileSync(jsonPath, 'utf-8');
+      return JSON.parse(content) as Translations;
+    }
+    
+    console.warn(`Could not load translations from ${filePath}: file not found`);
+    return {};
   } catch (error) {
     console.warn(`Could not load translations from ${filePath}:`, (error as Error).message);
     return {};
+  }
+}
+
+/**
+ * Load translations from split files directory
+ */
+export function loadSplitTranslations(dirPath: string): Translations {
+  const combined: Translations = {};
+  
+  try {
+    const files = fs.readdirSync(dirPath).filter(f => f.endsWith('.json'));
+    
+    for (const file of files) {
+      const filePath = path.join(dirPath, file);
+      const content = fs.readFileSync(filePath, 'utf-8');
+      const parsed = JSON.parse(content) as Translations;
+      Object.assign(combined, parsed);
+    }
+  } catch (error) {
+    console.warn(`Could not load split translations from ${dirPath}:`, (error as Error).message);
+  }
+  
+  return combined;
+}
+
+/**
+ * Save translations to split files directory
+ */
+export function saveSplitTranslations(
+  dirPath: string,
+  translations: Translations,
+  namespaceMapping: Record<string, string[]>
+): void {
+  ensureDir(dirPath);
+  
+  // Group translations by namespace
+  const grouped: Record<string, Translations> = {};
+  
+  for (const [key, value] of Object.entries(translations)) {
+    let targetFile = 'common';
+    
+    // Find which namespace this key belongs to
+    for (const [namespace, prefixes] of Object.entries(namespaceMapping)) {
+      if (prefixes.some(prefix => key.startsWith(prefix))) {
+        targetFile = namespace;
+        break;
+      }
+    }
+    
+    if (!grouped[targetFile]) {
+      grouped[targetFile] = {};
+    }
+    grouped[targetFile][key] = value;
+  }
+  
+  // Write each namespace file
+  for (const [namespace, data] of Object.entries(grouped)) {
+    const filePath = path.join(dirPath, `${namespace}.json`);
+    writeJSON(filePath, sortKeys(data as Record<string, unknown>));
   }
 }
 

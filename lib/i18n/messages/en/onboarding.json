@@ -1,0 +1,267 @@
+{
+  "welcome": {
+    "templates": "Templates",
+    "designer": "Designer",
+    "designerDesc": "Build UI components with AI",
+    "projects": "Projects",
+    "projectsDesc": "Manage knowledge & contexts",
+    "tryPrompts": "Try these prompts to get started",
+    "tryIt": "Try it",
+    "modes": {
+      "chat": {
+        "title": "Chat Mode",
+        "description": "Have natural conversations with AI. Perfect for quick questions, brainstorming, and everyday assistance.",
+        "features": {
+          "fast": "Fast responses",
+          "languages": "Multiple languages",
+          "context": "Context aware",
+          "creative": "Creative writing"
+        }
+      },
+      "agent": {
+        "title": "Agent Mode",
+        "description": "AI agent with tool access for complex tasks. Execute code, analyze data, and build applications.",
+        "features": {
+          "code": "Code execution",
+          "file": "File operations",
+          "data": "Data analysis",
+          "multi": "Multi-step tasks"
+        }
+      },
+      "research": {
+        "title": "Research Mode",
+        "description": "Deep web research with source citations. Search, analyze, and synthesize information from the web.",
+        "features": {
+          "search": "Web search",
+          "citations": "Source citations",
+          "factCheck": "Fact checking",
+          "report": "Report generation"
+        }
+      },
+      "learning": {
+        "title": "Learning Mode",
+        "description": "Step-by-step guided learning using the Socratic Method. Build understanding through questioning, not direct answers.",
+        "features": {
+          "socratic": "Socratic method",
+          "stepByStep": "Step-by-step guidance",
+          "noDirectAnswers": "Discovery-based",
+          "discovery": "Self-discovery"
+        }
+      }
+    },
+    "suggestions": {
+      "chat": {
+        "conversation": {
+          "title": "Conversation",
+          "description": "Have a natural conversation",
+          "prompt": "Let's have a conversation about something interesting."
+        },
+        "codeHelp": {
+          "title": "Code Help",
+          "description": "Get programming assistance",
+          "prompt": "Help me write a function that..."
+        },
+        "writing": {
+          "title": "Writing",
+          "description": "Draft emails, articles, or content",
+          "prompt": "Help me write a professional email about..."
+        },
+        "translation": {
+          "title": "Translation",
+          "description": "Translate text between languages",
+          "prompt": "Translate the following text to..."
+        }
+      },
+      "agent": {
+        "buildProject": {
+          "title": "Build Project",
+          "description": "Create a complete application",
+          "prompt": "Build a React component that..."
+        },
+        "dataAnalysis": {
+          "title": "Data Analysis",
+          "description": "Analyze and transform data",
+          "prompt": "Analyze this dataset and provide insights..."
+        },
+        "imageTasks": {
+          "title": "Image Tasks",
+          "description": "Process and analyze images",
+          "prompt": "Analyze this image and describe..."
+        },
+        "complexTask": {
+          "title": "Complex Task",
+          "description": "Multi-step problem solving",
+          "prompt": "Help me solve this complex problem step by step..."
+        }
+      },
+      "research": {
+        "webResearch": {
+          "title": "Web Research",
+          "description": "Search and summarize web content",
+          "prompt": "Research the latest developments in..."
+        },
+        "marketAnalysis": {
+          "title": "Market Analysis",
+          "description": "Analyze market trends and data",
+          "prompt": "Analyze the current market trends for..."
+        },
+        "literatureReview": {
+          "title": "Literature Review",
+          "description": "Summarize academic papers",
+          "prompt": "Summarize the key findings about..."
+        },
+        "factCheck": {
+          "title": "Fact Check",
+          "description": "Verify claims and find sources",
+          "prompt": "Fact check the following claim..."
+        }
+      },
+      "learning": {
+        "conceptExplore": {
+          "title": "Explore a Concept",
+          "description": "Understand a topic through guided questioning",
+          "prompt": "I want to understand the concept of..."
+        },
+        "problemSolving": {
+          "title": "Problem Solving",
+          "description": "Work through a problem step by step",
+          "prompt": "Help me understand how to solve..."
+        },
+        "deepUnderstanding": {
+          "title": "Deep Understanding",
+          "description": "Build comprehensive knowledge",
+          "prompt": "I want to deeply understand why..."
+        },
+        "skillMastery": {
+          "title": "Skill Mastery",
+          "description": "Learn a new skill through practice",
+          "prompt": "Teach me how to..."
+        }
+      }
+    }
+  },
+  "onboarding": {
+    "welcome": "Welcome to Cognia",
+    "welcomeDescription": "Let's get you set up in just a few steps",
+    "featureChat": "AI Chat",
+    "featureChatDesc": "Natural conversations with advanced AI models",
+    "featureAgent": "Agent Mode",
+    "featureAgentDesc": "Execute code, analyze data, and automate tasks",
+    "featureResearch": "Research Mode",
+    "featureResearchDesc": "Deep web research with source citations",
+    "selectProvider": "Choose Your AI Provider",
+    "selectProviderDescription": "Select a default AI provider to get started. You can add more providers later.",
+    "configureApiKey": "Configure {provider}",
+    "configureApiKeyDescription": "Enter your API key to start using this provider.",
+    "configureOllamaDescription": "Configure the Ollama server URL to use local models.",
+    "ollamaUrl": "Ollama Server URL",
+    "ollamaHint": "Make sure Ollama is running locally. Download from",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "Enter your API key...",
+    "getApiKeyFrom": "Get your API key from",
+    "testing": "Testing...",
+    "testConnection": "Test Connection",
+    "searchConfig": "Web Search Setup",
+    "searchConfigDescription": "Enable AI to search the web for up-to-date information.",
+    "enableWebSearch": "Enable Web Search",
+    "enableWebSearchDesc": "Allow AI to search the web during conversations",
+    "tavilyApiKey": "Tavily API Key",
+    "tavilyApiKeyPlaceholder": "tvly-...",
+    "getTavilyKey": "Get your free API key from",
+    "searchOptionalHint": "This step is optional. You can configure it later in Settings.",
+    "mcpConfig": "MCP Servers",
+    "mcpConfigDescription": "Extend AI capabilities with Model Context Protocol servers.",
+    "mcpOptionalHint": "This step is optional. You can add more servers later in Settings.",
+    "appearance": "Personalize Your Experience",
+    "appearanceDescription": "Choose your preferred theme and language.",
+    "themeLabel": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System",
+    "languageLabel": "Language",
+    "complete": "You're All Set!",
+    "completeDescription": "Your configuration is complete. You can always change these settings later.",
+    "summaryProvider": "Default Provider",
+    "summarySearch": "Web Search",
+    "summaryMcp": "MCP Servers",
+    "summaryMcpCount": "{count} selected",
+    "summaryConfigured": "Configured",
+    "summarySkipped": "Skipped",
+    "summaryTheme": "Theme",
+    "summaryLanguage": "Language",
+    "skip": "Skip for now",
+    "skipStep": "Skip",
+    "next": "Continue",
+    "getStarted": "Get Started",
+    "saveAndContinue": "Save & Continue",
+    "installAndContinue": "Install & Continue",
+    "installing": "Installing...",
+    "finish": "Start Using Cognia",
+    "localProvider": "Local",
+    "previous": "Back",
+    "step": "Step",
+    "skipTour": "Skip tour",
+    "tour": {
+      "welcomeTitle": "Welcome to Cognia",
+      "welcomeDesc": "Your AI-powered assistant for chat, code, research, and learning. Let me show you around!",
+      "modesTitle": "Multiple Modes",
+      "modesDesc": "Switch between Chat, Agent, Research, and Learning modes depending on your task.",
+      "sidebarTitle": "Session Management",
+      "sidebarDesc": "All your conversations are saved here. Search, organize, and pin your favorites.",
+      "inputTitle": "Start Chatting",
+      "inputDesc": "Type your message, attach files, use voice input, or mention @tools for special actions.",
+      "completeTitle": "You're All Set!",
+      "completeDesc": "Explore the settings for more customization options. Happy chatting!",
+      "settingsWelcome": "Settings Overview",
+      "settingsWelcomeDesc": "Customize Cognia to match your preferences and workflow.",
+      "settingsProviders": "AI Providers",
+      "settingsProvidersDesc": "Configure your AI providers and API keys. Add OpenAI, Anthropic, Google, and more.",
+      "settingsAppearance": "Appearance",
+      "settingsAppearanceDesc": "Customize the look and feel with themes, colors, and background settings.",
+      "settingsMcp": "MCP Servers",
+      "settingsMcpDesc": "Extend AI capabilities with Model Context Protocol servers for tools and integrations.",
+      "settingsSearch": "Web Search",
+      "settingsSearchDesc": "Configure search providers to enable AI web search and research capabilities.",
+      "settingsData": "Data Management",
+      "settingsDataDesc": "Export, import, and manage your chat history and settings.",
+      "projectsWelcome": "Projects Overview",
+      "projectsWelcomeDesc": "Organize your work into projects with custom contexts and knowledge bases.",
+      "projectsCreate": "Create Projects",
+      "projectsCreateDesc": "Create new projects to organize your conversations and documents by topic or task.",
+      "projectsKnowledge": "Knowledge Base",
+      "projectsKnowledgeDesc": "Add documents, code, and files to build a project-specific knowledge base for AI context.",
+      "projectsContext": "Project Context",
+      "projectsContextDesc": "Set custom instructions and context that apply to all conversations in this project.",
+      "designerWelcome": "AI App Designer",
+      "designerWelcomeDesc": "Build interactive AI-powered applications with a visual designer.",
+      "designerTemplates": "Templates",
+      "designerTemplatesDesc": "Start with pre-built templates for common use cases like chatbots, forms, and dashboards.",
+      "designerCanvas": "Design Canvas",
+      "designerCanvasDesc": "Drag and drop components to build your application interface.",
+      "designerPreview": "Preview & Deploy",
+      "designerPreviewDesc": "Preview your app in real-time and deploy it when ready.",
+      "academicWelcome": "Academic Mode",
+      "academicWelcomeDesc": "A specialized environment for research, learning, and academic writing.",
+      "academicResearch": "Research Tools",
+      "academicResearchDesc": "Search academic papers, analyze sources, and generate citations automatically.",
+      "academicKnowledge": "Knowledge Map",
+      "academicKnowledgeDesc": "Visualize connections between concepts and build a structured knowledge base.",
+      "academicWriting": "Writing Assistant",
+      "academicWritingDesc": "Get help with academic writing, including outlines, drafts, and citations."
+    }
+  },
+  "templates": {
+    "title": "Chat Templates",
+    "description": "Choose a template to start a new conversation with pre-configured settings",
+    "search": "Search templates...",
+    "all": "All",
+    "noTemplates": "No templates found",
+    "builtIn": "Built-in",
+    "useTemplate": "Use Template",
+    "selectToPreview": "Select a template to preview its details",
+    "systemPrompt": "System Prompt",
+    "suggestedPrompts": "Suggested Prompts",
+    "provider": "Provider",
+    "model": "Model"
+  }
+}

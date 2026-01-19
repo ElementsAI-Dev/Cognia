@@ -647,6 +647,7 @@ pub fn run() {
             commands::window::selection::selection_is_enabled,
             commands::window::selection::selection_restart,
             commands::window::selection::selection_set_toolbar_hovered,
+            commands::window::selection::selection_get_toolbar_state,
             commands::window::selection::selection_set_auto_hide_timeout,
             commands::window::selection::selection_get_detection_stats,
             commands::window::selection::selection_get_enhanced,

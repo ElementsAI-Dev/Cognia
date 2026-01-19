@@ -24,6 +24,13 @@ const DEBUG_TOOLBAR_WIDTH: f64 = 800.0;
 #[cfg(debug_assertions)]
 const DEBUG_TOOLBAR_HEIGHT: f64 = 700.0; // Extra height for dev overlay
 
+/// Actual visible toolbar content height (the toolbar bar itself, not the full window)
+/// This is used for positioning calculations to ensure the toolbar appears close to cursor
+const TOOLBAR_CONTENT_HEIGHT: f64 = 56.0; // Main toolbar bar height (~44px + padding)
+
+/// Padding from layout (p-3 = 12px)
+const LAYOUT_PADDING: f64 = 12.0;
+
 /// Get current toolbar dimensions based on build mode
 #[inline]
 fn get_current_dimensions() -> (f64, f64) {
@@ -43,8 +50,8 @@ const DEFAULT_AUTO_HIDE_MS: u64 = 0;
 /// Minimum distance from screen edge
 const SCREEN_EDGE_PADDING: i32 = 10;
 
-/// Offset above cursor
-const CURSOR_OFFSET_Y: i32 = 10;
+/// Offset from cursor (space between cursor and toolbar edge)
+const CURSOR_OFFSET_Y: i32 = 8;
 
 /// Floating toolbar window manager
 pub struct ToolbarWindow {
@@ -242,6 +249,12 @@ impl ToolbarWindow {
             text_len
         );
 
+        // Check if window already exists (for determining if we need to wait for load)
+        let window_existed = self
+            .app_handle
+            .get_webview_window(TOOLBAR_WINDOW_LABEL)
+            .is_some();
+
         self.ensure_window_exists()?;
 
         let window = self
@@ -291,23 +304,43 @@ impl ToolbarWindow {
         // from the application where text was selected, which would lose the selection.
         // The window is already always_on_top so it will be visible.
 
-        // Emit event to frontend with more details
-        self.app_handle
-            .emit(
-                "selection-toolbar-show",
-                serde_json::json!({
-                    "text": text,
-                    "x": adjusted_x,
-                    "y": adjusted_y,
-                    "textLength": text.len(),
-                }),
-            )
-            .map_err(|e| {
-                log::error!("[ToolbarWindow] Failed to emit show event: {}", e);
-                format!("Failed to emit event: {}", e)
-            })?;
-
         self.is_visible.store(true, Ordering::SeqCst);
+
+        // Emit event to frontend - if window was just created, add a delay for frontend to initialize
+        let app_handle = self.app_handle.clone();
+        let emit_delay = if window_existed { 0 } else { 150 }; // 150ms delay for new windows
+        
+        if emit_delay > 0 {
+            log::debug!("[ToolbarWindow] Window newly created, delaying event emission by {}ms", emit_delay);
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(tokio::time::Duration::from_millis(emit_delay)).await;
+                let _ = app_handle.emit(
+                    "selection-toolbar-show",
+                    serde_json::json!({
+                        "text": text,
+                        "x": adjusted_x,
+                        "y": adjusted_y,
+                        "textLength": text_len,
+                    }),
+                );
+                log::trace!("[ToolbarWindow] Delayed event emitted");
+            });
+        } else {
+            self.app_handle
+                .emit(
+                    "selection-toolbar-show",
+                    serde_json::json!({
+                        "text": text,
+                        "x": adjusted_x,
+                        "y": adjusted_y,
+                        "textLength": text_len,
+                    }),
+                )
+                .map_err(|e| {
+                    log::error!("[ToolbarWindow] Failed to emit show event: {}", e);
+                    format!("Failed to emit event: {}", e)
+                })?;
+        }
 
         // Schedule auto-hide if enabled
         self.schedule_auto_hide();
@@ -409,50 +442,79 @@ impl ToolbarWindow {
     }
 
     /// Calculate the best position for the toolbar
+    /// 
+    /// The toolbar window is larger than the visible content to accommodate popup panels.
+    /// This method positions the window so that the visible toolbar bar appears close to the cursor.
     fn calculate_position(&self, mouse_x: i32, mouse_y: i32, scale_factor: f64) -> (i32, i32) {
         log::trace!(
-            "[ToolbarWindow] calculate_position for mouse ({}, {})",
+            "[ToolbarWindow] calculate_position for mouse ({}, {}), scale={}",
             mouse_x,
-            mouse_y
+            mouse_y,
+            scale_factor
         );
+        
         // Get current window dimensions based on build mode
-        let (toolbar_width, toolbar_height) = get_current_dimensions();
-        let toolbar_width = (toolbar_width * scale_factor).round() as i32;
-        let toolbar_height = (toolbar_height * scale_factor).round() as i32;
+        let (window_width, _window_height) = get_current_dimensions();
+        let window_width = (window_width * scale_factor).round() as i32;
+        
+        // Calculate the actual visible content dimensions (toolbar bar + padding)
+        let content_height = ((TOOLBAR_CONTENT_HEIGHT + LAYOUT_PADDING * 2.0) * scale_factor).round() as i32;
+        let layout_padding = (LAYOUT_PADDING * scale_factor).round() as i32;
 
         // Get screen dimensions for the monitor containing the cursor
         let (screen_width, screen_height, screen_x, screen_y) =
             self.get_monitor_at_point(mouse_x, mouse_y);
         log::trace!(
-            "[ToolbarWindow] Monitor info: size={}x{}, offset=({}, {}), toolbar: {}x{}",
+            "[ToolbarWindow] Monitor: {}x{} at ({}, {}), content_height={}",
             screen_width,
             screen_height,
             screen_x,
             screen_y,
-            toolbar_width,
-            toolbar_height
+            content_height
         );
 
-        // Position toolbar above and centered on the mouse cursor
-        let toolbar_x = mouse_x - toolbar_width / 2;
-        let toolbar_y = mouse_y - toolbar_height - CURSOR_OFFSET_Y;
+        // Calculate horizontal position - center toolbar on cursor
+        let toolbar_x = mouse_x - window_width / 2;
 
-        // Calculate bounds relative to the current monitor
+        // Calculate horizontal bounds
         let min_x = screen_x + SCREEN_EDGE_PADDING;
-        let max_x = screen_x + screen_width - toolbar_width - SCREEN_EDGE_PADDING;
-        let min_y = screen_y + SCREEN_EDGE_PADDING;
-        let max_y = screen_y + screen_height - toolbar_height - SCREEN_EDGE_PADDING;
-
-        // Ensure toolbar stays within screen bounds
+        let max_x = screen_x + screen_width - window_width - SCREEN_EDGE_PADDING;
         let adjusted_x = toolbar_x.max(min_x).min(max_x);
-        let adjusted_y = if toolbar_y < min_y {
-            // If not enough space above, show below the cursor
-            mouse_y + 20
+
+        // Calculate vertical position
+        // The window top is positioned so the visible content (at the top of window with padding)
+        // appears just above the cursor
+        let space_above = mouse_y - screen_y - SCREEN_EDGE_PADDING;
+        let space_below = (screen_y + screen_height) - mouse_y - SCREEN_EDGE_PADDING;
+        
+        let adjusted_y = if space_above >= content_height + CURSOR_OFFSET_Y {
+            // Enough space above: position window so content bottom edge is above cursor
+            // Window top = cursor_y - cursor_offset - content_height - layout_padding
+            mouse_y - CURSOR_OFFSET_Y - content_height - layout_padding
+        } else if space_below >= content_height + CURSOR_OFFSET_Y + 20 {
+            // Not enough space above, but enough below: position below cursor
+            // Window top = cursor_y + cursor_offset (content starts at top with padding)
+            mouse_y + CURSOR_OFFSET_Y + 20 // 20px extra for selection highlight
         } else {
-            toolbar_y
+            // Tight space - position as best as possible
+            // Prefer showing above if there's any reasonable space
+            if space_above > space_below {
+                // Position at top edge of available space
+                screen_y + SCREEN_EDGE_PADDING
+            } else {
+                // Position below cursor, clamped to screen
+                let y = mouse_y + CURSOR_OFFSET_Y + 20;
+                let max_y = screen_y + screen_height - content_height - layout_padding - SCREEN_EDGE_PADDING;
+                y.min(max_y).max(screen_y + SCREEN_EDGE_PADDING)
+            }
         };
 
-        (adjusted_x, adjusted_y.max(min_y).min(max_y))
+        log::trace!(
+            "[ToolbarWindow] Position: ({}, {}) -> ({}, {}), space_above={}, space_below={}",
+            mouse_x, mouse_y, adjusted_x, adjusted_y, space_above, space_below
+        );
+
+        (adjusted_x, adjusted_y)
     }
 
     /// Get monitor info at a specific point (for multi-monitor support)
@@ -633,7 +695,13 @@ mod tests {
 
     #[test]
     fn test_cursor_offset_y_constant() {
-        assert_eq!(CURSOR_OFFSET_Y, 10);
+        assert_eq!(CURSOR_OFFSET_Y, 8);
+    }
+
+    #[test]
+    fn test_toolbar_content_height_constant() {
+        assert_eq!(TOOLBAR_CONTENT_HEIGHT, 56.0);
+        assert_eq!(LAYOUT_PADDING, 12.0);
     }
 
     // Note: ToolbarWindow requires a Tauri AppHandle which cannot be easily created in unit tests.
@@ -642,21 +710,26 @@ mod tests {
 
     #[test]
     fn test_position_calculation_logic() {
-        // Test the position calculation formula
+        // Test the position calculation formula using content height
         let mouse_x: i32 = 500;
         let mouse_y: i32 = 600;
 
         // Get current dimensions (varies by build mode)
-        let (toolbar_width, toolbar_height) = get_current_dimensions();
+        let (window_width, _) = get_current_dimensions();
         let scale_factor = 1.0;
-        let toolbar_width = (toolbar_width * scale_factor).round() as i32;
-        let toolbar_height = (toolbar_height * scale_factor).round() as i32;
+        let window_width = (window_width * scale_factor).round() as i32;
+        
+        // Calculate content height (used for positioning)
+        let content_height = ((TOOLBAR_CONTENT_HEIGHT + LAYOUT_PADDING * 2.0) * scale_factor).round() as i32;
+        let layout_padding = (LAYOUT_PADDING * scale_factor).round() as i32;
 
-        // Calculate expected position (formula from calculate_position)
-        let toolbar_x = mouse_x - toolbar_width / 2;
-        let toolbar_y = mouse_y - toolbar_height - CURSOR_OFFSET_Y;
+        // Horizontal: toolbar should be centered on cursor
+        let toolbar_x = mouse_x - window_width / 2;
+        
+        // Vertical: position so content bottom is above cursor
+        // Formula: mouse_y - CURSOR_OFFSET_Y - content_height - layout_padding
+        let toolbar_y = mouse_y - CURSOR_OFFSET_Y - content_height - layout_padding;
 
-        // Toolbar should be centered above cursor
         // In debug: 800/2 = 400, so 500 - 400 = 100
         // In release: 560/2 = 280, so 500 - 280 = 220
         #[cfg(debug_assertions)]
@@ -664,35 +737,27 @@ mod tests {
         #[cfg(not(debug_assertions))]
         assert_eq!(toolbar_x, 220);
 
-        // In debug: 600 - 700 - 10 = -110 (would be clamped)
-        // In release: 600 - 380 - 10 = 210
-        #[cfg(debug_assertions)]
-        assert_eq!(toolbar_y, -110);
-        #[cfg(not(debug_assertions))]
-        assert_eq!(toolbar_y, 210);
+        // content_height = 56 + 24 = 80, layout_padding = 12
+        // 600 - 8 - 80 - 12 = 500
+        assert_eq!(content_height, 80);
+        assert_eq!(toolbar_y, 500);
     }
 
     #[test]
     fn test_position_bounds_logic() {
         // Simulate bounds checking logic
         let screen_width = 1920;
-        let screen_height = 1080;
         let screen_x = 0;
-        let screen_y = 0;
 
         // Get current dimensions (varies by build mode)
-        let (toolbar_width, toolbar_height) = get_current_dimensions();
+        let (window_width, _) = get_current_dimensions();
         let scale_factor = 1.0;
-        let toolbar_width = (toolbar_width * scale_factor).round() as i32;
-        let toolbar_height = (toolbar_height * scale_factor).round() as i32;
+        let window_width = (window_width * scale_factor).round() as i32;
 
         let min_x = screen_x + SCREEN_EDGE_PADDING;
-        let max_x = screen_x + screen_width - toolbar_width - SCREEN_EDGE_PADDING;
-        let min_y = screen_y + SCREEN_EDGE_PADDING;
-        let max_y = screen_y + screen_height - toolbar_height - SCREEN_EDGE_PADDING;
+        let max_x = screen_x + screen_width - window_width - SCREEN_EDGE_PADDING;
 
         assert_eq!(min_x, 10);
-        assert_eq!(min_y, 10);
 
         // In debug: 1920 - 800 - 10 = 1110
         // In release: 1920 - 560 - 10 = 1350
@@ -700,35 +765,28 @@ mod tests {
         assert_eq!(max_x, 1110);
         #[cfg(not(debug_assertions))]
         assert_eq!(max_x, 1350);
-
-        // In debug: 1080 - 700 - 10 = 370
-        // In release: 1080 - 380 - 10 = 690
-        #[cfg(debug_assertions)]
-        assert_eq!(max_y, 370);
-        #[cfg(not(debug_assertions))]
-        assert_eq!(max_y, 690);
     }
 
     #[test]
     fn test_toolbar_below_cursor_when_near_top() {
         // When not enough space above, toolbar should go below cursor
-        let (toolbar_width, toolbar_height) = get_current_dimensions();
         let scale_factor = 1.0;
-        let toolbar_width = (toolbar_width * scale_factor).round() as i32;
-        let toolbar_height = (toolbar_height * scale_factor).round() as i32;
-        let _ = toolbar_width; // Unused but good to verify it's accessible
+        let content_height = ((TOOLBAR_CONTENT_HEIGHT + LAYOUT_PADDING * 2.0) * scale_factor).round() as i32;
 
-        // Use a position that would be near top in any build mode
+        // Use a position near top of screen
+        let screen_y = 0;
         let mouse_y: i32 = 50;
-        let toolbar_y = mouse_y - toolbar_height - CURSOR_OFFSET_Y;
-        let min_y = SCREEN_EDGE_PADDING;
+        
+        // Calculate space above cursor
+        let space_above = mouse_y - screen_y - SCREEN_EDGE_PADDING;
+        
+        // Space above (50 - 0 - 10 = 40) is less than content_height (80) + offset (8)
+        assert!(space_above < content_height + CURSOR_OFFSET_Y);
 
-        // toolbar_y would be negative in both modes
-        assert!(toolbar_y < min_y);
-
-        // In this case, toolbar should be below cursor (mouse_y + 20)
-        let adjusted_y = mouse_y + 20;
-        assert_eq!(adjusted_y, 70);
+        // In this case, toolbar should be below cursor
+        // Formula: mouse_y + CURSOR_OFFSET_Y + 20
+        let adjusted_y = mouse_y + CURSOR_OFFSET_Y + 20;
+        assert_eq!(adjusted_y, 78);
     }
 
     #[test]

@@ -6,6 +6,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Code2,
   FileCode2,
@@ -70,45 +71,45 @@ interface WizardState {
 // Constants
 // =============================================================================
 
-const STEPS: { id: WizardStep; title: string; description: string }[] = [
-  { id: 'template', title: 'Choose Template', description: 'Start with a template or from scratch' },
-  { id: 'details', title: 'Plugin Details', description: 'Basic information about your plugin' },
-  { id: 'capabilities', title: 'Capabilities', description: 'What your plugin will provide' },
-  { id: 'preview', title: 'Preview & Create', description: 'Review and generate your plugin' },
+const STEP_KEYS: { id: WizardStep; titleKey: string; descKey: string }[] = [
+  { id: 'template', titleKey: 'steps.template', descKey: 'steps.templateDesc' },
+  { id: 'details', titleKey: 'steps.details', descKey: 'steps.detailsDesc' },
+  { id: 'capabilities', titleKey: 'steps.capabilities', descKey: 'steps.capabilitiesDesc' },
+  { id: 'preview', titleKey: 'steps.preview', descKey: 'steps.previewDesc' },
 ];
 
-const TYPE_INFO: Record<PluginType, { icon: React.ElementType; label: string; description: string }> = {
+const TYPE_INFO: Record<PluginType, { icon: React.ElementType; labelKey: string; descKey: string }> = {
   frontend: {
     icon: Code2,
-    label: 'Frontend',
-    description: 'TypeScript/React plugin running in the browser',
+    labelKey: 'types.frontend',
+    descKey: 'types.frontendDesc',
   },
   python: {
     icon: FileCode2,
-    label: 'Python',
-    description: 'Python plugin for data processing and backend tasks',
+    labelKey: 'types.python',
+    descKey: 'types.pythonDesc',
   },
   hybrid: {
     icon: Sparkles,
-    label: 'Hybrid',
-    description: 'Combines frontend UI with Python backend',
+    labelKey: 'types.hybrid',
+    descKey: 'types.hybridDesc',
   },
 };
 
-const CAPABILITY_INFO: Record<PluginCapability, { label: string; description: string }> = {
-  tools: { label: 'Tools', description: 'Provide tools for the AI agent' },
-  components: { label: 'Components', description: 'Custom A2UI components' },
-  modes: { label: 'Agent Modes', description: 'Custom agent behavior modes' },
-  skills: { label: 'Skills', description: 'Packaged skill definitions' },
-  themes: { label: 'Themes', description: 'UI theme customization' },
-  commands: { label: 'Commands', description: 'Slash commands' },
-  hooks: { label: 'Hooks', description: 'Lifecycle event handlers' },
-  processors: { label: 'Processors', description: 'Message processors' },
-  providers: { label: 'Providers', description: 'AI model providers' },
-  exporters: { label: 'Exporters', description: 'Export formats' },
-  importers: { label: 'Importers', description: 'Import handlers' },
-  a2ui: { label: 'A2UI', description: 'A2UI integration' },
-  python: { label: 'Python', description: 'Python runtime support' },
+const CAPABILITY_INFO: Record<PluginCapability, { labelKey: string; descKey: string }> = {
+  tools: { labelKey: 'capabilities.tools', descKey: 'capabilities.toolsDesc' },
+  components: { labelKey: 'capabilities.components', descKey: 'capabilities.componentsDesc' },
+  modes: { labelKey: 'capabilities.modes', descKey: 'capabilities.modesDesc' },
+  skills: { labelKey: 'capabilities.skills', descKey: 'capabilities.skillsDesc' },
+  themes: { labelKey: 'capabilities.themes', descKey: 'capabilities.themesDesc' },
+  commands: { labelKey: 'capabilities.commands', descKey: 'capabilities.commandsDesc' },
+  hooks: { labelKey: 'capabilities.hooks', descKey: 'capabilities.hooksDesc' },
+  processors: { labelKey: 'capabilities.processors', descKey: 'capabilities.processorsDesc' },
+  providers: { labelKey: 'capabilities.providers', descKey: 'capabilities.providersDesc' },
+  exporters: { labelKey: 'capabilities.exporters', descKey: 'capabilities.exportersDesc' },
+  importers: { labelKey: 'capabilities.importers', descKey: 'capabilities.importersDesc' },
+  a2ui: { labelKey: 'capabilities.a2ui', descKey: 'capabilities.a2uiDesc' },
+  python: { labelKey: 'capabilities.pythonCap', descKey: 'capabilities.pythonCapDesc' },
 };
 
 // =============================================================================
@@ -263,6 +264,7 @@ export function PluginCreateWizard({
   onOpenChange,
   onComplete,
 }: PluginCreateWizardProps) {
+  const t = useTranslations('pluginCreateWizard');
   const [currentStep, setCurrentStep] = useState<WizardStep>('template');
   const [state, setState] = useState<WizardState>({
     selectedTemplate: null,
@@ -275,7 +277,7 @@ export function PluginCreateWizard({
     capabilities: ['tools'],
   });
 
-  const currentStepIndex = STEPS.findIndex(s => s.id === currentStep);
+  const currentStepIndex = STEP_KEYS.findIndex(s => s.id === currentStep);
 
   const generatedFiles = useMemo(() => {
     if (!state.name || !state.id) return new Map<string, string>();
@@ -313,15 +315,15 @@ export function PluginCreateWizard({
 
   const handleNext = () => {
     const nextIndex = currentStepIndex + 1;
-    if (nextIndex < STEPS.length) {
-      setCurrentStep(STEPS[nextIndex].id);
+    if (nextIndex < STEP_KEYS.length) {
+      setCurrentStep(STEP_KEYS[nextIndex].id);
     }
   };
 
   const handleBack = () => {
     const prevIndex = currentStepIndex - 1;
     if (prevIndex >= 0) {
-      setCurrentStep(STEPS[prevIndex].id);
+      setCurrentStep(STEP_KEYS[prevIndex].id);
     }
   };
 
@@ -367,16 +369,16 @@ export function PluginCreateWizard({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Puzzle className="h-5 w-5" />
-            Create New Plugin
+            {t('title')}
           </DialogTitle>
           <DialogDescription>
-            {STEPS[currentStepIndex].description}
+            {t(STEP_KEYS[currentStepIndex].descKey)}
           </DialogDescription>
         </DialogHeader>
 
         {/* Progress Steps */}
         <div className="flex items-center justify-between px-4 py-2 border-b">
-          {STEPS.map((step, i) => (
+          {STEP_KEYS.map((step, i) => (
             <div key={step.id} className="flex items-center">
               <div
                 className={cn(
@@ -396,9 +398,9 @@ export function PluginCreateWizard({
                   i === currentStepIndex ? 'font-medium' : 'text-muted-foreground'
                 )}
               >
-                {step.title}
+                {t(step.titleKey)}
               </span>
-              {i < STEPS.length - 1 && (
+              {i < STEP_KEYS.length - 1 && (
                 <ChevronRight className="h-4 w-4 mx-4 text-muted-foreground" />
               )}
             </div>
@@ -430,7 +432,7 @@ export function PluginCreateWizard({
                   ))}
                 </div>
                 <div className="text-center text-sm text-muted-foreground">
-                  Or skip to create from scratch
+                  {t('template.skipToScratch')}
                 </div>
               </div>
             )}
@@ -439,65 +441,65 @@ export function PluginCreateWizard({
             {currentStep === 'details' && (
               <div className="space-y-6 max-w-lg mx-auto">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Plugin Name *</Label>
+                  <Label htmlFor="name">{t('details.pluginName')} *</Label>
                   <Input
                     id="name"
                     value={state.name}
                     onChange={e => handleNameChange(e.target.value)}
-                    placeholder="My Awesome Plugin"
+                    placeholder={t('details.pluginNamePlaceholder')}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="id">Plugin ID *</Label>
+                  <Label htmlFor="id">{t('details.pluginId')} *</Label>
                   <Input
                     id="id"
                     value={state.id}
                     onChange={e => setState(s => ({ ...s, id: e.target.value }))}
-                    placeholder="my-awesome-plugin"
+                    placeholder={t('details.pluginIdPlaceholder')}
                     className="font-mono"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Unique identifier (lowercase, hyphens only)
+                    {t('details.pluginIdHint')}
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description">{t('details.description')}</Label>
                   <Textarea
                     id="description"
                     value={state.description}
                     onChange={e => setState(s => ({ ...s, description: e.target.value }))}
-                    placeholder="A brief description of what your plugin does..."
+                    placeholder={t('details.descriptionPlaceholder')}
                     rows={3}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="authorName">Author Name *</Label>
+                    <Label htmlFor="authorName">{t('details.authorName')} *</Label>
                     <Input
                       id="authorName"
                       value={state.authorName}
                       onChange={e => setState(s => ({ ...s, authorName: e.target.value }))}
-                      placeholder="Your Name"
+                      placeholder={t('details.authorNamePlaceholder')}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="authorEmail">Author Email</Label>
+                    <Label htmlFor="authorEmail">{t('details.authorEmail')}</Label>
                     <Input
                       id="authorEmail"
                       type="email"
                       value={state.authorEmail}
                       onChange={e => setState(s => ({ ...s, authorEmail: e.target.value }))}
-                      placeholder="you@example.com"
+                      placeholder={t('details.authorEmailPlaceholder')}
                     />
                   </div>
                 </div>
 
                 {!state.selectedTemplate && (
                   <div className="space-y-2">
-                    <Label>Plugin Type</Label>
+                    <Label>{t('details.pluginType')}</Label>
                     <RadioGroup
                       value={state.pluginType}
                       onValueChange={v => setState(s => ({ ...s, pluginType: v as PluginType }))}
@@ -512,9 +514,9 @@ export function PluginCreateWizard({
                               className="flex items-center gap-2 cursor-pointer"
                             >
                               <Icon className="h-4 w-4" />
-                              <span className="font-medium">{info.label}</span>
+                              <span className="font-medium">{t(info.labelKey)}</span>
                               <span className="text-muted-foreground">
-                                - {info.description}
+                                - {t(info.descKey)}
                               </span>
                             </Label>
                           </div>
@@ -530,7 +532,7 @@ export function PluginCreateWizard({
             {currentStep === 'capabilities' && !state.selectedTemplate && (
               <div className="space-y-4 max-w-lg mx-auto">
                 <p className="text-sm text-muted-foreground">
-                  Select what your plugin will provide:
+                  {t('capabilities.selectPrompt')}
                 </p>
                 <div className="grid grid-cols-2 gap-3">
                   {(Object.entries(CAPABILITY_INFO) as [PluginCapability, typeof CAPABILITY_INFO[PluginCapability]][]).map(
@@ -550,8 +552,8 @@ export function PluginCreateWizard({
                           onCheckedChange={() => toggleCapability(cap)}
                         />
                         <div>
-                          <p className="font-medium text-sm">{info.label}</p>
-                          <p className="text-xs text-muted-foreground">{info.description}</p>
+                          <p className="font-medium text-sm">{t(info.labelKey)}</p>
+                          <p className="text-xs text-muted-foreground">{t(info.descKey)}</p>
                         </div>
                       </div>
                     )
@@ -564,15 +566,15 @@ export function PluginCreateWizard({
               <div className="text-center py-8">
                 <Sparkles className="h-12 w-12 mx-auto text-primary mb-4" />
                 <h3 className="text-lg font-medium mb-2">
-                  Using {state.selectedTemplate.name} Template
+                  {t('capabilities.usingTemplate', { name: state.selectedTemplate.name })}
                 </h3>
                 <p className="text-muted-foreground mb-4">
-                  Capabilities are pre-configured for this template:
+                  {t('capabilities.preConfigured')}
                 </p>
                 <div className="flex flex-wrap justify-center gap-2">
                   {state.selectedTemplate.capabilities.map(cap => (
                     <Badge key={cap} variant="secondary">
-                      {CAPABILITY_INFO[cap]?.label || cap}
+                      {t(CAPABILITY_INFO[cap]?.labelKey) || cap}
                     </Badge>
                   ))}
                 </div>
@@ -589,9 +591,9 @@ export function PluginCreateWizard({
                   </div>
                   <div className="flex gap-2">
                     <Badge variant="outline">
-                      {TYPE_INFO[state.selectedTemplate?.type || state.pluginType].label}
+                      {t(TYPE_INFO[state.selectedTemplate?.type || state.pluginType].labelKey)}
                     </Badge>
-                    <Badge variant="secondary">{generatedFiles.size} files</Badge>
+                    <Badge variant="secondary">{t('preview.filesCount', { count: generatedFiles.size })}</Badge>
                   </div>
                 </div>
                 <FilePreview files={generatedFiles} />
@@ -608,7 +610,7 @@ export function PluginCreateWizard({
             disabled={currentStepIndex === 0}
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
-            Back
+            {t('navigation.back')}
           </Button>
 
           <div className="flex gap-2">
@@ -616,16 +618,16 @@ export function PluginCreateWizard({
               <>
                 <Button variant="outline" onClick={() => {}}>
                   <Download className="h-4 w-4 mr-2" />
-                  Download ZIP
+                  {t('navigation.downloadZip')}
                 </Button>
                 <Button onClick={handleComplete}>
                   <FolderOpen className="h-4 w-4 mr-2" />
-                  Create in Plugins
+                  {t('navigation.createInPlugins')}
                 </Button>
               </>
             ) : (
               <Button onClick={handleNext} disabled={!canProceed}>
-                Next
+                {t('navigation.next')}
                 <ChevronRight className="h-4 w-4 ml-2" />
               </Button>
             )}

@@ -109,6 +109,22 @@ function listBackups(backupDir: string): BackupInfo[] {
   return backups.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 }
 
+function copyDirRecursive(src: string, dest: string): void {
+  ensureDir(dest);
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+  
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    
+    if (entry.isDirectory()) {
+      copyDirRecursive(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
 function createBackup(config: ReturnType<typeof loadConfig>): void {
   const backupDir = getBackupDir(config);
   const timestamp = generateTimestamp();
@@ -122,14 +138,25 @@ function createBackup(config: ReturnType<typeof loadConfig>): void {
 
   const files: string[] = [];
 
+  // Check if paths are directories (split files) or single files
   if (fs.existsSync(enPath)) {
-    fs.copyFileSync(enPath, path.join(backupPath, 'en.json'));
-    files.push('en.json');
+    if (fs.statSync(enPath).isDirectory()) {
+      copyDirRecursive(enPath, path.join(backupPath, 'en'));
+      files.push('en/');
+    } else {
+      fs.copyFileSync(enPath, path.join(backupPath, 'en.json'));
+      files.push('en.json');
+    }
   }
 
   if (fs.existsSync(zhPath)) {
-    fs.copyFileSync(zhPath, path.join(backupPath, 'zh-CN.json'));
-    files.push('zh-CN.json');
+    if (fs.statSync(zhPath).isDirectory()) {
+      copyDirRecursive(zhPath, path.join(backupPath, 'zh-CN'));
+      files.push('zh-CN/');
+    } else {
+      fs.copyFileSync(zhPath, path.join(backupPath, 'zh-CN.json'));
+      files.push('zh-CN.json');
+    }
   }
 
   const metadata: BackupMetadata = {
@@ -167,18 +194,34 @@ function restoreBackup(config: ReturnType<typeof loadConfig>, backupId: string):
     process.exit(1);
   }
 
-  const enBackup = path.join(backupPath, 'en.json');
-  const zhBackup = path.join(backupPath, 'zh-CN.json');
   const enPath = path.join(process.cwd(), config.existingTranslations.enPath);
   const zhPath = path.join(process.cwd(), config.existingTranslations.zhCNPath);
 
-  if (fs.existsSync(enBackup)) {
-    fs.copyFileSync(enBackup, enPath);
+  // Check for split files backup (directory) or single file backup
+  const enBackupDir = path.join(backupPath, 'en');
+  const zhBackupDir = path.join(backupPath, 'zh-CN');
+  const enBackupFile = path.join(backupPath, 'en.json');
+  const zhBackupFile = path.join(backupPath, 'zh-CN.json');
+
+  // Restore English translations
+  if (fs.existsSync(enBackupDir) && fs.statSync(enBackupDir).isDirectory()) {
+    // Restore from split files backup
+    ensureDir(enPath);
+    copyDirRecursive(enBackupDir, enPath);
+    log.success(`Restored: ${config.existingTranslations.enPath}/`);
+  } else if (fs.existsSync(enBackupFile)) {
+    fs.copyFileSync(enBackupFile, enPath.endsWith('.json') ? enPath : `${enPath}.json`);
     log.success(`Restored: ${config.existingTranslations.enPath}`);
   }
 
-  if (fs.existsSync(zhBackup)) {
-    fs.copyFileSync(zhBackup, zhPath);
+  // Restore Chinese translations
+  if (fs.existsSync(zhBackupDir) && fs.statSync(zhBackupDir).isDirectory()) {
+    // Restore from split files backup
+    ensureDir(zhPath);
+    copyDirRecursive(zhBackupDir, zhPath);
+    log.success(`Restored: ${config.existingTranslations.zhCNPath}/`);
+  } else if (fs.existsSync(zhBackupFile)) {
+    fs.copyFileSync(zhBackupFile, zhPath.endsWith('.json') ? zhPath : `${zhPath}.json`);
     log.success(`Restored: ${config.existingTranslations.zhCNPath}`);
   }
 

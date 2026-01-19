@@ -182,14 +182,14 @@ export function ThemeImportExport() {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           <FileJson className="h-3.5 w-3.5 mr-1.5" />
-          Import/Export
+          {t('importExportThemes')}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
-          <DialogTitle>{t('importExportThemes') || 'Import/Export Themes'}</DialogTitle>
+          <DialogTitle>{t('importExportThemes')}</DialogTitle>
           <DialogDescription>
-            {t('importExportDescription') || 'Share your custom themes or import from a file'}
+            {t('importExportDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -198,10 +198,10 @@ export function ThemeImportExport() {
           <div className="rounded-lg border p-4 space-y-3">
             <div className="flex items-center gap-2">
               <Download className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium text-sm">Export Themes</span>
+              <span className="font-medium text-sm">{t('exportThemes')}</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Export all your custom themes ({customThemes.length}) to a JSON file
+              {t('exportThemesDesc', { count: customThemes.length })}
             </p>
             <Button
               variant="outline"
@@ -211,7 +211,7 @@ export function ThemeImportExport() {
               className="w-full"
             >
               <Download className="h-3.5 w-3.5 mr-1.5" />
-              Export to File
+              {t('exportToFile')}
             </Button>
           </div>
 
@@ -219,10 +219,10 @@ export function ThemeImportExport() {
           <div className="rounded-lg border p-4 space-y-3">
             <div className="flex items-center gap-2">
               <Upload className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium text-sm">Import Themes</span>
+              <span className="font-medium text-sm">{t('importThemes')}</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Import custom themes from a JSON file
+              {t('importThemesDesc')}
             </p>
             <input
               ref={fileInputRef}
@@ -238,7 +238,7 @@ export function ThemeImportExport() {
               className="w-full"
             >
               <Upload className="h-3.5 w-3.5 mr-1.5" />
-              Select File
+              {t('selectFile')}
             </Button>
 
             {/* Import Status */}
@@ -262,7 +262,7 @@ export function ThemeImportExport() {
           {/* Current Themes Count */}
           {customThemes.length > 0 && (
             <div className="text-xs text-muted-foreground text-center">
-              You have {customThemes.length} custom theme{customThemes.length > 1 ? 's' : ''}
+              {t('customThemesCount', { count: customThemes.length })}
             </div>
           )}
         </div>

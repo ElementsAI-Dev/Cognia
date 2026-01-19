@@ -52,9 +52,8 @@ import { useSettingsProfilesStore, type SettingsProfile } from '@/stores/setting
 import { cn } from '@/lib/utils';
 
 export function SettingsProfiles() {
-  const _t = useTranslations('settings');
+  const t = useTranslations('settingsProfilesSettings');
   const tc = useTranslations('common');
-  const language = useSettingsStore((state) => state.language);
 
   // Current settings from store
   const theme = useSettingsStore((state) => state.theme);
@@ -94,8 +93,6 @@ export function SettingsProfiles() {
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [importMessage, setImportMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const isZh = language === 'zh-CN';
 
   const handleCreateProfile = () => {
     if (!newProfileName.trim()) return;
@@ -180,10 +177,10 @@ export function SettingsProfiles() {
 
       if (result.success) {
         setImportStatus('success');
-        setImportMessage(isZh ? '导入成功' : 'Profile imported successfully');
+        setImportMessage(t('importSuccess'));
       } else {
         setImportStatus('error');
-        setImportMessage(result.error || (isZh ? '导入失败' : 'Import failed'));
+        setImportMessage(result.error || t('importFailed'));
       }
 
       setTimeout(() => {
@@ -213,10 +210,10 @@ export function SettingsProfiles() {
             <Layers className="h-4 w-4 text-muted-foreground" />
             <div>
               <CardTitle className="text-base">
-                {isZh ? '外观配置' : 'Appearance Profiles'}
+                {t('title')}
               </CardTitle>
               <CardDescription className="text-xs">
-                {isZh ? '保存和加载不同的外观配置' : 'Save and load different appearance configurations'}
+                {t('description')}
               </CardDescription>
             </div>
           </div>
@@ -235,48 +232,46 @@ export function SettingsProfiles() {
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="h-3 w-3 mr-1" />
-              {isZh ? '导入' : 'Import'}
+              {t('import')}
             </Button>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="default" size="sm" className="h-7 text-xs">
                   <Plus className="h-3 w-3 mr-1" />
-                  {isZh ? '新建' : 'New'}
+                  {t('new')}
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[400px]">
                 <DialogHeader>
                   <DialogTitle>
-                    {isZh ? '新建配置' : 'New Profile'}
+                    {t('newProfile')}
                   </DialogTitle>
                   <DialogDescription>
-                    {isZh
-                      ? '保存当前外观设置为新的配置'
-                      : 'Save current appearance settings as a new profile'}
+                    {t('newProfileDesc')}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
                     <Label htmlFor="profile-name" className="text-xs">
-                      {isZh ? '配置名称' : 'Profile Name'}
+                      {t('profileName')}
                     </Label>
                     <Input
                       id="profile-name"
                       value={newProfileName}
                       onChange={(e) => setNewProfileName(e.target.value)}
-                      placeholder={isZh ? '我的外观配置' : 'My Appearance Profile'}
+                      placeholder={t('profileNamePlaceholder')}
                       className="h-8"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="profile-description" className="text-xs">
-                      {isZh ? '描述（可选）' : 'Description (optional)'}
+                      {t('descriptionLabel')}
                     </Label>
                     <Input
                       id="profile-description"
                       value={newProfileDescription}
                       onChange={(e) => setNewProfileDescription(e.target.value)}
-                      placeholder={isZh ? '暗色主题配置' : 'Dark theme setup'}
+                      placeholder={t('descriptionPlaceholder')}
                       className="h-8"
                     />
                   </div>
@@ -287,7 +282,7 @@ export function SettingsProfiles() {
                   </Button>
                   <Button onClick={handleCreateProfile} disabled={!newProfileName.trim()}>
                     <Save className="h-3.5 w-3.5 mr-1" />
-                    {isZh ? '保存' : 'Save'}
+                    {t('save')}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -317,7 +312,7 @@ export function SettingsProfiles() {
         {/* Profiles List */}
         {profiles.length === 0 ? (
           <div className="text-center py-6 text-muted-foreground text-sm">
-            {isZh ? '暂无保存的配置' : 'No saved profiles'}
+            {t('noSavedProfiles')}
           </div>
         ) : (
           <ScrollArea className="h-[200px]">
@@ -337,7 +332,7 @@ export function SettingsProfiles() {
                       <span className="font-medium text-sm truncate">{profile.name}</span>
                       {activeProfileId === profile.id && (
                         <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded">
-                          {isZh ? '当前' : 'Active'}
+                          {t('active')}
                         </span>
                       )}
                     </div>
@@ -345,7 +340,7 @@ export function SettingsProfiles() {
                       <p className="text-xs text-muted-foreground truncate">{profile.description}</p>
                     )}
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {isZh ? '更新于' : 'Updated'}{' '}
+                      {t('updated')}{' '}
                       {new Date(profile.updatedAt).toLocaleDateString()}
                     </p>
                   </div>
@@ -357,7 +352,7 @@ export function SettingsProfiles() {
                       onClick={() => handleLoadProfile(profile)}
                     >
                       <FolderOpen className="h-3 w-3 mr-1" />
-                      {isZh ? '加载' : 'Load'}
+                      {t('load')}
                     </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -368,15 +363,15 @@ export function SettingsProfiles() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => handleSaveToProfile(profile.id)}>
                           <Save className="h-3.5 w-3.5 mr-2" />
-                          {isZh ? '保存当前设置' : 'Save Current'}
+                          {t('saveCurrent')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDuplicateProfile(profile.id)}>
                           <Copy className="h-3.5 w-3.5 mr-2" />
-                          {isZh ? '复制' : 'Duplicate'}
+                          {t('duplicate')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleExportProfile(profile.id)}>
                           <Download className="h-3.5 w-3.5 mr-2" />
-                          {isZh ? '导出' : 'Export'}
+                          {t('export')}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -384,7 +379,7 @@ export function SettingsProfiles() {
                           className="text-destructive focus:text-destructive"
                         >
                           <Trash2 className="h-3.5 w-3.5 mr-2" />
-                          {isZh ? '删除' : 'Delete'}
+                          {t('delete')}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

@@ -1,0 +1,65 @@
+{
+  "artifacts": {
+    "title": "Artifacts",
+    "code": "Code",
+    "preview": "Preview",
+    "download": "Download",
+    "revealInExplorer": "Reveal in File Explorer",
+    "openWithDefault": "Open with Default App",
+    "editInCanvas": "Edit in Canvas",
+    "previewInDesigner": "Preview in Designer",
+    "openFullDesigner": "Open Full Designer",
+    "noArtifact": "No artifact selected",
+    "createArtifact": "Create Artifact",
+    "artifactTypes": {
+      "code": "Code",
+      "document": "Document",
+      "svg": "SVG",
+      "html": "HTML",
+      "react": "React Component",
+      "mermaid": "Mermaid Diagram",
+      "chart": "Chart",
+      "math": "Math"
+    },
+    "typeCode": "Code",
+    "typeDocument": "Document",
+    "typeSvg": "SVG",
+    "typeHtml": "HTML",
+    "typeReact": "React",
+    "typeMermaid": "Diagram",
+    "typeChart": "Chart",
+    "typeMath": "Math",
+    "typeJupyter": "Jupyter"
+  },
+  "artifactPreview": {
+    "previewError": "Preview error",
+    "previewTitle": "Preview: {title}"
+  },
+  "artifactList": {
+    "noArtifacts": "No artifacts yet",
+    "noArtifactsDesc": "Code snippets and content will appear here",
+    "open": "Open",
+    "delete": "Delete",
+    "types": {
+      "code": "Code",
+      "document": "Document",
+      "svg": "SVG",
+      "html": "HTML",
+      "react": "React",
+      "mermaid": "Diagram",
+      "chart": "Chart",
+      "math": "Math",
+      "jupyter": "Jupyter"
+    }
+  },
+  "artifactCreateButton": {
+    "createArtifact": "Create Artifact",
+    "asCode": "As Code",
+    "asReact": "As React Component",
+    "asHtml": "As HTML Page",
+    "asDocument": "As Document",
+    "asMermaid": "As Mermaid Diagram",
+    "asChart": "As Chart",
+    "asMath": "As Math Expression"
+  }
+}

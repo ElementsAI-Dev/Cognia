@@ -1,6 +1,6 @@
 "use client";
 
-import { SelectionToolbar } from "@/components/selection-toolbar";
+import { StandaloneSelectionToolbar } from "./standalone-toolbar";
 
 export default function SelectionToolbarPage() {
   return (
@@ -10,7 +10,7 @@ export default function SelectionToolbarPage() {
         while allowing it to expand naturally in production (560px window)
         pointer-events-auto ensures toolbar is clickable on transparent window
       */}
-      <SelectionToolbar />
+      <StandaloneSelectionToolbar />
     </div>
   );
 }

@@ -1,0 +1,358 @@
+{
+  "pluginSettings": {
+    "title": "Plugins",
+    "enabledCount": "{count} enabled",
+    "installedCount": "{count} installed",
+    "refresh": "Refresh",
+    "import": "Import",
+    "fromFolder": "From Folder",
+    "fromZip": "From ZIP",
+    "fromGitUrl": "From Git URL",
+    "createPlugin": "Create Plugin",
+    "tabs": {
+      "installed": "Installed",
+      "analytics": "Analytics",
+      "develop": "Develop",
+      "health": "Health",
+      "settings": "Settings"
+    },
+    "filters": {
+      "searchPlaceholder": "Search plugins...",
+      "allStatus": "All Status",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "error": "Error",
+      "allTypes": "All Types",
+      "frontend": "Frontend",
+      "python": "Python",
+      "hybrid": "Hybrid",
+      "allCapabilities": "All Capabilities",
+      "tools": "Tools",
+      "components": "Components",
+      "modes": "Modes",
+      "commands": "Commands",
+      "hooks": "Hooks",
+      "sortByName": "Name",
+      "sortByRecent": "Recent",
+      "sortByStatus": "Status"
+    },
+    "emptyState": {
+      "noMatch": "No plugins match your filters",
+      "tryAdjusting": "Try adjusting your search or filters",
+      "noPlugins": "No plugins installed",
+      "createFirst": "Create your first plugin or import one"
+    },
+    "statusBar": {
+      "pluginsShown": "{count} plugins shown",
+      "errors": "{count} errors",
+      "enabledCount": "{count} enabled",
+      "disabledCount": "{count} disabled"
+    },
+    "settingsTab": {
+      "title": "Plugin Settings",
+      "description": "Configure global plugin system settings",
+      "autoEnable": "Auto-enable plugins",
+      "autoEnableDesc": "Automatically enable newly installed plugins",
+      "configure": "Configure",
+      "pluginDirectory": "Plugin directory",
+      "open": "Open",
+      "pythonEnvironment": "Python environment",
+      "pythonEnvironmentDesc": "Configure Python runtime for plugins",
+      "clearCache": "Clear plugin cache",
+      "clearCacheDesc": "Remove cached plugin data and reload",
+      "clearCacheBtn": "Clear Cache"
+    }
+  },
+  "pluginConfig": {
+    "tabs": {
+      "configuration": "Configuration",
+      "information": "Information",
+      "permissions": "Permissions"
+    },
+    "noConfig": "This plugin has no configuration options.",
+    "reset": "Reset",
+    "save": "Save",
+    "info": {
+      "id": "ID",
+      "version": "Version",
+      "type": "Type",
+      "author": "Author",
+      "homepage": "Homepage",
+      "capabilities": "Capabilities",
+      "path": "Path"
+    },
+    "permissions": {
+      "noPermissions": "This plugin requires no special permissions.",
+      "pending": "Pending"
+    }
+  },
+  "pluginCreateWizard": {
+    "title": "Create New Plugin",
+    "steps": {
+      "template": "Choose Template",
+      "templateDesc": "Start with a template or from scratch",
+      "details": "Plugin Details",
+      "detailsDesc": "Basic information about your plugin",
+      "capabilities": "Capabilities",
+      "capabilitiesDesc": "What your plugin will provide",
+      "preview": "Preview & Create",
+      "previewDesc": "Review and generate your plugin"
+    },
+    "template": {
+      "skipToScratch": "Or skip to create from scratch"
+    },
+    "details": {
+      "pluginName": "Plugin Name",
+      "pluginNamePlaceholder": "My Awesome Plugin",
+      "pluginId": "Plugin ID",
+      "pluginIdPlaceholder": "my-awesome-plugin",
+      "pluginIdHint": "Unique identifier (lowercase, hyphens only)",
+      "description": "Description",
+      "descriptionPlaceholder": "A brief description of what your plugin does...",
+      "authorName": "Author Name",
+      "authorNamePlaceholder": "Your Name",
+      "authorEmail": "Author Email",
+      "authorEmailPlaceholder": "you@example.com",
+      "pluginType": "Plugin Type"
+    },
+    "types": {
+      "frontend": "Frontend",
+      "frontendDesc": "TypeScript/React plugin running in the browser",
+      "python": "Python",
+      "pythonDesc": "Python plugin for data processing and backend tasks",
+      "hybrid": "Hybrid",
+      "hybridDesc": "Combines frontend UI with Python backend"
+    },
+    "capabilities": {
+      "selectPrompt": "Select what your plugin will provide:",
+      "usingTemplate": "Using {name} Template",
+      "preConfigured": "Capabilities are pre-configured for this template:",
+      "tools": "Tools",
+      "toolsDesc": "Provide tools for the AI agent",
+      "components": "Components",
+      "componentsDesc": "Custom A2UI components",
+      "modes": "Agent Modes",
+      "modesDesc": "Custom agent behavior modes",
+      "skills": "Skills",
+      "skillsDesc": "Packaged skill definitions",
+      "themes": "Themes",
+      "themesDesc": "UI theme customization",
+      "commands": "Commands",
+      "commandsDesc": "Slash commands",
+      "hooks": "Hooks",
+      "hooksDesc": "Lifecycle event handlers",
+      "processors": "Processors",
+      "processorsDesc": "Message processors",
+      "providers": "Providers",
+      "providersDesc": "AI model providers",
+      "exporters": "Exporters",
+      "exportersDesc": "Export formats",
+      "importers": "Importers",
+      "importersDesc": "Import handlers",
+      "a2ui": "A2UI",
+      "a2uiDesc": "A2UI integration",
+      "pythonCap": "Python",
+      "pythonCapDesc": "Python runtime support"
+    },
+    "preview": {
+      "files": "Files",
+      "filesCount": "{count} files"
+    },
+    "navigation": {
+      "back": "Back",
+      "next": "Next",
+      "downloadZip": "Download ZIP",
+      "createInPlugins": "Create in Plugins"
+    },
+    "difficulty": {
+      "beginner": "beginner",
+      "intermediate": "intermediate",
+      "advanced": "advanced"
+    }
+  },
+  "pluginCard": {
+    "configure": "Configure",
+    "homepage": "Homepage",
+    "uninstall": "Uninstall",
+    "stats": {
+      "tools": "{count} tools",
+      "components": "{count} components",
+      "modes": "{count} modes"
+    }
+  },
+  "pluginList": {
+    "noPlugins": "No plugins found"
+  },
+  "pluginDevTools": {
+    "title": "Plugin Dev Tools",
+    "selectPlugin": "Select Plugin",
+    "selectPlaceholder": "Select a Python plugin...",
+    "selectPrompt": "Select a Python plugin to use dev tools",
+    "tabs": {
+      "eval": "Eval",
+      "tools": "Tools",
+      "info": "Info",
+      "performance": "Performance"
+    },
+    "eval": {
+      "pythonCode": "Python Code",
+      "placeholder": "Enter Python code to evaluate...",
+      "execute": "Execute"
+    },
+    "tools": {
+      "toolName": "Tool Name",
+      "selectTool": "Select tool...",
+      "arguments": "Arguments (JSON)",
+      "callTool": "Call Tool"
+    },
+    "info": {
+      "registeredTools": "Registered Tools",
+      "noTools": "No tools registered",
+      "pluginState": "Plugin State"
+    },
+    "output": {
+      "title": "Output",
+      "noOutput": "No output yet"
+    }
+  },
+  "pluginAnalytics": {
+    "stats": {
+      "totalCalls": "Total Calls",
+      "acrossAll": "Across all plugins",
+      "successRate": "Success Rate",
+      "successful": "{count} successful",
+      "activePlugins": "Active Plugins",
+      "ofInstalled": "of {count} installed",
+      "avgResponse": "Avg Response",
+      "avgDuration": "Average duration"
+    },
+    "tabs": {
+      "insights": "Insights",
+      "health": "Health",
+      "usage": "Usage"
+    },
+    "insights": {
+      "title": "Learning Insights",
+      "description": "AI-powered recommendations based on your plugin usage",
+      "noInsights": "No insights yet. Keep using plugins to generate recommendations!"
+    },
+    "health": {
+      "title": "Plugin Health Status",
+      "description": "Real-time health monitoring for all installed plugins",
+      "issues": "{count} issues",
+      "healthy": "Healthy",
+      "degraded": "Degraded",
+      "unhealthy": "Unhealthy"
+    },
+    "usage": {
+      "title": "Plugin Usage",
+      "description": "Select a plugin to view detailed stats",
+      "selectPlugin": "Select a Plugin",
+      "clickToView": "Click a plugin to view stats",
+      "noUsageData": "No usage data yet",
+      "totalCalls": "Total Calls",
+      "successRate": "Success Rate",
+      "avgDuration": "Avg Duration",
+      "lastUsed": "Last Used",
+      "dailyUsage": "Daily Usage (14 days)",
+      "topTools": "Top Tools",
+      "noToolUsage": "No tool usage recorded",
+      "calls": "{count} calls"
+    }
+  },
+  "pluginHealth": {
+    "summary": {
+      "overallHealth": "Overall Health",
+      "healthy": "Healthy",
+      "degraded": "Degraded",
+      "unhealthy": "Unhealthy"
+    },
+    "list": {
+      "title": "Plugin Health Status",
+      "noPlugins": "No plugins to monitor",
+      "totalCalls": "Total calls",
+      "avgResponseTime": "Avg response time",
+      "successRate": "Success rate"
+    }
+  },
+  "pluginConflicts": {
+    "title": "Plugin Conflicts",
+    "errors": "{count} Errors",
+    "warnings": "{count} Warnings",
+    "info": "{count} Info",
+    "noConflicts": "No conflicts detected",
+    "allCompatible": "All enabled plugins are compatible",
+    "conflictType": "{type} Conflict",
+    "suggestion": "Suggestion:",
+    "apply": "Apply"
+  },
+  "pluginUpdates": {
+    "title": "Plugin Updates",
+    "settings": {
+      "autoCheck": "Auto-check for updates",
+      "autoCheckDesc": "Automatically check for updates every 24 hours"
+    },
+    "updateAll": "Update All ({count})",
+    "breakingChanges": "Breaking Changes",
+    "breaking": "Breaking",
+    "allUpToDate": "All plugins are up to date",
+    "lastChecked": "Last checked just now",
+    "checking": "Checking..."
+  },
+  "pluginProfiler": {
+    "controls": {
+      "pause": "Pause",
+      "start": "Start",
+      "refresh": "Refresh",
+      "clear": "Clear",
+      "recording": "Recording",
+      "paused": "Paused"
+    },
+    "stats": {
+      "totalOperations": "Total Operations",
+      "totalDuration": "Total Duration",
+      "avgDuration": "Avg Duration",
+      "errors": "Errors"
+    },
+    "tabs": {
+      "timeline": "Timeline",
+      "hotspots": "Hotspots",
+      "slowOperations": "Slow Operations",
+      "errorsTab": "Errors"
+    },
+    "timeline": {
+      "title": "Operation Timeline",
+      "description": "Recent operations with duration bars",
+      "noData": "No profiling data yet. Start profiling to see the timeline."
+    },
+    "hotspots": {
+      "title": "Performance Hotspots",
+      "description": "Operations consuming the most time",
+      "noData": "No hotspot data available.",
+      "calls": "{count} calls"
+    },
+    "operations": {
+      "slowTitle": "Slow Operations (>100ms)",
+      "errorTitle": "Error Operations",
+      "noOperations": "No operations found.",
+      "headers": {
+        "operation": "Operation",
+        "duration": "Duration",
+        "status": "Status",
+        "error": "Error"
+      }
+    }
+  },
+  "pluginDependencyTree": {
+    "title": "Dependency Tree",
+    "stats": {
+      "dependencies": "{count} dependencies",
+      "satisfied": "{count} satisfied",
+      "missing": "{count} missing"
+    },
+    "emptyState": {
+      "selectPlugin": "Select a plugin to view its dependencies",
+      "noDependencies": "No dependencies found"
+    }
+  }
+}

@@ -2,6 +2,10 @@
 import { spawn, execSync } from 'child_process';
 import os from 'os';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const PORT = 3000;
 const isWindows = os.platform() === 'win32';

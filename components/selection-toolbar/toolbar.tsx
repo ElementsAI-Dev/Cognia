@@ -127,7 +127,12 @@ const QUICK_TRANSLATE_LANGUAGES: Record<string, string> = {
   '6': 'de',     // German
 };
 
-export function SelectionToolbar() {
+interface SelectionToolbarProps {
+  /** When true, always render the toolbar (for standalone Tauri window) */
+  standaloneMode?: boolean;
+}
+
+export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarProps) {
   const {
     state,
     config,
@@ -506,7 +511,8 @@ export function SelectionToolbar() {
   }, [state.isVisible, state.isLoading, state.result, state.selectedText, state.activeAction, waitingForTranslateNumber, isSpeaking, handleAction, handleTranslateWithLanguage, handleSpeak, stopTTS, hideToolbar, showMoreMenu, showModeSelector, showReferences, togglePanel, closeAllPanels, showShortcutHints, showClipboardPanel, showOCRPanel, showTemplatesPanel, showHistoryPanel]);
 
   // Don't render anything if toolbar is not visible
-  if (!state.isVisible) {
+  // In standalone mode (dedicated Tauri window), always render - window visibility is controlled by native code
+  if (!standaloneMode && !state.isVisible) {
     return null;
   }
 
