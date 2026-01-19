@@ -23,7 +23,7 @@ import type {
   A2UINumberOrPath,
 } from '@/types/artifact/a2ui';
 import { isPathValue } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../../a2ui-context';
+import { useA2UIContext } from '../a2ui-context';
 
 /**
  * A single guide step definition

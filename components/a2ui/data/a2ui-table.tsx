@@ -18,7 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import type { A2UIComponentProps, A2UITableComponent, A2UITableColumn } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../../a2ui-context';
+import { useA2UIContext } from '../a2ui-context';
 import { resolveArrayOrPath } from '@/lib/a2ui/data-model';
 
 type SortDirection = 'asc' | 'desc' | null;

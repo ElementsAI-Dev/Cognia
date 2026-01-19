@@ -8,9 +8,9 @@
 import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { A2UIComponentProps, A2UIListComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../../a2ui-context';
+import { useA2UIContext } from '../a2ui-context';
 import { resolveArrayOrPath } from '@/lib/a2ui/data-model';
-import { A2UIChildRenderer } from '../../a2ui-renderer';
+import { A2UIChildRenderer } from '../a2ui-renderer';
 
 export function A2UIList({ component, onAction }: A2UIComponentProps<A2UIListComponent>) {
   const { dataModel } = useA2UIContext();

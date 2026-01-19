@@ -28,7 +28,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { cn } from '@/lib/utils';
 import { useAcademicEnhanced } from '@/hooks/academic/use-academic-enhanced';
 import type { Paper, PaperAnalysisType } from '@/types/learning/academic';
-import { AcademicPaperCard } from '@/components/a2ui/components/academic/academic-paper-card';
+import { AcademicPaperCard } from '@/components/a2ui/academic/academic-paper-card';
 
 export interface ChatMessage {
   id: string;

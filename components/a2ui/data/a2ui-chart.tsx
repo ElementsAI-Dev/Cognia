@@ -25,7 +25,7 @@ import {
   Cell,
 } from 'recharts';
 import type { A2UIComponentProps, A2UIChartComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../../a2ui-context';
+import { useA2UIContext } from '../a2ui-context';
 import { resolveArrayOrPath } from '@/lib/a2ui/data-model';
 
 const DEFAULT_COLORS = [

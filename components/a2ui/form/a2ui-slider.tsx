@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import type { A2UIComponentProps, A2UISliderComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../../a2ui-context';
+import { useA2UIContext } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
 export function A2UISlider({ component, onDataChange }: A2UIComponentProps<A2UISliderComponent>) {

@@ -8,7 +8,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import type { A2UIComponentProps, A2UITextComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../../a2ui-context';
+import { useA2UIContext } from '../a2ui-context';
 
 const variantStyles: Record<string, string> = {
   body: 'text-base',

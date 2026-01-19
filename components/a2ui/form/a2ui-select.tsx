@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import type { A2UIComponentProps, A2UISelectComponent, A2UISelectOption } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../../a2ui-context';
+import { useA2UIContext } from '../a2ui-context';
 import { getBindingPath, resolveArrayOrPath } from '@/lib/a2ui/data-model';
 
 export function A2UISelect({ component, onDataChange }: A2UIComponentProps<A2UISelectComponent>) {

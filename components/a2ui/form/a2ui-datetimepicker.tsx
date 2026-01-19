@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CalendarClock } from 'lucide-react';
 import type { A2UIComponentProps, A2UIDateTimePickerComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../../a2ui-context';
+import { useA2UIContext } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
 export function A2UIDateTimePicker({

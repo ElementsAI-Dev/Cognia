@@ -14,7 +14,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import type { A2UIComponentProps, A2UIDatePickerComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../../a2ui-context';
+import { useA2UIContext } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
 export function A2UIDatePicker({ component, onDataChange }: A2UIComponentProps<A2UIDatePickerComponent>) {

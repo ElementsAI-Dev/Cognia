@@ -9,7 +9,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { ExternalLink } from 'lucide-react';
 import type { A2UIComponentProps, A2UILinkComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../../a2ui-context';
+import { useA2UIContext } from '../a2ui-context';
 
 export function A2UILink({ component, onAction }: A2UIComponentProps<A2UILinkComponent>) {
   const { resolveString } = useA2UIContext();

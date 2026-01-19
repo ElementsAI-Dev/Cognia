@@ -11,43 +11,43 @@ import { useA2UIContext, useA2UIVisibility, useA2UIDisabled } from './a2ui-conte
 import { getComponent } from '@/lib/a2ui/catalog';
 
 // Import layout components
-import { A2UIRow } from './components/layout/a2ui-row';
-import { A2UIColumn } from './components/layout/a2ui-column';
-import { A2UICard } from './components/layout/a2ui-card';
-import { A2UIDivider } from './components/layout/a2ui-divider';
-import { A2UISpacer } from './components/layout/a2ui-spacer';
-import { A2UIDialog } from './components/layout/a2ui-dialog';
-import { A2UIFallback } from './components/layout/a2ui-fallback';
+import { A2UIRow } from './layout/a2ui-row';
+import { A2UIColumn } from './layout/a2ui-column';
+import { A2UICard } from './layout/a2ui-card';
+import { A2UIDivider } from './layout/a2ui-divider';
+import { A2UISpacer } from './layout/a2ui-spacer';
+import { A2UIDialog } from './layout/a2ui-dialog';
+import { A2UIFallback } from './layout/a2ui-fallback';
 
 // Import display components
-import { A2UIText } from './components/display/a2ui-text';
-import { A2UIAlert } from './components/display/a2ui-alert';
-import { A2UIProgress } from './components/display/a2ui-progress';
-import { A2UIBadge } from './components/display/a2ui-badge';
-import { A2UIImage } from './components/display/a2ui-image';
-import { A2UIIcon } from './components/display/a2ui-icon';
-import { A2UILink } from './components/display/a2ui-link';
+import { A2UIText } from './display/a2ui-text';
+import { A2UIAlert } from './display/a2ui-alert';
+import { A2UIProgress } from './display/a2ui-progress';
+import { A2UIBadge } from './display/a2ui-badge';
+import { A2UIImage } from './display/a2ui-image';
+import { A2UIIcon } from './display/a2ui-icon';
+import { A2UILink } from './display/a2ui-link';
 
 // Import form components
-import { A2UIButton } from './components/form/a2ui-button';
-import { A2UITextField } from './components/form/a2ui-textfield';
-import { A2UITextArea } from './components/form/a2ui-textarea';
-import { A2UISelect } from './components/form/a2ui-select';
-import { A2UICheckbox } from './components/form/a2ui-checkbox';
-import { A2UIRadioGroup } from './components/form/a2ui-radio';
-import { A2UISlider } from './components/form/a2ui-slider';
-import { A2UIDatePicker } from './components/form/a2ui-datepicker';
-import { A2UITimePicker } from './components/form/a2ui-timepicker';
-import { A2UIDateTimePicker } from './components/form/a2ui-datetimepicker';
+import { A2UIButton } from './form/a2ui-button';
+import { A2UITextField } from './form/a2ui-textfield';
+import { A2UITextArea } from './form/a2ui-textarea';
+import { A2UISelect } from './form/a2ui-select';
+import { A2UICheckbox } from './form/a2ui-checkbox';
+import { A2UIRadioGroup } from './form/a2ui-radio';
+import { A2UISlider } from './form/a2ui-slider';
+import { A2UIDatePicker } from './form/a2ui-datepicker';
+import { A2UITimePicker } from './form/a2ui-timepicker';
+import { A2UIDateTimePicker } from './form/a2ui-datetimepicker';
 
 // Import data components
-import { A2UIChart } from './components/data/a2ui-chart';
-import { A2UITable } from './components/data/a2ui-table';
-import { A2UIList } from './components/data/a2ui-list';
+import { A2UIChart } from './data/a2ui-chart';
+import { A2UITable } from './data/a2ui-table';
+import { A2UIList } from './data/a2ui-list';
 
 // Import animation and interactive components
-import { A2UIAnimation } from './components/display/a2ui-animation';
-import { A2UIInteractiveGuide } from './components/display/a2ui-interactive-guide';
+import { A2UIAnimation } from './display/a2ui-animation';
+import { A2UIInteractiveGuide } from './display/a2ui-interactive-guide';
 
 /**
  * Component registry for built-in components

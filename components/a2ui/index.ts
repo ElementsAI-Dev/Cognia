@@ -40,7 +40,7 @@ export {
   A2UIDivider,
   A2UISpacer,
   A2UIDialog,
-} from './components/layout';
+} from './layout';
 
 // Display components
 export {
@@ -57,7 +57,7 @@ export {
   type A2UILoadingComponent,
   type A2UIErrorComponent,
   type A2UIEmptyComponent,
-} from './components/display';
+} from './display';
 
 // Form components
 export {
@@ -75,14 +75,14 @@ export {
   A2UISwitch,
   type A2UIFormGroupComponent,
   type A2UISwitchComponent,
-} from './components/form';
+} from './form';
 
 // Data display components
 export {
   A2UIChart,
   A2UITable,
   A2UIList,
-} from './components/data';
+} from './data';
 
 // Chat and tool integration
 export {
