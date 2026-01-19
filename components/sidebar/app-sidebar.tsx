@@ -48,12 +48,12 @@ import { useSessionStore, useSettingsStore, useProjectStore } from '@/stores';
 import { ArtifactListCompact } from '@/components/artifacts';
 import { messageRepository } from '@/lib/db';
 import { KeyboardShortcutsDialog } from '@/components/layout/keyboard-shortcuts-dialog';
-import { SidebarUsageStats } from './sidebar-usage-stats';
-import { SidebarBackgroundTasks } from './sidebar-background-tasks';
-import { SidebarQuickActions } from './sidebar-quick-actions';
-import { SidebarRecentFiles } from './sidebar-recent-files';
-import { SidebarWorkflows } from './sidebar-workflows';
-import { SidebarProjectSelector } from './sidebar-project-selector';
+import { SidebarUsageStats } from './widgets/sidebar-usage-stats';
+import { SidebarBackgroundTasks } from './widgets/sidebar-background-tasks';
+import { SidebarQuickActions } from './widgets/sidebar-quick-actions';
+import { SidebarRecentFiles } from './widgets/sidebar-recent-files';
+import { SidebarWorkflows } from './widgets/sidebar-workflows';
+import { SidebarProjectSelector } from './widgets/sidebar-project-selector';
 import { PluginExtensionPoint } from '@/components/plugin';
 import type { Session } from '@/types';
 

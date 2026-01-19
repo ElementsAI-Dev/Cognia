@@ -2,15 +2,27 @@
  * Sidebar components index
  */
 
+// Core sidebar components
 export { AppSidebar } from './app-sidebar';
 export { SidebarContainer } from './sidebar-container';
-export { SessionList } from './session-list';
-export { SessionItem } from './session-item';
-export { SessionSearch, type SearchFilters } from './session-search';
-export { SessionGroup, useSessionGroups, type GroupType } from './session-group';
-export { SidebarUsageStats } from './sidebar-usage-stats';
-export { SidebarBackgroundTasks } from './sidebar-background-tasks';
-export { SidebarQuickActions } from './sidebar-quick-actions';
-export { SidebarRecentFiles } from './sidebar-recent-files';
-export { SidebarWorkflows } from './sidebar-workflows';
-export { SidebarProjectSelector } from './sidebar-project-selector';
+
+// Session components
+export {
+  SessionGroup,
+  useSessionGroups,
+  type GroupType,
+  SessionItem,
+  SessionList,
+  SessionSearch,
+  type SearchFilters,
+} from './sessions';
+
+// Widget components
+export {
+  SidebarUsageStats,
+  SidebarBackgroundTasks,
+  SidebarQuickActions,
+  SidebarRecentFiles,
+  SidebarWorkflows,
+  SidebarProjectSelector,
+} from './widgets';

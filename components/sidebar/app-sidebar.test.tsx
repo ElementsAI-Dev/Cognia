@@ -59,6 +59,10 @@ jest.mock('@/stores', () => ({
     const state = {
       projects: [],
       activeProjectId: null,
+      getProject: () => null,
+      getActiveProjects: () => [],
+      addSessionToProject: jest.fn(),
+      removeSessionFromProject: jest.fn(),
     };
     return selector(state);
   },
@@ -82,12 +86,25 @@ jest.mock('@/components/ui/sidebar', () => ({
   SidebarHeader: ({ children }: { children: React.ReactNode }) => <div data-testid="sidebar-header">{children}</div>,
   SidebarMenu: ({ children }: { children: React.ReactNode }) => <ul>{children}</ul>,
   SidebarMenuAction: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SidebarMenuBadge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
   SidebarMenuButton: ({ children, onClick, ...props }: { children: React.ReactNode; onClick?: () => void; 'data-testid'?: string }) => (
     <button onClick={onClick} data-testid={props['data-testid']}>{children}</button>
   ),
   SidebarMenuItem: ({ children }: { children: React.ReactNode }) => <li>{children}</li>,
+  SidebarMenuSkeleton: () => <div data-testid="skeleton" />,
   SidebarSeparator: () => <hr />,
   useSidebar: () => ({ state: 'expanded' }),
+}));
+
+jest.mock('@/components/ui/input-group', () => ({
+  InputGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  InputGroupAddon: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  InputGroupInput: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input data-testid="sidebar-search" {...props} />,
+  InputGroupButton: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => <button onClick={onClick}>{children}</button>,
+}));
+
+jest.mock('@/components/plugin', () => ({
+  PluginExtensionPoint: () => <div data-testid="plugin-extension" />,
 }));
 
 jest.mock('@/components/ui/dropdown-menu', () => ({
@@ -98,6 +115,9 @@ jest.mock('@/components/ui/dropdown-menu', () => ({
   ),
   DropdownMenuSeparator: () => <hr />,
   DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuSub: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuSubContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuSubTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 jest.mock('@/components/ui/input', () => ({
@@ -108,24 +128,28 @@ jest.mock('@/components/layout/keyboard-shortcuts-dialog', () => ({
   KeyboardShortcutsDialog: () => <div data-testid="keyboard-shortcuts-dialog" />,
 }));
 
-jest.mock('@/components/sidebar/sidebar-usage-stats', () => ({
+jest.mock('./widgets/sidebar-usage-stats', () => ({
   SidebarUsageStats: () => <div data-testid="usage-stats" />,
 }));
 
-jest.mock('@/components/sidebar/sidebar-background-tasks', () => ({
+jest.mock('./widgets/sidebar-background-tasks', () => ({
   SidebarBackgroundTasks: () => <div data-testid="background-tasks" />,
 }));
 
-jest.mock('@/components/sidebar/sidebar-quick-actions', () => ({
+jest.mock('./widgets/sidebar-quick-actions', () => ({
   SidebarQuickActions: () => <div data-testid="quick-actions" />,
 }));
 
-jest.mock('@/components/sidebar/sidebar-recent-files', () => ({
+jest.mock('./widgets/sidebar-recent-files', () => ({
   SidebarRecentFiles: () => <div data-testid="recent-files" />,
 }));
 
-jest.mock('@/components/sidebar/sidebar-workflows', () => ({
+jest.mock('./widgets/sidebar-workflows', () => ({
   SidebarWorkflows: () => <div data-testid="workflows" />,
+}));
+
+jest.mock('./widgets/sidebar-project-selector', () => ({
+  SidebarProjectSelector: () => <div data-testid="project-selector" />,
 }));
 
 jest.mock('@/components/artifacts', () => ({

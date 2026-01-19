@@ -34,12 +34,12 @@ import {
 } from '@/components/ui/tooltip';
 import { useSessionStore, useSettingsStore, useUIStore } from '@/stores';
 import { cn } from '@/lib/utils';
-import { SessionSearch } from './session-search';
-import { SessionGroup, useSessionGroups } from './session-group';
-import { SidebarQuickActions } from './sidebar-quick-actions';
-import { SidebarUsageStats } from './sidebar-usage-stats';
-import { SidebarBackgroundTasks } from './sidebar-background-tasks';
-import { SidebarWorkflows } from './sidebar-workflows';
+import { SessionSearch } from './sessions/session-search';
+import { SessionGroup, useSessionGroups } from './sessions/session-group';
+import { SidebarQuickActions } from './widgets/sidebar-quick-actions';
+import { SidebarUsageStats } from './widgets/sidebar-usage-stats';
+import { SidebarBackgroundTasks } from './widgets/sidebar-background-tasks';
+import { SidebarWorkflows } from './widgets/sidebar-workflows';
 import type { Session } from '@/types';
 
 interface SidebarContainerProps {

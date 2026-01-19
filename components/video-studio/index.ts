@@ -16,7 +16,7 @@
  */
 
 // Types and constants
-export * from './types';
+export * from '@/types/video-studio/types';
 export * from './constants';
 
 // Timeline components

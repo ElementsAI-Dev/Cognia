@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { VideoJob } from '../types';
+import type { VideoJob } from '../../../types/video-studio/types';
 import { getStatusBadge } from '../generation/video-job-card';
 
 export interface VideoDetailsPanelProps {

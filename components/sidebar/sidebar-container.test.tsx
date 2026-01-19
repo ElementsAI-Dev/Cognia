@@ -14,6 +14,7 @@ let currentTheme = 'light';
 jest.mock('@/stores', () => ({
   useSessionStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
+      sessions: [],
       createSession: mockCreateSession,
     };
     return selector(state);
@@ -34,10 +35,33 @@ jest.mock('@/stores', () => ({
 }));
 
 // Mock child components
-jest.mock('./session-list', () => ({
-  SessionList: ({ collapsed }: { collapsed: boolean }) => (
-    <div data-testid="session-list" data-collapsed={collapsed}>Session List</div>
+jest.mock('./sessions/session-search', () => ({
+  SessionSearch: ({ collapsed }: { collapsed?: boolean }) => (
+    <div data-testid="session-search" data-collapsed={collapsed}>Search</div>
   ),
+}));
+
+jest.mock('./sessions/session-group', () => ({
+  SessionGroup: ({ collapsed }: { collapsed?: boolean }) => (
+    <div data-testid="session-group" data-collapsed={collapsed}>Group</div>
+  ),
+  useSessionGroups: () => ({ pinned: [], today: [], yesterday: [], lastWeek: [], older: [], custom: [] }),
+}));
+
+jest.mock('./widgets/sidebar-quick-actions', () => ({
+  SidebarQuickActions: () => <div data-testid="quick-actions">Quick Actions</div>,
+}));
+
+jest.mock('./widgets/sidebar-usage-stats', () => ({
+  SidebarUsageStats: () => <div data-testid="usage-stats">Usage Stats</div>,
+}));
+
+jest.mock('./widgets/sidebar-background-tasks', () => ({
+  SidebarBackgroundTasks: () => <div data-testid="background-tasks">Background Tasks</div>,
+}));
+
+jest.mock('./widgets/sidebar-workflows', () => ({
+  SidebarWorkflows: () => <div data-testid="workflows">Workflows</div>,
 }));
 
 // Mock UI components
@@ -94,15 +118,15 @@ describe('SidebarContainer', () => {
     expect(mockCreateSession).toHaveBeenCalled();
   });
 
-  it('renders session list', () => {
+  it('renders session search', () => {
     render(<SidebarContainer />);
-    expect(screen.getByTestId('session-list')).toBeInTheDocument();
+    expect(screen.getByTestId('session-search')).toBeInTheDocument();
   });
 
-  it('passes collapsed prop to session list', () => {
+  it('passes collapsed prop to session search', () => {
     render(<SidebarContainer collapsed />);
-    const sessionList = screen.getByTestId('session-list');
-    expect(sessionList).toHaveAttribute('data-collapsed', 'true');
+    const sessionSearch = screen.getByTestId('session-search');
+    expect(sessionSearch).toHaveAttribute('data-collapsed', 'true');
   });
 
   it('renders theme toggle button', () => {
@@ -117,8 +141,9 @@ describe('SidebarContainer', () => {
     render(<SidebarContainer />);
     
     const buttons = screen.getAllByRole('button');
-    // Theme button is the second-to-last button (before settings)
-    const themeButton = buttons[buttons.length - 2];
+    // Find theme button by looking for the one that triggers setTheme
+    // It's the first button in the footer (after New Chat button)
+    const themeButton = buttons[1];
     
     if (themeButton) {
       fireEvent.click(themeButton);
@@ -131,8 +156,9 @@ describe('SidebarContainer', () => {
     render(<SidebarContainer />);
     
     const buttons = screen.getAllByRole('button');
-    if (buttons.length > 1) {
-      fireEvent.click(buttons[1]);
+    const themeButton = buttons[1];
+    if (themeButton) {
+      fireEvent.click(themeButton);
       expect(mockSetTheme).toHaveBeenCalledWith('system');
     }
   });
@@ -142,8 +168,9 @@ describe('SidebarContainer', () => {
     render(<SidebarContainer />);
     
     const buttons = screen.getAllByRole('button');
-    if (buttons.length > 1) {
-      fireEvent.click(buttons[1]);
+    const themeButton = buttons[1];
+    if (themeButton) {
+      fireEvent.click(themeButton);
       expect(mockSetTheme).toHaveBeenCalledWith('light');
     }
   });
