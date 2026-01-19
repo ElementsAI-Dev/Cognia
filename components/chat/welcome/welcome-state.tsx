@@ -322,12 +322,11 @@ export function WelcomeState({
           </Button>
         </div>
 
-        {/* A2UI Interactive Demo - Desktop only */}
+        {/* A2UI Interactive Demo - Desktop only, shown as button on first visit */}
         <div className="hidden sm:block">
           <WelcomeA2UIDemo
             onSuggestionClick={onSuggestionClick}
             showSettings={false}
-            className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500"
           />
         </div>
 

@@ -421,7 +421,9 @@ cognia/
 │   ├── artifacts/                # Artifact system
 │   ├── canvas/                   # Canvas editor
 │   ├── designer/                 # Visual designer
-│   ├── workflow-editor/          # Workflow editor
+│   ├── workflow/                  # Workflow components
+│   │   ├── editor/               # Workflow editor
+│   │   └── marketplace/          # Template marketplace
 │   ├── native/                   # Native features UI
 │   ├── learning/                 # Learning mode
 │   ├── skills/                   # Skills system
@@ -626,8 +628,9 @@ Visual workflow automation with React Flow:
 
 #### Key Files
 
-- `components/workflow-editor/workflow-editor-panel.tsx` — Main editor
-- `components/workflow-editor/node-palette.tsx` — Node types
+- `components/workflow/editor/workflow-editor-panel.tsx` — Main editor
+- `components/workflow/editor/node-palette.tsx` — Node types
+- `components/workflow/marketplace/template-browser.tsx` — Template browser
 - `stores/workflow/` — Workflow state management
 
 ### Skills System

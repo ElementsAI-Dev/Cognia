@@ -25,24 +25,13 @@ import {
   Package,
   Box,
 } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -137,17 +126,13 @@ function ToolCard({
                 {info.name}
                 {getStatusBadge()}
               </CardTitle>
-              <CardDescription className="text-xs mt-0.5">
-                {info.description}
-              </CardDescription>
+              <CardDescription className="text-xs mt-0.5">{info.description}</CardDescription>
             </div>
           </div>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="text-muted-foreground">
-                  {getCategoryIcon()}
-                </div>
+                <div className="text-muted-foreground">{getCategoryIcon()}</div>
               </TooltipTrigger>
               <TooltipContent>
                 {info.category === 'language_manager'
@@ -162,16 +147,14 @@ function ToolCard({
         {status.installed && status.version && (
           <div className="flex items-center gap-2 text-xs">
             <span className="text-muted-foreground">{t('version')}:</span>
-            <code className="bg-muted px-1.5 py-0.5 rounded text-[10px]">
-              {status.version}
-            </code>
+            <code className="bg-muted px-1.5 py-0.5 rounded text-[10px]">{status.version}</code>
           </div>
         )}
 
         {status.installed && status.path && (
           <div className="flex items-center gap-2 text-xs">
             <span className="text-muted-foreground">{t('path')}:</span>
-            <code className="bg-muted px-1.5 py-0.5 rounded text-[10px] truncate max-w-[200px]">
+            <code className="bg-muted px-1.5 py-0.5 rounded text-[10px] truncate max-w-50">
               {status.path}
             </code>
           </div>
@@ -212,12 +195,7 @@ function ToolCard({
             />
             {t('refresh')}
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onOpenWebsite}
-            className="gap-1.5 ml-auto"
-          >
+          <Button size="sm" variant="ghost" onClick={onOpenWebsite} className="gap-1.5 ml-auto">
             <ExternalLink className="h-3.5 w-3.5" />
             {t('docs')}
           </Button>
@@ -302,9 +280,7 @@ export function EnvironmentSettings() {
                 <Settings className="h-5 w-5" />
                 {t('title')}
               </CardTitle>
-              <CardDescription className="text-xs mt-1">
-                {t('description')}
-              </CardDescription>
+              <CardDescription className="text-xs mt-1">{t('description')}</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-xs">
@@ -454,9 +430,7 @@ export function EnvironmentSettings() {
               </p>
               <Alert>
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-xs">
-                  {t('installWarning')}
-                </AlertDescription>
+                <AlertDescription className="text-xs">{t('installWarning')}</AlertDescription>
               </Alert>
             </div>
           )}

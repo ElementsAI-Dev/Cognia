@@ -10,6 +10,8 @@
  * - Word wrap toggle
  * - Accessibility support
  * - Line highlighting
+ * - Code execution (when sandbox available)
+ * - Save as snippet
  */
 
 import { useState, memo, useCallback, useRef } from 'react';
@@ -22,10 +24,19 @@ import {
   WrapText,
   Hash,
   PanelRight,
+  Play,
+  Loader2,
+  CheckCircle,
+  XCircle,
+  Clock,
+  BookmarkPlus,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { useArtifactStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -38,6 +49,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useCopy } from '@/hooks/ui';
+import { useSandbox, useCodeExecution, useSnippets } from '@/hooks/sandbox';
+import { isValidLanguage } from '@/types/system/sandbox';
 
 interface CodeBlockProps {
   code: string;
@@ -46,6 +59,7 @@ interface CodeBlockProps {
   showLineNumbers?: boolean;
   highlightLines?: number[];
   filename?: string;
+  showExecuteButton?: boolean;
 }
 
 // Languages that can be opened in Canvas for live preview
@@ -58,12 +72,15 @@ export const CodeBlock = memo(function CodeBlock({
   showLineNumbers = true,
   highlightLines = [],
   filename,
+  showExecuteButton = true,
 }: CodeBlockProps) {
   const t = useTranslations('renderer');
   const tToasts = useTranslations('toasts');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [wordWrap, setWordWrap] = useState(false);
   const [localShowLineNumbers, setLocalShowLineNumbers] = useState(showLineNumbers);
+  const [showResult, setShowResult] = useState(false);
+  const [savedAsSnippet, setSavedAsSnippet] = useState(false);
   const codeRef = useRef<HTMLPreElement>(null);
   const { copy, isCopying } = useCopy({ toastMessage: tToasts('codeCopied') });
 
@@ -72,8 +89,17 @@ export const CodeBlock = memo(function CodeBlock({
   const setActiveCanvas = useArtifactStore((state) => state.setActiveCanvas);
   const openPanel = useArtifactStore((state) => state.openPanel);
 
+  // Sandbox execution
+  const { isAvailable: sandboxAvailable } = useSandbox();
+  const { result, executing, error: execError, quickExecute, reset } = useCodeExecution();
+  const { createSnippet } = useSnippets({});
+
   // Check if this is a web language that can be opened in Canvas
   const canOpenInCanvas = language && WEB_LANGUAGES.includes(language.toLowerCase());
+
+  // Check if this language can be executed
+  const langLower = language?.toLowerCase() || '';
+  const canExecute = showExecuteButton && sandboxAvailable && isValidLanguage(langLower);
 
   const lines = code.split('\n');
 
@@ -106,9 +132,36 @@ export const CodeBlock = memo(function CodeBlock({
     openPanel('canvas');
   }, [code, language, filename, createCanvasDocument, setActiveCanvas, openPanel]);
 
+  const handleExecute = useCallback(async () => {
+    if (!canExecute || !language) return;
+    reset();
+    setShowResult(true);
+    await quickExecute(langLower, code);
+  }, [canExecute, language, langLower, code, reset, quickExecute]);
+
+  const handleSaveAsSnippet = useCallback(async () => {
+    if (!language) return;
+    try {
+      await createSnippet({
+        title: filename || `${language} snippet`,
+        description: `Saved from chat on ${new Date().toLocaleDateString()}`,
+        language: langLower,
+        code,
+        tags: ['chat', 'saved'],
+        is_template: false,
+      });
+      setSavedAsSnippet(true);
+      setTimeout(() => setSavedAsSnippet(false), 2000);
+    } catch {
+      // Ignore error - snippet creation failed
+    }
+  }, [language, langLower, code, filename, createSnippet]);
+
   const isHighlighted = useCallback((lineNumber: number) => {
     return highlightLines.includes(lineNumber);
   }, [highlightLines]);
+
+  const isSuccess = result?.status === 'completed' && result?.exit_code === 0;
 
   const renderCode = useCallback((inFullscreen = false) => (
     <pre 
@@ -168,10 +221,61 @@ export const CodeBlock = memo(function CodeBlock({
             {language && <span className="font-mono font-medium">{language}</span>}
             {filename && <span className="text-muted-foreground/60">{filename}</span>}
             {!language && !filename && <span className="font-mono">code</span>}
+            {canExecute && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                runnable
+              </Badge>
+            )}
           </div>
           
           {/* Action buttons */}
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Execute button */}
+            {canExecute && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={handleExecute}
+                    disabled={executing}
+                    aria-label="Run code"
+                  >
+                    {executing ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Play className="h-3 w-3 text-green-500" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Run code</TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Save as snippet button */}
+            {sandboxAvailable && language && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={handleSaveAsSnippet}
+                    disabled={savedAsSnippet}
+                    aria-label="Save as snippet"
+                  >
+                    {savedAsSnippet ? (
+                      <Check className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <BookmarkPlus className="h-3 w-3" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Save as snippet</TooltipContent>
+              </Tooltip>
+            )}
+
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -271,6 +375,58 @@ export const CodeBlock = memo(function CodeBlock({
 
         {/* Code content */}
         {renderCode(false)}
+
+        {/* Execution result inline */}
+        {showResult && (result || execError) && (
+          <div className="border-t bg-muted/30">
+            <button
+              className="w-full flex items-center justify-between px-4 py-2 text-xs hover:bg-muted/50 transition-colors"
+              onClick={() => setShowResult(!showResult)}
+            >
+              <div className="flex items-center gap-2">
+                {isSuccess ? (
+                  <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                ) : (
+                  <XCircle className="h-3.5 w-3.5 text-red-500" />
+                )}
+                <span className="font-medium">Output</span>
+                {result && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                    <Clock className="h-2.5 w-2.5 mr-1" />
+                    {result.execution_time_ms}ms
+                  </Badge>
+                )}
+              </div>
+              {showResult ? (
+                <ChevronUp className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5" />
+              )}
+            </button>
+            {showResult && (
+              <div className="px-4 pb-3 space-y-2">
+                {execError && (
+                  <pre className="text-xs text-destructive bg-destructive/10 p-2 rounded font-mono whitespace-pre-wrap">
+                    {execError}
+                  </pre>
+                )}
+                {result?.stdout && (
+                  <pre className="text-xs bg-background p-2 rounded font-mono whitespace-pre-wrap overflow-x-auto">
+                    {result.stdout}
+                  </pre>
+                )}
+                {result?.stderr && (
+                  <pre className="text-xs text-destructive bg-destructive/10 p-2 rounded font-mono whitespace-pre-wrap overflow-x-auto">
+                    {result.stderr}
+                  </pre>
+                )}
+                {result && !result.stdout && !result.stderr && !execError && (
+                  <p className="text-xs text-muted-foreground italic">No output</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Fullscreen dialog */}
@@ -281,6 +437,27 @@ export const CodeBlock = memo(function CodeBlock({
               <span>{language || 'Code'}</span>
               {filename && <span className="text-muted-foreground font-normal">— {filename}</span>}
               <div className="flex items-center gap-1 ml-auto">
+                {canExecute && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={handleExecute}
+                        disabled={executing}
+                        aria-label="Run code"
+                      >
+                        {executing ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Play className="h-3.5 w-3.5 text-green-500" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Run code</TooltipContent>
+                  </Tooltip>
+                )}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -419,3 +596,4 @@ function getExtensionFromLanguage(language?: string): string {
 
   return extensions[language.toLowerCase()] || `.${language.toLowerCase()}`;
 }
+

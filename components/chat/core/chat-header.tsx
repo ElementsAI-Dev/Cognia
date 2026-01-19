@@ -548,7 +548,7 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                  <Link href="/video-editor">
+                  <Link href="/video-studio?mode=recording">
                     <Film className="h-4 w-4" />
                   </Link>
                 </Button>

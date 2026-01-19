@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ThemeProvider } from "@/components/providers/theme-provider";
+import { ThemeProvider } from "@/components/providers/ui";
 import { I18nProvider } from "@/lib/i18n";
 import "../../globals.css";
 

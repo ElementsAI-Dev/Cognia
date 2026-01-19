@@ -59,7 +59,9 @@ d:\Project\Cognia/
 │   ├── sidebar/                            # Sidebar components
 │   ├── skills/                             # Skills system components (25 items)
 │   ├── ui/                                 # shadcn/ui base components (41 items)
-│   └── workflow-editor/                    # Visual workflow editor (50 items)
+│   └── workflow/                            # Workflow components
+│       ├── editor/                         # Visual workflow editor (50 items)
+│       └── marketplace/                    # Template marketplace
 │
 ├── hooks/                                  # Custom React hooks (organized by category)
 │   ├── ai/                                 # AI/Agent hooks (18 items)
@@ -134,7 +136,9 @@ d:\Project\Cognia/
 │   ├── skills/                             # Skills system utilities (8 items)
 │   ├── themes/                             # Theme configuration
 │   ├── vector/                             # Vector database (9 items)
-│   ├── workflow-editor/                    # Workflow editor utils (10 items)
+│   ├── workflow/                           # Workflow utilities
+│   │   ├── editor/                         # Workflow editor utils (10 items)
+│   │   └── marketplace/                    # Marketplace utils
 │   └── utils.ts                            # Common utilities (cn, etc.)
 │
 ├── stores/                                 # Zustand state management (organized by category)
@@ -477,7 +481,11 @@ Skills system components (25 items).
 - `skill-panel.tsx` - Skills panel
 - `skill-wizard.tsx` - Skill creation wizard
 
-#### `/components/workflow-editor`
+#### `/components/workflow`
+
+Workflow components including editor and marketplace.
+
+##### `/components/workflow/editor`
 
 Visual workflow editor with React Flow (50 items).
 
@@ -490,6 +498,16 @@ Visual workflow editor with React Flow (50 items).
 - `execution-panel.tsx` - Execution monitoring
 - `debug-panel.tsx` - Debug tools
 - `nodes/` - Custom node types (18 items)
+
+##### `/components/workflow/marketplace`
+
+Template marketplace components (6 items).
+
+**Files**:
+
+- `template-browser.tsx` - Template browsing
+- `template-preview.tsx` - Template preview
+- `git-integration-panel.tsx` - Git integration
 
 **Convention**:
 
@@ -607,9 +625,14 @@ Jupyter notebook utilities (5 items).
 
 MCP utilities (5 items).
 
-#### `/lib/workflow-editor`
+#### `/lib/workflow`
 
-Workflow editor utilities (10 items).
+Workflow and editor utilities.
+
+**Subdirectories**:
+
+- `editor/` - Workflow editor utils (10 items)
+- `git-integration-service.ts` - Git integration for templates
 
 **Convention**:
 

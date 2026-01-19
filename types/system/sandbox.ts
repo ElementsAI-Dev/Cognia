@@ -53,6 +53,46 @@ export interface BackendSandboxConfig {
   enabled_languages: string[];
 }
 
+/** C++ standard versions */
+export type CppStandard = 'c++11' | 'c++14' | 'c++17' | 'c++20' | 'c++23';
+
+/** Optimization levels */
+export type OptimizationLevel = '-O0' | '-O1' | '-O2' | '-O3' | '-Os' | '-Oz';
+
+/** Rust edition */
+export type RustEdition = '2018' | '2021' | '2024';
+
+/** Compiler/Interpreter settings for code execution */
+export interface CompilerSettings {
+  // C/C++ settings
+  /** C++ standard version */
+  cppStandard?: CppStandard;
+  /** Optimization level for C/C++ */
+  optimization?: OptimizationLevel;
+  /** C compiler (gcc or clang) */
+  cCompiler?: 'gcc' | 'clang';
+  /** C++ compiler (g++ or clang++) */
+  cppCompiler?: 'g++' | 'clang++';
+  /** Enable all warnings */
+  enableWarnings?: boolean;
+  
+  // Rust settings
+  /** Rust edition */
+  rustEdition?: RustEdition;
+  /** Build in release mode */
+  rustRelease?: boolean;
+  
+  // Python settings  
+  /** Unbuffered output (-u flag) */
+  pythonUnbuffered?: boolean;
+  /** Optimize bytecode (-O flag) */
+  pythonOptimize?: boolean;
+  
+  // General settings
+  /** Custom additional arguments */
+  customArgs?: string[];
+}
+
 /** Code execution request */
 export interface ExecutionRequest {
   /** Programming language */

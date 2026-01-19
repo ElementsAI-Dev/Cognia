@@ -111,7 +111,7 @@ export function ChatWidget({ className }: ChatWidgetProps) {
         // Use solid opaque background to ensure content visibility
         // Avoid backdrop-blur which can cause transparency issues on some platforms
         "bg-background",
-        "border border-border/50 rounded-xl shadow-2xl",
+        // No border/rounded corners to prevent gap at window edges
         "overflow-hidden",
         // Ensure text and content are always visible with proper contrast
         "text-foreground",

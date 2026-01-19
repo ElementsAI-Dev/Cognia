@@ -221,6 +221,7 @@ export const ChatAssistantFab = forwardRef<HTMLButtonElement, ChatAssistantFabPr
             >
               <p>AI 助手</p>
               <p className="text-xs text-muted-foreground">点击开始对话</p>
+              <p className="text-[10px] text-muted-foreground mt-1">快捷键: Ctrl+Shift+Space</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

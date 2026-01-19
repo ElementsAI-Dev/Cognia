@@ -36,6 +36,7 @@ export {
   LocalProviderSetupWizard,
   CLIProxyAPISettings,
   OpenRouterSettings,
+  ModelManager,
 } from './provider';
 
 // MCP settings
@@ -73,6 +74,7 @@ export {
   CustomInstructionsSettings,
   AutoRouterSettings,
   SafetySettings,
+  TokenizerSettings,
 } from './chat';
 
 // Tool settings
@@ -102,9 +104,3 @@ export {
   SearchSettings,
   GitSettings,
 } from './system';
-
-// Model management (standalone)
-export { ModelManager } from './model-manager';
-
-// Tokenizer settings
-export { TokenizerSettings } from './tokenizer-settings';

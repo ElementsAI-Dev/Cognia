@@ -115,7 +115,7 @@ export interface SelectionConfig {
 }
 
 export const DEFAULT_SELECTION_CONFIG: SelectionConfig = {
-  enabled: true,
+  enabled: false,
   triggerMode: "auto",
   minTextLength: 1,
   maxTextLength: 5000,

@@ -18,3 +18,6 @@ export { LocalProviderSetupWizard } from './local-provider-setup-wizard';
 // Proxy/Aggregator provider components
 export { CLIProxyAPISettings } from './cliproxyapi-settings';
 export { OpenRouterSettings } from './openrouter-settings';
+
+// Model management
+export { ModelManager } from './model-manager';

@@ -73,9 +73,6 @@ jest.mock('@/components/ui/scroll-area', () => ({
   ),
 }));
 
-jest.mock('@/components/ui/separator', () => ({
-  Separator: () => <hr data-testid="separator" />,
-}));
 
 describe('ChatWidgetSettings', () => {
   const defaultConfig: ChatWidgetConfig = {
@@ -132,12 +129,15 @@ describe('ChatWidgetSettings', () => {
 
   it('displays provider selection', () => {
     render(<ChatWidgetSettings {...defaultProps} />);
-    expect(screen.getByText('AI 提供商')).toBeInTheDocument();
+    expect(screen.getByText('AI 模型')).toBeInTheDocument();
+    expect(screen.getByText('提供商')).toBeInTheDocument();
   });
 
   it('displays model selection', () => {
     render(<ChatWidgetSettings {...defaultProps} />);
-    expect(screen.getByText('模型')).toBeInTheDocument();
+    // Model label is now inside the AI 模型 section
+    const labels = screen.getAllByText('模型');
+    expect(labels.length).toBeGreaterThan(0);
   });
 
   it('displays system prompt textarea', () => {
@@ -159,19 +159,19 @@ describe('ChatWidgetSettings', () => {
 
   it('displays auto focus toggle', () => {
     render(<ChatWidgetSettings {...defaultProps} />);
-    expect(screen.getByText('自动聚焦输入框')).toBeInTheDocument();
+    expect(screen.getByText('自动聚焦')).toBeInTheDocument();
     expect(screen.getByTestId('switch-autoFocus')).toBeInTheDocument();
   });
 
   it('displays show timestamps toggle', () => {
     render(<ChatWidgetSettings {...defaultProps} />);
-    expect(screen.getByText('显示时间戳')).toBeInTheDocument();
+    expect(screen.getByText('显示时间')).toBeInTheDocument();
     expect(screen.getByTestId('switch-showTimestamps')).toBeInTheDocument();
   });
 
   it('displays remember position toggle', () => {
     render(<ChatWidgetSettings {...defaultProps} />);
-    expect(screen.getByText('记住窗口位置')).toBeInTheDocument();
+    expect(screen.getByText('记住位置')).toBeInTheDocument();
     expect(screen.getByTestId('switch-rememberPosition')).toBeInTheDocument();
   });
 
@@ -257,9 +257,12 @@ describe('ChatWidgetSettings', () => {
     expect(selects[1]).toHaveAttribute('data-value', 'gpt-4o-mini');
   });
 
-  it('displays separators between sections', () => {
+  it('displays section cards with proper styling', () => {
     render(<ChatWidgetSettings {...defaultProps} />);
-    const separators = screen.getAllByTestId('separator');
-    expect(separators.length).toBeGreaterThan(0);
+    // New layout uses cards instead of separators
+    expect(screen.getByText('AI 模型')).toBeInTheDocument();
+    expect(screen.getByText('系统提示词')).toBeInTheDocument();
+    expect(screen.getByText('行为设置')).toBeInTheDocument();
+    expect(screen.getByText('快捷键')).toBeInTheDocument();
   });
 });

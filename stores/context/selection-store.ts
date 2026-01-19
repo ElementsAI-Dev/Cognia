@@ -110,7 +110,7 @@ export const useSelectionStore = create<SelectionStore>()(
     (set, get) => ({
       // Initial state
       config: DEFAULT_SELECTION_CONFIG,
-      isEnabled: true,
+      isEnabled: false,
       isToolbarVisible: false,
       selectedText: "",
       position: { x: 0, y: 0 },

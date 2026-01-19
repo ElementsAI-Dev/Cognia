@@ -68,6 +68,13 @@ export function ChatWidgetHeader({
       <div
         className="flex items-center gap-2 flex-1 cursor-move"
         data-tauri-drag-region
+        onMouseDown={(e) => {
+          // Prevent drag from interfering with button clicks
+          const target = e.target as HTMLElement;
+          if (target.tagName === 'BUTTON' || target.closest('button')) {
+            e.stopPropagation();
+          }
+        }}
       >
         <GripHorizontal className="h-4 w-4 text-muted-foreground/50" />
         <div className="flex items-center gap-1.5">
@@ -131,9 +138,7 @@ export function ChatWidgetHeader({
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <ChatWidgetShortcuts />
-              </DropdownMenuItem>
+              <ChatWidgetShortcuts />
               {onSettings && (
                 <DropdownMenuItem onClick={onSettings}>
                   <Settings className="h-4 w-4 mr-2" />
@@ -143,22 +148,20 @@ export function ChatWidgetHeader({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Close button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
-                onClick={onClose}
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              关闭 (Esc)
-            </TooltipContent>
-          </Tooltip>
+          {/* Close button - outside tooltip to ensure click works */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
+            title="关闭 (Esc)"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
         </TooltipProvider>
       </div>
     </div>

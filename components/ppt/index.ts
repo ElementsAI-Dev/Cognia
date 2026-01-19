@@ -5,28 +5,23 @@
  * editing, and previewing presentations.
  */
 
-// Main components
-export { PPTPreview, PPTPreviewWithErrorBoundary } from './ppt-preview';
-export { PPTEditor } from './ppt-editor';
-export { SlideEditor } from './slide-editor';
+// Editor components
+export { PPTEditor, SlideEditor, SlideElement, SortableSlideItem, AlignmentToolbar } from './editor';
 
-// Sub-components
-export {
-  SlideElementRenderer,
-  SingleSlideView,
-  GridView,
-  OutlineView,
-  ThemeMenuItem,
-  SlideshowView,
-  SortableSlideItem,
-  SlideElement,
-  PPTPreviewErrorBoundary,
-  AlignmentToolbar,
-  ThemeCustomizer,
-  PPTGenerationDialog,
-  PPTQuickAction,
-  PPTOutlinePreview,
-} from './components';
+// Preview components
+export { PPTPreview, PPTPreviewWithErrorBoundary, SingleSlideView, GridView, OutlineView } from './preview';
+
+// Slideshow components
+export { SlideshowView, SlideshowControls, KeyboardHelpModal, ThumbnailNavigator } from './slideshow';
+
+// Generation components
+export { PPTGenerationDialog, PPTQuickAction, PPTOutlinePreview } from './generation';
+
+// Theme components
+export { ThemeCustomizer, ThemeMenuItem } from './theme';
+
+// Rendering components
+export { SlideElementRenderer, SlideContent, PPTPreviewErrorBoundary } from './rendering';
 
 // Utilities
 export {
@@ -70,3 +65,9 @@ export type {
   SnapGuide,
   GenerationContext,
 } from './utils';
+
+// Re-export types from submodules
+export type { AlignmentToolbarProps } from './editor';
+export type { PPTGenerationDialogProps, PPTQuickActionProps, PPTOutlinePreviewProps, PPTOutline, OutlineSlide } from './generation';
+export type { ThemeCustomizerProps } from './theme';
+export type { SlideContentProps } from './rendering';

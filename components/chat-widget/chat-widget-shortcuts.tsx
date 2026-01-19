@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -53,14 +52,18 @@ export function ChatWidgetShortcuts({ className }: ChatWidgetShortcutsProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn("h-6 w-6", className)}
-          title="快捷键帮助"
+        <button
+          type="button"
+          className={cn(
+            "flex items-center w-full px-2 py-1.5 text-sm",
+            "rounded-sm hover:bg-accent hover:text-accent-foreground",
+            "cursor-pointer outline-none",
+            className
+          )}
         >
-          <Keyboard className="h-3.5 w-3.5" />
-        </Button>
+          <Keyboard className="h-4 w-4 mr-2" />
+          快捷键
+        </button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[320px]">
         <DialogHeader>

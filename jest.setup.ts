@@ -34,6 +34,85 @@ global.ResizeObserver = class ResizeObserver {
   disconnect() {}
 };
 
+// Mock HTMLCanvasElement.getContext for components using canvas (like mind-map-canvas)
+HTMLCanvasElement.prototype.getContext = jest.fn(function (contextType: string) {
+  if (contextType === '2d') {
+    return {
+      fillRect: jest.fn(),
+      clearRect: jest.fn(),
+      getImageData: jest.fn(() => ({ data: new Uint8ClampedArray(4) })),
+      putImageData: jest.fn(),
+      createImageData: jest.fn(() => ({ data: new Uint8ClampedArray(4), width: 0, height: 0 })),
+      setTransform: jest.fn(),
+      drawImage: jest.fn(),
+      save: jest.fn(),
+      restore: jest.fn(),
+      beginPath: jest.fn(),
+      moveTo: jest.fn(),
+      lineTo: jest.fn(),
+      closePath: jest.fn(),
+      stroke: jest.fn(),
+      fill: jest.fn(),
+      arc: jest.fn(),
+      arcTo: jest.fn(),
+      ellipse: jest.fn(),
+      rect: jest.fn(),
+      clip: jest.fn(),
+      quadraticCurveTo: jest.fn(),
+      bezierCurveTo: jest.fn(),
+      translate: jest.fn(),
+      rotate: jest.fn(),
+      scale: jest.fn(),
+      transform: jest.fn(),
+      resetTransform: jest.fn(),
+      measureText: jest.fn((text: string) => ({
+        width: text.length * 8,
+        actualBoundingBoxAscent: 10,
+        actualBoundingBoxDescent: 2,
+        fontBoundingBoxAscent: 12,
+        fontBoundingBoxDescent: 3,
+        actualBoundingBoxLeft: 0,
+        actualBoundingBoxRight: text.length * 8,
+      })),
+      fillText: jest.fn(),
+      strokeText: jest.fn(),
+      createLinearGradient: jest.fn(() => ({
+        addColorStop: jest.fn(),
+      })),
+      createRadialGradient: jest.fn(() => ({
+        addColorStop: jest.fn(),
+      })),
+      createPattern: jest.fn(() => ({})),
+      setLineDash: jest.fn(),
+      getLineDash: jest.fn(() => []),
+      isPointInPath: jest.fn(() => false),
+      isPointInStroke: jest.fn(() => false),
+      canvas: this,
+      // Canvas state
+      globalAlpha: 1,
+      globalCompositeOperation: 'source-over',
+      fillStyle: '#000000',
+      strokeStyle: '#000000',
+      lineWidth: 1,
+      lineCap: 'butt',
+      lineJoin: 'miter',
+      miterLimit: 10,
+      lineDashOffset: 0,
+      shadowBlur: 0,
+      shadowColor: 'rgba(0, 0, 0, 0)',
+      shadowOffsetX: 0,
+      shadowOffsetY: 0,
+      font: '10px sans-serif',
+      textAlign: 'start',
+      textBaseline: 'alphabetic',
+      direction: 'ltr',
+      imageSmoothingEnabled: true,
+      imageSmoothingQuality: 'low',
+    } as unknown as CanvasRenderingContext2D;
+  }
+  return null;
+}) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+
 // Mock scrollIntoView for JSDOM (not supported by default)
 Element.prototype.scrollIntoView = jest.fn();
 

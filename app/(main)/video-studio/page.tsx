@@ -13,6 +13,7 @@
  */
 
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   Video as VideoIcon,
@@ -102,9 +103,13 @@ export default function VideoStudioPage() {
   const t = useTranslations('videoStudio');
   const tEditor = useTranslations('videoEditor');
   const tGen = useTranslations('videoGeneration');
+  const searchParams = useSearchParams();
+  
+  // Get initial mode from URL query parameter
+  const initialMode = searchParams.get('mode') === 'recording' ? 'recording' : 'ai-generation';
   
   // Studio Mode State
-  const [studioMode, setStudioMode] = useState<StudioMode>('ai-generation');
+  const [studioMode, setStudioMode] = useState<StudioMode>(initialMode);
   const [showSidebar, setShowSidebar] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(1);
   

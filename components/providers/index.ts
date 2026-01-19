@@ -14,25 +14,28 @@
  * 10. SkillProvider - Built-in skills
  * 11. NativeProvider - Desktop functionality
  * 12. OnboardingProvider - Setup wizard
+ *
+ * Folder Structure:
+ * - core/         Essential infrastructure (error, logging, cache)
+ * - ai/           AI provider state management
+ * - media/        Audio/Speech features
+ * - network/      Real-time communication (WebSocket)
+ * - native/       Desktop/Tauri functionality
+ * - ui/           Theme management
+ * - initializers/ App startup initialization
  */
 
-// Core providers
-export { NativeProvider, type NativeProviderProps } from './native-provider';
-export {
-  SkillProvider,
-  useInitializeSkills,
-  initializeSkillsSync,
-} from './skill-provider';
-
-// Error handling
+// ============================================================================
+// Core Providers - Essential infrastructure
+// ============================================================================
 export {
   ErrorBoundaryProvider,
   type ErrorBoundaryProviderProps,
   type ErrorBoundaryState,
   useErrorBoundary,
-} from './error-boundary-provider';
+  navigation,
+} from './core';
 
-// Logging
 export {
   LoggerProvider,
   useLogger,
@@ -41,9 +44,8 @@ export {
   type LogEntry,
   type LogTransport,
   type LogLevel,
-} from './logger-provider';
+} from './core';
 
-// Caching
 export {
   CacheProvider,
   useCache,
@@ -51,9 +53,27 @@ export {
   useCachedValue,
   type CacheConfig,
   type CacheStats,
-} from './cache-provider';
+} from './core';
 
-// Audio/Speech
+// ============================================================================
+// AI Providers - Provider state management
+// ============================================================================
+export {
+  ProviderProvider,
+  useProviderContext,
+  useProvider,
+  useAvailableProviders,
+  useProviderModels,
+  type ProviderContextValue,
+  type EnhancedProvider,
+  type ProviderMetadata,
+  type ProviderHealth,
+  type ProviderHealthStatus,
+} from './ai';
+
+// ============================================================================
+// Media Providers - Audio/Speech features
+// ============================================================================
 export {
   AudioProvider,
   useAudio,
@@ -74,9 +94,11 @@ export {
   isSpeechRecognitionSupported,
   getSpeechRecognition,
   isSpeechSynthesisSupported,
-} from './audio-provider';
+} from './media';
 
-// WebSocket
+// ============================================================================
+// Network Providers - Real-time communication
+// ============================================================================
 export {
   WebSocketProvider,
   useWebSocket,
@@ -87,31 +109,33 @@ export {
   type WebSocketMessage,
   type WebSocketEventHandler,
   type WebSocketEventType,
-} from './websocket-provider';
+} from './network';
 
-// Provider management
-export {
-  ProviderProvider,
-  useProviderContext,
-  useProvider,
-  useAvailableProviders,
-  useProviderModels,
-  type ProviderContextValue,
-  type EnhancedProvider,
-  type ProviderMetadata,
-  type ProviderHealth,
-  type ProviderHealthStatus,
-} from './provider-context';
+// ============================================================================
+// Native Providers - Desktop/Tauri functionality
+// ============================================================================
+export { NativeProvider, type NativeProviderProps } from './native';
 
-// Locale initialization
-export { LocaleInitializer } from './locale-initializer';
-
-// Secure storage
 export {
   StrongholdProvider,
   useStrongholdContext,
   useStrongholdOptional,
-} from './stronghold-provider';
+} from './native';
 
-// Store initialization
-export { StoreInitializer } from './store-initializer';
+// ============================================================================
+// UI Providers - Theme management
+// ============================================================================
+export { ThemeProvider, useTheme, type Theme } from './ui';
+
+// ============================================================================
+// Initializers - App startup initialization
+// ============================================================================
+export { LocaleInitializer } from './initializers';
+
+export { StoreInitializer } from './initializers';
+
+export {
+  SkillProvider,
+  useInitializeSkills,
+  initializeSkillsSync,
+} from './initializers';

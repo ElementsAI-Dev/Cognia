@@ -157,13 +157,13 @@ export function ChatSettings() {
         {/* Quick Settings Row - Stream & Send */}
         <Card className="border-dashed bg-muted/30">
           <CardContent className="py-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center justify-between rounded-lg border bg-background p-3">
-                <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-muted-foreground" />
-                  <div className="space-y-0.5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="flex items-center justify-between gap-3 rounded-lg border bg-background p-3">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <Zap className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="space-y-0.5 min-w-0">
                     <Label htmlFor="stream-responses" className="text-sm">{t('streamResponses') || 'Stream Responses'}</Label>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-[10px] text-muted-foreground truncate">
                       {t('streamResponsesDesc') || 'Show AI response as it generates'}
                     </p>
                   </div>
@@ -172,15 +172,16 @@ export function ChatSettings() {
                   id="stream-responses"
                   checked={streamResponses}
                   onCheckedChange={setStreamResponses}
+                  className="shrink-0"
                 />
               </div>
 
-              <div className="flex items-center justify-between rounded-lg border bg-background p-3">
-                <div className="flex items-center gap-2">
-                  <Send className="h-4 w-4 text-muted-foreground" />
-                  <div className="space-y-0.5">
+              <div className="flex items-center justify-between gap-3 rounded-lg border bg-background p-3">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <Send className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="space-y-0.5 min-w-0">
                     <Label htmlFor="send-on-enter" className="text-sm">{t('sendOnEnter') || 'Send on Enter'}</Label>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-[10px] text-muted-foreground truncate">
                       {t('sendOnEnterDesc') || 'Press Enter to send message'}
                     </p>
                   </div>
@@ -189,6 +190,7 @@ export function ChatSettings() {
                   id="send-on-enter"
                   checked={sendOnEnter}
                   onCheckedChange={setSendOnEnter}
+                  className="shrink-0"
                 />
               </div>
             </div>

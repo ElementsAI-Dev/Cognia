@@ -64,7 +64,7 @@ const quickActions: QuickAction[] = [
     id: 'video-editor',
     label: 'videoEditor',
     icon: <Monitor className="h-4 w-4" />,
-    href: '/video-editor',
+    href: '/video-studio?mode=recording',
     color: 'text-violet-500',
     description: 'videoEditorDesc',
   },

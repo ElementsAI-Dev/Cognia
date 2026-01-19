@@ -29,6 +29,7 @@ export interface LocalProviderConfig {
   supportsEmbeddings: boolean;
   description: string;
   website: string;
+  icon?: string;
 }
 
 /**
@@ -66,6 +67,7 @@ export const LOCAL_PROVIDER_CONFIGS: Record<string, LocalProviderConfig> = {
     supportsEmbeddings: true,
     description: 'Run models locally with easy model management',
     website: 'https://ollama.ai',
+    icon: '/icons/providers/ollama.svg',
   },
   lmstudio: {
     id: 'lmstudio',
@@ -78,6 +80,7 @@ export const LOCAL_PROVIDER_CONFIGS: Record<string, LocalProviderConfig> = {
     supportsEmbeddings: true,
     description: 'Desktop app for running local LLMs with OpenAI-compatible API',
     website: 'https://lmstudio.ai',
+    icon: '/icons/providers/lmstudio.svg',
   },
   llamacpp: {
     id: 'llamacpp',
@@ -114,6 +117,7 @@ export const LOCAL_PROVIDER_CONFIGS: Record<string, LocalProviderConfig> = {
     supportsEmbeddings: true,
     description: 'High-throughput GPU inference engine with PagedAttention',
     website: 'https://vllm.ai',
+    icon: '/icons/providers/vllm.svg',
   },
   localai: {
     id: 'localai',

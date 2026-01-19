@@ -83,7 +83,7 @@ describe('SidebarQuickActions', () => {
     
     expect(hrefs).toContain('/image-studio');
     expect(hrefs).toContain('/video-studio');
-    expect(hrefs).toContain('/video-editor');
+    expect(hrefs).toContain('/video-studio?mode=recording');
     expect(hrefs).toContain('/settings?section=selection');
   });
 

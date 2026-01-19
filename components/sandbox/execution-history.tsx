@@ -42,7 +42,16 @@ import {
   Search,
   Filter,
   Code,
+  Copy,
+  Download,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { LANGUAGE_INFO, type ExecutionStatus } from '@/types/system/sandbox';
 
@@ -50,17 +59,22 @@ export interface ExecutionHistoryProps {
   className?: string;
   onSelectExecution?: (code: string, language: string) => void;
   limit?: number;
+  showPagination?: boolean;
 }
 
 export function ExecutionHistory({
   className,
   onSelectExecution,
   limit = 20,
+  showPagination = true,
 }: ExecutionHistoryProps) {
   const t = useTranslations('sandbox');
   const [searchQuery, setSearchQuery] = useState('');
   const [languageFilter, setLanguageFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const {
     executions,
@@ -72,9 +86,11 @@ export function ExecutionHistory({
   } = useExecutionHistory({
     filter: {
       limit,
+      offset: currentPage * limit,
       language: languageFilter !== 'all' ? languageFilter : undefined,
       status: statusFilter !== 'all' ? (statusFilter as ExecutionStatus) : undefined,
       search_query: searchQuery || undefined,
+      is_favorite: favoritesOnly ? true : undefined,
     },
   });
 
@@ -90,6 +106,45 @@ export function ExecutionHistory({
   const handleToggleFavorite = useCallback(async (id: string) => {
     await toggleFavorite(id);
   }, [toggleFavorite]);
+
+  const handleCopyCode = useCallback(async (id: string, code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      // Ignore copy failures
+    }
+  }, []);
+
+  const handleExportHistory = useCallback(() => {
+    const exportData = executions.map(exec => ({
+      id: exec.id,
+      language: exec.language,
+      code: exec.code,
+      status: exec.status,
+      stdout: exec.stdout,
+      stderr: exec.stderr,
+      exit_code: exec.exit_code,
+      execution_time_ms: exec.execution_time_ms,
+      created_at: exec.created_at,
+      tags: exec.tags,
+      is_favorite: exec.is_favorite,
+    }));
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `execution-history-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [executions]);
+
+  const hasMorePages = executions.length === limit;
+  const hasPrevPage = currentPage > 0;
 
   const formatTime = (ms: number) => {
     if (ms < 1000) return `${ms}ms`;
@@ -114,6 +169,19 @@ export function ExecutionHistory({
             <CardTitle className="text-lg">{t('history.title')}</CardTitle>
           </div>
           <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleExportHistory}
+                  disabled={executions.length === 0}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Export history as JSON</TooltipContent>
+            </Tooltip>
             <Button
               variant="ghost"
               size="icon"
@@ -160,7 +228,7 @@ export function ExecutionHistory({
         </div>
         <div className="flex gap-2">
           <Select value={languageFilter} onValueChange={setLanguageFilter}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-35">
               <Filter className="h-4 w-4 mr-2" />
               <SelectValue placeholder={t('history.language')} />
             </SelectTrigger>
@@ -175,7 +243,7 @@ export function ExecutionHistory({
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-35">
               <SelectValue placeholder={t('history.status')} />
             </SelectTrigger>
             <SelectContent>
@@ -194,11 +262,19 @@ export function ExecutionHistory({
               </SelectItem>
             </SelectContent>
           </Select>
+          <Button
+            variant={favoritesOnly ? 'secondary' : 'ghost'}
+            size="sm"
+            className="h-9"
+            onClick={() => setFavoritesOnly(!favoritesOnly)}
+          >
+            <Star className={cn('h-4 w-4', favoritesOnly && 'fill-yellow-500 text-yellow-500')} />
+          </Button>
         </div>
       </div>
 
       <CardContent className="flex-1 p-0">
-        <ScrollArea className="h-[400px]">
+        <ScrollArea className="h-100">
           <div className="px-6 pb-6 space-y-2">
             {executions.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
@@ -249,6 +325,26 @@ export function ExecutionHistory({
                         </div>
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopyCode(execution.id, execution.code);
+                              }}
+                            >
+                              {copiedId === execution.id ? (
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Copy code</TooltipContent>
+                        </Tooltip>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -294,6 +390,33 @@ export function ExecutionHistory({
             )}
           </div>
         </ScrollArea>
+        
+        {/* Pagination */}
+        {showPagination && (hasPrevPage || hasMorePages) && (
+          <div className="flex items-center justify-between px-6 py-3 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+              disabled={!hasPrevPage}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Page {currentPage + 1}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => p + 1)}
+              disabled={!hasMorePages}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

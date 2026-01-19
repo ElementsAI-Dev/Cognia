@@ -5,7 +5,7 @@
  */
 
 import { ChatContainer } from '@/components/chat';
-import { ErrorBoundaryProvider } from '@/components/providers/error-boundary-provider';
+import { ErrorBoundaryProvider } from '@/components/providers/core';
 
 export default function ChatPage() {
   return (

@@ -188,147 +188,155 @@ export function AgentModeSelector({
             className={cn('gap-2', className)}
           >
             <ModeIcon name={selectedMode.icon} className="h-4 w-4" />
-            <span className="hidden sm:inline">{selectedMode.name}</span>
+            <span className="hidden sm:inline">
+              {selectedMode.type === 'custom' 
+                ? selectedMode.name 
+                : t(`modes.${selectedMode.id}.name`)
+              }
+            </span>
             <ChevronDown className="h-3 w-3 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="center" className="w-80">
-          {/* Built-in Modes Section */}
-          <DropdownMenuGroup>
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              {t('builtInModes')}
-            </DropdownMenuLabel>
-            <ScrollArea className="max-h-[200px]">
-              {BUILT_IN_AGENT_MODES.map((mode) => {
-                const isSelected = mode.id === selectedModeId;
-                return (
-                  <DropdownMenuItem
-                    key={mode.id}
-                    onClick={() => handleModeSelect(mode)}
-                    className="flex items-start gap-3 p-3"
-                  >
-                    <div className={cn(
-                      'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
-                      isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                    )}>
-                      <ModeIcon name={mode.icon} className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{mode.name}</span>
-                        {isSelected && <Check className="h-3 w-3 text-primary" />}
-                      </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        {mode.description}
-                      </p>
-                      {mode.previewEnabled && (
-                        <Badge variant="secondary" className="mt-1 text-[10px]">
-                          {t('livePreview')}
-                        </Badge>
-                      )}
-                    </div>
-                  </DropdownMenuItem>
-                );
-              })}
-            </ScrollArea>
-          </DropdownMenuGroup>
-
-          {/* Custom Modes Section */}
-          {customModesList.length > 0 && (
-            <>
-              <DropdownMenuSeparator />
+          <div className="flex flex-col">
+            {/* Scrollable content for all modes */}
+            <ScrollArea className="max-h-[400px]">
+              {/* Built-in Modes Section */}
               <DropdownMenuGroup>
                 <DropdownMenuLabel className="text-xs text-muted-foreground">
-                  {t('customModes')}
+                  {t('builtInModes')}
                 </DropdownMenuLabel>
-                <ScrollArea className="max-h-[150px]">
-                  {customModesList.map((mode) => {
-                    const isSelected = mode.id === selectedModeId;
-                    return (
-                      <DropdownMenuItem
-                        key={mode.id}
-                        onClick={() => handleModeSelect(mode)}
-                        className="flex items-start gap-3 p-3 group"
-                      >
-                        <div className={cn(
-                          'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
-                          isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                        )}>
-                          <ModeIcon name={mode.icon} className="h-4 w-4" />
+                {BUILT_IN_AGENT_MODES.map((mode) => {
+                  const isSelected = mode.id === selectedModeId;
+                  return (
+                    <DropdownMenuItem
+                      key={mode.id}
+                      onClick={() => handleModeSelect(mode)}
+                      className="flex items-start gap-3 p-3"
+                    >
+                      <div className={cn(
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
+                        isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                      )}>
+                        <ModeIcon name={mode.icon} className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm">
+                            {t(`modes.${mode.id}.name`)}
+                          </span>
+                          {isSelected && <Check className="h-3 w-3 text-primary" />}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-sm">{mode.name}</span>
-                            {isSelected && <Check className="h-3 w-3 text-primary" />}
-                          </div>
-                          <p className="text-xs text-muted-foreground line-clamp-1">
-                            {mode.description}
-                          </p>
-                          {mode.category && (
-                            <Badge variant="outline" className="mt-1 text-[10px]">
-                              {mode.category}
-                            </Badge>
-                          )}
-                        </div>
-                        {/* Action buttons */}
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={(e) => handleEdit(mode, e)}
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">{t('editMode')}</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={(e) => handleDuplicate(mode.id, e)}
-                              >
-                                <Copy className="h-3 w-3" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">{t('duplicateMode')}</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 text-destructive hover:text-destructive"
-                                onClick={(e) => handleDeleteConfirm(mode.id, e)}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">{t('deleteMode')}</TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </ScrollArea>
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {t(`modes.${mode.id}.description`)}
+                        </p>
+                        {mode.previewEnabled && (
+                          <Badge variant="secondary" className="mt-1 text-[10px]">
+                            {t('livePreview')}
+                          </Badge>
+                        )}
+                      </div>
+                    </DropdownMenuItem>
+                  );
+                })}
               </DropdownMenuGroup>
-            </>
-          )}
 
-          {/* Create New Mode */}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={handleCreateNew}
-            className="gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            {t('createCustomMode')}
-          </DropdownMenuItem>
+              {/* Custom Modes Section */}
+              {customModesList.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">
+                      {t('customModes')}
+                    </DropdownMenuLabel>
+                    {customModesList.map((mode) => {
+                      const isSelected = mode.id === selectedModeId;
+                      return (
+                        <DropdownMenuItem
+                          key={mode.id}
+                          onClick={() => handleModeSelect(mode)}
+                          className="flex items-start gap-3 p-3 group"
+                        >
+                          <div className={cn(
+                            'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
+                            isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                          )}>
+                            <ModeIcon name={mode.icon} className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">{mode.name}</span>
+                              {isSelected && <Check className="h-3 w-3 text-primary" />}
+                            </div>
+                            <p className="text-xs text-muted-foreground line-clamp-1">
+                              {mode.description}
+                            </p>
+                            {mode.category && (
+                              <Badge variant="outline" className="mt-1 text-[10px]">
+                                {mode.category}
+                              </Badge>
+                            )}
+                          </div>
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={(e) => handleEdit(mode, e)}
+                                >
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">{t('editMode')}</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={(e) => handleDuplicate(mode.id, e)}
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">{t('duplicateMode')}</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-destructive hover:text-destructive"
+                                  onClick={(e) => handleDeleteConfirm(mode.id, e)}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">{t('deleteMode')}</TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuGroup>
+                </>
+              )}
+            </ScrollArea>
+
+            {/* Create New Mode - outside scroll area */}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={handleCreateNew}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              {t('createCustomMode')}
+            </DropdownMenuItem>
+          </div>
         </DropdownMenuContent>
       </DropdownMenu>
 

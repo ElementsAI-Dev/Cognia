@@ -44,6 +44,8 @@ export type A2UIComponentType =
   | 'Alert'
   | 'Link'
   | 'Icon'
+  | 'Animation'
+  | 'InteractiveGuide'
   | string; // Allow custom component types
 
 /**

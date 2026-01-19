@@ -18,7 +18,7 @@ import type {
 } from '@/types/system/git';
 import { gitService } from '@/lib/native/git';
 
-interface GitState {
+export interface GitState {
   // Git installation status
   gitStatus: GitStatus;
   isCheckingGit: boolean;
@@ -53,7 +53,7 @@ interface GitState {
   trackedRepos: string[];
 }
 
-interface GitActions {
+export interface GitActions {
   // Git installation
   checkGitInstalled: () => Promise<void>;
   installGit: () => Promise<void>;

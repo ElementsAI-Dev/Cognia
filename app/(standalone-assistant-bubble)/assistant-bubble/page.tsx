@@ -82,9 +82,11 @@ export default function AssistantBubblePage() {
             height: number;
             x: number;
             y: number;
+            scaleFactor: number;
           }>("assistant_bubble_get_work_area");
           
-          const bubbleSize = 56; // BUBBLE_SIZE from Rust
+          // Bubble size in physical pixels (64 logical * scale)
+          const bubbleSize = Math.round(64 * workArea.scaleFactor);
           const snapThreshold = 20; // Snap when within 20px of edge
           const edgePadding = 8; // Final padding from edge
           const menuHeight = 180; // Approximate height of context menu + tooltip
@@ -328,7 +330,7 @@ export default function AssistantBubblePage() {
   }, []);
 
   return (
-    <div className="assistant-bubble-window relative h-full w-full bg-transparent">
+    <div className="assistant-bubble-window relative bg-transparent" style={{ width: 64, height: 64 }}>
       {/* Tooltip */}
       {showTooltip && !showContextMenu && (
         <div
@@ -363,7 +365,7 @@ export default function AssistantBubblePage() {
         onPointerLeave={onPointerLeave}
         onContextMenu={onContextMenu}
         className={cn(
-          "relative h-full w-full rounded-full bubble-breathe bubble-glow",
+          "relative rounded-full bubble-breathe bubble-glow",
           "flex items-center justify-center",
           "transition-all duration-300 ease-out",
           // Gradient background
@@ -379,6 +381,7 @@ export default function AssistantBubblePage() {
           // Glow effect when chat is visible
           bubbleState.isChatVisible && "ring-2 ring-purple-400/50 ring-offset-2 ring-offset-transparent"
         )}
+        style={{ width: 56, height: 56 }}
         aria-label="Open Cognia Assistant"
       >
         {/* Breathing animation overlay - only when idle */}

@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +14,6 @@ import {
   CheckCircle,
   HelpCircle,
   ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 
 interface Suggestion {
@@ -89,58 +89,98 @@ export const ChatWidgetSuggestions = memo(function ChatWidgetSuggestions({
 
   const commonSuggestions = QUICK_SUGGESTIONS.filter(s => s.category === "common");
   const advancedSuggestions = QUICK_SUGGESTIONS.filter(s => s.category === "advanced");
-  const visibleSuggestions = expanded 
-    ? QUICK_SUGGESTIONS 
-    : commonSuggestions;
 
   return (
     <div className={cn("px-3 py-2", className)}>
-      <div className="flex flex-wrap gap-1.5">
-        {visibleSuggestions.map((suggestion, index) => (
-          <Button
-            key={index}
-            variant="outline"
-            size="sm"
-            className={cn(
-              "h-auto px-2 py-1 rounded-full",
-              "text-xs font-medium",
-              "hover:bg-muted/50 hover:shadow-sm",
-              "transition-all duration-200"
-            )}
-            onClick={() => onSelect(suggestion.prompt)}
+      <motion.div 
+        className="flex flex-wrap gap-1.5"
+        layout
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+      >
+        {/* Common suggestions - always visible */}
+        {commonSuggestions.map((suggestion, index) => (
+          <motion.div
+            key={`common-${index}`}
+            layout
+            initial={false}
           >
-            <span className="text-primary mr-1">{suggestion.icon}</span>
-            <span>{suggestion.label}</span>
-          </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                "h-auto px-2 py-1 rounded-full",
+                "text-xs font-medium",
+                "hover:bg-muted/50 hover:shadow-sm",
+                "transition-all duration-200"
+              )}
+              onClick={() => onSelect(suggestion.prompt)}
+            >
+              <span className="text-primary mr-1">{suggestion.icon}</span>
+              <span>{suggestion.label}</span>
+            </Button>
+          </motion.div>
         ))}
+        
+        {/* Advanced suggestions - animated appearance */}
+        <AnimatePresence mode="popLayout">
+          {expanded && advancedSuggestions.map((suggestion, index) => (
+            <motion.div
+              key={`advanced-${index}`}
+              layout
+              initial={{ opacity: 0, scale: 0.8, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: -10 }}
+              transition={{ 
+                duration: 0.2, 
+                delay: index * 0.05,
+                ease: "easeOut"
+              }}
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "h-auto px-2 py-1 rounded-full",
+                  "text-xs font-medium",
+                  "hover:bg-muted/50 hover:shadow-sm",
+                  "transition-all duration-200"
+                )}
+                onClick={() => onSelect(suggestion.prompt)}
+              >
+                <span className="text-primary mr-1">{suggestion.icon}</span>
+                <span>{suggestion.label}</span>
+              </Button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
         
         {/* Expand/Collapse button */}
         {advancedSuggestions.length > 0 && (
-          <Button
-            variant="secondary"
-            size="sm"
-            className={cn(
-              "h-auto px-2 py-1 rounded-full",
-              "text-xs font-medium text-muted-foreground",
-              "hover:bg-muted/50",
-              "transition-all duration-200"
-            )}
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded ? (
-              <>
-                <ChevronUp className="h-3 w-3 mr-1" />
-                <span>收起</span>
-              </>
-            ) : (
-              <>
+          <motion.div layout>
+            <Button
+              variant="secondary"
+              size="sm"
+              className={cn(
+                "h-auto px-2 py-1 rounded-full",
+                "text-xs font-medium text-muted-foreground",
+                "hover:bg-muted/50",
+                "transition-all duration-200"
+              )}
+              onClick={() => setExpanded(!expanded)}
+            >
+              <motion.span
+                className="flex items-center"
+                initial={false}
+                animate={{ rotate: expanded ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
                 <ChevronDown className="h-3 w-3 mr-1" />
-                <span>更多</span>
-              </>
-            )}
-          </Button>
+              </motion.span>
+              <span>{expanded ? "收起" : "更多"}</span>
+            </Button>
+          </motion.div>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 });

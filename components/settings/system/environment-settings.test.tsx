@@ -48,10 +48,30 @@ jest.mock('@/hooks/sandbox', () => ({
 // Mock environment types
 jest.mock('@/types/system/environment', () => ({
   TOOL_INFO: {
-    uv: { name: 'uv', description: 'Fast Python package manager', icon: '🐍', category: 'language_manager' },
-    nvm: { name: 'nvm', description: 'Node.js version manager', icon: '📦', category: 'language_manager' },
-    docker: { name: 'Docker', description: 'Container runtime', icon: '🐳', category: 'container_runtime' },
-    podman: { name: 'Podman', description: 'Container runtime', icon: '🦭', category: 'container_runtime' },
+    uv: {
+      name: 'uv',
+      description: 'Fast Python package manager',
+      icon: '🐍',
+      category: 'language_manager',
+    },
+    nvm: {
+      name: 'nvm',
+      description: 'Node.js version manager',
+      icon: '📦',
+      category: 'language_manager',
+    },
+    docker: {
+      name: 'Docker',
+      description: 'Container runtime',
+      icon: '🐳',
+      category: 'container_runtime',
+    },
+    podman: {
+      name: 'Podman',
+      description: 'Container runtime',
+      icon: '🦭',
+      category: 'container_runtime',
+    },
   },
 }));
 
@@ -75,12 +95,16 @@ jest.mock('@/components/ui/card', () => ({
 
 jest.mock('@/components/ui/button', () => ({
   Button: ({ children, onClick, disabled }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} disabled={disabled} data-testid="button">{children}</button>
+    <button onClick={onClick} disabled={disabled} data-testid="button">
+      {children}
+    </button>
   ),
 }));
 
 jest.mock('@/components/ui/badge', () => ({
-  Badge: ({ children }: { children: React.ReactNode }) => <span data-testid="badge">{children}</span>,
+  Badge: ({ children }: { children: React.ReactNode }) => (
+    <span data-testid="badge">{children}</span>
+  ),
 }));
 
 jest.mock('@/components/ui/progress', () => ({
@@ -105,9 +129,8 @@ jest.mock('@/components/ui/tooltip', () => ({
 }));
 
 jest.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
-    open ? <div data-testid="dialog">{children}</div> : null
-  ),
+  Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
+    open ? <div data-testid="dialog">{children}</div> : null,
   DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -120,7 +143,9 @@ jest.mock('@/components/ui/tabs', () => ({
   TabsContent: ({ children, value }: { children: React.ReactNode; value: string }) => (
     <div data-testid={`tab-${value}`}>{children}</div>
   ),
-  TabsList: ({ children }: { children: React.ReactNode }) => <div data-testid="tabs-list">{children}</div>,
+  TabsList: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="tabs-list">{children}</div>
+  ),
   TabsTrigger: ({ children, value }: { children: React.ReactNode; value: string }) => (
     <button data-testid={`tab-trigger-${value}`}>{children}</button>
   ),
@@ -182,7 +207,7 @@ describe('EnvironmentSettings', () => {
   it('shows installed badge for installed tools', () => {
     render(<EnvironmentSettings />);
     const badges = screen.getAllByTestId('badge');
-    expect(badges.some(badge => badge.textContent === 'installed')).toBeTruthy();
+    expect(badges.some((badge) => badge.textContent === 'installed')).toBeTruthy();
   });
 });
 

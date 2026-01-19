@@ -10,7 +10,8 @@ import { cn } from '@/lib/utils';
 import { useA2UI } from '@/hooks/a2ui';
 import { A2UIInlineSurface } from '@/components/a2ui';
 import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { RefreshCw, Sparkles } from 'lucide-react';
 import type { A2UIComponent, A2UIUserAction, A2UIDataModelChange } from '@/types/artifact/a2ui';
 
 interface WelcomeA2UIDemoProps {
@@ -22,6 +23,7 @@ interface WelcomeA2UIDemoProps {
 
 // Demo surface ID
 const DEMO_SURFACE_ID = 'welcome-demo-surface';
+const STORAGE_KEY = 'a2ui-demo-shown';
 
 // Prompt templates for quick actions
 const QUICK_ACTION_PROMPTS: Record<string, string> = {
@@ -164,14 +166,22 @@ const initialDataModel = {
   },
 };
 
-export function WelcomeA2UIDemo({ 
-  className, 
-  onAction, 
+export function WelcomeA2UIDemo({
+  className,
+  onAction,
   onSuggestionClick,
-  showSettings = true 
+  showSettings = true
 }: WelcomeA2UIDemoProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
-  
+  const [isOpen, setIsOpen] = useState(false);
+  const [hasShown, setHasShown] = useState(() => {
+    // Initialize from localStorage to avoid setState in effect
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(STORAGE_KEY) === 'true';
+    }
+    return false;
+  });
+
   const handleAction = useCallback((action: A2UIUserAction) => {
     // Get prompt template for the action
     const promptTemplate = QUICK_ACTION_PROMPTS[action.action];
@@ -217,27 +227,70 @@ export function WelcomeA2UIDemo({
     setTimeout(() => setIsRefreshing(false), 300);
   }, [createQuickSurface, deleteSurface, showSettings]);
 
-  if (!surface) {
+  const handleOpen = useCallback(() => {
+    setIsOpen(true);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setIsOpen(false);
+    // Mark as shown so it won't appear again
+    localStorage.setItem(STORAGE_KEY, 'true');
+    setHasShown(true);
+  }, []);
+
+  // Don't show anything if already shown
+  if (hasShown) {
     return null;
   }
 
+  // Show a button that opens the dialog
   return (
-    <div className={cn('a2ui-welcome-demo relative', className)}>
-      <div className="absolute top-2 right-2 z-10 flex gap-1">
+    <div className={cn('a2ui-welcome-demo-trigger', className)}>
+      <Dialog open={isOpen} onOpenChange={(open) => {
+        if (!open) {
+          handleClose();
+        } else {
+          setIsOpen(true);
+        }
+      }}>
         <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
+          onClick={handleOpen}
+          variant="outline"
+          className="w-full gap-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-500"
         >
-          <RefreshCw className={cn('h-3 w-3', isRefreshing && 'animate-spin')} />
+          <Sparkles className="h-4 w-4" />
+          <span>✨ Try Interactive Demo</span>
         </Button>
-      </div>
-      <A2UIInlineSurface
-        surfaceId={DEMO_SURFACE_ID}
-        className="rounded-lg border bg-card/50 p-4"
-      />
+
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>✨ Quick Actions Demo</DialogTitle>
+            <DialogDescription>
+              Experience the power of A2UI - interactive AI-generated UI components
+            </DialogDescription>
+          </DialogHeader>
+
+          {surface && (
+            <div className="relative">
+              <div className="absolute top-2 right-2 z-10 flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw className={cn('h-3 w-3', isRefreshing && 'animate-spin')} />
+                </Button>
+              </div>
+              <A2UIInlineSurface
+                surfaceId={DEMO_SURFACE_ID}
+                className="rounded-lg border bg-card/50 p-4"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

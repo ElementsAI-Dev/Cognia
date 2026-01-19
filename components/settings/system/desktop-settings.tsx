@@ -16,14 +16,9 @@ import {
   RefreshCw,
   ExternalLink,
   Info,
+  MousePointer2,
 } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -31,17 +26,11 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { useNativeStore } from '@/stores/system';
+import { useSelectionStore } from '@/stores/context/selection-store';
 import { useWindow } from '@/hooks/native';
 import { isTauri } from '@/lib/native/utils';
-import {
-  requestNotificationPermission,
-  sendNotification,
-} from '@/lib/native/notification';
-import {
-  checkForUpdates,
-  downloadAndInstallUpdate,
-  type UpdateInfo,
-} from '@/lib/native/updater';
+import { requestNotificationPermission, sendNotification } from '@/lib/native/notification';
+import { checkForUpdates, downloadAndInstallUpdate, type UpdateInfo } from '@/lib/native/updater';
 import { openInBrowser } from '@/lib/native/system';
 
 export function DesktopSettings() {
@@ -61,12 +50,9 @@ export function DesktopSettings() {
     setNotificationPermission,
   } = useNativeStore();
 
-  const {
-    isAlwaysOnTop,
-    toggleAlwaysOnTop,
-    toggleFullscreen,
-    isFullscreen,
-  } = useWindow();
+  const { isEnabled: isSelectionEnabled, setEnabled: setSelectionEnabled } = useSelectionStore();
+
+  const { isAlwaysOnTop, toggleAlwaysOnTop, toggleFullscreen, isFullscreen } = useWindow();
 
   useEffect(() => {
     setIsDesktopState(isTauri());
@@ -80,16 +66,12 @@ export function DesktopSettings() {
             <Monitor className="h-5 w-5" />
             {t('title')}
           </CardTitle>
-          <CardDescription>
-            {t('notAvailable')}
-          </CardDescription>
+          <CardDescription>{t('notAvailable')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
             <Monitor className="h-12 w-12 mb-4 opacity-50" />
-            <p className="text-sm">
-              {t('downloadHint')}
-            </p>
+            <p className="text-sm">{t('downloadHint')}</p>
             <Button
               variant="outline"
               className="mt-4"
@@ -175,9 +157,7 @@ export function DesktopSettings() {
             <Monitor className="h-4 w-4 text-muted-foreground" />
             {t('windowControls')}
           </CardTitle>
-          <CardDescription className="text-xs">
-            {t('windowControlsDesc')}
-          </CardDescription>
+          <CardDescription className="text-xs">{t('windowControlsDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
@@ -186,14 +166,9 @@ export function DesktopSettings() {
                 <Pin className="h-4 w-4" />
                 {t('alwaysOnTop')}
               </Label>
-              <p className="text-sm text-muted-foreground">
-                {t('alwaysOnTopDesc')}
-              </p>
+              <p className="text-sm text-muted-foreground">{t('alwaysOnTopDesc')}</p>
             </div>
-            <Switch
-              checked={isAlwaysOnTop}
-              onCheckedChange={toggleAlwaysOnTop}
-            />
+            <Switch checked={isAlwaysOnTop} onCheckedChange={toggleAlwaysOnTop} />
           </div>
           <Separator />
           <div className="flex items-center justify-between">
@@ -202,13 +177,32 @@ export function DesktopSettings() {
                 <Maximize className="h-4 w-4" />
                 {t('fullscreenMode')}
               </Label>
-              <p className="text-sm text-muted-foreground">
-                {t('fullscreenModeDesc')}
-              </p>
+              <p className="text-sm text-muted-foreground">{t('fullscreenModeDesc')}</p>
+            </div>
+            <Switch checked={isFullscreen} onCheckedChange={toggleFullscreen} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Selection Toolbar */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <MousePointer2 className="h-4 w-4 text-muted-foreground" />
+            {t('selectionToolbar')}
+          </CardTitle>
+          <CardDescription className="text-xs">{t('selectionToolbarDesc')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="selection-toolbar-toggle">{t('enableSelectionToolbar')}</Label>
+              <p className="text-sm text-muted-foreground">{t('enableSelectionToolbarDesc')}</p>
             </div>
             <Switch
-              checked={isFullscreen}
-              onCheckedChange={toggleFullscreen}
+              id="selection-toolbar-toggle"
+              checked={isSelectionEnabled}
+              onCheckedChange={setSelectionEnabled}
             />
           </div>
         </CardContent>
@@ -221,17 +215,13 @@ export function DesktopSettings() {
             <Bell className="h-4 w-4 text-muted-foreground" />
             {t('notifications')}
           </CardTitle>
-          <CardDescription className="text-xs">
-            {t('notificationsDesc')}
-          </CardDescription>
+          <CardDescription className="text-xs">{t('notificationsDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {!notificationPermission ? (
             <div className="flex flex-col items-center py-4 text-center">
               <Bell className="h-8 w-8 mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground mb-3">
-                {t('enableNotificationsHint')}
-              </p>
+              <p className="text-sm text-muted-foreground mb-3">{t('enableNotificationsHint')}</p>
               <Button onClick={handleRequestNotificationPermission}>
                 {t('enableNotifications')}
               </Button>
@@ -241,14 +231,9 @@ export function DesktopSettings() {
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>{t('enableNotifications')}</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {t('enableNotificationsDesc')}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{t('enableNotificationsDesc')}</p>
                 </div>
-                <Switch
-                  checked={notificationsEnabled}
-                  onCheckedChange={setNotificationsEnabled}
-                />
+                <Switch checked={notificationsEnabled} onCheckedChange={setNotificationsEnabled} />
               </div>
               <Separator />
               <Button
@@ -271,9 +256,7 @@ export function DesktopSettings() {
             <Download className="h-4 w-4 text-muted-foreground" />
             {t('updates')}
           </CardTitle>
-          <CardDescription className="text-xs">
-            {t('updatesDesc')}
-          </CardDescription>
+          <CardDescription className="text-xs">{t('updatesDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {isDownloading ? (
@@ -290,14 +273,10 @@ export function DesktopSettings() {
                 <Badge variant="default" className="bg-green-500">
                   {t('updateAvailable')}
                 </Badge>
-                <span className="text-sm font-medium">
-                  v{updateInfo.version}
-                </span>
+                <span className="text-sm font-medium">v{updateInfo.version}</span>
               </div>
               {updateInfo.body && (
-                <p className="text-sm text-muted-foreground">
-                  {updateInfo.body}
-                </p>
+                <p className="text-sm text-muted-foreground">{updateInfo.body}</p>
               )}
               <Button onClick={handleInstallUpdate}>
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -308,19 +287,13 @@ export function DesktopSettings() {
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <p className="text-sm">
-                  {updateInfo === null
-                    ? t('checkForUpdates')
-                    : t('latestVersion')}
+                  {updateInfo === null ? t('checkForUpdates') : t('latestVersion')}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {t('currentVersion', { version: appVersion || '' })}
                 </p>
               </div>
-              <Button
-                variant="outline"
-                onClick={handleCheckUpdate}
-                disabled={isCheckingUpdate}
-              >
+              <Button variant="outline" onClick={handleCheckUpdate} disabled={isCheckingUpdate}>
                 {isCheckingUpdate ? (
                   <RefreshCw className="h-4 w-4 animate-spin" />
                 ) : (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,12 +16,23 @@ import {
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import {
+  Bot,
+  MessageSquare,
+  Settings2,
+  Keyboard,
+  RotateCcw,
+  Save,
+  Sparkles,
+  Pin,
+  Focus,
+  Clock,
+  MapPin,
+} from "lucide-react";
 import type { ChatWidgetConfig } from "@/stores/chat";
 import type { ProviderName } from "@/types";
 
@@ -135,62 +147,82 @@ function ChatWidgetSettingsContent({
 
   return (
     <>
-      <SheetHeader>
-        <SheetTitle>助手设置</SheetTitle>
-        <SheetDescription>
-          配置 AI 助手的模型和行为
-        </SheetDescription>
+      <SheetHeader className="space-y-1 pb-4 border-b border-border/50">
+        <div className="flex items-center gap-2">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Sparkles className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <SheetTitle className="text-lg">助手设置</SheetTitle>
+            <p className="text-xs text-muted-foreground">配置 AI 助手的模型和行为</p>
+          </div>
+        </div>
       </SheetHeader>
 
-      <ScrollArea className="h-[calc(100vh-180px)] mt-4 pr-4">
-        <div className="space-y-6">
-          {/* Provider Selection */}
-          <div className="space-y-2">
-            <Label>AI 提供商</Label>
-            <Select
-              value={localConfig.provider}
-              onValueChange={(v) => handleProviderChange(v as ProviderName)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="选择提供商" />
-              </SelectTrigger>
-              <SelectContent>
-                {PROVIDERS.map((p) => (
-                  <SelectItem key={p.value} value={p.value}>
-                    {p.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <ScrollArea className="h-[calc(100vh-200px)] mt-4 pr-4">
+        <div className="space-y-5">
+          {/* AI Model Section */}
+          <div className={cn(
+            "rounded-xl border border-border/50 bg-card/50 p-4 space-y-4",
+            "hover:border-border/80 transition-colors"
+          )}>
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Bot className="h-4 w-4 text-primary" />
+              <span>AI 模型</span>
+            </div>
+            
+            <div className="grid gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">提供商</Label>
+                <Select
+                  value={localConfig.provider}
+                  onValueChange={(v) => handleProviderChange(v as ProviderName)}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="选择提供商" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROVIDERS.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">模型</Label>
+                <Select
+                  value={localConfig.model}
+                  onValueChange={(v) =>
+                    setLocalConfig((prev) => ({ ...prev, model: v }))
+                  }
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="选择模型" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MODELS[localConfig.provider]?.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
 
-          {/* Model Selection */}
-          <div className="space-y-2">
-            <Label>模型</Label>
-            <Select
-              value={localConfig.model}
-              onValueChange={(v) =>
-                setLocalConfig((prev) => ({ ...prev, model: v }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="选择模型" />
-              </SelectTrigger>
-              <SelectContent>
-                {MODELS[localConfig.provider]?.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
-
-          {/* System Prompt */}
-          <div className="space-y-2">
-            <Label>系统提示词</Label>
+          {/* System Prompt Section */}
+          <div className={cn(
+            "rounded-xl border border-border/50 bg-card/50 p-4 space-y-3",
+            "hover:border-border/80 transition-colors"
+          )}>
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <MessageSquare className="h-4 w-4 text-primary" />
+              <span>系统提示词</span>
+            </div>
             <Textarea
               value={localConfig.systemPrompt}
               onChange={(e) =>
@@ -200,99 +232,145 @@ function ChatWidgetSettingsContent({
                 }))
               }
               placeholder="设置 AI 的角色和行为..."
-              rows={4}
+              rows={3}
+              className="resize-none text-sm"
             />
           </div>
 
-          <Separator />
-
-          {/* Behavior Settings */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium">行为设置</h4>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="pinned" className="text-sm">
-                窗口置顶
-              </Label>
-              <Switch
-                id="pinned"
-                checked={localConfig.pinned}
-                onCheckedChange={(checked) =>
-                  setLocalConfig((prev) => ({ ...prev, pinned: checked }))
-                }
-              />
+          {/* Behavior Settings Section */}
+          <div className={cn(
+            "rounded-xl border border-border/50 bg-card/50 p-4 space-y-3",
+            "hover:border-border/80 transition-colors"
+          )}>
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Settings2 className="h-4 w-4 text-primary" />
+              <span>行为设置</span>
             </div>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="autoFocus" className="text-sm">
-                自动聚焦输入框
-              </Label>
-              <Switch
-                id="autoFocus"
-                checked={localConfig.autoFocus}
-                onCheckedChange={(checked) =>
-                  setLocalConfig((prev) => ({ ...prev, autoFocus: checked }))
-                }
-              />
-            </div>
+            <div className="space-y-1">
+              <SettingRow
+                icon={<Pin className="h-3.5 w-3.5" />}
+                label="窗口置顶"
+                description="始终显示在其他窗口前面"
+              >
+                <Switch
+                  id="pinned"
+                  checked={localConfig.pinned}
+                  onCheckedChange={(checked) =>
+                    setLocalConfig((prev) => ({ ...prev, pinned: checked }))
+                  }
+                />
+              </SettingRow>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="showTimestamps" className="text-sm">
-                显示时间戳
-              </Label>
-              <Switch
-                id="showTimestamps"
-                checked={localConfig.showTimestamps}
-                onCheckedChange={(checked) =>
-                  setLocalConfig((prev) => ({
-                    ...prev,
-                    showTimestamps: checked,
-                  }))
-                }
-              />
-            </div>
+              <SettingRow
+                icon={<Focus className="h-3.5 w-3.5" />}
+                label="自动聚焦"
+                description="打开时自动聚焦输入框"
+              >
+                <Switch
+                  id="autoFocus"
+                  checked={localConfig.autoFocus}
+                  onCheckedChange={(checked) =>
+                    setLocalConfig((prev) => ({ ...prev, autoFocus: checked }))
+                  }
+                />
+              </SettingRow>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="rememberPosition" className="text-sm">
-                记住窗口位置
-              </Label>
-              <Switch
-                id="rememberPosition"
-                checked={localConfig.rememberPosition}
-                onCheckedChange={(checked) =>
-                  setLocalConfig((prev) => ({
-                    ...prev,
-                    rememberPosition: checked,
-                  }))
-                }
-              />
+              <SettingRow
+                icon={<Clock className="h-3.5 w-3.5" />}
+                label="显示时间"
+                description="在消息旁显示时间戳"
+              >
+                <Switch
+                  id="showTimestamps"
+                  checked={localConfig.showTimestamps}
+                  onCheckedChange={(checked) =>
+                    setLocalConfig((prev) => ({
+                      ...prev,
+                      showTimestamps: checked,
+                    }))
+                  }
+                />
+              </SettingRow>
+
+              <SettingRow
+                icon={<MapPin className="h-3.5 w-3.5" />}
+                label="记住位置"
+                description="下次打开时恢复窗口位置"
+              >
+                <Switch
+                  id="rememberPosition"
+                  checked={localConfig.rememberPosition}
+                  onCheckedChange={(checked) =>
+                    setLocalConfig((prev) => ({
+                      ...prev,
+                      rememberPosition: checked,
+                    }))
+                  }
+                />
+              </SettingRow>
             </div>
           </div>
 
-          <Separator />
-
-          {/* Shortcut Info */}
-          <div className="space-y-2">
-            <Label>快捷键</Label>
-            <div className="text-sm text-muted-foreground">
-              <kbd className="px-2 py-1 bg-muted rounded text-xs">
+          {/* Shortcut Section */}
+          <div className={cn(
+            "rounded-xl border border-border/50 bg-card/50 p-4 space-y-2",
+            "hover:border-border/80 transition-colors"
+          )}>
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Keyboard className="h-4 w-4 text-primary" />
+              <span>快捷键</span>
+            </div>
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <kbd className="px-2.5 py-1 bg-muted rounded-md text-xs font-mono border border-border/50">
                 {localConfig.shortcut.replace("CommandOrControl", "Ctrl")}
               </kbd>
-              <span className="ml-2">唤起/隐藏助手</span>
+              <span>唤起/隐藏助手</span>
             </div>
           </div>
         </div>
       </ScrollArea>
 
       {/* Actions */}
-      <div className="flex gap-2 mt-4">
-        <Button variant="outline" className="flex-1" onClick={onResetConfig}>
+      <div className="flex gap-2 mt-4 pt-4 border-t border-border/50">
+        <Button 
+          variant="outline" 
+          className="flex-1 h-9" 
+          onClick={onResetConfig}
+        >
+          <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
           重置
         </Button>
-        <Button className="flex-1" onClick={handleSave}>
+        <Button 
+          className="flex-1 h-9" 
+          onClick={handleSave}
+        >
+          <Save className="h-3.5 w-3.5 mr-1.5" />
           保存
         </Button>
       </div>
     </>
+  );
+}
+
+interface SettingRowProps {
+  icon: React.ReactNode;
+  label: string;
+  description: string;
+  children: React.ReactNode;
+}
+
+function SettingRow({ icon, label, description, children }: SettingRowProps) {
+  return (
+    <div className="flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-muted/50 transition-colors">
+      <div className="flex items-center gap-2.5">
+        <div className="text-muted-foreground">{icon}</div>
+        <div>
+          <div className="text-sm font-medium">{label}</div>
+          <div className="text-xs text-muted-foreground">{description}</div>
+        </div>
+      </div>
+      {children}
+    </div>
   );
 }

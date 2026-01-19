@@ -13,7 +13,6 @@ import {
   Globe,
   Zap,
   Server,
-  Shield,
   Check,
   Eye,
   Wrench,
@@ -44,6 +43,8 @@ import {
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
 import { PROVIDERS, type ProviderConfig } from '@/types/provider';
+import { useProviderContext } from '@/components/providers/ai/provider-context';
+import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 
 // Category definitions
 type ProviderCategory = 'all' | 'flagship' | 'aggregator' | 'specialized' | 'local';
@@ -138,6 +139,7 @@ export function ModelPickerDialog({
   const tChat = useTranslations('chat');
   const tCommon = useTranslations('common');
   const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const { getProvider } = useProviderContext();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<ProviderCategory>('all');
   
@@ -216,14 +218,10 @@ export function ModelPickerDialog({
 
   // Get category icon
   const getCategoryIcon = (providerId: string) => {
-    const cat = PROVIDER_CATEGORIES[providerId];
-    switch (cat) {
-      case 'flagship': return <Sparkles className="h-3.5 w-3.5 text-amber-500" />;
-      case 'aggregator': return <Globe className="h-3.5 w-3.5 text-blue-500" />;
-      case 'specialized': return <Zap className="h-3.5 w-3.5 text-green-500" />;
-      case 'local': return <Server className="h-3.5 w-3.5 text-purple-500" />;
-      default: return <Shield className="h-3.5 w-3.5 text-muted-foreground" />;
-    }
+    const provider = getProvider(providerId);
+    const icon = provider?.metadata.icon;
+    
+    return <ProviderIcon icon={icon} size={14} className="shrink-0" />;
   };
 
   return (

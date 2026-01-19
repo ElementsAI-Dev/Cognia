@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -35,6 +36,10 @@ jest.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenuSeparator: () => <hr data-testid="dropdown-separator" />,
   DropdownMenuTrigger: ({ children, asChild: _asChild }: { children: React.ReactNode; asChild?: boolean }) => (
     <div data-testid="dropdown-trigger">{children}</div>
+  ),
+  DropdownMenuGroup: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown-group">{children}</div>,
+  DropdownMenuLabel: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="dropdown-label" className={className}>{children}</div>
   ),
 }));
 
@@ -93,6 +98,52 @@ jest.mock('@/components/ui/scroll-area', () => ({
   ),
 }));
 
+jest.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => <div data-testid="tooltip">{children}</div>,
+  TooltipContent: ({ children }: { children: React.ReactNode }) => <div data-testid="tooltip-content">{children}</div>,
+  TooltipTrigger: ({ children, asChild: _asChild }: { children: React.ReactNode; asChild?: boolean }) => (
+    <div data-testid="tooltip-trigger">{children}</div>
+  ),
+}));
+
+jest.mock('@/components/ui/alert-dialog', () => ({
+  AlertDialog: ({ children, open, onOpenChange }: { children: React.ReactNode; open: boolean; onOpenChange?: (open: boolean) => void }) => (
+    open ? <div data-testid="alert-dialog">{children}</div> : null
+  ),
+  AlertDialogAction: ({ children, onClick, className }: { children: React.ReactNode; onClick?: () => void; className?: string }) => (
+    <button onClick={onClick} className={className} data-testid="alert-dialog-action">{children}</button>
+  ),
+  AlertDialogCancel: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+    <button onClick={onClick} data-testid="alert-dialog-cancel">{children}</button>
+  ),
+  AlertDialogContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="alert-dialog-content">{children}</div>
+  ),
+  AlertDialogDescription: ({ children }: { children: React.ReactNode }) => (
+    <p data-testid="alert-dialog-description">{children}</p>
+  ),
+  AlertDialogFooter: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="alert-dialog-footer">{children}</div>
+  ),
+  AlertDialogHeader: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="alert-dialog-header">{children}</div>
+  ),
+  AlertDialogTitle: ({ children }: { children: React.ReactNode }) => (
+    <h2 data-testid="alert-dialog-title">{children}</h2>
+  ),
+}));
+
+jest.mock('./custom-mode-editor', () => ({
+  CustomModeEditor: ({ open, onOpenChange, mode, onSave }: { open: boolean; onOpenChange: (open: boolean) => void; mode?: any; onSave: (mode: any) => void }) => (
+    open ? (
+      <div data-testid="custom-mode-editor">
+        <button onClick={() => onOpenChange(false)}>Close</button>
+        <button onClick={() => onSave({ name: 'Test', description: 'Test', systemPrompt: 'Test', type: 'custom', icon: 'Settings', outputFormat: 'text', previewEnabled: false })}>Save</button>
+      </div>
+    ) : null
+  ),
+}));
+
 describe('AgentModeSelector', () => {
   const defaultProps = {
     selectedModeId: 'general',
@@ -116,6 +167,16 @@ describe('AgentModeSelector', () => {
 
   it('renders all built-in agent modes', () => {
     render(<AgentModeSelector {...defaultProps} />);
+    BUILT_IN_AGENT_MODES.forEach((mode) => {
+      expect(screen.getAllByText(mode.name).length).toBeGreaterThan(0);
+    });
+  });
+
+  it('renders scroll area with consolidated mode list', () => {
+    render(<AgentModeSelector {...defaultProps} />);
+    const scrollArea = screen.getByTestId('scroll-area');
+    expect(scrollArea).toBeInTheDocument();
+    // Verify scroll area contains the built-in modes
     BUILT_IN_AGENT_MODES.forEach((mode) => {
       expect(screen.getAllByText(mode.name).length).toBeGreaterThan(0);
     });
@@ -159,9 +220,20 @@ describe('AgentModeSelector', () => {
     expect(screen.getByText('Create Custom Mode')).toBeInTheDocument();
   });
 
-  it('does not show "Create Custom Mode" when onCustomModeCreate is not provided', () => {
+  it('places "Create Custom Mode" button outside scroll area', () => {
+    const onCustomModeCreate = jest.fn();
+    render(
+      <AgentModeSelector {...defaultProps} onCustomModeCreate={onCustomModeCreate} />
+    );
+    const scrollArea = screen.getByTestId('scroll-area');
+    const createButton = screen.getByText('Create Custom Mode');
+    // Verify the create button is not inside the scroll area
+    expect(scrollArea.contains(createButton)).toBe(false);
+  });
+
+  it('shows "Create Custom Mode" button regardless of onCustomModeCreate prop', () => {
     render(<AgentModeSelector {...defaultProps} />);
-    expect(screen.queryByText('Create Custom Mode')).not.toBeInTheDocument();
+    expect(screen.getByText('Create Custom Mode')).toBeInTheDocument();
   });
 
   it('displays mode descriptions', () => {
@@ -204,74 +276,59 @@ describe('AgentModeSelector Custom Mode Dialog', () => {
     jest.clearAllMocks();
   });
 
-  it('opens custom mode dialog when "Create Custom Mode" is clicked', async () => {
+  it('opens custom mode editor when "Create Custom Mode" is clicked', async () => {
     render(<AgentModeSelector {...propsWithCustomCreate} />);
     
     const createButton = screen.getByText('Create Custom Mode');
     fireEvent.click(createButton);
     
     await waitFor(() => {
-      expect(screen.getByTestId('dialog')).toBeInTheDocument();
+      expect(screen.getByTestId('custom-mode-editor')).toBeInTheDocument();
     });
   });
 
-  it('displays dialog with correct title and description', async () => {
+  it('displays editor with correct title', async () => {
     render(<AgentModeSelector {...propsWithCustomCreate} />);
     
     const createButton = screen.getByText('Create Custom Mode');
     fireEvent.click(createButton);
     
     await waitFor(() => {
-      // Text may be translated
-      expect(screen.queryAllByText(/Custom|Agent|Mode|创建/i).length).toBeGreaterThan(0);
+      expect(screen.getByTestId('custom-mode-editor')).toBeInTheDocument();
     });
   });
 
-  it('has input fields for name, description, and system prompt', async () => {
-    render(<AgentModeSelector {...propsWithCustomCreate} />);
-    
-    const createButton = screen.getByText('Create Custom Mode');
-    fireEvent.click(createButton);
-    
-    await waitFor(() => {
-      expect(screen.getByTestId('input-name')).toBeInTheDocument();
-      expect(screen.getByTestId('input-description')).toBeInTheDocument();
-      expect(screen.getByTestId('textarea-prompt')).toBeInTheDocument();
-    });
-  });
-
-  it('disables Create button when name is empty', async () => {
+  it('has Close and Save buttons in editor', async () => {
     render(<AgentModeSelector {...propsWithCustomCreate} />);
     
     const createCustomButton = screen.getByText('Create Custom Mode');
     fireEvent.click(createCustomButton);
     
     await waitFor(() => {
-      const createButton = screen.getAllByRole('button').find(btn => btn.textContent === 'Create');
-      expect(createButton).toBeDisabled();
+      expect(screen.getByText('Close')).toBeInTheDocument();
+      expect(screen.getByText('Save')).toBeInTheDocument();
     });
   });
 
-  it('enables Create button when name is provided', async () => {
-    const user = userEvent.setup();
+  it('closes editor when Close is clicked', async () => {
     render(<AgentModeSelector {...propsWithCustomCreate} />);
     
     const createCustomButton = screen.getByText('Create Custom Mode');
     fireEvent.click(createCustomButton);
     
     await waitFor(() => {
-      expect(screen.getByTestId('input-name')).toBeInTheDocument();
+      expect(screen.getByTestId('custom-mode-editor')).toBeInTheDocument();
     });
     
-    const nameInput = screen.getByTestId('input-name');
-    await user.type(nameInput, 'My Custom Agent');
+    const closeButton = screen.getByText('Close');
+    fireEvent.click(closeButton);
     
-    const createButton = screen.getAllByRole('button').find(btn => btn.textContent === 'Create');
-    expect(createButton).not.toBeDisabled();
+    await waitFor(() => {
+      expect(screen.queryByTestId('custom-mode-editor')).not.toBeInTheDocument();
+    });
   });
 
-  it('calls onCustomModeCreate with correct data when Create is clicked', async () => {
-    const user = userEvent.setup();
+  it('calls onCustomModeCreate with correct data when Save is clicked', async () => {
     const onCustomModeCreate = jest.fn();
     render(
       <AgentModeSelector
@@ -284,50 +341,22 @@ describe('AgentModeSelector Custom Mode Dialog', () => {
     fireEvent.click(createCustomButton);
     
     await waitFor(() => {
-      expect(screen.getByTestId('input-name')).toBeInTheDocument();
+      expect(screen.getByTestId('custom-mode-editor')).toBeInTheDocument();
     });
     
-    const nameInput = screen.getByTestId('input-name');
-    const descInput = screen.getByTestId('input-description');
-    const promptInput = screen.getByTestId('textarea-prompt');
-    
-    await user.type(nameInput, 'Test Agent');
-    await user.type(descInput, 'Test Description');
-    await user.type(promptInput, 'Test Prompt');
-    
-    const createButton = screen.getAllByRole('button').find(btn => btn.textContent === 'Create');
-    if (createButton) {
-      fireEvent.click(createButton);
-    }
+    const saveButton = screen.getByText('Save');
+    fireEvent.click(saveButton);
     
     expect(onCustomModeCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: 'Test Agent',
-        description: 'Test Description',
-        systemPrompt: 'Test Prompt',
+        name: 'Test',
+        description: 'Test',
+        systemPrompt: 'Test',
         type: 'custom',
         icon: 'Settings',
         outputFormat: 'text',
         previewEnabled: false,
       })
     );
-  });
-
-  it('closes dialog when Cancel is clicked', async () => {
-    render(<AgentModeSelector {...propsWithCustomCreate} />);
-    
-    const createCustomButton = screen.getByText('Create Custom Mode');
-    fireEvent.click(createCustomButton);
-    
-    await waitFor(() => {
-      expect(screen.getByTestId('dialog')).toBeInTheDocument();
-    });
-    
-    const cancelButton = screen.getByText('Cancel');
-    fireEvent.click(cancelButton);
-    
-    await waitFor(() => {
-      expect(screen.queryByTestId('dialog')).not.toBeInTheDocument();
-    });
   });
 });

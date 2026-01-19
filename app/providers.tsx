@@ -40,7 +40,7 @@ import {
   StoreInitializer,
 } from '@/components/providers';
 import { ObservabilityInitializer } from '@/components/observability';
-import { LocaleInitializer } from '@/components/providers/locale-initializer';
+import { LocaleInitializer } from '@/components/providers/initializers';
 import { ChatAssistantContainer } from '@/components/chat-widget';
 import { useChatWidgetStore } from '@/stores/chat';
 import { isTauri as detectTauri } from '@/lib/native/utils';

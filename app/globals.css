@@ -785,6 +785,14 @@ html.tauri-app [data-slot="sidebar-inset"] {
 
 .assistant-bubble-window {
   background-color: transparent;
+  /* Ensure the bubble container takes full window size and centers content */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Use fixed dimensions to ensure proper circular display */
+  width: 64px;
+  height: 64px;
+  overflow: visible;
 }
 
 /* ========================================

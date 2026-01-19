@@ -22,6 +22,7 @@
     "clear": "Clear",
     "dismiss": "Dismiss"
   },
+
   "platformWarning": {
     "notSupported": "{feature} is only available on {platforms}",
     "limitedSupport": "Limited Platform Support",
@@ -1202,9 +1203,46 @@
     "code": "Code",
     "enterCode": "Enter your code here...",
     "output": "Output",
-    "stdout": "stdout",
-    "stderr": "stderr",
-    "noOutput": "No output"
+    "stdout": "Standard Output",
+    "stderr": "Standard Error",
+    "noOutput": "No output",
+    "compilerSettings": "Compiler Settings",
+    "showSettings": "Show Settings",
+    "hideSettings": "Hide Settings",
+    "cppStandard": "C++ Standard",
+    "optimization": "Optimization",
+    "compiler": "Compiler",
+    "enableWarnings": "Enable Warnings",
+    "rustEdition": "Rust Edition",
+    "releaseMode": "Release Mode",
+    "pythonOptions": "Python Options",
+    "unbufferedOutput": "Unbuffered Output",
+    "optimizeBytecode": "Optimize Bytecode",
+    "compilationOutput": "Compilation",
+    "executionOutput": "Execution",
+    "exitCode": "Exit Code",
+    "memoryUsed": "Memory",
+    "executionTime": "Time",
+    "compileSuccess": "Compilation successful",
+    "compileFailed": "Compilation failed",
+    "runtimeError": "Runtime Error",
+    "timeout": "Execution timed out",
+    "customArgs": "Custom Arguments",
+    "customArgsPlaceholder": "Additional compiler/interpreter arguments",
+    "stdin": "Input (stdin)",
+    "stdinPlaceholder": "Enter input for your program...",
+    "args": "Arguments",
+    "argsPlaceholder": "arg1 arg2 arg3",
+    "showInput": "Show Input",
+    "hideInput": "Hide Input",
+    "copyOutput": "Copy",
+    "outputCopied": "Output copied!",
+    "clearOutput": "Clear",
+    "expandOutput": "Expand",
+    "collapseOutput": "Collapse",
+    "saveAsSnippet": "Save as Snippet",
+    "codeSaved": "Code saved",
+    "executionTimer": "Elapsed: {time}s"
   },
   "selectionHistory": {
     "history": "History",
@@ -1788,7 +1826,6 @@
     "formatCSV": "CSV File",
     "formatCSVDesc": "Simple tabular format for spreadsheets",
     "openGoogleSheets": "Open in Google Sheets",
-    "googleSheetsHint": "Downloads CSV and opens Google Sheets for import",
     "includeTimestamps": "Include Timestamps",
     "includeTimestampsDesc": "Show message times in export",
     "includeTokens": "Include Token Count",
@@ -2105,6 +2142,40 @@
     "discard": "Discard",
     "save": "Save"
   },
+  "rules": {
+    "title": "IDE Rules",
+    "description": "System instruction and behavior rules for AI editors (.cursorrules, .windsurfrules, etc.)",
+    "editor": "Editor",
+    "preview": "Preview",
+    "templates": "Templates",
+    "apply": "Apply",
+    "copy": "Copy",
+    "save": "Save",
+    "optimize": "AI Optimize",
+    "optimizing": "Optimizing...",
+    "format": "Format",
+    "variables": "Variables",
+    "insert": "Insert",
+    "tokens": "Tokens",
+    "chars": "Chars",
+    "untitled": "Untitled",
+    "unsavedChanges": "Unsaved changes",
+    "history": "History",
+    "diff": "Compare with Current",
+    "placeholder": "Enter rules here...",
+    "targets": {
+      "cursor": "Cursor (.cursorrules)",
+      "windsurf": "Windsurf (.windsurfrules)",
+      "copilot": "Copilot Instructions"
+    },
+    "categories": {
+      "general": "General",
+      "frontend": "Frontend",
+      "backend": "Backend",
+      "testing": "Testing",
+      "style": "Coding Style"
+    }
+  },
   "keyboardShortcuts": {
     "title": "Keyboard Shortcuts",
     "description": "Use these shortcuts to navigate and work faster.",
@@ -2117,6 +2188,7 @@
   },
   "projects": {
     "title": "Projects",
+    "noProjectsYet": "No projects yet",
     "createProject": "Create Project",
     "editProject": "Edit Project",
     "deleteProject": "Delete Project",
@@ -3696,7 +3768,45 @@
     "editMode": "Edit Mode",
     "deleteMode": "Delete Mode",
     "deleteModeConfirm": "Are you sure you want to delete this mode?",
-    "duplicateMode": "Duplicate Mode"
+    "duplicateMode": "Duplicate Mode",
+    "modes": {
+      "general": {
+        "name": "General Assistant",
+        "description": "General purpose AI assistant for various tasks"
+      },
+      "web-design": {
+        "name": "Web Designer",
+        "description": "Design and build web pages with live preview"
+      },
+      "code-gen": {
+        "name": "Code Generator",
+        "description": "Generate and explain code in various languages"
+      },
+      "data-analysis": {
+        "name": "Data Analyst",
+        "description": "Analyze data and create visualizations"
+      },
+      "writing": {
+        "name": "Writing Assistant",
+        "description": "Help with writing, editing, and content creation"
+      },
+      "research": {
+        "name": "Research Assistant",
+        "description": "Help with research and information gathering"
+      },
+      "ppt-generation": {
+        "name": "Presentation Generator",
+        "description": "Create professional presentations and slides"
+      },
+      "workflow": {
+        "name": "Workflow Executor",
+        "description": "Execute multi-step workflows and automations"
+      },
+      "academic": {
+        "name": "Academic Research",
+        "description": "Search, analyze, and learn from academic papers"
+      }
+    }
   },
   "customMode": {
     "createMode": "Create Custom Mode",
@@ -3803,7 +3913,11 @@
     "currentVersion": "Current: v{version}",
     "resources": "Resources",
     "viewOnGitHub": "View on GitHub",
-    "reportIssue": "Report an Issue"
+    "reportIssue": "Report an Issue",
+    "selectionToolbar": "Selection Toolbar",
+    "selectionToolbarDesc": "Global AI-powered text selection actions",
+    "enableSelectionToolbar": "Enable Selection Toolbar",
+    "enableSelectionToolbarDesc": "Show AI toolbar when selecting text in any application"
   },
   "proxySettings": {
     "title": "Proxy",
@@ -4580,7 +4694,6 @@
     "backToList": "Back to list",
     "noDescription": "No description",
     "nodes": "nodes",
-    "inputParameters": "Input Parameters",
     "inputMessage": "Input Message",
     "inputMessageDesc": "The input message for the workflow",
     "myWorkflows": "My Workflows",
@@ -4778,6 +4891,162 @@
       "auditory": "Auditory",
       "reading": "Reading/Writing",
       "kinesthetic": "Hands-on"
+    },
+    "visualization": {
+      "title": "Concept Visualization",
+      "legend": "Legend",
+      "annotations": "Annotations",
+      "clickToExplore": "Click on a node to explore details",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "resetZoom": "Reset zoom",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "nodeTypes": {
+        "input": "Input",
+        "output": "Output",
+        "process": "Process",
+        "decision": "Decision",
+        "data": "Data",
+        "default": "Default"
+      }
+    },
+    "animation": {
+      "title": "Interactive Animation",
+      "play": "Play",
+      "pause": "Pause",
+      "reset": "Reset",
+      "stepForward": "Step forward",
+      "stepBackward": "Step backward",
+      "speedNormal": "Normal",
+      "loopEnabled": "Looping enabled",
+      "enableLoop": "Enable loop",
+      "currentStep": "Step {current} of {total}",
+      "difficulty": {
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "advanced": "Advanced"
+      }
+    },
+    "guide": {
+      "title": "Step Guide",
+      "skipGuide": "Skip guide",
+      "stepProgress": "Step {current} of {total}",
+      "previousStep": "Previous",
+      "nextStep": "Next",
+      "complete": "Complete",
+      "tips": "Tips",
+      "showHints": "Show hints ({count})",
+      "hideHints": "Hide hints",
+      "relatedResources": "Related Resources",
+      "confirmUnderstanding": "I understand",
+      "confirmed": "Confirmed",
+      "estimatedTime": "~{minutes} min"
+    },
+    "transformer": {
+      "title": "Transformer Architecture",
+      "interactive": "Interactive",
+      "description": "Click on components to learn more, or use the controls to animate the data flow.",
+      "encoderLayer": "Encoder Layer × N",
+      "attentionWeights": "Attention Weights (simplified)",
+      "stepOf": "Step {current} of {total}",
+      "formula": "Formula",
+      "components": {
+        "inputEmbedding": {
+          "name": "Input Embedding",
+          "shortName": "Embed",
+          "description": "Converts input tokens to dense vectors",
+          "details": "Each token in the input sequence is mapped to a d-model dimensional vector using a learned embedding matrix. This transforms discrete tokens into a continuous vector space."
+        },
+        "positionalEncoding": {
+          "name": "Positional Encoding",
+          "shortName": "Pos",
+          "description": "Adds position information to embeddings",
+          "details": "Since the Transformer has no inherent notion of sequence order, positional encodings are added to give the model information about token positions."
+        },
+        "multiHeadAttention": {
+          "name": "Multi-Head Attention",
+          "shortName": "Attention",
+          "description": "Learns relationships between tokens",
+          "details": "The core mechanism of Transformers. Computes attention weights to determine how much each token should attend to every other token. Multiple heads learn different relationship patterns."
+        },
+        "addNorm": {
+          "name": "Add & Normalize",
+          "shortName": "Add&Norm",
+          "description": "Residual connection + layer normalization",
+          "details": "Adds the input back to the output (residual connection) and applies layer normalization. This helps with gradient flow and training stability."
+        },
+        "feedForward": {
+          "name": "Feed-Forward Network",
+          "shortName": "FFN",
+          "description": "Position-wise fully connected layers",
+          "details": "A simple two-layer neural network applied to each position independently. Typically expands the dimension by 4x and then projects back."
+        },
+        "encoder": {
+          "name": "Encoder Stack",
+          "shortName": "Encoder",
+          "description": "Processes input sequence (N layers)",
+          "details": "The encoder processes the input sequence and creates representations that capture the meaning and relationships within the input. Typically consists of N=6 identical layers."
+        },
+        "decoder": {
+          "name": "Decoder Stack",
+          "shortName": "Decoder",
+          "description": "Generates output sequence (N layers)",
+          "details": "The decoder generates the output sequence one token at a time, attending to both the encoder output and previously generated tokens. Also consists of N=6 identical layers."
+        },
+        "outputLinear": {
+          "name": "Linear Projection",
+          "shortName": "Linear",
+          "description": "Projects to vocabulary size",
+          "details": "A linear transformation that maps the decoder output to the vocabulary dimension, producing logits for each possible token."
+        },
+        "softmax": {
+          "name": "Softmax",
+          "shortName": "Softmax",
+          "description": "Converts logits to probabilities",
+          "details": "Applies the softmax function to convert raw logits into a probability distribution over the vocabulary."
+        }
+      },
+      "steps": {
+        "inputProcessing": {
+          "title": "Input Processing",
+          "description": "The input sequence is first converted to embeddings and combined with positional encodings.",
+          "highlight": "The sequence \"Hello, world!\" is tokenized and converted to vectors."
+        },
+        "selfAttention": {
+          "title": "Self-Attention",
+          "description": "Each token computes attention over all other tokens to understand context and relationships.",
+          "highlight": "The word \"world\" attends to \"Hello\" to understand the greeting context."
+        },
+        "residualNorm1": {
+          "title": "Residual & Normalize",
+          "description": "The attention output is added back to the input (residual connection) and normalized."
+        },
+        "feedForward": {
+          "title": "Feed-Forward Processing",
+          "description": "Each position is processed independently through a feed-forward network.",
+          "highlight": "This adds non-linear transformations to the representations."
+        },
+        "residualNorm2": {
+          "title": "Second Residual & Normalize",
+          "description": "Another residual connection and normalization completes one encoder layer."
+        },
+        "fullEncoder": {
+          "title": "Full Encoder",
+          "description": "The complete encoder stack processes the input through N identical layers.",
+          "highlight": "Typically N=6 layers, each with attention and feed-forward sublayers."
+        },
+        "decoderProcessing": {
+          "title": "Decoder Processing",
+          "description": "The decoder generates output tokens, attending to both encoder output and previous tokens.",
+          "highlight": "Uses masked attention to prevent looking at future tokens."
+        },
+        "outputGeneration": {
+          "title": "Output Generation",
+          "description": "The final output is projected to vocabulary size and converted to probabilities.",
+          "highlight": "The highest probability token is selected as the next output."
+        }
+      }
     }
   },
   "screenRecording": {
@@ -5032,5 +5301,163 @@
     "fullscreen": "Fullscreen",
     "exitFullscreen": "Exit Fullscreen",
     "keyboardShortcuts": "Keyboard Shortcuts"
+  },
+  "learning": {
+    "visualization": {
+      "title": "Concept Visualization",
+      "legend": "Legend",
+      "annotations": "Annotations",
+      "clickToExplore": "Click on a node to explore details",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "resetZoom": "Reset zoom",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "nodeTypes": {
+        "input": "Input",
+        "output": "Output",
+        "process": "Process",
+        "decision": "Decision",
+        "data": "Data",
+        "default": "Default"
+      }
+    },
+    "animation": {
+      "title": "Interactive Animation",
+      "play": "Play",
+      "pause": "Pause",
+      "reset": "Reset",
+      "stepForward": "Step forward",
+      "stepBackward": "Step backward",
+      "speedNormal": "Normal",
+      "loopEnabled": "Looping enabled",
+      "enableLoop": "Enable loop",
+      "currentStep": "Step {current} of {total}",
+      "difficulty": {
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "advanced": "Advanced"
+      }
+    },
+    "guide": {
+      "title": "Step Guide",
+      "skipGuide": "Skip guide",
+      "stepProgress": "Step {current} of {total}",
+      "previousStep": "Previous",
+      "nextStep": "Next",
+      "complete": "Complete",
+      "tips": "Tips",
+      "showHints": "Show hints ({count})",
+      "hideHints": "Hide hints",
+      "relatedResources": "Related Resources",
+      "confirmUnderstanding": "I understand",
+      "confirmed": "Confirmed",
+      "estimatedTime": "~{minutes} min"
+    },
+    "transformer": {
+      "title": "Transformer Architecture",
+      "interactive": "Interactive",
+      "description": "Click on components to learn more, or use the controls to animate the data flow.",
+      "encoderLayer": "Encoder Layer × N",
+      "attentionWeights": "Attention Weights (simplified)",
+      "stepOf": "Step {current} of {total}",
+      "formula": "Formula",
+      "components": {
+        "inputEmbedding": {
+          "name": "Input Embedding",
+          "shortName": "Embed",
+          "description": "Converts input tokens to dense vectors",
+          "details": "Each token in the input sequence is mapped to a d-model dimensional vector using a learned embedding matrix. This transforms discrete tokens into a continuous vector space."
+        },
+        "positionalEncoding": {
+          "name": "Positional Encoding",
+          "shortName": "Pos",
+          "description": "Adds position information to embeddings",
+          "details": "Since the Transformer has no inherent notion of sequence order, positional encodings are added to give the model information about token positions."
+        },
+        "multiHeadAttention": {
+          "name": "Multi-Head Attention",
+          "shortName": "Attention",
+          "description": "Learns relationships between tokens",
+          "details": "The core mechanism of Transformers. Computes attention weights to determine how much each token should attend to every other token. Multiple heads learn different relationship patterns."
+        },
+        "addNorm": {
+          "name": "Add & Normalize",
+          "shortName": "Add&Norm",
+          "description": "Residual connection + layer normalization",
+          "details": "Adds the input back to the output (residual connection) and applies layer normalization. This helps with gradient flow and training stability."
+        },
+        "feedForward": {
+          "name": "Feed-Forward Network",
+          "shortName": "FFN",
+          "description": "Position-wise fully connected layers",
+          "details": "A simple two-layer neural network applied to each position independently. Typically expands the dimension by 4x and then projects back."
+        },
+        "encoder": {
+          "name": "Encoder Stack",
+          "shortName": "Encoder",
+          "description": "Processes input sequence (N layers)",
+          "details": "The encoder processes the input sequence and creates representations that capture the meaning and relationships within the input. Typically consists of N=6 identical layers."
+        },
+        "decoder": {
+          "name": "Decoder Stack",
+          "shortName": "Decoder",
+          "description": "Generates output sequence (N layers)",
+          "details": "The decoder generates the output sequence one token at a time, attending to both the encoder output and previously generated tokens. Also consists of N=6 identical layers."
+        },
+        "outputLinear": {
+          "name": "Linear Projection",
+          "shortName": "Linear",
+          "description": "Projects to vocabulary size",
+          "details": "A linear transformation that maps the decoder output to the vocabulary dimension, producing logits for each possible token."
+        },
+        "softmax": {
+          "name": "Softmax",
+          "shortName": "Softmax",
+          "description": "Converts logits to probabilities",
+          "details": "Applies the softmax function to convert raw logits into a probability distribution over the vocabulary."
+        }
+      },
+      "steps": {
+        "inputProcessing": {
+          "title": "Input Processing",
+          "description": "The input sequence is first converted to embeddings and combined with positional encodings.",
+          "highlight": "The sequence \"Hello, world!\" is tokenized and converted to vectors."
+        },
+        "selfAttention": {
+          "title": "Self-Attention",
+          "description": "Each token computes attention over all other tokens to understand context and relationships.",
+          "highlight": "The word \"world\" attends to \"Hello\" to understand the greeting context."
+        },
+        "residualNorm1": {
+          "title": "Residual & Normalize",
+          "description": "The attention output is added back to the input (residual connection) and normalized."
+        },
+        "feedForward": {
+          "title": "Feed-Forward Processing",
+          "description": "Each position is processed independently through a feed-forward network.",
+          "highlight": "This adds non-linear transformations to the representations."
+        },
+        "residualNorm2": {
+          "title": "Second Residual & Normalize",
+          "description": "Another residual connection and normalization completes one encoder layer."
+        },
+        "fullEncoder": {
+          "title": "Full Encoder",
+          "description": "The complete encoder stack processes the input through N identical layers.",
+          "highlight": "Typically N=6 layers, each with attention and feed-forward sublayers."
+        },
+        "decoderProcessing": {
+          "title": "Decoder Processing",
+          "description": "The decoder generates output tokens, attending to both encoder output and previous tokens.",
+          "highlight": "Uses masked attention to prevent looking at future tokens."
+        },
+        "outputGeneration": {
+          "title": "Output Generation",
+          "description": "The final output is projected to vocabulary size and converted to probabilities.",
+          "highlight": "The highest probability token is selected as the next output."
+        }
+      }
+    }
   }
 }

@@ -1,28 +1,16 @@
 //! Tauri commands module
+//!
+//! All Tauri IPC commands organized by functional category.
 
-pub mod academic;
-pub mod api;
-pub mod assistant_bubble;
-pub mod awareness;
-pub mod chat_widget;
-pub mod clipboard;
+// Functional submodules
 pub mod context;
-pub mod environment;
-pub mod git;
-pub mod jupyter;
-pub mod local_provider;
-pub mod mcp;
-pub mod model_download;
-pub mod ocr;
-pub mod ollama;
-pub mod plugin;
-pub mod port;
-pub mod process;
-pub mod proxy;
-pub mod sandbox;
-pub mod screen_recording;
-pub mod screenshot;
-pub mod selection;
-pub mod skill;
-pub mod vector;
-pub mod window_diagnostics;
+pub mod devtools;
+pub mod extensions;
+pub mod media;
+pub mod providers;
+pub mod storage;
+pub mod system;
+pub mod window;
+
+// Standalone module (already organized)
+pub mod academic;

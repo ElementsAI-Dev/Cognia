@@ -197,7 +197,9 @@ export const messageRepository = {
     branchId: string | null | undefined,
     options: { limit: number; before?: Date }
   ): Promise<UIMessage[]> {
-    const effectiveBranchId = branchId ?? undefined;
+    // Convert undefined to empty string for valid IndexedDB key
+    // Messages with undefined branchId will be matched by empty string in the index
+    const effectiveBranchId = branchId ?? '';
     const upper = options.before ?? Dexie.maxKey;
 
     const page = await db.messages
@@ -220,7 +222,8 @@ export const messageRepository = {
     sessionId: string,
     branchId: string | null | undefined
   ): Promise<number> {
-    const effectiveBranchId = branchId ?? undefined;
+    // Convert undefined to empty string for valid IndexedDB key
+    const effectiveBranchId = branchId ?? '';
     return db.messages
       .where('[sessionId+branchId+createdAt]')
       .between(

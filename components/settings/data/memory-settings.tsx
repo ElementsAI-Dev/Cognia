@@ -378,7 +378,7 @@ export function MemorySettings() {
               </div>
 
               {/* Memory Stats */}
-              <div className="grid grid-cols-5 gap-1.5 text-center">
+              <div className="grid grid-cols-3 gap-1.5 text-center sm:grid-cols-5">
                 <div className="rounded-lg border p-2 bg-muted/30">
                   <div className="text-base font-bold">{stats.total}</div>
                   <div className="text-[9px] text-muted-foreground">{t('total') || 'Total'}</div>

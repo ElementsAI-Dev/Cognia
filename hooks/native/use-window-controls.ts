@@ -576,30 +576,65 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
     }
   }, [isTauri]);
 
-  // Get current screen info
+  // Get current screen info with proper work area calculation
   const getScreenInfo = useCallback(async (): Promise<ScreenInfo | null> => {
     if (!isTauri) return null;
     try {
       const monitor = await currentMonitor();
-      if (!monitor) {
-        const primary = await primaryMonitor();
-        if (!primary) return null;
-        return {
-          width: primary.size.width,
-          height: primary.size.height,
-          workAreaWidth: primary.size.width,
-          workAreaHeight: primary.size.height,
-          scaleFactor: primary.scaleFactor,
-          name: primary.name,
-        };
+      const targetMonitor = monitor || await primaryMonitor();
+      if (!targetMonitor) return null;
+      
+      // Try to get work area from backend for accurate multi-monitor support
+      let workAreaWidth = targetMonitor.size.width;
+      let workAreaHeight = targetMonitor.size.height;
+      let actualScaleFactor = targetMonitor.scaleFactor;
+      
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const appWindow = getCurrentWindow();
+        const position = await appWindow.outerPosition();
+        
+        // Get work area at current window position for accurate multi-monitor DPI
+        const workArea = await invoke<{
+          width: number;
+          height: number;
+          x: number;
+          y: number;
+          scaleFactor: number;
+        }>('get_work_area_at_position', { x: position.x, y: position.y });
+        
+        // Work area from backend is in physical pixels
+        workAreaWidth = workArea.width;
+        workAreaHeight = workArea.height;
+        actualScaleFactor = workArea.scaleFactor;
+      } catch {
+        // Fallback: try bubble's work area
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          const workArea = await invoke<{
+            width: number;
+            height: number;
+            x: number;
+            y: number;
+            scaleFactor: number;
+          }>('assistant_bubble_get_work_area');
+          workAreaWidth = workArea.width;
+          workAreaHeight = workArea.height;
+          actualScaleFactor = workArea.scaleFactor;
+        } catch {
+          // Final fallback: estimate work area as 95% of screen (accounting for taskbar)
+          workAreaWidth = Math.floor(targetMonitor.size.width * 0.95);
+          workAreaHeight = Math.floor(targetMonitor.size.height * 0.95);
+        }
       }
+      
       return {
-        width: monitor.size.width,
-        height: monitor.size.height,
-        workAreaWidth: monitor.size.width,
-        workAreaHeight: monitor.size.height,
-        scaleFactor: monitor.scaleFactor,
-        name: monitor.name,
+        width: targetMonitor.size.width,
+        height: targetMonitor.size.height,
+        workAreaWidth,
+        workAreaHeight,
+        scaleFactor: actualScaleFactor,
+        name: targetMonitor.name,
       };
     } catch (error) {
       console.error('Failed to get screen info:', error);

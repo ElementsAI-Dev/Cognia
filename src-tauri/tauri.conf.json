@@ -6,7 +6,7 @@
   "build": {
     "frontendDist": "../out",
     "devUrl": "http://localhost:3000",
-    "beforeDevCommand": "cross-env TAURI=true pnpm dev -p 3000",
+    "beforeDevCommand": "npx ts-node scripts/tauri-dev-wrapper.ts",
     "beforeBuildCommand": "pnpm build"
   },
   "app": {

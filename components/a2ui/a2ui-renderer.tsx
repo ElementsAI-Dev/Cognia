@@ -45,6 +45,10 @@ import { A2UIChart } from './components/data/a2ui-chart';
 import { A2UITable } from './components/data/a2ui-table';
 import { A2UIList } from './components/data/a2ui-list';
 
+// Import animation and interactive components
+import { A2UIAnimation } from './components/display/a2ui-animation';
+import { A2UIInteractiveGuide } from './components/display/a2ui-interactive-guide';
+
 /**
  * Component registry for built-in components
  * These are registered at module load time
@@ -84,6 +88,10 @@ const builtInComponents: Record<string, React.ComponentType<A2UIComponentProps>>
   Chart: A2UIChart as React.ComponentType<A2UIComponentProps>,
   Table: A2UITable as React.ComponentType<A2UIComponentProps>,
   List: A2UIList as React.ComponentType<A2UIComponentProps>,
+
+  // Animation and interactive components
+  Animation: A2UIAnimation as unknown as React.ComponentType<A2UIComponentProps>,
+  InteractiveGuide: A2UIInteractiveGuide as unknown as React.ComponentType<A2UIComponentProps>,
 };
 
 /**
@@ -169,7 +177,9 @@ export function A2UIChildRenderer({ childIds }: { childIds: string[] }) {
 export function withA2UIContext<P extends A2UIComponentProps>(
   WrappedComponent: React.ComponentType<P>
 ): React.ComponentType<Omit<P, keyof A2UIComponentProps> & { component: A2UIComponent }> {
-  return function A2UIContextWrapper(props: Omit<P, keyof A2UIComponentProps> & { component: A2UIComponent }) {
+  return function A2UIContextWrapper(
+    props: Omit<P, keyof A2UIComponentProps> & { component: A2UIComponent }
+  ) {
     const context = useA2UIContext();
 
     const componentProps = {

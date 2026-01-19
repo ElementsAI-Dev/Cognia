@@ -7,13 +7,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { WorkflowEditorPanel } from '@/components/workflow-editor';
+import { WorkflowEditorPanel } from '@/components/workflow/editor';
 import { Button } from '@/components/ui/button';
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from '@/components/ui/input-group';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { EmptyState } from '@/components/layout/empty-state';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -61,15 +57,20 @@ export default function WorkflowsPage() {
   const tCommon = useTranslations('common');
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [workflows, setWorkflows] = useState<VisualWorkflow[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<string | null>(null);
-  
-  const { loadWorkflow, createWorkflow, currentWorkflow, saveWorkflow: saveWorkflowState } = useWorkflowEditorStore();
+
+  const {
+    loadWorkflow,
+    createWorkflow,
+    currentWorkflow,
+    saveWorkflow: saveWorkflowState,
+  } = useWorkflowEditorStore();
 
   // Load workflows from database
   const loadWorkflows = useCallback(async () => {
@@ -102,9 +103,10 @@ export default function WorkflowsPage() {
   }, [searchParams, loadWorkflow]);
 
   // Filter workflows by search query
-  const filteredWorkflows = workflows.filter((w) =>
-    w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    w.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredWorkflows = workflows.filter(
+    (w) =>
+      w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      w.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Handle create new workflow
@@ -115,7 +117,9 @@ export default function WorkflowsPage() {
 
   // Handle create from template
   const handleCreateFromTemplate = (templateId: string) => {
-    const template = workflowEditorTemplates.find((t: WorkflowEditorTemplate) => t.id === templateId);
+    const template = workflowEditorTemplates.find(
+      (t: WorkflowEditorTemplate) => t.id === templateId
+    );
     if (template) {
       const workflow: VisualWorkflow = {
         ...template.workflow,
@@ -267,9 +271,7 @@ export default function WorkflowsPage() {
                 Blank Workflow
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                Templates
-              </div>
+              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Templates</div>
               {workflowEditorTemplates.slice(0, 5).map((template: WorkflowEditorTemplate) => (
                 <DropdownMenuItem
                   key={template.id}
@@ -341,15 +343,30 @@ export default function WorkflowsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(workflow.id); }}>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(workflow.id);
+                            }}
+                          >
                             <Pencil className="h-4 w-4 mr-2" />
                             {tCommon('edit')}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDuplicate(workflow.id); }}>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDuplicate(workflow.id);
+                            }}
+                          >
                             <Copy className="h-4 w-4 mr-2" />
                             {tCommon('copy')}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleExport(workflow.id); }}>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExport(workflow.id);
+                            }}
+                          >
                             <Download className="h-4 w-4 mr-2" />
                             {t('exportWorkflow')}
                           </DropdownMenuItem>
@@ -403,13 +420,16 @@ export default function WorkflowsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Workflow?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the workflow
-              and all its execution history.
+              This action cannot be undone. This will permanently delete the workflow and all its
+              execution history.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground"
+            >
               {tCommon('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>

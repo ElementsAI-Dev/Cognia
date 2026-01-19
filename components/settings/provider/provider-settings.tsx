@@ -24,7 +24,6 @@ import {
   Trash2,
   RotateCcw,
   Activity,
-  Shield,
   Globe,
   Cpu,
   Server,
@@ -92,6 +91,7 @@ import { OpenRouterKeyManagement } from './openrouter-key-management';
 import { CLIProxyAPISettings } from './cliproxyapi-settings';
 import { testProviderConnection, type ApiTestResult } from '@/lib/ai/infrastructure/api-test';
 import { maskApiKey } from '@/lib/ai/infrastructure/api-key-rotation';
+import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 
 // Helper to get dashboard URL for each provider
 function getProviderDashboardUrl(providerId: string): string {
@@ -164,16 +164,9 @@ function getProviderDescription(providerId: string): string {
   return descriptions[providerId] || '';
 }
 
-// Get provider category icon
-function getCategoryIcon(category?: string) {
-  switch (category) {
-    case 'flagship': return <Sparkles className="h-4 w-4" />;
-    case 'aggregator': return <Globe className="h-4 w-4" />;
-    case 'specialized': return <Zap className="h-4 w-4" />;
-    case 'local': return <Server className="h-4 w-4" />;
-    case 'enterprise': return <Shield className="h-4 w-4" />;
-    default: return <Cpu className="h-4 w-4" />;
-  }
+// Get provider icon
+function getProviderIcon(providerId: string) {
+  return <ProviderIcon icon={`/icons/providers/${providerId}.svg`} size={16} className="shrink-0" />;
 }
 
 // Provider categories for filtering
@@ -876,7 +869,7 @@ export function ProviderSettings() {
                         </CardTitle>
                         <CardDescription className="text-xs flex items-center gap-2 max-sm:hidden">
                           <span className="text-muted-foreground">
-                            {getCategoryIcon(provider.category)}
+                            {getProviderIcon(providerId)}
                           </span>
                           {getProviderDescription(providerId) || t('ollamaDescription')}
                           {provider.supportsOAuth && (

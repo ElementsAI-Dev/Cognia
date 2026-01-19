@@ -216,7 +216,9 @@ cognia/
 │   ├── artifacts/                # 工件系统
 │   ├── canvas/                   # 画布编辑器
 │   ├── designer/                 # 可视化设计器
-│   ├── workflow-editor/          # 工作流编辑器
+│   ├── workflow/                  # 工作流组件
+│   │   ├── editor/               # 工作流编辑器
+│   │   └── marketplace/          # 模板市场
 │   ├── native/                   # 原生功能 UI
 │   ├── learning/                 # 学习模式
 │   ├── skills/                   # 技能系统

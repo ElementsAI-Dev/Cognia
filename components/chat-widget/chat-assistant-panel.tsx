@@ -202,6 +202,24 @@ export function ChatAssistantPanel({
     return () => document.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
 
+  // Handle window dragging (Tauri only)
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.__TAURI__) return;
+
+    const handleMouseDown = async (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Only start dragging if clicking on the header drag area
+      if (target.closest("[data-tauri-drag-region]")) {
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        const appWindow = getCurrentWindow();
+        await appWindow.startDragging();
+      }
+    };
+
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, []);
+
   // Focus input when opened
   useEffect(() => {
     if (isOpen && config.autoFocus) {

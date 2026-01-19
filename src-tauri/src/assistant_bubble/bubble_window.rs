@@ -7,10 +7,10 @@ use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 /// Assistant bubble window label
 pub const ASSISTANT_BUBBLE_WINDOW_LABEL: &str = "assistant-bubble";
 
-/// Bubble window size (logical units)
-const BUBBLE_SIZE: f64 = 56.0;
+/// Bubble window size (logical units) - slightly larger to accommodate effects
+const BUBBLE_SIZE: f64 = 64.0;
 /// Distance from screen edge
-const BUBBLE_PADDING: i32 = 16;
+const BUBBLE_PADDING: i32 = 12;
 
 /// Bubble configuration for persistence
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -208,10 +208,30 @@ impl AssistantBubbleWindow {
                 *position.write() = Some((pos.x, pos.y));
                 
                 // Persist to config if remember_position is enabled
-                let mut cfg = config.write();
-                if cfg.remember_position {
-                    cfg.x = Some(pos.x);
-                    cfg.y = Some(pos.y);
+                let should_save = {
+                    let mut cfg = config.write();
+                    if cfg.remember_position {
+                        cfg.x = Some(pos.x);
+                        cfg.y = Some(pos.y);
+                        true
+                    } else {
+                        false
+                    }
+                };
+                
+                // Save config to file immediately after position change
+                if should_save {
+                    let config_clone = config.read().clone();
+                    if let Some(config_path) = app_handle
+                        .path()
+                        .app_data_dir()
+                        .ok()
+                        .map(|p| p.join("bubble_config.json"))
+                    {
+                        if let Ok(content) = serde_json::to_string_pretty(&config_clone) {
+                            let _ = std::fs::write(&config_path, content);
+                        }
+                    }
                 }
                 
                 // Emit position changed event
@@ -235,12 +255,26 @@ impl AssistantBubbleWindow {
         let config = self.config.read().clone();
         if config.remember_position {
             if let Some((saved_x, saved_y)) = config.x.zip(config.y) {
+                // Validate saved position is within current work area
+                let (work_w, work_h, work_x, work_y) = self.get_work_area_for_position(Some((saved_x, saved_y)));
+                let size = self.bubble_size_physical();
+                
+                // Clamp to work area bounds
+                let clamped_x = saved_x.max(work_x + BUBBLE_PADDING).min(work_x + work_w - size - BUBBLE_PADDING);
+                let clamped_y = saved_y.max(work_y + BUBBLE_PADDING).min(work_y + work_h - size - BUBBLE_PADDING);
+                
                 let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-                    x: saved_x,
-                    y: saved_y,
+                    x: clamped_x,
+                    y: clamped_y,
                 }));
-                *self.position.write() = Some((saved_x, saved_y));
-                log::debug!("[AssistantBubbleWindow] Restored position to ({}, {})", saved_x, saved_y);
+                *self.position.write() = Some((clamped_x, clamped_y));
+                
+                if clamped_x != saved_x || clamped_y != saved_y {
+                    log::debug!("[AssistantBubbleWindow] Restored and clamped position from ({}, {}) to ({}, {})", 
+                        saved_x, saved_y, clamped_x, clamped_y);
+                } else {
+                    log::debug!("[AssistantBubbleWindow] Restored position to ({}, {})", saved_x, saved_y);
+                }
             }
         }
 
@@ -421,6 +455,7 @@ impl AssistantBubbleWindow {
 
     /// Get bubble size in physical pixels based on current scale factor
     fn bubble_size_physical(&self) -> i32 {
+        // Try to get scale from window first
         if let Some(window) = self
             .app_handle
             .get_webview_window(ASSISTANT_BUBBLE_WINDOW_LABEL)
@@ -428,8 +463,10 @@ impl AssistantBubbleWindow {
             let scale = window.scale_factor().unwrap_or(1.0);
             return (BUBBLE_SIZE * scale).round() as i32;
         }
-
-        BUBBLE_SIZE as i32
+        
+        // Fall back to DPI-based scale factor for the current position
+        let scale = self.get_scale_factor_for_position(None);
+        (BUBBLE_SIZE * scale).round() as i32
     }
 
     /// Destroy the bubble window and clean up resources
@@ -500,6 +537,7 @@ impl AssistantBubbleWindow {
     }
     
     /// Get work area for a specific position, or use bubble position / primary monitor as fallback
+    /// Returns (width, height, x, y) in physical pixels
     pub fn get_work_area_for_position(&self, position: Option<(i32, i32)>) -> (i32, i32, i32, i32) {
         #[cfg(target_os = "windows")]
         {
@@ -526,7 +564,7 @@ impl AssistantBubbleWindow {
                 };
 
                 if GetMonitorInfoW(monitor, &mut info).as_bool() {
-                    let rect = info.rcWork; // excludes taskbar
+                    let rect = info.rcWork; // excludes taskbar, returns physical pixels
                     return (
                         rect.right - rect.left,
                         rect.bottom - rect.top,
@@ -549,8 +587,44 @@ impl AssistantBubbleWindow {
             }
         }
 
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = position; // Suppress unused variable warning
+        }
+
         // Fallback
         (1920, 1080, 0, 0)
+    }
+    
+    /// Get the DPI scale factor for a specific position
+    #[cfg(target_os = "windows")]
+    pub fn get_scale_factor_for_position(&self, position: Option<(i32, i32)>) -> f64 {
+        use windows::Win32::Foundation::POINT;
+        use windows::Win32::Graphics::Gdi::{MonitorFromPoint, MONITOR_DEFAULTTONEAREST};
+        use windows::Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI};
+
+        unsafe {
+            let (check_x, check_y) = position
+                .or_else(|| *self.position.read())
+                .unwrap_or((0, 0));
+            
+            let point = POINT { x: check_x, y: check_y };
+            let monitor = MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST);
+            
+            let mut dpi_x: u32 = 96;
+            let mut dpi_y: u32 = 96;
+            
+            if GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y).is_ok() {
+                return dpi_x as f64 / 96.0;
+            }
+        }
+        
+        1.0
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    pub fn get_scale_factor_for_position(&self, _position: Option<(i32, i32)>) -> f64 {
+        1.0
     }
     
     /// Ensure bubble stays within the current monitor's work area

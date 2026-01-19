@@ -153,12 +153,7 @@ export function GitSettings() {
               </CardTitle>
               <CardDescription>{t('installation.description')}</CardDescription>
             </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={checkGitInstalled}
-              disabled={isCheckingGit}
-            >
+            <Button size="sm" variant="ghost" onClick={checkGitInstalled} disabled={isCheckingGit}>
               {isCheckingGit ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
@@ -181,13 +176,12 @@ export function GitSettings() {
                 <Badge variant="secondary">{gitStatus.version}</Badge>
               </div>
               {gitStatus.path && (
-                <p className="text-sm text-muted-foreground truncate">
-                  {gitStatus.path}
-                </p>
+                <p className="text-sm text-muted-foreground truncate">{gitStatus.path}</p>
               )}
               {gitStatus.lastChecked && (
                 <p className="text-xs text-muted-foreground">
-                  {t('installation.lastChecked')}: {new Date(gitStatus.lastChecked).toLocaleString()}
+                  {t('installation.lastChecked')}:{' '}
+                  {new Date(gitStatus.lastChecked).toLocaleString()}
                 </p>
               )}
             </div>
@@ -197,15 +191,9 @@ export function GitSettings() {
                 <X className="h-4 w-4" />
                 <span>{t('installation.notInstalled')}</span>
               </div>
-              <p className="text-sm text-muted-foreground">
-                {t('installation.installPrompt')}
-              </p>
+              <p className="text-sm text-muted-foreground">{t('installation.installPrompt')}</p>
               <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={installGit}
-                  disabled={isInstallingGit}
-                >
+                <Button size="sm" onClick={installGit} disabled={isInstallingGit}>
                   {isInstallingGit ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -322,9 +310,7 @@ export function GitSettings() {
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>{t('autoCommit.enable')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('autoCommit.enableDescription')}
-                </p>
+                <p className="text-sm text-muted-foreground">{t('autoCommit.enableDescription')}</p>
               </div>
               <Switch
                 checked={autoCommitConfig.enabled}
@@ -345,7 +331,9 @@ export function GitSettings() {
                       const triggers = checked
                         ? [...autoCommitConfig.triggers, 'session_end']
                         : autoCommitConfig.triggers.filter((t) => t !== 'session_end');
-                      setAutoCommitConfig({ triggers: triggers as typeof autoCommitConfig.triggers });
+                      setAutoCommitConfig({
+                        triggers: triggers as typeof autoCommitConfig.triggers,
+                      });
                     }}
                     disabled={!autoCommitConfig.enabled}
                   />
@@ -358,7 +346,9 @@ export function GitSettings() {
                       const triggers = checked
                         ? [...autoCommitConfig.triggers, 'export']
                         : autoCommitConfig.triggers.filter((t) => t !== 'export');
-                      setAutoCommitConfig({ triggers: triggers as typeof autoCommitConfig.triggers });
+                      setAutoCommitConfig({
+                        triggers: triggers as typeof autoCommitConfig.triggers,
+                      });
                     }}
                     disabled={!autoCommitConfig.enabled}
                   />
@@ -371,7 +361,9 @@ export function GitSettings() {
                       const triggers = checked
                         ? [...autoCommitConfig.triggers, 'interval']
                         : autoCommitConfig.triggers.filter((t) => t !== 'interval');
-                      setAutoCommitConfig({ triggers: triggers as typeof autoCommitConfig.triggers });
+                      setAutoCommitConfig({
+                        triggers: triggers as typeof autoCommitConfig.triggers,
+                      });
                     }}
                     disabled={!autoCommitConfig.enabled}
                   />
@@ -418,10 +410,7 @@ export function GitSettings() {
           <CardContent>
             <div className="space-y-2">
               {trackedRepos.map((repo, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-2 p-2 rounded-md bg-muted/50"
-                >
+                <div key={idx} className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
                   <FolderGit2 className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm truncate flex-1">{repo}</span>
                 </div>
