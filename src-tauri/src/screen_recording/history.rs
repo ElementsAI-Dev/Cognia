@@ -41,7 +41,6 @@ impl RecordingHistoryEntry {
         }
     }
 
-    #[allow(dead_code)]
     pub fn with_tags(mut self, tags: Vec<String>) -> Self {
         self.tags = tags;
         self
@@ -114,7 +113,6 @@ impl RecordingHistory {
     }
 
     /// Get all entries
-    #[allow(dead_code)]
     pub fn get_all(&self) -> Vec<RecordingHistoryEntry> {
         let entries = self.entries.read();
         debug!(
@@ -125,7 +123,6 @@ impl RecordingHistory {
     }
 
     /// Get entry by ID
-    #[allow(dead_code)]
     pub fn get_by_id(&self, id: &str) -> Option<RecordingHistoryEntry> {
         let result = self.entries.read().iter().find(|e| e.id == id).cloned();
         if result.is_some() {
@@ -137,7 +134,6 @@ impl RecordingHistory {
     }
 
     /// Pin entry
-    #[allow(dead_code)]
     pub fn pin(&self, id: &str) -> bool {
         let mut entries = self.entries.write();
         if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
@@ -151,7 +147,6 @@ impl RecordingHistory {
     }
 
     /// Unpin entry
-    #[allow(dead_code)]
     pub fn unpin(&self, id: &str) -> bool {
         let mut entries = self.entries.write();
         if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
@@ -244,7 +239,6 @@ impl RecordingHistory {
     }
 
     /// Search entries by tag
-    #[allow(dead_code)]
     pub fn search_by_tag(&self, tag: &str) -> Vec<RecordingHistoryEntry> {
         debug!("[RecordingHistory] Searching entries by tag: {}", tag);
         let tag_lower = tag.to_lowercase();
@@ -264,7 +258,6 @@ impl RecordingHistory {
     }
 
     /// Add tag to entry
-    #[allow(dead_code)]
     pub fn add_tag(&self, id: &str, tag: String) -> bool {
         debug!(
             "[RecordingHistory] Adding tag '{}' to entry: id={}",
@@ -292,7 +285,6 @@ impl RecordingHistory {
     }
 
     /// Remove tag from entry
-    #[allow(dead_code)]
     pub fn remove_tag(&self, id: &str, tag: &str) -> bool {
         debug!(
             "[RecordingHistory] Removing tag '{}' from entry: id={}",
@@ -324,7 +316,6 @@ impl RecordingHistory {
     }
 
     /// Get total size of all recordings
-    #[allow(dead_code)]
     pub fn get_total_size(&self) -> u64 {
         let total = self.entries.read().iter().map(|e| e.file_size).sum();
         debug!(
@@ -335,7 +326,6 @@ impl RecordingHistory {
     }
 
     /// Get total duration of all recordings
-    #[allow(dead_code)]
     pub fn get_total_duration(&self) -> u64 {
         let total = self.entries.read().iter().map(|e| e.duration_ms).sum();
         debug!(

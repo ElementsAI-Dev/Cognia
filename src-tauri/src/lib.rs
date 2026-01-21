@@ -911,6 +911,13 @@ pub fn run() {
             commands::media::screen_recording::recording_get_history,
             commands::media::screen_recording::recording_delete,
             commands::media::screen_recording::recording_clear_history,
+            commands::media::screen_recording::recording_pin,
+            commands::media::screen_recording::recording_unpin,
+            commands::media::screen_recording::recording_get_by_id,
+            commands::media::screen_recording::recording_search_by_tag,
+            commands::media::screen_recording::recording_add_tag,
+            commands::media::screen_recording::recording_remove_tag,
+            commands::media::screen_recording::recording_get_stats,
             // Video processing commands
             commands::media::screen_recording::video_trim,
             commands::media::screen_recording::video_convert,

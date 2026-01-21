@@ -3,7 +3,7 @@
 use crate::screen_recording::{
     ffmpeg, AudioDevices, EncodingSupport, FFmpegInfo, FFmpegInstallGuide, HardwareAcceleration,
     MonitorInfo, RecordingConfig, RecordingHistoryEntry, RecordingMetadata, RecordingRegion,
-    RecordingStatus, ScreenRecordingManager, VideoConvertOptions, VideoInfo,
+    RecordingStats, RecordingStatus, ScreenRecordingManager, VideoConvertOptions, VideoInfo,
     VideoProcessingResult, VideoProcessor, VideoTrimOptions,
 };
 use tauri::State;
@@ -153,6 +153,70 @@ pub async fn recording_clear_history(
 ) -> Result<(), String> {
     manager.clear_history();
     Ok(())
+}
+
+/// Pin a recording entry
+#[tauri::command]
+pub async fn recording_pin(
+    manager: State<'_, ScreenRecordingManager>,
+    id: String,
+) -> Result<bool, String> {
+    Ok(manager.pin_recording(&id))
+}
+
+/// Unpin a recording entry
+#[tauri::command]
+pub async fn recording_unpin(
+    manager: State<'_, ScreenRecordingManager>,
+    id: String,
+) -> Result<bool, String> {
+    Ok(manager.unpin_recording(&id))
+}
+
+/// Get a recording by ID
+#[tauri::command]
+pub async fn recording_get_by_id(
+    manager: State<'_, ScreenRecordingManager>,
+    id: String,
+) -> Result<Option<RecordingHistoryEntry>, String> {
+    Ok(manager.get_recording_by_id(&id))
+}
+
+/// Search recordings by tag
+#[tauri::command]
+pub async fn recording_search_by_tag(
+    manager: State<'_, ScreenRecordingManager>,
+    tag: String,
+) -> Result<Vec<RecordingHistoryEntry>, String> {
+    Ok(manager.search_by_tag(&tag))
+}
+
+/// Add a tag to a recording
+#[tauri::command]
+pub async fn recording_add_tag(
+    manager: State<'_, ScreenRecordingManager>,
+    id: String,
+    tag: String,
+) -> Result<bool, String> {
+    Ok(manager.add_tag(&id, tag))
+}
+
+/// Remove a tag from a recording
+#[tauri::command]
+pub async fn recording_remove_tag(
+    manager: State<'_, ScreenRecordingManager>,
+    id: String,
+    tag: String,
+) -> Result<bool, String> {
+    Ok(manager.remove_tag(&id, &tag))
+}
+
+/// Get recording statistics
+#[tauri::command]
+pub async fn recording_get_stats(
+    manager: State<'_, ScreenRecordingManager>,
+) -> Result<RecordingStats, String> {
+    Ok(manager.get_stats())
 }
 
 // ==================== Video Processing Commands ====================

@@ -34,6 +34,19 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::AppHandle;
 
+/// Recording statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecordingStats {
+    /// Total size of all recordings in bytes
+    pub total_size: u64,
+    /// Total duration of all recordings in milliseconds
+    pub total_duration_ms: u64,
+    /// Total number of recording entries
+    pub total_entries: usize,
+    /// Number of pinned entries
+    pub pinned_count: usize,
+}
+
 /// Screen recording configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecordingConfig {
@@ -392,6 +405,84 @@ impl ScreenRecordingManager {
         info!("[ScreenRecording] Clearing recording history");
         self.history.clear();
         info!("[ScreenRecording] Recording history cleared");
+    }
+
+    /// Pin a recording entry
+    pub fn pin_recording(&self, id: &str) -> bool {
+        info!("[ScreenRecording] Pinning recording: id={}", id);
+        let result = self.history.pin(id);
+        if result {
+            info!("[ScreenRecording] Recording pinned successfully: id={}", id);
+        } else {
+            warn!("[ScreenRecording] Failed to pin recording (not found): id={}", id);
+        }
+        result
+    }
+
+    /// Unpin a recording entry
+    pub fn unpin_recording(&self, id: &str) -> bool {
+        info!("[ScreenRecording] Unpinning recording: id={}", id);
+        let result = self.history.unpin(id);
+        if result {
+            info!("[ScreenRecording] Recording unpinned successfully: id={}", id);
+        } else {
+            warn!("[ScreenRecording] Failed to unpin recording (not found): id={}", id);
+        }
+        result
+    }
+
+    /// Get a recording by ID
+    pub fn get_recording_by_id(&self, id: &str) -> Option<RecordingHistoryEntry> {
+        debug!("[ScreenRecording] Getting recording by id: {}", id);
+        self.history.get_by_id(id)
+    }
+
+    /// Search recordings by tag
+    pub fn search_by_tag(&self, tag: &str) -> Vec<RecordingHistoryEntry> {
+        debug!("[ScreenRecording] Searching recordings by tag: {}", tag);
+        self.history.search_by_tag(tag)
+    }
+
+    /// Add a tag to a recording
+    pub fn add_tag(&self, id: &str, tag: String) -> bool {
+        info!("[ScreenRecording] Adding tag '{}' to recording: id={}", tag, id);
+        let result = self.history.add_tag(id, tag.clone());
+        if result {
+            info!("[ScreenRecording] Tag '{}' added successfully: id={}", tag, id);
+        } else {
+            warn!("[ScreenRecording] Failed to add tag (recording not found): id={}", id);
+        }
+        result
+    }
+
+    /// Remove a tag from a recording
+    pub fn remove_tag(&self, id: &str, tag: &str) -> bool {
+        info!("[ScreenRecording] Removing tag '{}' from recording: id={}", tag, id);
+        let result = self.history.remove_tag(id, tag);
+        if result {
+            info!("[ScreenRecording] Tag '{}' removed successfully: id={}", tag, id);
+        } else {
+            warn!("[ScreenRecording] Failed to remove tag (recording not found): id={}", id);
+        }
+        result
+    }
+
+    /// Get recording statistics
+    pub fn get_stats(&self) -> RecordingStats {
+        debug!("[ScreenRecording] Getting recording statistics");
+        let entries = self.history.get_all();
+        let total_size = self.history.get_total_size();
+        let total_duration_ms = self.history.get_total_duration();
+        let pinned_count = entries.iter().filter(|e| e.is_pinned).count();
+        
+        let stats = RecordingStats {
+            total_size,
+            total_duration_ms,
+            total_entries: entries.len(),
+            pinned_count,
+        };
+        debug!("[ScreenRecording] Stats: {:?}", stats);
+        stats
     }
 
     /// Get available monitors

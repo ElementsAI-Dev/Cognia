@@ -225,6 +225,65 @@ export async function clearRecordingHistory(): Promise<void> {
   return invoke<void>("recording_clear_history");
 }
 
+/**
+ * Pin a recording entry
+ */
+export async function pinRecording(id: string): Promise<boolean> {
+  return invoke<boolean>("recording_pin", { id });
+}
+
+/**
+ * Unpin a recording entry
+ */
+export async function unpinRecording(id: string): Promise<boolean> {
+  return invoke<boolean>("recording_unpin", { id });
+}
+
+/**
+ * Get a recording by ID
+ */
+export async function getRecordingById(id: string): Promise<RecordingHistoryEntry | null> {
+  return invoke<RecordingHistoryEntry | null>("recording_get_by_id", { id });
+}
+
+/**
+ * Search recordings by tag
+ */
+export async function searchRecordingsByTag(tag: string): Promise<RecordingHistoryEntry[]> {
+  return invoke<RecordingHistoryEntry[]>("recording_search_by_tag", { tag });
+}
+
+/**
+ * Add a tag to a recording
+ */
+export async function addRecordingTag(id: string, tag: string): Promise<boolean> {
+  return invoke<boolean>("recording_add_tag", { id, tag });
+}
+
+/**
+ * Remove a tag from a recording
+ */
+export async function removeRecordingTag(id: string, tag: string): Promise<boolean> {
+  return invoke<boolean>("recording_remove_tag", { id, tag });
+}
+
+/**
+ * Recording statistics
+ */
+export interface RecordingStats {
+  total_size: number;
+  total_duration_ms: number;
+  total_entries: number;
+  pinned_count: number;
+}
+
+/**
+ * Get recording statistics (total size, duration, entry count)
+ */
+export async function getRecordingStats(): Promise<RecordingStats> {
+  return invoke<RecordingStats>("recording_get_stats");
+}
+
 // ============== Utility Functions ==============
 
 /**
