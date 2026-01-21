@@ -375,6 +375,328 @@ describe('useAcademicStore', () => {
     });
   });
 
+  describe('Tag Actions', () => {
+    it('should add tag to paper', async () => {
+      const libraryPaper = createMockLibraryPaper('1', { tags: ['existing'] });
+      mockInvoke.mockResolvedValueOnce(libraryPaper);
+
+      const { result } = renderHook(() => useAcademicStore());
+
+      // Add paper to library first
+      await act(async () => {
+        await result.current.addToLibrary(createMockPaper('1'));
+      });
+
+      // Mock update response
+      const updatedPaper = { ...libraryPaper, tags: ['existing', 'new-tag'] };
+      mockInvoke.mockResolvedValueOnce(updatedPaper);
+
+      await act(async () => {
+        await result.current.addTag('1', 'new-tag');
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('academic_update_paper', expect.objectContaining({
+        paperId: '1',
+      }));
+    });
+
+    it('should not add duplicate tag', async () => {
+      const libraryPaper = createMockLibraryPaper('1', { tags: ['existing'] });
+      mockInvoke.mockResolvedValueOnce(libraryPaper);
+
+      const { result } = renderHook(() => useAcademicStore());
+
+      await act(async () => {
+        await result.current.addToLibrary(createMockPaper('1'));
+      });
+
+      const invokeCallCount = mockInvoke.mock.calls.length;
+
+      await act(async () => {
+        await result.current.addTag('1', 'existing');
+      });
+
+      // Should not call update if tag already exists
+      expect(mockInvoke.mock.calls.length).toBe(invokeCallCount);
+    });
+
+    it('should remove tag from paper', async () => {
+      const libraryPaper = createMockLibraryPaper('1', { tags: ['tag1', 'tag2'] });
+      mockInvoke.mockResolvedValueOnce(libraryPaper);
+
+      const { result } = renderHook(() => useAcademicStore());
+
+      await act(async () => {
+        await result.current.addToLibrary(createMockPaper('1'));
+      });
+
+      const updatedPaper = { ...libraryPaper, tags: ['tag1'] };
+      mockInvoke.mockResolvedValueOnce(updatedPaper);
+
+      await act(async () => {
+        await result.current.removeTag('1', 'tag2');
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('academic_update_paper', expect.objectContaining({
+        paperId: '1',
+      }));
+    });
+  });
+
+  describe('Batch Actions', () => {
+    it('should toggle paper selection', () => {
+      const { result } = renderHook(() => useAcademicStore());
+
+      act(() => {
+        result.current.togglePaperSelection('paper-1');
+      });
+
+      expect(result.current.library.selectedPaperIds).toContain('paper-1');
+
+      act(() => {
+        result.current.togglePaperSelection('paper-1');
+      });
+
+      expect(result.current.library.selectedPaperIds).not.toContain('paper-1');
+    });
+
+    it('should select all papers', async () => {
+      const papers = [createMockLibraryPaper('1'), createMockLibraryPaper('2')];
+      mockInvoke.mockResolvedValueOnce(papers);
+
+      const { result } = renderHook(() => useAcademicStore());
+
+      await act(async () => {
+        await result.current.refreshLibrary();
+      });
+
+      act(() => {
+        result.current.selectAllPapers();
+      });
+
+      expect(result.current.library.selectedPaperIds.length).toBe(2);
+      expect(result.current.library.selectedPaperIds).toContain('1');
+      expect(result.current.library.selectedPaperIds).toContain('2');
+    });
+
+    it('should clear paper selection', () => {
+      const { result } = renderHook(() => useAcademicStore());
+
+      act(() => {
+        result.current.togglePaperSelection('paper-1');
+        result.current.togglePaperSelection('paper-2');
+      });
+
+      expect(result.current.library.selectedPaperIds.length).toBe(2);
+
+      act(() => {
+        result.current.clearPaperSelection();
+      });
+
+      expect(result.current.library.selectedPaperIds.length).toBe(0);
+    });
+
+    it('should batch update status', async () => {
+      const paper1 = createMockLibraryPaper('1');
+      const paper2 = createMockLibraryPaper('2');
+      mockInvoke.mockResolvedValueOnce([paper1, paper2]);
+
+      const { result } = renderHook(() => useAcademicStore());
+
+      await act(async () => {
+        await result.current.refreshLibrary();
+      });
+
+      mockInvoke.mockResolvedValueOnce({ ...paper1, readingStatus: 'completed' });
+      mockInvoke.mockResolvedValueOnce({ ...paper2, readingStatus: 'completed' });
+
+      await act(async () => {
+        await result.current.batchUpdateStatus(['1', '2'], 'completed');
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('academic_update_paper', expect.objectContaining({
+        paperId: '1',
+      }));
+      expect(mockInvoke).toHaveBeenCalledWith('academic_update_paper', expect.objectContaining({
+        paperId: '2',
+      }));
+    });
+
+    it('should batch add to collection', async () => {
+      mockInvoke.mockResolvedValueOnce(undefined);
+      mockInvoke.mockResolvedValueOnce([]);
+      mockInvoke.mockResolvedValueOnce([]);
+      mockInvoke.mockResolvedValueOnce(undefined);
+      mockInvoke.mockResolvedValueOnce([]);
+      mockInvoke.mockResolvedValueOnce([]);
+
+      const { result } = renderHook(() => useAcademicStore());
+
+      await act(async () => {
+        await result.current.batchAddToCollection(['paper-1', 'paper-2'], 'collection-1');
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('academic_add_paper_to_collection', {
+        paperId: 'paper-1',
+        collectionId: 'collection-1',
+      });
+      expect(mockInvoke).toHaveBeenCalledWith('academic_add_paper_to_collection', {
+        paperId: 'paper-2',
+        collectionId: 'collection-1',
+      });
+    });
+  });
+
+  describe('Search History Actions', () => {
+    it('should add search history', () => {
+      const { result } = renderHook(() => useAcademicStore());
+
+      act(() => {
+        result.current.addSearchHistory('machine learning');
+      });
+
+      expect(result.current.search.searchHistory).toContain('machine learning');
+    });
+
+    it('should not add duplicate search history', () => {
+      const { result } = renderHook(() => useAcademicStore());
+
+      act(() => {
+        result.current.addSearchHistory('machine learning');
+        result.current.addSearchHistory('machine learning');
+      });
+
+      expect(result.current.search.searchHistory.filter(q => q === 'machine learning').length).toBe(1);
+    });
+
+    it('should move duplicate to top of history', () => {
+      const { result } = renderHook(() => useAcademicStore());
+
+      act(() => {
+        result.current.addSearchHistory('first');
+        result.current.addSearchHistory('second');
+        result.current.addSearchHistory('first');
+      });
+
+      expect(result.current.search.searchHistory[0]).toBe('first');
+      expect(result.current.search.searchHistory[1]).toBe('second');
+    });
+
+    it('should clear search history', () => {
+      const { result } = renderHook(() => useAcademicStore());
+
+      act(() => {
+        result.current.addSearchHistory('test1');
+        result.current.addSearchHistory('test2');
+      });
+
+      act(() => {
+        result.current.clearSearchHistory();
+      });
+
+      expect(result.current.search.searchHistory.length).toBe(0);
+    });
+
+    it('should limit search history to 20 items', () => {
+      const { result } = renderHook(() => useAcademicStore());
+
+      act(() => {
+        for (let i = 0; i < 25; i++) {
+          result.current.addSearchHistory(`query-${i}`);
+        }
+      });
+
+      expect(result.current.search.searchHistory.length).toBe(20);
+    });
+  });
+
+  describe('Analysis History Actions', () => {
+    it('should save analysis result', () => {
+      const { result } = renderHook(() => useAcademicStore());
+
+      const analysisResult = {
+        paperId: 'paper-1',
+        analysisType: 'summary' as const,
+        content: 'This is a summary',
+        createdAt: new Date(),
+      };
+
+      act(() => {
+        result.current.saveAnalysisResult('paper-1', analysisResult);
+      });
+
+      expect(result.current.library.analysisHistory['paper-1']).toBeDefined();
+      expect(result.current.library.analysisHistory['paper-1'].length).toBe(1);
+      expect(result.current.library.analysisHistory['paper-1'][0].content).toBe('This is a summary');
+    });
+
+    it('should get analysis history', () => {
+      const { result } = renderHook(() => useAcademicStore());
+
+      const analysisResult = {
+        paperId: 'paper-1',
+        analysisType: 'summary' as const,
+        content: 'This is a summary',
+        createdAt: new Date(),
+      };
+
+      act(() => {
+        result.current.saveAnalysisResult('paper-1', analysisResult);
+      });
+
+      const history = result.current.getAnalysisHistory('paper-1');
+
+      expect(history.length).toBe(1);
+      expect(history[0].content).toBe('This is a summary');
+    });
+
+    it('should return empty array for non-existent paper history', () => {
+      const { result } = renderHook(() => useAcademicStore());
+
+      const history = result.current.getAnalysisHistory('non-existent');
+
+      expect(history).toEqual([]);
+    });
+
+    it('should limit analysis history to 10 items per paper', () => {
+      const { result } = renderHook(() => useAcademicStore());
+
+      act(() => {
+        for (let i = 0; i < 15; i++) {
+          result.current.saveAnalysisResult('paper-1', {
+            paperId: 'paper-1',
+            analysisType: 'summary',
+            content: `Summary ${i}`,
+            createdAt: new Date(),
+          });
+        }
+      });
+
+      const history = result.current.getAnalysisHistory('paper-1');
+      expect(history.length).toBe(10);
+    });
+
+    it('should clear analysis history', () => {
+      const { result } = renderHook(() => useAcademicStore());
+
+      act(() => {
+        result.current.saveAnalysisResult('paper-1', {
+          paperId: 'paper-1',
+          analysisType: 'summary',
+          content: 'Summary',
+          createdAt: new Date(),
+        });
+      });
+
+      act(() => {
+        result.current.clearAnalysisHistory('paper-1');
+      });
+
+      const history = result.current.getAnalysisHistory('paper-1');
+      expect(history).toEqual([]);
+    });
+  });
+
   describe('Reset', () => {
     it('should reset store to initial state', async () => {
       const { result } = renderHook(() => useAcademicStore());

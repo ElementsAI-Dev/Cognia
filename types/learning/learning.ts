@@ -5,6 +5,148 @@
  * step-by-step guided learning through questioning and discovery.
  */
 
+// ============================================================================
+// Learning Duration Types (Short-term vs Long-term)
+// ============================================================================
+
+/**
+ * Learning duration type - determines the learning approach
+ * - quick: Short-term learning for immediate questions, concept explanations
+ * - journey: Long-term learning for systematic study, skill mastery
+ */
+export type LearningDurationType = 'quick' | 'journey';
+
+/**
+ * Learning category for classification
+ */
+export type LearningCategory =
+  | 'concept'           // Understanding a concept
+  | 'problem-solving'   // Solving a specific problem
+  | 'skill'             // Learning a skill
+  | 'language'          // Programming/human language
+  | 'framework'         // Framework or library
+  | 'domain'            // Domain knowledge
+  | 'project'           // Project-based learning
+  | 'certification'     // Certification preparation
+  | 'other';
+
+/**
+ * Learning path milestone for long-term learning
+ */
+export interface LearningMilestone {
+  id: string;
+  title: string;
+  description?: string;
+  targetDate?: Date;
+  completedAt?: Date;
+  progress: number; // 0-100
+  subMilestones?: string[]; // IDs of sub-milestones
+  prerequisites?: string[]; // IDs of prerequisite milestones
+  resources?: LearningResource[];
+  estimatedHours?: number;
+}
+
+/**
+ * Learning resource for study materials
+ */
+export interface LearningResource {
+  id: string;
+  title: string;
+  type: 'article' | 'video' | 'book' | 'course' | 'documentation' | 'exercise' | 'project' | 'other';
+  url?: string;
+  notes?: string;
+  completed: boolean;
+  rating?: number; // 1-5
+}
+
+/**
+ * Learning path for long-term structured learning
+ */
+export interface LearningPath {
+  id: string;
+  sessionId: string; // Reference to chat session
+  
+  // Path metadata
+  title: string;
+  description?: string;
+  category: LearningCategory;
+  estimatedDuration: LearningPathDuration;
+  
+  // Structure
+  milestones: LearningMilestone[];
+  currentMilestoneId?: string;
+  
+  // Progress
+  overallProgress: number; // 0-100
+  startedAt: Date;
+  lastActivityAt: Date;
+  completedAt?: Date;
+  targetCompletionDate?: Date;
+  
+  // Learning schedule
+  schedule?: LearningSchedule;
+  
+  // Metrics
+  totalTimeSpentMs: number;
+  sessionsCompleted: number;
+  streakDays: number;
+  
+  // AI-generated recommendations
+  nextSteps?: string[];
+  suggestedResources?: LearningResource[];
+}
+
+/**
+ * Estimated duration for learning path
+ */
+export type LearningPathDuration = 
+  | 'days'      // 1-7 days
+  | 'weeks'     // 1-4 weeks
+  | 'months'    // 1-6 months
+  | 'long-term'; // 6+ months
+
+/**
+ * Learning schedule for regular study
+ */
+export interface LearningSchedule {
+  frequency: 'daily' | 'weekly' | 'custom';
+  daysPerWeek?: number;
+  minutesPerSession?: number;
+  preferredTimes?: string[]; // e.g., "09:00", "18:00"
+  remindersEnabled: boolean;
+}
+
+/**
+ * Quick learning session for short-term questions
+ */
+export interface QuickLearningSession {
+  id: string;
+  sessionId: string; // Reference to chat session
+  question: string;
+  answer?: string;
+  relatedTopics?: string[];
+  savedToPath?: string; // If saved to a learning path
+  createdAt: Date;
+  resolvedAt?: Date;
+  followUpQuestions?: string[];
+}
+
+/**
+ * Learning type detection result
+ */
+export interface LearningTypeDetectionResult {
+  detectedType: LearningDurationType;
+  confidence: number; // 0-100
+  category: LearningCategory;
+  suggestedDuration?: LearningPathDuration;
+  reasoning: string;
+  keywords: string[];
+}
+
+// ============================================================================
+// Learning Phases
+// ============================================================================
+
 /**
  * Learning phases following the Socratic Method workflow
  */
@@ -151,6 +293,11 @@ export interface LearningSession {
   id: string;
   sessionId: string; // Reference to the chat session
   
+  // Learning type (short-term vs long-term)
+  durationType: LearningDurationType;
+  category: LearningCategory;
+  learningPathId?: string; // Reference to learning path for journey type
+  
   // Topic and goals
   topic: string;
   backgroundKnowledge?: string;
@@ -202,6 +349,24 @@ export interface StartLearningInput {
   learningGoals?: string[];
   preferredDifficulty?: DifficultyLevel;
   preferredStyle?: LearningStyle;
+  // Learning type options
+  durationType?: LearningDurationType;
+  category?: LearningCategory;
+  estimatedDuration?: LearningPathDuration;
+  autoDetectType?: boolean; // If true, automatically detect learning type
+}
+
+/**
+ * Input for creating a learning path (long-term learning)
+ */
+export interface CreateLearningPathInput {
+  title: string;
+  description?: string;
+  category: LearningCategory;
+  estimatedDuration: LearningPathDuration;
+  targetCompletionDate?: Date;
+  schedule?: LearningSchedule;
+  milestones?: Omit<LearningMilestone, 'id' | 'progress' | 'completedAt'>[];
 }
 
 /**

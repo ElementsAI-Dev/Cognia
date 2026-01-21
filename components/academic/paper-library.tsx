@@ -21,10 +21,15 @@ import {
   CheckCircle2,
   Archive,
   BookMarked,
+  Square,
+  CheckSquare,
+  X,
+  FolderInput,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -81,9 +86,18 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
     updatePaperRating,
     downloadPdf,
     createCollection,
-    // deleteCollection available for future use
     exportBibtex,
+    // Batch operations
+    selectedPaperIds,
+    togglePaperSelection,
+    selectAllPapers,
+    clearPaperSelection,
+    batchUpdateStatus,
+    batchAddToCollection,
+    batchRemove,
   } = useAcademic();
+  
+  const [isBatchMode, setIsBatchMode] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<PaperReadingStatus | 'all'>('all');
@@ -256,28 +270,130 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
           </div>
 
           {/* Status filters */}
-          <Tabs
-            value={statusFilter}
-            onValueChange={(v) => setStatusFilter(v as PaperReadingStatus | 'all')}
-          >
-            <TabsList className="h-8">
-              <TabsTrigger value="all" className="text-xs h-7">
-                All
-              </TabsTrigger>
-              <TabsTrigger value="unread" className="text-xs h-7">
-                Unread
-              </TabsTrigger>
-              <TabsTrigger value="reading" className="text-xs h-7">
-                Reading
-              </TabsTrigger>
-              <TabsTrigger value="completed" className="text-xs h-7">
-                Completed
-              </TabsTrigger>
-              <TabsTrigger value="archived" className="text-xs h-7">
-                Archived
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex items-center justify-between">
+            <Tabs
+              value={statusFilter}
+              onValueChange={(v) => setStatusFilter(v as PaperReadingStatus | 'all')}
+            >
+              <TabsList className="h-8">
+                <TabsTrigger value="all" className="text-xs h-7">
+                  All
+                </TabsTrigger>
+                <TabsTrigger value="unread" className="text-xs h-7">
+                  Unread
+                </TabsTrigger>
+                <TabsTrigger value="reading" className="text-xs h-7">
+                  Reading
+                </TabsTrigger>
+                <TabsTrigger value="completed" className="text-xs h-7">
+                  Completed
+                </TabsTrigger>
+                <TabsTrigger value="archived" className="text-xs h-7">
+                  Archived
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            
+            <Button
+              variant={isBatchMode ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => {
+                setIsBatchMode(!isBatchMode);
+                if (isBatchMode) clearPaperSelection();
+              }}
+            >
+              {isBatchMode ? <CheckSquare className="h-4 w-4 mr-1" /> : <Square className="h-4 w-4 mr-1" />}
+              {isBatchMode ? 'Exit Selection' : 'Select'}
+            </Button>
+          </div>
+          
+          {/* Batch Action Bar */}
+          {isBatchMode && selectedPaperIds.length > 0 && (
+            <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+              <span className="text-sm font-medium">
+                {selectedPaperIds.length} selected
+              </span>
+              <div className="flex-1" />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => selectAllPapers()}
+              >
+                Select All
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Clock className="h-4 w-4 mr-1" />
+                    Set Status
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => batchUpdateStatus('unread')}>
+                    <Clock className="h-4 w-4 mr-2" />
+                    Unread
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => batchUpdateStatus('reading')}>
+                    <BookMarked className="h-4 w-4 mr-2" />
+                    Reading
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => batchUpdateStatus('completed')}>
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Completed
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => batchUpdateStatus('archived')}>
+                    <Archive className="h-4 w-4 mr-2" />
+                    Archived
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <FolderInput className="h-4 w-4 mr-1" />
+                    Add to Collection
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {collections.length === 0 ? (
+                    <DropdownMenuItem disabled>No collections</DropdownMenuItem>
+                  ) : (
+                    collections.map((coll) => (
+                      <DropdownMenuItem
+                        key={coll.id}
+                        onClick={() => batchAddToCollection(coll.id)}
+                      >
+                        <div
+                          className="h-3 w-3 rounded-full mr-2"
+                          style={{ backgroundColor: coll.color || '#888' }}
+                        />
+                        {coll.name}
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={async () => {
+                  await batchRemove();
+                  clearPaperSelection();
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Remove
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => clearPaperSelection()}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Papers list */}
@@ -295,9 +411,16 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
                   key={paper.libraryId}
                   paper={paper}
                   viewMode={viewMode}
+                  isBatchMode={isBatchMode}
+                  isSelected={selectedPaperIds.includes(paper.id)}
+                  onToggleSelect={() => togglePaperSelection(paper.id)}
                   onSelect={() => {
-                    selectPaper(paper.id);
-                    onPaperSelect?.(paper);
+                    if (isBatchMode) {
+                      togglePaperSelection(paper.id);
+                    } else {
+                      selectPaper(paper.id);
+                      onPaperSelect?.(paper);
+                    }
                   }}
                   onStatusChange={(status) => updatePaperStatus(paper.id, status)}
                   onRatingChange={(rating) => updatePaperRating(paper.id, rating)}
@@ -316,6 +439,9 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
 interface LibraryPaperCardProps {
   paper: LibraryPaper;
   viewMode: 'list' | 'grid' | 'table';
+  isBatchMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
   onSelect: () => void;
   onStatusChange: (status: PaperReadingStatus) => void;
   onRatingChange: (rating: number) => void;
@@ -326,6 +452,9 @@ interface LibraryPaperCardProps {
 function LibraryPaperCard({
   paper,
   viewMode,
+  isBatchMode = false,
+  isSelected = false,
+  onToggleSelect,
   onSelect,
   onStatusChange,
   onRatingChange,
@@ -342,8 +471,22 @@ function LibraryPaperCard({
 
   if (viewMode === 'grid') {
     return (
-      <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={onSelect}>
+      <Card 
+        className={cn(
+          'cursor-pointer hover:bg-accent/50 transition-colors',
+          isSelected && 'ring-2 ring-primary'
+        )} 
+        onClick={onSelect}
+      >
         <CardHeader className="pb-2">
+          {isBatchMode && (
+            <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={() => onToggleSelect?.()}
+              />
+            </div>
+          )}
           <CardTitle className="text-sm font-medium line-clamp-2">{paper.title}</CardTitle>
           <CardDescription className="text-xs line-clamp-1">{authors}</CardDescription>
         </CardHeader>
@@ -378,9 +521,20 @@ function LibraryPaperCard({
 
   return (
     <div
-      className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/50 cursor-pointer transition-colors"
+      className={cn(
+        'flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/50 cursor-pointer transition-colors',
+        isSelected && 'ring-2 ring-primary bg-accent/30'
+      )}
       onClick={onSelect}
     >
+      {isBatchMode && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={() => onToggleSelect?.()}
+          />
+        </div>
+      )}
       <StatusIcon className={cn('h-5 w-5 shrink-0', statusColor)} />
 
       <div className="flex-1 min-w-0">

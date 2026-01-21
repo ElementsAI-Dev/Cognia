@@ -4,6 +4,17 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type {
+  ShortcutConflict,
+  ConflictResolutionMode,
+  ConflictResolution,
+  ShortcutValidationResult,
+} from '@/types/shortcut';
+import {
+  validateShortcut as validateShortcutUtil,
+  unregisterShortcut,
+  getAllShortcutMetadata,
+} from '@/lib/native/shortcuts';
 
 export interface ShortcutConfig {
   id: string;
@@ -46,6 +57,10 @@ export interface NativeState {
   shortcuts: ShortcutConfig[];
   shortcutsEnabled: boolean;
 
+  // Shortcut conflict detection
+  shortcutConflicts: ShortcutConflict[];
+  conflictResolutionMode: ConflictResolutionMode;
+
   // Native tools settings
   nativeToolsConfig: NativeToolsConfig;
 }
@@ -76,6 +91,13 @@ export interface NativeActions {
   updateShortcut: (id: string, config: Partial<ShortcutConfig>) => void;
   removeShortcut: (id: string) => void;
   setShortcutsEnabled: (enabled: boolean) => void;
+
+  // Shortcut conflict detection actions
+  detectConflicts: () => Promise<ShortcutConflict[]>;
+  validateShortcut: (shortcut: string, owner: string, action: string) => Promise<ShortcutValidationResult>;
+  resolveConflict: (conflict: ShortcutConflict, resolution: ConflictResolution) => Promise<void>;
+  setConflictResolutionMode: (mode: ConflictResolutionMode) => void;
+  clearConflicts: () => void;
 
   // Native tools actions
   setNativeToolsConfig: (config: Partial<NativeToolsConfig>) => void;
@@ -166,6 +188,8 @@ const initialState: NativeState = {
   notificationPermission: false,
   shortcuts: defaultShortcuts,
   shortcutsEnabled: true,
+  shortcutConflicts: [],
+  conflictResolutionMode: 'warn',
   nativeToolsConfig: defaultNativeToolsConfig,
 };
 
@@ -235,6 +259,76 @@ export const useNativeStore = create<NativeState & NativeActions>()(
       setShortcutsEnabled: (shortcutsEnabled) =>
         set({ shortcutsEnabled }),
 
+      // Conflict detection actions
+      detectConflicts: async () => {
+        const conflicts: ShortcutConflict[] = [];
+        const metadata = getAllShortcutMetadata();
+        
+        // Check for duplicates in metadata
+        const shortcutMap = new Map<string, typeof metadata[0]>();
+        
+        for (const meta of metadata) {
+          const existing = shortcutMap.get(meta.shortcut);
+          if (existing && existing.owner !== meta.owner) {
+            conflicts.push({
+              shortcut: meta.shortcut,
+              existingOwner: existing.owner,
+              existingAction: existing.action,
+              newOwner: meta.owner,
+              newAction: meta.action,
+              timestamp: Date.now(),
+            });
+          } else {
+            shortcutMap.set(meta.shortcut, meta);
+          }
+        }
+        
+        set({ shortcutConflicts: conflicts });
+        return conflicts;
+      },
+
+      validateShortcut: async (shortcut, owner, action) => {
+        return await validateShortcutUtil(shortcut, owner, action);
+      },
+
+      resolveConflict: async (conflict, resolution) => {
+        if (resolution === 'cancel') {
+          // Just remove from conflicts list
+          set((state) => ({
+            shortcutConflicts: state.shortcutConflicts.filter(
+              (c) => c.shortcut !== conflict.shortcut
+            ),
+          }));
+          return;
+        }
+
+        if (resolution === 'keep-existing') {
+          // Unregister the new one (if it exists)
+          // Remove conflict from list
+          set((state) => ({
+            shortcutConflicts: state.shortcutConflicts.filter(
+              (c) => c.shortcut !== conflict.shortcut
+            ),
+          }));
+        } else if (resolution === 'use-new') {
+          // Unregister existing and keep new
+          await unregisterShortcut(conflict.shortcut);
+          
+          // Remove conflict from list
+          set((state) => ({
+            shortcutConflicts: state.shortcutConflicts.filter(
+              (c) => c.shortcut !== conflict.shortcut
+            ),
+          }));
+        }
+      },
+
+      setConflictResolutionMode: (mode) =>
+        set({ conflictResolutionMode: mode }),
+
+      clearConflicts: () =>
+        set({ shortcutConflicts: [] }),
+
       setNativeToolsConfig: (config) =>
         set((state) => ({
           nativeToolsConfig: { ...state.nativeToolsConfig, ...config },
@@ -249,6 +343,7 @@ export const useNativeStore = create<NativeState & NativeActions>()(
         notificationsEnabled: state.notificationsEnabled,
         shortcuts: state.shortcuts,
         shortcutsEnabled: state.shortcutsEnabled,
+        conflictResolutionMode: state.conflictResolutionMode,
         nativeToolsConfig: state.nativeToolsConfig,
       }),
     }

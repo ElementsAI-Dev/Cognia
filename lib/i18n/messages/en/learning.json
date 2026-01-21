@@ -34,7 +34,42 @@
       "difficulty": "Preferred Difficulty",
       "difficultyHint": "Select your comfort level",
       "learningStyle": "Learning Style",
-      "learningStyleHint": "How do you learn best?"
+      "learningStyleHint": "How do you learn best?",
+      "learningType": "Learning Type",
+      "autoDetected": "Auto-detected",
+      "estimatedDuration": "Estimated Duration",
+      "journeyHint": "Systematic learning creates a learning path with milestones and progress tracking"
+    },
+    "learningType": {
+      "quick": "Quick Learning",
+      "quickDesc": "Ask a question, get an answer",
+      "journey": "Systematic Learning",
+      "journeyDesc": "Create a learning path, track progress"
+    },
+    "duration": {
+      "days": "1-7 days",
+      "weeks": "1-4 weeks",
+      "months": "1-6 months",
+      "longTerm": "6+ months"
+    },
+    "dashboard": {
+      "activePaths": "Active Paths",
+      "completedPaths": "Completed Paths",
+      "totalTime": "Total Time",
+      "streak": "Streak",
+      "days": "days",
+      "activeLearningPaths": "Active Learning Paths",
+      "activePathsDesc": "Continue your learning journey",
+      "complete": "complete",
+      "continueLearning": "Continue Learning",
+      "overallProgress": "Overall Progress",
+      "milestones": "Milestones",
+      "milestonesComplete": "milestones",
+      "sessions": "Sessions",
+      "timeSpent": "Time Spent",
+      "streakDays": "Streak Days",
+      "noActivePaths": "No Learning Paths Yet",
+      "noActivePathsDesc": "Start a systematic learning plan to track your progress"
     },
     "stats": {
       "timeSpent": "Time Spent",

@@ -6,6 +6,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import type {
   RecordingStatus,
   RecordingConfig,
@@ -66,11 +67,18 @@ interface ScreenRecordingState {
   isLoading: boolean;
   isInitialized: boolean;
   error: string | null;
+  
+  // Event listener cleanup functions
+  _eventListeners: UnlistenFn[];
 }
 
 interface ScreenRecordingActions {
   // Initialization
   initialize: () => Promise<void>;
+  cleanup: () => void;
+  
+  // Event listeners
+  setupEventListeners: () => Promise<void>;
   
   // Recording control
   startRecording: (mode: RecordingMode, options?: {
@@ -127,6 +135,7 @@ const initialState: ScreenRecordingState = {
   isLoading: false,
   isInitialized: false,
   error: null,
+  _eventListeners: [],
 };
 
 export const useScreenRecordingStore = create<ScreenRecordingStore>()(
@@ -162,12 +171,88 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
             isInitialized: true,
             isLoading: false,
           });
+
+          // Setup event listeners for real-time updates
+          await get().setupEventListeners();
         } catch (error) {
           set({
             error: error instanceof Error ? error.message : 'Failed to initialize',
             isInitialized: true,
             isLoading: false,
           });
+        }
+      },
+
+      cleanup: () => {
+        // Cleanup all event listeners
+        const listeners = get()._eventListeners;
+        listeners.forEach((unlisten) => unlisten());
+        set({ _eventListeners: [] });
+      },
+
+      setupEventListeners: async () => {
+        if (!isTauri()) return;
+
+        const listeners: UnlistenFn[] = [];
+
+        try {
+          // Listen for recording status changes
+          const unlistenStatus = await listen<{
+            status: RecordingStatus;
+            recording_id: string | null;
+            duration_ms: number;
+          }>('recording-status-changed', (event) => {
+            set({
+              status: event.payload.status,
+              recordingId: event.payload.recording_id,
+              duration: event.payload.duration_ms,
+            });
+          });
+          listeners.push(unlistenStatus);
+
+          // Listen for countdown events
+          const unlistenCountdown = await listen<number>('recording-countdown', (event) => {
+            // Countdown tick - can be used for UI feedback
+            console.log('[Recording] Countdown:', event.payload);
+          });
+          listeners.push(unlistenCountdown);
+
+          // Listen for recording completed
+          const unlistenCompleted = await listen<RecordingMetadata>('recording-completed', (event) => {
+            console.log('[Recording] Completed:', event.payload.id);
+            set({
+              status: 'Idle',
+              recordingId: null,
+              duration: 0,
+            });
+            // Refresh history to include new recording
+            get().refreshHistory();
+          });
+          listeners.push(unlistenCompleted);
+
+          // Listen for recording cancelled
+          const unlistenCancelled = await listen<void>('recording-cancelled', () => {
+            set({
+              status: 'Idle',
+              recordingId: null,
+              duration: 0,
+            });
+          });
+          listeners.push(unlistenCancelled);
+
+          // Listen for recording errors
+          const unlistenError = await listen<{ error: string; code: string }>('recording-error', (event) => {
+            set({
+              error: event.payload.error,
+              status: 'Idle',
+              recordingId: null,
+            });
+          });
+          listeners.push(unlistenError);
+
+          set({ _eventListeners: listeners });
+        } catch (error) {
+          console.error('[Recording] Failed to setup event listeners:', error);
         }
       },
 
@@ -205,9 +290,7 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
             isLoading: false,
           });
 
-          // Start polling for status updates
-          get().updateStatus();
-
+          // Status will be updated via events automatically
           return recordingId;
         } catch (error) {
           set({

@@ -22,6 +22,10 @@ import {
   unregisterAllShortcuts,
   isShortcutRegistered,
   getRegisteredShortcuts,
+  normalizeShortcut,
+  detectShortcutConflict,
+  validateShortcut,
+  registerShortcutWithConflictCheck,
   Shortcuts,
   type ShortcutHandler,
 } from './shortcuts';
@@ -209,5 +213,117 @@ describe('Shortcuts - Shortcuts constants', () => {
     expect(Shortcuts.FOCUS_INPUT).toBe('CommandOrControl+L');
     expect(Shortcuts.PREVIOUS_CHAT).toBe('CommandOrControl+[');
     expect(Shortcuts.NEXT_CHAT).toBe('CommandOrControl+]');
+  });
+});
+
+describe('Shortcuts - normalizeShortcut', () => {
+  it('should normalize shortcut with different cases', () => {
+    expect(normalizeShortcut('ctrl+shift+a')).toBe('Ctrl+Shift+A');
+    expect(normalizeShortcut('CTRL+SHIFT+A')).toBe('Ctrl+Shift+A');
+    expect(normalizeShortcut('Ctrl+Shift+A')).toBe('Ctrl+Shift+A');
+  });
+
+  it('should handle different modifier orders', () => {
+    expect(normalizeShortcut('Shift+Ctrl+A')).toBe('Ctrl+Shift+A');
+    expect(normalizeShortcut('Alt+Ctrl+A')).toBe('Ctrl+Alt+A');
+  });
+
+  it('should handle empty string', () => {
+    expect(normalizeShortcut('')).toBe('');
+  });
+
+  it('should normalize CommandOrControl', () => {
+    const result = normalizeShortcut('CommandOrControl+N');
+    expect(result).toBe('Commandorcontrol+N');
+  });
+});
+
+describe('Shortcuts - detectShortcutConflict', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should return null when no conflict exists', async () => {
+    const result = await detectShortcutConflict('Ctrl+X', 'test-owner', 'test-action');
+    expect(result).toBeNull();
+  });
+
+  it('should allow same owner to re-register', async () => {
+    mockIsTauri.mockReturnValue(true);
+    const { register } = await import('@tauri-apps/plugin-global-shortcut');
+    (register as jest.Mock).mockResolvedValue(undefined);
+
+    // First registration
+    await registerShortcutWithConflictCheck(
+      'Ctrl+T',
+      jest.fn(),
+      { owner: 'owner-1', action: 'action-1' }
+    );
+
+    // Same owner re-registering should not conflict
+    const conflict = await detectShortcutConflict('Ctrl+T', 'owner-1', 'action-1-updated');
+    expect(conflict).toBeNull();
+  });
+});
+
+describe('Shortcuts - validateShortcut', () => {
+  it('should reject empty shortcuts', async () => {
+    const result = await validateShortcut('', 'owner', 'action');
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('Shortcut cannot be empty');
+  });
+
+  it('should reject shortcuts with invalid characters', async () => {
+    const result = await validateShortcut('Ctrl+@#$', 'owner', 'action');
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('Shortcut contains invalid characters');
+  });
+
+  it('should accept valid shortcuts', async () => {
+    const result = await validateShortcut('Ctrl+Shift+T', 'owner', 'action');
+    expect(result.valid).toBe(true);
+  });
+});
+
+describe('Shortcuts - registerShortcutWithConflictCheck', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should return error when not in Tauri', async () => {
+    mockIsTauri.mockReturnValue(false);
+    const result = await registerShortcutWithConflictCheck(
+      'Ctrl+T',
+      jest.fn(),
+      { owner: 'test', action: 'test' }
+    );
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Global shortcuts are only available in Tauri');
+  });
+
+  it('should register shortcut successfully', async () => {
+    mockIsTauri.mockReturnValue(true);
+    const { register } = await import('@tauri-apps/plugin-global-shortcut');
+    (register as jest.Mock).mockResolvedValue(undefined);
+
+    const result = await registerShortcutWithConflictCheck(
+      'Ctrl+Y',
+      jest.fn(),
+      { owner: 'test', action: 'test' }
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it('should skip conflict check when skipConflictCheck is true', async () => {
+    mockIsTauri.mockReturnValue(true);
+    const { register } = await import('@tauri-apps/plugin-global-shortcut');
+    (register as jest.Mock).mockResolvedValue(undefined);
+
+    const result = await registerShortcutWithConflictCheck(
+      'Ctrl+Z',
+      jest.fn(),
+      { owner: 'test', action: 'test', skipConflictCheck: true }
+    );
+    expect(result.success).toBe(true);
   });
 });

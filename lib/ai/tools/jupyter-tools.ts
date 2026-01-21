@@ -10,7 +10,7 @@
  */
 
 import { z } from 'zod';
-import type { AgentTool } from './agent-executor';
+import type { AgentTool } from '../agent/agent-executor';
 import { kernelService } from '@/lib/jupyter/kernel';
 import { virtualEnvService, isEnvironmentAvailable } from '@/lib/native/environment';
 import type { KernelSandboxExecutionResult } from '@/types/system/jupyter';

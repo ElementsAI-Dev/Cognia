@@ -6,6 +6,7 @@
  */
 
 import { ReactNode, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronDown, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -322,9 +323,10 @@ interface SaveButtonProps {
 export function SaveButton({
   onClick,
   disabled,
-  children = 'Save',
+  children,
   className,
 }: SaveButtonProps) {
+  const t = useTranslations('settings');
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -350,10 +352,10 @@ export function SaveButton({
       ) : showSuccess ? (
         <>
           <Check className="h-4 w-4 mr-1" />
-          Saved
+          {t('saved')}
         </>
       ) : (
-        children
+        children || t('save')
       )}
     </Button>
   );

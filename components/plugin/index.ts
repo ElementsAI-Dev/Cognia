@@ -8,10 +8,18 @@
  * - extension/  - Extension point system
  * - schema/     - JSON Schema form components
  * - dev/        - Development tools
+ * - marketplace/ - Plugin marketplace and discovery
  */
 
 // Core plugin management
-export { PluginManager, PluginList, PluginCard } from './core';
+export { PluginManager, PluginList, PluginCard, PluginQuickActions } from './core';
+
+// Marketplace
+export { 
+  PluginMarketplace, 
+  PluginDetailModal,
+  type MarketplacePlugin,
+} from './marketplace';
 
 // Configuration
 export { PluginConfig, PluginSettingsPage, PluginCreateWizard } from './config';

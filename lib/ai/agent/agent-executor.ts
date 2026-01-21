@@ -13,8 +13,8 @@
 import { generateText, stepCountIs } from 'ai';
 import { z } from 'zod';
 import { getProviderModel, type ProviderName } from '../core/client';
-import { isMcpTool, extractMcpServerInfo } from './mcp-tools';
-import { globalToolCache, type ToolCacheConfig } from './tool-cache';
+import { isMcpTool, extractMcpServerInfo } from '../tools/mcp-tools';
+import { globalToolCache, type ToolCacheConfig } from '../tools/tool-cache';
 import { globalMetricsCollector } from './performance-metrics';
 import { globalMemoryManager, type MemoryEntry } from './memory-manager';
 import { getPluginLifecycleHooks } from '@/lib/plugin/hooks-system';
@@ -45,6 +45,11 @@ import {
   createAgentObservabilityManager,
   type AgentObservabilityManager,
 } from '../observability/agent-observability';
+import {
+  createToolCallManager,
+  type ToolCallManager,
+  type PendingToolResult,
+} from '../tools/tool-call-manager';
 
 /**
  * Format memory entries as context for the system prompt
@@ -62,7 +67,7 @@ export interface ToolCall {
   id: string;
   name: string;
   args: Record<string, unknown>;
-  status: 'pending' | 'running' | 'completed' | 'error';
+  status: 'pending' | 'running' | 'completed' | 'error' | 'queued' | 'timeout' | 'cancelled';
   result?: unknown;
   error?: string;
   startedAt?: Date;
@@ -71,6 +76,14 @@ export interface ToolCall {
   mcpServerId?: string;
   /** MCP server display name */
   mcpServerName?: string;
+  /** Whether this tool call is blocking (waits for result) */
+  isBlocking?: boolean;
+  /** Execution mode used for this call */
+  executionMode?: 'blocking' | 'non-blocking';
+  /** Priority for queue ordering (lower = higher priority) */
+  priority?: number;
+  /** Duration of execution in milliseconds */
+  duration?: number;
 }
 
 export interface AgentExecutionState {
@@ -274,6 +287,14 @@ export interface AgentConfig {
   enableMetrics?: boolean;
   /** Enable memory integration for context persistence */
   enableMemory?: boolean;
+  /** Tool execution mode: blocking waits for results, non-blocking returns immediately */
+  toolExecutionMode?: 'blocking' | 'non-blocking';
+  /** Maximum concurrent tool executions (default: 5) */
+  maxConcurrentToolCalls?: number;
+  /** Whether to collect pending tool results before returning (default: true) */
+  collectPendingToolResults?: boolean;
+  /** Default timeout for tool calls in milliseconds */
+  toolTimeout?: number;
   /** Tags for memory queries */
   memoryTags?: string[];
   /** Maximum number of memories to load as context */
@@ -290,6 +311,16 @@ export interface AgentResult {
   duration: number;
   toolResults?: Array<{ toolCallId: string; toolName: string; result: unknown }>;
   error?: string;
+  /** Pending tool calls that haven't completed (non-blocking mode) */
+  pendingToolCalls?: ToolCall[];
+  /** Statistics about tool execution */
+  toolExecutionStats?: {
+    total: number;
+    completed: number;
+    failed: number;
+    pending: number;
+    avgDuration: number;
+  };
 }
 
 export interface AgentStep {
@@ -310,6 +341,25 @@ export interface AgentStep {
 }
 
 /**
+ * Options for SDK tool creation with parallel execution support
+ */
+interface SDKToolOptions {
+  onToolCall?: (toolCall: ToolCall) => void;
+  onToolResult?: (toolCall: ToolCall) => void;
+  requireApproval?: (toolCall: ToolCall) => Promise<boolean>;
+  safetyOptions?: SafetyCheckOptions;
+  retryConfig?: RetryConfig;
+  enableCache?: boolean;
+  agentId?: string;
+  /** Tool call manager for parallel execution */
+  toolCallManager?: ToolCallManager;
+  /** Execution mode for this tool */
+  executionMode?: 'blocking' | 'non-blocking';
+  /** Timeout for this tool call */
+  toolTimeout?: number;
+}
+
+/**
  * Create an AI SDK compatible tool object from an AgentTool definition
  * This builds the tool object manually to avoid complex type issues with the tool() helper
  */
@@ -317,14 +367,20 @@ function createSDKTool(
   name: string,
   agentTool: AgentTool,
   toolCallTracker: Map<string, ToolCall>,
-  onToolCall?: (toolCall: ToolCall) => void,
-  onToolResult?: (toolCall: ToolCall) => void,
-  requireApproval?: (toolCall: ToolCall) => Promise<boolean>,
-  safetyOptions?: SafetyCheckOptions,
-  retryConfig?: RetryConfig,
-  enableCache?: boolean,
-  agentId?: string
+  options: SDKToolOptions = {}
 ) {
+  const {
+    onToolCall,
+    onToolResult,
+    requireApproval,
+    safetyOptions,
+    retryConfig,
+    enableCache,
+    agentId,
+    toolCallManager,
+    executionMode = 'blocking',
+    toolTimeout,
+  } = options;
   // Extract MCP server info if this is an MCP tool
   const mcpInfo = isMcpTool(name) ? extractMcpServerInfo(name) : null;
 
@@ -341,6 +397,10 @@ function createSDKTool(
         startedAt: new Date(),
         // Include MCP server info if available
         mcpServerId: mcpInfo?.serverId,
+        // Parallel execution metadata
+        isBlocking: executionMode === 'blocking',
+        executionMode,
+        priority: 5, // Default priority
       };
 
       toolCallTracker.set(toolCallId, toolCall);
@@ -396,53 +456,110 @@ function createSDKTool(
         }
       }
 
-      // Execute with retry logic
-      const actualRetryConfig = retryConfig || DEFAULT_RETRY_CONFIG;
-      let lastError: Error | null = null;
+      // Core execution function with retry logic
+      const executeWithRetry = async (): Promise<unknown> => {
+        const actualRetryConfig = retryConfig || DEFAULT_RETRY_CONFIG;
+        let lastError: Error | null = null;
 
-      for (let attempt = 0; attempt <= actualRetryConfig.maxRetries; attempt++) {
+        for (let attempt = 0; attempt <= actualRetryConfig.maxRetries; attempt++) {
+          try {
+            const result = await agentTool.execute(args as Record<string, unknown>);
+            
+            // Cache the result if not from cache
+            if (!cached && enableCache) {
+              globalToolCache.set(name, args as Record<string, unknown>, result);
+            }
+
+            return result;
+          } catch (error) {
+            lastError = error instanceof Error ? error : new Error('Tool execution failed');
+            
+            // Check if error is retryable
+            const isRetryable = actualRetryConfig.retryableErrors.some(pattern => 
+              lastError!.message.toLowerCase().includes(pattern.toLowerCase())
+            );
+            
+            if (!isRetryable || attempt === actualRetryConfig.maxRetries) {
+              throw lastError;
+            }
+            
+            // Calculate delay with exponential backoff
+            const delay = actualRetryConfig.exponentialBackoff
+              ? actualRetryConfig.retryDelay * Math.pow(2, attempt)
+              : actualRetryConfig.retryDelay;
+            
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+
+        throw lastError || new Error('Tool execution failed');
+      };
+
+      // Use ToolCallManager if provided for parallel execution support
+      if (toolCallManager) {
         try {
-          const result = await agentTool.execute(args as Record<string, unknown>);
-          
-          // Cache the result if not from cache
-          if (!cached && enableCache) {
-            globalToolCache.set(name, args as Record<string, unknown>, result);
+          const result = await toolCallManager.enqueue(
+            toolCall,
+            executeWithRetry,
+            {
+              blocking: executionMode === 'blocking',
+              timeout: toolTimeout,
+              priority: toolCall.priority,
+            }
+          );
+
+          // For non-blocking mode, result may be a PendingToolResult
+          if (executionMode === 'non-blocking' && result && typeof result === 'object' && 'status' in result) {
+            // Return pending indicator for non-blocking execution
+            return { pending: true, pendingId: (result as PendingToolResult).id };
           }
 
+          // Update toolCall with result
           toolCall.status = 'completed';
           toolCall.result = result;
           toolCall.completedAt = new Date();
+          toolCall.duration = toolCall.completedAt.getTime() - (toolCall.startedAt?.getTime() || 0);
           onToolResult?.(toolCall);
           return result;
         } catch (error) {
-          lastError = error instanceof Error ? error : new Error('Tool execution failed');
-          
-          // Check if error is retryable
-          const isRetryable = actualRetryConfig.retryableErrors.some(pattern => 
-            lastError!.message.toLowerCase().includes(pattern.toLowerCase())
-          );
-          
-          if (!isRetryable || attempt === actualRetryConfig.maxRetries) {
-            toolCall.status = 'error';
-            toolCall.error = lastError.message;
-            toolCall.completedAt = new Date();
-            onToolResult?.(toolCall);
-            throw lastError;
-          }
-          
-          // Calculate delay with exponential backoff
-          const delay = actualRetryConfig.exponentialBackoff
-            ? actualRetryConfig.retryDelay * Math.pow(2, attempt)
-            : actualRetryConfig.retryDelay;
-          
-          await new Promise(resolve => setTimeout(resolve, delay));
+          const err = error instanceof Error ? error : new Error('Tool execution failed');
+          toolCall.status = err.message.includes('timeout') ? 'timeout' : 'error';
+          toolCall.error = err.message;
+          toolCall.completedAt = new Date();
+          toolCall.duration = toolCall.completedAt.getTime() - (toolCall.startedAt?.getTime() || 0);
+          onToolResult?.(toolCall);
+          throw err;
         }
       }
 
-      // This should never be reached, but TypeScript needs it
-      throw lastError || new Error('Tool execution failed');
+      // Fallback to direct execution without manager
+      try {
+        const result = await executeWithRetry();
+        toolCall.status = 'completed';
+        toolCall.result = result;
+        toolCall.completedAt = new Date();
+        toolCall.duration = toolCall.completedAt.getTime() - (toolCall.startedAt?.getTime() || 0);
+        onToolResult?.(toolCall);
+        return result;
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error('Tool execution failed');
+        toolCall.status = 'error';
+        toolCall.error = err.message;
+        toolCall.completedAt = new Date();
+        toolCall.duration = toolCall.completedAt.getTime() - (toolCall.startedAt?.getTime() || 0);
+        onToolResult?.(toolCall);
+        throw err;
+      }
     },
   };
+}
+
+/**
+ * Options for converting tools to AI SDK format
+ */
+interface ConvertToolsOptions extends SDKToolOptions {
+  /** Tool call manager for parallel execution */
+  toolCallManager?: ToolCallManager;
 }
 
 /**
@@ -451,30 +568,13 @@ function createSDKTool(
 function convertToAISDKTools(
   tools: Record<string, AgentTool>,
   toolCallTracker: Map<string, ToolCall>,
-  onToolCall?: (toolCall: ToolCall) => void,
-  onToolResult?: (toolCall: ToolCall) => void,
-  requireApproval?: (toolCall: ToolCall) => Promise<boolean>,
-  safetyOptions?: SafetyCheckOptions,
-  retryConfig?: RetryConfig,
-  enableCache?: boolean,
-  agentId?: string
+  options: ConvertToolsOptions = {}
 ) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sdkTools: Record<string, any> = {};
 
   for (const [name, agentTool] of Object.entries(tools)) {
-    sdkTools[name] = createSDKTool(
-      name,
-      agentTool,
-      toolCallTracker,
-      onToolCall,
-      onToolResult,
-      requireApproval,
-      safetyOptions,
-      retryConfig,
-      enableCache,
-      agentId
-    );
+    sdkTools[name] = createSDKTool(name, agentTool, toolCallTracker, options);
   }
 
   return sdkTools;
@@ -688,19 +788,38 @@ export async function executeAgent(
     return null;
   };
 
+  // Parallel execution configuration
+  const toolExecutionMode = config.toolExecutionMode ?? 'blocking';
+  const maxConcurrentToolCalls = config.maxConcurrentToolCalls ?? 5;
+  const collectPendingToolResults = config.collectPendingToolResults ?? true;
+  const toolTimeout = config.toolTimeout;
+
+  // Create tool call manager for parallel execution
+  const toolCallManager = createToolCallManager({
+    mode: toolExecutionMode,
+    maxConcurrent: maxConcurrentToolCalls,
+    defaultTimeout: toolTimeout,
+    onToolStart: onToolCall,
+    onToolResult: onToolResult,
+    onToolError: (toolCall, error) => {
+      onError?.(error);
+    },
+  });
+
   // Convert AgentTools to AI SDK format
   const sdkTools = Object.keys(tools).length > 0
-    ? convertToAISDKTools(
-        tools,
-        toolCallTracker,
+    ? convertToAISDKTools(tools, toolCallTracker, {
         onToolCall,
         onToolResult,
         requireApproval,
-        config.safetyOptions,
-        toolRetryConfig,
-        toolCacheConfig?.enabled !== false,
-        agentId
-      )
+        safetyOptions: config.safetyOptions,
+        retryConfig: toolRetryConfig,
+        enableCache: toolCacheConfig?.enabled !== false,
+        agentId,
+        toolCallManager,
+        executionMode: toolExecutionMode,
+        toolTimeout,
+      })
     : undefined;
 
   try {
@@ -872,6 +991,60 @@ export async function executeAgent(
       }
     }
 
+    // Handle pending tool results if configured
+    let pendingToolCalls: ToolCall[] | undefined;
+    if (collectPendingToolResults && toolCallManager.hasPending()) {
+      const flushResult = await toolCallManager.flushPending();
+      // Mark any still-pending calls
+      pendingToolCalls = toolCallManager.getPendingResults()
+        .filter(p => p.status === 'pending' || p.status === 'running')
+        .map(p => {
+          const tc = toolCallTracker.get(p.toolCallId);
+          return tc || {
+            id: p.toolCallId,
+            name: 'unknown',
+            args: {},
+            status: p.status as ToolCall['status'],
+            startedAt: p.startedAt,
+          };
+        });
+      
+      // Log flush results for debugging
+      if (flushResult.failed.length > 0) {
+        console.warn(`[Agent] ${flushResult.failed.length} tool calls failed during flush`);
+      }
+    } else if (!collectPendingToolResults) {
+      // Collect pending calls without waiting
+      pendingToolCalls = toolCallManager.getPendingResults()
+        .filter(p => p.status === 'pending' || p.status === 'running')
+        .map(p => {
+          const tc = toolCallTracker.get(p.toolCallId);
+          return tc || {
+            id: p.toolCallId,
+            name: 'unknown',
+            args: {},
+            status: p.status as ToolCall['status'],
+            startedAt: p.startedAt,
+          };
+        });
+    }
+
+    // Calculate tool execution statistics
+    const allToolCalls: ToolCall[] = steps.flatMap(s => s.toolCalls);
+    const completedCalls = allToolCalls.filter(tc => tc.status === 'completed');
+    const failedCalls = allToolCalls.filter(tc => tc.status === 'error' || tc.status === 'timeout');
+    const avgDuration = completedCalls.length > 0
+      ? completedCalls.reduce((sum, tc) => sum + (tc.duration || 0), 0) / completedCalls.length
+      : 0;
+
+    const toolExecutionStats = {
+      total: allToolCalls.length,
+      completed: completedCalls.length,
+      failed: failedCalls.length,
+      pending: pendingToolCalls?.length || 0,
+      avgDuration,
+    };
+
     const agentResult: AgentResult = {
       success: true,
       finalResponse: result.text,
@@ -879,6 +1052,8 @@ export async function executeAgent(
       totalSteps: stepCount,
       duration,
       toolResults: allToolResults.length > 0 ? allToolResults : undefined,
+      pendingToolCalls: pendingToolCalls && pendingToolCalls.length > 0 ? pendingToolCalls : undefined,
+      toolExecutionStats,
     };
 
     // End observability tracking

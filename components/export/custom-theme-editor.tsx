@@ -68,23 +68,23 @@ function ColorField({ label, value, onChange, description }: ColorFieldProps) {
 }
 
 const COLOR_FIELDS = [
-  { key: 'background', label: 'Background', description: 'Code block background' },
-  { key: 'foreground', label: 'Foreground', description: 'Default text color' },
-  { key: 'comment', label: 'Comments', description: '// comments' },
-  { key: 'keyword', label: 'Keywords', description: 'const, function, if' },
-  { key: 'string', label: 'Strings', description: '"text", \'text\'' },
-  { key: 'number', label: 'Numbers', description: '123, 3.14' },
-  { key: 'function', label: 'Functions', description: 'functionName()' },
-  { key: 'operator', label: 'Operators', description: '+, -, =, =>' },
-  { key: 'property', label: 'Properties', description: 'object.property' },
-  { key: 'className', label: 'Classes', description: 'ClassName, types' },
-  { key: 'constant', label: 'Constants', description: 'TRUE, NULL' },
-  { key: 'tag', label: 'Tags', description: '<div>, <span>' },
-  { key: 'attrName', label: 'Attr Names', description: 'class=, id=' },
-  { key: 'attrValue', label: 'Attr Values', description: '"value"' },
-  { key: 'punctuation', label: 'Punctuation', description: '(), {}, []' },
-  { key: 'selection', label: 'Selection', description: 'Selected text bg' },
-  { key: 'lineHighlight', label: 'Line Highlight', description: 'Current line bg' },
+  { key: 'background', labelKey: 'colorBackground', descKey: 'colorBackgroundDesc' },
+  { key: 'foreground', labelKey: 'colorForeground', descKey: 'colorForegroundDesc' },
+  { key: 'comment', labelKey: 'colorComment', descKey: 'colorCommentDesc' },
+  { key: 'keyword', labelKey: 'colorKeyword', descKey: 'colorKeywordDesc' },
+  { key: 'string', labelKey: 'colorString', descKey: 'colorStringDesc' },
+  { key: 'number', labelKey: 'colorNumber', descKey: 'colorNumberDesc' },
+  { key: 'function', labelKey: 'colorFunction', descKey: 'colorFunctionDesc' },
+  { key: 'operator', labelKey: 'colorOperator', descKey: 'colorOperatorDesc' },
+  { key: 'property', labelKey: 'colorProperty', descKey: 'colorPropertyDesc' },
+  { key: 'className', labelKey: 'colorClass', descKey: 'colorClassDesc' },
+  { key: 'constant', labelKey: 'colorConstant', descKey: 'colorConstantDesc' },
+  { key: 'tag', labelKey: 'colorTag', descKey: 'colorTagDesc' },
+  { key: 'attrName', labelKey: 'colorAttrName', descKey: 'colorAttrNameDesc' },
+  { key: 'attrValue', labelKey: 'colorAttrValue', descKey: 'colorAttrValueDesc' },
+  { key: 'punctuation', labelKey: 'colorPunctuation', descKey: 'colorPunctuationDesc' },
+  { key: 'selection', labelKey: 'colorSelection', descKey: 'colorSelectionDesc' },
+  { key: 'lineHighlight', labelKey: 'colorLineHighlight', descKey: 'colorLineHighlightDesc' },
 ] as const;
 
 const SAMPLE_CODE = `// Sample code preview
@@ -125,7 +125,7 @@ export function CustomThemeEditor({
 
   const handleSave = useCallback(() => {
     if (!themeName.trim()) {
-      toast.error('Please enter a theme name');
+      toast.error(t('enterThemeName'));
       return;
     }
 
@@ -140,15 +140,15 @@ export function CustomThemeEditor({
     if (editingThemeId && existingTheme) {
       updateTheme(editingThemeId, themeData);
       themeId = editingThemeId;
-      toast.success('Theme updated');
+      toast.success(t('themeUpdated'));
     } else {
       themeId = addTheme(themeData);
-      toast.success('Theme created');
+      toast.success(t('themeCreated'));
     }
 
     onSave?.(themeId);
     onOpenChange(false);
-  }, [themeName, isDark, colors, editingThemeId, existingTheme, addTheme, updateTheme, onSave, onOpenChange]);
+  }, [themeName, isDark, colors, editingThemeId, existingTheme, addTheme, updateTheme, onSave, onOpenChange, t]);
 
   const handleExport = useCallback(() => {
     if (editingThemeId) {
@@ -161,10 +161,10 @@ export function CustomThemeEditor({
         a.download = `${themeName.toLowerCase().replace(/\s+/g, '-')}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        toast.success('Theme exported');
+        toast.success(t('themeExported'));
       }
     }
-  }, [editingThemeId, exportTheme, themeName]);
+  }, [editingThemeId, exportTheme, themeName, t]);
 
   const handleImport = useCallback(() => {
     const input = document.createElement('input');
@@ -178,14 +178,14 @@ export function CustomThemeEditor({
       const result = importTheme(text);
       
       if (result.success) {
-        toast.success('Theme imported');
+        toast.success(t('themeImported'));
         onOpenChange(false);
       } else {
-        toast.error(result.error || 'Failed to import theme');
+        toast.error(result.error || t('importFailed'));
       }
     };
     input.click();
-  }, [importTheme, onOpenChange]);
+  }, [importTheme, onOpenChange, t]);
 
   const previewStyles = useMemo(() => {
     return `
@@ -242,7 +242,7 @@ export function CustomThemeEditor({
                 id="theme-name"
                 value={themeName}
                 onChange={(e) => setThemeName(e.target.value)}
-                placeholder="My Custom Theme"
+                placeholder={t('defaultThemeName')}
               />
             </div>
 
@@ -272,10 +272,10 @@ export function CustomThemeEditor({
                     {COLOR_FIELDS.slice(0, 10).map((field) => (
                       <ColorField
                         key={field.key}
-                        label={field.label}
+                        label={t(field.labelKey)}
                         value={colors[field.key]}
                         onChange={(value) => updateColor(field.key, value)}
-                        description={field.description}
+                        description={t(field.descKey)}
                       />
                     ))}
                   </div>
@@ -288,10 +288,10 @@ export function CustomThemeEditor({
                     {COLOR_FIELDS.slice(10).map((field) => (
                       <ColorField
                         key={field.key}
-                        label={field.label}
+                        label={t(field.labelKey)}
                         value={colors[field.key]}
                         onChange={(value) => updateColor(field.key, value)}
-                        description={field.description}
+                        description={t(field.descKey)}
                       />
                     ))}
                   </div>

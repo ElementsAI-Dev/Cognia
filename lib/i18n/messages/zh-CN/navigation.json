@@ -116,5 +116,25 @@
     "chatCopied": "对话已复制到剪贴板",
     "help": "帮助",
     "keyboardShortcuts": "键盘快捷键"
+  },
+  "featureRouting": {
+    "intentDetected": "检测到功能意图",
+    "suggestNavigation": "您的请求更适合在{feature}中处理",
+    "confidence": "置信度",
+    "yourRequest": "您的请求",
+    "dontShowAgain": "不再提示此功能",
+    "continueChat": "继续对话",
+    "goToFeature": "前往{feature}",
+    "go": "前往",
+    "suggestFeature": "推荐功能：",
+    "videoStudio": "视频工作室",
+    "imageStudio": "图片工作室",
+    "designer": "设计器",
+    "ppt": "演示文稿",
+    "academic": "学术研究",
+    "workflows": "工作流",
+    "skills": "技能管理",
+    "projects": "项目管理",
+    "settings": "设置"
   }
 }

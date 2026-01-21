@@ -416,7 +416,7 @@ export function OCRPanel({
           <div className="flex items-center gap-2">
             <ScanText className="w-5 h-5 text-cyan-400" />
             <span className="text-sm font-medium text-white">
-              {t("title") || "OCR - Extract Text from Image"}
+              {t("title")}
             </span>
           </div>
           <Button
@@ -434,7 +434,7 @@ export function OCRPanel({
           <div className="px-4 py-2 border-b border-white/10 bg-amber-500/10">
             <div className="flex items-center gap-2 text-amber-400">
               <AlertCircle className="w-4 h-4" />
-              <span className="text-xs">OCR is not available. Install language packs in Windows Settings.</span>
+              <span className="text-xs">{t("notAvailable")}</span>
             </div>
           </div>
         )}
@@ -444,14 +444,14 @@ export function OCRPanel({
           {/* Provider Selection */}
           <div className="flex items-center gap-2">
             {PROVIDER_ICONS[selectedProvider] || <ScanText className="w-4 h-4 text-white/40" />}
-            <span className="text-xs text-white/60">Provider:</span>
+            <span className="text-xs text-white/60">{t("provider")}</span>
             <Select 
               value={selectedProvider} 
               onValueChange={(value) => setSelectedProvider(value as OcrProviderType)} 
               disabled={loadingLanguages}
             >
               <SelectTrigger className="h-7 w-36 text-xs bg-white/5 border-white/10">
-                <SelectValue placeholder="Select provider" />
+                <SelectValue placeholder={t("selectProvider")} />
               </SelectTrigger>
               <SelectContent className="bg-gray-900/95 border-white/10">
                 {providers.filter(p => p.available).map((provider) => (
@@ -464,14 +464,14 @@ export function OCRPanel({
                       {PROVIDER_ICONS[provider.provider_type]}
                       <span>{provider.display_name}</span>
                       {provider.is_local && (
-                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">Local</Badge>
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{t("providers.windows_ocr")}</Badge>
                       )}
                     </div>
                   </SelectItem>
                 ))}
                 {providers.filter(p => p.available).length === 0 && (
                   <SelectItem value="windows_ocr" className="text-xs" disabled>
-                    No providers available
+                    {t("noProviders")}
                   </SelectItem>
                 )}
               </SelectContent>
@@ -481,14 +481,14 @@ export function OCRPanel({
           {/* Language Selection */}
           <div className="flex items-center gap-2">
             <Languages className="w-4 h-4 text-white/40" />
-            <span className="text-xs text-white/60">Language:</span>
+            <span className="text-xs text-white/60">{t("language")}</span>
             <Select value={selectedLanguage} onValueChange={setSelectedLanguage} disabled={loadingLanguages}>
               <SelectTrigger className="h-7 w-32 text-xs bg-white/5 border-white/10">
-                <SelectValue placeholder={loadingLanguages ? "Loading..." : "Select"} />
+                <SelectValue placeholder={loadingLanguages ? t("loading") : t("select")} />
               </SelectTrigger>
               <SelectContent className="bg-gray-900/95 border-white/10 max-h-[300px]">
                 <SelectItem value="auto" className="text-xs">
-                  Auto-detect
+                  {t("autoDetect")}
                 </SelectItem>
                 {availableLanguages.map((langCode) => (
                   <SelectItem key={langCode} value={langCode} className="text-xs">
@@ -508,7 +508,7 @@ export function OCRPanel({
         {!imagePreview && !result && (
           <div className="p-4 space-y-3">
             <p className="text-xs text-white/60 text-center mb-4">
-              Choose a method to extract text from an image
+              {t("chooseMethod")}
             </p>
 
             <div className="grid grid-cols-3 gap-2">
@@ -521,10 +521,10 @@ export function OCRPanel({
                     disabled={isProcessing}
                   >
                     <Upload className="w-6 h-6 text-blue-400" />
-                    <span className="text-xs">Upload</span>
+                    <span className="text-xs">{t("upload")}</span>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Upload an image file</TooltipContent>
+                <TooltipContent>{t("uploadDesc")}</TooltipContent>
               </Tooltip>
 
               <Tooltip>
@@ -536,10 +536,10 @@ export function OCRPanel({
                     disabled={isProcessing}
                   >
                     <Clipboard className="w-6 h-6 text-amber-400" />
-                    <span className="text-xs">Paste</span>
+                    <span className="text-xs">{t("paste")}</span>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Paste image from clipboard</TooltipContent>
+                <TooltipContent>{t("pasteDesc")}</TooltipContent>
               </Tooltip>
 
               <Tooltip>
@@ -551,10 +551,10 @@ export function OCRPanel({
                     disabled={isProcessing}
                   >
                     <Camera className="w-6 h-6 text-green-400" />
-                    <span className="text-xs">Capture</span>
+                    <span className="text-xs">{t("capture")}</span>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Capture screen region</TooltipContent>
+                <TooltipContent>{t("captureDesc")}</TooltipContent>
               </Tooltip>
             </div>
 
@@ -573,7 +573,7 @@ export function OCRPanel({
             {isProcessing && (
               <div className="flex items-center justify-center gap-2 py-4">
                 <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
-                <span className="text-sm text-white/60">Processing image...</span>
+                <span className="text-sm text-white/60">{t("processing")}</span>
               </div>
             )}
 
@@ -611,7 +611,7 @@ export function OCRPanel({
             {isProcessing && (
               <div className="flex items-center justify-center gap-2 py-2">
                 <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
-                <span className="text-xs text-white/60">Extracting text...</span>
+                <span className="text-xs text-white/60">{t("extracting")}</span>
               </div>
             )}
           </div>
@@ -624,14 +624,14 @@ export function OCRPanel({
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-emerald-400" />
                 <span className="text-xs font-medium text-white/80">
-                  Extracted Text
+                  {t("extractedText")}
                 </span>
                 {result.confidence > 0 && (
                   <Badge
                     variant="secondary"
                     className="h-5 text-[10px] bg-white/10"
                   >
-                    {Math.round(result.confidence * 100)}% confidence
+                    {Math.round(result.confidence * 100)}% {t("confidence")}
                   </Badge>
                 )}
                 {result.language && (
@@ -678,7 +678,7 @@ export function OCRPanel({
             {/* Quick Actions */}
             <div className="px-4 py-3 border-t border-white/10 space-y-2">
               <span className="text-[10px] text-white/40 uppercase tracking-wider">
-                Quick Actions
+                {t("quickActions")}
               </span>
               <div className="flex flex-wrap gap-1.5">
                 <Button
@@ -688,7 +688,7 @@ export function OCRPanel({
                   onClick={() => handleAction("translate")}
                 >
                   <Languages className="w-3 h-3 mr-1" />
-                  Translate
+                  {t("translate")}
                 </Button>
                 <Button
                   variant="secondary"
@@ -697,7 +697,7 @@ export function OCRPanel({
                   onClick={() => handleAction("explain")}
                 >
                   <Sparkles className="w-3 h-3 mr-1" />
-                  Explain
+                  {t("explain")}
                 </Button>
                 <Button
                   variant="secondary"
@@ -706,7 +706,7 @@ export function OCRPanel({
                   onClick={() => handleAction("summarize")}
                 >
                   <FileText className="w-3 h-3 mr-1" />
-                  Summarize
+                  {t("summarize")}
                 </Button>
                 <Button
                   variant="secondary"
@@ -714,7 +714,7 @@ export function OCRPanel({
                   className="h-7 text-xs bg-white/10 hover:bg-white/20"
                   onClick={() => handleAction("send-to-chat")}
                 >
-                  Send to Chat
+                  {t("sendToChat")}
                 </Button>
               </div>
             </div>
@@ -724,7 +724,7 @@ export function OCRPanel({
         {/* Footer */}
         <div className="px-4 py-2 border-t border-white/10 text-center">
           <p className="text-[10px] text-white/30">
-            Powered by Windows OCR • Supports multiple languages
+            {t("poweredBy")}
           </p>
         </div>
       </div>

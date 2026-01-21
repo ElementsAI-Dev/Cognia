@@ -1,5 +1,15 @@
 {
   "projects": {
+    "newProject": "New Project",
+    "blankProject": "Blank Project",
+    "fromTemplate": "From Template",
+    "totalProjects": "Total Projects",
+    "conversations": "Conversations",
+    "activeToday": "Active Today",
+    "importExport": "Import/Export",
+    "noProjectsFound": "No projects found",
+    "searchHint": "Try a different search term or create a new project",
+    "createHint": "Create your first project to organize conversations and knowledge",
     "title": "Projects",
     "noProjectsYet": "No projects yet",
     "createProject": "Create Project",
@@ -49,7 +59,78 @@
     "yesterday": "Yesterday",
     "daysAgo": "{days} days ago"
   },
+  "importExport": {
+    "title": "Import / Export Projects",
+    "description": "Backup your projects or import from a previous export",
+    "export": "Export",
+    "import": "Import",
+    "noProjects": "No projects to export",
+    "selectProjects": "Select projects to export",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "exportJson": "Export JSON",
+    "exportZip": "Export ZIP",
+    "importing": "Importing...",
+    "dropHint": "Drop a file here or click to browse",
+    "supportedFormats": "Supports .json or .zip files",
+    "importResult": "{success} imported, {failed} failed",
+    "filesCount": "{count} files"
+  },
+  "templates": {
+    "createFromTemplate": "Create from Template",
+    "chooseTemplate": "Choose a template to quickly set up your project",
+    "all": "All",
+    "categories": {
+      "development": "Development",
+      "writing": "Writing",
+      "research": "Research",
+      "business": "Business",
+      "personal": "Personal"
+    },
+    "codingAssistant": {
+      "name": "Coding Assistant",
+      "description": "AI-powered coding help with code reviews, debugging, and documentation",
+      "instructions": "You are an expert software developer. Help with coding tasks, code reviews, debugging, and technical documentation. Always provide clean, well-documented code examples."
+    },
+    "researchProject": {
+      "name": "Research Project",
+      "description": "Organize research with AI-assisted analysis and summarization",
+      "instructions": "You are a research assistant. Help analyze documents, summarize findings, and organize research materials. Provide citations and references when possible."
+    },
+    "businessStrategy": {
+      "name": "Business Strategy",
+      "description": "Strategic planning and business analysis with AI insights",
+      "instructions": "You are a business strategist. Help with market analysis, competitive research, and strategic planning. Provide actionable insights and recommendations."
+    },
+    "creativeWriting": {
+      "name": "Creative Writing",
+      "description": "Writing assistant for stories, articles, and creative content",
+      "instructions": "You are a creative writing assistant. Help with storytelling, character development, and prose improvement. Provide constructive feedback and suggestions."
+    },
+    "startupLaunch": {
+      "name": "Startup Launch",
+      "description": "Plan and execute your startup idea with AI guidance",
+      "instructions": "You are a startup advisor. Help with product development, go-to-market strategy, and pitch preparation. Provide practical, actionable advice for early-stage founders."
+    },
+    "learningPath": {
+      "name": "Learning Path",
+      "description": "Personalized learning with AI tutoring and study plans",
+      "instructions": "You are a patient and knowledgeable tutor. Help create personalized learning paths, explain complex concepts, and provide practice exercises. Adapt to the learner's pace and style."
+    },
+    "personalJournal": {
+      "name": "Personal Journal",
+      "description": "Reflective journaling with AI prompts and insights",
+      "instructions": "You are a thoughtful companion for personal reflection. Help with journaling prompts, goal setting, and self-discovery. Be supportive and non-judgmental."
+    },
+    "blankProject": {
+      "name": "Blank Project",
+      "description": "Start fresh with a clean slate",
+      "instructions": ""
+    }
+  },
   "projectDetail": {
+    "defaultModeLabel": "Default: {mode}",
+    "defaultProviderLabel": "Provider: {provider}",
     "notFound": "Project not found",
     "backToProjects": "Back to Projects",
     "sessionsCount": "{count} sessions",
@@ -80,6 +161,33 @@
     "removeSessionConfirmation": "Remove this session from the project? The session will not be deleted, just unlinked from this project.",
     "remove": "Remove",
     "versionControl": "Version Control"
+  },
+  "knowledgeBase": {
+    "title": "Knowledge Base",
+    "upload": "Upload",
+    "processing": "Processing...",
+    "dismiss": "Dismiss",
+    "searchPlaceholder": "Search files...",
+    "selectAll": "Select All",
+    "selectedCount": "{count} selected",
+    "deleteSelected": "Delete Selected",
+    "openWithDefault": "Open with default application",
+    "noResults": "No files found",
+    "noFiles": "No knowledge files yet",
+    "tryDifferent": "Try a different search term",
+    "uploadHint": "Upload files or add content manually to build your knowledge base",
+    "addFile": "Add File",
+    "addFileDesc": "Add a new file to your knowledge base manually.",
+    "fileName": "File Name",
+    "fileNamePlaceholder": "my-notes.md",
+    "content": "Content",
+    "contentPlaceholder": "Paste or type your content here...",
+    "download": "Download",
+    "deleteFile": "Delete File",
+    "deleteConfirm": "Are you sure you want to delete this file? This action cannot be undone.",
+    "deleteMultipleFiles": "Delete Multiple Files",
+    "deleteMultipleConfirm": "Are you sure you want to delete {count} files? This action cannot be undone.",
+    "deleteAll": "Delete {count} Files"
   },
   "projectActivity": {
     "activity": "Activity",

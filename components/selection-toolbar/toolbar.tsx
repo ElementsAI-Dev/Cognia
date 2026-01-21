@@ -99,22 +99,22 @@ const ALL_ACTIONS: Array<Omit<ActionDefinition, 'label' | 'description'> & { lab
 ];
 
 // Selection mode options
-const SELECTION_MODES: { mode: SelectionMode; icon: typeof Type; label: string }[] = [
-  { mode: "word", icon: Type, label: "Word" },
-  { mode: "sentence", icon: AlignLeft, label: "Sentence" },
-  { mode: "paragraph", icon: AlignJustify, label: "Paragraph" },
-  { mode: "auto", icon: Wand2, label: "Smart" },
+const SELECTION_MODES: { mode: SelectionMode; icon: typeof Type; labelKey: string }[] = [
+  { mode: "word", icon: Type, labelKey: "modeWord" },
+  { mode: "sentence", icon: AlignLeft, labelKey: "modeSentence" },
+  { mode: "paragraph", icon: AlignJustify, labelKey: "modeParagraph" },
+  { mode: "auto", icon: Wand2, labelKey: "modeSmart" },
 ];
 
 // Default pinned actions
 const DEFAULT_PINNED: SelectionAction[] = ["explain", "translate", "summarize", "copy", "send-to-chat"];
 
 // Category labels and colors
-const CATEGORY_INFO: Record<ActionCategory, { label: string; color: string }> = {
-  ai: { label: "AI", color: "text-cyan-400" },
-  edit: { label: "Edit", color: "text-emerald-400" },
-  code: { label: "Code", color: "text-violet-400" },
-  utility: { label: "Utility", color: "text-amber-400" },
+const CATEGORY_INFO: Record<ActionCategory, { labelKey: string; color: string }> = {
+  ai: { labelKey: "categoryAi", color: "text-cyan-400" },
+  edit: { labelKey: "categoryEdit", color: "text-emerald-400" },
+  code: { labelKey: "categoryCode", color: "text-violet-400" },
+  utility: { labelKey: "categoryUtility", color: "text-amber-400" },
 };
 
 // Quick translation language shortcuts (T+number)
@@ -570,8 +570,8 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
               <div>
                 <ToolbarButton
                   icon={SELECTION_MODES.find((m) => m.mode === selectionMode)?.icon || Wand2}
-                  label="Selection Mode"
-                  description="Change how text is selected"
+                  label={t("selectionMode")}
+                  description={t("selectionModeDesc")}
                   size="sm"
                   onClick={() => setShowModeSelector(!showModeSelector)}
                   isActive={showModeSelector}
@@ -583,7 +583,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
               align="start"
               className="w-auto p-1 bg-gray-900/95 backdrop-blur-xl border-white/10"
             >
-              {SELECTION_MODES.map(({ mode, icon: Icon, label }) => (
+              {SELECTION_MODES.map(({ mode, icon: Icon, labelKey }) => (
                 <Button
                   key={mode}
                   variant="ghost"
@@ -595,7 +595,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
                   )}
                 >
                   <Icon className="w-4 h-4" />
-                  <span>{label}</span>
+                  <span>{t(labelKey)}</span>
                 </Button>
               ))}
             </PopoverContent>
@@ -647,9 +647,9 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           {/* TTS Read Aloud Button */}
           <ToolbarButton
             icon={Volume2}
-            label="Read Aloud"
+            label={t("readAloud")}
             shortcut="V"
-            description={isSpeaking ? "Stop reading" : "Read selected text aloud"}
+            description={isSpeaking ? t("stopReading") : t("readAloudDesc")}
             isActive={isSpeaking}
             onClick={() => {
               if (isSpeaking) {
@@ -668,8 +668,8 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           {/* Multi-Select Toggle */}
           <ToolbarButton
             icon={Layers}
-            label="Multi-Select"
-            description={isMultiSelectMode ? "Exit multi-select mode" : "Select multiple texts"}
+            label={t("multiSelect")}
+            description={isMultiSelectMode ? t("exitMultiSelect") : t("multiSelectDesc")}
             shortcut="M"
             isActive={isMultiSelectMode}
             badge={selections.length > 0 ? selections.length : undefined}
@@ -686,8 +686,8 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           {/* Add Reference */}
           <ToolbarButton
             icon={Link2}
-            label="Add Reference"
-            description="Add context from files, URLs, or notes"
+            label={t("addReference")}
+            description={t("addReferenceDesc")}
             badge={references.length > 0 ? references.length : undefined}
             onClick={() => setShowReferences(!showReferences)}
             isActive={showReferences}
@@ -699,8 +699,8 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           {/* More Options */}
           <ToolbarButton
             icon={MoreHorizontal}
-            label="More Actions"
-            description="View all available actions"
+            label={t("moreActions")}
+            description={t("moreActionsDesc")}
             onClick={() => setShowMoreMenu(!showMoreMenu)}
             isActive={showMoreMenu}
           />
@@ -711,9 +711,9 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           {/* Templates */}
           <ToolbarButton
             icon={StickyNote}
-            label="Templates"
+            label={t("templates")}
             shortcut="P"
-            description="Use prompt templates"
+            description={t("templatesDesc")}
             size="sm"
             onClick={() => togglePanel('templates')}
             isActive={showTemplatesPanel}
@@ -722,9 +722,9 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           {/* Clipboard History */}
           <ToolbarButton
             icon={ClipboardList}
-            label="Clipboard"
+            label={t("clipboard")}
             shortcut="B"
-            description="View clipboard history"
+            description={t("clipboardDesc")}
             size="sm"
             onClick={() => togglePanel('clipboard')}
             isActive={showClipboardPanel}
@@ -733,9 +733,9 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           {/* OCR */}
           <ToolbarButton
             icon={Type}
-            label="OCR"
+            label={t("ocr")}
             shortcut="O"
-            description="Extract text from image"
+            description={t("ocrDesc")}
             size="sm"
             onClick={() => togglePanel('ocr')}
             isActive={showOCRPanel}
@@ -744,9 +744,9 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           {/* History */}
           <ToolbarButton
             icon={Clock}
-            label="History"
+            label={t("history")}
             shortcut="H"
-            description="View selection history"
+            description={t("historyDesc")}
             size="sm"
             onClick={() => togglePanel('history')}
             isActive={showHistoryPanel}
@@ -756,9 +756,9 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           {/* Keyboard Shortcuts Help */}
           <ToolbarButton
             icon={Keyboard}
-            label="Shortcuts"
+            label={t("shortcuts")}
             shortcut="?"
-            description="View keyboard shortcuts"
+            description={t("shortcutsDesc")}
             size="sm"
             onClick={() => togglePanel('shortcuts')}
             isActive={showShortcutHints}
@@ -767,8 +767,8 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           {/* Expand/Fullscreen */}
           <ToolbarButton
             icon={Maximize2}
-            label="Expand"
-            description="Open in expanded view"
+            label={t("expand")}
+            description={t("expandDesc")}
             size="sm"
             onClick={() => setShowExpandedView(true)}
           />
@@ -776,7 +776,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           {/* Close */}
           <ToolbarButton
             icon={X}
-            label="Close"
+            label={t("close")}
             shortcut="Esc"
             size="sm"
             variant="danger"
@@ -798,7 +798,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           >
             <div className="flex items-center justify-between px-3 py-2 border-b border-white/6">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-white/80">Selections</span>
+                <span className="text-xs font-medium text-white/80">{t("selections")}</span>
                 <Badge variant="secondary" className="h-5 text-[10px]">
                   {selections.length}
                 </Badge>
@@ -809,7 +809,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
                 onClick={clearSelections}
                 className="h-6 px-2 text-xs text-white/50 hover:text-red-400"
               >
-                Clear all
+                {t("clearAll")}
               </Button>
             </div>
             <ScrollArea className="max-h-40">
@@ -846,7 +846,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
                 className="w-full gap-2 bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30"
               >
                 <Plus className="w-3 h-3" />
-                Add current selection
+                {t("addCurrentSelection")}
               </Button>
             </div>
           </div>
@@ -866,7 +866,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           >
             <div className="flex items-center justify-between px-3 py-2 border-b border-white/6">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-white/80">References</span>
+                <span className="text-xs font-medium text-white/80">{t("references")}</span>
                 <Badge variant="secondary" className="h-5 text-[10px]">
                   {references.length}
                 </Badge>
@@ -878,7 +878,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
                   onClick={clearReferences}
                   className="h-6 px-2 text-xs text-white/50 hover:text-red-400"
                 >
-                  Clear all
+                  {t("clearAll")}
                 </Button>
               )}
             </div>
@@ -904,7 +904,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
                 className="w-full justify-start gap-2 text-white/70 hover:bg-white/10 text-xs"
               >
                 <ClipboardList className="w-4 h-4" />
-                <span>From Clipboard</span>
+                <span>{t("fromClipboard")}</span>
               </Button>
               <Button
                 variant="ghost"
@@ -924,7 +924,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
                 className="w-full justify-start gap-2 text-white/70 hover:bg-white/10 text-xs"
               >
                 <Globe className="w-4 h-4" />
-                <span>From URL</span>
+                <span>{t("fromUrl")}</span>
               </Button>
               <Button
                 variant="ghost"
@@ -944,7 +944,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
                 className="w-full justify-start gap-2 text-white/70 hover:bg-white/10 text-xs"
               >
                 <StickyNote className="w-4 h-4" />
-                <span>Add Note</span>
+                <span>{t("addNote")}</span>
               </Button>
             </div>
 
@@ -1006,7 +1006,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
                   onClick={() => setActiveCategory(null)}
                   className="px-3 py-1.5 text-xs data-[state=active]:bg-white/10"
                 >
-                  All
+                  {t("all")}
                 </TabsTrigger>
                 {(Object.keys(CATEGORY_INFO) as ActionCategory[]).map((category) => (
                   <TabsTrigger
@@ -1019,7 +1019,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
                       activeCategory === category && CATEGORY_INFO[category].color
                     )}
                   >
-                    {CATEGORY_INFO[category].label}
+                    {t(CATEGORY_INFO[category].labelKey)}
                   </TabsTrigger>
                 ))}
               </TabsList>
@@ -1077,7 +1077,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
                       return (
                         <div key={category}>
                           <div className={cn("text-xs font-medium px-2 mb-1", CATEGORY_INFO[category].color)}>
-                            {CATEGORY_INFO[category].label}
+                            {t(CATEGORY_INFO[category].labelKey)}
                           </div>
                           <div className="grid grid-cols-3 gap-1">
                             {categoryActions.map(({ action, icon: Icon, labelKey, shortcut }) => (
@@ -1230,7 +1230,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
               {state.selectedText}
             </p>
             <span className="text-[10px] text-white/30 mt-1 block">
-              {state.selectedText.length} characters selected
+              {state.selectedText.length} {t("charactersSelected")}
             </span>
           </div>
         )}
@@ -1294,7 +1294,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
                   <TabsList className="grid w-full grid-cols-4">
                     {Object.entries(CATEGORY_INFO).map(([key, info]) => (
                       <TabsTrigger key={key} value={key} className={info.color}>
-                        {info.label}
+                        {t(info.labelKey)}
                       </TabsTrigger>
                     ))}
                   </TabsList>

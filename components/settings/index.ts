@@ -104,3 +104,9 @@ export {
   SearchSettings,
   GitSettings,
 } from './system';
+
+// Shortcuts settings
+export {
+  ShortcutConflictDialog,
+  ShortcutManager,
+} from './shortcuts';

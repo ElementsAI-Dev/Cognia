@@ -20,6 +20,8 @@ import type {
   AcademicStatistics,
   ImportResult,
   AcademicExportResult,
+  PaperReadingStatus,
+  PaperAnalysisResult,
 } from '@/types/learning/academic';
 import { DEFAULT_ACADEMIC_SETTINGS } from '@/types/learning/academic';
 
@@ -31,6 +33,7 @@ interface SearchState {
   isSearching: boolean;
   searchError: string | null;
   lastSearchTime: number;
+  searchHistory: string[];
 }
 
 interface LibraryState {
@@ -38,9 +41,11 @@ interface LibraryState {
   collections: Record<string, PaperCollection>;
   selectedPaperId: string | null;
   selectedCollectionId: string | null;
+  selectedPaperIds: string[];
   viewMode: 'grid' | 'list' | 'table';
   sortBy: string;
   sortOrder: 'asc' | 'desc';
+  analysisHistory: Record<string, PaperAnalysisResult[]>;
 }
 
 interface AcademicState {
@@ -123,6 +128,27 @@ interface AcademicState {
   setError: (error: string | null) => void;
   clearError: () => void;
   
+  // Tag actions
+  addTag: (paperId: string, tag: string) => Promise<void>;
+  removeTag: (paperId: string, tag: string) => Promise<void>;
+  
+  // Batch actions
+  batchUpdateStatus: (paperIds: string[], status: PaperReadingStatus) => Promise<void>;
+  batchAddToCollection: (paperIds: string[], collectionId: string) => Promise<void>;
+  batchRemoveFromLibrary: (paperIds: string[]) => Promise<void>;
+  togglePaperSelection: (paperId: string) => void;
+  selectAllPapers: () => void;
+  clearPaperSelection: () => void;
+  
+  // Search history actions
+  addSearchHistory: (query: string) => void;
+  clearSearchHistory: () => void;
+  
+  // Analysis history actions
+  saveAnalysisResult: (paperId: string, result: PaperAnalysisResult) => void;
+  getAnalysisHistory: (paperId: string) => PaperAnalysisResult[];
+  clearAnalysisHistory: (paperId: string) => void;
+  
   // Reset
   reset: () => void;
 }
@@ -135,6 +161,7 @@ const initialSearchState: SearchState = {
   isSearching: false,
   searchError: null,
   lastSearchTime: 0,
+  searchHistory: [],
 };
 
 const initialLibraryState: LibraryState = {
@@ -142,9 +169,11 @@ const initialLibraryState: LibraryState = {
   collections: {},
   selectedPaperId: null,
   selectedCollectionId: null,
+  selectedPaperIds: [],
   viewMode: 'list',
   sortBy: 'added_at',
   sortOrder: 'desc',
+  analysisHistory: {},
 };
 
 const initialState = {
@@ -723,6 +752,147 @@ export const useAcademicStore = create<AcademicState>()(
       setError: (error) => set({ error }),
       clearError: () => set({ error: null }),
 
+      // Tag actions
+      addTag: async (paperId, tag) => {
+        const state = get();
+        const paper = state.library.papers[paperId];
+        if (!paper) return;
+        
+        const currentTags = paper.tags || [];
+        if (currentTags.includes(tag)) return;
+        
+        const newTags = [...currentTags, tag];
+        await get().updatePaper(paperId, { tags: newTags });
+      },
+      
+      removeTag: async (paperId, tag) => {
+        const state = get();
+        const paper = state.library.papers[paperId];
+        if (!paper) return;
+        
+        const currentTags = paper.tags || [];
+        const newTags = currentTags.filter(t => t !== tag);
+        await get().updatePaper(paperId, { tags: newTags });
+      },
+      
+      // Batch actions
+      batchUpdateStatus: async (paperIds, status) => {
+        set({ isLoading: true, error: null });
+        try {
+          for (const paperId of paperIds) {
+            await get().updatePaper(paperId, { readingStatus: status });
+          }
+          set({ isLoading: false });
+        } catch (error) {
+          set({ isLoading: false, error: error instanceof Error ? error.message : String(error) });
+          throw error;
+        }
+      },
+      
+      batchAddToCollection: async (paperIds, collectionId) => {
+        set({ isLoading: true, error: null });
+        try {
+          for (const paperId of paperIds) {
+            await get().addToCollection(paperId, collectionId);
+          }
+          set({ isLoading: false });
+        } catch (error) {
+          set({ isLoading: false, error: error instanceof Error ? error.message : String(error) });
+          throw error;
+        }
+      },
+      
+      batchRemoveFromLibrary: async (paperIds) => {
+        set({ isLoading: true, error: null });
+        try {
+          for (const paperId of paperIds) {
+            await get().removeFromLibrary(paperId);
+          }
+          set((state) => ({
+            library: { ...state.library, selectedPaperIds: [] },
+            isLoading: false,
+          }));
+        } catch (error) {
+          set({ isLoading: false, error: error instanceof Error ? error.message : String(error) });
+          throw error;
+        }
+      },
+      
+      togglePaperSelection: (paperId) => {
+        set((state) => {
+          const selectedPaperIds = state.library.selectedPaperIds.includes(paperId)
+            ? state.library.selectedPaperIds.filter(id => id !== paperId)
+            : [...state.library.selectedPaperIds, paperId];
+          return {
+            library: { ...state.library, selectedPaperIds },
+          };
+        });
+      },
+      
+      selectAllPapers: () => {
+        set((state) => ({
+          library: {
+            ...state.library,
+            selectedPaperIds: Object.keys(state.library.papers),
+          },
+        }));
+      },
+      
+      clearPaperSelection: () => {
+        set((state) => ({
+          library: { ...state.library, selectedPaperIds: [] },
+        }));
+      },
+      
+      // Search history actions
+      addSearchHistory: (query) => {
+        if (!query.trim()) return;
+        set((state) => {
+          const history = state.search.searchHistory.filter(q => q !== query);
+          const newHistory = [query, ...history].slice(0, 20);
+          return {
+            search: { ...state.search, searchHistory: newHistory },
+          };
+        });
+      },
+      
+      clearSearchHistory: () => {
+        set((state) => ({
+          search: { ...state.search, searchHistory: [] },
+        }));
+      },
+      
+      // Analysis history actions
+      saveAnalysisResult: (paperId, result) => {
+        set((state) => {
+          const paperHistory = state.library.analysisHistory[paperId] || [];
+          const newHistory = [result, ...paperHistory].slice(0, 10);
+          return {
+            library: {
+              ...state.library,
+              analysisHistory: {
+                ...state.library.analysisHistory,
+                [paperId]: newHistory,
+              },
+            },
+          };
+        });
+      },
+      
+      getAnalysisHistory: (paperId) => {
+        return get().library.analysisHistory[paperId] || [];
+      },
+      
+      clearAnalysisHistory: (paperId) => {
+        set((state) => {
+          const analysisHistory = { ...state.library.analysisHistory };
+          delete analysisHistory[paperId];
+          return {
+            library: { ...state.library, analysisHistory },
+          };
+        });
+      },
+      
       // Reset
       reset: () => set(initialState),
     }),
@@ -731,10 +901,14 @@ export const useAcademicStore = create<AcademicState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         settings: state.settings,
+        search: {
+          searchHistory: state.search.searchHistory,
+        },
         library: {
           viewMode: state.library.viewMode,
           sortBy: state.library.sortBy,
           sortOrder: state.library.sortOrder,
+          analysisHistory: state.library.analysisHistory,
         },
       }),
     }

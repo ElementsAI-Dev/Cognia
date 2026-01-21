@@ -25,6 +25,44 @@ export {
   importKnowledgeMapFromJSON,
 } from './knowledge-map-integration';
 
+// Citation network utilities
+export {
+  fetchCitationsFromSemanticScholar,
+  fetchReferencesFromSemanticScholar,
+  buildCitationNetwork,
+  buildCitationGraph,
+  findCommonCitations,
+  findCommonReferences,
+} from './citation-network';
+
+export type {
+  CitationNode,
+  CitationNetwork,
+  CitationGraphNode,
+  CitationGraphEdge,
+  CitationGraph,
+} from './citation-network';
+
+// Recommendation engine
+export {
+  extractAuthorStats,
+  extractTopicStats,
+  getFavoriteAuthors,
+  getTopTopics,
+  calculateRelevanceScore,
+  scoreRecommendations,
+  getTrendingInFields,
+  getPapersByFavoriteAuthors,
+  generateSearchQueries,
+  getRecommendations,
+} from './recommendation-engine';
+
+export type {
+  RecommendationReason,
+  RecommendedPaper,
+  RecommendationConfig,
+} from './recommendation-engine';
+
 // Re-export types for convenience
 export type {
   PDFConversionOptions,

@@ -162,13 +162,13 @@ export function SandboxSettings() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="docker" disabled={!runtimes.includes('docker')}>
-                  Docker {runtimes.includes('docker') ? '✓' : '(not available)'}
+                  Docker {runtimes.includes('docker') ? '✓' : `(${t('notAvailable')})`}
                 </SelectItem>
                 <SelectItem value="podman" disabled={!runtimes.includes('podman')}>
-                  Podman {runtimes.includes('podman') ? '✓' : '(not available)'}
+                  Podman {runtimes.includes('podman') ? '✓' : `(${t('notAvailable')})`}
                 </SelectItem>
                 <SelectItem value="native">
-                  Native (less secure)
+                  {t('nativeRuntime')}
                 </SelectItem>
               </SelectContent>
             </Select>

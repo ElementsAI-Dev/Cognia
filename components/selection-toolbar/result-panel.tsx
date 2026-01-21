@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { 
   Copy, 
@@ -89,6 +90,7 @@ export function ResultPanel({
   // Follow-up actions
   onFollowUpAction,
 }: ResultPanelProps) {
+  const t = useTranslations("resultPanel");
   const [copied, setCopied] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -213,14 +215,14 @@ export function ResultPanel({
             </div>
           ) : (
             <span className="text-xs font-medium text-white/80">
-              {isLoading ? "Processing..." : isStreaming ? "Generating..." : error ? "Error" : actionLabel}
+              {isLoading ? t("processing") : isStreaming ? t("generating") : error ? t("error") : actionLabel}
             </span>
           )}
 
           {/* Word count */}
           {displayContent && !isLoading && (
             <span className="text-[10px] text-white/40 px-1.5 py-0.5 bg-white/5 rounded">
-              {displayContent.split(/\s+/).length} words
+              {displayContent.split(/\s+/).length} {t("words")}
             </span>
           )}
         </div>
@@ -233,7 +235,7 @@ export function ResultPanel({
               size="icon"
               onClick={() => setIsExpanded(!isExpanded)}
               className="h-7 w-7 text-white/50 hover:text-white/80 hover:bg-white/10"
-              title={isExpanded ? "Collapse" : "Expand"}
+              title={isExpanded ? t("collapse") : t("expand")}
             >
               {isExpanded ? (
                 <Minimize2 className="w-3.5 h-3.5" />
@@ -253,7 +255,7 @@ export function ResultPanel({
                 "h-7 w-7 text-white/50 hover:text-white/80 hover:bg-white/10",
                 copied && "text-emerald-400 hover:text-emerald-300"
               )}
-              title={copied ? "Copied!" : "Copy (Ctrl+C)"}
+              title={copied ? t("copied") : t("copyTooltip")}
             >
               {copied ? (
                 <Check className="w-3.5 h-3.5" />
@@ -274,7 +276,7 @@ export function ResultPanel({
                     "h-7 w-7 text-white/50 hover:text-white/80 hover:bg-white/10",
                     showActions && "bg-white/10"
                   )}
-                  title="More actions"
+                  title={t("moreActions")}
                 >
                   <MoreHorizontal className="w-3.5 h-3.5" />
                 </Button>
@@ -286,13 +288,13 @@ export function ResultPanel({
                 {onRetry && (
                   <DropdownMenuItem onClick={onRetry} className="text-xs gap-2">
                     <RefreshCw className="w-3.5 h-3.5" />
-                    Retry
+                    {t("retry")}
                   </DropdownMenuItem>
                 )}
                 {onSendToChat && (
                   <DropdownMenuItem onClick={onSendToChat} className="text-xs gap-2">
                     <MessageSquare className="w-3.5 h-3.5" />
-                    Continue in chat
+                    {t("continueInChat")}
                   </DropdownMenuItem>
                 )}
                 {onSpeak && (
@@ -303,12 +305,12 @@ export function ResultPanel({
                     {isSpeaking ? (
                       <>
                         <VolumeX className="w-3.5 h-3.5" />
-                        Stop reading
+                        {t("stopReading")}
                       </>
                     ) : (
                       <>
                         <Volume2 className="w-3.5 h-3.5" />
-                        Read aloud
+                        {t("readAloud")}
                       </>
                     )}
                   </DropdownMenuItem>
@@ -319,12 +321,12 @@ export function ResultPanel({
                     className="text-xs gap-2"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    {showCompareView ? "Hide original" : "Show original"}
+                    {showCompareView ? t("hideOriginal") : t("showOriginal")}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem className="text-xs gap-2">
                   <Share2 className="w-3.5 h-3.5" />
-                  Share
+                  {t("share")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -336,7 +338,7 @@ export function ResultPanel({
             size="icon"
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="h-7 w-7 text-white/50 hover:text-white/80 hover:bg-white/10"
-            title={isCollapsed ? "Expand panel" : "Collapse panel"}
+            title={isCollapsed ? t("expandPanel") : t("collapsePanel")}
           >
             {isCollapsed ? (
               <ChevronDown className="w-3.5 h-3.5" />
@@ -351,7 +353,7 @@ export function ResultPanel({
             size="icon"
             onClick={onClose}
             className="h-7 w-7 text-white/50 hover:text-rose-400 hover:bg-rose-500/20"
-            title="Close"
+            title={t("close")}
           >
             <X className="w-3.5 h-3.5" />
           </Button>
@@ -375,13 +377,13 @@ export function ResultPanel({
                   <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
                   <div className="absolute inset-0 bg-cyan-400/20 blur-xl rounded-full" />
                 </div>
-                <span className="text-xs text-white/50">Processing your request...</span>
+                <span className="text-xs text-white/50">{t("processingRequest")}</span>
               </div>
             ) : error ? (
               <div className="space-y-3">
                 <Alert variant="destructive" className="bg-red-500/10 border-red-500/20">
                   <X className="h-4 w-4" />
-                  <AlertTitle className="text-red-400">Something went wrong</AlertTitle>
+                  <AlertTitle className="text-red-400">{t("somethingWentWrong")}</AlertTitle>
                   <AlertDescription className="text-red-300/70">
                     {error}
                   </AlertDescription>
@@ -394,7 +396,7 @@ export function ResultPanel({
                     className="w-full gap-2 text-xs text-white/70 hover:text-white bg-white/5 hover:bg-white/10"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
-                    Try again
+                    {t("tryAgain")}
                   </Button>
                 )}
               </div>
@@ -405,7 +407,7 @@ export function ResultPanel({
                   <div className="mb-3 pb-3 border-b border-white/10">
                     <div className="flex items-center gap-1.5 mb-2">
                       <span className="text-[10px] font-medium text-white/40 uppercase tracking-wider">
-                        Original {sourceLang?.flag}
+                        {t("original")} {sourceLang?.flag}
                       </span>
                       {onSpeak && (
                         <Button
@@ -413,7 +415,7 @@ export function ResultPanel({
                           size="icon"
                           onClick={() => handleSpeak(originalText)}
                           className="h-5 w-5 text-white/40 hover:text-white/80"
-                          title="Read original"
+                          title={t("readOriginal")}
                         >
                           <Volume2 className="w-3 h-3" />
                         </Button>
@@ -429,7 +431,7 @@ export function ResultPanel({
                 {isTranslateAction && showCompareView && (
                   <div className="flex items-center gap-1.5 mb-2">
                     <span className="text-[10px] font-medium text-white/40 uppercase tracking-wider">
-                      Translation {targetLang?.flag}
+                      {t("translation")} {targetLang?.flag}
                     </span>
                     {onSpeak && displayContent && (
                       <Button
@@ -437,7 +439,7 @@ export function ResultPanel({
                         size="icon"
                         onClick={() => handleSpeak(displayContent)}
                         className="h-5 w-5 text-white/40 hover:text-white/80"
-                        title="Read translation"
+                        title={t("readTranslation")}
                       >
                         <Volume2 className="w-3 h-3" />
                       </Button>
@@ -463,7 +465,7 @@ export function ResultPanel({
                   <div className="flex items-center gap-2 pt-2 border-t border-white/10">
                     <div className="flex items-center gap-1">
                       <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse" />
-                      <span className="text-[10px] text-cyan-400">Playing...</span>
+                      <span className="text-[10px] text-cyan-400">{t("playing")}</span>
                     </div>
                     <div className="flex-1" />
                     {onPauseSpeak && onResumeSpeak && (
@@ -497,14 +499,14 @@ export function ResultPanel({
               "border-t border-white/6",
               "bg-white/2"
             )}>
-              <span className="text-[10px] text-white/40 mr-2">Quick actions:</span>
+              <span className="text-[10px] text-white/40 mr-2">{t("quickActions")}</span>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => onFollowUpAction('explain')}
                 className="h-6 px-2 text-[10px] text-white/60 hover:text-white hover:bg-white/10"
               >
-                Explain
+                {t("explain")}
               </Button>
               <Button
                 variant="ghost"
@@ -512,7 +514,7 @@ export function ResultPanel({
                 onClick={() => onFollowUpAction('simplify')}
                 className="h-6 px-2 text-[10px] text-white/60 hover:text-white hover:bg-white/10"
               >
-                Simplify
+                {t("simplify")}
               </Button>
               <Button
                 variant="ghost"
@@ -520,7 +522,7 @@ export function ResultPanel({
                 onClick={() => onFollowUpAction('formal')}
                 className="h-6 px-2 text-[10px] text-white/60 hover:text-white hover:bg-white/10"
               >
-                Formal
+                {t("formal")}
               </Button>
               <Button
                 variant="ghost"
@@ -528,7 +530,7 @@ export function ResultPanel({
                 onClick={() => onFollowUpAction('casual')}
                 className="h-6 px-2 text-[10px] text-white/60 hover:text-white hover:bg-white/10"
               >
-                Casual
+                {t("casual")}
               </Button>
             </div>
           )}
@@ -540,14 +542,14 @@ export function ResultPanel({
               "border-t border-white/6",
               "bg-white/1"
             )}>
-              <span className="text-[10px] text-white/30">Was this helpful?</span>
+              <span className="text-[10px] text-white/30">{t("wasThisHelpful")}</span>
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => onFeedback(true)}
                   className="h-7 w-7 text-white/40 hover:text-emerald-400 hover:bg-emerald-500/20"
-                  title="Good response"
+                  title={t("goodResponse")}
                 >
                   <ThumbsUp className="w-3.5 h-3.5" />
                 </Button>
@@ -556,7 +558,7 @@ export function ResultPanel({
                   size="icon"
                   onClick={() => onFeedback(false)}
                   className="h-7 w-7 text-white/40 hover:text-rose-400 hover:bg-rose-500/20"
-                  title="Bad response"
+                  title={t("badResponse")}
                 >
                   <ThumbsDown className="w-3.5 h-3.5" />
                 </Button>

@@ -39,6 +39,8 @@ import type { ChatHistoryContextSettings, HistoryContextCompressionLevel } from 
 import { DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS } from '@/types/core/chat-history-context';
 import type { TokenizerSettings, TokenizerProvider } from '@/types/system/tokenizer';
 import { DEFAULT_TOKENIZER_SETTINGS } from '@/types/system/tokenizer';
+import type { FeatureRoutingSettings, FeatureId, FeatureRoutingMode } from '@/types/routing/feature-router';
+import { DEFAULT_FEATURE_ROUTING_SETTINGS } from '@/types/routing/feature-router';
 
 // Safety Mode types
 export type SafetyMode = 'off' | 'warn' | 'block';
@@ -563,6 +565,18 @@ interface SettingsState {
   updateObservabilitySettings: (settings: Partial<ObservabilitySettings>) => void;
   setObservabilityEnabled: (enabled: boolean) => void;
 
+  // Feature Routing settings
+  featureRoutingSettings: FeatureRoutingSettings;
+  setFeatureRoutingSettings: (settings: Partial<FeatureRoutingSettings>) => void;
+  setFeatureRoutingEnabled: (enabled: boolean) => void;
+  setFeatureRoutingMode: (mode: FeatureRoutingMode) => void;
+  setFeatureRoutingThreshold: (threshold: number) => void;
+  setFeatureRoutingAutoNavigate: (enabled: boolean) => void;
+  addDisabledRoute: (routeId: FeatureId) => void;
+  removeDisabledRoute: (routeId: FeatureId) => void;
+  updateRoutePreference: (routeId: FeatureId, delta: number) => void;
+  resetFeatureRoutingSettings: () => void;
+
   // Reset
   resetSettings: () => void;
 }
@@ -837,6 +851,9 @@ const initialState = {
 
   // Observability settings
   observabilitySettings: { ...DEFAULT_OBSERVABILITY_SETTINGS },
+
+  // Feature Routing settings
+  featureRoutingSettings: { ...DEFAULT_FEATURE_ROUTING_SETTINGS },
 
   // Onboarding
   hasCompletedOnboarding: false,
@@ -1945,6 +1962,56 @@ export const useSettingsStore = create<SettingsState>()(
           observabilitySettings: { ...state.observabilitySettings, enabled },
         })),
 
+      // Feature Routing actions
+      setFeatureRoutingSettings: (settings) =>
+        set((state) => ({
+          featureRoutingSettings: { ...state.featureRoutingSettings, ...settings },
+        })),
+      setFeatureRoutingEnabled: (enabled) =>
+        set((state) => ({
+          featureRoutingSettings: { ...state.featureRoutingSettings, enabled },
+        })),
+      setFeatureRoutingMode: (routingMode) =>
+        set((state) => ({
+          featureRoutingSettings: { ...state.featureRoutingSettings, routingMode },
+        })),
+      setFeatureRoutingThreshold: (confidenceThreshold) =>
+        set((state) => ({
+          featureRoutingSettings: { ...state.featureRoutingSettings, confidenceThreshold },
+        })),
+      setFeatureRoutingAutoNavigate: (autoNavigateEnabled) =>
+        set((state) => ({
+          featureRoutingSettings: { ...state.featureRoutingSettings, autoNavigateEnabled },
+        })),
+      addDisabledRoute: (routeId) =>
+        set((state) => ({
+          featureRoutingSettings: {
+            ...state.featureRoutingSettings,
+            disabledRoutes: state.featureRoutingSettings.disabledRoutes.includes(routeId)
+              ? state.featureRoutingSettings.disabledRoutes
+              : [...state.featureRoutingSettings.disabledRoutes, routeId],
+          },
+        })),
+      removeDisabledRoute: (routeId) =>
+        set((state) => ({
+          featureRoutingSettings: {
+            ...state.featureRoutingSettings,
+            disabledRoutes: state.featureRoutingSettings.disabledRoutes.filter((id) => id !== routeId),
+          },
+        })),
+      updateRoutePreference: (routeId, delta) =>
+        set((state) => ({
+          featureRoutingSettings: {
+            ...state.featureRoutingSettings,
+            routePreferences: {
+              ...state.featureRoutingSettings.routePreferences,
+              [routeId]: (state.featureRoutingSettings.routePreferences[routeId] || 0) + delta,
+            },
+          },
+        })),
+      resetFeatureRoutingSettings: () =>
+        set({ featureRoutingSettings: { ...DEFAULT_FEATURE_ROUTING_SETTINGS } }),
+
       // Onboarding actions
       setOnboardingCompleted: (hasCompletedOnboarding) => set({ hasCompletedOnboarding }),
 
@@ -2078,6 +2145,10 @@ export const useSettingsStore = create<SettingsState>()(
         tokenizerSettings: state.tokenizerSettings,
         // Safety Mode settings
         safetyModeSettings: state.safetyModeSettings,
+        // Feature Routing settings
+        featureRoutingSettings: state.featureRoutingSettings,
+        // Observability settings
+        observabilitySettings: state.observabilitySettings,
         // Onboarding
         hasCompletedOnboarding: state.hasCompletedOnboarding,
         };
@@ -2107,3 +2178,5 @@ export const selectChatHistoryContextSettings = (state: SettingsState) => state.
 export const selectChatHistoryContextEnabled = (state: SettingsState) => state.chatHistoryContextSettings.enabled;
 export const selectTokenizerSettings = (state: SettingsState) => state.tokenizerSettings;
 export const selectTokenizerEnabled = (state: SettingsState) => state.tokenizerSettings.enablePreciseCounting;
+export const selectFeatureRoutingSettings = (state: SettingsState) => state.featureRoutingSettings;
+export const selectFeatureRoutingEnabled = (state: SettingsState) => state.featureRoutingSettings.enabled;

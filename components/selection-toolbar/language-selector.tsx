@@ -48,7 +48,7 @@ export function LanguageSelector({
   showQuickPairs = true,
   compact = false,
 }: LanguageSelectorProps) {
-  const _t = useTranslations("selectionToolbar");
+  const t = useTranslations("languageSelector");
   const [isOpen, setIsOpen] = useState(false);
 
   const selectedLang = LANGUAGES.find((l) => l.value === selectedLanguage);
@@ -119,12 +119,12 @@ export function LanguageSelector({
               {isDetecting ? (
                 <>
                   <Loader2 className="w-3 h-3 animate-spin text-cyan-400" />
-                  <span className="text-white/60">Detecting language...</span>
+                  <span className="text-white/60">{t("detectingLanguage")}</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-3 h-3 text-cyan-400" />
-                  <span className="text-white/60">Detected:</span>
+                  <span className="text-white/60">{t("detected")}</span>
                   <Badge variant="secondary" className="h-5 text-[10px] bg-cyan-500/20 text-cyan-300">
                     {detectedLang?.flag} {detectedLang?.label || detectedLanguage}
                   </Badge>
@@ -138,7 +138,7 @@ export function LanguageSelector({
         {showQuickPairs && (
           <div className="p-2 border-b border-white/10">
             <div className="text-[10px] font-medium text-white/40 uppercase tracking-wider mb-2 px-1">
-              Quick Translate
+              {t("quickTranslate")}
             </div>
             <div className="grid grid-cols-2 gap-1">
               {QUICK_LANGUAGE_PAIRS.map((pair, idx) => (
@@ -173,7 +173,7 @@ export function LanguageSelector({
         {/* All Languages */}
         <div className="p-2">
           <div className="text-[10px] font-medium text-white/40 uppercase tracking-wider mb-2 px-1">
-            Target Language
+            {t("targetLanguage")}
           </div>
           <ScrollArea className="h-48">
             <div className="space-y-0.5">
@@ -193,7 +193,7 @@ export function LanguageSelector({
                   <span>{lang.label}</span>
                   {selectedLanguage === lang.value && (
                     <Badge variant="secondary" className="ml-auto h-4 text-[9px] bg-cyan-500/20 text-cyan-300">
-                      Selected
+                      {t("selected")}
                     </Badge>
                   )}
                 </Button>
@@ -205,7 +205,7 @@ export function LanguageSelector({
         {/* Footer */}
         <Separator className="bg-white/10" />
         <div className="px-3 py-2 text-[10px] text-white/40">
-          Press <kbd className="px-1 py-0.5 bg-white/10 rounded text-white/60">T</kbd> then number for quick translate
+          {t("quickTranslateHint")}
         </div>
       </PopoverContent>
     </Popover>

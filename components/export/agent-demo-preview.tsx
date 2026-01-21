@@ -99,7 +99,7 @@ function formatDuration(ms: number): string {
 }
 
 export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
-  const _t = useTranslations('export');
+  const t = useTranslations('export');
   const [open, setOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>('html');
@@ -155,14 +155,14 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
       }
 
       downloadFile(content, filename, mimeType);
-      toast.success(exportFormat === 'html' ? '演示已导出' : 'Markdown 已导出');
+      toast.success(exportFormat === 'html' ? t('demoExported') : t('markdownExported'));
     } catch (error) {
       console.error('Export failed:', error);
-      toast.error('导出失败，请重试');
+      toast.error(t('exportFailed'));
     } finally {
       setIsExporting(false);
     }
-  }, [agent, exportFormat, autoPlay, showTimeline, showToolDetails, showThinkingProcess, playbackSpeed]);
+  }, [agent, exportFormat, autoPlay, showTimeline, showToolDetails, showThinkingProcess, playbackSpeed, t]);
 
   // Calculate statistics
   const stats = {
@@ -185,7 +185,7 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
         {trigger || (
           <Button variant="outline" size="sm">
             <Play className="h-4 w-4 mr-2" />
-            导出演示
+            {t('agentDemoExport')}
           </Button>
         )}
       </DialogTrigger>
@@ -193,10 +193,10 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5" />
-            Agent 工作流演示
+            {t('agentWorkflowDemo')}
           </DialogTitle>
           <DialogDescription>
-            导出 Agent 执行过程的交互式演示
+            {t('agentWorkflowDemoDesc')}
           </DialogDescription>
         </DialogHeader>
 
@@ -219,22 +219,22 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
           {/* Progress & Stats */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">执行进度</span>
-              <span className="font-medium">{stats.completedSteps}/{stats.totalSteps} 步骤</span>
+              <span className="text-muted-foreground">{t('executionProgress')}</span>
+              <span className="font-medium">{stats.completedSteps}/{stats.totalSteps} {t('steps')}</span>
             </div>
             <Progress value={progress} className="h-2" />
             <div className="flex gap-4 text-xs text-muted-foreground">
               <span>⏱ {formatDuration(stats.totalDuration)}</span>
-              <span>🔧 {stats.toolCalls} 工具调用</span>
+              <span>🔧 {stats.toolCalls} {t('toolCalls')}</span>
               {stats.failedSteps > 0 && (
-                <span className="text-red-500">❌ {stats.failedSteps} 失败</span>
+                <span className="text-red-500">❌ {stats.failedSteps} {t('failed')}</span>
               )}
             </div>
           </div>
 
           {/* Steps Preview */}
           <div className="flex-1 min-h-0">
-            <Label className="mb-2 block">执行步骤预览</Label>
+            <Label className="mb-2 block">{t('stepsPreview')}</Label>
             <ScrollArea className="h-[200px] rounded-lg border">
               <div className="p-2 space-y-1">
                 {agent.steps.map((step) => {
@@ -309,7 +309,7 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
           {/* Export Options */}
           <div className="space-y-4 pt-4 border-t">
             <div className="space-y-2">
-              <Label>导出格式</Label>
+              <Label>{t('exportFormatDemo')}</Label>
               <RadioGroup
                 value={exportFormat}
                 onValueChange={(v) => setExportFormat(v as ExportFormat)}
@@ -327,8 +327,8 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
                   >
                     <Code2 className="h-4 w-4" />
                     <div>
-                      <div className="font-medium">交互式 HTML</div>
-                      <div className="text-xs text-muted-foreground">带动画的演示页面</div>
+                      <div className="font-medium">{t('interactiveHtml')}</div>
+                      <div className="text-xs text-muted-foreground">{t('interactiveHtmlDesc')}</div>
                     </div>
                   </Label>
                 </div>
@@ -344,8 +344,8 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
                   >
                     <FileText className="h-4 w-4" />
                     <div>
-                      <div className="font-medium">Markdown</div>
-                      <div className="text-xs text-muted-foreground">静态文档格式</div>
+                      <div className="font-medium">{t('markdownDemo')}</div>
+                      <div className="text-xs text-muted-foreground">{t('markdownDemoDesc')}</div>
                     </div>
                   </Label>
                 </div>
@@ -356,7 +356,7 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <Label htmlFor="auto-play" className="text-sm font-normal">
-                    自动播放
+                    {t('autoPlayDemo')}
                   </Label>
                   <Switch
                     id="auto-play"
@@ -366,7 +366,7 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <Label htmlFor="show-timeline" className="text-sm font-normal">
-                    显示时间线
+                    {t('showTimelineDemo')}
                   </Label>
                   <Switch
                     id="show-timeline"
@@ -376,7 +376,7 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <Label htmlFor="show-tools" className="text-sm font-normal">
-                    显示工具详情
+                    {t('showToolDetailsDemo')}
                   </Label>
                   <Switch
                     id="show-tools"
@@ -386,7 +386,7 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <Label htmlFor="show-thinking" className="text-sm font-normal">
-                    显示思考过程
+                    {t('showThinkingDemo')}
                   </Label>
                   <Switch
                     id="show-thinking"
@@ -409,7 +409,7 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
             ) : (
               <Download className="h-4 w-4 mr-2" />
             )}
-            {isExporting ? '导出中...' : `导出 ${exportFormat === 'html' ? '演示' : 'Markdown'}`}
+            {isExporting ? t('exportingDemo') : t('exportDemo')}
           </Button>
         </div>
       </DialogContent>

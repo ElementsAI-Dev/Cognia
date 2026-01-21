@@ -116,7 +116,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
         setWechatQR(qrCode);
       } catch (error) {
         console.error('Failed to generate QR code:', error);
-        toast.error('生成二维码失败');
+        toast.error(t('qrCodeFailed'));
       }
       return;
     }
@@ -128,7 +128,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
       url: shareUrl,
       hashtags: ['AI', 'Cognia'],
     });
-  }, [shareContent]);
+  }, [shareContent, t]);
 
   // Handle native share
   const handleNativeShare = useCallback(async () => {
@@ -142,9 +142,9 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
     });
 
     if (!success) {
-      toast.error('分享失败，请尝试其他方式');
+      toast.error(t('shareFailed'));
     }
-  }, [shareContent]);
+  }, [shareContent, t]);
 
   // Handle copy
   const handleCopy = useCallback(async () => {
@@ -171,12 +171,12 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
     const success = await copyToClipboard(textToCopy);
     if (success) {
       setCopied(true);
-      toast.success('已复制到剪贴板');
+      toast.success(t('copiedToClipboard'));
       setTimeout(() => setCopied(false), 2000);
     } else {
-      toast.error('复制失败');
+      toast.error(t('copyFailed'));
     }
-  }, [shareContent, shareFormat, session, messages, includeModel, maxMessages]);
+  }, [shareContent, shareFormat, session, messages, includeModel, maxMessages, t]);
 
   // Handle image export
   const handleImageExport = useCallback(async () => {
@@ -199,14 +199,14 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
       link.download = `${session.title}-share.png`;
       link.click();
 
-      toast.success('图片已导出');
+      toast.success(t('imageExported'));
     } catch (error) {
       console.error('Image export failed:', error);
-      toast.error('图片导出失败');
+      toast.error(t('imageExportFailed'));
     } finally {
       setIsGeneratingImage(false);
     }
-  }, [session, messages, maxMessages, includeTitle, includeTimestamps, includeModel]);
+  }, [session, messages, maxMessages, includeTitle, includeTimestamps, includeModel, t]);
 
   // Close QR code modal
   const closeQRCode = useCallback(() => {
@@ -229,10 +229,10 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Share2 className="h-5 w-5" />
-            分享对话
+            {t('shareConversation')}
           </DialogTitle>
           <DialogDescription>
-            分享此对话到社交媒体或复制内容
+            {t('shareConversationDesc')}
           </DialogDescription>
         </DialogHeader>
 
@@ -246,15 +246,15 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
             {wechatQR && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
                 <div className="bg-background rounded-lg p-6 shadow-xl max-w-sm w-full mx-4">
-                  <h3 className="text-lg font-semibold mb-4 text-center">微信扫码分享</h3>
+                  <h3 className="text-lg font-semibold mb-4 text-center">{t('wechatScanToShare')}</h3>
                   <div className="flex justify-center mb-4">
                     <img src={wechatQR} alt="WeChat QR Code" className="w-48 h-48" />
                   </div>
                   <p className="text-sm text-muted-foreground text-center mb-4">
-                    打开微信扫描二维码分享内容
+                    {t('wechatScanHint')}
                   </p>
                   <Button onClick={closeQRCode} className="w-full">
-                    关闭
+                    {t('close')}
                   </Button>
                 </div>
               </div>
@@ -262,7 +262,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
 
             {/* Platform Buttons */}
             <div className="space-y-3">
-              <Label>分享到</Label>
+              <Label>{t('shareToLabel')}</Label>
               <div className="grid grid-cols-4 gap-2">
                 {(Object.keys(PLATFORM_CONFIGS) as SocialPlatform[]).map((platform) => {
                   const config = PLATFORM_CONFIGS[platform];
@@ -285,7 +285,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
             {isNativeShareAvailable() && (
               <Button onClick={handleNativeShare} className="w-full" variant="secondary">
                 <Share2 className="h-4 w-4 mr-2" />
-                使用系统分享
+                {t('useSystemShareBtn')}
               </Button>
             )}
 
@@ -294,31 +294,31 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="text" className="flex items-center gap-1">
                   <FileText className="h-3 w-3" />
-                  文本
+                  {t('textTab')}
                 </TabsTrigger>
                 <TabsTrigger value="markdown" className="flex items-center gap-1">
                   <FileText className="h-3 w-3" />
-                  MD
+                  {t('mdTab')}
                 </TabsTrigger>
                 <TabsTrigger value="image" className="flex items-center gap-1">
                   <ImageIcon className="h-3 w-3" />
-                  图片
+                  {t('imageTab')}
                 </TabsTrigger>
                 <TabsTrigger value="link" className="flex items-center gap-1">
                   <Link2 className="h-3 w-3" />
-                  链接
+                  {t('linkTab')}
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="text" className="space-y-3">
                 <ScrollArea className="h-[120px] rounded-md border p-3">
                   <pre className="text-sm whitespace-pre-wrap">
-                    {content?.text || '加载中...'}
+                    {content?.text || t('loading')}
                   </pre>
                 </ScrollArea>
                 <Button onClick={handleCopy} className="w-full">
                   {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                  {copied ? '已复制' : '复制文本'}
+                  {copied ? t('copied') : t('copyTextBtn')}
                 </Button>
               </TabsContent>
 
@@ -329,12 +329,12 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
                       ? generateShareableMarkdown(session, messages.slice(0, 3), {
                           includeMetadata: includeModel,
                         })
-                      : '加载中...'}
+                      : t('loading')}
                   </pre>
                 </ScrollArea>
                 <Button onClick={handleCopy} className="w-full">
                   {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                  {copied ? '已复制' : '复制 Markdown'}
+                  {copied ? t('copied') : t('copyMarkdownBtn')}
                 </Button>
               </TabsContent>
 
@@ -342,7 +342,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
                 <div className="rounded-md border p-4 text-center">
                   <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
                   <p className="text-sm text-muted-foreground">
-                    将对话导出为图片，方便分享到社交媒体
+                    {t('exportImageDescription')}
                   </p>
                 </div>
                 <Button
@@ -355,7 +355,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
                   ) : (
                     <ImageIcon className="h-4 w-4 mr-2" />
                   )}
-                  {isGeneratingImage ? '生成中...' : '导出图片'}
+                  {isGeneratingImage ? t('generating') : t('exportImageBtn')}
                 </Button>
               </TabsContent>
 
@@ -366,18 +366,18 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
                 </div>
                 <Button onClick={handleCopy} className="w-full">
                   {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                  {copied ? '已复制' : '复制链接'}
+                  {copied ? t('copied') : t('copyLinkBtn')}
                 </Button>
               </TabsContent>
             </Tabs>
 
             {/* Options */}
             <div className="space-y-3 pt-2 border-t">
-              <Label className="text-sm font-medium">分享选项</Label>
+              <Label className="text-sm font-medium">{t('shareOptionsLabel')}</Label>
               <div className="grid gap-3">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="include-title" className="text-sm font-normal">
-                    包含对话标题
+                    {t('includeTitleOption')}
                   </Label>
                   <Switch
                     id="include-title"
@@ -387,7 +387,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
                 </div>
                 <div className="flex items-center justify-between">
                   <Label htmlFor="include-timestamps" className="text-sm font-normal">
-                    包含时间戳
+                    {t('includeTimestampsShareOption')}
                   </Label>
                   <Switch
                     id="include-timestamps"
@@ -397,7 +397,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
                 </div>
                 <div className="flex items-center justify-between">
                   <Label htmlFor="include-model" className="text-sm font-normal">
-                    包含模型信息
+                    {t('includeModelOption')}
                   </Label>
                   <Switch
                     id="include-model"
@@ -410,7 +410,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
 
             {/* Message count info */}
             <p className="text-xs text-muted-foreground text-center">
-              共 {messages.length} 条消息 · 最多分享 {maxMessages} 条
+              {t('messagesInfo', { count: messages.length, max: maxMessages })}
             </p>
           </div>
         )}

@@ -373,4 +373,285 @@ describe('useAcademic', () => {
       expect(typeof result.current.refresh).toBe('function');
     });
   });
+
+  describe('Tag Operations', () => {
+    it('should have addTag function', () => {
+      const { result } = renderHook(() => useAcademic());
+
+      expect(typeof result.current.addTag).toBe('function');
+    });
+
+    it('should have removeTag function', () => {
+      const { result } = renderHook(() => useAcademic());
+
+      expect(typeof result.current.removeTag).toBe('function');
+    });
+
+    it('should call store addTag', async () => {
+      const addTagMock = jest.fn();
+      mockUseAcademicStore.mockReturnValue({
+        ...mockStoreState,
+        addTag: addTagMock,
+      });
+
+      const { result } = renderHook(() => useAcademic());
+
+      await act(async () => {
+        await result.current.addTag('paper-1', 'important');
+      });
+
+      expect(addTagMock).toHaveBeenCalledWith('paper-1', 'important');
+    });
+
+    it('should call store removeTag', async () => {
+      const removeTagMock = jest.fn();
+      mockUseAcademicStore.mockReturnValue({
+        ...mockStoreState,
+        removeTag: removeTagMock,
+      });
+
+      const { result } = renderHook(() => useAcademic());
+
+      await act(async () => {
+        await result.current.removeTag('paper-1', 'obsolete');
+      });
+
+      expect(removeTagMock).toHaveBeenCalledWith('paper-1', 'obsolete');
+    });
+  });
+
+  describe('Batch Operations', () => {
+    it('should expose selectedPaperIds', () => {
+      mockUseAcademicStore.mockReturnValue({
+        ...mockStoreState,
+        library: {
+          ...mockStoreState.library,
+          selectedPaperIds: ['paper-1', 'paper-2'],
+        },
+      });
+
+      const { result } = renderHook(() => useAcademic());
+
+      expect(result.current.selectedPaperIds).toEqual(['paper-1', 'paper-2']);
+    });
+
+    it('should have togglePaperSelection function', () => {
+      const toggleMock = jest.fn();
+      mockUseAcademicStore.mockReturnValue({
+        ...mockStoreState,
+        togglePaperSelection: toggleMock,
+      });
+
+      const { result } = renderHook(() => useAcademic());
+
+      act(() => {
+        result.current.togglePaperSelection('paper-1');
+      });
+
+      expect(toggleMock).toHaveBeenCalledWith('paper-1');
+    });
+
+    it('should have selectAllPapers function', () => {
+      const selectAllMock = jest.fn();
+      mockUseAcademicStore.mockReturnValue({
+        ...mockStoreState,
+        selectAllPapers: selectAllMock,
+      });
+
+      const { result } = renderHook(() => useAcademic());
+
+      act(() => {
+        result.current.selectAllPapers();
+      });
+
+      expect(selectAllMock).toHaveBeenCalled();
+    });
+
+    it('should have clearPaperSelection function', () => {
+      const clearMock = jest.fn();
+      mockUseAcademicStore.mockReturnValue({
+        ...mockStoreState,
+        clearPaperSelection: clearMock,
+      });
+
+      const { result } = renderHook(() => useAcademic());
+
+      act(() => {
+        result.current.clearPaperSelection();
+      });
+
+      expect(clearMock).toHaveBeenCalled();
+    });
+
+    it('should have batchUpdateStatus function', async () => {
+      const batchUpdateMock = jest.fn();
+      mockUseAcademicStore.mockReturnValue({
+        ...mockStoreState,
+        library: {
+          ...mockStoreState.library,
+          selectedPaperIds: ['paper-1', 'paper-2'],
+        },
+        batchUpdateStatus: batchUpdateMock,
+      });
+
+      const { result } = renderHook(() => useAcademic());
+
+      await act(async () => {
+        await result.current.batchUpdateStatus('completed');
+      });
+
+      expect(batchUpdateMock).toHaveBeenCalledWith(['paper-1', 'paper-2'], 'completed');
+    });
+
+    it('should have batchAddToCollection function', async () => {
+      const batchAddMock = jest.fn();
+      mockUseAcademicStore.mockReturnValue({
+        ...mockStoreState,
+        library: {
+          ...mockStoreState.library,
+          selectedPaperIds: ['paper-1', 'paper-2'],
+        },
+        batchAddToCollection: batchAddMock,
+      });
+
+      const { result } = renderHook(() => useAcademic());
+
+      await act(async () => {
+        await result.current.batchAddToCollection('collection-1');
+      });
+
+      expect(batchAddMock).toHaveBeenCalledWith(['paper-1', 'paper-2'], 'collection-1');
+    });
+
+    it('should have batchRemove function', async () => {
+      const batchRemoveMock = jest.fn();
+      mockUseAcademicStore.mockReturnValue({
+        ...mockStoreState,
+        library: {
+          ...mockStoreState.library,
+          selectedPaperIds: ['paper-1', 'paper-2'],
+        },
+        batchRemoveFromLibrary: batchRemoveMock,
+      });
+
+      const { result } = renderHook(() => useAcademic());
+
+      await act(async () => {
+        await result.current.batchRemove();
+      });
+
+      expect(batchRemoveMock).toHaveBeenCalledWith(['paper-1', 'paper-2']);
+    });
+
+    it('should not call batch operations when no papers selected', async () => {
+      const batchUpdateMock = jest.fn();
+      mockUseAcademicStore.mockReturnValue({
+        ...mockStoreState,
+        library: {
+          ...mockStoreState.library,
+          selectedPaperIds: [],
+        },
+        batchUpdateStatus: batchUpdateMock,
+      });
+
+      const { result } = renderHook(() => useAcademic());
+
+      await act(async () => {
+        await result.current.batchUpdateStatus('completed');
+      });
+
+      expect(batchUpdateMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Search History Operations', () => {
+    it('should expose searchHistory', () => {
+      mockUseAcademicStore.mockReturnValue({
+        ...mockStoreState,
+        search: {
+          ...mockStoreState.search,
+          searchHistory: ['query1', 'query2'],
+        },
+      });
+
+      const { result } = renderHook(() => useAcademic());
+
+      expect(result.current.searchHistory).toEqual(['query1', 'query2']);
+    });
+
+    it('should have addSearchHistory function', () => {
+      const addHistoryMock = jest.fn();
+      mockUseAcademicStore.mockReturnValue({
+        ...mockStoreState,
+        addSearchHistory: addHistoryMock,
+      });
+
+      const { result } = renderHook(() => useAcademic());
+
+      act(() => {
+        result.current.addSearchHistory('new query');
+      });
+
+      expect(addHistoryMock).toHaveBeenCalledWith('new query');
+    });
+
+    it('should have clearSearchHistory function', () => {
+      const clearHistoryMock = jest.fn();
+      mockUseAcademicStore.mockReturnValue({
+        ...mockStoreState,
+        clearSearchHistory: clearHistoryMock,
+      });
+
+      const { result } = renderHook(() => useAcademic());
+
+      act(() => {
+        result.current.clearSearchHistory();
+      });
+
+      expect(clearHistoryMock).toHaveBeenCalled();
+    });
+  });
+
+  describe('Analysis History Operations', () => {
+    it('should have saveAnalysisResult function', () => {
+      const saveMock = jest.fn();
+      mockUseAcademicStore.mockReturnValue({
+        ...mockStoreState,
+        saveAnalysisResult: saveMock,
+      });
+
+      const { result } = renderHook(() => useAcademic());
+
+      const analysisResult = {
+        paperId: 'paper-1',
+        analysisType: 'summary' as const,
+        content: 'Summary content',
+        createdAt: new Date(),
+      };
+
+      act(() => {
+        result.current.saveAnalysisResult('paper-1', analysisResult);
+      });
+
+      expect(saveMock).toHaveBeenCalledWith('paper-1', analysisResult);
+    });
+
+    it('should have getAnalysisHistory function', () => {
+      const historyData = [
+        { paperId: 'paper-1', analysisType: 'summary', content: 'Test', createdAt: new Date() },
+      ];
+      const getMock = jest.fn().mockReturnValue(historyData);
+      mockUseAcademicStore.mockReturnValue({
+        ...mockStoreState,
+        getAnalysisHistory: getMock,
+      });
+
+      const { result } = renderHook(() => useAcademic());
+
+      const history = result.current.getAnalysisHistory('paper-1');
+
+      expect(getMock).toHaveBeenCalledWith('paper-1');
+      expect(history).toEqual(historyData);
+    });
+  });
 });

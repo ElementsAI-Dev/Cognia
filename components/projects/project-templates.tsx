@@ -153,6 +153,7 @@ export function ProjectTemplatesDialog({
   onOpenChange,
   onProjectCreated,
 }: ProjectTemplatesDialogProps) {
+  const t = useTranslations('templates');
   const tToasts = useTranslations('toasts');
   const [selectedCategory, setSelectedCategory] = useState<ProjectTemplate['category'] | 'all'>('all');
   const [isCreating, setIsCreating] = useState(false);
@@ -166,13 +167,26 @@ export function ProjectTemplatesDialog({
   const handleSelectTemplate = async (template: ProjectTemplate) => {
     setIsCreating(true);
     try {
+      const templateKey = template.id.replace(/-/g, '') as keyof typeof templateKeyMap;
+      const templateKeyMap = {
+        'codingassistant': 'codingAssistant',
+        'researchproject': 'researchProject',
+        'businessstrategy': 'businessStrategy',
+        'creativewriting': 'creativeWriting',
+        'startuplaunch': 'startupLaunch',
+        'learningpath': 'learningPath',
+        'personaljournal': 'personalJournal',
+        'blankproject': 'blankProject',
+      } as const;
+      const tKey = templateKeyMap[templateKey] || 'blankProject';
+      
       const input: CreateProjectInput = {
-        name: template.name,
-        description: template.description,
+        name: t(`${tKey}.name`),
+        description: t(`${tKey}.description`),
         icon: template.icon,
         color: template.color,
         defaultMode: template.defaultMode,
-        customInstructions: template.customInstructions,
+        customInstructions: t(`${tKey}.instructions`),
         tags: template.tags,
       };
 
@@ -191,9 +205,9 @@ export function ProjectTemplatesDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Create from Template</DialogTitle>
+          <DialogTitle>{t('createFromTemplate')}</DialogTitle>
           <DialogDescription>
-            Choose a template to quickly set up your project
+            {t('chooseTemplate')}
           </DialogDescription>
         </DialogHeader>
 
@@ -204,7 +218,7 @@ export function ProjectTemplatesDialog({
             className="cursor-pointer"
             onClick={() => setSelectedCategory('all')}
           >
-            All
+            {t('all')}
           </Badge>
           {(Object.keys(CATEGORY_LABELS) as ProjectTemplate['category'][]).map((category) => (
             <Badge
@@ -213,7 +227,7 @@ export function ProjectTemplatesDialog({
               className="cursor-pointer"
               onClick={() => setSelectedCategory(category)}
             >
-              {CATEGORY_LABELS[category]}
+              {t(`categories.${category}`)}
             </Badge>
           ))}
         </div>
@@ -223,6 +237,17 @@ export function ProjectTemplatesDialog({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-4">
             {filteredTemplates.map((template) => {
               const IconComponent = ICON_MAP[template.icon] || Sparkles;
+              const templateKeyMap: Record<string, string> = {
+                'coding-assistant': 'codingAssistant',
+                'research-project': 'researchProject',
+                'business-strategy': 'businessStrategy',
+                'creative-writing': 'creativeWriting',
+                'startup-launch': 'startupLaunch',
+                'learning-path': 'learningPath',
+                'personal-journal': 'personalJournal',
+                'blank-project': 'blankProject',
+              };
+              const tKey = templateKeyMap[template.id] || 'blankProject';
               
               return (
                 <button
@@ -240,9 +265,9 @@ export function ProjectTemplatesDialog({
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-sm">{template.name}</h3>
+                    <h3 className="font-medium text-sm">{t(`${tKey}.name`)}</h3>
                     <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                      {template.description}
+                      {t(`${tKey}.description`)}
                     </p>
                     <div className="flex gap-1 mt-2">
                       <Badge variant="secondary" className="text-xs">

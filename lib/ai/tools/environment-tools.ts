@@ -9,7 +9,7 @@
  */
 
 import { z } from 'zod';
-import type { AgentTool } from './agent-executor';
+import type { AgentTool } from '../agent/agent-executor';
 import { virtualEnvService, isEnvironmentAvailable } from '@/lib/native/environment';
 import type {
   VirtualEnvType,

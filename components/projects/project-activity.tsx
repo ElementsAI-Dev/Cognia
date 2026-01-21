@@ -67,20 +67,6 @@ const ACTIVITY_ICONS: Record<ActivityType, React.ReactNode> = {
   tags_updated: <Tag className="h-4 w-4 text-blue-500" />,
 };
 
-const ACTIVITY_LABELS: Record<ActivityType, string> = {
-  session_created: 'Session Created',
-  session_added: 'Session Added',
-  session_removed: 'Session Removed',
-  settings_updated: 'Settings Updated',
-  knowledge_added: 'Knowledge Added',
-  knowledge_removed: 'Knowledge Removed',
-  knowledge_updated: 'Knowledge Updated',
-  project_created: 'Project Created',
-  project_updated: 'Project Updated',
-  project_archived: 'Project Archived',
-  project_unarchived: 'Project Unarchived',
-  tags_updated: 'Tags Updated',
-};
 
 export function ProjectActivity({
   projectId: _projectId,
@@ -164,7 +150,7 @@ export function ProjectActivity({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {(Object.keys(ACTIVITY_LABELS) as ActivityType[]).map((type) => (
+                {(Object.keys(ACTIVITY_ICONS) as ActivityType[]).map((type) => (
                   <DropdownMenuCheckboxItem
                     key={type}
                     checked={filterTypes.has(type)}

@@ -1,11 +1,12 @@
 /**
  * Plugin Settings Page
  * Comprehensive plugin management interface with tabs for different sections
+ * Enhanced with marketplace, favorites, quick actions, and improved responsiveness
  */
 
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Puzzle,
@@ -23,6 +24,14 @@ import {
   Upload,
   Heart,
   MoreHorizontal,
+  Store,
+  Sparkles,
+  Shield,
+  Zap,
+  CheckCircle,
+  AlertCircle,
+  Package,
+  Layers,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,7 +52,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent } from '@/components/ui/card';
 import { PluginList } from '../core/plugin-list';
+import { PluginEmptyState } from '../core/plugin-empty-state';
+import { PluginGroupedList } from '../core/plugin-grouped-list';
 import { PluginAnalytics } from '../monitoring/plugin-analytics';
 import { PluginCreateWizard } from './plugin-create-wizard';
 import { PluginDevTools } from '../dev/plugin-dev-tools';
@@ -51,6 +63,7 @@ import { PluginHealth } from '../monitoring/plugin-health';
 import { PluginDependencyTree } from '../monitoring/plugin-dependency-tree';
 import { PluginConflicts } from '../monitoring/plugin-conflicts';
 import { PluginUpdates } from '../monitoring/plugin-updates';
+import { PluginMarketplace, PluginDetailModal, type MarketplacePlugin } from '../marketplace';
 import { usePluginStore } from '@/stores/plugin';
 import { usePlugins } from '@/hooks/plugin';
 import type { PluginCapability, PluginType } from '@/types/plugin';
@@ -87,6 +100,15 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
   const [capabilityFilter, setCapabilityFilter] = useState<PluginCapability | 'all'>('all');
   const [isCreateWizardOpen, setIsCreateWizardOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedMarketplacePlugin, setSelectedMarketplacePlugin] = useState<MarketplacePlugin | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedPlugins, setSelectedPlugins] = useState<Set<string>>(new Set());
+  const [groupBy, setGroupBy] = useState<'none' | 'type' | 'capability' | 'status'>('none');
+
+  // Stats for hero section
+  const totalTools = plugins.reduce((acc, p) => acc + (p.tools?.length || 0), 0);
+  const healthScore = errorPlugins.length === 0 ? 100 : Math.round((1 - errorPlugins.length / Math.max(plugins.length, 1)) * 100);
 
   // Filter and sort plugins
   const filteredPlugins = plugins.filter(plugin => {
@@ -124,6 +146,63 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
         return 0;
     }
   });
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + K - Focus search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.getElementById('plugin-search');
+        searchInput?.focus();
+      }
+      // Cmd/Ctrl + Shift + S - Toggle selection mode
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 's') {
+        e.preventDefault();
+        setIsSelectionMode(prev => !prev);
+        if (isSelectionMode) setSelectedPlugins(new Set());
+      }
+      // Escape - Exit selection mode or clear search
+      if (e.key === 'Escape') {
+        if (isSelectionMode) {
+          setIsSelectionMode(false);
+          setSelectedPlugins(new Set());
+        } else if (searchQuery) {
+          setSearchQuery('');
+        }
+      }
+      // Cmd/Ctrl + A - Select all (when in selection mode)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'a' && isSelectionMode && activeTab === 'installed') {
+        e.preventDefault();
+        setSelectedPlugins(new Set(filteredPlugins.map(p => p.manifest.id)));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSelectionMode, searchQuery, activeTab, filteredPlugins]);
+
+  // Batch operation handlers
+  const handleBatchEnable = useCallback(async () => {
+    for (const id of selectedPlugins) {
+      await enablePlugin(id);
+    }
+    setSelectedPlugins(new Set());
+  }, [selectedPlugins, enablePlugin]);
+
+  const handleBatchDisable = useCallback(async () => {
+    for (const id of selectedPlugins) {
+      await disablePlugin(id);
+    }
+    setSelectedPlugins(new Set());
+  }, [selectedPlugins, disablePlugin]);
+
+  const handleBatchUninstall = useCallback(async () => {
+    for (const id of selectedPlugins) {
+      await uninstallPlugin(id);
+    }
+    setSelectedPlugins(new Set());
+    setIsSelectionMode(false);
+  }, [selectedPlugins, uninstallPlugin]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -245,6 +324,64 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
         </div>
       </div>
 
+      {/* Quick Stats Cards - Hero Section */}
+      <div className="grid grid-cols-2 gap-2 p-3 sm:p-4 sm:grid-cols-4 sm:gap-3 border-b bg-gradient-to-br from-primary/5 via-background to-background">
+        <Card className="group hover:border-primary/50 transition-colors">
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">{t('stats.installed')}</p>
+                <p className="text-xl sm:text-2xl font-bold">{plugins.length}</p>
+              </div>
+              <Package className="h-6 w-6 sm:h-8 sm:w-8 text-primary/50 group-hover:text-primary transition-colors" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="group hover:border-green-500/50 transition-colors">
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">{t('stats.enabled')}</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-500">{enabledPlugins.length}</p>
+              </div>
+              <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-500/50 group-hover:text-green-500 transition-colors" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="group hover:border-blue-500/50 transition-colors">
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">{t('stats.tools')}</p>
+                <p className="text-xl sm:text-2xl font-bold text-blue-500">{totalTools}</p>
+              </div>
+              <Zap className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500/50 group-hover:text-blue-500 transition-colors" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="group hover:border-primary/50 transition-colors">
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">{t('stats.health')}</p>
+                <div className="flex items-center gap-2">
+                  <p className={cn('text-xl sm:text-2xl font-bold', healthScore >= 80 ? 'text-green-500' : healthScore >= 50 ? 'text-yellow-500' : 'text-red-500')}>
+                    {healthScore}%
+                  </p>
+                </div>
+              </div>
+              <Shield className={cn('h-6 w-6 sm:h-8 sm:w-8 transition-colors', healthScore >= 80 ? 'text-green-500/50 group-hover:text-green-500' : healthScore >= 50 ? 'text-yellow-500/50 group-hover:text-yellow-500' : 'text-red-500/50 group-hover:text-red-500')} />
+            </div>
+            {errorPlugins.length > 0 && (
+              <div className="mt-1 flex items-center gap-1 text-[10px] text-red-500">
+                <AlertCircle className="h-3 w-3" />
+                <span>{errorPlugins.length} errors</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Tabs - Responsive with horizontal scroll on mobile */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
         <div className="border-b px-2 sm:px-4 overflow-x-auto scrollbar-none">
@@ -256,6 +393,12 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
               <Badge variant="secondary" className="ml-1 text-xs">
                 {plugins.length}
               </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="marketplace" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
+              <Store className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">{t('tabs.marketplace')}</span>
+              <span className="sm:hidden">商店</span>
+              <Sparkles className="h-3 w-3 text-yellow-500 hidden sm:block" />
             </TabsTrigger>
             <TabsTrigger value="analytics" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
               <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -288,12 +431,30 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
             <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
+                id="plugin-search"
                 placeholder={t('filters.searchPlaceholder')}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="pl-9 h-9"
+                className="pl-9 pr-14 h-9"
               />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                <span>⌘</span><span>K</span>
+              </div>
             </div>
+
+            {/* Selection Mode Toggle */}
+            <Button
+              variant={isSelectionMode ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setIsSelectionMode(!isSelectionMode);
+                if (isSelectionMode) setSelectedPlugins(new Set());
+              }}
+              className="h-9 gap-1.5 hidden sm:flex"
+            >
+              <CheckCircle className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">{isSelectionMode ? t('filters.exitSelect') : t('filters.select')}</span>
+            </Button>
 
             {/* Filters group - Collapsible on mobile */}
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -336,6 +497,20 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                 </SelectContent>
               </Select>
 
+              {/* Group by dropdown */}
+              <Select value={groupBy} onValueChange={v => setGroupBy(v as 'none' | 'type' | 'capability' | 'status')}>
+                <SelectTrigger className="h-9 w-[calc(50%-4px)] sm:w-[110px] hidden sm:flex">
+                  <Layers className="h-3.5 w-3.5 mr-1.5" />
+                  <SelectValue placeholder="Group" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t('filters.noGroup')}</SelectItem>
+                  <SelectItem value="type">{t('filters.groupByType')}</SelectItem>
+                  <SelectItem value="capability">{t('filters.groupByCapability')}</SelectItem>
+                  <SelectItem value="status">{t('filters.groupByStatus')}</SelectItem>
+                </SelectContent>
+              </Select>
+
               {/* View mode toggle */}
               <div className="flex items-center border rounded-md h-9 ml-auto sm:ml-0">
                 <Button
@@ -372,24 +547,44 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
           {/* Plugin List */}
           <ScrollArea className="flex-1 p-3 sm:p-4">
             {filteredPlugins.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                <Puzzle className="h-10 w-10 sm:h-12 sm:w-12 mb-4 opacity-50" />
-                {searchQuery || filterBy !== 'all' || typeFilter !== 'all' || capabilityFilter !== 'all' ? (
-                  <>
-                    <p className="text-base sm:text-lg font-medium">{t('emptyState.noMatch')}</p>
-                    <p className="text-sm">{t('emptyState.tryAdjusting')}</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-base sm:text-lg font-medium">{t('emptyState.noPlugins')}</p>
-                    <p className="text-sm mb-4">{t('emptyState.createFirst')}</p>
-                    <Button onClick={() => setIsCreateWizardOpen(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      {t('createPlugin')}
-                    </Button>
-                  </>
-                )}
-              </div>
+              <PluginEmptyState
+                variant={
+                  searchQuery || typeFilter !== 'all' || capabilityFilter !== 'all'
+                    ? 'no-results'
+                    : filterBy === 'enabled'
+                      ? 'no-enabled'
+                      : filterBy === 'disabled'
+                        ? 'no-disabled'
+                        : filterBy === 'error'
+                          ? 'no-results'
+                          : 'no-plugins'
+                }
+                searchQuery={searchQuery}
+                onCreatePlugin={() => setIsCreateWizardOpen(true)}
+                onBrowseMarketplace={() => setActiveTab('marketplace')}
+                onImportPlugin={() => {}}
+                onClearFilters={() => {
+                  setSearchQuery('');
+                  setFilterBy('all');
+                  setTypeFilter('all');
+                  setCapabilityFilter('all');
+                }}
+              />
+            ) : groupBy !== 'none' ? (
+              <PluginGroupedList
+                plugins={filteredPlugins}
+                groupBy={groupBy}
+                viewMode={viewMode}
+                onToggle={(plugin) => {
+                  if (plugin.status === 'enabled') {
+                    disablePlugin(plugin.manifest.id);
+                  } else {
+                    enablePlugin(plugin.manifest.id);
+                  }
+                }}
+                onConfigure={() => {}}
+                onUninstall={(plugin) => uninstallPlugin(plugin.manifest.id)}
+              />
             ) : (
               <PluginList
                 plugins={filteredPlugins}
@@ -403,6 +598,10 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                 }}
                 onConfigure={() => {}}
                 onUninstall={(plugin) => uninstallPlugin(plugin.manifest.id)}
+                enableSelection={isSelectionMode}
+                onBatchEnable={handleBatchEnable}
+                onBatchDisable={handleBatchDisable}
+                onBatchUninstall={handleBatchUninstall}
               />
             )}
           </ScrollArea>
@@ -420,6 +619,19 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
               <span>{t('statusBar.disabledCount', { count: disabledPlugins.length })}</span>
             </div>
           </div>
+        </TabsContent>
+
+        {/* Marketplace Tab */}
+        <TabsContent value="marketplace" className="flex-1 m-0 flex flex-col overflow-hidden">
+          <PluginMarketplace
+            onInstall={async (pluginId) => {
+              console.log('Installing plugin:', pluginId);
+            }}
+            onViewDetails={(plugin) => {
+              setSelectedMarketplacePlugin(plugin);
+              setIsDetailModalOpen(true);
+            }}
+          />
         </TabsContent>
 
         {/* Analytics Tab */}
@@ -513,6 +725,16 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
         open={isCreateWizardOpen}
         onOpenChange={setIsCreateWizardOpen}
         onComplete={handleCreateComplete}
+      />
+
+      {/* Plugin Detail Modal */}
+      <PluginDetailModal
+        plugin={selectedMarketplacePlugin}
+        open={isDetailModalOpen}
+        onOpenChange={setIsDetailModalOpen}
+        onInstall={async (pluginId) => {
+          console.log('Installing plugin from modal:', pluginId);
+        }}
       />
     </div>
   );

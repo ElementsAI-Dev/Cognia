@@ -6,6 +6,27 @@
 // Check if running in Tauri environment
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
+// File size limits
+const DEFAULT_MAX_READ_SIZE = 100 * 1024 * 1024; // 100MB
+const DEFAULT_MAX_WRITE_SIZE = 100 * 1024 * 1024; // 100MB
+
+/**
+ * File operation error codes
+ */
+export enum FileErrorCode {
+  NOT_FOUND = 'NOT_FOUND',
+  PERMISSION_DENIED = 'PERMISSION_DENIED',
+  FILE_TOO_LARGE = 'FILE_TOO_LARGE',
+  DISK_FULL = 'DISK_FULL',
+  INVALID_PATH = 'INVALID_PATH',
+  PATH_TRAVERSAL = 'PATH_TRAVERSAL',
+  FILE_EXISTS = 'FILE_EXISTS',
+  DIRECTORY_NOT_EMPTY = 'DIRECTORY_NOT_EMPTY',
+  NOT_A_FILE = 'NOT_A_FILE',
+  NOT_A_DIRECTORY = 'NOT_A_DIRECTORY',
+  UNKNOWN = 'UNKNOWN',
+}
+
 export interface FileInfo {
   name: string;
   path: string;
@@ -26,6 +47,7 @@ export interface FileReadResult {
   success: boolean;
   content?: string;
   error?: string;
+  errorCode?: FileErrorCode;
   path: string;
   size?: number;
   mimeType?: string;
@@ -34,6 +56,7 @@ export interface FileReadResult {
 export interface FileWriteResult {
   success: boolean;
   error?: string;
+  errorCode?: FileErrorCode;
   path: string;
   bytesWritten?: number;
 }
@@ -42,6 +65,7 @@ export interface FileOperationOptions {
   encoding?: 'utf-8' | 'binary';
   createDirectories?: boolean;
   overwrite?: boolean;
+  maxSize?: number; // Maximum file size in bytes for read operations
 }
 
 /**
@@ -49,17 +73,44 @@ export interface FileOperationOptions {
  */
 export async function readTextFile(
   path: string,
-  _options?: FileOperationOptions
+  options?: FileOperationOptions
 ): Promise<FileReadResult> {
   if (!isTauri) {
     return {
       success: false,
       error: 'File operations require Tauri desktop environment',
+      errorCode: FileErrorCode.UNKNOWN,
+      path,
+    };
+  }
+
+  // Validate path safety
+  if (!isPathSafe(path)) {
+    return {
+      success: false,
+      error: 'Invalid path: path traversal detected',
+      errorCode: FileErrorCode.PATH_TRAVERSAL,
       path,
     };
   }
 
   try {
+    // Check file size before reading
+    const maxSize = options?.maxSize ?? DEFAULT_MAX_READ_SIZE;
+    const info = await getFileInfo(path);
+    
+    if (info.success && info.info) {
+      if (info.info.size > maxSize) {
+        return {
+          success: false,
+          error: `File too large: ${info.info.size} bytes exceeds maximum ${maxSize} bytes`,
+          errorCode: FileErrorCode.FILE_TOO_LARGE,
+          path,
+          size: info.info.size,
+        };
+      }
+    }
+
     const { readTextFile: tauriReadTextFile } = await import('@tauri-apps/plugin-fs');
     const content = await tauriReadTextFile(path);
     
@@ -71,9 +122,11 @@ export async function readTextFile(
       mimeType: getMimeType(path),
     };
   } catch (error) {
+    const { message, code } = parseFileError(error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to read file',
+      error: message,
+      errorCode: code,
       path,
     };
   }
@@ -82,21 +135,53 @@ export async function readTextFile(
 /**
  * Read a binary file from the local file system
  */
-export async function readBinaryFile(path: string): Promise<{
+export async function readBinaryFile(
+  path: string,
+  options?: { maxSize?: number }
+): Promise<{
   success: boolean;
   data?: Uint8Array;
   error?: string;
+  errorCode?: FileErrorCode;
   path: string;
+  size?: number;
 }> {
   if (!isTauri) {
     return {
       success: false,
       error: 'File operations require Tauri desktop environment',
+      errorCode: FileErrorCode.UNKNOWN,
+      path,
+    };
+  }
+
+  // Validate path safety
+  if (!isPathSafe(path)) {
+    return {
+      success: false,
+      error: 'Invalid path: path traversal detected',
+      errorCode: FileErrorCode.PATH_TRAVERSAL,
       path,
     };
   }
 
   try {
+    // Check file size before reading
+    const maxSize = options?.maxSize ?? DEFAULT_MAX_READ_SIZE;
+    const info = await getFileInfo(path);
+    
+    if (info.success && info.info) {
+      if (info.info.size > maxSize) {
+        return {
+          success: false,
+          error: `File too large: ${info.info.size} bytes exceeds maximum ${maxSize} bytes`,
+          errorCode: FileErrorCode.FILE_TOO_LARGE,
+          path,
+          size: info.info.size,
+        };
+      }
+    }
+
     const { readFile } = await import('@tauri-apps/plugin-fs');
     const data = await readFile(path);
     
@@ -104,11 +189,14 @@ export async function readBinaryFile(path: string): Promise<{
       success: true,
       data,
       path,
+      size: data.byteLength,
     };
   } catch (error) {
+    const { message, code } = parseFileError(error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to read file',
+      error: message,
+      errorCode: code,
       path,
     };
   }
@@ -126,8 +214,44 @@ export async function writeTextFile(
     return {
       success: false,
       error: 'File operations require Tauri desktop environment',
+      errorCode: FileErrorCode.UNKNOWN,
       path,
     };
+  }
+
+  // Validate path safety
+  if (!isPathSafe(path)) {
+    return {
+      success: false,
+      error: 'Invalid path: path traversal detected',
+      errorCode: FileErrorCode.PATH_TRAVERSAL,
+      path,
+    };
+  }
+
+  // Check content size
+  const contentSize = new Blob([content]).size;
+  const maxSize = options?.maxSize ?? DEFAULT_MAX_WRITE_SIZE;
+  if (contentSize > maxSize) {
+    return {
+      success: false,
+      error: `Content too large: ${contentSize} bytes exceeds maximum ${maxSize} bytes`,
+      errorCode: FileErrorCode.FILE_TOO_LARGE,
+      path,
+    };
+  }
+
+  // Check overwrite protection
+  if (options?.overwrite === false) {
+    const fileExists = await exists(path);
+    if (fileExists) {
+      return {
+        success: false,
+        error: 'File already exists and overwrite is disabled',
+        errorCode: FileErrorCode.FILE_EXISTS,
+        path,
+      };
+    }
   }
 
   try {
@@ -135,12 +259,17 @@ export async function writeTextFile(
     
     // Create parent directories if needed
     if (options?.createDirectories) {
-      const parentDir = path.substring(0, path.lastIndexOf('/'));
+      const sanitized = sanitizePath(path);
+      const parentDir = sanitized.substring(0, sanitized.lastIndexOf('/'));
       if (parentDir) {
         try {
           await mkdir(parentDir, { recursive: true });
-        } catch {
-          // Directory might already exist
+        } catch (mkdirError) {
+          // Only ignore if directory already exists
+          const { code } = parseFileError(mkdirError);
+          if (code !== FileErrorCode.FILE_EXISTS) {
+            throw mkdirError;
+          }
         }
       }
     }
@@ -150,12 +279,106 @@ export async function writeTextFile(
     return {
       success: true,
       path,
-      bytesWritten: new Blob([content]).size,
+      bytesWritten: contentSize,
     };
   } catch (error) {
+    const { message, code } = parseFileError(error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to write file',
+      error: message,
+      errorCode: code,
+      path,
+    };
+  }
+}
+
+/**
+ * Write binary data to a file
+ */
+export async function writeBinaryFile(
+  path: string,
+  data: Uint8Array | ArrayBuffer,
+  options?: Omit<FileOperationOptions, 'maxSize'>
+): Promise<FileWriteResult> {
+  if (!isTauri) {
+    return {
+      success: false,
+      error: 'File operations require Tauri desktop environment',
+      errorCode: FileErrorCode.UNKNOWN,
+      path,
+    };
+  }
+
+  // Validate path safety
+  if (!isPathSafe(path)) {
+    return {
+      success: false,
+      error: 'Invalid path: path traversal detected',
+      errorCode: FileErrorCode.PATH_TRAVERSAL,
+      path,
+    };
+  }
+
+  // Convert ArrayBuffer to Uint8Array if needed
+  const uint8Data = data instanceof ArrayBuffer ? new Uint8Array(data) : data;
+
+  // Check data size
+  const dataSize = uint8Data.byteLength;
+  const maxSize = DEFAULT_MAX_WRITE_SIZE;
+  if (dataSize > maxSize) {
+    return {
+      success: false,
+      error: `Data too large: ${dataSize} bytes exceeds maximum ${maxSize} bytes`,
+      errorCode: FileErrorCode.FILE_TOO_LARGE,
+      path,
+    };
+  }
+
+  // Check overwrite protection
+  if (options?.overwrite === false) {
+    const fileExists = await exists(path);
+    if (fileExists) {
+      return {
+        success: false,
+        error: 'File already exists and overwrite is disabled',
+        errorCode: FileErrorCode.FILE_EXISTS,
+        path,
+      };
+    }
+  }
+
+  try {
+    const { writeFile, mkdir } = await import('@tauri-apps/plugin-fs');
+    
+    // Create parent directories if needed
+    if (options?.createDirectories) {
+      const sanitized = sanitizePath(path);
+      const parentDir = sanitized.substring(0, sanitized.lastIndexOf('/'));
+      if (parentDir) {
+        try {
+          await mkdir(parentDir, { recursive: true });
+        } catch (mkdirError) {
+          const { code } = parseFileError(mkdirError);
+          if (code !== FileErrorCode.FILE_EXISTS) {
+            throw mkdirError;
+          }
+        }
+      }
+    }
+    
+    await writeFile(path, uint8Data);
+    
+    return {
+      success: true,
+      path,
+      bytesWritten: dataSize,
+    };
+  } catch (error) {
+    const { message, code } = parseFileError(error);
+    return {
+      success: false,
+      error: message,
+      errorCode: code,
       path,
     };
   }
@@ -243,11 +466,22 @@ export async function exists(path: string): Promise<boolean> {
 export async function deleteFile(path: string): Promise<{
   success: boolean;
   error?: string;
+  errorCode?: FileErrorCode;
 }> {
   if (!isTauri) {
     return {
       success: false,
       error: 'File operations require Tauri desktop environment',
+      errorCode: FileErrorCode.UNKNOWN,
+    };
+  }
+
+  // Validate path safety
+  if (!isPathSafe(path)) {
+    return {
+      success: false,
+      error: 'Invalid path: path traversal detected',
+      errorCode: FileErrorCode.PATH_TRAVERSAL,
     };
   }
 
@@ -256,9 +490,11 @@ export async function deleteFile(path: string): Promise<{
     await remove(path);
     return { success: true };
   } catch (error) {
+    const { message, code } = parseFileError(error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to delete file',
+      error: message,
+      errorCode: code,
     };
   }
 }
@@ -301,11 +537,29 @@ export async function copyFile(
 ): Promise<{
   success: boolean;
   error?: string;
+  errorCode?: FileErrorCode;
 }> {
   if (!isTauri) {
     return {
       success: false,
       error: 'File operations require Tauri desktop environment',
+      errorCode: FileErrorCode.UNKNOWN,
+    };
+  }
+
+  // Validate paths safety
+  if (!isPathSafe(source)) {
+    return {
+      success: false,
+      error: 'Invalid source path: path traversal detected',
+      errorCode: FileErrorCode.PATH_TRAVERSAL,
+    };
+  }
+  if (!isPathSafe(destination)) {
+    return {
+      success: false,
+      error: 'Invalid destination path: path traversal detected',
+      errorCode: FileErrorCode.PATH_TRAVERSAL,
     };
   }
 
@@ -314,9 +568,11 @@ export async function copyFile(
     await tauriCopyFile(source, destination);
     return { success: true };
   } catch (error) {
+    const { message, code } = parseFileError(error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to copy file',
+      error: message,
+      errorCode: code,
     };
   }
 }
@@ -330,11 +586,29 @@ export async function renameFile(
 ): Promise<{
   success: boolean;
   error?: string;
+  errorCode?: FileErrorCode;
 }> {
   if (!isTauri) {
     return {
       success: false,
       error: 'File operations require Tauri desktop environment',
+      errorCode: FileErrorCode.UNKNOWN,
+    };
+  }
+
+  // Validate paths safety
+  if (!isPathSafe(oldPath)) {
+    return {
+      success: false,
+      error: 'Invalid old path: path traversal detected',
+      errorCode: FileErrorCode.PATH_TRAVERSAL,
+    };
+  }
+  if (!isPathSafe(newPath)) {
+    return {
+      success: false,
+      error: 'Invalid new path: path traversal detected',
+      errorCode: FileErrorCode.PATH_TRAVERSAL,
     };
   }
 
@@ -343,9 +617,11 @@ export async function renameFile(
     await rename(oldPath, newPath);
     return { success: true };
   } catch (error) {
+    const { message, code } = parseFileError(error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to rename file',
+      error: message,
+      errorCode: code,
     };
   }
 }
@@ -435,6 +711,82 @@ export async function saveFileDialog(options?: {
 }
 
 // Helper functions
+
+/**
+ * Validate and sanitize file path to prevent path traversal attacks
+ */
+function sanitizePath(path: string): string {
+  // Remove null bytes
+  let sanitized = path.replace(/\0/g, '');
+  
+  // Normalize path separators to forward slashes
+  sanitized = sanitized.replace(/\\/g, '/');
+  
+  // Remove any leading/trailing whitespace
+  sanitized = sanitized.trim();
+  
+  return sanitized;
+}
+
+/**
+ * Check if a path is safe (no path traversal attempts)
+ */
+function isPathSafe(path: string): boolean {
+  const sanitized = sanitizePath(path);
+  
+  // Check for path traversal patterns
+  const dangerousPatterns = [
+    /\.\.[\/\\]/,  // ../ or ..\\
+    /[\/\\]\.\./,  // /.. or \...
+    /^\.\./,        // starts with ..
+    /\0/,           // null byte
+  ];
+  
+  for (const pattern of dangerousPatterns) {
+    if (pattern.test(sanitized)) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+/**
+ * Parse Tauri error and map to FileErrorCode
+ */
+function parseFileError(error: unknown): { message: string; code: FileErrorCode } {
+  if (!(error instanceof Error)) {
+    return { message: 'Unknown error', code: FileErrorCode.UNKNOWN };
+  }
+  
+  const message = error.message.toLowerCase();
+  
+  // Map common error messages to error codes
+  if (message.includes('not found') || message.includes('no such file')) {
+    return { message: error.message, code: FileErrorCode.NOT_FOUND };
+  }
+  if (message.includes('permission denied') || message.includes('access denied')) {
+    return { message: error.message, code: FileErrorCode.PERMISSION_DENIED };
+  }
+  if (message.includes('disk full') || message.includes('no space left')) {
+    return { message: error.message, code: FileErrorCode.DISK_FULL };
+  }
+  if (message.includes('is a directory') || message.includes('not a file')) {
+    return { message: error.message, code: FileErrorCode.NOT_A_FILE };
+  }
+  if (message.includes('not a directory')) {
+    return { message: error.message, code: FileErrorCode.NOT_A_DIRECTORY };
+  }
+  if (message.includes('directory not empty')) {
+    return { message: error.message, code: FileErrorCode.DIRECTORY_NOT_EMPTY };
+  }
+  if (message.includes('already exists') || message.includes('file exists')) {
+    return { message: error.message, code: FileErrorCode.FILE_EXISTS };
+  }
+  
+  return { message: error.message, code: FileErrorCode.UNKNOWN };
+}
+
 function getExtension(filename: string): string | undefined {
   const lastDot = filename.lastIndexOf('.');
   if (lastDot === -1 || lastDot === 0) return undefined;

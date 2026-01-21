@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,6 +34,8 @@ export interface PromptTemplateEditorProps {
 }
 
 export function PromptTemplateEditor({ template, categories, onCancel, onSubmit }: PromptTemplateEditorProps) {
+  const t = useTranslations('promptTemplate.editor');
+  
   // State initialized from template props - parent should use key={template?.id} to reset on template change
   const [name, setName] = useState(template?.name ?? '');
   const [description, setDescription] = useState(template?.description ?? '');
@@ -109,19 +112,19 @@ export function PromptTemplateEditor({ template, categories, onCancel, onSubmit 
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="template-name">Name</Label>
+          <Label htmlFor="template-name">{t('name')}</Label>
           <Input
             id="template-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="My template"
+            placeholder={t('namePlaceholder')}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="template-category">Category</Label>
+          <Label htmlFor="template-category">{t('category')}</Label>
           <Select value={category} onValueChange={setCategory}>
             <SelectTrigger id="template-category">
-              <SelectValue placeholder="Select category" />
+              <SelectValue placeholder={t('selectCategory')} />
             </SelectTrigger>
             <SelectContent>
               {categories.map((cat) => (
@@ -135,43 +138,43 @@ export function PromptTemplateEditor({ template, categories, onCancel, onSubmit 
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="template-description">Description</Label>
+        <Label htmlFor="template-description">{t('description')}</Label>
         <Textarea
           id="template-description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="What does this template do?"
+          placeholder={t('descriptionPlaceholder')}
           className="min-h-[72px]"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="template-content">Content</Label>
+        <Label htmlFor="template-content">{t('content')}</Label>
         <Textarea
           id="template-content"
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="System prompt or reusable instruction..."
+          placeholder={t('contentPlaceholder')}
           className="min-h-[180px] font-mono"
         />
-        <p className="text-muted-foreground text-xs">Use {'{{variable}}'} syntax for placeholders.</p>
+        <p className="text-muted-foreground text-xs">{t('contentHint')}</p>
       </div>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label>Variables</Label>
+          <Label>{t('variables')}</Label>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setVariables(detectedVariables)}>
-              Sync from content
+              {t('syncFromContent')}
             </Button>
             <Button variant="secondary" size="sm" onClick={addVariable}>
-              Add variable
+              {t('addVariable')}
             </Button>
           </div>
         </div>
         <div className="space-y-3">
           {detectedVariables.length === 0 && (
-            <p className="text-muted-foreground text-sm">No variables detected yet.</p>
+            <p className="text-muted-foreground text-sm">{t('noVariablesDetected')}</p>
           )}
           {detectedVariables.map((variable, index) => (
             <div key={variable.name} className="rounded-md border p-3 space-y-2">
@@ -179,23 +182,23 @@ export function PromptTemplateEditor({ template, categories, onCancel, onSubmit 
                 <Input
                   value={variable.name}
                   onChange={(e) => updateVariable(index, { name: e.target.value })}
-                  placeholder="variable_name"
+                  placeholder={t('variableNamePlaceholder')}
                 />
                 <Button variant="ghost" size="sm" onClick={() => removeVariable(index)}>
-                  Remove
+                  {t('removeVariable')}
                 </Button>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Description</Label>
+                  <Label>{t('description')}</Label>
                   <Input
                     value={variable.description ?? ''}
                     onChange={(e) => updateVariable(index, { description: e.target.value })}
-                    placeholder="What should go here?"
+                    placeholder={t('variableDescPlaceholder')}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Type</Label>
+                  <Label>{t('type')}</Label>
                   <Select
                     value={(variable.type ?? 'text') as PromptTemplateVariableType}
                     onValueChange={(value) => updateVariable(index, { type: value as PromptTemplateVariableType })}
@@ -204,11 +207,11 @@ export function PromptTemplateEditor({ template, categories, onCancel, onSubmit 
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="text">Text</SelectItem>
-                      <SelectItem value="multiline">Multiline</SelectItem>
-                      <SelectItem value="number">Number</SelectItem>
-                      <SelectItem value="boolean">Boolean</SelectItem>
-                      <SelectItem value="select">Select</SelectItem>
+                      <SelectItem value="text">{t('typeText')}</SelectItem>
+                      <SelectItem value="multiline">{t('typeMultiline')}</SelectItem>
+                      <SelectItem value="number">{t('typeNumber')}</SelectItem>
+                      <SelectItem value="boolean">{t('typeBoolean')}</SelectItem>
+                      <SelectItem value="select">{t('typeSelect')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -219,7 +222,7 @@ export function PromptTemplateEditor({ template, categories, onCancel, onSubmit 
                   checked={variable.required ?? false}
                   onCheckedChange={(checked) => updateVariable(index, { required: checked })}
                 />
-                <Label htmlFor={`variable-required-${index}`}>Required</Label>
+                <Label htmlFor={`variable-required-${index}`}>{t('required')}</Label>
               </div>
             </div>
           ))}
@@ -229,7 +232,7 @@ export function PromptTemplateEditor({ template, categories, onCancel, onSubmit 
       <Separator />
 
       <div className="space-y-2">
-        <Label>Tags</Label>
+        <Label>{t('tags')}</Label>
         <div className="flex flex-wrap gap-2">
           {tags.map((tag) => (
             <Badge key={tag} variant="secondary" className="flex items-center gap-1">
@@ -245,14 +248,14 @@ export function PromptTemplateEditor({ template, categories, onCancel, onSubmit 
           ))}
         </div>
         <Input
-          placeholder="Add tag and press Enter"
+          placeholder={t('addTagPlaceholder')}
           onKeyDown={handleTagKeyDown}
           aria-label="add-tag"
         />
       </div>
 
       <div className="space-y-2">
-        <Label>Targets</Label>
+        <Label>{t('targets')}</Label>
         <div className="flex flex-wrap gap-2">
           {['chat', 'workflow', 'agent', 'ide-rules', 'mcp', 'project'].map((target) => {
             const active = targets.includes(target as (typeof targets)[number]);
@@ -281,19 +284,19 @@ export function PromptTemplateEditor({ template, categories, onCancel, onSubmit 
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label>Preview</Label>
+          <Label>{t('preview')}</Label>
           <span className="text-xs text-muted-foreground">
-            {preview.missing.length > 0 ? `${preview.missing.length} missing` : 'All variables filled'}
+            {preview.missing.length > 0 ? t('missingCount', { count: preview.missing.length }) : t('allVariablesFilled')}
           </span>
         </div>
         <Tabs value={previewTab} onValueChange={(value) => setPreviewTab(value as typeof previewTab)}>
           <TabsList>
-            <TabsTrigger value="values">Values</TabsTrigger>
-            <TabsTrigger value="output">Output</TabsTrigger>
+            <TabsTrigger value="values">{t('previewValues')}</TabsTrigger>
+            <TabsTrigger value="output">{t('previewOutput')}</TabsTrigger>
           </TabsList>
           <TabsContent value="values" className="space-y-2">
             {detectedVariables.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Add {'{{variable}}'} placeholders to enable preview.</p>
+              <p className="text-muted-foreground text-sm">{t('addPlaceholdersHint')}</p>
             ) : (
               detectedVariables.map((variable) => (
                 <div key={variable.name} className="space-y-1">
@@ -313,7 +316,7 @@ export function PromptTemplateEditor({ template, categories, onCancel, onSubmit 
                         id={`preview-boolean-${variable.name}`}
                       />
                       <Label htmlFor={`preview-boolean-${variable.name}`} className="text-sm text-muted-foreground">
-                        Toggle value
+                        {t('toggleValue')}
                       </Label>
                     </div>
                   ) : (
@@ -342,7 +345,7 @@ export function PromptTemplateEditor({ template, categories, onCancel, onSubmit 
               aria-label="template-preview-output"
             />
             {preview.missing.length > 0 && (
-              <p className="text-xs text-amber-600">Missing: {preview.missing.join(', ')}</p>
+              <p className="text-xs text-amber-600">{t('missingVariables', { variables: preview.missing.join(', ') })}</p>
             )}
           </TabsContent>
         </Tabs>
@@ -351,10 +354,10 @@ export function PromptTemplateEditor({ template, categories, onCancel, onSubmit 
       <div className="flex items-center justify-end gap-2 pt-2">
         {onCancel && (
           <Button variant="ghost" onClick={onCancel}>
-            Cancel
+            {t('cancel')}
           </Button>
         )}
-        <Button onClick={handleSubmit}>{template ? 'Save' : 'Create template'}</Button>
+        <Button onClick={handleSubmit}>{template ? t('save') : t('createTemplateBtn')}</Button>
       </div>
     </div>
   );

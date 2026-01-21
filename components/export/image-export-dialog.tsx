@@ -53,20 +53,20 @@ type ThemeOption = 'light' | 'dark' | 'system';
 type FormatOption = 'png' | 'jpg' | 'webp';
 type ScaleOption = 1 | 2 | 3;
 
-const THEME_OPTIONS: { value: ThemeOption; label: string; icon: React.ReactNode }[] = [
-  { value: 'light', label: '浅色', icon: <Sun className="h-4 w-4" /> },
-  { value: 'dark', label: '深色', icon: <Moon className="h-4 w-4" /> },
-  { value: 'system', label: '跟随系统', icon: <Monitor className="h-4 w-4" /> },
+const THEME_OPTIONS: { value: ThemeOption; labelKey: string; icon: React.ReactNode }[] = [
+  { value: 'light', labelKey: 'lightTheme', icon: <Sun className="h-4 w-4" /> },
+  { value: 'dark', labelKey: 'darkTheme', icon: <Moon className="h-4 w-4" /> },
+  { value: 'system', labelKey: 'systemTheme', icon: <Monitor className="h-4 w-4" /> },
 ];
 
-const SCALE_OPTIONS: { value: ScaleOption; label: string }[] = [
-  { value: 1, label: '1x (标准)' },
-  { value: 2, label: '2x (高清)' },
-  { value: 3, label: '3x (超清)' },
+const SCALE_OPTIONS: { value: ScaleOption; labelKey: string }[] = [
+  { value: 1, labelKey: 'scale1x' },
+  { value: 2, labelKey: 'scale2x' },
+  { value: 3, labelKey: 'scale3x' },
 ];
 
 export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) {
-  const _t = useTranslations('export');
+  const t = useTranslations('export');
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -139,15 +139,15 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
         showTimestamps,
         showModel,
       });
-      toast.success('图片已导出');
+      toast.success(t('imageExported'));
       setOpen(false);
     } catch (error) {
       console.error('Export failed:', error);
-      toast.error('导出失败，请重试');
+      toast.error(t('exportFailed'));
     } finally {
       setIsExporting(false);
     }
-  }, [session, messages, maxMessages, format, theme, scale, quality, includeHeader, includeFooter, showTimestamps, showModel]);
+  }, [session, messages, maxMessages, format, theme, scale, quality, includeHeader, includeFooter, showTimestamps, showModel, t]);
 
   // Handle copy to clipboard
   const handleCopy = useCallback(async () => {
@@ -166,18 +166,18 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
 
       if (success) {
         setCopied(true);
-        toast.success('图片已复制到剪贴板');
+        toast.success(t('imageCopied'));
         setTimeout(() => setCopied(false), 2000);
       } else {
-        toast.error('复制失败，请尝试下载');
+        toast.error(t('copyFailedTryDownload'));
       }
     } catch (error) {
       console.error('Copy failed:', error);
-      toast.error('复制失败');
+      toast.error(t('copyFailed'));
     } finally {
       setIsCopying(false);
     }
-  }, [session, messages, maxMessages, theme, scale, includeHeader, includeFooter, showTimestamps, showModel]);
+  }, [session, messages, maxMessages, theme, scale, includeHeader, includeFooter, showTimestamps, showModel, t]);
 
   const estimatedSize = estimateImageSize(Math.min(messages.length, maxMessages), {
     format,
@@ -191,7 +191,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
         {trigger || (
           <Button variant="outline" size="sm">
             <ImageIcon className="h-4 w-4 mr-2" />
-            导出图片
+            {t('exportImage')}
           </Button>
         )}
       </DialogTrigger>
@@ -199,10 +199,10 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ImageIcon className="h-5 w-5" />
-            导出为图片
+            {t('exportAsImage')}
           </DialogTitle>
           <DialogDescription>
-            将对话导出为图片，方便分享到社交媒体
+            {t('exportImageDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -214,7 +214,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
           <div className="grid gap-6">
             {/* Preview */}
             <div className="space-y-2">
-              <Label>预览</Label>
+              <Label>{t('imagePreview')}</Label>
               <div className="relative rounded-lg border bg-muted/50 p-4 flex items-center justify-center min-h-[200px]">
                 {isGeneratingPreview ? (
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -227,7 +227,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
                 ) : (
                   <div className="text-center text-muted-foreground">
                     <ImageIcon className="h-12 w-12 mx-auto mb-2" />
-                    <p className="text-sm">预览将在这里显示</p>
+                    <p className="text-sm">{t('previewPlaceholder')}</p>
                   </div>
                 )}
               </div>
@@ -236,7 +236,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
             <div className="grid gap-4 sm:grid-cols-2">
               {/* Format */}
               <div className="space-y-2">
-                <Label>格式</Label>
+                <Label>{t('imageFormatType')}</Label>
                 <RadioGroup
                   value={format}
                   onValueChange={(v) => setFormat(v as FormatOption)}
@@ -262,25 +262,25 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
 
               {/* Theme */}
               <div className="space-y-2">
-                <Label>主题</Label>
+                <Label>{t('imageTheme')}</Label>
                 <RadioGroup
                   value={theme}
                   onValueChange={(v) => setTheme(v as ThemeOption)}
                   className="flex gap-2"
                 >
-                  {THEME_OPTIONS.map((t) => (
-                    <div key={t.value} className="flex items-center">
-                      <RadioGroupItem value={t.value} id={`theme-${t.value}`} className="peer sr-only" />
+                  {THEME_OPTIONS.map((themeOpt) => (
+                    <div key={themeOpt.value} className="flex items-center">
+                      <RadioGroupItem value={themeOpt.value} id={`theme-${themeOpt.value}`} className="peer sr-only" />
                       <Label
-                        htmlFor={`theme-${t.value}`}
+                        htmlFor={`theme-${themeOpt.value}`}
                         className={cn(
                           'flex items-center gap-1 px-3 py-2 rounded-lg border cursor-pointer transition-colors',
                           'peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10',
                           'hover:bg-muted'
                         )}
                       >
-                        {t.icon}
-                        <span className="text-xs">{t.label}</span>
+                        {themeOpt.icon}
+                        <span className="text-xs">{t(themeOpt.labelKey)}</span>
                       </Label>
                     </div>
                   ))}
@@ -290,7 +290,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
 
             {/* Scale */}
             <div className="space-y-2">
-              <Label>分辨率</Label>
+              <Label>{t('imageScale')}</Label>
               <RadioGroup
                 value={String(scale)}
                 onValueChange={(v) => setScale(Number(v) as ScaleOption)}
@@ -307,7 +307,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
                         'hover:bg-muted'
                       )}
                     >
-                      {s.label}
+                      {t(s.labelKey)}
                     </Label>
                   </div>
                 ))}
@@ -318,7 +318,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
             {format !== 'png' && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>质量</Label>
+                  <Label>{t('imageQuality')}</Label>
                   <span className="text-sm text-muted-foreground">{quality}%</span>
                 </div>
                 <Slider
@@ -335,7 +335,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <Label htmlFor="include-header" className="text-sm font-normal">
-                  包含标题头
+                  {t('includeHeader')}
                 </Label>
                 <Switch
                   id="include-header"
@@ -345,7 +345,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
               </div>
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <Label htmlFor="include-footer" className="text-sm font-normal">
-                  包含页脚
+                  {t('includeFooter')}
                 </Label>
                 <Switch
                   id="include-footer"
@@ -355,7 +355,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
               </div>
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <Label htmlFor="show-timestamps" className="text-sm font-normal">
-                  显示时间戳
+                  {t('showTimestampsOption')}
                 </Label>
                 <Switch
                   id="show-timestamps"
@@ -365,7 +365,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
               </div>
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <Label htmlFor="show-model" className="text-sm font-normal">
-                  显示模型信息
+                  {t('showModelOption')}
                 </Label>
                 <Switch
                   id="show-model"
@@ -377,8 +377,8 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
 
             {/* Info */}
             <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>共 {messages.length} 条消息（最多导出 {maxMessages} 条）</span>
-              <Badge variant="outline">预估大小: {estimatedSize}</Badge>
+              <span>{t('messageCountLimit', { count: messages.length, max: maxMessages })}</span>
+              <Badge variant="outline">{t('estimatedSize')}: {estimatedSize}</Badge>
             </div>
 
             {/* Actions */}
@@ -396,7 +396,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
                 ) : (
                   <Copy className="h-4 w-4 mr-2" />
                 )}
-                {copied ? '已复制' : '复制图片'}
+                {copied ? t('copied') : t('copyImageBtn')}
               </Button>
               <Button
                 onClick={handleExport}
@@ -408,7 +408,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
                 ) : (
                   <Download className="h-4 w-4 mr-2" />
                 )}
-                {isExporting ? '导出中...' : `下载 ${format.toUpperCase()}`}
+                {isExporting ? t('exportingImage') : t('downloadFormat', { format: format.toUpperCase() })}
               </Button>
             </div>
           </div>

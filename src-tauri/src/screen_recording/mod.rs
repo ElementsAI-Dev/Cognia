@@ -7,10 +7,21 @@
 //! - Audio capture (system and microphone)
 //! - Video trimming and export
 
+pub mod error;
+pub mod ffmpeg;
 mod history;
+pub mod progress;
 mod recorder;
+pub mod storage;
 mod video_processor;
 
+#[allow(unused_imports)]
+pub use error::{RecordingError, RecordingErrorCode};
+pub use ffmpeg::{FFmpegInfo, FFmpegInstallGuide, HardwareAcceleration};
+#[allow(unused_imports)]
+pub use progress::VideoProcessingProgress;
+#[allow(unused_imports)]
+pub use storage::{CleanupResult, StorageConfig, StorageFile, StorageManager, StorageStats};
 pub use history::{RecordingHistory, RecordingHistoryEntry};
 pub use recorder::ScreenRecorder;
 pub use video_processor::{

@@ -4,6 +4,7 @@
  * PromptMarketplaceCategoryNav - Category navigation for marketplace
  */
 
+import { useTranslations } from 'next-intl';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -20,6 +21,8 @@ export function PromptMarketplaceCategoryNav({
   onSelect,
   showCounts,
 }: PromptMarketplaceCategoryNavProps) {
+  const t = useTranslations('promptMarketplace.category');
+  
   return (
     <ScrollArea className="w-full whitespace-nowrap">
       <div className="flex items-center gap-2 pb-2">
@@ -31,7 +34,7 @@ export function PromptMarketplaceCategoryNav({
           onClick={() => onSelect('all')}
         >
           <span>🌐</span>
-          <span>All</span>
+          <span>{t('all')}</span>
           {showCounts && showCounts['all'] !== undefined && (
             <span className="text-xs opacity-70">({showCounts['all']})</span>
           )}

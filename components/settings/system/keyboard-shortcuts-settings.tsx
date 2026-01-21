@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Keyboard, RotateCcw, Edit2, Check, X } from 'lucide-react';
+import { Keyboard, RotateCcw, Edit2, Check, X, AlertCircle } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useSettingsStore } from '@/stores';
+import { validateShortcut } from '@/lib/native/shortcuts';
+import type { ShortcutValidationResult } from '@/types/shortcut';
 import { cn } from '@/lib/utils';
 
 interface ShortcutDefinition {
@@ -48,31 +50,27 @@ const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
   { id: 'editLastMessage', labelKey: 'editLastMessage', defaultLabel: 'Edit Last Message', defaultKey: 'Ctrl+Shift+E', category: 'editing' },
 ];
 
-const CATEGORY_LABELS: Record<string, { en: string; zh: string }> = {
-  chat: { en: 'Chat', zh: '聊天' },
-  navigation: { en: 'Navigation', zh: '导航' },
-  editing: { en: 'Editing', zh: '编辑' },
-};
 
 function ShortcutItem({
   shortcut,
   customKey,
   onEdit,
-  language,
+  t,
 }: {
   shortcut: ShortcutDefinition;
   customKey?: string;
   onEdit: (id: string, key: string) => void;
-  language: string;
+  t: ReturnType<typeof useTranslations>;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [recordedKeys, setRecordedKeys] = useState<string[]>([]);
+  const [validation, setValidation] = useState<ShortcutValidationResult | null>(null);
 
   const currentKey = customKey || shortcut.defaultKey;
   const isCustomized = customKey && customKey !== shortcut.defaultKey;
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback(async (e: React.KeyboardEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -91,23 +89,34 @@ function ShortcutItem({
 
     if (keys.length > 0) {
       setRecordedKeys(keys);
-      setInputValue(keys.join('+'));
+      const shortcutStr = keys.join('+');
+      setInputValue(shortcutStr);
+      
+      // Validate shortcut in real-time
+      try {
+        const result = await validateShortcut(shortcutStr, 'keyboard-settings', shortcut.defaultLabel);
+        setValidation(result);
+      } catch (error) {
+        console.error('Validation error:', error);
+      }
     }
-  }, []);
+  }, [shortcut.defaultLabel]);
 
   const handleSave = () => {
-    if (recordedKeys.length > 0) {
+    if (recordedKeys.length > 0 && validation?.valid) {
       onEdit(shortcut.id, recordedKeys.join('+'));
     }
     setIsEditing(false);
     setRecordedKeys([]);
     setInputValue('');
+    setValidation(null);
   };
 
   const handleCancel = () => {
     setIsEditing(false);
     setRecordedKeys([]);
     setInputValue('');
+    setValidation(null);
   };
 
   const handleStartEdit = () => {
@@ -120,10 +129,10 @@ function ShortcutItem({
     <div className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50">
       <div className="flex-1">
         <span className={cn('text-sm', isCustomized && 'font-medium')}>
-          {shortcut.defaultLabel}
+          {t(`shortcuts.${shortcut.labelKey}`)}
         </span>
         {isCustomized && (
-          <span className="ml-2 text-xs text-primary">(customized)</span>
+          <span className="ml-2 text-xs text-primary">({t('customized')})</span>
         )}
       </div>
       
@@ -132,19 +141,18 @@ function ShortcutItem({
           <Input
             value={inputValue}
             onKeyDown={handleKeyDown}
-            placeholder={language === 'zh-CN' ? '按下快捷键...' : 'Press keys...'}
+            placeholder={t('pressKeys')}
             className="h-7 w-32 text-xs text-center"
             autoFocus
             readOnly
           />
           <Button
             variant="ghost"
-            size="icon"
-            className="h-6 w-6"
+            size="sm"
             onClick={handleSave}
-            disabled={recordedKeys.length === 0}
+            disabled={recordedKeys.length === 0 || !validation?.valid}
           >
-            <Check className="h-3.5 w-3.5 text-green-600" />
+            <Check className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
@@ -170,13 +178,28 @@ function ShortcutItem({
           </Button>
         </div>
       )}
+      
+      {isEditing && validation && !validation.valid && (
+        <div className="mt-2 flex items-start gap-2 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <div className="space-y-1">
+            {validation.errors?.map((error, i) => (
+              <div key={i}>{error}</div>
+            ))}
+            {validation.conflict && (
+              <div>
+                Conflicts with: {validation.conflict.existingAction} ({validation.conflict.existingOwner})
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export function KeyboardShortcutsSettings() {
-  const t = useTranslations('settings');
-  const language = useSettingsStore((state) => state.language);
+  const t = useTranslations('keyboardSettings');
   const customShortcuts = useSettingsStore((state) => state.customShortcuts);
   const setCustomShortcut = useSettingsStore((state) => state.setCustomShortcut);
   const resetShortcuts = useSettingsStore((state) => state.resetShortcuts);
@@ -204,7 +227,7 @@ export function KeyboardShortcutsSettings() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Keyboard className="h-5 w-5" />
-            <CardTitle>{t('keyboardShortcuts') || 'Keyboard Shortcuts'}</CardTitle>
+            <CardTitle>{t('title')}</CardTitle>
           </div>
           <Button
             variant="ghost"
@@ -213,18 +236,18 @@ export function KeyboardShortcutsSettings() {
             className="text-muted-foreground"
           >
             <RotateCcw className="h-4 w-4 mr-2" />
-            {t('resetToDefaults') || 'Reset'}
+            {t('resetAll')}
           </Button>
         </div>
         <CardDescription>
-          {t('keyboardShortcutsDescription') || 'Customize keyboard shortcuts for common actions'}
+          {t('description')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {Object.entries(groupedShortcuts).map(([category, shortcuts]) => (
           <div key={category} className="space-y-2">
             <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-              {CATEGORY_LABELS[category]?.[language === 'zh-CN' ? 'zh' : 'en'] || category}
+              {t(`categories.${category}`)}
             </Label>
             <div className="rounded-lg border divide-y">
               {shortcuts.map((shortcut) => (
@@ -233,7 +256,7 @@ export function KeyboardShortcutsSettings() {
                     shortcut={shortcut}
                     customKey={customShortcuts[shortcut.id]}
                     onEdit={handleEditShortcut}
-                    language={language}
+                    t={t}
                   />
                 </div>
               ))}
@@ -242,9 +265,7 @@ export function KeyboardShortcutsSettings() {
         ))}
 
         <p className="text-xs text-muted-foreground">
-          {language === 'zh-CN' 
-            ? '提示：点击编辑按钮，然后按下新的快捷键组合'
-            : 'Tip: Click edit, then press the new key combination'}
+          {t('editTip')}
         </p>
       </CardContent>
     </Card>

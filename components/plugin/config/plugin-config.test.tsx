@@ -172,8 +172,8 @@ describe('PluginConfig', () => {
     
     const buttons = screen.getAllByTestId('button');
     const buttonTexts = buttons.map(b => b.textContent);
-    expect(buttonTexts).toContain(expect.stringContaining('Save'));
-    expect(buttonTexts).toContain(expect.stringContaining('Reset'));
+    expect(buttonTexts.some(t => t?.includes('Save'))).toBe(true);
+    expect(buttonTexts.some(t => t?.includes('Reset'))).toBe(true);
   });
 
   it('should show no permissions message when plugin has no permissions', () => {

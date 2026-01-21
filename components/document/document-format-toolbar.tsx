@@ -112,27 +112,27 @@ export interface DocumentFormatToolbarProps {
 }
 
 const FONT_COLORS = [
-  { name: 'Black', value: '#000000' },
-  { name: 'Dark Gray', value: '#333333' },
-  { name: 'Gray', value: '#666666' },
-  { name: 'Red', value: '#DC2626' },
-  { name: 'Orange', value: '#EA580C' },
-  { name: 'Yellow', value: '#CA8A04' },
-  { name: 'Green', value: '#16A34A' },
-  { name: 'Blue', value: '#2563EB' },
-  { name: 'Purple', value: '#7C3AED' },
-  { name: 'Pink', value: '#DB2777' },
+  { nameKey: 'black', value: '#000000' },
+  { nameKey: 'darkGray', value: '#333333' },
+  { nameKey: 'gray', value: '#666666' },
+  { nameKey: 'red', value: '#DC2626' },
+  { nameKey: 'orange', value: '#EA580C' },
+  { nameKey: 'yellow', value: '#CA8A04' },
+  { nameKey: 'green', value: '#16A34A' },
+  { nameKey: 'blue', value: '#2563EB' },
+  { nameKey: 'purple', value: '#7C3AED' },
+  { nameKey: 'pink', value: '#DB2777' },
 ];
 
 const HIGHLIGHT_COLORS = [
-  { name: 'None', value: '' },
-  { name: 'Yellow', value: '#FEF08A' },
-  { name: 'Green', value: '#BBF7D0' },
-  { name: 'Blue', value: '#BFDBFE' },
-  { name: 'Purple', value: '#DDD6FE' },
-  { name: 'Pink', value: '#FBCFE8' },
-  { name: 'Orange', value: '#FED7AA' },
-  { name: 'Gray', value: '#E5E7EB' },
+  { nameKey: 'none', value: '' },
+  { nameKey: 'yellow', value: '#FEF08A' },
+  { nameKey: 'green', value: '#BBF7D0' },
+  { nameKey: 'blue', value: '#BFDBFE' },
+  { nameKey: 'purple', value: '#DDD6FE' },
+  { nameKey: 'pink', value: '#FBCFE8' },
+  { nameKey: 'orange', value: '#FED7AA' },
+  { nameKey: 'gray', value: '#E5E7EB' },
 ];
 
 interface ToolbarButtonProps {
@@ -333,7 +333,7 @@ export function DocumentFormatToolbar({
                     )}
                     style={{ backgroundColor: color.value }}
                     onClick={() => onFontColorChange?.(color.value)}
-                    title={color.name}
+                    title={t(`colors.${color.nameKey}`)}
                   />
                 ))}
               </div>
@@ -369,7 +369,7 @@ export function DocumentFormatToolbar({
                     )}
                     style={{ backgroundColor: color.value || '#ffffff' }}
                     onClick={() => onHighlightColorChange?.(color.value)}
-                    title={color.name}
+                    title={t(`colors.${color.nameKey}`)}
                   >
                     {!color.value && (
                       <span className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">✕</span>
@@ -766,7 +766,7 @@ export function DocumentFormatToolbar({
                   )}
                   style={{ backgroundColor: color.value }}
                   onClick={() => { onFontColorChange?.(color.value); setIsMoreOpen(false); }}
-                  title={color.name}
+                  title={t(`colors.${color.nameKey}`)}
                 />
               ))}
             </div>
@@ -787,7 +787,7 @@ export function DocumentFormatToolbar({
                   )}
                   style={{ backgroundColor: color.value || '#ffffff' }}
                   onClick={() => { onHighlightColorChange?.(color.value); setIsMoreOpen(false); }}
-                  title={color.name}
+                  title={t(`colors.${color.nameKey}`)}
                 >
                   {!color.value && (
                     <span className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">✕</span>

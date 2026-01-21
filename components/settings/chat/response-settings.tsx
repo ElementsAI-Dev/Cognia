@@ -29,27 +29,27 @@ import {
 } from '@/components/ui/select';
 import { useSettingsStore, type CodeTheme, type FontFamily } from '@/stores';
 
-const CODE_THEMES: { value: CodeTheme; label: string }[] = [
-  { value: 'github-dark', label: 'GitHub Dark' },
-  { value: 'github-light', label: 'GitHub Light' },
-  { value: 'monokai', label: 'Monokai' },
-  { value: 'dracula', label: 'Dracula' },
-  { value: 'nord', label: 'Nord' },
-  { value: 'one-dark', label: 'One Dark' },
+const CODE_THEME_KEYS: { value: CodeTheme; labelKey: string }[] = [
+  { value: 'github-dark', labelKey: 'codeTheme.githubDark' },
+  { value: 'github-light', labelKey: 'codeTheme.githubLight' },
+  { value: 'monokai', labelKey: 'codeTheme.monokai' },
+  { value: 'dracula', labelKey: 'codeTheme.dracula' },
+  { value: 'nord', labelKey: 'codeTheme.nord' },
+  { value: 'one-dark', labelKey: 'codeTheme.oneDark' },
 ];
 
-const FONT_FAMILIES: { value: FontFamily; label: string }[] = [
-  { value: 'system', label: 'System Default' },
-  { value: 'inter', label: 'Inter' },
-  { value: 'roboto', label: 'Roboto' },
-  { value: 'fira-code', label: 'Fira Code' },
-  { value: 'jetbrains-mono', label: 'JetBrains Mono' },
+const FONT_FAMILY_KEYS: { value: FontFamily; labelKey: string }[] = [
+  { value: 'system', labelKey: 'fontFamily.system' },
+  { value: 'inter', labelKey: 'fontFamily.inter' },
+  { value: 'roboto', labelKey: 'fontFamily.roboto' },
+  { value: 'fira-code', labelKey: 'fontFamily.firaCode' },
+  { value: 'jetbrains-mono', labelKey: 'fontFamily.jetbrainsMono' },
 ];
 
 /**
  * MathPreview - Live preview of math rendering with current settings
  */
-function MathPreview({ scale, alignment }: { scale: number; alignment: 'center' | 'left' }) {
+function MathPreview({ scale, alignment, previewLabel }: { scale: number; alignment: 'center' | 'left'; previewLabel: string }) {
   const sampleMath = useMemo(() => {
     try {
       return katex.renderToString('E = mc^2 \\quad \\text{and} \\quad \\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}', {
@@ -57,13 +57,13 @@ function MathPreview({ scale, alignment }: { scale: number; alignment: 'center' 
         throwOnError: false,
       });
     } catch {
-      return '<span>Preview unavailable</span>';
+      return '';
     }
   }, []);
 
   return (
     <div className="p-3 rounded-lg border bg-muted/30">
-      <p className="text-xs text-muted-foreground mb-2">Preview:</p>
+      <p className="text-xs text-muted-foreground mb-2">{previewLabel}</p>
       <div
         className="overflow-x-auto py-1"
         style={{
@@ -139,9 +139,9 @@ export function ResponseSettings() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CODE_THEMES.map((theme) => (
+                  {CODE_THEME_KEYS.map((theme) => (
                     <SelectItem key={theme.value} value={theme.value} className="text-xs">
-                      {theme.label}
+                      {t(theme.labelKey)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -154,9 +154,9 @@ export function ResponseSettings() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {FONT_FAMILIES.map((font) => (
+                  {FONT_FAMILY_KEYS.map((font) => (
                     <SelectItem key={font.value} value={font.value} className="text-xs">
-                      {font.label}
+                      {t(font.labelKey)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -315,7 +315,7 @@ export function ResponseSettings() {
 
           {/* Math Preview */}
           {enableMathRendering && (
-            <MathPreview scale={mathFontScale} alignment={mathDisplayAlignment} />
+            <MathPreview scale={mathFontScale} alignment={mathDisplayAlignment} previewLabel={t('previewLabel')} />
           )}
         </CardContent>
       </Card>
@@ -344,10 +344,10 @@ export function ResponseSettings() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="default" className="text-xs">Default</SelectItem>
-                  <SelectItem value="dark" className="text-xs">Dark</SelectItem>
-                  <SelectItem value="forest" className="text-xs">Forest</SelectItem>
-                  <SelectItem value="neutral" className="text-xs">Neutral</SelectItem>
+                  <SelectItem value="default" className="text-xs">{t('mermaidThemeOption.default')}</SelectItem>
+                  <SelectItem value="dark" className="text-xs">{t('mermaidThemeOption.dark')}</SelectItem>
+                  <SelectItem value="forest" className="text-xs">{t('mermaidThemeOption.forest')}</SelectItem>
+                  <SelectItem value="neutral" className="text-xs">{t('mermaidThemeOption.neutral')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -362,10 +362,10 @@ export function ResponseSettings() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="default" className="text-xs">Default</SelectItem>
-                  <SelectItem value="dark" className="text-xs">Dark</SelectItem>
-                  <SelectItem value="excel" className="text-xs">Excel</SelectItem>
-                  <SelectItem value="fivethirtyeight" className="text-xs">FiveThirtyEight</SelectItem>
+                  <SelectItem value="default" className="text-xs">{t('vegaLiteThemeOption.default')}</SelectItem>
+                  <SelectItem value="dark" className="text-xs">{t('vegaLiteThemeOption.dark')}</SelectItem>
+                  <SelectItem value="excel" className="text-xs">{t('vegaLiteThemeOption.excel')}</SelectItem>
+                  <SelectItem value="fivethirtyeight" className="text-xs">{t('vegaLiteThemeOption.fiveThirtyEight')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -19,7 +19,8 @@
     "previous": "上一个",
     "next": "下一个",
     "preview": "预览",
-    "clear": "清除"
+    "clear": "清除",
+    "dismiss": "关闭"
   },
   "toasts": {
     "copied": "已复制到剪贴板",
@@ -56,7 +57,10 @@
     "wordExported": "已导出为 Word",
     "csvExported": "已导出为 CSV",
     "knowledgeMapGenerated": "知识地图已生成",
-    "highlighted": "文本已高亮"
+    "highlighted": "文本已高亮",
+    "linkedToProject": "已链接到项目",
+    "unlinkedFromProject": "已从项目取消链接",
+    "movedToProject": "已移动到项目"
   },
   "accessibility": {
     "toggleSidebar": "切换侧边栏",

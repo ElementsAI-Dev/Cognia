@@ -5,7 +5,9 @@
 import { z } from 'zod';
 import {
   readTextFile,
+  readBinaryFile,
   writeTextFile,
+  writeBinaryFile,
   listDirectory,
   exists,
   deleteFile,
@@ -16,6 +18,7 @@ import {
   searchFiles,
   appendTextFile,
   isInTauri,
+  FileErrorCode,
 } from '@/lib/file/file-operations';
 
 export const fileReadInputSchema = z.object({
@@ -96,8 +99,19 @@ export const fileAppendInputSchema = z.object({
   content: z.string().describe('The content to append to the file'),
 });
 
+export const fileBinaryWriteInputSchema = z.object({
+  path: z.string().describe('The absolute path to the file to write'),
+  data: z.string().describe('Base64-encoded binary data to write'),
+  createDirectories: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Whether to create parent directories if they do not exist'),
+});
+
 export type FileReadInput = z.infer<typeof fileReadInputSchema>;
 export type FileWriteInput = z.infer<typeof fileWriteInputSchema>;
+export type FileBinaryWriteInput = z.infer<typeof fileBinaryWriteInputSchema>;
 export type FileListInput = z.infer<typeof fileListInputSchema>;
 export type FileExistsInput = z.infer<typeof fileExistsInputSchema>;
 export type FileDeleteInput = z.infer<typeof fileDeleteInputSchema>;
@@ -483,6 +497,53 @@ export async function executeFileAppend(
 }
 
 /**
+ * Execute binary file write operation
+ */
+export async function executeBinaryWrite(
+  input: FileBinaryWriteInput
+): Promise<FileToolResult> {
+  if (!isInTauri()) {
+    return {
+      success: false,
+      error: 'File operations are only available in the desktop app',
+    };
+  }
+
+  try {
+    // Decode base64 data to Uint8Array
+    const binaryString = atob(input.data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    const result = await writeBinaryFile(input.path, bytes, {
+      createDirectories: input.createDirectories,
+    });
+    
+    if (result.success) {
+      return {
+        success: true,
+        data: {
+          path: result.path,
+          bytesWritten: result.bytesWritten,
+        },
+      };
+    }
+    
+    return {
+      success: false,
+      error: result.error,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to write binary file',
+    };
+  }
+}
+
+/**
  * File tool definitions for AI agents
  */
 export const fileTools = {
@@ -574,6 +635,14 @@ export const fileTools = {
     description: 'Append content to the end of an existing file. Creates the file if it does not exist.',
     parameters: fileAppendInputSchema,
     execute: executeFileAppend,
+    requiresApproval: true,
+    category: 'file' as const,
+  },
+  file_binary_write: {
+    name: 'file_binary_write',
+    description: 'Write binary data to a file on the local file system. Use this to save images, audio, video, or other binary files. Data must be base64-encoded.',
+    parameters: fileBinaryWriteInputSchema,
+    execute: executeBinaryWrite,
     requiresApproval: true,
     category: 'file' as const,
   },

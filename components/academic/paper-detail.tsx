@@ -46,11 +46,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAcademic } from '@/hooks/academic';
+import { CitationGraph } from '@/components/academic/citation-graph';
 import { cn } from '@/lib/utils';
 import type {
   LibraryPaper,
   PaperReadingStatus,
   PaperAnalysisType,
+  PaperAnalysisResult,
 } from '@/types/learning/academic';
 
 const ANALYSIS_TYPES: { value: PaperAnalysisType; label: string; description: string }[] = [
@@ -94,6 +96,10 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
     startGuidedLearning,
     addToCollection,
     collections,
+    addTag,
+    removeTag,
+    saveAnalysisResult,
+    getAnalysisHistory,
   } = useAcademic();
 
   const [activeTab, setActiveTab] = useState('overview');
@@ -104,6 +110,10 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
   const [selectedAnalysisType, setSelectedAnalysisType] = useState<PaperAnalysisType>('summary');
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showAnalysisHistory, setShowAnalysisHistory] = useState(false);
+  
+  // Get analysis history for this paper
+  const analysisHistory = paper ? getAnalysisHistory(paper.id) : [];
 
   const handleCopyDoi = useCallback(async () => {
     if (paper?.metadata?.doi) {
@@ -135,12 +145,21 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
     try {
       const result = await analyzePaper(paper.id, selectedAnalysisType);
       setAnalysisResult(result);
+      
+      // Save analysis result to history
+      const analysisResultObj: PaperAnalysisResult = {
+        paperId: paper.id,
+        analysisType: selectedAnalysisType,
+        content: result,
+        createdAt: new Date(),
+      };
+      saveAnalysisResult(paper.id, analysisResultObj);
     } catch (error) {
       console.error('Analysis failed:', error);
     } finally {
       setIsAnalyzing(false);
     }
-  }, [paper, selectedAnalysisType, analyzePaper]);
+  }, [paper, selectedAnalysisType, analyzePaper, saveAnalysisResult]);
 
   const handleDownloadPdf = useCallback(async () => {
     if (paper?.pdfUrl) {
@@ -426,8 +445,14 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                   </h4>
                   <div className="flex flex-wrap gap-1">
                     {paper.tags?.map((tag, idx) => (
-                      <Badge key={idx} variant="outline" className="text-xs">
+                      <Badge 
+                        key={idx} 
+                        variant="outline" 
+                        className="text-xs cursor-pointer hover:bg-destructive/10 group"
+                        onClick={() => removeTag(paper.id, tag)}
+                      >
                         {tag}
+                        <span className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity">×</span>
                       </Badge>
                     ))}
                     <div className="flex items-center gap-1">
@@ -436,9 +461,9 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                         value={newTag}
                         onChange={(e) => setNewTag(e.target.value)}
                         className="h-6 w-24 text-xs"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && newTag.trim()) {
-                            // Add tag logic
+                        onKeyDown={async (e) => {
+                          if (e.key === 'Enter' && newTag.trim() && paper) {
+                            await addTag(paper.id, newTag.trim());
                             setNewTag('');
                           }
                         }}
@@ -507,15 +532,59 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                       <pre className="text-sm whitespace-pre-wrap">{analysisResult}</pre>
                     </div>
                   )}
+                  
+                  {/* Analysis History */}
+                  {analysisHistory.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowAnalysisHistory(!showAnalysisHistory)}
+                        className="w-full justify-between"
+                      >
+                        <span className="text-sm font-medium">Analysis History ({analysisHistory.length})</span>
+                        {showAnalysisHistory ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </Button>
+                      
+                      {showAnalysisHistory && (
+                        <div className="space-y-2 max-h-60 overflow-y-auto">
+                          {analysisHistory.map((item, idx) => (
+                            <div
+                              key={idx}
+                              className="p-3 border rounded-lg cursor-pointer hover:bg-accent/50 transition-colors"
+                              onClick={() => setAnalysisResult(item.content)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <Badge variant="outline" className="text-xs">
+                                  {item.analysisType}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(item.createdAt).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                {item.content.slice(0, 100)}...
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </TabsContent>
 
               <TabsContent value="citations" className="space-y-4 mt-4">
-                <div className="text-center text-muted-foreground py-8">
-                  <Quote className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>Citation network coming soon</p>
-                  <p className="text-sm mt-1">View papers that cite this work and references</p>
-                </div>
+                <CitationGraph 
+                  paper={paper}
+                  onPaperClick={(paperId: string, title: string) => {
+                    console.log('View paper:', paperId, title);
+                  }}
+                />
               </TabsContent>
             </Tabs>
           </div>

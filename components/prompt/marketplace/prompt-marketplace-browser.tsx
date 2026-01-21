@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Search,
   SlidersHorizontal,
@@ -63,6 +64,8 @@ export function PromptMarketplaceBrowser({
   defaultTab = 'browse',
   onInstall,
 }: PromptMarketplaceBrowserProps) {
+  const t = useTranslations('promptMarketplace');
+  
   // Store state
   const prompts = usePromptMarketplaceStore(state => Object.values(state.prompts));
   const featuredIds = usePromptMarketplaceStore(state => state.featuredIds);
@@ -184,11 +187,11 @@ export function PromptMarketplaceBrowser({
           <TabsList>
             <TabsTrigger value="browse" className="gap-1.5">
               <Package className="h-4 w-4" />
-              Browse
+              {t('tabs.browse')}
             </TabsTrigger>
             <TabsTrigger value="installed" className="gap-1.5">
               <Download className="h-4 w-4" />
-              Installed
+              {t('tabs.installed')}
               {installedPrompts.length > 0 && (
                 <Badge variant="secondary" className="ml-1 h-5 px-1.5">
                   {installedPrompts.length}
@@ -197,7 +200,7 @@ export function PromptMarketplaceBrowser({
             </TabsTrigger>
             <TabsTrigger value="favorites" className="gap-1.5">
               <Heart className="h-4 w-4" />
-              Favorites
+              {t('tabs.favorites')}
               {favoriteIds.length > 0 && (
                 <Badge variant="secondary" className="ml-1 h-5 px-1.5">
                   {favoriteIds.length}
@@ -206,7 +209,7 @@ export function PromptMarketplaceBrowser({
             </TabsTrigger>
             <TabsTrigger value="recent" className="gap-1.5">
               <History className="h-4 w-4" />
-              Recent
+              {t('tabs.recent')}
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -219,7 +222,7 @@ export function PromptMarketplaceBrowser({
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search prompts..."
+                  placeholder={t('search.placeholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9"
@@ -229,13 +232,13 @@ export function PromptMarketplaceBrowser({
               {/* Sort */}
               <Select value={sortBy} onValueChange={(v) => setSortBy(v as MarketplaceSearchFilters['sortBy'])}>
                 <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Sort by" />
+                  <SelectValue placeholder={t('sort.placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="downloads">Most Downloads</SelectItem>
-                  <SelectItem value="rating">Highest Rated</SelectItem>
-                  <SelectItem value="trending">Trending</SelectItem>
-                  <SelectItem value="newest">Newest</SelectItem>
+                  <SelectItem value="downloads">{t('sort.downloads')}</SelectItem>
+                  <SelectItem value="rating">{t('sort.rating')}</SelectItem>
+                  <SelectItem value="trending">{t('sort.trending')}</SelectItem>
+                  <SelectItem value="newest">{t('sort.newest')}</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -251,12 +254,12 @@ export function PromptMarketplaceBrowser({
                 </SheetTrigger>
                 <SheetContent>
                   <SheetHeader>
-                    <SheetTitle>Filters</SheetTitle>
+                    <SheetTitle>{t('filters.title')}</SheetTitle>
                   </SheetHeader>
                   <div className="space-y-6 mt-6">
                     {/* Quality Tier */}
                     <div className="space-y-3">
-                      <Label>Quality Tier</Label>
+                      <Label>{t('filters.qualityTier')}</Label>
                       {Object.entries(QUALITY_TIER_INFO).map(([tier, info]) => (
                         <div key={tier} className="flex items-center gap-2">
                           <Checkbox
@@ -276,7 +279,7 @@ export function PromptMarketplaceBrowser({
 
                     {/* Minimum Rating */}
                     <div className="space-y-3">
-                      <Label>Minimum Rating: {minRating > 0 ? `${minRating}+` : 'Any'}</Label>
+                      <Label>{t('filters.minRating')}: {minRating > 0 ? t('filters.minRatingValue', { rating: minRating }) : t('filters.any')}</Label>
                       <Slider
                         value={[minRating]}
                         onValueChange={([v]) => setMinRating(v)}
@@ -285,8 +288,8 @@ export function PromptMarketplaceBrowser({
                         step={0.5}
                       />
                       <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Any</span>
-                        <span>5 stars</span>
+                        <span>{t('filters.any')}</span>
+                        <span>{t('filters.stars')}</span>
                       </div>
                     </div>
 
@@ -300,7 +303,7 @@ export function PromptMarketplaceBrowser({
                       disabled={!hasActiveFilters}
                     >
                       <RefreshCw className="h-4 w-4 mr-2" />
-                      Clear Filters
+                      {t('filters.clearFilters')}
                     </Button>
                   </div>
                 </SheetContent>
@@ -347,7 +350,7 @@ export function PromptMarketplaceBrowser({
                 <section>
                   <div className="flex items-center gap-2 mb-3">
                     <Sparkles className="h-5 w-5 text-yellow-500" />
-                    <h3 className="font-semibold">Featured</h3>
+                    <h3 className="font-semibold">{t('sections.featured')}</h3>
                   </div>
                   <div className={cn(
                     'gap-4',
@@ -371,7 +374,7 @@ export function PromptMarketplaceBrowser({
                 <section>
                   <div className="flex items-center gap-2 mb-3">
                     <TrendingUp className="h-5 w-5 text-orange-500" />
-                    <h3 className="font-semibold">Trending</h3>
+                    <h3 className="font-semibold">{t('sections.trending')}</h3>
                   </div>
                   <div className={cn(
                     'gap-4',
@@ -396,7 +399,7 @@ export function PromptMarketplaceBrowser({
                   <div className="flex items-center gap-2">
                     <Star className="h-5 w-5 text-blue-500" />
                     <h3 className="font-semibold">
-                      {hasActiveFilters ? 'Search Results' : 'All Prompts'}
+                      {hasActiveFilters ? t('search.results') : t('sections.allPrompts')}
                     </h3>
                     <Badge variant="secondary">{displayPrompts.length}</Badge>
                   </div>
@@ -429,10 +432,10 @@ export function PromptMarketplaceBrowser({
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
                     <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No prompts found</p>
+                    <p>{t('search.noResults')}</p>
                     {hasActiveFilters && (
                       <Button variant="link" onClick={clearFilters}>
-                        Clear filters
+                        {t('search.clearFilters')}
                       </Button>
                     )}
                   </div>
@@ -445,7 +448,7 @@ export function PromptMarketplaceBrowser({
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <Download className="h-5 w-5 text-green-500" />
-                <h3 className="font-semibold">Installed Prompts</h3>
+                <h3 className="font-semibold">{t('sections.installedPrompts')}</h3>
                 <Badge variant="secondary">{installedPromptsList.length}</Badge>
               </div>
               {installedPromptsList.length > 0 ? (
@@ -465,9 +468,9 @@ export function PromptMarketplaceBrowser({
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
                   <Download className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No installed prompts yet</p>
+                  <p>{t('empty.noInstalled')}</p>
                   <Button variant="link" onClick={() => setActiveTab('browse')}>
-                    Browse marketplace
+                    {t('empty.browseMarketplace')}
                   </Button>
                 </div>
               )}
@@ -478,7 +481,7 @@ export function PromptMarketplaceBrowser({
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <Heart className="h-5 w-5 text-red-500" />
-                <h3 className="font-semibold">Favorite Prompts</h3>
+                <h3 className="font-semibold">{t('sections.favoritePrompts')}</h3>
                 <Badge variant="secondary">{favoritePrompts.length}</Badge>
               </div>
               {favoritePrompts.length > 0 ? (
@@ -499,9 +502,9 @@ export function PromptMarketplaceBrowser({
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
                   <Heart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No favorite prompts yet</p>
+                  <p>{t('empty.noFavorites')}</p>
                   <Button variant="link" onClick={() => setActiveTab('browse')}>
-                    Browse marketplace
+                    {t('empty.browseMarketplace')}
                   </Button>
                 </div>
               )}
@@ -512,7 +515,7 @@ export function PromptMarketplaceBrowser({
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <History className="h-5 w-5 text-purple-500" />
-                <h3 className="font-semibold">Recently Viewed</h3>
+                <h3 className="font-semibold">{t('sections.recentlyViewed')}</h3>
                 <Badge variant="secondary">{recentlyViewed.length}</Badge>
               </div>
               {recentlyViewed.length > 0 ? (
@@ -533,9 +536,9 @@ export function PromptMarketplaceBrowser({
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
                   <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No recently viewed prompts</p>
+                  <p>{t('empty.noRecent')}</p>
                   <Button variant="link" onClick={() => setActiveTab('browse')}>
-                    Browse marketplace
+                    {t('empty.browseMarketplace')}
                   </Button>
                 </div>
               )}

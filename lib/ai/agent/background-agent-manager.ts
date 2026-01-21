@@ -18,7 +18,7 @@ import {
   AgentOrchestrator,
   type OrchestratorConfig,
 } from './agent-orchestrator';
-import { createMcpToolsFromStore } from './mcp-tools';
+import { createMcpToolsFromStore } from '../tools/mcp-tools';
 import { createRAGSearchTool, buildRAGConfigFromSettings } from './agent-tools';
 import {
   DEFAULT_BACKGROUND_AGENT_CONFIG,

@@ -13,6 +13,7 @@ import { executeAgent, type AgentConfig, type AgentResult, type AgentTool } from
 import type { ProviderName } from '../core/client';
 import {
   DEFAULT_SUB_AGENT_CONFIG,
+  createCancellationToken,
   type SubAgent,
   type SubAgentConfig,
   type SubAgentContext,
@@ -22,7 +23,101 @@ import {
   type SubAgentExecutionOptions,
   type SubAgentOrchestrationResult,
   type CreateSubAgentInput,
+  type CancellationToken,
+  type TokenUsage,
 } from '@/types/agent/sub-agent';
+
+/**
+ * Execution metrics collector for analytics
+ */
+interface ExecutionMetricsCollector {
+  startTime: number;
+  stepCount: number;
+  totalTokens: number;
+  retryCount: number;
+}
+
+/**
+ * Create a timeout promise with proper cleanup
+ */
+function createTimeoutPromise(
+  timeout: number,
+  cancellationToken?: CancellationToken
+): { promise: Promise<never>; cleanup: () => void } {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let rejectFn: ((error: Error) => void) | null = null;
+
+  const promise = new Promise<never>((_, reject) => {
+    rejectFn = reject;
+    timeoutId = setTimeout(() => {
+      reject(new Error('Sub-agent execution timeout'));
+    }, timeout);
+  });
+
+  // Handle cancellation
+  if (cancellationToken) {
+    cancellationToken.signal.addEventListener('abort', () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      if (rejectFn) {
+        rejectFn(new Error('Operation cancelled'));
+      }
+    });
+  }
+
+  const cleanup = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+  };
+
+  return { promise, cleanup };
+}
+
+/**
+ * Safely evaluate a condition without using new Function()
+ * Only supports simple expressions for security
+ */
+function evaluateCondition(
+  condition: string | ((context: SubAgentContext) => boolean),
+  context: SubAgentContext
+): boolean {
+  if (typeof condition === 'function') {
+    return condition(context);
+  }
+
+  // Parse simple conditions safely
+  // Supported formats:
+  // - "true" / "false"
+  // - "siblingResults.agentId.success"
+  // - "siblingResults.agentId.success === true"
+  const trimmed = condition.trim().toLowerCase();
+  
+  if (trimmed === 'true') return true;
+  if (trimmed === 'false') return false;
+
+  // Check for sibling result success condition
+  const siblingMatch = condition.match(/siblingResults\.([\w-]+)\.success/);
+  if (siblingMatch && context.siblingResults) {
+    const agentId = siblingMatch[1];
+    const result = context.siblingResults[agentId];
+    return result?.success ?? false;
+  }
+
+  // Check for sibling result exists condition
+  const existsMatch = condition.match(/siblingResults\.([\w-]+)/);
+  if (existsMatch && context.siblingResults) {
+    const agentId = existsMatch[1];
+    return agentId in context.siblingResults;
+  }
+
+  // Default to true for unrecognized conditions (safe fallback)
+  console.warn(`Unrecognized condition format: ${condition}, defaulting to true`);
+  return true;
+}
 
 /**
  * SubAgent executor configuration
@@ -35,6 +130,10 @@ export interface SubAgentExecutorConfig {
   parentContext?: Record<string, unknown>;
   siblingResults?: Record<string, SubAgentResult>;
   globalTools?: Record<string, AgentTool>;
+  /** Cancellation token for aborting execution */
+  cancellationToken?: CancellationToken;
+  /** Enable metrics collection */
+  collectMetrics?: boolean;
 }
 
 /**
@@ -162,6 +261,17 @@ export async function executeSubAgent(
   options: SubAgentExecutionOptions = {}
 ): Promise<SubAgentResult> {
   const startTime = Date.now();
+  const metrics: ExecutionMetricsCollector = {
+    startTime,
+    stepCount: 0,
+    totalTokens: 0,
+    retryCount: subAgent.retryCount,
+  };
+  
+  // Check cancellation before starting
+  if (executorConfig.cancellationToken?.isCancelled) {
+    return createCancelledResult(subAgent, startTime);
+  }
   
   // Update status
   subAgent.status = 'running';
@@ -196,7 +306,12 @@ export async function executeSubAgent(
       ...subAgent.config.customTools,
     },
     onStepStart: (step) => {
+      // Check cancellation at each step
+      if (executorConfig.cancellationToken?.isCancelled) {
+        throw new Error('Operation cancelled');
+      }
       context.currentStep = step;
+      metrics.stepCount = step;
       subAgent.progress = Math.min(90, (step / (subAgent.config.maxSteps || 10)) * 100);
       options.onProgress?.(subAgent, subAgent.progress);
     },
@@ -223,21 +338,37 @@ export async function executeSubAgent(
     },
   };
 
+  // Setup timeout with proper cleanup
+  let timeoutCleanup: (() => void) | null = null;
+  
   try {
     // Execute with timeout if configured
     let agentResult: AgentResult;
     
     if (subAgent.config.timeout) {
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Sub-agent execution timeout')), subAgent.config.timeout);
-      });
+      const { promise: timeoutPromise, cleanup } = createTimeoutPromise(
+        subAgent.config.timeout,
+        executorConfig.cancellationToken
+      );
+      timeoutCleanup = cleanup;
       
       agentResult = await Promise.race([
         executeAgent(subAgent.task, agentConfig),
         timeoutPromise,
       ]);
+      
+      // Clean up timeout after successful execution
+      cleanup();
     } else {
       agentResult = await executeAgent(subAgent.task, agentConfig);
+    }
+    
+    // Track token usage from steps
+    if (executorConfig.collectMetrics) {
+      metrics.totalTokens = agentResult.steps.reduce(
+        (sum, step) => sum + (step.usage?.totalTokens ?? 0),
+        0
+      );
     }
 
     // Convert result
@@ -262,8 +393,18 @@ export async function executeSubAgent(
 
     return result;
   } catch (error) {
+    // Clean up timeout on error
+    if (timeoutCleanup) {
+      timeoutCleanup();
+    }
+    
     const errorMessage = error instanceof Error ? error.message : 'Sub-agent execution failed';
     const duration = Date.now() - startTime;
+    
+    // Check if this was a cancellation
+    if (errorMessage === 'Operation cancelled' || executorConfig.cancellationToken?.isCancelled) {
+      return createCancelledResult(subAgent, startTime);
+    }
 
     // Check if we should retry
     const maxRetries = subAgent.config.retryConfig?.maxRetries ?? 0;
@@ -430,7 +571,7 @@ export async function executeSubAgentsSequential(
       }
     }
 
-    // Check condition
+    // Check condition using safe evaluation
     if (subAgent.config.condition) {
       const context: SubAgentContext = {
         parentAgentId: subAgent.parentAgentId,
@@ -440,16 +581,7 @@ export async function executeSubAgentsSequential(
         currentStep: 0,
       };
 
-      let shouldExecute = true;
-      if (typeof subAgent.config.condition === 'function') {
-        shouldExecute = subAgent.config.condition(context);
-      } else {
-        try {
-          shouldExecute = new Function('context', `return ${subAgent.config.condition}`)(context);
-        } catch {
-          shouldExecute = true;
-        }
-      }
+      const shouldExecute = evaluateCondition(subAgent.config.condition, context);
 
       if (!shouldExecute) {
         subAgent.status = 'cancelled';
@@ -538,4 +670,53 @@ export function cancelSubAgent(subAgent: SubAgent): void {
  */
 export function cancelAllSubAgents(subAgents: SubAgent[]): void {
   subAgents.forEach(cancelSubAgent);
+}
+
+/**
+ * Create a cancelled result for a sub-agent
+ */
+function createCancelledResult(subAgent: SubAgent, startTime: number): SubAgentResult {
+  const duration = Date.now() - startTime;
+  
+  subAgent.status = 'cancelled';
+  subAgent.completedAt = new Date();
+  subAgent.error = 'Operation cancelled';
+  
+  addLog(subAgent, 'info', 'Sub-agent cancelled');
+  
+  return {
+    success: false,
+    finalResponse: '',
+    steps: [],
+    totalSteps: 0,
+    duration,
+    error: 'Operation cancelled',
+  };
+}
+
+/**
+ * Create a cancellation token for sub-agent execution
+ */
+export { createCancellationToken };
+
+/**
+ * Aggregate token usage from multiple results
+ */
+export function aggregateTokenUsage(
+  results: Record<string, SubAgentResult>
+): TokenUsage | undefined {
+  const usages = Object.values(results)
+    .map(r => r.tokenUsage)
+    .filter((t): t is TokenUsage => t !== undefined);
+
+  if (usages.length === 0) return undefined;
+
+  return usages.reduce(
+    (acc, t) => ({
+      promptTokens: acc.promptTokens + t.promptTokens,
+      completionTokens: acc.completionTokens + t.completionTokens,
+      totalTokens: acc.totalTokens + t.totalTokens,
+    }),
+    { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+  );
 }

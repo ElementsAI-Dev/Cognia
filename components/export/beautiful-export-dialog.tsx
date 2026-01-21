@@ -926,7 +926,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
               trigger={
                 <Button variant="outline" size="sm" disabled={messages.length === 0}>
                   <Share2 className="h-4 w-4 mr-2" />
-                  分享
+                  {t('share')}
                 </Button>
               }
             />
@@ -935,7 +935,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
               trigger={
                 <Button variant="outline" size="sm" disabled={messages.length === 0}>
                   <ImageIcon className="h-4 w-4 mr-2" />
-                  图片
+                  {t('imageFormatShare')}
                 </Button>
               }
             />

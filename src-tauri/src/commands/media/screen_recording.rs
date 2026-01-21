@@ -1,9 +1,10 @@
 //! Screen Recording Tauri commands
 
 use crate::screen_recording::{
-    AudioDevices, EncodingSupport, MonitorInfo, RecordingConfig, RecordingHistoryEntry,
-    RecordingMetadata, RecordingRegion, RecordingStatus, ScreenRecordingManager,
-    VideoConvertOptions, VideoInfo, VideoProcessingResult, VideoProcessor, VideoTrimOptions,
+    ffmpeg, AudioDevices, EncodingSupport, FFmpegInfo, FFmpegInstallGuide, HardwareAcceleration,
+    MonitorInfo, RecordingConfig, RecordingHistoryEntry, RecordingMetadata, RecordingRegion,
+    RecordingStatus, ScreenRecordingManager, VideoConvertOptions, VideoInfo,
+    VideoProcessingResult, VideoProcessor, VideoTrimOptions,
 };
 use tauri::State;
 
@@ -188,6 +189,33 @@ pub async fn video_generate_thumbnail(
 #[tauri::command]
 pub async fn video_check_encoding_support() -> Result<EncodingSupport, String> {
     Ok(VideoProcessor::check_encoding_support())
+}
+
+// ==================== FFmpeg Commands ====================
+
+/// Get detailed FFmpeg information
+#[tauri::command]
+pub async fn ffmpeg_get_info() -> Result<FFmpegInfo, String> {
+    Ok(ffmpeg::get_ffmpeg_info())
+}
+
+/// Get FFmpeg installation guide for current platform
+#[tauri::command]
+pub async fn ffmpeg_get_install_guide() -> Result<FFmpegInstallGuide, String> {
+    Ok(ffmpeg::get_install_guide())
+}
+
+/// Check hardware acceleration availability
+#[tauri::command]
+pub async fn ffmpeg_check_hardware_acceleration() -> Result<HardwareAcceleration, String> {
+    Ok(ffmpeg::check_hardware_acceleration())
+}
+
+/// Check if FFmpeg meets minimum version requirements
+#[tauri::command]
+pub async fn ffmpeg_check_version() -> Result<bool, String> {
+    let info = ffmpeg::get_ffmpeg_info();
+    Ok(info.available && info.version_ok)
 }
 
 #[cfg(test)]

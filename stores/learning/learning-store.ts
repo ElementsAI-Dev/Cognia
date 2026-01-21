@@ -21,8 +21,18 @@ import type {
   LearningStatistics,
   DifficultyLevel,
   LearningAchievement,
+  LearningPath,
+  LearningDurationType,
+  CreateLearningPathInput,
+  QuickLearningSession,
 } from '@/types/learning';
 import { DEFAULT_LEARNING_CONFIG, DEFAULT_LEARNING_STATISTICS } from '@/types/learning';
+import { detectLearningType } from '@/lib/learning/learning-type-detector';
+import { 
+  createLearningPath, 
+  updateMilestoneProgress,
+  recordStudySession,
+} from '@/lib/learning/learning-path';
 
 interface LearningState {
   // State
@@ -30,6 +40,11 @@ interface LearningState {
   activeSessionId: string | null;
   config: LearningModeConfig;
   achievements: LearningAchievement[];
+  // Learning paths for long-term learning
+  learningPaths: Record<string, LearningPath>;
+  activeLearningPathId: string | null;
+  // Quick learning sessions history
+  quickSessions: Record<string, QuickLearningSession>;
   globalStats: {
     totalSessions: number;
     totalTimeSpentMs: number;
@@ -37,6 +52,10 @@ interface LearningState {
     currentStreak: number;
     longestStreak: number;
     lastActiveDate?: string;
+    // Learning type stats
+    quickSessionsCount: number;
+    journeySessionsCount: number;
+    pathsCompleted: number;
   };
   isLoading: boolean;
   error: string | null;
@@ -106,6 +125,28 @@ interface LearningState {
   checkAndAwardAchievements: () => void;
   getAchievements: () => LearningAchievement[];
 
+  // Learning path management (for long-term/journey learning)
+  createPath: (sessionId: string, input: CreateLearningPathInput) => LearningPath;
+  getPath: (pathId: string) => LearningPath | undefined;
+  getAllPaths: () => LearningPath[];
+  getActivePaths: () => LearningPath[];
+  setActivePath: (pathId: string | null) => void;
+  deletePath: (pathId: string) => void;
+  updatePathMilestone: (pathId: string, milestoneId: string, progress: number) => void;
+  completeMilestone: (pathId: string, milestoneId: string) => void;
+  recordPathSession: (pathId: string, durationMs: number) => void;
+  getPathBySession: (sessionId: string) => LearningPath | undefined;
+
+  // Quick learning sessions (for short-term learning)
+  saveQuickSession: (sessionId: string, question: string, answer?: string) => QuickLearningSession;
+  getQuickSession: (id: string) => QuickLearningSession | undefined;
+  getAllQuickSessions: () => QuickLearningSession[];
+  linkQuickToPath: (quickSessionId: string, pathId: string) => void;
+
+  // Learning type utilities
+  detectType: (topic: string) => LearningDurationType;
+  getSessionsByType: (type: LearningDurationType) => LearningSession[];
+
   // Configuration
   updateConfig: (config: Partial<LearningModeConfig>) => void;
   resetConfig: () => void;
@@ -131,6 +172,9 @@ const initialState = {
   activeSessionId: null as string | null,
   config: DEFAULT_LEARNING_CONFIG,
   achievements: [] as LearningAchievement[],
+  learningPaths: {} as Record<string, LearningPath>,
+  activeLearningPathId: null as string | null,
+  quickSessions: {} as Record<string, QuickLearningSession>,
   globalStats: {
     totalSessions: 0,
     totalTimeSpentMs: 0,
@@ -138,6 +182,9 @@ const initialState = {
     currentStreak: 0,
     longestStreak: 0,
     lastActiveDate: undefined as string | undefined,
+    quickSessionsCount: 0,
+    journeySessionsCount: 0,
+    pathsCompleted: 0,
   },
   isLoading: false,
   error: null as string | null,
@@ -159,9 +206,26 @@ export const useLearningStore = create<LearningState>()(
           achieved: false,
         }));
 
+        // Detect learning type if auto-detection is enabled or not specified
+        let durationType = input.durationType;
+        let category = input.category;
+        
+        if (input.autoDetectType !== false && (!durationType || !category)) {
+          const detection = detectLearningType(input.topic, {
+            backgroundKnowledge: input.backgroundKnowledge,
+            goals: input.learningGoals,
+          });
+          durationType = durationType || detection.detectedType;
+          category = category || detection.category;
+        }
+
         const session: LearningSession = {
           id: learningSessionId,
           sessionId,
+          // Learning type
+          durationType: durationType || 'quick',
+          category: category || 'other',
+          // Topic and goals
           topic: input.topic,
           backgroundKnowledge: input.backgroundKnowledge,
           learningGoals: goals,
@@ -1066,6 +1130,145 @@ export const useLearningStore = create<LearningState>()(
         return get().achievements;
       },
 
+      // Learning path management
+      createPath: (sessionId: string, input: CreateLearningPathInput) => {
+        const path = createLearningPath(sessionId, input);
+        
+        set((state) => ({
+          learningPaths: { ...state.learningPaths, [path.id]: path },
+          activeLearningPathId: path.id,
+          globalStats: {
+            ...state.globalStats,
+            journeySessionsCount: state.globalStats.journeySessionsCount + 1,
+          },
+        }));
+        
+        return path;
+      },
+
+      getPath: (pathId: string) => {
+        return get().learningPaths[pathId];
+      },
+
+      getAllPaths: () => {
+        return Object.values(get().learningPaths);
+      },
+
+      getActivePaths: () => {
+        return Object.values(get().learningPaths).filter((p) => !p.completedAt);
+      },
+
+      setActivePath: (pathId: string | null) => {
+        set({ activeLearningPathId: pathId });
+      },
+
+      deletePath: (pathId: string) => {
+        set((state) => {
+          const { [pathId]: _, ...rest } = state.learningPaths;
+          return {
+            learningPaths: rest,
+            activeLearningPathId:
+              state.activeLearningPathId === pathId ? null : state.activeLearningPathId,
+          };
+        });
+      },
+
+      updatePathMilestone: (pathId: string, milestoneId: string, progress: number) => {
+        set((state) => {
+          const path = state.learningPaths[pathId];
+          if (!path) return state;
+          
+          const updatedPath = updateMilestoneProgress(path, milestoneId, progress);
+          
+          return {
+            learningPaths: { ...state.learningPaths, [pathId]: updatedPath },
+            globalStats: updatedPath.completedAt
+              ? { ...state.globalStats, pathsCompleted: state.globalStats.pathsCompleted + 1 }
+              : state.globalStats,
+          };
+        });
+      },
+
+      completeMilestone: (pathId: string, milestoneId: string) => {
+        get().updatePathMilestone(pathId, milestoneId, 100);
+      },
+
+      recordPathSession: (pathId: string, durationMs: number) => {
+        set((state) => {
+          const path = state.learningPaths[pathId];
+          if (!path) return state;
+          
+          const updatedPath = recordStudySession(path, durationMs);
+          
+          return {
+            learningPaths: { ...state.learningPaths, [pathId]: updatedPath },
+            globalStats: {
+              ...state.globalStats,
+              totalTimeSpentMs: state.globalStats.totalTimeSpentMs + durationMs,
+            },
+          };
+        });
+      },
+
+      getPathBySession: (sessionId: string) => {
+        return Object.values(get().learningPaths).find((p) => p.sessionId === sessionId);
+      },
+
+      // Quick learning sessions
+      saveQuickSession: (sessionId: string, question: string, answer?: string) => {
+        const now = new Date();
+        const quickSession: QuickLearningSession = {
+          id: nanoid(),
+          sessionId,
+          question,
+          answer,
+          createdAt: now,
+          resolvedAt: answer ? now : undefined,
+        };
+        
+        set((state) => ({
+          quickSessions: { ...state.quickSessions, [quickSession.id]: quickSession },
+          globalStats: {
+            ...state.globalStats,
+            quickSessionsCount: state.globalStats.quickSessionsCount + 1,
+          },
+        }));
+        
+        return quickSession;
+      },
+
+      getQuickSession: (id: string) => {
+        return get().quickSessions[id];
+      },
+
+      getAllQuickSessions: () => {
+        return Object.values(get().quickSessions);
+      },
+
+      linkQuickToPath: (quickSessionId: string, pathId: string) => {
+        set((state) => {
+          const quickSession = state.quickSessions[quickSessionId];
+          if (!quickSession) return state;
+          
+          return {
+            quickSessions: {
+              ...state.quickSessions,
+              [quickSessionId]: { ...quickSession, savedToPath: pathId },
+            },
+          };
+        });
+      },
+
+      // Learning type utilities
+      detectType: (topic: string) => {
+        const result = detectLearningType(topic);
+        return result.detectedType;
+      },
+
+      getSessionsByType: (type: LearningDurationType) => {
+        return Object.values(get().sessions).filter((s) => s.durationType === type);
+      },
+
       // Configuration
       updateConfig: (config: Partial<LearningModeConfig>) => {
         set((state) => ({
@@ -1097,6 +1300,10 @@ export const useLearningStore = create<LearningState>()(
       partialize: (state) => ({
         sessions: state.sessions,
         config: state.config,
+        learningPaths: state.learningPaths,
+        quickSessions: state.quickSessions,
+        achievements: state.achievements,
+        globalStats: state.globalStats,
       }),
       onRehydrateStorage: () => (state) => {
         // Convert date strings back to Date objects

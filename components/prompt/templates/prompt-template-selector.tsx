@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -14,6 +15,7 @@ interface PromptTemplateSelectorProps {
 }
 
 export function PromptTemplateSelector({ open, onOpenChange, onSelect }: PromptTemplateSelectorProps) {
+  const t = useTranslations('promptTemplate.selector');
   const templates = usePromptTemplateStore((state) => state.templates);
 
   const sorted = useMemo(
@@ -25,13 +27,13 @@ export function PromptTemplateSelector({ open, onOpenChange, onSelect }: PromptT
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Insert prompt template</DialogTitle>
+          <DialogTitle>{t('title')}</DialogTitle>
         </DialogHeader>
         <Command shouldFilter={false}>
-          <CommandInput placeholder="Search templates" />
+          <CommandInput placeholder={t('searchPlaceholder')} />
           <CommandList>
-            <CommandEmpty>No templates found</CommandEmpty>
-            <CommandGroup heading="Templates">
+            <CommandEmpty>{t('noTemplates')}</CommandEmpty>
+            <CommandGroup heading={t('templatesGroup')}>
               {sorted.map((template) => (
                 <CommandItem key={template.id} value={template.name} onSelect={() => onSelect(template)}>
                   <div className="flex flex-col">
@@ -47,7 +49,7 @@ export function PromptTemplateSelector({ open, onOpenChange, onSelect }: PromptT
         </Command>
         <div className="flex justify-end">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Close
+            {t('close')}
           </Button>
         </div>
       </DialogContent>

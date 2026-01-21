@@ -342,7 +342,7 @@ export function TemplatesPanel({
           <div className="flex items-center gap-2">
             <LayoutTemplate className="w-5 h-5 text-cyan-400" />
             <span className="text-sm font-medium text-white">
-              {t("title") || "Prompt Templates"}
+              {t("title")}
             </span>
             <Badge variant="secondary" className="h-5 text-[10px]">
               {templates.length}
@@ -499,7 +499,7 @@ export function TemplatesPanel({
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            {template.isFavorite ? "Unfavorite" : "Favorite"}
+                            {template.isFavorite ? t("unfavorite") : t("favorite")}
                           </TooltipContent>
                         </Tooltip>
                         <Tooltip>
@@ -520,7 +520,7 @@ export function TemplatesPanel({
                               )}
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Copy prompt</TooltipContent>
+                          <TooltipContent>{t("copyPrompt")}</TooltipContent>
                         </Tooltip>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -545,7 +545,7 @@ export function TemplatesPanel({
                               }}
                             >
                               <Pencil className="w-3 h-3" />
-                              Edit
+                              {t("edit")}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -556,7 +556,7 @@ export function TemplatesPanel({
                               }}
                             >
                               <Trash2 className="w-3 h-3" />
-                              Delete
+                              {t("delete")}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -572,7 +572,7 @@ export function TemplatesPanel({
         {/* Selected Text Preview */}
         {selectedText && (
           <div className="px-4 py-2 border-t border-white/10 bg-white/5">
-            <span className="text-[10px] text-white/40">Selected text:</span>
+            <span className="text-[10px] text-white/40">{t("selectedText")}</span>
             <p className="text-xs text-white/70 line-clamp-2 mt-0.5">
               {selectedText}
             </p>
@@ -582,7 +582,7 @@ export function TemplatesPanel({
         {/* Footer */}
         <div className="px-4 py-2 border-t border-white/10 text-center">
           <p className="text-[10px] text-white/30">
-            Click a template to apply it • Use {"{{text}}"} for selected text
+            {t("footerHint")}
           </p>
         </div>
       </div>
@@ -591,23 +591,23 @@ export function TemplatesPanel({
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="bg-gray-900/95 border-white/10 text-white">
           <DialogHeader>
-            <DialogTitle>Create New Template</DialogTitle>
+            <DialogTitle>{t("createNewTemplate")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-xs font-medium text-white/70">Name</label>
+              <label className="text-xs font-medium text-white/70">{t("name")}</label>
               <Input
                 value={newTemplate.name}
                 onChange={(e) =>
                   setNewTemplate((prev) => ({ ...prev, name: e.target.value }))
                 }
-                placeholder="Template name"
+                placeholder={t("templateNamePlaceholder")}
                 className="bg-white/5 border-white/10"
               />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium text-white/70">
-                Description (optional)
+                {t("descriptionOptional")}
               </label>
               <Input
                 value={newTemplate.description}
@@ -617,26 +617,26 @@ export function TemplatesPanel({
                     description: e.target.value,
                   }))
                 }
-                placeholder="Brief description"
+                placeholder={t("briefDescPlaceholder")}
                 className="bg-white/5 border-white/10"
               />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium text-white/70">
-                Prompt Template
+                {t("promptTemplate")}
               </label>
               <Textarea
                 value={newTemplate.prompt}
                 onChange={(e) =>
                   setNewTemplate((prev) => ({ ...prev, prompt: e.target.value }))
                 }
-                placeholder="Use {{text}} to insert selected text"
+                placeholder={t("promptPlaceholder")}
                 className="min-h-[100px] bg-white/5 border-white/10"
               />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium text-white/70">
-                Category
+                {t("category")}
               </label>
               <Input
                 value={newTemplate.category}
@@ -646,7 +646,7 @@ export function TemplatesPanel({
                     category: e.target.value,
                   }))
                 }
-                placeholder="Category"
+                placeholder={t("categoryPlaceholder")}
                 className="bg-white/5 border-white/10"
               />
             </div>
@@ -656,9 +656,9 @@ export function TemplatesPanel({
               variant="ghost"
               onClick={() => setIsCreateDialogOpen(false)}
             >
-              Cancel
+              {t("cancel")}
             </Button>
-            <Button onClick={handleCreateTemplate}>Create Template</Button>
+            <Button onClick={handleCreateTemplate}>{t("createTemplate")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -670,12 +670,12 @@ export function TemplatesPanel({
       >
         <DialogContent className="bg-gray-900/95 border-white/10 text-white">
           <DialogHeader>
-            <DialogTitle>Edit Template</DialogTitle>
+            <DialogTitle>{t("editTemplate")}</DialogTitle>
           </DialogHeader>
           {editingTemplate && (
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <label className="text-xs font-medium text-white/70">Name</label>
+                <label className="text-xs font-medium text-white/70">{t("name")}</label>
                 <Input
                   value={editingTemplate.name}
                   onChange={(e) =>
@@ -688,7 +688,7 @@ export function TemplatesPanel({
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-white/70">
-                  Description
+                  {t("description")}
                 </label>
                 <Input
                   value={editingTemplate.description || ""}
@@ -702,7 +702,7 @@ export function TemplatesPanel({
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-white/70">
-                  Prompt Template
+                  {t("promptTemplate")}
                 </label>
                 <Textarea
                   value={editingTemplate.prompt}
@@ -732,9 +732,9 @@ export function TemplatesPanel({
           )}
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEditingTemplate(null)}>
-              Cancel
+              {t("cancel")}
             </Button>
-            <Button onClick={handleUpdateTemplate}>Save Changes</Button>
+            <Button onClick={handleUpdateTemplate}>{t("saveChanges")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

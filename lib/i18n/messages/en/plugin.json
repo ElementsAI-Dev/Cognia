@@ -11,10 +11,17 @@
     "createPlugin": "Create Plugin",
     "tabs": {
       "installed": "Installed",
+      "marketplace": "Marketplace",
       "analytics": "Analytics",
       "develop": "Develop",
       "health": "Health",
       "settings": "Settings"
+    },
+    "stats": {
+      "installed": "Installed",
+      "enabled": "Enabled",
+      "tools": "Tools",
+      "health": "Health"
     },
     "filters": {
       "searchPlaceholder": "Search plugins...",
@@ -174,6 +181,7 @@
     "configure": "Configure",
     "homepage": "Homepage",
     "uninstall": "Uninstall",
+    "viewDetails": "View Details",
     "stats": {
       "tools": "{count} tools",
       "components": "{count} components",
@@ -181,7 +189,82 @@
     }
   },
   "pluginList": {
-    "noPlugins": "No plugins found"
+    "noPlugins": "No plugins found",
+    "noPluginsDesc": "Install or create a plugin to get started"
+  },
+  "pluginQuickActions": {
+    "selectAll": "Select All",
+    "selected": "{count} selected",
+    "enable": "Enable",
+    "disable": "Disable",
+    "update": "Update",
+    "uninstall": "Uninstall",
+    "deselect": "Deselect",
+    "moreActions": "More Actions",
+    "enableAll": "Enable All Selected",
+    "disableAll": "Disable All Selected",
+    "checkUpdates": "Check for Updates",
+    "uninstallAll": "Uninstall All Selected",
+    "uninstallDialog": {
+      "title": "Uninstall Plugins?",
+      "description": "Are you sure you want to uninstall {count} selected plugins? This action cannot be undone.",
+      "andMore": "and {count} more...",
+      "cancel": "Cancel",
+      "confirm": "Uninstall"
+    }
+  },
+  "pluginMarketplace": {
+    "featured": {
+      "title": "Featured Plugins"
+    },
+    "trending": {
+      "title": "Trending",
+      "viewAll": "View All"
+    },
+    "search": {
+      "placeholder": "Search plugins..."
+    },
+    "sort": {
+      "popular": "Most Popular",
+      "rating": "Highest Rated",
+      "recent": "Recently Updated",
+      "downloads": "Most Downloads"
+    },
+    "empty": {
+      "noResults": "No plugins found",
+      "tryDifferent": "Try a different search or filter"
+    },
+    "results": {
+      "count": "{count} plugins"
+    }
+  },
+  "pluginDetail": {
+    "install": "Install",
+    "installed": "Installed",
+    "installing": "Installing...",
+    "tabs": {
+      "overview": "Overview",
+      "reviews": "Reviews",
+      "changelog": "Changelog"
+    },
+    "overview": {
+      "description": "Description",
+      "capabilities": "Capabilities",
+      "tags": "Tags",
+      "version": "Version",
+      "type": "Type",
+      "lastUpdated": "Last Updated",
+      "license": "License",
+      "links": "Links",
+      "requirements": "Requirements"
+    },
+    "reviews": {
+      "title": "User Reviews",
+      "writeReview": "Write Review"
+    },
+    "changelog": {
+      "title": "Version History"
+    }
   },
   "pluginDevTools": {
     "title": "Plugin Dev Tools",

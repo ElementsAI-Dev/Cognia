@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Star,
   Download,
@@ -40,6 +41,7 @@ export function PromptMarketplaceCard({
   onInstall,
   compact = false,
 }: PromptMarketplaceCardProps) {
+  const t = useTranslations('promptMarketplace.card');
   const [isInstalling, setIsInstalling] = useState(false);
   
   const isInstalled = usePromptMarketplaceStore(state => state.isPromptInstalled(prompt.id));
@@ -208,7 +210,7 @@ export function PromptMarketplaceCard({
             }}
           >
             <Check className="h-3.5 w-3.5 text-green-500" />
-            Installed
+            {t('installed')}
           </Button>
         ) : (
           <Button
@@ -221,7 +223,7 @@ export function PromptMarketplaceCard({
             }}
           >
             <Download className="h-3.5 w-3.5" />
-            {isInstalling ? 'Installing...' : 'Install'}
+            {isInstalling ? t('installing') : t('install')}
           </Button>
         )}
 

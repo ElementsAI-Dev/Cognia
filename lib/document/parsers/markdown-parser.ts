@@ -31,7 +31,8 @@ function tryParseYaml(frontmatterStr: string): Record<string, unknown> | null {
       cachedYamlParser = (yamlModule.parse ?? yamlModule.default?.parse) as
         | ((source: string) => unknown)
         | null;
-    } catch {
+    } catch (error) {
+      console.warn('Failed to load YAML parser, falling back to lightweight parser:', error);
       cachedYamlParser = null;
     }
   }
@@ -42,7 +43,8 @@ function tryParseYaml(frontmatterStr: string): Record<string, unknown> | null {
       if (parsed && typeof parsed === 'object') {
         return parsed as Record<string, unknown>;
       }
-    } catch {
+    } catch (error) {
+      console.warn('YAML parsing failed, falling back to lightweight parser:', error);
       // Fall through to the lightweight parser
     }
   }
@@ -83,7 +85,8 @@ function parseFrontmatter(content: string): {
       if ((value.startsWith('[') && value.endsWith(']')) || (value.startsWith('{') && value.endsWith('}'))) {
         try {
           return JSON.parse(value);
-        } catch {
+        } catch (error) {
+          console.warn('JSON parsing failed for frontmatter value:', error);
           return value;
         }
       }
@@ -130,7 +133,8 @@ function parseFrontmatter(content: string): {
       frontmatter,
       body: content.slice(match[0].length),
     };
-  } catch {
+  } catch (error) {
+    console.warn('Frontmatter extraction failed:', error);
     return { body: content };
   }
 }

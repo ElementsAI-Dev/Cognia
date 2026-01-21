@@ -256,7 +256,7 @@ export function SearchSettings() {
                       <span className="flex items-center gap-2">
                         {SEARCH_PROVIDERS[id].name}
                         {searchProviders[id]?.priority === 1 && (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0">Primary</Badge>
+                          <Badge variant="outline" className="text-[10px] px-1 py-0">{t('primary')}</Badge>
                         )}
                       </span>
                     </SelectItem>
@@ -375,7 +375,7 @@ export function SearchSettings() {
                                 <ArrowUp className="h-2.5 w-2.5" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="left" className="text-xs">Higher priority</TooltipContent>
+                            <TooltipContent side="left" className="text-xs">{t('higherPriority')}</TooltipContent>
                           </Tooltip>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -387,7 +387,7 @@ export function SearchSettings() {
                                 <ArrowDown className="h-2.5 w-2.5" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="left" className="text-xs">Lower priority</TooltipContent>
+                            <TooltipContent side="left" className="text-xs">{t('lowerPriority')}</TooltipContent>
                           </Tooltip>
                         </div>
                         <div>

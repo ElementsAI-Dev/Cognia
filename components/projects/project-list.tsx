@@ -33,6 +33,7 @@ interface ProjectListProps {
 }
 
 export function ProjectList({ onProjectSelect }: ProjectListProps) {
+  const t = useTranslations('projects');
   const tPlaceholders = useTranslations('placeholders');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -117,9 +118,9 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h2 className="text-xl font-semibold">Projects</h2>
+          <h2 className="text-xl font-semibold">{t('title')}</h2>
           {showArchived && (
-            <Badge variant="secondary">Archived</Badge>
+            <Badge variant="secondary">{t('archived')}</Badge>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -129,7 +130,7 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
             onClick={() => setShowArchived(!showArchived)}
           >
             <Archive className="h-4 w-4 mr-2" />
-            {showArchived ? 'Active' : 'Archived'}
+            {showArchived ? t('title') : t('archived')}
           </Button>
           <Button
             variant="outline"
@@ -137,23 +138,23 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
             onClick={() => setShowImportExport(true)}
           >
             <Download className="h-4 w-4 mr-2" />
-            Import/Export
+            {t('importExport')}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button data-tour="projects-create">
                 <Plus className="h-4 w-4 mr-2" />
-                New Project
+                {t('newProject')}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setShowCreateDialog(true)}>
                 <FolderPlus className="h-4 w-4 mr-2" />
-                Blank Project
+                {t('blankProject')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setShowTemplates(true)}>
                 <Sparkles className="h-4 w-4 mr-2" />
-                From Template
+                {t('fromTemplate')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -170,7 +171,7 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.totalProjects}</p>
-                <p className="text-xs text-muted-foreground">Total Projects</p>
+                <p className="text-xs text-muted-foreground">{t('totalProjects')}</p>
               </div>
             </div>
           </div>
@@ -181,7 +182,7 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.totalSessions}</p>
-                <p className="text-xs text-muted-foreground">Conversations</p>
+                <p className="text-xs text-muted-foreground">{t('conversations')}</p>
               </div>
             </div>
           </div>
@@ -192,7 +193,7 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.recentProjects}</p>
-                <p className="text-xs text-muted-foreground">Active Today</p>
+                <p className="text-xs text-muted-foreground">{t('activeToday')}</p>
               </div>
             </div>
           </div>
@@ -231,18 +232,18 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
       ) : (
         <EmptyState
           icon={searchQuery ? Search : FolderOpen}
-          title={searchQuery ? 'No projects found' : 'No projects yet'}
+          title={searchQuery ? t('noProjectsFound') : t('noProjectsYet')}
           description={
             searchQuery
-              ? 'Try a different search term or create a new project'
-              : 'Create your first project to organize conversations and knowledge'
+              ? t('searchHint')
+              : t('createHint')
           }
           actions={
             searchQuery
               ? undefined
               : [
                   {
-                    label: 'Create Project',
+                    label: t('createProject'),
                     onClick: () => setShowCreateDialog(true),
                     icon: FolderPlus,
                   },

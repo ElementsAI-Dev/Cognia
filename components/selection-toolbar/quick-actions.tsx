@@ -35,8 +35,8 @@ interface QuickAction {
   id: string;
   action: SelectionAction | string;
   icon: typeof Zap;
-  label: string;
-  description?: string;
+  labelKey: string;
+  descKey?: string;
   shortcut?: string;
   color?: string;
   isPinned?: boolean;
@@ -48,8 +48,8 @@ const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
     id: "translate",
     action: "translate",
     icon: Languages,
-    label: "Translate",
-    description: "Translate to target language",
+    labelKey: "actions.translate",
+    descKey: "actions.translateDesc",
     shortcut: "T",
     color: "text-blue-400",
   },
@@ -57,8 +57,8 @@ const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
     id: "explain",
     action: "explain",
     icon: Sparkles,
-    label: "Explain",
-    description: "Get AI explanation",
+    labelKey: "actions.explain",
+    descKey: "actions.explainDesc",
     shortcut: "E",
     color: "text-cyan-400",
   },
@@ -66,8 +66,8 @@ const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
     id: "summarize",
     action: "summarize",
     icon: FileText,
-    label: "Summarize",
-    description: "Create a summary",
+    labelKey: "actions.summarize",
+    descKey: "actions.summarizeDesc",
     shortcut: "S",
     color: "text-amber-400",
   },
@@ -75,8 +75,8 @@ const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
     id: "define",
     action: "define",
     icon: BookOpen,
-    label: "Define",
-    description: "Get definition",
+    labelKey: "actions.define",
+    descKey: "actions.defineDesc",
     shortcut: "D",
     color: "text-purple-400",
   },
@@ -84,8 +84,8 @@ const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
     id: "rewrite",
     action: "rewrite",
     icon: PenLine,
-    label: "Rewrite",
-    description: "Improve writing",
+    labelKey: "actions.rewrite",
+    descKey: "actions.rewriteDesc",
     shortcut: "R",
     color: "text-emerald-400",
   },
@@ -93,8 +93,8 @@ const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
     id: "grammar",
     action: "grammar",
     icon: CheckCircle,
-    label: "Grammar",
-    description: "Check grammar",
+    labelKey: "actions.grammar",
+    descKey: "actions.grammarDesc",
     shortcut: "G",
     color: "text-green-400",
   },
@@ -102,8 +102,8 @@ const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
     id: "code-explain",
     action: "code-explain",
     icon: Code2,
-    label: "Explain Code",
-    description: "Explain code snippet",
+    labelKey: "actions.codeExplain",
+    descKey: "actions.codeExplainDesc",
     shortcut: "X",
     color: "text-violet-400",
   },
@@ -111,24 +111,24 @@ const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
     id: "expand",
     action: "expand",
     icon: ArrowUpRight,
-    label: "Expand",
-    description: "Expand on the text",
+    labelKey: "actions.expand",
+    descKey: "actions.expandDesc",
     color: "text-orange-400",
   },
   {
     id: "shorten",
     action: "shorten",
     icon: ArrowDownRight,
-    label: "Shorten",
-    description: "Make it shorter",
+    labelKey: "actions.shorten",
+    descKey: "actions.shortenDesc",
     color: "text-rose-400",
   },
   {
     id: "search",
     action: "search",
     icon: Globe,
-    label: "Web Search",
-    description: "Search on Google",
+    labelKey: "actions.search",
+    descKey: "actions.searchDesc",
     shortcut: "F",
     color: "text-green-400",
   },
@@ -136,8 +136,8 @@ const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
     id: "send-to-chat",
     action: "send-to-chat",
     icon: MessageSquare,
-    label: "Send to Chat",
-    description: "Continue in chat",
+    labelKey: "actions.sendToChat",
+    descKey: "actions.sendToChatDesc",
     shortcut: "Enter",
     color: "text-indigo-400",
   },
@@ -145,8 +145,8 @@ const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
     id: "copy",
     action: "copy",
     icon: Copy,
-    label: "Copy",
-    description: "Copy to clipboard",
+    labelKey: "actions.copy",
+    descKey: "actions.copyDesc",
     shortcut: "C",
     color: "text-gray-400",
   },
@@ -173,7 +173,7 @@ export function QuickActions({
   maxItems = 12,
   className,
 }: QuickActionsProps) {
-  const _t = useTranslations("selectionToolbar");
+  const t = useTranslations("quickActions");
   const [pinnedActions, setPinnedActions] = useState<Set<string>>(
     new Set(["translate", "explain", "summarize", "copy"])
   );
@@ -238,7 +238,7 @@ export function QuickActions({
             <div className="flex items-center gap-1.5 px-1">
               <History className="w-3 h-3 text-white/40" />
               <span className="text-[10px] font-medium text-white/40 uppercase tracking-wider">
-                Frequent
+                {t("frequent")}
               </span>
             </div>
             <div className="flex items-center gap-1">
@@ -259,7 +259,7 @@ export function QuickActions({
                       )}
                     >
                       <action.icon className="w-3.5 h-3.5" />
-                      <span className="text-xs">{action.label}</span>
+                      <span className="text-xs">{t(action.labelKey)}</span>
                       {action.usageCount && action.usageCount > 0 && (
                         <Badge
                           variant="secondary"
@@ -271,7 +271,7 @@ export function QuickActions({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
-                    <p>{action.description}</p>
+                    <p>{action.descKey ? t(action.descKey) : t(action.labelKey)}</p>
                     {action.shortcut && (
                       <kbd className="ml-1 text-[10px] opacity-60">
                         {action.shortcut}
@@ -290,7 +290,7 @@ export function QuickActions({
             <div className="flex items-center gap-1.5 px-1">
               <Zap className="w-3 h-3 text-white/40" />
               <span className="text-[10px] font-medium text-white/40 uppercase tracking-wider">
-                All Actions
+                {t("allActions")}
               </span>
             </div>
           )}
@@ -317,7 +317,7 @@ export function QuickActions({
                       )}
                       <action.icon className="w-5 h-5" />
                       <span className="text-[10px] font-medium truncate w-full text-center">
-                        {action.label}
+                        {t(action.labelKey)}
                       </span>
                       {action.shortcut && (
                         <kbd className="text-[9px] text-white/30">
@@ -327,7 +327,7 @@ export function QuickActions({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
-                    <p>{action.description}</p>
+                    <p>{action.descKey ? t(action.descKey) : t(action.labelKey)}</p>
                     <div className="flex items-center gap-2 mt-1">
                       {action.shortcut && (
                         <kbd className="text-[10px] opacity-60">
@@ -341,7 +341,7 @@ export function QuickActions({
                           togglePin(action.id);
                         }}
                       >
-                        {action.isPinned ? "Unpin" : "Pin"}
+                        {action.isPinned ? t("unpin") : t("pin")}
                       </button>
                     </div>
                   </TooltipContent>
@@ -368,7 +368,7 @@ export function QuickActions({
                   >
                     <action.icon className={cn("w-4 h-4", action.color)} />
                     <span className="text-sm flex-1 text-left">
-                      {action.label}
+                      {t(action.labelKey)}
                     </span>
                     {action.isPinned && (
                       <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
@@ -407,7 +407,7 @@ export function QuickActions({
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
                     <p>
-                      {action.label}
+                      {t(action.labelKey)}
                       {action.shortcut && (
                         <kbd className="ml-1 text-[10px] opacity-60">
                           {action.shortcut}
@@ -426,8 +426,8 @@ export function QuickActions({
           <div className="px-2 py-1.5 rounded-lg bg-white/5">
             <p className="text-xs text-white/60 line-clamp-2">{selectedText}</p>
             <span className="text-[10px] text-white/30">
-              {selectedText.length} chars •{" "}
-              {selectedText.split(/\s+/).filter(Boolean).length} words
+              {selectedText.length} {t("chars")} •{" "}
+              {selectedText.split(/\s+/).filter(Boolean).length} {t("words")}
             </span>
           </div>
         )}

@@ -21,7 +21,7 @@ import {
   type McpToolAdapterConfig,
 } from './mcp-tools';
 import type { McpTool, McpServerState, ToolCallResult, McpServerConfig, ToolUsageRecord } from '@/types/mcp';
-import type { AgentTool } from './agent-executor';
+import type { AgentTool } from '../agent/agent-executor';
 
 const createMockServerConfig = (): McpServerConfig => ({
   name: 'Test',

@@ -162,9 +162,9 @@ export function ChatSettings() {
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <Zap className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div className="space-y-0.5 min-w-0">
-                    <Label htmlFor="stream-responses" className="text-sm">{t('streamResponses') || 'Stream Responses'}</Label>
+                    <Label htmlFor="stream-responses" className="text-sm">{t('streamResponses')}</Label>
                     <p className="text-[10px] text-muted-foreground truncate">
-                      {t('streamResponsesDesc') || 'Show AI response as it generates'}
+                      {t('streamResponsesDesc')}
                     </p>
                   </div>
                 </div>
@@ -180,9 +180,9 @@ export function ChatSettings() {
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <Send className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div className="space-y-0.5 min-w-0">
-                    <Label htmlFor="send-on-enter" className="text-sm">{t('sendOnEnter') || 'Send on Enter'}</Label>
+                    <Label htmlFor="send-on-enter" className="text-sm">{t('sendOnEnter')}</Label>
                     <p className="text-[10px] text-muted-foreground truncate">
-                      {t('sendOnEnterDesc') || 'Press Enter to send message'}
+                      {t('sendOnEnterDesc')}
                     </p>
                   </div>
                 </div>
@@ -202,16 +202,16 @@ export function ChatSettings() {
           <TabsList className="grid w-full grid-cols-3 h-10 p-1">
             <TabsTrigger value="generation" className="text-xs gap-1.5 data-[state=active]:shadow-sm">
               <Thermometer className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Generation</span>
-              <span className="sm:hidden">Gen</span>
+              <span className="hidden sm:inline">{t('tabs.generation')}</span>
+              <span className="sm:hidden">{t('tabs.generationShort')}</span>
             </TabsTrigger>
             <TabsTrigger value="context" className="text-xs gap-1.5 data-[state=active]:shadow-sm">
               <History className="h-3.5 w-3.5" />
-              <span>Context</span>
+              <span>{t('tabs.context')}</span>
             </TabsTrigger>
             <TabsTrigger value="display" className="text-xs gap-1.5 data-[state=active]:shadow-sm">
               <MessageSquare className="h-3.5 w-3.5" />
-              <span>Display</span>
+              <span>{t('tabs.display')}</span>
             </TabsTrigger>
           </TabsList>
 
@@ -234,7 +234,7 @@ export function ChatSettings() {
                   {/* Temperature */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <SettingTooltip content="Controls randomness. Lower = more focused, higher = more creative">
+                      <SettingTooltip content={t('tooltips.temperature')}>
                         <Label className="text-sm">{t('temperature')}: {defaultTemperature.toFixed(1)}</Label>
                       </SettingTooltip>
                       <span className="text-[10px] text-muted-foreground">
@@ -253,7 +253,7 @@ export function ChatSettings() {
                   {/* Max Tokens */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <SettingTooltip content="Maximum length of AI response in tokens (~4 chars per token)">
+                      <SettingTooltip content={t('tooltips.maxTokens')}>
                         <Label className="text-sm">{t('maxTokens')}: {defaultMaxTokens.toLocaleString()}</Label>
                       </SettingTooltip>
                     </div>
@@ -283,7 +283,7 @@ export function ChatSettings() {
                   {/* Top P */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <SettingTooltip content="Nucleus sampling - consider only tokens with cumulative probability up to this value">
+                      <SettingTooltip content={t('tooltips.topP')}>
                         <Label className="text-sm">{t('topP')}: {defaultTopP.toFixed(2)}</Label>
                       </SettingTooltip>
                       <span className="text-[10px] text-muted-foreground">
@@ -302,7 +302,7 @@ export function ChatSettings() {
                   {/* Frequency Penalty */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <SettingTooltip content="Reduces repetition of frequently used words">
+                      <SettingTooltip content={t('tooltips.frequencyPenalty')}>
                         <Label className="text-sm">{t('frequencyPenalty')}: {defaultFrequencyPenalty.toFixed(1)}</Label>
                       </SettingTooltip>
                       <span className="text-[10px] text-muted-foreground">
@@ -321,7 +321,7 @@ export function ChatSettings() {
                   {/* Presence Penalty */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <SettingTooltip content="Encourages the model to talk about new topics">
+                      <SettingTooltip content={t('tooltips.presencePenalty')}>
                         <Label className="text-sm">{t('presencePenalty')}: {defaultPresencePenalty.toFixed(1)}</Label>
                       </SettingTooltip>
                       <span className="text-[10px] text-muted-foreground">
@@ -373,7 +373,7 @@ export function ChatSettings() {
                   {/* Context Length */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <SettingTooltip content="Number of previous messages included in context">
+                      <SettingTooltip content={t('tooltips.contextMessages')}>
                         <Label className="text-sm">{t('contextMessages')}: {contextLength}</Label>
                       </SettingTooltip>
                     </div>
@@ -510,7 +510,7 @@ export function ChatSettings() {
                       {/* Preserve Recent Messages */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <SettingTooltip content="Number of recent messages always kept uncompressed">
+                          <SettingTooltip content={tContext('tooltips.preserveRecent')}>
                             <Label className="text-sm">{tContext('preserveRecent')}</Label>
                           </SettingTooltip>
                           <span className="text-sm font-mono">{compressionSettings.preserveRecentMessages}</span>
@@ -527,8 +527,8 @@ export function ChatSettings() {
                       {/* Compression Ratio */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <SettingTooltip content="Target compression ratio (0.1 = aggressive, 0.9 = minimal)">
-                            <Label className="text-sm">{tContext('compressionRatio') || 'Compression Ratio'}</Label>
+                          <SettingTooltip content={tContext('tooltips.compressionRatio')}>
+                            <Label className="text-sm">{tContext('compressionRatio')}</Label>
                           </SettingTooltip>
                           <span className="text-sm font-mono">{(compressionSettings.compressionRatio * 100).toFixed(0)}%</span>
                         </div>
@@ -547,7 +547,7 @@ export function ChatSettings() {
                           <div className="flex items-center gap-1.5">
                             <Shield className="h-3 w-3 text-muted-foreground" />
                             <Label htmlFor="preserve-system" className="text-[10px]">
-                              {tContext('preserveSystem') || 'Keep System'}
+                              {tContext('preserveSystem')}
                             </Label>
                           </div>
                           <Switch
@@ -561,7 +561,7 @@ export function ChatSettings() {
                           <div className="flex items-center gap-1.5">
                             <Bell className="h-3 w-3 text-muted-foreground" />
                             <Label htmlFor="compression-notify" className="text-[10px]">
-                              {tContext('showNotification') || 'Notify'}
+                              {tContext('showNotification')}
                             </Label>
                           </div>
                           <Switch
@@ -575,7 +575,7 @@ export function ChatSettings() {
                           <div className="flex items-center gap-1.5">
                             <Undo2 className="h-3 w-3 text-muted-foreground" />
                             <Label htmlFor="compression-undo" className="text-[10px]">
-                              {tContext('enableUndo') || 'Enable Undo'}
+                              {tContext('enableUndo')}
                             </Label>
                           </div>
                           <Switch
@@ -597,10 +597,10 @@ export function ChatSettings() {
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <History className="h-4 w-4" />
-                  {tContext('historyContext.title') || 'Chat History Context'}
+                  {tContext('historyContext.title')}
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  {tContext('historyContext.description') || 'Include compressed context from recent conversations when starting new chats'}
+                  {tContext('historyContext.description')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -608,10 +608,10 @@ export function ChatSettings() {
                 <div className="flex items-center justify-between py-1">
                   <div className="space-y-0.5">
                     <Label htmlFor="enable-history-context" className="text-sm">
-                      {tContext('historyContext.enable') || 'Enable History Context'}
+                      {tContext('historyContext.enable')}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      {tContext('historyContext.enableDesc') || 'Automatically inject recent chat summaries into new conversations'}
+                      {tContext('historyContext.enableDesc')}
                     </p>
                   </div>
                   <Switch
@@ -627,7 +627,7 @@ export function ChatSettings() {
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <Label className="text-sm">{tContext('historyContext.sessionCount') || 'Recent Sessions'}</Label>
+                          <Label className="text-sm">{tContext('historyContext.sessionCount')}</Label>
                           <span className="text-sm font-mono">{chatHistoryContextSettings.recentSessionCount}</span>
                         </div>
                         <Slider
@@ -640,7 +640,7 @@ export function ChatSettings() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-sm">{tContext('historyContext.compressionLevel') || 'Compression Level'}</Label>
+                        <Label className="text-sm">{tContext('historyContext.compressionLevel')}</Label>
                         <Select
                           value={chatHistoryContextSettings.compressionLevel}
                           onValueChange={(value) => setChatHistoryContextCompressionLevel(value as HistoryContextCompressionLevel)}
@@ -649,9 +649,9 @@ export function ChatSettings() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="minimal">{tContext('historyContext.level.minimal') || 'Minimal'}</SelectItem>
-                            <SelectItem value="moderate">{tContext('historyContext.level.moderate') || 'Moderate'}</SelectItem>
-                            <SelectItem value="detailed">{tContext('historyContext.level.detailed') || 'Detailed'}</SelectItem>
+                            <SelectItem value="minimal">{tContext('historyContext.level.minimal')}</SelectItem>
+                            <SelectItem value="moderate">{tContext('historyContext.level.moderate')}</SelectItem>
+                            <SelectItem value="detailed">{tContext('historyContext.level.detailed')}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -660,8 +660,8 @@ export function ChatSettings() {
                     {/* Token Budget */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <SettingTooltip content="Maximum tokens to use for history context">
-                          <Label className="text-sm">{tContext('historyContext.tokenBudget') || 'Token Budget'}</Label>
+                        <SettingTooltip content={tContext('historyContext.tooltips.tokenBudget')}>
+                          <Label className="text-sm">{tContext('historyContext.tokenBudget')}</Label>
                         </SettingTooltip>
                         <span className="text-sm font-mono">{chatHistoryContextSettings.maxTokenBudget}</span>
                       </div>
@@ -677,8 +677,8 @@ export function ChatSettings() {
                     {/* Min Messages Threshold */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <SettingTooltip content="Minimum messages required to include a session">
-                          <Label className="text-sm">{tContext('historyContext.minMessages') || 'Min Messages'}</Label>
+                        <SettingTooltip content={tContext('historyContext.tooltips.minMessages')}>
+                          <Label className="text-sm">{tContext('historyContext.minMessages')}</Label>
                         </SettingTooltip>
                         <span className="text-sm font-mono">{chatHistoryContextSettings.minMessagesThreshold}</span>
                       </div>
@@ -695,7 +695,7 @@ export function ChatSettings() {
                     <div className="grid grid-cols-2 gap-2 pt-2">
                       <div className="flex items-center justify-between rounded-md border px-2 py-1.5">
                         <Label htmlFor="include-titles" className="text-[10px]">
-                          {tContext('historyContext.includeTitles') || 'Include Titles'}
+                          {tContext('historyContext.includeTitles')}
                         </Label>
                         <Switch
                           id="include-titles"
@@ -706,7 +706,7 @@ export function ChatSettings() {
                       </div>
                       <div className="flex items-center justify-between rounded-md border px-2 py-1.5">
                         <Label htmlFor="exclude-empty" className="text-[10px]">
-                          {tContext('historyContext.excludeEmpty') || 'Skip Empty'}
+                          {tContext('historyContext.excludeEmpty')}
                         </Label>
                         <Switch
                           id="exclude-empty"
@@ -717,7 +717,7 @@ export function ChatSettings() {
                       </div>
                       <div className="flex items-center justify-between rounded-md border px-2 py-1.5">
                         <Label htmlFor="include-timestamps" className="text-[10px]">
-                          {tContext('historyContext.includeTimestamps') || 'Show Dates'}
+                          {tContext('historyContext.includeTimestamps')}
                         </Label>
                         <Switch
                           id="include-timestamps"
@@ -728,7 +728,7 @@ export function ChatSettings() {
                       </div>
                       <div className="flex items-center justify-between rounded-md border px-2 py-1.5">
                         <Label htmlFor="same-project" className="text-[10px]">
-                          {tContext('historyContext.sameProject') || 'Same Project'}
+                          {tContext('historyContext.sameProject')}
                         </Label>
                         <Switch
                           id="same-project"

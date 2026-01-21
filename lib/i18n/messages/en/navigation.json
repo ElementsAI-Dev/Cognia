@@ -115,5 +115,25 @@
     "chatCopied": "Chat copied to clipboard",
     "help": "Help",
     "keyboardShortcuts": "Keyboard Shortcuts"
+  },
+  "featureRouting": {
+    "intentDetected": "Feature Intent Detected",
+    "suggestNavigation": "Your request would be better handled in {feature}",
+    "confidence": "Confidence",
+    "yourRequest": "Your request",
+    "dontShowAgain": "Don't show again for this feature",
+    "continueChat": "Continue in chat",
+    "goToFeature": "Go to {feature}",
+    "go": "Go",
+    "suggestFeature": "Suggested feature:",
+    "videoStudio": "Video Studio",
+    "imageStudio": "Image Studio",
+    "designer": "Designer",
+    "ppt": "Presentations",
+    "academic": "Academic Research",
+    "workflows": "Workflows",
+    "skills": "Skills",
+    "projects": "Projects",
+    "settings": "Settings"
   }
 }

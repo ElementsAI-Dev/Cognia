@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { useSelectionStore } from "@/stores/context";
 import { Switch } from "@/components/ui/switch";
@@ -40,23 +41,23 @@ import { useState } from "react";
 import { SelectionAction, LANGUAGES } from "@/types";
 
 const THEMES = [
-  { value: "auto", label: "Auto (System)", description: "Follow system theme" },
-  { value: "dark", label: "Dark", description: "Dark background" },
-  { value: "light", label: "Light", description: "Light background" },
-  { value: "glass", label: "Glass", description: "Transparent glass effect" },
+  { value: "auto", labelKey: "themeAuto", descKey: "themeAutoDesc" },
+  { value: "dark", labelKey: "themeDark", descKey: "themeDarkDesc" },
+  { value: "light", labelKey: "themeLight", descKey: "themeLightDesc" },
+  { value: "glass", labelKey: "themeGlass", descKey: "themeGlassDesc" },
 ];
 
 const POSITIONS = [
-  { value: "cursor", label: "Near Cursor", description: "Show near mouse" },
-  { value: "center", label: "Center", description: "Center of screen" },
-  { value: "top", label: "Top", description: "Top of screen" },
-  { value: "bottom", label: "Bottom", description: "Bottom of screen" },
+  { value: "cursor", labelKey: "positionCursor", descKey: "positionCursorDesc" },
+  { value: "center", labelKey: "positionCenter", descKey: "positionCenterDesc" },
+  { value: "top", labelKey: "positionTop", descKey: "positionTopDesc" },
+  { value: "bottom", labelKey: "positionBottom", descKey: "positionBottomDesc" },
 ];
 
 const PRESETS = [
   {
-    name: "Minimal",
-    description: "Quick copy and translate",
+    nameKey: "presets.minimal",
+    descKey: "presets.minimalDesc",
     config: {
       pinnedActions: ["copy", "translate"] as SelectionAction[],
       delayMs: 100,
@@ -64,8 +65,8 @@ const PRESETS = [
     },
   },
   {
-    name: "Writer",
-    description: "Focus on editing and rewriting",
+    nameKey: "presets.writer",
+    descKey: "presets.writerDesc",
     config: {
       pinnedActions: ["rewrite", "grammar", "summarize", "copy"] as SelectionAction[],
       delayMs: 300,
@@ -73,8 +74,8 @@ const PRESETS = [
     },
   },
   {
-    name: "Researcher",
-    description: "Explain, define, and extract",
+    nameKey: "presets.researcher",
+    descKey: "presets.researcherDesc",
     config: {
       pinnedActions: ["explain", "define", "extract", "send-to-chat"] as SelectionAction[],
       delayMs: 200,
@@ -82,8 +83,8 @@ const PRESETS = [
     },
   },
   {
-    name: "Developer",
-    description: "Code-focused actions",
+    nameKey: "presets.developer",
+    descKey: "presets.developerDesc",
     config: {
       pinnedActions: ["code-explain", "code-optimize", "copy", "send-to-chat"] as SelectionAction[],
       delayMs: 150,
@@ -92,24 +93,24 @@ const PRESETS = [
   },
 ];
 
-const ACTION_INFO: Record<SelectionAction, { icon: typeof BookOpen; label: string }> = {
-  explain: { icon: BookOpen, label: "Explain" },
-  translate: { icon: Languages, label: "Translate" },
-  summarize: { icon: Sparkles, label: "Summarize" },
-  extract: { icon: FileText, label: "Extract" },
-  define: { icon: BookOpen, label: "Define" },
-  rewrite: { icon: Sparkles, label: "Rewrite" },
-  grammar: { icon: Sparkles, label: "Grammar" },
-  copy: { icon: Copy, label: "Copy" },
-  "send-to-chat": { icon: MessageSquare, label: "Send to Chat" },
-  search: { icon: Sparkles, label: "Search" },
-  "code-explain": { icon: Sparkles, label: "Explain Code" },
-  "code-optimize": { icon: Sparkles, label: "Optimize" },
-  "tone-formal": { icon: Sparkles, label: "Formal" },
-  "tone-casual": { icon: Sparkles, label: "Casual" },
-  expand: { icon: Sparkles, label: "Expand" },
-  shorten: { icon: Sparkles, label: "Shorten" },
-  "knowledge-map": { icon: Network, label: "Knowledge Map" },
+const ACTION_INFO: Record<SelectionAction, { icon: typeof BookOpen; labelKey: string }> = {
+  explain: { icon: BookOpen, labelKey: "actions.explain" },
+  translate: { icon: Languages, labelKey: "actions.translate" },
+  summarize: { icon: Sparkles, labelKey: "actions.summarize" },
+  extract: { icon: FileText, labelKey: "actions.extract" },
+  define: { icon: BookOpen, labelKey: "actions.define" },
+  rewrite: { icon: Sparkles, labelKey: "actions.rewrite" },
+  grammar: { icon: Sparkles, labelKey: "actions.grammar" },
+  copy: { icon: Copy, labelKey: "actions.copy" },
+  "send-to-chat": { icon: MessageSquare, labelKey: "actions.sendToChat" },
+  search: { icon: Sparkles, labelKey: "actions.search" },
+  "code-explain": { icon: Sparkles, labelKey: "actions.codeExplain" },
+  "code-optimize": { icon: Sparkles, labelKey: "actions.optimize" },
+  "tone-formal": { icon: Sparkles, labelKey: "actions.formal" },
+  "tone-casual": { icon: Sparkles, labelKey: "actions.casual" },
+  expand: { icon: Sparkles, labelKey: "actions.expand" },
+  shorten: { icon: Sparkles, labelKey: "actions.shorten" },
+  "knowledge-map": { icon: Network, labelKey: "actions.knowledgeMap" },
 };
 
 type SettingsSection = "general" | "appearance" | "shortcuts" | "advanced";
@@ -162,6 +163,7 @@ function SettingsSection({ title, description, icon: Icon, children, defaultOpen
 }
 
 export function SelectionToolbarSettings() {
+  const t = useTranslations("settingsPanel");
   const { config, isEnabled, updateConfig, setEnabled, resetConfig } =
     useSelectionStore();
   const [_activeSection, _setActiveSection] = useState<SettingsSection>("general");
@@ -179,9 +181,9 @@ export function SelectionToolbarSettings() {
             <MousePointer2 className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold text-lg">Selection Toolbar</h3>
+            <h3 className="font-semibold text-lg">{t("title")}</h3>
             <p className="text-sm text-muted-foreground">
-              AI-powered actions for selected text
+              {t("description")}
             </p>
           </div>
         </div>
@@ -190,7 +192,7 @@ export function SelectionToolbarSettings() {
             "text-xs font-medium px-2 py-1 rounded-full",
             isEnabled ? "bg-emerald-500/10 text-emerald-600" : "bg-muted text-muted-foreground"
           )}>
-            {isEnabled ? "Active" : "Disabled"}
+            {isEnabled ? t("active") : t("disabled")}
           </span>
           <Switch checked={isEnabled} onCheckedChange={setEnabled} />
         </div>
@@ -199,12 +201,12 @@ export function SelectionToolbarSettings() {
       {/* Quick Presets */}
       <div className="space-y-3">
         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Quick Presets
+          {t("quickPresets")}
         </Label>
         <div className="grid grid-cols-2 gap-2">
           {PRESETS.map((preset) => (
             <button
-              key={preset.name}
+              key={preset.nameKey}
               onClick={() => applyPreset(preset)}
               disabled={!isEnabled}
               className={cn(
@@ -217,9 +219,9 @@ export function SelectionToolbarSettings() {
             >
               <div className="flex items-center gap-2 mb-1">
                 <Zap className="w-3.5 h-3.5 text-primary group-hover:scale-110 transition-transform" />
-                <span className="text-sm font-medium">{preset.name}</span>
+                <span className="text-sm font-medium">{t(preset.nameKey)}</span>
               </div>
-              <p className="text-xs text-muted-foreground">{preset.description}</p>
+              <p className="text-xs text-muted-foreground">{t(preset.descKey)}</p>
             </button>
           ))}
         </div>
@@ -234,13 +236,13 @@ export function SelectionToolbarSettings() {
       >
         {/* General Settings */}
         <SettingsSection
-          title="General"
-          description="Basic configuration"
+          title={t("general")}
+          description={t("generalDesc")}
           icon={Settings2}
         >
           {/* Trigger Mode */}
           <div className="space-y-2">
-            <Label className="text-sm">Trigger Mode</Label>
+            <Label className="text-sm">{t("triggerMode")}</Label>
             <Select
               value={config.triggerMode}
               onValueChange={(value: "auto" | "shortcut" | "both") =>
@@ -254,19 +256,19 @@ export function SelectionToolbarSettings() {
                 <SelectItem value="auto">
                   <div className="flex items-center gap-2">
                     <Eye className="w-4 h-4" />
-                    <span>Automatic</span>
+                    <span>{t("automatic")}</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="shortcut">
                   <div className="flex items-center gap-2">
                     <Keyboard className="w-4 h-4" />
-                    <span>Shortcut only (Ctrl+Shift+S)</span>
+                    <span>{t("shortcutOnly")}</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="both">
                   <div className="flex items-center gap-2">
                     <Zap className="w-4 h-4" />
-                    <span>Both</span>
+                    <span>{t("both")}</span>
                   </div>
                 </SelectItem>
               </SelectContent>
@@ -277,7 +279,7 @@ export function SelectionToolbarSettings() {
           <div className="space-y-2">
             <Label className="flex items-center gap-2 text-sm">
               <Languages className="w-4 h-4" />
-              Default Translation Language
+              {t("defaultTranslationLanguage")}
             </Label>
             <Select
               value={config.targetLanguage}
@@ -304,7 +306,7 @@ export function SelectionToolbarSettings() {
             <div className="flex items-center justify-between">
               <Label className="flex items-center gap-2 text-sm">
                 <Timer className="w-4 h-4" />
-                Show Delay
+                {t("showDelay")}
               </Label>
               <span className="text-sm font-mono text-muted-foreground">
                 {config.delayMs}ms
@@ -318,16 +320,16 @@ export function SelectionToolbarSettings() {
               step={50}
             />
             <p className="text-xs text-muted-foreground">
-              Delay before showing the toolbar after text selection
+              {t("showDelayDesc")}
             </p>
           </div>
 
           {/* Show Shortcuts */}
           <div className="flex items-center justify-between py-2">
             <div className="space-y-0.5">
-              <Label className="text-sm">Show Keyboard Shortcuts</Label>
+              <Label className="text-sm">{t("showKeyboardShortcuts")}</Label>
               <p className="text-xs text-muted-foreground">
-                Display shortcut hints in tooltips
+                {t("showKeyboardShortcutsDesc")}
               </p>
             </div>
             <Switch
@@ -339,9 +341,9 @@ export function SelectionToolbarSettings() {
           {/* Enable Streaming */}
           <div className="flex items-center justify-between py-2">
             <div className="space-y-0.5">
-              <Label className="text-sm">Streaming Response</Label>
+              <Label className="text-sm">{t("streamingResponse")}</Label>
               <p className="text-xs text-muted-foreground">
-                Show results as they are generated
+                {t("streamingResponseDesc")}
               </p>
             </div>
             <Switch
@@ -353,14 +355,14 @@ export function SelectionToolbarSettings() {
 
         {/* Appearance */}
         <SettingsSection
-          title="Appearance"
-          description="Visual customization"
+          title={t("appearance")}
+          description={t("appearanceDesc")}
           icon={Palette}
           defaultOpen={false}
         >
           {/* Theme */}
           <div className="space-y-2">
-            <Label className="text-sm">Theme</Label>
+            <Label className="text-sm">{t("theme")}</Label>
             <div className="grid grid-cols-2 gap-2">
               {THEMES.map((theme) => (
                 <button
@@ -372,8 +374,8 @@ export function SelectionToolbarSettings() {
                     config.theme === theme.value && "border-primary bg-primary/5"
                   )}
                 >
-                  <span className="text-sm font-medium block">{theme.label}</span>
-                  <span className="text-xs text-muted-foreground">{theme.description}</span>
+                  <span className="text-sm font-medium block">{t(theme.labelKey)}</span>
+                  <span className="text-xs text-muted-foreground">{t(theme.descKey)}</span>
                 </button>
               ))}
             </div>
@@ -383,7 +385,7 @@ export function SelectionToolbarSettings() {
           <div className="space-y-2">
             <Label className="flex items-center gap-2 text-sm">
               <MonitorSmartphone className="w-4 h-4" />
-              Toolbar Position
+              {t("toolbarPosition")}
             </Label>
             <Select
               value={config.position}
@@ -397,7 +399,7 @@ export function SelectionToolbarSettings() {
               <SelectContent>
                 {POSITIONS.map((pos) => (
                   <SelectItem key={pos.value} value={pos.value}>
-                    {pos.label}
+                    {t(pos.labelKey)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -409,10 +411,10 @@ export function SelectionToolbarSettings() {
             <div className="flex items-center justify-between">
               <Label className="flex items-center gap-2 text-sm">
                 <Clock className="w-4 h-4" />
-                Auto-hide Delay
+                {t("autoHideDelay")}
               </Label>
               <span className="text-sm font-mono text-muted-foreground">
-                {config.autoHideDelay === 0 ? "Never" : `${config.autoHideDelay / 1000}s`}
+                {config.autoHideDelay === 0 ? t("never") : `${config.autoHideDelay / 1000}s`}
               </span>
             </div>
             <Slider
@@ -427,13 +429,13 @@ export function SelectionToolbarSettings() {
 
         {/* Pinned Actions */}
         <SettingsSection
-          title="Pinned Actions"
-          description="Customize toolbar buttons"
+          title={t("pinnedActions")}
+          description={t("pinnedActionsDesc")}
           icon={Pin}
           defaultOpen={false}
         >
           <p className="text-xs text-muted-foreground mb-3">
-            Select which actions appear in the main toolbar (max 6)
+            {t("pinnedActionsHint")}
           </p>
           <div className="grid grid-cols-2 gap-2">
             {(Object.keys(ACTION_INFO) as SelectionAction[]).map((action) => {
@@ -463,7 +465,7 @@ export function SelectionToolbarSettings() {
                   )}
                 >
                   <Icon className="w-4 h-4" />
-                  <span className="text-xs font-medium">{info.label}</span>
+                  <span className="text-xs font-medium">{t(info.labelKey)}</span>
                 </button>
               );
             })}
@@ -472,15 +474,15 @@ export function SelectionToolbarSettings() {
 
         {/* Advanced */}
         <SettingsSection
-          title="Advanced"
-          description="Text limits and exclusions"
+          title={t("advanced")}
+          description={t("advancedDesc")}
           icon={Settings2}
           defaultOpen={false}
         >
           {/* Text Length Limits */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-sm">Min Text Length</Label>
+              <Label className="text-sm">{t("minTextLength")}</Label>
               <Input
                 type="number"
                 value={config.minTextLength}
@@ -492,7 +494,7 @@ export function SelectionToolbarSettings() {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-sm">Max Text Length</Label>
+              <Label className="text-sm">{t("maxTextLength")}</Label>
               <Input
                 type="number"
                 value={config.maxTextLength}
@@ -511,10 +513,10 @@ export function SelectionToolbarSettings() {
           <div className="space-y-2">
             <Label className="flex items-center gap-2 text-sm">
               <Ban className="w-4 h-4" />
-              Excluded Applications
+              {t("excludedApplications")}
             </Label>
             <Input
-              placeholder="e.g., notepad.exe, code.exe (comma separated)"
+              placeholder={t("excludedApplicationsPlaceholder")}
               value={config.excludedApps.join(", ")}
               onChange={(e) =>
                 updateConfig({
@@ -526,7 +528,7 @@ export function SelectionToolbarSettings() {
               }
             />
             <p className="text-xs text-muted-foreground">
-              Applications where the toolbar will not appear
+              {t("excludedApplicationsDesc")}
             </p>
           </div>
         </SettingsSection>
@@ -534,11 +536,11 @@ export function SelectionToolbarSettings() {
         {/* Reset Button */}
         <div className="flex items-center justify-between pt-4 border-t">
           <p className="text-xs text-muted-foreground">
-            Reset all settings to default values
+            {t("resetHint")}
           </p>
           <Button variant="outline" size="sm" onClick={resetConfig} className="gap-2">
             <RotateCcw className="w-3.5 h-3.5" />
-            Reset to Defaults
+            {t("resetToDefaults")}
           </Button>
         </div>
       </div>

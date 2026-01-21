@@ -202,9 +202,9 @@ export function CustomInstructionsSettings() {
           <CardContent className="pt-0">
             <pre className="whitespace-pre-wrap text-[10px] bg-muted p-2 rounded-md max-h-32 overflow-auto">
               {[
-                localAboutUser && `[User]: ${localAboutUser}`,
-                localResponsePrefs && `[Style]: ${localResponsePrefs}`,
-                localCustomInstructions && `[Extra]: ${localCustomInstructions}`,
+                localAboutUser && `${t('previewUser')} ${localAboutUser}`,
+                localResponsePrefs && `${t('previewStyle')} ${localResponsePrefs}`,
+                localCustomInstructions && `${t('previewExtra')} ${localCustomInstructions}`,
               ]
                 .filter(Boolean)
                 .join('\n')}

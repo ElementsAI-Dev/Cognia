@@ -433,7 +433,7 @@ export function SafetySettings() {
                             {rule.severity}
                           </Badge>
                           <Badge variant="outline" className="text-xs">
-                            {rule.type.length} target(s)
+                            {t('targetCount', { count: rule.type.length })}
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground mb-1">
@@ -487,7 +487,7 @@ export function SafetySettings() {
                     <Label htmlFor="api-endpoint">{t('apiEndpoint')}</Label>
                     <Input
                       id="api-endpoint"
-                      placeholder="https://api.example.com/review"
+                      placeholder={t('apiEndpointPlaceholder')}
                       value={safetyModeSettings.externalReview.endpoint}
                       onChange={(e) =>
                         setExternalReviewConfig({ endpoint: e.target.value })
@@ -499,7 +499,7 @@ export function SafetySettings() {
                     <Input
                       id="api-key"
                       type="password"
-                      placeholder="sk-..."
+                      placeholder={t('apiKeyPlaceholder')}
                       value={safetyModeSettings.externalReview.apiKey || ''}
                       onChange={(e) =>
                         setExternalReviewConfig({ apiKey: e.target.value })

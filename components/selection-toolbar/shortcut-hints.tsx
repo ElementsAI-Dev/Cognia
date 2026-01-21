@@ -1,49 +1,50 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Keyboard, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ShortcutHint {
   keys: string[];
-  description: string;
+  descKey: string;
   category?: "navigation" | "action" | "ai" | "edit";
 }
 
 const SHORTCUTS: ShortcutHint[] = [
   // Global shortcuts
-  { keys: ["Alt", "Space"], description: "Trigger selection toolbar", category: "navigation" },
-  { keys: ["Ctrl", "Shift", "T"], description: "Quick translate", category: "ai" },
-  { keys: ["Ctrl", "Shift", "E"], description: "Quick explain", category: "ai" },
-  { keys: ["Ctrl", "Shift", "Space"], description: "Toggle chat widget", category: "navigation" },
+  { keys: ["Alt", "Space"], descKey: "shortcuts.triggerToolbar", category: "navigation" },
+  { keys: ["Ctrl", "Shift", "T"], descKey: "shortcuts.quickTranslate", category: "ai" },
+  { keys: ["Ctrl", "Shift", "E"], descKey: "shortcuts.quickExplain", category: "ai" },
+  { keys: ["Ctrl", "Shift", "Space"], descKey: "shortcuts.toggleChat", category: "navigation" },
   // Toolbar shortcuts
-  { keys: ["E"], description: "Explain selected text", category: "ai" },
-  { keys: ["T"], description: "Translate (default language)", category: "ai" },
-  { keys: ["T", "1"], description: "Translate → Chinese 🇨🇳", category: "ai" },
-  { keys: ["T", "2"], description: "Translate → English 🇺🇸", category: "ai" },
-  { keys: ["T", "3"], description: "Translate → Japanese 🇯🇵", category: "ai" },
-  { keys: ["T", "4"], description: "Translate → Korean 🇰🇷", category: "ai" },
-  { keys: ["T", "5"], description: "Translate → French 🇫🇷", category: "ai" },
-  { keys: ["T", "6"], description: "Translate → German 🇩🇪", category: "ai" },
-  { keys: ["S"], description: "Summarize", category: "ai" },
-  { keys: ["D"], description: "Define", category: "ai" },
-  { keys: ["C"], description: "Copy to clipboard", category: "action" },
-  { keys: ["Shift", "C"], description: "Copy original + translation", category: "action" },
-  { keys: ["Q"], description: "Quote in chat", category: "action" },
-  { keys: ["Enter"], description: "Send to chat", category: "action" },
-  { keys: ["R"], description: "Rewrite", category: "edit" },
-  { keys: ["G"], description: "Check grammar", category: "edit" },
-  { keys: ["M"], description: "Toggle multi-select mode", category: "action" },
-  { keys: ["V"], description: "Read aloud (TTS)", category: "action" },
+  { keys: ["E"], descKey: "shortcuts.explain", category: "ai" },
+  { keys: ["T"], descKey: "shortcuts.translateDefault", category: "ai" },
+  { keys: ["T", "1"], descKey: "shortcuts.translateChinese", category: "ai" },
+  { keys: ["T", "2"], descKey: "shortcuts.translateEnglish", category: "ai" },
+  { keys: ["T", "3"], descKey: "shortcuts.translateJapanese", category: "ai" },
+  { keys: ["T", "4"], descKey: "shortcuts.translateKorean", category: "ai" },
+  { keys: ["T", "5"], descKey: "shortcuts.translateFrench", category: "ai" },
+  { keys: ["T", "6"], descKey: "shortcuts.translateGerman", category: "ai" },
+  { keys: ["S"], descKey: "shortcuts.summarize", category: "ai" },
+  { keys: ["D"], descKey: "shortcuts.define", category: "ai" },
+  { keys: ["C"], descKey: "shortcuts.copy", category: "action" },
+  { keys: ["Shift", "C"], descKey: "shortcuts.copyBoth", category: "action" },
+  { keys: ["Q"], descKey: "shortcuts.quote", category: "action" },
+  { keys: ["Enter"], descKey: "shortcuts.sendToChat", category: "action" },
+  { keys: ["R"], descKey: "shortcuts.rewrite", category: "edit" },
+  { keys: ["G"], descKey: "shortcuts.grammar", category: "edit" },
+  { keys: ["M"], descKey: "shortcuts.multiSelect", category: "action" },
+  { keys: ["V"], descKey: "shortcuts.readAloud", category: "action" },
   // Panel shortcuts
-  { keys: ["P"], description: "Open templates panel", category: "navigation" },
-  { keys: ["B"], description: "Open clipboard panel", category: "navigation" },
-  { keys: ["O"], description: "Open OCR panel", category: "navigation" },
-  { keys: ["H"], description: "Open history panel", category: "navigation" },
-  { keys: ["L"], description: "Open language selector", category: "navigation" },
-  { keys: ["?"], description: "Show keyboard shortcuts", category: "navigation" },
-  { keys: ["Esc"], description: "Close toolbar/panels", category: "navigation" },
+  { keys: ["P"], descKey: "shortcuts.openTemplates", category: "navigation" },
+  { keys: ["B"], descKey: "shortcuts.openClipboard", category: "navigation" },
+  { keys: ["O"], descKey: "shortcuts.openOcr", category: "navigation" },
+  { keys: ["H"], descKey: "shortcuts.openHistory", category: "navigation" },
+  { keys: ["L"], descKey: "shortcuts.openLanguage", category: "navigation" },
+  { keys: ["?"], descKey: "shortcuts.showShortcuts", category: "navigation" },
+  { keys: ["Esc"], descKey: "shortcuts.closeToolbar", category: "navigation" },
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -66,6 +67,7 @@ export function ShortcutHints({
   position = "floating",
   className,
 }: ShortcutHintsProps) {
+  const t = useTranslations("shortcutHints");
   const [filter, setFilter] = useState<string | null>(null);
 
   // Close on Escape
@@ -116,7 +118,7 @@ export function ShortcutHints({
           <div className="flex items-center gap-2">
             <Keyboard className="w-5 h-5 text-cyan-400" />
             <span className="text-sm font-medium text-white">
-              Keyboard Shortcuts
+              {t("title")}
             </span>
           </div>
           <Button
@@ -140,7 +142,7 @@ export function ShortcutHints({
             )}
             onClick={() => setFilter(null)}
           >
-            All
+            {t("all")}
           </Button>
           {categories.map((category) => (
             <Button
@@ -155,7 +157,7 @@ export function ShortcutHints({
               )}
               onClick={() => setFilter(filter === category ? null : category)}
             >
-              {category}
+              {t(category)}
             </Button>
           ))}
         </div>
@@ -169,7 +171,7 @@ export function ShortcutHints({
                 className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors"
               >
                 <span className="text-sm text-white/80">
-                  {shortcut.description}
+                  {t(shortcut.descKey)}
                 </span>
                 <div className="flex items-center gap-1">
                   {shortcut.keys.map((key, keyIndex) => (
@@ -196,7 +198,7 @@ export function ShortcutHints({
                         CATEGORY_COLORS[shortcut.category]
                       )}
                     >
-                      {shortcut.category}
+                      {t(shortcut.category)}
                     </span>
                   )}
                 </div>
@@ -208,7 +210,7 @@ export function ShortcutHints({
         {/* Footer */}
         <div className="px-4 py-2 border-t border-white/10 text-center">
           <p className="text-xs text-white/40">
-            Press <kbd className="px-1 py-0.5 bg-white/10 rounded text-white/60">?</kbd> to toggle this panel
+            {t("toggleHint")}
           </p>
         </div>
       </div>

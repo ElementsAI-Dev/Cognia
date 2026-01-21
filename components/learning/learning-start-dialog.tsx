@@ -16,6 +16,9 @@ import {
   BookOpen,
   Gauge,
   Palette,
+  Zap,
+  Map,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,7 +41,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useLearningMode } from '@/hooks/ui';
-import type { DifficultyLevel, LearningStyle } from '@/types/learning';
+import type { DifficultyLevel, LearningStyle, LearningDurationType, LearningCategory, LearningPathDuration } from '@/types/learning';
+import { detectLearningType } from '@/lib/learning';
+import { cn } from '@/lib/utils';
 
 interface LearningStartDialogProps {
   open: boolean;
@@ -60,6 +65,28 @@ export const LearningStartDialog = memo(function LearningStartDialog({
   const [newGoal, setNewGoal] = useState('');
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('intermediate');
   const [learningStyle, setLearningStyle] = useState<LearningStyle | undefined>(undefined);
+  
+  // Learning type state
+  const [durationType, setDurationType] = useState<LearningDurationType>('quick');
+  const [category, setCategory] = useState<LearningCategory>('other');
+  const [estimatedDuration, setEstimatedDuration] = useState<LearningPathDuration>('weeks');
+  const [detectionConfidence, setDetectionConfidence] = useState<number>(0);
+  
+  // Auto-detect learning type on topic blur
+  const handleTopicBlur = useCallback(() => {
+    if (topic.trim().length > 5) {
+      const detection = detectLearningType(topic, {
+        backgroundKnowledge: background,
+        goals: goals,
+      });
+      setDurationType(detection.detectedType);
+      setCategory(detection.category);
+      if (detection.suggestedDuration) {
+        setEstimatedDuration(detection.suggestedDuration);
+      }
+      setDetectionConfidence(detection.confidence);
+    }
+  }, [topic, background, goals]);
 
   const handleAddGoal = useCallback(() => {
     if (newGoal.trim()) {
@@ -91,6 +118,10 @@ export const LearningStartDialog = memo(function LearningStartDialog({
       learningGoals: goals.length > 0 ? goals : undefined,
       preferredDifficulty: difficulty,
       preferredStyle: learningStyle,
+      durationType,
+      category,
+      estimatedDuration: durationType === 'journey' ? estimatedDuration : undefined,
+      autoDetectType: false, // We've already detected
     });
 
     // Reset form
@@ -100,10 +131,14 @@ export const LearningStartDialog = memo(function LearningStartDialog({
     setNewGoal('');
     setDifficulty('intermediate');
     setLearningStyle(undefined);
+    setDurationType('quick');
+    setCategory('other');
+    setEstimatedDuration('weeks');
+    setDetectionConfidence(0);
 
     onOpenChange(false);
     onStart?.();
-  }, [topic, background, goals, difficulty, learningStyle, startLearning, onOpenChange, onStart]);
+  }, [topic, background, goals, difficulty, learningStyle, durationType, category, estimatedDuration, startLearning, onOpenChange, onStart]);
 
   const handleClose = useCallback(() => {
     onOpenChange(false);
@@ -114,6 +149,10 @@ export const LearningStartDialog = memo(function LearningStartDialog({
     setNewGoal('');
     setDifficulty('intermediate');
     setLearningStyle(undefined);
+    setDurationType('quick');
+    setCategory('other');
+    setEstimatedDuration('weeks');
+    setDetectionConfidence(0);
   }, [onOpenChange]);
 
   return (
@@ -140,9 +179,80 @@ export const LearningStartDialog = memo(function LearningStartDialog({
               id="topic"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
+              onBlur={handleTopicBlur}
               placeholder={t('startDialog.topicPlaceholder')}
             />
           </div>
+
+          {/* Learning Type Selection */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              {t('startDialog.learningType') || '学习类型'}
+              {detectionConfidence > 0 && (
+                <Badge variant="outline" className="text-xs ml-1">
+                  {t('startDialog.autoDetected') || '自动检测'}
+                </Badge>
+              )}
+            </Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setDurationType('quick')}
+                className={cn(
+                  'flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-colors',
+                  durationType === 'quick'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50'
+                )}
+              >
+                <Zap className={cn('h-5 w-5', durationType === 'quick' ? 'text-primary' : 'text-muted-foreground')} />
+                <span className="text-sm font-medium">{t('learningType.quick') || '快速学习'}</span>
+                <span className="text-xs text-muted-foreground text-center">
+                  {t('learningType.quickDesc') || '问个问题，快速解答'}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDurationType('journey')}
+                className={cn(
+                  'flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-colors',
+                  durationType === 'journey'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50'
+                )}
+              >
+                <Map className={cn('h-5 w-5', durationType === 'journey' ? 'text-primary' : 'text-muted-foreground')} />
+                <span className="text-sm font-medium">{t('learningType.journey') || '系统学习'}</span>
+                <span className="text-xs text-muted-foreground text-center">
+                  {t('learningType.journeyDesc') || '制定学习路径，跟踪进度'}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Journey-specific options */}
+          {durationType === 'journey' && (
+            <div className="space-y-2 p-3 rounded-lg bg-muted/50">
+              <Label className="flex items-center gap-2">
+                {t('startDialog.estimatedDuration') || '预计学习时长'}
+              </Label>
+              <Select value={estimatedDuration} onValueChange={(v) => setEstimatedDuration(v as LearningPathDuration)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="days">{t('duration.days') || '1-7 天'}</SelectItem>
+                  <SelectItem value="weeks">{t('duration.weeks') || '1-4 周'}</SelectItem>
+                  <SelectItem value="months">{t('duration.months') || '1-6 个月'}</SelectItem>
+                  <SelectItem value="long-term">{t('duration.longTerm') || '6个月以上'}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {t('startDialog.journeyHint') || '系统学习会创建学习路径，包含里程碑和进度跟踪'}
+              </p>
+            </div>
+          )}
 
           {/* Background Knowledge */}
           <div className="space-y-2">

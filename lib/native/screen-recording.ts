@@ -275,3 +275,59 @@ export function getDefaultRecordingConfig(): RecordingConfig {
     pause_on_minimize: false,
   };
 }
+
+// ============== FFmpeg Types ==============
+
+export interface FFmpegInfo {
+  available: boolean;
+  version?: string;
+  version_full?: string;
+  path?: string;
+  version_ok: boolean;
+  encoders: string[];
+  decoders: string[];
+}
+
+export interface FFmpegInstallGuide {
+  platform: string;
+  download_url: string;
+  instructions: string[];
+  quick_install?: string;
+}
+
+export interface HardwareAcceleration {
+  nvidia: boolean;
+  intel_qsv: boolean;
+  amd_amf: boolean;
+  vaapi: boolean;
+}
+
+// ============== FFmpeg Functions ==============
+
+/**
+ * Get detailed FFmpeg information
+ */
+export async function getFFmpegInfo(): Promise<FFmpegInfo> {
+  return invoke<FFmpegInfo>("ffmpeg_get_info");
+}
+
+/**
+ * Get FFmpeg installation guide for current platform
+ */
+export async function getFFmpegInstallGuide(): Promise<FFmpegInstallGuide> {
+  return invoke<FFmpegInstallGuide>("ffmpeg_get_install_guide");
+}
+
+/**
+ * Check hardware acceleration availability
+ */
+export async function checkHardwareAcceleration(): Promise<HardwareAcceleration> {
+  return invoke<HardwareAcceleration>("ffmpeg_check_hardware_acceleration");
+}
+
+/**
+ * Check if FFmpeg meets minimum version requirements
+ */
+export async function checkFFmpegVersion(): Promise<boolean> {
+  return invoke<boolean>("ffmpeg_check_version");
+}

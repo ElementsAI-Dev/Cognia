@@ -49,3 +49,9 @@ export * from './learning';
 
 // System types
 export * from './system';
+
+// Routing types
+export * from './routing';
+
+// Settings types
+export * from './settings';

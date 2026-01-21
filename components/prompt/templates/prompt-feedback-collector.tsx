@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Star,
   ThumbsUp,
@@ -52,14 +53,14 @@ interface PromptFeedbackCollectorProps {
 
 const EFFECTIVENESS_OPTIONS: Array<{
   value: PromptFeedback['effectiveness'];
-  label: string;
+  labelKey: string;
   icon: React.ReactNode;
   color: string;
 }> = [
-  { value: 'excellent', label: 'Excellent', icon: <Sparkles className="h-4 w-4" />, color: 'text-green-500' },
-  { value: 'good', label: 'Good', icon: <ThumbsUp className="h-4 w-4" />, color: 'text-blue-500' },
-  { value: 'average', label: 'Average', icon: <AlertCircle className="h-4 w-4" />, color: 'text-yellow-500' },
-  { value: 'poor', label: 'Poor', icon: <ThumbsDown className="h-4 w-4" />, color: 'text-red-500' },
+  { value: 'excellent', labelKey: 'excellent', icon: <Sparkles className="h-4 w-4" />, color: 'text-green-500' },
+  { value: 'good', labelKey: 'good', icon: <ThumbsUp className="h-4 w-4" />, color: 'text-blue-500' },
+  { value: 'average', labelKey: 'average', icon: <AlertCircle className="h-4 w-4" />, color: 'text-yellow-500' },
+  { value: 'poor', labelKey: 'poor', icon: <ThumbsDown className="h-4 w-4" />, color: 'text-red-500' },
 ];
 
 export function PromptFeedbackCollector({
@@ -69,6 +70,7 @@ export function PromptFeedbackCollector({
   variant = 'popover',
   onFeedbackSubmitted,
 }: PromptFeedbackCollectorProps) {
+  const t = useTranslations('promptTemplate.feedbackCollector');
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [effectiveness, setEffectiveness] = useState<PromptFeedback['effectiveness'] | null>(null);
@@ -80,7 +82,7 @@ export function PromptFeedbackCollector({
   
   const handleSubmit = useCallback(() => {
     if (rating === 0 || !effectiveness) {
-      toast.error('Please provide a rating and effectiveness assessment');
+      toast.error(t('provideRatingError'));
       return;
     }
     
@@ -94,7 +96,7 @@ export function PromptFeedbackCollector({
     recordFeedback(templateId, feedbackData);
     
     setIsSubmitted(true);
-    toast.success('Thank you for your feedback!');
+    toast.success(t('thankYou'));
     
     if (onFeedbackSubmitted) {
       onFeedbackSubmitted({
@@ -113,7 +115,7 @@ export function PromptFeedbackCollector({
       setIsOpen(false);
       setIsSubmitted(false);
     }, 1500);
-  }, [rating, effectiveness, comment, context, templateId, recordFeedback, onFeedbackSubmitted]);
+  }, [rating, effectiveness, comment, context, templateId, recordFeedback, onFeedbackSubmitted, t]);
   
   const handleQuickFeedback = useCallback((isPositive: boolean) => {
     const feedbackData: Omit<PromptFeedback, 'id' | 'templateId' | 'createdAt'> = {
@@ -123,7 +125,7 @@ export function PromptFeedbackCollector({
     };
     
     recordFeedback(templateId, feedbackData);
-    toast.success('Feedback recorded!');
+    toast.success(t('feedbackRecorded'));
     
     if (onFeedbackSubmitted) {
       onFeedbackSubmitted({
@@ -133,7 +135,7 @@ export function PromptFeedbackCollector({
         ...feedbackData,
       });
     }
-  }, [templateId, context, recordFeedback, onFeedbackSubmitted]);
+  }, [templateId, context, recordFeedback, onFeedbackSubmitted, t]);
   
   const feedbackFormContent = (
     <div className="space-y-4">
@@ -143,7 +145,7 @@ export function PromptFeedbackCollector({
       
       {/* Star Rating */}
       <div className="space-y-2">
-        <Label className="text-sm text-muted-foreground">Rate this prompt</Label>
+        <Label className="text-sm text-muted-foreground">{t('rateLabel')}</Label>
         <div className="flex items-center gap-1">
           {[1, 2, 3, 4, 5].map((star) => (
             <button
@@ -174,7 +176,7 @@ export function PromptFeedbackCollector({
       
       {/* Effectiveness */}
       <div className="space-y-2">
-        <Label className="text-sm text-muted-foreground">How effective was it?</Label>
+        <Label className="text-sm text-muted-foreground">{t('howEffective')}</Label>
         <div className="flex flex-wrap gap-2">
           {EFFECTIVENESS_OPTIONS.map((option) => (
             <Button
@@ -188,7 +190,7 @@ export function PromptFeedbackCollector({
               )}
             >
               <span className={option.color}>{option.icon}</span>
-              {option.label}
+              {t(option.labelKey)}
             </Button>
           ))}
         </div>
@@ -196,11 +198,11 @@ export function PromptFeedbackCollector({
       
       {/* Comment */}
       <div className="space-y-2">
-        <Label className="text-sm text-muted-foreground">Additional comments (optional)</Label>
+        <Label className="text-sm text-muted-foreground">{t('additionalComments')}</Label>
         <Textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          placeholder="What worked well? What could be improved?"
+          placeholder={t('commentsPlaceholder')}
           rows={3}
           className="resize-none"
         />
@@ -228,12 +230,12 @@ export function PromptFeedbackCollector({
         {isSubmitted ? (
           <>
             <CheckCircle2 className="h-4 w-4" />
-            Submitted!
+            {t('submitted')}
           </>
         ) : (
           <>
             <Send className="h-4 w-4" />
-            Submit Feedback
+            {t('submitFeedback')}
           </>
         )}
       </Button>
@@ -254,7 +256,7 @@ export function PromptFeedbackCollector({
               <ThumbsUp className="h-4 w-4 text-green-500" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Helpful</TooltipContent>
+          <TooltipContent>{t('helpful')}</TooltipContent>
         </Tooltip>
         
         <Tooltip>
@@ -268,7 +270,7 @@ export function PromptFeedbackCollector({
               <ThumbsDown className="h-4 w-4 text-red-500" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Not helpful</TooltipContent>
+          <TooltipContent>{t('notHelpful')}</TooltipContent>
         </Tooltip>
         
         <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -289,7 +291,7 @@ export function PromptFeedbackCollector({
     return (
       <div className="p-4 border rounded-lg bg-muted/30">
         <div className="flex items-center justify-between mb-4">
-          <h4 className="font-medium text-sm">How was this prompt?</h4>
+          <h4 className="font-medium text-sm">{t('howWasPrompt')}</h4>
         </div>
         {feedbackFormContent}
       </div>
@@ -302,12 +304,12 @@ export function PromptFeedbackCollector({
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <Star className="h-4 w-4" />
-          Rate this prompt
+          {t('ratePrompt')}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80">
         <div className="flex items-center justify-between mb-4">
-          <h4 className="font-medium text-sm">How was this prompt?</h4>
+          <h4 className="font-medium text-sm">{t('howWasPrompt')}</h4>
           <Button
             variant="ghost"
             size="icon"

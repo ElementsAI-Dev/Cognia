@@ -7,6 +7,53 @@ import type { AgentTool, ToolCall } from '@/lib/ai/agent';
 import type { ProviderName } from '../provider/provider';
 
 /**
+ * Common token usage statistics (shared across SubAgent types)
+ */
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+/**
+ * Cancellation token for aborting SubAgent execution
+ */
+export interface CancellationToken {
+  /** Signal from AbortController */
+  signal: AbortSignal;
+  /** Check if cancellation was requested */
+  isCancelled: boolean;
+  /** Request cancellation */
+  cancel: () => void;
+  /** Throw if cancelled */
+  throwIfCancelled: () => void;
+}
+
+/**
+ * Create a new CancellationToken
+ */
+export function createCancellationToken(): CancellationToken {
+  const controller = new AbortController();
+  let cancelled = false;
+
+  return {
+    signal: controller.signal,
+    get isCancelled() {
+      return cancelled;
+    },
+    cancel() {
+      cancelled = true;
+      controller.abort();
+    },
+    throwIfCancelled() {
+      if (cancelled) {
+        throw new Error('Operation cancelled');
+      }
+    },
+  };
+}
+
+/**
  * SubAgent execution status
  */
 export type SubAgentStatus =
@@ -99,11 +146,7 @@ export interface SubAgentStep {
   toolCalls: ToolCall[];
   timestamp: Date;
   duration?: number;
-  tokenUsage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
+  tokenUsage?: TokenUsage;
 }
 
 /**
@@ -131,11 +174,7 @@ export interface SubAgentResult {
   /** Error message if failed */
   error?: string;
   /** Token usage statistics */
-  tokenUsage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
+  tokenUsage?: TokenUsage;
 }
 
 /**
@@ -268,11 +307,7 @@ export interface SubAgentOrchestrationResult {
   /** Total execution duration */
   totalDuration: number;
   /** Total token usage */
-  totalTokenUsage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
+  totalTokenUsage?: TokenUsage;
   /** Errors from failed sub-agents */
   errors?: Record<string, string>;
 }
@@ -325,3 +360,132 @@ export const SUB_AGENT_PRIORITY_CONFIG: Record<SubAgentPriority, {
   low: { label: 'Low', color: 'text-muted-foreground', weight: 2 },
   background: { label: 'Background', color: 'text-gray-400', weight: 1 },
 };
+
+/**
+ * SubAgent template for reusable configurations
+ */
+export interface SubAgentTemplate {
+  /** Unique template ID */
+  id: string;
+  /** Template name */
+  name: string;
+  /** Template description */
+  description: string;
+  /** Template category */
+  category: 'research' | 'coding' | 'writing' | 'analysis' | 'general';
+  /** Default task template (with {{placeholders}}) */
+  taskTemplate: string;
+  /** Default configuration */
+  config: Partial<SubAgentConfig>;
+  /** Required variables for the template */
+  variables?: Array<{
+    name: string;
+    description: string;
+    required: boolean;
+    defaultValue?: string;
+  }>;
+  /** Icon name for UI */
+  icon?: string;
+  /** Whether this is a built-in template */
+  isBuiltIn?: boolean;
+  /** Creation timestamp */
+  createdAt?: Date;
+}
+
+/**
+ * SubAgent execution metrics for analytics
+ */
+export interface SubAgentMetrics {
+  /** Total execution count */
+  executionCount: number;
+  /** Successful execution count */
+  successCount: number;
+  /** Failed execution count */
+  failureCount: number;
+  /** Average execution duration (ms) */
+  avgDuration: number;
+  /** Total token usage */
+  totalTokens: number;
+  /** Average tokens per execution */
+  avgTokensPerExecution: number;
+  /** Last execution timestamp */
+  lastExecutedAt?: Date;
+}
+
+/**
+ * Built-in SubAgent templates
+ */
+export const BUILT_IN_TEMPLATES: SubAgentTemplate[] = [
+  {
+    id: 'research-web',
+    name: 'Web Research',
+    description: 'Search and analyze web content for a specific topic',
+    category: 'research',
+    taskTemplate: 'Research the following topic and provide a comprehensive summary: {{topic}}',
+    config: {
+      maxSteps: 8,
+      timeout: 180000,
+      priority: 'normal',
+    },
+    variables: [
+      { name: 'topic', description: 'Research topic', required: true },
+    ],
+    icon: 'Search',
+    isBuiltIn: true,
+  },
+  {
+    id: 'code-review',
+    name: 'Code Review',
+    description: 'Review code for bugs, performance issues, and best practices',
+    category: 'coding',
+    taskTemplate: 'Review the following code and provide detailed feedback on bugs, performance, and best practices:\n\n{{code}}',
+    config: {
+      maxSteps: 5,
+      timeout: 120000,
+      priority: 'high',
+    },
+    variables: [
+      { name: 'code', description: 'Code to review', required: true },
+    ],
+    icon: 'Code',
+    isBuiltIn: true,
+  },
+  {
+    id: 'content-writer',
+    name: 'Content Writer',
+    description: 'Generate written content based on specifications',
+    category: 'writing',
+    taskTemplate: 'Write {{contentType}} about {{topic}}. Requirements: {{requirements}}',
+    config: {
+      maxSteps: 6,
+      timeout: 150000,
+      priority: 'normal',
+      temperature: 0.8,
+    },
+    variables: [
+      { name: 'contentType', description: 'Type of content (article, blog post, etc.)', required: true },
+      { name: 'topic', description: 'Topic to write about', required: true },
+      { name: 'requirements', description: 'Additional requirements', required: false, defaultValue: 'None' },
+    ],
+    icon: 'FileText',
+    isBuiltIn: true,
+  },
+  {
+    id: 'data-analyzer',
+    name: 'Data Analyzer',
+    description: 'Analyze data and extract insights',
+    category: 'analysis',
+    taskTemplate: 'Analyze the following data and provide key insights:\n\n{{data}}\n\nFocus on: {{focusAreas}}',
+    config: {
+      maxSteps: 10,
+      timeout: 240000,
+      priority: 'normal',
+    },
+    variables: [
+      { name: 'data', description: 'Data to analyze', required: true },
+      { name: 'focusAreas', description: 'Areas to focus on', required: false, defaultValue: 'trends, patterns, anomalies' },
+    ],
+    icon: 'BarChart',
+    isBuiltIn: true,
+  },
+];

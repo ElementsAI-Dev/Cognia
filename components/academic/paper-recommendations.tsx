@@ -24,148 +24,42 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAcademic } from '@/hooks/academic';
 import { cn } from '@/lib/utils';
 import type { Paper } from '@/types/learning/academic';
-
-interface RecommendationReason {
-  type: 'author' | 'topic' | 'citation' | 'trending' | 'field';
-  description: string;
-}
-
-interface RecommendedPaper extends Paper {
-  reasons: RecommendationReason[];
-  relevanceScore: number;
-}
+import {
+  scoreRecommendations,
+  getTrendingInFields,
+  getPapersByFavoriteAuthors,
+  type RecommendedPaper,
+} from '@/lib/academic/recommendation-engine';
 
 interface PaperRecommendationsProps {
   className?: string;
 }
 
 export function PaperRecommendations({ className }: PaperRecommendationsProps) {
-  const { libraryPapers, addToLibrary, searchResults } = useAcademic();
+  const { libraryPapers, addToLibrary, searchResults, search } = useAcademic();
   const [activeTab, setActiveTab] = useState<'related' | 'trending' | 'authors'>('related');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Generate recommendations based on library
+  // Generate recommendations using the recommendation engine
   const recommendations = useMemo(() => {
-    if (libraryPapers.length === 0) {
+    if (libraryPapers.length === 0 || searchResults.length === 0) {
       return {
-        related: [],
-        trending: [],
-        byAuthors: [],
+        related: [] as RecommendedPaper[],
+        trending: [] as RecommendedPaper[],
+        byAuthors: [] as RecommendedPaper[],
       };
     }
 
-    // Extract topics and authors from library
-    const libraryTopics = new Set<string>();
-    const libraryAuthors = new Map<string, number>();
-    const libraryIds = new Set(libraryPapers.map((p) => p.id));
-
-    libraryPapers.forEach((paper) => {
-      paper.fieldsOfStudy?.forEach((field) => libraryTopics.add(field));
-      paper.keywords?.forEach((kw) => libraryTopics.add(kw));
-      paper.authors.forEach((author) => {
-        const count = libraryAuthors.get(author.name) || 0;
-        libraryAuthors.set(author.name, count + 1);
-      });
+    // Use the recommendation engine for scoring
+    const related = scoreRecommendations(searchResults, libraryPapers, {
+      maxResults: 15,
+      minRelevanceScore: 10,
     });
+    
+    const trending = getTrendingInFields(searchResults, libraryPapers, 10);
+    const byAuthors = getPapersByFavoriteAuthors(searchResults, libraryPapers, 10);
 
-    // Filter search results to find related papers not in library
-    const relatedPapers: RecommendedPaper[] = searchResults
-      .filter((paper) => !libraryIds.has(paper.id))
-      .map((paper) => {
-        const reasons: RecommendationReason[] = [];
-        let relevanceScore = 0;
-
-        // Check topic overlap
-        const topicOverlap = paper.fieldsOfStudy?.filter((f) => libraryTopics.has(f)) || [];
-        if (topicOverlap.length > 0) {
-          reasons.push({
-            type: 'topic',
-            description: `Related to: ${topicOverlap.slice(0, 2).join(', ')}`,
-          });
-          relevanceScore += topicOverlap.length * 10;
-        }
-
-        // Check author overlap
-        const authorOverlap = paper.authors.filter((a) => libraryAuthors.has(a.name));
-        if (authorOverlap.length > 0) {
-          reasons.push({
-            type: 'author',
-            description: `By ${authorOverlap[0].name}`,
-          });
-          relevanceScore += authorOverlap.length * 15;
-        }
-
-        // High citation count
-        if (paper.citationCount && paper.citationCount > 100) {
-          reasons.push({
-            type: 'citation',
-            description: `${paper.citationCount.toLocaleString()} citations`,
-          });
-          relevanceScore += Math.log10(paper.citationCount) * 5;
-        }
-
-        return {
-          ...paper,
-          reasons,
-          relevanceScore,
-        };
-      })
-      .filter((p) => p.reasons.length > 0)
-      .sort((a, b) => b.relevanceScore - a.relevanceScore)
-      .slice(0, 10);
-
-    // Trending papers (high recent citations)
-    const trendingPapers: RecommendedPaper[] = searchResults
-      .filter((paper) => !libraryIds.has(paper.id))
-      .filter((paper) => {
-        const year = paper.year || 0;
-        const currentYear = new Date().getFullYear();
-        return year >= currentYear - 2 && (paper.citationCount || 0) > 50;
-      })
-      .map((paper) => ({
-        ...paper,
-        reasons: [
-          {
-            type: 'trending' as const,
-            description: `Trending in ${paper.year}`,
-          },
-        ],
-        relevanceScore:
-          (paper.citationCount || 0) / Math.max(1, new Date().getFullYear() - (paper.year || 2000)),
-      }))
-      .sort((a, b) => b.relevanceScore - a.relevanceScore)
-      .slice(0, 10);
-
-    // Papers by favorite authors
-    const favoriteAuthors = Array.from(libraryAuthors.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([name]) => name);
-
-    const byAuthorPapers: RecommendedPaper[] = searchResults
-      .filter((paper) => !libraryIds.has(paper.id))
-      .filter((paper) => paper.authors.some((a) => favoriteAuthors.includes(a.name)))
-      .map((paper) => {
-        const matchingAuthor = paper.authors.find((a) => favoriteAuthors.includes(a.name));
-        return {
-          ...paper,
-          reasons: [
-            {
-              type: 'author' as const,
-              description: `More from ${matchingAuthor?.name}`,
-            },
-          ],
-          relevanceScore: favoriteAuthors.indexOf(matchingAuthor?.name || '') * -1 + 10,
-        };
-      })
-      .sort((a, b) => b.relevanceScore - a.relevanceScore)
-      .slice(0, 10);
-
-    return {
-      related: relatedPapers,
-      trending: trendingPapers,
-      byAuthors: byAuthorPapers,
-    };
+    return { related, trending, byAuthors };
   }, [libraryPapers, searchResults]);
 
   const handleAddToLibrary = useCallback(
@@ -180,12 +74,28 @@ export function PaperRecommendations({ className }: PaperRecommendationsProps) {
   );
 
   const handleRefresh = useCallback(async () => {
+    if (libraryPapers.length === 0) return;
+    
     setIsRefreshing(true);
-    // Trigger a search based on library topics
-    // This would normally call the backend
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsRefreshing(false);
-  }, []);
+    try {
+      // Get top topics from library to search for new recommendations
+      const libraryTopics = new Set<string>();
+      libraryPapers.forEach((paper) => {
+        paper.fieldsOfStudy?.forEach((field) => libraryTopics.add(field));
+        paper.keywords?.forEach((kw) => libraryTopics.add(kw));
+      });
+      
+      const topTopics = Array.from(libraryTopics).slice(0, 3);
+      if (topTopics.length > 0) {
+        // Trigger search for each top topic to get fresh candidates
+        await search(topTopics[0]);
+      }
+    } catch (error) {
+      console.error('Failed to refresh recommendations:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [libraryPapers, search]);
 
   const renderPaperList = (papers: RecommendedPaper[]) => {
     if (papers.length === 0) {

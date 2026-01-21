@@ -55,3 +55,6 @@ export * from './agent';
 
 // Skills hooks
 export * from './skills';
+
+// Settings hooks
+export * from './settings';

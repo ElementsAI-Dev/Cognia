@@ -364,7 +364,7 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
                 ) : (
                   <Square className="h-4 w-4" />
                 )}
-                {selectedFiles.size > 0 ? `${selectedFiles.size} selected` : t('selectAll')}
+                {selectedFiles.size > 0 ? t('selectedCount', { count: selectedFiles.size }) : t('selectAll')}
               </Button>
               {selectedFiles.size > 0 && (
                 <Button

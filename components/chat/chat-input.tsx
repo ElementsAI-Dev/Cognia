@@ -481,6 +481,18 @@ export function ChatInput({
     }
   }, [uploadSettings.maxFiles, validateFile, addRecentFile]);
 
+  // Cleanup URL objects on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      // Cleanup all attachment URLs when component unmounts
+      attachments.forEach((attachment) => {
+        if (attachment.url) {
+          URL.revokeObjectURL(attachment.url);
+        }
+      });
+    };
+  }, [attachments]);
+
   // Remove attachment
   const removeAttachment = useCallback((id: string) => {
     setAttachments((prev) => {

@@ -14,7 +14,9 @@ import {
   registerShortcut,
   unregisterShortcut,
   unregisterAllShortcuts,
+  registerShortcutWithConflictCheck,
 } from '@/lib/native/shortcuts';
+import { toast } from 'sonner';
 
 export type GlobalShortcutAction = 
   | 'NEW_CHAT'
@@ -49,6 +51,7 @@ export interface UseGlobalShortcutsReturn {
   unregisterAll: () => Promise<void>;
   updateShortcut: (id: string, shortcut: string) => Promise<boolean>;
   toggleShortcut: (id: string, enabled: boolean) => Promise<void>;
+  detectConflicts: () => Promise<void>;
 }
 
 export function useGlobalShortcuts(
@@ -61,6 +64,8 @@ export function useGlobalShortcuts(
     shortcuts,
     shortcutsEnabled,
     updateShortcut: storeUpdateShortcut,
+    conflictResolutionMode,
+    detectConflicts: storeDetectConflicts,
   } = useNativeStore();
 
   const getHandler = useCallback(
@@ -105,12 +110,52 @@ export function useGlobalShortcuts(
       // Skip if already registered
       if (registeredRef.current.has(config.shortcut)) continue;
 
-      const success = await registerShortcut(config.shortcut, handler);
-      if (success) {
-        registeredRef.current.add(config.shortcut);
+      // Use conflict detection based on resolution mode
+      if (conflictResolutionMode === 'block' || conflictResolutionMode === 'warn') {
+        const result = await registerShortcutWithConflictCheck(
+          config.shortcut,
+          handler,
+          {
+            owner: 'global-shortcuts',
+            action: config.name,
+            forceOverride: false,
+          }
+        );
+
+        if (result.success) {
+          registeredRef.current.add(config.shortcut);
+        } else if (result.conflict) {
+          const message = `Shortcut "${config.shortcut}" conflicts with ${result.conflict.existingOwner} (${result.conflict.existingAction})`;
+          
+          if (conflictResolutionMode === 'warn') {
+            toast.warning('Shortcut Conflict', {
+              description: message,
+            });
+            // Still register in warn mode
+            const success = await registerShortcut(config.shortcut, handler);
+            if (success) {
+              registeredRef.current.add(config.shortcut);
+            }
+          } else {
+            // Block mode - don't register
+            toast.error('Shortcut Blocked', {
+              description: message,
+            });
+          }
+        } else if (result.error) {
+          toast.error('Registration Failed', {
+            description: result.error,
+          });
+        }
+      } else {
+        // auto-resolve mode or no conflict checking
+        const success = await registerShortcut(config.shortcut, handler);
+        if (success) {
+          registeredRef.current.add(config.shortcut);
+        }
       }
     }
-  }, [enabled, shortcutsEnabled, shortcuts, getHandler]);
+  }, [enabled, shortcutsEnabled, shortcuts, getHandler, conflictResolutionMode]);
 
   const unregisterAllRegistered = useCallback(async () => {
     if (!isTauri()) return;
@@ -137,11 +182,27 @@ export function useGlobalShortcuts(
       if (config.enabled && shortcutsEnabled) {
         const handler = getHandler(config.action);
         if (handler) {
-          const success = await registerShortcut(newShortcut, handler);
-          if (success) {
+          // Use conflict detection
+          const result = await registerShortcutWithConflictCheck(
+            newShortcut,
+            handler,
+            {
+              owner: 'global-shortcuts',
+              action: config.name,
+              forceOverride: false,
+            }
+          );
+
+          if (result.success) {
             registeredRef.current.add(newShortcut);
+            return true;
+          } else if (result.conflict) {
+            toast.error('Shortcut Conflict', {
+              description: `"${newShortcut}" is already used by ${result.conflict.existingOwner}`,
+            });
+            return false;
           }
-          return success;
+          return false;
         }
       }
 
@@ -158,9 +219,22 @@ export function useGlobalShortcuts(
       if (newEnabled && !registeredRef.current.has(config.shortcut)) {
         const handler = getHandler(config.action);
         if (handler) {
-          const success = await registerShortcut(config.shortcut, handler);
-          if (success) {
+          const result = await registerShortcutWithConflictCheck(
+            config.shortcut,
+            handler,
+            {
+              owner: 'global-shortcuts',
+              action: config.name,
+              forceOverride: false,
+            }
+          );
+
+          if (result.success) {
             registeredRef.current.add(config.shortcut);
+          } else if (result.conflict) {
+            toast.error('Shortcut Conflict', {
+              description: `"${config.shortcut}" is already used by ${result.conflict.existingOwner}`,
+            });
           }
         }
       } else if (!newEnabled && registeredRef.current.has(config.shortcut)) {
@@ -184,6 +258,15 @@ export function useGlobalShortcuts(
     };
   }, [enabled, shortcutsEnabled, registerAllShortcuts, unregisterAllRegistered]);
 
+  const handleDetectConflicts = useCallback(async () => {
+    const conflicts = await storeDetectConflicts();
+    if (conflicts.length > 0) {
+      toast.warning('Shortcut Conflicts Detected', {
+        description: `Found ${conflicts.length} conflict(s)`,
+      });
+    }
+  }, [storeDetectConflicts]);
+
   return {
     shortcuts,
     isEnabled: shortcutsEnabled,
@@ -191,6 +274,7 @@ export function useGlobalShortcuts(
     unregisterAll: unregisterAllRegistered,
     updateShortcut: handleUpdateShortcut,
     toggleShortcut: handleToggleShortcut,
+    detectConflicts: handleDetectConflicts,
   };
 }
 

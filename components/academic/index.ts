@@ -17,3 +17,4 @@ export { MindMapCanvas, default as MindMapCanvasDefault } from './mind-map-canva
 export { KnowledgeMapPanel, default as KnowledgeMapPanelDefault } from './knowledge-map-panel';
 export { AcademicChatPanel, default as AcademicChatPanelDefault } from './academic-chat-panel';
 export type { ChatMessage, AcademicChatPanelProps } from './academic-chat-panel';
+export { CitationGraph, default as CitationGraphDefault } from './citation-graph';

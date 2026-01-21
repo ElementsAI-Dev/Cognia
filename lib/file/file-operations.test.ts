@@ -6,6 +6,7 @@ import {
   readTextFile,
   readBinaryFile,
   writeTextFile,
+  writeBinaryFile,
   listDirectory,
   exists,
   deleteFile,
@@ -15,6 +16,7 @@ import {
   openFileDialog,
   saveFileDialog,
   isInTauri,
+  FileErrorCode,
   type FileInfo,
   type DirectoryContents,
   type FileReadResult,
@@ -314,6 +316,7 @@ describe('Error Handling', () => {
       readTextFile('/test'),
       readBinaryFile('/test'),
       writeTextFile('/test', 'content'),
+      writeBinaryFile('/test', new Uint8Array([1, 2, 3])),
       listDirectory('/test'),
       deleteFile('/test'),
       createDirectory('/test'),
@@ -324,12 +327,133 @@ describe('Error Handling', () => {
     ]);
 
     // All should return success: false without throwing
-    expect(results.filter((r) => 'success' in r && r.success === false)).toHaveLength(10);
+    expect(results.filter((r) => 'success' in r && r.success === false)).toHaveLength(11);
   });
 
   it('exists returns false without throwing', async () => {
     setTauriEnvironment(false);
     const result = await exists('/nonexistent');
     expect(result).toBe(false);
+  });
+});
+
+describe('FileErrorCode', () => {
+  it('error code enum exists with expected values', () => {
+    expect(FileErrorCode.NOT_FOUND).toBe('NOT_FOUND');
+    expect(FileErrorCode.PERMISSION_DENIED).toBe('PERMISSION_DENIED');
+    expect(FileErrorCode.FILE_TOO_LARGE).toBe('FILE_TOO_LARGE');
+    expect(FileErrorCode.PATH_TRAVERSAL).toBe('PATH_TRAVERSAL');
+    expect(FileErrorCode.FILE_EXISTS).toBe('FILE_EXISTS');
+    expect(FileErrorCode.UNKNOWN).toBe('UNKNOWN');
+  });
+
+  it('readTextFile returns errorCode in result', async () => {
+    const result = await readTextFile('/test.txt');
+    expect(result).toHaveProperty('errorCode');
+  });
+});
+
+describe('Path Safety', () => {
+  it('readTextFile rejects path traversal attempts', async () => {
+    const result = await readTextFile('../../../etc/passwd');
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe(FileErrorCode.PATH_TRAVERSAL);
+    expect(result.error).toContain('path traversal');
+  });
+
+  it('writeTextFile rejects path traversal attempts', async () => {
+    const result = await writeTextFile('../../dangerous/path', 'content');
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe(FileErrorCode.PATH_TRAVERSAL);
+  });
+
+  it('deleteFile rejects path traversal attempts', async () => {
+    const result = await deleteFile('../../../etc/passwd');
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe(FileErrorCode.PATH_TRAVERSAL);
+  });
+
+  it('copyFile rejects path traversal in source', async () => {
+    const result = await copyFile('../../bad/source', '/safe/dest');
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe(FileErrorCode.PATH_TRAVERSAL);
+  });
+
+  it('copyFile rejects path traversal in destination', async () => {
+    const result = await copyFile('/safe/source', '../../bad/dest');
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe(FileErrorCode.PATH_TRAVERSAL);
+  });
+});
+
+describe('File Size Limits', () => {
+  it('readTextFile accepts maxSize option', async () => {
+    const result = await readTextFile('/test.txt', { maxSize: 1024 });
+    expect(result).toHaveProperty('success');
+  });
+
+  it('writeTextFile respects maxSize option', async () => {
+    const largeContent = 'x'.repeat(200 * 1024 * 1024); // 200MB
+    const result = await writeTextFile('/test.txt', largeContent, { maxSize: 1024 });
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe(FileErrorCode.FILE_TOO_LARGE);
+  });
+
+  it('readBinaryFile accepts maxSize option', async () => {
+    const result = await readBinaryFile('/test.bin', { maxSize: 1024 });
+    expect(result).toHaveProperty('success');
+  });
+});
+
+describe('Overwrite Protection', () => {
+  it('writeTextFile respects overwrite: false option', async () => {
+    const result = await writeTextFile('/test.txt', 'content', { overwrite: false });
+    expect(result).toHaveProperty('success');
+  });
+
+  it('writeBinaryFile respects overwrite: false option', async () => {
+    const data = new Uint8Array([1, 2, 3, 4]);
+    const result = await writeBinaryFile('/test.bin', data, { overwrite: false });
+    expect(result).toHaveProperty('success');
+  });
+});
+
+describe('writeBinaryFile', () => {
+  it('returns error outside Tauri environment', async () => {
+    setTauriEnvironment(false);
+    const data = new Uint8Array([1, 2, 3, 4]);
+    const result = await writeBinaryFile('/test.bin', data);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Tauri desktop environment');
+  });
+
+  it('accepts Uint8Array data', async () => {
+    const data = new Uint8Array([1, 2, 3, 4]);
+    const result = await writeBinaryFile('/test.bin', data);
+    expect(result).toHaveProperty('success');
+  });
+
+  it('accepts ArrayBuffer data', async () => {
+    const buffer = new ArrayBuffer(4);
+    const result = await writeBinaryFile('/test.bin', buffer);
+    expect(result).toHaveProperty('success');
+  });
+
+  it('accepts createDirectories option', async () => {
+    const data = new Uint8Array([1, 2, 3]);
+    const result = await writeBinaryFile('/new/dir/test.bin', data, { 
+      createDirectories: true 
+    });
+    expect(result).toHaveProperty('success');
+  });
+
+  it('returns FileWriteResult structure', async () => {
+    const data = new Uint8Array([1, 2, 3]);
+    const result = await writeBinaryFile('/test.bin', data);
+    
+    expect(result).toHaveProperty('success');
+    expect(result).toHaveProperty('path');
+    expect(result.path).toBe('/test.bin');
   });
 });

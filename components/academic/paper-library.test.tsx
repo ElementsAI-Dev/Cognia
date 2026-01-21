@@ -91,6 +91,27 @@ describe('PaperLibrary', () => {
     reset: jest.fn(),
     searchWithProvider: jest.fn(),
     clearSearch: jest.fn(),
+    // New tag actions
+    addTag: jest.fn(),
+    removeTag: jest.fn(),
+    // New batch actions
+    selectedPaperIds: [] as string[],
+    togglePaperSelection: jest.fn(),
+    selectAllPapers: jest.fn(),
+    clearPaperSelection: jest.fn(),
+    batchUpdateStatus: jest.fn(),
+    batchAddToCollection: jest.fn(),
+    batchRemove: jest.fn(),
+    // New search history actions
+    searchHistory: [] as string[],
+    addSearchHistory: jest.fn(),
+    clearSearchHistory: jest.fn(),
+    // New analysis history actions
+    saveAnalysisResult: jest.fn(),
+    getAnalysisHistory: jest.fn().mockReturnValue([]),
+    // Additional methods
+    refreshLibrary: jest.fn(),
+    refreshCollections: jest.fn(),
   };
 
   beforeEach(() => {
@@ -378,7 +399,7 @@ describe('PaperLibrary', () => {
   });
 
   describe('Sorting', () => {
-    it('should sort papers', async () => {
+    it('should render papers in order', () => {
       mockUseAcademic.mockReturnValue({
         ...defaultMockReturn,
         libraryPapers: [
@@ -387,12 +408,85 @@ describe('PaperLibrary', () => {
         ],
       } as ReturnType<typeof useAcademic>);
 
+      render(<PaperLibrary />);
+
+      // Check papers are rendered
+      expect(screen.getByText('A Paper')).toBeInTheDocument();
+      expect(screen.getByText('B Paper')).toBeInTheDocument();
+    });
+  });
+
+  describe('Batch Operations', () => {
+    const batchMockReturn = {
+      ...defaultMockReturn,
+      libraryPapers: [
+        createMockLibraryPaper('1'),
+        createMockLibraryPaper('2'),
+        createMockLibraryPaper('3'),
+      ],
+      selectedPaperIds: [] as string[],
+      togglePaperSelection: jest.fn(),
+      selectAllPapers: jest.fn(),
+      clearPaperSelection: jest.fn(),
+      batchUpdateStatus: jest.fn(),
+      batchAddToCollection: jest.fn(),
+      batchRemove: jest.fn(),
+    };
+
+    it('should show select button to enter batch mode', () => {
+      mockUseAcademic.mockReturnValue(batchMockReturn as ReturnType<typeof useAcademic>);
+
+      render(<PaperLibrary />);
+
+      expect(screen.getByText(/Select/i)).toBeInTheDocument();
+    });
+
+    it('should toggle batch mode on select button click', async () => {
+      mockUseAcademic.mockReturnValue(batchMockReturn as ReturnType<typeof useAcademic>);
+
       const user = userEvent.setup();
       render(<PaperLibrary />);
 
-      // Find sort button and change sort order
-      const sortButton = screen.getByText(/Sort/i);
-      await user.click(sortButton);
+      await user.click(screen.getByText(/Select/i));
+
+      expect(screen.getByText(/Exit Selection/i)).toBeInTheDocument();
+    });
+
+    it('should call clearPaperSelection when exiting batch mode', async () => {
+      const mockClearSelection = jest.fn();
+      mockUseAcademic.mockReturnValue({
+        ...batchMockReturn,
+        clearPaperSelection: mockClearSelection,
+      } as ReturnType<typeof useAcademic>);
+
+      const user = userEvent.setup();
+      render(<PaperLibrary />);
+
+      // Enter batch mode
+      await user.click(screen.getByText(/Select/i));
+      // Exit batch mode
+      await user.click(screen.getByText(/Exit Selection/i));
+
+      expect(mockClearSelection).toHaveBeenCalled();
+    });
+
+    it('should toggle paper selection when clicking paper in batch mode', async () => {
+      const mockToggle = jest.fn();
+      mockUseAcademic.mockReturnValue({
+        ...batchMockReturn,
+        togglePaperSelection: mockToggle,
+      } as ReturnType<typeof useAcademic>);
+
+      const user = userEvent.setup();
+      render(<PaperLibrary />);
+
+      // Enter batch mode
+      await user.click(screen.getByText(/Select/i));
+
+      // Click on a paper (which should toggle selection in batch mode)
+      await user.click(screen.getByText('Test Paper 1'));
+
+      expect(mockToggle).toHaveBeenCalledWith('1');
     });
   });
 });

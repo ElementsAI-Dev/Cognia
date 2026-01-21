@@ -299,10 +299,10 @@ export function ProjectDetail({
             <Badge variant="secondary">{t('customInstructions')}</Badge>
           )}
           {project.defaultMode && (
-            <Badge variant="outline">Default: {project.defaultMode}</Badge>
+            <Badge variant="outline">{t('defaultModeLabel', { mode: project.defaultMode })}</Badge>
           )}
           {project.defaultProvider && (
-            <Badge variant="outline">Provider: {project.defaultProvider}</Badge>
+            <Badge variant="outline">{t('defaultProviderLabel', { provider: project.defaultProvider })}</Badge>
           )}
         </div>
       )}

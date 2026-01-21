@@ -51,6 +51,7 @@ export function ImportExportDialog({
   onOpenChange,
   initialTab = 'export',
 }: ImportExportDialogProps) {
+  const t = useTranslations('importExport');
   const tToasts = useTranslations('toasts');
   const [activeTab, setActiveTab] = useState<'import' | 'export'>(initialTab);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
@@ -233,9 +234,9 @@ export function ImportExportDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Import / Export Projects</DialogTitle>
+          <DialogTitle>{t('title')}</DialogTitle>
           <DialogDescription>
-            Backup your projects or import from a previous export
+            {t('description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -243,27 +244,27 @@ export function ImportExportDialog({
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="export" className="gap-2">
               <Download className="h-4 w-4" />
-              Export
+              {t('export')}
             </TabsTrigger>
             <TabsTrigger value="import" className="gap-2">
               <Upload className="h-4 w-4" />
-              Import
+              {t('import')}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="export" className="space-y-4">
             {projects.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No projects to export
+                {t('noProjects')}
               </div>
             ) : (
               <>
                 <div className="flex items-center justify-between">
                   <Label className="text-sm text-muted-foreground">
-                    Select projects to export
+                    {t('selectProjects')}
                   </Label>
                   <Button variant="ghost" size="sm" onClick={handleSelectAll}>
-                    {selectedProjects.length === projects.length ? 'Deselect All' : 'Select All'}
+                    {selectedProjects.length === projects.length ? t('deselectAll') : t('selectAll')}
                   </Button>
                 </div>
 
@@ -292,7 +293,7 @@ export function ImportExportDialog({
                     ) : (
                       <FileJson className="h-4 w-4 mr-2" />
                     )}
-                    Export JSON
+                    {t('exportJson')}
                   </Button>
                   <Button
                     className="flex-1"
@@ -304,7 +305,7 @@ export function ImportExportDialog({
                     ) : (
                       <FolderArchive className="h-4 w-4 mr-2" />
                     )}
-                    Export ZIP
+                    {t('exportZip')}
                   </Button>
                 </div>
               </>
@@ -329,16 +330,16 @@ export function ImportExportDialog({
               {isProcessing ? (
                 <div className="flex flex-col items-center">
                   <Loader2 className="h-10 w-10 text-muted-foreground animate-spin" />
-                  <p className="mt-2 text-sm text-muted-foreground">Importing...</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{t('importing')}</p>
                 </div>
               ) : (
                 <>
                   <File className="h-10 w-10 mx-auto text-muted-foreground" />
                   <p className="mt-2 text-sm font-medium">
-                    Drop a file here or click to browse
+                    {t('dropHint')}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Supports .json or .zip files
+                    {t('supportedFormats')}
                   </p>
                 </>
               )}
@@ -353,7 +354,7 @@ export function ImportExportDialog({
                     <AlertCircle className="h-5 w-5 text-yellow-500" />
                   )}
                   <span className="font-medium">
-                    {importResults.success} imported, {importResults.failed} failed
+                    {t('importResult', { success: importResults.success, failed: importResults.failed })}
                   </span>
                 </div>
                 {importResults.errors.length > 0 && (
@@ -381,6 +382,7 @@ interface ProjectSelectItemProps {
 }
 
 function ProjectSelectItem({ project, selected, onToggle }: ProjectSelectItemProps) {
+  const t = useTranslations('importExport');
   return (
     <div
       className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted cursor-pointer"
@@ -390,7 +392,7 @@ function ProjectSelectItem({ project, selected, onToggle }: ProjectSelectItemPro
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{project.name}</p>
         <p className="text-xs text-muted-foreground">
-          {project.knowledgeBase.length} files
+          {t('filesCount', { count: project.knowledgeBase.length })}
         </p>
       </div>
       {project.defaultMode && (

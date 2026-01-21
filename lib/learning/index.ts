@@ -35,3 +35,35 @@ export {
   formatSessionSummary,
   formatStatusLine,
 } from './formatters';
+
+// Learning type detection (short-term vs long-term)
+export {
+  detectLearningType,
+  isLongTermSubject,
+  getSuggestedMilestones,
+  formatLearningDuration,
+  formatLearningDurationEn,
+} from './learning-type-detector';
+
+// Learning path management
+export {
+  createLearningPath,
+  createDefaultSchedule,
+  calculatePathProgress,
+  updateMilestoneProgress,
+  completeMilestone,
+  getCurrentMilestone,
+  getNextMilestones,
+  getCompletedMilestones,
+  addResourceToMilestone,
+  markResourceCompleted,
+  recordStudySession,
+  getEstimatedTimeRemaining,
+  getDurationInDays,
+  calculateTargetDate,
+  formatTimeSpent,
+  formatProgress,
+  getProgressColorClass,
+  getCategoryDisplayName,
+  getCategoryDisplayNameEn,
+} from './learning-path';

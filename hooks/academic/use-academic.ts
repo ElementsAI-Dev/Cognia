@@ -17,6 +17,8 @@ import type {
   AcademicProviderType,
   PaperSearchFilter,
   PaperAnalysisType,
+  PaperReadingStatus,
+  PaperAnalysisResult,
 } from '@/types/learning/academic';
 
 export interface UseAcademicReturn {
@@ -77,8 +79,32 @@ export interface UseAcademicReturn {
   importBibtex: (data: string) => Promise<number>;
   exportBibtex: (paperIds?: string[]) => Promise<string>;
   
+  // Tag actions
+  addTag: (paperId: string, tag: string) => Promise<void>;
+  removeTag: (paperId: string, tag: string) => Promise<void>;
+  
+  // Batch actions
+  selectedPaperIds: string[];
+  togglePaperSelection: (paperId: string) => void;
+  selectAllPapers: () => void;
+  clearPaperSelection: () => void;
+  batchUpdateStatus: (status: PaperReadingStatus) => Promise<void>;
+  batchAddToCollection: (collectionId: string) => Promise<void>;
+  batchRemove: () => Promise<void>;
+  
+  // Search history
+  searchHistory: string[];
+  addSearchHistory: (query: string) => void;
+  clearSearchHistory: () => void;
+  
+  // Analysis history
+  saveAnalysisResult: (paperId: string, result: PaperAnalysisResult) => void;
+  getAnalysisHistory: (paperId: string) => PaperAnalysisResult[];
+  
   // Refresh
   refresh: () => Promise<void>;
+  refreshLibrary: () => Promise<void>;
+  refreshCollections: () => Promise<void>;
 }
 
 export function useAcademic(): UseAcademicReturn {
@@ -221,6 +247,34 @@ export function useAcademic(): UseAcademicReturn {
     return result.data;
   }, [academicStore]);
   
+  // Tag actions
+  const addTag = useCallback(async (paperId: string, tag: string) => {
+    await academicStore.addTag(paperId, tag);
+  }, [academicStore]);
+  
+  const removeTag = useCallback(async (paperId: string, tag: string) => {
+    await academicStore.removeTag(paperId, tag);
+  }, [academicStore]);
+  
+  // Batch actions
+  const batchUpdateStatus = useCallback(async (status: PaperReadingStatus) => {
+    const selectedIds = academicStore.library.selectedPaperIds;
+    if (selectedIds.length === 0) return;
+    await academicStore.batchUpdateStatus(selectedIds, status);
+  }, [academicStore]);
+  
+  const batchAddToCollection = useCallback(async (collectionId: string) => {
+    const selectedIds = academicStore.library.selectedPaperIds;
+    if (selectedIds.length === 0) return;
+    await academicStore.batchAddToCollection(selectedIds, collectionId);
+  }, [academicStore]);
+  
+  const batchRemove = useCallback(async () => {
+    const selectedIds = academicStore.library.selectedPaperIds;
+    if (selectedIds.length === 0) return;
+    await academicStore.batchRemoveFromLibrary(selectedIds);
+  }, [academicStore]);
+  
   // Refresh
   const refresh = useCallback(async () => {
     await Promise.all([
@@ -288,8 +342,32 @@ export function useAcademic(): UseAcademicReturn {
     importBibtex,
     exportBibtex,
     
+    // Tag actions
+    addTag,
+    removeTag,
+    
+    // Batch actions
+    selectedPaperIds: academicStore.library.selectedPaperIds,
+    togglePaperSelection: academicStore.togglePaperSelection,
+    selectAllPapers: academicStore.selectAllPapers,
+    clearPaperSelection: academicStore.clearPaperSelection,
+    batchUpdateStatus,
+    batchAddToCollection,
+    batchRemove,
+    
+    // Search history
+    searchHistory: academicStore.search.searchHistory,
+    addSearchHistory: academicStore.addSearchHistory,
+    clearSearchHistory: academicStore.clearSearchHistory,
+    
+    // Analysis history
+    saveAnalysisResult: academicStore.saveAnalysisResult,
+    getAnalysisHistory: academicStore.getAnalysisHistory,
+    
     // Refresh
     refresh,
+    refreshLibrary: academicStore.refreshLibrary,
+    refreshCollections: academicStore.refreshCollections,
   };
 }
 

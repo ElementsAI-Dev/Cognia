@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useTranslations, useFormatter } from 'next-intl';
 import {
   Save,
   Eye,
@@ -76,6 +77,9 @@ export function PromptTemplateAdvancedEditor({
   onCancel,
   onRequestOptimization,
 }: PromptTemplateAdvancedEditorProps) {
+  const t = useTranslations('promptTemplate.advancedEditor');
+  const format = useFormatter();
+  
   // Form state
   const [name, setName] = useState(template?.name || '');
   const [description, setDescription] = useState(template?.description || '');
@@ -143,11 +147,11 @@ export function PromptTemplateAdvancedEditor({
   // Validation
   const validation = useMemo(() => {
     const errors: string[] = [];
-    if (!name.trim()) errors.push('Name is required');
-    if (!content.trim()) errors.push('Content is required');
-    if (content.length > 50000) errors.push('Content exceeds 50,000 characters');
+    if (!name.trim()) errors.push(t('nameRequired'));
+    if (!content.trim()) errors.push(t('contentRequired'));
+    if (content.length > 50000) errors.push(t('contentTooLong'));
     return { isValid: errors.length === 0, errors };
-  }, [name, content]);
+  }, [name, content, t]);
   
   const handleAddTag = useCallback(() => {
     const trimmed = tagInput.trim().toLowerCase();
@@ -171,8 +175,8 @@ export function PromptTemplateAdvancedEditor({
     await navigator.clipboard.writeText(preview);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    toast.success('Copied to clipboard');
-  }, [preview]);
+    toast.success(t('copiedToClipboard'));
+  }, [preview, t]);
   
   const handleOptimize = useCallback(async () => {
     if (!onRequestOptimization) return;
@@ -181,26 +185,26 @@ export function PromptTemplateAdvancedEditor({
     try {
       const optimized = await onRequestOptimization(content);
       setContent(optimized);
-      toast.success('Prompt optimized!');
+      toast.success(t('promptOptimized'));
     } catch (error) {
-      toast.error('Failed to optimize prompt');
+      toast.error(t('optimizeFailed'));
       console.error(error);
     } finally {
       setIsOptimizing(false);
     }
-  }, [content, onRequestOptimization]);
+  }, [content, onRequestOptimization, t]);
   
   const handleSaveVersion = useCallback(() => {
     if (!template?.id) return;
-    saveVersion(template.id, 'Manual save');
-    toast.success('Version saved');
-  }, [template?.id, saveVersion]);
+    saveVersion(template.id, t('manualSave'));
+    toast.success(t('versionSaved'));
+  }, [template?.id, saveVersion, t]);
   
   const handleRestoreVersion = useCallback((version: PromptTemplateVersion) => {
     setContent(version.content);
     setVariables(version.variables);
-    toast.success(`Restored to version ${version.version}`);
-  }, []);
+    toast.success(t('restoredToVersion', { version: version.version }));
+  }, [t]);
   
   const handleSubmit = useCallback(() => {
     if (!validation.isValid) {
@@ -219,12 +223,12 @@ export function PromptTemplateAdvancedEditor({
   }, [name, description, content, category, tags, variables, validation, onSubmit]);
   
   const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
+    return format.dateTime(new Date(date), {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-    }).format(new Date(date));
+    });
   };
 
   return (
@@ -237,10 +241,10 @@ export function PromptTemplateAdvancedEditor({
           </div>
           <div>
             <h3 className="font-semibold text-sm">
-              {template ? 'Edit Template' : 'New Template'}
+              {template ? t('editTemplate') : t('newTemplate')}
             </h3>
             {hasChanges && (
-              <span className="text-xs text-amber-600">Unsaved changes</span>
+              <span className="text-xs text-amber-600">{t('unsavedChanges')}</span>
             )}
           </div>
         </div>
@@ -262,7 +266,7 @@ export function PromptTemplateAdvancedEditor({
                   )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>AI Optimize</TooltipContent>
+              <TooltipContent>{t('aiOptimize')}</TooltipContent>
             </Tooltip>
           )}
           
@@ -273,12 +277,12 @@ export function PromptTemplateAdvancedEditor({
                   <History className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Save Version</TooltipContent>
+              <TooltipContent>{t('saveVersion')}</TooltipContent>
             </Tooltip>
           )}
           
           <Button variant="outline" size="sm" onClick={onCancel}>
-            Cancel
+            {t('cancel')}
           </Button>
           
           <Button
@@ -288,7 +292,7 @@ export function PromptTemplateAdvancedEditor({
             className="gap-1.5"
           >
             <Save className="h-4 w-4" />
-            Save
+            {t('save')}
           </Button>
         </div>
       </div>
@@ -302,16 +306,16 @@ export function PromptTemplateAdvancedEditor({
             <div className="p-4 space-y-4 border-b">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Name *</Label>
+                  <Label htmlFor="name">{t('nameLabel')}</Label>
                   <Input
                     id="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Template name"
+                    placeholder={t('templateNamePlaceholder')}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
+                  <Label htmlFor="category">{t('categoryLabel')}</Label>
                   <Select value={category} onValueChange={setCategory}>
                     <SelectTrigger>
                       <SelectValue />
@@ -328,17 +332,17 @@ export function PromptTemplateAdvancedEditor({
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">{t('descriptionLabel')}</Label>
                 <Input
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Brief description of this template"
+                  placeholder={t('descriptionPlaceholder')}
                 />
               </div>
               
               <div className="space-y-2">
-                <Label>Tags</Label>
+                <Label>{t('tagsLabel')}</Label>
                 <div className="flex flex-wrap gap-2 items-center">
                   {tags.map(tag => (
                     <Badge
@@ -354,7 +358,7 @@ export function PromptTemplateAdvancedEditor({
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                    placeholder="Add tag..."
+                    placeholder={t('addTagPlaceholder')}
                     className="w-24 h-7 text-xs"
                   />
                 </div>
@@ -364,19 +368,17 @@ export function PromptTemplateAdvancedEditor({
             {/* Content Editor */}
             <div className="flex-1 flex flex-col min-h-0">
               <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/20">
-                <Label className="text-sm font-medium">Content *</Label>
+                <Label className="text-sm font-medium">{t('contentLabel')}</Label>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>{content.length} chars</span>
+                  <span>{content.length} {t('chars')}</span>
                   <span>•</span>
-                  <span>{variables.length} variables</span>
+                  <span>{variables.length} {t('variablesCount')}</span>
                 </div>
               </div>
               <Textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="Enter your prompt template...
-
-Use {{variable_name}} for variables that can be filled in later."
+                placeholder={t('contentPlaceholder')}
                 className="flex-1 min-h-[200px] rounded-none border-0 resize-none font-mono text-sm"
               />
             </div>
@@ -391,11 +393,11 @@ Use {{variable_name}} for variables that can be filled in later."
             <TabsList className="w-full justify-start rounded-none border-b px-2">
               <TabsTrigger value="preview" className="gap-1.5">
                 <Eye className="h-3.5 w-3.5" />
-                Preview
+                {t('previewTab')}
               </TabsTrigger>
               <TabsTrigger value="variables" className="gap-1.5">
                 <Variable className="h-3.5 w-3.5" />
-                Variables
+                {t('variablesTab')}
                 {variables.length > 0 && (
                   <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
                     {variables.length}
@@ -405,7 +407,7 @@ Use {{variable_name}} for variables that can be filled in later."
               {template?.id && versionHistory.length > 0 && (
                 <TabsTrigger value="history" className="gap-1.5">
                   <History className="h-3.5 w-3.5" />
-                  History
+                  {t('historyTab')}
                 </TabsTrigger>
               )}
             </TabsList>
@@ -419,7 +421,7 @@ Use {{variable_name}} for variables that can be filled in later."
                       <CardHeader className="py-3">
                         <CardTitle className="text-sm flex items-center gap-2">
                           <Play className="h-4 w-4" />
-                          Test Variables
+                          {t('testVariables')}
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2">
@@ -435,7 +437,7 @@ Use {{variable_name}} for variables that can be filled in later."
                                 ...variableValues,
                                 [v.name]: e.target.value,
                               })}
-                              placeholder={v.placeholder || v.sampleValue || v.defaultValue || `Enter ${v.name}`}
+                              placeholder={v.placeholder || v.sampleValue || v.defaultValue || t('enterVariable', { name: v.name })}
                               className="h-8 text-sm"
                             />
                           </div>
@@ -448,7 +450,7 @@ Use {{variable_name}} for variables that can be filled in later."
                   <Card>
                     <CardHeader className="py-3">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm">Preview Output</CardTitle>
+                        <CardTitle className="text-sm">{t('previewOutput')}</CardTitle>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopy}>
                           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                         </Button>
@@ -456,7 +458,7 @@ Use {{variable_name}} for variables that can be filled in later."
                     </CardHeader>
                     <CardContent>
                       <pre className="whitespace-pre-wrap text-sm bg-muted/50 p-3 rounded-lg">
-                        {preview || <span className="text-muted-foreground italic">Enter content to see preview</span>}
+                        {preview || <span className="text-muted-foreground italic">{t('enterContentToPreview')}</span>}
                       </pre>
                     </CardContent>
                   </Card>
@@ -470,8 +472,8 @@ Use {{variable_name}} for variables that can be filled in later."
                   {variables.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <Variable className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No variables detected</p>
-                      <p className="text-xs">Use {"{{variable_name}}"} in your content</p>
+                      <p className="text-sm">{t('noVariablesDetected')}</p>
+                      <p className="text-xs">{t('useVariableSyntax')}</p>
                     </div>
                   ) : (
                     variables.map(v => (
@@ -482,7 +484,7 @@ Use {{variable_name}} for variables that can be filled in later."
                               {`{{${v.name}}}`}
                             </code>
                             <div className="flex items-center gap-2">
-                              <Label className="text-xs">Required</Label>
+                              <Label className="text-xs">{t('requiredLabel')}</Label>
                               <Switch
                                 checked={v.required || false}
                                 onCheckedChange={(checked) => handleVariableChange(v.name, 'required', checked)}
@@ -492,17 +494,17 @@ Use {{variable_name}} for variables that can be filled in later."
                         </CardHeader>
                         <CardContent className="space-y-3">
                           <div className="space-y-1">
-                            <Label className="text-xs">Description</Label>
+                            <Label className="text-xs">{t('descriptionField')}</Label>
                             <Input
                               value={v.description || ''}
                               onChange={(e) => handleVariableChange(v.name, 'description', e.target.value)}
-                              placeholder="Describe this variable"
+                              placeholder={t('describeVariable')}
                               className="h-8 text-sm"
                             />
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             <div className="space-y-1">
-                              <Label className="text-xs">Type</Label>
+                              <Label className="text-xs">{t('typeField')}</Label>
                               <Select
                                 value={v.type || 'text'}
                                 onValueChange={(val) => handleVariableChange(v.name, 'type', val)}
@@ -520,21 +522,21 @@ Use {{variable_name}} for variables that can be filled in later."
                               </Select>
                             </div>
                             <div className="space-y-1">
-                              <Label className="text-xs">Default Value</Label>
+                              <Label className="text-xs">{t('defaultValue')}</Label>
                               <Input
                                 value={v.defaultValue || ''}
                                 onChange={(e) => handleVariableChange(v.name, 'defaultValue', e.target.value)}
-                                placeholder="Default"
+                                placeholder={t('defaultValue')}
                                 className="h-8 text-sm"
                               />
                             </div>
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Sample Value</Label>
+                            <Label className="text-xs">{t('sampleValue')}</Label>
                             <Input
                               value={v.sampleValue || ''}
                               onChange={(e) => handleVariableChange(v.name, 'sampleValue', e.target.value)}
-                              placeholder="Example value for preview"
+                              placeholder={t('sampleValuePlaceholder')}
                               className="h-8 text-sm"
                             />
                           </div>
@@ -552,7 +554,7 @@ Use {{variable_name}} for variables that can be filled in later."
                   {versionHistory.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <History className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No version history</p>
+                      <p className="text-sm">{t('noVersionHistory')}</p>
                     </div>
                   ) : (
                     versionHistory.slice().reverse().map((version) => (
@@ -580,7 +582,7 @@ Use {{variable_name}} for variables that can be filled in later."
                               onClick={() => handleRestoreVersion(version)}
                             >
                               <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                              Restore
+                              {t('restore')}
                             </Button>
                           </div>
                         </CardContent>

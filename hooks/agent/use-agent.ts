@@ -7,11 +7,13 @@
 
 import { useCallback, useState, useRef, useMemo } from 'react';
 import { useSettingsStore, useSkillStore, useMcpStore, useVectorStore } from '@/stores';
+import { useContext as useSystemContext } from '@/hooks/context';
 import type { ProviderName } from '@/types/provider';
 import type { Skill } from '@/types/system/skill';
 import {
   executeAgent,
   executeAgentLoop,
+  executeContextAwareAgent,
   createAgent,
   createMcpToolsFromStore,
   createRAGSearchTool,
@@ -23,6 +25,8 @@ import {
   type AgentTool,
   type ToolCall,
   type AgentLoopResult,
+  type ContextAwareAgentConfig,
+  type ContextAwareAgentResult,
 } from '@/lib/ai/agent';
 import type { McpToolSelectionConfig, ToolUsageRecord } from '@/types/mcp';
 import { DEFAULT_TOOL_SELECTION_CONFIG } from '@/types/mcp';
@@ -46,6 +50,14 @@ export interface UseAgentOptions {
   mcpToolUsageHistory?: Map<string, ToolUsageRecord>;
   /** Current query for tool relevance scoring (updated dynamically) */
   currentQuery?: string;
+  /** Enable context-aware execution (file persistence for long outputs) */
+  enableContextFiles?: boolean;
+  /** Inject context tools (read_context_file, tail_context_file, etc.) */
+  injectContextTools?: boolean;
+  /** Maximum inline output size before persisting to file */
+  maxInlineOutputSize?: number;
+  /** Enable system context injection (window, app, file, browser, editor) */
+  enableSystemContext?: boolean;
   onStepStart?: (step: number) => void;
   onStepComplete?: (step: number, response: string, toolCalls: ToolCall[]) => void;
   onToolCall?: (toolCall: ToolCall) => void;
@@ -123,6 +135,56 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   const vectorCollections = useVectorStore((state) => state.collections);
   const getCollectionNames = useVectorStore((state) => state.getCollectionNames);
 
+  // Get system context (window, app, file, browser, editor)
+  const { context: systemContext } = useSystemContext();
+
+  // Format system context for AI prompt injection
+  const systemContextPrompt = useMemo(() => {
+    const enableSysContext = options.enableSystemContext ?? true;
+    if (!enableSysContext || !systemContext) return '';
+
+    const parts: string[] = [];
+
+    if (systemContext.app) {
+      parts.push(`Current App: ${systemContext.app.app_name} (${systemContext.app.app_type})`);
+      if (systemContext.app.window_title) {
+        parts.push(`Window: ${systemContext.app.window_title}`);
+      }
+    }
+
+    if (systemContext.file) {
+      if (systemContext.file.file_path) {
+        parts.push(`File: ${systemContext.file.file_path}`);
+      }
+      if (systemContext.file.language) {
+        parts.push(`Language: ${systemContext.file.language}`);
+      }
+    }
+
+    if (systemContext.browser) {
+      if (systemContext.browser.url) {
+        parts.push(`Browser URL: ${systemContext.browser.url}`);
+      } else if (systemContext.browser.page_title) {
+        parts.push(`Browser Page: ${systemContext.browser.page_title}`);
+      }
+    }
+
+    if (systemContext.editor) {
+      parts.push(`Editor: ${systemContext.editor.editor_name}`);
+      if (systemContext.editor.line_number) {
+        parts.push(`Cursor Position: Line ${systemContext.editor.line_number}`);
+      }
+      if (systemContext.editor.selected_text) {
+        const selectedPreview = systemContext.editor.selected_text.slice(0, 200);
+        parts.push(`Selected Text: ${selectedPreview}${systemContext.editor.selected_text.length > 200 ? '...' : ''}`);
+      }
+    }
+
+    if (parts.length === 0) return '';
+
+    return `## Current User Context\n${parts.join('\n')}\n`;
+  }, [systemContext, options.enableSystemContext]);
+
   // Build skills system prompt using the optimized utility function
   const skillsSystemPrompt = useMemo(() => {
     if (!enableSkills || activeSkills.length === 0) return '';
@@ -196,11 +258,27 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     return buildRAGConfigFromSettings(vectorSettings, embeddingApiKey);
   }, [enableRAG, vectorSettings, providerSettings]);
 
-  // Combine system prompt with skills
+  // Combine system prompt with skills and system context
   const effectiveSystemPrompt = useMemo(() => {
-    if (!skillsSystemPrompt) return systemPrompt;
-    return `${skillsSystemPrompt}\n\n---\n\n${systemPrompt}`;
-  }, [systemPrompt, skillsSystemPrompt]);
+    const parts: string[] = [];
+
+    // Add system context first (most relevant)
+    if (systemContextPrompt) {
+      parts.push(systemContextPrompt);
+    }
+
+    // Add skills prompt
+    if (skillsSystemPrompt) {
+      parts.push(skillsSystemPrompt);
+    }
+
+    // Add base system prompt
+    if (systemPrompt) {
+      parts.push(systemPrompt);
+    }
+
+    return parts.join('\n\n---\n\n');
+  }, [systemPrompt, skillsSystemPrompt, systemContextPrompt]);
 
   const [isRunning, setIsRunning] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -303,12 +381,42 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
 
     try {
       const config = buildConfig();
-      const agentResult = await executeAgent(prompt, {
-        ...config,
-        provider: defaultProvider,
-        model: defaultModel,
-        apiKey: getApiKey(),
-      });
+      
+      // Use context-aware executor if enabled
+      const enableContextAware = options.enableContextFiles ?? true;
+      const enableCtxTools = options.injectContextTools ?? true;
+      
+      let agentResult: AgentResult;
+      
+      if (enableContextAware || enableCtxTools) {
+        const ctxResult = await executeContextAwareAgent(prompt, {
+          ...config,
+          provider: defaultProvider,
+          model: defaultModel,
+          apiKey: getApiKey(),
+          enableContextFiles: enableContextAware,
+          injectContextTools: enableCtxTools,
+          maxInlineOutputSize: options.maxInlineOutputSize ?? 4000,
+          onToolOutputPersisted: (ref) => {
+            console.log('[Context] Tool output persisted:', ref.path, ref.sizeSummary);
+          },
+        } as ContextAwareAgentConfig);
+        
+        agentResult = ctxResult as AgentResult;
+        
+        // Log context stats if available
+        const ctxTypedResult = ctxResult as ContextAwareAgentResult;
+        if (ctxTypedResult.persistedOutputs && ctxTypedResult.persistedOutputs.length > 0) {
+          console.log(`[Context] Persisted ${ctxTypedResult.persistedOutputs.length} outputs, saved ~${ctxTypedResult.tokensSaved || 0} tokens`);
+        }
+      } else {
+        agentResult = await executeAgent(prompt, {
+          ...config,
+          provider: defaultProvider,
+          model: defaultModel,
+          apiKey: getApiKey(),
+        });
+      }
 
       setResult(agentResult);
       if (!agentResult.success) {
@@ -329,7 +437,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     } finally {
       setIsRunning(false);
     }
-  }, [buildConfig, defaultProvider, defaultModel, getApiKey, currentStep]);
+  }, [buildConfig, defaultProvider, defaultModel, getApiKey, currentStep, options.enableContextFiles, options.injectContextTools, options.maxInlineOutputSize]);
 
   // Run with planning
   const runWithPlanning = useCallback(async (task: string): Promise<AgentLoopResult> => {

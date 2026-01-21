@@ -175,7 +175,8 @@ function extractLinks($: CheerioAPI, baseUrl?: string): HTMLLink[] {
     if (baseUrl && !href.startsWith('http')) {
       try {
         href = new URL(href, baseUrl).href;
-      } catch {
+      } catch (error) {
+        console.warn('Failed to resolve relative URL:', href, error);
         // Keep original href if URL parsing fails
       }
     }
@@ -219,7 +220,8 @@ function extractImages($: CheerioAPI, baseUrl?: string): HTMLImage[] {
     if (baseUrl && !src.startsWith('http')) {
       try {
         src = new URL(src, baseUrl).href;
-      } catch {
+      } catch (error) {
+        console.warn('Failed to resolve relative image URL:', src, error);
         // Keep original src if URL parsing fails
       }
     }

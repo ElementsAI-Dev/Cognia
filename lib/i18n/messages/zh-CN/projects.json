@@ -1,5 +1,15 @@
 {
   "projects": {
+    "newProject": "新建项目",
+    "blankProject": "空白项目",
+    "fromTemplate": "从模板创建",
+    "totalProjects": "项目总数",
+    "conversations": "对话数",
+    "activeToday": "今日活跃",
+    "importExport": "导入/导出",
+    "noProjectsFound": "未找到项目",
+    "searchHint": "尝试其他搜索词或创建新项目",
+    "createHint": "创建您的第一个项目来组织对话和知识",
     "title": "项目",
     "noProjectsYet": "暂无项目",
     "createProject": "创建项目",
@@ -49,7 +59,78 @@
     "yesterday": "昨天",
     "daysAgo": "{days} 天前"
   },
+  "importExport": {
+    "title": "导入 / 导出项目",
+    "description": "备份您的项目或从之前的导出中导入",
+    "export": "导出",
+    "import": "导入",
+    "noProjects": "没有可导出的项目",
+    "selectProjects": "选择要导出的项目",
+    "selectAll": "全选",
+    "deselectAll": "取消全选",
+    "exportJson": "导出 JSON",
+    "exportZip": "导出 ZIP",
+    "importing": "导入中...",
+    "dropHint": "拖放文件到此处或点击浏览",
+    "supportedFormats": "支持 .json 或 .zip 文件",
+    "importResult": "已导入 {success} 个，失败 {failed} 个",
+    "filesCount": "{count} 个文件"
+  },
+  "templates": {
+    "createFromTemplate": "从模板创建",
+    "chooseTemplate": "选择模板快速设置您的项目",
+    "all": "全部",
+    "categories": {
+      "development": "开发",
+      "writing": "写作",
+      "research": "研究",
+      "business": "商业",
+      "personal": "个人"
+    },
+    "codingAssistant": {
+      "name": "编程助手",
+      "description": "AI 驱动的编程帮助，包括代码审查、调试和文档编写",
+      "instructions": "你是一位专业的软件开发者。帮助完成编程任务、代码审查、调试和技术文档。始终提供干净、文档完善的代码示例。"
+    },
+    "researchProject": {
+      "name": "研究项目",
+      "description": "通过 AI 辅助分析和总结来组织研究",
+      "instructions": "你是一位研究助理。帮助分析文档、总结发现并组织研究材料。尽可能提供引用和参考文献。"
+    },
+    "businessStrategy": {
+      "name": "商业策略",
+      "description": "借助 AI 洞察进行战略规划和商业分析",
+      "instructions": "你是一位商业策略师。帮助进行市场分析、竞争研究和战略规划。提供可行的见解和建议。"
+    },
+    "creativeWriting": {
+      "name": "创意写作",
+      "description": "故事、文章和创意内容的写作助手",
+      "instructions": "你是一位创意写作助手。帮助故事讲述、角色发展和文字润色。提供建设性的反馈和建议。"
+    },
+    "startupLaunch": {
+      "name": "创业启动",
+      "description": "在 AI 指导下规划和执行您的创业想法",
+      "instructions": "你是一位创业顾问。帮助产品开发、市场策略和路演准备。为早期创始人提供实用、可行的建议。"
+    },
+    "learningPath": {
+      "name": "学习路径",
+      "description": "通过 AI 辅导和学习计划进行个性化学习",
+      "instructions": "你是一位耐心且知识渊博的导师。帮助创建个性化学习路径、解释复杂概念并提供练习。适应学习者的节奏和风格。"
+    },
+    "personalJournal": {
+      "name": "个人日记",
+      "description": "通过 AI 提示和洞察进行反思性日记",
+      "instructions": "你是一位用于个人反思的贴心伙伴。帮助提供日记提示、目标设定和自我发现。保持支持性且不带评判。"
+    },
+    "blankProject": {
+      "name": "空白项目",
+      "description": "从零开始",
+      "instructions": ""
+    }
+  },
   "projectDetail": {
+    "defaultModeLabel": "默认：{mode}",
+    "defaultProviderLabel": "服务商：{provider}",
     "notFound": "未找到项目",
     "backToProjects": "返回项目列表",
     "sessionsCount": "{count} 个会话",
@@ -80,6 +161,33 @@
     "removeSessionConfirmation": "从项目中移除此会话？会话不会被删除，只是取消与此项目的关联。",
     "remove": "移除",
     "versionControl": "版本控制"
+  },
+  "knowledgeBase": {
+    "title": "知识库",
+    "upload": "上传",
+    "processing": "处理中...",
+    "dismiss": "关闭",
+    "searchPlaceholder": "搜索文件...",
+    "selectAll": "全选",
+    "selectedCount": "已选 {count} 个",
+    "deleteSelected": "删除所选",
+    "openWithDefault": "使用默认应用打开",
+    "noResults": "未找到文件",
+    "noFiles": "暂无知识文件",
+    "tryDifferent": "尝试其他搜索词",
+    "uploadHint": "上传文件或手动添加内容来构建您的知识库",
+    "addFile": "添加文件",
+    "addFileDesc": "手动添加新文件到您的知识库。",
+    "fileName": "文件名",
+    "fileNamePlaceholder": "my-notes.md",
+    "content": "内容",
+    "contentPlaceholder": "在此粘贴或输入您的内容...",
+    "download": "下载",
+    "deleteFile": "删除文件",
+    "deleteConfirm": "确定要删除此文件吗？此操作无法撤销。",
+    "deleteMultipleFiles": "删除多个文件",
+    "deleteMultipleConfirm": "确定要删除 {count} 个文件吗？此操作无法撤销。",
+    "deleteAll": "删除 {count} 个文件"
   },
   "projectActivity": {
     "activity": "活动",

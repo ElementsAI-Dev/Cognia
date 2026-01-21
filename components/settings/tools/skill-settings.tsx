@@ -2,7 +2,7 @@
 
 /**
  * Skill Settings Component
- * 
+ *
  * Main component for managing Claude Skills configurations
  */
 
@@ -34,29 +34,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from '@/components/ui/input-group';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { EmptyState } from '@/components/layout/empty-state';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from '@/components/ui/alert';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Select,
   SelectContent,
@@ -96,35 +78,35 @@ import type { Skill, SkillCategory, CreateSkillInput } from '@/types/system/skil
 
 const CATEGORY_ICONS: Record<SkillCategory, React.ReactNode> = {
   'creative-design': <Palette className="h-4 w-4" />,
-  'development': <Code className="h-4 w-4" />,
-  'enterprise': <Building2 className="h-4 w-4" />,
-  'productivity': <Zap className="h-4 w-4" />,
+  development: <Code className="h-4 w-4" />,
+  enterprise: <Building2 className="h-4 w-4" />,
+  productivity: <Zap className="h-4 w-4" />,
   'data-analysis': <BarChart3 className="h-4 w-4" />,
-  'communication': <MessageSquare className="h-4 w-4" />,
-  'meta': <Cog className="h-4 w-4" />,
-  'custom': <FileText className="h-4 w-4" />,
+  communication: <MessageSquare className="h-4 w-4" />,
+  meta: <Cog className="h-4 w-4" />,
+  custom: <FileText className="h-4 w-4" />,
 };
 
 // Category labels will be translated in component
 const CATEGORY_KEYS: Record<SkillCategory, string> = {
   'creative-design': 'creativeDesign',
-  'development': 'development',
-  'enterprise': 'enterprise',
-  'productivity': 'productivity',
+  development: 'development',
+  enterprise: 'enterprise',
+  productivity: 'productivity',
   'data-analysis': 'dataAnalysis',
-  'communication': 'communication',
-  'meta': 'metaSkills',
-  'custom': 'custom',
+  communication: 'communication',
+  meta: 'metaSkills',
+  custom: 'custom',
 };
 
-function SkillCard({ 
-  skill, 
-  onEdit, 
-  onDelete, 
+function SkillCard({
+  skill,
+  onEdit,
+  onDelete,
   onToggle,
   onActivate,
   t,
-}: { 
+}: {
   skill: Skill;
   onEdit: () => void;
   onDelete: () => void;
@@ -142,22 +124,21 @@ function SkillCard({
             {CATEGORY_ICONS[skill.category]}
             <CardTitle className="text-base">{skill.metadata.name}</CardTitle>
             {skill.source === 'builtin' && (
-              <Badge variant="secondary" className="text-xs">{t('builtin')}</Badge>
+              <Badge variant="secondary" className="text-xs">
+                {t('builtin')}
+              </Badge>
             )}
             {skill.isActive && (
-              <Badge variant="default" className="text-xs bg-green-500">{t('active')}</Badge>
+              <Badge variant="default" className="text-xs bg-green-500">
+                {t('active')}
+              </Badge>
             )}
           </div>
           <div className="flex items-center gap-2">
-            <Switch
-              checked={skill.status === 'enabled'}
-              onCheckedChange={onToggle}
-            />
+            <Switch checked={skill.status === 'enabled'} onCheckedChange={onToggle} />
           </div>
         </div>
-        <CardDescription className="line-clamp-2">
-          {skill.metadata.description}
-        </CardDescription>
+        <CardDescription className="line-clamp-2">{skill.metadata.description}</CardDescription>
       </CardHeader>
       <CardContent>
         <Collapsible open={expanded} onOpenChange={setExpanded}>
@@ -186,11 +167,21 @@ function SkillCard({
           </div>
           <CollapsibleContent className="mt-4 space-y-4">
             <div className="text-sm text-muted-foreground">
-              <p><strong>{t('category')}:</strong> {t(`categories.${CATEGORY_KEYS[skill.category]}`)}</p>
-              <p><strong>{t('source')}:</strong> {skill.source}</p>
-              {skill.version && <p><strong>{t('version')}:</strong> {skill.version}</p>}
+              <p>
+                <strong>{t('category')}:</strong> {t(`categories.${CATEGORY_KEYS[skill.category]}`)}
+              </p>
+              <p>
+                <strong>{t('source')}:</strong> {skill.source}
+              </p>
+              {skill.version && (
+                <p>
+                  <strong>{t('version')}:</strong> {skill.version}
+                </p>
+              )}
               {skill.usageCount !== undefined && (
-                <p><strong>{t('used')}:</strong> {skill.usageCount} {t('times')}</p>
+                <p>
+                  <strong>{t('used')}:</strong> {skill.usageCount} {t('times')}
+                </p>
               )}
             </div>
             {skill.validationErrors && skill.validationErrors.length > 0 && (
@@ -232,10 +223,12 @@ function CreateSkillDialog({
   open,
   onOpenChange,
   onCreateSkill,
+  t,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreateSkill: (input: CreateSkillInput) => void;
+  t: ReturnType<typeof useTranslations>;
 }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -243,7 +236,7 @@ function CreateSkillDialog({
   const [category, setCategory] = useState<SkillCategory>('custom');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [mode, setMode] = useState<'blank' | 'template'>('blank');
-  
+
   const templates = getAllTemplates();
 
   const handleTemplateSelect = (templateId: string) => {
@@ -259,7 +252,7 @@ function CreateSkillDialog({
 
   const handleSubmit = () => {
     if (!name || !description || !content) return;
-    
+
     onCreateSkill({
       name: toHyphenCase(name),
       description,
@@ -267,7 +260,7 @@ function CreateSkillDialog({
       category,
       tags: [],
     });
-    
+
     // Reset form
     setName('');
     setDescription('');
@@ -281,16 +274,14 @@ function CreateSkillDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Skill</DialogTitle>
-          <DialogDescription>
-            Create a new Claude Skill to extend AI capabilities
-          </DialogDescription>
+          <DialogTitle>{t('createNewSkill')}</DialogTitle>
+          <DialogDescription>{t('createNewSkillDesc')}</DialogDescription>
         </DialogHeader>
 
         <Tabs value={mode} onValueChange={(v) => setMode(v as 'blank' | 'template')}>
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="blank">Start Blank</TabsTrigger>
-            <TabsTrigger value="template">Use Template</TabsTrigger>
+            <TabsTrigger value="blank">{t('startBlank')}</TabsTrigger>
+            <TabsTrigger value="template">{t('useTemplate')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="template" className="space-y-4">
@@ -318,28 +309,24 @@ function CreateSkillDialog({
           </TabsContent>
 
           <TabsContent value="blank" className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Start with a blank skill and define everything from scratch.
-            </p>
+            <p className="text-sm text-muted-foreground">{t('startBlankDesc')}</p>
           </TabsContent>
         </Tabs>
 
         <div className="space-y-4 mt-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">{t('name')}</Label>
               <Input
                 id="name"
                 placeholder="my-skill-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">
-                Hyphen-case, lowercase only
-              </p>
+              <p className="text-xs text-muted-foreground">{t('nameHint')}</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
+              <Label htmlFor="category">{t('category')}</Label>
               <Select value={category} onValueChange={(v) => setCategory(v as SkillCategory)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -359,21 +346,19 @@ function CreateSkillDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{t('descriptionLabel')}</Label>
             <Textarea
               id="description"
-              placeholder="What this skill does and when to use it..."
+              placeholder={t('descriptionPlaceholder')}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
             />
-            <p className="text-xs text-muted-foreground">
-              Max 1024 characters. No &lt; or &gt; characters.
-            </p>
+            <p className="text-xs text-muted-foreground">{t('descriptionHint')}</p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="content">Skill Instructions (Markdown)</Label>
+            <Label htmlFor="content">{t('skillInstructions')}</Label>
             <Textarea
               id="content"
               placeholder="# My Skill&#10;&#10;## When to Use&#10;&#10;## Instructions&#10;&#10;..."
@@ -387,10 +372,10 @@ function CreateSkillDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={!name || !description || !content}>
-            Create Skill
+            {t('createSkill')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -402,10 +387,12 @@ function ImportSkillDialog({
   open,
   onOpenChange,
   onImport,
+  t,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImport: (content: string) => void;
+  t: ReturnType<typeof useTranslations>;
 }) {
   const [content, setContent] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -426,10 +413,8 @@ function ImportSkillDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Import Skill</DialogTitle>
-          <DialogDescription>
-            Paste the contents of a SKILL.md file to import
-          </DialogDescription>
+          <DialogTitle>{t('importSkill')}</DialogTitle>
+          <DialogDescription>{t('importSkillDesc')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -453,11 +438,11 @@ function ImportSkillDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button onClick={handleImport} disabled={!content}>
             <Upload className="h-4 w-4 mr-2" />
-            Import
+            {t('import')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -490,53 +475,66 @@ export function SkillSettings() {
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
 
   const allSkills = Object.values(skills);
-  
+
   const filteredSkills = allSkills.filter((skill) => {
-    const matchesSearch = !searchQuery || 
+    const matchesSearch =
+      !searchQuery ||
       skill.metadata.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       skill.metadata.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      skill.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    
+      skill.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+
     const matchesCategory = categoryFilter === 'all' || skill.category === categoryFilter;
-    
+
     return matchesSearch && matchesCategory;
   });
 
-  const handleCreateSkill = useCallback((input: CreateSkillInput) => {
-    createSkill(input);
-  }, [createSkill]);
+  const handleCreateSkill = useCallback(
+    (input: CreateSkillInput) => {
+      createSkill(input);
+    },
+    [createSkill]
+  );
 
-  const handleImportSkill = useCallback((content: string) => {
-    const result = parseSkillMd(content);
-    if (result.success && result.metadata && result.content) {
-      importSkill({
-        metadata: result.metadata,
-        content: result.content,
-        rawContent: result.rawContent,
-        resources: [],
-        status: 'enabled',
-        source: 'imported',
-        category: 'custom',
-        tags: [],
-      });
-    }
-  }, [importSkill]);
+  const handleImportSkill = useCallback(
+    (content: string) => {
+      const result = parseSkillMd(content);
+      if (result.success && result.metadata && result.content) {
+        importSkill({
+          metadata: result.metadata,
+          content: result.content,
+          rawContent: result.rawContent,
+          resources: [],
+          status: 'enabled',
+          source: 'imported',
+          category: 'custom',
+          tags: [],
+        });
+      }
+    },
+    [importSkill]
+  );
 
-  const handleToggleSkill = useCallback((skill: Skill) => {
-    if (skill.status === 'enabled') {
-      disableSkill(skill.id);
-    } else {
-      enableSkill(skill.id);
-    }
-  }, [enableSkill, disableSkill]);
+  const handleToggleSkill = useCallback(
+    (skill: Skill) => {
+      if (skill.status === 'enabled') {
+        disableSkill(skill.id);
+      } else {
+        enableSkill(skill.id);
+      }
+    },
+    [enableSkill, disableSkill]
+  );
 
-  const handleActivateSkill = useCallback((skill: Skill) => {
-    if (skill.isActive) {
-      deactivateSkill(skill.id);
-    } else {
-      activateSkill(skill.id);
-    }
-  }, [activateSkill, deactivateSkill]);
+  const handleActivateSkill = useCallback(
+    (skill: Skill) => {
+      if (skill.isActive) {
+        deactivateSkill(skill.id);
+      } else {
+        activateSkill(skill.id);
+      }
+    },
+    [activateSkill, deactivateSkill]
+  );
 
   const [deleteConfirmSkillId, setDeleteConfirmSkillId] = useState<string | null>(null);
 
@@ -551,13 +549,16 @@ export function SkillSettings() {
     setDeleteConfirmSkillId(null);
   }, [deleteConfirmSkillId, deleteSkill, setDeleteConfirmSkillId]);
 
-  const groupedSkills = filteredSkills.reduce((acc, skill) => {
-    if (!acc[skill.category]) {
-      acc[skill.category] = [];
-    }
-    acc[skill.category].push(skill);
-    return acc;
-  }, {} as Record<SkillCategory, Skill[]>);
+  const groupedSkills = filteredSkills.reduce(
+    (acc, skill) => {
+      if (!acc[skill.category]) {
+        acc[skill.category] = [];
+      }
+      acc[skill.category].push(skill);
+      return acc;
+    },
+    {} as Record<SkillCategory, Skill[]>
+  );
 
   return (
     <div className="space-y-6">
@@ -567,9 +568,7 @@ export function SkillSettings() {
             <Sparkles className="h-5 w-5" />
             {t('title')}
           </CardTitle>
-          <CardDescription>
-            {t('description')}
-          </CardDescription>
+          <CardDescription>{t('description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
@@ -607,7 +606,7 @@ export function SkillSettings() {
                   value={categoryFilter}
                   onValueChange={(v) => setCategoryFilter(v as SkillCategory | 'all')}
                 >
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-45">
                     <SelectValue placeholder={t('allCategories')} />
                   </SelectTrigger>
                   <SelectContent>
@@ -640,11 +639,7 @@ export function SkillSettings() {
                   <Loader2 className="h-6 w-6 animate-spin" />
                 </div>
               ) : filteredSkills.length === 0 ? (
-                <EmptyState
-                  icon={BookOpen}
-                  title={t('noSkills')}
-                  description={t('noSkillsDesc')}
-                />
+                <EmptyState icon={BookOpen} title={t('noSkills')} description={t('noSkillsDesc')} />
               ) : (
                 <div className="space-y-6">
                   {Object.entries(groupedSkills).map(([category, categorySkills]) => (
@@ -686,40 +681,38 @@ export function SkillSettings() {
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         onCreateSkill={handleCreateSkill}
+        t={t}
       />
 
       <ImportSkillDialog
         open={showImportDialog}
         onOpenChange={setShowImportDialog}
         onImport={handleImportSkill}
+        t={t}
       />
 
       {/* Skill Detail Dialog */}
       <Dialog open={!!selectedSkillId} onOpenChange={(open) => !open && setSelectedSkillId(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden p-0">
           {selectedSkillId && (
-            <SkillDetail
-              skillId={selectedSkillId}
-              onClose={() => setSelectedSkillId(null)}
-            />
+            <SkillDetail skillId={selectedSkillId} onClose={() => setSelectedSkillId(null)} />
           )}
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteConfirmSkillId} onOpenChange={(open) => !open && setDeleteConfirmSkillId(null)}>
+      <AlertDialog
+        open={!!deleteConfirmSkillId}
+        onOpenChange={(open) => !open && setDeleteConfirmSkillId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('deleteSkill')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('deleteSkillConfirmation')}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{t('deleteSkillConfirmation')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteSkill}>
-              {tCommon('delete')}
-            </AlertDialogAction>
+            <AlertDialogAction onClick={confirmDeleteSkill}>{tCommon('delete')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

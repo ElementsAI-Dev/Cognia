@@ -93,7 +93,9 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useMessages, useAgent, useProjectContext, calculateTokenBreakdown, useTTS } from '@/hooks';
 import { useIntentDetection } from '@/hooks/chat/use-intent-detection';
+import { useFeatureRouting } from '@/hooks/chat/use-feature-routing';
 import { ModeSwitchSuggestion } from '../ui/mode-switch-suggestion';
+import { FeatureNavigationDialog } from '../ui/feature-navigation-dialog';
 import type { ParsedToolCall, ToolCallResult } from '@/types/mcp';
 import { useAIChat, useAutoRouter, type ProviderName, isVisionModel, buildMultimodalContent, type MultimodalMessage, isAudioModel, isVideoModel } from '@/lib/ai';
 import { RoutingIndicator } from '../ui/routing-indicator';
@@ -273,6 +275,18 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   // Mode switch confirmation dialog state
   const [showModeSwitchDialog, setShowModeSwitchDialog] = useState(false);
   const [pendingTargetMode, setPendingTargetMode] = useState<ChatMode | null>(null);
+
+  // Feature routing hook for intent-based navigation
+  const {
+    hasPendingSuggestion: hasFeatureRoutingSuggestion,
+    pendingFeature,
+    pendingMessage: featureRoutingMessage,
+    detectionResult: featureDetectionResult,
+    checkFeatureIntent,
+    confirmNavigation: confirmFeatureNavigation,
+    continueInChat: continueFeatureInChat,
+    dismissSuggestion: dismissFeatureRouting,
+  } = useFeatureRouting();
 
   // Streaming chunk coalescing (reduces render churn during token streaming)
   const streamBufferRef = useRef<{ messageId: string; buffer: string } | null>(null);
@@ -546,6 +560,10 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     maxSteps: 10,
     temperature: session?.temperature ?? 0.7,
     tools: agentTools,
+    // Context-aware features
+    enableContextFiles: true,
+    injectContextTools: true,
+    enableSystemContext: true,
     onStepStart: (step) => {
       console.log(`Agent step ${step} started`);
     },
@@ -985,6 +1003,14 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   const handleSendMessage = useCallback(async (content: string, attachments?: Attachment[], toolCalls?: ParsedToolCall[]) => {
     if (!content.trim() && (!attachments || attachments.length === 0)) return;
+
+    // Check for feature routing intent (navigate to feature pages)
+    const featureResult = await checkFeatureIntent(content);
+    if (featureResult.detected && featureResult.feature) {
+      // If feature intent detected with high confidence, the dialog will show
+      // and the message will be sent after user confirms or continues
+      return;
+    }
 
     // Check for learning/research intent (works in all modes)
     checkIntent(content);
@@ -1471,7 +1497,7 @@ Be thorough in your thinking but concise in your final answer.`;
     } finally {
       setIsLoading(false);
     }
-  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes, getActiveSkills, getLearningSessionByChat, autoCreateFromContent, processA2UIMessage, sourceVerification, checkIntent, autoRouterSettings.showRoutingIndicator, flushStreamBuffer, chatHistoryContextSettings]);
+  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes, getActiveSkills, getLearningSessionByChat, autoCreateFromContent, processA2UIMessage, sourceVerification, checkIntent, autoRouterSettings.showRoutingIndicator, flushStreamBuffer, chatHistoryContextSettings, checkFeatureIntent]);
 
   const handleStop = useCallback(() => {
     aiStop();
@@ -2041,6 +2067,29 @@ Be thorough in your thinking but concise in your final answer.`;
           />
         </div>
       )}
+
+      {/* Feature Navigation Dialog - shown when feature intent is detected */}
+      <FeatureNavigationDialog
+        open={hasFeatureRoutingSuggestion}
+        feature={pendingFeature}
+        confidence={featureDetectionResult?.confidence || 0}
+        originalMessage={featureRoutingMessage}
+        matchedPatterns={featureDetectionResult?.matchedPatterns || []}
+        onNavigate={confirmFeatureNavigation}
+        onContinue={() => {
+          continueFeatureInChat();
+          // After continuing, send the message normally
+          if (featureRoutingMessage) {
+            handleSendMessage(featureRoutingMessage);
+          }
+        }}
+        onDismiss={dismissFeatureRouting}
+        onOpenChange={(open) => {
+          if (!open) {
+            continueFeatureInChat();
+          }
+        }}
+      />
 
       {/* Workflow Selector Dialog */}
       <WorkflowSelector

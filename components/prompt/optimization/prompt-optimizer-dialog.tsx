@@ -57,50 +57,50 @@ interface PromptOptimizerDialogProps {
 
 const STYLE_OPTIONS: {
   value: PromptOptimizationStyle;
-  label: string;
-  description: string;
+  labelKey: string;
+  descriptionKey: string;
   icon: React.ReactNode;
 }[] = [
   {
     value: 'concise',
-    label: 'Concise',
-    description: 'Shorter and more direct',
+    labelKey: 'concise',
+    descriptionKey: 'conciseDesc',
     icon: <FileText className="h-4 w-4" />,
   },
   {
     value: 'detailed',
-    label: 'Detailed',
-    description: 'More context and specificity',
+    labelKey: 'detailed',
+    descriptionKey: 'detailedDesc',
     icon: <Lightbulb className="h-4 w-4" />,
   },
   {
     value: 'creative',
-    label: 'Creative',
-    description: 'Imaginative and innovative',
+    labelKey: 'creative',
+    descriptionKey: 'creativeDesc',
     icon: <Sparkles className="h-4 w-4" />,
   },
   {
     value: 'professional',
-    label: 'Professional',
-    description: 'Formal business language',
+    labelKey: 'professional',
+    descriptionKey: 'professionalDesc',
     icon: <Briefcase className="h-4 w-4" />,
   },
   {
     value: 'academic',
-    label: 'Academic',
-    description: 'Scholarly and research-oriented',
+    labelKey: 'academic',
+    descriptionKey: 'academicDesc',
     icon: <GraduationCap className="h-4 w-4" />,
   },
   {
     value: 'technical',
-    label: 'Technical',
-    description: 'Precise technical language',
+    labelKey: 'technical',
+    descriptionKey: 'technicalDesc',
     icon: <Code className="h-4 w-4" />,
   },
   {
     value: 'custom',
-    label: 'Custom',
-    description: 'Your own instructions',
+    labelKey: 'custom',
+    descriptionKey: 'customDesc',
     icon: <Settings2 className="h-4 w-4" />,
   },
 ];
@@ -264,9 +264,9 @@ export function PromptOptimizerDialog({
                     )}>
                       {option.icon}
                     </div>
-                    <span className="text-sm font-medium">{option.label}</span>
+                    <span className="text-sm font-medium">{t(option.labelKey)}</span>
                     <span className="text-xs text-muted-foreground hidden sm:block">
-                      {option.description}
+                      {t(option.descriptionKey)}
                     </span>
                   </button>
                 ))}

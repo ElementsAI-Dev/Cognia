@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from 'react';
-import { MoreHorizontal, MessageSquarePlus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import {
+  MoreHorizontal,
+  Pencil,
+  Copy,
+  MessageSquare,
+  Trash2,
+  Zap,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +17,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { PromptTemplate } from '@/types/content/prompt-template';
@@ -19,10 +28,19 @@ interface PromptTemplateCardProps {
   onEdit: (template: PromptTemplate) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
-  onSelect?: (template: PromptTemplate) => void;
+  onFeedback?: (template: PromptTemplate) => void;
+  onUse?: (template: PromptTemplate) => void;
 }
 
-export function PromptTemplateCard({ template, onEdit, onDuplicate, onDelete, onSelect }: PromptTemplateCardProps) {
+export function PromptTemplateCard({
+  template,
+  onEdit,
+  onDuplicate,
+  onDelete,
+  onFeedback,
+  onUse,
+}: PromptTemplateCardProps) {
+  const t = useTranslations('promptTemplate.card');
   const [showFeedback, setShowFeedback] = useState(false);
 
   return (
@@ -51,28 +69,40 @@ export function PromptTemplateCard({ template, onEdit, onDuplicate, onDelete, on
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onEdit(template)}>Edit</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onDuplicate(template.id)}>Duplicate</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setShowFeedback(true)}>
-                <MessageSquarePlus className="h-4 w-4 mr-2" />
-                Feedback
+              <DropdownMenuItem onClick={() => onEdit?.(template)}>
+                <Pencil className="mr-2 h-4 w-4" /> {t('edit')}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onDelete(template.id)}>Delete</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDuplicate?.(template.id)}>
+                <Copy className="mr-2 h-4 w-4" /> {t('duplicate')}
+              </DropdownMenuItem>
+              {onFeedback && (
+                <DropdownMenuItem onClick={() => onFeedback?.(template)}>
+                  <MessageSquare className="mr-2 h-4 w-4" /> {t('feedback')}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive"
+                onClick={() => onDelete?.(template.id)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" /> {t('delete')}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="space-y-3 text-sm text-muted-foreground">
-        <div className="line-clamp-3 whitespace-pre-line border rounded-md bg-muted/60 p-3 text-foreground/80">
-          {template.content || 'No content yet'}
-        </div>
+        <p className="text-sm text-muted-foreground line-clamp-2">
+          {template.content || t('noContent')}
+        </p>
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>{template.targets?.join(', ') || 'chat'}</span>
-          <span>Used {template.usageCount}×</span>
+          <span>{t('usedCount', { count: template.usageCount })}</span>
         </div>
-        {onSelect && (
-          <Button size="sm" className="w-full" onClick={() => onSelect(template)}>
-            Use template
+        {onUse && (
+          <Button size="sm" className="flex-1" onClick={() => onUse?.(template)}>
+            <Zap className="mr-1 h-3.5 w-3.5" />
+            {t('useTemplate')}
           </Button>
         )}
         {showFeedback && (

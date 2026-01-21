@@ -141,7 +141,7 @@ export function ClipboardPanel({
     const now = Date.now();
     const diff = now - timestamp;
     
-    if (diff < 60000) return t("justNow") || "Just now";
+    if (diff < 60000) return t("justNow");
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
     return new Date(timestamp).toLocaleDateString();
@@ -189,7 +189,7 @@ export function ClipboardPanel({
           <div className="flex items-center gap-2">
             <Clipboard className="w-4 h-4 text-cyan-400" />
             <span className="text-sm font-medium text-white">
-              {t("title") || "Clipboard History"}
+              {t("title")}
             </span>
             <Badge variant="secondary" className="h-5 text-[10px]">
               {history.length}
@@ -207,7 +207,7 @@ export function ClipboardPanel({
                   <RefreshCw className="w-3.5 h-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{t("refresh") || "Refresh"}</TooltipContent>
+              <TooltipContent>{t("refresh")}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -220,7 +220,7 @@ export function ClipboardPanel({
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{t("clearAll") || "Clear All"}</TooltipContent>
+              <TooltipContent>{t("clearAll")}</TooltipContent>
             </Tooltip>
             <Button
               variant="ghost"
@@ -238,7 +238,7 @@ export function ClipboardPanel({
           <div className="px-4 py-3 border-b border-white/10 bg-white/5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-white/60">
-                {t("current") || "Current"}
+                {t("current")}
               </span>
               <div className="flex items-center gap-1">
                 {currentContent.analysis && (
@@ -296,7 +296,7 @@ export function ClipboardPanel({
             {sortedHistory.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-white/40">
                 <Clipboard className="w-8 h-8 mb-2 opacity-50" />
-                <p className="text-sm">{t("empty") || "No clipboard history"}</p>
+                <p className="text-sm">{t("empty")}</p>
               </div>
             ) : (
               sortedHistory.map((content, _index) => {
@@ -343,7 +343,7 @@ export function ClipboardPanel({
                           </span>
                           {content.analysis && (
                             <span className="text-[10px] text-white/40">
-                              {content.analysis.wordCount} words
+                              {content.analysis.wordCount} {t("words")}
                             </span>
                           )}
                         </div>
@@ -424,7 +424,7 @@ export function ClipboardPanel({
                                 // Remove from history (would need to implement in hook)
                               }}
                             >
-                              Delete
+                              {t("delete")}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -443,10 +443,10 @@ export function ClipboardPanel({
             {isMonitoring ? (
               <span className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                {t("monitoring") || "Monitoring"}
+                {t("monitoring")}
               </span>
             ) : (
-              t("paused") || "Paused"
+              t("paused")
             )}
           </span>
           <Button
@@ -455,9 +455,7 @@ export function ClipboardPanel({
             className="h-6 px-2 text-[10px] text-white/60 hover:text-white"
             onClick={isMonitoring ? stopMonitoring : startMonitoring}
           >
-            {isMonitoring
-              ? t("pause") || "Pause"
-              : t("resume") || "Resume"}
+            {isMonitoring ? t("pause") : t("resume")}
           </Button>
         </div>
       </div>

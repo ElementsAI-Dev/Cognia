@@ -3,9 +3,10 @@
 /**
  * Plugin Card - Displays a single plugin with controls
  * Supports both card (grid) and compact (list) variants
+ * Enhanced with animations, favorites, and better visual design
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { Plugin, PluginCapability } from '@/types/plugin';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   MoreVertical,
   Settings,
   Trash2,
@@ -38,6 +45,10 @@ import {
   Zap,
   LayoutGrid,
   FileCode2,
+  Heart,
+  Info,
+  Shield,
+  CheckCircle,
 } from 'lucide-react';
 import { InlineLoading } from '@/components/ui/loading-states';
 import { cn } from '@/lib/utils';
@@ -50,6 +61,8 @@ interface PluginCardProps {
   onToggle: () => void;
   onConfigure: () => void;
   onUninstall: () => void;
+  onViewDetails?: () => void;
+  showFavorite?: boolean;
 }
 
 const capabilityIcons: Record<PluginCapability, React.ReactNode> = {
@@ -74,32 +87,52 @@ export function PluginCard({
   onToggle,
   onConfigure,
   onUninstall,
+  onViewDetails,
+  showFavorite = true,
 }: PluginCardProps) {
   const t = useTranslations('pluginCard');
   const { manifest, status, error } = plugin;
   const isEnabled = status === 'enabled';
   const isError = status === 'error';
   const isLoading = status === 'loading' || status === 'enabling' || status === 'disabling';
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  // Get status styling
+  const getStatusConfig = () => {
+    if (isEnabled) return { color: 'text-green-500', bg: 'bg-green-500/10', icon: CheckCircle };
+    if (isError) return { color: 'text-red-500', bg: 'bg-red-500/10', icon: Shield };
+    return { color: 'text-muted-foreground', bg: 'bg-muted', icon: Info };
+  };
+  const statusConfig = getStatusConfig();
 
   // Compact variant - horizontal layout for list view
   if (variant === 'compact') {
     return (
       <div
         className={cn(
-          'flex items-center gap-3 p-3 rounded-lg border bg-card transition-colors hover:bg-muted/50',
-          isError && 'border-destructive'
+          'group flex items-center gap-3 p-3 rounded-lg border bg-card transition-all duration-200',
+          'hover:bg-muted/50 hover:border-primary/30 hover:shadow-sm',
+          isError && 'border-destructive/50 hover:border-destructive'
         )}
       >
+        {/* Plugin icon */}
+        <div className={cn(
+          'w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors',
+          isEnabled ? 'bg-primary/10' : 'bg-muted'
+        )}>
+          {capabilityIcons[manifest.capabilities[0]] || <Zap className="h-4 w-4" />}
+        </div>
+
         {/* Plugin info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-sm truncate">{manifest.name}</span>
+            <span className="font-medium text-sm truncate group-hover:text-primary transition-colors">{manifest.name}</span>
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 shrink-0">
               v{manifest.version}
             </Badge>
             <Badge
               variant={isEnabled ? 'default' : isError ? 'destructive' : 'secondary'}
-              className="text-[10px] px-1.5 py-0 h-5 shrink-0"
+              className={cn('text-[10px] px-1.5 py-0 h-5 shrink-0', isEnabled && 'bg-green-500')}
             >
               {status}
             </Badge>
@@ -116,10 +149,19 @@ export function PluginCard({
         {/* Capabilities - hidden on very small screens */}
         <div className="hidden md:flex items-center gap-1 shrink-0">
           {manifest.capabilities.slice(0, 3).map((cap) => (
-            <Badge key={cap} variant="secondary" className="text-[10px] gap-0.5 px-1.5 py-0 h-5">
-              {capabilityIcons[cap]}
-              <span className="hidden lg:inline">{cap}</span>
-            </Badge>
+            <TooltipProvider key={cap}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="secondary" className="text-[10px] gap-0.5 px-1.5 py-0 h-5 cursor-help">
+                    {capabilityIcons[cap]}
+                    <span className="hidden lg:inline">{cap}</span>
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="capitalize">{cap}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           ))}
           {manifest.capabilities.length > 3 && (
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
@@ -130,6 +172,19 @@ export function PluginCard({
 
         {/* Controls */}
         <div className="flex items-center gap-2 shrink-0">
+          {showFavorite && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsFavorite(!isFavorite);
+              }}
+            >
+              <Heart className={cn('h-4 w-4', isFavorite && 'fill-red-500 text-red-500')} />
+            </Button>
+          )}
           <Switch
             checked={isEnabled}
             onCheckedChange={onToggle}
@@ -143,6 +198,12 @@ export function PluginCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {onViewDetails && (
+                <DropdownMenuItem onClick={onViewDetails}>
+                  <Info className="h-4 w-4 mr-2" />
+                  {t('viewDetails')}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={onConfigure}>
                 <Settings className="h-4 w-4 mr-2" />
                 {t('configure')}
@@ -168,23 +229,54 @@ export function PluginCard({
   }
 
   // Card variant - default grid view
+  const StatusIcon = statusConfig.icon;
+  
   return (
-    <Card className={cn('transition-colors hover:border-primary/50', isError && 'border-destructive')}>
-      <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3">
+    <Card className={cn(
+      'group relative overflow-hidden transition-all duration-200',
+      'hover:border-primary/50 hover:shadow-md hover:shadow-primary/5',
+      isError && 'border-destructive/50 hover:border-destructive'
+    )}>
+      {/* Gradient overlay on hover */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+      
+      <CardHeader className="relative p-3 sm:p-4 pb-2 sm:pb-3">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <CardTitle className="text-sm sm:text-base truncate">{manifest.name}</CardTitle>
-            <CardDescription className="text-[10px] sm:text-xs mt-0.5 sm:mt-1">
-              v{manifest.version} • {manifest.type}
-            </CardDescription>
+          <div className="flex items-start gap-3">
+            {/* Plugin Icon */}
+            <div className={cn(
+              'w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 transition-colors',
+              isEnabled ? 'bg-primary/10' : 'bg-muted'
+            )}>
+              <div className={cn('scale-125', isEnabled && 'text-primary')}>
+                {capabilityIcons[manifest.capabilities[0]] || <Zap className="h-5 w-5" />}
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-sm sm:text-base truncate group-hover:text-primary transition-colors">
+                {manifest.name}
+              </CardTitle>
+              <CardDescription className="text-[10px] sm:text-xs mt-0.5 sm:mt-1 flex items-center gap-1.5">
+                <span>v{manifest.version}</span>
+                <span>•</span>
+                <span className="capitalize">{manifest.type}</span>
+              </CardDescription>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <Switch
-              checked={isEnabled}
-              onCheckedChange={onToggle}
-              disabled={isLoading || isError}
-              className="scale-90 sm:scale-100"
-            />
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            {showFavorite && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 sm:h-8 sm:w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsFavorite(!isFavorite);
+                }}
+              >
+                <Heart className={cn('h-4 w-4', isFavorite && 'fill-red-500 text-red-500')} />
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8">
@@ -192,6 +284,12 @@ export function PluginCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {onViewDetails && (
+                  <DropdownMenuItem onClick={onViewDetails}>
+                    <Info className="h-4 w-4 mr-2" />
+                    {t('viewDetails')}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={onConfigure}>
                   <Settings className="h-4 w-4 mr-2" />
                   {t('configure')}
@@ -217,18 +315,27 @@ export function PluginCard({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-3 sm:p-4 pt-0">
-        <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mb-2 sm:mb-3">
+      <CardContent className="relative p-3 sm:p-4 pt-0">
+        <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mb-3">
           {manifest.description}
         </p>
         
         {/* Capabilities */}
-        <div className="flex flex-wrap gap-1 sm:gap-1.5 mb-2 sm:mb-3">
+        <div className="flex flex-wrap gap-1 sm:gap-1.5 mb-3">
           {manifest.capabilities.slice(0, 4).map((cap) => (
-            <Badge key={cap} variant="secondary" className="text-[10px] sm:text-xs gap-0.5 sm:gap-1 px-1.5 sm:px-2">
-              {capabilityIcons[cap]}
-              <span className="hidden xs:inline">{cap}</span>
-            </Badge>
+            <TooltipProvider key={cap}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="secondary" className="text-[10px] sm:text-xs gap-0.5 sm:gap-1 px-1.5 sm:px-2 cursor-help">
+                    {capabilityIcons[cap]}
+                    <span className="hidden xs:inline">{cap}</span>
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="capitalize">{cap}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           ))}
           {manifest.capabilities.length > 4 && (
             <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5 sm:px-2">
@@ -237,34 +344,53 @@ export function PluginCard({
           )}
         </div>
 
-        {/* Status */}
-        <div className="flex items-center gap-2">
-          <Badge
-            variant={isEnabled ? 'default' : isError ? 'destructive' : 'outline'}
-            className="text-[10px] sm:text-xs"
-          >
-            {status}
-          </Badge>
-          {isLoading && <InlineLoading />}
+        {/* Status and Toggle */}
+        <div className="flex items-center justify-between pt-2 border-t">
+          <div className="flex items-center gap-2">
+            <div className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md', statusConfig.bg)}>
+              <StatusIcon className={cn('h-3.5 w-3.5', statusConfig.color)} />
+              <span className={cn('text-[10px] sm:text-xs font-medium capitalize', statusConfig.color)}>
+                {status}
+              </span>
+            </div>
+            {isLoading && <InlineLoading />}
+          </div>
+          <Switch
+            checked={isEnabled}
+            onCheckedChange={onToggle}
+            disabled={isLoading || isError}
+            className="scale-90 sm:scale-100"
+          />
         </div>
 
         {/* Error message */}
         {error && (
-          <p className="text-[10px] sm:text-xs text-destructive mt-2 line-clamp-2">{error}</p>
+          <p className="text-[10px] sm:text-xs text-destructive mt-2 line-clamp-2 p-2 bg-destructive/10 rounded-md">{error}</p>
         )}
 
         {/* Plugin stats */}
-        <div className="flex items-center gap-2 sm:gap-4 mt-2 sm:mt-3 text-[10px] sm:text-xs text-muted-foreground">
-          {plugin.tools && plugin.tools.length > 0 && (
-            <span>{t('stats.tools', { count: plugin.tools.length })}</span>
-          )}
-          {plugin.components && plugin.components.length > 0 && (
-            <span>{t('stats.components', { count: plugin.components.length })}</span>
-          )}
-          {plugin.modes && plugin.modes.length > 0 && (
-            <span>{t('stats.modes', { count: plugin.modes.length })}</span>
-          )}
-        </div>
+        {(plugin.tools?.length || plugin.components?.length || plugin.modes?.length) ? (
+          <div className="flex items-center gap-2 sm:gap-4 mt-2 sm:mt-3 text-[10px] sm:text-xs text-muted-foreground">
+            {plugin.tools && plugin.tools.length > 0 && (
+              <span className="flex items-center gap-1">
+                <Wrench className="h-3 w-3" />
+                {t('stats.tools', { count: plugin.tools.length })}
+              </span>
+            )}
+            {plugin.components && plugin.components.length > 0 && (
+              <span className="flex items-center gap-1">
+                <Layers className="h-3 w-3" />
+                {t('stats.components', { count: plugin.components.length })}
+              </span>
+            )}
+            {plugin.modes && plugin.modes.length > 0 && (
+              <span className="flex items-center gap-1">
+                <Zap className="h-3 w-3" />
+                {t('stats.modes', { count: plugin.modes.length })}
+              </span>
+            )}
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

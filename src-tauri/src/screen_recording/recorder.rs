@@ -9,7 +9,9 @@ use super::{
 use log::{debug, error, info, trace, warn};
 use parking_lot::RwLock;
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 
@@ -48,11 +50,18 @@ impl Default for RecordingState {
     }
 }
 
+/// Timeout constants for recording operations
+const FFMPEG_STOP_TIMEOUT_SECS: u64 = 30;
+#[allow(dead_code)]
+const FFMPEG_KILL_TIMEOUT_SECS: u64 = 5;
+
 /// Screen recorder
 pub struct ScreenRecorder {
     state: Arc<RwLock<RecordingState>>,
     ffmpeg_process: Arc<RwLock<Option<Child>>>,
     app_handle: AppHandle,
+    /// Flag to indicate if recorder is being dropped
+    is_dropping: Arc<AtomicBool>,
 }
 
 impl ScreenRecorder {
@@ -62,6 +71,83 @@ impl ScreenRecorder {
             state: Arc::new(RwLock::new(RecordingState::default())),
             ffmpeg_process: Arc::new(RwLock::new(None)),
             app_handle,
+            is_dropping: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    /// Force kill FFmpeg process - used during cleanup
+    fn force_kill_ffmpeg(&self) {
+        let mut process = self.ffmpeg_process.write();
+        if let Some(ref mut child) = *process {
+            let pid = child.id();
+            warn!("[ScreenRecorder] Force killing FFmpeg process (PID: {:?})", pid);
+            
+            if let Err(e) = child.kill() {
+                error!("[ScreenRecorder] Failed to kill FFmpeg process: {}", e);
+            }
+            
+            // Wait briefly for process to terminate
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    info!("[ScreenRecorder] FFmpeg process terminated with status: {:?}", status);
+                }
+                Ok(None) => {
+                    warn!("[ScreenRecorder] FFmpeg process still running after kill signal");
+                }
+                Err(e) => {
+                    error!("[ScreenRecorder] Error checking FFmpeg process status: {}", e);
+                }
+            }
+        }
+        *process = None;
+    }
+
+    /// Check if FFmpeg process is still running
+    #[allow(dead_code)]
+    pub fn is_ffmpeg_running(&self) -> bool {
+        let mut process = self.ffmpeg_process.write();
+        if let Some(ref mut child) = *process {
+            match child.try_wait() {
+                Ok(Some(_)) => {
+                    // Process has exited
+                    false
+                }
+                Ok(None) => {
+                    // Process still running
+                    true
+                }
+                Err(e) => {
+                    warn!("[ScreenRecorder] Error checking FFmpeg status: {}", e);
+                    false
+                }
+            }
+        } else {
+            false
+        }
+    }
+
+    /// Handle unexpected FFmpeg process exit
+    #[allow(dead_code)]
+    fn handle_unexpected_exit(&self) {
+        let state = self.state.read();
+        if state.status == RecordingStatus::Recording || state.status == RecordingStatus::Paused {
+            drop(state);
+            
+            error!("[ScreenRecorder] FFmpeg process exited unexpectedly during recording");
+            
+            // Update state to error
+            {
+                let mut state = self.state.write();
+                state.status = RecordingStatus::Error("Recording process terminated unexpectedly".to_string());
+            }
+            
+            // Emit error event
+            let _ = self.app_handle.emit("recording-error", serde_json::json!({
+                "error": "Recording process terminated unexpectedly",
+                "code": "FFMPEG_UNEXPECTED_EXIT"
+            }));
+            
+            self.emit_status_change();
         }
     }
 
@@ -879,7 +965,11 @@ impl ScreenRecorder {
     }
 
     fn stop_ffmpeg(&self) -> Result<(), String> {
-        info!("[ScreenRecorder] Stopping FFmpeg process");
+        self.stop_ffmpeg_with_timeout(Duration::from_secs(FFMPEG_STOP_TIMEOUT_SECS))
+    }
+
+    fn stop_ffmpeg_with_timeout(&self, timeout: Duration) -> Result<(), String> {
+        info!("[ScreenRecorder] Stopping FFmpeg process with timeout: {:?}", timeout);
         let mut process = self.ffmpeg_process.write();
         if let Some(ref mut child) = *process {
             let pid = child.id();
@@ -898,18 +988,44 @@ impl ScreenRecorder {
                         e
                     ),
                 }
+                // Flush and drop stdin to signal EOF
+                let _ = stdin.flush();
             } else {
                 warn!("[ScreenRecorder] FFmpeg stdin not available, cannot send quit signal");
             }
 
-            // Wait for process to finish
-            debug!("[ScreenRecorder] Waiting for FFmpeg process to exit");
-            match child.wait() {
-                Ok(status) => info!(
-                    "[ScreenRecorder] FFmpeg process exited with status: {:?}",
-                    status
-                ),
-                Err(e) => warn!("[ScreenRecorder] Error waiting for FFmpeg process: {}", e),
+            // Wait for process to finish with timeout
+            debug!("[ScreenRecorder] Waiting for FFmpeg process to exit (timeout: {:?})", timeout);
+            let start = std::time::Instant::now();
+            let poll_interval = Duration::from_millis(100);
+            
+            loop {
+                match child.try_wait() {
+                    Ok(Some(status)) => {
+                        info!(
+                            "[ScreenRecorder] FFmpeg process exited with status: {:?}",
+                            status
+                        );
+                        break;
+                    }
+                    Ok(None) => {
+                        // Process still running
+                        if start.elapsed() > timeout {
+                            warn!("[ScreenRecorder] FFmpeg process did not exit within timeout, force killing");
+                            if let Err(e) = child.kill() {
+                                error!("[ScreenRecorder] Failed to kill FFmpeg process: {}", e);
+                            }
+                            // Wait a bit more for kill to take effect
+                            std::thread::sleep(Duration::from_millis(500));
+                            break;
+                        }
+                        std::thread::sleep(poll_interval);
+                    }
+                    Err(e) => {
+                        warn!("[ScreenRecorder] Error waiting for FFmpeg process: {}", e);
+                        break;
+                    }
+                }
             }
         } else {
             debug!("[ScreenRecorder] No FFmpeg process to stop");
@@ -1004,6 +1120,43 @@ impl ScreenRecorder {
     }
 }
 
+/// Implement Drop to ensure FFmpeg process is cleaned up
+impl Drop for ScreenRecorder {
+    fn drop(&mut self) {
+        info!("[ScreenRecorder] Dropping ScreenRecorder instance");
+        self.is_dropping.store(true, Ordering::SeqCst);
+        
+        // Check if there's an active recording
+        let state = self.state.read();
+        let has_active_recording = matches!(
+            state.status,
+            RecordingStatus::Recording | RecordingStatus::Paused | RecordingStatus::Countdown
+        );
+        let output_path = state.output_path.clone();
+        drop(state);
+        
+        if has_active_recording {
+            warn!("[ScreenRecorder] Dropping with active recording - cleaning up");
+            
+            // Force kill FFmpeg process with short timeout
+            self.force_kill_ffmpeg();
+            
+            // Delete partial file if exists
+            if let Some(ref path) = output_path {
+                info!("[ScreenRecorder] Cleaning up partial recording file: {}", path);
+                if let Err(e) = std::fs::remove_file(path) {
+                    warn!("[ScreenRecorder] Failed to delete partial file during cleanup: {}", e);
+                }
+            }
+        } else {
+            // Still ensure FFmpeg is cleaned up
+            self.force_kill_ffmpeg();
+        }
+        
+        info!("[ScreenRecorder] ScreenRecorder dropped successfully");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1013,5 +1166,12 @@ mod tests {
         let state = RecordingState::default();
         assert_eq!(state.status, RecordingStatus::Idle);
         assert!(state.recording_id.is_none());
+    }
+
+    #[test]
+    fn test_timeout_constants() {
+        assert!(FFMPEG_STOP_TIMEOUT_SECS > 0);
+        assert!(FFMPEG_KILL_TIMEOUT_SECS > 0);
+        assert!(FFMPEG_STOP_TIMEOUT_SECS > FFMPEG_KILL_TIMEOUT_SECS);
     }
 }

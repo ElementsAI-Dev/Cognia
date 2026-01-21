@@ -5,7 +5,7 @@
  * Shows parent agent, sub-agents, and their execution states
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   ChevronDown,
@@ -22,6 +22,7 @@ import {
   Play,
   RotateCcw,
   StopCircle,
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -39,6 +40,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useSubAgent } from '@/hooks';
+import { SubAgentNode } from './sub-agent-node';
+import { SubAgentTemplateSelector } from './sub-agent-template-selector';
 import type { SubAgent, SubAgentStatus, SubAgentExecutionMode } from '@/types/agent/sub-agent';
 import type { BackgroundAgent, BackgroundAgentStep } from '@/types/agent/background-agent';
 
@@ -71,137 +74,6 @@ function formatDuration(ms: number): string {
   return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
 }
 
-interface SubAgentNodeProps {
-  subAgent: SubAgent;
-  onClick?: () => void;
-  isLast?: boolean;
-  t: ReturnType<typeof useTranslations>;
-}
-
-function SubAgentNode({ subAgent, onClick, isLast, t }: SubAgentNodeProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const config = statusConfig[subAgent.status] || statusConfig.pending;
-  const Icon = config.icon;
-
-  const duration = useMemo(() => {
-    if (subAgent.startedAt && subAgent.completedAt) {
-      return subAgent.completedAt.getTime() - subAgent.startedAt.getTime();
-    }
-    return null;
-  }, [subAgent.startedAt, subAgent.completedAt]);
-
-  return (
-    <div className="relative">
-      {/* Connector line */}
-      {!isLast && (
-        <div className="absolute left-4 top-10 bottom-0 w-0.5 bg-border" />
-      )}
-
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <div
-          className={cn(
-            'flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer',
-            'hover:border-primary/50 hover:shadow-sm',
-            config.bgColor
-          )}
-          onClick={onClick}
-        >
-          {/* Status icon */}
-          <div className={cn(
-            'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2',
-            config.bgColor,
-            subAgent.status === 'running' && 'border-primary'
-          )}>
-            <Icon className={cn('h-4 w-4', config.color, config.animate && 'animate-spin')} />
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-sm truncate">{subAgent.name}</span>
-                <Badge variant="outline" className="text-[10px]">
-                  {subAgent.status}
-                </Badge>
-              </div>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                  {isOpen ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                </Button>
-              </CollapsibleTrigger>
-            </div>
-
-            {/* Progress bar */}
-            {subAgent.status === 'running' && (
-              <Progress value={subAgent.progress} className="h-1 mt-2" />
-            )}
-
-            {/* Duration */}
-            {duration && (
-              <span className="text-xs text-muted-foreground mt-1 block">
-                {formatDuration(duration)}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <CollapsibleContent className="ml-11 mt-2 space-y-2">
-          {/* Task description */}
-          {subAgent.description && (
-            <p className="text-xs text-muted-foreground">{subAgent.description}</p>
-          )}
-
-          {/* Task */}
-          <div className="text-xs bg-muted/50 rounded p-2">
-            <span className="font-medium">{t('task')}:</span> {subAgent.task}
-          </div>
-
-          {/* Result */}
-          {subAgent.result && (
-            <div className="text-xs bg-muted/50 rounded p-2">
-              <span className="font-medium">{t('result')}:</span>
-              <p className="mt-1 whitespace-pre-wrap line-clamp-3">
-                {subAgent.result.finalResponse}
-              </p>
-            </div>
-          )}
-
-          {/* Error */}
-          {subAgent.error && (
-            <div className="text-xs bg-destructive/10 text-destructive rounded p-2">
-              <span className="font-medium">{t('error')}:</span> {subAgent.error}
-            </div>
-          )}
-
-          {/* Logs */}
-          {subAgent.logs.length > 0 && (
-            <div className="text-xs space-y-1">
-              <span className="font-medium">{t('recentLogs')}:</span>
-              {subAgent.logs.slice(-3).map((log, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    'text-[10px] px-2 py-1 rounded',
-                    log.level === 'error' && 'bg-destructive/10 text-destructive',
-                    log.level === 'warn' && 'bg-yellow-50 dark:bg-yellow-950 text-yellow-600',
-                    log.level === 'info' && 'bg-muted'
-                  )}
-                >
-                  {log.message}
-                </div>
-              ))}
-            </div>
-          )}
-        </CollapsibleContent>
-      </Collapsible>
-    </div>
-  );
-}
-
 export function AgentFlowVisualizer({
   agent,
   onSubAgentClick,
@@ -211,6 +83,7 @@ export function AgentFlowVisualizer({
   const t = useTranslations('agentFlowVisualizer');
   const [showSteps, setShowSteps] = useState(true);
   const [showSubAgents, setShowSubAgents] = useState(true);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [executionMode, setExecutionMode] = useState<SubAgentExecutionMode>('sequential');
 
   // Use sub-agent hook for managing sub-agents
@@ -219,11 +92,14 @@ export function AgentFlowVisualizer({
     activeSubAgents: _activeSubAgents,
     isExecuting,
     progress: subAgentProgress,
+    templates,
     executeOne,
     executeAll,
+    cancelOne,
     cancelAll,
     clearCompleted,
-    createSubAgent: _createSubAgent,
+    createFromTemplate,
+    deleteSubAgent,
   } = useSubAgent({ parentAgentId: agent.id });
 
   // Use managed sub-agents if available, otherwise fall back to agent.subAgents
@@ -238,13 +114,26 @@ export function AgentFlowVisualizer({
     }
   }, [executeAll, executionMode]);
 
-  const _handleExecuteOne = useCallback(async (subAgentId: string) => {
+  const handleExecuteOne = useCallback(async (subAgent: SubAgent) => {
     try {
-      await executeOne(subAgentId);
+      await executeOne(subAgent.id);
     } catch (error) {
       console.error('Failed to execute sub-agent:', error);
     }
   }, [executeOne]);
+  
+  const handleCancelOne = useCallback((subAgent: SubAgent) => {
+    cancelOne(subAgent.id);
+  }, [cancelOne]);
+  
+  const handleDeleteOne = useCallback((subAgent: SubAgent) => {
+    deleteSubAgent(subAgent.id);
+  }, [deleteSubAgent]);
+  
+  const handleCreateFromTemplate = useCallback((templateId: string, variables: Record<string, string>) => {
+    createFromTemplate(templateId, variables);
+    setShowTemplates(false);
+  }, [createFromTemplate]);
 
   const handleCancelAll = useCallback(() => {
     cancelAll();
@@ -406,6 +295,22 @@ export function AgentFlowVisualizer({
             {/* Sub-Agent Controller UI */}
             <div className="flex items-center justify-between gap-2 p-2 border-b">
               <div className="flex items-center gap-2">
+                {/* Add from Template Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 gap-1"
+                      onClick={() => setShowTemplates(!showTemplates)}
+                    >
+                      <Plus className="h-3 w-3" />
+                      <span className="text-xs">{t('addFromTemplate') || 'Template'}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('addFromTemplateTooltip') || 'Create sub-agent from template'}</TooltipContent>
+                </Tooltip>
+                
                 {/* Execution Mode Selector */}
                 <select
                   value={executionMode}
@@ -483,15 +388,28 @@ export function AgentFlowVisualizer({
               </div>
             </div>
 
+            {/* Template Selector */}
+            {showTemplates && (
+              <div className="p-3 border-b">
+                <SubAgentTemplateSelector
+                  templates={templates}
+                  onSelect={handleCreateFromTemplate}
+                />
+              </div>
+            )}
+
             {/* Sub-Agent List */}
             <div className="space-y-3 p-2">
-              {displaySubAgents.map((subAgent, _index) => (
+              {displaySubAgents.map((subAgent, index) => (
                 <SubAgentNode
                   key={subAgent.id}
                   subAgent={subAgent}
                   onClick={() => onSubAgentClick?.(subAgent)}
-                  isLast={_index === displaySubAgents.length - 1}
-                  t={t}
+                  onExecute={handleExecuteOne}
+                  onCancel={handleCancelOne}
+                  onDelete={handleDeleteOne}
+                  isLast={index === displaySubAgents.length - 1}
+                  showActions={true}
                 />
               ))}
             </div>

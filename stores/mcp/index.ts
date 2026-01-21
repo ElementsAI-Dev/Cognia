@@ -7,6 +7,7 @@ export {
   installNpmPackage,
   installPipPackage,
   checkCommandExists,
+  type ActiveToolCall,
 } from './mcp-store';
 
 export { useMcpMarketplaceStore } from './mcp-marketplace-store';

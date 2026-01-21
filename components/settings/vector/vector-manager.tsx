@@ -137,10 +137,10 @@ export function VectorManager() {
       setCollectionName(renameNewName.trim());
       setRenameNewName('');
       setShowRenameInput(false);
-      setActionMessage({ type: 'success', text: 'Collection renamed successfully' });
+      setActionMessage({ type: 'success', text: t('renameSuccess') });
       await handleRefresh();
     } catch (err) {
-      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : 'Rename failed' });
+      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : t('renameFailed') });
     }
   };
 
@@ -148,10 +148,10 @@ export function VectorManager() {
     if (!collectionName) return;
     try {
       await vector.truncateCollection(collectionName);
-      setActionMessage({ type: 'success', text: 'Collection truncated successfully' });
+      setActionMessage({ type: 'success', text: t('truncateSuccess') });
       await handleRefresh();
     } catch (err) {
-      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : 'Truncate failed' });
+      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : t('truncateFailed') });
     }
   };
 
@@ -159,10 +159,10 @@ export function VectorManager() {
     if (!collectionName) return;
     try {
       const count = await vector.removeAllDocuments();
-      setActionMessage({ type: 'success', text: `Deleted ${count} documents` });
+      setActionMessage({ type: 'success', text: t('deleteDocsSuccess', { count }) });
       await handleRefresh();
     } catch (err) {
-      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : 'Delete all failed' });
+      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : t('deleteDocsFailed') });
     }
   };
 
@@ -177,9 +177,9 @@ export function VectorManager() {
       a.download = `${collectionName}-export.json`;
       a.click();
       URL.revokeObjectURL(url);
-      setActionMessage({ type: 'success', text: 'Collection exported successfully' });
+      setActionMessage({ type: 'success', text: t('exportSuccess') });
     } catch (err) {
-      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : 'Export failed' });
+      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : t('exportFailed') });
     }
   };
 
@@ -190,10 +190,10 @@ export function VectorManager() {
       const text = await file.text();
       const data = JSON.parse(text) as CollectionExport;
       await vector.importCollection(data, true);
-      setActionMessage({ type: 'success', text: `Imported collection: ${data.meta.name}` });
+      setActionMessage({ type: 'success', text: t('importSuccess', { name: data.meta.name }) });
       await handleRefresh();
     } catch (err) {
-      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : 'Import failed' });
+      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : t('importFailed') });
     }
     // Reset file input
     if (fileInputRef.current) {
@@ -244,7 +244,7 @@ export function VectorManager() {
       });
       setResults(sorted);
     } catch (err) {
-      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : 'Search failed' });
+      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : t('searchFailed') });
     }
   };
 
@@ -450,14 +450,14 @@ export function VectorManager() {
                 size="sm"
                 onClick={() => setSortOrder('desc')}
               >
-                Score ↓
+                {t('scoreDesc')}
               </Button>
               <Button
                 variant={sortOrder === 'asc' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setSortOrder('asc')}
               >
-                Score ↑
+                {t('scoreAsc')}
               </Button>
             </div>
             <div className="flex gap-2">
@@ -466,21 +466,21 @@ export function VectorManager() {
                 size="sm"
                 onClick={() => setSortField('score')}
               >
-                Sort by score
+                {t('sortByScore')}
               </Button>
               <Button
                 variant={sortField === 'id' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setSortField('id')}
               >
-                Sort by id
+                {t('sortById')}
               </Button>
               <Button
                 variant={sortField === 'metadataLen' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setSortField('metadataLen')}
               >
-                Sort by metadata size
+                {t('sortByMetadataSize')}
               </Button>
             </div>
             <div className="flex items-center gap-2 text-xs">
@@ -490,10 +490,10 @@ export function VectorManager() {
                 className="h-7"
                 onClick={() => setShowMetadataSummary((v) => !v)}
               >
-                {showMetadataSummary ? 'Hide summary' : 'Show summary'}
+                {showMetadataSummary ? t('hideSummary') : t('showSummary')}
               </Button>
               <span className="text-muted-foreground">
-                Toggle metadata summary preview
+                {t('toggleSummaryHint')}
               </span>
             </div>
           </div>
@@ -510,14 +510,14 @@ export function VectorManager() {
           </div>
           <div className="flex items-end">
             <Button onClick={() => handleSearchWithPagination(1)} className="w-full">
-              Search
+              {t('search')}
             </Button>
           </div>
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label>Results {totalResults > 0 && <span className="text-muted-foreground">({totalResults} total)</span>}</Label>
+            <Label>{t('results')} {totalResults > 0 && <span className="text-muted-foreground">({totalResults} {t('total')})</span>}</Label>
             {totalPages > 1 && (
               <div className="flex items-center gap-2 text-sm">
                 <Button
@@ -526,10 +526,10 @@ export function VectorManager() {
                   disabled={currentPage <= 1}
                   onClick={() => handleSearchWithPagination(currentPage - 1)}
                 >
-                  Prev
+                  {t('prev')}
                 </Button>
                 <span className="text-muted-foreground">
-                  Page {currentPage} of {totalPages}
+                  {t('pageInfo', { current: currentPage, total: totalPages })}
                 </span>
                 <Button
                   variant="outline"
@@ -537,23 +537,23 @@ export function VectorManager() {
                   disabled={currentPage >= totalPages}
                   onClick={() => handleSearchWithPagination(currentPage + 1)}
                 >
-                  Next
+                  {t('next')}
                 </Button>
               </div>
             )}
           </div>
           <ScrollArea className="h-60 rounded-md border p-3">
             {results.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No results</p>
+              <p className="text-sm text-muted-foreground">{t('noResults')}</p>
             ) : (
               <div className="space-y-3">
                 {results.map((r) => (
                   <div key={r.id} className="rounded-md border p-2">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>Score: {r.score.toFixed(4)}</span>
+                      <span>{t('score')}: {r.score.toFixed(4)}</span>
                       {r.metadata && Object.keys(r.metadata).length > 0 && (
                         <Badge variant="outline" className="text-[10px]">
-                          metadata
+                          {t('metadata')}
                         </Badge>
                       )}
                     </div>
@@ -575,7 +575,7 @@ export function VectorManager() {
                             setExpanded((prev) => ({ ...prev, [r.id]: !prev[r.id] }))
                           }
                         >
-                          {expanded[r.id] ? 'Hide metadata' : 'Show metadata'}
+                          {expanded[r.id] ? t('hideMetadata') : t('showMetadata')}
                         </Button>
                         {expanded[r.id] && (
                           <pre className="rounded bg-muted/50 p-2 text-[11px] text-muted-foreground overflow-x-auto">
@@ -591,7 +591,7 @@ export function VectorManager() {
           </ScrollArea>
         </div>
         <div className="space-y-2">
-          <Label>Peek (first N)</Label>
+          <Label>{t('peek')}</Label>
           <div className="flex gap-2">
             <Input
               type="number"
@@ -601,7 +601,7 @@ export function VectorManager() {
               className="w-24"
             />
             <Button variant="outline" onClick={async () => setResults(await vector.peek(topK))}>
-              Peek
+              {t('peekBtn')}
             </Button>
           </div>
         </div>

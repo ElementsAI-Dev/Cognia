@@ -52,6 +52,8 @@ interface ShortcutEditDialogProps {
 }
 
 function ShortcutEditDialogContent({ shortcut, onSave, onClose }: { shortcut: KeyboardShortcut; onSave: (keys: string) => void; onClose: () => void }) {
+  const t = useTranslations('keyboardSettings');
+  const tCommon = useTranslations('common');
   const [capturedKeys, setCapturedKeys] = useState<string>('');
   const [isCapturing, setIsCapturing] = useState(true);
 
@@ -90,9 +92,9 @@ function ShortcutEditDialogContent({ shortcut, onSave, onClose }: { shortcut: Ke
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Edit Shortcut</DialogTitle>
+        <DialogTitle>{t('editShortcut')}</DialogTitle>
         <DialogDescription>
-          Press the key combination you want to use for &quot;{shortcut.description}&quot;
+          {t('editShortcutDesc', { action: shortcut.description })}
         </DialogDescription>
       </DialogHeader>
       <div className="py-6">
@@ -108,23 +110,23 @@ function ShortcutEditDialogContent({ shortcut, onSave, onClose }: { shortcut: Ke
             </kbd>
           ) : (
             <span className="text-muted-foreground">
-              {isCapturing ? 'Press keys...' : 'Click to capture'}
+              {isCapturing ? t('pressKeys') : t('clickToCapture')}
             </span>
           )}
         </div>
         {capturedKeys && (
           <p className="text-center text-sm text-muted-foreground mt-2">
-            Press another combination to change, or click Save
+            {t('pressAnotherCombination')}
           </p>
         )}
       </div>
       <DialogFooter className="gap-2">
         <Button variant="outline" onClick={onClose}>
-          Cancel
+          {tCommon('cancel')}
         </Button>
         <Button onClick={handleSave} disabled={!capturedKeys}>
           <Check className="h-4 w-4 mr-2" />
-          Save
+          {tCommon('save')}
         </Button>
       </DialogFooter>
     </>

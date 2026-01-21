@@ -7,6 +7,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Shield,
   ShieldCheck,
@@ -20,13 +21,7 @@ import {
   Globe,
   Settings2,
 } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
@@ -40,17 +35,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSettingsStore } from '@/stores';
 import type { SourceVerificationMode } from '@/types/search';
@@ -61,22 +47,26 @@ interface SourceVerificationSettingsProps {
   compact?: boolean;
 }
 
-const modeDescriptions: Record<SourceVerificationMode, { label: string; description: string }> = {
+const MODE_KEYS: Record<SourceVerificationMode, { label: string; description: string }> = {
   ask: {
-    label: '询问确认',
-    description: '每次搜索后显示验证对话框，让您选择使用哪些来源',
+    label: 'modeAsk',
+    description: 'modeAskDesc',
   },
   auto: {
-    label: '自动过滤',
-    description: '自动应用可信度过滤，不显示对话框',
+    label: 'modeAuto',
+    description: 'modeAutoDesc',
   },
   disabled: {
-    label: '已禁用',
-    description: '不进行来源验证，使用所有搜索结果',
+    label: 'modeDisabled',
+    description: 'modeDisabledDesc',
   },
 };
 
-export function SourceVerificationSettings({ className, compact = false }: SourceVerificationSettingsProps) {
+export function SourceVerificationSettings({
+  className,
+  compact = false,
+}: SourceVerificationSettingsProps) {
+  const t = useTranslations('sourceVerification');
   const [newTrustedDomain, setNewTrustedDomain] = useState('');
   const [newBlockedDomain, setNewBlockedDomain] = useState('');
   const [domainsExpanded, setDomainsExpanded] = useState(false);
@@ -108,7 +98,11 @@ export function SourceVerificationSettings({ className, compact = false }: Sourc
   } = sourceVerificationSettings;
 
   const handleAddTrustedDomain = () => {
-    const domain = newTrustedDomain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '');
+    const domain = newTrustedDomain
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '');
     if (domain && !trustedDomains.includes(domain)) {
       addTrustedDomain(domain);
       setNewTrustedDomain('');
@@ -116,7 +110,11 @@ export function SourceVerificationSettings({ className, compact = false }: Sourc
   };
 
   const handleAddBlockedDomain = () => {
-    const domain = newBlockedDomain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '');
+    const domain = newBlockedDomain
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '');
     if (domain && !blockedDomains.includes(domain)) {
       addBlockedDomain(domain);
       setNewBlockedDomain('');
@@ -133,7 +131,7 @@ export function SourceVerificationSettings({ className, compact = false }: Sourc
           <div className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             <Label htmlFor="source-verification-enabled" className="text-sm font-medium">
-              信源验证
+              {t('title')}
             </Label>
           </div>
           <Switch
@@ -147,15 +145,20 @@ export function SourceVerificationSettings({ className, compact = false }: Sourc
           <>
             {/* Mode Selection */}
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">验证模式</Label>
-              <Select value={mode} onValueChange={(value) => setSourceVerificationMode(value as SourceVerificationMode)}>
+              <Label className="text-xs text-muted-foreground">{t('verificationMode')}</Label>
+              <Select
+                value={mode}
+                onValueChange={(value) =>
+                  setSourceVerificationMode(value as SourceVerificationMode)
+                }
+              >
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(modeDescriptions).map(([key, { label }]) => (
+                  {Object.entries(MODE_KEYS).map(([key, { label }]) => (
                     <SelectItem key={key} value={key} className="text-xs">
-                      {label}
+                      {t(label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -166,11 +169,11 @@ export function SourceVerificationSettings({ className, compact = false }: Sourc
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Badge variant="outline" className="text-xs">
                 <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
-                {trustedDomains.length} 可信
+                {trustedDomains.length} {t('trusted')}
               </Badge>
               <Badge variant="outline" className="text-xs">
                 <XCircle className="h-3 w-3 mr-1 text-red-500" />
-                {blockedDomains.length} 屏蔽
+                {blockedDomains.length} {t('blocked')}
               </Badge>
             </div>
           </>
@@ -185,7 +188,7 @@ export function SourceVerificationSettings({ className, compact = false }: Sourc
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
-            <CardTitle className="text-base">信源验证</CardTitle>
+            <CardTitle className="text-base">{t('title')}</CardTitle>
           </div>
           <Switch
             id="source-verification-enabled-full"
@@ -193,18 +196,18 @@ export function SourceVerificationSettings({ className, compact = false }: Sourc
             onCheckedChange={setSourceVerificationEnabled}
           />
         </div>
-        <CardDescription className="text-xs">
-          验证搜索结果的可信度，过滤低质量来源，交叉验证信息准确性
-        </CardDescription>
+        <CardDescription className="text-xs">{t('description')}</CardDescription>
       </CardHeader>
 
       {enabled && (
         <CardContent className="space-y-6">
           {/* Verification Mode */}
           <div className="space-y-3">
-            <Label className="text-sm font-medium">验证模式</Label>
+            <Label className="text-sm font-medium">{t('verificationMode')}</Label>
             <div className="grid grid-cols-3 gap-2">
-              {(Object.entries(modeDescriptions) as [SourceVerificationMode, typeof modeDescriptions['ask']][]).map(([key, { label, description }]) => (
+              {(
+                Object.entries(MODE_KEYS) as [SourceVerificationMode, (typeof MODE_KEYS)['ask']][]
+              ).map(([key, { label, description }]) => (
                 <TooltipProvider key={key}>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -219,12 +222,14 @@ export function SourceVerificationSettings({ className, compact = false }: Sourc
                       >
                         {key === 'ask' && <ShieldQuestion className="h-5 w-5" />}
                         {key === 'auto' && <ShieldCheck className="h-5 w-5" />}
-                        {key === 'disabled' && <ShieldAlert className="h-5 w-5 text-muted-foreground" />}
-                        <span className="text-xs font-medium">{label}</span>
+                        {key === 'disabled' && (
+                          <ShieldAlert className="h-5 w-5 text-muted-foreground" />
+                        )}
+                        <span className="text-xs font-medium">{t(label)}</span>
                       </button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
-                      <p className="max-w-xs text-xs">{description}</p>
+                      <p className="max-w-xs text-xs">{t(description)}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -235,8 +240,10 @@ export function SourceVerificationSettings({ className, compact = false }: Sourc
           {/* Credibility Threshold */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">最低可信度阈值</Label>
-              <span className="text-sm font-mono text-muted-foreground">{credibilityPercentage}%</span>
+              <Label className="text-sm font-medium">{t('minimumThreshold')}</Label>
+              <span className="text-sm font-mono text-muted-foreground">
+                {credibilityPercentage}%
+              </span>
             </div>
             <Slider
               value={[credibilityPercentage]}
@@ -247,18 +254,16 @@ export function SourceVerificationSettings({ className, compact = false }: Sourc
               className="w-full"
             />
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>宽松</span>
-              <span>严格</span>
+              <span>{t('loose')}</span>
+              <span>{t('strict')}</span>
             </div>
           </div>
 
           {/* Auto Filter Toggle */}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label className="text-sm">自动过滤低可信度</Label>
-              <p className="text-xs text-muted-foreground">
-                自动排除低于阈值的来源
-              </p>
+              <Label className="text-sm">{t('autoFilterLow')}</Label>
+              <p className="text-xs text-muted-foreground">{t('autoFilterLowDesc')}</p>
             </div>
             <Switch
               checked={autoFilterLowCredibility}
@@ -269,28 +274,23 @@ export function SourceVerificationSettings({ className, compact = false }: Sourc
           {/* Cross Validation Toggle */}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label className="text-sm">启用交叉验证</Label>
-              <p className="text-xs text-muted-foreground">
-                分析多个来源之间的信息一致性
-              </p>
+              <Label className="text-sm">{t('enableCrossValidation')}</Label>
+              <p className="text-xs text-muted-foreground">{t('enableCrossValidationDesc')}</p>
             </div>
-            <Switch
-              checked={enableCrossValidation}
-              onCheckedChange={setEnableCrossValidation}
-            />
+            <Switch checked={enableCrossValidation} onCheckedChange={setEnableCrossValidation} />
           </div>
 
           {/* Show Verification Badges */}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label className="text-sm">显示可信度徽章</Label>
-              <p className="text-xs text-muted-foreground">
-                在来源旁显示可信度指示器
-              </p>
+              <Label className="text-sm">{t('showBadges')}</Label>
+              <p className="text-xs text-muted-foreground">{t('showBadgesDesc')}</p>
             </div>
             <Switch
               checked={showVerificationBadges}
-              onCheckedChange={(checked) => setSourceVerificationSettings({ showVerificationBadges: checked })}
+              onCheckedChange={(checked) =>
+                setSourceVerificationSettings({ showVerificationBadges: checked })
+              }
             />
           </div>
 
@@ -300,13 +300,15 @@ export function SourceVerificationSettings({ className, compact = false }: Sourc
               <Button variant="ghost" className="w-full justify-between h-auto py-2">
                 <div className="flex items-center gap-2">
                   <Globe className="h-4 w-4" />
-                  <span className="text-sm font-medium">域名管理</span>
+                  <span className="text-sm font-medium">{t('domainManagement')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs">
-                    {trustedDomains.length + blockedDomains.length} 个规则
+                    {trustedDomains.length + blockedDomains.length} {t('rules')}
                   </Badge>
-                  <Settings2 className={cn('h-4 w-4 transition-transform', domainsExpanded && 'rotate-90')} />
+                  <Settings2
+                    className={cn('h-4 w-4 transition-transform', domainsExpanded && 'rotate-90')}
+                  />
                 </div>
               </Button>
             </CollapsibleTrigger>
@@ -315,7 +317,7 @@ export function SourceVerificationSettings({ className, compact = false }: Sourc
               <div className="space-y-2">
                 <Label className="text-sm flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  可信域名
+                  {t('trustedDomains')}
                 </Label>
                 <div className="flex gap-2">
                   <Input
@@ -344,8 +346,8 @@ export function SourceVerificationSettings({ className, compact = false }: Sourc
                           <button
                             onClick={() => removeTrustedDomain(domain)}
                             className="ml-1 hover:text-destructive"
-                            title={`移除 ${domain}`}
-                            aria-label={`移除 ${domain}`}
+                            title={t('removeDomain', { domain })}
+                            aria-label={t('removeDomain', { domain })}
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>
@@ -360,7 +362,7 @@ export function SourceVerificationSettings({ className, compact = false }: Sourc
               <div className="space-y-2">
                 <Label className="text-sm flex items-center gap-2">
                   <XCircle className="h-4 w-4 text-red-500" />
-                  屏蔽域名
+                  {t('blockedDomains')}
                 </Label>
                 <div className="flex gap-2">
                   <Input
@@ -389,8 +391,8 @@ export function SourceVerificationSettings({ className, compact = false }: Sourc
                           <button
                             onClick={() => removeBlockedDomain(domain)}
                             className="ml-1 hover:text-destructive"
-                            title={`移除 ${domain}`}
-                            aria-label={`移除 ${domain}`}
+                            title={t('removeDomain', { domain })}
+                            aria-label={t('removeDomain', { domain })}
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>
@@ -408,7 +410,7 @@ export function SourceVerificationSettings({ className, compact = false }: Sourc
             <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
               <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5" />
               <p className="text-xs text-muted-foreground">
-                自动过滤已启用。低于 {credibilityPercentage}% 可信度的来源将被自动排除。
+                {t('autoFilterWarning', { percentage: credibilityPercentage })}
               </p>
             </div>
           )}

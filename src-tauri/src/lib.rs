@@ -917,6 +917,11 @@ pub fn run() {
             commands::media::screen_recording::video_get_info,
             commands::media::screen_recording::video_generate_thumbnail,
             commands::media::screen_recording::video_check_encoding_support,
+            // FFmpeg commands
+            commands::media::screen_recording::ffmpeg_get_info,
+            commands::media::screen_recording::ffmpeg_get_install_guide,
+            commands::media::screen_recording::ffmpeg_check_hardware_acceleration,
+            commands::media::screen_recording::ffmpeg_check_version,
             // Chat widget commands
             commands::window::chat_widget::chat_widget_show,
             commands::window::chat_widget::chat_widget_hide,

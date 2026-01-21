@@ -88,7 +88,6 @@ export function RecordingControls({
     resume,
     stop,
     cancel,
-    updateDuration,
     setSelectedMonitor,
     clearError,
   } = useScreenRecordingStore();
@@ -102,16 +101,9 @@ export function RecordingControls({
     }
   }, [initialize, isInitialized]);
 
-  // Update duration while recording
-  useEffect(() => {
-    if (status !== 'Recording') return;
-    
-    const interval = setInterval(() => {
-      updateDuration();
-    }, 100);
-
-    return () => clearInterval(interval);
-  }, [status, updateDuration]);
+  // Duration is now updated via Tauri events automatically
+  // No polling needed - the store receives 'recording-status-changed' events
+  // which include the current duration
 
   // Show error dialog based on error state
   const errorDialogOpen = showErrorDialog || !!error;

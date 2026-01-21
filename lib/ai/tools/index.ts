@@ -365,3 +365,95 @@ export {
   type MemoryUpdateInput,
   type MemoryToolResult,
 } from './memory-tool';
+
+// Tool Cache - LRU cache for tool results
+export {
+  ToolCache,
+  globalToolCache,
+  type ToolCacheEntry,
+  type ToolCacheConfig,
+  type ToolCacheStats,
+} from './tool-cache';
+
+// Tool Call Manager - Parallel tool execution
+export {
+  ToolCallManager,
+  createToolCallManager,
+  getGlobalToolCallManager,
+  setGlobalToolCallManager,
+  resetGlobalToolCallManager,
+  type ToolExecutionMode,
+  type ToolCallManagerConfig,
+  type ToolCallManagerStats,
+  type PendingToolResult,
+  type FlushResult,
+  DEFAULT_TOOL_CALL_MANAGER_CONFIG,
+} from './tool-call-manager';
+
+// MCP Tools Adapter - Convert MCP tools to AgentTool format
+export {
+  convertMcpToolToAgentTool,
+  convertMcpServerTools,
+  convertAllMcpTools,
+  createMcpToolsFromStore,
+  createMcpToolsFromBackend,
+  getMcpToolDescriptions,
+  filterMcpToolsByServers,
+  getMcpToolByOriginalName,
+  formatMcpToolResult,
+  scoreMcpToolRelevance,
+  selectMcpToolsByRelevance,
+  applyToolSelection,
+  getMcpToolsWithSelection,
+  getRecommendedMcpTools,
+  type McpToolAdapterConfig,
+} from './mcp-tools';
+
+// Canvas Tools - Canvas document interaction
+export {
+  createCanvasCreateTool,
+  createCanvasUpdateTool,
+  createCanvasReadTool,
+  createCanvasOpenTool,
+  createCanvasTools,
+  getCanvasToolsRecord,
+  type CanvasCreateInput,
+  type CanvasUpdateInput,
+  type CanvasReadInput,
+} from './canvas-tool';
+
+// Environment Tools - Python virtual environment management
+export {
+  getEnvironmentTools,
+  initializeEnvironmentTools,
+  createVenvTool,
+  createInstallPackagesTool,
+  createRunPythonTool,
+  createRunInEnvTool,
+  createListPackagesTool,
+  createCheckEnvTool,
+  createGetPythonVersionsTool,
+  getEnvironmentToolsSystemPrompt,
+  getEnvironmentToolsPromptSnippet,
+} from './environment-tools';
+
+// Jupyter Tools - Jupyter notebook execution
+export {
+  getJupyterTools,
+  getJupyterToolsSystemPrompt,
+} from './jupyter-tools';
+
+// Process Tools - Local process management
+export {
+  initializeProcessTools,
+  createListProcessesTool,
+  createGetProcessTool,
+  createSearchProcessesTool,
+  createTopMemoryProcessesTool,
+  createStartProcessTool,
+  createTerminateProcessTool,
+  createCheckProgramTool,
+  getProcessToolsSystemPrompt,
+  getProcessToolsPromptSnippet,
+  type ProcessToolsConfig,
+} from './process-tools';

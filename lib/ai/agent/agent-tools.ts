@@ -33,11 +33,11 @@ import {
   buildMultiSkillSystemPrompt,
 } from '@/lib/skills';
 import type { McpServerState, ToolCallResult } from '@/types/mcp';
-import { createMcpToolsFromStore } from './mcp-tools';
-import { initializeEnvironmentTools, getEnvironmentToolsSystemPrompt, getEnvironmentToolsPromptSnippet } from './environment-tools';
-import { getJupyterTools, getJupyterToolsSystemPrompt } from './jupyter-tools';
-import { initializeProcessTools, getProcessToolsSystemPrompt, getProcessToolsPromptSnippet } from './process-tools';
-import { createCanvasTools } from './canvas-tool';
+import { createMcpToolsFromStore } from '../tools/mcp-tools';
+import { initializeEnvironmentTools, getEnvironmentToolsSystemPrompt, getEnvironmentToolsPromptSnippet } from '../tools/environment-tools';
+import { getJupyterTools, getJupyterToolsSystemPrompt } from '../tools/jupyter-tools';
+import { initializeProcessTools, getProcessToolsSystemPrompt, getProcessToolsPromptSnippet } from '../tools/process-tools';
+import { createCanvasTools } from '../tools/canvas-tool';
 import { artifactTools, memoryTools } from '../tools';
 
 export interface AgentToolsConfig {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Plus, Upload, Download, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,7 @@ import { PromptTemplateAdvancedEditor } from './prompt-template-advanced-editor'
 import type { PromptTemplate } from '@/types/content/prompt-template';
 
 export function PromptTemplateManager() {
+  const t = useTranslations('promptTemplate.manager');
   const templates = usePromptTemplateStore((state) => state.templates);
   const categories = usePromptTemplateStore((state) => state.categories);
   const createTemplate = usePromptTemplateStore((state) => state.createTemplate);
@@ -71,12 +73,12 @@ export function PromptTemplateManager() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search templates"
+            placeholder={t('searchPlaceholder')}
             className="w-64"
           />
           <Tabs value={activeCategory} onValueChange={setActiveCategory}>
             <TabsList>
-              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="all">{t('allCategory')}</TabsTrigger>
               {categories.map((cat) => (
                 <TabsTrigger key={cat} value={cat}>
                   {cat}
@@ -88,15 +90,15 @@ export function PromptTemplateManager() {
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setIsImportOpen(true)}>
             <Upload className="h-4 w-4 mr-1" />
-            Import
+            {t('import')}
           </Button>
           <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(exportTemplates())}>
             <Download className="h-4 w-4 mr-1" />
-            Copy export
+            {t('copyExport')}
           </Button>
           <Button onClick={handleCreate}>
             <Plus className="h-4 w-4 mr-1" />
-            New template
+            {t('newTemplate')}
           </Button>
         </div>
       </div>
@@ -116,7 +118,7 @@ export function PromptTemplateManager() {
         ))}
         {filtered.length === 0 && (
           <div className="rounded-md border border-dashed p-6 text-muted-foreground text-sm">
-            No templates found. Create one to get started.
+            {t('noTemplates')}
           </div>
         )}
       </div>
@@ -125,7 +127,7 @@ export function PromptTemplateManager() {
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <div className="flex items-center justify-between">
-              <DialogTitle>{editing ? 'Edit template' : 'Create template'}</DialogTitle>
+              <DialogTitle>{editing ? t('editTemplate') : t('createTemplate')}</DialogTitle>
               <Button
                 variant="ghost"
                 size="sm"
@@ -133,7 +135,7 @@ export function PromptTemplateManager() {
                 className="gap-1.5"
               >
                 <Settings2 className="h-4 w-4" />
-                {useAdvancedEditor ? 'Simple' : 'Advanced'}
+                {useAdvancedEditor ? t('simpleEditor') : t('advancedEditor')}
               </Button>
             </div>
           </DialogHeader>
@@ -160,19 +162,19 @@ export function PromptTemplateManager() {
       <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>Import templates (JSON)</DialogTitle>
+            <DialogTitle>{t('importTitle')}</DialogTitle>
           </DialogHeader>
           <Textarea
             className="min-h-[160px] font-mono"
-            placeholder="Paste template JSON here"
+            placeholder={t('importPlaceholder')}
             value={importPayload}
             onChange={(e) => setImportPayload(e.target.value)}
           />
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setIsImportOpen(false)}>
-              Cancel
+              {t('cancel')}
             </Button>
-            <Button onClick={handleImport}>Import</Button>
+            <Button onClick={handleImport}>{t('import')}</Button>
           </div>
         </DialogContent>
       </Dialog>

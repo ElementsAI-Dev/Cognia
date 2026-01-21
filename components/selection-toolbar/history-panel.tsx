@@ -44,22 +44,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SelectionAction } from "@/types";
 
-const ACTION_LABELS: Record<string, string> = {
-  explain: "Explained",
-  translate: "Translated",
-  extract: "Key Points",
-  summarize: "Summarized",
-  define: "Defined",
-  rewrite: "Rewritten",
-  grammar: "Grammar Check",
-  copy: "Copied",
-  search: "Searched",
-  "code-explain": "Code Explained",
-  "code-optimize": "Optimized",
-  "tone-formal": "Formalized",
-  "tone-casual": "Casualized",
-  expand: "Expanded",
-  shorten: "Shortened",
+const ACTION_LABEL_KEYS: Record<string, string> = {
+  explain: "actionExplained",
+  translate: "actionTranslated",
+  extract: "actionKeyPoints",
+  summarize: "actionSummarized",
+  define: "actionDefined",
+  rewrite: "actionRewritten",
+  grammar: "actionGrammarCheck",
+  copy: "actionCopied",
+  search: "actionSearched",
+  "code-explain": "actionCodeExplained",
+  "code-optimize": "actionOptimized",
+  "tone-formal": "actionFormalized",
+  "tone-casual": "actionCasualized",
+  expand: "actionExpanded",
+  shorten: "actionShortened",
 };
 
 const ACTION_ICONS: Record<string, typeof BookOpen> = {
@@ -91,6 +91,7 @@ function HistoryItem({
   onSelect,
   onToggleFavorite,
 }: HistoryItemProps) {
+  const t = useTranslations('selectionHistory');
   const [expanded, setExpanded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -149,7 +150,7 @@ function HistoryItem({
               <ActionIcon className="w-3.5 h-3.5" />
             </div>
             <span className="text-xs font-medium text-primary">
-              {ACTION_LABELS[item.action] || item.action}
+              {t(ACTION_LABEL_KEYS[item.action]) || item.action}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -177,7 +178,7 @@ function HistoryItem({
           <div className="mt-3 pt-3 border-t border-border/30 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
             <div className="bg-muted/30 rounded-lg p-3">
               <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                Result
+                {t("result")}
               </span>
               <p className="text-sm text-foreground mt-1.5 leading-relaxed">
                 {item.result}
@@ -196,7 +197,7 @@ function HistoryItem({
                 }}
               >
                 {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? "Copied!" : "Copy Result"}
+                {copied ? t("copied") : t("copyResult")}
               </Button>
               <Button
                 size="sm"
@@ -208,7 +209,7 @@ function HistoryItem({
                 }}
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                Reuse Text
+                {t("reuseText")}
               </Button>
               
               {/* More menu */}
@@ -226,12 +227,12 @@ function HistoryItem({
                   {onToggleFavorite && (
                     <DropdownMenuItem onClick={() => onToggleFavorite(item.id)} className="text-xs gap-2">
                       <Star className="w-3.5 h-3.5" />
-                      Favorite
+                      {t("favorite")}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem onClick={() => handleCopy(item.text)} className="text-xs gap-2">
                     <Copy className="w-3.5 h-3.5" />
-                    Copy Original
+                    {t("copyOriginal")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -467,7 +468,7 @@ export function SelectionHistoryPanel() {
                 className="cursor-pointer hover:opacity-80"
                 onClick={() => setFilterAction(action)}
               >
-                {ACTION_LABELS[action] || action}
+                {t(ACTION_LABEL_KEYS[action]) || action}
               </Badge>
             ))}
           </div>

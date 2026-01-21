@@ -48,62 +48,25 @@ import type { RoutingMode, RoutingStrategy, ModelTier } from '@/types/provider/a
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 
-const routingModes: Array<{ value: RoutingMode; label: string; description: string }> = [
-  { 
-    value: 'rule-based', 
-    label: 'Rule-based', 
-    description: 'Fast pattern matching, no API calls' 
-  },
-  { 
-    value: 'llm-based', 
-    label: 'LLM-based', 
-    description: 'More accurate, uses small model for classification' 
-  },
-  { 
-    value: 'hybrid', 
-    label: 'Hybrid', 
-    description: 'Rule-based with LLM fallback for complex queries' 
-  },
+const ROUTING_MODE_KEYS: Array<{ value: RoutingMode; labelKey: string; descKey: string }> = [
+  { value: 'rule-based', labelKey: 'modeRuleBased', descKey: 'modeRuleBasedDesc' },
+  { value: 'llm-based', labelKey: 'modeLlmBased', descKey: 'modeLlmBasedDesc' },
+  { value: 'hybrid', labelKey: 'modeHybrid', descKey: 'modeHybridDesc' },
 ];
 
-const routingStrategies: Array<{ value: RoutingStrategy; label: string; description: string; icon: React.ReactNode }> = [
-  { 
-    value: 'quality', 
-    label: 'Quality First', 
-    description: 'Always use the best available model',
-    icon: <Brain className="h-4 w-4" />,
-  },
-  { 
-    value: 'cost', 
-    label: 'Cost Optimized', 
-    description: 'Minimize cost while maintaining quality',
-    icon: <DollarSign className="h-4 w-4" />,
-  },
-  { 
-    value: 'speed', 
-    label: 'Speed Priority', 
-    description: 'Prioritize fast response times',
-    icon: <Zap className="h-4 w-4" />,
-  },
-  { 
-    value: 'balanced', 
-    label: 'Balanced', 
-    description: 'Balance between quality, cost, and speed',
-    icon: <Scale className="h-4 w-4" />,
-  },
-  { 
-    value: 'adaptive', 
-    label: 'Adaptive', 
-    description: 'Learn from usage patterns',
-    icon: <Sparkles className="h-4 w-4" />,
-  },
+const ROUTING_STRATEGY_KEYS: Array<{ value: RoutingStrategy; labelKey: string; descKey: string; icon: React.ReactNode }> = [
+  { value: 'quality', labelKey: 'strategyQuality', descKey: 'strategyQualityDesc', icon: <Brain className="h-4 w-4" /> },
+  { value: 'cost', labelKey: 'strategyCost', descKey: 'strategyCostDesc', icon: <DollarSign className="h-4 w-4" /> },
+  { value: 'speed', labelKey: 'strategySpeed', descKey: 'strategySpeedDesc', icon: <Zap className="h-4 w-4" /> },
+  { value: 'balanced', labelKey: 'strategyBalanced', descKey: 'strategyBalancedDesc', icon: <Scale className="h-4 w-4" /> },
+  { value: 'adaptive', labelKey: 'strategyAdaptive', descKey: 'strategyAdaptiveDesc', icon: <Sparkles className="h-4 w-4" /> },
 ];
 
-const fallbackTiers: Array<{ value: ModelTier; label: string; icon: React.ReactNode }> = [
-  { value: 'fast', label: 'Fast', icon: <Zap className="h-4 w-4 text-green-500" /> },
-  { value: 'balanced', label: 'Balanced', icon: <Scale className="h-4 w-4 text-blue-500" /> },
-  { value: 'powerful', label: 'Powerful', icon: <Brain className="h-4 w-4 text-purple-500" /> },
-  { value: 'reasoning', label: 'Reasoning', icon: <Sparkles className="h-4 w-4 text-amber-500" /> },
+const FALLBACK_TIER_KEYS: Array<{ value: ModelTier; labelKey: string; icon: React.ReactNode }> = [
+  { value: 'fast', labelKey: 'tierFast', icon: <Zap className="h-4 w-4 text-green-500" /> },
+  { value: 'balanced', labelKey: 'tierBalanced', icon: <Scale className="h-4 w-4 text-blue-500" /> },
+  { value: 'powerful', labelKey: 'tierPowerful', icon: <Brain className="h-4 w-4 text-purple-500" /> },
+  { value: 'reasoning', labelKey: 'tierReasoning', icon: <Sparkles className="h-4 w-4 text-amber-500" /> },
 ];
 
 export function AutoRouterSettings() {
@@ -160,11 +123,11 @@ export function AutoRouterSettings() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {routingModes.map((mode) => (
+                {ROUTING_MODE_KEYS.map((mode) => (
                   <SelectItem key={mode.value} value={mode.value}>
                     <div className="flex flex-col">
-                      <span>{mode.label}</span>
-                      <span className="text-xs text-muted-foreground">{mode.description}</span>
+                      <span>{t(mode.labelKey)}</span>
+                      <span className="text-xs text-muted-foreground">{t(mode.descKey)}</span>
                     </div>
                   </SelectItem>
                 ))}
@@ -176,7 +139,7 @@ export function AutoRouterSettings() {
           <div className="space-y-2">
             <Label>{t('routingStrategy')}</Label>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {routingStrategies.map((strategy) => (
+              {ROUTING_STRATEGY_KEYS.map((strategy) => (
                 <TooltipProvider key={strategy.value}>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -190,11 +153,11 @@ export function AutoRouterSettings() {
                         onClick={() => setAutoRouterStrategy(strategy.value)}
                       >
                         {strategy.icon}
-                        <span className="text-sm font-medium">{strategy.label}</span>
+                        <span className="text-sm font-medium">{t(strategy.labelKey)}</span>
                       </button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{strategy.description}</p>
+                      <p>{t(strategy.descKey)}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -216,11 +179,11 @@ export function AutoRouterSettings() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {fallbackTiers.map((tier) => (
+                {FALLBACK_TIER_KEYS.map((tier) => (
                   <SelectItem key={tier.value} value={tier.value}>
                     <div className="flex items-center gap-2">
                       {tier.icon}
-                      <span>{tier.label}</span>
+                      <span>{t(tier.labelKey)}</span>
                     </div>
                   </SelectItem>
                 ))}

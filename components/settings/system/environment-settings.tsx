@@ -336,15 +336,15 @@ export function EnvironmentSettings() {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="tools">
             <Terminal className="h-4 w-4 mr-2" />
-            Tools
+            {t('tabTools')}
           </TabsTrigger>
           <TabsTrigger value="virtualenv">
             <Package className="h-4 w-4 mr-2" />
-            Virtual Envs
+            {t('tabVirtualEnvs')}
           </TabsTrigger>
           <TabsTrigger value="projects">
             <Settings className="h-4 w-4 mr-2" />
-            Projects
+            {t('tabProjects')}
           </TabsTrigger>
         </TabsList>
 

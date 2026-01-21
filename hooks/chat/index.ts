@@ -56,3 +56,4 @@ export {
   type UseWorkflowCommandReturn,
 } from "./use-workflow-command";
 export { useIntentDetection } from "./use-intent-detection";
+export { useFeatureRouting, type UseFeatureRoutingOptions, type UseFeatureRoutingReturn } from "./use-feature-routing";

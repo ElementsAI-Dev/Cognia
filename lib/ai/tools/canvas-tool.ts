@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import type { AgentTool } from './agent-executor';
+import type { AgentTool } from '../agent/agent-executor';
 import { useArtifactStore } from '@/stores';
 import type { ArtifactLanguage } from '@/types';
 

@@ -28,6 +28,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useTranslations } from 'next-intl';
 import { useSettingsStore, selectTokenizerSettings } from "@/stores/settings/settings-store";
 import type { TokenizerProvider } from "@/types/system/tokenizer";
 
@@ -35,40 +36,17 @@ interface TokenizerSettingsProps {
   className?: string;
 }
 
-const PROVIDER_OPTIONS: { value: TokenizerProvider; label: string; description: string }[] = [
-  {
-    value: "auto",
-    label: "Auto-detect",
-    description: "Automatically select tokenizer based on model",
-  },
-  {
-    value: "tiktoken",
-    label: "Tiktoken (OpenAI)",
-    description: "Local tokenizer for GPT models - fast and accurate",
-  },
-  {
-    value: "gemini-api",
-    label: "Gemini API",
-    description: "Google's official token counter - requires API key",
-  },
-  {
-    value: "claude-api",
-    label: "Claude API",
-    description: "Anthropic's official token counter - requires API key",
-  },
-  {
-    value: "glm-api",
-    label: "GLM API (Zhipu)",
-    description: "Zhipu's official token counter - requires API key",
-  },
-  {
-    value: "estimation",
-    label: "Estimation",
-    description: "Fast local estimation - approximate but always available",
-  },
+const PROVIDER_KEYS: { value: TokenizerProvider; labelKey: string; descKey: string }[] = [
+  { value: "auto", labelKey: "provider.auto", descKey: "provider.autoDesc" },
+  { value: "tiktoken", labelKey: "provider.tiktoken", descKey: "provider.tiktokenDesc" },
+  { value: "gemini-api", labelKey: "provider.gemini", descKey: "provider.geminiDesc" },
+  { value: "claude-api", labelKey: "provider.claude", descKey: "provider.claudeDesc" },
+  { value: "glm-api", labelKey: "provider.glm", descKey: "provider.glmDesc" },
+  { value: "estimation", labelKey: "provider.estimation", descKey: "provider.estimationDesc" },
 ];
 
 export function TokenizerSettings({ className }: TokenizerSettingsProps) {
+  const t = useTranslations('tokenizerSettings');
   const tokenizerSettings = useSettingsStore(selectTokenizerSettings);
   const setTokenizerEnabled = useSettingsStore((s) => s.setTokenizerEnabled);
   const setTokenizerProvider = useSettingsStore((s) => s.setTokenizerProvider);
@@ -117,7 +95,7 @@ export function TokenizerSettings({ className }: TokenizerSettingsProps) {
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <Calculator className="h-5 w-5 shrink-0" />
-              <CardTitle className="text-base">Token Counting</CardTitle>
+              <CardTitle className="text-base">{t('title')}</CardTitle>
             </div>
             <Button
               variant="ghost"
@@ -126,11 +104,11 @@ export function TokenizerSettings({ className }: TokenizerSettingsProps) {
               className="h-8 px-2 shrink-0"
             >
               <RefreshCw className="h-4 w-4 sm:mr-1" />
-              <span className="hidden sm:inline">Reset</span>
+              <span className="hidden sm:inline">{t('reset')}</span>
             </Button>
           </div>
           <CardDescription className="text-xs">
-            Configure how tokens are counted for different AI models.
+            {t('description')}
           </CardDescription>
         </CardHeader>
 
@@ -139,20 +117,20 @@ export function TokenizerSettings({ className }: TokenizerSettingsProps) {
           <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
             <div className="space-y-0.5 min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <Label htmlFor="precise-counting" className="text-sm">Enable Precise Counting</Label>
+                <Label htmlFor="precise-counting" className="text-sm">{t('enablePreciseCounting')}</Label>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help shrink-0" />
                   </TooltipTrigger>
                   <TooltipContent>
                     <p className="max-w-xs text-xs">
-                      Uses official tokenizers for accurate counts. May use remote APIs.
+                      {t('enablePreciseCountingTooltip')}
                     </p>
                   </TooltipContent>
                 </Tooltip>
               </div>
               <p className="text-xs text-muted-foreground">
-                Use official tokenizers for accurate token counts
+                {t('enablePreciseCountingDesc')}
               </p>
             </div>
             <Switch
@@ -166,14 +144,14 @@ export function TokenizerSettings({ className }: TokenizerSettingsProps) {
           {/* Tokenizer Provider */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Label>Preferred Tokenizer</Label>
+              <Label>{t('preferredTokenizer')}</Label>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="max-w-xs">
-                    Select which tokenizer to use. Auto-detect chooses based on the model.
+                    {t('preferredTokenizerTooltip')}
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -183,14 +161,14 @@ export function TokenizerSettings({ className }: TokenizerSettingsProps) {
               onValueChange={handleProviderChange}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select tokenizer" />
+                <SelectValue placeholder={t('selectTokenizer')} />
               </SelectTrigger>
               <SelectContent>
-                {PROVIDER_OPTIONS.map((option) => (
+                {PROVIDER_KEYS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     <div className="flex flex-col">
-                      <span>{option.label}</span>
-                      <span className="text-xs text-muted-foreground">{option.description}</span>
+                      <span>{t(option.labelKey)}</span>
+                      <span className="text-xs text-muted-foreground">{t(option.descKey)}</span>
                     </div>
                   </SelectItem>
                 ))}
@@ -201,9 +179,9 @@ export function TokenizerSettings({ className }: TokenizerSettingsProps) {
           {/* Auto-detect */}
           <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
             <div className="space-y-0.5 min-w-0 flex-1">
-              <Label htmlFor="auto-detect" className="text-sm">Auto-detect by Model</Label>
+              <Label htmlFor="auto-detect" className="text-sm">{t('autoDetectByModel')}</Label>
               <p className="text-xs text-muted-foreground">
-                Automatically select the best tokenizer for each model
+                {t('autoDetectByModelDesc')}
               </p>
             </div>
             <Switch
@@ -220,10 +198,10 @@ export function TokenizerSettings({ className }: TokenizerSettingsProps) {
               <div className="space-y-0.5 min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <Database className="h-4 w-4 shrink-0" />
-                  <Label htmlFor="enable-cache" className="text-sm">Enable Caching</Label>
+                  <Label htmlFor="enable-cache" className="text-sm">{t('enableCaching')}</Label>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Cache token counts to reduce API calls
+                  {t('enableCachingDesc')}
                 </p>
               </div>
               <Switch
@@ -237,7 +215,7 @@ export function TokenizerSettings({ className }: TokenizerSettingsProps) {
             {tokenizerSettings.enableCache && (
               <div className="space-y-2 pt-2 border-t">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm">Cache TTL</Label>
+                  <Label className="text-sm">{t('cacheTTL')}</Label>
                   <span className="text-sm font-mono">{tokenizerSettings.cacheTTL}s</span>
                 </div>
                 <Slider
@@ -248,7 +226,7 @@ export function TokenizerSettings({ className }: TokenizerSettingsProps) {
                   step={60}
                 />
                 <p className="text-[10px] text-muted-foreground">
-                  60s - 1 hour
+                  {t('cacheTTLRange')}
                 </p>
               </div>
             )}
@@ -259,7 +237,7 @@ export function TokenizerSettings({ className }: TokenizerSettingsProps) {
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 shrink-0" />
-                <Label className="text-sm">API Timeout</Label>
+                <Label className="text-sm">{t('apiTimeout')}</Label>
               </div>
               <span className="text-sm font-mono">{tokenizerSettings.apiTimeout}ms</span>
             </div>
@@ -271,7 +249,7 @@ export function TokenizerSettings({ className }: TokenizerSettingsProps) {
               step={1000}
             />
             <p className="text-[10px] text-muted-foreground">
-              1s - 30s
+              {t('apiTimeoutRange')}
             </p>
           </div>
 
@@ -280,10 +258,10 @@ export function TokenizerSettings({ className }: TokenizerSettingsProps) {
             <div className="space-y-0.5 min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 shrink-0" />
-                <Label htmlFor="fallback" className="text-sm">Fallback to Estimation</Label>
+                <Label htmlFor="fallback" className="text-sm">{t('fallbackToEstimation')}</Label>
               </div>
               <p className="text-xs text-muted-foreground">
-                Use estimation if precise counting fails
+                {t('fallbackToEstimationDesc')}
               </p>
             </div>
             <Switch
@@ -296,13 +274,13 @@ export function TokenizerSettings({ className }: TokenizerSettingsProps) {
 
           {/* Display Options */}
           <div className="border-t pt-4 space-y-3">
-            <h4 className="text-sm font-medium">Display Options</h4>
+            <h4 className="text-sm font-medium">{t('displayOptions')}</h4>
 
             <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
               <div className="space-y-0.5 min-w-0 flex-1">
-                <Label htmlFor="show-breakdown" className="text-sm">Show Token Breakdown</Label>
+                <Label htmlFor="show-breakdown" className="text-sm">{t('showTokenBreakdown')}</Label>
                 <p className="text-xs text-muted-foreground">
-                  Display detailed token counts per message
+                  {t('showTokenBreakdownDesc')}
                 </p>
               </div>
               <Switch
@@ -318,10 +296,10 @@ export function TokenizerSettings({ className }: TokenizerSettingsProps) {
                 <div className="space-y-0.5 min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 shrink-0" />
-                    <Label htmlFor="context-warning" className="text-sm">Context Limit Warning</Label>
+                    <Label htmlFor="context-warning" className="text-sm">{t('contextLimitWarning')}</Label>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Show warning when approaching context limit
+                    {t('contextLimitWarningDesc')}
                   </p>
                 </div>
                 <Switch
@@ -335,7 +313,7 @@ export function TokenizerSettings({ className }: TokenizerSettingsProps) {
               {tokenizerSettings.showContextWarning && (
                 <div className="space-y-2 pt-2 border-t">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm">Warning Threshold</Label>
+                    <Label className="text-sm">{t('warningThreshold')}</Label>
                     <span className="text-sm font-mono">{tokenizerSettings.contextWarningThreshold}%</span>
                   </div>
                   <Slider

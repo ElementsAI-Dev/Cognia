@@ -3,15 +3,19 @@
  */
 
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 import {
   DEFAULT_SUB_AGENT_CONFIG,
+  BUILT_IN_TEMPLATES,
   type SubAgent,
   type SubAgentConfig,
   type SubAgentStatus,
   type SubAgentResult,
   type SubAgentLog,
   type SubAgentGroup,
+  type SubAgentTemplate,
+  type SubAgentMetrics,
   type CreateSubAgentInput,
   type UpdateSubAgentInput,
   type SubAgentExecutionMode,
@@ -23,6 +27,12 @@ interface SubAgentState {
   
   // Groups for organizing sub-agents
   groups: Record<string, SubAgentGroup>;
+  
+  // Templates for quick sub-agent creation
+  templates: Record<string, SubAgentTemplate>;
+  
+  // Execution metrics for analytics
+  metrics: Record<string, SubAgentMetrics>;
   
   // Active parent agent ID
   activeParentId: string | null;
@@ -64,6 +74,17 @@ interface SubAgentState {
   clearCompletedSubAgents: (parentId?: string) => void;
   reorderSubAgents: (parentId: string, orderedIds: string[]) => void;
   
+  // Template management
+  addTemplate: (template: SubAgentTemplate) => void;
+  updateTemplate: (templateId: string, updates: Partial<SubAgentTemplate>) => void;
+  deleteTemplate: (templateId: string) => void;
+  getTemplate: (templateId: string) => SubAgentTemplate | undefined;
+  createFromTemplate: (templateId: string, parentAgentId: string, variables?: Record<string, string>) => SubAgent | null;
+  
+  // Metrics
+  updateMetrics: (subAgentId: string, result: SubAgentResult) => void;
+  getMetrics: (subAgentId?: string) => SubAgentMetrics | Record<string, SubAgentMetrics>;
+  
   // Active parent
   setActiveParent: (parentId: string | null) => void;
   
@@ -71,13 +92,23 @@ interface SubAgentState {
   reset: () => void;
 }
 
+// Initialize built-in templates
+const builtInTemplatesMap = BUILT_IN_TEMPLATES.reduce(
+  (acc, template) => ({ ...acc, [template.id]: template }),
+  {} as Record<string, SubAgentTemplate>
+);
+
 const initialState = {
   subAgents: {} as Record<string, SubAgent>,
   groups: {} as Record<string, SubAgentGroup>,
+  templates: builtInTemplatesMap,
+  metrics: {} as Record<string, SubAgentMetrics>,
   activeParentId: null as string | null,
 };
 
-export const useSubAgentStore = create<SubAgentState>((set, get) => ({
+export const useSubAgentStore = create<SubAgentState>()(
+  persist(
+    (set, get) => ({
   ...initialState,
 
   createSubAgent: (input) => {
@@ -436,10 +467,127 @@ export const useSubAgentStore = create<SubAgentState>((set, get) => ({
     set({ activeParentId: parentId });
   },
 
-  reset: () => {
-    set(initialState);
+  // Template management
+  addTemplate: (template) => {
+    set((state) => ({
+      templates: { ...state.templates, [template.id]: template },
+    }));
   },
-}));
+
+  updateTemplate: (templateId, updates) => {
+    set((state) => {
+      const template = state.templates[templateId];
+      if (!template || template.isBuiltIn) return state; // Don't allow editing built-in templates
+
+      return {
+        templates: {
+          ...state.templates,
+          [templateId]: { ...template, ...updates },
+        },
+      };
+    });
+  },
+
+  deleteTemplate: (templateId) => {
+    set((state) => {
+      const template = state.templates[templateId];
+      if (!template || template.isBuiltIn) return state; // Don't allow deleting built-in templates
+
+      const { [templateId]: _, ...rest } = state.templates;
+      return { templates: rest };
+    });
+  },
+
+  getTemplate: (templateId) => {
+    return get().templates[templateId];
+  },
+
+  createFromTemplate: (templateId, parentAgentId, variables = {}) => {
+    const template = get().templates[templateId];
+    if (!template) return null;
+
+    // Replace variables in task template
+    let task = template.taskTemplate;
+    Object.entries(variables).forEach(([key, value]) => {
+      task = task.replace(new RegExp(`{{${key}}}`, 'g'), value);
+    });
+
+    // Fill in default values for missing variables
+    template.variables?.forEach((v) => {
+      if (v.defaultValue && !variables[v.name]) {
+        task = task.replace(new RegExp(`{{${v.name}}}`, 'g'), v.defaultValue);
+      }
+    });
+
+    return get().createSubAgent({
+      parentAgentId,
+      name: template.name,
+      description: template.description,
+      task,
+      config: template.config,
+    });
+  },
+
+  // Metrics
+  updateMetrics: (subAgentId, result) => {
+    set((state) => {
+      const existing = state.metrics[subAgentId] || {
+        executionCount: 0,
+        successCount: 0,
+        failureCount: 0,
+        avgDuration: 0,
+        totalTokens: 0,
+        avgTokensPerExecution: 0,
+      };
+
+      const newCount = existing.executionCount + 1;
+      const newTokens = existing.totalTokens + (result.tokenUsage?.totalTokens ?? 0);
+
+      const updated: SubAgentMetrics = {
+        executionCount: newCount,
+        successCount: existing.successCount + (result.success ? 1 : 0),
+        failureCount: existing.failureCount + (result.success ? 0 : 1),
+        avgDuration: (existing.avgDuration * existing.executionCount + result.duration) / newCount,
+        totalTokens: newTokens,
+        avgTokensPerExecution: newTokens / newCount,
+        lastExecutedAt: new Date(),
+      };
+
+      return {
+        metrics: { ...state.metrics, [subAgentId]: updated },
+      };
+    });
+  },
+
+  getMetrics: (subAgentId) => {
+    if (subAgentId) {
+      return get().metrics[subAgentId] || {
+        executionCount: 0,
+        successCount: 0,
+        failureCount: 0,
+        avgDuration: 0,
+        totalTokens: 0,
+        avgTokensPerExecution: 0,
+      };
+    }
+    return get().metrics;
+  },
+
+  reset: () => {
+    set({ ...initialState, templates: builtInTemplatesMap });
+  },
+    }),
+    {
+      name: 'cognia-sub-agents',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        // Only persist templates and metrics, not running sub-agents
+        templates: state.templates,
+        metrics: state.metrics,
+      }),
+    }
+  )
+);
 
 // Selectors
 export const selectSubAgents = (state: SubAgentState) => state.subAgents;

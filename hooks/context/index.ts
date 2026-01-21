@@ -51,3 +51,14 @@ export {
   useProject,
   type UseProjectReturn,
 } from './use-project';
+export {
+  useAutoSync,
+  type UseAutoSyncOptions,
+  type UseAutoSyncReturn,
+} from './use-auto-sync';
+export {
+  useContextStats,
+  type ContextStats,
+  type UseContextStatsOptions,
+  type UseContextStatsReturn,
+} from './use-context-stats';

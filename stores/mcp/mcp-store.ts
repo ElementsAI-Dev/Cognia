@@ -21,12 +21,32 @@ import type {
 } from '@/types/mcp';
 import { DEFAULT_TOOL_SELECTION_CONFIG } from '@/types/mcp';
 
+/**
+ * Active tool call tracking for parallel execution
+ */
+export interface ActiveToolCall {
+  id: string;
+  serverId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  status: 'pending' | 'running' | 'completed' | 'error' | 'timeout';
+  startedAt: Date;
+  completedAt?: Date;
+  duration?: number;
+  result?: unknown;
+  error?: string;
+  progress?: number;
+}
+
 interface McpState {
   // State
   servers: McpServerState[];
   isLoading: boolean;
   error: string | null;
   isInitialized: boolean;
+  
+  // Active tool calls tracking for parallel execution
+  activeToolCalls: Map<string, ActiveToolCall>;
   
   // Tool selection state
   toolSelectionConfig: McpToolSelectionConfig;
@@ -64,6 +84,14 @@ interface McpState {
   getToolUsageHistory: () => Map<string, ToolUsageRecord>;
   setLastToolSelection: (selection: ToolSelectionResult | null) => void;
   resetToolUsageHistory: () => void;
+  
+  // Active tool call tracking actions
+  trackToolCallStart: (id: string, serverId: string, toolName: string, args: Record<string, unknown>) => void;
+  trackToolCallProgress: (id: string, progress: number) => void;
+  trackToolCallComplete: (id: string, result: unknown) => void;
+  trackToolCallError: (id: string, error: string) => void;
+  getActiveToolCalls: () => ActiveToolCall[];
+  clearCompletedToolCalls: () => void;
 
   // Internal
   _updateServer: (state: McpServerState) => void;
@@ -82,6 +110,9 @@ export const useMcpStore = create<McpState>((set, get) => ({
   isLoading: false,
   error: null,
   isInitialized: false,
+  
+  // Active tool calls tracking
+  activeToolCalls: new Map<string, ActiveToolCall>(),
   
   // Tool selection state
   toolSelectionConfig: { ...DEFAULT_TOOL_SELECTION_CONFIG },
@@ -124,7 +155,34 @@ export const useMcpStore = create<McpState>((set, get) => ({
       unlistenToolProgress = await listen<ToolCallProgress>(
         'mcp:tool-call-progress',
         (event) => {
-          console.log('Tool call progress:', event.payload);
+          const { callId, serverId, toolName, state, progress, error } = event.payload;
+          
+          // Update tool call tracking based on state
+          switch (state) {
+            case 'pending':
+            case 'running':
+              // Check if already tracked, if not start tracking
+              if (!get().activeToolCalls.has(callId)) {
+                get().trackToolCallStart(callId, serverId, toolName, {});
+              }
+              if (progress !== undefined) {
+                get().trackToolCallProgress(callId, progress);
+              }
+              break;
+            case 'completed':
+              get().trackToolCallComplete(callId, undefined);
+              // Record usage for analytics
+              get().recordToolUsage(toolName, true);
+              break;
+            case 'failed':
+              get().trackToolCallError(callId, error || 'Unknown error');
+              // Record usage for analytics
+              get().recordToolUsage(toolName, false);
+              break;
+            case 'cancelled':
+              get().trackToolCallError(callId, 'Cancelled');
+              break;
+          }
         }
       );
 
@@ -304,6 +362,86 @@ export const useMcpStore = create<McpState>((set, get) => ({
   
   resetToolUsageHistory: () => {
     set({ toolUsageHistory: new Map<string, ToolUsageRecord>() });
+  },
+  
+  // Active tool call tracking actions
+  trackToolCallStart: (id, serverId, toolName, args) => {
+    set((prev) => {
+      const calls = new Map(prev.activeToolCalls);
+      calls.set(id, {
+        id,
+        serverId,
+        toolName,
+        args,
+        status: 'running',
+        startedAt: new Date(),
+      });
+      return { activeToolCalls: calls };
+    });
+  },
+  
+  trackToolCallProgress: (id, progress) => {
+    set((prev) => {
+      const calls = new Map(prev.activeToolCalls);
+      const call = calls.get(id);
+      if (call) {
+        calls.set(id, { ...call, progress });
+      }
+      return { activeToolCalls: calls };
+    });
+  },
+  
+  trackToolCallComplete: (id, result) => {
+    set((prev) => {
+      const calls = new Map(prev.activeToolCalls);
+      const call = calls.get(id);
+      if (call) {
+        const completedAt = new Date();
+        calls.set(id, {
+          ...call,
+          status: 'completed',
+          result,
+          completedAt,
+          duration: completedAt.getTime() - call.startedAt.getTime(),
+        });
+      }
+      return { activeToolCalls: calls };
+    });
+  },
+  
+  trackToolCallError: (id, error) => {
+    set((prev) => {
+      const calls = new Map(prev.activeToolCalls);
+      const call = calls.get(id);
+      if (call) {
+        const completedAt = new Date();
+        const isTimeout = error.toLowerCase().includes('timeout');
+        calls.set(id, {
+          ...call,
+          status: isTimeout ? 'timeout' : 'error',
+          error,
+          completedAt,
+          duration: completedAt.getTime() - call.startedAt.getTime(),
+        });
+      }
+      return { activeToolCalls: calls };
+    });
+  },
+  
+  getActiveToolCalls: () => {
+    return Array.from(get().activeToolCalls.values());
+  },
+  
+  clearCompletedToolCalls: () => {
+    set((prev) => {
+      const calls = new Map(prev.activeToolCalls);
+      for (const [id, call] of calls) {
+        if (call.status === 'completed' || call.status === 'error' || call.status === 'timeout') {
+          calls.delete(id);
+        }
+      }
+      return { activeToolCalls: calls };
+    });
   },
 
   _updateServer: (state) => {

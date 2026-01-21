@@ -7,7 +7,7 @@
  */
 
 import { z } from 'zod';
-import type { AgentTool } from './agent-executor';
+import type { AgentTool } from '../agent/agent-executor';
 import type {
   McpTool,
   McpServerState,
@@ -33,6 +33,14 @@ export interface McpToolAdapterConfig {
   timeout?: number;
   /** Custom error handler */
   onError?: (error: Error, serverId: string, toolName: string) => void;
+  /** Default blocking mode for MCP tools (default: true) */
+  defaultBlocking?: boolean;
+  /** Priority for MCP tool calls in parallel execution queue */
+  priority?: number;
+  /** Callback when MCP tool execution starts */
+  onToolStart?: (serverId: string, toolName: string, args: Record<string, unknown>) => void;
+  /** Callback when MCP tool execution completes */
+  onToolComplete?: (serverId: string, toolName: string, result: ToolCallResult, duration: number) => void;
 }
 
 /**
@@ -143,7 +151,14 @@ export function convertMcpToolToAgentTool(
   mcpTool: McpTool,
   config: McpToolAdapterConfig
 ): AgentTool {
-  const { callTool, requireApproval = false, timeout = 30000, onError } = config;
+  const { 
+    callTool, 
+    requireApproval = false, 
+    timeout = 30000, 
+    onError,
+    onToolStart,
+    onToolComplete,
+  } = config;
 
   // Convert JSON Schema to Zod
   let parameters: z.ZodType;
@@ -164,6 +179,9 @@ export function convertMcpToolToAgentTool(
     execute: async (args: Record<string, unknown>) => {
       const startTime = Date.now();
       
+      // Notify tool start
+      onToolStart?.(serverId, mcpTool.name, args);
+      
       try {
         // Create a timeout promise
         const timeoutPromise = new Promise<never>((_, reject) => {
@@ -177,6 +195,9 @@ export function convertMcpToolToAgentTool(
         ]);
 
         const duration = Date.now() - startTime;
+
+        // Notify tool complete
+        onToolComplete?.(serverId, mcpTool.name, result, duration);
 
         if (result.isError) {
           return {

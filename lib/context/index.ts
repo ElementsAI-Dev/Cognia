@@ -128,3 +128,17 @@ export {
   buildHistoryContext,
   shouldBuildHistoryContext,
 } from './cross-session-context';
+
+// Auto-sync service
+export {
+  syncAllMcpServers,
+  syncAllSkills,
+  runFullSync,
+  startAutoSync,
+  stopAutoSync,
+  getLastSyncResult,
+  isAutoSyncRunning,
+  createSyncTrigger,
+  type AutoSyncConfig,
+  type AutoSyncResult,
+} from './auto-sync';

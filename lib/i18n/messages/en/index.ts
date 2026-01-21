@@ -32,6 +32,7 @@ import jupyter from './jupyter.json';
 import misc from './misc.json';
 import learning from './learning.json';
 import plugin from './plugin.json';
+import document from './document.json';
 
 const messages = {
   ...common,
@@ -64,7 +65,8 @@ const messages = {
   ...jupyter,
   ...misc,
   ...learning,
-  ...plugin
+  ...plugin,
+  ...document
 };
 
 export default messages;

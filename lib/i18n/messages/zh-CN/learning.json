@@ -34,7 +34,42 @@
       "difficulty": "首选难度",
       "difficultyHint": "选择您的舒适级别",
       "learningStyle": "学习风格",
-      "learningStyleHint": "您最喜欢的学习方式？"
+      "learningStyleHint": "您最喜欢的学习方式？",
+      "learningType": "学习类型",
+      "autoDetected": "自动检测",
+      "estimatedDuration": "预计学习时长",
+      "journeyHint": "系统学习会创建学习路径，包含里程碑和进度跟踪"
+    },
+    "learningType": {
+      "quick": "快速学习",
+      "quickDesc": "问个问题，快速解答",
+      "journey": "系统学习",
+      "journeyDesc": "制定学习路径，跟踪进度"
+    },
+    "duration": {
+      "days": "1-7 天",
+      "weeks": "1-4 周",
+      "months": "1-6 个月",
+      "longTerm": "6个月以上"
+    },
+    "dashboard": {
+      "activePaths": "进行中的路径",
+      "completedPaths": "已完成路径",
+      "totalTime": "总学习时长",
+      "streak": "连续学习",
+      "days": "天",
+      "activeLearningPaths": "进行中的学习路径",
+      "activePathsDesc": "继续你的学习之旅",
+      "complete": "完成",
+      "continueLearning": "继续学习",
+      "overallProgress": "总体进度",
+      "milestones": "里程碑",
+      "milestonesComplete": "里程碑",
+      "sessions": "学习次数",
+      "timeSpent": "学习时长",
+      "streakDays": "连续天数",
+      "noActivePaths": "还没有学习路径",
+      "noActivePathsDesc": "开始一个系统学习计划，跟踪你的学习进度"
     },
     "stats": {
       "timeSpent": "学习时长",

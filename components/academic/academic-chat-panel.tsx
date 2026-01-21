@@ -74,6 +74,7 @@ export function AcademicChatPanel({
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [selectedPapers, setSelectedPapers] = useState<Paper[]>([]);
+  const [expandedMessageIds, setExpandedMessageIds] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -329,7 +330,10 @@ export function AcademicChatPanel({
 
                 {message.papers && message.papers.length > 0 && (
                   <div className="mt-4 space-y-3">
-                    {message.papers.slice(0, 5).map((paper, idx) => (
+                    {(expandedMessageIds.has(message.id) 
+                      ? message.papers 
+                      : message.papers.slice(0, 5)
+                    ).map((paper, idx) => (
                       <AcademicPaperCard
                         key={paper.id || idx}
                         paper={paper}
@@ -346,10 +350,20 @@ export function AcademicChatPanel({
                         size="sm"
                         className="w-full"
                         onClick={() => {
-                          /* Show all results */
+                          setExpandedMessageIds(prev => {
+                            const next = new Set(prev);
+                            if (next.has(message.id)) {
+                              next.delete(message.id);
+                            } else {
+                              next.add(message.id);
+                            }
+                            return next;
+                          });
                         }}
                       >
-                        Show {message.papers.length - 5} more results
+                        {expandedMessageIds.has(message.id) 
+                          ? 'Show less' 
+                          : `Show ${message.papers.length - 5} more results`}
                       </Button>
                     )}
                   </div>

@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations, useFormatter } from 'next-intl';
 import {
   Star,
   Download,
@@ -58,6 +59,8 @@ export function PromptMarketplaceDetail({
   open,
   onOpenChange,
 }: PromptMarketplaceDetailProps) {
+  const t = useTranslations('promptMarketplace.detail');
+  const format = useFormatter();
   const [isInstalling, setIsInstalling] = useState(false);
   const [showFullContent, setShowFullContent] = useState(false);
   const [userRating, setUserRating] = useState(0);
@@ -81,14 +84,14 @@ export function PromptMarketplaceDetail({
     setIsInstalling(true);
     try {
       await installPrompt(prompt);
-      toast.success('Prompt installed successfully!');
+      toast.success(t('installSuccess'));
     } catch (error) {
-      toast.error('Failed to install prompt');
+      toast.error(t('installFailed'));
       console.error(error);
     } finally {
       setIsInstalling(false);
     }
-  }, [prompt, installPrompt]);
+  }, [prompt, installPrompt, t]);
 
   const handleFavoriteToggle = useCallback(() => {
     if (!prompt) return;
@@ -104,15 +107,15 @@ export function PromptMarketplaceDetail({
     await navigator.clipboard.writeText(prompt.content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    toast.success('Copied to clipboard');
-  }, [prompt]);
+    toast.success(t('copiedToClipboard'));
+  }, [prompt, t]);
 
   const handleShare = useCallback(async () => {
     if (!prompt) return;
     const shareUrl = `${window.location.origin}/marketplace/prompt/${prompt.id}`;
     await navigator.clipboard.writeText(shareUrl);
-    toast.success('Share link copied!');
-  }, [prompt]);
+    toast.success(t('shareLinkCopied'));
+  }, [prompt, t]);
 
   const loadReviews = useCallback(async () => {
     if (!prompt) return;
@@ -131,11 +134,11 @@ export function PromptMarketplaceDetail({
   };
 
   const formatDate = (date: Date): string => {
-    return new Intl.DateTimeFormat('en-US', {
+    return format.dateTime(new Date(date), {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-    }).format(new Date(date));
+    });
   };
 
   return (
@@ -194,7 +197,7 @@ export function PromptMarketplaceDetail({
                   <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
                   <span className="text-lg font-semibold">{prompt.rating.average.toFixed(1)}</span>
                 </div>
-                <div className="text-xs text-muted-foreground">{prompt.rating.count} ratings</div>
+                <div className="text-xs text-muted-foreground">{prompt.rating.count} {t('ratings')}</div>
               </div>
               <Separator orientation="vertical" className="h-10" />
               <div className="text-center">
@@ -202,7 +205,7 @@ export function PromptMarketplaceDetail({
                   <Download className="h-4 w-4" />
                   <span className="text-lg font-semibold">{formatNumber(prompt.stats.downloads)}</span>
                 </div>
-                <div className="text-xs text-muted-foreground">downloads</div>
+                <div className="text-xs text-muted-foreground">{t('downloads')}</div>
               </div>
               <Separator orientation="vertical" className="h-10" />
               <div className="text-center">
@@ -210,7 +213,7 @@ export function PromptMarketplaceDetail({
                   <Heart className="h-4 w-4" />
                   <span className="text-lg font-semibold">{formatNumber(prompt.stats.favorites)}</span>
                 </div>
-                <div className="text-xs text-muted-foreground">favorites</div>
+                <div className="text-xs text-muted-foreground">{t('favorites')}</div>
               </div>
               <Separator orientation="vertical" className="h-10" />
               <div className="text-center">
@@ -218,7 +221,7 @@ export function PromptMarketplaceDetail({
                   <Eye className="h-4 w-4" />
                   <span className="text-lg font-semibold">{formatNumber(prompt.stats.views)}</span>
                 </div>
-                <div className="text-xs text-muted-foreground">views</div>
+                <div className="text-xs text-muted-foreground">{t('views')}</div>
               </div>
               {prompt.stats.successRate && (
                 <>
@@ -228,7 +231,7 @@ export function PromptMarketplaceDetail({
                       <Sparkles className="h-4 w-4 text-green-500" />
                       <span className="text-lg font-semibold">{Math.round(prompt.stats.successRate * 100)}%</span>
                     </div>
-                    <div className="text-xs text-muted-foreground">success rate</div>
+                    <div className="text-xs text-muted-foreground">{t('successRate')}</div>
                   </div>
                 </>
               )}
@@ -236,7 +239,7 @@ export function PromptMarketplaceDetail({
 
             {/* Description */}
             <div>
-              <h4 className="font-medium mb-2">Description</h4>
+              <h4 className="font-medium mb-2">{t('description')}</h4>
               <p className="text-sm text-muted-foreground">{prompt.description}</p>
             </div>
 
@@ -244,7 +247,7 @@ export function PromptMarketplaceDetail({
             <div>
               <h4 className="font-medium mb-2 flex items-center gap-2">
                 <Tag className="h-4 w-4" />
-                Tags
+                {t('tags')}
               </h4>
               <div className="flex flex-wrap gap-2">
                 {prompt.tags.map(tag => (
@@ -260,15 +263,15 @@ export function PromptMarketplaceDetail({
               <TabsList className="w-full">
                 <TabsTrigger value="content" className="flex-1">
                   <Code className="h-4 w-4 mr-1.5" />
-                  Content
+                  {t('content')}
                 </TabsTrigger>
                 <TabsTrigger value="variables" className="flex-1">
                   <Sparkles className="h-4 w-4 mr-1.5" />
-                  Variables ({prompt.variables.length})
+                  {t('variables')} ({prompt.variables.length})
                 </TabsTrigger>
                 <TabsTrigger value="reviews" className="flex-1">
                   <ThumbsUp className="h-4 w-4 mr-1.5" />
-                  Reviews ({prompt.reviewCount})
+                  {t('reviews')} ({prompt.reviewCount})
                 </TabsTrigger>
               </TabsList>
 
@@ -297,12 +300,12 @@ export function PromptMarketplaceDetail({
                         {showFullContent ? (
                           <>
                             <ChevronUp className="h-4 w-4 mr-1" />
-                            Show Less
+                            {t('showLess')}
                           </>
                         ) : (
                           <>
                             <ChevronDown className="h-4 w-4 mr-1" />
-                            Show More
+                            {t('showMore')}
                           </>
                         )}
                       </Button>
@@ -314,7 +317,7 @@ export function PromptMarketplaceDetail({
               <TabsContent value="variables" className="mt-4">
                 {prompt.variables.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    No variables defined
+                    {t('noVariables')}
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -328,7 +331,7 @@ export function PromptMarketplaceDetail({
                             {`{{${variable.name}}}`}
                           </code>
                           {variable.required && (
-                            <Badge variant="destructive" className="text-xs">Required</Badge>
+                            <Badge variant="destructive" className="text-xs">{t('required')}</Badge>
                           )}
                           <Badge variant="outline" className="text-xs">{variable.type || 'text'}</Badge>
                         </div>
@@ -339,7 +342,7 @@ export function PromptMarketplaceDetail({
                         )}
                         {variable.defaultValue && (
                           <p className="text-xs text-muted-foreground mt-1">
-                            Default: <code>{variable.defaultValue}</code>
+                            {t('default')}: <code>{variable.defaultValue}</code>
                           </p>
                         )}
                       </div>
@@ -399,7 +402,7 @@ export function PromptMarketplaceDetail({
 
                   {/* Write Review */}
                   <div className="p-4 border rounded-lg space-y-3">
-                    <h5 className="font-medium">Write a Review</h5>
+                    <h5 className="font-medium">{t('writeReview')}</h5>
                     <div className="flex items-center gap-1">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button
@@ -420,13 +423,13 @@ export function PromptMarketplaceDetail({
                       ))}
                     </div>
                     <Textarea
-                      placeholder="Share your experience with this prompt..."
+                      placeholder={t('reviewPlaceholder')}
                       value={userReview}
                       onChange={(e) => setUserReview(e.target.value)}
                       rows={3}
                     />
                     <Button disabled={userRating === 0}>
-                      Submit Review
+                      {t('submitReview')}
                     </Button>
                   </div>
                 </div>
@@ -448,7 +451,7 @@ export function PromptMarketplaceDetail({
                 />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{isFavorite ? 'Remove from favorites' : 'Add to favorites'}</TooltipContent>
+            <TooltipContent>{isFavorite ? t('removeFromFavorites') : t('addToFavorites')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -457,7 +460,7 @@ export function PromptMarketplaceDetail({
                 {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Copy prompt content</TooltipContent>
+            <TooltipContent>{t('copyPromptContent')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -466,7 +469,7 @@ export function PromptMarketplaceDetail({
                 <Share2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Share prompt</TooltipContent>
+            <TooltipContent>{t('sharePrompt')}</TooltipContent>
           </Tooltip>
 
           <div className="flex-1" />
@@ -474,12 +477,12 @@ export function PromptMarketplaceDetail({
           {isInstalled ? (
             <Button variant="outline" className="gap-2">
               <Check className="h-4 w-4 text-green-500" />
-              Installed
+              {t('installed')}
             </Button>
           ) : (
             <Button onClick={handleInstall} disabled={isInstalling} className="gap-2">
               <Download className="h-4 w-4" />
-              {isInstalling ? 'Installing...' : 'Install Prompt'}
+              {isInstalling ? t('installing') : t('installPrompt')}
             </Button>
           )}
         </div>

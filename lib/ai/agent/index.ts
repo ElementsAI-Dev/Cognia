@@ -35,6 +35,21 @@ export {
   parseReActResponse,
 } from './agent-executor';
 
+// Tool Call Manager exports for parallel execution (re-exported from tools)
+export {
+  ToolCallManager,
+  createToolCallManager,
+  getGlobalToolCallManager,
+  setGlobalToolCallManager,
+  resetGlobalToolCallManager,
+  type ToolExecutionMode,
+  type ToolCallManagerConfig,
+  type ToolCallManagerStats,
+  type PendingToolResult,
+  type FlushResult,
+  DEFAULT_TOOL_CALL_MANAGER_CONFIG,
+} from '../tools/tool-call-manager';
+
 export {
   initializeAgentTools,
   createCalculatorTool,
@@ -60,7 +75,7 @@ export {
   type RAGSearchToolOptions,
 } from './agent-tools';
 
-// Process Tools exports
+// Process Tools exports (re-exported from tools)
 export {
   initializeProcessTools,
   createListProcessesTool,
@@ -73,9 +88,9 @@ export {
   getProcessToolsSystemPrompt,
   getProcessToolsPromptSnippet,
   type ProcessToolsConfig,
-} from './process-tools';
+} from '../tools/process-tools';
 
-// MCP Tools exports
+// MCP Tools exports (re-exported from tools)
 export {
   convertMcpToolToAgentTool,
   convertMcpServerTools,
@@ -93,7 +108,7 @@ export {
   getMcpToolsWithSelection,
   getRecommendedMcpTools,
   type McpToolAdapterConfig,
-} from './mcp-tools';
+} from '../tools/mcp-tools';
 
 // SubAgent exports
 export {
@@ -135,7 +150,7 @@ export {
   type AgentTask,
 } from './agent-loop';
 
-// Environment Tools exports
+// Environment Tools exports (re-exported from tools)
 export {
   getEnvironmentTools,
   initializeEnvironmentTools,
@@ -148,7 +163,7 @@ export {
   createGetPythonVersionsTool,
   getEnvironmentToolsSystemPrompt,
   getEnvironmentToolsPromptSnippet,
-} from './environment-tools';
+} from '../tools/environment-tools';
 
 // Context Tools exports (Dynamic Context Discovery)
 export {
@@ -170,7 +185,7 @@ export {
   type ContextAwareAgentResult,
 } from './context-aware-executor';
 
-// Canvas Tools exports
+// Canvas Tools exports (re-exported from tools)
 export {
   createCanvasCreateTool,
   createCanvasUpdateTool,
@@ -181,16 +196,16 @@ export {
   type CanvasCreateInput,
   type CanvasUpdateInput,
   type CanvasReadInput,
-} from './canvas-tool';
+} from '../tools/canvas-tool';
 
-// Tool Cache exports
+// Tool Cache exports (re-exported from tools)
 export {
   ToolCache,
   globalToolCache,
   type ToolCacheEntry,
   type ToolCacheConfig,
   type ToolCacheStats,
-} from './tool-cache';
+} from '../tools/tool-cache';
 
 // Performance Metrics exports
 export {
