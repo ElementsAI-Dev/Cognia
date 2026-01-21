@@ -7,3 +7,6 @@ export { McpServerDialog } from './mcp-server-dialog';
 export { McpInstallWizard } from './mcp-install-wizard';
 export { McpMarketplace } from './mcp-marketplace';
 export { McpMarketplaceDetailDialog } from './mcp-marketplace-detail-dialog';
+
+// Sub-components
+export * from './components';

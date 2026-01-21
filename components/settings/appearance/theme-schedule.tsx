@@ -19,18 +19,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useSettingsStore } from '@/stores';
-
-/**
- * Parse time string to minutes since midnight
- */
-function parseTimeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours * 60 + minutes;
-}
-
-/**
- * (Scheduling execution runs globally in the app provider.)
- */
+import { parseTimeToMinutes } from '@/lib/themes';
 
 export function ThemeSchedule() {
   const t = useTranslations('themeScheduleSettings');

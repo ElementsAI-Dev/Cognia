@@ -25,8 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useSettingsStore, type Theme, type Language, type MessageBubbleStyle } from '@/stores';
-import { THEME_PRESETS, type ColorThemePreset } from '@/lib/themes';
+import { useSettingsStore, type Language, type MessageBubbleStyle } from '@/stores';
+import { THEME_PRESETS, THEME_MODE_OPTIONS, COLOR_THEME_OPTIONS, type ColorThemePreset } from '@/lib/themes';
 import { localeNames, localeFlags, autoDetectLocale, type Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { ThemeEditor } from './theme-editor';
@@ -37,22 +37,12 @@ import { BackgroundSettings } from './background-settings';
 import { SettingsProfiles } from './settings-profiles';
 import { useAutostart } from '@/hooks/native';
 
-const themeOptions: { value: Theme; labelKey: string; icon: React.ReactNode }[] = [
-  { value: 'light', labelKey: 'themeLight', icon: <Sun className="h-4 w-4" /> },
-  { value: 'dark', labelKey: 'themeDark', icon: <Moon className="h-4 w-4" /> },
-  { value: 'system', labelKey: 'themeSystem', icon: <Monitor className="h-4 w-4" /> },
-];
-
-const colorThemeOptions: { value: ColorThemePreset; color: string }[] = [
-  { value: 'default', color: 'bg-blue-500' },
-  { value: 'ocean', color: 'bg-teal-500' },
-  { value: 'forest', color: 'bg-green-600' },
-  { value: 'sunset', color: 'bg-orange-500' },
-  { value: 'lavender', color: 'bg-purple-500' },
-  { value: 'rose', color: 'bg-pink-500' },
-  { value: 'slate', color: 'bg-slate-500' },
-  { value: 'amber', color: 'bg-amber-500' },
-];
+// Icon mapping for theme mode options
+const themeIconMap = {
+  sun: <Sun className="h-4 w-4" />,
+  moon: <Moon className="h-4 w-4" />,
+  monitor: <Monitor className="h-4 w-4" />,
+};
 
 export function AppearanceSettings() {
   const t = useTranslations('settings');
@@ -218,7 +208,7 @@ export function AppearanceSettings() {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="grid grid-cols-3 gap-1.5">
-              {themeOptions.map((option) => (
+              {THEME_MODE_OPTIONS.map((option) => (
                 <button
                   key={option.value}
                   onClick={() => setTheme(option.value)}
@@ -235,7 +225,7 @@ export function AppearanceSettings() {
                     </div>
                   )}
                   <div className="rounded-full bg-background p-2 shadow-sm">
-                    {option.icon}
+                    {themeIconMap[option.icon]}
                   </div>
                   <span className="text-xs font-medium">{t(option.labelKey)}</span>
                 </button>
@@ -261,7 +251,7 @@ export function AppearanceSettings() {
         <CardContent className="space-y-4">
           {/* Preset Themes */}
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-            {colorThemeOptions.map((option) => {
+            {COLOR_THEME_OPTIONS.map((option) => {
               const _preset = THEME_PRESETS[option.value];
               const isSelected = colorTheme === option.value && !activeCustomThemeId;
 

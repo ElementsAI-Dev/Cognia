@@ -27,8 +27,13 @@ import {
   getPaletteSuggestions,
   generatePaletteFromColor,
   type ColorPalette,
-  type ContrastLevel,
-} from '@/lib/themes/color-utils';
+  COLOR_LABELS,
+  DEFAULT_LIGHT_COLORS,
+  DEFAULT_DARK_COLORS,
+  CONTRAST_LEVEL_COLORS,
+  CONTRAST_LEVEL_LABELS,
+  type ThemeEditorColors,
+} from '@/lib/themes';
 import {
   Tooltip,
   TooltipContent,
@@ -38,108 +43,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-interface ThemeEditorProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  editingThemeId: string | null;
-}
+import type { ThemeEditorProps } from '@/types/settings';
 
-// Full 16-color theme interface
-interface ThemeColors {
-  // Core colors (required)
-  primary: string;
-  secondary: string;
-  accent: string;
-  background: string;
-  foreground: string;
-  muted: string;
-  // Extended colors (optional, auto-generated if not provided)
-  primaryForeground?: string;
-  secondaryForeground?: string;
-  accentForeground?: string;
-  mutedForeground?: string;
-  card?: string;
-  cardForeground?: string;
-  border?: string;
-  ring?: string;
-  destructive?: string;
-  destructiveForeground?: string;
-}
-
-type ColorCategory = 'core' | 'extended';
-
-const defaultLightColors: ThemeColors = {
-  primary: '#3b82f6',
-  primaryForeground: '#ffffff',
-  secondary: '#f1f5f9',
-  secondaryForeground: '#1e293b',
-  accent: '#f1f5f9',
-  accentForeground: '#1e293b',
-  background: '#ffffff',
-  foreground: '#0f172a',
-  muted: '#f1f5f9',
-  mutedForeground: '#64748b',
-  card: '#ffffff',
-  cardForeground: '#0f172a',
-  border: '#e2e8f0',
-  ring: '#3b82f6',
-  destructive: '#ef4444',
-  destructiveForeground: '#ffffff',
-};
-
-const defaultDarkColors: ThemeColors = {
-  primary: '#3b82f6',
-  primaryForeground: '#ffffff',
-  secondary: '#1e293b',
-  secondaryForeground: '#f8fafc',
-  accent: '#1e293b',
-  accentForeground: '#f8fafc',
-  background: '#0f172a',
-  foreground: '#f8fafc',
-  muted: '#1e293b',
-  mutedForeground: '#94a3b8',
-  card: '#1e293b',
-  cardForeground: '#f8fafc',
-  border: '#334155',
-  ring: '#3b82f6',
-  destructive: '#dc2626',
-  destructiveForeground: '#ffffff',
-};
-
-const colorLabels: { key: keyof ThemeColors; labelKey: string; description: string; category: ColorCategory }[] = [
-  // Core colors
-  { key: 'primary', labelKey: 'primary', description: 'Buttons, links, highlights', category: 'core' },
-  { key: 'secondary', labelKey: 'secondary', description: 'Secondary backgrounds', category: 'core' },
-  { key: 'accent', labelKey: 'accent', description: 'Hover states, accents', category: 'core' },
-  { key: 'background', labelKey: 'background', description: 'Main background', category: 'core' },
-  { key: 'foreground', labelKey: 'foreground', description: 'Main text color', category: 'core' },
-  { key: 'muted', labelKey: 'muted', description: 'Muted backgrounds', category: 'core' },
-  // Extended colors
-  { key: 'primaryForeground', labelKey: 'primaryForeground', description: 'Text on primary', category: 'extended' },
-  { key: 'secondaryForeground', labelKey: 'secondaryForeground', description: 'Text on secondary', category: 'extended' },
-  { key: 'accentForeground', labelKey: 'accentForeground', description: 'Text on accent', category: 'extended' },
-  { key: 'mutedForeground', labelKey: 'mutedForeground', description: 'Muted text', category: 'extended' },
-  { key: 'card', labelKey: 'card', description: 'Card background', category: 'extended' },
-  { key: 'cardForeground', labelKey: 'cardForeground', description: 'Card text', category: 'extended' },
-  { key: 'border', labelKey: 'border', description: 'Borders', category: 'extended' },
-  { key: 'ring', labelKey: 'ring', description: 'Focus ring', category: 'extended' },
-  { key: 'destructive', labelKey: 'destructive', description: 'Error/delete', category: 'extended' },
-  { key: 'destructiveForeground', labelKey: 'destructiveForeground', description: 'Text on destructive', category: 'extended' },
-];
-
-const contrastLevelColors: Record<ContrastLevel, string> = {
-  'fail': 'text-red-500',
-  'AA-large': 'text-yellow-500',
-  'AA': 'text-green-500',
-  'AAA': 'text-green-600',
-};
-
-const contrastLevelLabels: Record<ContrastLevel, string> = {
-  'fail': 'Fails WCAG',
-  'AA-large': 'AA Large Text',
-  'AA': 'AA Normal Text',
-  'AAA': 'AAA (Best)',
-};
+// Alias the imported types for local use
+type ThemeColors = ThemeEditorColors;
 
 export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorProps) {
   const t = useTranslations('themeEditor');
@@ -153,7 +60,7 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
 
   const [name, setName] = useState('');
   const [isDark, setIsDark] = useState(false);
-  const [colors, setColors] = useState<ThemeColors>(defaultLightColors);
+  const [colors, setColors] = useState<ThemeColors>(DEFAULT_LIGHT_COLORS);
   const [activeColor, setActiveColor] = useState<keyof ThemeColors>('primary');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState<'colors' | 'palettes'>('colors');
@@ -189,7 +96,7 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
           // Reset for new theme
           setName('');
           setIsDark(false);
-          setColors(defaultLightColors);
+          setColors(DEFAULT_LIGHT_COLORS);
         }
         setActiveColor('primary');
         setShowDeleteConfirm(false);
@@ -202,7 +109,7 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
   useEffect(() => {
     if (!editingThemeId) {
       queueMicrotask(() => {
-        setColors(isDark ? defaultDarkColors : defaultLightColors);
+        setColors(isDark ? DEFAULT_DARK_COLORS : DEFAULT_LIGHT_COLORS);
       });
     }
   }, [isDark, editingThemeId]);
@@ -320,13 +227,13 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className={cn('inline-flex items-center gap-1 text-xs', contrastLevelColors[result.level])}>
+            <span className={cn('inline-flex items-center gap-1 text-xs', CONTRAST_LEVEL_COLORS[result.level])}>
               <Icon className="h-3 w-3" />
               {result.ratio.toFixed(1)}:1
             </span>
           </TooltipTrigger>
           <TooltipContent>
-            <p>{contrastLevelLabels[result.level]}</p>
+            <p>{CONTRAST_LEVEL_LABELS[result.level]}</p>
             <p className="text-xs text-muted-foreground">
               {result.passes.normalText ? '✓ Normal text' : '✗ Normal text'}
             </p>
@@ -400,7 +307,7 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">{t('coreColors')}</Label>
                 <div className="grid grid-cols-3 gap-2">
-                  {colorLabels.filter(c => c.category === 'core').map(({ key, labelKey, description }) => (
+                  {COLOR_LABELS.filter(c => c.category === 'core').map(({ key, labelKey, description }) => (
                     <TooltipProvider key={key}>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -433,7 +340,7 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">{t('extendedColors')}</Label>
                 <div className="grid grid-cols-4 gap-1.5">
-                  {colorLabels.filter(c => c.category === 'extended').map(({ key, labelKey, description }) => (
+                  {COLOR_LABELS.filter(c => c.category === 'extended').map(({ key, labelKey, description }) => (
                     <TooltipProvider key={key}>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -465,9 +372,9 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
               {/* Color Picker */}
               <div className="flex flex-col items-center gap-3 rounded-lg border bg-muted/50 p-3">
                 <div className="text-xs text-center mb-1">
-                  <span className="font-medium">{t(colorLabels.find(c => c.key === activeColor)?.labelKey || activeColor)}</span>
+                  <span className="font-medium">{t(COLOR_LABELS.find(c => c.key === activeColor)?.labelKey || activeColor)}</span>
                   <span className="text-muted-foreground ml-1">
-                    ({colorLabels.find(c => c.key === activeColor)?.category === 'extended' ? t('optional') : t('required')})
+                    ({COLOR_LABELS.find(c => c.key === activeColor)?.category === 'extended' ? t('optional') : t('required')})
                   </span>
                 </div>
                 <HexColorPicker

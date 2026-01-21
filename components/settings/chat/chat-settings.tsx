@@ -6,7 +6,7 @@
  * Organized with Tabs for better UX: Generation | Context | Display
  */
 
-import { MessageSquare, Thermometer, Hash, History, Sparkles, SlidersHorizontal, Shrink, Info, Zap, Send, Bell, Undo2, Shield } from 'lucide-react';
+import { MessageSquare, Thermometer, Hash, History, Sparkles, SlidersHorizontal, Shrink, Zap, Send, Bell, Undo2, Shield } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import {
   Card,
@@ -26,28 +26,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { useSettingsStore } from '@/stores';
 import { PROVIDERS } from '@/types/provider';
 import type { CompressionStrategy, CompressionTrigger } from '@/types/system/compression';
 import type { HistoryContextCompressionLevel } from '@/types/core/chat-history-context';
-
-// Tooltip helper component
-function SettingTooltip({ children, content }: { children: React.ReactNode; content: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className="inline-flex items-center gap-1 cursor-help">
-          {children}
-          <Info className="h-3 w-3 text-muted-foreground" />
-        </span>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-xs text-xs">
-        <p>{content}</p>
-      </TooltipContent>
-    </Tooltip>
-  );
-}
+import { SettingTooltip } from '@/components/settings/shared';
 
 export function ChatSettings() {
   const t = useTranslations('chatSettings');

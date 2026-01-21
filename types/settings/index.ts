@@ -3,3 +3,6 @@
  */
 
 export * from './rules';
+export * from './tools';
+export * from './appearance';
+export * from './chat';

@@ -39,28 +39,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSettingsStore } from '@/stores';
+import { VERIFICATION_MODE_KEYS } from '@/lib/settings/tools';
 import type { SourceVerificationMode } from '@/types/search';
+import type { SourceVerificationSettingsProps } from '@/types/settings/tools';
 import { cn } from '@/lib/utils';
-
-interface SourceVerificationSettingsProps {
-  className?: string;
-  compact?: boolean;
-}
-
-const MODE_KEYS: Record<SourceVerificationMode, { label: string; description: string }> = {
-  ask: {
-    label: 'modeAsk',
-    description: 'modeAskDesc',
-  },
-  auto: {
-    label: 'modeAuto',
-    description: 'modeAutoDesc',
-  },
-  disabled: {
-    label: 'modeDisabled',
-    description: 'modeDisabledDesc',
-  },
-};
 
 export function SourceVerificationSettings({
   className,
@@ -156,7 +138,7 @@ export function SourceVerificationSettings({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(MODE_KEYS).map(([key, { label }]) => (
+                  {Object.entries(VERIFICATION_MODE_KEYS).map(([key, { label }]) => (
                     <SelectItem key={key} value={key} className="text-xs">
                       {t(label)}
                     </SelectItem>
@@ -206,7 +188,10 @@ export function SourceVerificationSettings({
             <Label className="text-sm font-medium">{t('verificationMode')}</Label>
             <div className="grid grid-cols-3 gap-2">
               {(
-                Object.entries(MODE_KEYS) as [SourceVerificationMode, (typeof MODE_KEYS)['ask']][]
+                Object.entries(VERIFICATION_MODE_KEYS) as [
+                  SourceVerificationMode,
+                  (typeof VERIFICATION_MODE_KEYS)['ask'],
+                ][]
               ).map(([key, { label, description }]) => (
                 <TooltipProvider key={key}>
                   <Tooltip>

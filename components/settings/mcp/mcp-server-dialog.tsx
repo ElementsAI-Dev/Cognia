@@ -6,9 +6,9 @@
  * Dialog for adding/editing MCP server configurations
  */
 
-import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { Plus, X, Eye, EyeOff } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
+import { EnvVariablesForm } from './components';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,13 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useMcpStore } from '@/stores/mcp';
-import type {
-  McpServerState,
-  McpServerConfig,
-  McpConnectionType,
-} from '@/types/mcp';
-import { createDefaultServerConfig } from '@/types/mcp';
+import { useMcpServerForm } from '@/hooks/mcp';
+import type { McpServerState, McpConnectionType } from '@/types/mcp';
 
 interface McpServerDialogProps {
   open: boolean;
@@ -52,127 +47,45 @@ export function McpServerDialog({
 }: McpServerDialogProps) {
   const t = useTranslations('mcp');
   const tCommon = useTranslations('common');
-  const { addServer, updateServer } = useMcpStore();
 
-  const [name, setName] = useState('');
-  const [command, setCommand] = useState('npx');
-  const [args, setArgs] = useState<string[]>([]);
-  const [newArg, setNewArg] = useState('');
-  const [env, setEnv] = useState<Record<string, string>>({});
-  const [newEnvKey, setNewEnvKey] = useState('');
-  const [newEnvValue, setNewEnvValue] = useState('');
-  const [showEnvValues, setShowEnvValues] = useState<Record<string, boolean>>({});
-  const [connectionType, setConnectionType] = useState<McpConnectionType>('stdio');
-  const [url, setUrl] = useState('');
-  const [enabled, setEnabled] = useState(true);
-  const [autoStart, setAutoStart] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const {
+    state,
+    setName,
+    setCommand,
+    setConnectionType,
+    setUrl,
+    setEnabled,
+    setAutoStart,
+    setNewArg,
+    setNewEnvKey,
+    setNewEnvValue,
+    addArg,
+    removeArg,
+    addEnv,
+    removeEnv,
+    toggleEnvVisibility,
+    handleSave,
+  } = useMcpServerForm({
+    editingServer,
+    onSuccess: onClose,
+  });
 
-  useEffect(() => {
-    if (open) {
-      if (editingServer) {
-        setName(editingServer.config.name);
-        setCommand(editingServer.config.command);
-        setArgs([...editingServer.config.args]);
-        setEnv({ ...editingServer.config.env });
-        setConnectionType(editingServer.config.connectionType);
-        setUrl(editingServer.config.url || '');
-        setEnabled(editingServer.config.enabled);
-        setAutoStart(editingServer.config.autoStart);
-      } else {
-        resetForm();
-      }
-    }
-  }, [open, editingServer]);
-
-  const resetForm = () => {
-    const defaults = createDefaultServerConfig();
-    setName('');
-    setCommand(defaults.command);
-    setArgs([]);
-    setNewArg('');
-    setEnv({});
-    setNewEnvKey('');
-    setNewEnvValue('');
-    setShowEnvValues({});
-    setConnectionType(defaults.connectionType);
-    setUrl('');
-    setEnabled(defaults.enabled);
-    setAutoStart(defaults.autoStart);
-  };
-
-  const handleAddArg = () => {
-    if (newArg.trim()) {
-      setArgs([...args, newArg.trim()]);
-      setNewArg('');
-    }
-  };
-
-  const handleRemoveArg = (index: number) => {
-    setArgs(args.filter((_, i) => i !== index));
-  };
-
-  const handleAddEnv = () => {
-    if (newEnvKey.trim()) {
-      setEnv({ ...env, [newEnvKey.trim()]: newEnvValue });
-      setNewEnvKey('');
-      setNewEnvValue('');
-    }
-  };
-
-  const handleRemoveEnv = (key: string) => {
-    const { [key]: _, ...rest } = env;
-    setEnv(rest);
-    const { [key]: __, ...restShow } = showEnvValues;
-    setShowEnvValues(restShow);
-  };
-
-  const handleSave = async () => {
-    const config: McpServerConfig = {
-      name: name.trim(),
-      command: command.trim(),
-      args,
-      env,
-      connectionType,
-      url: connectionType === 'sse' ? url.trim() : undefined,
-      enabled,
-      autoStart,
-    };
-
-    setSaving(true);
-    try {
-      if (editingServer) {
-        await updateServer(editingServer.id, config);
-      } else {
-        // Generate ID from name
-        const id = name
-          .toLowerCase()
-          .replace(/\s+/g, '-')
-          .replace(/[^a-z0-9-]/g, '');
-        await addServer(id, config);
-      }
-      onClose();
-    } catch (err) {
-      console.error('Failed to save server:', err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const isValid =
-    name.trim() &&
-    (connectionType === 'stdio' ? command.trim() : url.trim());
+  const {
+    data: { name, command, args, env, connectionType, url, enabled, autoStart },
+    newArg,
+    newEnvKey,
+    newEnvValue,
+    showEnvValues,
+    saving,
+    isValid,
+  } = state;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {editingServer ? t('editServer') : t('addServer')}
-          </DialogTitle>
-          <DialogDescription>
-            {t('configureSettings')}
-          </DialogDescription>
+          <DialogTitle>{editingServer ? t('editServer') : t('addServer')}</DialogTitle>
+          <DialogDescription>{t('configureSettings')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -192,9 +105,7 @@ export function McpServerDialog({
             <Label>{t('connectionType')}</Label>
             <Select
               value={connectionType}
-              onValueChange={(value: McpConnectionType) =>
-                setConnectionType(value)
-              }
+              onValueChange={(value: McpConnectionType) => setConnectionType(value)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -230,16 +141,11 @@ export function McpServerDialog({
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
-                        handleAddArg();
+                        addArg();
                       }
                     }}
                   />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handleAddArg}
-                    type="button"
-                  >
+                  <Button variant="outline" size="icon" onClick={addArg} type="button">
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -249,7 +155,7 @@ export function McpServerDialog({
                       <Badge key={index} variant="secondary" className="pr-1">
                         <span className="font-mono text-xs">{arg}</span>
                         <button
-                          onClick={() => handleRemoveArg(index)}
+                          onClick={() => removeArg(index)}
                           className="ml-1 hover:text-destructive"
                           type="button"
                         >
@@ -275,101 +181,32 @@ export function McpServerDialog({
           )}
 
           {/* Environment Variables */}
-          <div className="space-y-2">
-            <Label>{t('envVariables')}</Label>
-            <div className="flex gap-2">
-              <Input
-                value={newEnvKey}
-                onChange={(e) => setNewEnvKey(e.target.value)}
-                placeholder={t('envKeyPlaceholder')}
-                className="w-1/3 font-mono"
-              />
-              <Input
-                value={newEnvValue}
-                onChange={(e) => setNewEnvValue(e.target.value)}
-                placeholder={t('envValuePlaceholder')}
-                type="password"
-                className="flex-1"
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleAddEnv}
-                type="button"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            {Object.entries(env).length > 0 && (
-              <div className="space-y-2 mt-2">
-                {Object.entries(env).map(([key, value]) => (
-                  <div key={key} className="flex items-center gap-2 text-sm">
-                    <code className="bg-muted px-2 py-1 rounded text-xs">
-                      {key}
-                    </code>
-                    <span>=</span>
-                    <code className="bg-muted px-2 py-1 rounded flex-1 truncate text-xs">
-                      {showEnvValues[key] ? value : '••••••••'}
-                    </code>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() =>
-                        setShowEnvValues({
-                          ...showEnvValues,
-                          [key]: !showEnvValues[key],
-                        })
-                      }
-                      type="button"
-                    >
-                      {showEnvValues[key] ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive"
-                      onClick={() => handleRemoveEnv(key)}
-                      type="button"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <EnvVariablesForm
+            env={env}
+            newEnvKey={newEnvKey}
+            newEnvValue={newEnvValue}
+            showEnvValues={showEnvValues}
+            onNewEnvKeyChange={setNewEnvKey}
+            onNewEnvValueChange={setNewEnvValue}
+            onAddEnv={addEnv}
+            onRemoveEnv={removeEnv}
+            onToggleVisibility={toggleEnvVisibility}
+          />
 
           {/* Options */}
           <div className="flex items-center justify-between pt-2">
             <div className="space-y-0.5">
               <Label htmlFor="enabled">{t('enabled')}</Label>
-              <p className="text-xs text-muted-foreground">
-                {t('enabledHint')}
-              </p>
+              <p className="text-xs text-muted-foreground">{t('enabledHint')}</p>
             </div>
-            <Switch
-              id="enabled"
-              checked={enabled}
-              onCheckedChange={setEnabled}
-            />
+            <Switch id="enabled" checked={enabled} onCheckedChange={setEnabled} />
           </div>
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="auto-start">{t('autoStart')}</Label>
-              <p className="text-xs text-muted-foreground">
-                {t('autoStartHint')}
-              </p>
+              <p className="text-xs text-muted-foreground">{t('autoStartHint')}</p>
             </div>
-            <Switch
-              id="auto-start"
-              checked={autoStart}
-              onCheckedChange={setAutoStart}
-            />
+            <Switch id="auto-start" checked={autoStart} onCheckedChange={setAutoStart} />
           </div>
         </div>
 

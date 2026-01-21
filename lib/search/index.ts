@@ -5,6 +5,8 @@
 export * from './providers';
 export * from './search-service';
 export * from './source-verification';
+export * from './search-constants';
+export { testProviderConnection as testProviderConnectionClient } from './provider-test';
 
 export {
   searchWithTavily,

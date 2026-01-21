@@ -19,45 +19,8 @@ import {
 } from '@/components/ui/dialog';
 import { useSettingsStore } from '@/stores';
 import { cn } from '@/lib/utils';
-import type { BackgroundSettings } from '@/lib/themes';
-
-interface BackgroundExportData {
-  version: string;
-  exportedAt: string;
-  settings: Omit<BackgroundSettings, 'localAssetId'>; // Don't export local asset ID
-}
-
-/**
- * Validate imported background data structure
- */
-function validateBackgroundData(data: unknown): { valid: boolean; error?: string } {
-  if (!data || typeof data !== 'object') {
-    return { valid: false, error: 'Invalid data format' };
-  }
-
-  const bgData = data as Record<string, unknown>;
-
-  if (bgData.version !== '1.0') {
-    return { valid: false, error: 'Unsupported version format' };
-  }
-
-  if (!bgData.settings || typeof bgData.settings !== 'object') {
-    return { valid: false, error: 'Missing settings object' };
-  }
-
-  const settings = bgData.settings as Record<string, unknown>;
-
-  // Validate required fields
-  if (typeof settings.enabled !== 'boolean') {
-    return { valid: false, error: 'Missing enabled property' };
-  }
-
-  if (!['none', 'url', 'local', 'preset'].includes(settings.source as string)) {
-    return { valid: false, error: 'Invalid source type' };
-  }
-
-  return { valid: true };
-}
+import { validateBackgroundData } from '@/lib/themes';
+import type { BackgroundExportData } from '@/types/settings';
 
 export function BackgroundImportExport() {
   const _t = useTranslations('settings');

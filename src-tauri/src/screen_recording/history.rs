@@ -41,6 +41,7 @@ impl RecordingHistoryEntry {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_tags(mut self, tags: Vec<String>) -> Self {
         self.tags = tags;
         self

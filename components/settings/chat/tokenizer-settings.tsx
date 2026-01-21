@@ -31,19 +31,11 @@ import {
 import { useTranslations } from 'next-intl';
 import { useSettingsStore, selectTokenizerSettings } from "@/stores/settings/settings-store";
 import type { TokenizerProvider } from "@/types/system/tokenizer";
+import { TOKENIZER_PROVIDER_OPTIONS } from "@/lib/settings/chat";
 
 interface TokenizerSettingsProps {
   className?: string;
 }
-
-const PROVIDER_KEYS: { value: TokenizerProvider; labelKey: string; descKey: string }[] = [
-  { value: "auto", labelKey: "provider.auto", descKey: "provider.autoDesc" },
-  { value: "tiktoken", labelKey: "provider.tiktoken", descKey: "provider.tiktokenDesc" },
-  { value: "gemini-api", labelKey: "provider.gemini", descKey: "provider.geminiDesc" },
-  { value: "claude-api", labelKey: "provider.claude", descKey: "provider.claudeDesc" },
-  { value: "glm-api", labelKey: "provider.glm", descKey: "provider.glmDesc" },
-  { value: "estimation", labelKey: "provider.estimation", descKey: "provider.estimationDesc" },
-];
 
 export function TokenizerSettings({ className }: TokenizerSettingsProps) {
   const t = useTranslations('tokenizerSettings');
@@ -164,7 +156,7 @@ export function TokenizerSettings({ className }: TokenizerSettingsProps) {
                 <SelectValue placeholder={t('selectTokenizer')} />
               </SelectTrigger>
               <SelectContent>
-                {PROVIDER_KEYS.map((option) => (
+                {TOKENIZER_PROVIDER_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     <div className="flex flex-col">
                       <span>{t(option.labelKey)}</span>

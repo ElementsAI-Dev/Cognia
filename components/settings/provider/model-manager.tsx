@@ -8,9 +8,6 @@ import {
   RefreshCw,
   Loader2,
   Settings,
-  Globe,
-  HardDrive,
-  Cloud,
   FileDown,
   AlertCircle,
   CheckCircle2,
@@ -47,6 +44,14 @@ import type {
   DownloadProgress,
   ModelSource,
 } from "@/lib/native/model-download";
+import {
+  SOURCE_NAMES,
+  CATEGORY_NAMES,
+  CATEGORY_ICONS,
+  formatFileSize,
+  formatSpeed,
+  formatEta,
+} from "@/lib/native/model-download-helpers";
 
 // ============== Types ==============
 
@@ -59,51 +64,6 @@ interface ModelState {
   installed: boolean;
   downloading: boolean;
   progress?: DownloadProgress;
-}
-
-// ============== Helper Functions ==============
-
-const SOURCE_NAMES: Record<string, string> = {
-  hugging_face: "HuggingFace",
-  model_scope: "ModelScope (CN)",
-  git_hub: "GitHub",
-  ollama: "Ollama",
-  custom: "Custom",
-};
-
-const CATEGORY_NAMES: Record<string, string> = {
-  ocr: "OCR Models",
-  llm: "Language Models",
-  embedding: "Embedding",
-  vision: "Vision",
-  speech: "Speech",
-  other: "Other",
-};
-
-const CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  ocr: <FileDown className="w-4 h-4" />,
-  llm: <Cloud className="w-4 h-4" />,
-  embedding: <HardDrive className="w-4 h-4" />,
-  vision: <Globe className="w-4 h-4" />,
-};
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
-
-function formatSpeed(bytesPerSecond: number): string {
-  return `${formatFileSize(bytesPerSecond)}/s`;
-}
-
-function formatEta(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  return `${hours}h ${minutes}m`;
 }
 
 // ============== Components ==============

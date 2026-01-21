@@ -5,11 +5,8 @@
  * All settings are persisted to the settings store
  */
 
-import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Type, Code, Palette, Eye, Calculator } from 'lucide-react';
-import katex from 'katex';
-import 'katex/dist/katex.min.css';
 import {
   Card,
   CardContent,
@@ -28,53 +25,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useSettingsStore, type CodeTheme, type FontFamily } from '@/stores';
-
-const CODE_THEME_KEYS: { value: CodeTheme; labelKey: string }[] = [
-  { value: 'github-dark', labelKey: 'codeTheme.githubDark' },
-  { value: 'github-light', labelKey: 'codeTheme.githubLight' },
-  { value: 'monokai', labelKey: 'codeTheme.monokai' },
-  { value: 'dracula', labelKey: 'codeTheme.dracula' },
-  { value: 'nord', labelKey: 'codeTheme.nord' },
-  { value: 'one-dark', labelKey: 'codeTheme.oneDark' },
-];
-
-const FONT_FAMILY_KEYS: { value: FontFamily; labelKey: string }[] = [
-  { value: 'system', labelKey: 'fontFamily.system' },
-  { value: 'inter', labelKey: 'fontFamily.inter' },
-  { value: 'roboto', labelKey: 'fontFamily.roboto' },
-  { value: 'fira-code', labelKey: 'fontFamily.firaCode' },
-  { value: 'jetbrains-mono', labelKey: 'fontFamily.jetbrainsMono' },
-];
-
-/**
- * MathPreview - Live preview of math rendering with current settings
- */
-function MathPreview({ scale, alignment, previewLabel }: { scale: number; alignment: 'center' | 'left'; previewLabel: string }) {
-  const sampleMath = useMemo(() => {
-    try {
-      return katex.renderToString('E = mc^2 \\quad \\text{and} \\quad \\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}', {
-        displayMode: true,
-        throwOnError: false,
-      });
-    } catch {
-      return '';
-    }
-  }, []);
-
-  return (
-    <div className="p-3 rounded-lg border bg-muted/30">
-      <p className="text-xs text-muted-foreground mb-2">{previewLabel}</p>
-      <div
-        className="overflow-x-auto py-1"
-        style={{
-          fontSize: `${scale}em`,
-          textAlign: alignment,
-        }}
-        dangerouslySetInnerHTML={{ __html: sampleMath }}
-      />
-    </div>
-  );
-}
+import { CODE_THEME_OPTIONS, FONT_FAMILY_OPTIONS } from '@/lib/settings/chat';
+import { MathPreview } from '@/components/settings/shared';
+import type { MathDisplayAlignment } from '@/types/settings/chat';
 
 export function ResponseSettings() {
   const t = useTranslations('responseSettings');
@@ -139,7 +92,7 @@ export function ResponseSettings() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CODE_THEME_KEYS.map((theme) => (
+                  {CODE_THEME_OPTIONS.map((theme) => (
                     <SelectItem key={theme.value} value={theme.value} className="text-xs">
                       {t(theme.labelKey)}
                     </SelectItem>
@@ -154,7 +107,7 @@ export function ResponseSettings() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {FONT_FAMILY_KEYS.map((font) => (
+                  {FONT_FAMILY_OPTIONS.map((font) => (
                     <SelectItem key={font.value} value={font.value} className="text-xs">
                       {t(font.labelKey)}
                     </SelectItem>
@@ -290,7 +243,7 @@ export function ResponseSettings() {
             <Label className="text-xs">{t('alignment')}</Label>
             <Select 
               value={mathDisplayAlignment} 
-              onValueChange={(v) => setMathDisplayAlignment(v as 'center' | 'left')}
+              onValueChange={(v) => setMathDisplayAlignment(v as MathDisplayAlignment)}
               disabled={!enableMathRendering}
             >
               <SelectTrigger className="h-8 text-xs">

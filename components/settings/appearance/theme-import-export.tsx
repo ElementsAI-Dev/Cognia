@@ -17,63 +17,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { useSettingsStore, type CustomTheme } from '@/stores';
+import { useSettingsStore } from '@/stores';
 import { cn } from '@/lib/utils';
-import { isValidHex } from '@/lib/themes/color-utils';
-
-interface ThemeExportData {
-  version: string;
-  exportedAt: string;
-  themes: CustomTheme[];
-}
-
-/**
- * Validate imported theme data structure
- */
-function validateThemeData(data: unknown): { valid: boolean; error?: string } {
-  if (!data || typeof data !== 'object') {
-    return { valid: false, error: 'Invalid data format' };
-  }
-
-  const themeData = data as Record<string, unknown>;
-
-  if (themeData.version !== '1.0') {
-    return { valid: false, error: 'Unsupported version format' };
-  }
-
-  if (!Array.isArray(themeData.themes)) {
-    return { valid: false, error: 'Missing themes array' };
-  }
-
-  for (const theme of themeData.themes) {
-    if (!theme || typeof theme !== 'object') {
-      return { valid: false, error: 'Invalid theme object' };
-    }
-
-    const t = theme as Record<string, unknown>;
-    if (typeof t.name !== 'string' || !t.name.trim()) {
-      return { valid: false, error: 'Theme missing name' };
-    }
-
-    if (typeof t.isDark !== 'boolean') {
-      return { valid: false, error: 'Theme missing isDark property' };
-    }
-
-    if (!t.colors || typeof t.colors !== 'object') {
-      return { valid: false, error: 'Theme missing colors' };
-    }
-
-    const colors = t.colors as Record<string, unknown>;
-    const requiredColors = ['primary', 'secondary', 'accent', 'background', 'foreground', 'muted'];
-    for (const colorKey of requiredColors) {
-      if (typeof colors[colorKey] !== 'string' || !isValidHex(colors[colorKey] as string)) {
-        return { valid: false, error: `Invalid color: ${colorKey}` };
-      }
-    }
-  }
-
-  return { valid: true };
-}
+import { validateThemeData } from '@/lib/themes';
+import type { ThemeExportData } from '@/types/settings';
 
 export function ThemeImportExport() {
   const t = useTranslations('themeEditor');

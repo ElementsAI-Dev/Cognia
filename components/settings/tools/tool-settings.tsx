@@ -23,21 +23,21 @@ import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useSettingsStore } from '@/stores';
+import { TOOL_CATEGORY_CONFIGS } from '@/lib/settings/tools';
+import type { ToolCategory } from '@/types/settings/tools';
+import type { ReactNode } from 'react';
 
-interface ToolCategory {
-  id: string;
-  nameKey: string;
-  descriptionKey: string;
-  icon: React.ReactNode;
-  enabled: boolean;
-  setEnabled: (enabled: boolean) => void;
-  requiresApproval?: boolean;
-  tools: {
-    name: string;
-    descriptionKey: string;
-    requiresApproval: boolean;
-  }[];
-}
+/**
+ * Icon mapping for tool categories
+ */
+const TOOL_CATEGORY_ICONS: Record<string, ReactNode> = {
+  file: <FolderOpen className="h-4 w-4" />,
+  document: <FileText className="h-4 w-4" />,
+  search: <Search className="h-4 w-4" />,
+  rag: <Database className="h-4 w-4" />,
+  calculator: <Calculator className="h-4 w-4" />,
+  code: <Code className="h-4 w-4" />,
+};
 
 export function ToolSettings() {
   const t = useTranslations('toolSettings');
@@ -56,94 +56,26 @@ export function ToolSettings() {
   const enableCalculator = useSettingsStore((state) => state.enableCalculator);
   const setEnableCalculator = useSettingsStore((state) => state.setEnableCalculator);
 
-  const toolCategories: ToolCategory[] = [
-    {
-      id: 'file',
-      nameKey: 'fileOperations',
-      descriptionKey: 'fileOperationsDesc',
-      icon: <FolderOpen className="h-4 w-4" />,
-      enabled: enableFileTools,
-      setEnabled: setEnableFileTools,
-      requiresApproval: true,
-      tools: [
-        { name: 'file_read', descriptionKey: 'tools.fileRead', requiresApproval: false },
-        { name: 'file_write', descriptionKey: 'tools.fileWrite', requiresApproval: true },
-        { name: 'file_list', descriptionKey: 'tools.fileList', requiresApproval: false },
-        { name: 'file_exists', descriptionKey: 'tools.fileExists', requiresApproval: false },
-        { name: 'file_delete', descriptionKey: 'tools.fileDelete', requiresApproval: true },
-        { name: 'file_copy', descriptionKey: 'tools.fileCopy', requiresApproval: true },
-        { name: 'file_rename', descriptionKey: 'tools.fileRename', requiresApproval: true },
-        { name: 'file_info', descriptionKey: 'tools.fileInfo', requiresApproval: false },
-        { name: 'file_search', descriptionKey: 'tools.fileSearch', requiresApproval: false },
-        { name: 'file_append', descriptionKey: 'tools.fileAppend', requiresApproval: true },
-        {
-          name: 'directory_create',
-          descriptionKey: 'tools.directoryCreate',
-          requiresApproval: true,
-        },
-      ],
-    },
-    {
-      id: 'document',
-      nameKey: 'documentProcessing',
-      descriptionKey: 'documentProcessingDesc',
-      icon: <FileText className="h-4 w-4" />,
-      enabled: enableDocumentTools,
-      setEnabled: setEnableDocumentTools,
-      tools: [
-        {
-          name: 'document_summarize',
-          descriptionKey: 'tools.documentSummarize',
-          requiresApproval: false,
-        },
-        { name: 'document_chunk', descriptionKey: 'tools.documentChunk', requiresApproval: false },
-        {
-          name: 'document_analyze',
-          descriptionKey: 'tools.documentAnalyze',
-          requiresApproval: false,
-        },
-      ],
-    },
-    {
-      id: 'search',
-      nameKey: 'webSearch',
-      descriptionKey: 'webSearchDesc',
-      icon: <Search className="h-4 w-4" />,
-      enabled: enableWebSearch,
-      setEnabled: setEnableWebSearch,
-      tools: [{ name: 'web_search', descriptionKey: 'tools.webSearch', requiresApproval: false }],
-    },
-    {
-      id: 'rag',
-      nameKey: 'knowledgeBase',
-      descriptionKey: 'knowledgeBaseDesc',
-      icon: <Database className="h-4 w-4" />,
-      enabled: enableRAGSearch,
-      setEnabled: setEnableRAGSearch,
-      tools: [{ name: 'rag_search', descriptionKey: 'tools.ragSearch', requiresApproval: false }],
-    },
-    {
-      id: 'calculator',
-      nameKey: 'calculator',
-      descriptionKey: 'calculatorDesc',
-      icon: <Calculator className="h-4 w-4" />,
-      enabled: enableCalculator,
-      setEnabled: setEnableCalculator,
-      tools: [{ name: 'calculator', descriptionKey: 'tools.calculator', requiresApproval: false }],
-    },
-    {
-      id: 'code',
-      nameKey: 'codeExecution',
-      descriptionKey: 'codeExecutionDesc',
-      icon: <Code className="h-4 w-4" />,
-      enabled: enableCodeExecution,
-      setEnabled: setEnableCodeExecution,
-      requiresApproval: true,
-      tools: [
-        { name: 'execute_code', descriptionKey: 'tools.executeCode', requiresApproval: true },
-      ],
-    },
-  ];
+  // Map category IDs to their enabled state and setters
+  const enabledStateMap: Record<
+    string,
+    { enabled: boolean; setEnabled: (enabled: boolean) => void }
+  > = {
+    file: { enabled: enableFileTools, setEnabled: setEnableFileTools },
+    document: { enabled: enableDocumentTools, setEnabled: setEnableDocumentTools },
+    search: { enabled: enableWebSearch, setEnabled: setEnableWebSearch },
+    rag: { enabled: enableRAGSearch, setEnabled: setEnableRAGSearch },
+    calculator: { enabled: enableCalculator, setEnabled: setEnableCalculator },
+    code: { enabled: enableCodeExecution, setEnabled: setEnableCodeExecution },
+  };
+
+  // Build tool categories with runtime state from config
+  const toolCategories: ToolCategory[] = TOOL_CATEGORY_CONFIGS.map((config) => ({
+    ...config,
+    icon: TOOL_CATEGORY_ICONS[config.id],
+    enabled: enabledStateMap[config.id]?.enabled ?? false,
+    setEnabled: enabledStateMap[config.id]?.setEnabled ?? (() => {}),
+  }));
 
   return (
     <div className="space-y-4">

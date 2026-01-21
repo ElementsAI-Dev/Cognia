@@ -28,3 +28,4 @@ export * as stronghold from './stronghold';
 export * as strongholdIntegration from './stronghold-integration';
 export * as git from './git';
 export * as skill from './skill';
+export * as modelDownloadHelpers from './model-download-helpers';

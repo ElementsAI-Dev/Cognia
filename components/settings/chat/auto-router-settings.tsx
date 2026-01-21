@@ -12,7 +12,6 @@ import {
   Brain,
   Sparkles,
   BarChart3,
-  DollarSign,
   Settings2,
   RefreshCw,
   Trash2,
@@ -44,30 +43,14 @@ import {
 } from '@/components/ui/tooltip';
 import { useSettingsStore } from '@/stores';
 import { getRoutingStats, resetRoutingStats, clearRoutingCache, getCacheStats } from '@/lib/ai/generation/routing-cache';
-import type { RoutingMode, RoutingStrategy, ModelTier } from '@/types/provider/auto-router';
+import type { RoutingMode, ModelTier } from '@/types/provider/auto-router';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
-
-const ROUTING_MODE_KEYS: Array<{ value: RoutingMode; labelKey: string; descKey: string }> = [
-  { value: 'rule-based', labelKey: 'modeRuleBased', descKey: 'modeRuleBasedDesc' },
-  { value: 'llm-based', labelKey: 'modeLlmBased', descKey: 'modeLlmBasedDesc' },
-  { value: 'hybrid', labelKey: 'modeHybrid', descKey: 'modeHybridDesc' },
-];
-
-const ROUTING_STRATEGY_KEYS: Array<{ value: RoutingStrategy; labelKey: string; descKey: string; icon: React.ReactNode }> = [
-  { value: 'quality', labelKey: 'strategyQuality', descKey: 'strategyQualityDesc', icon: <Brain className="h-4 w-4" /> },
-  { value: 'cost', labelKey: 'strategyCost', descKey: 'strategyCostDesc', icon: <DollarSign className="h-4 w-4" /> },
-  { value: 'speed', labelKey: 'strategySpeed', descKey: 'strategySpeedDesc', icon: <Zap className="h-4 w-4" /> },
-  { value: 'balanced', labelKey: 'strategyBalanced', descKey: 'strategyBalancedDesc', icon: <Scale className="h-4 w-4" /> },
-  { value: 'adaptive', labelKey: 'strategyAdaptive', descKey: 'strategyAdaptiveDesc', icon: <Sparkles className="h-4 w-4" /> },
-];
-
-const FALLBACK_TIER_KEYS: Array<{ value: ModelTier; labelKey: string; icon: React.ReactNode }> = [
-  { value: 'fast', labelKey: 'tierFast', icon: <Zap className="h-4 w-4 text-green-500" /> },
-  { value: 'balanced', labelKey: 'tierBalanced', icon: <Scale className="h-4 w-4 text-blue-500" /> },
-  { value: 'powerful', labelKey: 'tierPowerful', icon: <Brain className="h-4 w-4 text-purple-500" /> },
-  { value: 'reasoning', labelKey: 'tierReasoning', icon: <Sparkles className="h-4 w-4 text-amber-500" /> },
-];
+import {
+  ROUTING_MODE_OPTIONS,
+  ROUTING_STRATEGY_OPTIONS,
+  FALLBACK_TIER_OPTIONS,
+} from '@/lib/settings/chat';
 
 export function AutoRouterSettings() {
   const t = useTranslations('autoRouterSettings');
@@ -123,7 +106,7 @@ export function AutoRouterSettings() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {ROUTING_MODE_KEYS.map((mode) => (
+                {ROUTING_MODE_OPTIONS.map((mode) => (
                   <SelectItem key={mode.value} value={mode.value}>
                     <div className="flex flex-col">
                       <span>{t(mode.labelKey)}</span>
@@ -139,7 +122,7 @@ export function AutoRouterSettings() {
           <div className="space-y-2">
             <Label>{t('routingStrategy')}</Label>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {ROUTING_STRATEGY_KEYS.map((strategy) => (
+              {ROUTING_STRATEGY_OPTIONS.map((strategy) => (
                 <TooltipProvider key={strategy.value}>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -179,7 +162,7 @@ export function AutoRouterSettings() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {FALLBACK_TIER_KEYS.map((tier) => (
+                {FALLBACK_TIER_OPTIONS.map((tier) => (
                   <SelectItem key={tier.value} value={tier.value}>
                     <div className="flex items-center gap-2">
                       {tier.icon}

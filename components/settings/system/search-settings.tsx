@@ -53,29 +53,9 @@ import {
   SEARCH_PROVIDERS,
   validateApiKey,
 } from '@/types/search';
-
-/**
- * Test provider connection via API route (to avoid importing server-only modules)
- */
-async function testProviderConnection(provider: SearchProviderType, apiKey: string): Promise<boolean> {
-  try {
-    const response = await fetch('/api/search/test-connection', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider, apiKey }),
-    });
-    if (!response.ok) return false;
-    const data = await response.json();
-    return data.success === true;
-  } catch {
-    return false;
-  }
-}
-
-interface ProviderTestState {
-  testing: boolean;
-  result: 'success' | 'error' | null;
-}
+import { testProviderConnection } from '@/lib/search/provider-test';
+import { SEARCH_SOURCES } from '@/lib/search/search-constants';
+import type { ProviderTestState } from '@/types/ui/keyboard';
 
 export function SearchSettings() {
   const t = useTranslations('searchSettings');
@@ -95,18 +75,6 @@ export function SearchSettings() {
   const setSearchProviderPriority = useSettingsStore((state) => state.setSearchProviderPriority);
   const defaultSearchSources = useSettingsStore((state) => state.defaultSearchSources);
   const setDefaultSearchSources = useSettingsStore((state) => state.setDefaultSearchSources);
-
-  // Available search sources for research
-  const SEARCH_SOURCES = [
-    { id: 'google', name: 'Google', icon: '🔍' },
-    { id: 'brave', name: 'Brave', icon: '🦁' },
-    { id: 'bing', name: 'Bing', icon: '🔎' },
-    { id: 'duckduckgo', name: 'DuckDuckGo', icon: '🦆' },
-    { id: 'wikipedia', name: 'Wikipedia', icon: '📚' },
-    { id: 'arxiv', name: 'arXiv', icon: '📄' },
-    { id: 'github', name: 'GitHub', icon: '💻' },
-    { id: 'stackoverflow', name: 'Stack Overflow', icon: '💬' },
-  ];
 
   const toggleSearchSource = (sourceId: string) => {
     if (defaultSearchSources.includes(sourceId)) {

@@ -19,6 +19,7 @@ import { useSettingsStore } from '@/stores';
 import { useTranslations } from 'next-intl';
 import type { SafetyMode, SafetyRule } from '@/stores/settings/settings-store';
 import { Separator } from '@/components/ui/separator';
+import { getSeverityBadgeVariant } from '@/lib/settings/chat';
 
 export function SafetySettings() {
   const t = useTranslations('safetySettings');
@@ -94,21 +95,6 @@ export function SafetySettings() {
 
   const handleDeleteRule = (ruleId: string) => {
     removeSafetyRule(ruleId);
-  };
-
-  const getSeverityBadgeVariant = (severity: string) => {
-    switch (severity) {
-      case 'critical':
-        return 'destructive';
-      case 'high':
-        return 'destructive';
-      case 'medium':
-        return 'default';
-      case 'low':
-        return 'secondary';
-      default:
-        return 'default';
-    }
   };
 
   return (

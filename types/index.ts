@@ -55,3 +55,6 @@ export * from './routing';
 
 // Settings types
 export * from './settings';
+
+// UI types
+export * from './ui';

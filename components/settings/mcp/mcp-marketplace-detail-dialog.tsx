@@ -42,26 +42,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Alert,
-  AlertDescription,
-} from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useMcpMarketplaceStore } from '@/stores/mcp';
-import { useMcpStore } from '@/stores/mcp';
+
+import { useMcpMarketplaceStore, useMcpStore } from '@/stores/mcp';
 import type { McpMarketplaceItem } from '@/types/mcp/mcp-marketplace';
-import { formatDownloadCount, formatStarCount, formatRelativeTime, parseInstallationConfig } from '@/lib/mcp/marketplace';
-import { getSourceColor, checkMcpEnvironment, type EnvironmentCheckResult } from '@/lib/mcp/marketplace-utils';
+import {
+  formatDownloadCount,
+  formatStarCount,
+  formatRelativeTime,
+  parseInstallationConfig,
+} from '@/lib/mcp/marketplace';
+import {
+  getSourceColor,
+  checkMcpEnvironment,
+  type EnvironmentCheckResult,
+} from '@/lib/mcp/marketplace-utils';
+import { InstallationPreview } from './components';
 
 interface McpMarketplaceDetailDialogProps {
   open: boolean;
@@ -196,7 +196,7 @@ export function McpMarketplaceDetailDialog({
 
   const handleCopyCommand = async () => {
     if (!item) return;
-    
+
     const command = `npx -y ${item.mcpId}`;
     await navigator.clipboard.writeText(command);
     setCopied(true);
@@ -265,7 +265,10 @@ export function McpMarketplaceDetailDialog({
                     </Badge>
                   )}
                   {item.source && (
-                    <Badge variant="outline" className={`text-[10px] ${getSourceColor(item.source)}`}>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] ${getSourceColor(item.source)}`}
+                    >
                       {item.source}
                     </Badge>
                   )}
@@ -385,7 +388,11 @@ export function McpMarketplaceDetailDialog({
                 <AlertDescription>{downloadDetails.error}</AlertDescription>
               </Alert>
             ) : (
-              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="h-full flex flex-col">
+              <Tabs
+                value={activeTab}
+                onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+                className="h-full flex flex-col"
+              >
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="overview">{t('overview')}</TabsTrigger>
                   <TabsTrigger value="readme">{t('readme')}</TabsTrigger>
@@ -401,9 +408,7 @@ export function McpMarketplaceDetailDialog({
                     <div className="space-y-4 pr-4">
                       <div>
                         <h4 className="text-sm font-medium mb-1">{t('descriptionLabel')}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {item.description}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{item.description}</p>
                       </div>
 
                       {/* Links Section */}
@@ -425,7 +430,9 @@ export function McpMarketplaceDetailDialog({
                             variant="outline"
                             size="sm"
                             className="gap-1.5"
-                            onClick={() => window.open(item.homepage, '_blank', 'noopener,noreferrer')}
+                            onClick={() =>
+                              window.open(item.homepage, '_blank', 'noopener,noreferrer')
+                            }
                           >
                             <Globe className="h-4 w-4" />
                             {t('homepage')}
@@ -439,7 +446,9 @@ export function McpMarketplaceDetailDialog({
                         <h4 className="text-sm font-medium mb-1">{t('installCommand')}</h4>
                         <div className="flex items-center gap-2">
                           <code className="flex-1 text-xs bg-muted px-3 py-2 rounded-md font-mono overflow-x-auto">
-                            {installConfig ? `${installConfig.command} ${installConfig.args.join(' ')}` : `npx -y ${item.mcpId}`}
+                            {installConfig
+                              ? `${installConfig.command} ${installConfig.args.join(' ')}`
+                              : `npx -y ${item.mcpId}`}
                           </code>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -479,7 +488,8 @@ export function McpMarketplaceDetailDialog({
                       )}
 
                       {/* Required API Keys Notice */}
-                      {(item.requiresApiKey || (installConfig?.envKeys && installConfig.envKeys.length > 0)) && (
+                      {(item.requiresApiKey ||
+                        (installConfig?.envKeys && installConfig.envKeys.length > 0)) && (
                         <Alert>
                           <Key className="h-4 w-4" />
                           <AlertDescription className="text-xs">
@@ -521,7 +531,10 @@ export function McpMarketplaceDetailDialog({
                                   {children}
                                 </code>
                               ) : (
-                                <code className={`${className} block bg-muted p-2 rounded text-xs overflow-x-auto`} {...props}>
+                                <code
+                                  className={`${className} block bg-muted p-2 rounded text-xs overflow-x-auto`}
+                                  {...props}
+                                >
                                   {children}
                                 </code>
                               );
@@ -541,103 +554,15 @@ export function McpMarketplaceDetailDialog({
 
                 {/* Install Configuration Tab */}
                 <TabsContent value="install" className="flex-1 mt-4">
-                  <ScrollArea className="h-[300px]">
-                    <div className="space-y-4 pr-4">
-                      {/* Environment Check Warning */}
-                      {!item?.remote && (
-                        isCheckingEnv ? (
-                          <Alert>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <AlertDescription className="text-xs">
-                              {t('checkingEnvironment')}
-                            </AlertDescription>
-                          </Alert>
-                        ) : envCheck && !envCheck.supported ? (
-                          <Alert variant="destructive">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription className="text-xs">
-                              {envCheck.message || t('environmentNotSupported')}
-                              {envCheck.missingDeps.length > 0 && (
-                                <span className="block mt-1 font-mono text-[10px]">
-                                  {t('missingDeps')}: {envCheck.missingDeps.join(', ')}
-                                </span>
-                              )}
-                            </AlertDescription>
-                          </Alert>
-                        ) : envCheck?.supported ? (
-                          <Alert className="border-green-500/50 bg-green-500/10">
-                            <Check className="h-4 w-4 text-green-500" />
-                            <AlertDescription className="text-xs">
-                              {t('environmentReady')}
-                              {envCheck.nodeVersion && (
-                                <span className="ml-1 font-mono text-[10px]">
-                                  (Node {envCheck.nodeVersion})
-                                </span>
-                              )}
-                            </AlertDescription>
-                          </Alert>
-                        ) : null
-                      )}
-
-                      {/* Environment Variables Form */}
-                      {installConfig?.envKeys && installConfig.envKeys.length > 0 ? (
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-medium flex items-center gap-2">
-                            <Key className="h-4 w-4" />
-                            {t('environmentVariables')}
-                          </h4>
-                          <p className="text-xs text-muted-foreground">
-                            {t('envVarsDescription')}
-                          </p>
-                          {installConfig.envKeys.map((key) => (
-                            <div key={key} className="space-y-1">
-                              <Label htmlFor={key} className="text-xs font-mono">
-                                {key}
-                              </Label>
-                              <Input
-                                id={key}
-                                type="password"
-                                value={envValues[key] || ''}
-                                onChange={(e) =>
-                                  setEnvValues({ ...envValues, [key]: e.target.value })
-                                }
-                                placeholder={t('enterEnvVar', { key })}
-                                className="h-8 text-sm font-mono"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8">
-                          <Settings2 className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-sm text-muted-foreground">
-                            {t('noConfigRequired')}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {t('noConfigRequiredDesc')}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Advanced Configuration Info */}
-                      {installConfig && (
-                        <div className="pt-4 border-t">
-                          <h4 className="text-sm font-medium mb-2">{t('configPreview')}</h4>
-                          <pre className="text-xs bg-muted p-3 rounded-md overflow-x-auto font-mono">
-{JSON.stringify({
-  command: installConfig.command,
-  args: installConfig.args,
-  connectionType: installConfig.connectionType,
-  ...(installConfig.url && { url: installConfig.url }),
-  env: Object.fromEntries(
-    Object.entries(envValues).filter(([, v]) => v.trim())
-  ),
-}, null, 2)}
-                          </pre>
-                        </div>
-                      )}
-                    </div>
-                  </ScrollArea>
+                  <InstallationPreview
+                    installConfig={installConfig}
+                    mcpId={item.mcpId}
+                    isRemote={item.remote}
+                    envValues={envValues}
+                    envCheck={envCheck}
+                    isCheckingEnv={isCheckingEnv}
+                    onEnvValueChange={(key, value) => setEnvValues({ ...envValues, [key]: value })}
+                  />
                 </TabsContent>
               </Tabs>
             )}

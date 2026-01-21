@@ -9,7 +9,7 @@ import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { MessageSquare, Send, Settings, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { THEME_PRESETS, type ColorThemePreset } from '@/lib/themes';
+import { getPresetColors, type ColorThemePreset } from '@/lib/themes';
 import type { CustomTheme } from '@/stores';
 import {
   HoverCard,
@@ -22,44 +22,6 @@ interface ThemePreviewProps {
   customTheme?: CustomTheme;
   isDarkMode?: boolean;
   children: React.ReactNode;
-}
-
-/**
- * Get CSS color values for a preset theme
- */
-function getPresetColors(preset: ColorThemePreset, isDark: boolean) {
-  const presetData = THEME_PRESETS[preset];
-  if (!presetData) {
-    return {
-      primary: isDark ? '#3b82f6' : '#2563eb',
-      background: isDark ? '#0f172a' : '#ffffff',
-      foreground: isDark ? '#f8fafc' : '#0f172a',
-      muted: isDark ? '#1e293b' : '#f1f5f9',
-      secondary: isDark ? '#1e293b' : '#f1f5f9',
-    };
-  }
-
-  // Map preset to approximate hex colors
-  const colorMap: Record<ColorThemePreset, { light: string; dark: string }> = {
-    default: { light: '#2563eb', dark: '#3b82f6' },
-    ocean: { light: '#0891b2', dark: '#06b6d4' },
-    forest: { light: '#059669', dark: '#10b981' },
-    sunset: { light: '#ea580c', dark: '#f97316' },
-    lavender: { light: '#7c3aed', dark: '#8b5cf6' },
-    rose: { light: '#e11d48', dark: '#f43f5e' },
-    slate: { light: '#475569', dark: '#64748b' },
-    amber: { light: '#d97706', dark: '#f59e0b' },
-  };
-
-  const primary = isDark ? colorMap[preset].dark : colorMap[preset].light;
-
-  return {
-    primary,
-    background: isDark ? '#0f172a' : '#ffffff',
-    foreground: isDark ? '#f8fafc' : '#0f172a',
-    muted: isDark ? '#1e293b' : '#f1f5f9',
-    secondary: isDark ? '#1e293b' : '#f1f5f9',
-  };
 }
 
 /**

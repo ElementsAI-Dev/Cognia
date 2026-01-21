@@ -28,59 +28,17 @@ import {
 } from '@/components/ui/select';
 import { useSettingsStore } from '@/stores';
 import {
-  type BorderRadiusSize,
-  type SpacingSize,
-  type ShadowIntensity,
-  type MessageDensity,
-  type AvatarStyle,
-  type TimestampFormat,
   type UIFontFamily,
   UI_FONT_OPTIONS,
   applyUICustomization,
+  BORDER_RADIUS_OPTIONS,
+  SPACING_OPTIONS,
+  SHADOW_OPTIONS,
+  MESSAGE_DENSITY_OPTIONS,
+  AVATAR_STYLE_OPTIONS,
+  TIMESTAMP_OPTIONS,
 } from '@/lib/themes';
 import { cn } from '@/lib/utils';
-
-const borderRadiusOptions: { value: BorderRadiusSize; labelKey: string }[] = [
-  { value: 'none', labelKey: 'borderRadiusNone' },
-  { value: 'sm', labelKey: 'borderRadiusSm' },
-  { value: 'md', labelKey: 'borderRadiusMd' },
-  { value: 'lg', labelKey: 'borderRadiusLg' },
-  { value: 'xl', labelKey: 'borderRadiusXl' },
-  { value: 'full', labelKey: 'borderRadiusFull' },
-];
-
-const spacingOptions: { value: SpacingSize; labelKey: string }[] = [
-  { value: 'compact', labelKey: 'spacingCompact' },
-  { value: 'comfortable', labelKey: 'spacingComfortable' },
-  { value: 'spacious', labelKey: 'spacingSpacious' },
-];
-
-const shadowOptions: { value: ShadowIntensity; labelKey: string }[] = [
-  { value: 'none', labelKey: 'shadowNone' },
-  { value: 'subtle', labelKey: 'shadowSubtle' },
-  { value: 'medium', labelKey: 'shadowMedium' },
-  { value: 'strong', labelKey: 'shadowStrong' },
-];
-
-const messageDensityOptions: { value: MessageDensity; labelKey: string; descKey: string }[] = [
-  { value: 'compact', labelKey: 'densityCompact', descKey: 'densityCompactDesc' },
-  { value: 'default', labelKey: 'densityDefault', descKey: 'densityDefaultDesc' },
-  { value: 'relaxed', labelKey: 'densityRelaxed', descKey: 'densityRelaxedDesc' },
-];
-
-const avatarStyleOptions: { value: AvatarStyle; labelKey: string }[] = [
-  { value: 'circle', labelKey: 'avatarCircle' },
-  { value: 'rounded', labelKey: 'avatarRounded' },
-  { value: 'square', labelKey: 'avatarSquare' },
-  { value: 'hidden', labelKey: 'avatarHidden' },
-];
-
-const timestampOptions: { value: TimestampFormat; labelKey: string }[] = [
-  { value: 'relative', labelKey: 'timestampRelative' },
-  { value: 'absolute', labelKey: 'timestampAbsolute' },
-  { value: 'both', labelKey: 'timestampBoth' },
-  { value: 'hidden', labelKey: 'timestampHidden' },
-];
 
 export function UICustomizationSettings() {
   const t = useTranslations('uiCustomizationSettings');
@@ -130,7 +88,7 @@ export function UICustomizationSettings() {
           <div className="space-y-3">
             <Label>{t('borderRadius')}</Label>
             <div className="grid grid-cols-3 gap-2">
-              {borderRadiusOptions.map((option) => (
+              {BORDER_RADIUS_OPTIONS.map((option) => (
                 <button
                   key={option.value}
                   onClick={() => setBorderRadius(option.value)}
@@ -163,13 +121,13 @@ export function UICustomizationSettings() {
             <Label>{t('spacing')}</Label>
             <Select
               value={uiCustomization.spacing}
-              onValueChange={(value: SpacingSize) => setSpacing(value)}
+              onValueChange={(value) => setSpacing(value as 'compact' | 'comfortable' | 'spacious')}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {spacingOptions.map((option) => (
+                {SPACING_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {t(option.labelKey)}
                   </SelectItem>
@@ -182,7 +140,7 @@ export function UICustomizationSettings() {
           <div className="space-y-3">
             <Label>{t('shadowIntensity')}</Label>
             <div className="grid grid-cols-4 gap-2">
-              {shadowOptions.map((option) => (
+              {SHADOW_OPTIONS.map((option) => (
                 <button
                   key={option.value}
                   onClick={() => setShadowIntensity(option.value)}
@@ -314,7 +272,7 @@ export function UICustomizationSettings() {
           <div className="space-y-3">
             <Label>{t('messageDensity')}</Label>
             <div className="grid grid-cols-3 gap-2">
-              {messageDensityOptions.map((option) => (
+              {MESSAGE_DENSITY_OPTIONS.map((option) => (
                 <button
                   key={option.value}
                   onClick={() => setUICustomization({ messageDensity: option.value })}
@@ -412,13 +370,13 @@ export function UICustomizationSettings() {
             </div>
             <Select
               value={uiCustomization.timestampFormat}
-              onValueChange={(value: TimestampFormat) => setUICustomization({ timestampFormat: value })}
+              onValueChange={(value) => setUICustomization({ timestampFormat: value as 'relative' | 'absolute' | 'both' | 'hidden' })}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {timestampOptions.map((option) => (
+                {TIMESTAMP_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {t(option.labelKey)}
                   </SelectItem>
@@ -442,7 +400,7 @@ export function UICustomizationSettings() {
           <div className="space-y-3">
             <Label>{t('avatarStyle')}</Label>
             <div className="grid grid-cols-4 gap-2">
-              {avatarStyleOptions.map((option) => (
+              {AVATAR_STYLE_OPTIONS.map((option) => (
                 <button
                   key={option.value}
                   onClick={() => setUICustomization({ avatarStyle: option.value })}

@@ -54,31 +54,12 @@ import {
 import { useSettingsStore } from '@/stores';
 import {
   BACKGROUND_PRESETS,
-  type BackgroundImageFit,
-  type BackgroundImagePosition,
+  BACKGROUND_FIT_OPTIONS,
+  BACKGROUND_POSITION_OPTIONS,
 } from '@/lib/themes';
 import { getBackgroundImageAssetBlob } from '@/lib/themes/background-assets';
 import { cn } from '@/lib/utils';
 import { BackgroundImportExport } from './background-import-export';
-
-const fitOptions: { value: BackgroundImageFit; labelKey: string }[] = [
-  { value: 'cover', labelKey: 'fitCover' },
-  { value: 'contain', labelKey: 'fitContain' },
-  { value: 'fill', labelKey: 'fitStretch' },
-  { value: 'tile', labelKey: 'fitTile' },
-];
-
-const positionOptions: { value: BackgroundImagePosition; labelKey: string }[] = [
-  { value: 'center', labelKey: 'positionCenter' },
-  { value: 'top', labelKey: 'positionTop' },
-  { value: 'bottom', labelKey: 'positionBottom' },
-  { value: 'left', labelKey: 'positionLeft' },
-  { value: 'right', labelKey: 'positionRight' },
-  { value: 'top-left', labelKey: 'positionTopLeft' },
-  { value: 'top-right', labelKey: 'positionTopRight' },
-  { value: 'bottom-left', labelKey: 'positionBottomLeft' },
-  { value: 'bottom-right', labelKey: 'positionBottomRight' },
-];
 
 export function BackgroundSettings() {
   const t = useTranslations('backgroundSettings');
@@ -462,13 +443,13 @@ export function BackgroundSettings() {
                 <Label className="text-xs">{t('fit')}</Label>
                 <Select
                   value={backgroundSettings.fit}
-                  onValueChange={(v) => setBackgroundFit(v as BackgroundImageFit)}
+                  onValueChange={(v) => setBackgroundFit(v as 'cover' | 'contain' | 'fill' | 'tile')}
                 >
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {fitOptions.map((opt) => (
+                    {BACKGROUND_FIT_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value} className="text-xs">
                         {t(opt.labelKey)}
                       </SelectItem>
@@ -482,13 +463,13 @@ export function BackgroundSettings() {
                 <Label className="text-xs">{t('position')}</Label>
                 <Select
                   value={backgroundSettings.position}
-                  onValueChange={(v) => setBackgroundPosition(v as BackgroundImagePosition)}
+                  onValueChange={(v) => setBackgroundPosition(v as 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right')}
                 >
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {positionOptions.map((opt) => (
+                    {BACKGROUND_POSITION_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value} className="text-xs">
                         {t(opt.labelKey)}
                       </SelectItem>

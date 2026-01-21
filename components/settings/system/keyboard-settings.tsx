@@ -5,9 +5,9 @@
  * Enhanced with customization capabilities
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Keyboard, Edit2, RotateCcw, Check, X, AlertCircle } from 'lucide-react';
+import { Keyboard, Edit2, RotateCcw, X, AlertCircle } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -35,120 +35,8 @@ import {
   type KeyboardShortcut,
 } from '@/hooks/ui';
 import { useSettingsStore } from '@/stores';
-
-
-const CATEGORY_COLORS: Record<KeyboardShortcut['category'], string> = {
-  navigation: 'bg-blue-500',
-  chat: 'bg-green-500',
-  editing: 'bg-purple-500',
-  system: 'bg-orange-500',
-};
-
-interface ShortcutEditDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  shortcut: KeyboardShortcut | null;
-  onSave: (keys: string) => void;
-}
-
-function ShortcutEditDialogContent({ shortcut, onSave, onClose }: { shortcut: KeyboardShortcut; onSave: (keys: string) => void; onClose: () => void }) {
-  const t = useTranslations('keyboardSettings');
-  const tCommon = useTranslations('common');
-  const [capturedKeys, setCapturedKeys] = useState<string>('');
-  const [isCapturing, setIsCapturing] = useState(true);
-
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (!isCapturing) return;
-    e.preventDefault();
-    e.stopPropagation();
-
-    const parts: string[] = [];
-    if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
-    if (e.altKey) parts.push('Alt');
-    if (e.shiftKey) parts.push('Shift');
-
-    // Skip if only modifier keys are pressed
-    if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
-
-    parts.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
-    setCapturedKeys(parts.join('+'));
-    setIsCapturing(false);
-  }, [isCapturing]);
-
-  useEffect(() => {
-    if (isCapturing) {
-      window.addEventListener('keydown', handleKeyDown, true);
-      return () => window.removeEventListener('keydown', handleKeyDown, true);
-    }
-  }, [isCapturing, handleKeyDown]);
-
-  const handleSave = () => {
-    if (capturedKeys) {
-      onSave(capturedKeys);
-      onClose();
-    }
-  };
-
-  return (
-    <>
-      <DialogHeader>
-        <DialogTitle>{t('editShortcut')}</DialogTitle>
-        <DialogDescription>
-          {t('editShortcutDesc', { action: shortcut.description })}
-        </DialogDescription>
-      </DialogHeader>
-      <div className="py-6">
-        <div
-          className={`flex items-center justify-center h-20 rounded-lg border-2 border-dashed transition-colors ${
-            isCapturing ? 'border-primary bg-primary/5' : 'border-muted'
-          }`}
-          onClick={() => setIsCapturing(true)}
-        >
-          {capturedKeys ? (
-            <kbd className="px-4 py-2 text-lg font-mono bg-background border rounded-lg shadow">
-              {capturedKeys}
-            </kbd>
-          ) : (
-            <span className="text-muted-foreground">
-              {isCapturing ? t('pressKeys') : t('clickToCapture')}
-            </span>
-          )}
-        </div>
-        {capturedKeys && (
-          <p className="text-center text-sm text-muted-foreground mt-2">
-            {t('pressAnotherCombination')}
-          </p>
-        )}
-      </div>
-      <DialogFooter className="gap-2">
-        <Button variant="outline" onClick={onClose}>
-          {tCommon('cancel')}
-        </Button>
-        <Button onClick={handleSave} disabled={!capturedKeys}>
-          <Check className="h-4 w-4 mr-2" />
-          {tCommon('save')}
-        </Button>
-      </DialogFooter>
-    </>
-  );
-}
-
-function ShortcutEditDialog({ open, onOpenChange, shortcut, onSave }: ShortcutEditDialogProps) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        {shortcut && (
-          <ShortcutEditDialogContent
-            key={shortcut.description}
-            shortcut={shortcut}
-            onSave={onSave}
-            onClose={() => onOpenChange(false)}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
+import { ShortcutEditDialog } from '@/components/ui/keyboard';
+import { CATEGORY_COLORS } from '@/lib/ui/keyboard-constants';
 
 export function KeyboardSettings() {
   const t = useTranslations('keyboardSettings');
