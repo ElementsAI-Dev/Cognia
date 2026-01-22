@@ -4,6 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { WelcomeState } from './welcome-state';
+import { useSettingsStore } from '@/stores';
 
 // Mock stores
 jest.mock('@/stores', () => ({
@@ -11,6 +12,38 @@ jest.mock('@/stores', () => ({
     const state = {
       templates: [],
       searchTemplates: jest.fn().mockReturnValue([]),
+    };
+    return selector ? selector(state) : state;
+  }),
+  useSettingsStore: jest.fn((selector) => {
+    const state = {
+      welcomeSettings: {
+        enabled: true,
+        customGreeting: '',
+        customDescription: '',
+        showAvatar: false,
+        avatarUrl: '',
+        sectionsVisibility: {
+          header: true,
+          featureBadges: true,
+          modeSwitcher: true,
+          templateSelector: true,
+          suggestions: true,
+          quickAccess: true,
+          a2uiDemo: true,
+        },
+        customSuggestions: {
+          chat: [],
+          agent: [],
+          research: [],
+          learning: [],
+        },
+        quickAccessLinks: [],
+        useCustomQuickAccess: false,
+        hideDefaultSuggestions: false,
+        maxSuggestionsPerMode: 4,
+        defaultMode: 'chat',
+      },
     };
     return selector ? selector(state) : state;
   }),
@@ -42,7 +75,8 @@ jest.mock('next-intl', () => ({
       'modes.research.features.factCheck': 'Fact checking',
       'modes.research.features.report': 'Report generation',
       'suggestions.chat.conversation.title': 'Conversation',
-      'suggestions.chat.conversation.prompt': "Let's have a conversation about something interesting.",
+      'suggestions.chat.conversation.prompt':
+        "Let's have a conversation about something interesting.",
       'suggestions.chat.codeHelp.title': 'Code Help',
       'suggestions.chat.codeHelp.prompt': 'Help me with code',
       'suggestions.chat.writing.title': 'Writing',
@@ -119,7 +153,7 @@ describe('WelcomeState', () => {
   it('calls onSuggestionClick when suggestion is clicked', () => {
     const onSuggestionClick = jest.fn();
     render(<WelcomeState mode="chat" onSuggestionClick={onSuggestionClick} />);
-    
+
     // Get all suggestion elements and click the first one (mobile or desktop layout)
     const conversationElements = screen.getAllByText('Conversation');
     fireEvent.click(conversationElements[0]);
@@ -131,15 +165,15 @@ describe('WelcomeState', () => {
   it('renders mode tabs with all options', () => {
     const onModeChange = jest.fn();
     const { container } = render(<WelcomeState mode="chat" onModeChange={onModeChange} />);
-    
+
     // Find all tabs - mode switcher uses Tabs component with 4 modes
     const tabList = container.querySelector('[role="tablist"]');
     expect(tabList).toBeTruthy();
-    
+
     const tabs = container.querySelectorAll('[role="tab"]');
     // Should have 4 mode tabs: chat, agent, research, learning
     expect(tabs.length).toBeGreaterThanOrEqual(4);
-    
+
     // First tab (chat) should be active (data-state="active")
     expect(tabs[0].getAttribute('data-state')).toBe('active');
   });
@@ -175,10 +209,38 @@ describe('WelcomeState', () => {
     expect(agentElements.length).toBeGreaterThan(0);
   });
 
-  it('renders mode switcher buttons', () => {
+  it('renders custom greeting when configured', () => {
+    // Override mock for this test
+    (useSettingsStore as unknown as jest.Mock).mockImplementation((selector) => {
+      const state = {
+        welcomeSettings: {
+          sectionsVisibility: { header: true },
+          customSuggestions: { chat: [] },
+          customGreeting: 'Hello Custom World',
+          customDescription: 'Custom Description',
+        },
+      };
+      return selector ? selector(state) : state;
+    });
+
     render(<WelcomeState mode="chat" />);
-    expect(screen.getAllByText(/Chat|chat|modeChat/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Agent|agent|modeAgent/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Research|research|modeResearch/i).length).toBeGreaterThan(0);
+    expect(screen.getByText('Hello Custom World')).toBeInTheDocument();
+    expect(screen.getByText('Custom Description')).toBeInTheDocument();
+  });
+
+  it('hides header when configured', () => {
+    // Override mock for this test
+    (useSettingsStore as unknown as jest.Mock).mockImplementation((selector) => {
+      const state = {
+        welcomeSettings: {
+          sectionsVisibility: { header: false },
+          customSuggestions: { chat: [] },
+        },
+      };
+      return selector ? selector(state) : state;
+    });
+
+    render(<WelcomeState mode="chat" />);
+    expect(screen.queryByText('Chat Mode')).not.toBeInTheDocument();
   });
 });

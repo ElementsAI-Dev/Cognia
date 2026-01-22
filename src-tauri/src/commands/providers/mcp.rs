@@ -2,6 +2,7 @@
 
 use tauri::State;
 
+use crate::mcp::error::McpErrorInfo;
 use crate::mcp::manager::McpManager;
 use crate::mcp::types::*;
 
@@ -9,7 +10,7 @@ use crate::mcp::types::*;
 #[tauri::command]
 pub async fn mcp_get_servers(
     manager: State<'_, McpManager>,
-) -> Result<Vec<McpServerState>, String> {
+) -> Result<Vec<McpServerState>, McpErrorInfo> {
     Ok(manager.get_all_servers().await)
 }
 
@@ -18,7 +19,7 @@ pub async fn mcp_get_servers(
 pub async fn mcp_get_server(
     manager: State<'_, McpManager>,
     id: String,
-) -> Result<Option<McpServerState>, String> {
+) -> Result<Option<McpServerState>, McpErrorInfo> {
     Ok(manager.get_server(&id).await)
 }
 
@@ -28,17 +29,20 @@ pub async fn mcp_add_server(
     manager: State<'_, McpManager>,
     id: String,
     config: McpServerConfig,
-) -> Result<(), String> {
+) -> Result<(), McpErrorInfo> {
     manager
         .add_server(id, config)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| (&e).into())
 }
 
 /// Remove an MCP server
 #[tauri::command]
-pub async fn mcp_remove_server(manager: State<'_, McpManager>, id: String) -> Result<(), String> {
-    manager.remove_server(&id).await.map_err(|e| e.to_string())
+pub async fn mcp_remove_server(
+    manager: State<'_, McpManager>,
+    id: String,
+) -> Result<(), McpErrorInfo> {
+    manager.remove_server(&id).await.map_err(|e| (&e).into())
 }
 
 /// Update an MCP server configuration
@@ -47,17 +51,20 @@ pub async fn mcp_update_server(
     manager: State<'_, McpManager>,
     id: String,
     config: McpServerConfig,
-) -> Result<(), String> {
+) -> Result<(), McpErrorInfo> {
     manager
         .update_server(&id, config)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| (&e).into())
 }
 
 /// Connect to an MCP server
 #[tauri::command]
-pub async fn mcp_connect_server(manager: State<'_, McpManager>, id: String) -> Result<(), String> {
-    manager.connect_server(&id).await.map_err(|e| e.to_string())
+pub async fn mcp_connect_server(
+    manager: State<'_, McpManager>,
+    id: String,
+) -> Result<(), McpErrorInfo> {
+    manager.connect_server(&id).await.map_err(|e| (&e).into())
 }
 
 /// Disconnect from an MCP server
@@ -65,11 +72,11 @@ pub async fn mcp_connect_server(manager: State<'_, McpManager>, id: String) -> R
 pub async fn mcp_disconnect_server(
     manager: State<'_, McpManager>,
     id: String,
-) -> Result<(), String> {
+) -> Result<(), McpErrorInfo> {
     manager
         .disconnect_server(&id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| (&e).into())
 }
 
 /// Call a tool on an MCP server
@@ -79,18 +86,18 @@ pub async fn mcp_call_tool(
     server_id: String,
     tool_name: String,
     arguments: serde_json::Value,
-) -> Result<ToolCallResult, String> {
+) -> Result<ToolCallResult, McpErrorInfo> {
     manager
         .call_tool(&server_id, &tool_name, arguments)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| (&e).into())
 }
 
 /// Get all tools from all connected servers
 #[tauri::command]
 pub async fn mcp_get_all_tools(
     manager: State<'_, McpManager>,
-) -> Result<Vec<(String, McpTool)>, String> {
+) -> Result<Vec<(String, McpTool)>, McpErrorInfo> {
     Ok(manager.get_all_tools().await)
 }
 
@@ -99,12 +106,12 @@ pub async fn mcp_get_all_tools(
 pub async fn mcp_read_resource(
     manager: State<'_, McpManager>,
     server_id: String,
-    _uri: String,
-) -> Result<ResourceContent, String> {
+    uri: String,
+) -> Result<ResourceContent, McpErrorInfo> {
     manager
-        .read_resource(&server_id, &_uri)
+        .read_resource(&server_id, &uri)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| (&e).into())
 }
 
 /// Get a prompt from an MCP server
@@ -114,22 +121,22 @@ pub async fn mcp_get_prompt(
     server_id: String,
     name: String,
     arguments: Option<serde_json::Value>,
-) -> Result<PromptContent, String> {
+) -> Result<PromptContent, McpErrorInfo> {
     manager
         .get_prompt(&server_id, &name, arguments)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| (&e).into())
 }
 
 /// Reload MCP configuration from disk
 #[tauri::command]
-pub async fn mcp_reload_config(manager: State<'_, McpManager>) -> Result<(), String> {
-    manager.reload_config().await.map_err(|e| e.to_string())
+pub async fn mcp_reload_config(manager: State<'_, McpManager>) -> Result<(), McpErrorInfo> {
+    manager.reload_config().await.map_err(|e| (&e).into())
 }
 
 /// Install an npm package (for MCP server installation)
 #[tauri::command]
-pub async fn mcp_install_npm_package(package_name: String) -> Result<String, String> {
+pub async fn mcp_install_npm_package(package_name: String) -> Result<String, McpErrorInfo> {
     use tokio::process::Command;
 
     #[cfg(windows)]
@@ -137,25 +144,40 @@ pub async fn mcp_install_npm_package(package_name: String) -> Result<String, Str
         .args(["/c", "npm", "install", "-g", &package_name])
         .output()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| McpErrorInfo {
+            error_type: "io_error".to_string(),
+            message: e.to_string(),
+            code: None,
+            data: None,
+        })?;
 
     #[cfg(not(windows))]
     let output = Command::new("npm")
         .args(["install", "-g", &package_name])
         .output()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| McpErrorInfo {
+            error_type: "io_error".to_string(),
+            message: e.to_string(),
+            code: None,
+            data: None,
+        })?;
 
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
-        Err(String::from_utf8_lossy(&output.stderr).to_string())
+        Err(McpErrorInfo {
+            error_type: "install_failed".to_string(),
+            message: String::from_utf8_lossy(&output.stderr).to_string(),
+            code: None,
+            data: None,
+        })
     }
 }
 
 /// Install a pip package (for MCP server installation)
 #[tauri::command]
-pub async fn mcp_install_pip_package(package_name: String) -> Result<String, String> {
+pub async fn mcp_install_pip_package(package_name: String) -> Result<String, McpErrorInfo> {
     use tokio::process::Command;
 
     #[cfg(windows)]
@@ -163,25 +185,40 @@ pub async fn mcp_install_pip_package(package_name: String) -> Result<String, Str
         .args(["/c", "pip", "install", &package_name])
         .output()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| McpErrorInfo {
+            error_type: "io_error".to_string(),
+            message: e.to_string(),
+            code: None,
+            data: None,
+        })?;
 
     #[cfg(not(windows))]
     let output = Command::new("pip")
         .args(["install", &package_name])
         .output()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| McpErrorInfo {
+            error_type: "io_error".to_string(),
+            message: e.to_string(),
+            code: None,
+            data: None,
+        })?;
 
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
-        Err(String::from_utf8_lossy(&output.stderr).to_string())
+        Err(McpErrorInfo {
+            error_type: "install_failed".to_string(),
+            message: String::from_utf8_lossy(&output.stderr).to_string(),
+            code: None,
+            data: None,
+        })
     }
 }
 
 /// Check if a command exists on the system
 #[tauri::command]
-pub async fn mcp_check_command_exists(command: String) -> Result<bool, String> {
+pub async fn mcp_check_command_exists(command: String) -> Result<bool, McpErrorInfo> {
     use tokio::process::Command;
 
     #[cfg(windows)]
@@ -198,7 +235,12 @@ pub async fn mcp_check_command_exists(command: String) -> Result<bool, String> {
         .await
         .map(|o| o.status.success());
 
-    result.map_err(|e| e.to_string())
+    result.map_err(|e| McpErrorInfo {
+        error_type: "io_error".to_string(),
+        message: e.to_string(),
+        code: None,
+        data: None,
+    })
 }
 
 /// Test MCP server connection
@@ -206,7 +248,7 @@ pub async fn mcp_check_command_exists(command: String) -> Result<bool, String> {
 pub async fn mcp_test_connection(
     manager: State<'_, McpManager>,
     server_id: String,
-) -> Result<bool, String> {
+) -> Result<bool, McpErrorInfo> {
     let servers = manager.get_all_servers().await;
     let server = servers.iter().find(|s| s.id == server_id);
     Ok(server
@@ -219,7 +261,7 @@ pub async fn mcp_test_connection(
 pub async fn mcp_ping_server(
     manager: State<'_, McpManager>,
     server_id: String,
-) -> Result<bool, String> {
+) -> Result<bool, McpErrorInfo> {
     let servers = manager.get_all_servers().await;
     let server = servers.iter().find(|s| s.id == server_id);
     Ok(server
@@ -233,11 +275,11 @@ pub async fn mcp_set_log_level(
     manager: State<'_, McpManager>,
     server_id: String,
     level: LogLevel,
-) -> Result<(), String> {
+) -> Result<(), McpErrorInfo> {
     manager
         .set_log_level(&server_id, level)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| (&e).into())
 }
 
 /// Subscribe to resource updates
@@ -245,19 +287,12 @@ pub async fn mcp_set_log_level(
 pub async fn mcp_subscribe_resource(
     manager: State<'_, McpManager>,
     server_id: String,
-    _uri: String,
-) -> Result<(), String> {
-    let servers = manager.get_all_servers().await;
-    let server = servers
-        .iter()
-        .find(|s| s.id == server_id)
-        .ok_or_else(|| format!("Server not found: {}", server_id))?;
-
-    if !matches!(server.status, McpServerStatus::Connected) {
-        return Err("Server not connected".to_string());
-    }
-
-    Ok(())
+    uri: String,
+) -> Result<(), McpErrorInfo> {
+    manager
+        .subscribe_resource(&server_id, &uri)
+        .await
+        .map_err(|e| (&e).into())
 }
 
 /// Unsubscribe from resource updates  
@@ -265,19 +300,12 @@ pub async fn mcp_subscribe_resource(
 pub async fn mcp_unsubscribe_resource(
     manager: State<'_, McpManager>,
     server_id: String,
-    _uri: String,
-) -> Result<(), String> {
-    let servers = manager.get_all_servers().await;
-    let server = servers
-        .iter()
-        .find(|s| s.id == server_id)
-        .ok_or_else(|| format!("Server not found: {}", server_id))?;
-
-    if !matches!(server.status, McpServerStatus::Connected) {
-        return Err("Server not connected".to_string());
-    }
-
-    Ok(())
+    uri: String,
+) -> Result<(), McpErrorInfo> {
+    manager
+        .unsubscribe_resource(&server_id, &uri)
+        .await
+        .map_err(|e| (&e).into())
 }
 
 #[cfg(test)]

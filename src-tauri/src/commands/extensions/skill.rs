@@ -3,7 +3,8 @@
 //! Exposes skill management functionality to the frontend.
 
 use crate::skill::{
-    DiscoverableSkill, InstalledSkill, LocalSkill, Skill, SkillError, SkillRepo, SkillService,
+    AddRepoInput, DiscoverableSkill, InstallSkillInput, InstalledSkill, LocalSkill, Skill,
+    SkillDiscoveryResult, SkillError, SkillRepo, SkillSearchFilters, SkillService, SkillState,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -37,15 +38,13 @@ pub async fn skill_list_repos(state: State<'_, SkillServiceState>) -> Result<Vec
 #[tauri::command]
 pub async fn skill_add_repo(
     state: State<'_, SkillServiceState>,
-    owner: String,
-    name: String,
-    branch: Option<String>,
+    input: AddRepoInput,
 ) -> Result<(), String> {
     let service = state.0.read().await;
     let repo = SkillRepo {
-        owner,
-        name,
-        branch: branch.unwrap_or_else(|| "main".to_string()),
+        owner: input.owner,
+        name: input.name,
+        branch: input.branch.unwrap_or_else(|| "main".to_string()),
         enabled: true,
     };
     service.add_repo(repo).await.map_err(|e| e.to_string())
@@ -92,6 +91,23 @@ pub async fn skill_get_all(state: State<'_, SkillServiceState>) -> Result<Vec<Sk
     service.get_all_skills().await.map_err(|e| e.to_string())
 }
 
+/// Discover all skills (discoverable + installed + local)
+#[tauri::command]
+pub async fn skill_discover_all(state: State<'_, SkillServiceState>) -> Result<SkillDiscoveryResult, String> {
+    let service = state.0.read().await;
+    service.discover_all().await.map_err(|e| e.to_string())
+}
+
+/// Search and filter skills
+#[tauri::command]
+pub async fn skill_search(
+    state: State<'_, SkillServiceState>,
+    filters: SkillSearchFilters,
+) -> Result<Vec<Skill>, String> {
+    let service = state.0.read().await;
+    service.search_skills(filters).await.map_err(|e| e.to_string())
+}
+
 /// Scan for local unregistered skills
 #[tauri::command]
 pub async fn skill_scan_local(
@@ -108,24 +124,19 @@ pub async fn skill_scan_local(
 #[allow(clippy::too_many_arguments)]
 pub async fn skill_install(
     state: State<'_, SkillServiceState>,
-    key: String,
-    name: String,
-    description: String,
-    directory: String,
-    repo_owner: String,
-    repo_name: String,
-    repo_branch: String,
-    readme_url: Option<String>,
+    input: InstallSkillInput,
 ) -> Result<InstalledSkill, String> {
     let service = state.0.read().await;
+    let repo_branch = input.branch.unwrap_or_else(|| "main".to_string());
+    let key = format!("{}/{}:{}", input.owner, input.repo, input.directory);
     let skill = DiscoverableSkill {
         key,
-        name,
-        description,
-        directory,
-        readme_url,
-        repo_owner,
-        repo_name,
+        name: input.name.unwrap_or_else(|| input.directory.clone()),
+        description: input.description.unwrap_or_default(),
+        directory: input.directory,
+        readme_url: input.readme_url,
+        repo_owner: input.owner,
+        repo_name: input.repo,
         repo_branch,
     };
     service.install_skill(&skill).await.map_err(|e| e.to_string())
@@ -197,29 +208,34 @@ pub async fn skill_get_required(
     service.get_skill_or_error(&id).await.map_err(|e: SkillError| e.to_string())
 }
 
+/// Get skill state (legacy compatibility)
+#[tauri::command]
+pub async fn skill_get_state(
+    state: State<'_, SkillServiceState>,
+    id: String,
+) -> Result<SkillState, String> {
+    let service = state.0.read().await;
+    service.get_skill_state(&id).await.ok_or_else(|| "Skill not found".to_string())
+}
+
 /// Validate if a skill can be installed
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub async fn skill_validate_install(
     state: State<'_, SkillServiceState>,
-    key: String,
-    name: String,
-    description: String,
-    directory: String,
-    repo_owner: String,
-    repo_name: String,
-    repo_branch: String,
-    readme_url: Option<String>,
+    input: InstallSkillInput,
 ) -> Result<(), String> {
     let service = state.0.read().await;
+    let repo_branch = input.branch.unwrap_or_else(|| "main".to_string());
+    let key = format!("{}/{}:{}", input.owner, input.repo, input.directory);
     let skill = DiscoverableSkill {
         key,
-        name,
-        description,
-        directory,
-        readme_url,
-        repo_owner,
-        repo_name,
+        name: input.name.unwrap_or_else(|| input.directory.clone()),
+        description: input.description.unwrap_or_default(),
+        directory: input.directory,
+        readme_url: input.readme_url,
+        repo_owner: input.owner,
+        repo_name: input.repo,
         repo_branch,
     };
     service.validate_install(&skill).await.map_err(|e: SkillError| e.to_string())

@@ -22,6 +22,7 @@ jest.mock('@/lib/jupyter/kernel', () => ({
     restartKernel: (...args: unknown[]) => mockRestartKernel(...args),
     interruptKernel: (...args: unknown[]) => mockInterruptKernel(...args),
     getVariables: jest.fn(() => Promise.resolve([])),
+    getCachedVariables: jest.fn(() => Promise.resolve([])),
     inspectVariable: jest.fn(),
     ensureKernel: jest.fn(() => Promise.resolve(true)),
     shutdownAll: jest.fn(() => Promise.resolve()),
@@ -145,6 +146,11 @@ describe('useJupyterKernel', () => {
       expect(typeof result.current.execute).toBe('function');
       expect(typeof result.current.executeCell).toBe('function');
       expect(typeof result.current.quickExecute).toBe('function');
+    });
+
+    it('should provide cached variables function', () => {
+      const { result } = renderHook(() => useJupyterKernel());
+      expect(typeof result.current.getCachedVariables).toBe('function');
     });
   });
 

@@ -538,17 +538,19 @@ pub async fn clipboard_analyze_content(
 /// Get current clipboard content with analysis
 #[tauri::command]
 pub async fn clipboard_get_current_with_analysis(
+    app_handle: tauri::AppHandle,
     manager: State<'_, SelectionManager>,
 ) -> Result<Option<(String, ClipboardAnalysis)>, String> {
-    use arboard::Clipboard;
+    use tauri_plugin_clipboard_manager::ClipboardExt;
 
-    let mut clipboard = Clipboard::new().map_err(|e| e.to_string())?;
+    let text = match app_handle.clipboard().read_text() {
+        Ok(text) => text,
+        Err(_) => return Ok(None),
+    };
 
-    if let Ok(text) = clipboard.get_text() {
-        if !text.is_empty() {
-            let analysis = manager.clipboard_analyzer.analyze(&text);
-            return Ok(Some((text, analysis)));
-        }
+    if !text.is_empty() {
+        let analysis = manager.clipboard_analyzer.analyze(&text);
+        return Ok(Some((text, analysis)));
     }
 
     Ok(None)

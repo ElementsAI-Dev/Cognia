@@ -1,4 +1,10 @@
 {
+  "videoStudio": {
+    "title": "Video Studio",
+    "back": "Back",
+    "hideSidebar": "Hide sidebar",
+    "showSidebar": "Show sidebar"
+  },
   "imageGeneration": {
     "title": "Image Generation",
     "description": "Create images using DALL-E. Describe what you want to see.",
@@ -68,6 +74,17 @@
     "estimatedCost": "Estimated Cost",
     "cancel": "Cancel",
     "retry": "Retry",
+    "noVideos": "No videos yet",
+    "generateFirst": "Generate your first video to get started",
+    "videoPreview": "Video Preview",
+    "aiGeneration": "AI Generation",
+    "text": "Text",
+    "image": "Image",
+    "quickTemplates": "Quick Templates",
+    "uploadHint": "PNG, JPG up to 4MB",
+    "fpsDisplay": "FPS: {fps}",
+    "seedPlaceholder": "Random",
+    "generateShort": "Generate",
     "styles": {
       "cinematic": "Cinematic",
       "documentary": "Documentary",
@@ -94,6 +111,34 @@
       "completed": "Completed",
       "failed": "Failed",
       "cancelled": "Cancelled"
+    },
+    "templates": {
+      "Nature Timelapse": "Nature Timelapse",
+      "Ocean Waves": "Ocean Waves",
+      "City Life": "City Life",
+      "Space Journey": "Space Journey",
+      "Wildlife": "Wildlife",
+      "Abstract Flow": "Abstract Flow",
+      "Product Reveal": "Product Reveal",
+      "Anime Scene": "Anime Scene"
+    },
+    "styleDescriptions": {
+      "cinematic": "Film-like quality with dramatic lighting",
+      "documentary": "Natural and realistic footage",
+      "animation": "Animated or cartoon style",
+      "timelapse": "Accelerated time effect",
+      "slowmotion": "Slowed down footage",
+      "natural": "Organic, unprocessed look",
+      "artistic": "Creative and stylized",
+      "commercial": "Professional advertising quality"
+    },
+    "durations": {
+      "5s": "5 seconds",
+      "10s": "10 seconds",
+      "15s": "15 seconds",
+      "20s": "20 seconds",
+      "30s": "30 seconds",
+      "60s": "60 seconds"
     }
   },
   "video": {
@@ -109,11 +154,19 @@
     "generatedSuccessfully": "Video generated successfully",
     "urlNotAvailable": "Video URL not available for preview",
     "play": "Play",
+    "playing": "Playing",
     "pause": "Pause",
+    "paused": "Paused",
     "mute": "Mute",
     "unmute": "Unmute",
     "download": "Download",
     "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit Fullscreen",
+    "skipBack": "Skip back 10s",
+    "skipForward": "Skip forward 10s",
+    "previousFrame": "Previous frame",
+    "nextFrame": "Next frame",
+    "playbackSpeed": "Playback Speed",
     "aiEnhanced": "AI Enhanced"
   },
   "screenRecording": {
@@ -208,7 +261,11 @@
     "justNow": "Just now",
     "minutesAgo": "{count}m ago",
     "hoursAgo": "{count}h ago",
-    "daysAgo": "{count}d ago"
+    "daysAgo": "{count}d ago",
+    "used": "used",
+    "cleanup": "Cleanup",
+    "storageExceeded": "Storage limit exceeded",
+    "cleanupComplete": "Cleaned up {count} files, freed {size}"
   },
   "videoEditor": {
     "title": "Video Editor",
@@ -252,6 +309,29 @@
     "resumeRecording": "Resume recording",
     "stop": "Stop",
     "stopRecording": "Stop recording",
-    "cancelRecording": "Cancel recording"
+    "cancelRecording": "Cancel recording",
+    "recording": "Recording",
+    "trimDescription": "Adjust the start and end points to trim your video",
+    "deleteRecording": "Delete Recording",
+    "deleteConfirmation": "Are you sure you want to delete this recording? This action cannot be undone.",
+    "startRecordingHint": "Start a new screen recording to get started",
+    "keyboardShortcuts": "Keyboard Shortcuts",
+    "monitor": "Monitor {index}",
+    "primaryMonitor": "Primary Monitor"
+  },
+  "videoDetails": {
+    "title": "Video Details",
+    "download": "Download",
+    "removeFromFavorites": "Remove from favorites",
+    "addToFavorites": "Add to favorites",
+    "delete": "Delete",
+    "prompt": "Prompt",
+    "provider": "Provider",
+    "model": "Model",
+    "resolution": "Resolution",
+    "aspectRatio": "Aspect Ratio",
+    "duration": "Duration",
+    "style": "Style",
+    "regenerate": "Regenerate"
   }
 }

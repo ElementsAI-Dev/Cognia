@@ -5,6 +5,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { usePluginStore } from './plugin-store';
 import type { PluginManifest, PluginStatus as _PluginStatus } from '@/types/plugin';
+import { invoke } from '@tauri-apps/api/core';
 
 // Mock Tauri invoke
 jest.mock('@tauri-apps/api/core', () => ({
@@ -18,6 +19,8 @@ describe('usePluginStore', () => {
     act(() => {
       result.current.reset();
     });
+
+    (invoke as jest.Mock).mockReset();
   });
 
   const createMockManifest = (id: string): PluginManifest => ({
@@ -27,6 +30,7 @@ describe('usePluginStore', () => {
     description: `Test plugin ${id} description`,
     type: 'frontend',
     capabilities: ['tools'],
+    main: 'index.ts',
   });
 
   describe('initialization', () => {
@@ -47,6 +51,70 @@ describe('usePluginStore', () => {
       });
       
       expect(result.current.initialized).toBe(true);
+    });
+  });
+
+  describe('scanPlugins', () => {
+    it('should call plugin_scan_directory with store pluginDirectory', async () => {
+      (invoke as jest.Mock).mockResolvedValue([]);
+
+      const { result } = renderHook(() => usePluginStore());
+
+      await act(async () => {
+        await result.current.initialize('/test/plugins');
+        await result.current.scanPlugins();
+      });
+
+      expect(invoke).toHaveBeenCalledWith('plugin_scan_directory', {
+        directory: '/test/plugins',
+      });
+    });
+
+    it('should set newly scanned plugins to installed and set installedAt', async () => {
+      const manifest = createMockManifest('scanned-plugin');
+
+      (invoke as jest.Mock).mockResolvedValue([
+        {
+          manifest,
+          path: '/test/plugins/scanned-plugin',
+        },
+      ]);
+
+      const { result } = renderHook(() => usePluginStore());
+
+      await act(async () => {
+        await result.current.initialize('/test/plugins');
+        await result.current.scanPlugins();
+      });
+
+      expect(result.current.plugins['scanned-plugin']).toBeDefined();
+      expect(result.current.plugins['scanned-plugin'].status).toBe('installed');
+      expect(result.current.plugins['scanned-plugin'].installedAt).toEqual(expect.any(Date));
+    });
+
+    it('should preserve existing plugin status when scanning again', async () => {
+      const manifest = createMockManifest('existing-plugin');
+      const { result } = renderHook(() => usePluginStore());
+
+      await act(async () => {
+        await result.current.initialize('/test/plugins');
+        result.current.discoverPlugin(manifest, 'local', '/test/plugins/existing-plugin');
+        result.current.setPluginStatus('existing-plugin', 'enabled');
+      });
+
+      (invoke as jest.Mock).mockResolvedValue([
+        {
+          manifest: { ...manifest, description: 'Updated description' },
+          path: '/test/plugins/existing-plugin',
+        },
+      ]);
+
+      await act(async () => {
+        await result.current.scanPlugins();
+      });
+
+      expect(result.current.plugins['existing-plugin'].status).toBe('enabled');
+      expect(result.current.plugins['existing-plugin'].manifest.description).toBe('Updated description');
     });
   });
 

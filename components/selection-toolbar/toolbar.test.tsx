@@ -9,7 +9,7 @@ import { useSelectionStore } from '@/stores/context';
 
 // Extend globalThis for Tauri detection in tests
 declare global {
-  var __TAURI__: Record<string, unknown> | undefined;
+  var __TAURI_INTERNALS__: Record<string, unknown> | undefined;
 }
 
 const mockInvoke = jest.fn().mockResolvedValue(undefined);
@@ -105,7 +105,7 @@ describe('SelectionToolbar', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    globalThis.__TAURI__ = undefined;
+    globalThis.__TAURI_INTERNALS__ = undefined;
     focusChangeHandler = null;
 
     mockUseSelectionToolbar.mockReturnValue({
@@ -255,7 +255,7 @@ describe('SelectionToolbar', () => {
     });
 
     it('emits send-to-chat with references in Tauri mode', async () => {
-      globalThis.__TAURI__ = {};
+      globalThis.__TAURI_INTERNALS__ = {};
 
       mockUseSelectionStore.mockReturnValueOnce({
         selections: [{ id: 'a', text: 'first', position: { x: 0, y: 0 } }],
@@ -321,7 +321,7 @@ describe('SelectionToolbar', () => {
 
   describe('selection modes and references', () => {
     it('changes selection mode and invokes smart expand', async () => {
-      globalThis.__TAURI__ = {};
+      globalThis.__TAURI_INTERNALS__ = {};
 
       render(<SelectionToolbar />);
 
@@ -487,7 +487,7 @@ describe('SelectionToolbar', () => {
     // may not be captured before the assertion runs
     it.skip('hides toolbar on blur in Tauri mode', async () => {
       jest.useFakeTimers();
-      globalThis.__TAURI__ = {};
+      globalThis.__TAURI_INTERNALS__ = {};
 
       render(<SelectionToolbar />);
 
@@ -503,7 +503,7 @@ describe('SelectionToolbar', () => {
     });
 
     it('sets hovered state on enter/leave', async () => {
-      globalThis.__TAURI__ = {};
+      globalThis.__TAURI_INTERNALS__ = {};
 
       render(<SelectionToolbar />);
       const toolbar = screen.getByRole('button', { name: 'Explain' }).closest('.selection-toolbar') as HTMLElement;

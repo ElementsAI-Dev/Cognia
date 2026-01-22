@@ -16,6 +16,7 @@ import { useAIChat } from "@/lib/ai/generation/use-ai-chat";
 import { detectLanguage } from "@/lib/ai/generation/translate";
 import type { ProviderName } from "@/lib/ai/core/client";
 import type { SelectionConfig as NativeSelectionConfig } from "@/lib/native/selection";
+import { isTauri } from '@/lib/native/utils';
 
 const initialState: ToolbarState = {
   isVisible: false,
@@ -163,7 +164,7 @@ export function useSelectionToolbar() {
 
     // Sync selection config to the native side and keep the service running
     useEffect(() => {
-      if (typeof window === "undefined" || !window.__TAURI__) {
+      if (typeof window === "undefined" || !isTauri()) {
         return;
       }
 
@@ -203,7 +204,7 @@ export function useSelectionToolbar() {
 
   // Listen for selection events from Tauri
   useEffect(() => {
-    if (typeof window === "undefined" || !window.__TAURI__) {
+    if (typeof window === "undefined" || !isTauri()) {
       return;
     }
 
@@ -372,7 +373,7 @@ export function useSelectionToolbar() {
 
     setState(initialState);
 
-    if (typeof window !== "undefined" && window.__TAURI__) {
+    if (isTauri()) {
       const { invoke } = await import("@tauri-apps/api/core");
       try {
         await invoke("selection_hide_toolbar");
@@ -399,7 +400,7 @@ export function useSelectionToolbar() {
         textType: options?.textType || null,
       }));
 
-      if (typeof window !== "undefined" && window.__TAURI__) {
+      if (isTauri()) {
         const { invoke } = await import("@tauri-apps/api/core");
         try {
           await invoke("selection_show_toolbar", { x, y, text });
@@ -432,7 +433,7 @@ export function useSelectionToolbar() {
     const textToSend = state.result || state.streamingResult;
     if (!textToSend) return;
 
-    if (typeof window !== "undefined" && window.__TAURI__) {
+    if (isTauri()) {
       const { emit } = await import("@tauri-apps/api/event");
       await emit("selection-send-to-chat", { 
         text: state.selectedText,

@@ -79,6 +79,7 @@ export function MaskCanvas({
   const imageCanvasRef = useRef<HTMLCanvasElement>(null);
   const maskCanvasRef = useRef<HTMLCanvasElement>(null);
   const cursorCanvasRef = useRef<HTMLCanvasElement>(null);
+  const exportTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // State
   const [isDrawing, setIsDrawing] = useState(false);
@@ -250,16 +251,31 @@ export function MaskCanvas({
 
     // Reset composite operation
     ctx.globalCompositeOperation = 'source-over';
-
-    // Export mask and notify
-    exportMask();
-  }, [strokes, brushColor, exportMask]);
+  }, [strokes, brushColor]);
 
   // Effect to redraw when strokes change
   useEffect(() => {
     redrawMask();
     onStrokesChange?.(strokes.length);
-  }, [strokes, redrawMask, onStrokesChange]);
+    if (!onMaskChange) return;
+
+    if (exportTimeoutRef.current) {
+      clearTimeout(exportTimeoutRef.current);
+    }
+
+    exportTimeoutRef.current = setTimeout(() => {
+      exportTimeoutRef.current = null;
+      exportMask();
+    }, 200);
+  }, [strokes, redrawMask, onStrokesChange, exportMask, onMaskChange]);
+
+  useEffect(() => {
+    return () => {
+      if (exportTimeoutRef.current) {
+        clearTimeout(exportTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Get canvas coordinates from mouse event
   const getCanvasCoords = useCallback(
@@ -434,6 +450,11 @@ export function MaskCanvas({
   const handleClear = useCallback(() => {
     setStrokes([]);
     setRedoStack([]);
+
+    if (exportTimeoutRef.current) {
+      clearTimeout(exportTimeoutRef.current);
+      exportTimeoutRef.current = null;
+    }
 
     const maskCanvas = maskCanvasRef.current;
     if (maskCanvas) {

@@ -22,7 +22,7 @@ mod screenshot_history;
 mod window_manager;
 mod windows_ocr;
 
-pub use annotator::ScreenshotAnnotator;
+pub use annotator::{Annotation, ScreenshotAnnotator};
 pub use capture::{CaptureMode, ScreenshotCapture, ScreenshotResult};
 pub use ocr::OcrEngine;
 pub use ocr_manager::OcrManager;
@@ -35,6 +35,7 @@ pub use providers::{
     TesseractProvider, WindowsOcrProvider,
 };
 pub use region_selector::RegionSelector;
+pub use region_selector::SelectionState;
 pub use screenshot_history::{ScreenshotHistory, ScreenshotHistoryEntry};
 pub use window_manager::{SnapConfig, SnapResult, WindowInfo, WindowManager};
 pub use windows_ocr::{OcrBounds, OcrLine, OcrWord, WinOcrResult, WindowsOcr};
@@ -114,9 +115,9 @@ pub struct ScreenshotManager {
     config: std::sync::Arc<parking_lot::RwLock<ScreenshotConfig>>,
     capture: ScreenshotCapture,
     ocr_engine: Option<OcrEngine>,
-    windows_ocr: WindowsOcr,
+    windows_ocr: std::sync::Arc<parking_lot::RwLock<WindowsOcr>>,
     history: ScreenshotHistory,
-    window_manager: WindowManager,
+    window_manager: std::sync::Arc<parking_lot::RwLock<WindowManager>>,
     app_handle: tauri::AppHandle,
 }
 
@@ -126,9 +127,9 @@ impl ScreenshotManager {
             config: std::sync::Arc::new(parking_lot::RwLock::new(ScreenshotConfig::default())),
             capture: ScreenshotCapture::new(),
             ocr_engine: OcrEngine::new().ok(),
-            windows_ocr: WindowsOcr::new(),
+            windows_ocr: std::sync::Arc::new(parking_lot::RwLock::new(WindowsOcr::new())),
             history: ScreenshotHistory::new(),
-            window_manager: WindowManager::new(),
+            window_manager: std::sync::Arc::new(parking_lot::RwLock::new(WindowManager::new())),
             app_handle,
         }
     }
@@ -258,7 +259,7 @@ impl ScreenshotManager {
 
     /// Extract text using Windows OCR
     pub fn extract_text_windows(&self, image_data: &[u8]) -> Result<WinOcrResult, String> {
-        self.windows_ocr.extract_text(image_data)
+        self.windows_ocr.read().extract_text(image_data)
     }
 
     /// Get screenshot history
@@ -269,6 +270,16 @@ impl ScreenshotManager {
     /// Get all screenshot history
     pub fn get_all_history(&self) -> Vec<ScreenshotHistoryEntry> {
         self.history.get_all()
+    }
+
+    /// Search history by label
+    pub fn search_history_by_label(&self, label: &str) -> Vec<ScreenshotHistoryEntry> {
+        self.history.search_by_label(label)
+    }
+
+    /// Get pinned screenshot history
+    pub fn get_pinned_history(&self) -> Vec<ScreenshotHistoryEntry> {
+        self.history.get_pinned()
     }
 
     /// Search history by OCR text
@@ -299,6 +310,16 @@ impl ScreenshotManager {
     /// Clear screenshot history
     pub fn clear_history(&self) {
         self.history.clear_unpinned()
+    }
+
+    /// Clear all screenshot history
+    pub fn clear_all_history(&self) {
+        self.history.clear_all()
+    }
+
+    /// Get history stats
+    pub fn get_history_stats(&self) -> (usize, bool) {
+        (self.history.len(), self.history.is_empty())
     }
 
     /// Add tag to screenshot
@@ -366,26 +387,27 @@ impl ScreenshotManager {
     }
 
     /// Set OCR language
-    pub fn set_ocr_language(&mut self, language: &str) {
-        self.windows_ocr.set_language(language);
+    pub fn set_ocr_language(&self, language: &str) {
+        self.windows_ocr.write().set_language(language);
     }
 
     // ==================== Window Management Methods ====================
 
     /// Get list of all visible windows
     pub fn get_windows(&self) -> Vec<WindowInfo> {
-        self.window_manager.get_windows()
+        self.window_manager.read().get_windows()
     }
 
     /// Get list of all visible windows with thumbnails
     pub fn get_windows_with_thumbnails(&self, thumbnail_size: u32) -> Vec<WindowInfo> {
         self.window_manager
+            .read()
             .get_windows_with_thumbnails(thumbnail_size)
     }
 
     /// Capture a specific window by its HWND
     pub fn capture_window_by_hwnd(&self, hwnd: isize) -> Result<ScreenshotResult, String> {
-        self.window_manager.capture_window_by_hwnd(hwnd)
+        self.window_manager.read().capture_window_by_hwnd(hwnd)
     }
 
     /// Capture a specific window by HWND and add to history
@@ -395,7 +417,7 @@ impl ScreenshotManager {
     ) -> Result<ScreenshotResult, String> {
         let config = self.config.read().clone();
         self.apply_capture_delay(&config).await;
-        let result = self.window_manager.capture_window_by_hwnd(hwnd)?;
+        let result = self.window_manager.read().capture_window_by_hwnd(hwnd)?;
         self.post_capture_actions(&result, &config).await?;
         self.add_to_history(&result);
         Ok(result)
@@ -410,7 +432,7 @@ impl ScreenshotManager {
         window_width: u32,
         window_height: u32,
     ) -> SnapResult {
-        self.window_manager.calculate_snap_position(
+        self.window_manager.read().calculate_snap_position(
             window_hwnd,
             proposed_x,
             proposed_y,
@@ -420,13 +442,13 @@ impl ScreenshotManager {
     }
 
     /// Update snap configuration
-    pub fn set_snap_config(&mut self, config: SnapConfig) {
-        self.window_manager.set_snap_config(config);
+    pub fn set_snap_config(&self, config: SnapConfig) {
+        self.window_manager.write().set_snap_config(config);
     }
 
     /// Get current snap configuration
     pub fn get_snap_config(&self) -> SnapConfig {
-        self.window_manager.get_snap_config().clone()
+        self.window_manager.read().get_snap_config().clone()
     }
 }
 

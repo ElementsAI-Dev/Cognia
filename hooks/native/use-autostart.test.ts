@@ -29,8 +29,8 @@ describe('useAutostart', () => {
   });
 
   describe('in non-Tauri environment (browser)', () => {
-    // The hook checks typeof window !== 'undefined' && '__TAURI__' in window
-    // In Jest, __TAURI__ is not in window, so it will behave as non-Tauri
+    // The hook checks typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+    // In Jest, __TAURI_INTERNALS__ is not in window, so it will behave as non-Tauri
 
     it('should return disabled state', async () => {
       const { result } = renderHook(() => useAutostart());

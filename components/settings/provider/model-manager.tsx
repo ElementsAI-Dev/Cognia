@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { isTauri } from '@/lib/native/utils';
 import {
   Download,
   Trash2,
@@ -283,7 +284,7 @@ export function ModelManager({ className }: ModelManagerProps) {
 
   // Load models and installed status
   const loadModels = useCallback(async () => {
-    if (typeof window === "undefined" || !window.__TAURI__) return;
+    if (typeof window === "undefined" || !isTauri()) return;
 
     try {
       setLoading(true);
@@ -310,7 +311,7 @@ export function ModelManager({ className }: ModelManagerProps) {
 
   // Load config
   const loadConfig = useCallback(async () => {
-    if (typeof window === "undefined" || !window.__TAURI__) return;
+    if (typeof window === "undefined" || !isTauri()) return;
 
     try {
       const { invoke } = await import("@tauri-apps/api/core");
@@ -323,7 +324,7 @@ export function ModelManager({ className }: ModelManagerProps) {
 
   // Setup progress listener
   useEffect(() => {
-    if (typeof window === "undefined" || !window.__TAURI__) return;
+    if (typeof window === "undefined" || !isTauri()) return;
 
     let unlisten: (() => void) | undefined;
 
@@ -358,7 +359,7 @@ export function ModelManager({ className }: ModelManagerProps) {
 
   // Download model
   const handleDownload = async (modelId: string) => {
-    if (typeof window === "undefined" || !window.__TAURI__) return;
+    if (typeof window === "undefined" || !isTauri()) return;
 
     setModels((prev) =>
       prev.map((m) =>
@@ -381,7 +382,7 @@ export function ModelManager({ className }: ModelManagerProps) {
 
   // Delete model
   const handleDelete = async (modelId: string) => {
-    if (typeof window === "undefined" || !window.__TAURI__) return;
+    if (typeof window === "undefined" || !isTauri()) return;
 
     try {
       const { invoke } = await import("@tauri-apps/api/core");

@@ -47,7 +47,7 @@ export function ChatAssistantContainer({
     
     // Check if running in Tauri
     const checkTauri = () => {
-      const hasTauri = detectTauri() || (typeof window !== "undefined" && !!(window as typeof window & { __TAURI__?: unknown }).__TAURI__);
+      const hasTauri = detectTauri();
       console.log("[ChatAssistantContainer] Tauri check:", { hasTauri, pathname: window.location.pathname });
       setIsTauri(hasTauri);
     };
@@ -134,11 +134,11 @@ export function ChatAssistantContainer({
 
   // Listen for selection toolbar "send to chat" event
   useEffect(() => {
-    if (typeof window === "undefined" || !window.__TAURI__) return;
+    if (typeof window === "undefined" || !isTauri) return;
 
     let unlisten: (() => void) | undefined;
 
-    const setupListener = async () => {
+    const setupListeners = async () => {
       const { listen } = await import("@tauri-apps/api/event");
       unlisten = await listen<{ text: string }>("selection-send-to-chat", (event) => {
         const { text } = event.payload;
@@ -150,12 +150,12 @@ export function ChatAssistantContainer({
       });
     };
 
-    setupListener();
+    void setupListeners();
 
     return () => {
       unlisten?.();
     };
-  }, []);
+  }, [isTauri]);
 
   // Listen for global keyboard shortcut
   useEffect(() => {

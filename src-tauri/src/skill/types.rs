@@ -205,6 +205,13 @@ pub struct InstallSkillInput {
     pub branch: Option<String>,
     /// Directory path within repo
     pub directory: String,
+    /// Optional display name (from SKILL.md)
+    pub name: Option<String>,
+    /// Optional description (from SKILL.md)
+    pub description: Option<String>,
+    /// Optional README URL
+    #[serde(rename = "readmeUrl")]
+    pub readme_url: Option<String>,
 }
 
 /// Input for adding a repository

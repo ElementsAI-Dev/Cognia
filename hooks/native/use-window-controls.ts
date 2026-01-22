@@ -3,11 +3,13 @@
  * Provides all window customization functions with state synchronization
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getCurrentWindow, currentMonitor, primaryMonitor, availableMonitors } from '@tauri-apps/api/window';
 import type { PhysicalPosition, ProgressBarStatus, CursorIcon as TauriCursorIcon } from '@tauri-apps/api/window';
 import { LogicalSize, LogicalPosition } from '@tauri-apps/api/dpi';
 import { useWindowStore, type UserAttentionType } from '@/stores';
+
+export type Platform = 'windows' | 'macos' | 'linux' | 'unknown';
 
 export interface ScreenInfo {
   width: number;
@@ -56,6 +58,33 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
 
   // Check if running in Tauri environment
   const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
+  const [platform, setPlatform] = useState<Platform>('unknown');
+
+  useEffect(() => {
+    if (!isTauri) return;
+
+    let mounted = true;
+    const loadPlatform = async () => {
+      try {
+        const os = await import('@tauri-apps/plugin-os');
+        const p = await os.platform();
+        if (!mounted) return;
+        if (p === 'windows' || p === 'macos' || p === 'linux') {
+          setPlatform(p);
+        } else {
+          setPlatform('unknown');
+        }
+      } catch {
+        if (mounted) setPlatform('unknown');
+      }
+    };
+
+    void loadPlatform();
+    return () => {
+      mounted = false;
+    };
+  }, [isTauri]);
 
   // Initialize and sync window state
   useEffect(() => {
@@ -493,19 +522,26 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
     }
   }, [isTauri]);
 
-  // Manual drag handler with double-click to maximize
+  // Manual drag handler with double-click maximize/fullscreen
   const handleDragMouseDown = useCallback(async (e: React.MouseEvent) => {
     if (!isTauri || !preferences.enableDragToMove) return;
     if (e.buttons !== 1) return; // Only primary button
 
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-no-drag],button,a,input,select,textarea,[role="button"]')) {
+      return;
+    }
+
     if (e.detail === 2 && preferences.enableDoubleClickMaximize) {
-      // Double click - toggle maximize
-      await toggleMaximize();
+      if (platform === 'macos') {
+        await toggleFullscreen();
+      } else {
+        await toggleMaximize();
+      }
     } else {
-      // Single click - start dragging
       await startDragging();
     }
-  }, [isTauri, preferences.enableDragToMove, preferences.enableDoubleClickMaximize, toggleMaximize, startDragging]);
+  }, [isTauri, platform, preferences.enableDragToMove, preferences.enableDoubleClickMaximize, toggleFullscreen, toggleMaximize, startDragging]);
 
   // Get window info
   const getWindowInfo = useCallback(async () => {
@@ -852,6 +888,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
   return {
     // State
     isTauri,
+    platform,
     isMaximized,
     isMinimized,
     isFullscreen,

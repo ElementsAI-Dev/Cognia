@@ -52,7 +52,6 @@ impl Default for VideoProcessingProgress {
 }
 
 /// Parse FFmpeg progress output
-#[allow(dead_code)]
 pub fn parse_ffmpeg_progress(line: &str, total_duration: Option<f64>) -> Option<VideoProcessingProgress> {
     // FFmpeg progress output format:
     // frame=  123 fps=30 q=28.0 size=    1234kB time=00:00:05.12 bitrate=1234.5kbits/s speed=2.5x
@@ -125,7 +124,6 @@ pub fn parse_ffmpeg_progress(line: &str, total_duration: Option<f64>) -> Option<
 }
 
 /// Monitor FFmpeg process and emit progress events
-#[allow(dead_code)]
 pub fn monitor_ffmpeg_progress(
     app_handle: &AppHandle,
     child: &mut Child,
@@ -184,7 +182,6 @@ pub fn monitor_ffmpeg_progress(
 }
 
 /// Emit video processing started event
-#[allow(dead_code)]
 pub fn emit_processing_started(app_handle: &AppHandle, operation: &str) {
     let progress = VideoProcessingProgress {
         operation: operation.to_string(),
@@ -201,11 +198,10 @@ pub fn emit_processing_started(app_handle: &AppHandle, operation: &str) {
 }
 
 /// Emit video processing completed event
-#[allow(dead_code)]
 pub fn emit_processing_completed(app_handle: &AppHandle, operation: &str, output_path: &str) {
     let _ = app_handle.emit("video-processing-completed", serde_json::json!({
         "operation": operation,
-        "output_path": output_path,
+        "outputPath": output_path,
     }));
 }
 
@@ -246,5 +242,17 @@ mod tests {
         
         assert!((progress.current_time - 90.5).abs() < 0.01);
         assert_eq!(progress.progress, 0.0); // No total duration
+    }
+
+    #[test]
+    fn test_parse_ffmpeg_progress_eta_and_bitrate() {
+        let line = "time=00:00:05.00 speed=2.0x bitrate=1000kbits/s";
+        let progress = parse_ffmpeg_progress(line, Some(10.0)).unwrap();
+
+        assert_eq!(progress.bitrate, Some("1000kbits/s".to_string()));
+        assert!(
+            (progress.eta_seconds.unwrap_or_default() - 2.5).abs() < 0.1,
+            "ETA should be around 2.5s"
+        );
     }
 }

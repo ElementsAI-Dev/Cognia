@@ -52,8 +52,6 @@ impl Default for RecordingState {
 
 /// Timeout constants for recording operations
 const FFMPEG_STOP_TIMEOUT_SECS: u64 = 30;
-#[allow(dead_code)]
-const FFMPEG_KILL_TIMEOUT_SECS: u64 = 5;
 
 /// Screen recorder
 pub struct ScreenRecorder {
@@ -81,11 +79,11 @@ impl ScreenRecorder {
         if let Some(ref mut child) = *process {
             let pid = child.id();
             warn!("[ScreenRecorder] Force killing FFmpeg process (PID: {:?})", pid);
-            
+
             if let Err(e) = child.kill() {
                 error!("[ScreenRecorder] Failed to kill FFmpeg process: {}", e);
             }
-            
+
             // Wait briefly for process to terminate
             match child.try_wait() {
                 Ok(Some(status)) => {
@@ -102,60 +100,9 @@ impl ScreenRecorder {
         *process = None;
     }
 
-    /// Check if FFmpeg process is still running
-    #[allow(dead_code)]
-    pub fn is_ffmpeg_running(&self) -> bool {
-        let mut process = self.ffmpeg_process.write();
-        if let Some(ref mut child) = *process {
-            match child.try_wait() {
-                Ok(Some(_)) => {
-                    // Process has exited
-                    false
-                }
-                Ok(None) => {
-                    // Process still running
-                    true
-                }
-                Err(e) => {
-                    warn!("[ScreenRecorder] Error checking FFmpeg status: {}", e);
-                    false
-                }
-            }
-        } else {
-            false
-        }
-    }
-
-    /// Handle unexpected FFmpeg process exit
-    #[allow(dead_code)]
-    fn handle_unexpected_exit(&self) {
-        let state = self.state.read();
-        if state.status == RecordingStatus::Recording || state.status == RecordingStatus::Paused {
-            drop(state);
-            
-            error!("[ScreenRecorder] FFmpeg process exited unexpectedly during recording");
-            
-            // Update state to error
-            {
-                let mut state = self.state.write();
-                state.status = RecordingStatus::Error("Recording process terminated unexpectedly".to_string());
-            }
-            
-            // Emit error event
-            let _ = self.app_handle.emit("recording-error", serde_json::json!({
-                "error": "Recording process terminated unexpectedly",
-                "code": "FFMPEG_UNEXPECTED_EXIT"
-            }));
-            
-            self.emit_status_change();
-        }
-    }
-
     /// Get current recording status
     pub fn get_status(&self) -> RecordingStatus {
-        let status = self.state.read().status.clone();
-        trace!("[ScreenRecorder] Current status: {:?}", status);
-        status
+        self.state.read().status.clone()
     }
 
     /// Get current recording duration in milliseconds
@@ -1171,7 +1118,5 @@ mod tests {
     #[test]
     fn test_timeout_constants() {
         assert!(FFMPEG_STOP_TIMEOUT_SECS > 0);
-        assert!(FFMPEG_KILL_TIMEOUT_SECS > 0);
-        assert!(FFMPEG_STOP_TIMEOUT_SECS > FFMPEG_KILL_TIMEOUT_SECS);
     }
 }

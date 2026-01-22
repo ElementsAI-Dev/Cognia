@@ -36,30 +36,32 @@ export interface SandboxState {
   config: BackendSandboxConfig | null;
   availableRuntimes: RuntimeType[];
   supportedLanguages: string[];
-  
+  allLanguages: string[];
+  availableLanguages: string[];
+
   // Current execution state
   execution: SandboxExecutionState;
-  
+
   // History cache (most recent)
   recentExecutions: SandboxExecutionRecord[];
   historyLoading: boolean;
-  
+
   // Snippets cache
   snippets: CodeSnippet[];
   snippetsLoading: boolean;
-  
+
   // Session management
   currentSession: ExecutionSession | null;
   sessions: ExecutionSession[];
-  
+
   // Statistics
   stats: SandboxStats | null;
   languageStats: Record<string, LanguageStats>;
-  
+
   // UI state
   selectedLanguage: string;
   editorCode: string;
-  
+
   // Error state
   lastError: string | null;
 }
@@ -71,6 +73,8 @@ export interface SandboxActions {
   setConfig: (config: BackendSandboxConfig | null) => void;
   setRuntimes: (runtimes: RuntimeType[]) => void;
   setLanguages: (languages: string[]) => void;
+  setAllLanguages: (languages: string[]) => void;
+  setAvailableLanguages: (languages: string[]) => void;
   
   // Execution state
   startExecution: (executionId: string) => void;
@@ -126,6 +130,8 @@ const initialState: SandboxState = {
   config: null,
   availableRuntimes: [],
   supportedLanguages: [],
+  allLanguages: [],
+  availableLanguages: [],
   execution: initialExecutionState,
   recentExecutions: [],
   historyLoading: false,
@@ -151,6 +157,8 @@ export const useSandboxStore = create<SandboxState & SandboxActions>()(
       setConfig: (config) => set({ config }),
       setRuntimes: (runtimes) => set({ availableRuntimes: runtimes }),
       setLanguages: (languages) => set({ supportedLanguages: languages }),
+      setAllLanguages: (languages) => set({ allLanguages: languages }),
+      setAvailableLanguages: (languages) => set({ availableLanguages: languages }),
 
       // Execution state
       startExecution: (executionId) =>

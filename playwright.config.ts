@@ -1,5 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3001';
+const devPort = (() => {
+  try {
+    const url = new URL(baseURL);
+    return url.port || '3001';
+  } catch {
+    return '3001';
+  }
+})();
+
 /**
  * Playwright configuration for Cognia AI features testing
  * Optimized for CI/CD efficiency
@@ -18,7 +28,7 @@ export default defineConfig({
     timeout: 10000,
   },
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
+    baseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -44,8 +54,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm dev',
-    url: 'http://localhost:3000',
+    command: `pnpm exec next dev -p ${devPort}`,
+    url: baseURL,
     reuseExistingServer: true,
     timeout: 180 * 1000,
   },

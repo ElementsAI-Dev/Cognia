@@ -66,6 +66,10 @@ jest.mock('@tauri-apps/api/dpi', () => ({
   },
 }));
 
+jest.mock('@tauri-apps/plugin-os', () => ({
+  platform: jest.fn(() => Promise.resolve('windows')),
+}));
+
 // Mock store
 const mockSetIsMaximized = jest.fn();
 const mockSetIsMinimized = jest.fn();
@@ -85,7 +89,10 @@ let mockWindowState = {
   isAlwaysOnTop: false,
   isFocused: true,
   isVisible: true,
-  preferences: {},
+  preferences: {
+    enableDragToMove: true,
+    enableDoubleClickMaximize: true,
+  },
 };
 
 jest.mock('@/stores', () => ({
@@ -123,7 +130,10 @@ describe('useWindowControls', () => {
       isAlwaysOnTop: false,
       isFocused: true,
       isVisible: true,
-      preferences: {},
+      preferences: {
+        enableDragToMove: true,
+        enableDoubleClickMaximize: true,
+      },
     };
   });
 

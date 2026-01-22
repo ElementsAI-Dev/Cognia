@@ -6,9 +6,10 @@
  * Supports adaptive positioning based on screen space
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from 'react';
 import { motion } from "motion/react";
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
+import { isTauri } from '@/lib/native/utils';
 import { useChatWidget } from "@/hooks/chat";
 import { useChatWidgetStore } from "@/stores/chat";
 import { ChatWidgetHeader } from "./chat-widget-header";
@@ -17,7 +18,6 @@ import { ChatWidgetInput } from "./chat-widget-input";
 import { ChatWidgetSettings } from "./chat-widget-settings";
 import { ChatWidgetSuggestions } from "./chat-widget-suggestions";
 import type { FabPosition, PanelExpandDirection } from "@/hooks/chat";
-import { useState } from "react";
 
 interface ChatAssistantPanelProps {
   isOpen: boolean;
@@ -204,20 +204,26 @@ export function ChatAssistantPanel({
 
   // Handle window dragging (Tauri only)
   useEffect(() => {
-    if (typeof window === "undefined" || !window.__TAURI__) return;
+    if (typeof window === 'undefined' || !isTauri()) return;
 
     const handleMouseDown = async (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+      if (e.button !== 0) return;
+
+      if (target.closest('[data-no-drag],button,a,input,select,textarea,[role="button"]')) {
+        return;
+      }
+
       // Only start dragging if clicking on the header drag area
-      if (target.closest("[data-tauri-drag-region]")) {
-        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      if (target.closest('[data-tauri-drag-region]')) {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
         const appWindow = getCurrentWindow();
         await appWindow.startDragging();
       }
     };
 
-    document.addEventListener("mousedown", handleMouseDown);
-    return () => document.removeEventListener("mousedown", handleMouseDown);
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
   }, []);
 
   // Focus input when opened

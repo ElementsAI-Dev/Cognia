@@ -48,15 +48,16 @@ import {
   PanelRight,
   Map,
 } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { useWorkflowEditorStore } from '@/stores/workflow';
-import { VersionHistoryPanel, ImportExportDialog } from './version-history-panel';
-import { ExecutionStatisticsPanel } from './execution-statistics-panel';
-import { VariableManagerPanel } from './variable-manager-panel';
-import { KeyboardShortcutsPanel } from './keyboard-shortcuts-panel';
-import { WorkflowSettingsPanel } from './workflow-settings-panel';
-import { WorkflowInputTestPanel } from './workflow-input-test-panel';
-import { DebugToolbar } from './debug-toolbar';
-import { NodeSearchPanel } from './node-search-panel';
+import { VersionHistoryPanel, ImportExportDialog } from '../panels/version-history-panel';
+import { ExecutionStatisticsPanel } from '../execution/execution-statistics-panel';
+import { VariableManagerPanel } from '../panels/variable-manager-panel';
+import { KeyboardShortcutsPanel } from '../panels/keyboard-shortcuts-panel';
+import { WorkflowSettingsPanel } from '../panels/workflow-settings-panel';
+import { WorkflowInputTestPanel } from '../panels/workflow-input-test-panel';
+import { DebugToolbar } from '../debug/debug-toolbar';
+import { NodeSearchPanel } from '../search/node-search-panel';
 
 interface WorkflowToolbarProps {
   onFitView?: () => void;
@@ -102,7 +103,35 @@ export function WorkflowToolbar({
     toggleNodePalette,
     toggleConfigPanel,
     toggleMinimap,
-  } = useWorkflowEditorStore();
+  } = useWorkflowEditorStore(
+    useShallow((state) => ({
+      currentWorkflow: state.currentWorkflow,
+      isDirty: state.isDirty,
+      isExecuting: state.isExecuting,
+      executionState: state.executionState,
+      selectedNodes: state.selectedNodes,
+      history: state.history,
+      historyIndex: state.historyIndex,
+      validationErrors: state.validationErrors,
+      showNodePalette: state.showNodePalette,
+      showConfigPanel: state.showConfigPanel,
+      showMinimap: state.showMinimap,
+      saveWorkflow: state.saveWorkflow,
+      undo: state.undo,
+      redo: state.redo,
+      autoLayout: state.autoLayout,
+      alignNodes: state.alignNodes,
+      deleteNodes: state.deleteNodes,
+      validate: state.validate,
+      startExecution: state.startExecution,
+      pauseExecution: state.pauseExecution,
+      resumeExecution: state.resumeExecution,
+      cancelExecution: state.cancelExecution,
+      toggleNodePalette: state.toggleNodePalette,
+      toggleConfigPanel: state.toggleConfigPanel,
+      toggleMinimap: state.toggleMinimap,
+    }))
+  );
 
   const isPaused = executionState?.status === 'paused';
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { VideoJobCard, getStatusBadge } from './video-job-card';
-import type { VideoJob } from './types';
+import type { VideoJob } from '@/types/video-studio/types';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
@@ -145,7 +145,7 @@ describe('VideoJobCard', () => {
 
   it('shows favorite icon when job is favorited', () => {
     const favoriteJob = { ...mockCompletedJob, isFavorite: true };
-    
+
     const { container } = render(
       <VideoJobCard
         job={favoriteJob}
@@ -187,7 +187,7 @@ describe('VideoJobCard', () => {
         <VideoJobCard
           job={mockCompletedJob}
           isSelected={false}
- onSelect={mockOnSelect}
+          onSelect={mockOnSelect}
           onPreview={mockOnPreview}
           onDownload={mockOnDownload}
           onToggleFavorite={mockOnToggleFavorite}

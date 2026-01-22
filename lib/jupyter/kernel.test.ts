@@ -44,6 +44,7 @@ import {
   executeCell,
   executeNotebook,
   getVariables,
+  getCachedVariables,
   inspectVariable,
   checkKernelAvailable,
   ensureKernel,
@@ -102,6 +103,33 @@ describe('Jupyter Kernel Service', () => {
     it('should return true when in Tauri environment', () => {
       mockIsTauri.mockReturnValue(true);
       expect(isKernelAvailable()).toBe(true);
+    });
+
+    describe('getCachedVariables', () => {
+      it('should get cached variables', async () => {
+        mockIsTauri.mockReturnValue(true);
+        mockInvoke.mockResolvedValue([mockVariableInfo]);
+
+        const result = await getCachedVariables('session-1');
+
+        expect(mockInvoke).toHaveBeenCalledWith('jupyter_get_cached_variables', {
+          sessionId: 'session-1',
+        });
+        expect(result).toEqual([mockVariableInfo]);
+      });
+
+      it('should return empty array when not in Tauri environment', async () => {
+        mockIsTauri.mockReturnValue(false);
+        const result = await getCachedVariables('session-1');
+        expect(result).toEqual([]);
+      });
+
+      it('should return empty array on error', async () => {
+        mockIsTauri.mockReturnValue(true);
+        mockInvoke.mockRejectedValue(new Error('Failed'));
+        const result = await getCachedVariables('session-1');
+        expect(result).toEqual([]);
+      });
     });
 
     it('should return false when not in Tauri environment', () => {
@@ -394,6 +422,28 @@ describe('Jupyter Kernel Service', () => {
           cells: ['x = 1', 'print(x)'],
         });
         expect(result).toEqual(results);
+      });
+
+      it('should pass options when provided', async () => {
+        mockIsTauri.mockReturnValue(true);
+        const results = [mockSandboxExecutionResult];
+        mockInvoke.mockResolvedValue(results);
+
+        await executeNotebook('session-1', ['x = 1'], {
+          stopOnError: false,
+          timeout: 12345,
+          clearOutputs: true,
+        });
+
+        expect(mockInvoke).toHaveBeenCalledWith('jupyter_execute_notebook', {
+          sessionId: 'session-1',
+          cells: ['x = 1'],
+          options: {
+            stopOnError: false,
+            timeout: 12345,
+            clearOutputs: true,
+          },
+        });
       });
 
       it('should throw error when not in Tauri environment', async () => {

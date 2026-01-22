@@ -348,6 +348,17 @@ impl SandboxState {
         manager.get_available_runtimes()
     }
 
+    /// Get all supported languages
+    pub async fn get_all_languages(&self) -> Vec<Language> {
+        languages::get_all_languages()
+    }
+
+    /// Get languages available for native execution
+    pub async fn get_available_languages(&self) -> Vec<String> {
+        let manager = self.manager.read().await;
+        manager.get_available_languages()
+    }
+
     /// Get supported languages
     pub async fn get_supported_languages(&self) -> Vec<Language> {
         let config = self.config.read().await;
@@ -748,6 +759,28 @@ impl SandboxState {
         self.db
             .get_all_categories()
             .map_err(|e| SandboxError::Config(format!("Failed to get categories: {}", e)))
+    }
+
+    /// Update session
+    pub async fn update_session(
+        &self,
+        id: &str,
+        name: &str,
+        description: Option<&str>,
+    ) -> Result<(), SandboxError> {
+        self.db
+            .update_session(id, name, description)
+            .map_err(|e| SandboxError::Config(format!("Failed to update session: {}", e)))
+    }
+
+    /// Get executions for a session
+    pub async fn get_session_executions(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<ExecutionRecord>, SandboxError> {
+        self.db
+            .get_session_executions(session_id)
+            .map_err(|e| SandboxError::Config(format!("Failed to get session executions: {}", e)))
     }
 
     /// Get database size

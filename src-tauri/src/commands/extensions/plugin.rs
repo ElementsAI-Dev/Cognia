@@ -25,6 +25,14 @@ pub async fn plugin_python_initialize(
     manager.initialize_python(python_path).await.map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub async fn plugin_get_directory(
+    state: State<'_, PluginManagerState>,
+) -> Result<String, String> {
+    let manager = state.0.read().await;
+    Ok(manager.plugin_dir().to_string_lossy().to_string())
+}
+
 /// Scan plugin directory
 #[tauri::command]
 pub async fn plugin_scan_directory(

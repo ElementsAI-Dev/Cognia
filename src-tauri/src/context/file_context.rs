@@ -455,6 +455,9 @@ impl FileContext {
 mod tests {
     use super::*;
     use crate::context::WindowInfo;
+    use std::fs;
+    use std::io::Write;
+    use tempfile::tempdir;
 
     fn create_test_window_info(title: &str) -> WindowInfo {
         WindowInfo {
@@ -942,6 +945,79 @@ mod tests {
             let json = serde_json::to_string(&file_type);
             assert!(json.is_ok());
         }
+    }
+
+    #[test]
+    fn test_find_project_root_with_indicator() {
+        let dir = tempdir().expect("tempdir to create");
+        let root = dir.path();
+        fs::write(root.join("Cargo.toml"), "[package]").expect("write indicator");
+
+        let src_dir = root.join("src");
+        fs::create_dir_all(&src_dir).expect("create src dir");
+        let file_path = src_dir.join("main.rs");
+        fs::write(&file_path, "fn main() {}").expect("write file");
+
+        let detected = FileContext::find_project_root(file_path.to_string_lossy().as_ref());
+        assert_eq!(detected, Some(root.to_string_lossy().to_string()));
+    }
+
+    #[test]
+    fn test_find_project_root_with_glob_indicator() {
+        let dir = tempdir().expect("tempdir to create");
+        let root = dir.path();
+        fs::write(root.join("Solution.sln"), "solution").expect("write sln");
+
+        let nested_dir = root.join("nested");
+        fs::create_dir_all(&nested_dir).expect("create nested dir");
+        let file_path = nested_dir.join("main.cs");
+        fs::write(&file_path, "class Program {}").expect("write file");
+
+        let detected = FileContext::find_project_root(file_path.to_string_lossy().as_ref());
+        assert_eq!(detected, Some(root.to_string_lossy().to_string()));
+    }
+
+    #[test]
+    fn test_find_project_root_none() {
+        let dir = tempdir().expect("tempdir to create");
+        let root = dir.path();
+        let nested_dir = root.join("nested");
+        fs::create_dir_all(&nested_dir).expect("create nested dir");
+        let file_path = nested_dir.join("main.rs");
+        fs::write(&file_path, "fn main() {}").expect("write file");
+
+        let detected = FileContext::find_project_root(file_path.to_string_lossy().as_ref());
+        assert!(detected.is_none());
+    }
+
+    #[test]
+    fn test_get_git_branch_from_head_ref() {
+        let dir = tempdir().expect("tempdir to create");
+        let root = dir.path();
+        let git_dir = root.join(".git");
+        fs::create_dir_all(&git_dir).expect("create git dir");
+        let mut head_file = fs::File::create(git_dir.join("HEAD")).expect("create HEAD");
+        head_file
+            .write_all(b"ref: refs/heads/feature/test\n")
+            .expect("write head ref");
+
+        let branch = FileContext::get_git_branch(root.to_string_lossy().as_ref());
+        assert_eq!(branch, Some("feature/test".to_string()));
+    }
+
+    #[test]
+    fn test_get_git_branch_detached_head() {
+        let dir = tempdir().expect("tempdir to create");
+        let root = dir.path();
+        let git_dir = root.join(".git");
+        fs::create_dir_all(&git_dir).expect("create git dir");
+        let mut head_file = fs::File::create(git_dir.join("HEAD")).expect("create HEAD");
+        head_file
+            .write_all(b"abcdef1234567890")
+            .expect("write head hash");
+
+        let branch = FileContext::get_git_branch(root.to_string_lossy().as_ref());
+        assert_eq!(branch, Some("abcdef1".to_string()));
     }
 
     // Edge case tests

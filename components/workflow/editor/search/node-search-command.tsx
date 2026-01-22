@@ -118,7 +118,7 @@ export function NodeSearchCommand() {
       label: 'Save Workflow',
       icon: Save,
       shortcut: ['Ctrl', 'S'],
-      action: () => { saveWorkflow(); setOpen(false); },
+      action: () => { void saveWorkflow(); setOpen(false); },
       category: 'action',
     },
     {

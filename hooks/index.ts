@@ -15,7 +15,7 @@ export * from './designer';
 export * from './media';
 
 // Sandbox/Environment related hooks
-export { useDebounce } from './ui/use-debounce';
+export { useDebounce } from './utils/use-debounce';
 
 // MCP hooks
 export * from './mcp';

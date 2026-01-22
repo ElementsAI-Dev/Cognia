@@ -267,12 +267,12 @@ html.tauri-app body {
 
 /* Sidebar positioning in Tauri mode - override Tailwind's top-0 */
 html.tauri-app [data-slot="sidebar-container"] {
-  top: 32px !important;
-  height: calc(100vh - 32px) !important;
+  top: var(--titlebar-height) !important;
+  height: calc(100vh - var(--titlebar-height)) !important;
 }
 
 html.tauri-app [data-slot="sidebar-wrapper"] {
-  height: calc(100vh - 32px) !important;
+  height: calc(100vh - var(--titlebar-height)) !important;
 }
 
 /* Touch and pen input support for drag regions (Windows) */
@@ -293,7 +293,7 @@ html.tauri-app [data-slot="sidebar-wrapper"] {
 
 /* SidebarInset (main content area) positioning */
 html.tauri-app [data-slot="sidebar-inset"] {
-  height: calc(100vh - 32px) !important;
+  height: calc(100vh - var(--titlebar-height)) !important;
 }
 
 /* ===== Global Scrollbar Styles ===== */
@@ -819,6 +819,11 @@ html.has-bg-image body::before {
   pointer-events: none;
 }
 
+html.has-bg-renderer body::before {
+  content: none;
+  display: none;
+}
+
 /* Overlay layer for readability */
 html.has-bg-image body::after {
   content: '';
@@ -828,6 +833,11 @@ html.has-bg-image body::after {
   background-color: var(--bg-overlay-color, transparent);
   opacity: var(--bg-overlay-opacity, 0);
   pointer-events: none;
+}
+
+html.has-bg-renderer body::after {
+  content: none;
+  display: none;
 }
 
 /* When background is enabled, make content layers semi-transparent for better blending */

@@ -1,6 +1,7 @@
 'use client';
 
 import { forwardRef } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   MoreHorizontal,
   Download,
@@ -33,21 +34,13 @@ export interface VideoDetailsPanelProps {
 }
 
 export const VideoDetailsPanel = forwardRef<HTMLVideoElement, VideoDetailsPanelProps>(
-  function VideoDetailsPanel(
-    {
-      video,
-      onDownload,
-      onToggleFavorite,
-      onDelete,
-      onRegenerate,
-    },
-    ref
-  ) {
+  function VideoDetailsPanel({ video, onDownload, onToggleFavorite, onDelete, onRegenerate }, ref) {
+    const t = useTranslations('videoDetails');
     return (
       <aside className="w-80 border-l p-4 overflow-y-auto">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-medium">Video Details</h3>
+            <h3 className="font-medium">{t('title')}</h3>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -58,7 +51,7 @@ export const VideoDetailsPanel = forwardRef<HTMLVideoElement, VideoDetailsPanelP
                 {video.status === 'completed' && onDownload && (
                   <DropdownMenuItem onClick={() => onDownload(video)}>
                     <Download className="h-4 w-4 mr-2" />
-                    Download
+                    {t('download')}
                   </DropdownMenuItem>
                 )}
                 {onToggleFavorite && (
@@ -66,24 +59,21 @@ export const VideoDetailsPanel = forwardRef<HTMLVideoElement, VideoDetailsPanelP
                     {video.isFavorite ? (
                       <>
                         <StarOff className="h-4 w-4 mr-2" />
-                        Remove from favorites
+                        {t('removeFromFavorites')}
                       </>
                     ) : (
                       <>
                         <Star className="h-4 w-4 mr-2" />
-                        Add to favorites
+                        {t('addToFavorites')}
                       </>
                     )}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
                 {onDelete && (
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onClick={() => onDelete(video.id)}
-                  >
+                  <DropdownMenuItem className="text-destructive" onClick={() => onDelete(video.id)}>
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
+                    {t('delete')}
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -120,34 +110,36 @@ export const VideoDetailsPanel = forwardRef<HTMLVideoElement, VideoDetailsPanelP
 
           {/* Prompt */}
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Prompt</Label>
+            <Label className="text-xs text-muted-foreground">{t('prompt')}</Label>
             <p className="text-sm">{video.prompt}</p>
           </div>
 
           {/* Settings */}
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
-              <span className="text-muted-foreground">Provider:</span>
-              <p className="font-medium">{video.provider === 'google-veo' ? 'Google Veo' : 'OpenAI Sora'}</p>
+              <span className="text-muted-foreground">{t('provider')}:</span>
+              <p className="font-medium">
+                {video.provider === 'google-veo' ? 'Google Veo' : 'OpenAI Sora'}
+              </p>
             </div>
             <div>
-              <span className="text-muted-foreground">Model:</span>
+              <span className="text-muted-foreground">{t('model')}:</span>
               <p className="font-medium">{video.model}</p>
             </div>
             <div>
-              <span className="text-muted-foreground">Resolution:</span>
+              <span className="text-muted-foreground">{t('resolution')}:</span>
               <p className="font-medium">{video.settings.resolution}</p>
             </div>
             <div>
-              <span className="text-muted-foreground">Aspect:</span>
+              <span className="text-muted-foreground">{t('aspectRatio')}:</span>
               <p className="font-medium">{video.settings.aspectRatio}</p>
             </div>
             <div>
-              <span className="text-muted-foreground">Duration:</span>
+              <span className="text-muted-foreground">{t('duration')}:</span>
               <p className="font-medium">{video.settings.duration}</p>
             </div>
             <div>
-              <span className="text-muted-foreground">Style:</span>
+              <span className="text-muted-foreground">{t('style')}:</span>
               <p className="font-medium capitalize">{video.settings.style}</p>
             </div>
           </div>
@@ -162,7 +154,7 @@ export const VideoDetailsPanel = forwardRef<HTMLVideoElement, VideoDetailsPanelP
                 onClick={() => onRegenerate(video)}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Regenerate
+                {t('regenerate')}
               </Button>
             </div>
           )}

@@ -813,51 +813,7 @@ fn open_logs_directory(app: &AppHandle) {
 
 /// Perform graceful shutdown with full cleanup
 fn perform_graceful_shutdown(app: &AppHandle) {
-    log::info!("Performing graceful shutdown...");
-
-    // 1. Unregister all global shortcuts
-    {
-        use tauri_plugin_global_shortcut::GlobalShortcutExt;
-        if let Err(e) = app.global_shortcut().unregister_all() {
-            log::warn!("Failed to unregister global shortcuts: {}", e);
-        } else {
-            log::debug!("Global shortcuts unregistered");
-        }
-    }
-
-    // 2. Stop selection manager (stops mouse hook)
-    if let Some(manager) = app.try_state::<SelectionManager>() {
-        if let Err(e) = manager.stop() {
-            log::warn!("Failed to stop selection manager: {}", e);
-        } else {
-            log::debug!("Selection manager stopped");
-        }
-    }
-
-    // 3. Stop screen recording if active
-    if app.try_state::<ScreenRecordingManager>().is_some() {
-        let app_clone = app.clone();
-        // Use spawn to avoid blocking within async runtime context
-        if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            handle.spawn(async move {
-                if let Some(mgr) = app_clone.try_state::<ScreenRecordingManager>() {
-                    let _ = mgr.stop().await;
-                }
-            });
-        }
-        log::debug!("Screen recording stop requested");
-    }
-
-    // 4. Hide tray icon before exit
-    if let Some(tray) = app.tray_by_id("main-tray") {
-        let _ = tray.set_visible(false);
-        log::debug!("Tray icon hidden");
-    }
-
-    // Small delay for cleanup
-    std::thread::sleep(std::time::Duration::from_millis(100));
-
-    log::info!("Graceful shutdown completed, exiting...");
+    log::info!("Graceful shutdown requested (delegating to centralized cleanup)...");
     app.exit(0);
 }
 

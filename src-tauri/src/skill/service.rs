@@ -507,7 +507,6 @@ impl SkillService {
     }
 
     /// Check download with timeout, returns SkillError::DownloadTimeout on timeout
-    #[allow(dead_code)]
     pub async fn check_download_timeout<T, F>(&self, duration_secs: u64, future: F) -> std::result::Result<T, SkillError>
     where
         F: std::future::Future<Output = std::result::Result<T, SkillError>>,
@@ -713,6 +712,95 @@ impl SkillService {
         Ok(skills)
     }
 
+    /// Get all skills in discovery result format (discoverable + installed + local)
+    pub async fn discover_all(&self) -> Result<SkillDiscoveryResult> {
+        let discoverable = self.discover_skills().await.unwrap_or_default();
+        let installed = self.get_installed_skills().await;
+        let local = self.scan_local_skills().await.unwrap_or_default();
+
+        Ok(SkillDiscoveryResult {
+            discoverable,
+            installed,
+            local,
+        })
+    }
+
+    /// Search and filter skills
+    pub async fn search_skills(&self, filters: SkillSearchFilters) -> Result<Vec<Skill>> {
+        let all = self.get_all_skills().await?;
+        let query = filters.query.unwrap_or_default().to_lowercase();
+
+        let filtered: Vec<Skill> = all
+            .into_iter()
+            .filter(|skill| {
+                // Text search
+                let matches_query = query.is_empty()
+                    || skill.name.to_lowercase().contains(&query)
+                    || skill.description.to_lowercase().contains(&query)
+                    || skill.tags.as_ref().map_or(false, |tags| {
+                        tags.iter().any(|t| t.to_lowercase().contains(&query))
+                    });
+
+                if !matches_query {
+                    return false;
+                }
+
+                // Category filter
+                if let Some(ref cat) = filters.category {
+                    if skill.category.as_ref() != Some(cat) {
+                        return false;
+                    }
+                }
+
+                // Installed filter
+                if let Some(installed) = filters.installed {
+                    if skill.installed != installed {
+                        return false;
+                    }
+                }
+
+                // Enabled filter
+                if let Some(enabled) = filters.enabled {
+                    if skill.enabled != Some(enabled) {
+                        return false;
+                    }
+                }
+
+                // Tags filter
+                if let Some(ref filter_tags) = filters.tags {
+                    if !filter_tags.is_empty() {
+                        match skill.tags.as_ref() {
+                            Some(skill_tags) => {
+                                if !filter_tags.iter().all(|ft| skill_tags.contains(ft)) {
+                                    return false;
+                                }
+                            }
+                            None => {
+                                // Skill has no tags but filter expects some
+                                return false;
+                            }
+                        }
+                    }
+                }
+
+                true
+            })
+            .collect();
+
+        Ok(filtered)
+    }
+
+    /// Get skill state (legacy compatibility)
+    pub async fn get_skill_state(&self, id: &str) -> Option<SkillState> {
+        self
+            .get_installed_skill(id)
+            .await
+            .map(|_| SkillState {
+                installed: true,
+                installed_at: chrono::Utc::now(),
+            })
+    }
+
     // ========== Download Helpers ==========
 
     /// Download repository to temp directory
@@ -735,7 +823,7 @@ impl SkillService {
                 repo.owner, repo.name, branch
             );
 
-            match self.download_and_extract(&url, &temp_path).await {
+            match self.check_download_timeout(300, self.download_and_extract(&url, &temp_path)).await {
                 Ok(_) => return Ok(temp_path),
                 Err(e) => {
                     last_error = Some(e);
@@ -744,32 +832,35 @@ impl SkillService {
             }
         }
 
-        Err(last_error.unwrap_or_else(|| anyhow!("All branches failed to download")))
+        let error = last_error
+            .map(anyhow::Error::from)
+            .unwrap_or_else(|| anyhow!(SkillError::Network("All branches failed to download".to_string())));
+        Err(error)
     }
 
     /// Download and extract ZIP archive
-    async fn download_and_extract(&self, url: &str, dest: &Path) -> Result<()> {
+    async fn download_and_extract(&self, url: &str, dest: &Path) -> std::result::Result<(), SkillError> {
         let response = self.http_client.get(url).send().await?;
         
         if !response.status().is_success() {
-            return Err(anyhow!("Download failed with status: {}", response.status()));
+            return Err(SkillError::Network(format!("Download failed with status: {}", response.status())));
         }
 
         let bytes = response.bytes().await?;
         let cursor = Cursor::new(bytes);
-        let mut archive = ZipArchive::new(cursor).map_err(|e| anyhow!("Invalid ZIP archive: {}", e))?;
+        let mut archive = ZipArchive::new(cursor).map_err(|e| SkillError::Parse(format!("Invalid ZIP archive: {}", e)))?;
 
         // Get root directory name
         let root_name = if !archive.is_empty() {
-            let first_file = archive.by_index(0).map_err(|e| anyhow!("Archive error: {}", e))?;
+            let first_file = archive.by_index(0).map_err(|e| SkillError::Parse(format!("Archive error: {}", e)))?;
             first_file.name().split('/').next().unwrap_or("").to_string()
         } else {
-            return Err(anyhow!("Empty archive"));
+            return Err(SkillError::Parse("Empty archive".to_string()));
         };
 
         // Extract files
         for i in 0..archive.len() {
-            let mut file = archive.by_index(i).map_err(|e| anyhow!("Archive error: {}", e))?;
+            let mut file = archive.by_index(i).map_err(|e| SkillError::Parse(format!("Archive error: {}", e)))?;
             let file_path = file.name();
 
             let relative_path = if let Some(stripped) = file_path.strip_prefix(&format!("{}/", root_name)) {

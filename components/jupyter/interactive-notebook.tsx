@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -10,7 +11,7 @@
  * - Auto-execution support
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Play, PlayCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -27,7 +28,11 @@ import { KernelStatus } from './kernel-status';
 import { VariableInspector } from './variable-inspector';
 import { useJupyterKernel } from '@/hooks/sandbox';
 import { useVirtualEnv } from '@/hooks/sandbox';
+import { useJupyterStore } from '@/stores/tools';
+import { serializeNotebook } from '@/lib/jupyter';
 import type { VirtualEnvInfo } from '@/types/system/environment';
+import type { JupyterNotebook, JupyterOutput } from '@/types';
+import type { CellOutput, ExecutableCell } from '@/types/system/jupyter';
 
 interface InteractiveNotebookProps {
   content: string;
@@ -49,6 +54,8 @@ export function InteractiveNotebook({
   const t = useTranslations('jupyter');
   const [selectedEnvPath, setSelectedEnvPath] = useState<string | null>(null);
   const [isRunningAll, setIsRunningAll] = useState(false);
+  const lastSyncedContentRef = useRef<string | null>(null);
+  const lastCachedVarsSessionIdRef = useRef<string | null>(null);
 
   const {
     activeSession,
@@ -64,13 +71,111 @@ export function InteractiveNotebook({
     restartKernel,
     interruptKernel,
     refreshVariables,
+    getCachedVariables,
     inspectVariable,
     getSessionForChat,
     mapChatToSession,
     clearError,
   } = useJupyterKernel();
 
+  const activeSessionId = activeSession?.id ?? null;
+  const sessionCells = useJupyterStore(
+    useCallback(
+      (state) => {
+        if (!activeSessionId) return [];
+        return state.cells.get(activeSessionId) || [];
+      },
+      [activeSessionId]
+    )
+  );
+
   const { environments, refreshEnvironments } = useVirtualEnv();
+
+  useEffect(() => {
+    if (!showVariables) return;
+    if (!activeSession) return;
+
+    if (lastCachedVarsSessionIdRef.current === activeSession.id) return;
+    lastCachedVarsSessionIdRef.current = activeSession.id;
+
+    getCachedVariables(activeSession.id);
+  }, [activeSession, getCachedVariables, showVariables]);
+
+  const toJupyterOutputs = useCallback((outputs: CellOutput[]): JupyterOutput[] => {
+    return outputs.map((output) => {
+      if (output.outputType === 'stream') {
+        return {
+          output_type: 'stream',
+          name: output.name,
+          text: output.text ?? '',
+        };
+      }
+
+      if (output.outputType === 'error') {
+        return {
+          output_type: 'error',
+          ename: output.ename,
+          evalue: output.evalue,
+          traceback: output.traceback,
+        };
+      }
+
+      if (output.outputType === 'execute_result') {
+        return {
+          output_type: 'execute_result',
+          data: output.data,
+          execution_count: output.executionCount ?? null,
+        };
+      }
+
+      return {
+        output_type: 'display_data',
+        data: output.data,
+      };
+    });
+  }, []);
+
+  const applyCellsToNotebook = useCallback(
+    (notebook: JupyterNotebook, cells: ExecutableCell[]): JupyterNotebook => {
+      const nextCells = [...notebook.cells];
+
+      const codeCellIndices = nextCells
+        .map((cell, idx) => ({ cell, idx }))
+        .filter(({ cell }) => cell.cell_type === 'code')
+        .map(({ idx }) => idx);
+
+      const hasMeaningfulResult = (cell?: ExecutableCell) => {
+        if (!cell) return false;
+        return cell.outputs.length > 0 || cell.executionCount !== null;
+      };
+
+      for (let ordinal = 0; ordinal < codeCellIndices.length; ordinal++) {
+        const notebookCellIndex = codeCellIndices[ordinal];
+        const notebookCell = nextCells[notebookCellIndex];
+        if (!notebookCell || notebookCell.cell_type !== 'code') continue;
+
+        const absoluteCell = cells[notebookCellIndex];
+        const ordinalCell = cells[ordinal];
+
+        const chosen = hasMeaningfulResult(absoluteCell)
+          ? absoluteCell
+          : hasMeaningfulResult(ordinalCell)
+            ? ordinalCell
+            : absoluteCell ?? ordinalCell;
+
+        if (!chosen) continue;
+
+        nextCells[notebookCellIndex] = {
+          ...notebookCell,
+          outputs: toJupyterOutputs(chosen.outputs),
+          execution_count: chosen.executionCount ?? null,
+        };
+      }
+
+      return { ...notebook, cells: nextCells };
+    },
+    [toJupyterOutputs]
+  );
 
   // Auto-connect to existing session for chat
   useEffect(() => {
@@ -130,15 +235,17 @@ export function InteractiveNotebook({
     try {
       // Parse notebook and extract code cells
       const notebook = JSON.parse(content);
-      const codeCells = notebook.cells
-        ?.filter((cell: { cell_type: string }) => cell.cell_type === 'code')
-        ?.map((cell: { source: string | string[] }) =>
-          Array.isArray(cell.source) ? cell.source.join('') : cell.source
-        );
+      const codeCells = (notebook.cells as Array<{ cell_type: string; source: string | string[] }> | undefined)
+        ?.map((cell, index) => ({ cell, index }))
+        ?.filter(({ cell }) => cell.cell_type === 'code')
+        ?.map(({ cell, index }) => ({
+          index,
+          source: Array.isArray(cell.source) ? cell.source.join('') : cell.source,
+        }));
 
       if (codeCells && codeCells.length > 0) {
-        for (let i = 0; i < codeCells.length; i++) {
-          const result = await executeCell(i, codeCells[i], activeSession.id);
+        for (const item of codeCells) {
+          const result = await executeCell(item.index, item.source, activeSession.id);
           if (!result?.success) break;
         }
         refreshVariables(activeSession.id);
@@ -149,6 +256,26 @@ export function InteractiveNotebook({
       setIsRunningAll(false);
     }
   }, [activeSession, content, executeCell, refreshVariables]);
+
+  useEffect(() => {
+    if (!activeSessionId || !onContentChange) return;
+    if (!content) return;
+    if (!sessionCells.length) return;
+
+    try {
+      const notebook = JSON.parse(content) as JupyterNotebook;
+      const updated = applyCellsToNotebook(notebook, sessionCells);
+      const nextContent = serializeNotebook(updated);
+
+      if (nextContent === content) return;
+      if (lastSyncedContentRef.current === nextContent) return;
+
+      lastSyncedContentRef.current = nextContent;
+      onContentChange(nextContent);
+    } catch (err) {
+      console.error('Failed to sync notebook outputs:', err);
+    }
+  }, [activeSessionId, applyCellsToNotebook, content, onContentChange, sessionCells]);
 
   // Handle variable inspection
   const handleInspectVariable = useCallback(

@@ -35,6 +35,7 @@ import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-states';
 import { workflowRepository } from '@/lib/db/repositories';
 import { useWorkflowEditorStore } from '@/stores/workflow';
+import { useShallow } from 'zustand/react/shallow';
 import type { VisualWorkflow } from '@/types/workflow/workflow-editor';
 
 interface SidebarWorkflowsProps {
@@ -58,7 +59,13 @@ export function SidebarWorkflows({
   const [isLoading, setIsLoading] = useState(true);
   const [runningWorkflowId, setRunningWorkflowId] = useState<string | null>(null);
 
-  const { loadWorkflow, startExecution, isExecuting } = useWorkflowEditorStore();
+  const { loadWorkflow, startExecution, isExecuting } = useWorkflowEditorStore(
+    useShallow((state) => ({
+      loadWorkflow: state.loadWorkflow,
+      startExecution: state.startExecution,
+      isExecuting: state.isExecuting,
+    }))
+  );
 
   // Load recent workflows
   const loadRecentWorkflows = useCallback(async () => {

@@ -4,7 +4,7 @@
 
 /**
  * Check if running in Tauri environment
- * Note: Tauri v2 uses __TAURI_INTERNALS__ instead of __TAURI__
+ * Note: Tauri v2 uses __TAURI_INTERNALS__
  */
 export function isTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;

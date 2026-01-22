@@ -81,10 +81,26 @@ export async function trimVideo(options: VideoTrimOptions): Promise<VideoProcess
 }
 
 /**
+ * Trim a video file with progress events
+ * Listen for 'video-processing-started', 'video-processing-progress', 'video-processing-completed', 'video-processing-error' events
+ */
+export async function trimVideoWithProgress(options: VideoTrimOptions): Promise<VideoProcessingResult> {
+  return invoke<VideoProcessingResult>("video_trim_with_progress", { options });
+}
+
+/**
  * Convert video format
  */
 export async function convertVideo(options: VideoConvertOptions): Promise<VideoProcessingResult> {
   return invoke<VideoProcessingResult>("video_convert", { options });
+}
+
+/**
+ * Convert video format with progress events
+ * Listen for 'video-processing-started', 'video-processing-progress', 'video-processing-completed', 'video-processing-error' events
+ */
+export async function convertVideoWithProgress(options: VideoConvertOptions): Promise<VideoProcessingResult> {
+  return invoke<VideoProcessingResult>("video_convert_with_progress", { options });
 }
 
 /**
@@ -103,6 +119,22 @@ export async function generateThumbnail(
   timestampMs: number = 0
 ): Promise<string> {
   return invoke<string>("video_generate_thumbnail", { 
+    videoPath, 
+    outputPath, 
+    timestampMs 
+  });
+}
+
+/**
+ * Generate video thumbnail with progress events
+ * Listen for 'video-processing-started', 'video-processing-completed', 'video-processing-error' events
+ */
+export async function generateThumbnailWithProgress(
+  videoPath: string,
+  outputPath: string,
+  timestampMs: number = 0
+): Promise<string> {
+  return invoke<string>("video_generate_thumbnail_with_progress", { 
     videoPath, 
     outputPath, 
     timestampMs 
@@ -169,4 +201,13 @@ export function estimateFileSize(
   };
   
   return Math.round(durationSeconds * bitrateMap[format] / 100);
+}
+
+/**
+ * Cancel ongoing video processing
+ */
+export async function cancelVideoProcessing(): Promise<boolean> {
+  // TODO: Implement backend command for canceling video processing
+  // return invoke<boolean>("video_cancel_processing");
+  return false;
 }

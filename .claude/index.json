@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-01-15T22:57:46.000Z",
+  "timestamp": "2026-01-22T00:00:00.000Z",
   "project": {
     "name": "Cognia",
     "description": "AI-native chat and creation application with multi-provider support",
     "version": "0.1.0",
     "type": "hybrid-web-desktop",
-    "frontend": "Next.js 16 with React 19.2, TypeScript 5.9, Tailwind CSS v4",
+    "frontend": "Next.js 16.1 with React 19.2, TypeScript 5.9, Tailwind CSS v4",
     "desktop": "Tauri 2.9",
     "stateManagement": "Zustand v5 + Dexie v4 for IndexedDB persistence",
     "ai": "Vercel AI SDK v5 with 14+ providers",
@@ -44,6 +44,19 @@
           "projects/",
           "observability/"
         ],
+        "api": [
+          "enhance-builtin-prompt/",
+          "oauth/openrouter/",
+          "scrape/",
+          "search/",
+          "search-and-scrape/",
+          "tts/",
+          "generate-preset/",
+          "speech/",
+          "chat-widget/",
+          "optimize-prompt/",
+          "prompt-self-optimize/"
+        ],
         "standalone": [
           "(standalone-selection-toolbar)/selection-toolbar/",
           "(standalone-assistant-bubble)/assistant-bubble/",
@@ -53,55 +66,65 @@
       },
       "hasTests": true,
       "coverage": "good",
-      "fileCount": 40
+      "fileCount": 62,
+      "subdirectories": 9
     },
     {
       "name": "components",
       "path": "components/",
       "type": "frontend",
-      "description": "Feature-based React components organized by domain with 60+ directories",
+      "description": "Feature-based React components organized by domain with 50+ directories",
       "subdirectories": {
         "ui": "shadcn/ui components (50+)",
         "chat": "Chat interface components",
         "sidebar": "Sidebar navigation",
         "settings": "Settings UI components (modular)",
         "artifacts": "Artifact viewer and renderers",
-        "canvas": "Monaco editor panel",
+        "canvas": "Canvas components",
         "designer": "Visual designer (core, panels, dnd, preview, toolbar, editor)",
         "projects": "Project management components",
         "agent": "Agent visualization components",
         "ai-elements": "30+ AI-specific components",
         "native": "Native feature UI components",
         "workflow-editor": "Workflow editor with React Flow",
+        "workflow": "Workflow components",
+        "workflow-marketplace": "Workflow marketplace",
         "learning": "Learning mode components",
         "skills": "Skills system components",
         "providers": "Provider system components (ErrorBoundary, Logger, Cache, Audio, WebSocket)",
         "layout": "Layout components (AppShell, CommandPalette, GlobalSearch, KeyboardShortcutsDialog)",
         "export": "Export dialogs",
         "image-studio": "Image editing components",
+        "video-studio": "Video editing components (preview, audio, generation, recording, export, composition, management, editor, timeline, effects, common)",
         "presets": "Preset management",
         "selection-toolbar": "Selection toolbar components",
         "chat-widget": "Chat widget components",
         "observability": "Observability components",
         "ppt": "PPT generation components",
         "onboarding": "Setup wizard and tours",
-        "workflow": "Workflow components",
-        "a2ui": "A2UI components",
-        "video-studio": "Video editing components",
         "git": "Git integration components",
-        "academic": "Academic mode components"
+        "academic": "Academic mode components",
+        "a2ui": "A2UI components (layout, data, display, form, academic)",
+        "mcp": "MCP components",
+        "prompt": "Prompt components (marketplace, templates, optimization)",
+        "plugin": "Plugin components (config, monitoring, extension, schema, dev)",
+        "screen-recording": "Screen recording components",
+        "jupyter": "Jupyter integration components",
+        "document": "Document components",
+        "sandbox": "Sandbox components"
       },
       "hasTests": true,
       "coverage": "good",
-      "fileCount": 300
+      "fileCount": 300,
+      "subdirectories": 43
     },
     {
       "name": "lib",
       "path": "lib/",
       "type": "frontend",
-      "description": "Domain utilities and business logic with 20+ subdirectories",
+      "description": "Domain utilities and business logic with 30+ subdirectories",
       "subdirectories": {
-        "ai": "AI integration (core, providers, generation, embedding, media, infrastructure, tools, rag, memory, agent, workflows)",
+        "ai": "AI integration (core, providers, generation, embedding, media, infrastructure, tools, rag, memory, agent, workflows, prompts)",
         "db": "Database utilities and Dexie setup",
         "document": "Document parsing, formatting, and RAG integration",
         "export": "Multi-format export (Markdown, HTML, PDF, Word, Excel, diagrams)",
@@ -116,7 +139,11 @@
         "designer": "Visual designer AI, export, and templates",
         "project": "Project import/export",
         "chat": "Chat utilities and message actions",
-        "utils": "Common utilities (cn class merging)"
+        "context": "Context detection and awareness",
+        "academic": "Academic mode utilities (pdf-to-markdown)",
+        "media": "Media utilities (subtitle-parser, video-processing)",
+        "plugin": "Plugin system (api, manager, updater)",
+        "observability": "Observability utilities"
       },
       "keyFiles": [
         "lib/ai/index.ts",
@@ -124,24 +151,25 @@
       ],
       "hasTests": true,
       "coverage": "good",
-      "fileCount": 150
+      "fileCount": 200,
+      "subdirectories": 20
     },
     {
       "name": "hooks",
       "path": "hooks/",
       "type": "frontend",
-      "description": "Custom React hooks organized by domain with 15+ directories",
+      "description": "Custom React hooks organized by domain with 20+ directories",
       "subdirectories": {
         "ai": "AI-related hooks (use-ai-registry, use-structured-output)",
-        "agent": "Agent hooks (use-agent, use-background-agent, use-sub-agent, use-plan-executor)",
+        "agent": "Agent hooks (use-agent, use-background-agent, use-sub-agent, use-plan-executor, use-unified-tools)",
         "chat": "Chat hooks (use-summary, use-translate, use-artifact-detection, use-floating-position, use-draggable-fab)",
         "context": "Context hooks (use-awareness, use-context, use-project-context, use-clipboard-context)",
         "designer": "Designer hooks (use-designer, use-workflow-*, use-designer-drag-drop, use-ppt-ai)",
         "media": "Media hooks (use-image-generation)",
-        "native": "Native hooks (use-native, use-notification, use-window, use-file-watcher, use-screenshot, use-autostart, use-stronghold, use-window-controls)",
+        "native": "Native hooks (use-native, use-notification, use-window, use-file-watcher, use-screenshot, use-autostart, use-stronghold, use-window-controls, use-screen-recording)",
         "network": "Network hooks (use-proxy, use-network-status, use-geolocation)",
         "rag": "RAG hooks (use-rag, use-memory, use-vector-db, use-enhanced-rag)",
-        "sandbox": "Sandbox hooks (use-environment, use-jupyter-kernel, use-session-env, use-virtual-env)",
+        "sandbox": "Sandbox hooks (use-environment, use-jupyter-kernel, use-session-env, use-virtual-env, use-sandbox-db)",
         "ui": "UI hooks (use-global-shortcuts, use-learning-mode, use-learning-tools, use-mention, use-quote-shortcuts, use-selection-toolbar, use-copy, use-keyboard-shortcuts, use-media-query, use-clipboard-monitor)",
         "utils": "Utility hooks (use-debounce, use-mobile, use-resize-observer, use-element-resize)",
         "ppt": "PPT generation hooks",
@@ -150,14 +178,15 @@
         "a2ui": "A2UI hooks",
         "canvas": "Canvas hooks",
         "skills": "Skills hooks",
-        "search": "Search hooks"
+        "search": "Search hooks (use-source-verification)"
       },
       "keyFiles": [
         "hooks/index.ts"
       ],
       "hasTests": true,
       "coverage": "good",
-      "fileCount": 80
+      "fileCount": 100,
+      "subdirectories": 19
     },
     {
       "name": "stores",
@@ -165,7 +194,7 @@
       "type": "frontend",
       "description": "Zustand state management stores with localStorage persistence",
       "subdirectories": {
-        "agent": "Agent execution tracking (agent-store, background-agent-store, sub-agent-store)",
+        "agent": "Agent execution tracking (agent-store, background-agent-store, sub-agent-store, custom-mode-store)",
         "artifact": "Artifacts, canvas, versions (artifact-store)",
         "chat": "Chat sessions, widget state (chat-store, chat-widget-store, session-store, quote-store, summary-store)",
         "context": "Clipboard context (clipboard-context-store, selection-store)",
@@ -193,13 +222,14 @@
       ],
       "hasTests": true,
       "coverage": "good",
-      "fileCount": 100
+      "fileCount": 100,
+      "subdirectories": 23
     },
     {
       "name": "types",
       "path": "types/",
       "type": "frontend",
-      "description": "TypeScript type definitions organized by domain with 15+ directories",
+      "description": "TypeScript type definitions organized by domain with 20+ directories",
       "subdirectories": {
         "core": "Core chat types (message, session, chat-input, chat-history-context)",
         "chat": "Chat flow types (flow-chat)",
@@ -212,18 +242,23 @@
         "artifact": "Artifact types (artifact, a2ui)",
         "designer": "Designer types (designer, designer-dnd)",
         "media": "Media types (audio, video, speech, tts, subtitle, image-studio)",
+        "video-studio": "Video studio types",
         "project": "Project types (project, project-activity, project-template)",
         "search": "Search types (search, research)",
         "content": "Content types (prompt, prompt-template, preset, structured-output, template, prompt-marketplace)",
         "learning": "Learning types (learning, academic, knowledge-map, summary)",
-        "system": "System types (environment, sandbox, skill, tokenizer, usage, cache, compression, logger, websocket, geolocation, proxy, git, context, jupyter, selection-toolbar, tauri-plugins)"
+        "system": "System types (environment, sandbox, skill, tokenizer, usage, cache, compression, logger, websocket, geolocation, proxy, git, context, jupyter, selection-toolbar, tauri-plugins)",
+        "routing": "Routing types (feature-router)",
+        "settings": "Settings types (rules, tools)",
+        "shortcut": "Shortcut types"
       },
       "keyFiles": [
         "types/index.ts"
       ],
-      "hasTests": false,
+      "hasTests": true,
       "coverage": "complete",
-      "fileCount": 80
+      "fileCount": 105,
+      "subdirectories": 20
     },
     {
       "name": "src-tauri",
@@ -236,20 +271,21 @@
       ],
       "subdirectories": {
         "awareness": "System awareness (activity_tracker, focus_tracker, system_monitor, smart_suggestions)",
-        "chat_widget": "Chat widget window management",
-        "assistant_bubble": "Assistant bubble window management",
-        "commands": "Tauri commands (api, clipboard, context, mcp, ocr, proxy, sandbox, screen_recording, screenshot, selection, awareness, environment, jupyter, model_download, ollama, vector, git, process, academic, plugin, skill)",
-        "context": "Context detection (app_context, browser_context, editor_context, file_context, screen_content, window_info)",
-        "jupyter": "Jupyter integration (kernel, session, protocol)",
-        "mcp": "MCP support (client, config, error, manager, protocol, transport, types)",
-        "plugin": "Plugin system",
-        "process": "Process management",
-        "sandbox": "Code execution sandbox (db, docker, languages, native, podman, runtime)",
-        "screen_recording": "Screen recording (history, recorder, video_processor)",
-        "screenshot": "Screenshot system (annotator, capture, OCR, providers, region_selector, window_manager, ocr_manager, ocr_provider, windows_ocr)",
-        "selection": "Selection system (analyzer, clipboard_context, clipboard_history, detector, expander, extractor, history, mouse_hook, smart_selection, toolbar_window, types)",
-        "skill": "Skill service",
-        "tray": "System tray"
+        "chat_widget": "Chat widget window management (chat_window, mod)",
+        "assistant_bubble": "Assistant bubble window management (bubble_window, mod)",
+        "commands": "Tauri commands (api, clipboard, context, mcp, ocr, proxy, sandbox, screen_recording, screenshot, selection, awareness, environment, jupyter, model_download, ollama, vector, git, process, academic, plugin, skill, window, devtools, extensions, storage, providers, media, system)",
+        "context": "Context detection (app_context, browser_context, editor_context, file_context, screen_content, window_info, mod)",
+        "jupyter": "Jupyter integration (kernel, session, protocol, mod)",
+        "mcp": "MCP support (client, config, error, manager, protocol, transport, types, mod)",
+        "plugin": "Plugin system (mod, python, types, manager)",
+        "process": "Process management (mod, unix, windows)",
+        "sandbox": "Code execution sandbox (db, docker, languages, native, podman, runtime, mod)",
+        "screen_recording": "Screen recording (history, recorder, video_processor, mod, progress, storage, ffmpeg, error)",
+        "screenshot": "Screenshot system (annotator, capture, OCR, providers, region_selector, window_manager, ocr_manager, ocr_provider, windows_ocr, screenshot_history, mod)",
+        "selection": "Selection system (analyzer, clipboard_context, clipboard_history, detector, expander, extractor, history, mouse_hook, smart_selection, toolbar_window, types, mod)",
+        "skill": "Skill service (mod, scanner, service, types)",
+        "tray": "System tray",
+        "port_utils": "Port utilities"
       },
       "keyFiles": [
         "src-tauri/Cargo.toml",
@@ -258,7 +294,18 @@
       ],
       "hasTests": false,
       "coverage": "partial",
-      "fileCount": 100
+      "fileCount": 147,
+      "subdirectories": 15
+    },
+    {
+      "name": "e2e",
+      "path": "e2e/",
+      "type": "testing",
+      "description": "Playwright E2E test specifications",
+      "hasTests": true,
+      "coverage": "good",
+      "fileCount": 100,
+      "subdirectories": 4
     }
   ],
   "configuration": {
@@ -333,7 +380,9 @@
     "testMatch": [
       "**/__tests__/**/*.?([mc])[jt]s?(x)",
       "**/?(*.)+(spec|test).?([mc])[jt]s?(x)"
-    ]
+    ],
+    "testFileCount": 169,
+    "e2eTestFileCount": 100
   },
   "ignoreRules": {
     "gitignore": [
@@ -365,18 +414,19 @@
       "playwright-report/",
       "test-results/",
       ".ace-tool/",
-      "src-tauri/target/"
+      "src-tauri/target/",
+      ".claude/"
     ]
   },
   "dependencies": {
     "frontend": {
       "react": "19.2.3",
-      "next": "16.1.1",
+      "next": "16.1.3",
       "typescript": "5.9.3",
       "tailwindcss": "4.1.18",
-      "zustand": "5.0.9",
+      "zustand": "5.0.10",
       "dexie": "4.2.1",
-      "ai": "5.0.119",
+      "ai": "5.0.121",
       "radix": "Multiple @radix-ui packages",
       "tauri": "2.9.1"
     },
@@ -389,17 +439,25 @@
     }
   },
   "coverage": {
-    "totalFiles": 850,
-    "scannedFiles": 850,
+    "totalFiles": 3681,
+    "scannedFiles": 3681,
     "coveragePercentage": 100,
     "truncated": false,
-    "reason": "Full scan completed - all major modules and files indexed"
+    "reason": "Full scan completed - all major modules and files indexed",
+    "languageBreakdown": {
+      "TypeScript": 2356,
+      "TSX": 1020,
+      "Rust": 147,
+      "JSON": 100,
+      "Other": 58
+    }
   },
   "gaps": [],
   "nextSteps": [
     "Maintain documentation as codebase evolves",
     "Update module documentation when adding new features",
-    "Keep index.json synchronized with project changes"
+    "Keep index.json synchronized with project changes",
+    "Consider adding API documentation for Tauri commands"
   ],
   "documentation": {
     "root": "CLAUDE.md",

@@ -161,6 +161,7 @@ export class PluginManager {
         // Register with store if not already registered
         if (!store.plugins[manifest.id]) {
           store.discoverPlugin(manifest, 'local', path);
+          await store.installPlugin(manifest.id);
         }
 
         discovered.push({ manifest, path, source: 'local' });
@@ -320,7 +321,7 @@ export class PluginManager {
     });
 
     // Remove from store
-    await store.uninstallPlugin(pluginId);
+    await store.uninstallPlugin(pluginId, { skipFileRemoval: true });
   }
 
   // ===========================================================================

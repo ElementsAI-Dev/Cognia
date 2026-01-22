@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { cn } from "@/lib/utils";
+import { useEffect, useRef, useState } from 'react';
+import { cn } from '@/lib/utils';
+import { isTauri } from '@/lib/native/utils';
 import { useChatWidget } from "@/hooks/chat";
 import { useChatWidgetStore } from "@/stores/chat";
 import { ChatWidgetHeader } from "./chat-widget-header";
@@ -53,7 +54,7 @@ export function ChatWidget({ className }: ChatWidgetProps) {
 
   // Listen for bubble "open settings" event
   useEffect(() => {
-    if (typeof window === "undefined" || !window.__TAURI__) return;
+    if (typeof window === 'undefined' || !isTauri()) return;
 
     let unlisten: (() => void) | undefined;
 
@@ -73,20 +74,26 @@ export function ChatWidget({ className }: ChatWidgetProps) {
 
   // Handle window dragging
   useEffect(() => {
-    if (typeof window === "undefined" || !window.__TAURI__) return;
+    if (typeof window === 'undefined' || !isTauri()) return;
 
     const handleMouseDown = async (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+      if (e.button !== 0) return;
+
+      if (target.closest('[data-no-drag],button,a,input,select,textarea,[role="button"]')) {
+        return;
+      }
+
       // Only start dragging if clicking on the header drag area
-      if (target.closest("[data-tauri-drag-region]")) {
-        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      if (target.closest('[data-tauri-drag-region]')) {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
         const appWindow = getCurrentWindow();
         await appWindow.startDragging();
       }
     };
 
-    document.addEventListener("mousedown", handleMouseDown);
-    return () => document.removeEventListener("mousedown", handleMouseDown);
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
   }, []);
 
   // Handle escape key to hide

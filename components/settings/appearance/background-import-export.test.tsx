@@ -7,6 +7,86 @@ import { BackgroundImportExport } from './background-import-export';
 import { useSettingsStore } from '@/stores';
 import { NextIntlClientProvider } from 'next-intl';
 
+jest.mock('@/stores', () => {
+  const defaultState = {
+    language: 'en' as const,
+    backgroundSettings: {
+      mode: 'single' as const,
+      layers: [
+        {
+          id: 'layer-1',
+          enabled: true,
+          source: 'preset' as const,
+          imageUrl: '',
+          localAssetId: null,
+          presetId: 'gradient-blue',
+          fit: 'cover' as const,
+          position: 'center' as const,
+          opacity: 80,
+          blur: 5,
+          overlayColor: '#000000',
+          overlayOpacity: 20,
+          brightness: 100,
+          saturation: 100,
+          attachment: 'fixed' as const,
+          animation: 'none' as const,
+          animationSpeed: 5,
+          contrast: 100,
+          grayscale: 0,
+        },
+      ],
+      slideshow: {
+        slides: [],
+        intervalMs: 15000,
+        transitionMs: 1000,
+        shuffle: false,
+      },
+      enabled: true,
+      source: 'preset' as const,
+      imageUrl: '',
+      localAssetId: null,
+      presetId: 'gradient-blue',
+      fit: 'cover' as const,
+      position: 'center' as const,
+      opacity: 80,
+      blur: 5,
+      overlayColor: '#000000',
+      overlayOpacity: 20,
+      brightness: 100,
+      saturation: 100,
+      attachment: 'fixed' as const,
+      animation: 'none' as const,
+      animationSpeed: 5,
+      contrast: 100,
+      grayscale: 0,
+    },
+    setBackgroundSettings: jest.fn(),
+  };
+
+  let state = { ...defaultState };
+
+  const useSettingsStoreImpl = ((selector: (s: typeof state) => unknown) => selector(state)) as unknown as {
+    <T>(selector: (s: typeof state) => T): T;
+    setState: (partial: Partial<typeof state>) => void;
+    getState: () => typeof state;
+  };
+
+  useSettingsStoreImpl.setState = (partial) => {
+    state = {
+      ...state,
+      ...partial,
+      backgroundSettings: partial.backgroundSettings
+        ? { ...state.backgroundSettings, ...partial.backgroundSettings }
+        : state.backgroundSettings,
+    };
+  };
+  useSettingsStoreImpl.getState = () => state;
+
+  return {
+    useSettingsStore: useSettingsStoreImpl,
+  };
+});
+
 // Mock next-intl
 const messages = {
   settings: {},
@@ -35,6 +115,36 @@ beforeEach(() => {
   // Reset store
   useSettingsStore.setState({
     backgroundSettings: {
+      mode: 'single',
+      layers: [
+        {
+          id: 'layer-1',
+          enabled: true,
+          source: 'preset',
+          imageUrl: '',
+          localAssetId: null,
+          presetId: 'gradient-blue',
+          fit: 'cover',
+          position: 'center',
+          opacity: 80,
+          blur: 5,
+          overlayColor: '#000000',
+          overlayOpacity: 20,
+          brightness: 100,
+          saturation: 100,
+          attachment: 'fixed',
+          animation: 'none',
+          animationSpeed: 5,
+          contrast: 100,
+          grayscale: 0,
+        },
+      ],
+      slideshow: {
+        slides: [],
+        intervalMs: 15000,
+        transitionMs: 1000,
+        shuffle: false,
+      },
       enabled: true,
       source: 'preset',
       imageUrl: '',
@@ -141,7 +251,8 @@ describe('BackgroundImportExport', () => {
       });
 
       // Close dialog
-      const closeButton = screen.getByRole('button', { name: /close/i });
+      const closeButtons = screen.getAllByRole('button', { name: /close/i });
+      const closeButton = closeButtons[closeButtons.length - 1];
       fireEvent.click(closeButton);
 
       await waitFor(() => {

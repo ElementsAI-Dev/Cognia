@@ -44,8 +44,8 @@ describe('GeolocationService', () => {
       configurable: true,
     });
 
-    // Mock window.__TAURI__ to be undefined (web environment)
-    Object.defineProperty(window, '__TAURI__', {
+    // Mock window.__TAURI_INTERNALS__ to be undefined (web environment)
+    Object.defineProperty(window, '__TAURI_INTERNALS__', {
       value: undefined,
       writable: true,
       configurable: true,

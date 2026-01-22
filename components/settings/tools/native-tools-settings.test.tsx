@@ -80,7 +80,7 @@ jest.mock('@/components/ui/tabs', () => ({
 
 jest.mock('@/components/ui/switch', () => ({
   Switch: ({ checked, onCheckedChange }: { checked?: boolean; onCheckedChange?: (v: boolean) => void }) => (
-    <button role="switch" aria-checked={checked} onClick={() => onCheckedChange?.(!checked)} data-testid="switch">
+    <button role="switch" aria-checked={String(checked)} onClick={() => onCheckedChange?.(!checked)} data-testid="switch">
       Switch
     </button>
   ),
@@ -91,6 +91,7 @@ jest.mock('@/components/ui/slider', () => ({
     <input
       type="range"
       data-testid="slider"
+      aria-label="Slider control"
       value={value?.[0] || 0}
       onChange={(e) => onValueChange?.([Number(e.target.value)])}
     />

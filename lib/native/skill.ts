@@ -10,6 +10,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { isTauri } from '@/lib/native/utils';
 
 // ========== Types ==========
 
@@ -139,6 +140,30 @@ export async function getAllSkills(): Promise<NativeSkill[]> {
 }
 
 /**
+ * Discover all skills (discoverable + installed + local)
+ */
+export async function discoverAllSkills(): Promise<{
+  discoverable: DiscoverableSkill[];
+  installed: InstalledSkill[];
+  local: LocalSkill[];
+}> {
+  return invoke('skill_discover_all');
+}
+
+/**
+ * Search and filter skills
+ */
+export async function searchSkills(filters: {
+  category?: string;
+  tags?: string[];
+  installed?: boolean;
+  enabled?: boolean;
+  query?: string;
+}): Promise<NativeSkill[]> {
+  return invoke('skill_search', { filters });
+}
+
+/**
  * Scan for local unregistered skills
  */
 export async function scanLocalSkills(): Promise<LocalSkill[]> {
@@ -152,13 +177,12 @@ export async function scanLocalSkills(): Promise<LocalSkill[]> {
  */
 export async function installSkill(skill: DiscoverableSkill): Promise<InstalledSkill> {
   return invoke<InstalledSkill>('skill_install', {
-    key: skill.key,
+    owner: skill.repoOwner,
+    repo: skill.repoName,
+    branch: skill.repoBranch,
+    directory: skill.directory,
     name: skill.name,
     description: skill.description,
-    directory: skill.directory,
-    repoOwner: skill.repoOwner,
-    repoName: skill.repoName,
-    repoBranch: skill.repoBranch,
     readmeUrl: skill.readmeUrl,
   });
 }
@@ -196,11 +220,25 @@ export async function getInstalledSkills(): Promise<InstalledSkill[]> {
   return invoke<InstalledSkill[]>('skill_get_installed');
 }
 
-/**
- * Get a specific installed skill
- */
 export async function getSkill(id: string): Promise<InstalledSkill | null> {
   return invoke<InstalledSkill | null>('skill_get', { id });
+}
+
+/**
+ * Get a specific installed skill or throw error
+ */
+export async function getSkillRequired(id: string): Promise<InstalledSkill> {
+  return invoke<InstalledSkill>('skill_get_required', { id });
+}
+
+/**
+ * Get skill state (legacy compatibility)
+ */
+export async function getSkillState(id: string): Promise<{
+  installed: boolean;
+  installedAt: string;
+}> {
+  return invoke('skill_get_state', { id });
 }
 
 /**
@@ -371,7 +409,7 @@ export async function getSecurityRuleCount(): Promise<number> {
  * Check if running in Tauri environment
  */
 export function isNativeSkillAvailable(): boolean {
-  return typeof window !== 'undefined' && '__TAURI__' in window;
+  return isTauri();
 }
 
 /**

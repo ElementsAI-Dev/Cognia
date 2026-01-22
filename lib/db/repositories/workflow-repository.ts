@@ -3,7 +3,8 @@
  */
 
 import { db, type DBWorkflow, type DBWorkflowExecution } from '../schema';
-import type { VisualWorkflow, WorkflowNode, WorkflowEdge, WorkflowSettings, WorkflowExecutionState, ExecutionLog } from '@/types/workflow/workflow-editor';
+import { createWorkflowExport } from '@/types/workflow/workflow-editor';
+import type { VisualWorkflow, WorkflowNode, WorkflowEdge, WorkflowSettings, WorkflowExecutionState, ExecutionLog, WorkflowExport } from '@/types/workflow/workflow-editor';
 import type { Viewport } from '@xyflow/react';
 import { nanoid } from 'nanoid';
 
@@ -22,6 +23,13 @@ const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettings = {
 
 // Default viewport
 const DEFAULT_VIEWPORT: Viewport = { x: 0, y: 0, zoom: 1 };
+
+function isWorkflowExport(data: unknown): data is WorkflowExport {
+  if (!data || typeof data !== 'object') return false;
+  if (!('workflow' in data)) return false;
+  const workflow = (data as { workflow?: unknown }).workflow;
+  return Boolean(workflow && typeof workflow === 'object');
+}
 
 // Convert DBWorkflow to VisualWorkflow
 function toVisualWorkflow(dbWorkflow: DBWorkflow): VisualWorkflow {
@@ -213,6 +221,40 @@ export const workflowRepository = {
   },
 
   /**
+   * Save (upsert) a workflow using its existing ID
+   */
+  async save(workflow: VisualWorkflow, options?: { isTemplate?: boolean }): Promise<VisualWorkflow> {
+    const existing = await db.workflows.get(workflow.id);
+    const isTemplate = options?.isTemplate ?? workflow.isTemplate ?? false;
+    const now = new Date();
+
+    if (existing) {
+      const updated = await workflowRepository.update(workflow.id, {
+        name: workflow.name,
+        description: workflow.description,
+        category: workflow.category,
+        icon: workflow.icon,
+        tags: workflow.tags,
+        nodes: workflow.nodes,
+        edges: workflow.edges,
+        settings: workflow.settings,
+        viewport: workflow.viewport,
+      });
+
+      return updated ?? { ...workflow, updatedAt: now };
+    }
+
+    const toInsert: VisualWorkflow = {
+      ...workflow,
+      updatedAt: now,
+      isTemplate,
+    };
+
+    await db.workflows.add(toDBWorkflow(toInsert, isTemplate));
+    return toInsert;
+  },
+
+  /**
    * Update an existing workflow
    */
   async update(id: string, input: UpdateWorkflowInput): Promise<VisualWorkflow | undefined> {
@@ -294,7 +336,10 @@ export const workflowRepository = {
    * Import a workflow from JSON
    */
   async import(workflowJson: string, asTemplate = false): Promise<VisualWorkflow> {
-    const imported = JSON.parse(workflowJson) as VisualWorkflow;
+    const parsed = JSON.parse(workflowJson) as unknown;
+    const imported = isWorkflowExport(parsed)
+      ? (parsed as WorkflowExport).workflow
+      : (parsed as VisualWorkflow);
     const now = new Date();
 
     const workflow: VisualWorkflow = {
@@ -316,7 +361,8 @@ export const workflowRepository = {
     const workflow = await db.workflows.get(id);
     if (!workflow) return undefined;
 
-    return JSON.stringify(toVisualWorkflow(workflow), null, 2);
+    const visual = toVisualWorkflow(workflow);
+    return JSON.stringify(createWorkflowExport(visual), null, 2);
   },
 
   // Execution methods

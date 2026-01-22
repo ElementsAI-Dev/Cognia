@@ -21,6 +21,41 @@ mod windows;
 #[cfg(unix)]
 mod unix;
 
+#[cfg(test)]
+fn apply_filter_for_test(info: &ProcessInfo, filter: &ProcessFilter) -> bool {
+    #[cfg(windows)]
+    {
+        return windows::apply_filter(info, filter);
+    }
+    #[cfg(unix)]
+    {
+        return unix::apply_filter(info, filter);
+    }
+    #[cfg(not(any(windows, unix)))]
+    {
+        let _ = (info, filter);
+        false
+    }
+}
+
+#[cfg(test)]
+fn sort_processes_for_test(processes: &mut [ProcessInfo], sort_by: ProcessSortField, desc: bool) {
+    #[cfg(windows)]
+    {
+        windows::sort_processes(processes, sort_by, desc);
+        return;
+    }
+    #[cfg(unix)]
+    {
+        unix::sort_processes(processes, sort_by, desc);
+        return;
+    }
+    #[cfg(not(any(windows, unix)))]
+    {
+        let _ = (processes, sort_by, desc);
+    }
+}
+
 /// Maximum number of processes to list at once
 pub const MAX_PROCESS_LIST: usize = 500;
 
@@ -516,5 +551,184 @@ impl std::error::Error for ProcessError {}
 impl From<std::io::Error> for ProcessError {
     fn from(e: std::io::Error) -> Self {
         ProcessError::System(e.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn new_uses_default_config_when_missing() {
+        let dir = tempdir().expect("tempdir");
+        let config_path = dir.path().join("process.json");
+
+        let manager = ProcessManager::new(config_path).await.expect("manager");
+        let config = manager.get_config().await;
+
+        assert!(!config.enabled);
+        assert_eq!(config.default_timeout_secs, DEFAULT_OPERATION_TIMEOUT);
+        assert!(config.allowed_programs.is_empty());
+    }
+
+    #[tokio::test]
+    async fn update_config_persists_and_loads() {
+        let dir = tempdir().expect("tempdir");
+        let config_path = dir.path().join("process.json");
+
+        let manager = ProcessManager::new(config_path.clone()).await.expect("manager");
+        let mut updated = ProcessManagerConfig::default();
+        updated.enabled = true;
+        updated.allowed_programs = vec!["python".to_string()];
+        updated.max_tracked_processes = 42;
+
+        manager.update_config(updated).await.expect("update");
+
+        let manager_reload = ProcessManager::new(config_path).await.expect("manager reload");
+        let config = manager_reload.get_config().await;
+
+        assert!(config.enabled);
+        assert_eq!(config.allowed_programs, vec!["python".to_string()]);
+        assert_eq!(config.max_tracked_processes, 42);
+    }
+
+    #[tokio::test]
+    async fn is_program_allowed_respects_enabled_and_lists() {
+        let dir = tempdir().expect("tempdir");
+        let config_path = dir.path().join("process.json");
+        let manager = ProcessManager::new(config_path).await.expect("manager");
+
+        assert!(!manager.is_program_allowed("python").await);
+
+        let mut enabled_config = ProcessManagerConfig::default();
+        enabled_config.enabled = true;
+        enabled_config.denied_programs = vec!["rm".to_string()];
+        manager.update_config(enabled_config).await.expect("update");
+
+        assert!(!manager.is_program_allowed("rm").await);
+        assert!(manager.is_program_allowed("node").await);
+
+        let mut allowlist_config = ProcessManagerConfig::default();
+        allowlist_config.enabled = true;
+        allowlist_config.allowed_programs = vec!["python".to_string()];
+        manager.update_config(allowlist_config).await.expect("update");
+
+        assert!(manager.is_program_allowed("python3").await);
+        assert!(!manager.is_program_allowed("node").await);
+    }
+
+    #[tokio::test]
+    async fn can_terminate_respects_tracking_and_flags() {
+        let dir = tempdir().expect("tempdir");
+        let config_path = dir.path().join("process.json");
+        let manager = ProcessManager::new(config_path).await.expect("manager");
+
+        let mut config = ProcessManagerConfig::default();
+        config.enabled = true;
+        config.allow_terminate_any = true;
+        manager.update_config(config).await.expect("update");
+
+        assert!(manager.can_terminate(123).await);
+
+        let mut tracking_config = ProcessManagerConfig::default();
+        tracking_config.enabled = true;
+        tracking_config.allow_terminate_any = false;
+        tracking_config.only_terminate_own = true;
+        manager.update_config(tracking_config).await.expect("update");
+
+        assert!(!manager.can_terminate(456).await);
+        manager.track_process(456).await;
+        assert!(manager.can_terminate(456).await);
+        manager.untrack_process(456).await;
+        assert!(!manager.can_terminate(456).await);
+    }
+
+    #[tokio::test]
+    async fn track_process_respects_capacity() {
+        let dir = tempdir().expect("tempdir");
+        let config_path = dir.path().join("process.json");
+        let manager = ProcessManager::new(config_path).await.expect("manager");
+
+        let mut config = ProcessManagerConfig::default();
+        config.enabled = true;
+        config.max_tracked_processes = 2;
+        manager.update_config(config).await.expect("update");
+
+        manager.track_process(1).await;
+        manager.track_process(2).await;
+        manager.track_process(3).await;
+
+        let tracked = manager.get_tracked_processes().await;
+        assert_eq!(tracked, vec![2, 3]);
+    }
+
+    #[test]
+    fn apply_filter_handles_name_and_memory() {
+        let info = ProcessInfo {
+            pid: 10,
+            name: "python".to_string(),
+            exe_path: None,
+            cmd_line: None,
+            parent_pid: Some(1),
+            cpu_percent: Some(2.5),
+            memory_bytes: Some(2048),
+            status: ProcessStatus::Running,
+            start_time: Some(100),
+            user: Some("tester".to_string()),
+            cwd: None,
+        };
+
+        let filter = ProcessFilter {
+            name: Some("py".to_string()),
+            min_memory: Some(1024),
+            ..Default::default()
+        };
+
+        assert!(apply_filter_for_test(&info, &filter));
+
+        let mismatched = ProcessFilter {
+            name: Some("node".to_string()),
+            ..Default::default()
+        };
+
+        assert!(!apply_filter_for_test(&info, &mismatched));
+    }
+
+    #[test]
+    fn sort_processes_orders_by_memory_desc() {
+        let mut processes = vec![
+            ProcessInfo {
+                pid: 1,
+                name: "alpha".to_string(),
+                exe_path: None,
+                cmd_line: None,
+                parent_pid: None,
+                cpu_percent: None,
+                memory_bytes: Some(100),
+                status: ProcessStatus::Running,
+                start_time: None,
+                user: None,
+                cwd: None,
+            },
+            ProcessInfo {
+                pid: 2,
+                name: "beta".to_string(),
+                exe_path: None,
+                cmd_line: None,
+                parent_pid: None,
+                cpu_percent: None,
+                memory_bytes: Some(200),
+                status: ProcessStatus::Running,
+                start_time: None,
+                user: None,
+                cwd: None,
+            },
+        ];
+
+        sort_processes_for_test(&mut processes, ProcessSortField::Memory, true);
+
+        assert_eq!(processes[0].pid, 2);
+        assert_eq!(processes[1].pid, 1);
     }
 }

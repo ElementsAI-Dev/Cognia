@@ -55,19 +55,6 @@ pub struct FFmpegInstallGuide {
     pub quick_install: Option<String>,
 }
 
-/// Check if FFmpeg is available
-#[allow(dead_code)]
-pub fn check_ffmpeg() -> bool {
-    debug!("[FFmpeg] Checking availability");
-    Command::new("ffmpeg")
-        .arg("-version")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
-}
-
 /// Get detailed FFmpeg information
 pub fn get_ffmpeg_info() -> FFmpegInfo {
     debug!("[FFmpeg] Getting detailed info");

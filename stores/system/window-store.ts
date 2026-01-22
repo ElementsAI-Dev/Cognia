@@ -44,6 +44,12 @@ export interface WindowConstraints {
   maxHeight?: number;
 }
 
+export interface TitleBarCustomLayout {
+  left: string[];
+  center: string[];
+  right: string[];
+}
+
 export interface WindowState {
   // Window state flags
   isMaximized: boolean;
@@ -89,6 +95,7 @@ export interface WindowPreferences {
   titleBarHeight: number;
   enableDoubleClickMaximize: boolean;
   enableDragToMove: boolean;
+  titleBarCustomLayout: TitleBarCustomLayout;
 }
 
 interface WindowStoreState extends WindowState {
@@ -138,6 +145,7 @@ interface WindowStoreState extends WindowState {
   setTitleBarHeight: (height: number) => void;
   setEnableDoubleClickMaximize: (enable: boolean) => void;
   setEnableDragToMove: (enable: boolean) => void;
+  setTitleBarCustomLayout: (layout: TitleBarCustomLayout) => void;
 
   // Bulk state update
   updateWindowState: (state: Partial<WindowState>) => void;
@@ -155,6 +163,11 @@ const defaultPreferences: WindowPreferences = {
   titleBarHeight: 32,
   enableDoubleClickMaximize: true,
   enableDragToMove: true,
+  titleBarCustomLayout: {
+    left: [],
+    center: [],
+    right: [],
+  },
 };
 
 const initialWindowState: WindowState = {
@@ -257,6 +270,9 @@ export const useWindowStore = create<WindowStoreState>()(
       setEnableDragToMove: (enableDragToMove) => set((state) => ({
         preferences: { ...state.preferences, enableDragToMove },
       })),
+      setTitleBarCustomLayout: (titleBarCustomLayout) => set((state) => ({
+        preferences: { ...state.preferences, titleBarCustomLayout },
+      })),
 
       // Bulk state update
       updateWindowState: (windowState) => set((state) => ({
@@ -270,6 +286,26 @@ export const useWindowStore = create<WindowStoreState>()(
     {
       name: 'cognia-window-store',
       storage: createJSONStorage(() => localStorage),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<WindowStoreState> | undefined;
+        if (!persisted) return currentState;
+
+        const persistedPreferences = persisted.preferences;
+        const mergedPreferences: WindowPreferences = {
+          ...currentState.preferences,
+          ...(persistedPreferences ?? {}),
+          titleBarCustomLayout: {
+            ...currentState.preferences.titleBarCustomLayout,
+            ...(persistedPreferences?.titleBarCustomLayout ?? {}),
+          },
+        };
+
+        return {
+          ...currentState,
+          ...persisted,
+          preferences: mergedPreferences,
+        };
+      },
       partialize: (state) => ({
         preferences: state.preferences,
         size: state.size,

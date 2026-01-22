@@ -20,8 +20,9 @@ pub use error::{RecordingError, RecordingErrorCode};
 pub use ffmpeg::{FFmpegInfo, FFmpegInstallGuide, HardwareAcceleration};
 #[allow(unused_imports)]
 pub use progress::VideoProcessingProgress;
+pub use storage::{CleanupResult, StorageConfig, StorageManager, StorageStats};
 #[allow(unused_imports)]
-pub use storage::{CleanupResult, StorageConfig, StorageFile, StorageManager, StorageStats};
+pub use storage::{StorageFile, StorageFileType};
 pub use history::{RecordingHistory, RecordingHistoryEntry};
 pub use recorder::ScreenRecorder;
 pub use video_processor::{
@@ -31,6 +32,7 @@ pub use video_processor::{
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::AppHandle;
 
@@ -165,6 +167,7 @@ pub struct ScreenRecordingManager {
     config: Arc<RwLock<RecordingConfig>>,
     recorder: ScreenRecorder,
     history: RecordingHistory,
+    storage: StorageManager,
     #[allow(dead_code)]
     app_handle: AppHandle,
 }
@@ -179,6 +182,13 @@ impl ScreenRecordingManager {
             .app_data_dir()
             .ok()
             .map(|p| p.join("recordings"));
+
+        // Get screenshots directory
+        let screenshots_dir = app_handle
+            .path()
+            .app_data_dir()
+            .ok()
+            .map(|p| p.join("screenshots"));
 
         // Create recordings directory if it doesn't exist
         if let Some(ref dir) = recordings_dir {
@@ -196,9 +206,34 @@ impl ScreenRecordingManager {
             warn!("[ScreenRecording] Could not determine app data directory for recordings");
         }
 
+        // Create screenshots directory if it doesn't exist
+        if let Some(ref dir) = screenshots_dir {
+            match std::fs::create_dir_all(dir) {
+                Ok(_) => debug!(
+                    "[ScreenRecording] Screenshots directory created/verified: {:?}",
+                    dir
+                ),
+                Err(e) => warn!(
+                    "[ScreenRecording] Failed to create screenshots directory: {}",
+                    e
+                ),
+            }
+        }
+
         let config = RecordingConfig {
-            save_directory: recordings_dir.map(|p| p.to_string_lossy().to_string()),
+            save_directory: recordings_dir.as_ref().map(|p| p.to_string_lossy().to_string()),
             ..Default::default()
+        };
+
+        // Initialize storage manager
+        let storage_config = StorageConfig {
+            recordings_dir: recordings_dir.clone().unwrap_or_else(|| PathBuf::from("recordings")),
+            screenshots_dir: screenshots_dir.unwrap_or_else(|| PathBuf::from("screenshots")),
+            organize_by_date: true,
+            max_storage_gb: 10.0,
+            auto_cleanup_days: 30,
+            preserve_pinned: true,
+            semantic_naming: true,
         };
 
         debug!(
@@ -210,6 +245,7 @@ impl ScreenRecordingManager {
             config: Arc::new(RwLock::new(config.clone())),
             recorder: ScreenRecorder::new(app_handle.clone()),
             history: RecordingHistory::new(),
+            storage: StorageManager::new(storage_config),
             app_handle,
         }
     }
@@ -504,6 +540,70 @@ impl ScreenRecordingManager {
     /// Get available audio devices
     pub fn get_audio_devices(&self) -> AudioDevices {
         self.recorder.get_audio_devices()
+    }
+
+    // ==================== Storage Management Methods ====================
+
+    /// Get storage statistics
+    pub fn get_storage_stats(&self) -> StorageStats {
+        debug!("[ScreenRecording] Getting storage statistics");
+        self.storage.get_stats()
+    }
+
+    /// Get storage configuration
+    pub fn get_storage_config(&self) -> StorageConfig {
+        self.storage.get_config()
+    }
+
+    /// Update storage configuration
+    pub fn update_storage_config(&mut self, config: StorageConfig) {
+        info!("[ScreenRecording] Updating storage configuration");
+        self.storage.update_config(config);
+    }
+
+    /// Generate filename for a new recording
+    pub fn generate_recording_filename(&self, mode: &str, format: &str, custom_name: Option<&str>) -> String {
+        self.storage.generate_recording_filename(mode, format, custom_name)
+    }
+
+    /// Get full path for a recording file
+    pub fn get_recording_path(&self, filename: &str) -> Result<String, String> {
+        self.storage.get_recording_path(filename)
+            .map(|p| p.to_string_lossy().to_string())
+    }
+
+    /// Generate filename for a screenshot
+    pub fn generate_screenshot_filename(&self, mode: &str, format: &str, custom_name: Option<&str>) -> String {
+        self.storage.generate_screenshot_filename(mode, format, custom_name)
+    }
+
+    /// Get full path for a screenshot file
+    pub fn get_screenshot_path(&self, filename: &str) -> Result<String, String> {
+        self.storage.get_screenshot_path(filename)
+            .map(|p| p.to_string_lossy().to_string())
+    }
+
+    /// Check if storage limit is exceeded
+    pub fn is_storage_exceeded(&self) -> bool {
+        self.storage.is_storage_exceeded()
+    }
+
+    /// Get storage usage percentage
+    pub fn get_storage_usage_percent(&self) -> f32 {
+        self.storage.get_storage_usage_percent()
+    }
+
+    /// Cleanup old files based on configuration
+    pub fn cleanup_old_files(&self) -> Result<CleanupResult, String> {
+        info!("[ScreenRecording] Running storage cleanup");
+        let pinned_ids: Vec<String> = self.history
+            .get_all()
+            .iter()
+            .filter(|e| e.is_pinned)
+            .map(|e| e.id.clone())
+            .collect();
+        
+        self.storage.cleanup_old_files(&pinned_ids)
     }
 }
 

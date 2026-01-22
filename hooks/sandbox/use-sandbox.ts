@@ -19,6 +19,8 @@ interface UseSandboxState {
   status: SandboxStatus | null;
   config: BackendSandboxConfig | null;
   languages: Language[];
+  allLanguages: Language[];
+  availableLanguages: string[];
   runtimes: RuntimeType[];
   error: string | null;
 }
@@ -31,6 +33,8 @@ interface UseSandboxActions {
   setRuntime: (runtime: RuntimeType) => Promise<void>;
   toggleLanguage: (language: string, enabled: boolean) => Promise<void>;
   prepareLanguage: (language: string) => Promise<void>;
+  refreshAllLanguages: () => Promise<void>;
+  refreshAvailableLanguages: () => Promise<void>;
 }
 
 export function useSandbox(): UseSandboxState & UseSandboxActions {
@@ -40,6 +44,8 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
     status: null,
     config: null,
     languages: [],
+    allLanguages: [],
+    availableLanguages: [],
     runtimes: [],
     error: null,
   });
@@ -57,16 +63,20 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
           status: null,
           config: null,
           languages: [],
+          allLanguages: [],
+          availableLanguages: [],
           runtimes: [],
           error: null,
         });
         return;
       }
 
-      const [status, languages, runtimes] = await Promise.all([
+      const [status, languages, runtimes, allLanguages, availableLanguages] = await Promise.all([
         sandboxService.getStatus(),
         sandboxService.getLanguages(),
         sandboxService.getRuntimes(),
+        sandboxService.getAllLanguages(),
+        sandboxService.getAvailableLanguages(),
       ]);
 
       setState({
@@ -75,6 +85,8 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
         status,
         config: status.config,
         languages,
+        allLanguages,
+        availableLanguages,
         runtimes,
         error: null,
       });
@@ -142,6 +154,22 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
     []
   );
 
+  const refreshAllLanguages = useCallback(async () => {
+    if (!state.isAvailable) {
+      throw new Error('Sandbox is not available');
+    }
+    const allLanguages = await sandboxService.getAllLanguages();
+    setState((prev) => ({ ...prev, allLanguages }));
+  }, [state.isAvailable]);
+
+  const refreshAvailableLanguages = useCallback(async () => {
+    if (!state.isAvailable) {
+      throw new Error('Sandbox is not available');
+    }
+    const availableLanguages = await sandboxService.getAvailableLanguages();
+    setState((prev) => ({ ...prev, availableLanguages }));
+  }, [state.isAvailable]);
+
   return {
     ...state,
     execute,
@@ -151,6 +179,8 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
     setRuntime,
     toggleLanguage,
     prepareLanguage,
+    refreshAllLanguages,
+    refreshAvailableLanguages,
   };
 }
 

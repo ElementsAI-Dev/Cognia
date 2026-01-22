@@ -2,10 +2,12 @@
 //!
 //! Provides video trimming, conversion, and export via FFmpeg
 
+use super::progress::{emit_processing_error, VideoProcessingProgress};
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Command;
+use tauri::{AppHandle, Emitter};
 
 /// Video trim options
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,6 +70,53 @@ impl VideoProcessor {
             .output()
             .map(|o| o.status.success())
             .unwrap_or(false)
+    }
+
+    /// Emit progress started event
+    fn emit_started(app_handle: Option<&AppHandle>, operation: &str) {
+        if let Some(app) = app_handle {
+            let progress = VideoProcessingProgress {
+                operation: operation.to_string(),
+                progress: 0.0,
+                current_time: 0.0,
+                total_duration: None,
+                eta_seconds: None,
+                speed: None,
+                bitrate: None,
+                complete: false,
+                error: None,
+            };
+            let _ = app.emit("video-processing-started", &progress);
+        }
+    }
+
+    /// Emit progress update event
+    #[allow(dead_code)]
+    fn emit_progress(app_handle: Option<&AppHandle>, operation: &str, progress: f32, current_time: f64, total_duration: Option<f64>) {
+        if let Some(app) = app_handle {
+            let progress_event = VideoProcessingProgress {
+                operation: operation.to_string(),
+                progress,
+                current_time,
+                total_duration,
+                eta_seconds: total_duration.map(|t| (t - current_time).max(0.0)),
+                speed: None,
+                bitrate: None,
+                complete: false,
+                error: None,
+            };
+            let _ = app.emit("video-processing-progress", &progress_event);
+        }
+    }
+
+    /// Emit progress completed event
+    fn emit_completed(app_handle: Option<&AppHandle>, operation: &str, output_path: &str) {
+        if let Some(app) = app_handle {
+            let _ = app.emit("video-processing-completed", serde_json::json!({
+                "operation": operation,
+                "outputPath": output_path,
+            }));
+        }
     }
 
     /// Trim a video file
@@ -167,6 +216,25 @@ impl VideoProcessor {
         })
     }
 
+    /// Trim a video file with progress events
+    pub fn trim_video_with_progress(
+        options: &VideoTrimOptions,
+        app_handle: &AppHandle,
+    ) -> Result<VideoProcessingResult, String> {
+        Self::emit_started(Some(app_handle), "trim");
+
+        match Self::trim_video(options) {
+            Ok(result) => {
+                Self::emit_completed(Some(app_handle), "trim", &result.output_path);
+                Ok(result)
+            }
+            Err(e) => {
+                emit_processing_error(app_handle, "trim", &e);
+                Err(e)
+            }
+        }
+    }
+
     /// Convert video format
     pub fn convert_video(options: &VideoConvertOptions) -> Result<VideoProcessingResult, String> {
         info!(
@@ -257,6 +325,25 @@ impl VideoProcessor {
             duration_ms,
             error: None,
         })
+    }
+
+    /// Convert video format with progress events
+    pub fn convert_video_with_progress(
+        options: &VideoConvertOptions,
+        app_handle: &AppHandle,
+    ) -> Result<VideoProcessingResult, String> {
+        Self::emit_started(Some(app_handle), "convert");
+
+        match Self::convert_video(options) {
+            Ok(result) => {
+                Self::emit_completed(Some(app_handle), "convert", &result.output_path);
+                Ok(result)
+            }
+            Err(e) => {
+                emit_processing_error(app_handle, "convert", &e);
+                Err(e)
+            }
+        }
     }
 
     /// Get video information using FFprobe
@@ -364,6 +451,27 @@ impl VideoProcessor {
             Ok(output_path.to_string())
         } else {
             Err("Failed to generate thumbnail".to_string())
+        }
+    }
+
+    /// Generate a thumbnail from video with progress events
+    pub fn generate_thumbnail_with_progress(
+        video_path: &str,
+        output_path: &str,
+        timestamp_ms: u64,
+        app_handle: &AppHandle,
+    ) -> Result<String, String> {
+        Self::emit_started(Some(app_handle), "thumbnail");
+
+        match Self::generate_thumbnail(video_path, output_path, timestamp_ms) {
+            Ok(result) => {
+                Self::emit_completed(Some(app_handle), "thumbnail", &result);
+                Ok(result)
+            }
+            Err(e) => {
+                emit_processing_error(app_handle, "thumbnail", &e);
+                Err(e)
+            }
         }
     }
 

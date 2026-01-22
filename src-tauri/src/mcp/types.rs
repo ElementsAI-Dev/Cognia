@@ -41,6 +41,10 @@ pub struct McpServerConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 
+    /// Message endpoint URL for SSE (optional, defaults to url)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message_url: Option<String>,
+
     /// Whether the server is enabled
     #[serde(default = "default_true")]
     pub enabled: bool,
@@ -63,6 +67,7 @@ impl Default for McpServerConfig {
             env: HashMap::new(),
             connection_type: McpConnectionType::Stdio,
             url: None,
+            message_url: None,
             enabled: true,
             auto_start: false,
         }
@@ -1417,6 +1422,7 @@ mod tests {
             env: HashMap::from([("KEY".to_string(), "VALUE".to_string())]),
             connection_type: McpConnectionType::Stdio,
             url: None,
+            message_url: None,
             enabled: true,
             auto_start: true,
         };

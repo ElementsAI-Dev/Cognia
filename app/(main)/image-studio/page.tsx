@@ -230,27 +230,40 @@ export default function ImageStudioPage() {
   } = useImageStudioStore();
 
   // Convert store images to component format for backwards compatibility
-  const generatedImages: GeneratedImageWithMeta[] = storeImages.map(img => ({
-    url: img.url,
-    base64: img.base64,
-    revisedPrompt: img.revisedPrompt,
-    id: img.id,
-    prompt: img.prompt,
-    model: img.model,
-    timestamp: img.timestamp,
-    settings: {
-      size: img.size,
-      quality: img.quality,
-      style: img.style,
-    },
-    isFavorite: img.isFavorite,
-    parentId: img.parentId,
-    version: img.version,
-  }));
+  const generatedImages: GeneratedImageWithMeta[] = useMemo(
+    () =>
+      storeImages.map((img) => ({
+        url: img.url,
+        base64: img.base64,
+        revisedPrompt: img.revisedPrompt,
+        id: img.id,
+        prompt: img.prompt,
+        model: img.model,
+        timestamp: img.timestamp,
+        settings: {
+          size: img.size,
+          quality: img.quality,
+          style: img.style,
+        },
+        isFavorite: img.isFavorite,
+        parentId: img.parentId,
+        version: img.version,
+      })),
+    [storeImages]
+  );
 
-  const selectedImage = selectedImageId 
-    ? generatedImages.find(img => img.id === selectedImageId) || null 
-    : null;
+  const imagesById = useMemo(() => {
+    const map = new Map<string, GeneratedImageWithMeta>();
+    for (const img of generatedImages) {
+      map.set(img.id, img);
+    }
+    return map;
+  }, [generatedImages]);
+
+  const selectedImage = useMemo(() => {
+    if (!selectedImageId) return null;
+    return imagesById.get(selectedImageId) ?? null;
+  }, [imagesById, selectedImageId]);
 
   // Sync local prompt state for controlled input
   const [prompt, setPrompt] = useState(storePrompt);

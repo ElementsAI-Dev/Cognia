@@ -428,6 +428,7 @@ mod tests {
                 env: HashMap::new(),
                 connection_type: McpConnectionType::Stdio,
                 url: None,
+                message_url: None,
                 enabled: true,
                 auto_start: false,
             },

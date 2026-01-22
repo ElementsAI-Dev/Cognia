@@ -79,21 +79,17 @@ impl TextExtractor {
                 return Ok(Some(text));
             }
             Ok(_) => {
-                log::debug!(
-                    "[TextExtractor] UI Automation returned no text, trying clipboard fallback"
-                );
+                log::debug!("[TextExtractor] UI Automation returned no text");
             }
             Err(e) => {
                 log::debug!(
-                    "[TextExtractor] UI Automation failed: {}, trying clipboard fallback",
+                    "[TextExtractor] UI Automation failed: {}",
                     e
                 );
             }
         }
 
-        // Fallback: try clipboard method with retries
-        log::trace!("[TextExtractor] Attempting clipboard fallback method");
-        self.get_text_via_clipboard_with_retry()
+        Ok(None)
     }
 
     #[cfg(not(target_os = "windows"))]
@@ -320,11 +316,13 @@ impl TextExtractor {
         }
 
         // Save current clipboard content
-        let mut clipboard = Clipboard::new().map_err(|e| {
-            log::warn!("[TextExtractor] Failed to create clipboard instance: {}", e);
-            format!("Failed to create clipboard: {}", e)
-        })?;
-        let original = clipboard.get_text().ok();
+        let original = {
+            let mut clipboard = Clipboard::new().map_err(|e| {
+                log::warn!("[TextExtractor] Failed to create clipboard instance: {}", e);
+                format!("Failed to create clipboard: {}", e)
+            })?;
+            clipboard.get_text().ok()
+        };
         log::trace!(
             "[TextExtractor] Saved original clipboard content: {} chars",
             original.as_ref().map(|s| s.len()).unwrap_or(0)
@@ -409,26 +407,17 @@ impl TextExtractor {
         }
 
         // Read new clipboard content
-        let new_text = clipboard.get_text().ok();
+        let new_text = {
+            let mut clipboard = Clipboard::new().map_err(|e| {
+                log::warn!("[TextExtractor] Failed to create clipboard instance: {}", e);
+                format!("Failed to create clipboard: {}", e)
+            })?;
+            clipboard.get_text().ok()
+        };
         log::trace!(
             "[TextExtractor] New clipboard content: {} chars",
             new_text.as_ref().map(|s| s.len()).unwrap_or(0)
         );
-
-        // Restore original clipboard if we got new text
-        if let Some(ref orig) = original {
-            if new_text.is_some() && new_text != original {
-                log::trace!("[TextExtractor] Scheduling clipboard restoration");
-                let orig_clone = orig.clone();
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(150));
-                    if let Ok(mut cb) = Clipboard::new() {
-                        let _ = cb.set_text(orig_clone);
-                        log::trace!("[TextExtractor] Original clipboard content restored");
-                    }
-                });
-            }
-        }
 
         // Return new text if different from original
         if new_text != original {

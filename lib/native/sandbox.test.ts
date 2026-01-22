@@ -18,6 +18,12 @@ import type {
   Language,
 } from '@/types/system/sandbox';
 
+// Mock Tauri invoke function
+const mockInvoke = jest.fn();
+jest.mock('@tauri-apps/api/core', () => ({
+  invoke: (...args: unknown[]) => mockInvoke(...args),
+}));
+
 describe('Sandbox Types', () => {
   describe('DEFAULT_SANDBOX_CONFIG', () => {
     it('should have correct default values', () => {
@@ -313,6 +319,107 @@ describe('Language Type', () => {
         category: cat,
       };
       expect(lang.category).toBe(cat);
+    });
+  });
+});
+
+describe('New Sandbox API Functions', () => {
+  beforeEach(() => {
+    mockInvoke.mockClear();
+  });
+
+  describe('getAllLanguages', () => {
+    it('should call sandbox_get_all_languages command', async () => {
+      const mockLanguages: Language[] = [
+        { id: 'python', name: 'Python', extension: 'py', category: 'interpreted' },
+        { id: 'javascript', name: 'JavaScript', extension: 'js', category: 'interpreted' },
+      ];
+      mockInvoke.mockResolvedValue(mockLanguages);
+
+      const { getAllLanguages } = await import('@/lib/native/sandbox');
+      const result = await getAllLanguages();
+
+      expect(mockInvoke).toHaveBeenCalledWith('sandbox_get_all_languages');
+      expect(result).toEqual(mockLanguages);
+    });
+
+    it('should throw error if not in Tauri environment', async () => {
+      // @ts-expect-error - Testing error case
+      delete (window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__;
+
+      const { getAllLanguages } = await import('@/lib/native/sandbox');
+      await expect(getAllLanguages()).rejects.toThrow('Sandbox requires Tauri environment');
+    });
+  });
+
+  describe('getAvailableLanguages', () => {
+    it('should call sandbox_get_available_languages command', async () => {
+      const mockLanguages = ['python', 'javascript', 'bash'];
+      mockInvoke.mockResolvedValue(mockLanguages);
+
+      const { getAvailableLanguages } = await import('@/lib/native/sandbox');
+      const result = await getAvailableLanguages();
+
+      expect(mockInvoke).toHaveBeenCalledWith('sandbox_get_available_languages');
+      expect(result).toEqual(mockLanguages);
+    });
+  });
+
+  describe('updateSession', () => {
+    it('should call sandbox_update_session command', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const { updateSession } = await import('@/lib/native/sandbox');
+      await updateSession('session-123', 'Updated Session Name', 'Updated description');
+
+      expect(mockInvoke).toHaveBeenCalledWith('sandbox_update_session', {
+        session_id: 'session-123',
+        name: 'Updated Session Name',
+        description: 'Updated description',
+      });
+    });
+
+    it('should handle optional description', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const { updateSession } = await import('@/lib/native/sandbox');
+      await updateSession('session-123', 'Updated Session Name');
+
+      expect(mockInvoke).toHaveBeenCalledWith('sandbox_update_session', {
+        session_id: 'session-123',
+        name: 'Updated Session Name',
+        description: undefined,
+      });
+    });
+  });
+
+  describe('getSessionExecutions', () => {
+    it('should call sandbox_get_session_executions command', async () => {
+      const mockExecutions: ExecutionRequest[] = [
+        {
+          id: 'exec-1',
+          language: 'python',
+          code: 'print("hello")',
+          stdin: null,
+          args: [],
+          env: {},
+          timeout_secs: 30,
+          memory_limit_mb: 256,
+          cpu_limit_percent: null,
+          runtime: 'docker',
+          files: {},
+          network_enabled: false,
+        },
+      ];
+      mockInvoke.mockResolvedValue(mockExecutions);
+
+      const { getSessionExecutions } = await import('@/lib/native/sandbox');
+      const result = await getSessionExecutions('session-123');
+
+      expect(mockInvoke).toHaveBeenCalledWith('sandbox_get_session_executions', {
+        session_id: 'session-123',
+      });
+      expect(result).toEqual(mockExecutions);
     });
   });
 });

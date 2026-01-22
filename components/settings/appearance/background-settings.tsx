@@ -20,6 +20,8 @@ import {
   Sun,
   Droplets,
   Sparkles,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -53,12 +55,14 @@ import {
 } from '@/components/ui/collapsible';
 import { useSettingsStore } from '@/stores';
 import {
+  DEFAULT_BACKGROUND_SETTINGS,
   BACKGROUND_PRESETS,
   BACKGROUND_FIT_OPTIONS,
   BACKGROUND_POSITION_OPTIONS,
 } from '@/lib/themes';
-import { getBackgroundImageAssetBlob } from '@/lib/themes/background-assets';
+import { deleteBackgroundImageAsset, getBackgroundImageAssetBlob, saveBackgroundImageAsset } from '@/lib/themes/background-assets';
 import { cn } from '@/lib/utils';
+import { isTauri } from '@/lib/native/utils';
 import { BackgroundImportExport } from './background-import-export';
 
 export function BackgroundSettings() {
@@ -83,17 +87,78 @@ export function BackgroundSettings() {
   const setBackgroundGrayscale = useSettingsStore((state) => state.setBackgroundGrayscale);
   const clearBackground = useSettingsStore((state) => state.clearBackground);
 
-  const [urlInput, setUrlInput] = useState(backgroundSettings.imageUrl || '');
+  const [activeItemIndex, setActiveItemIndex] = useState(0);
+
+  const editorMode = backgroundSettings.mode;
+  const items = useMemo(() => {
+    if (editorMode === 'layers') return backgroundSettings.layers;
+    if (editorMode === 'slideshow') return backgroundSettings.slideshow.slides;
+    return null;
+  }, [backgroundSettings.layers, backgroundSettings.slideshow.slides, editorMode]);
+
+  const selectedItem = useMemo(() => {
+    if (!items) return null;
+    return items[Math.min(activeItemIndex, Math.max(0, items.length - 1))] ?? null;
+  }, [activeItemIndex, items]);
+
+  useEffect(() => {
+    if (!items) {
+      setActiveItemIndex(0);
+      return;
+    }
+    if (activeItemIndex > items.length - 1) {
+      setActiveItemIndex(Math.max(0, items.length - 1));
+    }
+  }, [activeItemIndex, items]);
+
+  useEffect(() => {
+    if (editorMode !== 'slideshow') return;
+    if (backgroundSettings.slideshow.slides.length > 0) return;
+    setBackgroundSettings({
+      slideshow: {
+        ...backgroundSettings.slideshow,
+        slides: [{ ...DEFAULT_BACKGROUND_SETTINGS.layers[0], id: 'slide-1' }],
+      },
+    });
+  }, [backgroundSettings.slideshow, editorMode, setBackgroundSettings]);
+
+  const effectiveSettings = useMemo(() => {
+    if (editorMode === 'single') return backgroundSettings;
+    if (!selectedItem) return backgroundSettings;
+
+    return {
+      ...backgroundSettings,
+      source: selectedItem.source,
+      imageUrl: selectedItem.imageUrl,
+      localAssetId: selectedItem.localAssetId,
+      presetId: selectedItem.presetId,
+      fit: selectedItem.fit,
+      position: selectedItem.position,
+      opacity: selectedItem.opacity,
+      blur: selectedItem.blur,
+      overlayColor: selectedItem.overlayColor,
+      overlayOpacity: selectedItem.overlayOpacity,
+      brightness: selectedItem.brightness,
+      saturation: selectedItem.saturation,
+      attachment: selectedItem.attachment,
+      animation: selectedItem.animation,
+      animationSpeed: selectedItem.animationSpeed,
+      contrast: selectedItem.contrast,
+      grayscale: selectedItem.grayscale,
+    };
+  }, [backgroundSettings, editorMode, selectedItem]);
+
+  const [urlInput, setUrlInput] = useState(effectiveSettings.imageUrl || '');
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isPreviewVisible, setIsPreviewVisible] = useState(true);
   const [presetCategory, setPresetCategory] = useState<'all' | 'gradient' | 'mesh' | 'abstract'>('all');
 
   const derivedTab = useMemo(() => {
-    if (backgroundSettings.source === 'url') return 'url';
-    if (backgroundSettings.source === 'local') return 'file';
+    if (effectiveSettings.source === 'url') return 'url';
+    if (effectiveSettings.source === 'local') return 'file';
     return 'presets';
-  }, [backgroundSettings.source]);
+  }, [effectiveSettings.source]);
 
   const [activeTab, setActiveTab] = useState(derivedTab);
 
@@ -102,10 +167,10 @@ export function BackgroundSettings() {
   }, [derivedTab]);
 
   useEffect(() => {
-    if (backgroundSettings.source === 'url') {
-      setUrlInput(backgroundSettings.imageUrl || '');
+    if (effectiveSettings.source === 'url') {
+      setUrlInput(effectiveSettings.imageUrl || '');
     }
-  }, [backgroundSettings.source, backgroundSettings.imageUrl]);
+  }, [effectiveSettings.imageUrl, effectiveSettings.source]);
 
   // Restore web-local preview from IndexedDB
   useEffect(() => {
@@ -115,11 +180,11 @@ export function BackgroundSettings() {
     const resolve = async () => {
       if (!backgroundSettings.enabled) return;
       if (typeof window === 'undefined') return;
-      if ((window as typeof window & { __TAURI__?: unknown }).__TAURI__) return;
-      if (backgroundSettings.source !== 'local') return;
-      if (!backgroundSettings.localAssetId) return;
+      if (isTauri()) return;
+      if (effectiveSettings.source !== 'local') return;
+      if (!effectiveSettings.localAssetId) return;
 
-      const blob = await getBackgroundImageAssetBlob(backgroundSettings.localAssetId);
+      const blob = await getBackgroundImageAssetBlob(effectiveSettings.localAssetId);
       if (!blob || cancelled) return;
       objectUrl = URL.createObjectURL(blob);
       setLocalPreviewUrl(objectUrl);
@@ -131,11 +196,37 @@ export function BackgroundSettings() {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [backgroundSettings.enabled, backgroundSettings.source, backgroundSettings.localAssetId]);
+  }, [backgroundSettings.enabled, effectiveSettings.localAssetId, effectiveSettings.source]);
+
+  const updateSelectedItem = useCallback((updates: Partial<typeof DEFAULT_BACKGROUND_SETTINGS.layers[0]>) => {
+    if (editorMode === 'single') {
+      setBackgroundSettings(updates);
+      return;
+    }
+    if (!items) return;
+    const index = Math.min(activeItemIndex, items.length - 1);
+    const nextItems = items.map((item, i) => (i === index ? { ...item, ...updates } : item));
+
+    if (editorMode === 'layers') {
+      setBackgroundSettings({ layers: nextItems });
+      return;
+    }
+    setBackgroundSettings({ slideshow: { ...backgroundSettings.slideshow, slides: nextItems } });
+  }, [activeItemIndex, backgroundSettings.slideshow, editorMode, items, setBackgroundSettings]);
 
   const handleUrlSubmit = useCallback(() => {
     if (urlInput.trim()) {
-      setBackgroundSettings({
+      if (editorMode === 'single') {
+        setBackgroundSettings({
+          enabled: true,
+          source: 'url',
+          imageUrl: urlInput.trim(),
+          presetId: null,
+          localAssetId: null,
+        });
+        return;
+      }
+      updateSelectedItem({
         enabled: true,
         source: 'url',
         imageUrl: urlInput.trim(),
@@ -143,12 +234,16 @@ export function BackgroundSettings() {
         localAssetId: null,
       });
     }
-  }, [urlInput, setBackgroundSettings]);
+  }, [editorMode, setBackgroundSettings, updateSelectedItem, urlInput]);
 
   const handlePresetSelect = useCallback((presetId: string) => {
-    setBackgroundPreset(presetId);
-    setBackgroundSettings({ enabled: true, source: 'preset' });
-  }, [setBackgroundPreset, setBackgroundSettings]);
+    if (editorMode === 'single') {
+      setBackgroundPreset(presetId);
+      setBackgroundSettings({ enabled: true, source: 'preset' });
+      return;
+    }
+    updateSelectedItem({ enabled: true, source: 'preset', presetId, imageUrl: '', localAssetId: null });
+  }, [editorMode, setBackgroundPreset, setBackgroundSettings, updateSelectedItem]);
 
   const handleClearBackground = useCallback(() => {
     void clearBackground();
@@ -158,7 +253,7 @@ export function BackgroundSettings() {
 
   const handleFileSelect = useCallback(async () => {
     // Check if we're in Tauri environment
-    if (typeof window !== 'undefined' && window.__TAURI__) {
+    if (isTauri()) {
       try {
         const { open } = await import('@tauri-apps/plugin-dialog');
         const result = await open({
@@ -172,13 +267,23 @@ export function BackgroundSettings() {
           const { convertFileSrc } = await import('@tauri-apps/api/core');
           const assetUrl = convertFileSrc(result as string);
           setUrlInput(assetUrl);
-          setBackgroundSettings({
-            enabled: true,
-            source: 'local',
-            imageUrl: assetUrl,
-            presetId: null,
-            localAssetId: null,
-          });
+          if (editorMode === 'single') {
+            setBackgroundSettings({
+              enabled: true,
+              source: 'local',
+              imageUrl: assetUrl,
+              presetId: null,
+              localAssetId: null,
+            });
+          } else {
+            updateSelectedItem({
+              enabled: true,
+              source: 'local',
+              imageUrl: assetUrl,
+              presetId: null,
+              localAssetId: null,
+            });
+          }
         }
       } catch (error) {
         console.error('Failed to open file dialog:', error);
@@ -198,34 +303,49 @@ export function BackgroundSettings() {
               return URL.createObjectURL(file);
             });
 
-            await setBackgroundLocalFile(file);
-            setBackgroundSettings({
+            if (editorMode === 'single') {
+              await setBackgroundLocalFile(file);
+              setBackgroundSettings({
+                enabled: true,
+                source: 'local',
+                presetId: null,
+                imageUrl: '',
+              });
+              return;
+            }
+
+            const { assetId } = await saveBackgroundImageAsset(file);
+            if (selectedItem?.localAssetId && selectedItem.localAssetId !== assetId) {
+              await deleteBackgroundImageAsset(selectedItem.localAssetId);
+            }
+            updateSelectedItem({
               enabled: true,
               source: 'local',
               presetId: null,
               imageUrl: '',
+              localAssetId: assetId,
             });
           })();
         }
       };
       input.click();
     }
-  }, [setBackgroundLocalFile, setBackgroundSettings]);
+  }, [editorMode, selectedItem?.localAssetId, setBackgroundLocalFile, setBackgroundSettings, updateSelectedItem]);
 
   // Generate preview background style
   const previewStyle = useMemo(() => {
-    if (!backgroundSettings.enabled || backgroundSettings.source === 'none') {
+    if (!backgroundSettings.enabled || effectiveSettings.source === 'none') {
       return {};
     }
 
     let backgroundValue = '';
-    if (backgroundSettings.source === 'preset' && backgroundSettings.presetId) {
-      const preset = BACKGROUND_PRESETS.find(p => p.id === backgroundSettings.presetId);
+    if (effectiveSettings.source === 'preset' && effectiveSettings.presetId) {
+      const preset = BACKGROUND_PRESETS.find(p => p.id === effectiveSettings.presetId);
       if (preset) {
         backgroundValue = preset.url;
       }
-    } else if (backgroundSettings.imageUrl || localPreviewUrl) {
-      const src = backgroundSettings.imageUrl || localPreviewUrl || '';
+    } else if (effectiveSettings.imageUrl || localPreviewUrl) {
+      const src = effectiveSettings.imageUrl || localPreviewUrl || '';
       if (src.startsWith('linear-gradient') || src.startsWith('radial-gradient')) {
         backgroundValue = src;
       } else {
@@ -239,13 +359,13 @@ export function BackgroundSettings() {
 
     return {
       background: backgroundValue,
-      backgroundSize: isGradient ? undefined : (backgroundSettings.fit === 'tile' ? 'auto' : backgroundSettings.fit === 'fill' ? '100% 100%' : backgroundSettings.fit),
-      backgroundPosition: backgroundSettings.position.replace('-', ' '),
-      backgroundRepeat: backgroundSettings.fit === 'tile' ? 'repeat' : 'no-repeat',
-      opacity: backgroundSettings.opacity / 100,
-      filter: `blur(${backgroundSettings.blur}px) brightness(${backgroundSettings.brightness}%) saturate(${backgroundSettings.saturation}%)`,
+      backgroundSize: isGradient ? undefined : (effectiveSettings.fit === 'tile' ? 'auto' : effectiveSettings.fit === 'fill' ? '100% 100%' : effectiveSettings.fit),
+      backgroundPosition: effectiveSettings.position.replace('-', ' '),
+      backgroundRepeat: effectiveSettings.fit === 'tile' ? 'repeat' : 'no-repeat',
+      opacity: effectiveSettings.opacity / 100,
+      filter: `blur(${effectiveSettings.blur}px) brightness(${effectiveSettings.brightness}%) saturate(${effectiveSettings.saturation}%)`,
     };
-  }, [backgroundSettings, localPreviewUrl]);
+  }, [backgroundSettings.enabled, effectiveSettings, localPreviewUrl]);
 
   return (
     <Card>
@@ -284,6 +404,151 @@ export function BackgroundSettings() {
       </CardHeader>
 
       <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">{t('mode')}</Label>
+            <Select
+              value={backgroundSettings.mode}
+              onValueChange={(v) => setBackgroundSettings({ mode: v as 'single' | 'layers' | 'slideshow' })}
+            >
+              <SelectTrigger aria-label="Background mode" className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="single" className="text-xs">{t('modeSingle')}</SelectItem>
+                <SelectItem value="layers" className="text-xs">{t('modeLayers')}</SelectItem>
+                <SelectItem value="slideshow" className="text-xs">{t('modeSlideshow')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {backgroundSettings.mode === 'slideshow' && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t('slideshowInterval')}</Label>
+              <Input
+                type="number"
+                min={1}
+                value={Math.round(backgroundSettings.slideshow.intervalMs / 1000)}
+                onChange={(e) => {
+                  const seconds = Number(e.target.value);
+                  setBackgroundSettings({
+                    slideshow: {
+                      ...backgroundSettings.slideshow,
+                      intervalMs: Math.max(1, seconds) * 1000,
+                    },
+                  });
+                }}
+                className="h-8 text-xs"
+              />
+            </div>
+          )}
+        </div>
+
+        {backgroundSettings.mode === 'slideshow' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t('slideshowTransition')}</Label>
+              <Input
+                type="number"
+                min={0}
+                value={Math.round(backgroundSettings.slideshow.transitionMs / 1000)}
+                onChange={(e) => {
+                  const seconds = Number(e.target.value);
+                  setBackgroundSettings({
+                    slideshow: {
+                      ...backgroundSettings.slideshow,
+                      transitionMs: Math.max(0, seconds) * 1000,
+                    },
+                  });
+                }}
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="flex items-end justify-between gap-3">
+              <Label className="text-xs">{t('slideshowShuffle')}</Label>
+              <Switch
+                checked={backgroundSettings.slideshow.shuffle}
+                onCheckedChange={(checked) =>
+                  setBackgroundSettings({
+                    slideshow: { ...backgroundSettings.slideshow, shuffle: checked },
+                  })
+                }
+              />
+            </div>
+          </div>
+        )}
+
+        {(backgroundSettings.mode === 'layers' || backgroundSettings.mode === 'slideshow') && items && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">
+                {backgroundSettings.mode === 'layers' ? t('layers') : t('slides')}
+              </Label>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2"
+                  aria-label={backgroundSettings.mode === 'layers' ? 'Add background layer' : 'Add background slide'}
+                  onClick={() => {
+                    const nextId = backgroundSettings.mode === 'layers'
+                      ? `layer-${items.length + 1}`
+                      : `slide-${items.length + 1}`;
+                    const nextItem = { ...DEFAULT_BACKGROUND_SETTINGS.layers[0], id: nextId };
+                    const nextItems = [...items, nextItem];
+                    if (backgroundSettings.mode === 'layers') {
+                      setBackgroundSettings({ layers: nextItems });
+                    } else {
+                      setBackgroundSettings({ slideshow: { ...backgroundSettings.slideshow, slides: nextItems } });
+                    }
+                    setActiveItemIndex(nextItems.length - 1);
+                  }}
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2"
+                  aria-label={backgroundSettings.mode === 'layers' ? 'Remove background layer' : 'Remove background slide'}
+                  disabled={items.length <= 1}
+                  onClick={() => {
+                    const index = Math.min(activeItemIndex, items.length - 1);
+                    const removed = items[index];
+                    const nextItems = items.filter((_it, i) => i !== index);
+                    if (removed?.source === 'local' && removed.localAssetId) {
+                      void deleteBackgroundImageAsset(removed.localAssetId);
+                    }
+                    if (backgroundSettings.mode === 'layers') {
+                      setBackgroundSettings({ layers: nextItems });
+                    } else {
+                      setBackgroundSettings({ slideshow: { ...backgroundSettings.slideshow, slides: nextItems } });
+                    }
+                    setActiveItemIndex(Math.max(0, index - 1));
+                  }}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {items.map((item, idx) => (
+                <Button
+                  key={item.id}
+                  variant={idx === activeItemIndex ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setActiveItemIndex(idx)}
+                >
+                  {backgroundSettings.mode === 'layers'
+                    ? `${t('layer')} ${idx + 1}`
+                    : `${t('slide')} ${idx + 1}`}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Preview */}
         {backgroundSettings.enabled && isPreviewVisible && (
           <div className="relative rounded-lg overflow-hidden border h-32">
@@ -291,12 +556,12 @@ export function BackgroundSettings() {
               className="absolute inset-0"
               style={previewStyle}
             />
-            {backgroundSettings.overlayOpacity > 0 && (
+            {effectiveSettings.overlayOpacity > 0 && (
               <div
                 className="absolute inset-0"
                 style={{
-                  backgroundColor: backgroundSettings.overlayColor,
-                  opacity: backgroundSettings.overlayOpacity / 100,
+                  backgroundColor: effectiveSettings.overlayColor,
+                  opacity: effectiveSettings.overlayOpacity / 100,
                 }}
               />
             )}
@@ -367,7 +632,7 @@ export function BackgroundSettings() {
               {BACKGROUND_PRESETS
                 .filter((p) => presetCategory === 'all' || p.category === presetCategory)
                 .map((preset) => {
-                const isSelected = backgroundSettings.presetId === preset.id && backgroundSettings.source === 'preset';
+                const isSelected = effectiveSettings.presetId === preset.id && effectiveSettings.source === 'preset';
                 return (
                   <button
                     key={preset.id}
@@ -434,7 +699,7 @@ export function BackgroundSettings() {
         </Tabs>
 
         {/* Image Settings */}
-        {backgroundSettings.enabled && backgroundSettings.source !== 'none' && (
+        {backgroundSettings.enabled && effectiveSettings.source !== 'none' && (
           <div className="space-y-3 pt-2 border-t">
             {/* Basic controls */}
             <div className="grid grid-cols-2 gap-3">
@@ -442,8 +707,14 @@ export function BackgroundSettings() {
               <div className="space-y-1.5">
                 <Label className="text-xs">{t('fit')}</Label>
                 <Select
-                  value={backgroundSettings.fit}
-                  onValueChange={(v) => setBackgroundFit(v as 'cover' | 'contain' | 'fill' | 'tile')}
+                  value={effectiveSettings.fit}
+                  onValueChange={(v) => {
+                    if (editorMode === 'single') {
+                      setBackgroundFit(v as 'cover' | 'contain' | 'fill' | 'tile');
+                    } else {
+                      updateSelectedItem({ fit: v as 'cover' | 'contain' | 'fill' | 'tile' });
+                    }
+                  }}
                 >
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
@@ -462,8 +733,14 @@ export function BackgroundSettings() {
               <div className="space-y-1.5">
                 <Label className="text-xs">{t('position')}</Label>
                 <Select
-                  value={backgroundSettings.position}
-                  onValueChange={(v) => setBackgroundPosition(v as 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right')}
+                  value={effectiveSettings.position}
+                  onValueChange={(v) => {
+                    if (editorMode === 'single') {
+                      setBackgroundPosition(v as 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right');
+                    } else {
+                      updateSelectedItem({ position: v as 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' });
+                    }
+                  }}
                 >
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
@@ -483,11 +760,17 @@ export function BackgroundSettings() {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label className="text-xs">{t('opacity')}</Label>
-                <span className="text-xs text-muted-foreground">{backgroundSettings.opacity}%</span>
+                <span className="text-xs text-muted-foreground">{effectiveSettings.opacity}%</span>
               </div>
               <Slider
-                value={[backgroundSettings.opacity]}
-                onValueChange={([v]) => setBackgroundOpacity(v)}
+                value={[effectiveSettings.opacity]}
+                onValueChange={([v]) => {
+                  if (editorMode === 'single') {
+                    setBackgroundOpacity(v);
+                  } else {
+                    updateSelectedItem({ opacity: v });
+                  }
+                }}
                 min={10}
                 max={100}
                 step={5}
@@ -498,11 +781,17 @@ export function BackgroundSettings() {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label className="text-xs">{t('blur')}</Label>
-                <span className="text-xs text-muted-foreground">{backgroundSettings.blur}px</span>
+                <span className="text-xs text-muted-foreground">{effectiveSettings.blur}px</span>
               </div>
               <Slider
-                value={[backgroundSettings.blur]}
-                onValueChange={([v]) => setBackgroundBlur(v)}
+                value={[effectiveSettings.blur]}
+                onValueChange={([v]) => {
+                  if (editorMode === 'single') {
+                    setBackgroundBlur(v);
+                  } else {
+                    updateSelectedItem({ blur: v });
+                  }
+                }}
                 min={0}
                 max={20}
                 step={1}
@@ -528,19 +817,31 @@ export function BackgroundSettings() {
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
-                      value={backgroundSettings.overlayColor}
-                      onChange={(e) => setBackgroundOverlay(e.target.value, backgroundSettings.overlayOpacity)}
+                      value={effectiveSettings.overlayColor}
+                      onChange={(e) => {
+                        if (editorMode === 'single') {
+                          setBackgroundOverlay(e.target.value, effectiveSettings.overlayOpacity);
+                        } else {
+                          updateSelectedItem({ overlayColor: e.target.value });
+                        }
+                      }}
                       className="h-8 w-12 rounded border cursor-pointer"
                       title={t('selectOverlayColor')}
                     />
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] text-muted-foreground">{t('opacity')}</span>
-                        <span className="text-xs text-muted-foreground">{backgroundSettings.overlayOpacity}%</span>
+                        <span className="text-xs text-muted-foreground">{effectiveSettings.overlayOpacity}%</span>
                       </div>
                       <Slider
-                        value={[backgroundSettings.overlayOpacity]}
-                        onValueChange={([v]) => setBackgroundOverlay(backgroundSettings.overlayColor, v)}
+                        value={[effectiveSettings.overlayOpacity]}
+                        onValueChange={([v]) => {
+                          if (editorMode === 'single') {
+                            setBackgroundOverlay(effectiveSettings.overlayColor, v);
+                          } else {
+                            updateSelectedItem({ overlayOpacity: v });
+                          }
+                        }}
                         min={0}
                         max={80}
                         step={5}
@@ -556,11 +857,17 @@ export function BackgroundSettings() {
                       <Sun className="h-3 w-3 text-muted-foreground" />
                       <Label className="text-xs">{t('brightness')}</Label>
                     </div>
-                    <span className="text-xs text-muted-foreground">{backgroundSettings.brightness}%</span>
+                    <span className="text-xs text-muted-foreground">{effectiveSettings.brightness}%</span>
                   </div>
                   <Slider
-                    value={[backgroundSettings.brightness]}
-                    onValueChange={([v]) => setBackgroundBrightness(v)}
+                    value={[effectiveSettings.brightness]}
+                    onValueChange={([v]) => {
+                      if (editorMode === 'single') {
+                        setBackgroundBrightness(v);
+                      } else {
+                        updateSelectedItem({ brightness: v });
+                      }
+                    }}
                     min={50}
                     max={150}
                     step={5}
@@ -574,11 +881,17 @@ export function BackgroundSettings() {
                       <Droplets className="h-3 w-3 text-muted-foreground" />
                       <Label className="text-xs">{t('saturation')}</Label>
                     </div>
-                    <span className="text-xs text-muted-foreground">{backgroundSettings.saturation}%</span>
+                    <span className="text-xs text-muted-foreground">{effectiveSettings.saturation}%</span>
                   </div>
                   <Slider
-                    value={[backgroundSettings.saturation]}
-                    onValueChange={([v]) => setBackgroundSaturation(v)}
+                    value={[effectiveSettings.saturation]}
+                    onValueChange={([v]) => {
+                      if (editorMode === 'single') {
+                        setBackgroundSaturation(v);
+                      } else {
+                        updateSelectedItem({ saturation: v });
+                      }
+                    }}
                     min={0}
                     max={200}
                     step={10}
@@ -589,11 +902,17 @@ export function BackgroundSettings() {
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs">{t('contrast')}</Label>
-                    <span className="text-xs text-muted-foreground">{backgroundSettings.contrast ?? 100}%</span>
+                    <span className="text-xs text-muted-foreground">{effectiveSettings.contrast ?? 100}%</span>
                   </div>
                   <Slider
-                    value={[backgroundSettings.contrast ?? 100]}
-                    onValueChange={([v]) => setBackgroundContrast(v)}
+                    value={[effectiveSettings.contrast ?? 100]}
+                    onValueChange={([v]) => {
+                      if (editorMode === 'single') {
+                        setBackgroundContrast(v);
+                      } else {
+                        updateSelectedItem({ contrast: v });
+                      }
+                    }}
                     min={50}
                     max={150}
                     step={5}
@@ -604,11 +923,17 @@ export function BackgroundSettings() {
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs">{t('grayscale')}</Label>
-                    <span className="text-xs text-muted-foreground">{backgroundSettings.grayscale ?? 0}%</span>
+                    <span className="text-xs text-muted-foreground">{effectiveSettings.grayscale ?? 0}%</span>
                   </div>
                   <Slider
-                    value={[backgroundSettings.grayscale ?? 0]}
-                    onValueChange={([v]) => setBackgroundGrayscale(v)}
+                    value={[effectiveSettings.grayscale ?? 0]}
+                    onValueChange={([v]) => {
+                      if (editorMode === 'single') {
+                        setBackgroundGrayscale(v);
+                      } else {
+                        updateSelectedItem({ grayscale: v });
+                      }
+                    }}
                     min={0}
                     max={100}
                     step={5}
@@ -619,8 +944,14 @@ export function BackgroundSettings() {
                 <div className="space-y-1.5">
                   <Label className="text-xs">{t('attachment')}</Label>
                   <Select
-                    value={backgroundSettings.attachment ?? 'fixed'}
-                    onValueChange={(v) => setBackgroundAttachment(v as 'fixed' | 'scroll' | 'local')}
+                    value={effectiveSettings.attachment ?? 'fixed'}
+                    onValueChange={(v) => {
+                      if (editorMode === 'single') {
+                        setBackgroundAttachment(v as 'fixed' | 'scroll' | 'local');
+                      } else {
+                        updateSelectedItem({ attachment: v as 'fixed' | 'scroll' | 'local' });
+                      }
+                    }}
                   >
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue />
@@ -643,8 +974,14 @@ export function BackgroundSettings() {
                 <div className="space-y-1.5">
                   <Label className="text-xs">{t('animation')}</Label>
                   <Select
-                    value={backgroundSettings.animation ?? 'none'}
-                    onValueChange={(v) => setBackgroundAnimation(v as 'none' | 'kenburns' | 'parallax' | 'gradient-shift')}
+                    value={effectiveSettings.animation ?? 'none'}
+                    onValueChange={(v) => {
+                      if (editorMode === 'single') {
+                        setBackgroundAnimation(v as 'none' | 'kenburns' | 'parallax' | 'gradient-shift');
+                      } else {
+                        updateSelectedItem({ animation: v as 'none' | 'kenburns' | 'parallax' | 'gradient-shift' });
+                      }
+                    }}
                   >
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue />
@@ -667,15 +1004,21 @@ export function BackgroundSettings() {
                 </div>
 
                 {/* Animation Speed */}
-                {(backgroundSettings.animation ?? 'none') !== 'none' && (
+                {(effectiveSettings.animation ?? 'none') !== 'none' && (
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs">{t('animationSpeed')}</Label>
-                      <span className="text-xs text-muted-foreground">{backgroundSettings.animationSpeed ?? 5}</span>
+                      <span className="text-xs text-muted-foreground">{effectiveSettings.animationSpeed ?? 5}</span>
                     </div>
                     <Slider
-                      value={[backgroundSettings.animationSpeed ?? 5]}
-                      onValueChange={([v]) => setBackgroundAnimationSpeed(v)}
+                      value={[effectiveSettings.animationSpeed ?? 5]}
+                      onValueChange={([v]) => {
+                        if (editorMode === 'single') {
+                          setBackgroundAnimationSpeed(v);
+                        } else {
+                          updateSelectedItem({ animationSpeed: v });
+                        }
+                      }}
                       min={1}
                       max={10}
                       step={1}

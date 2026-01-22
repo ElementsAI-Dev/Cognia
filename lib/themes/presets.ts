@@ -494,7 +494,41 @@ export type BackgroundImageSource = 'none' | 'url' | 'local' | 'preset';
 export type BackgroundAttachment = 'fixed' | 'scroll' | 'local';
 export type BackgroundAnimation = 'none' | 'kenburns' | 'parallax' | 'gradient-shift';
 
+export type BackgroundMode = 'single' | 'layers' | 'slideshow';
+
+export interface BackgroundLayerSettings {
+  id: string;
+  enabled: boolean;
+  source: BackgroundImageSource;
+  imageUrl: string;
+  localAssetId: string | null;
+  presetId: string | null;
+  fit: BackgroundImageFit;
+  position: BackgroundImagePosition;
+  opacity: number;
+  blur: number;
+  overlayColor: string;
+  overlayOpacity: number;
+  brightness: number;
+  saturation: number;
+  attachment: BackgroundAttachment;
+  animation: BackgroundAnimation;
+  animationSpeed: number;
+  contrast: number;
+  grayscale: number;
+}
+
+export interface BackgroundSlideshowSettings {
+  slides: BackgroundLayerSettings[];
+  intervalMs: number;
+  transitionMs: number;
+  shuffle: boolean;
+}
+
 export interface BackgroundSettings {
+  mode: BackgroundMode;
+  layers: BackgroundLayerSettings[];
+  slideshow: BackgroundSlideshowSettings;
   enabled: boolean;
   source: BackgroundImageSource;
   imageUrl: string; // URL, gradient string, or local file URL (Tauri). For web-local files, this is resolved at runtime.
@@ -519,7 +553,37 @@ export interface BackgroundSettings {
   grayscale: number; // 0-100
 }
 
+const DEFAULT_BACKGROUND_LAYER_SETTINGS: BackgroundLayerSettings = {
+  id: 'layer-1',
+  enabled: true,
+  source: 'none',
+  imageUrl: '',
+  localAssetId: null,
+  presetId: null,
+  fit: 'cover',
+  position: 'center',
+  opacity: 100,
+  blur: 0,
+  overlayColor: '#000000',
+  overlayOpacity: 0,
+  brightness: 100,
+  saturation: 100,
+  attachment: 'fixed',
+  animation: 'none',
+  animationSpeed: 5,
+  contrast: 100,
+  grayscale: 0,
+};
+
 export const DEFAULT_BACKGROUND_SETTINGS: BackgroundSettings = {
+  mode: 'single',
+  layers: [{ ...DEFAULT_BACKGROUND_LAYER_SETTINGS }],
+  slideshow: {
+    slides: [],
+    intervalMs: 15000,
+    transitionMs: 1000,
+    shuffle: false,
+  },
   enabled: false,
   source: 'none',
   imageUrl: '',
@@ -539,6 +603,79 @@ export const DEFAULT_BACKGROUND_SETTINGS: BackgroundSettings = {
   contrast: 100,
   grayscale: 0,
 };
+
+export function normalizeBackgroundSettings(
+  settings: Partial<BackgroundSettings> | null | undefined
+): BackgroundSettings {
+  const safeMode: BackgroundMode =
+    settings?.mode === 'layers' || settings?.mode === 'slideshow' || settings?.mode === 'single'
+      ? settings.mode
+      : 'single';
+
+  const layers = Array.isArray(settings?.layers) && settings?.layers.length > 0
+    ? settings.layers.map((layer, index) => ({
+        ...DEFAULT_BACKGROUND_LAYER_SETTINGS,
+        id: typeof layer?.id === 'string' && layer.id ? layer.id : `layer-${index + 1}`,
+        enabled: typeof layer?.enabled === 'boolean' ? layer.enabled : DEFAULT_BACKGROUND_LAYER_SETTINGS.enabled,
+        source: (layer?.source ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.source) as BackgroundImageSource,
+        imageUrl: typeof layer?.imageUrl === 'string' ? layer.imageUrl : DEFAULT_BACKGROUND_LAYER_SETTINGS.imageUrl,
+        localAssetId: typeof layer?.localAssetId === 'string' ? layer.localAssetId : null,
+        presetId: typeof layer?.presetId === 'string' ? layer.presetId : null,
+        fit: (layer?.fit ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.fit) as BackgroundImageFit,
+        position: (layer?.position ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.position) as BackgroundImagePosition,
+        opacity: typeof layer?.opacity === 'number' ? layer.opacity : DEFAULT_BACKGROUND_LAYER_SETTINGS.opacity,
+        blur: typeof layer?.blur === 'number' ? layer.blur : DEFAULT_BACKGROUND_LAYER_SETTINGS.blur,
+        overlayColor: typeof layer?.overlayColor === 'string' ? layer.overlayColor : DEFAULT_BACKGROUND_LAYER_SETTINGS.overlayColor,
+        overlayOpacity: typeof layer?.overlayOpacity === 'number' ? layer.overlayOpacity : DEFAULT_BACKGROUND_LAYER_SETTINGS.overlayOpacity,
+        brightness: typeof layer?.brightness === 'number' ? layer.brightness : DEFAULT_BACKGROUND_LAYER_SETTINGS.brightness,
+        saturation: typeof layer?.saturation === 'number' ? layer.saturation : DEFAULT_BACKGROUND_LAYER_SETTINGS.saturation,
+        attachment: (layer?.attachment ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.attachment) as BackgroundAttachment,
+        animation: (layer?.animation ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.animation) as BackgroundAnimation,
+        animationSpeed: typeof layer?.animationSpeed === 'number' ? layer.animationSpeed : DEFAULT_BACKGROUND_LAYER_SETTINGS.animationSpeed,
+        contrast: typeof layer?.contrast === 'number' ? layer.contrast : DEFAULT_BACKGROUND_LAYER_SETTINGS.contrast,
+        grayscale: typeof layer?.grayscale === 'number' ? layer.grayscale : DEFAULT_BACKGROUND_LAYER_SETTINGS.grayscale,
+      }))
+    : [{ ...DEFAULT_BACKGROUND_LAYER_SETTINGS }];
+
+  const rawSlideshow = settings?.slideshow;
+  const slideshow: BackgroundSlideshowSettings = {
+    slides: Array.isArray(rawSlideshow?.slides)
+      ? rawSlideshow.slides.map((slide, index) => ({
+          ...DEFAULT_BACKGROUND_LAYER_SETTINGS,
+          id: typeof slide?.id === 'string' && slide.id ? slide.id : `slide-${index + 1}`,
+          enabled: typeof slide?.enabled === 'boolean' ? slide.enabled : DEFAULT_BACKGROUND_LAYER_SETTINGS.enabled,
+          source: (slide?.source ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.source) as BackgroundImageSource,
+          imageUrl: typeof slide?.imageUrl === 'string' ? slide.imageUrl : DEFAULT_BACKGROUND_LAYER_SETTINGS.imageUrl,
+          localAssetId: typeof slide?.localAssetId === 'string' ? slide.localAssetId : null,
+          presetId: typeof slide?.presetId === 'string' ? slide.presetId : null,
+          fit: (slide?.fit ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.fit) as BackgroundImageFit,
+          position: (slide?.position ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.position) as BackgroundImagePosition,
+          opacity: typeof slide?.opacity === 'number' ? slide.opacity : DEFAULT_BACKGROUND_LAYER_SETTINGS.opacity,
+          blur: typeof slide?.blur === 'number' ? slide.blur : DEFAULT_BACKGROUND_LAYER_SETTINGS.blur,
+          overlayColor: typeof slide?.overlayColor === 'string' ? slide.overlayColor : DEFAULT_BACKGROUND_LAYER_SETTINGS.overlayColor,
+          overlayOpacity: typeof slide?.overlayOpacity === 'number' ? slide.overlayOpacity : DEFAULT_BACKGROUND_LAYER_SETTINGS.overlayOpacity,
+          brightness: typeof slide?.brightness === 'number' ? slide.brightness : DEFAULT_BACKGROUND_LAYER_SETTINGS.brightness,
+          saturation: typeof slide?.saturation === 'number' ? slide.saturation : DEFAULT_BACKGROUND_LAYER_SETTINGS.saturation,
+          attachment: (slide?.attachment ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.attachment) as BackgroundAttachment,
+          animation: (slide?.animation ?? DEFAULT_BACKGROUND_LAYER_SETTINGS.animation) as BackgroundAnimation,
+          animationSpeed: typeof slide?.animationSpeed === 'number' ? slide.animationSpeed : DEFAULT_BACKGROUND_LAYER_SETTINGS.animationSpeed,
+          contrast: typeof slide?.contrast === 'number' ? slide.contrast : DEFAULT_BACKGROUND_LAYER_SETTINGS.contrast,
+          grayscale: typeof slide?.grayscale === 'number' ? slide.grayscale : DEFAULT_BACKGROUND_LAYER_SETTINGS.grayscale,
+        }))
+      : [],
+    intervalMs: typeof rawSlideshow?.intervalMs === 'number' ? rawSlideshow.intervalMs : DEFAULT_BACKGROUND_SETTINGS.slideshow.intervalMs,
+    transitionMs: typeof rawSlideshow?.transitionMs === 'number' ? rawSlideshow.transitionMs : DEFAULT_BACKGROUND_SETTINGS.slideshow.transitionMs,
+    shuffle: typeof rawSlideshow?.shuffle === 'boolean' ? rawSlideshow.shuffle : DEFAULT_BACKGROUND_SETTINGS.slideshow.shuffle,
+  };
+
+  return {
+    ...DEFAULT_BACKGROUND_SETTINGS,
+    ...settings,
+    mode: safeMode,
+    layers,
+    slideshow,
+  };
+}
 
 export const BACKGROUND_PRESETS: { id: string; name: string; url: string; thumbnail?: string; category: 'gradient' | 'mesh' | 'abstract' | 'nature' }[] = [
   // Gradient backgrounds

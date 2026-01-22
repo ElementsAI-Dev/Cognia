@@ -8,6 +8,7 @@
  */
 
 import { isEnvironmentAvailable } from '@/lib/native/environment';
+import { isTauri } from '@/lib/native/utils';
 
 export interface AgentCapabilities {
   /** Platform: web browser or Tauri desktop app */
@@ -49,8 +50,7 @@ export interface AgentCapabilities {
  * Detect if running in Tauri desktop environment
  */
 export function isTauriEnvironment(): boolean {
-  if (typeof window === 'undefined') return false;
-  return '__TAURI__' in window || '__TAURI_INTERNALS__' in window;
+  return isTauri();
 }
 
 /**

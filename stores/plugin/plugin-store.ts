@@ -4,6 +4,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { invoke } from '@tauri-apps/api/core';
 import type {
   Plugin,
   PluginManifest,
@@ -17,6 +18,7 @@ import type {
   PluginSystemEvent,
 } from '@/types/plugin';
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
+import { validatePluginManifest } from '@/lib/plugin/validation';
 
 // =============================================================================
 // Store State Interface
@@ -30,7 +32,7 @@ interface PluginState extends PluginStoreState {
   enablePlugin: (pluginId: string) => Promise<void>;
   disablePlugin: (pluginId: string) => Promise<void>;
   unloadPlugin: (pluginId: string) => Promise<void>;
-  uninstallPlugin: (pluginId: string) => Promise<void>;
+  uninstallPlugin: (pluginId: string, options?: { skipFileRemoval?: boolean }) => Promise<void>;
   
   // Actions - Plugin State
   setPluginStatus: (pluginId: string, status: PluginStatus) => void;
@@ -335,7 +337,7 @@ export const usePluginStore = create<PluginState>()(
         }
       },
 
-      uninstallPlugin: async (pluginId) => {
+      uninstallPlugin: async (pluginId, options) => {
         const plugin = get().plugins[pluginId];
         if (!plugin) {
           throw new Error(`Plugin not found: ${pluginId}`);
@@ -344,6 +346,19 @@ export const usePluginStore = create<PluginState>()(
         // Unload first if loaded
         if (['loaded', 'enabled', 'disabled'].includes(plugin.status)) {
           await get().unloadPlugin(pluginId);
+        }
+
+        if (!options?.skipFileRemoval) {
+          try {
+            await invoke('plugin_uninstall', {
+              pluginId,
+              pluginPath: plugin.path,
+            });
+          } catch (error) {
+            throw new Error(
+              `Failed to uninstall plugin files: ${error instanceof Error ? error.message : String(error)}`
+            );
+          }
         }
 
         set((state) => {
@@ -581,12 +596,56 @@ export const usePluginStore = create<PluginState>()(
 
       initialize: async (pluginDirectory) => {
         set({ pluginDirectory, initialized: true });
-        await get().scanPlugins();
       },
 
       scanPlugins: async () => {
-        // This will be implemented by the plugin manager
-        // which handles actual filesystem operations via Tauri
+        const { pluginDirectory } = get();
+        if (!pluginDirectory) return;
+
+        try {
+          const results = await invoke<Array<{ manifest: PluginManifest; path: string }>>(
+            'plugin_scan_directory',
+            {
+              directory: pluginDirectory,
+            }
+          );
+
+          const validResults = results.filter((r) => {
+            const validation = validatePluginManifest(r.manifest);
+            return validation.valid;
+          });
+
+          set((state) => {
+            const nextPlugins = { ...state.plugins };
+
+            for (const { manifest, path } of validResults) {
+              const existing = nextPlugins[manifest.id];
+              if (!existing) {
+                nextPlugins[manifest.id] = {
+                  manifest,
+                  status: 'installed',
+                  source: 'local',
+                  path,
+                  config: (manifest.defaultConfig as Record<string, unknown>) || {},
+                  installedAt: new Date(),
+                };
+                continue;
+              }
+
+              nextPlugins[manifest.id] = {
+                ...existing,
+                manifest,
+                path,
+              };
+            }
+
+            return {
+              plugins: nextPlugins,
+            };
+          });
+        } catch (error) {
+          console.error('Failed to scan plugins:', error);
+        }
       },
 
       getPlugin: (pluginId) => {

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { OCRPanel } from "./ocr-panel";
 
 declare global {
-  var __TAURI__: Record<string, unknown> | undefined;
+  var __TAURI_INTERNALS__: Record<string, unknown> | undefined;
 }
 
 class MockFileReader {
@@ -23,8 +23,8 @@ describe("OCRPanel", () => {
   beforeEach(() => {
     // Web fallback (no Tauri)
     // eslint-disable-next-line no-var
-    var __TAURI__ = undefined;
-    Object.defineProperty(window, "__TAURI__", { value: __TAURI__, writable: true });
+    var __TAURI_INTERNALS__ = undefined;
+    Object.defineProperty(window, "__TAURI_INTERNALS__", { value: __TAURI_INTERNALS__, writable: true });
 
     // Clipboard mocks
     Object.assign(navigator, {

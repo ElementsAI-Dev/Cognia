@@ -3,8 +3,9 @@
 //! Commands for capturing screenshots and performing OCR.
 
 use crate::screenshot::{
-    CaptureRegion, MonitorInfo, ScreenshotConfig, ScreenshotHistoryEntry, ScreenshotManager,
-    ScreenshotMetadata, SnapConfig, SnapResult, WinOcrResult, WindowInfo,
+    Annotation, CaptureRegion, MonitorInfo, ScreenshotAnnotator, ScreenshotConfig,
+    ScreenshotHistoryEntry, ScreenshotManager, ScreenshotMetadata, SelectionState, SnapConfig,
+    SnapResult, WinOcrResult, WindowInfo,
 };
 use tauri::State;
 
@@ -18,6 +19,68 @@ pub async fn screenshot_capture_fullscreen(
     Ok(ScreenshotResult {
         image_base64: base64::engine::general_purpose::STANDARD.encode(&result.image_data),
         metadata: result.metadata,
+    })
+}
+
+// ============== Annotation Commands ==============
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct AnnotatedScreenshotResult {
+    pub image_base64: String,
+}
+
+/// Apply annotations to a screenshot and return updated base64 image
+#[tauri::command]
+pub async fn screenshot_apply_annotations(
+    image_base64: String,
+    annotations: Vec<Annotation>,
+) -> Result<AnnotatedScreenshotResult, String> {
+    let image_data = base64::engine::general_purpose::STANDARD
+        .decode(&image_base64)
+        .map_err(|e| format!("Failed to decode image: {}", e))?;
+
+    let decoder = png::Decoder::new(std::io::Cursor::new(&image_data));
+    let mut reader = decoder.read_info().map_err(|e| e.to_string())?;
+    let mut buf = vec![0; reader.output_buffer_size()];
+    let info = reader.next_frame(&mut buf).map_err(|e| e.to_string())?;
+    let pixels = &buf[..info.buffer_size()];
+
+    let mut rgba_pixels = match info.color_type {
+        png::ColorType::Rgba => pixels.to_vec(),
+        png::ColorType::Rgb => pixels
+            .chunks(3)
+            .flat_map(|chunk| [chunk[0], chunk[1], chunk[2], 255])
+            .collect(),
+        png::ColorType::Grayscale => pixels
+            .iter()
+            .flat_map(|v| [*v, *v, *v, 255])
+            .collect(),
+        png::ColorType::GrayscaleAlpha => pixels
+            .chunks(2)
+            .flat_map(|chunk| [chunk[0], chunk[0], chunk[0], chunk[1]])
+            .collect(),
+        _ => return Err(format!("Unsupported color type: {:?}", info.color_type)),
+    };
+
+    let mut annotator = ScreenshotAnnotator::new(info.width, info.height);
+    for annotation in annotations {
+        annotator.add_annotation(annotation);
+    }
+    annotator.apply_to_image(&mut rgba_pixels)?;
+
+    let mut png_data = Vec::new();
+    {
+        let mut encoder = png::Encoder::new(&mut png_data, info.width, info.height);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().map_err(|e| e.to_string())?;
+        writer
+            .write_image_data(&rgba_pixels)
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(AnnotatedScreenshotResult {
+        image_base64: base64::engine::general_purpose::STANDARD.encode(&png_data),
     })
 }
 
@@ -266,6 +329,16 @@ pub async fn screenshot_ocr_with_language(
     ocr.extract_text(&image_data)
 }
 
+/// Set Windows OCR language used by the screenshot manager
+#[tauri::command]
+pub async fn screenshot_set_ocr_language(
+    manager: State<'_, ScreenshotManager>,
+    language: String,
+) -> Result<(), String> {
+    manager.set_ocr_language(&language);
+    Ok(())
+}
+
 // ============== Capture with History Commands ==============
 
 /// Capture fullscreen and add to history
@@ -396,6 +469,88 @@ pub async fn screenshot_get_snap_config(
     manager: State<'_, ScreenshotManager>,
 ) -> Result<SnapConfig, String> {
     Ok(manager.get_snap_config())
+}
+
+/// Update snap configuration
+#[tauri::command]
+pub async fn screenshot_set_snap_config(
+    manager: State<'_, ScreenshotManager>,
+    config: SnapConfig,
+) -> Result<(), String> {
+    manager.set_snap_config(config);
+    Ok(())
+}
+
+// ============== Selection State Commands ==============
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct SelectionValidationResult {
+    pub region: CaptureRegion,
+    pub is_valid: bool,
+}
+
+/// Validate selection state and normalize region
+#[tauri::command]
+pub async fn screenshot_validate_selection(
+    start_x: i32,
+    start_y: i32,
+    current_x: i32,
+    current_y: i32,
+) -> Result<SelectionValidationResult, String> {
+    let state = SelectionState {
+        is_selecting: true,
+        start_x,
+        start_y,
+        current_x,
+        current_y,
+    };
+
+    let region = state.get_region();
+    let is_valid = state.is_valid();
+
+    Ok(SelectionValidationResult { region, is_valid })
+}
+
+// ============== History Extended Commands ==============
+
+/// Get all screenshot history
+#[tauri::command]
+pub async fn screenshot_get_all_history(
+    manager: State<'_, ScreenshotManager>,
+) -> Result<Vec<ScreenshotHistoryEntry>, String> {
+    Ok(manager.get_all_history())
+}
+
+/// Search screenshot history by label
+#[tauri::command]
+pub async fn screenshot_search_history_by_label(
+    manager: State<'_, ScreenshotManager>,
+    label: String,
+) -> Result<Vec<ScreenshotHistoryEntry>, String> {
+    Ok(manager.search_history_by_label(&label))
+}
+
+/// Get pinned screenshot history
+#[tauri::command]
+pub async fn screenshot_get_pinned_history(
+    manager: State<'_, ScreenshotManager>,
+) -> Result<Vec<ScreenshotHistoryEntry>, String> {
+    Ok(manager.get_pinned_history())
+}
+
+/// Clear all screenshot history
+#[tauri::command]
+pub async fn screenshot_clear_all_history(manager: State<'_, ScreenshotManager>) -> Result<(), String> {
+    manager.clear_all_history();
+    Ok(())
+}
+
+/// Get history stats (count, is_empty)
+#[tauri::command]
+pub async fn screenshot_get_history_stats(
+    manager: State<'_, ScreenshotManager>,
+) -> Result<(usize, bool), String> {
+    Ok(manager.get_history_stats())
 }
 
 #[cfg(test)]

@@ -1,4 +1,10 @@
 {
+  "videoStudio": {
+    "title": "视频工作室",
+    "back": "返回",
+    "hideSidebar": "隐藏侧边栏",
+    "showSidebar": "显示侧边栏"
+  },
   "imageGeneration": {
     "title": "图片生成",
     "description": "使用 DALL-E 创建图片。描述您想看到的内容。",
@@ -66,8 +72,20 @@
     "jobStatus": "任务状态",
     "progress": "进度",
     "estimatedCost": "预估费用",
+    "remove": "移除",
     "cancel": "取消",
     "retry": "重试",
+    "noVideos": "暂无视频",
+    "generateFirst": "生成您的第一个视频以开始使用",
+    "videoPreview": "视频预览",
+    "aiGeneration": "AI 生成",
+    "text": "文字",
+    "image": "图片",
+    "quickTemplates": "快速模板",
+    "uploadHint": "支持 PNG, JPG，最大 4MB",
+    "fpsDisplay": "帧率: {fps}",
+    "seedPlaceholder": "随机",
+    "generateShort": "生成",
     "styles": {
       "cinematic": "电影级",
       "documentary": "纪录片",
@@ -94,6 +112,34 @@
       "completed": "已完成",
       "failed": "失败",
       "cancelled": "已取消"
+    },
+    "templates": {
+      "Nature Timelapse": "自然延时",
+      "Ocean Waves": "海浪",
+      "City Life": "城市生活",
+      "Space Journey": "太空旅行",
+      "Wildlife": "野生动物",
+      "Abstract Flow": "抽象流动",
+      "Product Reveal": "产品展示",
+      "Anime Scene": "动漫场景"
+    },
+    "styleDescriptions": {
+      "cinematic": "电影级画质，戏剧化光效",
+      "documentary": "自然真实的画面",
+      "animation": "动画或卡通风格",
+      "timelapse": "加速时间效果",
+      "slowmotion": "慢动作镜头",
+      "natural": "真实未加工的质感",
+      "artistic": "极具创意和风格化",
+      "commercial": "专业的广告画质"
+    },
+    "durations": {
+      "5s": "5 秒",
+      "10s": "10 秒",
+      "15s": "15 秒",
+      "20s": "20 秒",
+      "30s": "30 秒",
+      "60s": "60 秒"
     }
   },
   "video": {
@@ -109,11 +155,19 @@
     "generatedSuccessfully": "视频生成成功",
     "urlNotAvailable": "视频 URL 不可用于预览",
     "play": "播放",
+    "playing": "播放中",
     "pause": "暂停",
+    "paused": "已暂停",
     "mute": "静音",
     "unmute": "取消静音",
     "download": "下载",
     "fullscreen": "全屏",
+    "exitFullscreen": "取消全屏",
+    "skipBack": "后退 10 秒",
+    "skipForward": "前进 10 秒",
+    "previousFrame": "上一帧",
+    "nextFrame": "下一帧",
+    "playbackSpeed": "播放速度",
     "aiEnhanced": "AI 增强"
   },
   "screenRecording": {
@@ -208,7 +262,11 @@
     "justNow": "刚刚",
     "minutesAgo": "{count}分钟前",
     "hoursAgo": "{count}小时前",
-    "daysAgo": "{count}天前"
+    "daysAgo": "{count}天前",
+    "used": "已用",
+    "cleanup": "清理",
+    "storageExceeded": "存储空间已超出限制",
+    "cleanupComplete": "已清理 {count} 个文件，释放 {size}"
   },
   "videoEditor": {
     "title": "视频编辑器",
@@ -252,6 +310,29 @@
     "resumeRecording": "继续录制",
     "stop": "停止",
     "stopRecording": "停止录制",
-    "cancelRecording": "取消录制"
+    "cancelRecording": "取消录制",
+    "recording": "录制",
+    "trimDescription": "调整开始和结束点以裁剪视频",
+    "deleteRecording": "删除录制",
+    "deleteConfirmation": "您确定要删除此录制吗？此操作无法撤销。",
+    "startRecordingHint": "开始新的屏幕录制以开始使用",
+    "keyboardShortcuts": "键盘快捷键",
+    "monitor": "显示器 {index}",
+    "primaryMonitor": "主显示器"
+  },
+  "videoDetails": {
+    "title": "视频详情",
+    "download": "下载",
+    "removeFromFavorites": "从收藏中移除",
+    "addToFavorites": "添加到收藏",
+    "delete": "删除",
+    "prompt": "提示",
+    "provider": "提供商",
+    "model": "模型",
+    "resolution": "分辨率",
+    "aspectRatio": "宽高比",
+    "duration": "时长",
+    "style": "风格",
+    "regenerate": "重新生成"
   }
 }

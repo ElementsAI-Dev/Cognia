@@ -5,6 +5,12 @@
  */
 
 import { useState, useCallback } from 'react';
+import {
+  Annotation,
+  AnnotatedScreenshotResult,
+  SelectionValidationResult,
+  SnapConfig,
+} from '@/lib/native/screenshot';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '@/lib/native/utils';
 
@@ -78,11 +84,6 @@ export interface WindowInfo {
   thumbnail_base64?: string;
 }
 
-export interface SnapConfig {
-  snap_distance: number;
-  snap_to_screen: boolean;
-  snap_to_windows: boolean;
-}
 
 export interface SnapResult {
   x: number | null;
@@ -111,6 +112,41 @@ export function useScreenshot() {
       return null;
     } finally {
       setIsCapturing(false);
+    }
+  }, []);
+
+  const applyAnnotations = useCallback(async (imageBase64: string, annotations: Annotation[]) => {
+    if (!isTauri()) return null;
+
+    try {
+      return await invoke<AnnotatedScreenshotResult>('screenshot_apply_annotations', {
+        imageBase64,
+        annotations,
+      });
+    } catch (err) {
+      console.error('Failed to apply annotations:', err);
+      return null;
+    }
+  }, []);
+
+  const validateSelection = useCallback(async (
+    startX: number,
+    startY: number,
+    currentX: number,
+    currentY: number,
+  ) => {
+    if (!isTauri()) return null;
+
+    try {
+      return await invoke<SelectionValidationResult>('screenshot_validate_selection', {
+        startX,
+        startY,
+        currentX,
+        currentY,
+      });
+    } catch (err) {
+      console.error('Failed to validate selection:', err);
+      return null;
     }
   }, []);
 
@@ -277,6 +313,28 @@ export function useScreenshot() {
     }
   }, []);
 
+  const setSnapConfig = useCallback(async (config: SnapConfig) => {
+    if (!isTauri()) return false;
+    try {
+      await invoke('screenshot_set_snap_config', { config });
+      return true;
+    } catch (err) {
+      console.error('Failed to set snap config:', err);
+      return false;
+    }
+  }, []);
+
+  const setOcrLanguage = useCallback(async (language: string) => {
+    if (!isTauri()) return false;
+    try {
+      await invoke('screenshot_set_ocr_language', { language });
+      return true;
+    } catch (err) {
+      console.error('Failed to set OCR language:', err);
+      return false;
+    }
+  }, []);
+
   return {
     isCapturing,
     lastScreenshot,
@@ -289,11 +347,15 @@ export function useScreenshot() {
     extractTextWindows,
     getMonitors,
     saveToFile,
+    applyAnnotations,
+    validateSelection,
     getWindows,
     getWindowsWithThumbnails,
     captureWindowByHwnd,
     calculateSnap,
     getSnapConfig,
+    setSnapConfig,
+    setOcrLanguage,
   };
 }
 
@@ -301,6 +363,7 @@ export function useScreenshotHistory() {
   const [history, setHistory] = useState<ScreenshotHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  /* ---------- History helpers ---------- */
   const fetchHistory = useCallback(async (count?: number) => {
     if (!isTauri()) return;
     
@@ -312,6 +375,26 @@ export function useScreenshotHistory() {
       console.error('Failed to fetch screenshot history:', err);
     } finally {
       setIsLoading(false);
+    }
+  }, []);
+
+  const fetchAllHistory = useCallback(async () => {
+    if (!isTauri()) return [] as ScreenshotHistoryEntry[];
+    try {
+      return await invoke<ScreenshotHistoryEntry[]>('screenshot_get_all_history');
+    } catch (err) {
+      console.error('Failed to fetch all history:', err);
+      return [];
+    }
+  }, []);
+
+  const fetchPinnedHistory = useCallback(async () => {
+    if (!isTauri()) return [] as ScreenshotHistoryEntry[];
+    try {
+      return await invoke<ScreenshotHistoryEntry[]>('screenshot_get_pinned_history');
+    } catch (err) {
+      console.error('Failed to fetch pinned history:', err);
+      return [];
     }
   }, []);
 
@@ -350,6 +433,16 @@ export function useScreenshotHistory() {
     }
   }, [fetchHistory]);
 
+  const searchHistoryByLabel = useCallback(async (label: string) => {
+    if (!isTauri()) return [] as ScreenshotHistoryEntry[];
+    try {
+      return await invoke<ScreenshotHistoryEntry[]>('screenshot_search_history_by_label', { label });
+    } catch (err) {
+      console.error('Failed to search history by label:', err);
+      return [];
+    }
+  }, []);
+
   const unpinScreenshot = useCallback(async (id: string) => {
     if (!isTauri()) return false;
     
@@ -387,15 +480,40 @@ export function useScreenshotHistory() {
     }
   }, []);
 
+  const clearAllHistory = useCallback(async () => {
+    if (!isTauri()) return;
+    try {
+      await invoke('screenshot_clear_all_history');
+      setHistory([]);
+    } catch (err) {
+      console.error('Failed to clear all history:', err);
+    }
+  }, []);
+
+  const getHistoryStats = useCallback(async () => {
+    if (!isTauri()) return null;
+    try {
+      return await invoke<[number, boolean]>('screenshot_get_history_stats');
+    } catch (err) {
+      console.error('Failed to get history stats:', err);
+      return null;
+    }
+  }, []);
+
   return {
     history,
     isLoading,
     fetchHistory,
+    fetchAllHistory,
+    fetchPinnedHistory,
     searchHistory,
+    searchHistoryByLabel,
     getById,
     pinScreenshot,
     unpinScreenshot,
     deleteScreenshot,
     clearHistory,
+    clearAllHistory,
+    getHistoryStats,
   };
 }

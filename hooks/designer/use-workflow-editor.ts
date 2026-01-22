@@ -27,7 +27,7 @@ interface UseWorkflowEditorReturn {
   // Actions
   createWorkflow: (name?: string) => void;
   loadWorkflow: (workflow: VisualWorkflow) => void;
-  saveWorkflow: () => void;
+  saveWorkflow: () => Promise<void>;
   executeWorkflow: (input?: Record<string, unknown>) => Promise<WorkflowExecution | null>;
   pauseExecution: () => void;
   resumeExecution: () => void;
@@ -123,7 +123,7 @@ export function useWorkflowEditor(
     if (!autoSave || !isDirty || !currentWorkflow) return;
 
     const timer = setTimeout(() => {
-      saveWorkflow();
+      void saveWorkflow();
     }, autoSaveInterval);
 
     return () => clearTimeout(timer);

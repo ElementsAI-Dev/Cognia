@@ -93,6 +93,46 @@ export interface AudioDevice {
   is_default: boolean;
 }
 
+// ============== Storage Types ==============
+
+export interface StorageConfig {
+  recordingsDir: string;
+  screenshotsDir: string;
+  organizeByDate: boolean;
+  maxStorageGb: number;
+  autoCleanupDays: number;
+  preservePinned: boolean;
+  semanticNaming: boolean;
+}
+
+export interface StorageStats {
+  recordingsSize: number;
+  screenshotsSize: number;
+  recordingsCount: number;
+  screenshotsCount: number;
+  availableSpace: number;
+  totalSpace: number;
+}
+
+export interface CleanupResult {
+  filesDeleted: number;
+  bytesFreed: number;
+}
+
+// ============== Video Processing Progress Types ==============
+
+export interface VideoProcessingProgress {
+  operation: string;
+  progress: number;
+  currentTime: number;
+  totalDuration?: number;
+  etaSeconds?: number;
+  speed?: string;
+  bitrate?: string;
+  complete: boolean;
+  error?: string;
+}
+
 // ============== Recording Control Functions ==============
 
 /**
@@ -389,4 +429,83 @@ export async function checkHardwareAcceleration(): Promise<HardwareAcceleration>
  */
 export async function checkFFmpegVersion(): Promise<boolean> {
   return invoke<boolean>("ffmpeg_check_version");
+}
+// ============== Storage Management Functions ==============
+
+/**
+ * Get storage statistics
+ */
+export async function getStorageStats(): Promise<StorageStats> {
+  return invoke<StorageStats>("storage_get_stats");
+}
+
+/**
+ * Get storage configuration
+ */
+export async function getStorageConfig(): Promise<StorageConfig> {
+  return invoke<StorageConfig>("storage_get_config");
+}
+
+/**
+ * Update storage configuration
+ */
+export async function updateStorageConfig(config: StorageConfig): Promise<void> {
+  return invoke<void>("storage_update_config", { config });
+}
+
+/**
+ * Generate filename for a new recording
+ */
+export async function generateRecordingFilename(
+  mode: string,
+  format: string,
+  customName?: string
+): Promise<string> {
+  return invoke<string>("storage_generate_recording_filename", { mode, format, customName });
+}
+
+/**
+ * Get full path for a recording file
+ */
+export async function getRecordingPath(filename: string): Promise<string> {
+  return invoke<string>("storage_get_recording_path", { filename });
+}
+
+/**
+ * Generate filename for a screenshot
+ */
+export async function generateScreenshotFilename(
+  mode: string,
+  format: string,
+  customName?: string
+): Promise<string> {
+  return invoke<string>("storage_generate_screenshot_filename", { mode, format, customName });
+}
+
+/**
+ * Get full path for a screenshot file
+ */
+export async function getScreenshotPath(filename: string): Promise<string> {
+  return invoke<string>("storage_get_screenshot_path", { filename });
+}
+
+/**
+ * Check if storage limit is exceeded
+ */
+export async function isStorageExceeded(): Promise<boolean> {
+  return invoke<boolean>("storage_is_exceeded");
+}
+
+/**
+ * Get storage usage percentage
+ */
+export async function getStorageUsagePercent(): Promise<number> {
+  return invoke<number>("storage_get_usage_percent");
+}
+
+/**
+ * Cleanup old files based on configuration
+ */
+export async function cleanupStorage(): Promise<CleanupResult> {
+  return invoke<CleanupResult>("storage_cleanup");
 }

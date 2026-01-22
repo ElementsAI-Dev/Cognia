@@ -44,6 +44,7 @@
     "formatCSV": "CSV 文件",
     "formatCSVDesc": "适用于电子表格的简单表格格式",
     "openGoogleSheets": "在 Google 表格中打开",
+    "openInGoogleSheets": "在 Google 表格中打开",
     "googleSheetsHint": "下载 CSV 并打开 Google 表格导入",
     "includeTimestamps": "包含时间戳",
     "includeTimestampsDesc": "在导出中显示消息时间",
@@ -140,7 +141,9 @@
     "includeTitleOption": "包含对话标题",
     "includeTimestampsShareOption": "包含时间戳",
     "includeModelOption": "包含模型信息",
-    "messagesInfo": "共 {count} 条消息 · 最多分享 {max} 条"
+    "messagesInfo": "共 {count} 条消息 · 最多分享 {max} 条",
+    "share": "分享",
+    "imageFormatShare": "图片"
   },
   "batchExport": {
     "batchExport": "批量导出",

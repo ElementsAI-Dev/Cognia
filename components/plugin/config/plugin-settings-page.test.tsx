@@ -8,14 +8,27 @@ import { PluginSettingsPage } from './plugin-settings-page';
 import { usePluginStore } from '@/stores/plugin';
 import { usePlugins } from '@/hooks/plugin';
 import type { Plugin } from '@/types/plugin';
+import { toast } from '@/components/ui/sonner';
 
 // Mock stores and hooks
 jest.mock('@/stores/plugin', () => ({
   usePluginStore: jest.fn(),
 }));
 
+jest.mock('../marketplace', () => ({
+  PluginMarketplace: () => <div data-testid="plugin-marketplace" />,
+  PluginDetailModal: () => null,
+}));
+
 jest.mock('@/hooks/plugin', () => ({
   usePlugins: jest.fn(),
+}));
+
+jest.mock('@/components/ui/sonner', () => ({
+  toast: {
+    error: jest.fn(),
+    success: jest.fn(),
+  },
 }));
 
 // Mock next-intl
@@ -74,6 +87,21 @@ jest.mock('next-intl', () => ({
       'settingsTab.clearCache': 'Clear Cache',
       'settingsTab.clearCacheDesc': 'Clear plugin cache',
       'settingsTab.clearCacheBtn': 'Clear',
+
+      // PluginEmptyState strings
+      'noPlugins.title': 'No plugins installed',
+      'noPlugins.description': 'Install or create a plugin to get started',
+      'noPlugins.createPlugin': 'Create your first plugin',
+      'noPlugins.browseMarketplace': 'Browse Marketplace',
+      'noPlugins.importPlugin': 'Import Plugin',
+      'noPlugins.tip': 'Tip',
+
+      'noResults.title': 'No plugins match your filters',
+      'noResults.filterDescription': 'Try adjusting your search or filters',
+      'noResults.searchDescription': `No results for ${params?.query ?? ''}`,
+      'noResults.clearFilters': 'Clear Filters',
+      'noResults.browseMore': 'Browse More',
+      'noResults.suggestions': 'Suggestions',
     };
     return translations[key] || key;
   },
@@ -272,6 +300,8 @@ describe('PluginSettingsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (usePluginStore as unknown as jest.Mock).mockReturnValue({
+      pluginDirectory: '/test/plugins',
+      plugins: {},
       scanPlugins: mockScanPlugins,
       initialize: mockInitialize,
       enablePlugin: mockEnablePlugin,
@@ -445,9 +475,7 @@ describe('PluginSettingsPage', () => {
       expect(mockScanPlugins).toHaveBeenCalled();
     });
 
-    it('should call initialize if not initialized', async () => {
-      mockInitialize.mockResolvedValue(undefined);
-      mockScanPlugins.mockResolvedValue(undefined);
+    it('should show toast error if not initialized', async () => {
       (usePlugins as unknown as jest.Mock).mockReturnValue({
         plugins: [],
         enabledPlugins: [],
@@ -461,7 +489,7 @@ describe('PluginSettingsPage', () => {
       const refreshButton = screen.getAllByText('Refresh')[0];
       fireEvent.click(refreshButton);
       
-      expect(mockInitialize).toHaveBeenCalledWith('plugins');
+      expect(toast.error).toHaveBeenCalledWith('Plugins are not initialized yet');
     });
   });
 
@@ -536,7 +564,7 @@ describe('PluginSettingsPage', () => {
     it('should show error count badge when there are errors', () => {
       render(<PluginSettingsPage />);
       
-      expect(screen.getByText(/errors/)).toBeInTheDocument();
+      expect(screen.getAllByText(/errors/).length).toBeGreaterThan(0);
     });
 
     it('should show enabled and disabled counts', () => {
@@ -565,7 +593,7 @@ describe('PluginSettingsPage', () => {
       render(<PluginSettingsPage />);
       
       expect(screen.getByText('Plugin Directory')).toBeInTheDocument();
-      expect(screen.getByText('~/.cognia/plugins')).toBeInTheDocument();
+      expect(screen.getByText('/test/plugins')).toBeInTheDocument();
     });
 
     it('should render python environment setting', () => {

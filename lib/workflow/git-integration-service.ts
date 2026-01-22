@@ -30,7 +30,7 @@ export class GitIntegrationService {
       throw new Error('Git integration is disabled');
     }
 
-    await invoke('git_clone', {
+    await invoke<void>('git_clone', {
       url,
       path: destination,
       branch: branch || this.config.defaultBranch,
@@ -55,7 +55,7 @@ export class GitIntegrationService {
       throw new Error('Git integration is disabled');
     }
 
-    await invoke('git_pull', {
+    await invoke<void>('git_pull', {
       path,
     });
 
@@ -78,7 +78,7 @@ export class GitIntegrationService {
       throw new Error('Git integration is disabled');
     }
 
-    await invoke('git_push', {
+    await invoke<void>('git_push', {
       path,
     });
 
@@ -106,7 +106,13 @@ export class GitIntegrationService {
       throw new Error('Git integration is disabled');
     }
 
-    return await invoke('git_status', { path });
+    return await invoke<{
+      branch: string;
+      hasChanges: boolean;
+      staged: string[];
+      unstaged: string[];
+      untracked: string[];
+    }>('git_status', { path });
   }
 
   /**
@@ -193,7 +199,7 @@ export class GitIntegrationService {
       throw new Error('Git integration is disabled');
     }
 
-    return await invoke('git_branches', { path });
+    return await invoke<string[]>('git_branches', { path });
   }
 
   /**
@@ -214,7 +220,12 @@ export class GitIntegrationService {
       throw new Error('Git integration is disabled');
     }
 
-    return await invoke('git_log', {
+    return await invoke<Array<{
+      hash: string;
+      message: string;
+      author: string;
+      date: string;
+    }>>('git_log', {
       path,
       limit,
     });
@@ -243,7 +254,7 @@ export class GitIntegrationService {
     }
 
     try {
-      const result = await invoke('git_fetch', { path });
+      const result = await invoke<{ hasUpdates: boolean }>('git_fetch', { path });
       const repo = this.repositories.get(path);
       
       if (repo) {
@@ -282,7 +293,7 @@ export class GitIntegrationService {
       throw new Error('Git integration is disabled');
     }
 
-    return await invoke('git_diff', {
+    return await invoke<string>('git_diff', {
       path,
       file,
     });

@@ -22,7 +22,16 @@ jest.mock('@/stores', () => {
       isAlwaysOnTop: false,
       isFocused: true,
       isVisible: true,
-      preferences: {},
+      preferences: {
+        titleBarHeight: 32,
+        enableDragToMove: true,
+        enableDoubleClickMaximize: true,
+        titleBarCustomLayout: {
+          left: [],
+          center: [],
+          right: [],
+        },
+      },
       // State from title-bar directly
       contentProtected: false,
       skipTaskbar: false,
@@ -48,6 +57,8 @@ jest.mock('@/stores', () => {
       setIsResizable: jest.fn(),
       setEnableDoubleClickMaximize: jest.fn(),
       setEnableDragToMove: jest.fn(),
+      setTitleBarCustomLayout: jest.fn(),
+      setTitleBarHeight: jest.fn(),
     }),
     useSettingsStore: createMockStore({
       theme: 'dark',

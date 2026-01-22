@@ -5,8 +5,7 @@
 //! - Communication via stdin/stdout (simplified protocol)
 //! - Process monitoring and cleanup
 
-#![allow(dead_code)]
-
+use crate::jupyter::protocol::ExecuteRequest;
 use log::{debug, error, info, trace, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -152,6 +151,16 @@ impl JupyterKernel {
             return Err("Kernel is dead".to_string());
         }
 
+        // Lightweight protocol integration: create ExecuteRequest for logging
+        let execute_request = ExecuteRequest::new(code.to_string());
+        trace!(
+            "Kernel {} executing with protocol: msg_type={}, silent={}, store_history={}",
+            self.id,
+            "execute_request",
+            execute_request.silent,
+            execute_request.store_history
+        );
+
         self.status = KernelStatus::Busy;
         self.last_activity_at = Some(chrono::Utc::now());
         let start_time = Instant::now();
@@ -171,6 +180,11 @@ impl JupyterKernel {
 
                 // Parse for display data (matplotlib, pandas, etc.)
                 let display_data = self.extract_display_data(&stdout);
+
+                // Update variables cache with successful execution
+                if !stdout.is_empty() || !stderr.is_empty() {
+                    self.cache_variables_from_output(&stdout);
+                }
 
                 let success = stderr.is_empty();
                 if success {
@@ -546,6 +560,23 @@ print(json.dumps({{"stdout": stdout_val, "stderr": stderr_val}}))
     /// Get current variables in the kernel namespace
     pub async fn get_variables(&mut self) -> Result<Vec<super::VariableInfo>, String> {
         debug!("Kernel {}: Getting variables from namespace", self.id);
+
+        // Return cached variables if available
+        if !self.variables.is_empty() {
+            debug!("Kernel {}: Returning {} cached variables", self.id, self.variables.len());
+            return Ok(self
+                .variables
+                .iter()
+                .map(|(name, value)| super::VariableInfo {
+                    name: name.clone(),
+                    var_type: "cached".to_string(),
+                    value: value.clone(),
+                    size: None,
+                })
+                .collect());
+        }
+
+        // Fall back to live query
         let code = r#"
 import json
 import sys
@@ -583,8 +614,14 @@ print(json.dumps(get_var_info()))
                     error!("Kernel {}: Failed to parse variables JSON: {}", self.id, e);
                     e.to_string()
                 })?;
+
+            // Cache the variables
+            for var in &vars {
+                self.variables.insert(var.name.clone(), var.value.clone());
+            }
+
             debug!(
-                "Kernel {}: Retrieved {} variables from namespace",
+                "Kernel {}: Retrieved and cached {} variables from namespace",
                 self.id,
                 vars.len()
             );
@@ -596,6 +633,36 @@ print(json.dumps(get_var_info()))
                 self.id, result.stderr
             );
             Err(result.stderr)
+        }
+    }
+
+    /// Get cached variables without querying the kernel
+    pub fn get_cached_variables(&self) -> Vec<super::VariableInfo> {
+        self.variables
+            .iter()
+            .map(|(name, value)| super::VariableInfo {
+                name: name.clone(),
+                var_type: "cached".to_string(),
+                value: value.clone(),
+                size: None,
+            })
+            .collect()
+    }
+
+    /// Cache variables from execution output
+    fn cache_variables_from_output(&mut self, output: &str) {
+        // Simple heuristic: extract variable assignments from output
+        for line in output.lines() {
+            if line.contains('=') && !line.starts_with('#') {
+                if let Some(var_name) = line.split('=').next() {
+                    let var_name = var_name.trim();
+                    if !var_name.is_empty() && !var_name.contains(' ') {
+                        let var_value = line.split('=').nth(1).unwrap_or("").trim();
+                        self.variables.insert(var_name.to_string(), var_value.to_string());
+                        trace!("Kernel {}: Cached variable '{}' with value '{}'", self.id, var_name, var_value);
+                    }
+                }
+            }
         }
     }
 

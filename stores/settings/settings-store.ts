@@ -22,7 +22,7 @@ import {
   getDefaultUsageStats,
 } from '@/lib/ai/infrastructure/api-key-rotation';
 import type { ColorThemePreset, UICustomization, BorderRadiusSize, SpacingSize, ShadowIntensity, BackgroundSettings, BackgroundImageFit, BackgroundImagePosition, BackgroundImageSource } from '@/lib/themes';
-import { DEFAULT_UI_CUSTOMIZATION, DEFAULT_BACKGROUND_SETTINGS } from '@/lib/themes';
+import { DEFAULT_UI_CUSTOMIZATION, DEFAULT_BACKGROUND_SETTINGS, normalizeBackgroundSettings } from '@/lib/themes';
 import { deleteBackgroundImageAsset, saveBackgroundImageAsset } from '@/lib/themes/background-assets';
 import type { SearchProviderType, SearchProviderSettings, SourceVerificationSettings, SourceVerificationMode } from '@/types/search';
 import { DEFAULT_SEARCH_PROVIDER_SETTINGS, DEFAULT_SOURCE_VERIFICATION_SETTINGS } from '@/types/search';
@@ -41,6 +41,9 @@ import type { TokenizerSettings, TokenizerProvider } from '@/types/system/tokeni
 import { DEFAULT_TOKENIZER_SETTINGS } from '@/types/system/tokenizer';
 import type { FeatureRoutingSettings, FeatureId, FeatureRoutingMode } from '@/types/routing/feature-router';
 import { DEFAULT_FEATURE_ROUTING_SETTINGS } from '@/types/routing/feature-router';
+import type { WelcomeSettings, CustomSuggestion, QuickAccessLink, WelcomeSectionVisibility } from '@/types/settings/welcome-settings';
+import { DEFAULT_WELCOME_SETTINGS } from '@/types/settings/welcome-settings';
+import type { ChatMode } from '@/types/core';
 
 // Safety Mode types
 export type SafetyMode = 'off' | 'warn' | 'block';
@@ -577,6 +580,28 @@ interface SettingsState {
   updateRoutePreference: (routeId: FeatureId, delta: number) => void;
   resetFeatureRoutingSettings: () => void;
 
+  // Welcome Settings
+  welcomeSettings: WelcomeSettings;
+  setWelcomeSettings: (settings: Partial<WelcomeSettings>) => void;
+  setWelcomeEnabled: (enabled: boolean) => void;
+  setWelcomeCustomGreeting: (greeting: string) => void;
+  setWelcomeCustomDescription: (description: string) => void;
+  setWelcomeShowAvatar: (show: boolean) => void;
+  setWelcomeAvatarUrl: (url: string) => void;
+  setWelcomeSectionVisibility: (visibility: Partial<WelcomeSectionVisibility>) => void;
+  addWelcomeCustomSuggestion: (mode: ChatMode, suggestion: Omit<CustomSuggestion, 'id'>) => string;
+  updateWelcomeCustomSuggestion: (mode: ChatMode, id: string, updates: Partial<CustomSuggestion>) => void;
+  removeWelcomeCustomSuggestion: (mode: ChatMode, id: string) => void;
+  setWelcomeHideDefaultSuggestions: (hide: boolean) => void;
+  setWelcomeQuickAccessLinks: (links: QuickAccessLink[]) => void;
+  addWelcomeQuickAccessLink: (link: Omit<QuickAccessLink, 'id'>) => string;
+  updateWelcomeQuickAccessLink: (id: string, updates: Partial<QuickAccessLink>) => void;
+  removeWelcomeQuickAccessLink: (id: string) => void;
+  setWelcomeUseCustomQuickAccess: (use: boolean) => void;
+  setWelcomeDefaultMode: (mode: ChatMode) => void;
+  setWelcomeMaxSuggestions: (max: number) => void;
+  resetWelcomeSettings: () => void;
+
   // Reset
   resetSettings: () => void;
 }
@@ -854,6 +879,9 @@ const initialState = {
 
   // Feature Routing settings
   featureRoutingSettings: { ...DEFAULT_FEATURE_ROUTING_SETTINGS },
+
+  // Welcome Settings
+  welcomeSettings: { ...DEFAULT_WELCOME_SETTINGS },
 
   // Onboarding
   hasCompletedOnboarding: false,
@@ -2012,6 +2040,124 @@ export const useSettingsStore = create<SettingsState>()(
       resetFeatureRoutingSettings: () =>
         set({ featureRoutingSettings: { ...DEFAULT_FEATURE_ROUTING_SETTINGS } }),
 
+      // Welcome Settings actions
+      setWelcomeSettings: (settings) =>
+        set((state) => ({
+          welcomeSettings: { ...state.welcomeSettings, ...settings },
+        })),
+      setWelcomeEnabled: (enabled) =>
+        set((state) => ({
+          welcomeSettings: { ...state.welcomeSettings, enabled },
+        })),
+      setWelcomeCustomGreeting: (customGreeting) =>
+        set((state) => ({
+          welcomeSettings: { ...state.welcomeSettings, customGreeting },
+        })),
+      setWelcomeCustomDescription: (customDescription) =>
+        set((state) => ({
+          welcomeSettings: { ...state.welcomeSettings, customDescription },
+        })),
+      setWelcomeShowAvatar: (showAvatar) =>
+        set((state) => ({
+          welcomeSettings: { ...state.welcomeSettings, showAvatar },
+        })),
+      setWelcomeAvatarUrl: (avatarUrl) =>
+        set((state) => ({
+          welcomeSettings: { ...state.welcomeSettings, avatarUrl },
+        })),
+      setWelcomeSectionVisibility: (visibility) =>
+        set((state) => ({
+          welcomeSettings: {
+            ...state.welcomeSettings,
+            sectionsVisibility: { ...state.welcomeSettings.sectionsVisibility, ...visibility },
+          },
+        })),
+      addWelcomeCustomSuggestion: (mode, suggestion) => {
+        const id = nanoid();
+        const newSuggestion = { ...suggestion, id };
+        set((state) => ({
+          welcomeSettings: {
+            ...state.welcomeSettings,
+            customSuggestions: {
+              ...state.welcomeSettings.customSuggestions,
+              [mode]: [...state.welcomeSettings.customSuggestions[mode], newSuggestion],
+            },
+          },
+        }));
+        return id;
+      },
+      updateWelcomeCustomSuggestion: (mode, id, updates) =>
+        set((state) => ({
+          welcomeSettings: {
+            ...state.welcomeSettings,
+            customSuggestions: {
+              ...state.welcomeSettings.customSuggestions,
+              [mode]: state.welcomeSettings.customSuggestions[mode].map((s) =>
+                s.id === id ? { ...s, ...updates } : s
+              ),
+            },
+          },
+        })),
+      removeWelcomeCustomSuggestion: (mode, id) =>
+        set((state) => ({
+          welcomeSettings: {
+            ...state.welcomeSettings,
+            customSuggestions: {
+              ...state.welcomeSettings.customSuggestions,
+              [mode]: state.welcomeSettings.customSuggestions[mode].filter((s) => s.id !== id),
+            },
+          },
+        })),
+      setWelcomeHideDefaultSuggestions: (hideDefaultSuggestions) =>
+        set((state) => ({
+          welcomeSettings: { ...state.welcomeSettings, hideDefaultSuggestions },
+        })),
+      setWelcomeQuickAccessLinks: (quickAccessLinks) =>
+        set((state) => ({
+          welcomeSettings: { ...state.welcomeSettings, quickAccessLinks },
+        })),
+      addWelcomeQuickAccessLink: (link) => {
+        const id = nanoid();
+        const newLink = { ...link, id };
+        set((state) => ({
+          welcomeSettings: {
+            ...state.welcomeSettings,
+            quickAccessLinks: [...state.welcomeSettings.quickAccessLinks, newLink],
+          },
+        }));
+        return id;
+      },
+      updateWelcomeQuickAccessLink: (id, updates) =>
+        set((state) => ({
+          welcomeSettings: {
+            ...state.welcomeSettings,
+            quickAccessLinks: state.welcomeSettings.quickAccessLinks.map((l) =>
+              l.id === id ? { ...l, ...updates } : l
+            ),
+          },
+        })),
+      removeWelcomeQuickAccessLink: (id) =>
+        set((state) => ({
+          welcomeSettings: {
+            ...state.welcomeSettings,
+            quickAccessLinks: state.welcomeSettings.quickAccessLinks.filter((l) => l.id !== id),
+          },
+        })),
+      setWelcomeUseCustomQuickAccess: (useCustomQuickAccess) =>
+        set((state) => ({
+          welcomeSettings: { ...state.welcomeSettings, useCustomQuickAccess },
+        })),
+      setWelcomeDefaultMode: (defaultMode) =>
+        set((state) => ({
+          welcomeSettings: { ...state.welcomeSettings, defaultMode },
+        })),
+      setWelcomeMaxSuggestions: (maxSuggestionsPerMode) =>
+        set((state) => ({
+          welcomeSettings: { ...state.welcomeSettings, maxSuggestionsPerMode },
+        })),
+      resetWelcomeSettings: () =>
+        set({ welcomeSettings: { ...DEFAULT_WELCOME_SETTINGS } }),
+
       // Onboarding actions
       setOnboardingCompleted: (hasCompletedOnboarding) => set({ hasCompletedOnboarding }),
 
@@ -2020,6 +2166,17 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: 'cognia-settings',
       storage: createJSONStorage(() => localStorage),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<SettingsState> | undefined;
+
+        return {
+          ...currentState,
+          ...persisted,
+          backgroundSettings: normalizeBackgroundSettings(
+            persisted?.backgroundSettings ?? currentState.backgroundSettings
+          ),
+        };
+      },
       partialize: (state) => {
         const shouldStripSecrets = isStrongholdAvailable();
         const providerSettings = shouldStripSecrets
@@ -2149,6 +2306,8 @@ export const useSettingsStore = create<SettingsState>()(
         featureRoutingSettings: state.featureRoutingSettings,
         // Observability settings
         observabilitySettings: state.observabilitySettings,
+        // Welcome Settings
+        welcomeSettings: state.welcomeSettings,
         // Onboarding
         hasCompletedOnboarding: state.hasCompletedOnboarding,
         };
@@ -2180,3 +2339,5 @@ export const selectTokenizerSettings = (state: SettingsState) => state.tokenizer
 export const selectTokenizerEnabled = (state: SettingsState) => state.tokenizerSettings.enablePreciseCounting;
 export const selectFeatureRoutingSettings = (state: SettingsState) => state.featureRoutingSettings;
 export const selectFeatureRoutingEnabled = (state: SettingsState) => state.featureRoutingSettings.enabled;
+export const selectWelcomeSettings = (state: SettingsState) => state.welcomeSettings;
+export const selectWelcomeEnabled = (state: SettingsState) => state.welcomeSettings.enabled;

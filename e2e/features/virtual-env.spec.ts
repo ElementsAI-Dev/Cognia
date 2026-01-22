@@ -24,7 +24,7 @@ async function navigateToEnvironmentSettings(page: Page) {
 // Helper to wait for Tauri environment
 async function checkTauriEnvironment(page: Page): Promise<boolean> {
   return await page.evaluate(() => {
-    return typeof window !== 'undefined' && '__TAURI__' in window;
+    return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
   });
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { isTauri } from '@/lib/native/utils';
 
 export interface ClipboardContent {
   text: string;
@@ -114,7 +115,7 @@ export function useClipboardMonitor(options: UseClipboardMonitorOptions = {}) {
 
     try {
       // Check if we're in Tauri environment
-      if (typeof window !== "undefined" && window.__TAURI__) {
+      if (typeof window !== "undefined" && isTauri()) {
         const { invoke } = await import("@tauri-apps/api/core");
         
         try {
@@ -203,7 +204,7 @@ export function useClipboardMonitor(options: UseClipboardMonitorOptions = {}) {
   // Copy to clipboard
   const copyToClipboard = useCallback(async (text: string) => {
     try {
-      if (typeof window !== "undefined" && window.__TAURI__) {
+      if (typeof window !== "undefined" && isTauri()) {
         const { invoke } = await import("@tauri-apps/api/core");
         await invoke("clipboard_write_text", { text });
       } else {

@@ -354,7 +354,7 @@ pub async fn terminate_process(request: TerminateProcessRequest) -> Result<Termi
 }
 
 /// Apply filter to a process
-fn apply_filter(info: &ProcessInfo, filter: &ProcessFilter) -> bool {
+pub(super) fn apply_filter(info: &ProcessInfo, filter: &ProcessFilter) -> bool {
     // Filter by PID
     if let Some(pid) = filter.pid {
         if info.pid != pid {
@@ -413,7 +413,7 @@ fn apply_filter(info: &ProcessInfo, filter: &ProcessFilter) -> bool {
 }
 
 /// Sort processes by field
-fn sort_processes(processes: &mut Vec<ProcessInfo>, sort_by: ProcessSortField, desc: bool) {
+pub(super) fn sort_processes(processes: &mut Vec<ProcessInfo>, sort_by: ProcessSortField, desc: bool) {
     processes.sort_by(|a, b| {
         let cmp = match sort_by {
             ProcessSortField::Pid => a.pid.cmp(&b.pid),

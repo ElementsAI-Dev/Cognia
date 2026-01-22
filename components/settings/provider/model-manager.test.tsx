@@ -18,19 +18,18 @@ jest.mock('@tauri-apps/api/event', () => ({
   listen: (...args: unknown[]) => mockListen(...args),
 }));
 
-// Mock window.__TAURI__
-const originalWindow = { ...window };
+const originalTauriInternals = (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 
 beforeAll(() => {
-  Object.defineProperty(window, '__TAURI__', {
-    value: true,
+  Object.defineProperty(window, '__TAURI_INTERNALS__', {
+    value: {},
     writable: true,
   });
 });
 
 afterAll(() => {
-  Object.defineProperty(window, '__TAURI__', {
-    value: originalWindow.__TAURI__,
+  Object.defineProperty(window, '__TAURI_INTERNALS__', {
+    value: originalTauriInternals,
     writable: true,
   });
 });
@@ -511,9 +510,9 @@ describe('ModelManager', () => {
 
   describe('Non-Tauri Environment', () => {
     it('should not load models when not in Tauri environment', async () => {
-      // Temporarily remove __TAURI__
-      const originalTauri = window.__TAURI__;
-      Object.defineProperty(window, '__TAURI__', {
+      // Temporarily remove __TAURI_INTERNALS__ (Tauri v2)
+      const originalTauriInternals = (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+      Object.defineProperty(window, '__TAURI_INTERNALS__', {
         value: undefined,
         writable: true,
       });
@@ -528,8 +527,8 @@ describe('ModelManager', () => {
       expect(mockInvoke).not.toHaveBeenCalled();
 
       // Restore
-      Object.defineProperty(window, '__TAURI__', {
-        value: originalTauri,
+      Object.defineProperty(window, '__TAURI_INTERNALS__', {
+        value: originalTauriInternals,
         writable: true,
       });
     });

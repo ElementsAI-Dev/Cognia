@@ -15,6 +15,9 @@ import type {
   MonitorInfo,
   AudioDevices,
   RecordingRegion,
+  StorageStats,
+  StorageConfig,
+  CleanupResult,
 } from '@/lib/native/screen-recording';
 import {
   getRecordingStatus,
@@ -35,6 +38,12 @@ import {
   deleteRecording,
   clearRecordingHistory,
   getDefaultRecordingConfig,
+  getStorageStats,
+  getStorageConfig,
+  updateStorageConfig,
+  isStorageExceeded,
+  getStorageUsagePercent,
+  cleanupStorage,
 } from '@/lib/native/screen-recording';
 import { isTauri } from '@/lib/native/utils';
 
@@ -56,6 +65,12 @@ interface ScreenRecordingState {
   
   // History
   history: RecordingHistoryEntry[];
+  
+  // Storage
+  storageStats: StorageStats | null;
+  storageConfig: StorageConfig | null;
+  storageUsagePercent: number;
+  isStorageExceeded: boolean;
   
   // UI state
   showRecordingIndicator: boolean;
@@ -109,6 +124,12 @@ interface ScreenRecordingActions {
   deleteFromHistory: (id: string) => Promise<void>;
   clearHistory: () => Promise<void>;
   
+  // Storage
+  refreshStorageStats: () => Promise<void>;
+  refreshStorageConfig: () => Promise<void>;
+  updateStorageConfig: (config: StorageConfig) => Promise<void>;
+  runStorageCleanup: () => Promise<CleanupResult | null>;
+  
   // UI
   setSelectedMonitor: (index: number | null) => void;
   setSelectedMode: (mode: RecordingMode) => void;
@@ -128,6 +149,10 @@ const initialState: ScreenRecordingState = {
   audioDevices: { system_audio_available: false, microphones: [] },
   ffmpegAvailable: false,
   history: [],
+  storageStats: null,
+  storageConfig: null,
+  storageUsagePercent: 0,
+  isStorageExceeded: false,
   showRecordingIndicator: true,
   selectedMonitor: null,
   selectedMode: 'fullscreen',
@@ -151,13 +176,28 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
 
         set({ isLoading: true, error: null });
         try {
-          const [status, config, monitors, audioDevices, ffmpegAvailable, history] = await Promise.all([
+          const [
+            status,
+            config,
+            monitors,
+            audioDevices,
+            ffmpegAvailable,
+            history,
+            storageStatsResult,
+            storageConfigResult,
+            storageUsagePercentResult,
+            isStorageExceededResult,
+          ] = await Promise.all([
             getRecordingStatus(),
             getRecordingConfig(),
             getRecordingMonitors(),
             getAudioDevices(),
             checkFFmpeg(),
             getRecordingHistory(50),
+            getStorageStats().catch(() => null),
+            getStorageConfig().catch(() => null),
+            getStorageUsagePercent().catch(() => 0),
+            isStorageExceeded().catch(() => false),
           ]);
 
           set({
@@ -167,6 +207,10 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
             audioDevices,
             ffmpegAvailable,
             history,
+            storageStats: storageStatsResult,
+            storageConfig: storageConfigResult,
+            storageUsagePercent: storageUsagePercentResult,
+            isStorageExceeded: isStorageExceededResult,
             selectedMonitor: monitors.find(m => m.is_primary)?.index ?? 0,
             isInitialized: true,
             isLoading: false,
@@ -452,6 +496,63 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
           set({ history: [] });
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to clear history' });
+        }
+      },
+
+      // Storage actions
+      refreshStorageStats: async () => {
+        if (!isTauri()) return;
+        try {
+          const [stats, usagePercent, exceeded] = await Promise.all([
+            getStorageStats(),
+            getStorageUsagePercent(),
+            isStorageExceeded(),
+          ]);
+          set({
+            storageStats: stats,
+            storageUsagePercent: usagePercent,
+            isStorageExceeded: exceeded,
+          });
+        } catch (error) {
+          set({ error: error instanceof Error ? error.message : 'Failed to get storage stats' });
+        }
+      },
+
+      refreshStorageConfig: async () => {
+        if (!isTauri()) return;
+        try {
+          const config = await getStorageConfig();
+          set({ storageConfig: config });
+        } catch (error) {
+          set({ error: error instanceof Error ? error.message : 'Failed to get storage config' });
+        }
+      },
+
+      updateStorageConfig: async (config) => {
+        if (!isTauri()) return;
+        try {
+          await updateStorageConfig(config);
+          set({ storageConfig: config });
+          // Refresh stats after config change
+          await get().refreshStorageStats();
+        } catch (error) {
+          set({ error: error instanceof Error ? error.message : 'Failed to update storage config' });
+        }
+      },
+
+      runStorageCleanup: async () => {
+        if (!isTauri()) return null;
+        try {
+          const result = await cleanupStorage();
+          // Refresh stats and history after cleanup
+          await Promise.all([
+            get().refreshStorageStats(),
+            get().refreshHistory(),
+          ]);
+          return result;
+        } catch (error) {
+          set({ error: error instanceof Error ? error.message : 'Failed to run cleanup' });
+          return null;
         }
       },
 

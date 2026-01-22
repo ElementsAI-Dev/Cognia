@@ -2,9 +2,9 @@
 
 /**
  * Video Studio Page - Unified video editing and generation interface
- * 
+ *
  * Merged from video-editor and video-studio pages
- * 
+ *
  * Features:
  * - Recording Mode: Screen recording, editing, trimming, export
  * - AI Generation Mode: Text/Image to video generation
@@ -15,6 +15,7 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import {
   Video as VideoIcon,
   Download,
@@ -57,10 +58,14 @@ import {
   formatDuration,
   formatFileSize,
   type RecordingHistoryEntry,
+  type VideoProcessingProgress,
 } from '@/lib/native/screen-recording';
 import {
   trimVideo,
+  trimVideoWithProgress,
   convertVideo,
+  convertVideoWithProgress,
+  cancelVideoProcessing,
   generateOutputFilename,
   type VideoTrimOptions,
   type VideoConvertOptions,
@@ -104,23 +109,18 @@ export default function VideoStudioPage() {
   const tEditor = useTranslations('videoEditor');
   const tGen = useTranslations('videoGeneration');
   const searchParams = useSearchParams();
-  
+
   // Get initial mode from URL query parameter
   const initialMode = searchParams.get('mode') === 'recording' ? 'recording' : 'ai-generation';
-  
+
   // Studio Mode State
   const [studioMode, setStudioMode] = useState<StudioMode>(initialMode);
   const [showSidebar, setShowSidebar] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(1);
-  
+
   // Recording Mode State
-  const {
-    history,
-    isInitialized,
-    initialize,
-    refreshHistory,
-    deleteFromHistory,
-  } = useScreenRecordingStore();
+  const { history, isInitialized, initialize, refreshHistory, deleteFromHistory } =
+    useScreenRecordingStore();
 
   const {
     isRecording,
@@ -198,6 +198,8 @@ export default function VideoStudioPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const videoProcessingUnlistenRef = useRef<UnlistenFn[]>([]);
+  const exportResetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Stores
   const providerSettings = useSettingsStore((state) => state.providerSettings);
@@ -216,74 +218,201 @@ export default function VideoStudioPage() {
   // Available models
   const availableModels = useMemo(() => getAvailableVideoModelsForUI(), []);
 
+  const getProcessingMessage = useCallback(
+    (operation: string) => {
+      if (operation === 'trim') return tEditor('trimming');
+      if (operation === 'convert') return tEditor('converting');
+      if (operation === 'thumbnail') return tEditor('processing');
+      return tEditor('processing');
+    },
+    [tEditor]
+  );
+
+  const scheduleExportReset = useCallback(() => {
+    if (exportResetTimeoutRef.current) {
+      clearTimeout(exportResetTimeoutRef.current);
+    }
+    exportResetTimeoutRef.current = setTimeout(() => {
+      setExportState({ isExporting: false, progress: 0, message: '' });
+    }, 2000);
+  }, []);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+
+    const setup = async () => {
+      try {
+        const unlistenStarted = await listen<VideoProcessingProgress>(
+          'video-processing-started',
+          (event) => {
+            if (event.payload.operation !== 'trim' && event.payload.operation !== 'convert') return;
+            if (exportResetTimeoutRef.current) {
+              clearTimeout(exportResetTimeoutRef.current);
+            }
+            setExportState({
+              isExporting: true,
+              progress: 0,
+              message: getProcessingMessage(event.payload.operation),
+            });
+          }
+        );
+
+        const unlistenProgress = await listen<VideoProcessingProgress>(
+          'video-processing-progress',
+          (event) => {
+            if (event.payload.operation !== 'trim' && event.payload.operation !== 'convert') return;
+            setExportState(() => {
+              const progress = Math.round((event.payload.progress ?? 0) * 100);
+              const eta = event.payload.etaSeconds;
+              const speed = event.payload.speed;
+
+              const detailsParts = [
+                speed ? `${speed}` : null,
+                typeof eta === 'number' && eta > 0 ? `${Math.round(eta)}s` : null,
+              ].filter(Boolean);
+
+              return {
+                isExporting: true,
+                progress,
+                message:
+                  detailsParts.length > 0
+                    ? `${getProcessingMessage(event.payload.operation)} (${detailsParts.join(' · ')})`
+                    : getProcessingMessage(event.payload.operation),
+              };
+            });
+          }
+        );
+
+        const unlistenCompleted = await listen<{ operation: string; outputPath: string }>(
+          'video-processing-completed',
+          (event) => {
+            if (event.payload.operation !== 'trim' && event.payload.operation !== 'convert') return;
+            setExportState({ isExporting: false, progress: 100, message: tEditor('complete') });
+            scheduleExportReset();
+          }
+        );
+
+        const unlistenError = await listen<VideoProcessingProgress>(
+          'video-processing-error',
+          (event) => {
+            if (event.payload.operation !== 'trim' && event.payload.operation !== 'convert') return;
+            setExportState({
+              isExporting: false,
+              progress: 0,
+              message: event.payload.error ?? tEditor('exportFailed'),
+            });
+            scheduleExportReset();
+          }
+        );
+
+        const unlistenCancelled = await listen<VideoProcessingProgress>(
+          'video-processing-cancelled',
+          () => {
+            setExportState({
+              isExporting: false,
+              progress: 0,
+              message: tEditor('cancelled'),
+            });
+            scheduleExportReset();
+          }
+        );
+
+        videoProcessingUnlistenRef.current = [
+          unlistenStarted,
+          unlistenProgress,
+          unlistenCompleted,
+          unlistenError,
+          unlistenCancelled,
+        ];
+      } catch (err) {
+        console.error('Failed to setup video processing listeners:', err);
+      }
+    };
+
+    void setup();
+
+    return () => {
+      videoProcessingUnlistenRef.current.forEach((unlistenFn) => unlistenFn());
+      videoProcessingUnlistenRef.current = [];
+      if (exportResetTimeoutRef.current) {
+        clearTimeout(exportResetTimeoutRef.current);
+      }
+    };
+  }, [getProcessingMessage, scheduleExportReset, tEditor]);
+
   // Get models for current provider
   const providerModels = useMemo(() => {
-    return availableModels.filter(m => m.provider === provider);
+    return availableModels.filter((m) => m.provider === provider);
   }, [availableModels, provider]);
 
   // Update model when provider changes
   useEffect(() => {
     const firstModel = providerModels[0];
-    if (firstModel && !providerModels.some(m => m.id === model)) {
+    if (firstModel && !providerModels.some((m) => m.id === model)) {
       setModel(firstModel.id as VideoModel);
     }
   }, [provider, providerModels, model]);
 
   // Poll for job status
-  const pollJobStatus = useCallback(async (job: VideoJob) => {
-    const apiKey = getApiKey();
-    if (!apiKey || !job.jobId) return;
+  const pollJobStatus = useCallback(
+    async (job: VideoJob) => {
+      const apiKey = getApiKey();
+      if (!apiKey || !job.jobId) return;
 
-    try {
-      const result = await checkVideoGenerationStatus(apiKey, job.jobId, job.provider);
-      
-      setVideoJobs(prev => prev.map(j => {
-        if (j.id !== job.id) return j;
-        return {
-          ...j,
-          status: result.status,
-          progress: result.progress || j.progress,
-          videoUrl: result.video?.url || j.videoUrl,
-          videoBase64: result.video?.base64 || j.videoBase64,
-          thumbnailUrl: result.video?.thumbnailUrl || j.thumbnailUrl,
-          error: result.error,
-        };
-      }));
+      try {
+        const result = await checkVideoGenerationStatus(apiKey, job.jobId, job.provider);
 
-      // Save to media store if completed
-      if (result.status === 'completed' && result.video) {
-        mediaStore.addVideo({
-          jobId: job.jobId,
-          url: result.video.url,
-          base64: result.video.base64,
-          thumbnailUrl: result.video.thumbnailUrl,
-          prompt: job.prompt,
-          model: job.model,
-          provider: job.provider,
-          resolution: job.settings.resolution,
-          aspectRatio: job.settings.aspectRatio,
-          duration: job.settings.duration,
-          style: job.settings.style,
-          fps: job.settings.fps,
-          status: 'completed',
-          progress: 100,
-          width: result.video.width,
-          height: result.video.height,
-          durationSeconds: result.video.durationSeconds,
-        });
+        setVideoJobs((prev) =>
+          prev.map((j) => {
+            if (j.id !== job.id) return j;
+            return {
+              ...j,
+              status: result.status,
+              progress: result.progress || j.progress,
+              videoUrl: result.video?.url || j.videoUrl,
+              videoBase64: result.video?.base64 || j.videoBase64,
+              thumbnailUrl: result.video?.thumbnailUrl || j.thumbnailUrl,
+              error: result.error,
+            };
+          })
+        );
+
+        // Save to media store if completed
+        if (result.status === 'completed' && result.video) {
+          mediaStore.addVideo({
+            jobId: job.jobId,
+            url: result.video.url,
+            base64: result.video.base64,
+            thumbnailUrl: result.video.thumbnailUrl,
+            prompt: job.prompt,
+            model: job.model,
+            provider: job.provider,
+            resolution: job.settings.resolution,
+            aspectRatio: job.settings.aspectRatio,
+            duration: job.settings.duration,
+            style: job.settings.style,
+            fps: job.settings.fps,
+            status: 'completed',
+            progress: 100,
+            width: result.video.width,
+            height: result.video.height,
+            durationSeconds: result.video.durationSeconds,
+          });
+        }
+
+        return result.status;
+      } catch (err) {
+        console.error('Poll error:', err);
+        return 'failed';
       }
-
-      return result.status;
-    } catch (err) {
-      console.error('Poll error:', err);
-      return 'failed';
-    }
-  }, [getApiKey, mediaStore]);
+    },
+    [getApiKey, mediaStore]
+  );
 
   // Start polling for active jobs
   useEffect(() => {
-    const activeJobs = videoJobs.filter(j => j.status === 'pending' || j.status === 'processing');
-    
+    const activeJobs = videoJobs.filter((j) => j.status === 'pending' || j.status === 'processing');
+
     if (activeJobs.length === 0) {
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
@@ -311,10 +440,12 @@ export default function VideoStudioPage() {
   // Generate video
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim()) return;
-    
+
     const apiKey = getApiKey();
     if (!apiKey) {
-      setError(provider === 'google-veo' ? 'Google API key is required' : 'OpenAI API key is required');
+      setError(
+        provider === 'google-veo' ? 'Google API key is required' : 'OpenAI API key is required'
+      );
       return;
     }
 
@@ -333,7 +464,7 @@ export default function VideoStudioPage() {
       settings: { resolution, aspectRatio, duration, style, fps },
     };
 
-    setVideoJobs(prev => [newJob, ...prev]);
+    setVideoJobs((prev) => [newJob, ...prev]);
 
     try {
       const result = await generateVideo(apiKey, {
@@ -353,19 +484,21 @@ export default function VideoStudioPage() {
         referenceImageBase64: referenceImage || undefined,
       });
 
-      setVideoJobs(prev => prev.map(j => {
-        if (j.id !== jobId) return j;
-        return {
-          ...j,
-          jobId: result.jobId,
-          status: result.status,
-          progress: result.progress || 0,
-          videoUrl: result.video?.url,
-          videoBase64: result.video?.base64,
-          thumbnailUrl: result.video?.thumbnailUrl,
-          error: result.error,
-        };
-      }));
+      setVideoJobs((prev) =>
+        prev.map((j) => {
+          if (j.id !== jobId) return j;
+          return {
+            ...j,
+            jobId: result.jobId,
+            status: result.status,
+            progress: result.progress || 0,
+            videoUrl: result.video?.url,
+            videoBase64: result.video?.base64,
+            thumbnailUrl: result.video?.thumbnailUrl,
+            error: result.error,
+          };
+        })
+      );
 
       if (result.status === 'completed' && result.video) {
         mediaStore.addVideo({
@@ -396,17 +529,32 @@ export default function VideoStudioPage() {
       console.error('Video generation error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to generate video';
       setError(errorMessage);
-      setVideoJobs(prev => prev.map(j => {
-        if (j.id !== jobId) return j;
-        return { ...j, status: 'failed', error: errorMessage };
-      }));
+      setVideoJobs((prev) =>
+        prev.map((j) => {
+          if (j.id !== jobId) return j;
+          return { ...j, status: 'failed', error: errorMessage };
+        })
+      );
     } finally {
       setIsGenerating(false);
     }
   }, [
-    prompt, negativePrompt, provider, model, resolution, aspectRatio, duration,
-    style, fps, enhancePrompt, includeAudio, audioPrompt, seed, referenceImage,
-    getApiKey, mediaStore
+    prompt,
+    negativePrompt,
+    provider,
+    model,
+    resolution,
+    aspectRatio,
+    duration,
+    style,
+    fps,
+    enhancePrompt,
+    includeAudio,
+    audioPrompt,
+    seed,
+    referenceImage,
+    getApiKey,
+    mediaStore,
   ]);
 
   // Download video
@@ -433,18 +581,21 @@ export default function VideoStudioPage() {
   }, []);
 
   // Delete job
-  const handleDeleteJob = useCallback((jobId: string) => {
-    setVideoJobs(prev => prev.filter(j => j.id !== jobId));
-    if (selectedVideo?.id === jobId) {
-      setSelectedVideo(null);
-    }
-  }, [selectedVideo]);
+  const handleDeleteJob = useCallback(
+    (jobId: string) => {
+      setVideoJobs((prev) => prev.filter((j) => j.id !== jobId));
+      if (selectedVideo?.id === jobId) {
+        setSelectedVideo(null);
+      }
+    },
+    [selectedVideo]
+  );
 
   // Toggle favorite
   const handleToggleFavorite = useCallback((jobId: string) => {
-    setVideoJobs(prev => prev.map(j => 
-      j.id === jobId ? { ...j, isFavorite: !j.isFavorite } : j
-    ));
+    setVideoJobs((prev) =>
+      prev.map((j) => (j.id === jobId ? { ...j, isFavorite: !j.isFavorite } : j))
+    );
   }, []);
 
   // Handle image upload for image-to-video
@@ -480,7 +631,7 @@ export default function VideoStudioPage() {
   // Filtered videos
   const displayedVideos = useMemo(() => {
     if (filterFavorites) {
-      return videoJobs.filter(j => j.isFavorite);
+      return videoJobs.filter((j) => j.isFavorite);
     }
     return videoJobs;
   }, [videoJobs, filterFavorites]);
@@ -493,7 +644,7 @@ export default function VideoStudioPage() {
 
   // Calculate estimated cost
   const estimatedCost = useMemo(() => {
-    const durationSeconds = DURATION_OPTIONS.find(d => d.value === duration)?.seconds || 10;
+    const durationSeconds = DURATION_OPTIONS.find((d) => d.value === duration)?.seconds || 10;
     return estimateVideoCost(provider, model, durationSeconds);
   }, [provider, model, duration]);
 
@@ -510,10 +661,11 @@ export default function VideoStudioPage() {
   const filteredHistory = useMemo(() => {
     if (!searchQuery.trim()) return history;
     const query = searchQuery.toLowerCase();
-    return history.filter(entry => 
-      entry.mode.toLowerCase().includes(query) ||
-      entry.tags.some(tag => tag.toLowerCase().includes(query)) ||
-      new Date(entry.timestamp).toLocaleDateString().includes(query)
+    return history.filter(
+      (entry) =>
+        entry.mode.toLowerCase().includes(query) ||
+        entry.tags.some((tag) => tag.toLowerCase().includes(query)) ||
+        new Date(entry.timestamp).toLocaleDateString().includes(query)
     );
   }, [history, searchQuery]);
 
@@ -535,11 +687,14 @@ export default function VideoStudioPage() {
     setIsPlaying(!isPlaying);
   }, [isPlaying]);
 
-  const handleSeek = useCallback((time: number) => {
-    if (!videoRef.current || !videoDuration) return;
-    videoRef.current.currentTime = time;
-    setCurrentTime(time * 1000);
-  }, [videoDuration]);
+  const handleSeek = useCallback(
+    (time: number) => {
+      if (!videoRef.current || !videoDuration) return;
+      videoRef.current.currentTime = time;
+      setCurrentTime(time * 1000);
+    },
+    [videoDuration]
+  );
 
   const handleVolumeChange = useCallback((newVolume: number) => {
     if (!videoRef.current) return;
@@ -553,7 +708,7 @@ export default function VideoStudioPage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Only handle shortcuts when in recording mode with a selected recording
       if (studioMode !== 'recording' || !selectedRecording) return;
-      
+
       // Don't trigger when typing in inputs
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
@@ -566,14 +721,14 @@ export default function VideoStudioPage() {
         case 'ArrowLeft':
           e.preventDefault();
           if (videoRef.current) {
-            const newTime = Math.max(0, (currentTime / 1000) - 5);
+            const newTime = Math.max(0, currentTime / 1000 - 5);
             handleSeek(newTime);
           }
           break;
         case 'ArrowRight':
           e.preventDefault();
           if (videoRef.current) {
-            const newTime = Math.min(videoDuration / 1000, (currentTime / 1000) + 5);
+            const newTime = Math.min(videoDuration / 1000, currentTime / 1000 + 5);
             handleSeek(newTime);
           }
           break;
@@ -593,11 +748,11 @@ export default function VideoStudioPage() {
         case '+':
         case '=':
           e.preventDefault();
-          setZoomLevel(prev => Math.min(3, prev + 0.25));
+          setZoomLevel((prev) => Math.min(3, prev + 0.25));
           break;
         case '-':
           e.preventDefault();
-          setZoomLevel(prev => Math.max(0.5, prev - 0.25));
+          setZoomLevel((prev) => Math.max(0.5, prev - 0.25));
           break;
         case '0':
           e.preventDefault();
@@ -608,7 +763,17 @@ export default function VideoStudioPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [studioMode, selectedRecording, togglePlay, currentTime, videoDuration, handleSeek, handleVolumeChange, volume, isMuted]);
+  }, [
+    studioMode,
+    selectedRecording,
+    togglePlay,
+    currentTime,
+    videoDuration,
+    handleSeek,
+    handleVolumeChange,
+    volume,
+    isMuted,
+  ]);
 
   // Video event handlers for recording preview
   const _handleTimeUpdate = useCallback(() => {
@@ -667,71 +832,96 @@ export default function VideoStudioPage() {
   }, [videoToDelete, deleteFromHistory, selectedRecording]);
 
   // Trim handler
-  const handleTrimConfirm = useCallback(async (inPoint: number, outPoint: number) => {
-    if (!selectedRecording?.file_path || !videoDuration) return;
-    
-    setExportState({ isExporting: true, progress: 10, message: tEditor('trimming') });
-    
-    try {
-      const outputPath = generateOutputFilename(selectedRecording.file_path, exportFormat, '_trimmed');
-      const options: VideoTrimOptions = {
-        inputPath: selectedRecording.file_path,
-        outputPath,
-        startTime: inPoint,
-        endTime: outPoint,
-        format: exportFormat,
-        quality: exportQuality,
-        gifFps: exportFormat === 'gif' ? 10 : undefined,
-      };
-      
-      setExportState({ isExporting: true, progress: 30, message: tEditor('processing') });
-      const result = await trimVideo(options);
-      
-      if (result.success) {
-        setExportState({ isExporting: true, progress: 100, message: tEditor('complete') });
-        await refreshHistory();
-        
-        if (isTauri()) {
-          const { open } = await import('@tauri-apps/plugin-shell');
-          const folderPath = result.outputPath.substring(
-            0, Math.max(result.outputPath.lastIndexOf('/'), result.outputPath.lastIndexOf('\\'))
-          );
-          await open(folderPath);
+  const handleTrimConfirm = useCallback(
+    async (inPoint: number, outPoint: number) => {
+      if (!selectedRecording?.file_path || !videoDuration) return;
+
+      setExportState({ isExporting: true, progress: 0, message: tEditor('trimming') });
+
+      try {
+        const outputPath = generateOutputFilename(
+          selectedRecording.file_path,
+          exportFormat,
+          '_trimmed'
+        );
+        const options: VideoTrimOptions = {
+          inputPath: selectedRecording.file_path,
+          outputPath,
+          startTime: inPoint,
+          endTime: outPoint,
+          format: exportFormat,
+          quality: exportQuality,
+          gifFps: exportFormat === 'gif' ? 10 : undefined,
+        };
+
+        const result = isTauri() ? await trimVideoWithProgress(options) : await trimVideo(options);
+
+        if (result.success) {
+          if (!isTauri()) {
+            setExportState({ isExporting: false, progress: 100, message: tEditor('complete') });
+            scheduleExportReset();
+          }
+          await refreshHistory();
+
+          if (isTauri()) {
+            const { open } = await import('@tauri-apps/plugin-shell');
+            const folderPath = result.outputPath.substring(
+              0,
+              Math.max(result.outputPath.lastIndexOf('/'), result.outputPath.lastIndexOf('\\'))
+            );
+            await open(folderPath);
+          }
+        } else {
+          throw new Error(result.error || tEditor('trimFailed'));
         }
-      } else {
-        throw new Error(result.error || tEditor('trimFailed'));
+      } catch (err) {
+        console.error('Trim failed:', err);
+        setExportState({
+          isExporting: false,
+          progress: 0,
+          message: err instanceof Error ? err.message : tEditor('trimFailed'),
+        });
+      } finally {
+        setShowTrimDialog(false);
+        if (!isTauri()) {
+          scheduleExportReset();
+        }
       }
-    } catch (err) {
-      console.error('Trim failed:', err);
-      setExportState({ 
-        isExporting: false, progress: 0, 
-        message: err instanceof Error ? err.message : tEditor('trimFailed') 
-      });
-    } finally {
-      setShowTrimDialog(false);
-      setTimeout(() => setExportState({ isExporting: false, progress: 0, message: '' }), 2000);
-    }
-  }, [selectedRecording, videoDuration, exportFormat, exportQuality, refreshHistory, tEditor]);
+    },
+    [
+      selectedRecording,
+      videoDuration,
+      exportFormat,
+      exportQuality,
+      refreshHistory,
+      scheduleExportReset,
+      tEditor,
+    ]
+  );
 
   // Export recording
   const handleExportRecording = useCallback(async () => {
     if (!selectedRecording?.file_path) return;
-    
+
     setIsLoading(true);
-    setExportState({ isExporting: true, progress: 10, message: tEditor('exporting') });
-    
+    setExportState({ isExporting: true, progress: 0, message: tEditor('exporting') });
+
     try {
       const hasTrimChanges = trimRange.start > 0 || trimRange.end < 100;
-      const inputExtension = selectedRecording.file_path.substring(
-        selectedRecording.file_path.lastIndexOf('.') + 1
-      ).toLowerCase();
+      const inputExtension = selectedRecording.file_path
+        .substring(selectedRecording.file_path.lastIndexOf('.') + 1)
+        .toLowerCase();
       const needsConversion = inputExtension !== exportFormat;
-      
+
       if (hasTrimChanges) {
         const startTime = (trimRange.start / 100) * (videoDuration / 1000);
         const endTime = (trimRange.end / 100) * (videoDuration / 1000);
-        const outputPath = generateOutputFilename(selectedRecording.file_path, exportFormat, '_export');
-        
+        const outputPath = generateOutputFilename(
+          selectedRecording.file_path,
+          exportFormat,
+          '_export'
+        );
+
         const options: VideoTrimOptions = {
           inputPath: selectedRecording.file_path,
           outputPath,
@@ -741,23 +931,30 @@ export default function VideoStudioPage() {
           quality: exportQuality,
           gifFps: exportFormat === 'gif' ? 10 : undefined,
         };
-        
-        setExportState({ isExporting: true, progress: 30, message: tEditor('processing') });
-        const result = await trimVideo(options);
-        
+
+        const result = isTauri() ? await trimVideoWithProgress(options) : await trimVideo(options);
+
         if (!result.success) throw new Error(result.error || tEditor('exportFailed'));
-        setExportState({ isExporting: true, progress: 90, message: tEditor('complete') });
+        if (!isTauri()) {
+          setExportState({ isExporting: false, progress: 100, message: tEditor('complete') });
+          scheduleExportReset();
+        }
         await refreshHistory();
-        
+
         if (isTauri()) {
           const { open } = await import('@tauri-apps/plugin-shell');
           const folderPath = result.outputPath.substring(
-            0, Math.max(result.outputPath.lastIndexOf('/'), result.outputPath.lastIndexOf('\\'))
+            0,
+            Math.max(result.outputPath.lastIndexOf('/'), result.outputPath.lastIndexOf('\\'))
           );
           await open(folderPath);
         }
       } else if (needsConversion) {
-        const outputPath = generateOutputFilename(selectedRecording.file_path, exportFormat, '_converted');
+        const outputPath = generateOutputFilename(
+          selectedRecording.file_path,
+          exportFormat,
+          '_converted'
+        );
         const options: VideoConvertOptions = {
           inputPath: selectedRecording.file_path,
           outputPath,
@@ -765,18 +962,23 @@ export default function VideoStudioPage() {
           quality: exportQuality,
           gifFps: exportFormat === 'gif' ? 10 : undefined,
         };
-        
-        setExportState({ isExporting: true, progress: 30, message: tEditor('converting') });
-        const result = await convertVideo(options);
-        
+
+        const result = isTauri()
+          ? await convertVideoWithProgress(options)
+          : await convertVideo(options);
+
         if (!result.success) throw new Error(result.error || tEditor('exportFailed'));
-        setExportState({ isExporting: true, progress: 90, message: tEditor('complete') });
+        if (!isTauri()) {
+          setExportState({ isExporting: false, progress: 100, message: tEditor('complete') });
+          scheduleExportReset();
+        }
         await refreshHistory();
-        
+
         if (isTauri()) {
           const { open } = await import('@tauri-apps/plugin-shell');
           const folderPath = result.outputPath.substring(
-            0, Math.max(result.outputPath.lastIndexOf('/'), result.outputPath.lastIndexOf('\\'))
+            0,
+            Math.max(result.outputPath.lastIndexOf('/'), result.outputPath.lastIndexOf('\\'))
           );
           await open(folderPath);
         }
@@ -784,23 +986,59 @@ export default function VideoStudioPage() {
         if (isTauri()) {
           const { open } = await import('@tauri-apps/plugin-shell');
           const folderPath = selectedRecording.file_path.substring(
-            0, Math.max(selectedRecording.file_path.lastIndexOf('/'), selectedRecording.file_path.lastIndexOf('\\'))
+            0,
+            Math.max(
+              selectedRecording.file_path.lastIndexOf('/'),
+              selectedRecording.file_path.lastIndexOf('\\')
+            )
           );
           await open(folderPath);
         }
-        setExportState({ isExporting: true, progress: 100, message: tEditor('complete') });
+        setExportState({ isExporting: false, progress: 100, message: tEditor('complete') });
+        scheduleExportReset();
       }
     } catch (err) {
       console.error('Export failed:', err);
-      setExportState({ 
-        isExporting: false, progress: 0, 
-        message: err instanceof Error ? err.message : tEditor('exportFailed') 
+      setExportState({
+        isExporting: false,
+        progress: 0,
+        message: err instanceof Error ? err.message : tEditor('exportFailed'),
       });
     } finally {
       setIsLoading(false);
-      setTimeout(() => setExportState({ isExporting: false, progress: 0, message: '' }), 2000);
+      if (!isTauri()) {
+        scheduleExportReset();
+      }
     }
-  }, [selectedRecording, trimRange, videoDuration, exportFormat, exportQuality, refreshHistory, tEditor]);
+  }, [
+    selectedRecording,
+    trimRange,
+    videoDuration,
+    exportFormat,
+    exportQuality,
+    refreshHistory,
+    scheduleExportReset,
+    tEditor,
+  ]);
+
+  // Cancel export handler
+  const handleCancelExport = useCallback(async () => {
+    if (!isTauri()) return;
+
+    try {
+      const cancelled = await cancelVideoProcessing();
+      if (cancelled) {
+        setExportState({
+          isExporting: false,
+          progress: 0,
+          message: tEditor('cancelled'),
+        });
+        scheduleExportReset();
+      }
+    } catch (err) {
+      console.error('Failed to cancel export:', err);
+    }
+  }, [scheduleExportReset, tEditor]);
 
   // Format time for recording display
   const _formatVideoTime = useCallback((ms: number) => {
@@ -823,7 +1061,10 @@ export default function VideoStudioPage() {
       return `file://${selectedRecording.file_path}`;
     }
     if (studioMode === 'ai-generation' && selectedVideo) {
-      return selectedVideo.videoUrl || (selectedVideo.videoBase64 ? `data:video/mp4;base64,${selectedVideo.videoBase64}` : '');
+      return (
+        selectedVideo.videoUrl ||
+        (selectedVideo.videoBase64 ? `data:video/mp4;base64,${selectedVideo.videoBase64}` : '')
+      );
     }
     return '';
   }, [studioMode, selectedRecording, selectedVideo]);
@@ -873,13 +1114,10 @@ export default function VideoStudioPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
         {showSidebar && (
-          <aside className="w-64 sm:w-80 border-r flex flex-col shrink-0">
+          <aside className="w-64 sm:w-80 border-r flex flex-col shrink-0 min-h-0 overflow-hidden">
             {/* Mode selector for mobile */}
             <div className="sm:hidden p-2 border-b">
-              <Select 
-                value={studioMode} 
-                onValueChange={(v) => setStudioMode(v as StudioMode)}
-              >
+              <Select value={studioMode} onValueChange={(v) => setStudioMode(v as StudioMode)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -984,7 +1222,7 @@ export default function VideoStudioPage() {
                       onMutedChange={setIsMuted}
                       className="w-full h-full"
                     />
-                    
+
                     {/* Zoom Controls */}
                     <div className="absolute top-4 right-4">
                       <ZoomControls
@@ -996,11 +1234,12 @@ export default function VideoStudioPage() {
                         compact
                       />
                     </div>
-                    
+
                     {/* Video info overlay */}
                     <div className="absolute bottom-4 left-4 bg-black/50 backdrop-blur-sm rounded-lg px-3 py-2">
                       <p className="text-white text-sm font-medium">
-                        {selectedRecording.width}×{selectedRecording.height} • {selectedRecording.mode}
+                        {selectedRecording.width}×{selectedRecording.height} •{' '}
+                        {selectedRecording.mode}
                       </p>
                     </div>
                   </div>
@@ -1037,14 +1276,17 @@ export default function VideoStudioPage() {
                           {formatFileSize(selectedRecording.file_size)}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center gap-2 justify-end">
                         <Button variant="outline" size="sm" onClick={() => setShowTrimDialog(true)}>
                           <Scissors className="h-4 w-4 mr-2" />
                           {tEditor('trim') || 'Trim'}
                         </Button>
-                        
-                        <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as typeof exportFormat)}>
+
+                        <Select
+                          value={exportFormat}
+                          onValueChange={(v) => setExportFormat(v as typeof exportFormat)}
+                        >
                           <SelectTrigger className="w-24 h-9">
                             <SelectValue />
                           </SelectTrigger>
@@ -1054,15 +1296,32 @@ export default function VideoStudioPage() {
                             <SelectItem value="gif">GIF</SelectItem>
                           </SelectContent>
                         </Select>
-                        
-                        {exportState.isExporting && (
+
+                        {(exportState.isExporting || exportState.message) && (
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <Progress value={exportState.progress} className="w-16 h-1.5" />
                             <span>{exportState.progress}%</span>
+                            {exportState.message && (
+                              <span className="max-w-40 truncate">{exportState.message}</span>
+                            )}
+                            {exportState.isExporting && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleCancelExport}
+                                className="h-6 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <X className="h-3 w-3 mr-1" />
+                                {tEditor('cancel') || 'Cancel'}
+                              </Button>
+                            )}
                           </div>
                         )}
-                        
-                        <Button onClick={handleExportRecording} disabled={isLoading || exportState.isExporting}>
+
+                        <Button
+                          onClick={handleExportRecording}
+                          disabled={isLoading || exportState.isExporting}
+                        >
                           {isLoading || exportState.isExporting ? (
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                           ) : (
@@ -1080,10 +1339,15 @@ export default function VideoStudioPage() {
                     <Film className="h-16 w-16 mx-auto mb-4 opacity-30" />
                     {filteredHistory.length === 0 ? (
                       <>
-                        <h2 className="text-lg font-medium mb-2">{tEditor('noRecordings') || 'No recordings yet'}</h2>
-                        <p className="text-sm mb-4">{tEditor('startRecordingHint') || 'Start a new screen recording to get started'}</p>
+                        <h2 className="text-lg font-medium mb-2">
+                          {tEditor('noRecordings') || 'No recordings yet'}
+                        </h2>
+                        <p className="text-sm mb-4">
+                          {tEditor('startRecordingHint') ||
+                            'Start a new screen recording to get started'}
+                        </p>
                         {isRecordingAvailable && (
-                          <Button 
+                          <Button
                             onClick={() => startFullscreen(selectedMonitor ?? 0)}
                             className="bg-red-500 hover:bg-red-600 text-white"
                           >
@@ -1094,21 +1358,43 @@ export default function VideoStudioPage() {
                       </>
                     ) : (
                       <>
-                        <h2 className="text-lg font-medium mb-2">{tEditor('noVideoSelected') || 'No video selected'}</h2>
-                        <p className="text-sm">{tEditor('selectFromSidebar') || 'Select a recording from the sidebar'}</p>
+                        <h2 className="text-lg font-medium mb-2">
+                          {tEditor('noVideoSelected') || 'No video selected'}
+                        </h2>
+                        <p className="text-sm">
+                          {tEditor('selectFromSidebar') || 'Select a recording from the sidebar'}
+                        </p>
                       </>
                     )}
-                    
+
                     {/* Keyboard shortcuts hint */}
                     <div className="mt-6 pt-4 border-t border-border/50">
-                      <p className="text-xs text-muted-foreground/70 mb-2">{tEditor('keyboardShortcuts') || 'Keyboard Shortcuts'}</p>
+                      <p className="text-xs text-muted-foreground/70 mb-2">
+                        {tEditor('keyboardShortcuts') || 'Keyboard Shortcuts'}
+                      </p>
                       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground/60">
-                        <span><kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Space</kbd> Play/Pause</span>
-                        <span><kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">←/→</kbd> Skip 5s</span>
-                        <span><kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">↑/↓</kbd> Volume</span>
-                        <span><kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">M</kbd> Mute</span>
-                        <span><kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">+/-</kbd> Zoom</span>
-                        <span><kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">0</kbd> Reset Zoom</span>
+                        <span>
+                          <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Space</kbd>{' '}
+                          Play/Pause
+                        </span>
+                        <span>
+                          <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">←/→</kbd> Skip
+                          5s
+                        </span>
+                        <span>
+                          <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">↑/↓</kbd>{' '}
+                          Volume
+                        </span>
+                        <span>
+                          <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">M</kbd> Mute
+                        </span>
+                        <span>
+                          <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">+/-</kbd> Zoom
+                        </span>
+                        <span>
+                          <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">0</kbd> Reset
+                          Zoom
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1128,7 +1414,7 @@ export default function VideoStudioPage() {
                     size="sm"
                     onClick={() => setFilterFavorites(!filterFavorites)}
                   >
-                    <Star className={cn("h-4 w-4", filterFavorites && "fill-current")} />
+                    <Star className={cn('h-4 w-4', filterFavorites && 'fill-current')} />
                   </Button>
                   <span className="text-sm text-muted-foreground">
                     {displayedVideos.length} video{displayedVideos.length !== 1 ? 's' : ''}
@@ -1142,7 +1428,9 @@ export default function VideoStudioPage() {
                   <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                     <VideoIcon className="h-12 w-12 mb-4 opacity-50" />
                     <p className="text-lg font-medium">{tGen('noVideos') || 'No videos yet'}</p>
-                    <p className="text-sm">{tGen('generateFirst') || 'Generate your first video to get started'}</p>
+                    <p className="text-sm">
+                      {tGen('generateFirst') || 'Generate your first video to get started'}
+                    </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -1210,13 +1498,13 @@ export default function VideoStudioPage() {
               inPoint={trimStartTime / 1000}
               outPoint={trimEndTime / 1000}
               onInPointChange={(time: number) => {
-                setTrimRange(prev => ({
+                setTrimRange((prev) => ({
                   ...prev,
                   start: (time / (videoDuration / 1000)) * 100,
                 }));
               }}
               onOutPointChange={(time: number) => {
-                setTrimRange(prev => ({
+                setTrimRange((prev) => ({
                   ...prev,
                   end: (time / (videoDuration / 1000)) * 100,
                 }));
@@ -1235,7 +1523,10 @@ export default function VideoStudioPage() {
         onConfirm={confirmDelete}
         isLoading={isLoading}
         title={tEditor('deleteRecording') || 'Delete Recording'}
-        description={tEditor('deleteConfirmation') || 'Are you sure you want to delete this recording? This action cannot be undone.'}
+        description={
+          tEditor('deleteConfirmation') ||
+          'Are you sure you want to delete this recording? This action cannot be undone.'
+        }
         cancelText={tEditor('cancel') || 'Cancel'}
         deleteText={tEditor('delete') || 'Delete'}
       />

@@ -296,6 +296,8 @@ pub struct SandboxManager {
     native: Option<NativeRuntime>,
     config: SandboxConfig,
     available_runtimes: Vec<RuntimeType>,
+    /// Languages available for native execution
+    available_languages: Vec<String>,
 }
 
 impl SandboxManager {
@@ -352,7 +354,7 @@ impl SandboxManager {
         };
 
         // Initialize Native runtime if enabled
-        let native = if config.enable_native {
+        let mut native = if config.enable_native {
             log::debug!("Checking Native runtime availability...");
             let runtime = NativeRuntime::new();
             if runtime.is_available().await {
@@ -378,18 +380,37 @@ impl SandboxManager {
             );
         }
 
+        // Detect available languages for native runtime
+        let mut available_languages = Vec::new();
+        if let Some(ref mut native) = native {
+            log::info!("Detecting available native languages...");
+            native.detect_available_languages().await;
+            available_languages = native.get_available_languages().to_vec();
+            log::info!(
+                "Detected {} native language(s): {:?}",
+                available_languages.len(),
+                available_languages
+            );
+        }
+
         Ok(Self {
             docker,
             podman,
             native,
             config,
             available_runtimes,
+            available_languages,
         })
     }
 
     /// Get available runtimes
     pub fn get_available_runtimes(&self) -> Vec<RuntimeType> {
         self.available_runtimes.clone()
+    }
+
+    /// Get languages available for native execution
+    pub fn get_available_languages(&self) -> Vec<String> {
+        self.available_languages.clone()
     }
 
     /// Check if a specific runtime is available
@@ -643,7 +664,6 @@ impl SandboxManager {
     }
 
     /// Execute code with timeout and memory limit
-    #[allow(dead_code)]
     pub async fn execute_with_limits(
         &self,
         language: String,

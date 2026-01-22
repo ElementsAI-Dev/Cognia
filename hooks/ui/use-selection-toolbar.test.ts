@@ -7,7 +7,7 @@ import { useSelectionToolbar } from './use-selection-toolbar';
 
 // Extend globalThis for Tauri detection in tests
 declare global {
-  var __TAURI__: Record<string, unknown> | undefined;
+  var __TAURI_INTERNALS__: Record<string, unknown> | undefined;
 }
 
 // Mock dependencies
@@ -123,7 +123,7 @@ jest.mock('@/lib/ai/generation/translate', () => ({
 describe('useSelectionToolbar', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    globalThis.__TAURI__ = undefined;
+    globalThis.__TAURI_INTERNALS__ = undefined;
     mockStore.isEnabled = true;
     mockStore.config.autoHideDelay = 500;
     Object.keys(listeners).forEach((key) => delete listeners[key]);
@@ -253,7 +253,7 @@ describe('useSelectionToolbar', () => {
   });
 
   it('hides toolbar via Tauri invoke', async () => {
-    globalThis.__TAURI__ = {};
+    globalThis.__TAURI_INTERNALS__ = {};
     const { result } = renderHook(() => useSelectionToolbar());
 
     await act(async () => {
@@ -264,7 +264,7 @@ describe('useSelectionToolbar', () => {
   });
 
   it('shows toolbar via Tauri invoke', async () => {
-    globalThis.__TAURI__ = {};
+    globalThis.__TAURI_INTERNALS__ = {};
     const { result } = renderHook(() => useSelectionToolbar());
 
     await act(async () => {
@@ -275,7 +275,7 @@ describe('useSelectionToolbar', () => {
   });
 
   it('sends result to chat and hides', async () => {
-    globalThis.__TAURI__ = {};
+    globalThis.__TAURI_INTERNALS__ = {};
     const { result } = renderHook(() => useSelectionToolbar());
 
     // Seed a result
@@ -316,7 +316,7 @@ describe('useSelectionToolbar', () => {
   });
 
   it('syncs config to native when Tauri is available', async () => {
-    globalThis.__TAURI__ = {};
+    globalThis.__TAURI_INTERNALS__ = {};
 
     const { result } = renderHook(() => useSelectionToolbar());
 
@@ -336,7 +336,7 @@ describe('useSelectionToolbar', () => {
   });
 
   it('updates state on selection show/hide events', async () => {
-    globalThis.__TAURI__ = {};
+    globalThis.__TAURI_INTERNALS__ = {};
     const { result } = renderHook(() => useSelectionToolbar());
 
     await waitFor(() => expect(Object.keys(listeners)).toContain('selection-toolbar-show'));

@@ -52,7 +52,7 @@ export const PLUGIN_COLLECTIONS: PluginCollection[] = [
     name: 'Developer Essentials',
     description: 'Must-have plugins for developers',
     icon: Code2,
-    pluginIds: ['code-analyzer', 'git-assistant', 'api-tester'],
+    pluginIds: ['cognia-web-search', 'git-assistant', 'api-tester'],
     gradient: 'from-blue-500 to-cyan-500',
   },
   {
@@ -60,7 +60,7 @@ export const PLUGIN_COLLECTIONS: PluginCollection[] = [
     name: 'Productivity Boost',
     description: 'Supercharge your workflow',
     icon: Zap,
-    pluginIds: ['web-search-pro', 'markdown-plus'],
+    pluginIds: ['cognia-web-search', 'markdown-plus'],
     gradient: 'from-amber-500 to-orange-500',
   },
   {
@@ -82,17 +82,17 @@ export const MARKETPLACE_STATS = {
 
 export const MOCK_PLUGINS: MarketplacePlugin[] = [
   {
-    id: 'web-search-pro',
-    name: 'Web Search Pro',
-    description: 'Advanced web search integration with multiple search engines, real-time results, and AI-powered summaries.',
+    id: 'cognia-web-search',
+    name: 'Web Search Plugin',
+    description: 'Enhanced web search capabilities with multiple providers and result caching.',
     author: { name: 'Cognia Team', verified: true },
-    version: '2.1.0',
-    type: 'hybrid',
+    version: '1.0.0',
+    type: 'frontend',
     capabilities: ['tools', 'commands'],
     rating: 4.8,
     reviewCount: 1250,
     downloadCount: 45000,
-    lastUpdated: '2024-01-15',
+    lastUpdated: '2024-01-20',
     tags: ['search', 'web', 'ai', 'productivity'],
     featured: true,
     verified: true,

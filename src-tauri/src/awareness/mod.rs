@@ -475,6 +475,19 @@ mod tests {
     }
 
     #[test]
+    fn test_start_monitoring_idempotent() {
+        let manager = AwarenessManager::new();
+
+        let result = tauri::async_runtime::block_on(manager.start_monitoring());
+        assert!(result.is_ok());
+
+        let second = tauri::async_runtime::block_on(manager.start_monitoring());
+        assert!(second.is_ok());
+
+        manager.stop_monitoring();
+    }
+
+    #[test]
     fn test_focus_tracking_integration() {
         let manager = AwarenessManager::new();
 

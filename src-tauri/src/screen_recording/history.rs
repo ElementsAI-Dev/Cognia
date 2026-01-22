@@ -40,12 +40,6 @@ impl RecordingHistoryEntry {
             tags: Vec::new(),
         }
     }
-
-    #[allow(dead_code)]
-    pub fn with_tags(mut self, tags: Vec<String>) -> Self {
-        self.tags = tags;
-        self
-    }
 }
 
 /// Recording history storage
@@ -346,6 +340,8 @@ impl Default for RecordingHistory {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::tempdir;
 
     fn create_test_entry(id: &str) -> RecordingHistoryEntry {
         RecordingHistoryEntry {
@@ -425,5 +421,82 @@ mod tests {
 
         assert_eq!(history.get_total_duration(), 90000);
         assert_eq!(history.get_total_size(), 3000);
+    }
+
+    #[test]
+    fn test_history_delete_removes_file() {
+        let history = RecordingHistory::new();
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("recording.mp4");
+        fs::write(&file_path, vec![1, 2, 3, 4]).unwrap();
+
+        let entry = RecordingHistoryEntry {
+            id: "delete-test".to_string(),
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration_ms: 1000,
+            width: 1280,
+            height: 720,
+            mode: "fullscreen".to_string(),
+            file_path: Some(file_path.to_string_lossy().to_string()),
+            file_size: 4,
+            thumbnail: None,
+            is_pinned: false,
+            tags: Vec::new(),
+        };
+
+        history.add(entry);
+        history.delete("delete-test").unwrap();
+
+        assert!(!file_path.exists());
+        assert!(history.get_by_id("delete-test").is_none());
+    }
+
+    #[test]
+    fn test_history_clear_preserves_pinned_files() {
+        let history = RecordingHistory::new();
+        let dir = tempdir().unwrap();
+
+        let pinned_path = dir.path().join("pinned.mp4");
+        let unpinned_path = dir.path().join("unpinned.mp4");
+        fs::write(&pinned_path, vec![1]).unwrap();
+        fs::write(&unpinned_path, vec![1]).unwrap();
+
+        let pinned_entry = RecordingHistoryEntry {
+            id: "pinned".to_string(),
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration_ms: 1000,
+            width: 1280,
+            height: 720,
+            mode: "fullscreen".to_string(),
+            file_path: Some(pinned_path.to_string_lossy().to_string()),
+            file_size: 1,
+            thumbnail: None,
+            is_pinned: false,
+            tags: Vec::new(),
+        };
+        let unpinned_entry = RecordingHistoryEntry {
+            id: "unpinned".to_string(),
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration_ms: 1000,
+            width: 1280,
+            height: 720,
+            mode: "fullscreen".to_string(),
+            file_path: Some(unpinned_path.to_string_lossy().to_string()),
+            file_size: 1,
+            thumbnail: None,
+            is_pinned: false,
+            tags: Vec::new(),
+        };
+
+        history.add(pinned_entry);
+        history.add(unpinned_entry);
+        history.pin("pinned");
+
+        history.clear();
+
+        assert!(pinned_path.exists());
+        assert!(!unpinned_path.exists());
+        assert!(history.get_by_id("pinned").is_some());
+        assert!(history.get_by_id("unpinned").is_none());
     }
 }

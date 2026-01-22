@@ -69,8 +69,23 @@ impl McpClient {
         url: &str,
         notification_tx: mpsc::Sender<JsonRpcNotification>,
     ) -> McpResult<Self> {
+        Self::connect_sse_with_message_url(url, None, notification_tx).await
+    }
+
+    /// Create a new MCP client with SSE transport and optional message URL
+    pub async fn connect_sse_with_message_url(
+        url: &str,
+        message_url: Option<&str>,
+        notification_tx: mpsc::Sender<JsonRpcNotification>,
+    ) -> McpResult<Self> {
         log::debug!("Creating SSE MCP client: url='{}'", url);
-        let transport = SseTransport::connect(url).await?;
+        let mut transport = SseTransport::connect(url).await?;
+
+        if let Some(msg_url) = message_url {
+            log::debug!("Setting custom message URL: {}", msg_url);
+            transport.set_message_url(msg_url.to_string());
+        }
+
         log::info!("SSE transport connected successfully to: {}", url);
         Self::new(Arc::new(transport), notification_tx)
     }

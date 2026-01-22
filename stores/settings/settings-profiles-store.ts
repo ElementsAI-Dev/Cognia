@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
+import { DEFAULT_BACKGROUND_SETTINGS, normalizeBackgroundSettings } from '@/lib/themes';
 import type { BackgroundSettings, UICustomization, ColorThemePreset } from '@/lib/themes';
 import type { Theme, CustomTheme } from '@/stores/settings/settings-store';
 
@@ -69,26 +70,7 @@ export const useSettingsProfilesStore = create<SettingsProfilesState>()(
           colorTheme: 'default',
           activeCustomThemeId: null,
           customThemes: [],
-          backgroundSettings: {
-            enabled: false,
-            source: 'none',
-            imageUrl: '',
-            localAssetId: null,
-            presetId: null,
-            fit: 'cover',
-            position: 'center',
-            opacity: 100,
-            blur: 0,
-            overlayColor: '#000000',
-            overlayOpacity: 0,
-            brightness: 100,
-            saturation: 100,
-            attachment: 'fixed',
-            animation: 'none',
-            animationSpeed: 5,
-            contrast: 100,
-            grayscale: 0,
-          },
+          backgroundSettings: { ...DEFAULT_BACKGROUND_SETTINGS },
           uiCustomization: {
             borderRadius: 'md',
             spacing: 'comfortable',
@@ -228,26 +210,7 @@ export const useSettingsProfilesStore = create<SettingsProfilesState>()(
             colorTheme: data.profile.colorTheme || 'default',
             activeCustomThemeId: null,
             customThemes: data.profile.customThemes || [],
-            backgroundSettings: data.profile.backgroundSettings || {
-              enabled: false,
-              source: 'none',
-              imageUrl: '',
-              localAssetId: null,
-              presetId: null,
-              fit: 'cover',
-              position: 'center',
-              opacity: 100,
-              blur: 0,
-              overlayColor: '#000000',
-              overlayOpacity: 0,
-              brightness: 100,
-              saturation: 100,
-              attachment: 'fixed',
-              animation: 'none',
-              animationSpeed: 5,
-              contrast: 100,
-              grayscale: 0,
-            },
+            backgroundSettings: normalizeBackgroundSettings(data.profile.backgroundSettings),
             uiCustomization: data.profile.uiCustomization || {
               borderRadius: 'md',
               spacing: 'comfortable',
@@ -286,6 +249,23 @@ export const useSettingsProfilesStore = create<SettingsProfilesState>()(
     {
       name: 'cognia-settings-profiles',
       storage: createJSONStorage(() => localStorage),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<SettingsProfilesState> | undefined;
+        const persistedProfiles = persisted?.profiles;
+
+        const profiles = Array.isArray(persistedProfiles)
+          ? persistedProfiles.map((p) => ({
+              ...p,
+              backgroundSettings: normalizeBackgroundSettings((p as SettingsProfile).backgroundSettings),
+            }))
+          : currentState.profiles;
+
+        return {
+          ...currentState,
+          ...persisted,
+          profiles,
+        };
+      },
       partialize: (state) => ({
         profiles: state.profiles,
         activeProfileId: state.activeProfileId,

@@ -15,11 +15,29 @@ import type {
   KernelProgressEvent,
   CellOutputEvent,
   CreateSessionOptions,
+  NotebookExecutionOptions,
 } from '@/types/system/jupyter';
 
 /** Check if kernel management is available */
 export function isKernelAvailable(): boolean {
   return isTauri();
+}
+
+/** Get cached variables (without querying the kernel) */
+export async function getCachedVariables(
+  sessionId: string
+): Promise<VariableInfo[]> {
+  if (!isTauri()) {
+    return [];
+  }
+
+  try {
+    return await invoke<VariableInfo[]>('jupyter_get_cached_variables', {
+      sessionId,
+    });
+  } catch {
+    return [];
+  }
 }
 
 // ==================== Session Management ====================
@@ -167,16 +185,17 @@ export async function executeCell(
 /** Execute all cells in a notebook */
 export async function executeNotebook(
   sessionId: string,
-  cells: string[]
+  cells: string[],
+  options?: NotebookExecutionOptions
 ): Promise<KernelSandboxExecutionResult[]> {
   if (!isTauri()) {
     throw new Error('Jupyter kernel requires Tauri environment');
   }
 
-  return invoke<KernelSandboxExecutionResult[]>('jupyter_execute_notebook', {
-    sessionId,
-    cells,
-  });
+  return invoke<KernelSandboxExecutionResult[]>(
+    'jupyter_execute_notebook',
+    options ? { sessionId, cells, options } : { sessionId, cells }
+  );
 }
 
 // ==================== Variable Inspection ====================
@@ -310,6 +329,7 @@ export const kernelService = {
   executeNotebook,
   // Variable inspection
   getVariables,
+  getCachedVariables,
   inspectVariable,
   // Utility
   checkKernelAvailable,

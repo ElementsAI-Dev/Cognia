@@ -2,8 +2,6 @@
 //!
 //! Manages multiple kernel sessions and their lifecycle.
 
-#![allow(dead_code)]
-
 use super::kernel::{JupyterKernel, KernelConfig, KernelStatus};
 use super::{KernelExecutionResult, KernelInfo, VariableInfo};
 use log::{debug, error, info, trace, warn};
@@ -190,6 +188,31 @@ impl SessionManager {
 
         let vars = kernel.get_variables().await?;
         debug!("Session {}: Retrieved {} variables", session_id, vars.len());
+        Ok(vars)
+    }
+
+    pub fn get_cached_variables(&self, session_id: &str) -> Result<Vec<VariableInfo>, String> {
+        debug!("Session {}: Getting cached variables", session_id);
+        let kernel_id = self
+            .sessions
+            .get(session_id)
+            .and_then(|s| s.kernel_id.clone())
+            .ok_or_else(|| {
+                error!("Session {} not found or has no kernel", session_id);
+                "Session not found or has no kernel".to_string()
+            })?;
+
+        let kernel = self.kernels.get(&kernel_id).ok_or_else(|| {
+            error!("Kernel {} not found for session {}", kernel_id, session_id);
+            "Kernel not found".to_string()
+        })?;
+
+        let vars = kernel.get_cached_variables();
+        debug!(
+            "Session {}: Retrieved {} cached variables",
+            session_id,
+            vars.len()
+        );
         Ok(vars)
     }
 
@@ -471,6 +494,11 @@ impl SharedSessionManager {
         self.0.write().await.get_variables(session_id).await
     }
 
+    pub async fn get_cached_variables(&self, session_id: &str) -> Result<Vec<VariableInfo>, String> {
+        trace!("SharedSessionManager: Acquiring read lock for get_cached_variables");
+        self.0.read().await.get_cached_variables(session_id)
+    }
+
     pub async fn restart_kernel(&self, session_id: &str) -> Result<(), String> {
         trace!("SharedSessionManager: Acquiring write lock for restart_kernel");
         self.0.write().await.restart_kernel(session_id).await
@@ -499,6 +527,16 @@ impl SharedSessionManager {
     pub async fn shutdown_all(&self) {
         trace!("SharedSessionManager: Acquiring write lock for shutdown_all");
         self.0.write().await.shutdown_all().await
+    }
+
+    pub async fn cleanup_dead_kernels(&self) {
+        trace!("SharedSessionManager: Acquiring write lock for cleanup_dead_kernels");
+        self.0.write().await.cleanup_dead_kernels().await
+    }
+
+    pub async fn cleanup_idle_kernels(&self, timeout_secs: u64) {
+        trace!("SharedSessionManager: Acquiring write lock for cleanup_idle_kernels");
+        self.0.write().await.cleanup_idle_kernels(timeout_secs).await
     }
 }
 
@@ -534,5 +572,40 @@ mod tests {
         let json = serde_json::to_string(&session).unwrap();
         assert!(json.contains("kernelId"));
         assert!(json.contains("envPath"));
+    }
+
+    #[test]
+    fn test_get_cached_variables_when_empty() {
+        let mut manager = SessionManager::default();
+        let kernel_id = "test-kernel".to_string();
+        let session_id = "test-session".to_string();
+
+        manager.kernels.insert(
+            kernel_id.clone(),
+            JupyterKernel::new(kernel_id.clone(), "/path/to/env".to_string(), KernelConfig::default()),
+        );
+
+        manager.sessions.insert(
+            session_id.clone(),
+            JupyterSession {
+                id: session_id.clone(),
+                name: "Test Session".to_string(),
+                kernel_id: Some(kernel_id),
+                env_path: "/path/to/env".to_string(),
+                created_at: "2024-01-01T00:00:00Z".to_string(),
+                last_activity_at: None,
+                metadata: HashMap::new(),
+            },
+        );
+
+        let vars = manager.get_cached_variables(&session_id).unwrap();
+        assert!(vars.is_empty());
+    }
+
+    #[test]
+    fn test_get_cached_variables_session_not_found() {
+        let manager = SessionManager::default();
+        let err = manager.get_cached_variables("missing").unwrap_err();
+        assert!(err.contains("Session not found"));
     }
 }

@@ -46,10 +46,14 @@ import {
   pauseVisualWorkflow,
   resumeVisualWorkflow,
   cancelVisualWorkflow,
-  validateVisualWorkflow,
+  validateCompleteWorkflow,
 } from '@/lib/workflow-editor';
+import { workflowRepository } from '@/lib/db/repositories';
 import { useSettingsStore } from '../settings';
 import type { ProviderName } from '@/types/provider';
+
+let metaHistoryTimer: ReturnType<typeof setTimeout> | undefined;
+let nodeHistoryTimer: ReturnType<typeof setTimeout> | undefined;
 
 interface WorkflowEditorState {
   // Current workflow
@@ -112,7 +116,7 @@ interface WorkflowEditorActions {
   // Workflow management
   createWorkflow: (name?: string) => void;
   loadWorkflow: (workflow: VisualWorkflow) => void;
-  saveWorkflow: () => void;
+  saveWorkflow: () => Promise<void>;
   deleteWorkflow: (workflowId: string) => void;
   duplicateWorkflow: (workflowId: string) => void;
   updateWorkflowMeta: (updates: Partial<Pick<VisualWorkflow, 'name' | 'description' | 'category' | 'tags' | 'icon'>>) => void;
@@ -252,8 +256,35 @@ const initialState: WorkflowEditorState = {
 
 export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEditorActions>()(
   persist(
-    (set, get) => ({
-      ...initialState,
+    (set, get) => {
+      const scheduleMetaHistoryPush = (workflowId: string) => {
+        if (metaHistoryTimer) {
+          clearTimeout(metaHistoryTimer);
+        }
+
+        metaHistoryTimer = setTimeout(() => {
+          metaHistoryTimer = undefined;
+          const { currentWorkflow } = get();
+          if (!currentWorkflow || currentWorkflow.id !== workflowId) return;
+          get().pushHistory();
+        }, 300);
+      };
+
+      const scheduleNodeHistoryPush = (workflowId: string) => {
+        if (nodeHistoryTimer) {
+          clearTimeout(nodeHistoryTimer);
+        }
+
+        nodeHistoryTimer = setTimeout(() => {
+          nodeHistoryTimer = undefined;
+          const { currentWorkflow } = get();
+          if (!currentWorkflow || currentWorkflow.id !== workflowId) return;
+          get().pushHistory();
+        }, 300);
+      };
+
+      return {
+        ...initialState,
 
       // Workflow management
       createWorkflow: (name) => {
@@ -283,51 +314,72 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
         });
       },
 
-      saveWorkflow: () => {
+      saveWorkflow: async () => {
         const { currentWorkflow, savedWorkflows } = get();
         if (!currentWorkflow) return;
 
-        const updatedWorkflow = {
-          ...currentWorkflow,
-          updatedAt: new Date(),
-        };
+        try {
+          const saved = await workflowRepository.save({
+            ...currentWorkflow,
+            updatedAt: new Date(),
+          });
 
-        const existingIndex = savedWorkflows.findIndex(w => w.id === currentWorkflow.id);
-        const newSavedWorkflows = existingIndex >= 0
-          ? savedWorkflows.map((w, i) => i === existingIndex ? updatedWorkflow : w)
-          : [...savedWorkflows, updatedWorkflow];
+          const existingIndex = savedWorkflows.findIndex(w => w.id === saved.id);
+          const newSavedWorkflows = existingIndex >= 0
+            ? savedWorkflows.map((w, i) => i === existingIndex ? saved : w)
+            : [...savedWorkflows, saved];
 
-        set({
-          currentWorkflow: updatedWorkflow,
-          savedWorkflows: newSavedWorkflows,
-          isDirty: false,
-        });
+          set({
+            currentWorkflow: saved,
+            savedWorkflows: newSavedWorkflows,
+            isDirty: false,
+          });
+        } catch (error) {
+          console.error('Failed to save workflow:', error);
+        }
       },
 
       deleteWorkflow: (workflowId) => {
-        const { savedWorkflows, currentWorkflow } = get();
-        set({
-          savedWorkflows: savedWorkflows.filter(w => w.id !== workflowId),
-          currentWorkflow: currentWorkflow?.id === workflowId ? null : currentWorkflow,
-        });
+        void (async () => {
+          try {
+            const deleted = await workflowRepository.delete(workflowId);
+            if (!deleted) return;
+
+            const { savedWorkflows, currentWorkflow } = get();
+            const isCurrentDeleted = currentWorkflow?.id === workflowId;
+
+            set({
+              savedWorkflows: savedWorkflows.filter(w => w.id !== workflowId),
+              currentWorkflow: isCurrentDeleted ? null : currentWorkflow,
+              ...(isCurrentDeleted
+                ? {
+                    history: [],
+                    historyIndex: -1,
+                    selectedNodes: [],
+                    selectedEdges: [],
+                    isDirty: false,
+                    validationErrors: [],
+                  }
+                : {}),
+            });
+          } catch (error) {
+            console.error('Failed to delete workflow:', error);
+          }
+        })();
       },
 
       duplicateWorkflow: (workflowId) => {
-        const { savedWorkflows } = get();
-        const workflow = savedWorkflows.find(w => w.id === workflowId);
-        if (!workflow) return;
+        void (async () => {
+          try {
+            const duplicated = await workflowRepository.duplicate(workflowId);
+            if (!duplicated) return;
 
-        const duplicated: VisualWorkflow = {
-          ...workflow,
-          id: `workflow-${Date.now()}`,
-          name: `${workflow.name} (Copy)`,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-
-        set({
-          savedWorkflows: [...savedWorkflows, duplicated],
-        });
+            const { savedWorkflows } = get();
+            set({ savedWorkflows: [...savedWorkflows, duplicated] });
+          } catch (error) {
+            console.error('Failed to duplicate workflow:', error);
+          }
+        })();
       },
 
       updateWorkflowMeta: (updates) => {
@@ -341,7 +393,7 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
         };
 
         set({ currentWorkflow: updated, isDirty: true });
-        get().pushHistory();
+        scheduleMetaHistoryPush(updated.id);
       },
 
       updateWorkflowSettings: (settings) => {
@@ -368,7 +420,7 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
         };
 
         set({ currentWorkflow: updated, isDirty: true });
-        get().pushHistory();
+        scheduleMetaHistoryPush(updated.id);
       },
 
       setWorkflowVariable: (name, value) => {
@@ -385,7 +437,7 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
         };
 
         set({ currentWorkflow: updated, isDirty: true });
-        get().pushHistory();
+        scheduleMetaHistoryPush(updated.id);
       },
 
       deleteWorkflowVariable: (name) => {
@@ -400,7 +452,7 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
         };
 
         set({ currentWorkflow: updated, isDirty: true });
-        get().pushHistory();
+        scheduleMetaHistoryPush(updated.id);
       },
 
       // Node operations
@@ -442,7 +494,17 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
         };
 
         set({ currentWorkflow: updated, isDirty: true });
-        get().pushHistory();
+
+        const keys = Object.keys(data);
+        const isHighFrequencyTextUpdate =
+          keys.length > 0 &&
+          keys.every((k) => k === 'label' || k === 'text' || k === 'content' || k === 'description' || k === 'title');
+
+        if (isHighFrequencyTextUpdate) {
+          scheduleNodeHistoryPush(updated.id);
+        } else {
+          get().pushHistory();
+        }
       },
 
       deleteNode: (nodeId) => {
@@ -516,6 +578,14 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
       onNodesChange: (changes) => {
         const { currentWorkflow } = get();
         if (!currentWorkflow) return;
+
+        const removedIds = changes
+          .filter((c) => c.type === 'remove')
+          .map((c) => c.id);
+        if (removedIds.length > 0) {
+          get().deleteNodes(removedIds);
+          return;
+        }
 
         const updated = {
           ...currentWorkflow,
@@ -610,6 +680,14 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
         const { currentWorkflow } = get();
         if (!currentWorkflow) return;
 
+        const removedIds = changes
+          .filter((c) => c.type === 'remove')
+          .map((c) => c.id);
+        if (removedIds.length > 0) {
+          get().deleteEdges(removedIds);
+          return;
+        }
+
         const updated = {
           ...currentWorkflow,
           edges: applyEdgeChanges(changes, currentWorkflow.edges),
@@ -617,6 +695,11 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
         };
 
         set({ currentWorkflow: updated, isDirty: true });
+
+        const shouldRecordHistory = changes.some((c) => c.type !== 'select');
+        if (shouldRecordHistory) {
+          get().pushHistory();
+        }
       },
 
       onConnect: (connection) => {
@@ -789,7 +872,9 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
           currentWorkflow: {
             ...currentWorkflow,
             viewport,
+            updatedAt: new Date(),
           },
+          isDirty: true,
         });
       },
 
@@ -983,94 +1068,47 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
         const { currentWorkflow } = get();
         if (!currentWorkflow) return [];
 
-        const errors: ValidationError[] = [];
+        const result = validateCompleteWorkflow(
+          currentWorkflow.nodes,
+          currentWorkflow.edges
+        );
 
-        // Check for start node
-        const startNodes = currentWorkflow.nodes.filter(n => n.type === 'start');
-        if (startNodes.length === 0) {
-          errors.push({
-            message: 'Workflow must have a start node',
+        const normalized: ValidationError[] = [];
+
+        result.structureValidation.errors.forEach((e) => {
+          normalized.push({
+            nodeId: e.nodeId,
+            edgeId: e.edgeId,
+            message: e.message,
             severity: 'error',
           });
-        } else if (startNodes.length > 1) {
-          errors.push({
-            message: 'Workflow can only have one start node',
+        });
+        result.structureValidation.warnings.forEach((w) => {
+          normalized.push({
+            nodeId: w.nodeId,
+            edgeId: w.edgeId,
+            message: w.message,
+            severity: 'warning',
+          });
+        });
+
+        result.ioValidation.errors.forEach((e) => {
+          normalized.push({
+            nodeId: e.targetNodeId,
+            message: e.message,
             severity: 'error',
           });
-        }
-
-        // Check for end node
-        const endNodes = currentWorkflow.nodes.filter(n => n.type === 'end');
-        if (endNodes.length === 0) {
-          errors.push({
-            message: 'Workflow must have an end node',
-            severity: 'error',
+        });
+        result.ioValidation.warnings.forEach((w) => {
+          normalized.push({
+            nodeId: w.targetNodeId,
+            message: w.message,
+            severity: 'warning',
           });
-        }
-
-        // Check for disconnected nodes
-        const connectedNodes = new Set<string>();
-        currentWorkflow.edges.forEach(e => {
-          connectedNodes.add(e.source);
-          connectedNodes.add(e.target);
         });
 
-        currentWorkflow.nodes.forEach(node => {
-          if (!connectedNodes.has(node.id) && node.type !== 'start' && node.type !== 'end') {
-            errors.push({
-              nodeId: node.id,
-              message: `Node "${node.data.label}" is not connected`,
-              severity: 'warning',
-            });
-          }
-        });
-
-        // Check for unconfigured nodes
-        currentWorkflow.nodes.forEach(node => {
-          if (!node.data.isConfigured && node.type !== 'start' && node.type !== 'end') {
-            errors.push({
-              nodeId: node.id,
-              message: `Node "${node.data.label}" is not configured`,
-              severity: 'warning',
-            });
-          }
-        });
-
-        // Check for circular dependencies
-        const visited = new Set<string>();
-        const recursionStack = new Set<string>();
-
-        const hasCycle = (nodeId: string): boolean => {
-          visited.add(nodeId);
-          recursionStack.add(nodeId);
-
-          const outgoingEdges = currentWorkflow.edges.filter(e => e.source === nodeId);
-          for (const edge of outgoingEdges) {
-            if (!visited.has(edge.target)) {
-              if (hasCycle(edge.target)) return true;
-            } else if (recursionStack.has(edge.target)) {
-              return true;
-            }
-          }
-
-          recursionStack.delete(nodeId);
-          return false;
-        };
-
-        for (const node of currentWorkflow.nodes) {
-          if (!visited.has(node.id)) {
-            if (hasCycle(node.id)) {
-              errors.push({
-                message: 'Workflow contains circular dependencies',
-                severity: 'error',
-              });
-              break;
-            }
-          }
-        }
-
-        set({ validationErrors: errors });
-        return errors;
+        set({ validationErrors: normalized });
+        return normalized;
       },
 
       clearValidationErrors: () => {
@@ -1082,14 +1120,13 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
         const { currentWorkflow } = get();
         if (!currentWorkflow) return;
 
-        // Validate workflow before execution
-        const validation = validateVisualWorkflow(currentWorkflow);
-        if (!validation.isValid) {
-          const errors = validation.errors
-            .filter(e => e.severity === 'error')
-            .map(e => e.message)
+        const errors = get().validate();
+        if (errors.some((e) => e.severity === 'error')) {
+          const errorMessage = errors
+            .filter((e) => e.severity === 'error')
+            .map((e) => e.message)
             .join(', ');
-          console.error('Workflow validation failed:', errors);
+          console.error('Workflow validation failed:', errorMessage);
           set({
             executionState: {
               executionId: `exec-${nanoid(8)}`,
@@ -1099,11 +1136,11 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
               nodeStates: {},
               startedAt: new Date(),
               input,
-              error: `Validation failed: ${errors}`,
+              error: `Validation failed: ${errorMessage}`,
               logs: [{
                 timestamp: new Date(),
                 level: 'error',
-                message: `Workflow validation failed: ${errors}`,
+                message: `Workflow validation failed: ${errorMessage}`,
               }],
             },
           });
@@ -1552,7 +1589,6 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
           },
         };
 
-        get().pushHistory();
         set({
           currentWorkflow: {
             ...currentWorkflow,
@@ -1561,6 +1597,8 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
           },
           isDirty: true,
         });
+
+        get().pushHistory();
 
         return nodeId;
       },
@@ -1697,20 +1735,33 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
       },
 
       importFromFile: async (file) => {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            try {
-              const data = JSON.parse(e.target?.result as string) as WorkflowExport;
-              get().importWorkflow(data);
-              resolve();
-            } catch (error) {
-              reject(error);
-            }
-          };
-          reader.onerror = () => reject(reader.error);
-          reader.readAsText(file);
+        const text = await file.text();
+        const parsed = JSON.parse(text) as unknown;
+        const workflow = await workflowRepository.import(text);
+
+        set({
+          currentWorkflow: workflow,
+          isDirty: false,
+          selectedNodes: [],
+          selectedEdges: [],
+          history: [workflow],
+          historyIndex: 0,
         });
+
+        if (
+          parsed &&
+          typeof parsed === 'object' &&
+          'templates' in parsed &&
+          Array.isArray((parsed as { templates?: unknown }).templates)
+        ) {
+          const templates = (parsed as { templates?: NodeTemplate[] }).templates;
+          if (templates && templates.length > 0) {
+            const { nodeTemplates } = get();
+            set({
+              nodeTemplates: [...nodeTemplates, ...templates],
+            });
+          }
+        }
       },
 
       // Execution statistics
@@ -1745,9 +1796,18 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
 
       // Reset
       reset: () => {
+        if (metaHistoryTimer) {
+          clearTimeout(metaHistoryTimer);
+          metaHistoryTimer = undefined;
+        }
+        if (nodeHistoryTimer) {
+          clearTimeout(nodeHistoryTimer);
+          nodeHistoryTimer = undefined;
+        }
         set(initialState);
       },
-    }),
+      };
+    },
     {
       name: 'cognia-workflow-editor',
       partialize: (state) => ({

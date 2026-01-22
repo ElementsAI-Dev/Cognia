@@ -7,6 +7,7 @@ import {
   getThemeCSSVariables,
   BACKGROUND_PRESETS,
   DEFAULT_BACKGROUND_SETTINGS,
+  normalizeBackgroundSettings,
   type ColorThemePreset,
   type ThemeColors,
   type BackgroundSettings,
@@ -282,6 +283,14 @@ describe('DEFAULT_BACKGROUND_SETTINGS', () => {
     expect(DEFAULT_BACKGROUND_SETTINGS.position).toBe('center');
   });
 
+  it('has correct mode defaults', () => {
+    expect(DEFAULT_BACKGROUND_SETTINGS.mode).toBe('single');
+    expect(Array.isArray(DEFAULT_BACKGROUND_SETTINGS.layers)).toBe(true);
+    expect(DEFAULT_BACKGROUND_SETTINGS.layers.length).toBeGreaterThan(0);
+    expect(DEFAULT_BACKGROUND_SETTINGS.slideshow).toBeDefined();
+    expect(Array.isArray(DEFAULT_BACKGROUND_SETTINGS.slideshow.slides)).toBe(true);
+  });
+
   it('has new animation settings', () => {
     expect(DEFAULT_BACKGROUND_SETTINGS.attachment).toBe('fixed');
     expect(DEFAULT_BACKGROUND_SETTINGS.animation).toBe('none');
@@ -312,5 +321,35 @@ describe('DEFAULT_BACKGROUND_SETTINGS', () => {
     expect(settings.animationSpeed).toBeDefined();
     expect(settings.contrast).toBeDefined();
     expect(settings.grayscale).toBeDefined();
+    expect(settings.mode).toBeDefined();
+    expect(settings.layers).toBeDefined();
+    expect(settings.slideshow).toBeDefined();
+  });
+});
+
+describe('normalizeBackgroundSettings', () => {
+  it('fills defaults for legacy single-mode exports (no mode/layers/slideshow)', () => {
+    const normalized = normalizeBackgroundSettings({
+      enabled: true,
+      source: 'preset',
+      presetId: 'gradient-blue',
+    });
+
+    expect(normalized.mode).toBe('single');
+    expect(Array.isArray(normalized.layers)).toBe(true);
+    expect(normalized.layers.length).toBeGreaterThan(0);
+    expect(normalized.slideshow).toBeDefined();
+    expect(Array.isArray(normalized.slideshow.slides)).toBe(true);
+  });
+
+  it('ensures at least one layer exists when mode=layers and layers are empty', () => {
+    const normalized = normalizeBackgroundSettings({
+      mode: 'layers',
+      layers: [],
+    });
+
+    expect(normalized.mode).toBe('layers');
+    expect(normalized.layers.length).toBeGreaterThan(0);
+    expect(normalized.layers[0].id).toBeTruthy();
   });
 });

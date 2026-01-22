@@ -16,7 +16,7 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { VideoStatus } from '@/types/media/video';
-import type { VideoJob } from './types';
+import type { VideoJob } from '@/types/video-studio/types';
 
 export interface VideoJobCardProps {
   job: VideoJob;
@@ -31,13 +31,33 @@ export interface VideoJobCardProps {
 export function getStatusBadge(status: VideoStatus) {
   switch (status) {
     case 'pending':
-      return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+      return (
+        <Badge variant="secondary">
+          <Clock className="h-3 w-3 mr-1" />
+          Pending
+        </Badge>
+      );
     case 'processing':
-      return <Badge variant="default" className="bg-blue-500"><Loader2 className="h-3 w-3 mr-1 animate-spin" />Processing</Badge>;
+      return (
+        <Badge variant="default" className="bg-blue-500">
+          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+          Processing
+        </Badge>
+      );
     case 'completed':
-      return <Badge variant="default" className="bg-green-500"><Check className="h-3 w-3 mr-1" />Completed</Badge>;
+      return (
+        <Badge variant="default" className="bg-green-500">
+          <Check className="h-3 w-3 mr-1" />
+          Completed
+        </Badge>
+      );
     case 'failed':
-      return <Badge variant="destructive"><AlertCircle className="h-3 w-3 mr-1" />Failed</Badge>;
+      return (
+        <Badge variant="destructive">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          Failed
+        </Badge>
+      );
     default:
       return <Badge variant="secondary">{status}</Badge>;
   }
@@ -62,8 +82,8 @@ export function VideoJobCard({
   return (
     <Card
       className={cn(
-        "group cursor-pointer overflow-hidden transition-all hover:ring-2 hover:ring-primary",
-        isSelected && "ring-2 ring-primary"
+        'group cursor-pointer overflow-hidden transition-all hover:ring-2 hover:ring-primary',
+        isSelected && 'ring-2 ring-primary'
       )}
       onClick={() => onSelect?.(job)}
     >
@@ -96,7 +116,7 @@ export function VideoJobCard({
             )}
           </div>
         )}
-        
+
         {/* Overlay actions */}
         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 sm:gap-2">
           {job.status === 'completed' && (
@@ -136,7 +156,12 @@ export function VideoJobCard({
                 onToggleFavorite(job.id);
               }}
             >
-              <Star className={cn("h-3 w-3 sm:h-4 sm:w-4", job.isFavorite && "fill-yellow-500 text-yellow-500")} />
+              <Star
+                className={cn(
+                  'h-3 w-3 sm:h-4 sm:w-4',
+                  job.isFavorite && 'fill-yellow-500 text-yellow-500'
+                )}
+              />
             </Button>
           )}
         </div>

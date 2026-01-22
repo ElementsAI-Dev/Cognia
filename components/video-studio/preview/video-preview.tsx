@@ -11,25 +11,18 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Play,
   Pause,
@@ -85,6 +78,7 @@ export function VideoPreview({
   onEnded,
   className,
 }: VideoPreviewProps) {
+  const t = useTranslations('video');
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -188,11 +182,14 @@ export function VideoPreview({
     }
   }, [isPlaying]);
 
-  const seek = useCallback((time: number) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = Math.max(0, Math.min(time, internalDuration));
-    }
-  }, [internalDuration]);
+  const seek = useCallback(
+    (time: number) => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = Math.max(0, Math.min(time, internalDuration));
+      }
+    },
+    [internalDuration]
+  );
 
   const seekToStart = useCallback(() => seek(0), [seek]);
   const seekToEnd = useCallback(() => seek(internalDuration), [seek, internalDuration]);
@@ -235,13 +232,19 @@ export function VideoPreview({
     if (!containerRef.current) return;
 
     if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().then(() => {
-        setIsFullscreen(true);
-      }).catch(() => {});
+      containerRef.current
+        .requestFullscreen()
+        .then(() => {
+          setIsFullscreen(true);
+        })
+        .catch(() => {});
     } else {
-      document.exitFullscreen().then(() => {
-        setIsFullscreen(false);
-      }).catch(() => {});
+      document
+        .exitFullscreen()
+        .then(() => {
+          setIsFullscreen(false);
+        })
+        .catch(() => {});
     }
   }, []);
 
@@ -350,7 +353,7 @@ export function VideoPreview({
         <button
           className="absolute inset-0 flex items-center justify-center bg-black/20 cursor-pointer"
           onClick={togglePlayback}
-          aria-label="Play video"
+          aria-label={t('play')}
         >
           <div className="w-20 h-20 rounded-full bg-black/50 flex items-center justify-center">
             <Play className="h-10 w-10 text-white ml-1" />
@@ -362,7 +365,7 @@ export function VideoPreview({
       {showControls && (
         <div
           className={cn(
-            'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4 transition-opacity',
+            'absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-2 sm:p-4 transition-opacity',
             isHovering || !isPlaying ? 'opacity-100' : 'opacity-0'
           )}
         >
@@ -388,7 +391,7 @@ export function VideoPreview({
                     size="icon"
                     className="h-7 w-7 sm:h-8 sm:w-8 text-white hover:bg-white/20"
                     onClick={togglePlayback}
-                    aria-label={isPlaying ? 'Pause' : 'Play'}
+                    aria-label={isPlaying ? t('pause') : t('play')}
                   >
                     {isPlaying ? (
                       <Pause className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -397,7 +400,9 @@ export function VideoPreview({
                     )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{isPlaying ? 'Pause (K)' : 'Play (K)'}</TooltipContent>
+                <TooltipContent>
+                  {isPlaying ? `${t('pause')} (K)` : `${t('play')} (K)`}
+                </TooltipContent>
               </Tooltip>
 
               {/* Skip backward */}
@@ -408,12 +413,12 @@ export function VideoPreview({
                     size="icon"
                     className="h-7 w-7 sm:h-8 sm:w-8 text-white hover:bg-white/20"
                     onClick={() => seek(currentTime - 10)}
-                    aria-label="Skip back 10 seconds"
+                    aria-label={t('skipBack')}
                   >
                     <SkipBack className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>-10 seconds</TooltipContent>
+                <TooltipContent>{t('skipBack')}</TooltipContent>
               </Tooltip>
 
               {/* Frame backward */}
@@ -424,12 +429,12 @@ export function VideoPreview({
                     size="icon"
                     className="h-7 w-7 sm:h-8 sm:w-8 text-white hover:bg-white/20"
                     onClick={stepBackward}
-                    aria-label="Previous frame"
+                    aria-label={t('previousFrame')}
                   >
                     <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Previous frame (,)</TooltipContent>
+                <TooltipContent>{`${t('previousFrame')} (,)`}</TooltipContent>
               </Tooltip>
 
               {/* Frame forward */}
@@ -440,12 +445,12 @@ export function VideoPreview({
                     size="icon"
                     className="h-7 w-7 sm:h-8 sm:w-8 text-white hover:bg-white/20"
                     onClick={stepForward}
-                    aria-label="Next frame"
+                    aria-label={t('nextFrame')}
                   >
                     <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Next frame (.)</TooltipContent>
+                <TooltipContent>{`${t('nextFrame')} (.)`}</TooltipContent>
               </Tooltip>
 
               {/* Skip forward */}
@@ -456,12 +461,12 @@ export function VideoPreview({
                     size="icon"
                     className="h-7 w-7 sm:h-8 sm:w-8 text-white hover:bg-white/20"
                     onClick={() => seek(currentTime + 10)}
-                    aria-label="Skip forward 10 seconds"
+                    aria-label={t('skipForward')}
                   >
                     <SkipForward className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>+10 seconds</TooltipContent>
+                <TooltipContent>{t('skipForward')}</TooltipContent>
               </Tooltip>
 
               {/* Volume */}
@@ -474,7 +479,7 @@ export function VideoPreview({
                         size="icon"
                         className="h-7 w-7 sm:h-8 sm:w-8 text-white hover:bg-white/20"
                         onClick={toggleMute}
-                        aria-label={muted ? 'Unmute' : 'Mute'}
+                        aria-label={muted ? t('unmute') : t('mute')}
                       >
                         {muted || volume === 0 ? (
                           <VolumeX className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -484,7 +489,9 @@ export function VideoPreview({
                       </Button>
                     </PopoverTrigger>
                   </TooltipTrigger>
-                  <TooltipContent>{muted ? 'Unmute (M)' : 'Mute (M)'}</TooltipContent>
+                  <TooltipContent>
+                    {muted ? `${t('unmute')} (M)` : `${t('mute')} (M)`}
+                  </TooltipContent>
                 </Tooltip>
                 <PopoverContent align="center" side="top" className="bg-black/90">
                   <Slider
@@ -522,9 +529,7 @@ export function VideoPreview({
                     <DropdownMenuItem
                       key={speed}
                       onClick={() => setInternalPlaybackSpeed(speed)}
-                      className={cn(
-                        internalPlaybackSpeed === speed && 'bg-muted'
-                      )}
+                      className={cn(internalPlaybackSpeed === speed && 'bg-muted')}
                     >
                       {speed}x
                     </DropdownMenuItem>
@@ -540,7 +545,7 @@ export function VideoPreview({
                     size="icon"
                     className="h-7 w-7 sm:h-8 sm:w-8 text-white hover:bg-white/20"
                     onClick={toggleFullscreen}
-                    aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                    aria-label={isFullscreen ? t('exitFullscreen') : t('fullscreen')}
                   >
                     {isFullscreen ? (
                       <Minimize className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -549,7 +554,9 @@ export function VideoPreview({
                     )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{isFullscreen ? 'Exit fullscreen (F)' : 'Fullscreen (F)'}</TooltipContent>
+                <TooltipContent>
+                  {isFullscreen ? `${t('exitFullscreen')} (F)` : `${t('fullscreen')} (F)`}
+                </TooltipContent>
               </Tooltip>
             </div>
           </div>

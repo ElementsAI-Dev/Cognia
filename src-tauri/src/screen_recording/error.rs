@@ -290,4 +290,14 @@ mod tests {
         let json = serde_json::to_string(&err).unwrap();
         assert!(json.contains("FFMPEG_NOT_FOUND"));
     }
+
+    #[test]
+    fn test_recording_error_into_string_json() {
+        let err = RecordingError::ffmpeg_not_found();
+        let encoded: String = err.into();
+        let decoded: serde_json::Value = serde_json::from_str(&encoded).unwrap();
+
+        assert_eq!(decoded["code"], "FfmpegNotFound");
+        assert!(decoded["message"].as_str().unwrap_or_default().contains("FFmpeg"));
+    }
 }

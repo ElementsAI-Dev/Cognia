@@ -4,31 +4,38 @@
 
 use crate::jupyter::{
     kernel::{JupyterKernel, KernelConfig},
-    session::{JupyterSession, SessionManager},
-    KernelExecutionResult, KernelInfo, VariableInfo,
+    session::{JupyterSession, SharedSessionManager},
+    ExecutionError, KernelExecutionResult, KernelInfo, VariableInfo,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
-use tokio::sync::RwLock;
+use tokio::time::{timeout, Duration};
 
 /// Jupyter state managed by Tauri
+/// Uses SharedSessionManager for thread-safe access and automatic cleanup
+#[derive(Clone)]
 pub struct JupyterState {
-    manager: Arc<RwLock<SessionManager>>,
+    manager: SharedSessionManager,
 }
 
 impl JupyterState {
     pub fn new() -> Self {
         Self {
-            manager: Arc::new(RwLock::new(SessionManager::default())),
+            manager: SharedSessionManager::new(KernelConfig::default()),
         }
     }
 
-    #[allow(dead_code)]
     pub fn with_config(config: KernelConfig) -> Self {
         Self {
-            manager: Arc::new(RwLock::new(SessionManager::new(config))),
+            manager: SharedSessionManager::new(config),
         }
+    }
+
+    /// Perform periodic cleanup of dead and idle kernels
+    pub async fn perform_cleanup(&self) {
+        self.manager.cleanup_dead_kernels().await;
+        // Clean up kernels idle for more than 1 hour
+        self.manager.cleanup_idle_kernels(3600).await;
     }
 }
 
@@ -44,19 +51,57 @@ pub struct KernelProgressEvent {
     #[serde(rename = "kernelId")]
     pub kernel_id: String,
     pub status: String,
+    #[serde(rename = "executionCount")]
     pub execution_count: u32,
     pub message: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotebookExecutionOptions {
+    #[serde(rename = "stopOnError")]
+    pub stop_on_error: Option<bool>,
+    pub timeout: Option<u64>,
+    #[serde(rename = "clearOutputs")]
+    pub clear_outputs: Option<bool>,
+}
+
 /// Emit kernel status event to frontend
-fn emit_kernel_status(app: &AppHandle, kernel_id: &str, status: &str, message: Option<&str>) {
+fn emit_kernel_status(
+    app: &AppHandle,
+    kernel_id: &str,
+    status: &str,
+    execution_count: u32,
+    message: Option<&str>,
+) {
     let event = KernelProgressEvent {
         kernel_id: kernel_id.to_string(),
         status: status.to_string(),
-        execution_count: 0,
+        execution_count,
         message: message.map(String::from),
     };
     let _ = app.emit("jupyter-kernel-status", event);
+}
+
+async fn get_kernel_id_for_session(
+    state: &State<'_, JupyterState>,
+    session_id: &str,
+) -> Option<String> {
+    state
+        .manager
+        .list_sessions()
+        .await
+        .into_iter()
+        .find(|s| s.id == session_id)
+        .and_then(|s| s.kernel_id)
+}
+
+async fn require_kernel_id_for_session(
+    state: &State<'_, JupyterState>,
+    session_id: &str,
+) -> Result<String, String> {
+    get_kernel_id_for_session(state, session_id)
+        .await
+        .ok_or_else(|| "Session not found or has no kernel".to_string())
 }
 
 // ==================== Session Commands ====================
@@ -69,15 +114,15 @@ pub async fn jupyter_create_session(
     name: String,
     env_path: String,
 ) -> Result<JupyterSession, String> {
-    emit_kernel_status(&app, "", "starting", Some("Creating kernel session..."));
+    emit_kernel_status(&app, "", "starting", 0, Some("Creating kernel session..."));
 
-    let mut manager = state.manager.write().await;
-    let session = manager.create_session(&name, &env_path).await?;
+    let session = state.manager.create_session(&name, &env_path).await?;
 
     emit_kernel_status(
         &app,
         session.kernel_id.as_deref().unwrap_or(""),
         "idle",
+        0,
         Some("Kernel ready"),
     );
 
@@ -89,8 +134,7 @@ pub async fn jupyter_create_session(
 pub async fn jupyter_list_sessions(
     state: State<'_, JupyterState>,
 ) -> Result<Vec<JupyterSession>, String> {
-    let manager = state.manager.read().await;
-    Ok(manager.list_sessions())
+    Ok(state.manager.list_sessions().await)
 }
 
 /// Get a session by ID
@@ -99,8 +143,8 @@ pub async fn jupyter_get_session(
     state: State<'_, JupyterState>,
     session_id: String,
 ) -> Result<Option<JupyterSession>, String> {
-    let manager = state.manager.read().await;
-    Ok(manager.get_session(&session_id).cloned())
+    let sessions = state.manager.list_sessions().await;
+    Ok(sessions.into_iter().find(|s| s.id == session_id))
 }
 
 /// Delete a session and stop its kernel
@@ -110,15 +154,14 @@ pub async fn jupyter_delete_session(
     state: State<'_, JupyterState>,
     session_id: String,
 ) -> Result<(), String> {
-    let mut manager = state.manager.write().await;
-
-    if let Some(session) = manager.get_session(&session_id) {
+    let sessions = state.manager.list_sessions().await;
+    if let Some(session) = sessions.iter().find(|s| s.id == session_id) {
         if let Some(ref kernel_id) = session.kernel_id {
-            emit_kernel_status(&app, kernel_id, "stopping", Some("Stopping kernel..."));
+            emit_kernel_status(&app, kernel_id, "stopping", 0, Some("Stopping kernel..."));
         }
     }
 
-    manager.delete_session(&session_id).await?;
+    state.manager.delete_session(&session_id).await?;
 
     Ok(())
 }
@@ -130,8 +173,7 @@ pub async fn jupyter_delete_session(
 pub async fn jupyter_list_kernels(
     state: State<'_, JupyterState>,
 ) -> Result<Vec<KernelInfo>, String> {
-    let manager = state.manager.read().await;
-    Ok(manager.list_kernels())
+    Ok(state.manager.list_kernels().await)
 }
 
 /// Restart a kernel in a session
@@ -141,12 +183,18 @@ pub async fn jupyter_restart_kernel(
     state: State<'_, JupyterState>,
     session_id: String,
 ) -> Result<(), String> {
-    emit_kernel_status(&app, "", "restarting", Some("Restarting kernel..."));
+    let kernel_id = require_kernel_id_for_session(&state, &session_id).await?;
+    emit_kernel_status(
+        &app,
+        &kernel_id,
+        "restarting",
+        0,
+        Some("Restarting kernel..."),
+    );
 
-    let mut manager = state.manager.write().await;
-    manager.restart_kernel(&session_id).await?;
+    state.manager.restart_kernel(&session_id).await?;
 
-    emit_kernel_status(&app, "", "idle", Some("Kernel restarted"));
+    emit_kernel_status(&app, &kernel_id, "idle", 0, Some("Kernel restarted"));
 
     Ok(())
 }
@@ -158,12 +206,18 @@ pub async fn jupyter_interrupt_kernel(
     state: State<'_, JupyterState>,
     session_id: String,
 ) -> Result<(), String> {
-    emit_kernel_status(&app, "", "interrupting", Some("Interrupting execution..."));
+    let kernel_id = require_kernel_id_for_session(&state, &session_id).await?;
+    emit_kernel_status(
+        &app,
+        &kernel_id,
+        "interrupting",
+        0,
+        Some("Interrupting execution..."),
+    );
 
-    let mut manager = state.manager.write().await;
-    manager.interrupt_kernel(&session_id).await?;
+    state.manager.interrupt_kernel(&session_id).await?;
 
-    emit_kernel_status(&app, "", "idle", Some("Execution interrupted"));
+    emit_kernel_status(&app, &kernel_id, "idle", 0, Some("Execution interrupted"));
 
     Ok(())
 }
@@ -178,12 +232,18 @@ pub async fn jupyter_execute(
     session_id: String,
     code: String,
 ) -> Result<KernelExecutionResult, String> {
-    emit_kernel_status(&app, "", "busy", Some("Executing code..."));
+    let kernel_id = require_kernel_id_for_session(&state, &session_id).await?;
+    emit_kernel_status(&app, &kernel_id, "busy", 0, Some("Executing code..."));
 
-    let mut manager = state.manager.write().await;
-    let result = manager.execute(&session_id, &code).await?;
+    let result = state.manager.execute(&session_id, &code).await?;
 
-    emit_kernel_status(&app, "", "idle", Some("Execution complete"));
+    emit_kernel_status(
+        &app,
+        &kernel_id,
+        "idle",
+        result.execution_count,
+        Some("Execution complete"),
+    );
 
     // Emit output event for streaming display
     let _ = app.emit("jupyter-output", &result);
@@ -198,19 +258,47 @@ pub async fn jupyter_quick_execute(
     env_path: String,
     code: String,
 ) -> Result<KernelExecutionResult, String> {
-    emit_kernel_status(&app, "", "busy", Some("Executing code..."));
-
     let config = KernelConfig::default();
-    let mut kernel =
-        JupyterKernel::new(format!("quick-{}", uuid::Uuid::new_v4()), env_path, config);
+    let kernel_id = format!("quick-{}", uuid::Uuid::new_v4());
+    let mut kernel = JupyterKernel::new(kernel_id.clone(), env_path, config);
+
+    emit_kernel_status(&app, &kernel_id, "starting", 0, Some("Starting kernel..."));
 
     kernel.start().await?;
-    let result = kernel.execute(&code).await?;
-    kernel.stop().await?;
 
-    emit_kernel_status(&app, "", "idle", Some("Execution complete"));
+    emit_kernel_status(&app, &kernel_id, "busy", 0, Some("Executing code..."));
 
-    Ok(result)
+    let exec_result = kernel.execute(&code).await;
+    let stop_result = kernel.stop().await;
+
+    match exec_result {
+        Ok(result) => {
+            stop_result?;
+            emit_kernel_status(
+                &app,
+                &kernel_id,
+                "idle",
+                result.execution_count,
+                Some("Execution complete"),
+            );
+            Ok(result)
+        }
+        Err(exec_err) => {
+            if let Err(stop_err) = stop_result {
+                emit_kernel_status(
+                    &app,
+                    &kernel_id,
+                    "error",
+                    0,
+                    Some("Kernel execution and shutdown failed"),
+                );
+                return Err(format!("{}; stop error: {}", exec_err, stop_err));
+            }
+
+            emit_kernel_status(&app, &kernel_id, "error", 0, Some(&exec_err));
+            Err(exec_err)
+        }
+    }
 }
 
 /// Execute a Jupyter notebook cell by index
@@ -222,26 +310,35 @@ pub async fn jupyter_execute_cell(
     cell_index: u32,
     code: String,
 ) -> Result<KernelExecutionResult, String> {
+    let kernel_id = require_kernel_id_for_session(&state, &session_id).await?;
     emit_kernel_status(
         &app,
-        "",
+        &kernel_id,
         "busy",
+        0,
         Some(&format!("Executing cell {}...", cell_index)),
     );
 
-    let mut manager = state.manager.write().await;
-    let result = manager.execute(&session_id, &code).await?;
+    let result = state.manager.execute(&session_id, &code).await?;
 
     // Emit cell-specific output event
     let _ = app.emit(
         "jupyter-cell-output",
         serde_json::json!({
+            "sessionId": &session_id,
+            "kernelId": &kernel_id,
             "cellIndex": cell_index,
             "result": result
         }),
     );
 
-    emit_kernel_status(&app, "", "idle", Some("Cell execution complete"));
+    emit_kernel_status(
+        &app,
+        &kernel_id,
+        "idle",
+        result.execution_count,
+        Some("Cell execution complete"),
+    );
 
     Ok(result)
 }
@@ -253,24 +350,79 @@ pub async fn jupyter_execute_notebook(
     state: State<'_, JupyterState>,
     session_id: String,
     cells: Vec<String>,
+    options: Option<NotebookExecutionOptions>,
 ) -> Result<Vec<KernelExecutionResult>, String> {
-    let mut results = Vec::new();
+    let mut results: Vec<KernelExecutionResult> = Vec::new();
+
+    let stop_on_error = options.as_ref().and_then(|o| o.stop_on_error).unwrap_or(true);
+    let timeout_ms = options.as_ref().and_then(|o| o.timeout).unwrap_or(60_000);
+    let clear_outputs = options
+        .as_ref()
+        .and_then(|o| o.clear_outputs)
+        .unwrap_or(false);
+
+    let kernel_id = require_kernel_id_for_session(&state, &session_id).await?;
+
+    if clear_outputs {
+        for index in 0..cells.len() {
+            let _ = app.emit(
+                "jupyter-cell-output",
+                serde_json::json!({
+                    "sessionId": &session_id,
+                    "kernelId": &kernel_id,
+                    "cellIndex": index,
+                    "result": KernelExecutionResult {
+                        success: true,
+                        execution_count: 0,
+                        stdout: String::new(),
+                        stderr: String::new(),
+                        display_data: vec![],
+                        error: None,
+                        execution_time_ms: 0,
+                    },
+                    "total": cells.len()
+                }),
+            );
+        }
+    }
 
     for (index, code) in cells.iter().enumerate() {
         emit_kernel_status(
             &app,
-            "",
+            &kernel_id,
             "busy",
+            0,
             Some(&format!("Executing cell {}/{}...", index + 1, cells.len())),
         );
 
-        let mut manager = state.manager.write().await;
-        let result = manager.execute(&session_id, code).await?;
+        let result = match timeout(
+            Duration::from_millis(timeout_ms),
+            state.manager.execute(&session_id, code),
+        )
+        .await
+        {
+            Ok(exec) => exec?,
+            Err(_) => KernelExecutionResult {
+                success: false,
+                execution_count: results.last().map(|r| r.execution_count).unwrap_or(0),
+                stdout: String::new(),
+                stderr: "Execution timed out".to_string(),
+                display_data: vec![],
+                error: Some(ExecutionError {
+                    ename: "TimeoutError".to_string(),
+                    evalue: "Execution timed out".to_string(),
+                    traceback: vec![],
+                }),
+                execution_time_ms: timeout_ms,
+            },
+        };
 
         // Emit cell output event
         let _ = app.emit(
             "jupyter-cell-output",
             serde_json::json!({
+                "sessionId": &session_id,
+                "kernelId": &kernel_id,
                 "cellIndex": index,
                 "result": result,
                 "total": cells.len()
@@ -280,12 +432,18 @@ pub async fn jupyter_execute_notebook(
         results.push(result);
 
         // Stop on error if needed
-        if results.last().map(|r| !r.success).unwrap_or(false) {
+        if stop_on_error && results.last().map(|r| !r.success).unwrap_or(false) {
             break;
         }
     }
 
-    emit_kernel_status(&app, "", "idle", Some("Notebook execution complete"));
+    emit_kernel_status(
+        &app,
+        &kernel_id,
+        "idle",
+        results.last().map(|r| r.execution_count).unwrap_or(0),
+        Some("Notebook execution complete"),
+    );
 
     Ok(results)
 }
@@ -298,24 +456,23 @@ pub async fn jupyter_get_variables(
     state: State<'_, JupyterState>,
     session_id: String,
 ) -> Result<Vec<VariableInfo>, String> {
-    let mut manager = state.manager.write().await;
-    manager.get_variables(&session_id).await
+    state.manager.get_variables(&session_id).await
 }
 
-/// Inspect a specific variable
-#[tauri::command]
-pub async fn jupyter_inspect_variable(
-    state: State<'_, JupyterState>,
-    session_id: String,
-    variable_name: String,
-) -> Result<KernelExecutionResult, String> {
-    let code = format!(
+fn build_inspect_variable_code(variable_name: &str) -> Result<String, String> {
+    let variable_name_json = serde_json::to_string(variable_name).map_err(|e| e.to_string())?;
+
+    Ok(format!(
         r#"
 import json
 try:
-    val = {}
+    _name = {variable_name_json}
+    if _name not in globals():
+        raise KeyError(f"Variable not found: {{_name}}")
+
+    val = globals()[_name]
     result = {{
-        "name": "{}",
+        "name": _name,
         "type": type(val).__name__,
         "value": repr(val),
         "str": str(val)[:1000]
@@ -329,12 +486,19 @@ try:
     print(json.dumps(result))
 except Exception as e:
     print(json.dumps({{"error": str(e)}}))
-"#,
-        variable_name, variable_name
-    );
+"#
+    ))
+}
 
-    let mut manager = state.manager.write().await;
-    manager.execute(&session_id, &code).await
+/// Inspect a specific variable
+#[tauri::command]
+pub async fn jupyter_inspect_variable(
+    state: State<'_, JupyterState>,
+    session_id: String,
+    variable_name: String,
+) -> Result<KernelExecutionResult, String> {
+    let code = build_inspect_variable_code(&variable_name)?;
+    state.manager.execute(&session_id, &code).await
 }
 
 // ==================== Utility Commands ====================
@@ -358,6 +522,7 @@ pub async fn jupyter_ensure_kernel(app: AppHandle, env_path: String) -> Result<b
         &app,
         "",
         "configuring",
+        0,
         Some("Checking kernel requirements..."),
     );
 
@@ -383,13 +548,13 @@ pub async fn jupyter_ensure_kernel(app: AppHandle, env_path: String) -> Result<b
 
     if let Ok(out) = check_output {
         if out.status.success() {
-            emit_kernel_status(&app, "", "idle", Some("Kernel ready"));
+            emit_kernel_status(&app, "", "idle", 0, Some("Kernel ready"));
             return Ok(true);
         }
     }
 
     // Try to install ipykernel
-    emit_kernel_status(&app, "", "installing", Some("Installing ipykernel..."));
+    emit_kernel_status(&app, "", "installing", 0, Some("Installing ipykernel..."));
 
     // Try uv first
     let uv_result = if cfg!(target_os = "windows") {
@@ -410,7 +575,7 @@ pub async fn jupyter_ensure_kernel(app: AppHandle, env_path: String) -> Result<b
 
     if let Ok(out) = uv_result {
         if out.status.success() {
-            emit_kernel_status(&app, "", "idle", Some("ipykernel installed via uv"));
+            emit_kernel_status(&app, "", "idle", 0, Some("ipykernel installed via uv"));
             return Ok(true);
         }
     }
@@ -431,16 +596,16 @@ pub async fn jupyter_ensure_kernel(app: AppHandle, env_path: String) -> Result<b
 
     match pip_result {
         Ok(out) if out.status.success() => {
-            emit_kernel_status(&app, "", "idle", Some("ipykernel installed via pip"));
+            emit_kernel_status(&app, "", "idle", 0, Some("ipykernel installed via pip"));
             Ok(true)
         }
         Ok(out) => {
             let error = String::from_utf8_lossy(&out.stderr).to_string();
-            emit_kernel_status(&app, "", "error", Some(&error));
+            emit_kernel_status(&app, "", "error", 0, Some(&error));
             Err(error)
         }
         Err(e) => {
-            emit_kernel_status(&app, "", "error", Some(&e.to_string()));
+            emit_kernel_status(&app, "", "error", 0, Some(&e.to_string()));
             Err(e.to_string())
         }
     }
@@ -452,14 +617,29 @@ pub async fn jupyter_shutdown_all(
     app: AppHandle,
     state: State<'_, JupyterState>,
 ) -> Result<(), String> {
-    emit_kernel_status(&app, "", "stopping", Some("Shutting down all kernels..."));
+    emit_kernel_status(&app, "", "stopping", 0, Some("Shutting down all kernels..."));
 
-    let mut manager = state.manager.write().await;
-    manager.shutdown_all().await;
+    state.manager.shutdown_all().await;
 
-    emit_kernel_status(&app, "", "idle", Some("All kernels stopped"));
+    emit_kernel_status(&app, "", "idle", 0, Some("All kernels stopped"));
 
     Ok(())
+}
+
+/// Perform cleanup of dead and idle kernels
+#[tauri::command]
+pub async fn jupyter_cleanup(state: State<'_, JupyterState>) -> Result<(), String> {
+    state.perform_cleanup().await;
+    Ok(())
+}
+
+/// Get cached variables from kernel
+#[tauri::command]
+pub async fn jupyter_get_cached_variables(
+    state: State<'_, JupyterState>,
+    session_id: String,
+) -> Result<Vec<VariableInfo>, String> {
+    state.manager.get_cached_variables(&session_id).await
 }
 
 #[cfg(test)]
@@ -468,9 +648,9 @@ mod tests {
 
     #[test]
     fn test_jupyter_state_creation() {
-        let state = JupyterState::new();
-        // State should be created without error - verify manager Arc is valid
-        assert!(Arc::strong_count(&state.manager) == 1);
+        let _state = JupyterState::new();
+        // State should be created without error
+        assert!(true); // Simple existence test
     }
 
     #[test]
@@ -484,6 +664,14 @@ mod tests {
 
         let json = serde_json::to_string(&event).unwrap();
         assert!(json.contains("kernelId"));
+        assert!(json.contains("executionCount"));
         assert!(json.contains("test-kernel"));
+    }
+
+    #[test]
+    fn test_build_inspect_variable_code_escapes_variable_name() {
+        let code = build_inspect_variable_code("a\"b").unwrap();
+        assert!(code.contains("_name = \"a\\\"b\""));
+        assert!(code.contains("globals()[_name]"));
     }
 }

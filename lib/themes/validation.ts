@@ -90,5 +90,37 @@ export function validateBackgroundData(data: unknown): ValidationResult {
     return { valid: false, error: 'Invalid source type' };
   }
 
+  // Multi-mode support (backward compatible)
+  if (typeof settings.mode !== 'undefined') {
+    if (!['single', 'layers', 'slideshow'].includes(settings.mode as string)) {
+      return { valid: false, error: 'Invalid background mode' };
+    }
+  }
+
+  if (typeof settings.layers !== 'undefined') {
+    if (!Array.isArray(settings.layers)) {
+      return { valid: false, error: 'Invalid layers format' };
+    }
+  }
+
+  if (typeof settings.slideshow !== 'undefined') {
+    if (!settings.slideshow || typeof settings.slideshow !== 'object') {
+      return { valid: false, error: 'Invalid slideshow format' };
+    }
+    const slideshow = settings.slideshow as Record<string, unknown>;
+    if (typeof slideshow.slides !== 'undefined' && !Array.isArray(slideshow.slides)) {
+      return { valid: false, error: 'Invalid slideshow slides format' };
+    }
+    if (typeof slideshow.intervalMs !== 'undefined' && typeof slideshow.intervalMs !== 'number') {
+      return { valid: false, error: 'Invalid slideshow interval' };
+    }
+    if (typeof slideshow.transitionMs !== 'undefined' && typeof slideshow.transitionMs !== 'number') {
+      return { valid: false, error: 'Invalid slideshow transition' };
+    }
+    if (typeof slideshow.shuffle !== 'undefined' && typeof slideshow.shuffle !== 'boolean') {
+      return { valid: false, error: 'Invalid slideshow shuffle' };
+    }
+  }
+
   return { valid: true };
 }

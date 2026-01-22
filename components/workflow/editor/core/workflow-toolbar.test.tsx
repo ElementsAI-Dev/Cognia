@@ -93,38 +93,38 @@ jest.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenuTrigger: ({ children, asChild: _asChild }: { children: React.ReactNode; asChild?: boolean }) => <div>{children}</div>,
 }));
 
-jest.mock('./version-history-panel', () => ({
+jest.mock('../panels/version-history-panel', () => ({
   VersionHistoryPanel: () => <div data-testid="version-history-panel" />,
   ImportExportDialog: ({ open, onOpenChange: _onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) => (
     open ? <div data-testid="import-export-dialog" /> : null
   ),
 }));
 
-jest.mock('./execution-statistics-panel', () => ({
+jest.mock('../execution/execution-statistics-panel', () => ({
   ExecutionStatisticsPanel: () => <div data-testid="execution-statistics-panel" />,
 }));
 
-jest.mock('./variable-manager-panel', () => ({
+jest.mock('../panels/variable-manager-panel', () => ({
   VariableManagerPanel: () => <div data-testid="variable-manager-panel" />,
 }));
 
-jest.mock('./keyboard-shortcuts-panel', () => ({
+jest.mock('../panels/keyboard-shortcuts-panel', () => ({
   KeyboardShortcutsPanel: () => <div data-testid="keyboard-shortcuts-panel" />,
 }));
 
-jest.mock('./workflow-settings-panel', () => ({
+jest.mock('../panels/workflow-settings-panel', () => ({
   WorkflowSettingsPanel: () => <div data-testid="workflow-settings-panel" />,
 }));
 
-jest.mock('./workflow-input-test-panel', () => ({
+jest.mock('../panels/workflow-input-test-panel', () => ({
   WorkflowInputTestPanel: () => <div data-testid="workflow-input-test-panel" />,
 }));
 
-jest.mock('./debug-toolbar', () => ({
+jest.mock('../debug/debug-toolbar', () => ({
   DebugToolbar: () => <div data-testid="debug-toolbar" />,
 }));
 
-jest.mock('./node-search-panel', () => ({
+jest.mock('../search/node-search-panel', () => ({
   NodeSearchPanel: () => <div data-testid="node-search-panel" />,
 }));
 

@@ -35,6 +35,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { usePluginStore } from '@/stores/plugin';
 import { cn } from '@/lib/utils';
 
 // Import extracted components
@@ -78,6 +79,7 @@ export function PluginMarketplace({
   onViewDetails,
 }: PluginMarketplaceProps) {
   const t = useTranslations('pluginMarketplace');
+  const { plugins: pluginsById } = usePluginStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortBy, setSortBy] = useState<SortOption>('popular');
@@ -85,6 +87,12 @@ export function PluginMarketplace({
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
   const [isLoading] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+
+  const installedPluginIds = useMemo(() => new Set(Object.keys(pluginsById)), [pluginsById]);
+  const marketplacePlugins = useMemo(
+    () => MOCK_PLUGINS.map((p) => ({ ...p, installed: installedPluginIds.has(p.id) })),
+    [installedPluginIds]
+  );
 
   // Keyboard shortcut for search focus (Cmd/Ctrl + K)
   useEffect(() => {
@@ -100,13 +108,13 @@ export function PluginMarketplace({
   }, []);
 
   const featuredPlugins = useMemo(
-    () => MOCK_PLUGINS.filter((p) => p.featured),
-    []
+    () => marketplacePlugins.filter((p) => p.featured),
+    [marketplacePlugins]
   );
 
   const trendingPlugins = useMemo(
-    () => MOCK_PLUGINS.filter((p) => p.trending),
-    []
+    () => marketplacePlugins.filter((p) => p.trending),
+    [marketplacePlugins]
   );
 
   const clearFilters = useCallback(() => {
@@ -116,7 +124,7 @@ export function PluginMarketplace({
   }, []);
 
   const filteredPlugins = useMemo(() => {
-    let result = [...MOCK_PLUGINS];
+    let result = [...marketplacePlugins];
 
     // Search filter
     if (searchQuery) {
@@ -172,7 +180,7 @@ export function PluginMarketplace({
     }
 
     return result;
-  }, [searchQuery, categoryFilter, quickFilter, sortBy]);
+  }, [marketplacePlugins, searchQuery, categoryFilter, quickFilter, sortBy]);
 
   const hasActiveFilters = searchQuery || categoryFilter !== 'all' || quickFilter !== 'all';
 

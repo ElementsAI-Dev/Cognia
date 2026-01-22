@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { cn, formatDuration } from '@/lib/utils';
 import { useWorkflowEditorStore } from '@/stores/workflow';
+import { useShallow } from 'zustand/react/shallow';
 import {
   Play,
   Pause,
@@ -55,7 +56,16 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
     resumeExecution,
     cancelExecution,
     clearExecutionState,
-  } = useWorkflowEditorStore();
+  } = useWorkflowEditorStore(
+    useShallow((state) => ({
+      currentWorkflow: state.currentWorkflow,
+      executionState: state.executionState,
+      pauseExecution: state.pauseExecution,
+      resumeExecution: state.resumeExecution,
+      cancelExecution: state.cancelExecution,
+      clearExecutionState: state.clearExecutionState,
+    }))
+  );
 
   const progress = useMemo(() => {
     if (!executionState) return 0;

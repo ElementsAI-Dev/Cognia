@@ -1,16 +1,16 @@
 'use client';
 
 import { useEffect, useCallback, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { 
-  Pin, 
-  PinOff, 
-  Plus, 
-  Moon, 
-  Sun, 
+import {
+  Pin,
+  PinOff,
+  Plus,
+  Moon,
+  Sun,
   Monitor,
   Minus,
-  Copy,
   X,
   Maximize2,
   Maximize,
@@ -36,11 +36,7 @@ import {
   Scaling,
 } from 'lucide-react';
 import { DebugButton } from './debug-button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,19 +48,70 @@ import {
   DropdownMenuSubContent,
   DropdownMenuLabel,
   DropdownMenuCheckboxItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 import { useSessionStore, useSettingsStore, useWindowStore } from '@/stores';
 import { useWindowControls } from '@/hooks';
 import { useRouter } from 'next/navigation';
 import { isMainWindow } from '@/lib/native/utils';
+import { registerTitleBarItem, useTitleBarRegistry } from './title-bar-registry';
+
+registerTitleBarItem({
+  id: 'builtin.settings',
+  label: 'Settings',
+  labelKey: 'settings',
+  defaultArea: 'left',
+  render: ({ t }) => (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Link
+          href="/settings"
+          className="flex h-6 w-6 items-center justify-center rounded transition-colors hover:bg-accent hover:text-accent-foreground"
+        >
+          <Settings className="h-3.5 w-3.5" />
+        </Link>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="text-xs">
+        {t ? t('settings') : 'Settings'}
+      </TooltipContent>
+    </Tooltip>
+  ),
+});
+
+registerTitleBarItem({
+  id: 'builtin.reload',
+  label: 'Reload',
+  labelKey: 'reload',
+  defaultArea: 'left',
+  render: ({ t }) => (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          onClick={() => window.location.reload()}
+          className="flex h-6 w-6 items-center justify-center rounded transition-colors hover:bg-accent hover:text-accent-foreground"
+          type="button"
+          data-no-drag
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="text-xs">
+        {t ? t('reload') : 'Reload'}
+      </TooltipContent>
+    </Tooltip>
+  ),
+});
 
 export function TitleBar() {
+  const t = useTranslations('window');
   const router = useRouter();
   const [isMain, setIsMain] = useState<boolean | null>(null);
-  
+
   // Window controls hook
   const {
     isTauri,
+    platform,
     isMaximized,
     isFullscreen,
     isAlwaysOnTop,
@@ -89,12 +136,14 @@ export function TitleBar() {
   // Check if this is the main window
   useEffect(() => {
     if (!isTauri) return;
-    
+
     let mounted = true;
     isMainWindow().then((result) => {
       if (mounted) setIsMain(result);
     });
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [isTauri]);
 
   // Window store for additional state
@@ -112,7 +161,11 @@ export function TitleBar() {
     setIsResizable,
     setEnableDoubleClickMaximize,
     setEnableDragToMove,
+    setTitleBarCustomLayout,
+    setTitleBarHeight,
   } = useWindowStore();
+
+  const titleBarRegistryItems = useTitleBarRegistry((state) => state.items);
 
   // Settings store
   const theme = useSettingsStore((state) => state.theme);
@@ -127,14 +180,59 @@ export function TitleBar() {
       return;
     }
 
-    document.documentElement.style.setProperty('--titlebar-height', '32px');
+    document.documentElement.style.setProperty(
+      '--titlebar-height',
+      `${preferences.titleBarHeight}px`
+    );
     document.documentElement.classList.add('tauri-app');
 
     return () => {
       document.documentElement.style.removeProperty('--titlebar-height');
       document.documentElement.classList.remove('tauri-app');
     };
-  }, [isTauri, isMain]);
+  }, [isTauri, isMain, preferences.titleBarHeight]);
+
+  const getRegisteredTitleBarItems = useCallback(() => {
+    return Object.values(titleBarRegistryItems).sort((a, b) => a.label.localeCompare(b.label));
+  }, [titleBarRegistryItems]);
+
+  const renderCustomItems = useCallback(
+    (area: 'left' | 'center' | 'right') => {
+      const ids = preferences.titleBarCustomLayout[area];
+      return ids
+        .map((id) => ({ id, def: titleBarRegistryItems[id] }))
+        .filter(
+          (e): e is { id: string; def: NonNullable<(typeof titleBarRegistryItems)[string]> } =>
+            Boolean(e.def)
+        )
+        .map(({ id, def }) => (
+          <div key={id} className="flex items-center" data-no-drag>
+            {def.render({ isTauri, t })}
+          </div>
+        ));
+    },
+    [isTauri, preferences.titleBarCustomLayout, titleBarRegistryItems, t]
+  );
+
+  const toggleCustomItem = useCallback(
+    (area: 'left' | 'center' | 'right', id: string, checked: boolean) => {
+      const current = preferences.titleBarCustomLayout[area];
+      const next = checked
+        ? current.includes(id)
+          ? current
+          : [...current, id]
+        : current.filter((x) => x !== id);
+
+      setTitleBarCustomLayout({
+        ...preferences.titleBarCustomLayout,
+        [area]: next,
+      });
+    },
+    [preferences.titleBarCustomLayout, setTitleBarCustomLayout]
+  );
+
+  const isMacos = platform === 'macos';
+  const shouldUseManualDrag = preferences.enableDragToMove && preferences.enableDoubleClickMaximize;
 
   // Window property toggle handlers
   const handleToggleContentProtected = useCallback(async () => {
@@ -196,10 +294,10 @@ export function TitleBar() {
   }, [theme]);
 
   const getThemeLabel = useCallback(() => {
-    if (theme === 'dark') return 'Dark';
-    if (theme === 'light') return 'Light';
-    return 'System';
-  }, [theme]);
+    if (theme === 'dark') return t('themeDark');
+    if (theme === 'light') return t('themeLight');
+    return t('themeSystem');
+  }, [theme, t]);
 
   if (!isTauri || isMain === false) {
     return null;
@@ -210,18 +308,138 @@ export function TitleBar() {
     return null;
   }
 
-  // Determine if we should use manual drag handling
-  const shouldUseManualDrag = preferences.enableDragToMove && preferences.enableDoubleClickMaximize;
+  const minimizeButton = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            minimize();
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          className={
+            isMacos
+              ? 'flex h-3 w-3 items-center justify-center rounded-full bg-yellow-500/90 hover:bg-yellow-500'
+              : 'flex h-full w-11 items-center justify-center transition-colors hover:bg-accent hover:text-accent-foreground'
+          }
+          type="button"
+          data-no-drag
+          aria-label={t('minimize')}
+        >
+          {!isMacos && <Minus className="h-4 w-4" />}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="text-xs">
+        {t('minimize')}
+      </TooltipContent>
+    </Tooltip>
+  );
+
+  const maximizeButton = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isMacos) {
+              toggleFullscreen();
+            } else {
+              toggleMaximize();
+            }
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          className={
+            isMacos
+              ? 'flex h-3 w-3 items-center justify-center rounded-full bg-green-500/90 hover:bg-green-500'
+              : 'flex h-full w-11 items-center justify-center transition-colors hover:bg-accent hover:text-accent-foreground'
+          }
+          type="button"
+          data-no-drag
+          aria-label={
+            isMacos
+              ? isFullscreen
+                ? t('exitFullscreen')
+                : t('enterFullscreen')
+              : isMaximized
+                ? t('restore')
+                : t('maximize')
+          }
+        >
+          {!isMacos &&
+            (isMaximized ? <Minimize2 className="h-4 w-4" /> : <Square className="h-4 w-4" />)}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="text-xs">
+        {isMacos
+          ? isFullscreen
+            ? t('exitFullscreen')
+            : t('enterFullscreen')
+          : isMaximized
+            ? t('restore')
+            : t('maximize')}
+      </TooltipContent>
+    </Tooltip>
+  );
+
+  const closeButton = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            close();
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          className={
+            isMacos
+              ? 'flex h-3 w-3 items-center justify-center rounded-full bg-red-500/90 hover:bg-red-500'
+              : 'flex h-full w-11 items-center justify-center transition-colors hover:bg-red-500/10 hover:text-red-500'
+          }
+          type="button"
+          data-no-drag
+          aria-label={t('close')}
+        >
+          {!isMacos && <X className="h-4 w-4" />}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="text-xs">
+        {t('close')}
+      </TooltipContent>
+    </Tooltip>
+  );
+
+  const windowControlButtons = isMacos ? (
+    <>
+      {closeButton}
+      {minimizeButton}
+      {maximizeButton}
+    </>
+  ) : (
+    <>
+      {minimizeButton}
+      {maximizeButton}
+      {closeButton}
+    </>
+  );
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-50 flex h-8 select-none items-center bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/40"
+      className="fixed top-0 left-0 right-0 z-50 flex h-(--titlebar-height) select-none items-center bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 border-b border-border/40"
       data-tauri-drag-region
       onMouseDown={shouldUseManualDrag ? handleDragMouseDown : undefined}
     >
+      {isMacos && (
+        <div className="flex items-center gap-1.5 px-3 h-full" data-no-drag>
+          {windowControlButtons}
+        </div>
+      )}
+
       {/* App Logo & Title - left side */}
-      <div 
-        className="flex items-center gap-2 px-3 h-full" 
+      <div
+        className="flex items-center gap-2 px-3 h-full"
         data-tauri-drag-region
         onMouseDown={shouldUseManualDrag ? handleDragMouseDown : undefined}
       >
@@ -233,6 +451,8 @@ export function TitleBar() {
 
       {/* Quick Actions - left area */}
       <div className="flex items-center h-full gap-0.5 pl-1">
+        {renderCustomItems('left')}
+
         {/* New Chat */}
         <Tooltip>
           <TooltipTrigger asChild>
@@ -245,7 +465,7 @@ export function TitleBar() {
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">
-            New Chat (Ctrl+N)
+            {t('newChat')}
           </TooltipContent>
         </Tooltip>
 
@@ -260,15 +480,11 @@ export function TitleBar() {
               type="button"
               data-no-drag
             >
-              {isAlwaysOnTop ? (
-                <PinOff className="h-3.5 w-3.5" />
-              ) : (
-                <Pin className="h-3.5 w-3.5" />
-              )}
+              {isAlwaysOnTop ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">
-            {isAlwaysOnTop ? 'Unpin Window' : 'Pin Window on Top'}
+            {isAlwaysOnTop ? t('unpin') : t('pin')}
           </TooltipContent>
         </Tooltip>
 
@@ -291,7 +507,7 @@ export function TitleBar() {
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">
-            {isFullscreen ? 'Exit Fullscreen (F11)' : 'Fullscreen (F11)'}
+            {isFullscreen ? t('exitFullscreen') : t('enterFullscreen')}
           </TooltipContent>
         </Tooltip>
 
@@ -307,7 +523,7 @@ export function TitleBar() {
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">
-            Theme: {getThemeLabel()}
+            {t('theme')}: {getThemeLabel()}
           </TooltipContent>
         </Tooltip>
 
@@ -328,7 +544,7 @@ export function TitleBar() {
             </Link>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">
-            Projects
+            {t('projects')}
           </TooltipContent>
         </Tooltip>
 
@@ -342,7 +558,7 @@ export function TitleBar() {
             </Link>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">
-            Designer
+            {t('designer')}
           </TooltipContent>
         </Tooltip>
 
@@ -360,62 +576,134 @@ export function TitleBar() {
               </DropdownMenuTrigger>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="text-xs">
-              More Options
+              {t('moreOptions')}
             </TooltipContent>
           </Tooltip>
           <DropdownMenuContent align="start" className="w-56">
+            {getRegisteredTitleBarItems().length > 0 && (
+              <>
+                <DropdownMenuLabel className="text-xs text-muted-foreground">
+                  {t('toolbar')}
+                </DropdownMenuLabel>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <PanelLeft className="mr-2 h-4 w-4" />
+                    <span>{t('left')}</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {getRegisteredTitleBarItems().map((item) => (
+                      <DropdownMenuCheckboxItem
+                        key={`titlebar-left-${item.id}`}
+                        checked={preferences.titleBarCustomLayout.left.includes(item.id)}
+                        onCheckedChange={(checked) => toggleCustomItem('left', item.id, checked)}
+                      >
+                        {item.labelKey ? t(item.labelKey) : item.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <PanelTop className="mr-2 h-4 w-4" />
+                    <span>{t('center')}</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {getRegisteredTitleBarItems().map((item) => (
+                      <DropdownMenuCheckboxItem
+                        key={`titlebar-center-${item.id}`}
+                        checked={preferences.titleBarCustomLayout.center.includes(item.id)}
+                        onCheckedChange={(checked) => toggleCustomItem('center', item.id, checked)}
+                      >
+                        {item.labelKey ? t(item.labelKey) : item.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <PanelRight className="mr-2 h-4 w-4" />
+                    <span>{t('right')}</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {getRegisteredTitleBarItems().map((item) => (
+                      <DropdownMenuCheckboxItem
+                        key={`titlebar-right-${item.id}`}
+                        checked={preferences.titleBarCustomLayout.right.includes(item.id)}
+                        onCheckedChange={(checked) => toggleCustomItem('right', item.id, checked)}
+                      >
+                        {item.labelKey ? t(item.labelKey) : item.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Window Controls
+              {t('height')}
+            </DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={String(preferences.titleBarHeight)}
+              onValueChange={(value) => setTitleBarHeight(Number(value))}
+            >
+              <DropdownMenuRadioItem value="28">28px</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="32">32px</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="36">36px</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="40">40px</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              {t('controls')}
             </DropdownMenuLabel>
             <DropdownMenuItem onClick={center}>
               <Move className="mr-2 h-4 w-4" />
-              Center Window
+              {t('centerWindow')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={autoFitToScreen}>
               <Scaling className="mr-2 h-4 w-4" />
-              Auto Fit to Screen
+              {t('autoFit')}
             </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <PanelLeft className="mr-2 h-4 w-4" />
-                <span>Snap to Edge</span>
+                <span>{t('snapToEdge')}</span>
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
                 <DropdownMenuItem onClick={() => snapToEdge('left')}>
                   <PanelLeft className="mr-2 h-4 w-4" />
-                  Left Half
+                  {t('snapLeft')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => snapToEdge('right')}>
                   <PanelRight className="mr-2 h-4 w-4" />
-                  Right Half
+                  {t('snapRight')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => snapToEdge('top')}>
                   <PanelTop className="mr-2 h-4 w-4" />
-                  Top Half
+                  {t('snapTop')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => snapToEdge('bottom')}>
                   <PanelBottom className="mr-2 h-4 w-4" />
-                  Bottom Half
+                  {t('snapBottom')}
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <Grid2X2 className="mr-2 h-4 w-4" />
-                <span>Snap to Corner</span>
+                <span>{t('snapToCorner')}</span>
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
                 <DropdownMenuItem onClick={() => snapToCorner('topLeft')}>
-                  Top Left
+                  {t('snapTopLeft')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => snapToCorner('topRight')}>
-                  Top Right
+                  {t('snapTopRight')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => snapToCorner('bottomLeft')}>
-                  Bottom Left
+                  {t('snapBottomLeft')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => snapToCorner('bottomRight')}>
-                  Bottom Right
+                  {t('snapBottomRight')}
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
@@ -423,12 +711,12 @@ export function TitleBar() {
               {isFullscreen ? (
                 <>
                   <Minimize2 className="mr-2 h-4 w-4" />
-                  Exit Fullscreen
+                  {t('exitFullscreen')}
                 </>
               ) : (
                 <>
                   <Maximize className="mr-2 h-4 w-4" />
-                  Enter Fullscreen
+                  {t('enterFullscreen')}
                 </>
               )}
             </DropdownMenuItem>
@@ -436,99 +724,95 @@ export function TitleBar() {
               {isAlwaysOnTop ? (
                 <>
                   <PinOff className="mr-2 h-4 w-4" />
-                  Unpin from Top
+                  {t('unpin')}
                 </>
               ) : (
                 <>
                   <Pin className="mr-2 h-4 w-4" />
-                  Pin on Top
+                  {t('pin')}
                 </>
               )}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleRequestAttention}>
               <MonitorSmartphone className="mr-2 h-4 w-4" />
-              Flash Taskbar
+              {t('flashTaskbar')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Window Properties
+              {t('properties')}
             </DropdownMenuLabel>
-            <DropdownMenuCheckboxItem
-              checked={isResizable}
-              onCheckedChange={handleToggleResizable}
-            >
+            <DropdownMenuCheckboxItem checked={isResizable} onCheckedChange={handleToggleResizable}>
               <Maximize2 className="mr-2 h-4 w-4" />
-              Resizable
+              {t('resizable')}
             </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem
-              checked={shadow}
-              onCheckedChange={handleToggleShadow}
-            >
+            <DropdownMenuCheckboxItem checked={shadow} onCheckedChange={handleToggleShadow}>
               <Square className="mr-2 h-4 w-4" />
-              Window Shadow
+              {t('shadow')}
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem
               checked={contentProtected}
               onCheckedChange={handleToggleContentProtected}
             >
               <Shield className="mr-2 h-4 w-4" />
-              Content Protected
+              {t('contentProtected')}
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem
               checked={skipTaskbar}
               onCheckedChange={handleToggleSkipTaskbar}
             >
               {skipTaskbar ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
-              Hide from Taskbar
+              {t('hideFromTaskbar')}
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem
               checked={visibleOnAllWorkspaces}
               onCheckedChange={handleToggleVisibleOnAllWorkspaces}
             >
               <Layers className="mr-2 h-4 w-4" />
-              All Workspaces
+              {t('allWorkspaces')}
             </DropdownMenuCheckboxItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Drag Behavior
+              {t('dragBehavior')}
             </DropdownMenuLabel>
             <DropdownMenuCheckboxItem
               checked={preferences.enableDragToMove}
               onCheckedChange={(checked) => setEnableDragToMove(checked)}
             >
               <Move className="mr-2 h-4 w-4" />
-              Drag to Move
+              {t('dragToMove')}
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem
               checked={preferences.enableDoubleClickMaximize}
               onCheckedChange={(checked) => setEnableDoubleClickMaximize(checked)}
             >
               <Maximize2 className="mr-2 h-4 w-4" />
-              Double-click Maximize
+              {t('doubleClickMaximize')}
             </DropdownMenuCheckboxItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Theme
+              {t('theme')}
             </DropdownMenuLabel>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 {getThemeIcon()}
-                <span className="ml-2">Theme: {getThemeLabel()}</span>
+                <span className="ml-2">
+                  {t('theme')}: {getThemeLabel()}
+                </span>
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
                 <DropdownMenuItem onClick={() => setTheme('light')}>
                   <Sun className="mr-2 h-4 w-4" />
-                  Light
+                  {t('themeLight')}
                   {theme === 'light' && <span className="ml-auto text-primary">✓</span>}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setTheme('dark')}>
                   <Moon className="mr-2 h-4 w-4" />
-                  Dark
+                  {t('themeDark')}
                   {theme === 'dark' && <span className="ml-auto text-primary">✓</span>}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setTheme('system')}>
                   <Monitor className="mr-2 h-4 w-4" />
-                  System
+                  {t('themeSystem')}
                   {theme === 'system' && <span className="ml-auto text-primary">✓</span>}
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
@@ -570,11 +854,15 @@ export function TitleBar() {
       </div>
 
       {/* Drag region - takes all available space */}
-      <div 
-        className="flex-1 h-full" 
+      <div
+        className="flex-1 h-full flex items-center justify-center px-2"
         data-tauri-drag-region
         onMouseDown={shouldUseManualDrag ? handleDragMouseDown : undefined}
-      />
+      >
+        <div className="flex items-center gap-1" data-no-drag>
+          {renderCustomItems('center')}
+        </div>
+      </div>
 
       {/* Status indicator when pinned */}
       {isAlwaysOnTop && (
@@ -586,75 +874,8 @@ export function TitleBar() {
 
       {/* Window controls */}
       <div className="flex h-full items-center" data-no-drag>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                minimize();
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
-              className="flex h-full w-11 items-center justify-center transition-colors hover:bg-accent hover:text-accent-foreground"
-              aria-label="Minimize"
-              type="button"
-              data-no-drag
-            >
-              <Minus className="h-3.5 w-3.5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-xs">
-            Minimize
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleMaximize();
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
-              className="flex h-full w-11 items-center justify-center transition-colors hover:bg-accent hover:text-accent-foreground"
-              aria-label={isMaximized ? 'Restore' : 'Maximize'}
-              type="button"
-              data-no-drag
-            >
-              {isMaximized ? (
-                <Copy className="h-3.5 w-3.5" />
-              ) : (
-                <Maximize2 className="h-3.5 w-3.5" />
-              )}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-xs">
-            {isMaximized ? 'Restore' : 'Maximize'}
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                close();
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
-              className="flex h-full w-11 items-center justify-center transition-colors hover:bg-destructive hover:text-destructive-foreground"
-              aria-label="Close"
-              type="button"
-              data-no-drag
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-xs">
-            Close
-          </TooltipContent>
-        </Tooltip>
+        {renderCustomItems('right')}
+        {!isMacos && windowControlButtons}
       </div>
     </div>
   );

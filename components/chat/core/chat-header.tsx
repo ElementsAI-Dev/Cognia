@@ -9,13 +9,13 @@
 import { useState, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
-import { 
-  ChevronDown, 
-  Sparkles, 
-  Search as SearchIcon, 
-  Bot, 
-  Download, 
-  Image as ImageIcon, 
+import {
+  ChevronDown,
+  Sparkles,
+  Search as SearchIcon,
+  Bot,
+  Download,
+  Image as ImageIcon,
   Wand2,
   Copy,
   CopyCheck,
@@ -34,12 +34,13 @@ import {
 } from 'lucide-react';
 import { ConversationSearch, SessionStats } from '../utils';
 import { useMessages } from '@/hooks';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { BatchCopyDialog, ExportDialog, ChatSummaryDialog, ModeSwitchConfirmDialog } from '../dialogs';
+  BatchCopyDialog,
+  ExportDialog,
+  ChatSummaryDialog,
+  ModeSwitchConfirmDialog,
+} from '../dialogs';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -51,27 +52,29 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 // TooltipProvider is at app level in providers.tsx
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { useSessionStore, usePresetStore, useArtifactStore, useChatStore, useProjectStore } from '@/stores';
+import {
+  useSessionStore,
+  usePresetStore,
+  useArtifactStore,
+  useChatStore,
+  useProjectStore,
+} from '@/stores';
 import { MODE_CONFIGS } from '@/stores/chat';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { BeautifulExportDialog } from '@/components/export';
-import { 
-  OpenIn, 
-  OpenInTrigger, 
-  OpenInContent, 
-  OpenInLabel, 
+import {
+  OpenIn,
+  OpenInTrigger,
+  OpenInContent,
+  OpenInLabel,
   OpenInSeparator,
-  OpenInChatGPT, 
-  OpenInClaude, 
+  OpenInChatGPT,
+  OpenInClaude,
   OpenInScira,
   OpenInv0,
   OpenInCursor,
@@ -81,12 +84,7 @@ import { PresetSelector, CreatePresetDialog, PresetsManager } from '@/components
 import { ActiveSkillsIndicator } from '@/components/skills';
 import { BackgroundAgentIndicator, AgentModeSelector } from '@/components/agent';
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { ChatMode, Preset, ChatViewMode, CreateGoalInput } from '@/types';
 import { ChatGoalDialog } from '../goal';
 import { useSummary } from '@/hooks/chat';
@@ -112,7 +110,6 @@ const modeColors: Record<ChatMode, string> = {
   learning: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20',
 };
 
-
 export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: ChatHeaderProps) {
   const t = useTranslations('chatHeader');
   const tFlow = useTranslations('flowChat');
@@ -136,14 +133,14 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
 
   const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
-  const session = sessionId 
-    ? sessions.find(s => s.id === sessionId) 
-    : sessions.find(s => s.id === activeSessionId);
+  const session = sessionId
+    ? sessions.find((s) => s.id === sessionId)
+    : sessions.find((s) => s.id === activeSessionId);
   const updateSession = useSessionStore((state) => state.updateSession);
   const setGoal = useSessionStore((state) => state.setGoal);
   const updateGoal = useSessionStore((state) => state.updateGoal);
   const selectPreset = usePresetStore((state) => state.selectPreset);
-  
+
   // Project context - ProjectSelector component handles the display now
   const _getProject = useProjectStore((state) => state.getProject);
 
@@ -167,50 +164,61 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
   const openaiSettings = providerSettings?.openai;
   const { generateChatSummary } = useSummary({
     useAI: !!openaiSettings?.apiKey,
-    aiConfig: openaiSettings?.apiKey ? {
-      provider: 'openai',
-      model: openaiSettings.defaultModel || 'gpt-4o-mini',
-      apiKey: openaiSettings.apiKey,
-    } : undefined,
+    aiConfig: openaiSettings?.apiKey
+      ? {
+          provider: 'openai',
+          model: openaiSettings.defaultModel || 'gpt-4o-mini',
+          apiKey: openaiSettings.apiKey,
+        }
+      : undefined,
   });
 
   // Get current mode configuration
-  const _currentModeConfig = useMemo(() => getModeConfig(currentMode), [getModeConfig, currentMode]);
+  const _currentModeConfig = useMemo(
+    () => getModeConfig(currentMode),
+    [getModeConfig, currentMode]
+  );
   const recentModes = useMemo(() => getRecentModes(3), [getRecentModes]);
 
-  const handleModeChange = useCallback((mode: ChatMode) => {
-    if (session && mode !== currentMode) {
-      // Check if there are messages - if so, show confirmation dialog
-      if (messages.length > 0) {
-        setPendingTargetMode(mode);
-        setModeSwitchDialogOpen(true);
-      } else {
-        // No messages, just switch mode directly
-        setModeTransitioning(true);
-        switchMode(session.id, mode);
-        updateSession(session.id, { mode });
-        setTimeout(() => setModeTransitioning(false), 300);
+  const handleModeChange = useCallback(
+    (mode: ChatMode) => {
+      if (session && mode !== currentMode) {
+        // Check if there are messages - if so, show confirmation dialog
+        if (messages.length > 0) {
+          setPendingTargetMode(mode);
+          setModeSwitchDialogOpen(true);
+        } else {
+          // No messages, just switch mode directly
+          setModeTransitioning(true);
+          switchMode(session.id, mode);
+          updateSession(session.id, { mode });
+          setTimeout(() => setModeTransitioning(false), 300);
+        }
       }
-    }
-  }, [session, currentMode, messages.length, switchMode, updateSession]);
+    },
+    [session, currentMode, messages.length, switchMode, updateSession]
+  );
 
   // Handle mode switch confirmation
-  const handleModeSwitchConfirm = useCallback((options: { carryContext: boolean; summary?: string }) => {
-    if (!session || !pendingTargetMode) return;
+  const handleModeSwitchConfirm = useCallback(
+    (options: { carryContext: boolean; summary?: string }) => {
+      if (!session || !pendingTargetMode) return;
 
-    setModeTransitioning(true);
-    
-    // Create new session with the target mode
-    switchModeWithNewSession(session.id, pendingTargetMode, {
-      carryContext: options.carryContext,
-      summary: options.summary,
-    });
+      setModeTransitioning(true);
 
-    // Reset state
-    setPendingTargetMode(null);
-    setModeSwitchDialogOpen(false);
-    setTimeout(() => setModeTransitioning(false), 300);
-  }, [session, pendingTargetMode, switchModeWithNewSession]);
+      // Create new session with the target mode
+      switchModeWithNewSession(session.id, pendingTargetMode, {
+        carryContext: options.carryContext,
+        summary: options.summary,
+      });
+
+      // Reset state
+      setPendingTargetMode(null);
+      setModeSwitchDialogOpen(false);
+      setTimeout(() => setModeTransitioning(false), 300);
+    },
+    [session, pendingTargetMode, switchModeWithNewSession]
+  );
 
   // Handle mode switch cancel
   const handleModeSwitchCancel = useCallback(() => {
@@ -278,7 +286,10 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
   const handleCopyChat = async () => {
     if (chatMessages.length > 0) {
       const text = chatMessages
-        .map(m => `${m.role}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`)
+        .map(
+          (m) =>
+            `${m.role}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`
+        )
         .join('\n\n');
       await navigator.clipboard.writeText(text);
       toast.success(tToasts('chatCopied'));
@@ -299,18 +310,19 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
     }
   };
 
-  const handleSaveGoal = useCallback((input: CreateGoalInput) => {
-    if (!session) return;
-    if (session.goal) {
-      updateGoal(session.id, { content: input.content, progress: input.progress });
-      toast.success(t('goalUpdated') || 'Goal updated');
-    } else {
-      setGoal(session.id, input);
-      toast.success(t('goalSet') || 'Goal set');
-    }
-  }, [session, setGoal, updateGoal, t]);
-
-
+  const handleSaveGoal = useCallback(
+    (input: CreateGoalInput) => {
+      if (!session) return;
+      if (session.goal) {
+        updateGoal(session.id, { content: input.content, progress: input.progress });
+        toast.success(t('goalUpdated'));
+      } else {
+        setGoal(session.id, input);
+        toast.success(t('goalSet'));
+      }
+    },
+    [session, setGoal, updateGoal, t]
+  );
 
   return (
     <>
@@ -323,9 +335,9 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
           {/* Enhanced Mode selector with animations */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 data-tour="mode-selector"
                 className={cn(
                   'gap-2 transition-all duration-300 border',
@@ -364,7 +376,9 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
               <DropdownMenuLabel className="flex items-center justify-between">
                 <span>{t('chatMode')}</span>
                 {recentModes.length > 0 && (
-                  <span className="text-[10px] text-muted-foreground font-normal">Recent</span>
+                  <span className="text-[10px] text-muted-foreground font-normal">
+                    {t('recent')}
+                  </span>
                 )}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -380,10 +394,12 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
                       currentMode === mode && 'bg-accent'
                     )}
                   >
-                    <div className={cn(
-                      'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-                      modeColors[mode]
-                    )}>
+                    <div
+                      className={cn(
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                        modeColors[mode]
+                      )}
+                    >
                       {modeIcons[mode]}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -391,13 +407,11 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
                         <span className="font-medium">{t(`mode.${mode}`)}</span>
                         {isRecent && currentMode !== mode && (
                           <Badge variant="outline" className="text-[9px] h-4 px-1">
-                            Recent
+                            {t('recent')}
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {config.description}
-                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{config.description}</p>
                     </div>
                     {currentMode === mode && (
                       <motion.div
@@ -438,10 +452,7 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
           {/* Branch selector (only shown when branches exist) - hidden on small screens */}
           {session && (
             <div className="hidden sm:block">
-              <BranchSelector
-                sessionId={session.id}
-                compact
-              />
+              <BranchSelector sessionId={session.id} compact />
             </div>
           )}
 
@@ -469,11 +480,7 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
           {session && messages.length > 0 && (
             <div className="hidden lg:flex items-center gap-2">
               <Separator orientation="vertical" className="h-4" />
-              <SessionStats
-                messages={messages}
-                sessionCreatedAt={session.createdAt}
-                compact
-              />
+              <SessionStats messages={messages} sessionCreatedAt={session.createdAt} compact />
             </div>
           )}
         </div>
@@ -539,7 +546,7 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
                   </Link>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{t('imageStudio') || 'Image Studio'}</TooltipContent>
+              <TooltipContent>{t('imageStudio')}</TooltipContent>
             </Tooltip>
           </div>
 
@@ -553,7 +560,7 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
                   </Link>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{t('videoEditor') || 'Video Editor'}</TooltipContent>
+              <TooltipContent>{t('videoEditor')}</TooltipContent>
             </Tooltip>
           </div>
 
@@ -583,8 +590,8 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
           {/* Panel toggle with dropdown for Canvas/Artifact selection - hidden on small screens */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant={panelOpen ? 'secondary' : 'ghost'} 
+              <Button
+                variant={panelOpen ? 'secondary' : 'ghost'}
                 size="icon"
                 className="h-8 w-8 sm:w-auto sm:gap-1.5 sm:px-2"
               >
@@ -640,12 +647,12 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
               </TooltipTrigger>
               <TooltipContent>
                 {session.goal ? (
-                  <div className="max-w-[200px]">
-                    <p className="font-medium text-xs mb-1">{t('goal') || 'Goal'}</p>
+                  <div className="max-w-50">
+                    <p className="font-medium text-xs mb-1">{t('goal')}</p>
                     <p className="text-xs text-muted-foreground truncate">{session.goal.content}</p>
                   </div>
                 ) : (
-                  t('setGoal') || 'Set Goal'
+                  t('setGoal')
                 )}
               </TooltipContent>
             </Tooltip>
@@ -662,29 +669,33 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleTogglePin}>
                   {session.pinned ? (
-                    <><PinOff className="mr-2 h-4 w-4" /> {t('unpin')}</>  
+                    <>
+                      <PinOff className="mr-2 h-4 w-4" /> {t('unpin')}
+                    </>
                   ) : (
-                    <><Pin className="mr-2 h-4 w-4" /> {t('pin')}</>  
+                    <>
+                      <Pin className="mr-2 h-4 w-4" /> {t('pin')}
+                    </>
                   )}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleCopyChat} disabled={chatMessages.length === 0}>
                   <Copy className="mr-2 h-4 w-4" />
                   {t('copyChat')}
                 </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => setBatchCopyOpen(true)} 
+                <DropdownMenuItem
+                  onClick={() => setBatchCopyOpen(true)}
                   disabled={messages.length === 0}
                 >
                   <CopyCheck className="mr-2 h-4 w-4" />
                   {t('selectCopy')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={() => setSummaryDialogOpen(true)} 
+                <DropdownMenuItem
+                  onClick={() => setSummaryDialogOpen(true)}
                   disabled={messages.length === 0}
                 >
                   <FileText className="mr-2 h-4 w-4" />
-                  {t('summarize') || 'Summarize & Diagram'}
+                  {t('summarize')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <BeautifulExportDialog
@@ -701,13 +712,13 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
                   trigger={
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                       <Download className="mr-2 h-4 w-4" />
-                      {t('exportBasic') || 'Basic Export'}
+                      {t('exportBasic')}
                     </DropdownMenuItem>
                   }
                 />
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={handleClearChat} 
+                <DropdownMenuItem
+                  onClick={handleClearChat}
                   disabled={chatMessages.length === 0}
                   className="text-destructive focus:text-destructive"
                 >
@@ -717,15 +728,15 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
                 <DropdownMenuSeparator />
                 {/* Open in external AI chat services */}
                 {messages.length > 0 && (
-                  <OpenIn query={messages.map(m => `${m.role}: ${m.content}`).join('\n\n')}>
+                  <OpenIn query={messages.map((m) => `${m.role}: ${m.content}`).join('\n\n')}>
                     <OpenInTrigger>
                       <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                         <ExternalLink className="mr-2 h-4 w-4" />
-                        {t('openInOtherAI') || 'Open in Other AI'}
+                        {t('openInOtherAI')}
                       </DropdownMenuItem>
                     </OpenInTrigger>
                     <OpenInContent>
-                      <OpenInLabel>Open conversation in...</OpenInLabel>
+                      <OpenInLabel>{t('openInLabel')}</OpenInLabel>
                       <OpenInSeparator />
                       <OpenInChatGPT />
                       <OpenInClaude />
@@ -738,69 +749,65 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+        </div>
+      </header>
 
-      </div>
-    </header>
-
-    {/* Create Preset Dialog */}
-    <CreatePresetDialog
-      open={createPresetOpen}
-      onOpenChange={setCreatePresetOpen}
-      onSuccess={handlePresetSelect}
-    />
-
-    {/* Manage Presets Dialog */}
-    <Dialog open={managePresetsOpen} onOpenChange={setManagePresetsOpen}>
-      <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{t('managePresets')}</DialogTitle>
-        </DialogHeader>
-        <PresetsManager onSelectPreset={(preset) => {
-          handlePresetSelect(preset);
-          setManagePresetsOpen(false);
-        }} />
-      </DialogContent>
-    </Dialog>
-
-    {/* Batch Copy Dialog */}
-    <BatchCopyDialog
-      open={batchCopyOpen}
-      onOpenChange={setBatchCopyOpen}
-      messages={messages}
-    />
-
-    {/* Chat Summary Dialog */}
-    <ChatSummaryDialog
-      open={summaryDialogOpen}
-      onOpenChange={setSummaryDialogOpen}
-      messages={messages}
-      sessionTitle={session?.title}
-    />
-
-    {/* Mode Switch Confirmation Dialog */}
-    {pendingTargetMode && (
-      <ModeSwitchConfirmDialog
-        open={modeSwitchDialogOpen}
-        onOpenChange={setModeSwitchDialogOpen}
-        currentMode={currentMode}
-        targetMode={pendingTargetMode}
-        messageCount={messages.length}
-        sessionTitle={session?.title}
-        onConfirm={handleModeSwitchConfirm}
-        onCancel={handleModeSwitchCancel}
-        onGenerateSummary={handleGenerateSummaryForModeSwitch}
+      {/* Create Preset Dialog */}
+      <CreatePresetDialog
+        open={createPresetOpen}
+        onOpenChange={setCreatePresetOpen}
+        onSuccess={handlePresetSelect}
       />
-    )}
 
-    {/* Chat Goal Dialog */}
-    <ChatGoalDialog
-      open={goalDialogOpen}
-      onOpenChange={setGoalDialogOpen}
-      onSave={handleSaveGoal}
-      existingGoal={session?.goal}
-      sessionTitle={session?.title}
-    />
+      {/* Manage Presets Dialog */}
+      <Dialog open={managePresetsOpen} onOpenChange={setManagePresetsOpen}>
+        <DialogContent className="sm:max-w-200 max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('managePresets')}</DialogTitle>
+          </DialogHeader>
+          <PresetsManager
+            onSelectPreset={(preset) => {
+              handlePresetSelect(preset);
+              setManagePresetsOpen(false);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
+      {/* Batch Copy Dialog */}
+      <BatchCopyDialog open={batchCopyOpen} onOpenChange={setBatchCopyOpen} messages={messages} />
+
+      {/* Chat Summary Dialog */}
+      <ChatSummaryDialog
+        open={summaryDialogOpen}
+        onOpenChange={setSummaryDialogOpen}
+        messages={messages}
+        sessionTitle={session?.title}
+      />
+
+      {/* Mode Switch Confirmation Dialog */}
+      {pendingTargetMode && (
+        <ModeSwitchConfirmDialog
+          open={modeSwitchDialogOpen}
+          onOpenChange={setModeSwitchDialogOpen}
+          currentMode={currentMode}
+          targetMode={pendingTargetMode}
+          messageCount={messages.length}
+          sessionTitle={session?.title}
+          onConfirm={handleModeSwitchConfirm}
+          onCancel={handleModeSwitchCancel}
+          onGenerateSummary={handleGenerateSummaryForModeSwitch}
+        />
+      )}
+
+      {/* Chat Goal Dialog */}
+      <ChatGoalDialog
+        open={goalDialogOpen}
+        onOpenChange={setGoalDialogOpen}
+        onSave={handleSaveGoal}
+        existingGoal={session?.goal}
+        sessionTitle={session?.title}
+      />
     </>
   );
 }

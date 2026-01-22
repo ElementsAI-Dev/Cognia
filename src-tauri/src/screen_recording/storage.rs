@@ -91,6 +91,16 @@ impl StorageManager {
         Self { config }
     }
 
+    /// Get current storage configuration
+    pub fn get_config(&self) -> StorageConfig {
+        self.config.clone()
+    }
+
+    /// Update storage configuration
+    pub fn update_config(&mut self, config: StorageConfig) {
+        self.config = config;
+    }
+
     /// Generate semantic filename for recordings
     pub fn generate_recording_filename(
         &self,

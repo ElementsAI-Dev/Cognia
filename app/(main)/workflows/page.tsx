@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { workflowRepository } from '@/lib/db/repositories';
 import { useWorkflowEditorStore } from '@/stores/workflow';
+import { useShallow } from 'zustand/react/shallow';
 import { workflowEditorTemplates } from '@/lib/workflow-editor/templates';
 import type { VisualWorkflow, WorkflowEditorTemplate } from '@/types/workflow/workflow-editor';
 import {
@@ -70,7 +71,14 @@ export default function WorkflowsPage() {
     createWorkflow,
     currentWorkflow,
     saveWorkflow: saveWorkflowState,
-  } = useWorkflowEditorStore();
+  } = useWorkflowEditorStore(
+    useShallow((state) => ({
+      loadWorkflow: state.loadWorkflow,
+      createWorkflow: state.createWorkflow,
+      currentWorkflow: state.currentWorkflow,
+      saveWorkflow: state.saveWorkflow,
+    }))
+  );
 
   // Load workflows from database
   const loadWorkflows = useCallback(async () => {
@@ -199,30 +207,9 @@ export default function WorkflowsPage() {
 
   // Handle save workflow
   const handleSaveWorkflow = async () => {
-    if (currentWorkflow) {
-      const existing = await workflowRepository.getById(currentWorkflow.id);
-      if (existing) {
-        await workflowRepository.update(currentWorkflow.id, {
-          name: currentWorkflow.name,
-          description: currentWorkflow.description,
-          nodes: currentWorkflow.nodes,
-          edges: currentWorkflow.edges,
-          settings: currentWorkflow.settings,
-          viewport: currentWorkflow.viewport,
-        });
-      } else {
-        await workflowRepository.create({
-          name: currentWorkflow.name,
-          description: currentWorkflow.description,
-          nodes: currentWorkflow.nodes,
-          edges: currentWorkflow.edges,
-          settings: currentWorkflow.settings,
-          viewport: currentWorkflow.viewport,
-        });
-      }
-      // Reset isDirty state after successful save
-      saveWorkflowState();
-    }
+    if (!currentWorkflow) return;
+    await saveWorkflowState();
+    await loadWorkflows();
   };
 
   if (viewMode === 'editor') {

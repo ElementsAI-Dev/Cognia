@@ -3,8 +3,6 @@
 //! Simplified implementation of the Jupyter messaging protocol for kernel communication.
 //! Based on: https://jupyter-client.readthedocs.io/en/stable/messaging.html
 
-#![allow(dead_code)]
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

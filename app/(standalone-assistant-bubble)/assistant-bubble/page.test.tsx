@@ -65,7 +65,7 @@ describe('AssistantBubblePage', () => {
     mockOnDragDropEvent.mockResolvedValue(() => {});
 
     // Pretend Tauri runtime exists
-    (window as unknown as { __TAURI__?: unknown }).__TAURI__ = { version: '2.0.0' };
+    (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = { version: '2.0.0' };
 
     // Clear localStorage
     window.localStorage.clear();

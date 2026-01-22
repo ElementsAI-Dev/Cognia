@@ -4,12 +4,15 @@
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
-import { InteractiveNotebook } from './interactive-notebook';
 
 // Mock the hooks
 jest.mock('@/hooks/sandbox', () => ({
   useJupyterKernel: jest.fn(),
   useVirtualEnv: jest.fn(),
+}));
+
+jest.mock('@/stores/tools', () => ({
+  useJupyterStore: jest.fn(),
 }));
 
 // Mock child components
@@ -61,9 +64,13 @@ jest.mock('@/components/artifacts/jupyter-renderer', () => ({
 
 import { useJupyterKernel } from '@/hooks/sandbox';
 import { useVirtualEnv } from '@/hooks/sandbox';
+import { useJupyterStore } from '@/stores/tools';
+
+import { InteractiveNotebook } from './interactive-notebook';
 
 const mockUseJupyterKernel = useJupyterKernel as jest.Mock;
 const mockUseVirtualEnv = useVirtualEnv as jest.Mock;
+const mockUseJupyterStore = useJupyterStore as unknown as jest.Mock;
 
 // Messages for testing
 const messages = {
@@ -118,6 +125,7 @@ const createMockKernelHook = (overrides = {}): unknown => ({
   restartKernel: jest.fn(),
   interruptKernel: jest.fn(),
   refreshVariables: jest.fn(),
+  getCachedVariables: jest.fn().mockResolvedValue([]),
   inspectVariable: jest.fn(),
   getSessionForChat: jest.fn().mockReturnValue(null),
   mapChatToSession: jest.fn(),
@@ -139,6 +147,11 @@ describe('InteractiveNotebook', () => {
     jest.clearAllMocks();
     mockUseJupyterKernel.mockReturnValue(createMockKernelHook());
     mockUseVirtualEnv.mockReturnValue(createMockVirtualEnvHook());
+    mockUseJupyterStore.mockImplementation(
+      (selector: (state: { cells: Map<string, unknown> }) => unknown) => {
+        return selector({ cells: new Map() });
+      }
+    );
   });
 
   describe('initial rendering', () => {
@@ -469,6 +482,19 @@ describe('InteractiveNotebook', () => {
       variables: [{ name: 'test_var', type: 'int', value: '42', size: null }],
     };
 
+    it('should prefetch cached variables when session is active', async () => {
+      const getCachedVariables = jest.fn().mockResolvedValue([]);
+      mockUseJupyterKernel.mockReturnValue(
+        createMockKernelHook({ ...activeSessionMock, getCachedVariables })
+      );
+
+      renderWithIntl(<InteractiveNotebook content={sampleNotebook} showVariables={true} />);
+
+      await waitFor(() => {
+        expect(getCachedVariables).toHaveBeenCalledWith('session-1');
+      });
+    });
+
     it('should refresh variables when refresh is triggered', () => {
       const refreshVariables = jest.fn();
       mockUseJupyterKernel.mockReturnValue(
@@ -514,6 +540,50 @@ describe('InteractiveNotebook', () => {
       fireEvent.click(changeButton);
 
       expect(onContentChange).toHaveBeenCalledWith('updated content');
+    });
+
+    it('should sync store cell outputs into notebook content', async () => {
+      const onContentChange = jest.fn();
+      const activeSessionMock = {
+        activeSession: { id: 'session-1', name: 'Test Session' },
+        activeKernel: { id: 'kernel-1', status: 'idle' },
+      };
+
+      mockUseJupyterKernel.mockReturnValue(createMockKernelHook(activeSessionMock));
+
+      mockUseJupyterStore.mockImplementation((selector: (state: { cells: Map<string, unknown> }) => unknown) => {
+        const cells = new Map<string, unknown>();
+        cells.set('session-1', [
+          {
+            id: 'c1',
+            type: 'code',
+            source: 'print("Hello")',
+            executionState: 'success',
+            executionCount: 1,
+            outputs: [{ outputType: 'stream', name: 'stdout', text: 'ok' }],
+            metadata: {},
+          },
+        ]);
+        return selector({ cells });
+      });
+
+      renderWithIntl(
+        <InteractiveNotebook content={sampleNotebook} onContentChange={onContentChange} />
+      );
+
+      await waitFor(() => {
+        expect(onContentChange).toHaveBeenCalled();
+      });
+
+      const updated = onContentChange.mock.calls[0]?.[0] as string;
+      const parsed = JSON.parse(updated) as { cells: Array<{ outputs?: unknown[]; execution_count?: number | null }> };
+      expect(parsed.cells[0].execution_count).toBe(1);
+      expect(parsed.cells[0].outputs).toBeDefined();
+
+      const firstOutput = (parsed.cells[0].outputs ?? [])[0] as { output_type?: string; name?: string; text?: string };
+      expect(firstOutput.output_type).toBe('stream');
+      expect(firstOutput.name).toBe('stdout');
+      expect(firstOutput.text).toBe('ok');
     });
   });
 

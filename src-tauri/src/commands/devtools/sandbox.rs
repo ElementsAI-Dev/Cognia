@@ -98,7 +98,7 @@ pub async fn sandbox_get_status(state: State<'_, SandboxState>) -> Result<Sandbo
         runtime_statuses.push(RuntimeStatus {
             runtime_type: rt,
             available: available.contains(&rt),
-            version: None, // Could fetch version if needed
+            version: None, // Would need to query each runtime
         });
     }
 
@@ -107,6 +107,18 @@ pub async fn sandbox_get_status(state: State<'_, SandboxState>) -> Result<Sandbo
         supported_languages: languages,
         config,
     })
+}
+
+/// Get all supported languages
+#[tauri::command]
+pub async fn sandbox_get_all_languages(state: State<'_, SandboxState>) -> Result<Vec<Language>, String> {
+    Ok(state.get_all_languages().await)
+}
+
+/// Get languages available for native execution
+#[tauri::command]
+pub async fn sandbox_get_available_languages(state: State<'_, SandboxState>) -> Result<Vec<String>, String> {
+    Ok(state.get_available_languages().await)
 }
 
 /// Get sandbox configuration
@@ -632,6 +644,32 @@ pub async fn sandbox_get_all_categories(
     state: State<'_, SandboxState>,
 ) -> Result<Vec<String>, String> {
     state.get_all_categories().await.map_err(|e| e.to_string())
+}
+
+/// Update session
+#[tauri::command]
+pub async fn sandbox_update_session(
+    session_id: String,
+    name: String,
+    description: Option<String>,
+    state: State<'_, SandboxState>,
+) -> Result<(), String> {
+    state
+        .update_session(&session_id, &name, description.as_deref())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Get executions for a session
+#[tauri::command]
+pub async fn sandbox_get_session_executions(
+    session_id: String,
+    state: State<'_, SandboxState>,
+) -> Result<Vec<ExecutionRecord>, String> {
+    state
+        .get_session_executions(&session_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Get database size in bytes

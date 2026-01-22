@@ -5,7 +5,6 @@
 import { z } from 'zod';
 import {
   readTextFile,
-  readBinaryFile,
   writeTextFile,
   writeBinaryFile,
   listDirectory,
@@ -18,7 +17,6 @@ import {
   searchFiles,
   appendTextFile,
   isInTauri,
-  FileErrorCode,
 } from '@/lib/file/file-operations';
 
 export const fileReadInputSchema = z.object({

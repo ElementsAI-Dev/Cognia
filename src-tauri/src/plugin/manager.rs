@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::process::Command;
 use tokio::sync::RwLock;
 
 use super::types::*;
@@ -33,6 +34,50 @@ impl PluginManager {
             plugins: Arc::new(RwLock::new(HashMap::new())),
             python_runtime: None,
         }
+    }
+    pub fn plugin_dir(&self) -> PathBuf {
+        self.plugin_dir.clone()
+    }
+
+    fn find_manifest_file(repo_dir: &Path) -> PluginResult<PathBuf> {
+        let root_plugin = repo_dir.join("plugin.json");
+        if root_plugin.exists() {
+            return Ok(root_plugin);
+        }
+        let root_package = repo_dir.join("package.json");
+        if root_package.exists() {
+            return Ok(root_package);
+        }
+
+        fn walk(dir: &Path) -> PluginResult<Option<PathBuf>> {
+            for entry in std::fs::read_dir(dir)? {
+                let entry = entry?;
+                let path = entry.path();
+
+                if path.is_dir() {
+                    if entry.file_name() == ".git" {
+                        continue;
+                    }
+                    if let Some(found) = walk(&path)? {
+                        return Ok(Some(found));
+                    }
+                    continue;
+                }
+
+                if entry.file_name() == "plugin.json" || entry.file_name() == "package.json" {
+                    return Ok(Some(path));
+                }
+            }
+            Ok(None)
+        }
+
+        if let Some(found) = walk(repo_dir)? {
+            return Ok(found);
+        }
+
+        Err(PluginError::InvalidManifest(
+            "No plugin.json or package.json found".to_string(),
+        ))
     }
 
     /// Initialize Python runtime
@@ -194,11 +239,56 @@ impl PluginManager {
     }
 
     /// Install from git repository
-    async fn install_from_git(&self, _url: &str) -> PluginResult<PluginScanResult> {
-        // TODO: Implement git clone
-        Err(PluginError::InvalidManifest(
-            "Git installation not yet implemented".to_string()
-        ))
+    async fn install_from_git(&self, url: &str) -> PluginResult<PluginScanResult> {
+        let temp_dir = tempfile::tempdir()?;
+        let repo_dir = temp_dir.path().join("repo");
+
+        let output = Command::new("git")
+            .args(["clone", "--depth", "1", url])
+            .arg(&repo_dir)
+            .output();
+
+        let output = match output {
+            Ok(output) => output,
+            Err(e) => {
+                return Err(PluginError::Dependency(format!(
+                    "Failed to execute git: {}",
+                    e
+                )))
+            }
+        };
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+            let detail = if !stderr.trim().is_empty() { stderr } else { stdout };
+            return Err(PluginError::Dependency(format!(
+                "Git clone failed: {}",
+                detail.trim()
+            )));
+        }
+
+        // Parse manifest from repo (supports monorepos)
+        let manifest_file = Self::find_manifest_file(&repo_dir)?;
+        let plugin_root = manifest_file
+            .parent()
+            .ok_or_else(|| PluginError::InvalidManifest("Invalid manifest path".to_string()))?;
+
+        let manifest = self.parse_manifest(&manifest_file)?;
+
+        // Check if plugin already exists
+        let dest_path = self.plugin_dir.join(&manifest.id);
+        if dest_path.exists() {
+            return Err(PluginError::AlreadyExists(manifest.id.clone()));
+        }
+
+        // Copy plugin to plugin directory
+        self.copy_dir_recursive(plugin_root, &dest_path)?;
+
+        Ok(PluginScanResult {
+            manifest,
+            path: dest_path.to_string_lossy().to_string(),
+        })
     }
 
     /// Install from marketplace
@@ -224,6 +314,10 @@ impl PluginManager {
             let dst_path = dst.join(entry.file_name());
 
             if src_path.is_dir() {
+                if entry.file_name() == ".git" {
+                    continue;
+                }
+
                 Self::copy_dir_recursive_impl(&src_path, &dst_path)?;
             } else {
                 std::fs::copy(&src_path, &dst_path)?;

@@ -82,6 +82,8 @@ export interface KernelProgressEvent {
 
 /** Cell output event */
 export interface CellOutputEvent {
+  sessionId?: string;
+  kernelId?: string;
   cellIndex: number;
   result: KernelSandboxExecutionResult;
   total?: number;

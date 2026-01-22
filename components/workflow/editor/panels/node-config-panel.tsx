@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 import { useWorkflowEditorStore } from '@/stores/workflow';
+import { useShallow } from 'zustand/react/shallow';
 import {
   Plus,
   Trash2,
@@ -86,7 +87,15 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
     deleteNode,
     activeConfigTab,
     setActiveConfigTab,
-  } = useWorkflowEditorStore();
+  } = useWorkflowEditorStore(
+    useShallow((state) => ({
+      currentWorkflow: state.currentWorkflow,
+      updateNode: state.updateNode,
+      deleteNode: state.deleteNode,
+      activeConfigTab: state.activeConfigTab,
+      setActiveConfigTab: state.setActiveConfigTab,
+    }))
+  );
 
   const node = useMemo(() => {
     return currentWorkflow?.nodes.find((n) => n.id === nodeId);

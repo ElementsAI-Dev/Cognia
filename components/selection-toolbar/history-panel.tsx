@@ -1,6 +1,7 @@
 "use client";
 
 import { cn, formatRelativeTime } from "@/lib/utils";
+import { isTauri } from "@/lib/native/utils";
 import { useTranslations } from 'next-intl';
 import { useSelectionStore, type SelectionHistoryItem } from "@/stores/context";
 import { 
@@ -275,7 +276,7 @@ export function SelectionHistoryPanel() {
   };
 
   const handleReuse = (text: string) => {
-    if (typeof window !== "undefined" && window.__TAURI__) {
+    if (isTauri()) {
       import("@tauri-apps/api/event").then(({ emit }) => {
         emit("selection-reuse", { text });
       });

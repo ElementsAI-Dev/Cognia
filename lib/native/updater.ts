@@ -44,6 +44,14 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
       date: update.date,
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // Suppress "plugin not found" errors as the updater might be intentionally disabled
+    if (errorMessage.includes('Plugin not found') || errorMessage.includes('updater.check not allowed')) {
+      console.debug('Updater plugin not found or not allowed, skipping update check');
+      return { available: false };
+    }
+
     console.error('Failed to check for updates:', error);
     return { available: false };
   }

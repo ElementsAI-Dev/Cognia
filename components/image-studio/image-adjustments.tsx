@@ -11,7 +11,7 @@
  * - Reset to original
  */
 
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -128,6 +128,8 @@ export function ImageAdjustmentsPanel({
   // Refs
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const previewRafRef = useRef<number | null>(null);
+  const blurCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // State
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -136,6 +138,17 @@ export function ImageAdjustmentsPanel({
     initialAdjustments || { ...DEFAULT_ADJUSTMENTS }
   );
   const [selectedPreset, setSelectedPreset] = useState<string>('None');
+
+  const previewSize = useMemo(() => {
+    const maxDim = 1024;
+    const { width, height } = _imageSize;
+    if (!width || !height) return { width: 0, height: 0 };
+    const scale = Math.min(1, maxDim / Math.max(width, height));
+    return {
+      width: Math.max(1, Math.round(width * scale)),
+      height: Math.max(1, Math.round(height * scale)),
+    };
+  }, [_imageSize]);
 
   // Load image
   useEffect(() => {
@@ -158,137 +171,139 @@ export function ImageAdjustmentsPanel({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas size to match image
-    canvas.width = img.width;
-    canvas.height = img.height;
-
-    // Draw original image
-    ctx.drawImage(img, 0, 0);
-
-    // Get image data
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-
-    // Apply adjustments
-    const brightness = adjustments.brightness / 100;
-    const contrast = (adjustments.contrast + 100) / 100;
-    const saturation = (adjustments.saturation + 100) / 100;
-    const hueShift = adjustments.hue;
-
-    for (let i = 0; i < data.length; i += 4) {
-      let r = data[i];
-      let g = data[i + 1];
-      let b = data[i + 2];
-
-      // Apply brightness
-      r = r + brightness * 255;
-      g = g + brightness * 255;
-      b = b + brightness * 255;
-
-      // Apply contrast
-      r = ((r / 255 - 0.5) * contrast + 0.5) * 255;
-      g = ((g / 255 - 0.5) * contrast + 0.5) * 255;
-      b = ((b / 255 - 0.5) * contrast + 0.5) * 255;
-
-      // Convert to HSL for saturation and hue
-      const max = Math.max(r, g, b) / 255;
-      const min = Math.min(r, g, b) / 255;
-      let h = 0;
-      let s = 0;
-      const l = (max + min) / 2;
-
-      if (max !== min) {
-        const d = max - min;
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-
-        if (max === r / 255) {
-          h = ((g / 255 - b / 255) / d + (g < b ? 6 : 0)) / 6;
-        } else if (max === g / 255) {
-          h = ((b / 255 - r / 255) / d + 2) / 6;
-        } else {
-          h = ((r / 255 - g / 255) / d + 4) / 6;
-        }
-      }
-
-      // Apply hue shift
-      h = (h + hueShift / 360 + 1) % 1;
-
-      // Apply saturation
-      s = Math.max(0, Math.min(1, s * saturation));
-
-      // Convert back to RGB
-      let r2: number, g2: number, b2: number;
-
-      if (s === 0) {
-        r2 = g2 = b2 = l;
-      } else {
-        const hue2rgb = (p: number, q: number, t: number) => {
-          if (t < 0) t += 1;
-          if (t > 1) t -= 1;
-          if (t < 1 / 6) return p + (q - p) * 6 * t;
-          if (t < 1 / 2) return q;
-          if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-          return p;
-        };
-
-        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-        const p = 2 * l - q;
-        r2 = hue2rgb(p, q, h + 1 / 3);
-        g2 = hue2rgb(p, q, h);
-        b2 = hue2rgb(p, q, h - 1 / 3);
-      }
-
-      // Write back
-      data[i] = Math.max(0, Math.min(255, r2 * 255));
-      data[i + 1] = Math.max(0, Math.min(255, g2 * 255));
-      data[i + 2] = Math.max(0, Math.min(255, b2 * 255));
+    if (previewRafRef.current) {
+      cancelAnimationFrame(previewRafRef.current);
     }
 
-    ctx.putImageData(imageData, 0, 0);
+    previewRafRef.current = requestAnimationFrame(() => {
+      previewRafRef.current = null;
 
-    // Apply blur if needed (using CSS filter for performance)
-    if (adjustments.blur > 0) {
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvas.width;
-      tempCanvas.height = canvas.height;
-      const tempCtx = tempCanvas.getContext('2d');
-      if (tempCtx) {
-        tempCtx.filter = `blur(${adjustments.blur}px)`;
-        tempCtx.drawImage(canvas, 0, 0);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(tempCanvas, 0, 0);
-      }
-    }
+      canvas.width = previewSize.width || img.width;
+      canvas.height = previewSize.height || img.height;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-    // Apply sharpening (unsharp mask approximation)
-    if (adjustments.sharpen > 0) {
-      const amount = adjustments.sharpen / 100;
-      const sharpData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const sd = sharpData.data;
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
 
-      // Simple sharpening kernel
-      const width = canvas.width;
-      for (let y = 1; y < canvas.height - 1; y++) {
-        for (let x = 1; x < width - 1; x++) {
-          const idx = (y * width + x) * 4;
-          for (let c = 0; c < 3; c++) {
-            const center = data[idx + c];
-            const top = data[idx - width * 4 + c];
-            const bottom = data[idx + width * 4 + c];
-            const left = data[idx - 4 + c];
-            const right = data[idx + 4 + c];
+      const brightness = adjustments.brightness / 100;
+      const contrast = (adjustments.contrast + 100) / 100;
+      const saturation = (adjustments.saturation + 100) / 100;
+      const hueShift = adjustments.hue;
 
-            const laplacian = 5 * center - top - bottom - left - right;
-            sd[idx + c] = Math.max(0, Math.min(255, center + laplacian * amount * 0.5));
+      for (let i = 0; i < data.length; i += 4) {
+        let r = data[i];
+        let g = data[i + 1];
+        let b = data[i + 2];
+
+        r = r + brightness * 255;
+        g = g + brightness * 255;
+        b = b + brightness * 255;
+
+        r = ((r / 255 - 0.5) * contrast + 0.5) * 255;
+        g = ((g / 255 - 0.5) * contrast + 0.5) * 255;
+        b = ((b / 255 - 0.5) * contrast + 0.5) * 255;
+
+        const max = Math.max(r, g, b) / 255;
+        const min = Math.min(r, g, b) / 255;
+        let h = 0;
+        let s = 0;
+        const l = (max + min) / 2;
+
+        if (max !== min) {
+          const d = max - min;
+          s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+          if (max === r / 255) {
+            h = ((g / 255 - b / 255) / d + (g < b ? 6 : 0)) / 6;
+          } else if (max === g / 255) {
+            h = ((b / 255 - r / 255) / d + 2) / 6;
+          } else {
+            h = ((r / 255 - g / 255) / d + 4) / 6;
           }
         }
-      }
-      ctx.putImageData(sharpData, 0, 0);
-    }
 
-    // Notify changes
-    onAdjustmentsChange?.(adjustments);
-  }, [adjustments, imageLoaded, onAdjustmentsChange]);
+        h = (h + hueShift / 360 + 1) % 1;
+        s = Math.max(0, Math.min(1, s * saturation));
+
+        let r2: number, g2: number, b2: number;
+
+        if (s === 0) {
+          r2 = g2 = b2 = l;
+        } else {
+          const hue2rgb = (p: number, q: number, t: number) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+          };
+
+          const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+          const p = 2 * l - q;
+          r2 = hue2rgb(p, q, h + 1 / 3);
+          g2 = hue2rgb(p, q, h);
+          b2 = hue2rgb(p, q, h - 1 / 3);
+        }
+
+        data[i] = Math.max(0, Math.min(255, r2 * 255));
+        data[i + 1] = Math.max(0, Math.min(255, g2 * 255));
+        data[i + 2] = Math.max(0, Math.min(255, b2 * 255));
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+
+      if (adjustments.blur > 0) {
+        if (!blurCanvasRef.current) {
+          blurCanvasRef.current = document.createElement('canvas');
+        }
+
+        const tempCanvas = blurCanvasRef.current;
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        if (tempCtx) {
+          tempCtx.filter = `blur(${adjustments.blur}px)`;
+          tempCtx.drawImage(canvas, 0, 0);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(tempCanvas, 0, 0);
+        }
+      }
+
+      if (adjustments.sharpen > 0) {
+        const amount = adjustments.sharpen / 100;
+        const sharpData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const sd = sharpData.data;
+
+        const width = canvas.width;
+        for (let y = 1; y < canvas.height - 1; y++) {
+          for (let x = 1; x < width - 1; x++) {
+            const idx = (y * width + x) * 4;
+            for (let c = 0; c < 3; c++) {
+              const center = data[idx + c];
+              const top = data[idx - width * 4 + c];
+              const bottom = data[idx + width * 4 + c];
+              const left = data[idx - 4 + c];
+              const right = data[idx + 4 + c];
+
+              const laplacian = 5 * center - top - bottom - left - right;
+              sd[idx + c] = Math.max(0, Math.min(255, center + laplacian * amount * 0.5));
+            }
+          }
+        }
+        ctx.putImageData(sharpData, 0, 0);
+      }
+
+      onAdjustmentsChange?.(adjustments);
+    });
+
+    return () => {
+      if (previewRafRef.current) {
+        cancelAnimationFrame(previewRafRef.current);
+        previewRafRef.current = null;
+      }
+    };
+  }, [adjustments, imageLoaded, onAdjustmentsChange, previewSize]);
 
   // Update single adjustment
   const updateAdjustment = useCallback(
@@ -318,12 +333,135 @@ export function ImageAdjustmentsPanel({
 
   // Export result
   const handleApply = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const img = imageRef.current;
+    if (!img || !imageLoaded) return;
 
-    const dataUrl = canvas.toDataURL('image/png');
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = img.width;
+    exportCanvas.height = img.height;
+    const ctx = exportCanvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.drawImage(img, 0, 0);
+
+    const imageData = ctx.getImageData(0, 0, exportCanvas.width, exportCanvas.height);
+    const data = imageData.data;
+
+    const brightness = adjustments.brightness / 100;
+    const contrast = (adjustments.contrast + 100) / 100;
+    const saturation = (adjustments.saturation + 100) / 100;
+    const hueShift = adjustments.hue;
+
+    for (let i = 0; i < data.length; i += 4) {
+      let r = data[i];
+      let g = data[i + 1];
+      let b = data[i + 2];
+
+      r = r + brightness * 255;
+      g = g + brightness * 255;
+      b = b + brightness * 255;
+
+      r = ((r / 255 - 0.5) * contrast + 0.5) * 255;
+      g = ((g / 255 - 0.5) * contrast + 0.5) * 255;
+      b = ((b / 255 - 0.5) * contrast + 0.5) * 255;
+
+      const max = Math.max(r, g, b) / 255;
+      const min = Math.min(r, g, b) / 255;
+      let h = 0;
+      let s = 0;
+      const l = (max + min) / 2;
+
+      if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+        if (max === r / 255) {
+          h = ((g / 255 - b / 255) / d + (g < b ? 6 : 0)) / 6;
+        } else if (max === g / 255) {
+          h = ((b / 255 - r / 255) / d + 2) / 6;
+        } else {
+          h = ((r / 255 - g / 255) / d + 4) / 6;
+        }
+      }
+
+      h = (h + hueShift / 360 + 1) % 1;
+      s = Math.max(0, Math.min(1, s * saturation));
+
+      let r2: number, g2: number, b2: number;
+
+      if (s === 0) {
+        r2 = g2 = b2 = l;
+      } else {
+        const hue2rgb = (p: number, q: number, t: number) => {
+          if (t < 0) t += 1;
+          if (t > 1) t -= 1;
+          if (t < 1 / 6) return p + (q - p) * 6 * t;
+          if (t < 1 / 2) return q;
+          if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+          return p;
+        };
+
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r2 = hue2rgb(p, q, h + 1 / 3);
+        g2 = hue2rgb(p, q, h);
+        b2 = hue2rgb(p, q, h - 1 / 3);
+      }
+
+      data[i] = Math.max(0, Math.min(255, r2 * 255));
+      data[i + 1] = Math.max(0, Math.min(255, g2 * 255));
+      data[i + 2] = Math.max(0, Math.min(255, b2 * 255));
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+
+    if (adjustments.blur > 0) {
+      if (!blurCanvasRef.current) {
+        blurCanvasRef.current = document.createElement('canvas');
+      }
+
+      const tempCanvas = blurCanvasRef.current;
+      tempCanvas.width = exportCanvas.width;
+      tempCanvas.height = exportCanvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      if (tempCtx) {
+        tempCtx.filter = `blur(${adjustments.blur}px)`;
+        tempCtx.drawImage(exportCanvas, 0, 0);
+        ctx.clearRect(0, 0, exportCanvas.width, exportCanvas.height);
+        ctx.drawImage(tempCanvas, 0, 0);
+      }
+    }
+
+    if (adjustments.sharpen > 0) {
+      const amount = adjustments.sharpen / 100;
+      const srcData = ctx.getImageData(0, 0, exportCanvas.width, exportCanvas.height);
+      const dstData = ctx.getImageData(0, 0, exportCanvas.width, exportCanvas.height);
+      const sd = srcData.data;
+      const dd = dstData.data;
+      const width = exportCanvas.width;
+
+      for (let y = 1; y < exportCanvas.height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+          const idx = (y * width + x) * 4;
+          for (let c = 0; c < 3; c++) {
+            const center = sd[idx + c];
+            const top = sd[idx - width * 4 + c];
+            const bottom = sd[idx + width * 4 + c];
+            const left = sd[idx - 4 + c];
+            const right = sd[idx + 4 + c];
+
+            const laplacian = 5 * center - top - bottom - left - right;
+            dd[idx + c] = Math.max(0, Math.min(255, center + laplacian * amount * 0.5));
+          }
+        }
+      }
+
+      ctx.putImageData(dstData, 0, 0);
+    }
+
+    const dataUrl = exportCanvas.toDataURL('image/png');
     onApply?.(dataUrl, adjustments);
-  }, [adjustments, onApply]);
+  }, [adjustments, imageLoaded, onApply]);
 
   // Check if any adjustments are made
   const hasChanges = Object.entries(adjustments).some(

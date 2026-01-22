@@ -11,9 +11,7 @@ pub mod kernel;
 pub mod protocol;
 pub mod session;
 
-#[allow(unused_imports)]
 pub use kernel::{JupyterKernel, KernelConfig};
-#[allow(unused_imports)]
 pub use session::{JupyterSession, SessionManager};
 
 use serde::{Deserialize, Serialize};
@@ -22,11 +20,14 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KernelExecutionResult {
     pub success: bool,
+    #[serde(rename = "executionCount")]
     pub execution_count: u32,
     pub stdout: String,
     pub stderr: String,
+    #[serde(rename = "displayData")]
     pub display_data: Vec<DisplayData>,
     pub error: Option<ExecutionError>,
+    #[serde(rename = "executionTimeMs")]
     pub execution_time_ms: u64,
 }
 
@@ -103,6 +104,9 @@ mod tests {
         };
 
         let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("executionCount"));
+        assert!(json.contains("displayData"));
+        assert!(json.contains("executionTimeMs"));
         assert!(json.contains("Hello, World!"));
     }
 

@@ -5,11 +5,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useSelectionReceiver } from './use-selection-receiver';
 
-// Extend globalThis for Tauri detection in tests
-declare global {
-  var __TAURI__: Record<string, unknown> | undefined;
-}
-
 // Mock isTauri
 const mockIsTauri = jest.fn(() => false);
 jest.mock('@/lib/native/utils', () => ({

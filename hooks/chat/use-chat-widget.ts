@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useChatWidgetStore } from '@/stores/chat';
+import { isTauri } from '@/lib/native/utils';
 
 interface UseChatWidgetOptions {
   onShow?: () => void;
@@ -46,7 +47,7 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
 
   // Listen for Tauri events
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.__TAURI__) {
+    if (typeof window === 'undefined' || !isTauri()) {
       return;
     }
 
@@ -167,7 +168,7 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
 
   // In the dedicated chat-widget window, persist size/position changes so they survive app restart.
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.__TAURI__) return;
+    if (typeof window === 'undefined' || !isTauri()) return;
     if (window.location?.pathname !== '/chat-widget') return;
 
     let unlistenResize: (() => void) | undefined;
@@ -215,7 +216,7 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
 
   // Emit loading state to bubble
   const emitLoadingState = useCallback(async (loading: boolean) => {
-    if (typeof window === 'undefined' || !window.__TAURI__) return;
+    if (typeof window === 'undefined' || !isTauri()) return;
     try {
       const { emit } = await import('@tauri-apps/api/event');
       await emit('bubble-loading-state', loading);
@@ -226,7 +227,7 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
 
   // Emit unread count to bubble (when chat is hidden)
   const emitUnreadCount = useCallback(async (count: number) => {
-    if (typeof window === 'undefined' || !window.__TAURI__) return;
+    if (typeof window === 'undefined' || !isTauri()) return;
     try {
       const { emit } = await import('@tauri-apps/api/event');
       await emit('bubble-unread-count', count);
@@ -442,7 +443,7 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
 
   // Tauri commands
   const tauriShow = useCallback(async () => {
-    if (typeof window === 'undefined' || !window.__TAURI__) {
+    if (typeof window === 'undefined' || !isTauri()) {
       show();
       return;
     }
@@ -451,7 +452,7 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
   }, [show]);
 
   const tauriHide = useCallback(async () => {
-    if (typeof window === 'undefined' || !window.__TAURI__) {
+    if (typeof window === 'undefined' || !isTauri()) {
       hide();
       return;
     }
@@ -460,7 +461,7 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
   }, [hide]);
 
   const tauriToggle = useCallback(async () => {
-    if (typeof window === 'undefined' || !window.__TAURI__) {
+    if (typeof window === 'undefined' || !isTauri()) {
       toggle();
       return;
     }
@@ -470,7 +471,7 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
 
   const setPinned = useCallback(async (pinned: boolean) => {
     updateConfig({ pinned });
-    if (typeof window === 'undefined' || !window.__TAURI__) {
+    if (typeof window === 'undefined' || !isTauri()) {
       return;
     }
     const { invoke } = await import('@tauri-apps/api/core');

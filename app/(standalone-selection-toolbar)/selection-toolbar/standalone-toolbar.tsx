@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { SelectionToolbar } from "@/components/selection-toolbar";
 import { useSelectionStore } from "@/stores/context";
+import { isTauri } from "@/lib/native/utils";
 
 /**
  * Standalone Selection Toolbar wrapper for the dedicated Tauri window.
@@ -27,7 +28,7 @@ export function StandaloneSelectionToolbar() {
 
     const setupListeners = async () => {
       // Check if we're in Tauri environment
-      if (!window.__TAURI__) {
+      if (!isTauri()) {
         console.warn("[StandaloneToolbar] Not in Tauri environment");
         setIsReady(true);
         return;
@@ -85,7 +86,7 @@ export function StandaloneSelectionToolbar() {
 
   // Handle hover state to prevent auto-hide
   const handleMouseEnter = useCallback(async () => {
-    if (typeof window !== "undefined" && window.__TAURI__) {
+    if (isTauri()) {
       try {
         const { invoke } = await import("@tauri-apps/api/core");
         await invoke("selection_set_toolbar_hovered", { hovered: true });
@@ -96,7 +97,7 @@ export function StandaloneSelectionToolbar() {
   }, []);
 
   const handleMouseLeave = useCallback(async () => {
-    if (typeof window !== "undefined" && window.__TAURI__) {
+    if (isTauri()) {
       try {
         const { invoke } = await import("@tauri-apps/api/core");
         await invoke("selection_set_toolbar_hovered", { hovered: false });

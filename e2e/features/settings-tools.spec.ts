@@ -443,7 +443,7 @@ test.describe('Tool Settings - Combined Configuration', () => {
 
     const result = await page.evaluate(() => {
       const isTauriApp = (): boolean => {
-        return typeof window !== 'undefined' && '__TAURI__' in window;
+        return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
       };
 
       const checkFileToolsAvailability = (): {

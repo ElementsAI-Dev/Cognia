@@ -223,6 +223,76 @@ test.describe('MaskCanvas Component', () => {
   });
 });
 
+test.describe('FiltersGallery Logic', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+  });
+
+  test('should compute preview size with max dimension cap', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const computePreviewSize = (width: number, height: number, maxDim = 1024) => {
+        if (!width || !height) return { width: 0, height: 0 };
+        const scale = Math.min(1, maxDim / Math.max(width, height));
+        return {
+          width: Math.max(1, Math.round(width * scale)),
+          height: Math.max(1, Math.round(height * scale)),
+        };
+      };
+
+      return {
+        largeLandscape: computePreviewSize(4000, 2000),
+        largePortrait: computePreviewSize(2000, 4000),
+        smallImage: computePreviewSize(512, 512),
+      };
+    });
+
+    expect(result.largeLandscape.width).toBe(1024);
+    expect(result.largeLandscape.height).toBe(512);
+    expect(result.largePortrait.width).toBe(512);
+    expect(result.largePortrait.height).toBe(1024);
+    expect(result.smallImage.width).toBe(512);
+    expect(result.smallImage.height).toBe(512);
+  });
+
+  test('should process thumbnails in chunks', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const filters = Array.from({ length: 20 }, (_, index) => `filter-${index}`);
+      const processed: string[] = [];
+
+      const processInChunks = (items: string[], budgetMs: number) => {
+        let index = 0;
+        let batches = 0;
+
+        while (index < items.length) {
+          batches += 1;
+          const start = performance.now();
+          while (index < items.length && performance.now() - start < budgetMs) {
+            processed.push(items[index]);
+            index += 1;
+          }
+        }
+
+        return batches;
+      };
+
+      const batches = processInChunks(filters, 0.5);
+
+      return {
+        batches,
+        processedCount: processed.length,
+        firstItem: processed[0],
+        lastItem: processed[processed.length - 1],
+      };
+    });
+
+    expect(result.processedCount).toBe(20);
+    expect(result.firstItem).toBe('filter-0');
+    expect(result.lastItem).toBe('filter-19');
+    expect(result.batches).toBeGreaterThan(1);
+  });
+});
+
 test.describe('ImageAdjustmentsPanel Component', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');

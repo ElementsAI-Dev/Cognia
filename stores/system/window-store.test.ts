@@ -53,6 +53,11 @@ describe('useWindowStore', () => {
           titleBarHeight: 32,
           enableDoubleClickMaximize: true,
           enableDragToMove: true,
+          titleBarCustomLayout: {
+            left: [],
+            center: [],
+            right: [],
+          },
         },
       });
     });

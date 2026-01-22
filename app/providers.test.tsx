@@ -86,7 +86,7 @@ function TestChatWidgetNativeSync() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!detectTauri() && !(window as typeof window & { __TAURI__?: unknown }).__TAURI__) return;
+    if (!detectTauri()) return;
 
     const payload = {
       width: config.width,
@@ -127,7 +127,6 @@ describe('ChatAssistantContainerGate logic', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockIsTauri = false;
-    delete (window as typeof window & { __TAURI__?: unknown }).__TAURI__;
   });
 
   it('renders children in web mode (not Tauri)', async () => {
@@ -185,12 +184,10 @@ describe('ChatWidgetNativeSync logic', () => {
     jest.clearAllMocks();
     mockIsTauri = false;
     mockInvoke.mockResolvedValue(undefined);
-    delete (window as typeof window & { __TAURI__?: unknown }).__TAURI__;
   });
 
   it('syncs config to Rust on mount in Tauri mode', async () => {
     mockIsTauri = true;
-    (window as typeof window & { __TAURI__?: unknown }).__TAURI__ = { version: '2.0.0' };
 
     await act(async () => {
       render(<TestChatWidgetNativeSync />);
@@ -230,7 +227,6 @@ describe('ChatWidgetNativeSync logic', () => {
 
   it('syncs correct config payload', async () => {
     mockIsTauri = true;
-    (window as typeof window & { __TAURI__?: unknown }).__TAURI__ = { version: '2.0.0' };
 
     await act(async () => {
       render(<TestChatWidgetNativeSync />);

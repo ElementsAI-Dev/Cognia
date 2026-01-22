@@ -29,7 +29,7 @@ const originalWindow = global.window;
 
 function setTauriEnvironment(enabled: boolean) {
   if (enabled) {
-    (global as Record<string, unknown>).window = { __TAURI__: {} };
+    (global as Record<string, unknown>).window = { __TAURI_INTERNALS__: {} };
   } else {
     (global as Record<string, unknown>).window = originalWindow;
   }

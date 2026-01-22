@@ -9,7 +9,7 @@ import { emit as tauriEmit } from '@tauri-apps/api/event';
 
 // Extend globalThis for Tauri detection in tests
 declare global {
-  var __TAURI__: Record<string, unknown> | undefined;
+  var __TAURI_INTERNALS__: Record<string, unknown> | undefined;
 }
 
 // Mock the selection store
@@ -277,7 +277,7 @@ describe('SelectionHistoryPanel', () => {
     });
 
     it('emits reuse event in Tauri mode', async () => {
-      globalThis.__TAURI__ = {};
+      globalThis.__TAURI_INTERNALS__ = {};
       fireEvent.click(screen.getByText('First selected text'));
 
       await act(async () => {

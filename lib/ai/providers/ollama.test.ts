@@ -28,7 +28,7 @@ jest.mock('@tauri-apps/api/event', () => ({
   listen: (...args: unknown[]) => mockListen(...args),
 }));
 
-// Mock window.__TAURI__ for Tauri environment detection
+// Mock window.__TAURI_INTERNALS__ for Tauri environment detection
 const originalWindow = global.window;
 
 describe('Ollama API', () => {

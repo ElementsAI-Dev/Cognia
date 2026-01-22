@@ -68,6 +68,11 @@ import { usePluginStore } from '@/stores/plugin';
 import { usePlugins } from '@/hooks/plugin';
 import type { PluginCapability, PluginType } from '@/types/plugin';
 import type { PluginScaffoldOptions } from '@/lib/plugin/templates';
+import { getPluginManager } from '@/lib/plugin';
+import { toast } from '@/components/ui/sonner';
+import { isTauri as detectTauri } from '@/lib/native/utils';
+import { openDirectory } from '@/lib/native/opener';
+import { open } from '@tauri-apps/plugin-dialog';
 import { cn } from '@/lib/utils';
 
 // =============================================================================
@@ -89,7 +94,7 @@ interface PluginSettingsPageProps {
 export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
   const t = useTranslations('pluginSettings');
   const { plugins, enabledPlugins, disabledPlugins, errorPlugins, initialized } = usePlugins();
-  const { scanPlugins, initialize, enablePlugin, disablePlugin, uninstallPlugin } = usePluginStore();
+  const { pluginDirectory, scanPlugins, enablePlugin, disablePlugin, uninstallPlugin } = usePluginStore();
   
   const [activeTab, setActiveTab] = useState('installed');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -184,21 +189,36 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
   // Batch operation handlers
   const handleBatchEnable = useCallback(async () => {
     for (const id of selectedPlugins) {
-      await enablePlugin(id);
+      try {
+        const manager = getPluginManager();
+        await manager.enablePlugin(id);
+      } catch {
+        await enablePlugin(id);
+      }
     }
     setSelectedPlugins(new Set());
   }, [selectedPlugins, enablePlugin]);
 
   const handleBatchDisable = useCallback(async () => {
     for (const id of selectedPlugins) {
-      await disablePlugin(id);
+      try {
+        const manager = getPluginManager();
+        await manager.disablePlugin(id);
+      } catch {
+        await disablePlugin(id);
+      }
     }
     setSelectedPlugins(new Set());
   }, [selectedPlugins, disablePlugin]);
 
   const handleBatchUninstall = useCallback(async () => {
     for (const id of selectedPlugins) {
-      await uninstallPlugin(id);
+      try {
+        const manager = getPluginManager();
+        await manager.uninstallPlugin(id);
+      } catch {
+        await uninstallPlugin(id);
+      }
     }
     setSelectedPlugins(new Set());
     setIsSelectionMode(false);
@@ -208,13 +228,40 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
     setIsRefreshing(true);
     try {
       if (!initialized) {
-        await initialize('plugins');
+        toast.error('Plugins are not initialized yet');
+        return;
       }
-      await scanPlugins();
+      try {
+        const manager = getPluginManager();
+        await manager.scanPlugins();
+      } catch {
+        await scanPlugins();
+      }
     } finally {
       setIsRefreshing(false);
     }
-  }, [initialized, initialize, scanPlugins]);
+  }, [initialized, scanPlugins]);
+
+  const handleInstallFromGitUrl = useCallback(async () => {
+    if (!detectTauri()) {
+      toast.error('Plugin installation requires desktop environment');
+      return;
+    }
+
+    const url = window.prompt('Git repository URL');
+    if (!url) return;
+
+    try {
+      const manager = getPluginManager();
+      await manager.installPlugin(url, { type: 'git' });
+      await handleRefresh();
+      toast.success('Plugin installed');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(message || 'Plugin install failed');
+      console.error('Failed to install plugin from git:', error);
+    }
+  }, [handleRefresh]);
 
   const handleCreateComplete = useCallback(
     (_files: Map<string, string>, _options: PluginScaffoldOptions) => {
@@ -268,7 +315,7 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                 {t('fromZip')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleInstallFromGitUrl}>
                 <Code2 className="h-4 w-4 mr-2" />
                 {t('fromGitUrl')}
               </DropdownMenuItem>
@@ -315,7 +362,7 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                 {t('fromZip')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleInstallFromGitUrl}>
                 <Code2 className="h-4 w-4 mr-2" />
                 {t('fromGitUrl')}
               </DropdownMenuItem>
@@ -576,28 +623,64 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                 groupBy={groupBy}
                 viewMode={viewMode}
                 onToggle={(plugin) => {
-                  if (plugin.status === 'enabled') {
-                    disablePlugin(plugin.manifest.id);
-                  } else {
-                    enablePlugin(plugin.manifest.id);
+                  try {
+                    const manager = getPluginManager();
+                    if (plugin.status === 'enabled') {
+                      void manager.disablePlugin(plugin.manifest.id);
+                    } else {
+                      void manager.enablePlugin(plugin.manifest.id);
+                    }
+                    return;
+                  } catch {
+                    if (plugin.status === 'enabled') {
+                      void disablePlugin(plugin.manifest.id);
+                    } else {
+                      void enablePlugin(plugin.manifest.id);
+                    }
                   }
                 }}
                 onConfigure={() => {}}
-                onUninstall={(plugin) => uninstallPlugin(plugin.manifest.id)}
+                onUninstall={(plugin) => {
+                  try {
+                    const manager = getPluginManager();
+                    void manager.uninstallPlugin(plugin.manifest.id);
+                    return;
+                  } catch {
+                    void uninstallPlugin(plugin.manifest.id);
+                  }
+                }}
               />
             ) : (
               <PluginList
                 plugins={filteredPlugins}
                 viewMode={viewMode}
                 onToggle={(plugin) => {
-                  if (plugin.status === 'enabled') {
-                    disablePlugin(plugin.manifest.id);
-                  } else {
-                    enablePlugin(plugin.manifest.id);
+                  try {
+                    const manager = getPluginManager();
+                    if (plugin.status === 'enabled') {
+                      void manager.disablePlugin(plugin.manifest.id);
+                    } else {
+                      void manager.enablePlugin(plugin.manifest.id);
+                    }
+                    return;
+                  } catch {
+                    if (plugin.status === 'enabled') {
+                      void disablePlugin(plugin.manifest.id);
+                    } else {
+                      void enablePlugin(plugin.manifest.id);
+                    }
                   }
                 }}
                 onConfigure={() => {}}
-                onUninstall={(plugin) => uninstallPlugin(plugin.manifest.id)}
+                onUninstall={(plugin) => {
+                  try {
+                    const manager = getPluginManager();
+                    void manager.uninstallPlugin(plugin.manifest.id);
+                    return;
+                  } catch {
+                    void uninstallPlugin(plugin.manifest.id);
+                  }
+                }}
                 enableSelection={isSelectionMode}
                 onBatchEnable={handleBatchEnable}
                 onBatchDisable={handleBatchDisable}
@@ -625,7 +708,37 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
         <TabsContent value="marketplace" className="flex-1 m-0 flex flex-col overflow-hidden">
           <PluginMarketplace
             onInstall={async (pluginId) => {
-              console.log('Installing plugin:', pluginId);
+              if (!detectTauri()) {
+                toast.error('Plugin installation requires desktop environment');
+                return;
+              }
+
+              let selected: string | null = null;
+              try {
+                const picked = await open({
+                  directory: true,
+                  multiple: false,
+                  title: 'Select Plugin Folder',
+                });
+                if (picked && typeof picked === 'string') {
+                  selected = picked;
+                }
+              } catch {
+                return;
+              }
+
+              if (!selected) return;
+
+              try {
+                const manager = getPluginManager();
+                await manager.installPlugin(selected, { type: 'local', name: pluginId });
+                await scanPlugins();
+                toast.success('Plugin installed');
+                setActiveTab('installed');
+              } catch (error) {
+                toast.error('Plugin install failed');
+                console.error('Failed to install plugin:', error);
+              }
             }}
             onViewDetails={(plugin) => {
               setSelectedMarketplacePlugin(plugin);
@@ -687,10 +800,25 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm sm:text-base">{t('settingsTab.pluginDirectory')}</p>
                   <p className="text-xs sm:text-sm text-muted-foreground font-mono truncate">
-                    ~/.cognia/plugins
+                    {pluginDirectory || '—'}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" className="self-start sm:self-center shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="self-start sm:self-center shrink-0"
+                  onClick={async () => {
+                    if (!pluginDirectory) {
+                      toast.error('Plugin directory is not available');
+                      return;
+                    }
+
+                    const result = await openDirectory(pluginDirectory);
+                    if (!result.success) {
+                      toast.error(result.error || 'Failed to open directory');
+                    }
+                  }}
+                >
                   <FolderOpen className="h-4 w-4 mr-2" />
                   {t('settingsTab.open')}
                 </Button>
@@ -733,7 +861,38 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
         open={isDetailModalOpen}
         onOpenChange={setIsDetailModalOpen}
         onInstall={async (pluginId) => {
-          console.log('Installing plugin from modal:', pluginId);
+          if (!detectTauri()) {
+            toast.error('Plugin installation requires desktop environment');
+            return;
+          }
+
+          let selected: string | null = null;
+          try {
+            const picked = await open({
+              directory: true,
+              multiple: false,
+              title: 'Select Plugin Folder',
+            });
+            if (picked && typeof picked === 'string') {
+              selected = picked;
+            }
+          } catch {
+            return;
+          }
+
+          if (!selected) return;
+
+          try {
+            const manager = getPluginManager();
+            await manager.installPlugin(selected, { type: 'local', name: pluginId });
+            await scanPlugins();
+            toast.success('Plugin installed');
+            setIsDetailModalOpen(false);
+            setActiveTab('installed');
+          } catch (error) {
+            toast.error('Plugin install failed');
+            console.error('Failed to install plugin:', error);
+          }
         }}
       />
     </div>

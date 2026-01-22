@@ -66,6 +66,7 @@
       "research": "研究",
       "learning": "学习"
     },
+    "recent": "最近",
     "chatMode": "聊天模式",
     "designer": "设计器",
     "imageStudio": "图像工作室",
@@ -85,6 +86,7 @@
     "managePresets": "管理预设",
     "exportAnimated": "导出动画",
     "exportDocument": "导出文档",
+    "openInLabel": "在以下应用打开...",
     "openInOtherAI": "在其他AI中打开",
     "exportBasic": "基础导出",
     "summarize": "总结与图表",

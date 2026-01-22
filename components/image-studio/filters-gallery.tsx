@@ -107,6 +107,10 @@ export function FiltersGallery({
 }: FiltersGalleryProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const previewRafRef = useRef<number | null>(null);
+  const thumbGenHandleRef = useRef<number | null>(null);
+  const thumbCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const exportCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
@@ -119,10 +123,24 @@ export function FiltersGallery({
   const [thumbnailsGenerated, setThumbnailsGenerated] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('basic');
 
+  const previewSize = useMemo(() => {
+    const maxDim = 1024;
+    const { width, height } = imageSize;
+    if (!width || !height) return { width: 0, height: 0 };
+    const scale = Math.min(1, maxDim / Math.max(width, height));
+    return {
+      width: Math.max(1, Math.round(width * scale)),
+      height: Math.max(1, Math.round(height * scale)),
+    };
+  }, [imageSize]);
+
   // Load image
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
+    setImageLoaded(false);
+    setThumbnails(new Map());
+    setThumbnailsGenerated(false);
     img.onload = () => {
       imageRef.current = img;
       setImageSize({ width: img.width, height: img.height });
@@ -207,45 +225,107 @@ export function FiltersGallery({
     []
   );
 
-  // Generate thumbnails
+  // Generate thumbnails (chunked)
   const generateThumbnails = useCallback(() => {
-    if (!imageRef.current) return;
-
     const img = imageRef.current;
+    if (!img) return;
+
+    if (!thumbCanvasRef.current) {
+      thumbCanvasRef.current = document.createElement('canvas');
+    }
+
+    const thumbCanvas = thumbCanvasRef.current;
     const thumbSize = 80;
     const aspectRatio = img.width / img.height;
     const thumbWidth = aspectRatio > 1 ? thumbSize : thumbSize * aspectRatio;
     const thumbHeight = aspectRatio > 1 ? thumbSize / aspectRatio : thumbSize;
 
-    const newThumbnails = new Map<string, string>();
-    
-    FILTER_PRESETS.forEach((filter) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = thumbWidth;
-      canvas.height = thumbHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+    thumbCanvas.width = thumbWidth;
+    thumbCanvas.height = thumbHeight;
+    const ctx = thumbCanvas.getContext('2d');
+    if (!ctx) return;
 
-      ctx.drawImage(img, 0, 0, thumbWidth, thumbHeight);
+    const requestIdle = (
+      cb: (deadline: { timeRemaining: () => number; didTimeout: boolean }) => void
+    ) => {
+      const w = window as unknown as {
+        requestIdleCallback?: (
+          callback: (deadline: { timeRemaining: () => number; didTimeout: boolean }) => void,
+          options?: { timeout: number }
+        ) => number;
+      };
 
-      if (Object.keys(filter.adjustments).length > 0) {
-        applyAdjustments(ctx, filter.adjustments, 100);
+      if (w.requestIdleCallback) {
+        return w.requestIdleCallback(cb, { timeout: 200 });
       }
 
-      newThumbnails.set(filter.id, canvas.toDataURL('image/jpeg', 0.7));
-    });
+      return window.setTimeout(() => cb({ timeRemaining: () => 0, didTimeout: true }), 0);
+    };
 
-    setThumbnails(newThumbnails);
-    setThumbnailsGenerated(true);
+    const cancelIdle = (handle: number) => {
+      const w = window as unknown as {
+        cancelIdleCallback?: (handle: number) => void;
+      };
+
+      if (w.cancelIdleCallback) {
+        w.cancelIdleCallback(handle);
+      } else {
+        clearTimeout(handle);
+      }
+    };
+
+    if (thumbGenHandleRef.current) {
+      cancelIdle(thumbGenHandleRef.current);
+      thumbGenHandleRef.current = null;
+    }
+
+    const thumbnailsMap = new Map<string, string>();
+    let index = 0;
+    const filters = FILTER_PRESETS;
+
+    const processBatch = (deadline: { timeRemaining: () => number; didTimeout: boolean }) => {
+      const start = performance.now();
+
+      while (index < filters.length) {
+        if (!deadline.didTimeout && deadline.timeRemaining() < 4) break;
+        if (performance.now() - start > 12) break;
+
+        const filter = filters[index];
+
+        ctx.clearRect(0, 0, thumbCanvas.width, thumbCanvas.height);
+        ctx.drawImage(img, 0, 0, thumbCanvas.width, thumbCanvas.height);
+
+        if (Object.keys(filter.adjustments).length > 0) {
+          applyAdjustments(ctx, filter.adjustments, 100);
+        }
+
+        thumbnailsMap.set(filter.id, thumbCanvas.toDataURL('image/jpeg', 0.7));
+        index++;
+      }
+
+      setThumbnails(new Map(thumbnailsMap));
+
+      if (index < filters.length) {
+        thumbGenHandleRef.current = requestIdle(processBatch);
+      } else {
+        thumbGenHandleRef.current = null;
+        setThumbnailsGenerated(true);
+      }
+    };
+
+    thumbGenHandleRef.current = requestIdle(processBatch);
+
+    return () => {
+      if (thumbGenHandleRef.current) {
+        cancelIdle(thumbGenHandleRef.current);
+        thumbGenHandleRef.current = null;
+      }
+    };
   }, [applyAdjustments]);
 
   useEffect(() => {
     if (!imageLoaded || thumbnailsGenerated) return;
-    // Use requestAnimationFrame to defer state updates and avoid cascading renders
-    const rafId = requestAnimationFrame(() => {
-      generateThumbnails();
-    });
-    return () => cancelAnimationFrame(rafId);
+    return generateThumbnails();
   }, [imageLoaded, thumbnailsGenerated, generateThumbnails]);
 
   // Render preview
@@ -257,15 +337,29 @@ export function FiltersGallery({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    canvas.width = imageSize.width;
-    canvas.height = imageSize.height;
-    ctx.drawImage(img, 0, 0);
-
-    const activeFilter = hoveredFilter || selectedFilter;
-    if (activeFilter && Object.keys(activeFilter.adjustments).length > 0) {
-      applyAdjustments(ctx, activeFilter.adjustments, intensity);
+    if (previewRafRef.current) {
+      cancelAnimationFrame(previewRafRef.current);
     }
-  }, [imageLoaded, imageSize, selectedFilter, hoveredFilter, intensity, applyAdjustments]);
+
+    previewRafRef.current = requestAnimationFrame(() => {
+      previewRafRef.current = null;
+      canvas.width = previewSize.width || imageSize.width;
+      canvas.height = previewSize.height || imageSize.height;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      const activeFilter = hoveredFilter || selectedFilter;
+      if (activeFilter && Object.keys(activeFilter.adjustments).length > 0) {
+        applyAdjustments(ctx, activeFilter.adjustments, intensity);
+      }
+    });
+
+    return () => {
+      if (previewRafRef.current) {
+        cancelAnimationFrame(previewRafRef.current);
+        previewRafRef.current = null;
+      }
+    };
+  }, [imageLoaded, imageSize, previewSize, selectedFilter, hoveredFilter, intensity, applyAdjustments]);
 
   // Get filters by category
   const filtersByCategory = useMemo(() => {
@@ -279,12 +373,27 @@ export function FiltersGallery({
 
   // Handle apply
   const handleApply = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !selectedFilter) return;
+    const img = imageRef.current;
+    if (!img || !imageLoaded || !selectedFilter) return;
 
-    const dataUrl = canvas.toDataURL('image/png');
+    if (!exportCanvasRef.current) {
+      exportCanvasRef.current = document.createElement('canvas');
+    }
+
+    const exportCanvas = exportCanvasRef.current;
+    exportCanvas.width = imageSize.width;
+    exportCanvas.height = imageSize.height;
+    const exportCtx = exportCanvas.getContext('2d');
+    if (!exportCtx) return;
+
+    exportCtx.drawImage(img, 0, 0, exportCanvas.width, exportCanvas.height);
+    if (Object.keys(selectedFilter.adjustments).length > 0) {
+      applyAdjustments(exportCtx, selectedFilter.adjustments, intensity);
+    }
+
+    const dataUrl = exportCanvas.toDataURL('image/png');
     onApply?.({ dataUrl, filter: selectedFilter, intensity });
-  }, [selectedFilter, intensity, onApply]);
+  }, [applyAdjustments, imageLoaded, imageSize, selectedFilter, intensity, onApply]);
 
   // Reset
   const handleReset = useCallback(() => {

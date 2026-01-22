@@ -273,7 +273,7 @@ fn get_process_details(pid: u32) -> (Option<u64>, ProcessStatus) {
 }
 
 /// Apply filter to a process
-fn apply_filter(info: &ProcessInfo, filter: &ProcessFilter) -> bool {
+pub(super) fn apply_filter(info: &ProcessInfo, filter: &ProcessFilter) -> bool {
     // Filter by PID
     if let Some(pid) = filter.pid {
         if info.pid != pid {
@@ -332,7 +332,7 @@ fn apply_filter(info: &ProcessInfo, filter: &ProcessFilter) -> bool {
 }
 
 /// Sort processes by field
-fn sort_processes(processes: &mut [ProcessInfo], sort_by: ProcessSortField, desc: bool) {
+pub(super) fn sort_processes(processes: &mut [ProcessInfo], sort_by: ProcessSortField, desc: bool) {
     processes.sort_by(|a, b| {
         let cmp = match sort_by {
             ProcessSortField::Pid => a.pid.cmp(&b.pid),

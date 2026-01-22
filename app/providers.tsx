@@ -21,14 +21,24 @@ import { useEffect, useLayoutEffect, useState, useCallback, useMemo } from 'reac
 import { useSettingsStore } from '@/stores';
 import { useSelectionStore } from '@/stores/context';
 import { I18nProvider } from '@/lib/i18n';
-import { THEME_PRESETS, applyThemeColors, removeCustomThemeColors, applyBackgroundSettings, applyUICustomization } from '@/lib/themes';
+import {
+  THEME_PRESETS,
+  applyThemeColors,
+  removeCustomThemeColors,
+  applyBackgroundSettings,
+  applyUICustomization,
+  removeBackgroundSettings,
+} from '@/lib/themes';
 import type { ColorThemePreset as _ColorThemePreset } from '@/lib/themes';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { CommandPalette } from '@/components/layout/command-palette';
 import { Toaster } from '@/components/ui/sonner';
+import { toast } from '@/components/ui/sonner';
 import { KeyboardShortcutsDialog } from '@/components/layout/keyboard-shortcuts-dialog';
 import { SetupWizard } from '@/components/settings';
+import { BackgroundRenderer } from '@/components/layout';
 import { TourManager, isOnboardingCompleted } from '@/components/onboarding';
+import { initializePluginManager } from '@/lib/plugin';
 import {
   ErrorBoundaryProvider,
   LoggerProvider,
@@ -43,10 +53,37 @@ import { ObservabilityInitializer } from '@/components/observability';
 import { LocaleInitializer } from '@/components/providers/initializers';
 import { ChatAssistantContainer } from '@/components/chat-widget';
 import { useChatWidgetStore } from '@/stores/chat';
-import { isTauri as detectTauri } from '@/lib/native/utils';
+import { getWindowLabel, isTauri as detectTauri, WINDOW_LABELS } from '@/lib/native/utils';
 
 interface ProvidersProps {
   children: React.ReactNode;
+}
+
+let pluginInitPromise: Promise<void> | null = null;
+
+async function ensurePluginSystemInitialized(): Promise<void> {
+  if (pluginInitPromise) return pluginInitPromise;
+
+  pluginInitPromise = (async () => {
+    if (typeof window === 'undefined') return;
+    if (!detectTauri()) return;
+
+    const label = await getWindowLabel();
+    if (label && label !== WINDOW_LABELS.MAIN) return;
+
+    const { invoke } = await import('@tauri-apps/api/core');
+    const pluginDirectory = await invoke<string>('plugin_get_directory');
+
+    await initializePluginManager({
+      pluginDirectory,
+      enablePython: true,
+    });
+  })().catch((error) => {
+    toast.error('Failed to initialize plugins');
+    console.error('Failed to initialize plugins:', error);
+  });
+
+  return pluginInitPromise;
 }
 
 function ChatAssistantContainerGate() {
@@ -69,7 +106,7 @@ function ChatWidgetNativeSync() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!detectTauri() && !(window as typeof window & { __TAURI__?: unknown }).__TAURI__) return;
+    if (!detectTauri()) return;
 
     const payload = {
       width: config.width,
@@ -107,8 +144,7 @@ function ChatWidgetNativeSync() {
 }
 
 // Use useLayoutEffect on client, useEffect on server
-const useIsomorphicLayoutEffect =
-  typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 /**
  * AppLoadingScreen - Shows during initial app hydration
@@ -185,7 +221,7 @@ function AppLoadingScreen() {
               animation: 'spin 4s linear infinite',
             }}
           />
-          
+
           {/* Middle pulsing ring */}
           <div
             className="absolute -inset-4 rounded-full"
@@ -221,45 +257,87 @@ function AppLoadingScreen() {
                 animation: 'shimmer 3s ease-in-out infinite',
               }}
             />
-            
+
             {/* Core logo shape */}
             <div className="relative z-10">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
                 {/* Neural network / brain icon */}
                 <circle
-                  cx="12" cy="12" r="3"
+                  cx="12"
+                  cy="12"
+                  r="3"
                   fill={colors.primary}
                   style={{ animation: 'pulse 2s ease-in-out infinite' }}
                 />
                 <circle
-                  cx="12" cy="4" r="2"
+                  cx="12"
+                  cy="4"
+                  r="2"
                   fill={colors.primary}
                   opacity="0.7"
                   style={{ animation: 'pulse 2s ease-in-out infinite 0.2s' }}
                 />
                 <circle
-                  cx="12" cy="20" r="2"
+                  cx="12"
+                  cy="20"
+                  r="2"
                   fill={colors.primary}
                   opacity="0.7"
                   style={{ animation: 'pulse 2s ease-in-out infinite 0.4s' }}
                 />
                 <circle
-                  cx="4" cy="12" r="2"
+                  cx="4"
+                  cy="12"
+                  r="2"
                   fill={colors.primary}
                   opacity="0.7"
                   style={{ animation: 'pulse 2s ease-in-out infinite 0.6s' }}
                 />
                 <circle
-                  cx="20" cy="12" r="2"
+                  cx="20"
+                  cy="12"
+                  r="2"
                   fill={colors.primary}
                   opacity="0.7"
                   style={{ animation: 'pulse 2s ease-in-out infinite 0.8s' }}
                 />
                 {/* Connecting lines */}
-                <line x1="12" y1="9" x2="12" y2="6" stroke={colors.primary} strokeWidth="1.5" opacity="0.5" />
-                <line x1="12" y1="15" x2="12" y2="18" stroke={colors.primary} strokeWidth="1.5" opacity="0.5" />
-                <line x1="9" y1="12" x2="6" y2="12" stroke={colors.primary} strokeWidth="1.5" opacity="0.5" />
-                <line x1="15" y1="12" x2="18" y2="12" stroke={colors.primary} strokeWidth="1.5" opacity="0.5" />
+                <line
+                  x1="12"
+                  y1="9"
+                  x2="12"
+                  y2="6"
+                  stroke={colors.primary}
+                  strokeWidth="1.5"
+                  opacity="0.5"
+                />
+                <line
+                  x1="12"
+                  y1="15"
+                  x2="12"
+                  y2="18"
+                  stroke={colors.primary}
+                  strokeWidth="1.5"
+                  opacity="0.5"
+                />
+                <line
+                  x1="9"
+                  y1="12"
+                  x2="6"
+                  y2="12"
+                  stroke={colors.primary}
+                  strokeWidth="1.5"
+                  opacity="0.5"
+                />
+                <line
+                  x1="15"
+                  y1="12"
+                  x2="18"
+                  y2="12"
+                  stroke={colors.primary}
+                  strokeWidth="1.5"
+                  opacity="0.5"
+                />
               </svg>
             </div>
           </div>
@@ -267,13 +345,10 @@ function AppLoadingScreen() {
 
         {/* Brand name with fade-in effect */}
         <div className="flex flex-col items-center gap-4">
-          <h1
-            className="text-2xl font-semibold tracking-tight"
-            style={{ color: colors.text }}
-          >
+          <h1 className="text-2xl font-semibold tracking-tight" style={{ color: colors.text }}>
             Cognia
           </h1>
-          
+
           {/* Progress bar container */}
           <div className="w-48 flex flex-col items-center gap-2">
             {/* Progress bar background */}
@@ -294,12 +369,13 @@ function AppLoadingScreen() {
               <div
                 className="absolute inset-0 rounded-full"
                 style={{
-                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                  background:
+                    'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
                   animation: 'progress-shimmer 1.5s ease-in-out infinite',
                 }}
               />
             </div>
-            
+
             {/* Progress percentage and text */}
             <div className="flex items-center justify-between w-full">
               <span
@@ -308,10 +384,7 @@ function AppLoadingScreen() {
               >
                 {loadingText}
               </span>
-              <span
-                className="text-xs font-mono"
-                style={{ color: colors.primary }}
-              >
+              <span className="text-xs font-mono" style={{ color: colors.primary }}>
                 {progress}%
               </span>
             </div>
@@ -322,24 +395,50 @@ function AppLoadingScreen() {
       {/* CSS Animations */}
       <style jsx>{`
         @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
         }
         @keyframes pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.7; transform: scale(0.95); }
+          0%,
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.7;
+            transform: scale(0.95);
+          }
         }
         @keyframes pulse-ring {
-          0%, 100% { transform: scale(1); opacity: 0.3; }
-          50% { transform: scale(1.05); opacity: 0.5; }
+          0%,
+          100% {
+            transform: scale(1);
+            opacity: 0.3;
+          }
+          50% {
+            transform: scale(1.05);
+            opacity: 0.5;
+          }
         }
         @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(100%);
+          }
         }
         @keyframes progress-shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(200%); }
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(200%);
+          }
         }
       `}</style>
     </div>
@@ -443,28 +542,34 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
 
-    const nextResolved = theme === 'system'
-      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-      : theme;
+    const nextResolved =
+      theme === 'system'
+        ? window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light'
+        : theme;
 
     setResolvedTheme(nextResolved);
     root.classList.add(nextResolved);
   }, [theme, mounted]);
 
-  const applyDerivedThemeVariables = useCallback((colors: {
-    primary: string;
-    primaryForeground: string;
-    accent: string;
-    accentForeground: string;
-    ring: string;
-  }) => {
-    const root = window.document.documentElement;
-    root.style.setProperty('--sidebar-primary', colors.primary);
-    root.style.setProperty('--sidebar-primary-foreground', colors.primaryForeground);
-    root.style.setProperty('--sidebar-accent', colors.accent);
-    root.style.setProperty('--sidebar-accent-foreground', colors.accentForeground);
-    root.style.setProperty('--sidebar-ring', colors.ring);
-  }, []);
+  const applyDerivedThemeVariables = useCallback(
+    (colors: {
+      primary: string;
+      primaryForeground: string;
+      accent: string;
+      accentForeground: string;
+      ring: string;
+    }) => {
+      const root = window.document.documentElement;
+      root.style.setProperty('--sidebar-primary', colors.primary);
+      root.style.setProperty('--sidebar-primary-foreground', colors.primaryForeground);
+      root.style.setProperty('--sidebar-accent', colors.accent);
+      root.style.setProperty('--sidebar-accent-foreground', colors.accentForeground);
+      root.style.setProperty('--sidebar-ring', colors.ring);
+    },
+    []
+  );
 
   // Handle color theme (presets and custom)
   useEffect(() => {
@@ -475,12 +580,12 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
     const isDark = resolvedTheme === 'dark';
 
     // Remove all theme classes first
-    const themeClasses = Object.keys(THEME_PRESETS).map(t => `theme-${t}`);
+    const themeClasses = Object.keys(THEME_PRESETS).map((t) => `theme-${t}`);
     root.classList.remove(...themeClasses);
 
     // Check if using a custom theme
     if (activeCustomThemeId) {
-      const customTheme = customThemes.find(t => t.id === activeCustomThemeId);
+      const customTheme = customThemes.find((t) => t.id === activeCustomThemeId);
       if (customTheme) {
         // Apply custom theme colors as CSS variables
         const colors = {
@@ -537,7 +642,14 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
       accentForeground: presetColors.accentForeground,
       ring: presetColors.ring,
     });
-  }, [colorTheme, activeCustomThemeId, customThemes, mounted, resolvedTheme, applyDerivedThemeVariables]);
+  }, [
+    colorTheme,
+    activeCustomThemeId,
+    customThemes,
+    mounted,
+    resolvedTheme,
+    applyDerivedThemeVariables,
+  ]);
 
   // Listen for system theme changes
   useEffect(() => {
@@ -605,13 +717,24 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
     applyScheduledTheme();
     const interval = setInterval(applyScheduledTheme, 60000);
     return () => clearInterval(interval);
-  }, [mounted, themeSchedule.enabled, themeSchedule.lightModeStart, themeSchedule.darkModeStart, setTheme]);
+  }, [
+    mounted,
+    themeSchedule.enabled,
+    themeSchedule.lightModeStart,
+    themeSchedule.darkModeStart,
+    setTheme,
+  ]);
 
   // Resolve web-local background asset to an object URL (do not persist object URL)
   useEffect(() => {
     if (!mounted) return;
     if (typeof window === 'undefined') return;
-    if ((window as typeof window & { __TAURI__?: unknown }).__TAURI__) {
+    if (detectTauri()) {
+      setResolvedLocalBgUrl(null);
+      return;
+    }
+
+    if (backgroundSettings.mode !== 'single') {
       setResolvedLocalBgUrl(null);
       return;
     }
@@ -638,11 +761,21 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [mounted, backgroundSettings.source, backgroundSettings.localAssetId]);
+  }, [
+    mounted,
+    backgroundSettings.mode,
+    backgroundSettings.source,
+    backgroundSettings.localAssetId,
+  ]);
 
   // Apply background settings
   useEffect(() => {
     if (!mounted) return;
+
+    if (backgroundSettings.mode !== 'single') {
+      removeBackgroundSettings();
+      return;
+    }
 
     const effectiveSettings =
       backgroundSettings.source === 'local' && resolvedLocalBgUrl
@@ -657,7 +790,12 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
     return <AppLoadingScreen />;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <BackgroundRenderer />
+      {children}
+    </>
+  );
 }
 
 function SelectionNativeSync() {
@@ -665,16 +803,14 @@ function SelectionNativeSync() {
   const selectionEnabled = useSelectionStore((s) => s.isEnabled);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.__TAURI__) {
+    if (typeof window === 'undefined' || !detectTauri()) {
       return;
     }
 
     const syncSelection = async () => {
       try {
-        const [{ updateConfig, startSelectionService, stopSelectionService }, { invoke }] = await Promise.all([
-          import('@/lib/native/selection'),
-          import('@tauri-apps/api/core'),
-        ]);
+        const [{ updateConfig, startSelectionService, stopSelectionService }, { invoke }] =
+          await Promise.all([import('@/lib/native/selection'), import('@tauri-apps/api/core')]);
 
         await updateConfig({
           enabled: selectionEnabled,
@@ -687,7 +823,7 @@ function SelectionNativeSync() {
         });
 
         await invoke('selection_set_auto_hide_timeout', {
-          timeout_ms: selectionConfig.autoHideDelay ?? 0,
+          timeoutMs: selectionConfig.autoHideDelay ?? 0,
         });
 
         if (selectionEnabled) {
@@ -722,11 +858,12 @@ function SelectionNativeSync() {
  * Each provider handles a specific concern and provides functionality to the app.
  */
 export function Providers({ children }: ProvidersProps) {
+  useEffect(() => {
+    ensurePluginSystemInitialized();
+  }, []);
+
   return (
-    <ErrorBoundaryProvider
-      maxRetries={3}
-      showDetails={process.env.NODE_ENV === 'development'}
-    >
+    <ErrorBoundaryProvider maxRetries={3} showDetails={process.env.NODE_ENV === 'development'}>
       <LoggerProvider
         config={{
           minLevel: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
@@ -760,9 +897,7 @@ export function Providers({ children }: ProvidersProps) {
                         <StoreInitializer />
                         <ObservabilityInitializer />
                         <SelectionNativeSync />
-                        <OnboardingProvider>
-                          {children}
-                        </OnboardingProvider>
+                        <OnboardingProvider>{children}</OnboardingProvider>
                       </NativeProvider>
                     </SkillProvider>
                     <CommandPalette />

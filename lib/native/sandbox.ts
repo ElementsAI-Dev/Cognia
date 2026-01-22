@@ -101,6 +101,62 @@ export async function updateBackendSandboxConfig(
 }
 
 /**
+ * Get all supported languages
+ */
+export async function getAllLanguages(): Promise<Language[]> {
+  if (!isTauri()) {
+    throw new Error('Sandbox requires Tauri environment');
+  }
+
+  return invoke<Language[]>('sandbox_get_all_languages');
+}
+
+/**
+ * Get languages available for native execution
+ */
+export async function getAvailableLanguages(): Promise<string[]> {
+  if (!isTauri()) {
+    throw new Error('Sandbox requires Tauri environment');
+  }
+
+  return invoke<string[]>('sandbox_get_available_languages');
+}
+
+/**
+ * Update session
+ */
+export async function updateSession(
+  sessionId: string,
+  name: string,
+  description?: string
+): Promise<void> {
+  if (!isTauri()) {
+    throw new Error('Sandbox requires Tauri environment');
+  }
+
+  return invoke('sandbox_update_session', {
+    session_id: sessionId,
+    name,
+    description,
+  });
+}
+
+/**
+ * Get executions for a session
+ */
+export async function getSessionExecutions(
+  sessionId: string
+): Promise<ExecutionRequest[]> {
+  if (!isTauri()) {
+    throw new Error('Sandbox requires Tauri environment');
+  }
+
+  return invoke<ExecutionRequest[]>('sandbox_get_session_executions', {
+    session_id: sessionId,
+  });
+}
+
+/**
  * Get available runtimes
  */
 export async function getAvailableRuntimes(): Promise<RuntimeType[]> {
@@ -331,6 +387,8 @@ export const sandboxService = {
   updateConfig: updateBackendSandboxConfig,
   getRuntimes: getAvailableRuntimes,
   getLanguages: getSupportedLanguages,
+  getAllLanguages,
+  getAvailableLanguages,
   checkRuntime,
   getRuntimeInfo,
   prepareLanguage,

@@ -19,6 +19,8 @@ import type {
   CreateSessionOptions,
   KernelProgressEvent,
   CellOutputEvent,
+  CellOutput,
+  ExecutableCell,
 } from '@/types/system/jupyter';
 
 /** Hook return type */
@@ -61,6 +63,7 @@ export interface UseJupyterKernelReturn {
 
   // Variables
   refreshVariables: (sessionId?: string) => Promise<void>;
+  getCachedVariables: (sessionId?: string) => Promise<VariableInfo[]>;
   inspectVariable: (
     variableName: string,
     sessionId?: string
@@ -108,6 +111,9 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     setVariables,
     setVariablesLoading,
     addExecutionHistory,
+    setCells,
+    updateCell,
+    getCells,
     mapChatToJupyter,
     unmapChatSession: unmapChatSessionInStore,
     setError,
@@ -121,6 +127,93 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
 
   // Track event listeners
   const unlistenersRef = useRef<Array<() => void>>([]);
+
+  const toCellOutputs = useCallback((result: KernelSandboxExecutionResult): CellOutput[] => {
+    const outputs: CellOutput[] = [];
+
+    if (result.stdout) {
+      outputs.push({
+        outputType: 'stream',
+        name: 'stdout',
+        text: result.stdout,
+      });
+    }
+
+    if (result.stderr) {
+      outputs.push({
+        outputType: 'stream',
+        name: 'stderr',
+        text: result.stderr,
+      });
+    }
+
+    for (const item of result.displayData) {
+      outputs.push({
+        outputType: 'display_data',
+        data: { [item.mimeType]: item.data },
+      });
+    }
+
+    if (result.error) {
+      outputs.push({
+        outputType: 'error',
+        ename: result.error.ename,
+        evalue: result.error.evalue,
+        traceback: result.error.traceback,
+      });
+    }
+
+    return outputs;
+  }, []);
+
+  const applyCellOutputEvent = useCallback(
+    (event: CellOutputEvent) => {
+      if (!event.sessionId) return;
+
+      const sessionCells = getCells(event.sessionId);
+      const placeholderCount =
+        typeof event.total === 'number' && event.total > 0
+          ? event.total
+          : event.cellIndex + 1;
+
+      if (!sessionCells.length && placeholderCount > 0) {
+        const placeholders: ExecutableCell[] = Array.from({ length: placeholderCount }).map(
+          (_: unknown, idx: number) => ({
+            id: `cell-${idx}`,
+            type: 'code',
+            source: '',
+            executionState: 'idle',
+            executionCount: null,
+            outputs: [],
+            metadata: {},
+          })
+        );
+        setCells(event.sessionId, placeholders);
+      }
+
+      const finalCells = getCells(event.sessionId);
+      if (!finalCells.length) return;
+
+      const isClearEvent =
+        event.result.executionCount === 0 &&
+        event.result.executionTimeMs === 0 &&
+        event.result.stdout === '' &&
+        event.result.stderr === '' &&
+        event.result.displayData.length === 0 &&
+        event.result.error === null;
+
+      updateCell(event.sessionId, event.cellIndex, {
+        outputs: isClearEvent ? [] : toCellOutputs(event.result),
+        executionCount: isClearEvent ? null : event.result.executionCount,
+        executionState: isClearEvent
+          ? 'idle'
+          : event.result.success
+            ? 'success'
+            : 'error',
+      });
+    },
+    [getCells, setCells, toCellOutputs, updateCell]
+  );
 
   // Setup event listeners
   useEffect(() => {
@@ -151,6 +244,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
         (event: CellOutputEvent) => {
           // Update cell-specific state if needed
           setLastSandboxExecutionResult(event.result);
+          applyCellOutputEvent(event);
         }
       );
 
@@ -163,7 +257,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
       unlistenersRef.current.forEach((unlisten) => unlisten());
       unlistenersRef.current = [];
     };
-  }, [updateKernelStatus, setError, setLastSandboxExecutionResult]);
+  }, [updateKernelStatus, setError, setLastSandboxExecutionResult, applyCellOutputEvent]);
 
   // Load sessions on mount
   useEffect(() => {
@@ -409,6 +503,26 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     [activeSessionId, setVariables, setVariablesLoading]
   );
 
+  const getCachedVariables = useCallback(
+    async (sessionId?: string): Promise<VariableInfo[]> => {
+      const targetSessionId = sessionId || activeSessionId;
+      if (!targetSessionId || !kernelService.isAvailable()) return [];
+
+      setVariablesLoading(true);
+      try {
+        const vars = await kernelService.getCachedVariables(targetSessionId);
+        setVariables(vars);
+        return vars;
+      } catch (err) {
+        console.error('Failed to get cached variables:', err);
+        return [];
+      } finally {
+        setVariablesLoading(false);
+      }
+    },
+    [activeSessionId, setVariables, setVariablesLoading]
+  );
+
   // Inspect a variable
   const inspectVariable = useCallback(
     async (
@@ -521,6 +635,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
 
     // Variables
     refreshVariables,
+    getCachedVariables,
     inspectVariable,
 
     // Utility

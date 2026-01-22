@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
+import { isTauri } from "@/lib/native/utils";
 import {
   ScanText,
   Upload,
@@ -151,7 +152,7 @@ export function OCRPanel({
   // Load available OCR providers and languages on mount
   useEffect(() => {
     async function loadOcrInfo() {
-      if (typeof window !== "undefined" && window.__TAURI__) {
+      if (isTauri()) {
         try {
           setLoadingLanguages(true);
           const { invoke } = await import("@tauri-apps/api/core");
@@ -226,7 +227,7 @@ export function OCRPanel({
       setError(null);
 
       try {
-        if (typeof window !== "undefined" && window.__TAURI__) {
+        if (isTauri()) {
           const { invoke } = await import("@tauri-apps/api/core");
           const imageBase64 = imageData.replace(/^data:image\/\w+;base64,/, "");
 
@@ -309,7 +310,7 @@ export function OCRPanel({
 
   const handlePasteFromClipboard = useCallback(async () => {
     try {
-      if (typeof window !== "undefined" && window.__TAURI__) {
+      if (isTauri()) {
         const { invoke } = await import("@tauri-apps/api/core");
 
         // Check if clipboard has image
@@ -350,7 +351,7 @@ export function OCRPanel({
 
   const handleScreenCapture = useCallback(async () => {
     try {
-      if (typeof window !== "undefined" && window.__TAURI__) {
+      if (isTauri()) {
         const { invoke } = await import("@tauri-apps/api/core");
 
         // Start region selection for screenshot

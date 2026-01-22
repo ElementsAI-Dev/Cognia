@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{broadcast, mpsc, RwLock};
 use tokio::task::JoinHandle;
 
 use tauri::{AppHandle, Emitter};
@@ -15,6 +15,8 @@ use crate::mcp::client::McpClient;
 use crate::mcp::config::McpConfigManager;
 use crate::mcp::error::{McpError, McpResult};
 use crate::mcp::protocol::jsonrpc::{methods, JsonRpcNotification};
+use crate::mcp::protocol::sampling::SamplingProgressParams;
+use crate::mcp::transport::TransportType;
 use crate::mcp::types::*;
 
 /// Event names for frontend communication
@@ -40,7 +42,7 @@ struct ServerInstance {
     /// Reconnection task
     reconnect_task: Option<JoinHandle<()>>,
     /// Channel to stop tasks
-    stop_tx: Option<mpsc::Sender<()>>,
+    stop_tx: Option<broadcast::Sender<()>>,
 }
 
 /// MCP Manager - manages all MCP server connections
@@ -85,11 +87,17 @@ impl McpManager {
         config: &McpServerConfig,
         notification_tx: mpsc::Sender<JsonRpcNotification>,
     ) -> McpResult<McpClient> {
+        let transport_type = match config.connection_type {
+            McpConnectionType::Stdio => TransportType::Stdio,
+            McpConnectionType::Sse => TransportType::Sse,
+        };
+
         log::debug!(
-            "Creating MCP client: type={:?}, name='{}'",
-            config.connection_type,
+            "Creating MCP client: transport_type={:?}, name='{}'",
+            transport_type,
             config.name
         );
+
         match config.connection_type {
             McpConnectionType::Stdio => {
                 log::trace!(
@@ -113,8 +121,14 @@ impl McpManager {
                     );
                     McpError::MissingUrl
                 })?;
+
                 log::trace!("Using SSE transport: url='{}'", url);
-                McpClient::connect_sse(url, notification_tx).await
+                McpClient::connect_sse_with_message_url(
+                    url,
+                    config.message_url.as_deref(),
+                    notification_tx,
+                )
+                .await
             }
         }
     }
@@ -149,7 +163,7 @@ impl McpManager {
         tools: Vec<McpTool>,
         resources: Vec<McpResource>,
         prompts: Vec<McpPrompt>,
-        stop_tx: mpsc::Sender<()>,
+        stop_tx: broadcast::Sender<()>,
     ) {
         log::info!(
             "Server '{}' connected successfully: {} tools, {} resources, {} prompts",
@@ -468,7 +482,7 @@ impl McpManager {
         );
 
         // Create stop channel for background tasks
-        let (stop_tx, stop_rx) = mpsc::channel(1);
+        let (stop_tx, _) = broadcast::channel(1);
 
         // Update state using helper method
         Self::handle_connection_success(
@@ -479,15 +493,22 @@ impl McpManager {
             tools,
             resources,
             prompts,
-            stop_tx,
+            stop_tx.clone(),
         )
         .await;
 
         self.emit_server_update(id).await;
 
+        // Subscribe stop receivers for background tasks
+        let notification_stop_rx = stop_tx.subscribe();
+        let health_stop_rx = stop_tx.subscribe();
+
         // Start notification handler
-        self.spawn_notification_handler(id.to_string(), notification_rx, stop_rx)
+        self.spawn_notification_handler(id.to_string(), notification_rx, notification_stop_rx)
             .await;
+
+        // Start health check task
+        self.spawn_health_check(id.to_string(), health_stop_rx).await;
 
         log::info!("Connected to MCP server: {}", id);
         Ok(())
@@ -509,7 +530,7 @@ impl McpManager {
                 "Sending stop signal to background tasks for server '{}'",
                 id
             );
-            let _ = stop_tx.send(()).await;
+            let _ = stop_tx.send(());
         }
 
         // Abort background tasks
@@ -795,12 +816,50 @@ impl McpManager {
         all_tools
     }
 
+    /// Subscribe to resource updates for a server
+    pub async fn subscribe_resource(&self, server_id: &str, uri: &str) -> McpResult<()> {
+        log::info!("Subscribing to resource '{}' on server '{}'", uri, server_id);
+        let servers = self.servers.read().await;
+        let instance = servers.get(server_id).ok_or_else(|| {
+            log::warn!("Subscribe failed: server '{}' not found", server_id);
+            McpError::ServerNotFound(server_id.to_string())
+        })?;
+
+        let client = instance.client.as_ref().ok_or_else(|| {
+            log::warn!("Subscribe failed: server '{}' not connected", server_id);
+            McpError::NotConnected
+        })?;
+
+        client.subscribe_resource(uri).await?;
+        log::debug!("Successfully subscribed to resource '{}' on server '{}'", uri, server_id);
+        Ok(())
+    }
+
+    /// Unsubscribe from resource updates for a server
+    pub async fn unsubscribe_resource(&self, server_id: &str, uri: &str) -> McpResult<()> {
+        log::info!("Unsubscribing from resource '{}' on server '{}'", uri, server_id);
+        let servers = self.servers.read().await;
+        let instance = servers.get(server_id).ok_or_else(|| {
+            log::warn!("Unsubscribe failed: server '{}' not found", server_id);
+            McpError::ServerNotFound(server_id.to_string())
+        })?;
+
+        let client = instance.client.as_ref().ok_or_else(|| {
+            log::warn!("Unsubscribe failed: server '{}' not connected", server_id);
+            McpError::NotConnected
+        })?;
+
+        client.unsubscribe_resource(uri).await?;
+        log::debug!("Successfully unsubscribed from resource '{}' on server '{}'", uri, server_id);
+        Ok(())
+    }
+
     /// Spawn a notification handler for a server
     async fn spawn_notification_handler(
         &self,
         server_id: String,
         mut notification_rx: mpsc::Receiver<JsonRpcNotification>,
-        mut stop_rx: mpsc::Receiver<()>,
+        mut stop_rx: broadcast::Receiver<()>,
     ) {
         log::debug!("Spawning notification handler for server '{}'", server_id);
         let app_handle = self.app_handle.clone();
@@ -837,6 +896,85 @@ impl McpManager {
         let mut servers = self.servers.write().await;
         if let Some(instance) = servers.get_mut(&server_id_clone) {
             instance.notification_task = Some(task);
+        }
+    }
+
+    /// Spawn a health check task for a server
+    async fn spawn_health_check(&self, server_id: String, mut stop_rx: broadcast::Receiver<()>) {
+        log::debug!("Spawning health check task for server '{}'", server_id);
+        let app_handle = self.app_handle.clone();
+        let servers = self.servers.clone();
+        let server_id_clone = server_id.clone();
+
+        let task = tokio::spawn(async move {
+            log::trace!("Health check task started for server '{}'", server_id);
+            let mut failed_pings = 0u32;
+            let mut interval = tokio::time::interval(Duration::from_secs(30));
+
+            loop {
+                tokio::select! {
+                    _ = stop_rx.recv() => {
+                        log::debug!("Health check stopped for server: {}", server_id);
+                        break;
+                    }
+                    _ = interval.tick() => {
+                        let start = std::time::Instant::now();
+                        let health = {
+                            let servers = servers.read().await;
+                            let instance = servers.get(&server_id);
+
+                            if let Some(instance) = instance {
+                                if let Some(client) = &instance.client {
+                                    match client.ping().await {
+                                        Ok(_) => {
+                                            let latency = start.elapsed().as_millis() as u64;
+                                            failed_pings = 0;
+                                            Some(ServerHealth {
+                                                server_id: server_id.clone(),
+                                                is_healthy: true,
+                                                last_ping_at: Some(chrono::Utc::now().timestamp()),
+                                                ping_latency_ms: Some(latency),
+                                                failed_pings: 0,
+                                            })
+                                        }
+                                        Err(_) => {
+                                            failed_pings += 1;
+                                            Some(ServerHealth {
+                                                server_id: server_id.clone(),
+                                                is_healthy: false,
+                                                last_ping_at: None,
+                                                ping_latency_ms: None,
+                                                failed_pings,
+                                            })
+                                        }
+                                    }
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        };
+
+                        if let Some(health) = health {
+                            log::trace!(
+                                "Health check for server '{}': healthy={}, latency={}ms, failed={}",
+                                server_id,
+                                health.is_healthy,
+                                health.ping_latency_ms.unwrap_or(0),
+                                health.failed_pings
+                            );
+                            let _ = app_handle.emit(events::SERVER_HEALTH, health);
+                        }
+                    }
+                }
+            }
+        });
+
+        // Store task handle
+        let mut servers = self.servers.write().await;
+        if let Some(instance) = servers.get_mut(&server_id_clone) {
+            instance.health_task = Some(task);
         }
     }
 
@@ -948,6 +1086,34 @@ impl McpManager {
                         Ok(cancelled) => McpNotification::Cancelled(cancelled),
                         Err(e) => {
                             log::warn!("Failed to parse cancelled notification: {}", e);
+                            return;
+                        }
+                    }
+                } else {
+                    return;
+                }
+            }
+            methods::SAMPLING_CREATE_MESSAGE => {
+                // Handle sampling progress notification
+                if let Some(params) = notification.params {
+                    match serde_json::from_value::<SamplingProgressParams>(params) {
+                        Ok(progress) => {
+                            log::debug!("Received sampling progress: progress={}", progress.progress);
+                            // Emit sampling progress to frontend
+                            let _ = app_handle.emit(
+                                events::NOTIFICATION,
+                                &serde_json::json!({
+                                    "serverId": server_id,
+                                    "notification": {
+                                        "type": "sampling_progress",
+                                        "data": progress
+                                    }
+                                }),
+                            );
+                            return;
+                        }
+                        Err(e) => {
+                            log::warn!("Failed to parse sampling progress: {}", e);
                             return;
                         }
                     }
@@ -1094,7 +1260,7 @@ impl McpManager {
             let resources = client.list_resources().await.unwrap_or_default();
             let prompts = client.list_prompts().await.unwrap_or_default();
 
-            let (stop_tx, stop_rx) = mpsc::channel(1);
+            let (stop_tx, _) = broadcast::channel(1);
 
             // Update state
             Self::handle_connection_success(
@@ -1105,7 +1271,7 @@ impl McpManager {
                 tools,
                 resources,
                 prompts,
-                stop_tx,
+                stop_tx.clone(),
             )
             .await;
 
@@ -1117,6 +1283,7 @@ impl McpManager {
             let app_handle_clone = app_handle.clone();
             let server_id_for_handler = server_id.clone();
 
+            let stop_rx = stop_tx.subscribe();
             let notif_task = tokio::spawn(async move {
                 let mut rx = notification_rx;
                 let mut stop = stop_rx;

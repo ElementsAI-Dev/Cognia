@@ -45,8 +45,10 @@ export interface ScreenshotConfig {
   format: string;
   quality: number;
   include_cursor: boolean;
+  delay_ms?: number;
   copy_to_clipboard: boolean;
   show_notification: boolean;
+  ocr_language?: string;
   auto_save: boolean;
   filename_template: string;
 }
@@ -90,6 +92,92 @@ export interface OcrBounds {
   y: number;
   width: number;
   height: number;
+}
+
+export type Annotation =
+  | {
+      type: 'Rectangle';
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      color: string;
+      stroke_width: number;
+      filled: boolean;
+    }
+  | {
+      type: 'Ellipse';
+      cx: number;
+      cy: number;
+      rx: number;
+      ry: number;
+      color: string;
+      stroke_width: number;
+      filled: boolean;
+    }
+  | {
+      type: 'Arrow';
+      start_x: number;
+      start_y: number;
+      end_x: number;
+      end_y: number;
+      color: string;
+      stroke_width: number;
+    }
+  | {
+      type: 'Freehand';
+      points: Array<[number, number]>;
+      color: string;
+      stroke_width: number;
+    }
+  | {
+      type: 'Text';
+      x: number;
+      y: number;
+      text: string;
+      font_size: number;
+      color: string;
+      background?: string | null;
+    }
+  | {
+      type: 'Blur';
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      intensity: number;
+    }
+  | {
+      type: 'Highlight';
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      color: string;
+      opacity: number;
+    }
+  | {
+      type: 'Marker';
+      x: number;
+      y: number;
+      number: number;
+      color: string;
+      size: number;
+    };
+
+export interface AnnotatedScreenshotResult {
+  image_base64: string;
+}
+
+export interface SelectionValidationResult {
+  region: CaptureRegion;
+  is_valid: boolean;
+}
+
+export interface SnapConfig {
+  snap_distance: number;
+  snap_to_screen: boolean;
+  snap_to_windows: boolean;
 }
 
 // ============== Basic Capture Functions ==============
@@ -159,6 +247,37 @@ export async function captureRegionWithHistory(
   return invoke("screenshot_capture_region_with_history", { x, y, width, height });
 }
 
+// ============== Annotation Functions ==============
+
+/**
+ * Apply annotations to screenshot image data
+ */
+export async function applyAnnotations(
+  imageBase64: string,
+  annotations: Annotation[]
+): Promise<AnnotatedScreenshotResult> {
+  return invoke("screenshot_apply_annotations", { imageBase64, annotations });
+}
+
+// ============== Selection Functions ==============
+
+/**
+ * Validate selection state and normalize region
+ */
+export async function validateSelection(
+  startX: number,
+  startY: number,
+  currentX: number,
+  currentY: number
+): Promise<SelectionValidationResult> {
+  return invoke("screenshot_validate_selection", {
+    startX,
+    startY,
+    currentX,
+    currentY,
+  });
+}
+
 // ============== OCR Functions ==============
 
 /**
@@ -208,6 +327,13 @@ export async function isOcrLanguageAvailable(language: string): Promise<boolean>
   return invoke("screenshot_ocr_is_language_available", { language });
 }
 
+/**
+ * Set Windows OCR language used by screenshot manager
+ */
+export async function setOcrLanguage(language: string): Promise<void> {
+  return invoke("screenshot_set_ocr_language", { language });
+}
+
 // ============== History Functions ==============
 
 /**
@@ -222,6 +348,29 @@ export async function getHistory(count?: number): Promise<ScreenshotHistoryEntry
  */
 export async function searchHistory(query: string): Promise<ScreenshotHistoryEntry[]> {
   return invoke("screenshot_search_history", { query });
+}
+
+/**
+ * Search screenshot history by label
+ */
+export async function searchHistoryByLabel(
+  label: string
+): Promise<ScreenshotHistoryEntry[]> {
+  return invoke("screenshot_search_history_by_label", { label });
+}
+
+/**
+ * Get all screenshot history entries
+ */
+export async function getAllHistory(): Promise<ScreenshotHistoryEntry[]> {
+  return invoke("screenshot_get_all_history");
+}
+
+/**
+ * Get pinned screenshot history
+ */
+export async function getPinnedHistory(): Promise<ScreenshotHistoryEntry[]> {
+  return invoke("screenshot_get_pinned_history");
 }
 
 /**
@@ -261,6 +410,20 @@ export async function clearHistory(): Promise<void> {
   return invoke("screenshot_clear_history");
 }
 
+/**
+ * Clear all screenshot history
+ */
+export async function clearAllHistory(): Promise<void> {
+  return invoke("screenshot_clear_all_history");
+}
+
+/**
+ * Get history stats (count, is_empty)
+ */
+export async function getHistoryStats(): Promise<[number, boolean]> {
+  return invoke("screenshot_get_history_stats");
+}
+
 // ============== Configuration ==============
 
 /**
@@ -282,6 +445,20 @@ export async function updateConfig(config: ScreenshotConfig): Promise<void> {
  */
 export async function getMonitors(): Promise<MonitorInfo[]> {
   return invoke("screenshot_get_monitors");
+}
+
+/**
+ * Get snap configuration
+ */
+export async function getSnapConfig(): Promise<SnapConfig> {
+  return invoke("screenshot_get_snap_config");
+}
+
+/**
+ * Set snap configuration
+ */
+export async function setSnapConfig(config: SnapConfig): Promise<void> {
+  return invoke("screenshot_set_snap_config", { config });
 }
 
 /**

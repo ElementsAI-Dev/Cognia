@@ -17,6 +17,7 @@ import {
   type EdgeChange,
   type Node,
 } from '@xyflow/react';
+import { useShallow } from 'zustand/react/shallow';
 import { Controls } from '@/components/ai-elements/controls';
 import { Panel } from '@/components/ai-elements/panel';
 import '@xyflow/react/dist/style.css';
@@ -24,14 +25,14 @@ import '@xyflow/react/dist/style.css';
 import { cn } from '@/lib/utils';
 import { useWorkflowEditorStore } from '@/stores/workflow';
 import { useWorkflowKeyboardShortcuts } from '@/hooks';
-import { nodeTypes } from './nodes';
+import { nodeTypes } from '../nodes';
 import { NodePalette } from './node-palette';
 import { WorkflowToolbar } from './workflow-toolbar';
-import { NodeConfigPanel } from './node-config-panel';
-import { ExecutionPanel } from './execution-panel';
-import { CustomEdge } from './custom-edge';
-import { CustomConnectionLine } from './custom-connection-line';
-import { NodeSearchCommand } from './node-search-command';
+import { NodeConfigPanel } from '../panels/node-config-panel';
+import { ExecutionPanel } from '../execution/execution-panel';
+import { CustomEdge } from '../edges/custom-edge';
+import { CustomConnectionLine } from '../edges/custom-connection-line';
+import { NodeSearchCommand } from '../search/node-search-command';
 import type { WorkflowNodeType, WorkflowNode } from '@/types/workflow/workflow-editor';
 
 // Define edge types for React Flow
@@ -46,10 +47,12 @@ interface WorkflowEditorPanelProps {
 
 function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { fitView, zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport: setReactFlowViewport } = useReactFlow();
+  const isDragHistoryPendingRef = useRef(false);
 
   const {
     currentWorkflow,
+    isDirty,
     showNodePalette,
     showConfigPanel,
     showExecutionPanel,
@@ -63,7 +66,31 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     addNode,
     selectNodes,
     createWorkflow,
-  } = useWorkflowEditorStore();
+    setViewport,
+    pushHistory,
+    saveWorkflow,
+  } = useWorkflowEditorStore(
+    useShallow((state) => ({
+      currentWorkflow: state.currentWorkflow,
+      isDirty: state.isDirty,
+      showNodePalette: state.showNodePalette,
+      showConfigPanel: state.showConfigPanel,
+      showExecutionPanel: state.showExecutionPanel,
+      showMinimap: state.showMinimap,
+      selectedNodes: state.selectedNodes,
+      executionState: state.executionState,
+      isExecuting: state.isExecuting,
+      onNodesChange: state.onNodesChange,
+      onEdgesChange: state.onEdgesChange,
+      onConnect: state.onConnect,
+      addNode: state.addNode,
+      selectNodes: state.selectNodes,
+      createWorkflow: state.createWorkflow,
+      setViewport: state.setViewport,
+      pushHistory: state.pushHistory,
+      saveWorkflow: state.saveWorkflow,
+    }))
+  );
 
   // Initialize workflow if none exists
   useEffect(() => {
@@ -72,11 +99,29 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     }
   }, [currentWorkflow, createWorkflow]);
 
+  // Restore viewport when switching workflows
+  useEffect(() => {
+    if (!currentWorkflow) return;
+    setReactFlowViewport(currentWorkflow.viewport);
+  }, [currentWorkflow?.id, currentWorkflow, setReactFlowViewport]);
+
+  // Auto-save
+  useEffect(() => {
+    if (!currentWorkflow?.settings.autoSave) return;
+    if (!isDirty) return;
+
+    const timer = setTimeout(() => {
+      void saveWorkflow();
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [currentWorkflow?.id, currentWorkflow?.settings.autoSave, isDirty, saveWorkflow]);
+
   // Keyboard shortcuts
   useWorkflowKeyboardShortcuts({
     enabled: true,
     onSave: () => {
-      useWorkflowEditorStore.getState().saveWorkflow();
+      void useWorkflowEditorStore.getState().saveWorkflow();
     },
   });
 
@@ -157,41 +202,6 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     [executionState]
   );
 
-  // Handle export
-  const handleExport = useCallback(() => {
-    if (!currentWorkflow) return;
-    const data = JSON.stringify(currentWorkflow, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${currentWorkflow.name.replace(/\s+/g, '-').toLowerCase()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [currentWorkflow]);
-
-  // Handle import
-  const handleImport = useCallback(() => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-
-      try {
-        const text = await file.text();
-        const workflow = JSON.parse(text);
-        useWorkflowEditorStore.getState().loadWorkflow(workflow);
-      } catch (error) {
-        console.error('Failed to import workflow:', error);
-      }
-    };
-    input.click();
-  }, []);
-
   if (!currentWorkflow) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -207,8 +217,6 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
         onFitView={() => fitView({ padding: 0.2 })}
         onZoomIn={() => zoomIn()}
         onZoomOut={() => zoomOut()}
-        onExport={handleExport}
-        onImport={handleImport}
       />
 
       {/* Main content */}
@@ -232,6 +240,17 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
             onEdgesChange={handleEdgesChange}
             onConnect={handleConnect}
             onSelectionChange={handleSelectionChange}
+            onNodeDragStart={() => {
+              isDragHistoryPendingRef.current = true;
+            }}
+            onNodeDragStop={() => {
+              if (!isDragHistoryPendingRef.current) return;
+              isDragHistoryPendingRef.current = false;
+              pushHistory();
+            }}
+            onMoveEnd={(_event, viewport) => {
+              setViewport(viewport);
+            }}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             connectionLineComponent={CustomConnectionLine}

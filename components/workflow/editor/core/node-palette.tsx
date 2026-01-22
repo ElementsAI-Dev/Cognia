@@ -61,6 +61,7 @@ import {
   Zap,
   Heart,
 } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { NODE_CATEGORIES, NODE_TYPE_COLORS, type WorkflowNodeType } from '@/types/workflow/workflow-editor';
 import { NodeTemplatePanel } from './node-template-manager';
 import { useWorkflowEditorStore } from '@/stores/workflow';
@@ -145,7 +146,13 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
     } catch { return []; }
   });
   
-  const { addNodeFromTemplate, nodeTemplates, addNode } = useWorkflowEditorStore();
+  const { addNodeFromTemplate, nodeTemplates, addNode } = useWorkflowEditorStore(
+    useShallow((state) => ({
+      addNodeFromTemplate: state.addNodeFromTemplate,
+      nodeTemplates: state.nodeTemplates,
+      addNode: state.addNode,
+    }))
+  );
 
   // Save recent nodes
   const addToRecent = useCallback((type: WorkflowNodeType) => {

@@ -96,10 +96,15 @@ export function RecordingHistoryPanel({
     history,
     isInitialized,
     isLoading,
+    storageStats,
+    storageUsagePercent,
+    isStorageExceeded,
     initialize,
     refreshHistory,
+    refreshStorageStats,
     deleteFromHistory,
     clearHistory,
+    runStorageCleanup,
   } = useScreenRecordingStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -124,6 +129,21 @@ export function RecordingHistoryPanel({
       initialize();
     }
   }, [initialize, isInitialized]);
+
+  // Refresh storage stats periodically when component is visible
+  useEffect(() => {
+    if (!isTauri() || !isInitialized) return;
+    
+    // Initial refresh
+    refreshStorageStats();
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(() => {
+      refreshStorageStats();
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [isInitialized, refreshStorageStats]);
 
   const handleClearSearch = () => {
     setSearchQuery('');
@@ -314,22 +334,70 @@ export function RecordingHistoryPanel({
         )}
       </ScrollArea>
 
-      {/* Footer */}
+      {/* Footer with Storage Stats */}
       {history.length > 0 && (
-        <div className="p-2 sm:p-3 border-t shrink-0">
+        <div className="p-2 sm:p-3 border-t shrink-0 space-y-2">
+          {/* Storage Usage Bar */}
+          {storageStats && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <HardDrive className="h-3 w-3" />
+                  <span>
+                    {formatFileSize(storageStats.recordingsSize + storageStats.screenshotsSize)}
+                  </span>
+                </div>
+                <span className={cn(
+                  isStorageExceeded && 'text-destructive font-medium'
+                )}>
+                  {storageUsagePercent.toFixed(0)}% {t('used')}
+                </span>
+              </div>
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className={cn(
+                    "h-full transition-all",
+                    isStorageExceeded ? "bg-destructive" : "bg-primary"
+                  )}
+                  style={{ width: `${Math.min(storageUsagePercent, 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* Actions */}
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>
               {t('recordingCount', { count: history.length })}
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs text-destructive hover:text-destructive"
-              onClick={handleClearAll}
-            >
-              <Trash2 className="h-3 w-3 mr-1" />
-              {t('clearHistory')}
-            </Button>
+            <div className="flex items-center gap-1">
+              {isStorageExceeded && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={async () => {
+                    const result = await runStorageCleanup();
+                    if (result && result.filesDeleted > 0) {
+                      // Optionally show a toast notification
+                      console.log(`Cleaned up ${result.filesDeleted} files, freed ${formatFileSize(result.bytesFreed)}`);
+                    }
+                  }}
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  {t('cleanup')}
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-destructive hover:text-destructive"
+                onClick={handleClearAll}
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                {t('clearHistory')}
+              </Button>
+            </div>
           </div>
         </div>
       )}

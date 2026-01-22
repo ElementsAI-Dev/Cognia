@@ -1,12 +1,14 @@
 //! Screen Recording Tauri commands
 
 use crate::screen_recording::{
-    ffmpeg, AudioDevices, EncodingSupport, FFmpegInfo, FFmpegInstallGuide, HardwareAcceleration,
-    MonitorInfo, RecordingConfig, RecordingHistoryEntry, RecordingMetadata, RecordingRegion,
-    RecordingStats, RecordingStatus, ScreenRecordingManager, VideoConvertOptions, VideoInfo,
-    VideoProcessingResult, VideoProcessor, VideoTrimOptions,
+    ffmpeg, AudioDevices, CleanupResult, EncodingSupport, FFmpegInfo, FFmpegInstallGuide, 
+    HardwareAcceleration, MonitorInfo, RecordingConfig, RecordingHistoryEntry, RecordingMetadata, 
+    RecordingRegion, RecordingStats, RecordingStatus, ScreenRecordingManager, StorageConfig,
+    StorageStats, VideoConvertOptions, VideoInfo, VideoProcessingResult, VideoProcessor,
+    VideoTrimOptions,
 };
 use tauri::State;
+use parking_lot::RwLock;
 
 /// Get current recording status
 #[tauri::command]
@@ -227,10 +229,28 @@ pub async fn video_trim(options: VideoTrimOptions) -> Result<VideoProcessingResu
     VideoProcessor::trim_video(&options)
 }
 
+/// Trim a video file with progress events
+#[tauri::command]
+pub async fn video_trim_with_progress(
+    app_handle: tauri::AppHandle,
+    options: VideoTrimOptions,
+) -> Result<VideoProcessingResult, String> {
+    VideoProcessor::trim_video_with_progress(&options, &app_handle)
+}
+
 /// Convert video to different format
 #[tauri::command]
 pub async fn video_convert(options: VideoConvertOptions) -> Result<VideoProcessingResult, String> {
     VideoProcessor::convert_video(&options)
+}
+
+/// Convert video to different format with progress events
+#[tauri::command]
+pub async fn video_convert_with_progress(
+    app_handle: tauri::AppHandle,
+    options: VideoConvertOptions,
+) -> Result<VideoProcessingResult, String> {
+    VideoProcessor::convert_video_with_progress(&options, &app_handle)
 }
 
 /// Get video information
@@ -247,6 +267,17 @@ pub async fn video_generate_thumbnail(
     timestamp_ms: u64,
 ) -> Result<String, String> {
     VideoProcessor::generate_thumbnail(&video_path, &output_path, timestamp_ms)
+}
+
+/// Generate video thumbnail with progress events
+#[tauri::command]
+pub async fn video_generate_thumbnail_with_progress(
+    app_handle: tauri::AppHandle,
+    video_path: String,
+    output_path: String,
+    timestamp_ms: u64,
+) -> Result<String, String> {
+    VideoProcessor::generate_thumbnail_with_progress(&video_path, &output_path, timestamp_ms, &app_handle)
 }
 
 /// Check encoding support
@@ -280,6 +311,98 @@ pub async fn ffmpeg_check_hardware_acceleration() -> Result<HardwareAcceleration
 pub async fn ffmpeg_check_version() -> Result<bool, String> {
     let info = ffmpeg::get_ffmpeg_info();
     Ok(info.available && info.version_ok)
+}
+
+// ==================== Storage Management Commands ====================
+
+/// Get storage statistics
+#[tauri::command]
+pub async fn storage_get_stats(
+    manager: State<'_, ScreenRecordingManager>,
+) -> Result<StorageStats, String> {
+    Ok(manager.get_storage_stats())
+}
+
+/// Get storage configuration
+#[tauri::command]
+pub async fn storage_get_config(
+    manager: State<'_, ScreenRecordingManager>,
+) -> Result<StorageConfig, String> {
+    Ok(manager.get_storage_config())
+}
+
+/// Update storage configuration
+#[tauri::command]
+pub async fn storage_update_config(
+    manager: State<'_, RwLock<ScreenRecordingManager>>,
+    config: StorageConfig,
+) -> Result<(), String> {
+    manager.write().update_storage_config(config);
+    Ok(())
+}
+
+/// Generate filename for a new recording
+#[tauri::command]
+pub async fn storage_generate_recording_filename(
+    manager: State<'_, ScreenRecordingManager>,
+    mode: String,
+    format: String,
+    custom_name: Option<String>,
+) -> Result<String, String> {
+    Ok(manager.generate_recording_filename(&mode, &format, custom_name.as_deref()))
+}
+
+/// Get full path for a recording file
+#[tauri::command]
+pub async fn storage_get_recording_path(
+    manager: State<'_, ScreenRecordingManager>,
+    filename: String,
+) -> Result<String, String> {
+    manager.get_recording_path(&filename)
+}
+
+/// Generate filename for a screenshot
+#[tauri::command]
+pub async fn storage_generate_screenshot_filename(
+    manager: State<'_, ScreenRecordingManager>,
+    mode: String,
+    format: String,
+    custom_name: Option<String>,
+) -> Result<String, String> {
+    Ok(manager.generate_screenshot_filename(&mode, &format, custom_name.as_deref()))
+}
+
+/// Get full path for a screenshot file
+#[tauri::command]
+pub async fn storage_get_screenshot_path(
+    manager: State<'_, ScreenRecordingManager>,
+    filename: String,
+) -> Result<String, String> {
+    manager.get_screenshot_path(&filename)
+}
+
+/// Check if storage limit is exceeded
+#[tauri::command]
+pub async fn storage_is_exceeded(
+    manager: State<'_, ScreenRecordingManager>,
+) -> Result<bool, String> {
+    Ok(manager.is_storage_exceeded())
+}
+
+/// Get storage usage percentage
+#[tauri::command]
+pub async fn storage_get_usage_percent(
+    manager: State<'_, ScreenRecordingManager>,
+) -> Result<f32, String> {
+    Ok(manager.get_storage_usage_percent())
+}
+
+/// Cleanup old files based on configuration
+#[tauri::command]
+pub async fn storage_cleanup(
+    manager: State<'_, ScreenRecordingManager>,
+) -> Result<CleanupResult, String> {
+    manager.cleanup_old_files()
 }
 
 #[cfg(test)]

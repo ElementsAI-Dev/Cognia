@@ -40,6 +40,7 @@ import {
   Volume2,
 } from "lucide-react";
 import { useEffect, useCallback, useState, useRef } from "react";
+import { isTauri } from '@/lib/native/utils';
 import { ToolbarButton } from "./toolbar-button";
 import { ResultPanel } from "./result-panel";
 import { ShortcutHints } from "./shortcut-hints";
@@ -290,7 +291,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
       }
 
       if (action === "send-to-chat") {
-        if (typeof window !== "undefined" && window.__TAURI__) {
+        if (isTauri()) {
           const { emit } = await import("@tauri-apps/api/event");
           // Include references in the payload
           await emit("selection-send-to-chat", { 
@@ -323,7 +324,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
   useEffect(() => {
     // In Tauri standalone window, we only listen for explicit hide events
     // The native side handles auto-hide via timeout if configured
-    if (typeof window !== "undefined" && window.__TAURI__) {
+    if (isTauri()) {
       // No blur-based hiding - this was causing conflicts with the main window
       // Users can close via:
       // - Escape key
@@ -350,7 +351,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
     setSelectionMode(mode);
     setShowModeSelector(false);
     
-    if (typeof window !== "undefined" && window.__TAURI__) {
+    if (isTauri()) {
       const { invoke } = await import("@tauri-apps/api/core");
       try {
         await invoke("selection_smart_expand", {
@@ -518,7 +519,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
 
   // Handle hover state to prevent auto-hide while user is interacting
   const handleMouseEnter = async () => {
-    if (typeof window !== "undefined" && window.__TAURI__) {
+    if (isTauri()) {
       try {
         const { invoke } = await import("@tauri-apps/api/core");
         await invoke("selection_set_toolbar_hovered", { hovered: true });
@@ -529,7 +530,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
   };
 
   const handleMouseLeave = async () => {
-    if (typeof window !== "undefined" && window.__TAURI__) {
+    if (isTauri()) {
       try {
         const { invoke } = await import("@tauri-apps/api/core");
         await invoke("selection_set_toolbar_hovered", { hovered: false });
@@ -1118,7 +1119,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           onCopy={copyResult}
           onRetry={() => state.activeAction && executeAction(state.activeAction)}
           onSendToChat={() => {
-            if (state.result && typeof window !== "undefined" && window.__TAURI__) {
+            if (state.result && isTauri()) {
               import("@tauri-apps/api/event").then(({ emit }) => {
                 emit("selection-send-to-chat", { text: state.result });
               });
@@ -1181,7 +1182,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           onAction={(action, text) => {
             if (action === "send-to-chat") {
               // Emit to chat
-              if (typeof window !== "undefined" && window.__TAURI__) {
+              if (isTauri()) {
                 import("@tauri-apps/api/event").then(({ emit }) => {
                   emit("selection-send-to-chat", { text });
                 });
@@ -1200,7 +1201,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           onApplyTemplate={(template, text) => {
             // Apply template and execute
             const prompt = template.prompt.replace("{{text}}", text);
-            if (typeof window !== "undefined" && window.__TAURI__) {
+            if (isTauri()) {
               import("@tauri-apps/api/event").then(({ emit }) => {
                 emit("selection-custom-prompt", { prompt, text });
               });

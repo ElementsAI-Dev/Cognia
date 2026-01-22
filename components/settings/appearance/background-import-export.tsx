@@ -19,7 +19,8 @@ import {
 } from '@/components/ui/dialog';
 import { useSettingsStore } from '@/stores';
 import { cn } from '@/lib/utils';
-import { validateBackgroundData } from '@/lib/themes';
+import type { BackgroundSettings } from '@/lib/themes';
+import { normalizeBackgroundSettings, validateBackgroundData } from '@/lib/themes';
 import type { BackgroundExportData } from '@/types/settings';
 
 export function BackgroundImportExport() {
@@ -39,7 +40,16 @@ export function BackgroundImportExport() {
 
   const handleExport = () => {
     // Don't export localAssetId as it's specific to the local storage
-    const { localAssetId: _localAssetId, ...settingsToExport } = backgroundSettings;
+    const { localAssetId: _localAssetId, ...rest } = backgroundSettings;
+
+    const settingsToExport: BackgroundExportData['settings'] = {
+      ...rest,
+      layers: backgroundSettings.layers.map(({ localAssetId: _layerLocalAssetId, ...layer }) => layer),
+      slideshow: {
+        ...backgroundSettings.slideshow,
+        slides: backgroundSettings.slideshow.slides.map(({ localAssetId: _slideLocalAssetId, ...slide }) => slide),
+      },
+    };
 
     const exportData: BackgroundExportData = {
       version: '1.0',
@@ -78,12 +88,18 @@ export function BackgroundImportExport() {
           return;
         }
 
-        const bgData = data as BackgroundExportData;
+        const bgData = data as { settings: Partial<BackgroundSettings> };
+        const normalized = normalizeBackgroundSettings(bgData.settings);
 
         // Apply imported settings (but don't set localAssetId)
         setBackgroundSettings({
-          ...bgData.settings,
+          ...normalized,
           localAssetId: null, // Reset local asset since we can't import local files
+          layers: normalized.layers.map((layer) => ({ ...layer, localAssetId: null })),
+          slideshow: {
+            ...normalized.slideshow,
+            slides: normalized.slideshow.slides.map((slide) => ({ ...slide, localAssetId: null })),
+          },
         });
 
         setImportStatus('success');

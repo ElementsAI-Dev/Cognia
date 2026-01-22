@@ -211,13 +211,12 @@ describe('Native Skill Module', () => {
       const result = await installSkill(mockDiscoverableSkill);
 
       expect(mockInvoke).toHaveBeenCalledWith('skill_install', {
-        key: mockDiscoverableSkill.key,
+        owner: mockDiscoverableSkill.repoOwner,
+        repo: mockDiscoverableSkill.repoName,
+        branch: mockDiscoverableSkill.repoBranch,
+        directory: mockDiscoverableSkill.directory,
         name: mockDiscoverableSkill.name,
         description: mockDiscoverableSkill.description,
-        directory: mockDiscoverableSkill.directory,
-        repoOwner: mockDiscoverableSkill.repoOwner,
-        repoName: mockDiscoverableSkill.repoName,
-        repoBranch: mockDiscoverableSkill.repoBranch,
         readmeUrl: mockDiscoverableSkill.readmeUrl,
       });
       expect(result).toEqual(mockInstalledSkill);
@@ -410,24 +409,24 @@ describe('Native Skill Module', () => {
   describe('Utility Functions', () => {
     describe('isNativeSkillAvailable', () => {
       it('should return false when not in Tauri environment', () => {
-        // Default test environment doesn't have __TAURI__
+        // Default test environment doesn't have __TAURI_INTERNALS__
         const result = isNativeSkillAvailable();
         expect(result).toBe(false);
       });
 
-      it('should return true when __TAURI__ is present', () => {
+      it('should return true when __TAURI_INTERNALS__ is present', () => {
         // In jsdom, we need to set on window directly
         const win = window as unknown as Record<string, unknown>;
-        const originalTauri = win.__TAURI__;
-        win.__TAURI__ = {};
+        const originalTauri = win.__TAURI_INTERNALS__;
+        win.__TAURI_INTERNALS__ = {};
 
         const result = isNativeSkillAvailable();
         expect(result).toBe(true);
 
         if (originalTauri === undefined) {
-          delete win.__TAURI__;
+          delete win.__TAURI_INTERNALS__;
         } else {
-          win.__TAURI__ = originalTauri;
+          win.__TAURI_INTERNALS__ = originalTauri;
         }
       });
     });
@@ -445,8 +444,8 @@ describe('Native Skill Module', () => {
 
       it('should return fallback on error in Tauri environment', async () => {
         const win = window as unknown as Record<string, unknown>;
-        const originalTauri = win.__TAURI__;
-        win.__TAURI__ = {};
+        const originalTauri = win.__TAURI_INTERNALS__;
+        win.__TAURI_INTERNALS__ = {};
 
         const fallback: string[] = [];
         const operation = jest.fn().mockRejectedValue(new Error('Test error'));
@@ -457,16 +456,16 @@ describe('Native Skill Module', () => {
         expect(result).toEqual(fallback);
 
         if (originalTauri === undefined) {
-          delete win.__TAURI__;
+          delete win.__TAURI_INTERNALS__;
         } else {
-          win.__TAURI__ = originalTauri;
+          win.__TAURI_INTERNALS__ = originalTauri;
         }
       });
 
       it('should return result on success in Tauri environment', async () => {
         const win = window as unknown as Record<string, unknown>;
-        const originalTauri = win.__TAURI__;
-        win.__TAURI__ = {};
+        const originalTauri = win.__TAURI_INTERNALS__;
+        win.__TAURI_INTERNALS__ = {};
 
         const expected = { test: 'result' };
         const operation = jest.fn().mockResolvedValue(expected);
@@ -477,9 +476,9 @@ describe('Native Skill Module', () => {
         expect(result).toEqual(expected);
 
         if (originalTauri === undefined) {
-          delete win.__TAURI__;
+          delete win.__TAURI_INTERNALS__;
         } else {
-          win.__TAURI__ = originalTauri;
+          win.__TAURI_INTERNALS__ = originalTauri;
         }
       });
     });

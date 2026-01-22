@@ -27,13 +27,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { StudioMode } from './types';
+import type { StudioMode } from '@/types/video-studio/types';
 
 interface MonitorInfo {
   index: number;
@@ -65,7 +61,7 @@ export interface VideoStudioHeaderProps {
   formatRecordingDuration?: (ms: number) => string;
   // Translations
   t: (key: string) => string;
-  tEditor: (key: string) => string;
+  tEditor: (key: string, values?: Record<string, any>) => string;
   tGen: (key: string) => string;
 }
 
@@ -104,12 +100,12 @@ export function VideoStudioHeader({
           </Button>
         </Link>
         <div className="flex items-center gap-2">
-          <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-md bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+          <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-md bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center">
             <Film className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
           </div>
           <h1 className="font-semibold text-sm sm:text-base">{t('title') || 'Video Studio'}</h1>
         </div>
-        
+
         {/* Mode Selector */}
         <div className="hidden sm:flex items-center gap-1 ml-4 bg-muted rounded-lg p-1">
           <Button
@@ -140,8 +136,8 @@ export function VideoStudioHeader({
         <div className="flex items-center gap-2">
           {/* Monitor Selection */}
           {!isRecording && monitors.length > 1 && onSelectMonitor && (
-            <Select 
-              value={selectedMonitor?.toString() ?? '0'} 
+            <Select
+              value={selectedMonitor?.toString() ?? '0'}
               onValueChange={(v) => onSelectMonitor(parseInt(v))}
             >
               <SelectTrigger className="w-32 h-8 text-xs">
@@ -151,8 +147,10 @@ export function VideoStudioHeader({
               <SelectContent>
                 {monitors.map((monitor) => (
                   <SelectItem key={monitor.index} value={monitor.index.toString()}>
-                    {monitor.name || `Monitor ${monitor.index + 1}`}
-                    {monitor.is_primary && ' ★'}
+                    {monitor.is_primary
+                      ? tEditor('primaryMonitor') || 'Primary Monitor'
+                      : tEditor('monitor', { index: monitor.index + 1 }) ||
+                        `Monitor ${monitor.index + 1}`}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -162,7 +160,7 @@ export function VideoStudioHeader({
           {/* Recording Status */}
           {isRecording && formatRecordingDuration && (
             <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-md">
-              <Disc className={cn("h-3 w-3 text-red-500", !isPaused && "animate-pulse")} />
+              <Disc className={cn('h-3 w-3 text-red-500', !isPaused && 'animate-pulse')} />
               <span className="text-xs font-medium text-red-500">
                 {formatRecordingDuration(recordingDuration)}
               </span>
@@ -172,14 +170,18 @@ export function VideoStudioHeader({
           {isCountdown && (
             <div className="flex items-center gap-2 px-2 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
               <Clock className="h-3 w-3 text-yellow-500 animate-pulse" />
-              <span className="text-xs font-medium text-yellow-500">{tEditor('countdown') || 'Starting...'}</span>
+              <span className="text-xs font-medium text-yellow-500">
+                {tEditor('countdown') || 'Starting...'}
+              </span>
             </div>
           )}
 
           {isProcessing && (
             <div className="flex items-center gap-2 px-2 py-1 bg-blue-500/10 border border-blue-500/20 rounded-md">
               <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
-              <span className="text-xs font-medium text-blue-500">{tEditor('processing') || 'Processing'}</span>
+              <span className="text-xs font-medium text-blue-500">
+                {tEditor('processing') || 'Processing'}
+              </span>
             </div>
           )}
 
@@ -187,8 +189,8 @@ export function VideoStudioHeader({
           {!isRecording && !isCountdown && !isProcessing && onStartRecording && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button 
-                  variant="default" 
+                <Button
+                  variant="default"
                   size="sm"
                   className="bg-red-500 hover:bg-red-600 text-white"
                   onClick={onStartRecording}
@@ -197,7 +199,9 @@ export function VideoStudioHeader({
                   <span className="hidden sm:inline">{tEditor('startRecording') || 'Record'}</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{tEditor('startRecordingTooltip') || 'Start screen recording'}</TooltipContent>
+              <TooltipContent>
+                {tEditor('startRecordingTooltip') || 'Start screen recording'}
+              </TooltipContent>
             </Tooltip>
           )}
 
@@ -230,7 +234,7 @@ export function VideoStudioHeader({
           )}
         </div>
       )}
-      
+
       <div className="flex items-center gap-2">
         {studioMode === 'recording' && onRefreshHistory && (
           <Button variant="ghost" size="icon" onClick={onRefreshHistory}>
@@ -239,15 +243,17 @@ export function VideoStudioHeader({
         )}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onToggleSidebar}
-            >
-              {showSidebar ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+            <Button variant="ghost" size="icon" onClick={onToggleSidebar}>
+              {showSidebar ? (
+                <PanelLeftClose className="h-4 w-4" />
+              ) : (
+                <PanelLeft className="h-4 w-4" />
+              )}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{showSidebar ? t('hideSidebar') || 'Hide sidebar' : t('showSidebar') || 'Show sidebar'}</TooltipContent>
+          <TooltipContent>
+            {showSidebar ? t('hideSidebar') || 'Hide sidebar' : t('showSidebar') || 'Show sidebar'}
+          </TooltipContent>
         </Tooltip>
       </div>
     </header>

@@ -377,6 +377,30 @@ describe('useJupyterStore', () => {
       expect(result.current.getCells('session-1')[0].source).toBe('x = 2');
     });
 
+    it('updates cell outputs and execution state', () => {
+      const { result } = renderHook(() => useJupyterStore());
+      const cells = [
+        { id: 'c1', type: 'code', source: 'x = 1', executionCount: null, outputs: [], executionState: 'idle', metadata: {} },
+      ] as ExecutableCell[];
+
+      act(() => {
+        result.current.setCells('session-1', cells);
+      });
+
+      act(() => {
+        result.current.updateCell('session-1', 0, {
+          executionCount: 1,
+          executionState: 'success',
+          outputs: [{ outputType: 'stream', name: 'stdout', text: 'ok' }],
+        });
+      });
+
+      const updated = result.current.getCells('session-1')[0];
+      expect(updated.executionCount).toBe(1);
+      expect(updated.executionState).toBe('success');
+      expect(updated.outputs).toHaveLength(1);
+    });
+
     it('returns empty array for non-existent session', () => {
       const { result } = renderHook(() => useJupyterStore());
 

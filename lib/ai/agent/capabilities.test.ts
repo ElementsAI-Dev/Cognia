@@ -23,7 +23,6 @@ describe('Capabilities', () => {
     jest.clearAllMocks();
     // Reset window state
     if (typeof window !== 'undefined') {
-      delete (window as unknown as Record<string, unknown>).__TAURI__;
       delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
     }
   });
@@ -151,16 +150,11 @@ describe('Capabilities', () => {
   });
 
   describe('createCapabilityAwareTool', () => {
-    const mockTool: {
-      name: string;
-      description: string;
-      parameters: z.ZodType;
-      execute: jest.Mock<Promise<unknown>>;
-    } = {
+    const mockTool = {
       name: 'test_tool',
       description: 'Test tool',
-      parameters: {} as z.ZodType,
-      execute: jest.fn().mockResolvedValue({ success: true }),
+      parameters: z.object({}),
+      execute: async (_args: unknown) => ({ success: true }),
     };
 
     it('should return original tool when capability available', () => {
