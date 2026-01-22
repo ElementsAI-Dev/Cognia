@@ -33,8 +33,6 @@ import {
 import {
   Gauge,
   Play,
-  Rewind,
-  FastForward,
   RotateCcw,
   Layers,
   ArrowLeftRight,

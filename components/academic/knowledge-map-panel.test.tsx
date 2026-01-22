@@ -396,11 +396,11 @@ describe('KnowledgeMapPanel', () => {
         knowledgeMaps: [createMockKnowledgeMap('1')],
       });
 
-      const user = userEvent.setup();
+      const _user = userEvent.setup();
       render(<KnowledgeMapPanel />);
 
       // Open dropdown menu for the map
-      const moreButtons = screen.getAllByRole('button');
+      const _moreButtons = screen.getAllByRole('button');
       // Find the more options button in the card
       const mapCard = screen.getByText('Knowledge Map 1').closest('div');
       expect(mapCard).toBeTruthy();

@@ -61,7 +61,7 @@ export interface VideoStudioHeaderProps {
   formatRecordingDuration?: (ms: number) => string;
   // Translations
   t: (key: string) => string;
-  tEditor: (key: string, values?: Record<string, any>) => string;
+  tEditor: (key: string, values?: Record<string, unknown>) => string;
   tGen: (key: string) => string;
 }
 

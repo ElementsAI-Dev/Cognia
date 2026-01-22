@@ -128,7 +128,7 @@ jest.mock('@/components/ui/tooltip', () => ({
 }));
 
 jest.mock('@/hooks/sandbox', () => ({
-  useExecutionHistory: ({ filter }: any) => ({
+  useExecutionHistory: ({ filter: _filter }: any) => ({
     executions: [
       {
         id: '1',

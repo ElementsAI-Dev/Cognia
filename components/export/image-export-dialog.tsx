@@ -219,6 +219,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
                 {isGeneratingPreview ? (
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 ) : preview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={preview}
                     alt="Preview"

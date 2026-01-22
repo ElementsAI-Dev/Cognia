@@ -276,10 +276,12 @@ function FlowChatControlsComponent({
         </Tooltip>
         <DropdownMenuContent align="end" className="w-40">
           <DropdownMenuItem onClick={() => onExport('png')}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
             <Image className="h-4 w-4 mr-2" />
             PNG
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => onExport('svg')}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
             <Image className="h-4 w-4 mr-2" />
             SVG
           </DropdownMenuItem>

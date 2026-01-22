@@ -113,7 +113,7 @@ export function MediaLibraryPanel({
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<MediaType | 'all'>('all');
-  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size'>('date');
+  const [sortBy, _setSortBy] = useState<'name' | 'date' | 'size'>('date');
 
   const filteredAssets = useMemo(() => {
     let filtered = assets;

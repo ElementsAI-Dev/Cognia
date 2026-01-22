@@ -4,7 +4,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import _userEvent from '@testing-library/user-event';
 import { AgentModeSelector } from './agent-mode-selector';
 import { BUILT_IN_AGENT_MODES } from '@/types/agent/agent-mode';
 
@@ -107,7 +107,7 @@ jest.mock('@/components/ui/tooltip', () => ({
 }));
 
 jest.mock('@/components/ui/alert-dialog', () => ({
-  AlertDialog: ({ children, open, onOpenChange }: { children: React.ReactNode; open: boolean; onOpenChange?: (open: boolean) => void }) => (
+  AlertDialog: ({ children, open, onOpenChange: _onOpenChange }: { children: React.ReactNode; open: boolean; onOpenChange?: (open: boolean) => void }) => (
     open ? <div data-testid="alert-dialog">{children}</div> : null
   ),
   AlertDialogAction: ({ children, onClick, className }: { children: React.ReactNode; onClick?: () => void; className?: string }) => (
@@ -134,7 +134,7 @@ jest.mock('@/components/ui/alert-dialog', () => ({
 }));
 
 jest.mock('./custom-mode-editor', () => ({
-  CustomModeEditor: ({ open, onOpenChange, mode, onSave }: { open: boolean; onOpenChange: (open: boolean) => void; mode?: any; onSave: (mode: any) => void }) => (
+  CustomModeEditor: ({ open, onOpenChange, mode: _mode, onSave }: { open: boolean; onOpenChange: (open: boolean) => void; mode?: any; onSave: (mode: any) => void }) => (
     open ? (
       <div data-testid="custom-mode-editor">
         <button onClick={() => onOpenChange(false)}>Close</button>

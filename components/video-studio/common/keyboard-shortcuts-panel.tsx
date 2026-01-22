@@ -35,12 +35,8 @@ import {
   Scissors,
   Layers,
   ZoomIn,
-  Save,
   FolderOpen,
   Copy,
-  Trash2,
-  Undo,
-  Redo,
 } from 'lucide-react';
 
 export type ShortcutCategory = 

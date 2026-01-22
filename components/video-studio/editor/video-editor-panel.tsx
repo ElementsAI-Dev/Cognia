@@ -44,7 +44,6 @@ import {
   Settings,
   Keyboard,
   Layers,
-  History,
   Music,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -59,7 +58,7 @@ import { ZoomControls } from '../common/zoom-controls';
 import { ColorCorrectionPanel, DEFAULT_COLOR_CORRECTION_SETTINGS, type ColorCorrectionSettings } from '../effects/color-correction-panel';
 import { SpeedControls, DEFAULT_SPEED_SETTINGS, type SpeedSettings } from '../timeline/speed-controls';
 import { MarkersPanel, type Marker } from '../timeline/markers-panel';
-import { HistoryPanel, type HistoryEntry } from '../common/history-panel';
+import { type HistoryEntry } from '../common/history-panel';
 import { KeyboardShortcutsPanel, DEFAULT_SHORTCUTS, type KeyboardShortcut } from '../common/keyboard-shortcuts-panel';
 import { ProjectSettingsPanel, DEFAULT_PROJECT_SETTINGS, type ProjectSettings } from '../common/project-settings-panel';
 import { ExportDialog, type ExportSettings } from '../export/export-dialog';
@@ -103,7 +102,7 @@ export function VideoEditorPanel({
   const [colorSettings, setColorSettings] = useState<ColorCorrectionSettings>(DEFAULT_COLOR_CORRECTION_SETTINGS);
   const [speedSettings, setSpeedSettings] = useState<SpeedSettings>(DEFAULT_SPEED_SETTINGS);
   const [markers, setMarkers] = useState<Marker[]>([]);
-  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  const [historyEntries, _setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [shortcuts, setShortcuts] = useState<KeyboardShortcut[]>(DEFAULT_SHORTCUTS);
   const [projectSettings, setProjectSettings] = useState<ProjectSettings>(DEFAULT_PROJECT_SETTINGS);

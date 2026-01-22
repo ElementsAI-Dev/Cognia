@@ -137,7 +137,7 @@ export function LayerPanel({
   onLayerOpacityChange,
   onLayerBlendModeChange,
   onLayerRename,
-  onLayerReorder,
+  onLayerReorder: _onLayerReorder,
   onLayerDelete,
   onLayerDuplicate,
   onAddLayer,
@@ -223,7 +223,7 @@ export function LayerPanel({
               <p className="text-sm">No layers</p>
             </div>
           ) : (
-            layers.map((layer, index) => {
+            layers.map((layer, _index) => {
               const Icon = LAYER_TYPE_ICONS[layer.type];
               const isSelected = selectedLayerIds.includes(layer.id);
               const isExpanded = expandedLayerId === layer.id;

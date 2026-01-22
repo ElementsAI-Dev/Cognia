@@ -189,7 +189,7 @@ describe('MindMapCanvas', () => {
       await user.type(searchInput, 'test');
 
       // Clear button should appear
-      const clearButton = screen.getByRole('button', { name: '' });
+      const _clearButton = screen.getByRole('button', { name: '' });
       // Find the X button near the search
     });
   });
@@ -289,7 +289,7 @@ describe('MindMapCanvas', () => {
 
   describe('Node Detail Sheet', () => {
     it('should show node details when node is selected', async () => {
-      const user = userEvent.setup();
+      const _user = userEvent.setup();
       render(<MindMapCanvas {...defaultProps} />);
 
       // This would require simulating a node click at the correct position

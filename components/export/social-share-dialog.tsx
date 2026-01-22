@@ -248,6 +248,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
                 <div className="bg-background rounded-lg p-6 shadow-xl max-w-sm w-full mx-4">
                   <h3 className="text-lg font-semibold mb-4 text-center">{t('wechatScanToShare')}</h3>
                   <div className="flex justify-center mb-4">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={wechatQR} alt="WeChat QR Code" className="w-48 h-48" />
                   </div>
                   <p className="text-sm text-muted-foreground text-center mb-4">

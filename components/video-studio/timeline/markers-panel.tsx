@@ -49,7 +49,6 @@ import {
   BookOpen,
   Flag,
   Star,
-  AlertCircle,
   CheckCircle,
   Circle,
 } from 'lucide-react';
