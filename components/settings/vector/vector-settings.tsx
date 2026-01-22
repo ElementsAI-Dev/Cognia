@@ -6,7 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useVectorStore } from '@/stores';
@@ -18,13 +24,8 @@ import { VectorManager } from './vector-manager';
 export function VectorSettings() {
   const t = useTranslations('vectorSettings');
 
-  const {
-    settings,
-    updateSettings,
-  } = useVectorStore((state) => ({
-    settings: state.settings,
-    updateSettings: state.updateSettings,
-  }));
+  const settings = useVectorStore((state) => state.settings);
+  const updateSettings = useVectorStore((state) => state.updateSettings);
 
   const vectorProviders = useMemo(() => getSupportedVectorStoreProviders(), []);
   const [testResult, setTestResult] = useState<string | null>(null);
@@ -67,7 +68,9 @@ export function VectorSettings() {
               <Label className="text-sm">{t('provider')}</Label>
               <Select
                 value={settings.provider}
-                onValueChange={(value) => updateSettings({ provider: value as typeof settings.provider })}
+                onValueChange={(value) =>
+                  updateSettings({ provider: value as typeof settings.provider })
+                }
               >
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder={t('chooseProvider')} />
@@ -75,7 +78,11 @@ export function VectorSettings() {
                 <SelectContent>
                   {vectorProviders.map((p) => (
                     <SelectItem key={p} value={p}>
-                      {p === 'chroma' ? 'Chroma (embedded/server)' : p === 'native' ? 'Native (local Tauri)' : p}
+                      {p === 'chroma'
+                        ? 'Chroma (embedded/server)'
+                        : p === 'native'
+                          ? 'Native (local Tauri)'
+                          : p}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -97,9 +104,7 @@ export function VectorSettings() {
                   <SelectItem value="server">{t('server')}</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[10px] text-muted-foreground">
-                {t('nativeModeHint')}
-              </p>
+              <p className="text-[10px] text-muted-foreground">{t('nativeModeHint')}</p>
             </div>
           </div>
 
@@ -113,9 +118,7 @@ export function VectorSettings() {
                 disabled={settings.mode === 'embedded'}
                 className="h-9"
               />
-              <p className="text-[10px] text-muted-foreground">
-                {t('chromaServerHint')}
-              </p>
+              <p className="text-[10px] text-muted-foreground">{t('chromaServerHint')}</p>
             </div>
           )}
 
@@ -130,9 +133,7 @@ export function VectorSettings() {
                 onChange={(e) => updateSettings({ chunkSize: Number(e.target.value) || 0 })}
                 className="h-9"
               />
-              <p className="text-[10px] text-muted-foreground">
-                {t('chunkSizeHint')}
-              </p>
+              <p className="text-[10px] text-muted-foreground">{t('chunkSizeHint')}</p>
             </div>
             <div className="space-y-1.5">
               <Label className="text-sm">{t('chunkOverlap')}</Label>
@@ -143,9 +144,7 @@ export function VectorSettings() {
                 onChange={(e) => updateSettings({ chunkOverlap: Number(e.target.value) || 0 })}
                 className="h-9"
               />
-              <p className="text-[10px] text-muted-foreground">
-                {t('chunkOverlapHint')}
-              </p>
+              <p className="text-[10px] text-muted-foreground">{t('chunkOverlapHint')}</p>
             </div>
           </div>
 
@@ -171,7 +170,8 @@ export function VectorSettings() {
               className="h-9"
             />
             <p className="text-[10px] text-muted-foreground">
-              {t('defaultCollectionHint') || 'The default collection name used for RAG searches when not specified.'}
+              {t('defaultCollectionHint') ||
+                'The default collection name used for RAG searches when not specified.'}
             </p>
           </div>
 
@@ -186,9 +186,7 @@ export function VectorSettings() {
 
           {settings.provider === 'native' && (
             <Alert className={cn('border-primary/50 bg-primary/5 py-2')}>
-              <AlertDescription className="text-xs">
-                {t('nativeProviderHint')}
-              </AlertDescription>
+              <AlertDescription className="text-xs">{t('nativeProviderHint')}</AlertDescription>
             </Alert>
           )}
         </CardContent>
