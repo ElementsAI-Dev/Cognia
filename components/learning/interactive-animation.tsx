@@ -47,7 +47,7 @@ import type {
   AnimationStep,
   AnimationElement,
   AnimationSpeed,
-  PlaybackState,
+  AnimationPlaybackState,
   PlaybackControls,
   AnimationContextValue,
   InteractiveAnimationProps,
@@ -434,7 +434,7 @@ export const InteractiveAnimation = memo(function InteractiveAnimation({
   const prefersReducedMotion = useReducedMotion() ?? false;
 
   // Playback state
-  const [playbackState, setPlaybackState] = useState<PlaybackState>(autoPlay ? 'playing' : 'idle');
+  const [playbackState, setPlaybackState] = useState<AnimationPlaybackState>(autoPlay ? 'playing' : 'idle');
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [speed, setSpeed] = useState<AnimationSpeed>(initialSpeed);
   const [isLooping, setIsLooping] = useState(loop);

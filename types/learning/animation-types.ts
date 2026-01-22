@@ -17,7 +17,7 @@ export type AnimationSpeed = 0.5 | 0.75 | 1 | 1.5 | 2;
 /**
  * Animation playback state
  */
-export type PlaybackState = 'idle' | 'playing' | 'paused' | 'complete';
+export type AnimationPlaybackState = 'idle' | 'playing' | 'paused' | 'complete';
 
 /**
  * Element types for animation scenes
@@ -125,7 +125,7 @@ export interface AnimationScene {
  * Animation playback controls state
  */
 export interface PlaybackControls {
-  state: PlaybackState;
+  state: AnimationPlaybackState;
   currentStep: number;
   totalSteps: number;
   speed: AnimationSpeed;

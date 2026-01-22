@@ -7,9 +7,9 @@ import type { AgentTool, ToolCall } from '@/lib/ai/agent';
 import type { ProviderName } from '../provider/provider';
 
 /**
- * Common token usage statistics (shared across SubAgent types)
+ * SubAgent token usage statistics
  */
-export interface TokenUsage {
+export interface SubAgentTokenUsage {
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
@@ -146,7 +146,7 @@ export interface SubAgentStep {
   toolCalls: ToolCall[];
   timestamp: Date;
   duration?: number;
-  tokenUsage?: TokenUsage;
+  tokenUsage?: SubAgentTokenUsage;
 }
 
 /**
@@ -174,7 +174,7 @@ export interface SubAgentResult {
   /** Error message if failed */
   error?: string;
   /** Token usage statistics */
-  tokenUsage?: TokenUsage;
+  tokenUsage?: SubAgentTokenUsage;
 }
 
 /**
@@ -307,7 +307,7 @@ export interface SubAgentOrchestrationResult {
   /** Total execution duration */
   totalDuration: number;
   /** Total token usage */
-  totalTokenUsage?: TokenUsage;
+  totalTokenUsage?: SubAgentTokenUsage;
   /** Errors from failed sub-agents */
   errors?: Record<string, string>;
 }
@@ -415,7 +415,7 @@ export interface SubAgentMetrics {
 /**
  * Built-in SubAgent templates
  */
-export const BUILT_IN_TEMPLATES: SubAgentTemplate[] = [
+export const BUILT_IN_SUBAGENT_TEMPLATES: SubAgentTemplate[] = [
   {
     id: 'research-web',
     name: 'Web Research',

@@ -147,9 +147,9 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
 
     if (systemContext.app) {
       parts.push(`Current App: ${systemContext.app.app_name} (${systemContext.app.app_type})`);
-      if (systemContext.app.window_title) {
-        parts.push(`Window: ${systemContext.app.window_title}`);
-      }
+    }
+    if (systemContext.window?.title) {
+      parts.push(`Window: ${systemContext.window.title}`);
     }
 
     if (systemContext.file) {
@@ -172,11 +172,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     if (systemContext.editor) {
       parts.push(`Editor: ${systemContext.editor.editor_name}`);
       if (systemContext.editor.line_number) {
-        parts.push(`Cursor Position: Line ${systemContext.editor.line_number}`);
-      }
-      if (systemContext.editor.selected_text) {
-        const selectedPreview = systemContext.editor.selected_text.slice(0, 200);
-        parts.push(`Selected Text: ${selectedPreview}${systemContext.editor.selected_text.length > 200 ? '...' : ''}`);
+        parts.push(`Cursor Position: Line ${systemContext.editor.line_number}, Column ${systemContext.editor.column_number || 1}`);
       }
     }
 

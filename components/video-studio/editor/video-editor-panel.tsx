@@ -285,11 +285,15 @@ export function VideoEditorPanel({
 
   // Handle export
   const handleExport = useCallback(async (settings: ExportSettings) => {
+    // Map unsupported values to compatible ones
+    const exportFormat = settings.format === 'mov' ? 'mp4' : settings.format;
+    const exportResolution = settings.resolution === 'custom' ? '1080p' : settings.resolution;
+    const exportQuality = settings.quality === 'ultra' ? 'maximum' : settings.quality;
     const blob = await editor.exportVideo({
-      format: settings.format,
-      resolution: settings.resolution,
+      format: exportFormat,
+      resolution: exportResolution,
       fps: settings.fps,
-      quality: settings.quality,
+      quality: exportQuality,
     });
 
     if (blob && onExport) {
@@ -712,11 +716,15 @@ export function VideoEditorPanel({
                   onLayerOpacityChange={(id, opacity) => setLayers(prev => prev.map(l => l.id === id ? { ...l, opacity } : l))}
                   onLayerBlendModeChange={(id, mode) => setLayers(prev => prev.map(l => l.id === id ? { ...l, blendMode: mode } : l))}
                   onLayerRename={(id, name) => setLayers(prev => prev.map(l => l.id === id ? { ...l, name } : l))}
-                  onLayerReorder={(fromIdx, toIdx) => {
+                  onLayerReorder={(layerId, direction) => {
                     setLayers(prev => {
+                      const idx = prev.findIndex(l => l.id === layerId);
+                      if (idx === -1) return prev;
                       const newLayers = [...prev];
-                      const [removed] = newLayers.splice(fromIdx, 1);
-                      newLayers.splice(toIdx, 0, removed);
+                      const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+                      if (targetIdx < 0 || targetIdx >= newLayers.length) return prev;
+                      const [removed] = newLayers.splice(idx, 1);
+                      newLayers.splice(targetIdx, 0, removed);
                       return newLayers;
                     });
                   }}

@@ -4,6 +4,8 @@
  * MermaidBlock - Renders Mermaid diagrams in chat messages
  * Features:
  * - Fullscreen view dialog
+ * - Split-view mode (code + preview)
+ * - Standalone editor modal
  * - Copy source code
  * - Export as PNG/SVG
  * - Toggle source view
@@ -23,6 +25,8 @@ import {
   ImageIcon,
   FileCode,
   RefreshCw,
+  Pencil,
+  Columns,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -47,13 +51,26 @@ import { useCopy } from '@/hooks/ui';
 import { exportDiagram, generateDiagramFilename } from '@/lib/export/diagram-export';
 import { toast } from 'sonner';
 import { LoadingAnimation } from './loading-animation';
+import { MermaidEditorModal } from './mermaid-editor-modal';
+import { MermaidEditor } from './mermaid-editor';
+
+export type MermaidBlockViewMode = 'compact' | 'split';
 
 interface MermaidBlockProps {
   content: string;
   className?: string;
+  viewMode?: MermaidBlockViewMode;
+  onContentChange?: (newContent: string) => void;
+  editable?: boolean;
 }
 
-export function MermaidBlock({ content, className }: MermaidBlockProps) {
+export function MermaidBlock({ 
+  content, 
+  className,
+  viewMode: initialViewMode = 'compact',
+  onContentChange,
+  editable = true,
+}: MermaidBlockProps) {
   const t = useTranslations('renderer');
   const tToasts = useTranslations('toasts');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -64,6 +81,9 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSource, setShowSource] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [viewMode, setViewMode] = useState<MermaidBlockViewMode>(initialViewMode);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [localContent, setLocalContent] = useState(content);
   const { copy, isCopying } = useCopy({ toastMessage: tToasts('mermaidCopied') });
 
   const renderMermaid = useCallback(async () => {
@@ -137,6 +157,20 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
   const handleRetry = useCallback(() => {
     renderMermaid();
   }, [renderMermaid]);
+
+  const handleEditorSave = useCallback((newContent: string) => {
+    setLocalContent(newContent);
+    onContentChange?.(newContent);
+  }, [onContentChange]);
+
+  const toggleViewMode = useCallback(() => {
+    setViewMode((prev) => (prev === 'compact' ? 'split' : 'compact'));
+  }, []);
+
+  // Sync local content with prop
+  useEffect(() => {
+    setLocalContent(content);
+  }, [content]);
 
   if (isLoading) {
     return (
@@ -277,6 +311,38 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
+                onClick={toggleViewMode}
+                aria-label={viewMode === 'compact' ? t('splitView') : t('compactView')}
+              >
+                <Columns className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{viewMode === 'compact' ? t('splitView') : t('compactView')}</TooltipContent>
+          </Tooltip>
+
+          {editable && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setIsEditorOpen(true)}
+                  aria-label={t('editDiagram')}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('editDiagram')}</TooltipContent>
+            </Tooltip>
+          )}
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
                 onClick={() => setIsFullscreen(true)}
                 aria-label={t('viewFullscreen')}
               >
@@ -287,19 +353,34 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
           </Tooltip>
         </div>
 
-        {/* Source code view */}
-        {showSource && (
-          <pre className="m-2 p-3 rounded-lg bg-muted/50 border text-xs overflow-auto font-mono max-h-40">
-            <code>{content}</code>
-          </pre>
-        )}
+        {/* Split view mode */}
+        {viewMode === 'split' ? (
+          <MermaidEditor
+            initialCode={localContent}
+            onChange={handleEditorSave}
+            showToolbar={false}
+            showTemplates={false}
+            className="h-[400px] border-0 rounded-none"
+            minHeight="400px"
+            readOnly={!editable}
+          />
+        ) : (
+          <>
+            {/* Source code view */}
+            {showSource && (
+              <pre className="m-2 p-3 rounded-lg bg-muted/50 border text-xs overflow-auto font-mono max-h-40">
+                <code>{content}</code>
+              </pre>
+            )}
 
-        {/* Rendered diagram */}
-        <div
-          ref={containerRef}
-          className="flex items-center justify-center overflow-auto p-4 [&_svg]:max-w-full"
-          dangerouslySetInnerHTML={{ __html: svg }}
-        />
+            {/* Rendered diagram */}
+            <div
+              ref={containerRef}
+              className="flex items-center justify-center overflow-auto p-4 [&_svg]:max-w-full"
+              dangerouslySetInnerHTML={{ __html: svg }}
+            />
+          </>
+        )}
       </div>
 
       {/* Fullscreen dialog */}
@@ -364,6 +445,17 @@ export function MermaidBlock({ content, className }: MermaidBlockProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Editor Modal */}
+      {editable && (
+        <MermaidEditorModal
+          open={isEditorOpen}
+          onOpenChange={setIsEditorOpen}
+          initialCode={localContent}
+          onSave={handleEditorSave}
+          title={t('editMermaidDiagram')}
+        />
+      )}
     </>
   );
 }

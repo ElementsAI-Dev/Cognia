@@ -22,7 +22,10 @@ export { MathBlock } from './math-block';
 export { MathInline } from './math-inline';
 
 // Diagram rendering
-export { MermaidBlock } from './mermaid-block';
+export { MermaidBlock, type MermaidBlockViewMode } from './mermaid-block';
+export { MermaidEditor, type MermaidEditorProps, type MermaidEditorViewMode } from './mermaid-editor';
+export { MermaidEditorModal, type MermaidEditorModalProps } from './mermaid-editor-modal';
+export { MERMAID_TEMPLATES, TEMPLATE_CATEGORIES, getTemplatesByCategory, type MermaidTemplate } from './mermaid-templates';
 export { VegaLiteBlock } from './vegalite-block';
 
 // Table rendering

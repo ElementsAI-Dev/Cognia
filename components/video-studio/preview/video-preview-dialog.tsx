@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { VideoJob } from './types';
+import type { VideoJob } from '@/types/video-studio/types';
 
 export interface VideoPreviewDialogProps {
   video: VideoJob | null;

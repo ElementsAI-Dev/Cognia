@@ -7,7 +7,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 import {
   DEFAULT_SUB_AGENT_CONFIG,
-  BUILT_IN_TEMPLATES,
+  BUILT_IN_SUBAGENT_TEMPLATES,
   type SubAgent,
   type SubAgentConfig,
   type SubAgentStatus,
@@ -93,8 +93,8 @@ interface SubAgentState {
 }
 
 // Initialize built-in templates
-const builtInTemplatesMap = BUILT_IN_TEMPLATES.reduce(
-  (acc, template) => ({ ...acc, [template.id]: template }),
+const builtInTemplatesMap = BUILT_IN_SUBAGENT_TEMPLATES.reduce(
+  (acc: Record<string, SubAgentTemplate>, template: SubAgentTemplate) => ({ ...acc, [template.id]: template }),
   {} as Record<string, SubAgentTemplate>
 );
 

@@ -59,3 +59,8 @@ export {
   type UseClipboardMonitorOptions,
 } from './use-clipboard-monitor';
 export { useMediaQuery } from './use-media-query';
+export {
+  useMermaid,
+  type UseMermaidOptions,
+  type UseMermaidResult,
+} from './use-mermaid';

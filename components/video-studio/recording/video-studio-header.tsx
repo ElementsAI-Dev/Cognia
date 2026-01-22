@@ -61,7 +61,8 @@ export interface VideoStudioHeaderProps {
   formatRecordingDuration?: (ms: number) => string;
   // Translations
   t: (key: string) => string;
-  tEditor: (key: string, values?: Record<string, unknown>) => string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tEditor: (key: string, values?: any) => string;
   tGen: (key: string) => string;
 }
 

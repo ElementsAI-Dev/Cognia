@@ -24,7 +24,7 @@ import {
   type SubAgentOrchestrationResult,
   type CreateSubAgentInput,
   type CancellationToken,
-  type TokenUsage,
+  type SubAgentTokenUsage,
 } from '@/types/agent/sub-agent';
 
 /**
@@ -704,10 +704,10 @@ export { createCancellationToken };
  */
 export function aggregateTokenUsage(
   results: Record<string, SubAgentResult>
-): TokenUsage | undefined {
+): SubAgentTokenUsage | undefined {
   const usages = Object.values(results)
     .map(r => r.tokenUsage)
-    .filter((t): t is TokenUsage => t !== undefined);
+    .filter((t): t is SubAgentTokenUsage => t !== undefined);
 
   if (usages.length === 0) return undefined;
 
